@@ -1,0 +1,20 @@
+# 系统与编辑器
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# 依赖与构建产物
+node_modules/
+dist/
+.turbo/
+coverage/
+
+# 环境与密钥
+.env
+.env.*
+!.env.example
+
+# 日志与临时文件
+*.log
+.logs/
