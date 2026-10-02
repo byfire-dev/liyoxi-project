@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 积分明细</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+textarea::placeholder,input::placeholder{color:#6F665B}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;">
+<a href="Wallet.dc.html" aria-label="返回" style="position: absolute; left: 2px; top: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1D1A16;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></a>
+<h1 style="margin: 0; font-size: 17px; font-weight: 600;">积分明细</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 4px 16px 20px; display: flex; flex-direction: column; gap: 12px;">
+<section aria-label="积分余额" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;"><span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; color: #6F665B;">可用积分</span><span style="font-size: 28px; font-weight: 700; line-height: 1.1;">2,920</span></span><span style="flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 1px 8px 1px 6px; border-radius: 10px; background: #1D1A16; color: #F2B48F; line-height: 20px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 18h15"></path><path d="M4.5 18 3.5 8l5 4 3.5-6 3.5 6 5-4-1 10"></path></svg><span>专业版</span></span></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;"><span style="padding: 8px 10px; border-radius: 10px; background: #FBEDE5; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 12px; color: #A63F12;">套餐积分</span><span style="font-size: 16px; font-weight: 700;">1,920</span><span style="font-size: 12px; color: #A63F12;">10-12 24:00 清零</span></span><span style="padding: 8px 10px; border-radius: 10px; background: #F6F3EE; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 12px; color: #4A433B;">加购积分</span><span style="font-size: 16px; font-weight: 700;">1,000</span><span style="font-size: 12px; color: #6F665B;">长期有效</span></span></div>
+</section>
+<div role="tablist" aria-label="流水类型" style="flex-shrink: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;"><sc-for list="{{tabs}}" as="t" hint-placeholder-count="4"><button type="button" role="tab" aria-selected="{{t.on}}" onClick="{{t.pick}}" style="min-height: 36px; border-radius: 18px; border: 1px solid {{t.border}}; background: {{t.bg}}; font-family: inherit; font-size: 14px; color: {{t.fg}}; cursor: pointer;">{{t.label}}</button></sc-for></div>
+<section aria-label="积分流水" style="background: #FFFFFF; border-radius: 14px; padding: 4px 16px 8px; display: flex; flex-direction: column;"><sc-for list="{{groups}}" as="g" hint-placeholder-count="1"><div style="display: flex; flex-direction: column;"><span style="padding-top: 10px; font-size: 13px; font-weight: 600; color: #6F665B;">{{g.month}}</span><sc-for list="{{g.items}}" as="e" hint-placeholder-count="4"><div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #F0EBE3;"><span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;"><span style="font-size: 14px; font-weight: 600;">{{e.title}}</span><span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6F665B;"><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: {{e.bBg}}; color: {{e.bFg}}; white-space: nowrap;">{{e.bucket}}</span><span>{{e.time}}</span></span><span style="display: flex; flex-direction: column; font-size: 12px; line-height: 1.5; color: #6F665B;"><span>{{e.n1}}</span><sc-if value="{{e.has2}}" hint-placeholder-val="{{true}}"><span>{{e.n2}}</span></sc-if></span></span><span style="flex-shrink: 0; font-size: 17px; font-weight: 700; color: {{e.color}}; font-variant-numeric: tabular-nums;">{{e.amount}}</span></div></sc-for><sc-if value="{{g.empty}}" hint-placeholder-val="{{false}}"><span style="padding: 20px 0; text-align: center; font-size: 13px; color: #6F665B;">本月没有此类记录</span></sc-if></div></sc-for><sc-if value="{{canMore}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{more}}" style="margin-top: 4px; min-height: 40px; border: none; background: none; font-family: inherit; font-size: 13px; color: #A63F12; cursor: pointer;">查看 8 月记录</button></sc-if><sc-if value="{{noMore}}" hint-placeholder-val="{{false}}"><span style="padding: 12px 0 6px; text-align: center; font-size: 12px; color: #6F665B;">已显示全部记录（2026-08-13 首次开通套餐）</span></sc-if></section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const B = { plan: ['套餐积分', '#FBEDE5', '#A63F12'], buy: ['加购积分', '#F1ECE4', '#4A433B'] };
+    const SEP = [
+      { kind: 'use', title: '广告制作 · 4 条', time: '09-28 16:00', b: 'plan', amount: '−180', n1: '万达店 · GG20260928001～004', n2: '4 条 × 50 积分 × 9 折' },
+      { kind: 'use', title: '订购《巷口那家店》《二次开业》', time: '09-26 10:35', b: 'plan', amount: '−4,500', n1: '万达店 · 订单 LYX2026092600018', n2: '(3,000 ＋ 2,000) × 9 折' },
+      { kind: 'get', title: '加购积分', time: '09-20 16:12', b: 'buy', amount: '+1,000', n1: '付款单 FK2026092000015', n2: '微信支付 ¥1,000' },
+      { kind: 'get', title: '发放本期套餐积分', time: '09-13 00:00', b: 'plan', amount: '+6,600', n1: '专业版续费，本期 09-13 至 10-12', n2: '' },
+      { kind: 'exp', title: '上期套餐积分到期清零', time: '09-12 24:00', b: 'plan', amount: '−390', n1: '上期 08-13 至 09-12 未用完', n2: '' }
+    ];
+    const AUG = [
+      { kind: 'use', title: '广告制作 · 片头、片尾 2 条', time: '08-14 16:00', b: 'plan', amount: '−90', n1: '万达店 · GG20260814001、002', n2: '2 条 × 50 积分 × 9 折' },
+      { kind: 'use', title: '订购《家有萌娃》等 3 部', time: '08-14 10:25', b: 'plan', amount: '−6,120', n1: '万达店 · 订单 LYX2026081400006', n2: '(1,200 ＋ 3,000 ＋ 2,600) × 9 折' },
+      { kind: 'get', title: '开通专业版，发放本期套餐积分', time: '08-13 09:15', b: 'plan', amount: '+6,600', n1: '付款单 FK2026081300003', n2: '本期 08-13 至 09-12' }
+    ];
+    const tab = typeof st.tab === 'string' ? st.tab : 'all';
+    const showAug = !!st.aug;
+    const TABS = [['all', '全部'], ['get', '获得'], ['use', '使用'], ['exp', '过期']];
+    const tabs = TABS.map(([k, l]) => ({ label: l, on: k === tab, bg: k === tab ? '#FFF8F3' : '#FFFFFF', border: k === tab ? '#C4501B' : '#E7E1D8',
+      fg: k === tab ? '#A63F12' : '#1D1A16', pick: () => this.setState({ tab: k }) }));
+    const pick = (list) => list.filter((e) => tab === 'all' || e.kind === tab).map((e) => Object.assign({}, e, {
+      bucket: B[e.b][0], bBg: B[e.b][1], bFg: B[e.b][2], has2: e.n2 !== '',
+      color: e.kind === 'get' ? '#256A42' : (e.kind === 'exp' ? '#6F665B' : '#1D1A16')
+    }));
+    const groups = [{ month: '2026 年 9 月', items: pick(SEP) }];
+    if (showAug) groups.push({ month: '2026 年 8 月', items: pick(AUG) });
+    groups.forEach((g) => { g.empty = g.items.length === 0; });
+    return {
+      tabs: tabs, groups: groups, canMore: !showAug, noMore: showAug,
+      more: () => this.setState({ aug: true })
+    };
+  }
+}
+</script>
+</body>
+</html>

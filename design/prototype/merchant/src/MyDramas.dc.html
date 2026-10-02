@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 我的短剧</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+textarea::placeholder,input::placeholder{color:#6F665B}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;">
+<a href="Mine.dc.html" aria-label="返回" style="position: absolute; left: 2px; top: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1D1A16;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></a>
+<h1 style="margin: 0; font-size: 17px; font-weight: 600;">我的短剧</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<div role="tablist" aria-label="短剧状态" style="flex-shrink: 0; box-sizing: border-box; padding: 0 16px 10px; display: flex; gap: 8px;">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="4"><button type="button" role="tab" aria-selected="{{t.on}}" onClick="{{t.pick}}" style="min-height: 34px; box-sizing: border-box; padding: 0 14px; border-radius: 17px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.fg}}; font-family: inherit; font-size: 14px; cursor: pointer;">{{t.label}}</button></sc-for>
+</div>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 2px 16px 24px; display: flex; flex-direction: column; gap: 14px;">
+<sc-if value="{{showLive}}" hint-placeholder-val="{{true}}"><section aria-label="上线中" style="display: flex; flex-direction: column; gap: 10px;"><h2 style="margin: 0; font-size: 15px; font-weight: 600;">上线中 · 3 部</h2><section aria-label="《家有萌娃》" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; gap: 12px;"><div aria-hidden="true" style="flex-shrink: 0; position: relative; width: 56px; height: 76px; border-radius: 5px; background: #5B3F63;"><span style="position: absolute; right: 6px; top: 6px; writing-mode: vertical-rl; font-family: 'Noto Serif SC', serif; font-size: 11px; font-weight: 900; color: #FFFFFF;">家有萌娃</span></div><div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;"><div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;"><span style="font-size: 16px; font-weight: 600;">《家有萌娃》</span><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E6F2EA; color: #256A42; white-space: nowrap;">剩 273 天</span></div><span style="font-size: 12px; color: #6F665B;">家庭喜剧 · 整部 36 集 · 门店定制</span><span style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="flex-shrink: 0; width: 52px; color: #6F665B;">账号</span><span>抖音 @XX火锅</span></span><span style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="flex-shrink: 0; width: 52px; color: #6F665B;">使用期</span><span>2026-08-22 至 2027-06-30</span></span><span style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="flex-shrink: 0; width: 52px; color: #6F665B;">订单号</span><span>LYX2026081400006</span></span></div></div>
+<div style="display: flex; justify-content: flex-end; gap: 10px;"><a href="LaunchRecord.dc.html" style="flex-shrink: 0; min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; display: flex; align-items: center; font-size: 13px;">上线记录</a><a href="Orders.dc.html" style="flex-shrink: 0; min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; display: flex; align-items: center; font-size: 13px;">查看订单</a></div>
+</section><section aria-label="《夜巷疑云》" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; gap: 12px;"><div aria-hidden="true" style="flex-shrink: 0; position: relative; width: 56px; height: 76px; border-radius: 5px; background: #3D5A6B;"><span style="position: absolute; right: 6px; top: 6px; writing-mode: vertical-rl; font-family: 'Noto Serif SC', serif; font-size: 11px; font-weight: 900; color: #FFFFFF;">夜巷疑云</span></div><div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;"><div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;"><span style="font-size: 16px; font-weight: 600;">《夜巷疑云》</span><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E6F2EA; color: #256A42; white-space: nowrap;">剩 335 天</span></div><span style="font-size: 12px; color: #6F665B;">悬疑 · 整部 45 集 · 门店定制</span><span style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="flex-shrink: 0; width: 52px; color: #6F665B;">账号</span><span>抖音 @XX火锅</span></span><span style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="flex-shrink: 0; width: 52px; color: #6F665B;">使用期</span><span>2026-08-22 至 2027-08-31</span></span><span style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="flex-shrink: 0; width: 52px; color: #6F665B;">订单号</span><span>LYX2026081400006</span></span></div></div>
+<div style="display: flex; justify-content: flex-end; gap: 10px;"><a href="LaunchRecord.dc.html" style="flex-shrink: 0; min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; display: flex; align-items: center; font-size: 13px;">上线记录</a><a href="Orders.dc.html" style="flex-shrink: 0; min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; display: flex; align-items: center; font-size: 13px;">查看订单</a></div>
+</section><section aria-label="《锦绣小厨娘》" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; gap: 12px;"><div aria-hidden="true" style="flex-shrink: 0; position: relative; width: 56px; height: 76px; border-radius: 5px; background: #7A5A2E;"><span style="position: absolute; right: 6px; top: 6px; writing-mode: vertical-rl; font-family: 'Noto Serif SC', serif; font-size: 9.5px; font-weight: 900; color: #FFFFFF;">锦绣小厨娘</span></div><div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;"><div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;"><span style="font-size: 16px; font-weight: 600;">《锦绣小厨娘》</span><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E6F2EA; color: #256A42; white-space: nowrap;">剩 396 天</span></div><span style="font-size: 12px; color: #6F665B;">古装 · 整部 80 集 · 门店定制</span><span style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="flex-shrink: 0; width: 52px; color: #6F665B;">账号</span><span>抖音 @XX火锅</span></span><span style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="flex-shrink: 0; width: 52px; color: #6F665B;">使用期</span><span>2026-08-22 至 2027-10-31</span></span><span style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="flex-shrink: 0; width: 52px; color: #6F665B;">订单号</span><span>LYX2026081400006</span></span></div></div>
+<div style="display: flex; justify-content: flex-end; gap: 10px;"><a href="LaunchRecord.dc.html" style="flex-shrink: 0; min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; display: flex; align-items: center; font-size: 13px;">上线记录</a><a href="Orders.dc.html" style="flex-shrink: 0; min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; display: flex; align-items: center; font-size: 13px;">查看订单</a></div>
+</section></section></sc-if>
+<sc-if value="{{showWait}}" hint-placeholder-val="{{true}}"><section aria-label="待上线" style="display: flex; flex-direction: column; gap: 10px;"><h2 style="margin: 0; font-size: 15px; font-weight: 600;">待上线 · 2 部</h2><section aria-label="《巷口那家店》" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; gap: 12px;"><div aria-hidden="true" style="flex-shrink: 0; position: relative; width: 56px; height: 76px; border-radius: 5px; background: #2F4A3F;"><span style="position: absolute; right: 6px; top: 6px; writing-mode: vertical-rl; font-family: 'Noto Serif SC', serif; font-size: 9.5px; font-weight: 900; color: #FFFFFF;">巷口那家店</span></div><div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;"><div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;"><span style="font-size: 16px; font-weight: 600;">《巷口那家店》</span><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #FBEDE5; color: #A63F12; white-space: nowrap;">样片待确认</span></div><span style="font-size: 12px; color: #6F665B;">都市温情 · 整部 80 集 · 门店定制</span><span style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="flex-shrink: 0; width: 52px; color: #6F665B;">账号</span><span>抖音 @XX火锅</span></span><span style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="flex-shrink: 0; width: 52px; color: #6F665B;">上线日</span><span>约定 2026-10-12（周一）</span></span><span style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="flex-shrink: 0; width: 52px; color: #6F665B;">使用期</span><span>上线首日至 2027-12-31</span></span></div></div>
+<div style="display: flex; justify-content: flex-end; gap: 10px;"><a href="OrderDetail.dc.html" style="flex-shrink: 0; min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; display: flex; align-items: center; font-size: 13px;">订单详情</a><a href="Sample.dc.html" style="flex-shrink: 0; min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; display: flex; align-items: center; font-size: 13px; border-color: #C4501B; color: #A63F12; font-weight: 600;">去确认样片</a></div>
+</section><section aria-label="《二次开业》" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; gap: 12px;"><div aria-hidden="true" style="flex-shrink: 0; position: relative; width: 56px; height: 76px; border-radius: 5px; background: #6B2D2A;"><span style="position: absolute; right: 6px; top: 6px; writing-mode: vertical-rl; font-family: 'Noto Serif SC', serif; font-size: 11px; font-weight: 900; color: #FFFFFF;">二次开业</span></div><div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;"><div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;"><span style="font-size: 16px; font-weight: 600;">《二次开业》</span><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E8EEF9; color: #2E5AAC; white-space: nowrap;">样片制作中</span></div><span style="font-size: 12px; color: #6F665B;">逆袭 · 整部 60 集 · 门店定制</span><span style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="flex-shrink: 0; width: 52px; color: #6F665B;">账号</span><span>抖音 @XX火锅</span></span><span style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="flex-shrink: 0; width: 52px; color: #6F665B;">上线日</span><span>约定 2026-10-12（周一）</span></span><span style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="flex-shrink: 0; width: 52px; color: #6F665B;">使用期</span><span>上线首日至 2027-09-30</span></span></div></div>
+<div style="display: flex; justify-content: flex-end; gap: 10px;"><a href="OrderDetail.dc.html" style="flex-shrink: 0; min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; display: flex; align-items: center; font-size: 13px;">订单详情</a></div>
+</section></section></sc-if>
+<sc-if value="{{showEnd}}" hint-placeholder-val="{{false}}"><div style="padding: 72px 24px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;"><span style="font-size: 15px; font-weight: 600;">暂无已结束的短剧</span><span style="font-size: 13px; line-height: 1.5; color: #6F665B;"><span style="display: block;">成片使用期结束并完成下架后，</span><span style="display: block;">短剧会显示在这里</span></span></div></sc-if>
+<sc-if value="{{showTip}}" hint-placeholder-val="{{true}}"><p style="margin: 0; padding: 0 4px; font-size: 12px; line-height: 1.6; color: #6F665B;"><span style="display: block;">成片可使用至剧目授权期结束，结束前 30 天、7 天、1 天</span><span style="display: block;">提醒您下架；套餐到期不影响已上线的短剧。</span></p></sc-if>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const tab = st.tab || '全部';
+    const labels = ['全部', '上线中', '待上线', '已结束'];
+    return {
+      tabs: labels.map((l) => ({ label: l, on: l === tab, pick: () => this.setState({ tab: l }),
+        bg: l === tab ? '#1D1A16' : '#FFFFFF', fg: l === tab ? '#FFFFFF' : '#1D1A16', border: l === tab ? '#1D1A16' : '#E7E1D8' })),
+      showLive: tab === '全部' || tab === '上线中',
+      showWait: tab === '全部' || tab === '待上线',
+      showEnd: tab === '已结束',
+      showTip: tab !== '已结束'
+    };
+  }
+}
+</script>
+</body>
+</html>

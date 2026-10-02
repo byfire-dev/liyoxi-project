@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏运营后台 · 套餐到期</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; overflow: hidden; position: relative; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; font-size: 14px;">
+<nav aria-label="主菜单" style="width: 216px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; background: #231F1B; color: #D9D1C5;">
+<div style="height: 64px; flex-shrink: 0; box-sizing: border-box; padding: 0 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #3A332C;">
+<svg width="30" height="30" viewBox="0 0 64 64" fill="none" stroke="#E8864F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12 22 25h20l12-13-2 22-20 19-20-19z"></path><path d="m21 34 5 2.5M43 34l-5 2.5"></path><circle cx="32" cy="44" r="1.8" fill="#E8864F" stroke="none"></circle></svg>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-family: 'Noto Serif SC', serif; font-size: 19px; font-weight: 900; letter-spacing: 3px; line-height: 1.1; color: #FFFFFF;">狸有戏</span><span style="font-size: 12px; line-height: 1.2; color: #9A9084;">运营管理后台</span></div>
+</div>
+<div style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px;">
+<a href="Main.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>工作台</a>
+<a href="Dramas.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="m10.5 9.5 4 2.5-4 2.5z"></path></svg>短剧库</a>
+<a href="Plans.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5 15.5 12 12 16.5 8.5 12z"></path></svg><span style="flex-grow: 1;">套餐与积分</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Merchants.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5 5.5 4.5h13L20 9.5"></path><path d="M4 9.5c0 1.5 1.2 2.5 2.7 2.5s2.6-1 2.6-2.5c0 1.5 1.2 2.5 2.7 2.5s2.7-1 2.7-2.5c0 1.5 1.1 2.5 2.6 2.5S20 11 20 9.5"></path><path d="M5.5 12v7.5h13V12"></path><path d="M10 19.5V15h4v4.5"></path></svg><span style="flex-grow: 1;">商家</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">4</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<div style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #FFFFFF;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8.5l4 4v13H6z"></path><path d="M14 3.5V8h4.5M9 12.5h6M9 16.5h4"></path></svg><span style="flex-grow: 1;">订单</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div>
+<a href="Orders.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">订购单</a>
+<a href="Orders.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">付款单</a>
+<a href="Receipts.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">对公收款确认<span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">3</span></a>
+<a href="Renewals.dc.html" aria-current="page" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #C4501B; color: #FFFFFF; font-size: 13px; font-weight: 600;">套餐到期<sc-if value="{{hasSoon}}" hint-placeholder-val="{{true}}"><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #FFFFFF; color: #A63F12; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">{{soonCount}}</span></sc-if></a>
+<a href="Tickets.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"></path><path d="m4 7.5 8 4.5 8-4.5M12 12v9"></path></svg><span style="flex-grow: 1;">交付</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">7</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Delivery.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15.5V4"></path><path d="m7.5 8.5 4.5-4.5 4.5 4.5"></path><path d="M5 14v5.5h14V14"></path></svg><span style="flex-grow: 1;">发布</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">10</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Service.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2"></path><rect x="3.5" y="13.5" width="4" height="6" rx="1.5"></rect><rect x="16.5" y="13.5" width="4" height="6" rx="1.5"></rect></svg><span style="flex-grow: 1;">客服</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">6</span></a>
+<a href="Payments.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m9 7.5 3 4 3-4M12 11.5V17M9.5 12.5h5M9.5 15h5"></path></svg><span style="flex-grow: 1;">财务</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">8</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="RptOverview.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7.5 16.5v-5M12 16.5v-9M16.5 16.5v-7"></path></svg><span style="flex-grow: 1;">报表</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="OpsHome.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3.5l7 4V6l-7 4z"></path><path d="M17.5 9.5a3.5 3.5 0 0 1 0 5"></path></svg><span style="flex-grow: 1;">运营</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="SysStaff.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5h9M17.5 6.5h2M4.5 12h3M11.5 12h8M4.5 17.5h7M15.5 17.5h4"></path><circle cx="15.5" cy="6.5" r="2"></circle><circle cx="9.5" cy="12" r="2"></circle><circle cx="13.5" cy="17.5" r="2"></circle></svg><span style="flex-grow: 1;">系统</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Partners.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"></circle><path d="M3.5 19a5.5 5.5 0 0 1 11 0"></path><circle cx="17" cy="9.5" r="2.5"></circle><path d="M16 14.3a4.5 4.5 0 0 1 4.5 4.7"></path></svg><span style="flex-grow: 1;">渠道</span><span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #5A5047; border-radius: 4px; font-size: 11px; line-height: 16px; color: #9A9084;">V1.1</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+</div>
+</nav>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<header style="height: 56px; flex-shrink: 0; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 16px; background: #FFFFFF; border-bottom: 1px solid #ECE6DD;">
+<nav aria-label="面包屑" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6F665B;"><span>订单</span><span aria-hidden="true">/</span><span style="color: #1D1A16; font-weight: 600;">套餐到期</span></nav>
+<label style="margin-left: auto; width: 300px; height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FAF8F4; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="全局搜索" placeholder="搜索商家、订单号、工单号" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<button type="button" aria-label="消息通知，5 条未读" style="position: relative; width: 40px; height: 40px; flex-shrink: 0; border: none; border-radius: 8px; background: transparent; color: #1D1A16; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg><span aria-hidden="true" style="position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; box-sizing: content-box; border: 2px solid #FFFFFF; border-radius: 6px; background: #C4501B;"></span></button>
+<div style="display: flex; align-items: center; gap: 10px; padding-left: 16px; border-left: 1px solid #ECE6DD;"><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 16px; background: #FBEDE5; color: #A63F12; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">周</span><div style="display: flex; flex-direction: column;"><span style="font-size: 14px; font-weight: 600; line-height: 1.3;">周航</span><span style="font-size: 12px; line-height: 1.3; color: #6F665B;">超级管理员</span></div></div>
+</header>
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<div role="status" style="position: absolute; top: 68px; right: 24px; z-index: 5; max-width: 540px; box-sizing: border-box; padding: 10px 8px 10px 14px; border-radius: 10px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: 0 8px 24px rgba(29, 26, 22, 0.18);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7FD19B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg><span style="flex-grow: 1;">{{toast}}</span><button type="button" aria-label="关闭提示" onClick="{{closeToast}}" style="width: 28px; height: 28px; flex-shrink: 0; border: none; border-radius: 6px; background: transparent; color: #FFFFFF; font-size: 16px; cursor: pointer;">×</button></div>
+</sc-if>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;">
+<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;"><h1 style="margin: 0; font-family: 'Noto Serif SC', serif; font-size: 24px; font-weight: 700; line-height: 1.3;">套餐到期</h1><p style="margin: 0; font-size: 13px; color: #6F665B;">套餐到期前 7 天进入续费跟进，系统在到期前 7 天、3 天、1 天及到期当天提醒；过期后套餐积分清零、加购积分冻结，续费后恢复</p></div>
+<dl style="flex-shrink: 0; margin: 0; display: flex; gap: 28px;"><div style="display: flex; flex-direction: column; gap: 2px;"><dt style="font-size: 12px; color: #6F665B;">7 天内到期</dt><dd style="margin: 0; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; color: #A63F12;">{{soonCount}}<span style="margin-left: 6px; font-size: 12px; font-weight: 400; color: #6F665B;">家</span></dd></div><div style="display: flex; flex-direction: column; gap: 2px;"><dt style="font-size: 12px; color: #6F665B;">已过期未续费</dt><dd style="margin: 0; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;">6<span style="margin-left: 6px; font-size: 12px; font-weight: 400; color: #6F665B;">家</span></dd></div><div style="display: flex; flex-direction: column; gap: 2px;"><dt style="font-size: 12px; color: #6F665B;">9 月续费率</dt><dd style="margin: 0; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;">83.1%<span style="margin-left: 6px; font-size: 12px; font-weight: 400; color: #6F665B;">到期 142 家 · 续费 118 家</span></dd></div></dl>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start;">
+<section aria-label="套餐到期" style="border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; overflow: hidden;">
+<div role="tablist" aria-label="到期状态" style="display: flex; gap: 2px; box-sizing: border-box; padding: 0 12px; border-bottom: 1px solid #ECE6DD;">
+<sc-for list="{{views}}" as="t" hint-placeholder-count="3">
+<button type="button" role="tab" aria-selected="{{t.on}}" onClick="{{t.pick}}" style="flex-shrink: 0; min-height: 46px; padding: 0 10px; border: none; border-bottom: 2px solid {{t.line}}; background: none; font-family: inherit; font-size: 14px; font-weight: {{t.weight}}; color: {{t.color}}; cursor: pointer; display: flex; align-items: center; gap: 6px;"><span>{{t.label}}</span><span style="min-width: 20px; box-sizing: border-box; padding: 1px 6px; border-radius: 10px; background: {{t.cbg}}; color: {{t.cfg}}; font-size: 12px; font-weight: 600; line-height: 16px; text-align: center;">{{t.count}}</span></button>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; box-sizing: border-box; padding: 10px 16px; border-bottom: 1px solid #ECE6DD;">
+<label style="width: 200px; height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="搜索商家" placeholder="商家或主体" value="{{q}}" onChange="{{onQ}}" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<select aria-label="交付经理" value="{{mgr}}" onChange="{{onMgr}}" style="height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="全部">全部交付经理</option><option value="林晓">林晓</option><option value="苏晴">苏晴</option><option value="韩冬">韩冬</option></select>
+<select aria-label="套餐版本" value="{{ver}}" onChange="{{onVer}}" style="height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="全部">全部版本</option><option value="基础版">基础版</option><option value="专业版">专业版</option><option value="旗舰版">旗舰版</option></select>
+<span style="margin-left: auto; display: flex; align-items: center; gap: 10px;"><span style="font-size: 12px; color: #6F665B;">{{sortNote}}</span></span>
+</div>
+<div role="table" aria-label="套餐到期" style="display: flex; flex-direction: column;">
+<div role="row" style="display: grid; grid-template-columns: 156px minmax(0, 1fr) 100px 112px 84px 52px; column-gap: 12px; align-items: center; min-height: 40px; box-sizing: border-box; padding: 0 16px; background: #FAF8F4; border-bottom: 1px solid #ECE6DD; font-size: 12px; font-weight: 600; color: #6F665B;"><span role="columnheader">商家与主体</span><span role="columnheader">套餐与本期</span><span role="columnheader">{{h3}}</span><span role="columnheader">{{h4}}</span><span role="columnheader">{{h5}}</span><span role="columnheader">经理</span></div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+<button type="button" role="row" aria-pressed="{{r.on}}" onClick="{{r.pick}}" style="width: 100%; display: grid; grid-template-columns: 156px minmax(0, 1fr) 100px 112px 84px 52px; column-gap: 12px; align-items: center; min-height: 60px; box-sizing: border-box; padding: 8px 16px; border: none; border-bottom: 1px solid #F0EBE3; box-shadow: {{r.ring}}; background: {{r.bg}}; font-family: inherit; font-size: 13px; color: #1D1A16; text-align: left; cursor: pointer;">
+<span role="cell" style="min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600;">{{r.m}}</span><span style="font-size: 12px; color: #6F665B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{r.entity}}</span></span>
+<span role="cell" style="min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span>{{r.plan}}</span><span style="font-size: 12px; color: #6F665B; font-variant-numeric: tabular-nums;">{{r.period}}</span></span>
+<span role="cell" style="display: flex; flex-direction: column; gap: 2px;"><span style="font-variant-numeric: tabular-nums;">{{r.c3a}}</span><span style="font-size: 12px; font-weight: 600; color: {{r.c3color}};">{{r.c3b}}</span></span>
+<span role="cell" style="display: flex; align-items: center; gap: 4px;"><sc-if value="{{r.showRemind}}" hint-placeholder-val="{{true}}"><sc-for list="{{r.reminds}}" as="m" hint-placeholder-count="3"><span title="{{m.title}}" style="height: 22px; box-sizing: border-box; padding: 0 6px; border-radius: 6px; background: {{m.bg}}; color: {{m.fg}}; font-size: 12px; display: inline-flex; align-items: center; white-space: nowrap;">{{m.label}}</span></sc-for></sc-if><sc-if value="{{r.showC4}}" hint-placeholder-val="{{false}}"><span style="display: flex; flex-direction: column; gap: 2px;"><span>{{r.c4a}}</span><span style="font-size: 12px; color: #6F665B;">{{r.c4b}}</span></span></sc-if></span>
+<span role="cell"><span style="display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; background: {{r.tagBg}}; color: {{r.tagFg}}; font-size: 12px; font-weight: 600; white-space: nowrap;">{{r.tag}}</span></span>
+<span role="cell" style="color: #4A433B;">{{r.mgr}}</span>
+</button>
+</sc-for>
+<sc-if value="{{listEmpty}}" hint-placeholder-val="{{false}}">
+<div style="padding: 56px 24px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;"><span style="font-size: 15px; font-weight: 600;">没有符合条件的商家</span><span style="font-size: 13px; color: #6F665B;">可调整筛选条件后再试</span></div>
+</sc-if>
+</div>
+<p style="margin: 0; box-sizing: border-box; padding: 12px 16px; font-size: 12px; line-height: 1.7; color: #6F665B;">{{footNote}}</p>
+</section>
+<section aria-labelledby="rn-title" style="box-sizing: border-box; padding: 18px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;"><h2 id="rn-title" style="margin: 0; font-size: 17px; font-weight: 600;">{{cur.m}}</h2><p style="margin: 0; font-size: 12px; color: #6F665B;">{{cur.sub}}</p></div>
+<span style="flex-shrink: 0; padding: 3px 10px; border-radius: 12px; background: {{cur.stBg}}; color: {{cur.stFg}}; font-size: 12px; font-weight: 600; white-space: nowrap;">{{cur.stLabel}}</span>
+</div>
+<dl style="margin: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); row-gap: 6px; column-gap: 10px; font-size: 13px;">
+<dt style="color: #6F665B;">当前套餐</dt><dd style="margin: 0;">{{cur.plan}}</dd>
+<dt style="color: #6F665B;">本期</dt><dd style="margin: 0; font-variant-numeric: tabular-nums;">{{cur.periodFull}}</dd>
+<dt style="color: #6F665B;">积分</dt><dd style="margin: 0;">{{cur.ptsText}}</dd>
+<dt style="color: #6F665B;">短剧</dt><dd style="margin: 0;">{{cur.dramas}}</dd>
+</dl>
+<sc-if value="{{cur.hasNotice}}" hint-placeholder-val="{{false}}"><p style="margin: 0; padding: 10px 12px; border-radius: 8px; background: {{cur.noticeBg}}; color: {{cur.noticeFg}}; font-size: 12px; line-height: 1.6; white-space: pre-line;">{{cur.notice}}</p></sc-if>
+<sc-if value="{{cur.canRenew}}" hint-placeholder-val="{{true}}">
+<div style="box-sizing: border-box; padding: 12px 16px; border: 1px solid #F0EBE3; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;"><h3 style="margin: 0; font-size: 14px; font-weight: 600;">续费试算</h3><select aria-label="续费版本" value="{{rv}}" onChange="{{onRv}}" style="height: 30px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="基础版">基础版 ¥3,000 / 月</option><option value="专业版">专业版 ¥6,000 / 月</option><option value="旗舰版">旗舰版 ¥12,000 / 月</option></select></div>
+<div role="radiogroup" aria-label="续费周期" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;">
+<sc-for list="{{months}}" as="p" hint-placeholder-count="3"><button type="button" role="radio" aria-checked="{{p.on}}" onClick="{{p.pick}}" style="min-height: 34px; border: 1px solid {{p.border}}; border-radius: 8px; background: {{p.bg}}; color: #1D1A16; font-family: inherit; font-size: 13px; font-weight: {{p.weight}}; cursor: pointer;">{{p.label}}</button></sc-for>
+</div>
+<dl style="margin: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); row-gap: 6px; column-gap: 10px; font-size: 13px;">
+<dt style="color: #6F665B;">计算</dt><dd style="margin: 0; font-variant-numeric: tabular-nums;">{{calcText}}</dd>
+<dt style="color: #6F665B;">新周期</dt><dd style="margin: 0; font-variant-numeric: tabular-nums;">{{newPeriod}}</dd>
+<dt style="color: #6F665B;">积分</dt><dd style="margin: 0;">{{calcPts}}</dd>
+<dt style="color: #6F665B; align-self: center;">应付金额</dt><dd style="margin: 0; font-size: 16px; font-weight: 700; color: #A63F12; font-variant-numeric: tabular-nums;">¥{{calcAmount}}</dd>
+</dl>
+<p style="margin: 0; font-size: 12px; line-height: 1.6; color: #6F665B;">{{calcNote}}</p>
+</div>
+</sc-if>
+<sc-if value="{{cur.hasInfo}}" hint-placeholder-val="{{false}}">
+<div style="box-sizing: border-box; padding: 14px 16px; border: 1px solid #F0EBE3; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;">
+<h3 style="margin: 0; font-size: 14px; font-weight: 600;">{{cur.infoTitle}}</h3>
+<dl style="margin: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); row-gap: 6px; column-gap: 10px; font-size: 13px;">
+<sc-for list="{{cur.infoRows}}" as="i" hint-placeholder-count="3"><dt style="color: #6F665B;">{{i.k}}</dt><dd style="margin: 0; font-variant-numeric: tabular-nums;">{{i.v}}</dd></sc-for>
+</dl>
+</div>
+</sc-if>
+<sc-if value="{{cur.showRemind}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 8px;"><h3 style="margin: 0; font-size: 14px; font-weight: 600;">续费与清零提醒</h3>
+<ol style="margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;">
+<sc-for list="{{cur.reminds}}" as="m" hint-placeholder-count="4"><li style="box-sizing: border-box; padding: 8px 10px; border-radius: 8px; background: {{m.cardBg}}; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 12px; font-weight: 600; color: {{m.fg}};">{{m.full}}</span><span style="font-size: 12px; color: #6F665B; font-variant-numeric: tabular-nums;">{{m.when}}</span></li></sc-for>
+</ol>
+<sc-if value="{{cur.hasManual}}" hint-placeholder-val="{{false}}"><p style="margin: 0; font-size: 12px; color: #6F665B;">{{cur.manualText}}</p></sc-if>
+</div>
+</sc-if>
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<div style="display: flex; align-items: center; justify-content: space-between;"><h3 style="margin: 0; font-size: 14px; font-weight: 600;">跟进记录</h3><sc-if value="{{cur.canFollow}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{openFollow}}" style="min-height: 28px; border-radius: 8px; border: none; background: none; padding: 0; color: #A63F12; font-family: inherit; font-size: 13px; cursor: pointer;">记录跟进</button></sc-if></div>
+<sc-if value="{{cur.hasFollow}}" hint-placeholder-val="{{true}}"><ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px;">
+<sc-for list="{{cur.follows}}" as="f" hint-placeholder-count="2"><li style="box-sizing: border-box; padding: 8px 10px; border-radius: 8px; background: #FAF8F4; display: flex; flex-direction: column; gap: 3px;"><span style="font-size: 12px; color: #6F665B; font-variant-numeric: tabular-nums;">{{f.meta}}</span><span style="font-size: 13px; line-height: 1.6; white-space: pre-line;">{{f.text}}</span></li></sc-for>
+</ol></sc-if>
+<sc-if value="{{cur.noFollow}}" hint-placeholder-val="{{false}}"><p style="margin: 0; padding: 10px; border-radius: 8px; background: #FAF8F4; font-size: 13px; color: #6F665B;">暂无跟进记录，请交付经理尽快联系商家</p></sc-if>
+</div>
+<sc-if value="{{cur.canAct}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; align-items: center; gap: 10px;"><button type="button" onClick="{{openExtend}}" style="min-height: 38px; padding: 0 14px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; cursor: pointer;">补偿延长</button><button type="button" onClick="{{sendRemind}}" disabled="{{remindDone}}" style="min-height: 38px; padding: 0 16px; border-radius: 8px; border: none; background: {{remindBg}}; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer; margin-left: auto;">{{remindLabel}}</button></div>
+</sc-if>
+</section>
+</div>
+</main>
+</div>
+<sc-if value="{{followOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10; background: rgba(29, 26, 22, 0.45); display: flex; align-items: center; justify-content: center;">
+<section role="dialog" aria-modal="true" aria-labelledby="fl-title" style="width: 480px; max-height: 820px; overflow-y: auto; box-sizing: border-box; padding: 24px; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 48px rgba(29, 26, 22, 0.24);">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><h2 id="fl-title" style="margin: 0; font-size: 18px; font-weight: 600;">记录跟进</h2><p style="margin: 0; font-size: 13px; line-height: 1.6; color: #6F665B;">{{cur.m}} · {{cur.planShort}} · {{cur.endShort}} 到期</p></div>
+<button type="button" aria-label="关闭" onClick="{{closeDlg}}" style="width: 32px; height: 32px; flex-shrink: 0; border: none; border-radius: 8px; background: #F6F3EE; color: #1D1A16; font-size: 18px; cursor: pointer;">×</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px;"><div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">跟进方式</span><div role="radiogroup" aria-label="跟进方式" style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{ways}}" as="p" hint-placeholder-count="3">
+<button type="button" role="radio" aria-checked="{{p.on}}" onClick="{{p.pick}}" style="min-height: 32px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{p.border}}; border-radius: 16px; background: {{p.bg}}; color: {{p.fg}}; font-family: inherit; font-size: 13px; cursor: pointer;">{{p.label}}</button>
+</sc-for>
+</div></div><div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">续费意向</span><div role="radiogroup" aria-label="续费意向" style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{intents}}" as="p" hint-placeholder-count="3">
+<button type="button" role="radio" aria-checked="{{p.on}}" onClick="{{p.pick}}" style="min-height: 32px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{p.border}}; border-radius: 16px; background: {{p.bg}}; color: {{p.fg}}; font-family: inherit; font-size: 13px; cursor: pointer;">{{p.label}}</button>
+</sc-for>
+</div></div><div style="display: flex; flex-direction: column; gap: 6px;"><label for="fl-note" style="font-size: 13px; font-weight: 600;">说明</label><textarea id="fl-note" rows="3" maxlength="200" placeholder="例如：商家确认续费 3 个月，今晚完成支付" value="{{fNote}}" onChange="{{onFNote}}" style="box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; line-height: 1.6; color: #1D1A16; resize: none;"></textarea></div><sc-if value="{{fHint}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 13px; color: #B42318;">请填写跟进说明</span></sc-if></div>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+<button type="button" onClick="{{closeDlg}}" style="min-height: 40px; padding: 0 18px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; cursor: pointer;">取消</button><button type="button" onClick="{{saveFollow}}" style="min-height: 40px; padding: 0 20px; border-radius: 8px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer;">保存</button>
+</div>
+</section>
+</div>
+</sc-if>
+<sc-if value="{{extendOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10; background: rgba(29, 26, 22, 0.45); display: flex; align-items: center; justify-content: center;">
+<section role="dialog" aria-modal="true" aria-labelledby="ex-title" style="width: 500px; max-height: 820px; overflow-y: auto; box-sizing: border-box; padding: 24px; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 48px rgba(29, 26, 22, 0.24);">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><h2 id="ex-title" style="margin: 0; font-size: 18px; font-weight: 600;">补偿延长套餐有效期</h2><p style="margin: 0; font-size: 13px; line-height: 1.6; color: #6F665B;">{{cur.m}} · {{cur.planShort}} · 本期 {{cur.periodFull}}</p></div>
+<button type="button" aria-label="关闭" onClick="{{closeDlg}}" style="width: 32px; height: 32px; flex-shrink: 0; border: none; border-radius: 8px; background: #F6F3EE; color: #1D1A16; font-size: 18px; cursor: pointer;">×</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px;"><div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">延长天数</span><div role="radiogroup" aria-label="延长天数" style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{extDays}}" as="p" hint-placeholder-count="4">
+<button type="button" role="radio" aria-checked="{{p.on}}" onClick="{{p.pick}}" style="min-height: 32px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{p.border}}; border-radius: 16px; background: {{p.bg}}; color: {{p.fg}}; font-family: inherit; font-size: 13px; cursor: pointer;">{{p.label}}</button>
+</sc-for>
+</div></div><div style="display: flex; flex-direction: column; gap: 6px;"><label for="ex-reason" style="font-size: 13px; font-weight: 600;">原因</label><select id="ex-reason" value="{{eReason}}" onChange="{{onEReason}}" style="height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="交付延误补偿">交付延误补偿</option><option value="平台故障影响使用">平台故障影响使用</option><option value="服务问题补偿">服务问题补偿</option><option value="其他">其他</option></select></div><div style="display: flex; flex-direction: column; gap: 6px;"><label for="ex-note" style="font-size: 13px; font-weight: 600;">说明</label><textarea id="ex-note" rows="3" maxlength="200" placeholder="请写明补偿依据，例如关联的客服工单或交付工单" value="{{eNote}}" onChange="{{onENote}}" style="box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; line-height: 1.6; color: #1D1A16; resize: none;"></textarea></div><dl style="margin: 0; padding: 10px 12px; border-radius: 8px; background: #FAF8F4; display: grid; grid-template-columns: 72px minmax(0, 1fr); row-gap: 6px; column-gap: 10px; font-size: 13px;"><dt style="color: #6F665B;">延长后</dt><dd style="margin: 0; font-variant-numeric: tabular-nums;">{{extPeriod}}</dd></dl><p style="margin: 0; font-size: 12px; line-height: 1.7; color: #6F665B;">提交后由主管审批；通过后本期顺延，套餐积分的清零时间同步顺延，并通知商家。</p><sc-if value="{{eHint}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 13px; color: #B42318;">请填写说明</span></sc-if></div>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+<button type="button" onClick="{{closeDlg}}" style="min-height: 40px; padding: 0 18px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; cursor: pointer;">取消</button><button type="button" onClick="{{submitExtend}}" style="min-height: 40px; padding: 0 20px; border-radius: 8px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer;">提交审批</button>
+</div>
+</section>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const money = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const num = (n) => n.toLocaleString('en-US');
+    const tab = (key, label, count, cur, pick) => ({
+      key: key, label: label, count: count, on: key === cur, pick: pick,
+      line: key === cur ? '#C4501B' : 'transparent', color: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400',
+      cbg: key === cur ? '#FBEDE5' : '#F3EFE9', cfg: key === cur ? '#A63F12' : '#6F665B'
+    });
+    const segOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, bg: key === cur ? '#FFFFFF' : 'transparent', fg: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400' });
+    const pillOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, border: key === cur ? '#1D1A16' : '#E7E1D8', bg: key === cur ? '#1D1A16' : '#FFFFFF', fg: key === cur ? '#FFFFFF' : '#1D1A16' });
+    const sw = (on) => ({ bg: on ? '#256A42' : '#CFC7BC', knob: on ? '18px' : '2px' });
+    const toastVals = { toast: st.toast || '', hasToast: !!st.toast, closeToast: () => this.setState({ toast: '' }) };
+
+    const today = '2026-09-30';
+    const now = '09-30 10:32';
+    const view = st.view || 'soon';
+    const q = st.q || '';
+    const mgr = st.mgr || '全部';
+    const ver = st.ver || '全部';
+    const pad2 = (n) => (n < 10 ? '0' : '') + n;
+    const fmtD = (d) => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    const addDays = (s, n) => { const d = new Date(s + 'T00:00:00'); d.setDate(d.getDate() + n); return fmtD(d); };
+    const endOf = (start, m) => { const d = new Date(start + 'T00:00:00'); const t = new Date(d.getFullYear(), d.getMonth() + m, d.getDate()); t.setDate(t.getDate() - 1); return fmtD(t); };
+    const short = (s) => s.slice(5);
+    const diff = (a, b) => Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000);
+    const fmt = (n) => Math.round(n).toLocaleString('en-US');
+    const FEE = { 基础版: 3000, 专业版: 6000, 旗舰版: 12000 };
+    const PTS = { 基础版: 3000, 专业版: 6600, 旗舰版: 14400 };
+    const F = (t, who, way, text) => ({ t: t, who: who, way: way, text: text });
+    const I = (m, entity, plan, pay, start, end, mgrName, state, intent, planPts, buyPts, dramas, follows, extra) => Object.assign({ m: m, entity: entity, plan: plan, pay: pay, start: start, end: end,
+      mgr: mgrName, state: state, intent: intent, planPts: planPts, buyPts: buyPts, dramas: dramas, follows: follows }, extra || {});
+    const base = [
+      I('晓风书店', '成都晓风书店', '基础版', '月付', '2026-09-02', '2026-10-01', '韩冬', 'soon', '考虑中', 820, 0, '上线中 2 部', [F('09-29 11:05', '韩冬', '电话', '商家想改为季付，比较后今晚回复；\n已说明到期后已上线的短剧不受影响。')]),
+      I('绿野轻食', '成都绿野餐饮管理有限公司', '专业版', '月付', '2026-09-03', '2026-10-02', '林晓', 'soon', '已确认续费', 2160, 0, '待上线 1 部（10-02 上线）', [F('09-30 09:20', '林晓', '企业微信', '商家确认续费 1 个月，今天内完成支付。')]),
+      I('快乐跆拳道', '成都快乐跆拳道馆', '基础版', '季付', '2026-07-04', '2026-10-03', '苏晴', 'soon', '待跟进', 1600, 0, '待上线 1 部（10-03 上线）', []),
+      I('悦动羽毛球馆', '成都悦动体育文化有限公司', '专业版', '月付', '2026-09-05', '2026-10-04', '苏晴', 'soon', '考虑中', 3420, 1000, '上线中 3 部', [F('09-28 16:40', '苏晴', '电话', '商家国庆客流高峰后再定，倾向降级为基础版。')]),
+      I('书香文具', '成都书香文化用品店', '基础版', '月付', '2026-09-06', '2026-10-05', '韩冬', 'soon', '已确认续费', 0, 0, '待上线 1 部（10-05 上线）', [F('09-29 15:30', '韩冬', '企业微信', '商家确认续费 3 个月，已发送付款链接。')]),
+      I('嘉禾眼镜', '成都嘉禾眼镜有限公司', '基础版', '月付', '2026-09-07', '2026-10-06', '林晓', 'soon', '待跟进', 1200, 0, '待上线 1 部（10-06 上线）', []),
+      I('暖暖母婴', '成都暖暖母婴用品店', '专业版', '季付', '2026-07-08', '2026-10-07', '韩冬', 'soon', '待跟进', 2880, 0, '成片交付中 1 部', []),
+      I('味道江湖串串', '成都味道江湖餐饮店', '专业版', '月付', '2026-09-08', '2026-10-07', '林晓', 'soon', '考虑中', 1140, 0, '成片交付中 1 部', [F('09-29 10:10', '林晓', '企业微信', '商家预算有限，考虑续 1 个月并加购积分。')]),
+      I('一品香卤味', '成华区一品香卤味店', '基础版', '月付', '2026-08-26', '2026-09-25', '苏晴', 'expired', '考虑中', 600, 3000, '上线中 2 部', [F('09-29 14:20', '苏晴', '电话', '商家国庆后再决定是否续费；\n已告知加购积分 3,000 续费后恢复。')]),
+      I('小川日料', '成都小川餐饮有限公司', '专业版', '月付', '2026-08-28', '2026-09-27', '林晓', 'expired', '暂不续费', 1320, 1000, '上线中 4 部', [F('09-28 11:00', '林晓', '电话', '门店装修至 11 月，本期不续费；\n已上线的短剧照常展示。')]),
+      I('山野露营', '成都山野户外用品店', '基础版', '月付', '2026-08-30', '2026-09-29', '韩冬', 'expired', '考虑中', 450, 0, '上线中 1 部', [F('09-29 10:30', '韩冬', '企业微信', '商家淡季预算紧张，考虑续 1 个月，明天答复。')]),
+      I('云顶健身', '成都云顶健身有限公司', '基础版', '月付', '2026-09-04', '2026-10-03', '苏晴', 'renewed', '已续费', 0, 0, '上线中 2 部', [F('09-29 21:40', '系统', '自动', '商家完成续费。')], { rNo: 'FK2026092900016', rMonths: 1, rAt: '09-29 21:40', rVer: '基础版' }),
+      I('老街烧烤', '武侯区老街烧烤店', '专业版', '月付', '2026-09-22', '2026-10-21', '林晓', 'renewed', '已续费', 0, 0, '制作中 1 部', [F('09-30 08:05', '系统', '自动', '商家提前完成续费。')], { rNo: 'FK2026093000001', rMonths: 1, rAt: '09-30 08:05', rVer: '专业版' }),
+      I('蜀香坊火锅', '成都蜀香坊餐饮有限公司', '旗舰版', '季付', '2026-07-10', '2026-10-09', '韩冬', 'renewed', '已续费', 0, 0, '上线中 5 部', [F('09-29 16:30', '方琳', '对公转账', '财务确认到账，续费 3 个月。')], { rNo: 'FK2026092700006', rMonths: 3, rAt: '09-29 16:30', rVer: '旗舰版' }),
+      I('阿婆糖水', '成都阿婆糖水铺', '基础版', '月付', '2026-09-12', '2026-10-11', '苏晴', 'renewed', '已续费', 0, 0, '上线中 3 部', [F('09-27 14:26', '系统', '自动', '商家提前续费 3 个月。')], { rNo: 'FK2026092700009', rMonths: 3, rAt: '09-27 14:26', rVer: '基础版' }),
+      I('XX 火锅（万达店）', 'XX 餐饮管理有限公司', '专业版', '月付', '2026-08-13', '2026-09-12', '林晓', 'renewed', '已续费', 0, 0, '上线中 3 部', [F('09-10 20:05', '系统', '自动', '商家完成续费。')], { rNo: 'FK2026091000011', rMonths: 1, rAt: '09-10 20:05', rVer: '专业版' })
+    ];
+    const added = st.added || {};
+    const intents = st.intents || {};
+    const extended = st.extended || {};
+    const reminded = st.reminded || {};
+    const list0 = base.map((x) => Object.assign({}, x, { intent: intents[x.m] || x.intent, follows: (added[x.m] || []).concat(x.follows) }));
+    const counts = { soon: 19, expired: 6, renewed: 118 };
+    const viewDefs = [['soon', '7 天内到期', counts.soon], ['expired', '已过期未续费', counts.expired], ['renewed', '本月已续费', counts.renewed]];
+    const match = (x) => x.state === view && (q === '' || (x.m + x.entity).indexOf(q) >= 0) && (mgr === '全部' || x.mgr === mgr) && (ver === '全部' || x.plan === ver);
+    const shown = list0.filter(match);
+    const selKey = st.sel && shown.some((x) => x.m === st.sel) ? st.sel : (shown[0] ? shown[0].m : list0.filter((x) => x.state === view)[0].m);
+    const intentColor = { 已确认续费: ['#E5F1E9', '#256A42'], 考虑中: ['#FBEDE5', '#A63F12'], 暂不续费: ['#EFEBE4', '#5E564C'], 待跟进: ['#FBE9E7', '#B42318'], 已续费: ['#E5F1E9', '#256A42'] };
+    const remindsOf = (x) => [[7, '7 天'], [3, '3 天'], [1, '1 天'], [0, '当天']].map((r) => {
+      const day = addDays(x.end, -r[0]);
+      const sent = day <= today;
+      const full = r[0] ? '到期前 ' + r[1] : '到期当天';
+      return { label: r[1], full: full, sent: sent, when: sent ? short(day) + ' 已发送' : short(day) + ' 待发送', title: sent ? short(day) + ' 已通过订阅消息与短信提醒' : short(day) + ' 自动发送',
+        bg: sent ? '#E5F1E9' : '#F3EFE9', fg: sent ? '#256A42' : '#9A9084', cardBg: sent ? '#F4FAF6' : '#FAF8F4' };
+    });
+    const renewNew = (x) => { const s = addDays(x.end, 1); return s + ' 至 ' + endOf(s, x.rMonths); };
+    const rowOf = (x) => {
+      const left = diff(today, x.end);
+      const on = x.m === selKey;
+      const r = {
+        m: x.m, entity: x.entity, plan: x.plan + ' · ' + x.pay, period: short(x.start) + ' 至 ' + short(x.end), mgr: x.mgr,
+        on: on, pick: () => this.setState({ sel: x.m }),
+        bg: on ? '#FFF8F3' : '#FFFFFF', ring: on ? 'inset 3px 0 0 #C4501B' : 'none',
+        tag: extended[x.m] ? '延长审批中' : x.intent,
+        tagBg: extended[x.m] ? '#E8EEF8' : intentColor[x.intent][0], tagFg: extended[x.m] ? '#2E5AAC' : intentColor[x.intent][1],
+        showRemind: x.state === 'soon', showC4: x.state !== 'soon', reminds: remindsOf(x).slice(0, 3),
+        c3a: '', c3b: '', c3color: '#6F665B', c4a: '', c4b: ''
+      };
+      if (x.state === 'soon') { r.c3a = short(x.end) + ' 到期'; r.c3b = left === 0 ? '今天到期' : '剩 ' + left + ' 天'; r.c3color = left <= 3 ? '#B42318' : '#A63F12'; }
+      if (x.state === 'expired') { r.c3a = short(x.end) + ' 已到期'; r.c3b = '已过期 ' + diff(x.end, today) + ' 天'; r.c3color = '#B42318'; r.c4a = '套餐积分已清零'; r.c4b = x.buyPts ? '加购 ' + fmt(x.buyPts) + ' 已冻结' : '无加购积分'; }
+      if (x.state === 'renewed') { r.c3a = '原至 ' + short(x.end); r.c3b = diff(today, x.end) > 7 ? '提前续费' : '到期前续费'; r.c4a = '续 ' + x.rMonths + ' 个月'; r.c4b = '¥' + money(FEE[x.rVer] * x.rMonths); r.period = short(x.start) + ' 至 ' + short(x.end); }
+      return r;
+    };
+    const x = list0.filter((y) => y.m === selKey)[0];
+    const rvs = st.rv || {};
+    const rv = rvs[x.m] || x.plan;
+    const ms = st.months || {};
+    const mSel = ms[x.m] || (x.pay === '季付' ? 3 : 1);
+    const newStart = x.state === 'expired' ? today : addDays(x.end, 1);
+    const monthsList = [1, 3, 12].map((k) => ({ key: k, label: k + ' 个月', on: k === mSel, pick: () => { const n = Object.assign({}, ms); n[x.m] = k; this.setState({ months: n }); },
+      border: k === mSel ? '#C4501B' : '#E7E1D8', bg: k === mSel ? '#FFF8F3' : '#FFFFFF', weight: k === mSel ? '600' : '400' }));
+    const amount = FEE[rv] * mSel;
+    const left = diff(today, x.end);
+    const stMap = {
+      soon: [left === 0 ? '今天到期' : '剩 ' + left + ' 天', left <= 3 ? '#FBE9E7' : '#FBEDE5', left <= 3 ? '#B42318' : '#A63F12'],
+      expired: ['已过期', '#FBE9E7', '#B42318'],
+      renewed: ['已续费', '#E5F1E9', '#256A42']
+    };
+    let notice = '';
+    let noticeBg = '#FBEDE5';
+    let noticeFg = '#A63F12';
+    if (x.state === 'soon') notice = '到期后不能订购新剧、提交广告需求；\n在制作的订购继续交付，已上线的成片不受影响；\n续费后立即恢复。';
+    if (x.state === 'expired') { notice = '已过期：套餐积分已于 ' + short(x.end) + ' 24:00 清零' + (x.buyPts ? '，\n加购积分 ' + fmt(x.buyPts) + ' 已冻结' : '') + '；\n续费后立即恢复订购，新周期自续费当日起算。'; }
+    const infoRows = x.state === 'renewed'
+      ? [{ k: '付款单', v: x.rNo }, { k: '续费', v: x.rVer + ' ' + x.rMonths + ' 个月 · ¥' + money(FEE[x.rVer] * x.rMonths) }, { k: '新周期', v: renewNew(x) }, { k: '支付时间', v: x.rAt }]
+      : [];
+    const manual = reminded[x.m];
+    const extDaysSel = st.extDays || 7;
+    const lower = FEE[rv] < FEE[x.plan];
+    const higher = FEE[rv] > FEE[x.plan];
+    return Object.assign({
+      soonCount: counts.soon, hasSoon: counts.soon > 0,
+      views: viewDefs.map((d) => tab(d[0], d[1], d[2], view, () => this.setState({ view: d[0], sel: '' }))),
+      q: q, onQ: (e) => this.setState({ q: e.target.value }),
+      mgr: mgr, onMgr: (e) => this.setState({ mgr: e.target.value }),
+      ver: ver, onVer: (e) => this.setState({ ver: e.target.value }),
+      sortNote: view === 'renewed' ? '按续费时间倒序' : '按到期日升序',
+      h3: view === 'renewed' ? '原到期' : '到期日',
+      h4: view === 'soon' ? '提醒进度' : view === 'expired' ? '积分' : '续费',
+      h5: view === 'renewed' ? '状态' : '续费意向',
+      rows: shown.map(rowOf),
+      listEmpty: shown.length === 0,
+      footNote: view === 'soon' ? '共 19 家 7 天内到期未续费（另有 12 家已提前续费），按到期日升序展示前 8 家；提醒节点可在“积分价模板与参数”中调整。'
+        : view === 'expired' ? '共 6 家过期 30 天内未续费；超过 30 天的转入商家列表按“已过期”筛选跟进。'
+        : '本月共 118 家续费，合计 ¥516,000.00；其余商家可按名称搜索查看。',
+      cur: {
+        m: x.m, planShort: x.plan, endShort: short(x.end),
+        sub: x.entity + ' · 交付经理 ' + x.mgr,
+        plan: x.plan + ' · ' + x.pay, periodFull: x.start + ' 至 ' + x.end,
+        ptsText: x.state === 'renewed' ? '按新周期发放 ' + fmt(PTS[x.rVer]) + ' 套餐积分' : x.state === 'expired' ? '套餐积分已清零' + (x.buyPts ? '；加购 ' + fmt(x.buyPts) + ' 已冻结' : '')
+          : '套餐积分 ' + fmt(x.planPts) + ' 将于 ' + short(x.end) + ' 24:00 清零' + (x.buyPts ? '；加购 ' + fmt(x.buyPts) + ' 将冻结' : ''),
+        dramas: x.dramas + '，不受到期影响',
+        stLabel: extended[x.m] ? '延长审批中' : stMap[x.state][0], stBg: extended[x.m] ? '#E8EEF8' : stMap[x.state][1], stFg: extended[x.m] ? '#2E5AAC' : stMap[x.state][2],
+        hasNotice: notice !== '', notice: notice, noticeBg: noticeBg, noticeFg: noticeFg,
+        canRenew: x.state !== 'renewed',
+        hasInfo: x.state === 'renewed', infoTitle: '续费信息', infoRows: infoRows,
+        showRemind: x.state !== 'renewed', reminds: remindsOf(x),
+        hasManual: !!manual, manualText: manual ? manual : '',
+        follows: x.follows.map((f) => ({ meta: f.t + ' · ' + f.who + ' · ' + f.way, text: f.text })),
+        hasFollow: x.follows.length > 0, noFollow: x.follows.length === 0,
+        canFollow: x.state !== 'renewed',
+        canAct: x.state === 'soon' && !extended[x.m]
+      },
+      rv: rv, onRv: (e) => { const n = Object.assign({}, rvs); n[x.m] = e.target.value; this.setState({ rv: n }); },
+      months: monthsList,
+      calcText: '¥' + fmt(FEE[rv]) + ' / 月 × ' + mSel + ' 个月',
+      newPeriod: lower ? newStart + ' 起（降级于下个周期生效）' : newStart + ' 至 ' + endOf(newStart, mSel),
+      calcPts: '每月发放 ' + fmt(PTS[rv]) + ' 套餐积分',
+      calcAmount: money(amount),
+      calcNote: higher ? '升级立即生效，按本期剩余天数补交差价、补发积分；续费部分按新版本计算。' : lower ? '降级在当前周期结束后生效，本期权益不变。' : '续费与原版本一致；季付、年付同样按月发放积分。',
+      remindLabel: manual ? '今日已补发' : '补发续费提醒', remindDone: !!manual, remindBg: manual ? '#D6CFC4' : '#C4501B',
+      sendRemind: () => { const n = Object.assign({}, reminded); n[x.m] = now + ' 周航手动补发续费提醒（订阅消息与短信）'; this.setState({ reminded: n, toast: '已向' + x.m + '补发续费提醒' }); },
+      followOpen: st.dlg === 'follow', extendOpen: st.dlg === 'extend',
+      closeDlg: () => this.setState({ dlg: '' }),
+      openFollow: () => this.setState({ dlg: 'follow', fWay: '电话', fIntent: x.intent === '待跟进' ? '考虑中' : x.intent, fNote: '', fHint: false, toast: '' }),
+      ways: ['电话', '企业微信', '上门拜访'].map((w) => pillOpt(w, w, st.fWay || '电话', () => this.setState({ fWay: w }))),
+      intents: ['已确认续费', '考虑中', '暂不续费'].map((w) => pillOpt(w, w, st.fIntent || '考虑中', () => this.setState({ fIntent: w }))),
+      fNote: st.fNote || '', onFNote: (e) => this.setState({ fNote: e.target.value }), fHint: !!st.fHint,
+      saveFollow: () => {
+        const text = (st.fNote || '').trim();
+        if (text === '') { this.setState({ fHint: true }); return; }
+        const na = Object.assign({}, added); na[x.m] = [F(now, '周航', st.fWay || '电话', text)].concat(added[x.m] || []);
+        const ni = Object.assign({}, intents); ni[x.m] = st.fIntent || '考虑中';
+        this.setState({ added: na, intents: ni, dlg: '', toast: '已记录跟进，续费意向：' + (st.fIntent || '考虑中') });
+      },
+      openExtend: () => this.setState({ dlg: 'extend', extDays: 7, eReason: '交付延误补偿', eNote: '', eHint: false, toast: '' }),
+      extDays: [3, 7, 15, 30].map((k) => pillOpt(k, k + ' 天', extDaysSel, () => this.setState({ extDays: k }))),
+      extPeriod: x.start + ' 至 ' + addDays(x.end, extDaysSel) + '（顺延 ' + extDaysSel + ' 天）',
+      eReason: st.eReason || '交付延误补偿', onEReason: (e) => this.setState({ eReason: e.target.value }),
+      eNote: st.eNote || '', onENote: (e) => this.setState({ eNote: e.target.value }), eHint: !!st.eHint,
+      submitExtend: () => {
+        if ((st.eNote || '').trim() === '') { this.setState({ eHint: true }); return; }
+        const ne = Object.assign({}, extended); ne[x.m] = extDaysSel;
+        this.setState({ extended: ne, dlg: '', toast: '已提交补偿延长 ' + extDaysSel + ' 天，待主管审批' });
+      }
+    }, toastVals);
+  }
+}
+</script>
+</body>
+</html>

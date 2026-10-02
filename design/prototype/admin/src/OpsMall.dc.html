@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏运营后台 · 商城配置</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; overflow: hidden; position: relative; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; font-size: 14px;">
+<nav aria-label="主菜单" style="width: 216px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; background: #231F1B; color: #D9D1C5;">
+<div style="height: 64px; flex-shrink: 0; box-sizing: border-box; padding: 0 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #3A332C;">
+<svg width="30" height="30" viewBox="0 0 64 64" fill="none" stroke="#E8864F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12 22 25h20l12-13-2 22-20 19-20-19z"></path><path d="m21 34 5 2.5M43 34l-5 2.5"></path><circle cx="32" cy="44" r="1.8" fill="#E8864F" stroke="none"></circle></svg>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-family: 'Noto Serif SC', serif; font-size: 19px; font-weight: 900; letter-spacing: 3px; line-height: 1.1; color: #FFFFFF;">狸有戏</span><span style="font-size: 12px; line-height: 1.2; color: #9A9084;">运营管理后台</span></div>
+</div>
+<div style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px;">
+<a href="Main.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>工作台</a>
+<a href="Dramas.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="m10.5 9.5 4 2.5-4 2.5z"></path></svg>短剧库</a>
+<a href="Plans.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5 15.5 12 12 16.5 8.5 12z"></path></svg><span style="flex-grow: 1;">套餐与积分</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Merchants.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5 5.5 4.5h13L20 9.5"></path><path d="M4 9.5c0 1.5 1.2 2.5 2.7 2.5s2.6-1 2.6-2.5c0 1.5 1.2 2.5 2.7 2.5s2.7-1 2.7-2.5c0 1.5 1.1 2.5 2.6 2.5S20 11 20 9.5"></path><path d="M5.5 12v7.5h13V12"></path><path d="M10 19.5V15h4v4.5"></path></svg><span style="flex-grow: 1;">商家</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">4</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Orders.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8.5l4 4v13H6z"></path><path d="M14 3.5V8h4.5M9 12.5h6M9 16.5h4"></path></svg><span style="flex-grow: 1;">订单</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">22</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Tickets.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"></path><path d="m4 7.5 8 4.5 8-4.5M12 12v9"></path></svg><span style="flex-grow: 1;">交付</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">7</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Delivery.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15.5V4"></path><path d="m7.5 8.5 4.5-4.5 4.5 4.5"></path><path d="M5 14v5.5h14V14"></path></svg><span style="flex-grow: 1;">发布</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">10</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Service.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2"></path><rect x="3.5" y="13.5" width="4" height="6" rx="1.5"></rect><rect x="16.5" y="13.5" width="4" height="6" rx="1.5"></rect></svg><span style="flex-grow: 1;">客服</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">6</span></a>
+<a href="Payments.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m9 7.5 3 4 3-4M12 11.5V17M9.5 12.5h5M9.5 15h5"></path></svg><span style="flex-grow: 1;">财务</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">8</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="RptOverview.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7.5 16.5v-5M12 16.5v-9M16.5 16.5v-7"></path></svg><span style="flex-grow: 1;">报表</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<div style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #FFFFFF;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3.5l7 4V6l-7 4z"></path><path d="M17.5 9.5a3.5 3.5 0 0 1 0 5"></path></svg><span style="flex-grow: 1;">运营</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div>
+<a href="OpsHome.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">首页配置</a>
+<a href="OpsMall.dc.html" aria-current="page" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #C4501B; color: #FFFFFF; font-size: 13px; font-weight: 600;">商城配置</a>
+<a href="OpsAgreements.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">协议管理</a>
+<a href="OpsTemplates.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">消息模板</a>
+<a href="OpsNotice.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">公告与常见问题<span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #5A5047; border-radius: 4px; font-size: 11px; line-height: 16px; color: #9A9084;">V1.1</span></a>
+<a href="SysStaff.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5h9M17.5 6.5h2M4.5 12h3M11.5 12h8M4.5 17.5h7M15.5 17.5h4"></path><circle cx="15.5" cy="6.5" r="2"></circle><circle cx="9.5" cy="12" r="2"></circle><circle cx="13.5" cy="17.5" r="2"></circle></svg><span style="flex-grow: 1;">系统</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Partners.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"></circle><path d="M3.5 19a5.5 5.5 0 0 1 11 0"></path><circle cx="17" cy="9.5" r="2.5"></circle><path d="M16 14.3a4.5 4.5 0 0 1 4.5 4.7"></path></svg><span style="flex-grow: 1;">渠道</span><span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #5A5047; border-radius: 4px; font-size: 11px; line-height: 16px; color: #9A9084;">V1.1</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+</div>
+</nav>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<header style="height: 56px; flex-shrink: 0; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 16px; background: #FFFFFF; border-bottom: 1px solid #ECE6DD;">
+<nav aria-label="面包屑" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6F665B;"><span>运营</span><span aria-hidden="true">/</span><span style="color: #1D1A16; font-weight: 600;">商城配置</span></nav>
+<label style="margin-left: auto; width: 300px; height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FAF8F4; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="全局搜索" placeholder="搜索商家、订单号、工单号" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<button type="button" aria-label="消息通知，5 条未读" style="position: relative; width: 40px; height: 40px; flex-shrink: 0; border: none; border-radius: 8px; background: transparent; color: #1D1A16; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg><span aria-hidden="true" style="position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; box-sizing: content-box; border: 2px solid #FFFFFF; border-radius: 6px; background: #C4501B;"></span></button>
+<div style="display: flex; align-items: center; gap: 10px; padding-left: 16px; border-left: 1px solid #ECE6DD;"><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 16px; background: #FBEDE5; color: #A63F12; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">周</span><div style="display: flex; flex-direction: column;"><span style="font-size: 14px; font-weight: 600; line-height: 1.3;">周航</span><span style="font-size: 12px; line-height: 1.3; color: #6F665B;">超级管理员</span></div></div>
+</header>
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<div role="status" style="position: absolute; top: 68px; right: 24px; z-index: 5; max-width: 540px; box-sizing: border-box; padding: 10px 8px 10px 14px; border-radius: 10px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: 0 8px 24px rgba(29, 26, 22, 0.18);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7FD19B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg><span style="flex-grow: 1;">{{toast}}</span><button type="button" aria-label="关闭提示" onClick="{{closeToast}}" style="width: 28px; height: 28px; flex-shrink: 0; border: none; border-radius: 6px; background: transparent; color: #FFFFFF; font-size: 16px; cursor: pointer;">×</button></div>
+</sc-if>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;">
+<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;"><h1 style="margin: 0; font-family: 'Noto Serif SC', serif; font-size: 24px; font-weight: 700; line-height: 1.3;">商城配置</h1><p style="margin: 0; font-size: 13px; color: #6F665B;">配置短剧商城的分类标签、筛选项、排序方式与热门搜索词；商城只展示已上架的短剧，剩余授权期不足 3 个月的停止订购</p></div>
+<div style="flex-shrink: 0; display: flex; align-items: center; gap: 12px;"><sc-if value="{{hasPubErr}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 13px; color: #B42318;">{{pubErr}}</span></sc-if><span style="font-size: 12px; color: #6F665B;">{{pubText}}</span><button type="button" onClick="{{publish}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer;">保存并发布</button></div>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start;"><div style="display: flex; flex-direction: column; gap: 16px; min-width: 0;"><section aria-label="分类标签" style="flex-shrink: 0; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; overflow: hidden;">
+<div style="box-sizing: border-box; padding: 14px 18px;"><div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><div style="display: flex; flex-direction: column; gap: 3px;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">分类标签</h2><p style="margin: 0; font-size: 12px; color: #6F665B;">展示在商城顶部，拖动调整顺序；最多 10 个</p></div></div></div><div role="table" aria-label="分类标签" style="display: flex; flex-direction: column; border-top: 1px solid #ECE6DD;"><div role="row" style="display: grid; grid-template-columns: 20px minmax(0, 1fr) 150px 64px 52px 44px; column-gap: 12px; align-items: center; min-height: 40px; box-sizing: border-box; padding: 0 16px; background: #FAF8F4; border-bottom: 1px solid #ECE6DD; font-size: 12px; font-weight: 600; color: #6F665B;">
+<span role="columnheader"></span><span role="columnheader">分类标签</span><span role="columnheader">包含题材</span><span role="columnheader" style="text-align: right;">短剧数</span><span role="columnheader">显示</span><span role="columnheader"></span>
+</div><sc-for list="{{tags}}" as="t" hint-placeholder-count="8">
+<div role="row" style="display: grid; grid-template-columns: 20px minmax(0, 1fr) 150px 64px 52px 44px; column-gap: 12px; align-items: center; min-height: 42px; box-sizing: border-box; padding: 3px 16px; border-bottom: 1px solid #F0EBE3; font-size: 13px;">
+<span role="cell" aria-hidden="true" style="color: {{t.dragColor}}; display: flex;"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg></span>
+<span role="cell" style="display: flex; align-items: center; gap: 8px; font-weight: 600;"><span>{{t.name}}</span><sc-if value="{{t.fixed}}" hint-placeholder-val="{{false}}"><span style="padding: 0 6px; border-radius: 4px; background: #F3EFE9; color: #6F665B; font-size: 12px; font-weight: 400; line-height: 18px;">固定</span></sc-if></span>
+<span role="cell" style="font-size: 12px; color: #6F665B;">{{t.genres}}</span>
+<span role="cell" style="text-align: right; font-variant-numeric: tabular-nums;">{{t.count}}</span>
+<span role="cell"><sc-if value="{{t.canHide}}" hint-placeholder-val="{{true}}"><button type="button" role="switch" aria-checked="{{t.on}}" aria-label="{{t.swLabel}}" onClick="{{t.toggle}}" style="position: relative; width: 36px; height: 20px; flex-shrink: 0; padding: 0; border: none; border-radius: 10px; background: {{t.swBg}}; cursor: pointer;"><span style="position: absolute; top: 2px; left: {{t.swKnob}}; width: 16px; height: 16px; border-radius: 8px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(29, 26, 22, 0.25);"></span></button></sc-if></span>
+<span role="cell" style="text-align: right;"><sc-if value="{{t.canDelete}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{t.remove}}" style="min-height: 28px; border-radius: 8px; border: none; background: none; padding: 0; color: #A63F12; font-family: inherit; font-size: 13px; cursor: pointer; color: #B42318;">删除</button></sc-if></span>
+</div>
+</sc-for></div><div style="display: flex; align-items: center; gap: 8px; box-sizing: border-box; padding: 12px 16px;"><input aria-label="新分类名称" type="text" maxlength="4" placeholder="新分类名称，如“职场”" value="{{newTag}}" onChange="{{onNewTag}}" style="width: 180px; height: 34px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"><select aria-label="包含题材" value="{{newTagGenre}}" onChange="{{onNewTagGenre}}" style="width: 150px; height: 34px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="职场">包含题材：职场</option><option value="奇幻">包含题材：奇幻</option><option value="青春">包含题材：青春</option></select><button type="button" onClick="{{addTag}}" style="min-height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 13px; cursor: pointer;">添加分类</button><sc-if value="{{hasTagErr}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 13px; color: #B42318;">{{tagErr}}</span></sc-if></div>
+</section><section aria-label="热门搜索词" style="box-sizing: border-box; padding: 16px 18px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><div style="display: flex; flex-direction: column; gap: 3px;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">热门搜索词</h2><p style="margin: 0; font-size: 12px; color: #6F665B;">展示在搜索页，最多 8 个；可填写剧名、题材或行业</p></div></div><div style="display: flex; flex-wrap: wrap; gap: 8px;"><sc-for list="{{words}}" as="w" hint-placeholder-count="6"><span style="height: 30px; box-sizing: border-box; padding: 0 6px 0 12px; border-radius: 15px; background: #F3EFE9; display: inline-flex; align-items: center; gap: 6px; font-size: 13px;"><span>{{w.text}}</span><button type="button" aria-label="{{w.removeLabel}}" onClick="{{w.remove}}" style="width: 20px; height: 20px; border: none; border-radius: 10px; background: #FFFFFF; color: #6F665B; font-size: 13px; line-height: 1; cursor: pointer;">×</button></span></sc-for></div><div style="display: flex; align-items: center; gap: 8px;"><input aria-label="新搜索词" type="text" maxlength="8" placeholder="输入搜索词" value="{{newWord}}" onChange="{{onNewWord}}" style="width: 180px; height: 34px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"><button type="button" onClick="{{addWord}}" style="min-height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 13px; cursor: pointer;">添加</button><sc-if value="{{hasWordErr}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 13px; color: #B42318;">{{wordErr}}</span></sc-if></div>
+</section></div><div style="display: flex; flex-direction: column; gap: 16px; min-width: 0;"><section aria-label="筛选项" style="box-sizing: border-box; padding: 16px 18px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><div style="display: flex; flex-direction: column; gap: 3px;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">筛选项</h2><p style="margin: 0; font-size: 12px; color: #6F665B;">商家可组合筛选；关闭后商城不再展示该筛选项</p></div></div><div style="display: flex; flex-direction: column;"><sc-for list="{{filters}}" as="x" hint-placeholder-count="4"><div style="display: grid; grid-template-columns: 96px minmax(0, 1fr) 36px; column-gap: 12px; align-items: center; min-height: 46px; box-sizing: border-box; padding: 6px 0; border-top: 1px solid #F0EBE3;"><span style="font-size: 13px; font-weight: 600;">{{x.name}}</span><span style="font-size: 12px; line-height: 1.6; color: #6F665B;">{{x.opts}}</span><button type="button" role="switch" aria-checked="{{x.on}}" aria-label="{{x.swLabel}}" onClick="{{x.toggle}}" style="position: relative; width: 36px; height: 20px; flex-shrink: 0; padding: 0; border: none; border-radius: 10px; background: {{x.swBg}}; cursor: pointer;"><span style="position: absolute; top: 2px; left: {{x.swKnob}}; width: 16px; height: 16px; border-radius: 8px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(29, 26, 22, 0.25);"></span></button></div></sc-for></div>
+</section><section aria-label="排序方式" style="box-sizing: border-box; padding: 16px 18px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><div style="display: flex; flex-direction: column; gap: 3px;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">排序方式</h2><p style="margin: 0; font-size: 12px; color: #6F665B;">选择默认排序；“综合排序”按下方权重计算</p></div></div><div style="display: flex; flex-direction: column;"><sc-for list="{{sorts}}" as="o" hint-placeholder-count="4"><div style="display: flex; align-items: center; gap: 10px; min-height: 36px;"><label style="flex-grow: 1; display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;"><input type="radio" name="def-sort" checked="{{o.isDef}}" onChange="{{o.pickDef}}" style="width: 16px; height: 16px; margin: 0; accent-color: #C4501B;"><span>{{o.name}}</span><sc-if value="{{o.isDef}}" hint-placeholder-val="{{false}}"><span style="padding: 0 6px; border-radius: 4px; background: #FBEDE5; color: #A63F12; font-size: 12px; line-height: 18px;">默认</span></sc-if></label><span style="font-size: 12px; color: #6F665B;">{{o.desc}}</span></div></sc-for></div><div style="display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; padding: 12px; border-radius: 10px; background: #FAF8F4;"><span style="font-size: 13px; font-weight: 600;">综合排序权重<span style="margin-left: 8px; font-weight: 400; color: {{wSumColor}};">{{wSumText}}</span></span><div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;"><sc-for list="{{weights}}" as="w" hint-placeholder-count="4"><label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #6F665B;"><span>{{w.name}}</span><span style="display: flex; align-items: center; gap: 4px;"><input type="text" aria-label="{{w.aria}}" value="{{w.val}}" onChange="{{w.set}}" style="width: 100%; min-width: 0; height: 32px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; text-align: right; color: #1D1A16;"><span>%</span></span></label></sc-for></div></div>
+</section></div></div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const money = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const num = (n) => n.toLocaleString('en-US');
+    const tab = (key, label, count, cur, pick) => ({
+      key: key, label: label, count: count, on: key === cur, pick: pick,
+      line: key === cur ? '#C4501B' : 'transparent', color: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400',
+      cbg: key === cur ? '#FBEDE5' : '#F3EFE9', cfg: key === cur ? '#A63F12' : '#6F665B'
+    });
+    const segOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, bg: key === cur ? '#FFFFFF' : 'transparent', fg: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400' });
+    const pillOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, border: key === cur ? '#1D1A16' : '#E7E1D8', bg: key === cur ? '#1D1A16' : '#FFFFFF', fg: key === cur ? '#FFFFFF' : '#1D1A16' });
+    const sw = (on) => ({ bg: on ? '#256A42' : '#CFC7BC', knob: on ? '18px' : '2px' });
+    const toastVals = { toast: st.toast || '', hasToast: !!st.toast, closeToast: () => this.setState({ toast: '' }) };
+
+    const baseTags = [
+      { key: 'all', name: '全部', genres: '全部已上架短剧', count: 22, fixed: true },
+      { key: 'ds', name: '都市', genres: '都市、都市温情', count: 9 },
+      { key: 'tc', name: '甜宠', genres: '甜宠', count: 4 },
+      { key: 'jt', name: '家庭', genres: '家庭', count: 5 },
+      { key: 'nx', name: '逆袭', genres: '逆袭', count: 4 },
+      { key: 'xy', name: '悬疑', genres: '悬疑', count: 2 },
+      { key: 'gz', name: '古装', genres: '古装', count: 2 },
+      { key: 'xj', name: '喜剧', genres: '喜剧', count: 3 }
+    ];
+    const extraTags = st.extraTags || [];
+    const removed = st.removed || {};
+    const hidden = st.hidden || { xy: false };
+    const tags = baseTags.concat(extraTags).filter((t) => !removed[t.key]);
+    const newTag = st.newTag || '';
+    const newTagGenre = st.newTagGenre || '职场';
+    const words0 = ['巷口那家店', '甜宠', '火锅', '逆袭', '家庭喜剧', '夜巷疑云'];
+    const words = st.words || words0;
+    const newWord = st.newWord || '';
+    const fOff = st.fOff || {};
+    const F = [
+      ['genre', '题材', '同分类标签：都市、甜宠、家庭、逆袭、悬疑、古装、喜剧'],
+      ['ind', '适配行业', '取数据字典“行业品类”，如餐饮、丽人、休闲娱乐、运动健身'],
+      ['eps', '集数', '30 集及以下、31～60 集、60 集以上'],
+      ['price', '积分价', '按剧目积分价：1,500 以下、1,500～2,500、2,500 以上']
+    ];
+    const defSort = st.defSort || 'mix';
+    const S = [['mix', '综合排序', '按权重计算'], ['asc', '积分价从低到高', '按剧目积分价'], ['desc', '积分价从高到低', '按剧目积分价'], ['heat', '热度优先', '热度等级从高到低']];
+    const W0 = { heat: '40', sales: '30', fresh: '20', manual: '10' };
+    const W = Object.assign({}, W0, st.w || {});
+    const WN = [['heat', '热度等级'], ['sales', '近 30 天订购'], ['fresh', '上架时间'], ['manual', '人工加权']];
+    const wValid = WN.every((x) => /^\d+$/.test(String(W[x[0]])));
+    const wSum = WN.reduce((a, x) => a + (+W[x[0]] || 0), 0);
+    const swv = (on) => ({ swBg: on ? '#256A42' : '#CFC7BC', swKnob: on ? '18px' : '2px' });
+    return Object.assign({
+      tags: tags.map((t, i) => {
+        const on = hidden[t.key] !== true;
+        return Object.assign({ key: t.key, name: t.name, genres: t.genres, count: t.count + ' 部', fixed: !!t.fixed, canHide: !t.fixed, canDelete: !t.fixed,
+          dragColor: t.fixed ? '#E7E1D8' : '#B8AFA3', on: on, swLabel: '在商城显示“' + t.name + '”',
+          toggle: () => { const h = Object.assign({}, hidden); h[t.key] = on; this.setState({ hidden: h }); },
+          remove: () => { const r = Object.assign({}, removed); r[t.key] = true; this.setState({ removed: r, toast: '已删除分类“' + t.name + '”，不影响短剧本身的题材' }); }
+        }, swv(on));
+      }),
+      newTag: newTag, onNewTag: (e) => this.setState({ newTag: e.target.value, tagErr: '' }),
+      newTagGenre: newTagGenre, onNewTagGenre: (e) => this.setState({ newTagGenre: e.target.value }),
+      tagErr: st.tagErr || '', hasTagErr: !!st.tagErr,
+      addTag: () => {
+        const n = newTag.trim();
+        if (!n) { this.setState({ tagErr: '请填写分类名称' }); return; }
+        if (tags.some((t) => t.name === n)) { this.setState({ tagErr: '已有同名分类' }); return; }
+        if (tags.length >= 10) { this.setState({ tagErr: '最多 10 个分类' }); return; }
+        this.setState({ extraTags: extraTags.concat([{ key: 'n' + (extraTags.length + 1), name: n, genres: newTagGenre, count: 0 }]), newTag: '', toast: '已添加分类“' + n + '”，发布后在商城展示' });
+      },
+      words: words.map((w) => ({ text: w, removeLabel: '移除搜索词' + w, remove: () => this.setState({ words: words.filter((x) => x !== w) }) })),
+      newWord: newWord, onNewWord: (e) => this.setState({ newWord: e.target.value, wordErr: '' }),
+      wordErr: st.wordErr || '', hasWordErr: !!st.wordErr,
+      addWord: () => {
+        const n = newWord.trim();
+        if (!n) { this.setState({ wordErr: '请填写搜索词' }); return; }
+        if (words.indexOf(n) >= 0) { this.setState({ wordErr: '已在列表中' }); return; }
+        if (words.length >= 8) { this.setState({ wordErr: '最多 8 个热门搜索词' }); return; }
+        this.setState({ words: words.concat([n]), newWord: '' });
+      },
+      filters: F.map((x) => {
+        const on = fOff[x[0]] !== true;
+        return Object.assign({ name: x[1], opts: x[2], on: on, swLabel: '启用筛选项“' + x[1] + '”', toggle: () => { const o = Object.assign({}, fOff); o[x[0]] = on; this.setState({ fOff: o }); } }, swv(on));
+      }),
+      sorts: S.map((o) => ({ name: o[1], desc: o[2], isDef: o[0] === defSort, pickDef: () => this.setState({ defSort: o[0] }) })),
+      weights: WN.map((x) => ({ name: x[1], aria: x[1] + '权重（%）', val: W[x[0]], set: (e) => { const nw = Object.assign({}, st.w || {}); nw[x[0]] = e.target.value; this.setState({ w: nw, pubErr: '' }); } })),
+      wSumText: wValid ? '合计 ' + wSum + '%' : '请填写整数',
+      wSumColor: wValid && wSum === 100 ? '#256A42' : '#B42318',
+      pubText: st.pubAt ? '已于 ' + st.pubAt + ' 发布' : '最近发布：09-26 17:20 · 沈蔓',
+      pubErr: st.pubErr || '', hasPubErr: !!st.pubErr,
+      publish: () => {
+        if (!wValid || wSum !== 100) { this.setState({ pubErr: '综合排序权重合计须为 100%' }); return; }
+        this.setState({ pubAt: '09-30 10:32', pubErr: '', toast: '已发布商城配置，小程序商城已更新' });
+      }
+    }, toastVals);
+  }
+}
+</script>
+</body>
+</html>

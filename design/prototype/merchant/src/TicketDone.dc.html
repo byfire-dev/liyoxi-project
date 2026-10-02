@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 工单详情</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+textarea::placeholder,input::placeholder{color:#6F665B}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;">
+<a href="Service.dc.html" aria-label="返回" style="position: absolute; left: 2px; top: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1D1A16;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></a>
+<h1 style="margin: 0; font-size: 17px; font-weight: 600;">工单详情</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 12px;">
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<p role="status" style="margin: 0; padding: 10px 12px; border-radius: 10px; background: {{toastBg}}; color: {{toastFg}}; font-size: 13px; font-weight: 600; line-height: 1.5;">{{toast}}</p>
+</sc-if>
+<section aria-label="工单状态" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;"><div style="display: flex; align-items: center; gap: 8px;"><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: {{stBg}}; color: {{stFg}}; white-space: nowrap;">{{stLabel}}</span><span style="font-size: 13px; color: #6F665B;">{{no}}</span></div></div>
+<span style="font-size: 17px; font-weight: 600;">{{title}}</span>
+<sc-if value="{{hasStNote}}" hint-placeholder-val="{{true}}"><span style="display: flex; flex-direction: column; font-size: 13px; line-height: 1.6; color: {{stNoteColor}};"><span>{{stNote1}}</span><sc-if value="{{hasStNote2}}" hint-placeholder-val="{{true}}"><span>{{stNote2}}</span></sc-if></span></sc-if>
+<ol aria-label="工单进度" style="margin: 4px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;">
+<sc-for list="{{flow}}" as="s" hint-placeholder-count="4"><li style="display: flex; flex-direction: column; gap: 5px;"><span style="height: 4px; border-radius: 2px; background: {{s.bar}};"></span><span style="font-size: 12px; font-weight: {{s.weight}}; color: {{s.color}};">{{s.label}}</span><span style="font-size: 11px; color: #6F665B; font-variant-numeric: tabular-nums;">{{s.time}}</span></li></sc-for>
+</ol>
+<div style="height: 1px; background: #F0EBE3;"></div>
+<dl style="margin: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); row-gap: 6px; column-gap: 8px; font-size: 13px; line-height: 1.5;"><dt style="color: #6F665B;">问题类型</dt><dd style="margin: 0;">{{kind}}</dd><dt style="color: #6F665B;">关联订单</dt><dd style="margin: 0;"><sc-if value="{{hasOrder}}" hint-placeholder-val="{{true}}"><a href="{{orderHref}}" style="color: #A63F12;">{{order}}</a></sc-if><sc-if value="{{noOrder}}" hint-placeholder-val="{{false}}"><span style="color: #6F665B;">未关联订单</span></sc-if></dd><dt style="color: #6F665B;">提交时间</dt><dd style="margin: 0;">{{created}}</dd><dt style="color: #6F665B;">处理人</dt><dd style="margin: 0;">{{owner}}</dd></dl>
+</section>
+<section aria-label="处理记录" style="display: flex; flex-direction: column; gap: 14px; padding: 4px 0 8px;">
+<div style="display: flex; align-items: center; justify-content: space-between;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">处理记录</h2><span style="font-size: 12px; color: #6F665B;">共 {{count}} 条</span></div>
+<sc-for list="{{entries}}" as="e" hint-placeholder-count="4"><sc-if value="{{e.isMsg}}" hint-placeholder-val="{{true}}"><div style="display: flex; gap: 8px; flex-direction: {{e.dir}}; align-items: flex-start;"><span aria-hidden="true" style="flex-shrink: 0; width: 32px; height: 32px; border-radius: 16px; background: {{e.avBg}}; color: {{e.avFg}}; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">{{e.initial}}</span><div style="min-width: 0; max-width: 286px; display: flex; flex-direction: column; gap: 4px; align-items: {{e.align}};"><span style="display: flex; gap: 6px; align-items: center; font-size: 12px; color: #6F665B;"><span style="color: #4A433B; font-weight: 600;">{{e.who}}</span><sc-if value="{{e.hasTag}}" hint-placeholder-val="{{false}}"><span style="font-size: 11px; font-weight: 600; padding: 0 5px; border-radius: 4px; background: {{e.tagBg}}; color: {{e.tagFg}}; line-height: 17px;">{{e.tag}}</span></sc-if><span>{{e.time}}</span></span><p style="margin: 0; padding: 10px 12px; border-radius: {{e.radius}}; background: {{e.bg}}; border: 1px solid {{e.bd}}; font-size: 14px; line-height: 1.6; color: #1D1A16; text-wrap: pretty;">{{e.text}}</p><sc-if value="{{e.hasImgs}}" hint-placeholder-val="{{false}}"><div style="display: flex; gap: 6px; justify-content: {{e.imgAlign}};"><sc-for list="{{e.imgs}}" as="g" hint-placeholder-count="2"><span style="width: 64px; height: 64px; border-radius: 8px; background: {{g.bg}}; color: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 10px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.8"></circle><path d="m5 17 4.5-4.5 3 3 2.5-2.5L19.5 17"></path></svg><span>{{g.label}}</span></span></sc-for></div></sc-if></div></div></sc-if><sc-if value="{{e.isSys}}" hint-placeholder-val="{{false}}"><div style="align-self: center; max-width: 300px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; text-align: center;"><span style="font-size: 11px; color: #6F665B; font-variant-numeric: tabular-nums;">{{e.time}}</span><span style="font-size: 12px; line-height: 1.5; color: #4A433B; padding: 3px 10px; border-radius: 10px; background: #EFE9E0;">{{e.text}}</span><sc-if value="{{e.hasLink}}" hint-placeholder-val="{{false}}"><a href="{{e.href}}" style="display: flex; align-items: center; gap: 2px; font-size: 12px; color: #A63F12; min-height: 28px;">{{e.linkLabel}}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a></sc-if></div></sc-if></sc-for>
+</section>
+</main>
+<footer style="flex-shrink: 0; height: 72px; box-sizing: border-box; padding: 0 16px 8px; background: #FFFFFF; border-top: 1px solid #ECE6DD; display: flex; align-items: center; gap: 12px;">
+<sc-if value="{{isWaiting}}" hint-placeholder-val="{{true}}"><div style="flex-grow: 1; display: flex; gap: 12px;"><button type="button" onClick="{{openReopen}}" style="flex-grow: 1; flex-basis: 0; height: 46px; padding: 0 16px; border-radius: 23px; border: 1px solid #C9C0B3; background: #FFFFFF; color: #1D1A16; font-weight: 600; font-family: inherit; font-size: 15px; cursor: pointer;">仍未解决</button><button type="button" onClick="{{resolve}}" style="flex-grow: 1; flex-basis: 0; height: 46px; padding: 0 16px; border-radius: 23px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 15px; cursor: pointer;">确认已解决</button></div></sc-if>
+<sc-if value="{{isResolved}}" hint-placeholder-val="{{false}}"><div style="flex-grow: 1; display: flex; gap: 12px;"><button type="button" disabled="{{rateLocked}}" style="flex-shrink: 0; height: 44px; padding: 0 14px; border: 1px solid #ECE6DD; border-radius: 22px; background: #F6F3EE; color: #6F665B; display: flex; align-items: center; gap: 6px; font-family: inherit; font-size: 14px; cursor: not-allowed;"><span>评价服务</span><span style="flex-shrink: 0; font-size: 11px; font-weight: 600; padding: 0 5px; border: 1px solid #DDD5C9; border-radius: 4px; color: #6F665B; line-height: 16px;">V1.1</span></button><a href="Service.dc.html" style="flex-grow: 1; flex-basis: 0; height: 44px; padding: 0 16px; border-radius: 22px; background: #C4501B; color: #FFFFFF; font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 15px;">返回客服中心</a></div></sc-if>
+<sc-if value="{{isReopened}}" hint-placeholder-val="{{false}}"><div style="flex-grow: 1; min-width: 0; display: flex; align-items: center; gap: 8px;"><button type="button" aria-label="{{imgAria}}" aria-pressed="{{hasImg}}" onClick="{{toggleImg}}" style="flex-shrink: 0; width: 40px; height: 40px; border-radius: 20px; border: 1px solid {{imgBorder}}; background: {{imgBg}}; color: {{imgFg}}; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.8"></circle><path d="m5 17 4.5-4.5 3 3 2.5-2.5L19.5 17"></path></svg></button><input id="more" type="text" aria-label="补充说明" maxlength="500" placeholder="补充说明，客服将收到提醒" value="{{draft}}" onChange="{{onDraft}}" style="flex-grow: 1; min-width: 0; box-sizing: border-box; height: 40px; padding: 0 14px; border: 1px solid {{draftBorder}}; border-radius: 20px; font-family: inherit; font-size: 14px; color: #1D1A16; background: #F6F3EE;"><button type="button" onClick="{{send}}" style="height: 40px; padding: 0 16px; border-radius: 20px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer; padding: 0 16px;">发送</button></div></sc-if>
+</footer>
+<sc-if value="{{reOpen}}" hint-placeholder-val="{{false}}">
+<button type="button" aria-label="关闭重新打开工单" onClick="{{close}}" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; border: none; padding: 0; background: rgba(15,14,12,0.5); cursor: pointer;"></button>
+<section role="dialog" aria-label="重新打开工单" style="position: absolute; left: 0; right: 0; bottom: 0; max-height: 760px; overflow-y: auto; box-sizing: border-box; padding: 16px 16px 24px; border-radius: 16px 16px 0 0; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 17px; font-weight: 600;">重新打开工单</span><span style="font-size: 13px; line-height: 1.5; color: #6F665B;"><span style="display: block;">重新打开后，工单回到“处理中”，</span><span style="display: block;">客服将在工作时间 30 分钟内响应。</span></span></div>
+<button type="button" aria-label="关闭" onClick="{{close}}" style="flex-shrink: 0; width: 44px; height: 44px; margin: -10px -10px 0 0; border: none; background: none; color: #6F665B; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="reText" style="font-size: 14px; font-weight: 600;">仍未解决的问题 <span style="color: #B42318;">*</span></label><textarea id="reText" rows="4" maxlength="500" placeholder="请说明还有哪些问题没有解决" value="{{reText}}" onChange="{{onReText}}" style="box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid #E7E1D8; border-radius: 10px; font-family: inherit; font-size: 14px; line-height: 1.5; color: #1D1A16; resize: none;"></textarea><span style="align-self: flex-end; font-size: 12px; color: #6F665B;">{{reCount}}/500</span></div>
+<sc-if value="{{reErr}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 13px; color: #B42318;">请填写仍未解决的问题</span></sc-if>
+<button type="button" onClick="{{reopen}}" style="height: 46px; padding: 0 16px; border-radius: 23px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 15px; cursor: pointer; width: 100%;">重新打开工单</button>
+</section>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+
+    const toastTone = { ok: ['#E6F2EA', '#256A42'], info: ['#E8EEF9', '#2E5AAC'], warn: ['#FBEDE5', '#A63F12'] };
+    const tt = toastTone[st.toastTone || 'ok'];
+    const toastVals = { toast: st.toast || '', hasToast: !!st.toast, toastBg: tt[0], toastFg: tt[1] };
+
+    const styles = {
+      me: { avBg: '#FBEDE5', avFg: '#A63F12', bg: '#FFF3EB', bd: '#F3D9C8', dir: 'row-reverse', align: 'flex-end', radius: '12px 2px 12px 12px', imgAlign: 'flex-end' },
+      staff: { avBg: '#E8EEF9', avFg: '#2E5AAC', bg: '#FFFFFF', bd: '#ECE6DD', dir: 'row', align: 'flex-start', radius: '2px 12px 12px 12px', imgAlign: 'flex-start' }
+    };
+    const tags = { 处理结果: ['#E6F2EA', '#256A42'], 补充说明: ['#F1ECE4', '#4A433B'], 重新打开: ['#FBEDE5', '#A63F12'], 提交工单: ['#F1ECE4', '#4A433B'] };
+    const M = (time, text, tag, imgs) => ({ kind: 'me', time: time, who: '我', initial: '火', text: text, tag: tag || '', imgs: imgs || [] });
+    const P = (time, who, initial, text, tag) => ({ kind: 'staff', time: time, who: who, initial: initial, text: text, tag: tag || '', imgs: [] });
+    const Y = (time, text, href, linkLabel) => ({ kind: 'sys', time: time, text: text, href: href || '', linkLabel: linkLabel || '', imgs: [] });
+    const blank = { who: '', initial: '', tag: '', href: '', linkLabel: '', text: '', time: '', avBg: '', avFg: '', bg: '', bd: '', dir: 'row', align: 'flex-start', radius: '12px', imgAlign: 'flex-start' };
+    const keepTail = (x) => (x.length > 12 ? x.slice(0, -5) + x.slice(-5).replace(/ /g, '\u00a0').split('').join('\u2060') : x);
+    const decorate = (list) => list.map((e) => Object.assign({}, blank, e, styles[e.kind] || {}, {
+      text: keepTail(e.text),
+      isMsg: e.kind !== 'sys', isSys: e.kind === 'sys', hasImgs: e.imgs.length > 0, hasTag: !!e.tag,
+      tagBg: (tags[e.tag] || ['#F1ECE4', '#4A433B'])[0], tagFg: (tags[e.tag] || ['#F1ECE4', '#4A433B'])[1], hasLink: !!e.href
+    }));
+    const flowOf = (labels, times, cur) => labels.map((l, i) => ({
+      label: l, time: times[i] || '',
+      bar: i <= cur ? '#C4501B' : '#D6CFC4', color: i < cur ? '#4A433B' : i === cur ? '#A63F12' : '#6F665B', weight: i === cur ? '600' : '400'
+    }));
+    const tones = { 处理中: ['#E8EEF9', '#2E5AAC'], 待您确认: ['#FBEDE5', '#A63F12'], 已解决: ['#E6F2EA', '#256A42'], 已关闭: ['#F1ECE4', '#4A433B'] };
+    const draft = typeof st.draft === 'string' ? st.draft : '';
+    const hasImg = !!st.img;
+    const composerVals = {
+      draft: draft, onDraft: (e) => this.setState({ draft: e.target.value, draftErr: false }),
+      draftBorder: st.draftErr ? '#B42318' : '#E7E1D8',
+      hasImg: hasImg, toggleImg: () => this.setState({ img: !hasImg }),
+      imgAria: hasImg ? '已添加 1 张图片，点击移除' : '添加图片',
+      imgBorder: hasImg ? '#C4501B' : '#E7E1D8', imgBg: hasImg ? '#FFF8F3' : '#FFFFFF', imgFg: hasImg ? '#A63F12' : '#4A433B'
+    };
+
+    const base = [
+      M('09-28 11:30', '视频号核验未通过，需要补充哪些截图？', '提交工单', [{ label: '核验通知', bg: '#4E4A44' }]),
+      P('09-28 11:36', '唐悦 · 客服', '唐', '王先生您好，已收到您的问题，正在为您核实，稍后给您回复处理方案。'),
+      P('09-28 11:45', '唐悦 · 客服', '唐', '王先生您好，核验需要一张完整的视频号主页截图，须同时包含账号名称“⁠X⁠X⁠ ⁠火⁠锅⁠”、视频号 ID 和认证信息。请在“⁠我⁠的⁠ ⁠›⁠ ⁠渠⁠道⁠账⁠号⁠”中重新上传主页截图，发布专员将在 1 个工作日内重新核验。', '处理结果'),
+      Y('09-28 11:45', '处理结果已送达，请确认问题是否已解决', 'Accounts.dc.html', '去渠道账号上传截图')
+    ];
+    const stage = st.stage || 'waiting';
+    const added = st.added || [];
+    const list = base.concat(added);
+    const reText = typeof st.reText === 'string' ? st.reText : '';
+    const label = { waiting: '待您确认', resolved: '已解决', reopened: '处理中' }[stage];
+    const tone = tones[label];
+    const notes = {
+      waiting: ['客服已给出处理结果，请确认问题是否已解决。', '10-01 11:45 前未确认的，将自动变为已解决。', '#4A433B'],
+      resolved: ['您已于 09-28 11:52 确认问题已解决。', '', '#256A42'],
+      reopened: ['工单已重新打开，', '客服将在工作时间 30 分钟内响应。', '#4A433B']
+    }[stage];
+    const flow = stage === 'resolved'
+      ? flowOf(['已提交', '处理中', '待您确认', '已解决'], ['09-28 11:30', '09-28 11:36', '09-28 11:45', '09-28 11:52'], 3)
+      : stage === 'reopened'
+        ? flowOf(['已提交', '处理中', '待您确认', '已解决'], ['09-28 11:30', '09-28 11:50', '', ''], 1)
+        : flowOf(['已提交', '处理中', '待您确认', '已解决'], ['09-28 11:30', '09-28 11:36', '09-28 11:45', ''], 2);
+    return Object.assign({
+      no: 'KF20260928015', title: '视频号核验未通过，需要补充哪些截图',
+      stLabel: label, stBg: tone[0], stFg: tone[1],
+      hasStNote: true, stNote1: notes[0], stNote2: notes[1], hasStNote2: notes[1] !== '', stNoteColor: notes[2],
+      flow: flow,
+      kind: '发布与上线', order: '', orderHref: '', hasOrder: false, noOrder: true, created: '2026-09-28 11:30', owner: '客服 唐悦',
+      entries: decorate(list), count: list.length,
+      isWaiting: stage === 'waiting', isResolved: stage === 'resolved', isReopened: stage === 'reopened',
+      rateLocked: true,
+      resolve: () => this.setState({ stage: 'resolved', added: added.concat([Y('09-28 11:52', '您已确认问题已解决，工单已完成')]), toast: '感谢确认，工单已完成', toastTone: 'ok' }),
+      openReopen: () => this.setState({ reOpen: true, reErr: false }),
+      close: () => this.setState({ reOpen: false }),
+      reOpen: !!st.reOpen, reErr: !!st.reErr,
+      reText: reText, reCount: reText.length,
+      onReText: (e) => this.setState({ reText: e.target.value, reErr: false }),
+      reopen: () => {
+        if (reText.trim() === '') { this.setState({ reErr: true }); return; }
+        this.setState({ stage: 'reopened', reOpen: false, reText: '',
+          added: added.concat([M('09-28 11:50', reText.trim(), '重新打开'), Y('09-28 11:50', '工单已重新打开，客服将尽快处理')]),
+          toast: '工单已重新打开', toastTone: 'ok' });
+      },
+      send: () => {
+        if (draft.trim() === '') { this.setState({ draftErr: true, toast: '请输入补充说明', toastTone: 'warn' }); return; }
+        const imgs = hasImg ? [{ label: '图片 1', bg: '#8A5A3C' }] : [];
+        this.setState({ added: added.concat([M('刚刚', draft.trim(), '补充说明', imgs)]), draft: '', img: false, draftErr: false,
+          toast: '已发送，客服将收到提醒', toastTone: 'ok' });
+      }
+    }, composerVals, toastVals);
+  }
+}
+</script>
+</body>
+</html>

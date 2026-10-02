@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏运营后台 · 员工账号</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; overflow: hidden; position: relative; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; font-size: 14px;">
+<nav aria-label="主菜单" style="width: 216px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; background: #231F1B; color: #D9D1C5;">
+<div style="height: 64px; flex-shrink: 0; box-sizing: border-box; padding: 0 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #3A332C;">
+<svg width="30" height="30" viewBox="0 0 64 64" fill="none" stroke="#E8864F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12 22 25h20l12-13-2 22-20 19-20-19z"></path><path d="m21 34 5 2.5M43 34l-5 2.5"></path><circle cx="32" cy="44" r="1.8" fill="#E8864F" stroke="none"></circle></svg>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-family: 'Noto Serif SC', serif; font-size: 19px; font-weight: 900; letter-spacing: 3px; line-height: 1.1; color: #FFFFFF;">狸有戏</span><span style="font-size: 12px; line-height: 1.2; color: #9A9084;">运营管理后台</span></div>
+</div>
+<div style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px;">
+<a href="Main.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>工作台</a>
+<a href="Dramas.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="m10.5 9.5 4 2.5-4 2.5z"></path></svg>短剧库</a>
+<a href="Plans.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5 15.5 12 12 16.5 8.5 12z"></path></svg><span style="flex-grow: 1;">套餐与积分</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Merchants.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5 5.5 4.5h13L20 9.5"></path><path d="M4 9.5c0 1.5 1.2 2.5 2.7 2.5s2.6-1 2.6-2.5c0 1.5 1.2 2.5 2.7 2.5s2.7-1 2.7-2.5c0 1.5 1.1 2.5 2.6 2.5S20 11 20 9.5"></path><path d="M5.5 12v7.5h13V12"></path><path d="M10 19.5V15h4v4.5"></path></svg><span style="flex-grow: 1;">商家</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">4</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Orders.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8.5l4 4v13H6z"></path><path d="M14 3.5V8h4.5M9 12.5h6M9 16.5h4"></path></svg><span style="flex-grow: 1;">订单</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">22</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Tickets.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"></path><path d="m4 7.5 8 4.5 8-4.5M12 12v9"></path></svg><span style="flex-grow: 1;">交付</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">7</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Delivery.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15.5V4"></path><path d="m7.5 8.5 4.5-4.5 4.5 4.5"></path><path d="M5 14v5.5h14V14"></path></svg><span style="flex-grow: 1;">发布</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">10</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Service.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2"></path><rect x="3.5" y="13.5" width="4" height="6" rx="1.5"></rect><rect x="16.5" y="13.5" width="4" height="6" rx="1.5"></rect></svg><span style="flex-grow: 1;">客服</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">6</span></a>
+<a href="Payments.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m9 7.5 3 4 3-4M12 11.5V17M9.5 12.5h5M9.5 15h5"></path></svg><span style="flex-grow: 1;">财务</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">8</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="RptOverview.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7.5 16.5v-5M12 16.5v-9M16.5 16.5v-7"></path></svg><span style="flex-grow: 1;">报表</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="OpsHome.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3.5l7 4V6l-7 4z"></path><path d="M17.5 9.5a3.5 3.5 0 0 1 0 5"></path></svg><span style="flex-grow: 1;">运营</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<div style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #FFFFFF;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5h9M17.5 6.5h2M4.5 12h3M11.5 12h8M4.5 17.5h7M15.5 17.5h4"></path><circle cx="15.5" cy="6.5" r="2"></circle><circle cx="9.5" cy="12" r="2"></circle><circle cx="13.5" cy="17.5" r="2"></circle></svg><span style="flex-grow: 1;">系统</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div>
+<a href="SysStaff.dc.html" aria-current="page" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #C4501B; color: #FFFFFF; font-size: 13px; font-weight: 600;">员工账号</a>
+<a href="SysRoles.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">角色权限</a>
+<a href="SysDict.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">数据字典</a>
+<a href="SysParams.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">参数配置</a>
+<a href="SysLogs.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">操作日志</a>
+<a href="Partners.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"></circle><path d="M3.5 19a5.5 5.5 0 0 1 11 0"></path><circle cx="17" cy="9.5" r="2.5"></circle><path d="M16 14.3a4.5 4.5 0 0 1 4.5 4.7"></path></svg><span style="flex-grow: 1;">渠道</span><span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #5A5047; border-radius: 4px; font-size: 11px; line-height: 16px; color: #9A9084;">V1.1</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+</div>
+</nav>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<header style="height: 56px; flex-shrink: 0; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 16px; background: #FFFFFF; border-bottom: 1px solid #ECE6DD;">
+<nav aria-label="面包屑" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6F665B;"><span>系统</span><span aria-hidden="true">/</span><span style="color: #1D1A16; font-weight: 600;">员工账号</span></nav>
+<label style="margin-left: auto; width: 300px; height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FAF8F4; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="全局搜索" placeholder="搜索商家、订单号、工单号" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<button type="button" aria-label="消息通知，5 条未读" style="position: relative; width: 40px; height: 40px; flex-shrink: 0; border: none; border-radius: 8px; background: transparent; color: #1D1A16; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg><span aria-hidden="true" style="position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; box-sizing: content-box; border: 2px solid #FFFFFF; border-radius: 6px; background: #C4501B;"></span></button>
+<div style="display: flex; align-items: center; gap: 10px; padding-left: 16px; border-left: 1px solid #ECE6DD;"><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 16px; background: #FBEDE5; color: #A63F12; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">周</span><div style="display: flex; flex-direction: column;"><span style="font-size: 14px; font-weight: 600; line-height: 1.3;">周航</span><span style="font-size: 12px; line-height: 1.3; color: #6F665B;">超级管理员</span></div></div>
+</header>
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<div role="status" style="position: absolute; top: 68px; right: 24px; z-index: 5; max-width: 540px; box-sizing: border-box; padding: 10px 8px 10px 14px; border-radius: 10px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: 0 8px 24px rgba(29, 26, 22, 0.18);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7FD19B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg><span style="flex-grow: 1;">{{toast}}</span><button type="button" aria-label="关闭提示" onClick="{{closeToast}}" style="width: 28px; height: 28px; flex-shrink: 0; border: none; border-radius: 6px; background: transparent; color: #FFFFFF; font-size: 16px; cursor: pointer;">×</button></div>
+</sc-if>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;">
+<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;"><h1 style="margin: 0; font-family: 'Noto Serif SC', serif; font-size: 24px; font-weight: 700; line-height: 1.3;">员工账号</h1><p style="margin: 0; font-size: 13px; color: #6F665B;">管理后台员工的登录账号、角色与企业微信绑定；登录须二次验证，禁用前须移交在办事项</p></div>
+<div style="flex-shrink: 0; display: flex; align-items: center; gap: 10px;"><button type="button" onClick="{{openNew}}" style="min-height: 36px; padding: 0 14px; border-radius: 8px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span>新增员工</span></button></div>
+</div>
+<section aria-label="员工账号" style="flex-shrink: 0; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; overflow: hidden;">
+<div style="display: flex; align-items: center; gap: 10px; box-sizing: border-box; padding: 10px 16px; border-bottom: 1px solid #ECE6DD;">
+<label style="width: 240px; height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="搜索员工" placeholder="搜索姓名或手机号后 4 位" value="{{q}}" onChange="{{onQ}}" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<select aria-label="角色" value="{{role}}" onChange="{{onRole}}" style="width: 130px; height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="全部">全部角色</option><option value="超级管理员">超级管理员</option><option value="客服">客服</option><option value="交付经理">交付经理</option><option value="剪辑师">剪辑师</option><option value="发布专员">发布专员</option><option value="内容运营">内容运营</option><option value="渠道运营">渠道运营</option><option value="财务">财务</option></select>
+<select aria-label="状态" value="{{status}}" onChange="{{onStatus}}" style="width: 120px; height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="全部">全部状态</option><option value="启用">启用</option><option value="待启用">待启用</option><option value="已禁用">已禁用</option></select>
+<span style="margin-left: auto; display: flex; align-items: center; gap: 10px;"><span style="font-size: 13px; color: #6F665B;">{{shownText}}</span></span>
+</div><div role="table" aria-label="员工账号" style="display: flex; flex-direction: column;"><div role="row" style="display: grid; grid-template-columns: 160px 124px 104px 100px 124px 76px 164px minmax(0, 1fr); column-gap: 12px; align-items: center; min-height: 40px; box-sizing: border-box; padding: 0 16px; background: #FAF8F4; border-bottom: 1px solid #ECE6DD; font-size: 12px; font-weight: 600; color: #6F665B;">
+<span role="columnheader">员工与工号</span><span role="columnheader">角色</span><span role="columnheader">手机号</span><span role="columnheader">企业微信</span><span role="columnheader">数据范围</span><span role="columnheader">状态</span><span role="columnheader">最近登录</span><span role="columnheader" style="text-align: right;">操作</span>
+</div><sc-for list="{{rows}}" as="r" hint-placeholder-count="14">
+<div role="row" style="display: grid; grid-template-columns: 160px 124px 104px 100px 124px 76px 164px minmax(0, 1fr); column-gap: 12px; align-items: center; min-height: 40px; box-sizing: border-box; padding: 2px 16px; border-bottom: 1px solid #F0EBE3; font-size: 13px;">
+<span role="cell" style="display: flex; align-items: center; gap: 10px; min-width: 0;"><span style="width: 26px; height: 26px; flex-shrink: 0; border-radius: 13px; background: {{r.avBg}}; color: {{r.avFg}}; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">{{r.initial}}</span><span style="font-weight: 600;">{{r.name}}</span><span style="font-size: 12px; color: #9A9084; font-variant-numeric: tabular-nums;">{{r.no}}</span></span>
+<span role="cell" style="display: flex; align-items: center; gap: 6px;"><span>{{r.role}}</span><sc-if value="{{r.lead}}" hint-placeholder-val="{{false}}"><span style="padding: 0 5px; border-radius: 4px; background: #FBEDE5; color: #A63F12; font-size: 12px; line-height: 18px;">主管</span></sc-if></span>
+<span role="cell" style="font-variant-numeric: tabular-nums;">{{r.phone}}</span>
+<span role="cell" style="display: flex; align-items: center; gap: 6px;"><span style="color: {{r.wxColor}};">{{r.wx}}</span><sc-if value="{{r.canInvite}}" hint-placeholder-val="{{false}}"><button type="button" onClick="{{r.invite}}" style="min-height: 24px; border-radius: 8px; border: none; background: none; padding: 0; color: #A63F12; font-family: inherit; font-size: 12px; cursor: pointer;">邀请</button></sc-if></span>
+<span role="cell" style="font-size: 12px; color: #6F665B;">{{r.scope}}</span>
+<span role="cell"><span style="display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; background: {{r.sbg}}; color: {{r.sfg}}; font-size: 12px; font-weight: 600; white-space: nowrap;">{{r.sLabel}}</span></span>
+<span role="cell" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-variant-numeric: tabular-nums;">{{r.last}}</span><span style="font-size: 12px; color: #6F665B;">{{r.lastSub}}</span></span>
+<span role="cell" style="display: flex; justify-content: flex-end; gap: 12px;"><button type="button" onClick="{{r.edit}}" style="min-height: 28px; border-radius: 8px; border: none; background: none; padding: 0; color: #A63F12; font-family: inherit; font-size: 13px; cursor: pointer;">编辑</button><sc-if value="{{r.canReset}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{r.reset}}" style="min-height: 28px; border-radius: 8px; border: none; background: none; padding: 0; color: #A63F12; font-family: inherit; font-size: 13px; cursor: pointer;">重置密码</button></sc-if><button type="button" onClick="{{r.act}}" style="min-height: 28px; border-radius: 8px; border: none; background: none; padding: 0; color: #A63F12; font-family: inherit; font-size: 13px; cursor: pointer; color: {{r.actColor}};">{{r.actLabel}}</button></span>
+</div>
+</sc-for></div><sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}">
+<div style="padding: 56px 24px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;"><span style="font-size: 15px; font-weight: 600;">没有符合条件的员工</span><span style="font-size: 13px; color: #6F665B;">可调整筛选条件后再试</span></div>
+</sc-if>
+</section>
+</main>
+</div>
+<sc-if value="{{staffOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10; background: rgba(29, 26, 22, 0.45); display: flex; align-items: center; justify-content: center;">
+<section role="dialog" aria-modal="true" aria-labelledby="sf-title" style="width: 560px; max-height: 820px; overflow-y: auto; box-sizing: border-box; padding: 24px; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 48px rgba(29, 26, 22, 0.24);">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><h2 id="sf-title" style="margin: 0; font-size: 18px; font-weight: 600;">{{f.dlgTitle}}</h2><p style="margin: 0; font-size: 13px; line-height: 1.6; color: #6F665B;">{{f.dlgDesc}}</p></div>
+<button type="button" aria-label="关闭" onClick="{{closeDlg}}" style="width: 32px; height: 32px; flex-shrink: 0; border: none; border-radius: 8px; background: #F6F3EE; color: #1D1A16; font-size: 18px; cursor: pointer;">×</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px;"><div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;"><div style="display: flex; flex-direction: column; gap: 6px;"><label for="sf-name" style="font-size: 13px; font-weight: 600;">姓名</label><input id="sf-name" type="text" maxlength="10" placeholder="真实姓名" value="{{f.name}}" onChange="{{onFName}}" style="width: 100%; height: 38px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"></div><div style="display: flex; flex-direction: column; gap: 6px;"><label for="sf-phone" style="font-size: 13px; font-weight: 600;">手机号</label><input id="sf-phone" type="text" maxlength="11" placeholder="用于登录与二次验证" value="{{f.phone}}" onChange="{{onFPhone}}" style="width: 100%; height: 38px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"></div></div><div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;"><div style="display: flex; flex-direction: column; gap: 6px;"><label for="sf-role" style="font-size: 13px; font-weight: 600;">角色</label><select id="sf-role" value="{{f.role}}" onChange="{{onFRole}}" style="width: 100%; height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="客服">客服</option><option value="交付经理">交付经理</option><option value="剪辑师">剪辑师</option><option value="发布专员">发布专员</option><option value="内容运营">内容运营</option><option value="渠道运营">渠道运营（V1.1）</option><option value="财务">财务</option><option value="超级管理员">超级管理员</option></select></div><div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">数据范围</span><span style="height: 38px; box-sizing: border-box; padding: 0 10px; border-radius: 8px; background: #F3EFE9; display: flex; align-items: center; font-size: 13px;">{{f.scope}}</span><span style="font-size: 12px; color: #6F665B;">随角色与是否为主管自动确定</span></div></div><label style="min-height: 40px; box-sizing: border-box; padding: 8px 12px; border: 1px solid #E7E1D8; border-radius: 10px; display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;"><input type="checkbox" checked="{{f.lead}}" onChange="{{toggleLead}}" style="width: 18px; height: 18px; margin: 0; accent-color: #C4501B;"><span>设为本岗位主管（可查看本组全部数据，审批本组发起的补偿延长）</span></label><label style="min-height: 40px; box-sizing: border-box; padding: 8px 12px; border: 1px solid #E7E1D8; border-radius: 10px; display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;"><input type="checkbox" checked="{{f.wx}}" onChange="{{toggleWx}}" style="width: 18px; height: 18px; margin: 0; accent-color: #C4501B;"><span>创建后发送企业微信绑定邀请</span></label><sc-if value="{{hasFErr}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 13px; color: #B42318;">{{fErr}}</span></sc-if></div>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+<button type="button" onClick="{{closeDlg}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; cursor: pointer;">取消</button><button type="button" onClick="{{submitStaff}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer;">{{f.submitLabel}}</button>
+</div>
+</section>
+</div>
+</sc-if>
+<sc-if value="{{resetOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10; background: rgba(29, 26, 22, 0.45); display: flex; align-items: center; justify-content: center;">
+<section role="dialog" aria-modal="true" aria-labelledby="rs-title" style="width: 480px; max-height: 820px; overflow-y: auto; box-sizing: border-box; padding: 24px; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 48px rgba(29, 26, 22, 0.24);">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><h2 id="rs-title" style="margin: 0; font-size: 18px; font-weight: 600;">重置登录密码</h2><p style="margin: 0; font-size: 13px; line-height: 1.6; color: #6F665B;">重置后原密码立即失效，新密码通过短信发送至员工手机；员工首次登录须修改密码。</p></div>
+<button type="button" aria-label="关闭" onClick="{{closeDlg}}" style="width: 32px; height: 32px; flex-shrink: 0; border: none; border-radius: 8px; background: #F6F3EE; color: #1D1A16; font-size: 18px; cursor: pointer;">×</button>
+</div>
+<dl style="margin: 0; display: grid; grid-template-columns: 56px minmax(0, 1fr); row-gap: 8px; column-gap: 12px; font-size: 13px;">
+<dt style="color: #6F665B;">员工</dt><dd style="margin: 0;">{{d.name}}（{{d.role}}）</dd>
+<dt style="color: #6F665B;">手机号</dt><dd style="margin: 0;">{{d.phone}}</dd>
+</dl>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+<button type="button" onClick="{{closeDlg}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; cursor: pointer;">取消</button><button type="button" onClick="{{doReset}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer;">确认重置</button>
+</div>
+</section>
+</div>
+</sc-if>
+<sc-if value="{{disableOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10; background: rgba(29, 26, 22, 0.45); display: flex; align-items: center; justify-content: center;">
+<section role="dialog" aria-modal="true" aria-labelledby="dis-title" style="width: 520px; max-height: 820px; overflow-y: auto; box-sizing: border-box; padding: 24px; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 48px rgba(29, 26, 22, 0.24);">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><h2 id="dis-title" style="margin: 0; font-size: 18px; font-weight: 600;">禁用员工账号</h2><p style="margin: 0; font-size: 13px; line-height: 1.6; color: #6F665B;">禁用后该员工无法登录后台，历史操作记录保留；可随时重新启用。</p></div>
+<button type="button" aria-label="关闭" onClick="{{closeDlg}}" style="width: 32px; height: 32px; flex-shrink: 0; border: none; border-radius: 8px; background: #F6F3EE; color: #1D1A16; font-size: 18px; cursor: pointer;">×</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px;"><dl style="margin: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); row-gap: 8px; column-gap: 12px; font-size: 13px;">
+<dt style="color: #6F665B;">员工</dt><dd style="margin: 0;">{{d.name}}（{{d.role}}）</dd>
+<dt style="color: #6F665B;">在办事项</dt><dd style="margin: 0;">{{d.pending}}</dd>
+</dl><sc-if value="{{d.needHandover}}" hint-placeholder-val="{{true}}"><div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">移交给</span><sc-if value="{{d.hasCands}}" hint-placeholder-val="{{true}}"><div role="radiogroup" aria-label="移交给" style="display: flex; flex-wrap: wrap; gap: 8px;"><sc-for list="{{d.cands}}" as="c" hint-placeholder-count="2"><button type="button" role="radio" aria-checked="{{c.on}}" onClick="{{c.pick}}" style="min-height: 34px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{c.border}}; border-radius: 17px; background: {{c.bg}}; color: {{c.fg}}; font-family: inherit; font-size: 13px; cursor: pointer;">{{c.label}}</button></sc-for></div><span style="font-size: 12px; color: #6F665B;">在办事项将一并移交，并通知接收人</span></sc-if><sc-if value="{{d.noCands}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: #B42318;">{{d.noCandText}}</span></sc-if></div></sc-if><div style="display: flex; flex-direction: column; gap: 6px;"><label for="dis-reason" style="font-size: 13px; font-weight: 600;">禁用原因</label><select id="dis-reason" value="{{d.reason}}" onChange="{{onDReason}}" style="width: 200px; height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="离职">离职</option><option value="调岗">调岗</option><option value="长期休假">长期休假</option><option value="其他">其他</option></select></div><sc-if value="{{hasDErr}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 13px; color: #B42318;">{{dErr}}</span></sc-if></div>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+<button type="button" onClick="{{closeDlg}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; cursor: pointer;">取消</button><button type="button" onClick="{{doDisable}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: #B42318; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer;">确认禁用</button>
+</div>
+</section>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const money = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const num = (n) => n.toLocaleString('en-US');
+    const tab = (key, label, count, cur, pick) => ({
+      key: key, label: label, count: count, on: key === cur, pick: pick,
+      line: key === cur ? '#C4501B' : 'transparent', color: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400',
+      cbg: key === cur ? '#FBEDE5' : '#F3EFE9', cfg: key === cur ? '#A63F12' : '#6F665B'
+    });
+    const segOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, bg: key === cur ? '#FFFFFF' : 'transparent', fg: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400' });
+    const pillOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, border: key === cur ? '#1D1A16' : '#E7E1D8', bg: key === cur ? '#1D1A16' : '#FFFFFF', fg: key === cur ? '#FFFFFF' : '#1D1A16' });
+    const sw = (on) => ({ bg: on ? '#256A42' : '#CFC7BC', knob: on ? '18px' : '2px' });
+    const toastVals = { toast: st.toast || '', hasToast: !!st.toast, closeToast: () => this.setState({ toast: '' }) };
+
+    const E = (no, name, role, lead, phone, wx, s, last, lastSub, pending, pendingN) => ({ no: no, name: name, role: role, lead: lead, phone: phone, wx: wx, s: s, last: last, lastSub: lastSub, pending: pending, pendingN: pendingN });
+    const base = [
+      E('1001', '周航', '超级管理员', false, '138****6021', 'bound', 'on', '09-30 10:28', '当前登录', '无', 0),
+      E('1002', '唐悦', '客服', true, '139****2210', 'bound', 'on', '09-30 09:02', '', '待处理客服工单 2 个', 2),
+      E('1003', '宋佳', '客服', false, '136****7815', 'bound', 'on', '09-30 08:57', '', '待处理客服工单 3 个', 3),
+      E('1004', '林晓', '交付经理', false, '137****0936', 'bound', 'on', '09-30 09:15', '', '在办交付工单 13 个、客服工单 1 个', 14),
+      E('1005', '苏晴', '交付经理', true, '135****4462', 'bound', 'on', '09-30 09:08', '', '在办交付工单 9 个', 9),
+      E('1006', '韩冬', '交付经理', false, '158****3309', 'bound', 'on', '09-30 09:21', '', '在办交付工单 12 个', 12),
+      E('1007', '何川', '剪辑师', false, '186****5127', 'bound', 'on', '09-30 09:30', '', '进行中的广告任务 2 条', 2),
+      E('1008', '罗依', '剪辑师', false, '189****6654', 'bound', 'on', '09-30 09:12', '', '进行中的广告任务 3 条', 3),
+      E('1009', '陈默', '发布专员', false, '131****8840', 'bound', 'on', '09-30 09:05', '', '待处理发布任务 4 个', 4),
+      E('1010', '高远', '发布专员', false, '132****1973', 'none', 'on', '09-29 18:22', '', '待处理发布任务 3 个', 3),
+      E('1011', '方琳', '财务', false, '150****2586', 'bound', 'on', '09-30 09:40', '', '待审批与待处理事项 8 个', 8),
+      E('1012', '沈蔓', '内容运营', false, '151****7302', 'bound', 'on', '09-30 09:48', '', '无', 0),
+      E('1013', '许诺', '渠道运营', false, '177****4018', 'none', 'wait', '从未登录', 'V1.1 开放后启用', '无', 0),
+      E('1014', '吴桐', '客服', false, '180****9531', 'gone', 'off', '08-31 17:58', '离职，工单已移交宋佳', '无', 0)
+    ];
+    const extra = st.extra || [];
+    const sMap = st.sMap || {};
+    const wxMap = st.wxMap || {};
+    const edits = st.edits || {};
+    const all = base.concat(extra).map((e) => Object.assign({}, e, edits[e.no] || {}, sMap[e.no] ? { s: sMap[e.no] } : {}, wxMap[e.no] ? { wx: wxMap[e.no] } : {}));
+    const q = st.q || '';
+    const role = st.role || '全部';
+    const status = st.status || '全部';
+    const SL = { on: ['启用', '#E5F1E9', '#256A42'], wait: ['待启用', '#E8EEF8', '#2E5AAC'], off: ['已禁用', '#EFEBE4', '#5E564C'] };
+    const statusKey = { 启用: 'on', 待启用: 'wait', 已禁用: 'off' };
+    const scopeOf = (r, lead) => ({ 超级管理员: '全部', 客服: '全部商家', 交付经理: lead ? '本组全部' : '本人负责', 剪辑师: lead ? '本组全部' : '本人任务', 发布专员: lead ? '本组全部' : '本人任务',
+      内容运营: '全部', 渠道运营: lead ? '本组全部' : '本人负责的服务商', 财务: '全部' })[r];
+    const WX = { bound: ['已绑定', '#256A42'], none: ['未绑定', '#A63F12'], sent: ['已邀请', '#2E5AAC'], gone: ['已解绑', '#9A9084'] };
+    const list = all.filter((e) => (q === '' || e.name.indexOf(q) >= 0 || e.phone.slice(-4) === q) && (role === '全部' || e.role === role) && (status === '全部' || e.s === statusKey[status]));
+    const cur = all.filter((e) => e.no === st.target)[0];
+    const f0 = { name: '', phone: '', role: '客服', lead: false, wx: true };
+    const f = st.f || f0;
+    const setF = (k) => (e) => this.setState({ f: Object.assign({}, f, { [k]: e.target.value }), fErr: '' });
+    const cands = cur ? all.filter((e) => e.role === cur.role && e.no !== cur.no && e.s === 'on') : [];
+    const pick = st.pick || (cands[0] ? cands[0].no : '');
+    return Object.assign({
+      q: q, role: role, status: status,
+      onQ: (e) => this.setState({ q: e.target.value.trim() }), onRole: (e) => this.setState({ role: e.target.value }), onStatus: (e) => this.setState({ status: e.target.value }),
+      shownText: (q === '' && role === '全部' && status === '全部') ? '共 ' + all.length + ' 个账号 · 启用 ' + all.filter((e) => e.s === 'on').length + ' · 待启用 ' + all.filter((e) => e.s === 'wait').length + ' · 已禁用 ' + all.filter((e) => e.s === 'off').length : '筛选出 ' + list.length + ' 个',
+      isEmpty: list.length === 0,
+      rows: list.map((e) => {
+        const self = e.no === '1001';
+        const off = e.s !== 'on';
+        return {
+          no: e.no, name: e.name, initial: e.name.charAt(0), role: e.role, lead: e.lead, phone: e.phone,
+          avBg: off ? '#EFEBE4' : '#FBEDE5', avFg: off ? '#9A9084' : '#A63F12',
+          wx: WX[e.wx][0], wxColor: WX[e.wx][1], canInvite: e.wx === 'none' && e.s !== 'off',
+          invite: () => { const m = Object.assign({}, wxMap); m[e.no] = 'sent'; this.setState({ wxMap: m, toast: '已向' + e.name + '发送企业微信绑定邀请' }); },
+          scope: scopeOf(e.role, e.lead), sLabel: SL[e.s][0], sbg: SL[e.s][1], sfg: SL[e.s][2],
+          last: e.last, lastSub: e.lastSub,
+          canReset: e.s === 'on',
+          edit: () => this.setState({ dlg: 'staff', editNo: e.no, fErr: '', f: { name: e.name, phone: e.phone, role: e.role, lead: e.lead, wx: false } }),
+          reset: () => this.setState({ dlg: 'reset', target: e.no }),
+          actLabel: e.s === 'on' ? '禁用' : '启用', actColor: e.s === 'on' ? (self ? '#B3AA9E' : '#B42318') : '#A63F12',
+          act: () => {
+            if (e.s === 'on') {
+              if (self) { this.setState({ toast: '不能禁用当前登录的账号' }); return; }
+              this.setState({ dlg: 'disable', target: e.no, pick: '', dReason: '离职', dErr: '' });
+            } else {
+              const m = Object.assign({}, sMap); m[e.no] = 'on';
+              this.setState({ sMap: m, toast: '已启用' + e.name + '的账号' + (e.s === 'wait' ? '，登录信息已通过短信发送' : '') });
+            }
+          }
+        };
+      }),
+      openNew: () => this.setState({ dlg: 'staff', editNo: '', f: f0, fErr: '' }),
+      staffOpen: st.dlg === 'staff', resetOpen: st.dlg === 'reset', disableOpen: st.dlg === 'disable',
+      closeDlg: () => this.setState({ dlg: '', editNo: '', target: '' }),
+      f: Object.assign({}, f, { scope: scopeOf(f.role, f.lead), dlgTitle: st.editNo ? '编辑员工' : '新增员工', submitLabel: st.editNo ? '保存' : '创建账号',
+        dlgDesc: st.editNo ? '修改角色后，权限在员工下次刷新页面时生效。' : '创建后初始密码通过短信发送，员工首次登录须修改密码并完成二次验证。' }),
+      onFName: setF('name'), onFPhone: setF('phone'), onFRole: setF('role'),
+      toggleLead: () => this.setState({ f: Object.assign({}, f, { lead: !f.lead }) }),
+      toggleWx: () => this.setState({ f: Object.assign({}, f, { wx: !f.wx }) }),
+      fErr: st.fErr || '', hasFErr: !!st.fErr,
+      submitStaff: () => {
+        if (!f.name.trim()) { this.setState({ fErr: '请填写姓名' }); return; }
+        if (!st.editNo && !/^1\d{10}$/.test(f.phone)) { this.setState({ fErr: '请填写 11 位手机号' }); return; }
+        if (st.editNo) {
+          const m = Object.assign({}, edits); m[st.editNo] = { name: f.name.trim(), role: f.role, lead: f.lead };
+          this.setState({ edits: m, dlg: '', editNo: '', toast: '已保存' + f.name.trim() + '的账号信息' });
+        } else {
+          const no = String(1015 + extra.length);
+          const e = E(no, f.name.trim(), f.role, f.lead, f.phone.slice(0, 3) + '****' + f.phone.slice(7), f.wx ? 'sent' : 'none', 'on', '从未登录', '初始密码已发送', '无', 0);
+          this.setState({ extra: extra.concat([e]), dlg: '', toast: '已创建' + e.name + '的账号，初始密码已通过短信发送' });
+        }
+      },
+      d: cur ? {
+        name: cur.name, role: cur.role + (cur.lead ? ' · 主管' : ''), phone: cur.phone, pending: cur.pending,
+        needHandover: cur.pendingN > 0, hasCands: cands.length > 0, noCands: cands.length === 0,
+        noCandText: '没有可接收的同角色员工，请先新增一名' + cur.role + '，再禁用该账号',
+        cands: cands.map((c) => ({ label: c.name + (c.lead ? '（主管）' : ''), on: c.no === pick, border: c.no === pick ? '#1D1A16' : '#E7E1D8', bg: c.no === pick ? '#1D1A16' : '#FFFFFF',
+          fg: c.no === pick ? '#FFFFFF' : '#1D1A16', pick: () => this.setState({ pick: c.no }) })),
+        reason: st.dReason || '离职'
+      } : { name: '', role: '', phone: '', pending: '', needHandover: false, hasCands: false, noCands: false, noCandText: '', cands: [], reason: '离职' },
+      onDReason: (e) => this.setState({ dReason: e.target.value }),
+      dErr: st.dErr || '', hasDErr: !!st.dErr,
+      doReset: () => this.setState({ dlg: '', toast: '已重置' + (cur ? cur.name : '') + '的登录密码，新密码已通过短信发送' }),
+      doDisable: () => {
+        if (!cur) return;
+        if (cur.pendingN > 0 && cands.length === 0) { this.setState({ dErr: '请先新增同角色员工以接收在办事项' }); return; }
+        const m = Object.assign({}, sMap); m[cur.no] = 'off';
+        const to = cands.filter((c) => c.no === pick)[0];
+        const ed = Object.assign({}, edits); ed[cur.no] = { lastSub: (st.dReason || '离职') + (to ? '，在办事项已移交' + to.name : '') };
+        this.setState({ sMap: m, edits: ed, dlg: '', target: '', toast: '已禁用' + cur.name + '的账号' + (to ? '，在办事项已移交' + to.name : '') });
+      }
+    }, toastVals);
+  }
+}
+</script>
+</body>
+</html>

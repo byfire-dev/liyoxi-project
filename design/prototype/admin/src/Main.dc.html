@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏运营后台 · 工作台</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; overflow: hidden; position: relative; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; font-size: 14px;">
+<nav aria-label="主菜单" style="width: 216px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; background: #231F1B; color: #D9D1C5;">
+<div style="height: 64px; flex-shrink: 0; box-sizing: border-box; padding: 0 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #3A332C;">
+<svg width="30" height="30" viewBox="0 0 64 64" fill="none" stroke="#E8864F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12 22 25h20l12-13-2 22-20 19-20-19z"></path><path d="m21 34 5 2.5M43 34l-5 2.5"></path><circle cx="32" cy="44" r="1.8" fill="#E8864F" stroke="none"></circle></svg>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-family: 'Noto Serif SC', serif; font-size: 19px; font-weight: 900; letter-spacing: 3px; line-height: 1.1; color: #FFFFFF;">狸有戏</span><span style="font-size: 12px; line-height: 1.2; color: #9A9084;">运营管理后台</span></div>
+</div>
+<div style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px;">
+<a href="Main.dc.html" aria-current="page" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; background: #C4501B; color: #FFFFFF; font-size: 14px; font-weight: 600;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>工作台</a>
+<a href="Dramas.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="m10.5 9.5 4 2.5-4 2.5z"></path></svg>短剧库</a>
+<a href="Plans.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5 15.5 12 12 16.5 8.5 12z"></path></svg><span style="flex-grow: 1;">套餐与积分</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Merchants.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5 5.5 4.5h13L20 9.5"></path><path d="M4 9.5c0 1.5 1.2 2.5 2.7 2.5s2.6-1 2.6-2.5c0 1.5 1.2 2.5 2.7 2.5s2.7-1 2.7-2.5c0 1.5 1.1 2.5 2.6 2.5S20 11 20 9.5"></path><path d="M5.5 12v7.5h13V12"></path><path d="M10 19.5V15h4v4.5"></path></svg><span style="flex-grow: 1;">商家</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">4</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Orders.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8.5l4 4v13H6z"></path><path d="M14 3.5V8h4.5M9 12.5h6M9 16.5h4"></path></svg><span style="flex-grow: 1;">订单</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">22</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Tickets.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"></path><path d="m4 7.5 8 4.5 8-4.5M12 12v9"></path></svg><span style="flex-grow: 1;">交付</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">7</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Delivery.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15.5V4"></path><path d="m7.5 8.5 4.5-4.5 4.5 4.5"></path><path d="M5 14v5.5h14V14"></path></svg><span style="flex-grow: 1;">发布</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">10</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Service.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2"></path><rect x="3.5" y="13.5" width="4" height="6" rx="1.5"></rect><rect x="16.5" y="13.5" width="4" height="6" rx="1.5"></rect></svg><span style="flex-grow: 1;">客服</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">6</span></a>
+<a href="Payments.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m9 7.5 3 4 3-4M12 11.5V17M9.5 12.5h5M9.5 15h5"></path></svg><span style="flex-grow: 1;">财务</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">8</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="RptOverview.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7.5 16.5v-5M12 16.5v-9M16.5 16.5v-7"></path></svg><span style="flex-grow: 1;">报表</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="OpsHome.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3.5l7 4V6l-7 4z"></path><path d="M17.5 9.5a3.5 3.5 0 0 1 0 5"></path></svg><span style="flex-grow: 1;">运营</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="SysStaff.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5h9M17.5 6.5h2M4.5 12h3M11.5 12h8M4.5 17.5h7M15.5 17.5h4"></path><circle cx="15.5" cy="6.5" r="2"></circle><circle cx="9.5" cy="12" r="2"></circle><circle cx="13.5" cy="17.5" r="2"></circle></svg><span style="flex-grow: 1;">系统</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Partners.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"></circle><path d="M3.5 19a5.5 5.5 0 0 1 11 0"></path><circle cx="17" cy="9.5" r="2.5"></circle><path d="M16 14.3a4.5 4.5 0 0 1 4.5 4.7"></path></svg><span style="flex-grow: 1;">渠道</span><span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #5A5047; border-radius: 4px; font-size: 11px; line-height: 16px; color: #9A9084;">V1.1</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+</div>
+</nav>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column;">
+<header style="height: 56px; flex-shrink: 0; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 16px; background: #FFFFFF; border-bottom: 1px solid #ECE6DD;">
+<nav aria-label="面包屑" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6F665B;"><span style="color: #1D1A16; font-weight: 600;">工作台</span></nav>
+<label style="margin-left: auto; width: 300px; height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FAF8F4; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="全局搜索" placeholder="搜索商家、订单号、工单号" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<button type="button" aria-label="消息通知，5 条未读" style="position: relative; width: 40px; height: 40px; flex-shrink: 0; border: none; border-radius: 8px; background: transparent; color: #1D1A16; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg><span aria-hidden="true" style="position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; box-sizing: content-box; border: 2px solid #FFFFFF; border-radius: 6px; background: #C4501B;"></span></button>
+<div style="display: flex; align-items: center; gap: 10px; padding-left: 16px; border-left: 1px solid #ECE6DD;"><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 16px; background: #FBEDE5; color: #A63F12; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">周</span><div style="display: flex; flex-direction: column;"><span style="font-size: 14px; font-weight: 600; line-height: 1.3;">周航</span><span style="font-size: 12px; line-height: 1.3; color: #6F665B;">超级管理员</span></div></div>
+</header>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<h1 style="margin: 0; font-family: 'Noto Serif SC', serif; font-size: 24px; font-weight: 700; line-height: 1.3;">工作台</h1>
+<p style="margin: 0; font-size: 13px; color: #6F665B;">2026 年 9 月 30 日 · 周三 · 数据更新于 10:30</p>
+</div>
+<div style="display: flex; align-items: center; gap: 10px;">
+<span id="role-label" style="font-size: 13px; color: #6F665B;">待办视角</span>
+<div role="group" aria-labelledby="role-label" style="display: flex; gap: 2px; padding: 3px; border: 1px solid #E7E1D8; border-radius: 10px; background: #FFFFFF;">
+<sc-for list="{{roles}}" as="r" hint-placeholder-count="6">
+<button type="button" aria-pressed="{{r.on}}" onClick="{{r.pick}}" style="min-height: 32px; padding: 0 12px; border: none; border-radius: 7px; background: {{r.bg}}; color: {{r.fg}}; font-family: inherit; font-size: 13px; font-weight: {{r.weight}}; cursor: pointer;">{{r.label}}</button>
+</sc-for>
+</div>
+</div>
+</div>
+<section aria-label="今日数据" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px;">
+<div style="box-sizing: border-box; padding: 16px 20px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 4px;">
+<span style="font-size: 13px; color: #6F665B;">今日新增商家</span>
+<span style="font-family: 'Noto Serif SC', serif; font-size: 28px; font-weight: 700; line-height: 1.25;">12</span>
+<span style="font-size: 12px; color: #6F665B;">较昨日 +3</span>
+</div>
+<div style="box-sizing: border-box; padding: 16px 20px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 4px;">
+<span style="font-size: 13px; color: #6F665B;">今日订购</span>
+<span style="font-family: 'Noto Serif SC', serif; font-size: 28px; font-weight: 700; line-height: 1.25;">6 部</span>
+<span style="font-size: 12px; color: #6F665B;">扣减与冻结 11,568 积分</span>
+</div>
+<div style="box-sizing: border-box; padding: 16px 20px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 4px;">
+<span style="font-size: 13px; color: #6F665B;">今日收款</span>
+<span style="font-family: 'Noto Serif SC', serif; font-size: 28px; font-weight: 700; line-height: 1.25;">¥10,000.00</span>
+<span style="font-size: 12px; color: #6F665B;">套餐 ¥8,000.00 · 加购积分 ¥2,000.00</span>
+</div>
+<div style="box-sizing: border-box; padding: 16px 20px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 4px;">
+<span style="font-size: 13px; color: #6F665B;">套餐生效商家</span>
+<span style="font-family: 'Noto Serif SC', serif; font-size: 28px; font-weight: 700; line-height: 1.25;">186</span>
+<span style="font-size: 12px; color: #6F665B;">7 天内到期 19 家 · 已过期未续费 6 家</span>
+</div>
+</section>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 16px;">
+<section aria-labelledby="todo-title" style="box-sizing: border-box; padding: 16px 20px 20px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; align-items: center; justify-content: space-between;"><h2 id="todo-title" style="margin: 0; font-size: 16px; font-weight: 600;">我的待办</h2><span style="font-size: 12px; color: #6F665B;">共 {{todoTotal}} 项 · 点击直达处理页</span></div>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px;">
+<sc-if value="{{v.review}}" hint-placeholder-val="{{true}}">
+<a href="Review.dc.html" style="box-sizing: border-box; min-height: 92px; padding: 12px; border: 1px solid #F0EBE3; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px;">
+<span style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #6F665B;">待审核商家<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></span>
+<span style="font-family: 'Noto Serif SC', serif; font-size: 26px; font-weight: 700; line-height: 1.3; color: #1D1A16;">4</span>
+<span style="font-size: 12px; color: #6F665B;">最早 09-29 提交</span>
+</a>
+</sc-if>
+<sc-if value="{{v.receipt}}" hint-placeholder-val="{{true}}">
+<a href="Receipts.dc.html" style="box-sizing: border-box; min-height: 92px; padding: 12px; border: 1px solid #F0EBE3; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px;">
+<span style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #6F665B;">待确认收款<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></span>
+<span style="font-family: 'Noto Serif SC', serif; font-size: 26px; font-weight: 700; line-height: 1.3; color: #1D1A16;">3</span>
+<span style="font-size: 12px; color: #6F665B;">合计 ¥55,000.00</span>
+</a>
+</sc-if>
+<sc-if value="{{v.assign}}" hint-placeholder-val="{{true}}">
+<a href="Tickets.dc.html" style="box-sizing: border-box; min-height: 92px; padding: 12px; border: 1px solid #F0EBE3; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px;">
+<span style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #6F665B;">待分配工单<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></span>
+<span style="font-family: 'Noto Serif SC', serif; font-size: 26px; font-weight: 700; line-height: 1.3; color: #1D1A16;">2</span>
+<span style="font-size: 12px; color: #6F665B;">11:12 前分配</span>
+</a>
+</sc-if>
+<sc-if value="{{v.ad}}" hint-placeholder-val="{{true}}">
+<a href="AdTasks.dc.html" style="box-sizing: border-box; min-height: 92px; padding: 12px; border: 1px solid #F0EBE3; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px;">
+<span style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #6F665B;">待制作广告<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></span>
+<span style="font-family: 'Noto Serif SC', serif; font-size: 26px; font-weight: 700; line-height: 1.3; color: #1D1A16;">5</span>
+<span style="font-size: 12px; color: #6F665B;">今日截止 2 条</span>
+</a>
+</sc-if>
+<sc-if value="{{v.deliver}}" hint-placeholder-val="{{true}}">
+<a href="Delivery.dc.html" style="box-sizing: border-box; min-height: 92px; padding: 12px; border: 1px solid #F0EBE3; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px;">
+<span style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #6F665B;">待交付成片<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></span>
+<span style="font-family: 'Noto Serif SC', serif; font-size: 26px; font-weight: 700; line-height: 1.3; color: #1D1A16;">3</span>
+<span style="font-size: 12px; font-weight: 600; color: #B42318;">超时 1 条</span>
+</a>
+</sc-if>
+<sc-if value="{{v.verify}}" hint-placeholder-val="{{true}}">
+<a href="Verify.dc.html" style="box-sizing: border-box; min-height: 92px; padding: 12px; border: 1px solid #F0EBE3; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px;">
+<span style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #6F665B;">待核验上线<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></span>
+<span style="font-family: 'Noto Serif SC', serif; font-size: 26px; font-weight: 700; line-height: 1.3; color: #1D1A16;">4</span>
+<span style="font-size: 12px; color: #6F665B;">今日截止 2 条</span>
+</a>
+</sc-if>
+<sc-if value="{{v.expire}}" hint-placeholder-val="{{true}}">
+<a href="Renewals.dc.html" style="box-sizing: border-box; min-height: 92px; padding: 12px; border: 1px solid #F0EBE3; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px;">
+<span style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #6F665B;">套餐即将到期<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></span>
+<span style="font-family: 'Noto Serif SC', serif; font-size: 26px; font-weight: 700; line-height: 1.3; color: #1D1A16;">19</span>
+<span style="font-size: 12px; color: #6F665B;">7 天内到期未续费</span>
+</a>
+</sc-if>
+<sc-if value="{{v.offline}}" hint-placeholder-val="{{true}}">
+<a href="Offline.dc.html" style="box-sizing: border-box; min-height: 92px; padding: 12px; border: 1px solid #F0EBE3; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px;">
+<span style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #6F665B;">待核查下架<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></span>
+<span style="font-family: 'Noto Serif SC', serif; font-size: 26px; font-weight: 700; line-height: 1.3; color: #1D1A16;">3</span>
+<span style="font-size: 12px; font-weight: 600; color: #B42318;">逾期未下架 1</span>
+</a>
+</sc-if>
+<sc-if value="{{v.service}}" hint-placeholder-val="{{true}}">
+<a href="Service.dc.html" style="box-sizing: border-box; min-height: 92px; padding: 12px; border: 1px solid #F0EBE3; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px;">
+<span style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #6F665B;">待处理工单<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></span>
+<span style="font-family: 'Noto Serif SC', serif; font-size: 26px; font-weight: 700; line-height: 1.3; color: #1D1A16;">6</span>
+<span style="font-size: 12px; font-weight: 600; color: #B42318;">响应超时 1 个</span>
+</a>
+</sc-if>
+<sc-if value="{{v.refund}}" hint-placeholder-val="{{true}}">
+<a href="Refunds.dc.html" style="box-sizing: border-box; min-height: 92px; padding: 12px; border: 1px solid #F0EBE3; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px;">
+<span style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #6F665B;">退款审批<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></span>
+<span style="font-family: 'Noto Serif SC', serif; font-size: 26px; font-weight: 700; line-height: 1.3; color: #1D1A16;">1</span>
+<span style="font-size: 12px; color: #6F665B;">退回 2,430 积分</span>
+</a>
+</sc-if>
+</div>
+</section>
+<section aria-labelledby="alert-title" style="box-sizing: border-box; padding: 16px 20px 8px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 6px;">
+<div style="display: flex; align-items: center; gap: 8px;"><h2 id="alert-title" style="margin: 0; font-size: 16px; font-weight: 600;">预警</h2><span style="height: 20px; box-sizing: border-box; padding: 0 7px; border-radius: 10px; background: #FBE9E7; color: #B42318; font-size: 12px; font-weight: 700; display: flex; align-items: center;">4</span></div>
+<ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column;">
+<li style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #F0EBE3;">
+<span style="flex-shrink: 0; width: 76px; box-sizing: border-box; padding: 3px 0; border-radius: 4px; background: #FBE9E7; color: #B42318; font-size: 12px; font-weight: 600; text-align: center;">超时工单</span>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600;">星河洗车《夜巷疑云》</span><span style="font-size: 12px; color: #6F665B;">应于 09-29 18:00 前交付成片，已超时 16 小时</span></div>
+<a href="Delivery.dc.html" style="flex-shrink: 0; min-height: 32px; display: flex; align-items: center; font-size: 13px; color: #A63F12;">查看</a>
+</li>
+<li style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #F0EBE3;">
+<span style="flex-shrink: 0; width: 76px; box-sizing: border-box; padding: 3px 0; border-radius: 4px; background: #FBE9E7; color: #B42318; font-size: 12px; font-weight: 600; text-align: center;">逾期未上线</span>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600;">禾田面馆《锦绣小厨娘》</span><span style="font-size: 12px; color: #6F665B;">约定 09-28 上线，已逾期 2 天；使用期不顺延</span></div>
+<a href="Overdue.dc.html" style="flex-shrink: 0; min-height: 32px; display: flex; align-items: center; font-size: 13px; color: #A63F12;">查看</a>
+</li>
+<li style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #F0EBE3;">
+<span style="flex-shrink: 0; width: 76px; box-sizing: border-box; padding: 3px 0; border-radius: 4px; background: #FBE9E7; color: #B42318; font-size: 12px; font-weight: 600; text-align: center;">逾期未下架</span>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600;">老街烧烤《旧时光照相馆》</span><span style="font-size: 12px; color: #6F665B;">使用期 09-28 结束，已升级至交付主管</span></div>
+<a href="Offline.dc.html" style="flex-shrink: 0; min-height: 32px; display: flex; align-items: center; font-size: 13px; color: #A63F12;">查看</a>
+</li>
+<li style="display: flex; align-items: center; gap: 12px; padding: 10px 0;">
+<span style="flex-shrink: 0; width: 76px; box-sizing: border-box; padding: 3px 0; border-radius: 4px; background: #FBEDE5; color: #A63F12; font-size: 12px; font-weight: 600; text-align: center;">版权到期</span>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600;">《晚风小酒馆》授权期即将结束</span><span style="font-size: 12px; color: #6F665B;">12-25 结束，09-25 起已停止订购</span></div>
+<a href="Dramas.dc.html" style="flex-shrink: 0; min-height: 32px; display: flex; align-items: center; font-size: 13px; color: #A63F12;">查看</a>
+</li>
+</ul>
+</section>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 16px;">
+<section aria-labelledby="plan-title" style="box-sizing: border-box; padding: 16px 20px 12px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 8px;">
+<div style="display: flex; align-items: center; justify-content: space-between;"><h2 id="plan-title" style="margin: 0; font-size: 16px; font-weight: 600;">近 7 日上线安排</h2><a href="Calendar.dc.html" style="min-height: 32px; display: flex; align-items: center; font-size: 13px; color: #A63F12;">查看上线日历 ›</a></div>
+<ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column;">
+<li style="display: grid; grid-template-columns: 96px 112px minmax(0, 1fr) 72px 56px 64px; gap: 12px; align-items: center; min-height: 38px; border-bottom: 1px solid #F0EBE3; font-size: 13px;"><span style="color: #6F665B;">10-01 周四</span><span style="font-weight: 600;">橘子电玩</span><span>《夜巷疑云》整部 45 集</span><span style="color: #6F665B;">抖音</span><span style="color: #6F665B;">韩冬</span><span style="justify-self: start; padding: 2px 8px; border-radius: 10px; background: #FBEDE5; color: #A63F12; font-size: 12px; font-weight: 600;">待上线</span></li>
+<li style="display: grid; grid-template-columns: 96px 112px minmax(0, 1fr) 72px 56px 64px; gap: 12px; align-items: center; min-height: 38px; border-bottom: 1px solid #F0EBE3; font-size: 13px;"><span style="color: #6F665B;">10-02 周五</span><span style="font-weight: 600;">绿野轻食</span><span>《心动便利店》整部 40 集</span><span style="color: #6F665B;">抖音</span><span style="color: #6F665B;">林晓</span><span style="justify-self: start; padding: 2px 8px; border-radius: 10px; background: #FBEDE5; color: #A63F12; font-size: 12px; font-weight: 600;">待上线</span></li>
+<li style="display: grid; grid-template-columns: 96px 112px minmax(0, 1fr) 72px 56px 64px; gap: 12px; align-items: center; min-height: 38px; border-bottom: 1px solid #F0EBE3; font-size: 13px;"><span style="color: #6F665B;">10-03 周六</span><span style="font-weight: 600;">快乐跆拳道</span><span>《家有萌娃》整部 36 集</span><span style="color: #6F665B;">视频号</span><span style="color: #6F665B;">苏晴</span><span style="justify-self: start; padding: 2px 8px; border-radius: 10px; background: #FBEDE5; color: #A63F12; font-size: 12px; font-weight: 600;">待上线</span></li>
+<li style="display: grid; grid-template-columns: 96px 112px minmax(0, 1fr) 72px 56px 64px; gap: 12px; align-items: center; min-height: 38px; border-bottom: 1px solid #F0EBE3; font-size: 13px;"><span style="color: #6F665B;">10-05 周一</span><span style="font-weight: 600;">书香文具</span><span>《巷口那家店》整部 80 集</span><span style="color: #6F665B;">抖音</span><span style="color: #6F665B;">韩冬</span><span style="justify-self: start; padding: 2px 8px; border-radius: 10px; background: #FBEDE5; color: #A63F12; font-size: 12px; font-weight: 600;">待上线</span></li>
+<li style="display: grid; grid-template-columns: 96px 112px minmax(0, 1fr) 72px 56px 64px; gap: 12px; align-items: center; min-height: 38px; font-size: 13px;"><span style="color: #6F665B;">10-06 周二</span><span style="font-weight: 600;">味道江湖串串</span><span>《锦绣小厨娘》整部 80 集</span><span style="color: #6F665B;">抖音</span><span style="color: #6F665B;">林晓</span><span style="justify-self: start; padding: 2px 8px; border-radius: 10px; background: #E8EEF8; color: #2E5AAC; font-size: 12px; font-weight: 600;">成片交付</span></li>
+</ul>
+<p style="margin: 0; font-size: 12px; color: #6F665B;">另有 10-06 嘉禾眼镜、10-07 暖暖母婴 2 项，详见上线日历</p>
+</section>
+<section aria-labelledby="feed-title" style="box-sizing: border-box; padding: 16px 20px 12px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 8px;">
+<div style="display: flex; align-items: center; justify-content: space-between;"><h2 id="feed-title" style="margin: 0; font-size: 16px; font-weight: 600;">实时动态</h2><span style="font-size: 12px; color: #6F665B;">今日</span></div>
+<ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column;">
+<li style="display: flex; gap: 12px; align-items: baseline; min-height: 35px; box-sizing: border-box; padding: 8px 0; border-bottom: 1px solid #F0EBE3; font-size: 13px;"><span style="flex-shrink: 0; width: 40px; color: #6F665B; font-variant-numeric: tabular-nums;">10:21</span><span>好运来便利店创建付款单（开通基础版），待支付</span></li>
+<li style="display: flex; gap: 12px; align-items: baseline; min-height: 35px; box-sizing: border-box; padding: 8px 0; border-bottom: 1px solid #F0EBE3; font-size: 13px;"><span style="flex-shrink: 0; width: 40px; color: #6F665B; font-variant-numeric: tabular-nums;">10:18</span><span>晴天洗衣订购《家有萌娃》，待资质审核通过</span></li>
+<li style="display: flex; gap: 12px; align-items: baseline; min-height: 35px; box-sizing: border-box; padding: 8px 0; border-bottom: 1px solid #F0EBE3; font-size: 13px;"><span style="flex-shrink: 0; width: 40px; color: #6F665B; font-variant-numeric: tabular-nums;">10:05</span><span>悦心瑜伽订购《心动便利店》，已生成交付工单</span></li>
+<li style="display: flex; gap: 12px; align-items: baseline; min-height: 35px; box-sizing: border-box; padding: 8px 0; border-bottom: 1px solid #F0EBE3; font-size: 13px;"><span style="flex-shrink: 0; width: 40px; color: #6F665B; font-variant-numeric: tabular-nums;">09:40</span><span>胖哥冒菜订购《锦绣小厨娘》，工单已分配给苏晴</span></li>
+<li style="display: flex; gap: 12px; align-items: baseline; min-height: 35px; box-sizing: border-box; padding: 8px 0; border-bottom: 1px solid #F0EBE3; font-size: 13px;"><span style="flex-shrink: 0; width: 40px; color: #6F665B; font-variant-numeric: tabular-nums;">09:25</span><span>米粒烘焙升级为专业版，补发 2,400 积分</span></li>
+<li style="display: flex; gap: 12px; align-items: baseline; min-height: 35px; box-sizing: border-box; padding: 8px 0; font-size: 13px;"><span style="flex-shrink: 0; width: 40px; color: #6F665B; font-variant-numeric: tabular-nums;">09:20</span><span>小满花艺回填上线链接，已生成核验任务</span></li>
+</ol>
+</section>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const role = st.role || '全部岗位';
+    const roles = ['全部岗位', '客服', '交付经理', '剪辑师', '发布专员', '财务'];
+    const owner = { review: '客服', receipt: '财务', assign: '交付经理', ad: '剪辑师', deliver: '发布专员', verify: '发布专员', expire: '交付经理', offline: '发布专员', service: '客服', refund: '财务' };
+    const counts = { review: 4, receipt: 3, assign: 2, ad: 5, deliver: 3, verify: 4, expire: 19, offline: 3, service: 6, refund: 1 };
+    const v = {};
+    let total = 0;
+    Object.keys(owner).forEach((k) => {
+      const on = role === '全部岗位' || owner[k] === role;
+      v[k] = on;
+      if (on) total += counts[k];
+    });
+    return {
+      roles: roles.map((r) => ({
+        label: r,
+        on: r === role,
+        pick: () => this.setState({ role: r }),
+        bg: r === role ? '#1D1A16' : 'transparent',
+        fg: r === role ? '#FFFFFF' : '#6F665B',
+        weight: r === role ? '600' : '400'
+      })),
+      v: v,
+      todoTotal: total
+    };
+  }
+}
+</script>
+</body>
+</html>

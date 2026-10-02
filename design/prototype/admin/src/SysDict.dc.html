@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏运营后台 · 数据字典</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; overflow: hidden; position: relative; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; font-size: 14px;">
+<nav aria-label="主菜单" style="width: 216px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; background: #231F1B; color: #D9D1C5;">
+<div style="height: 64px; flex-shrink: 0; box-sizing: border-box; padding: 0 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #3A332C;">
+<svg width="30" height="30" viewBox="0 0 64 64" fill="none" stroke="#E8864F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12 22 25h20l12-13-2 22-20 19-20-19z"></path><path d="m21 34 5 2.5M43 34l-5 2.5"></path><circle cx="32" cy="44" r="1.8" fill="#E8864F" stroke="none"></circle></svg>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-family: 'Noto Serif SC', serif; font-size: 19px; font-weight: 900; letter-spacing: 3px; line-height: 1.1; color: #FFFFFF;">狸有戏</span><span style="font-size: 12px; line-height: 1.2; color: #9A9084;">运营管理后台</span></div>
+</div>
+<div style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px;">
+<a href="Main.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>工作台</a>
+<a href="Dramas.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="m10.5 9.5 4 2.5-4 2.5z"></path></svg>短剧库</a>
+<a href="Plans.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5 15.5 12 12 16.5 8.5 12z"></path></svg><span style="flex-grow: 1;">套餐与积分</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Merchants.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5 5.5 4.5h13L20 9.5"></path><path d="M4 9.5c0 1.5 1.2 2.5 2.7 2.5s2.6-1 2.6-2.5c0 1.5 1.2 2.5 2.7 2.5s2.7-1 2.7-2.5c0 1.5 1.1 2.5 2.6 2.5S20 11 20 9.5"></path><path d="M5.5 12v7.5h13V12"></path><path d="M10 19.5V15h4v4.5"></path></svg><span style="flex-grow: 1;">商家</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">4</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Orders.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8.5l4 4v13H6z"></path><path d="M14 3.5V8h4.5M9 12.5h6M9 16.5h4"></path></svg><span style="flex-grow: 1;">订单</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">22</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Tickets.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"></path><path d="m4 7.5 8 4.5 8-4.5M12 12v9"></path></svg><span style="flex-grow: 1;">交付</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">7</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Delivery.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15.5V4"></path><path d="m7.5 8.5 4.5-4.5 4.5 4.5"></path><path d="M5 14v5.5h14V14"></path></svg><span style="flex-grow: 1;">发布</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">10</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Service.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2"></path><rect x="3.5" y="13.5" width="4" height="6" rx="1.5"></rect><rect x="16.5" y="13.5" width="4" height="6" rx="1.5"></rect></svg><span style="flex-grow: 1;">客服</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">6</span></a>
+<a href="Payments.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m9 7.5 3 4 3-4M12 11.5V17M9.5 12.5h5M9.5 15h5"></path></svg><span style="flex-grow: 1;">财务</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">8</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="RptOverview.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7.5 16.5v-5M12 16.5v-9M16.5 16.5v-7"></path></svg><span style="flex-grow: 1;">报表</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="OpsHome.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3.5l7 4V6l-7 4z"></path><path d="M17.5 9.5a3.5 3.5 0 0 1 0 5"></path></svg><span style="flex-grow: 1;">运营</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<div style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #FFFFFF;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5h9M17.5 6.5h2M4.5 12h3M11.5 12h8M4.5 17.5h7M15.5 17.5h4"></path><circle cx="15.5" cy="6.5" r="2"></circle><circle cx="9.5" cy="12" r="2"></circle><circle cx="13.5" cy="17.5" r="2"></circle></svg><span style="flex-grow: 1;">系统</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div>
+<a href="SysStaff.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">员工账号</a>
+<a href="SysRoles.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">角色权限</a>
+<a href="SysDict.dc.html" aria-current="page" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #C4501B; color: #FFFFFF; font-size: 13px; font-weight: 600;">数据字典</a>
+<a href="SysParams.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">参数配置</a>
+<a href="SysLogs.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">操作日志</a>
+<a href="Partners.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"></circle><path d="M3.5 19a5.5 5.5 0 0 1 11 0"></path><circle cx="17" cy="9.5" r="2.5"></circle><path d="M16 14.3a4.5 4.5 0 0 1 4.5 4.7"></path></svg><span style="flex-grow: 1;">渠道</span><span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #5A5047; border-radius: 4px; font-size: 11px; line-height: 16px; color: #9A9084;">V1.1</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+</div>
+</nav>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<header style="height: 56px; flex-shrink: 0; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 16px; background: #FFFFFF; border-bottom: 1px solid #ECE6DD;">
+<nav aria-label="面包屑" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6F665B;"><span>系统</span><span aria-hidden="true">/</span><span style="color: #1D1A16; font-weight: 600;">数据字典</span></nav>
+<label style="margin-left: auto; width: 300px; height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FAF8F4; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="全局搜索" placeholder="搜索商家、订单号、工单号" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<button type="button" aria-label="消息通知，5 条未读" style="position: relative; width: 40px; height: 40px; flex-shrink: 0; border: none; border-radius: 8px; background: transparent; color: #1D1A16; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg><span aria-hidden="true" style="position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; box-sizing: content-box; border: 2px solid #FFFFFF; border-radius: 6px; background: #C4501B;"></span></button>
+<div style="display: flex; align-items: center; gap: 10px; padding-left: 16px; border-left: 1px solid #ECE6DD;"><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 16px; background: #FBEDE5; color: #A63F12; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">周</span><div style="display: flex; flex-direction: column;"><span style="font-size: 14px; font-weight: 600; line-height: 1.3;">周航</span><span style="font-size: 12px; line-height: 1.3; color: #6F665B;">超级管理员</span></div></div>
+</header>
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<div role="status" style="position: absolute; top: 68px; right: 24px; z-index: 5; max-width: 540px; box-sizing: border-box; padding: 10px 8px 10px 14px; border-radius: 10px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: 0 8px 24px rgba(29, 26, 22, 0.18);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7FD19B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg><span style="flex-grow: 1;">{{toast}}</span><button type="button" aria-label="关闭提示" onClick="{{closeToast}}" style="width: 28px; height: 28px; flex-shrink: 0; border: none; border-radius: 6px; background: transparent; color: #FFFFFF; font-size: 16px; cursor: pointer;">×</button></div>
+</sc-if>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;">
+<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;"><h1 style="margin: 0; font-family: 'Noto Serif SC', serif; font-size: 24px; font-weight: 700; line-height: 1.3;">数据字典</h1><p style="margin: 0; font-size: 13px; color: #6F665B;">维护各业务共用的选项；停用后不再出现在新的选择中，已使用该选项的历史数据不受影响</p></div>
+</div>
+<div style="display: flex; gap: 16px; align-items: flex-start;"><nav aria-label="字典类型" style="flex-shrink: 0; width: 200px; box-sizing: border-box; padding: 10px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 2px;"><sc-for list="{{types}}" as="t" hint-placeholder-count="8"><button type="button" onClick="{{t.pick}}" aria-pressed="{{t.on}}" style="width: 100%; min-height: 50px; box-sizing: border-box; padding: 6px 12px; border: none; border-radius: 10px; background: {{t.bg}}; text-align: left; font-family: inherit; color: #1D1A16; cursor: pointer; display: flex; flex-direction: column; justify-content: center; gap: 2px;"><span style="font-size: 14px; font-weight: {{t.weight}};">{{t.name}}</span><span style="font-size: 12px; color: #6F665B;">{{t.sub}}</span></button></sc-for></nav><section aria-label="字典项" style="flex-shrink: 0; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; overflow: hidden; flex: 1 1 0px; min-width: 0;">
+<div style="box-sizing: border-box; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid #ECE6DD;"><div style="display: flex; flex-direction: column; gap: 3px; min-width: 0;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">{{cur.name}}</h2><p style="margin: 0; font-size: 12px; color: #6F665B;">{{cur.desc}}</p></div><sc-if value="{{cur.canAdd}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{openAdd}}" style="min-height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 13px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; gap: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span>{{cur.addLabel}}</span></button></sc-if></div><div role="table" aria-label="字典项" style="display: flex; flex-direction: column;"><div role="row" style="display: grid; grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1.2fr) 80px 56px 48px; column-gap: 12px; align-items: center; min-height: 38px; box-sizing: border-box; padding: 0 16px; background: #FAF8F4; border-bottom: 1px solid #ECE6DD; font-size: 12px; font-weight: 600; color: #6F665B;"><span role="columnheader">名称</span><span role="columnheader">编码</span><span role="columnheader">{{cur.descLabel}}</span><span role="columnheader" style="text-align: right;">{{cur.refLabel}}</span><span role="columnheader">{{cur.stateLabel}}</span><span role="columnheader"></span></div><sc-for list="{{items}}" as="i" hint-placeholder-count="12"><div role="row" style="display: grid; grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1.2fr) 80px 56px 48px; column-gap: 12px; align-items: center; min-height: 38px; box-sizing: border-box; padding: 2px 16px; border-bottom: 1px solid #F0EBE3; background: {{i.bg}}; font-size: 13px;"><span role="cell" style="display: flex; align-items: center; gap: 6px; padding-left: {{i.indent}}; min-width: 0;"><sc-if value="{{i.hasKids}}" hint-placeholder-val="{{false}}"><button type="button" aria-label="{{i.expLabel}}" aria-expanded="{{i.open}}" onClick="{{i.toggleOpen}}" style="width: 22px; height: 22px; flex-shrink: 0; padding: 0; border: none; border-radius: 6px; background: #F3EFE9; color: #5E564C; display: flex; align-items: center; justify-content: center; cursor: pointer; transform: rotate({{i.rot}});"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></button></sc-if><sc-if value="{{i.leafPad}}" hint-placeholder-val="{{false}}"><span style="width: 22px; flex-shrink: 0;"></span></sc-if><span style="font-weight: {{i.weight}}; color: {{i.nameColor}};">{{i.name}}</span><sc-if value="{{i.hasTag}}" hint-placeholder-val="{{false}}"><span style="padding: 0 6px; border-radius: 4px; background: {{i.tagBg}}; color: {{i.tagFg}}; font-size: 12px; line-height: 18px;">{{i.tag}}</span></sc-if></span><span role="cell" style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: #6F665B;">{{i.code}}</span><span role="cell" style="font-size: 12px; color: #6F665B; min-width: 0;">{{i.desc}}</span><span role="cell" style="text-align: right; font-variant-numeric: tabular-nums;">{{i.ref}}</span><span role="cell"><button type="button" role="switch" aria-checked="{{i.on}}" aria-label="{{i.swLabel}}" onClick="{{i.toggle}}" style="position: relative; width: 36px; height: 20px; flex-shrink: 0; padding: 0; border: none; border-radius: 10px; background: {{i.swBg}}; cursor: pointer;"><span style="position: absolute; top: 2px; left: {{i.swKnob}}; width: 16px; height: 16px; border-radius: 8px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(29, 26, 22, 0.25);"></span></button></span><span role="cell" style="text-align: right;"><button type="button" onClick="{{i.edit}}" style="min-height: 26px; border-radius: 8px; border: none; background: none; padding: 0; color: #A63F12; font-family: inherit; font-size: 13px; cursor: pointer;">编辑</button></span></div></sc-for></div><p style="margin: 0; font-size: 12px; line-height: 1.7; color: #6F665B; box-sizing: border-box; padding: 10px 16px 12px;">{{cur.foot}}</p>
+</section></div>
+</main>
+</div>
+<sc-if value="{{addOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10; background: rgba(29, 26, 22, 0.45); display: flex; align-items: center; justify-content: center;">
+<section role="dialog" aria-modal="true" aria-labelledby="af-title" style="width: 500px; max-height: 820px; overflow-y: auto; box-sizing: border-box; padding: 24px; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 48px rgba(29, 26, 22, 0.24);">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><h2 id="af-title" style="margin: 0; font-size: 18px; font-weight: 600;">{{af.title}}</h2></div>
+<button type="button" aria-label="关闭" onClick="{{closeDlg}}" style="width: 32px; height: 32px; flex-shrink: 0; border: none; border-radius: 8px; background: #F6F3EE; color: #1D1A16; font-size: 18px; cursor: pointer;">×</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px;"><sc-if value="{{af.hasParent}}" hint-placeholder-val="{{false}}"><div style="display: flex; flex-direction: column; gap: 6px;"><label for="af-parent" style="font-size: 13px; font-weight: 600;">上级</label><select id="af-parent" value="{{af.parent}}" onChange="{{onAfParent}}" style="width: 240px; height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="C01">餐饮</option><option value="C02">丽人</option><option value="C03">休闲娱乐</option><option value="C04">运动健身</option><option value="C05">亲子</option><option value="C06">生活服务</option><option value="C07">零售</option><option value="C08">酒店住宿</option><option value="C09">宠物</option><option value="">无（新增一级品类）</option></select></div></sc-if><div style="display: flex; flex-direction: column; gap: 6px;"><label for="af-name" style="font-size: 13px; font-weight: 600;">名称</label><input id="af-name" type="text" maxlength="20" placeholder="{{af.namePh}}" value="{{af.name}}" onChange="{{onAfName}}" style="height: 38px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"></div><div style="display: flex; flex-direction: column; gap: 6px;"><label for="af-desc" style="font-size: 13px; font-weight: 600;">{{af.descLabel}}</label><input id="af-desc" type="text" maxlength="40" placeholder="选填" value="{{af.desc}}" onChange="{{onAfDesc}}" style="height: 38px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"></div><p style="margin: 0; font-size: 12px; line-height: 1.7; color: #6F665B;">编码由系统按顺序生成，保存后不可修改。</p><sc-if value="{{hasAfErr}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 13px; color: #B42318;">{{afErr}}</span></sc-if></div>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+<button type="button" onClick="{{closeDlg}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; cursor: pointer;">取消</button><button type="button" onClick="{{submitAdd}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer;">保存</button>
+</div>
+</section>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const money = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const num = (n) => n.toLocaleString('en-US');
+    const tab = (key, label, count, cur, pick) => ({
+      key: key, label: label, count: count, on: key === cur, pick: pick,
+      line: key === cur ? '#C4501B' : 'transparent', color: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400',
+      cbg: key === cur ? '#FBEDE5' : '#F3EFE9', cfg: key === cur ? '#A63F12' : '#6F665B'
+    });
+    const segOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, bg: key === cur ? '#FFFFFF' : 'transparent', fg: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400' });
+    const pillOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, border: key === cur ? '#1D1A16' : '#E7E1D8', bg: key === cur ? '#1D1A16' : '#FFFFFF', fg: key === cur ? '#FFFFFF' : '#1D1A16' });
+    const sw = (on) => ({ bg: on ? '#256A42' : '#CFC7BC', knob: on ? '18px' : '2px' });
+    const toastVals = { toast: st.toast || '', hasToast: !!st.toast, closeToast: () => this.setState({ toast: '' }) };
+
+    const I = (code, name, desc, ref, on, parent, tag) => ({ code: code, name: name, desc: desc, ref: ref, on: on, parent: parent || '', tag: tag || '' });
+    const kids = (p, names, refs) => names.map((n, i) => I(p + String(i + 1).padStart(2, '0'), n, '', refs ? refs[i] : '', true, p));
+    const D = {
+      ind: { name: '行业品类', desc: '一级、二级两层，用于商家建档、短剧适配行业与商城筛选；特殊行业默认不开放', descLabel: '说明', refLabel: '商家数', stateLabel: '开放', addLabel: '新增品类', tree: true,
+        foot: '医疗、医疗美容、药品等须广告审查的行业 V1.0 不开放；已有商家使用的品类不能停用。',
+        items: [].concat(
+          [I('C01', '餐饮', '', 208, true)], kids('C01', ['火锅', '川菜', '冒菜', '烧烤', '面馆', '小吃', '咖啡', '茶饮', '甜品', '烘焙', '轻食', '日料', '海鲜', '卤味'], [38, 29, 12, 21, 18, 17, 16, 19, 11, 9, 5, 6, 4, 3]),
+          [I('C02', '丽人', '', 58, true)], kids('C02', ['美发', '美甲', '美容养护', '婚纱摄影'], [24, 17, 9, 8]),
+          [I('C03', '休闲娱乐', '', 47, true)], kids('C03', ['台球', '电玩', '茶楼', '露营'], [11, 9, 15, 12]),
+          [I('C04', '运动健身', '', 41, true)], kids('C04', ['健身', '瑜伽', '羽毛球', '跆拳道'], [17, 12, 7, 5]),
+          [I('C06', '生活服务', '', 36, true)], kids('C06', ['洗车', '汽修', '洗衣'], [14, 13, 9]),
+          [I('C05', '亲子', '', 33, true)], kids('C05', ['亲子乐园', '母婴', '早教'], [11, 14, 8]),
+          [I('C07', '零售', '', 27, true)], kids('C07', ['便利店', '书店', '文具', '眼镜', '鲜花'], [9, 6, 4, 5, 3]),
+          [I('C08', '酒店住宿', '', 21, true)], kids('C08', ['民宿', '酒店'], [16, 5]),
+          [I('C09', '宠物', '', 15, true)], kids('C09', ['宠物店', '宠物美容'], [11, 4]),
+          [I('C10', '医疗健康', '须广告审查，V1.0 不开放', 0, false, '', '特殊行业')], kids('C10', ['医疗机构', '医疗美容', '药品', '保健食品'], [0, 0, 0, 0]).map((x) => Object.assign(x, { on: false }))
+        ) },
+      area: { name: '行政区划', desc: '按省、市、区县三级维护，当前为四川省；用于门店地址、商家筛选与服务商服务区域', descLabel: '类型', refLabel: '商家数', stateLabel: '启用', addLabel: '新增区划', tree: true,
+        foot: '区划数据按国家标准导入，不支持手动新增；高新区等功能区不属于行政区划，按门店地址归入并单独标注。',
+        items: [].concat(
+          [I('510100', '成都市', '地级市', 470, true)],
+          [['510104', '锦江区', 86], ['510105', '青羊区', 52], ['510106', '金牛区', 61], ['510107', '武侯区', 78], ['510108', '成华区', 49], ['510112', '龙泉驿区', 23],
+           ['510114', '新都区', 27], ['510116', '双流区', 31], ['510117', '郫都区', 19], ['510181', '都江堰市', 12]].map((a) => I(a[0], a[1], '区县', a[2], true, '510100')),
+          [I('—', '高新区', '功能区', 32, true, '510100', '功能区')],
+          [I('510600', '德阳市', '地级市', 5, true)], [I('510700', '绵阳市', '地级市', 2, true)], [I('511100', '乐山市', '地级市', 9, true)]
+        ) },
+      genre: { name: '题材', desc: '用于短剧标注与商城分类标签的“包含题材”', descLabel: '说明', refLabel: '短剧数', stateLabel: '启用', addLabel: '新增题材', tree: false,
+        foot: '短剧可标注多个题材；停用的题材不影响已标注的短剧。',
+        items: [I('G01', '都市', '', 9, true), I('G02', '都市温情', '', 1, true), I('G03', '甜宠', '', 4, true), I('G04', '家庭', '', 5, true), I('G05', '逆袭', '', 4, true),
+          I('G06', '悬疑', '', 2, true), I('G07', '古装', '', 2, true), I('G08', '喜剧', '', 3, true), I('G09', '职场', '', 0, true), I('G10', '青春', '', 0, true), I('G11', '奇幻', '暂无适合本地商家植入的片源', 0, false)] },
+      tag: { name: '卖点标签', desc: '展示在短剧详情的“适配推荐”中，帮助商家理解推荐理由', descLabel: '说明', refLabel: '短剧数', stateLabel: '启用', addLabel: '新增标签', tree: false,
+        foot: '每部短剧最多选择 3 个卖点标签。',
+        items: [I('T01', '烟火气', '门店日常与美食场景多，适合餐饮', 7, true), I('T02', '强反转', '剧情节奏快，完播率高', 6, true), I('T03', '温情治愈', '适合亲子、家庭消费场景', 5, true),
+          I('T04', '轻松搞笑', '适合休闲娱乐门店', 4, true), I('T05', '高颜值', '适合丽人行业', 3, true), I('T06', '节日氛围', '适合节假日营销', 2, true)] },
+      reject: { name: '驳回原因', desc: '审核不通过时供审核人选择，选择后仍须填写说明', descLabel: '适用场景', refLabel: '本月引用', stateLabel: '启用', addLabel: '新增原因', tree: false,
+        foot: '驳回原因会展示给商家，请使用商家能看懂的表述。',
+        items: [I('R01', '证照模糊', '资质审核', 4, true), I('R02', '主体与档案不一致', '资质审核', 2, true), I('R03', '证照过期', '资质审核', 1, true),
+          I('R04', '缺少行业许可证', '资质审核', 1, true), I('R05', '上线集数不完整', '链接核验', 3, true), I('R06', '发布账号与订单不一致', '链接核验', 1, true), I('R07', '缺少广告标识', '链接核验', 2, true),
+          I('R08', '主页截图不完整', '账号核验', 2, true), I('R09', '申请信息有误', '发票', 1, true), I('R10', '依据不足', '积分调整', 1, true)] },
+      ticket: { name: '工单类型', desc: '用于客服工单分类、默认优先级与转派规则', descLabel: '默认规则', refLabel: '本月工单', stateLabel: '启用', addLabel: '新增类型', tree: false,
+        foot: '可转派的交付类问题由客服转给该商家的服务经理；优先级可在工单中调整。',
+        items: [I('K01', '交付进度', '中 · 可转派服务经理', 14, true), I('K02', '广告制作', '中 · 可转派服务经理', 4, true), I('K03', '内容修改', '中 · 可转派服务经理', 10, true),
+          I('K04', '发布与上线', '中 · 可转派服务经理', 9, true), I('K05', '套餐与积分', '中', 8, true), I('K06', '数据问题', '中', 4, true), I('K07', '发票', '低', 6, true),
+          I('K08', '取消与退款', '高', 4, true), I('K09', '投诉建议', '高 · 自动通知客服主管', 2, true), I('K10', '其他', '低', 3, true)] },
+      plan: { name: '套餐版本', desc: '用于开通套餐、付款单、商家筛选与报表统计', descLabel: '当前配置', refLabel: '生效商家', stateLabel: '启用', addLabel: '', tree: false,
+        foot: '版本的月费、积分与权益在“套餐与积分 › 套餐管理”中维护；有商家在用的版本不能停用。',
+        items: [I('V01', '基础版', '月费 3,000 元，每月 3,000 积分', 94, true), I('V02', '专业版', '月费 6,000 元，每月 6,600 积分', 71, true), I('V03', '旗舰版', '月费 12,000 元，每月 14,400 积分', 21, true)] },
+      pts: { name: '积分类型', desc: '积分账户与流水的类型；用于积分账户、流水筛选与积分报表', descLabel: '说明', refLabel: '本月笔数', stateLabel: '启用', addLabel: '', tree: true,
+        foot: '积分类型由系统内置，不能新增或停用，只可修改名称与说明。',
+        items: [].concat(
+          [I('PA', '积分账户', '', '', true)],
+          [I('PA01', '套餐积分', '随套餐每月发放，周期内累计有效，期末清零', 1402, true, 'PA'), I('PA02', '加购积分', '按积分包购买，长期有效；套餐过期时冻结', 176, true, 'PA')],
+          [I('PF', '流水类型', '', '', true)],
+          [['PF01', '发放', '开通、续费、每月发放与升级补发', 205], ['PF02', '加购', '购买积分包，加购积分到账', 39], ['PF03', '冻结', '提交订购或广告需求时冻结；套餐过期时冻结加购积分', 566],
+           ['PF04', '扣减', '开始制作时由冻结转为扣减', 531], ['PF05', '退回', '取消、审核不通过或无法交付时退回', 14], ['PF06', '清零', '套餐周期结束时，清零剩余套餐积分', 172],
+           ['PF07', '调整', '补偿、纠错等，经财务审批后入账', 3]].map((a) => I(a[0], a[1], a[2], a[3], true, 'PF'))
+        ) }
+    };
+    const ORDER = ['ind', 'area', 'genre', 'tag', 'reject', 'ticket', 'plan', 'pts'];
+    const type = st.type || 'ind';
+    const cur = D[type];
+    const extra = st.extra || {};
+    const offMap = st.offMap || {};
+    const editMap = st.editMap || {};
+    const openMap = st.openMap || { C02: true, PA: true, PF: true };
+    const itemsOf = (k) => {
+      const base = D[k].items.concat(extra[k] || []);
+      return base.map((x) => Object.assign({}, x, editMap[k + ':' + x.code] || {}, offMap[k + ':' + x.code] === undefined ? {} : { on: offMap[k + ':' + x.code] }));
+    };
+    const all = itemsOf(type);
+    const roots = all.filter((x) => !x.parent);
+    const childrenOf = (c) => all.filter((x) => x.parent === c);
+    const rows = [];
+    if (cur.tree) {
+      roots.forEach((r) => {
+        rows.push({ x: r, level: 1 });
+        if (openMap[r.code]) childrenOf(r.code).forEach((c) => rows.push({ x: c, level: 2 }));
+      });
+    } else {
+      all.forEach((x) => rows.push({ x: x, level: 1 }));
+    }
+    const af0 = { name: '', desc: '', parent: type === 'ind' ? 'C01' : type === 'area' ? '510100' : '' };
+    const af = st.af || af0;
+    const setAf = (k) => (e) => this.setState({ af: Object.assign({}, af, { [k]: e.target.value }), afErr: '' });
+    const special = (x) => x.code === 'C10' || x.parent === 'C10';
+    const nextCode = () => {
+      const pre = { ind: af.parent ? af.parent : 'C', area: '', genre: 'G', tag: 'T', reject: 'R', ticket: 'K' }[type];
+      if (type === 'ind' && af.parent) return af.parent + String(childrenOf(af.parent).length + 1).padStart(2, '0');
+      if (type === 'ind') return 'C' + String(roots.length + 1).padStart(2, '0');
+      if (type === 'area') return '—';
+      return pre + String(all.length + 1).padStart(2, '0');
+    };
+    return Object.assign({
+      types: ORDER.map((k) => {
+        const its = itemsOf(k);
+        const on = k === type;
+        const sub = k === 'area' ? '四川省 · ' + its.filter((x) => !x.parent).length + ' 个市、' + its.filter((x) => x.parent).length + ' 个下级' : D[k].tree ? its.filter((x) => !x.parent).length + ' 个一级 · ' + its.filter((x) => x.parent).length + ' 个二级' : its.length + ' 项 · 启用 ' + its.filter((x) => x.on).length + ' 项';
+        return { name: D[k].name, sub: sub, on: on, bg: on ? '#FBEDE5' : 'transparent', weight: on ? '600' : '400', pick: () => this.setState({ type: k }) };
+      }),
+      cur: { name: cur.name, desc: cur.desc, descLabel: cur.descLabel, refLabel: cur.refLabel, stateLabel: cur.stateLabel, addLabel: cur.addLabel, foot: cur.foot, canAdd: ['area', 'plan', 'pts'].indexOf(type) < 0 },
+      items: rows.map((r) => {
+        const x = r.x;
+        const kidsN = cur.tree ? childrenOf(x.code).length : 0;
+        const open = !!openMap[x.code];
+        const on = !!x.on;
+        return {
+          name: x.name, code: x.code, desc: x.desc || (r.level === 2 ? '' : kidsN ? kidsN + ' 个二级' : ''), ref: x.ref === '' ? '—' : typeof x.ref === 'number' ? num(x.ref) : String(x.ref),
+          indent: r.level === 2 ? '28px' : '0', weight: r.level === 1 && cur.tree ? '600' : '400', nameColor: on ? '#1D1A16' : '#9A9084', bg: r.level === 2 ? '#FCFBF9' : '#FFFFFF',
+          hasKids: kidsN > 0, leafPad: cur.tree && r.level === 1 && kidsN === 0, open: open, rot: open ? '90deg' : '0deg', expLabel: (open ? '收起' : '展开') + x.name,
+          toggleOpen: () => { const m = Object.assign({}, openMap); m[x.code] = !open; this.setState({ openMap: m }); },
+          hasTag: !!x.tag, tag: x.tag, tagBg: x.tag === '特殊行业' ? '#FBE9E7' : '#E8EEF8', tagFg: x.tag === '特殊行业' ? '#B42318' : '#2E5AAC',
+          on: on, swBg: on ? '#256A42' : '#CFC7BC', swKnob: on ? '18px' : '2px', swLabel: cur.stateLabel + '“' + x.name + '”',
+          toggle: () => {
+            if (special(x)) { this.setState({ toast: '医疗健康类行业须经广告审查，V1.0 不开放' }); return; }
+            if (type === 'pts') { this.setState({ toast: '积分类型由系统内置，不能停用' }); return; }
+            if (type === 'plan' && on && x.ref > 0) { this.setState({ toast: '“' + x.name + '”有 ' + x.ref + ' 家商家在用，不能停用' }); return; }
+            if (on && typeof x.ref === 'number' && x.ref > 0 && (type === 'ind' || type === 'area')) { this.setState({ toast: '“' + x.name + '”下有 ' + x.ref + ' 家商家，不能停用' }); return; }
+            const m = Object.assign({}, offMap); m[type + ':' + x.code] = !on; this.setState({ offMap: m, toast: (on ? '已停用' : '已启用') + '“' + x.name + '”' });
+          },
+          edit: () => this.setState({ dlg: 'add', editCode: x.code, editName: x.name, afErr: '', af: { name: x.name, desc: x.desc, parent: x.parent } })
+        };
+      }),
+      openAdd: () => this.setState({ dlg: 'add', editCode: '', af: af0, afErr: '' }),
+      addOpen: st.dlg === 'add',
+      closeDlg: () => this.setState({ dlg: '', editCode: '' }),
+      af: Object.assign({}, af, { title: st.editCode ? '编辑“' + (st.editName || '') + '”' : cur.addLabel, hasParent: type === 'ind' && !st.editCode,
+        descLabel: cur.descLabel, namePh: { ind: '例如：串串', area: '例如：新津区', genre: '例如：乡村', tag: '例如：治愈', reject: '用商家能看懂的表述', ticket: '例如：账号问题', plan: '例如：基础版', pts: '例如：套餐积分' }[type] }),
+      onAfName: setAf('name'), onAfDesc: setAf('desc'), onAfParent: setAf('parent'),
+      afErr: st.afErr || '', hasAfErr: !!st.afErr,
+      submitAdd: () => {
+        const n = af.name.trim();
+        if (!n) { this.setState({ afErr: '请填写名称' }); return; }
+        if (all.some((x) => x.name === n && x.code !== st.editCode && x.parent === (st.editCode ? x.parent : af.parent))) { this.setState({ afErr: '同一层级已有“' + n + '”' }); return; }
+        if (st.editCode) {
+          const m = Object.assign({}, editMap); m[type + ':' + st.editCode] = { name: n, desc: af.desc.trim() };
+          this.setState({ editMap: m, dlg: '', editCode: '', toast: '已保存“' + n + '”' });
+          return;
+        }
+        const it = I(nextCode(), n, af.desc.trim(), 0, true, type === 'ind' ? af.parent : type === 'area' ? '510100' : '');
+        const e = Object.assign({}, extra); e[type] = (extra[type] || []).concat([it]);
+        const om = Object.assign({}, openMap); if (it.parent) om[it.parent] = true;
+        this.setState({ extra: e, openMap: om, dlg: '', toast: '已新增“' + n + '”，编码 ' + it.code });
+      }
+    }, toastVals);
+  }
+}
+</script>
+</body>
+</html>

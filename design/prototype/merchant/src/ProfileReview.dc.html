@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 审核结果</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+textarea::placeholder,input::placeholder{color:#6F665B}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;">
+<a href="Profile.dc.html" aria-label="返回" style="position: absolute; left: 2px; top: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1D1A16;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></a>
+<h1 style="margin: 0; font-size: 17px; font-weight: 600;">审核结果</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 4px 16px 24px; display: flex; flex-direction: column; gap: 12px;">
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<p role="status" style="margin: 0; padding: 10px 12px; border-radius: 10px; background: {{toastBg}}; color: {{toastFg}}; font-size: 13px; font-weight: 600; line-height: 1.5;">{{toast}}</p>
+</sc-if>
+<section aria-label="审核状态" style="background: #FFFFFF; border-radius: 14px; padding: 24px 16px 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;">
+<span aria-hidden="true" style="width: 56px; height: 56px; border-radius: 28px; background: {{heroBg}}; color: {{heroFg}}; display: flex; align-items: center; justify-content: center;"><sc-if value="{{isPending}}" hint-placeholder-val="{{true}}"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></sc-if><sc-if value="{{isRejected}}" hint-placeholder-val="{{false}}"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5h.01"></path></svg></sc-if><sc-if value="{{isPassed}}" hint-placeholder-val="{{false}}"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></sc-if></span>
+<span style="font-size: 20px; font-weight: 700;">{{heroTitle}}</span>
+<span style="display: flex; flex-direction: column; gap: 2px; font-size: 13px; line-height: 1.5; color: #6F665B;"><span>{{heroLine1}}</span><span>{{heroLine2}}</span></span>
+<sc-if value="{{isPending}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{refresh}}" style="height: 40px; padding: 0 16px; border-radius: 20px; border: 1px solid #C9C0B3; background: #FFFFFF; color: #1D1A16; font-weight: 600; font-family: inherit; font-size: 15px; cursor: pointer; margin-top: 6px; display: flex; align-items: center; gap: 6px; font-size: 14px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg><span>刷新审核状态</span></button></sc-if>
+<sc-if value="{{isPassed}}" hint-placeholder-val="{{false}}"><div style="align-self: stretch; margin-top: 6px; display: flex; gap: 12px;"><a href="Profile.dc.html" style="flex-grow: 1; flex-basis: 0; height: 44px; padding: 0 16px; border-radius: 22px; border: 1px solid #C9C0B3; background: #FFFFFF; color: #1D1A16; font-weight: 600; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 15px;">查看商家档案</a><a href="Mall.dc.html" style="flex-grow: 1; flex-basis: 0; height: 44px; padding: 0 16px; border-radius: 22px; background: #C4501B; color: #FFFFFF; font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 15px;">去短剧商城</a></div></sc-if>
+</section>
+<sc-if value="{{isRejected}}" hint-placeholder-val="{{false}}">
+<section aria-label="驳回原因与修改" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">驳回原因</h2><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #FCEBEA; color: #B42318; white-space: nowrap;">证照模糊</span></div>
+<span style="display: flex; flex-direction: column; font-size: 13px; line-height: 1.6; color: #1D1A16;"><span>食品经营许可证编号无法识别。</span><span>请在光线充足处重新拍摄，确保四角完整、文字清晰。</span></span>
+<div style="height: 1px; background: #F0EBE3;"></div>
+<span style="font-size: 14px; font-weight: 600;">食品经营许可证 <span style="color: #B42318;">*</span></span>
+<div style="display: flex; gap: 12px; align-items: center;"><sc-if value="{{notFixed}}" hint-placeholder-val="{{true}}"><div aria-hidden="true" style="flex-shrink: 0; position: relative; width: 104px; height: 74px; box-sizing: border-box; border-radius: 8px; background: linear-gradient(135deg, #F7EEDC, #EADBC0); border: 1px solid #E2D3B8; overflow: hidden;"><span style="position: absolute; left: 10px; right: 34px; top: 11px; height: 5px; border-radius: 2px; background: #B9A27E; filter: blur(1.6px);"></span><span style="position: absolute; left: 10px; right: 22px; top: 23px; height: 4px; border-radius: 2px; background: #D3C09F; filter: blur(1.6px);"></span><span style="position: absolute; left: 10px; right: 38px; top: 33px; height: 4px; border-radius: 2px; background: #D3C09F; filter: blur(1.6px);"></span><span style="position: absolute; left: 10px; right: 26px; top: 43px; height: 4px; border-radius: 2px; background: #D3C09F; filter: blur(1.6px);"></span><span style="position: absolute; left: 10px; right: 46px; top: 53px; height: 4px; border-radius: 2px; background: #D3C09F; filter: blur(1.6px);"></span><span style="position: absolute; right: 9px; bottom: 8px; width: 18px; height: 18px; box-sizing: border-box; border-radius: 9px; border: 2px solid #C0392B; opacity: 0.7; filter: blur(1.6px);"></span></div></sc-if><sc-if value="{{fixed}}" hint-placeholder-val="{{false}}"><div aria-hidden="true" style="flex-shrink: 0; position: relative; width: 104px; height: 74px; box-sizing: border-box; border-radius: 8px; background: linear-gradient(135deg, #F7EEDC, #EADBC0); border: 1px solid #E2D3B8; overflow: hidden;"><span style="position: absolute; left: 10px; right: 34px; top: 11px; height: 5px; border-radius: 2px; background: #B9A27E;"></span><span style="position: absolute; left: 10px; right: 22px; top: 23px; height: 4px; border-radius: 2px; background: #D3C09F;"></span><span style="position: absolute; left: 10px; right: 38px; top: 33px; height: 4px; border-radius: 2px; background: #D3C09F;"></span><span style="position: absolute; left: 10px; right: 26px; top: 43px; height: 4px; border-radius: 2px; background: #D3C09F;"></span><span style="position: absolute; left: 10px; right: 46px; top: 53px; height: 4px; border-radius: 2px; background: #D3C09F;"></span><span style="position: absolute; right: 9px; bottom: 8px; width: 18px; height: 18px; box-sizing: border-box; border-radius: 9px; border: 2px solid #C0392B; opacity: 0.7;"></span></div></sc-if><div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px;"><sc-if value="{{notFixed}}" hint-placeholder-val="{{true}}"><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #FCEBEA; color: #B42318; white-space: nowrap;">无法识别</span><span style="font-size: 12px; line-height: 1.5; color: #6F665B;">请重新拍摄上传</span></sc-if><sc-if value="{{fixed}}" hint-placeholder-val="{{false}}"><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E6F2EA; color: #256A42; white-space: nowrap;">识别成功</span><span style="font-size: 12px; line-height: 1.5; color: #6F665B;">许可证编号 JY25101040******</span><span style="font-size: 12px; line-height: 1.5; color: #6F665B;">有效期至 2028-05-20</span></sc-if><button type="button" onClick="{{reupload}}" style="flex-shrink: 0; min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16; cursor: pointer; display: flex; align-items: center; gap: 4px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg><span>{{uploadLabel}}</span></button></div></div>
+<button type="button" onClick="{{resubmit}}" disabled="{{cannotResubmit}}" style="height: 46px; padding: 0 16px; border-radius: 23px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 15px; cursor: pointer; width: 100%; opacity: {{resubmitOpacity}}; cursor: {{resubmitCursor}};">重新提交审核</button>
+<div style="display: flex; justify-content: space-between; gap: 12px;"><a href="ProfileCert.dc.html" style="flex-shrink: 0; display: flex; align-items: center; gap: 2px; font-size: 13px; color: #A63F12;">修改其他资质信息<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a><a href="Service.dc.html" style="flex-shrink: 0; display: flex; align-items: center; gap: 2px; font-size: 13px; color: #6F665B;">对结果有疑问？联系客服<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a></div>
+</section>
+</sc-if>
+<sc-if value="{{showOrderTip}}" hint-placeholder-val="{{true}}"><p style="margin: 0; padding: 10px 12px; border-radius: 10px; background: #E8EEF9; color: #2E5AAC; font-size: 13px; line-height: 1.5;"><span style="display: block;">审核期间可开通套餐、订购短剧，审核通过后开始制作。</span></p></sc-if>
+<sc-if value="{{isPassed}}" hint-placeholder-val="{{false}}"><p style="margin: 0; padding: 10px 12px; border-radius: 10px; background: #E6F2EA; color: #256A42; font-size: 13px; line-height: 1.5;"><span style="display: block;">营业执照主体“XX 餐饮管理有限公司”</span><span style="display: block;">将作为合同、授权书和发票的抬头。</span></p></sc-if>
+<section aria-label="审核记录" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">审核记录</h2>
+<ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column;">
+<sc-for list="{{records}}" as="r" hint-placeholder-count="2"><li style="display: flex; gap: 12px;"><span aria-hidden="true" style="flex-shrink: 0; width: 12px; display: flex; flex-direction: column; align-items: center;"><span style="width: 10px; height: 10px; margin-top: 5px; box-sizing: border-box; border-radius: 5px; background: {{r.dot}};"></span><sc-if value="{{r.hasLine}}" hint-placeholder-val="{{true}}"><span style="flex-grow: 1; width: 2px; margin: 4px 0; background: #E7E1D8;"></span></sc-if></span><span style="flex-grow: 1; min-width: 0; padding-bottom: 14px; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600;">{{r.title}}</span><span style="font-size: 12px; line-height: 1.5; color: #6F665B;">{{r.desc}}</span></span></li></sc-for>
+</ol>
+</section>
+<section aria-label="提交的资质" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">提交的资质</h2>
+<dl style="margin: 0; display: grid; grid-template-columns: 96px minmax(0, 1fr); row-gap: 8px; column-gap: 8px; font-size: 13px; line-height: 1.5;"><dt style="color: #6F665B;">主体类型</dt><dd style="margin: 0;">企业</dd><dt style="color: #6F665B;">主体名称</dt><dd style="margin: 0;">XX 餐饮管理有限公司</dd><dt style="color: #6F665B;">营业执照</dt><dd style="margin: 0;">已上传 · 识别成功</dd><dt style="color: #6F665B;">食品经营许可证</dt><dd style="margin: 0; color: {{foodColor}};">{{foodState}}</dd><dt style="color: #6F665B;">联系人</dt><dd style="margin: 0;">王先生 138****5678</dd></dl>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+
+    const toastTone = { ok: ['#E6F2EA', '#256A42'], info: ['#E8EEF9', '#2E5AAC'], warn: ['#FBEDE5', '#A63F12'] };
+    const tt = toastTone[st.toastTone || 'ok'];
+    const toastVals = { toast: st.toast || '', hasToast: !!st.toast, toastBg: tt[0], toastFg: tt[1] };
+
+    const stage = st.stage || 'pending1';
+    const fixed = !!st.fixed;
+    const pending = stage === 'pending1' || stage === 'pending2';
+    const rejected = stage === 'rejected';
+    const passed = stage === 'passed';
+    const all = [
+      { title: '提交资质审核', desc: '06-12 19:22 · 营业执照、食品经营许可证' },
+      { title: '审核未通过', desc: '06-13 09:20 · 证照模糊：食品经营许可证编号无法识别' },
+      { title: '重新提交审核', desc: '06-13 10:05 · 重新上传食品经营许可证' },
+      { title: '审核通过', desc: '06-13 10:40 · 档案已生效' }
+    ];
+    const n = { pending1: 1, rejected: 2, pending2: 3, passed: 4 }[stage];
+    const shown = all.slice(0, n).reverse();
+    const records = shown.map((r, i) => Object.assign({}, r, {
+      dot: i === 0 ? (rejected ? '#B42318' : passed ? '#256A42' : '#C4501B') : '#C9C0B3',
+      hasLine: i < shown.length - 1
+    }));
+    const hero = {
+      pending1: ['资质审核中', '已于 06-12 19:22 提交', '平台将在 1 个工作日内完成审核'],
+      rejected: ['审核未通过', '06-13 09:20 审核未通过', '请按驳回原因修改后重新提交'],
+      pending2: ['资质审核中', '已于 06-13 10:05 重新提交', '平台将在 1 个工作日内完成审核'],
+      passed: ['审核已通过', '06-13 10:40 审核通过，档案已生效', '开通套餐后即可订购短剧']
+    }[stage];
+    const tone = rejected ? ['#FCEBEA', '#B42318'] : passed ? ['#E6F2EA', '#256A42'] : ['#E8EEF9', '#2E5AAC'];
+    const food = stage === 'pending1' ? ['已上传', '#1D1A16'] : rejected && !fixed ? ['证照模糊，需重新上传', '#B42318'] : rejected ? ['已重新上传 · 识别成功', '#256A42'] : ['已重新上传 · 识别成功', '#1D1A16'];
+    return Object.assign({
+      isPending: pending, isRejected: rejected, isPassed: passed,
+      heroTitle: hero[0], heroLine1: hero[1], heroLine2: hero[2], heroBg: tone[0], heroFg: tone[1],
+      refresh: () => this.setState({ stage: stage === 'pending1' ? 'rejected' : 'passed', toast: '' }),
+      fixed: fixed, notFixed: !fixed,
+      uploadLabel: fixed ? '重新拍摄' : '重新上传',
+      reupload: () => this.setState({ fixed: true, toast: '' }),
+      cannotResubmit: !fixed, resubmitOpacity: fixed ? '1' : '0.4', resubmitCursor: fixed ? 'pointer' : 'not-allowed',
+      resubmit: () => { if (fixed) this.setState({ stage: 'pending2', toast: '已重新提交，平台将在 1 个工作日内完成审核', toastTone: 'ok' }); },
+      showOrderTip: !passed,
+      records: records,
+      foodState: food[0], foodColor: food[1]
+    }, toastVals);
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 加购积分</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+textarea::placeholder,input::placeholder{color:#6F665B}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;">
+<a href="Wallet.dc.html" aria-label="返回" style="position: absolute; left: 2px; top: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1D1A16;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></a>
+<h1 style="margin: 0; font-size: 17px; font-weight: 600;">加购积分</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 4px 16px 20px; display: flex; flex-direction: column; gap: 12px;">
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<p role="status" style="margin: 0; padding: 10px 12px; border-radius: 10px; background: {{toastBg}}; color: {{toastFg}}; font-size: 13px; font-weight: 600; line-height: 1.5;">{{toast}}</p>
+</sc-if>
+<section aria-label="当前积分" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;"><span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; color: #6F665B;">当前可用积分</span><span style="font-size: 28px; font-weight: 700; line-height: 1.1;">2,920</span></span><span style="flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 1px 8px 1px 6px; border-radius: 10px; background: #1D1A16; color: #F2B48F; line-height: 20px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 18h15"></path><path d="M4.5 18 3.5 8l5 4 3.5-6 3.5 6 5-4-1 10"></path></svg><span>专业版</span></span></div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap;"><span style="flex-shrink: 0; font-size: 12px; padding: 1px 6px; border-radius: 4px; background: #FBEDE5; color: #A63F12; white-space: nowrap;">套餐积分 1,920 · 10-12 清零</span><span style="flex-shrink: 0; font-size: 12px; padding: 1px 6px; border-radius: 4px; background: #F1ECE4; color: #1D1A16; white-space: nowrap;">加购积分 1,000 · 长期有效</span></div>
+</section>
+<section aria-label="选择积分包" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">选择积分包</h2>
+<div role="radiogroup" aria-label="积分包" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;"><sc-for list="{{packs}}" as="k" hint-placeholder-count="4"><button type="button" role="radio" aria-checked="{{k.on}}" onClick="{{k.pick}}" style="min-height: 84px; box-sizing: border-box; padding: 12px; border-radius: 14px; border: 1px solid {{k.border}}; background: {{k.bg}}; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; font-family: inherit; color: #1D1A16; text-align: left; cursor: pointer;"><span style="font-size: 20px; font-weight: 700;">{{k.pts}}<span style="font-size: 13px; font-weight: 400;"> 积分</span></span><span style="font-size: 13px; color: {{k.fg}};">¥{{k.price}}</span></button></sc-for></div>
+<span style="font-size: 12px; line-height: 1.5; color: #6F665B;">1 积分 ＝ 1 元（示例），按积分包购买</span>
+</section>
+<section aria-label="加购积分规则" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">加购积分规则</h2>
+<ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px;"><li style="display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.6; color: #1D1A16;"><span style="flex-shrink: 0; height: 21px; display: flex; align-items: center; color: #A63F12;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span><span>长期有效，不随套餐周期清零</span></li><li style="display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.6; color: #1D1A16;"><span style="flex-shrink: 0; height: 21px; display: flex; align-items: center; color: #A63F12;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span><span><span style="display: block;">只能在套餐生效期间使用；套餐过期时冻结，</span><span style="display: block;">续费后恢复</span></span></li><li style="display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.6; color: #1D1A16;"><span style="flex-shrink: 0; height: 21px; display: flex; align-items: center; color: #A63F12;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg></span><span>订购时先扣套餐积分，不足部分再扣加购积分</span></li><li style="display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.6; color: #1D1A16;"><span style="flex-shrink: 0; height: 21px; display: flex; align-items: center; color: #A63F12;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"></path><path d="M9 8h6M9 12h6"></path></svg></span><span><span style="display: block;">不退现金；因平台原因未能交付的订购与广告，</span><span style="display: block;">对应积分退回</span></span></li></ul>
+</section>
+<section aria-label="支付方式" style="background: #FFFFFF; border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;"><span style="font-size: 14px; font-weight: 600;">支付方式</span><div role="radiogroup" aria-label="支付方式" style="display: flex; flex-direction: column; gap: 8px;"><label for="pm-wx" style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 12px; box-sizing: border-box; border-radius: 12px; border: 1px solid {{mwx.border}}; background: {{mwx.bg}}; cursor: pointer;"><input id="pm-wx" type="radio" name="pay-method" checked="{{mwx.on}}" onChange="{{mwx.pick}}" style="flex-shrink: 0; margin: 0; width: 18px; height: 18px; accent-color: #C4501B;"><span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 600;">微信支付</span><span style="font-size: 12px; line-height: 1.5; color: #6F665B;">支付成功后立即生效</span></span></label><label for="pm-bank" style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 12px; box-sizing: border-box; border-radius: 12px; border: 1px solid {{mbank.border}}; background: {{mbank.bg}}; cursor: pointer;"><input id="pm-bank" type="radio" name="pay-method" checked="{{mbank.on}}" onChange="{{mbank.pick}}" style="flex-shrink: 0; margin: 0; width: 18px; height: 18px; accent-color: #C4501B;"><span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 600;">对公转账</span><span style="font-size: 12px; line-height: 1.5; color: #6F665B;">适合大额付款；上传凭证，财务确认到账后生效</span></span></label></div></section>
+<span style="display: flex; flex-direction: column; font-size: 12px; line-height: 1.5; color: #6F665B;"><span>付款后可在“我的 › 发票管理”中按付款单申请开票，</span><span>抬头为认证主体。</span></span>
+</main>
+<footer style="flex-shrink: 0; height: 72px; box-sizing: border-box; padding: 0 16px 8px; background: #FFFFFF; border-top: 1px solid #ECE6DD; display: flex; align-items: center; gap: 12px;">
+<button type="button" onClick="{{pay}}" style="flex-grow: 1; flex-basis: 0; height: 46px; padding: 0 16px; border-radius: 23px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 15px; cursor: pointer;">{{cta}}</button>
+</footer>
+<sc-if value="{{bankOpen}}" hint-placeholder-val="{{false}}">
+<button type="button" aria-label="关闭对公转账" onClick="{{close}}" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; border: none; padding: 0; background: rgba(15,14,12,0.5); cursor: pointer;"></button>
+<section role="dialog" aria-label="对公转账" style="position: absolute; left: 0; right: 0; bottom: 0; max-height: 760px; overflow-y: auto; box-sizing: border-box; padding: 16px 16px 24px; border-radius: 16px 16px 0 0; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 17px; font-weight: 600;">对公转账</span><span style="font-size: 13px; line-height: 1.5; color: #6F665B;">付款单 {{payNo}} · 应付 ¥{{amountText}}</span></div>
+<button type="button" aria-label="关闭" onClick="{{close}}" style="flex-shrink: 0; width: 44px; height: 44px; margin: -10px -10px 0 0; border: none; background: none; color: #6F665B; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</div>
+<div style="display: flex; flex-direction: column;"><div style="display: flex; align-items: center; gap: 8px; min-height: 40px; border-bottom: 1px solid #F0EBE3;"><span style="flex-shrink: 0; width: 64px; font-size: 13px; color: #6F665B;">户名</span><span style="flex-grow: 1; min-width: 0; font-size: 14px;">[平台公司名称]</span><button type="button" onClick="{{copyName}}" style="flex-shrink: 0; min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16; cursor: pointer;">复制</button></div><div style="display: flex; align-items: center; gap: 8px; min-height: 40px; border-bottom: 1px solid #F0EBE3;"><span style="flex-shrink: 0; width: 64px; font-size: 13px; color: #6F665B;">开户行</span><span style="flex-grow: 1; min-width: 0; font-size: 14px;">[开户银行]</span><button type="button" onClick="{{copyBank}}" style="flex-shrink: 0; min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16; cursor: pointer;">复制</button></div><div style="display: flex; align-items: center; gap: 8px; min-height: 40px; border-bottom: 1px solid #F0EBE3;"><span style="flex-shrink: 0; width: 64px; font-size: 13px; color: #6F665B;">账号</span><span style="flex-grow: 1; min-width: 0; font-size: 14px;">[收款账号]</span><button type="button" onClick="{{copyAcct}}" style="flex-shrink: 0; min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16; cursor: pointer;">复制</button></div><div style="display: flex; align-items: center; gap: 8px; min-height: 40px; border-bottom: 1px solid #F0EBE3;"><span style="flex-shrink: 0; width: 64px; font-size: 13px; color: #6F665B;">转账备注</span><span style="flex-grow: 1; min-width: 0; font-size: 14px;">{{payNo}}</span><button type="button" onClick="{{copyNo}}" style="flex-shrink: 0; min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16; cursor: pointer;">复制</button></div></div>
+<p style="margin: 0; padding: 10px 12px; border-radius: 10px; background: #FBEDE5; color: #A63F12; font-size: 13px; line-height: 1.5;">转账时请在备注中填写付款单号，便于财务核对到账。</p>
+<div style="display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 14px; font-weight: 600;">转账凭证 <span style="color: #B42318;">*</span></span><sc-if value="{{noProof}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{upload}}" style="min-height: 72px; border: 1px dashed #C9C0B3; border-radius: 12px; background: #FAF8F4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-family: inherit; font-size: 13px; color: #4A433B; cursor: pointer;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#A63F12" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"></path><path d="M4 14v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"></path></svg><span>上传转账回单截图或照片</span></button></sc-if><sc-if value="{{proof}}" hint-placeholder-val="{{false}}"><div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #E6F2EA; color: #256A42; font-size: 13px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 3 3 5-6"></path></svg><span style="flex-grow: 1;">转账回单.jpg 已上传</span><button type="button" onClick="{{upload}}" style="flex-shrink: 0; min-height: 32px; padding: 0 10px; border: none; background: none; font-family: inherit; font-size: 13px; color: #256A42; cursor: pointer;">重新上传</button></div></sc-if></div>
+<span style="display: flex; flex-direction: column; font-size: 12px; line-height: 1.5; color: #6F665B;"><span>财务将在 1 个工作日内确认到账，确认后生效，</span><span>结果通过订阅消息通知您。</span></span>
+<button type="button" onClick="{{submitBank}}" style="height: 46px; padding: 0 16px; border-radius: 23px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 15px; cursor: pointer; width: 100%;">提交凭证</button>
+</section>
+</sc-if>
+<sc-if value="{{doneOpen}}" hint-placeholder-val="{{false}}">
+<button type="button" aria-label="关闭付款结果" onClick="{{close}}" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; border: none; padding: 0; background: rgba(15,14,12,0.5); cursor: pointer;"></button>
+<section role="dialog" aria-label="付款结果" style="position: absolute; left: 0; right: 0; bottom: 0; max-height: 760px; overflow-y: auto; box-sizing: border-box; padding: 16px 16px 24px; border-radius: 16px 16px 0 0; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 17px; font-weight: 600;">支付成功</span></div>
+<button type="button" aria-label="关闭" onClick="{{close}}" style="flex-shrink: 0; width: 44px; height: 44px; margin: -10px -10px 0 0; border: none; background: none; color: #6F665B; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 0 2px;"><span style="width: 52px; height: 52px; border-radius: 26px; background: #E6F2EA; color: #256A42; display: flex; align-items: center; justify-content: center;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#256A42" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span style="font-size: 20px; font-weight: 700;">¥{{amountText}}</span><span style="font-size: 13px; color: #6F665B;">付款单 {{payNo}} · 微信支付</span></div>
+<dl style="margin: 0; padding: 12px; border-radius: 12px; background: #F6F3EE; display: grid; grid-template-columns: 64px minmax(0, 1fr); row-gap: 8px; column-gap: 8px; font-size: 13px; line-height: 1.5;"><sc-for list="{{doneRows}}" as="r" hint-placeholder-count="3"><dt style="color: #6F665B;">{{r.k}}</dt><dd style="margin: 0;">{{r.v}}</dd></sc-for></dl>
+<span style="font-size: 12px; line-height: 1.5; color: #6F665B;">可在“我的 › 发票管理”中按本付款单申请开票。</span>
+<div style="display: flex; gap: 10px;"><a href="Ledger.dc.html" style="flex-grow: 1; flex-basis: 0; height: 46px; padding: 0 16px; border-radius: 23px; border: 1px solid #C9C0B3; background: #FFFFFF; color: #1D1A16; font-weight: 600; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 15px;">查看积分明细</a><a href="Mall.dc.html" style="flex-grow: 1; flex-basis: 0; height: 46px; padding: 0 16px; border-radius: 23px; background: #C4501B; color: #FFFFFF; font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 15px;">去选剧</a></div>
+</section>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+
+    const toastTone = { ok: ['#E6F2EA', '#256A42'], info: ['#E8EEF9', '#2E5AAC'], warn: ['#FBEDE5', '#A63F12'] };
+    const tt = toastTone[st.toastTone || 'ok'];
+    const toastVals = { toast: st.toast || '', hasToast: !!st.toast, toastBg: tt[0], toastFg: tt[1] };
+
+    const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const sel = typeof st.sel === 'number' ? st.sel : 3000;
+    const packs = [1000, 3000, 5000, 10000].map((n) => ({
+      pts: fmt(n), price: fmt(n), on: n === sel, bg: n === sel ? '#FFF8F3' : '#FFFFFF', border: n === sel ? '#C4501B' : '#E7E1D8',
+      fg: n === sel ? '#A63F12' : '#6F665B', pick: () => this.setState({ sel: n })
+    }));
+    const amount = sel;
+    const payNo = 'FK2026093000009';
+    const bankDone = '凭证已提交，财务确认到账后积分到账';
+
+    const method = typeof st.method === 'string' ? st.method : 'wx';
+    const sheet = typeof st.sheet === 'string' ? st.sheet : '';
+    const proof = !!st.proof;
+    const mopt = (key) => ({ on: key === method, bg: key === method ? '#FFF8F3' : '#FFFFFF', border: key === method ? '#C4501B' : '#E7E1D8',
+      pick: () => this.setState({ method: key }) });
+    const copied = (what) => () => this.setState({ toast: what + '已复制', toastTone: 'info' });
+    const payVals = {
+      mwx: mopt('wx'), mbank: mopt('bank'),
+      bankOpen: sheet === 'bank', doneOpen: sheet === 'done',
+      close: () => this.setState({ sheet: '' }),
+      proof: proof, noProof: !proof, upload: () => this.setState({ proof: true }),
+      copyName: copied('户名'), copyBank: copied('开户行'), copyAcct: copied('账号'), copyNo: copied('付款单号'),
+      submitBank: () => {
+        if (!proof) { this.setState({ toast: '请先上传转账凭证', toastTone: 'warn' }); return; }
+        this.setState({ sheet: '', proof: false, toast: bankDone, toastTone: 'ok' });
+      },
+      pay: () => this.setState({ sheet: method === 'wx' ? 'done' : 'bank', toast: '' })
+    };
+
+    return Object.assign({
+      packs: packs, amountText: fmt(amount), payNo: payNo,
+      doneRows: [{ k: '内容', v: '加购积分 ' + fmt(sel) }, { k: '到账', v: fmt(sel) + ' 加购积分已到账，长期有效' }, { k: '可用积分', v: fmt(2920 + sel) }],
+      cta: (method === 'wx' ? '微信支付 ¥' : '对公转账 ¥') + fmt(sel)
+    }, payVals, toastVals);
+  }
+}
+</script>
+</body>
+</html>

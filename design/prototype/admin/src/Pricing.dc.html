@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏运营后台 · 单剧积分价</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; overflow: hidden; position: relative; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; font-size: 14px;">
+<nav aria-label="主菜单" style="width: 216px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; background: #231F1B; color: #D9D1C5;">
+<div style="height: 64px; flex-shrink: 0; box-sizing: border-box; padding: 0 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #3A332C;">
+<svg width="30" height="30" viewBox="0 0 64 64" fill="none" stroke="#E8864F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12 22 25h20l12-13-2 22-20 19-20-19z"></path><path d="m21 34 5 2.5M43 34l-5 2.5"></path><circle cx="32" cy="44" r="1.8" fill="#E8864F" stroke="none"></circle></svg>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-family: 'Noto Serif SC', serif; font-size: 19px; font-weight: 900; letter-spacing: 3px; line-height: 1.1; color: #FFFFFF;">狸有戏</span><span style="font-size: 12px; line-height: 1.2; color: #9A9084;">运营管理后台</span></div>
+</div>
+<div style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px;">
+<a href="Main.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>工作台</a>
+<a href="Dramas.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="m10.5 9.5 4 2.5-4 2.5z"></path></svg>短剧库</a>
+<div style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #FFFFFF;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5 15.5 12 12 16.5 8.5 12z"></path></svg><span style="flex-grow: 1;">套餐与积分</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div>
+<a href="Plans.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">套餐管理</a>
+<a href="PointPacks.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">积分包管理</a>
+<a href="Params.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">积分价模板与参数</a>
+<a href="Pricing.dc.html" aria-current="page" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #C4501B; color: #FFFFFF; font-size: 13px; font-weight: 600;">单剧积分价</a>
+<a href="PointAccounts.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">积分账户与流水</a>
+<a href="Merchants.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5 5.5 4.5h13L20 9.5"></path><path d="M4 9.5c0 1.5 1.2 2.5 2.7 2.5s2.6-1 2.6-2.5c0 1.5 1.2 2.5 2.7 2.5s2.7-1 2.7-2.5c0 1.5 1.1 2.5 2.6 2.5S20 11 20 9.5"></path><path d="M5.5 12v7.5h13V12"></path><path d="M10 19.5V15h4v4.5"></path></svg><span style="flex-grow: 1;">商家</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">4</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Orders.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8.5l4 4v13H6z"></path><path d="M14 3.5V8h4.5M9 12.5h6M9 16.5h4"></path></svg><span style="flex-grow: 1;">订单</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">22</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Tickets.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"></path><path d="m4 7.5 8 4.5 8-4.5M12 12v9"></path></svg><span style="flex-grow: 1;">交付</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">7</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Delivery.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15.5V4"></path><path d="m7.5 8.5 4.5-4.5 4.5 4.5"></path><path d="M5 14v5.5h14V14"></path></svg><span style="flex-grow: 1;">发布</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">10</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Service.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2"></path><rect x="3.5" y="13.5" width="4" height="6" rx="1.5"></rect><rect x="16.5" y="13.5" width="4" height="6" rx="1.5"></rect></svg><span style="flex-grow: 1;">客服</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">6</span></a>
+<a href="Payments.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m9 7.5 3 4 3-4M12 11.5V17M9.5 12.5h5M9.5 15h5"></path></svg><span style="flex-grow: 1;">财务</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">8</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="RptOverview.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7.5 16.5v-5M12 16.5v-9M16.5 16.5v-7"></path></svg><span style="flex-grow: 1;">报表</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="OpsHome.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3.5l7 4V6l-7 4z"></path><path d="M17.5 9.5a3.5 3.5 0 0 1 0 5"></path></svg><span style="flex-grow: 1;">运营</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="SysStaff.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5h9M17.5 6.5h2M4.5 12h3M11.5 12h8M4.5 17.5h7M15.5 17.5h4"></path><circle cx="15.5" cy="6.5" r="2"></circle><circle cx="9.5" cy="12" r="2"></circle><circle cx="13.5" cy="17.5" r="2"></circle></svg><span style="flex-grow: 1;">系统</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Partners.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"></circle><path d="M3.5 19a5.5 5.5 0 0 1 11 0"></path><circle cx="17" cy="9.5" r="2.5"></circle><path d="M16 14.3a4.5 4.5 0 0 1 4.5 4.7"></path></svg><span style="flex-grow: 1;">渠道</span><span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #5A5047; border-radius: 4px; font-size: 11px; line-height: 16px; color: #9A9084;">V1.1</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+</div>
+</nav>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<header style="height: 56px; flex-shrink: 0; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 16px; background: #FFFFFF; border-bottom: 1px solid #ECE6DD;">
+<nav aria-label="面包屑" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6F665B;"><span>套餐与积分</span><span aria-hidden="true">/</span><span style="color: #1D1A16; font-weight: 600;">单剧积分价</span></nav>
+<label style="margin-left: auto; width: 300px; height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FAF8F4; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="全局搜索" placeholder="搜索商家、订单号、工单号" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<button type="button" aria-label="消息通知，5 条未读" style="position: relative; width: 40px; height: 40px; flex-shrink: 0; border: none; border-radius: 8px; background: transparent; color: #1D1A16; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg><span aria-hidden="true" style="position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; box-sizing: content-box; border: 2px solid #FFFFFF; border-radius: 6px; background: #C4501B;"></span></button>
+<div style="display: flex; align-items: center; gap: 10px; padding-left: 16px; border-left: 1px solid #ECE6DD;"><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 16px; background: #FBEDE5; color: #A63F12; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">周</span><div style="display: flex; flex-direction: column;"><span style="font-size: 14px; font-weight: 600; line-height: 1.3;">周航</span><span style="font-size: 12px; line-height: 1.3; color: #6F665B;">超级管理员</span></div></div>
+</header>
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<div role="status" style="position: absolute; top: 68px; right: 24px; z-index: 5; max-width: 540px; box-sizing: border-box; padding: 10px 8px 10px 14px; border-radius: 10px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: 0 8px 24px rgba(29, 26, 22, 0.18);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7FD19B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg><span style="flex-grow: 1;">{{toast}}</span><button type="button" aria-label="关闭提示" onClick="{{closeToast}}" style="width: 28px; height: 28px; flex-shrink: 0; border: none; border-radius: 6px; background: transparent; color: #FFFFFF; font-size: 16px; cursor: pointer;">×</button></div>
+</sc-if>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;">
+<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;"><h1 style="margin: 0; font-family: 'Noto Serif SC', serif; font-size: 24px; font-weight: 700; line-height: 1.3;">单剧积分价</h1><p style="margin: 0; font-size: 13px; color: #6F665B;">先按热度等级套用模板积分价，再按制作质量、题材、上新时间和剩余授权期单剧调整；实扣积分按套餐折扣计算</p></div>
+<dl style="flex-shrink: 0; margin: 0; display: flex; gap: 28px;"><div style="display: flex; flex-direction: column; gap: 2px;"><dt style="font-size: 12px; color: #6F665B;">已上架</dt><dd style="margin: 0; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;">22<span style="margin-left: 6px; font-size: 12px; font-weight: 400; color: #6F665B;">部</span></dd></div><div style="display: flex; flex-direction: column; gap: 2px;"><dt style="font-size: 12px; color: #6F665B;">单剧调整</dt><dd style="margin: 0; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;">5<span style="margin-left: 6px; font-size: 12px; font-weight: 400; color: #6F665B;">部</span></dd></div><div style="display: flex; flex-direction: column; gap: 2px;"><dt style="font-size: 12px; color: #6F665B;">本月订购</dt><dd style="margin: 0; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;">398<span style="margin-left: 6px; font-size: 12px; font-weight: 400; color: #6F665B;">部</span></dd></div></dl>
+</div>
+<section aria-label="单剧积分价" style="flex-shrink: 0; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; overflow: hidden;">
+<div style="display: flex; align-items: center; gap: 10px; box-sizing: border-box; padding: 10px 16px; border-bottom: 1px solid #ECE6DD;">
+<label style="width: 200px; height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="搜索剧名" placeholder="搜索剧名" value="{{q}}" onChange="{{onQ}}" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<select aria-label="热度等级" value="{{heat}}" onChange="{{onHeat}}" style="width: 110px; height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="全部">全部等级</option><option value="S">S 级</option><option value="A">A 级</option><option value="B">B 级</option><option value="C">C 级</option></select>
+<select aria-label="定价方式" value="{{mode}}" onChange="{{onMode}}" style="width: 128px; height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="全部">全部定价方式</option><option value="模板">按模板定价</option><option value="调整">单剧调整</option></select>
+<span style="margin-left: auto; display: flex; align-items: center; gap: 10px;"><span style="font-size: 12px; color: #6F665B;">单位：积分 / 部（整部定制与交付）</span></span>
+</div><div role="table" aria-label="单剧积分价" style="display: flex; flex-direction: column;"><div role="row" style="display: grid; grid-template-columns: minmax(0, 1fr) 48px 84px 88px 84px 84px 84px 100px 96px 64px; column-gap: 12px; align-items: center; min-height: 40px; box-sizing: border-box; padding: 0 16px; background: #FAF8F4; border-bottom: 1px solid #ECE6DD; font-size: 12px; font-weight: 600; color: #6F665B;">
+<span role="columnheader">剧目</span><span role="columnheader">等级</span><span role="columnheader" style="text-align: right;">模板积分价</span><span role="columnheader" style="text-align: right;">积分价</span><span role="columnheader" style="text-align: right;">基础版实扣</span><span role="columnheader" style="text-align: right;">专业版实扣</span><span role="columnheader" style="text-align: right;">旗舰版实扣</span><span role="columnheader">授权期至</span><span role="columnheader">生效时间</span><span role="columnheader" style="text-align: right;">操作</span>
+</div><sc-for list="{{rows}}" as="d" hint-placeholder-count="10">
+<div role="row" style="display: grid; grid-template-columns: minmax(0, 1fr) 48px 84px 88px 84px 84px 84px 100px 96px 64px; column-gap: 12px; align-items: center; min-height: 54px; box-sizing: border-box; padding: 6px 16px; border-bottom: 1px solid #F0EBE3; font-size: 13px;">
+<span role="cell" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-weight: 600;">《{{d.title}}》</span><span style="font-size: 12px; color: {{d.noteColor}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{d.note}}</span></span>
+<span role="cell"><span style="display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; background: {{d.hbg}}; color: {{d.hfg}}; font-size: 12px; font-weight: 600; white-space: nowrap; min-width: 22px; justify-content: center;">{{d.heat}}</span></span>
+<span role="cell" style="text-align: right; font-variant-numeric: tabular-nums; color: #6F665B;">{{d.tpl}}</span>
+<span role="cell" style="text-align: right; font-variant-numeric: tabular-nums;"><strong>{{d.price}}</strong></span>
+<span role="cell" style="text-align: right; font-variant-numeric: tabular-nums;">{{d.b}}</span>
+<span role="cell" style="text-align: right; font-variant-numeric: tabular-nums;">{{d.p}}</span>
+<span role="cell" style="text-align: right; font-variant-numeric: tabular-nums;">{{d.f}}</span>
+<span role="cell" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-variant-numeric: tabular-nums;">{{d.until}}</span><span style="font-size: 12px; color: {{d.untilColor}};">{{d.untilNote}}</span></span>
+<span role="cell" style="font-variant-numeric: tabular-nums; color: #6F665B;">{{d.since}}</span>
+<span role="cell" style="text-align: right;"><button type="button" onClick="{{d.adjust}}" disabled="{{d.lock}}" style="min-height: 36px; border-radius: 8px; border: none; background: none; padding: 0; color: #A63F12; font-family: inherit; font-size: 13px; cursor: pointer; color: {{d.adjColor}};">调价</button></span>
+</div>
+</sc-for></div><sc-if value="{{empty}}" hint-placeholder-val="{{false}}">
+<div style="padding: 56px 24px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;"><span style="font-size: 15px; font-weight: 600;">没有符合条件的剧目</span><span style="font-size: 13px; color: #6F665B;">调整筛选条件后重试</span></div>
+</sc-if><div style="display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; padding: 10px 16px; font-size: 13px; color: #6F665B;">
+<span>{{totalText}}</span>
+<div aria-hidden="true" style="display: flex; align-items: center; gap: 6px;"><span style="width: 30px; height: 30px; border: 1px solid #ECE6DD; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #C9C1B6;">‹</span><span style="width: 30px; height: 30px; border-radius: 6px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 600;">1</span><span style="padding: 0 6px;">/ {{pages}} 页</span><span style="width: 30px; height: 30px; border: 1px solid #ECE6DD; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #1D1A16;">›</span></div>
+</div>
+</section>
+<div style="display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; align-items: start;"><section aria-label="积分试算" style="box-sizing: border-box; padding: 16px 18px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><div style="display: flex; flex-direction: column; gap: 3px;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">积分试算</h2><p style="margin: 0; font-size: 12px; color: #6F665B;">与商家端“确认订购”页的积分明细一致</p></div></div><div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;"><select aria-label="剧目" value="{{cd}}" onChange="{{onCd}}" style="width: 150px; height: 34px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="xk">《巷口那家店》</option><option value="yx">《夜巷疑云》</option><option value="mg">《面馆少东家》</option><option value="lj">《老街烟火》</option><option value="ec">《二次开业》</option><option value="xd">《心动便利店》</option><option value="jx">《锦绣小厨娘》</option><option value="jy">《家有萌娃》</option></select><select aria-label="套餐版本" value="{{cv}}" onChange="{{onCv}}" style="width: 150px; height: 34px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="basic">基础版（原价）</option><option value="pro">专业版（9 折）</option><option value="flag">旗舰版（8 折）</option></select><label style="display: flex; align-items: center; gap: 8px; min-height: 34px; font-size: 13px; color: {{topColor}};"><input type="checkbox" checked="{{top}}" disabled="{{topLock}}" onChange="{{toggleTop}}" style="width: 18px; height: 18px; margin: 0; accent-color: #C4501B;">{{topLabel}}</label></div><div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;"><div style="box-sizing: border-box; padding: 10px 12px; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 12px; color: #6F665B;">剧目积分价 P</span><span style="font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;">{{cP}}</span></div><div style="box-sizing: border-box; padding: 10px 12px; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 12px; color: #6F665B;">套餐折扣率 R</span><span style="font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;">{{cR}}</span></div><div style="box-sizing: border-box; padding: 10px 12px; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 12px; color: #6F665B;">顶级模型加扣 T</span><span style="font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;">{{cT}}</span></div><div style="box-sizing: border-box; padding: 10px 12px; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 12px; color: #6F665B;">应扣积分 S</span><span style="font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;">{{cS}}</span></div></div><p style="margin: 0; padding: 8px 12px; border-radius: 8px; background: #FFF8F3; font-size: 13px; font-variant-numeric: tabular-nums;">S ＝ round(P × R × (1 ＋ T)) ＝ {{cExpr}}</p><p style="margin: 0; font-size: 12px; line-height: 1.7; color: #6F665B;"><span style="display: block;">一次订购多部剧的，逐部计算、分别冻结与扣减；同时发布抖音和视频号不加积分。</span><span style="display: block;">剩余授权期不足 3 个月的剧目自动停止订购（最短可订授权期见“积分价模板与参数”）。</span></p>
+</section><section aria-label="调价记录" style="box-sizing: border-box; padding: 16px 18px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 8px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><div style="display: flex; flex-direction: column; gap: 3px;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">调价记录</h2><p style="margin: 0; font-size: 12px; color: #6F665B;">调价只影响生效后提交的订购；已加入选剧单的商家须确认新积分价后才能订购</p></div></div><div style="display: flex; flex-direction: column;"><sc-for list="{{logs}}" as="l" hint-placeholder-count="5"><div style="display: grid; grid-template-columns: 96px minmax(0, 1fr); column-gap: 12px; box-sizing: border-box; padding: 9px 0; border-top: 1px solid #F0EBE3; font-size: 13px;"><span style="color: #6F665B; font-variant-numeric: tabular-nums;">{{l.time}}</span><span style="display: flex; flex-direction: column; gap: 2px;"><span>{{l.title}}</span><span style="font-size: 12px; color: #6F665B;">{{l.desc}}</span></span></div></sc-for></div>
+</section></div>
+</main>
+</div>
+<sc-if value="{{adjOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10; background: rgba(29, 26, 22, 0.45); display: flex; align-items: center; justify-content: center;">
+<section role="dialog" aria-modal="true" aria-labelledby="price-adj-title" style="width: 560px; max-height: 820px; overflow-y: auto; box-sizing: border-box; padding: 24px; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 48px rgba(29, 26, 22, 0.24);">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><h2 id="price-adj-title" style="margin: 0; font-size: 18px; font-weight: 600;">调价 · 《{{adj.title}}》</h2><p style="margin: 0; font-size: 13px; line-height: 1.6; color: #6F665B;">模板积分价 {{adj.tpl}}；调价须填写原因，保留调价记录。</p></div>
+<button type="button" aria-label="关闭" onClick="{{closeDlg}}" style="width: 32px; height: 32px; flex-shrink: 0; border: none; border-radius: 8px; background: #F6F3EE; color: #1D1A16; font-size: 18px; cursor: pointer;">×</button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px;"><div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">当前积分价</span><span style="height: 36px; display: flex; align-items: center; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums;">{{adj.cur}}</span></div><div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">新积分价</span><span style="display: flex; align-items: center; gap: 6px;"><input aria-label="新积分价" type="text" value="{{adj.val}}" onChange="{{adj.setVal}}" style="width: 120px; height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16; text-align: right;"><span style="font-size: 13px; color: #6F665B;">积分</span></span></div><div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">生效时间</span><select aria-label="生效时间" value="{{adj.when}}" onChange="{{adj.setWhen}}" style="height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="立即">保存后立即生效</option><option value="10-08">2026-10-08 00:00</option><option value="11-01">2026-11-01 00:00</option></select></div><div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">调整原因</span><select aria-label="调整原因" value="{{adj.reason}}" onChange="{{adj.setReason}}" style="height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="制作质量">制作质量</option><option value="题材适配">题材适配</option><option value="上新时间">上新时间</option><option value="剩余授权期">剩余授权期</option><option value="恢复模板价">恢复模板价</option></select></div></div><div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;"><div style="box-sizing: border-box; padding: 8px 10px; border-radius: 8px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: #6F665B;">基础版实扣<strong style="font-size: 14px; color: #1D1A16; font-variant-numeric: tabular-nums;">{{adj.b}}</strong></div><div style="box-sizing: border-box; padding: 8px 10px; border-radius: 8px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: #6F665B;">专业版实扣<strong style="font-size: 14px; color: #1D1A16; font-variant-numeric: tabular-nums;">{{adj.p}}</strong></div><div style="box-sizing: border-box; padding: 8px 10px; border-radius: 8px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: #6F665B;">旗舰版实扣<strong style="font-size: 14px; color: #1D1A16; font-variant-numeric: tabular-nums;">{{adj.f}}</strong></div></div><sc-if value="{{adj.hasErr}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 13px; color: #B42318;">{{adj.err}}</span></sc-if><p style="margin: 0; font-size: 12px; line-height: 1.7; color: #6F665B;"><span style="display: block;">已冻结或已扣减的订购按原积分价履约；</span><span style="display: block;">选剧单中的该剧会提示“积分价已变动”，商家确认后才能订购。</span></p>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+<button type="button" onClick="{{closeDlg}}" style="min-height: 38px; padding: 0 18px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; cursor: pointer;">取消</button><button type="button" onClick="{{saveAdj}}" style="min-height: 38px; padding: 0 18px; border-radius: 8px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer;">保存调价</button>
+</div>
+</section>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const money = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const num = (n) => n.toLocaleString('en-US');
+    const tab = (key, label, count, cur, pick) => ({
+      key: key, label: label, count: count, on: key === cur, pick: pick,
+      line: key === cur ? '#C4501B' : 'transparent', color: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400',
+      cbg: key === cur ? '#FBEDE5' : '#F3EFE9', cfg: key === cur ? '#A63F12' : '#6F665B'
+    });
+    const segOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, bg: key === cur ? '#FFFFFF' : 'transparent', fg: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400' });
+    const pillOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, border: key === cur ? '#1D1A16' : '#E7E1D8', bg: key === cur ? '#1D1A16' : '#FFFFFF', fg: key === cur ? '#FFFFFF' : '#1D1A16' });
+    const sw = (on) => ({ bg: on ? '#256A42' : '#CFC7BC', knob: on ? '18px' : '2px' });
+    const toastVals = { toast: st.toast || '', hasToast: !!st.toast, closeToast: () => this.setState({ toast: '' }) };
+
+    const fmt = (n) => Math.round(n).toLocaleString('en-US');
+    const TPL = { S: 3000, A: 2000, B: 1600, C: 1000 };
+    const D = (key, title, heat, price, why, since, until, status) => ({ key: key, title: title, heat: heat, price: price, why: why, since: since, until: until, status: status });
+    const base = [
+      D('xk', '巷口那家店', 'S', 3000, '', '2026-06-01', '2027-12-31', '已上架'),
+      D('yx', '夜巷疑云', 'S', 3000, '', '2026-06-01', '2027-08-31', '已上架'),
+      D('mg', '面馆少东家', 'A', 2400, '新剧热度高', '2026-09-15', '2028-06-30', '已上架'),
+      D('lj', '老街烟火', 'A', 2200, '制作质量较高', '2026-09-29', '2028-03-31', '已上架'),
+      D('ec', '二次开业', 'A', 2000, '', '2026-06-01', '2027-09-30', '已上架'),
+      D('xd', '心动便利店', 'A', 2400, '新剧热度高', '2026-06-01', '2027-12-31', '已上架'),
+      D('jx', '锦绣小厨娘', 'B', 2600, '80 集且制作质量高', '2026-07-01', '2027-10-31', '已上架'),
+      D('jy', '家有萌娃', 'B', 1200, '集数少、上线较久', '2026-06-01', '2027-06-30', '已上架'),
+      D('wf', '晚风小酒馆', 'C', 1000, '', '2026-06-15', '2026-12-25', '停止订购'),
+      D('jj', '街角早点铺', 'B', 1600, '', '—', '2028-09-19', '草稿')
+    ];
+    const over = st.over || {};
+    const data = base.map((d) => Object.assign({}, d, over[d.key] || {}));
+    const q = st.q || '';
+    const heat = st.heat || '全部';
+    const mode = st.mode || '全部';
+    const adjusted = (d) => d.price !== TPL[d.heat];
+    const list = data.filter((d) => (q === '' || d.title.indexOf(q) >= 0) && (heat === '全部' || d.heat === heat) && (mode === '全部' || (mode === '模板') === !adjusted(d)));
+    const noFilter = q === '' && heat === '全部' && mode === '全部';
+    const HC = { S: ['#FBEDE5', '#A63F12'], A: ['#E8EEF8', '#2E5AAC'], B: ['#E5F1E9', '#256A42'], C: ['#EFEBE4', '#5E564C'] };
+    const net = (p, r) => fmt(Math.round(p * r));
+    const noteOf = (d) => {
+      if (d.status === '草稿') return '草稿 · 上架后生效';
+      if (d.status === '停止订购') return '剩余授权期不足 3 个月，09-25 起停止订购';
+      if (!adjusted(d)) return '按模板定价';
+      const diff = d.price - TPL[d.heat];
+      return '单剧调整：模板 ' + fmt(TPL[d.heat]) + ' → ' + fmt(d.price) + '，' + d.why;
+    };
+    const cd = st.cd || 'xd';
+    const cv = st.cv || 'pro';
+    const R = { basic: 1, pro: 0.9, flag: 0.8 };
+    const top = cv === 'flag' ? true : !!st.top;
+    const cDrama = data.filter((d) => d.key === cd)[0];
+    const T = cv === 'flag' ? 0 : (top ? 0.2 : 0);
+    const S = Math.round(cDrama.price * R[cv] * (1 + T));
+    const logsBase = [
+      { time: '09-29 00:00', title: '《老街烟火》2,000 → 2,200', desc: '沈蔓 · 制作质量较高；09-26 提交，选剧单中的商家已收到变价提示' },
+      { time: '09-15 00:00', title: '《面馆少东家》上架，积分价 2,400', desc: '沈蔓 · A 级模板 2,000，新剧热度高，上调 400' },
+      { time: '07-01 00:00', title: '《锦绣小厨娘》1,600 → 2,600', desc: '沈蔓 · 80 集且制作质量高' },
+      { time: '06-01 00:00', title: '《心动便利店》《家有萌娃》单剧调整', desc: '沈蔓 · 心动便利店 2,000 → 2,400；家有萌娃 1,600 → 1,200' },
+      { time: '06-01 00:00', title: '调整 S、A、B、C 等级模板积分价', desc: '周航 · 按模板定价的剧目同步生效' }
+    ];
+    const logs = (st.newLogs || []).concat(logsBase);
+    const a = st.adj || null;
+    const aD = a ? data.filter((d) => d.key === a.key)[0] : null;
+    const aVal = a ? a.val : '';
+    const aOk = /^\d+$/.test(String(aVal)) && +aVal >= 100;
+    const setA = (k) => (e) => this.setState({ adj: Object.assign({}, a, { [k]: e.target.value, err: '' }) });
+    return Object.assign({
+      q: q, heat: heat, mode: mode,
+      onQ: (e) => this.setState({ q: e.target.value }), onHeat: (e) => this.setState({ heat: e.target.value }), onMode: (e) => this.setState({ mode: e.target.value }),
+      rows: list.map((d) => ({
+        title: d.title, note: noteOf(d), noteColor: d.status === '停止订购' ? '#A63F12' : '#6F665B',
+        heat: d.heat, hbg: HC[d.heat][0], hfg: HC[d.heat][1], tpl: fmt(TPL[d.heat]), price: fmt(d.price),
+        b: net(d.price, 1), p: net(d.price, 0.9), f: net(d.price, 0.8),
+        until: d.until, untilNote: d.status === '停止订购' ? '90 天内到期' : d.status === '草稿' ? '未上架' : '可订购',
+        untilColor: d.status === '停止订购' ? '#A63F12' : '#6F665B',
+        since: d.status === '草稿' ? '未上架' : d.since,
+        lock: d.status === '停止订购', adjColor: d.status === '停止订购' ? '#B3AA9E' : '#A63F12',
+        adjust: () => { if (d.status === '停止订购') return; this.setState({ adj: { key: d.key, val: String(d.price), when: '立即', reason: '制作质量' } }); }
+      })),
+      empty: list.length === 0,
+      totalText: noFilter ? '共 28 部 · 每页 10 部' : '共 ' + list.length + ' 部',
+      pages: noFilter ? '3' : '1',
+      cd: cd, cv: cv, onCd: (e) => this.setState({ cd: e.target.value }), onCv: (e) => this.setState({ cv: e.target.value }),
+      top: top, topLock: cv === 'flag', toggleTop: () => this.setState({ top: !st.top }),
+      topLabel: cv === 'flag' ? '旗舰版默认使用顶级模型' : '按次选用顶级模型（加扣 20%）', topColor: cv === 'flag' ? '#6F665B' : '#1D1A16',
+      cP: fmt(cDrama.price), cR: String(R[cv]), cT: (T * 100) + '%', cS: fmt(S) + ' 积分',
+      cExpr: 'round(' + fmt(cDrama.price) + ' × ' + R[cv] + ' × (1 ＋ ' + (T * 100) + '%)) ＝ ' + fmt(S),
+      logs: logs,
+      adjOpen: !!a,
+      adj: a ? {
+        title: aD.title, tpl: fmt(TPL[aD.heat]), cur: fmt(aD.price) + ' 积分', val: aVal, setVal: setA('val'), when: a.when, setWhen: setA('when'), reason: a.reason, setReason: setA('reason'),
+        b: aOk ? net(+aVal, 1) : '—', p: aOk ? net(+aVal, 0.9) : '—', f: aOk ? net(+aVal, 0.8) : '—', err: a.err || '', hasErr: !!a.err
+      } : { title: '', tpl: '', cur: '', val: '', setVal: () => {}, when: '立即', setWhen: () => {}, reason: '', setReason: () => {}, b: '', p: '', f: '', err: '', hasErr: false },
+      closeDlg: () => this.setState({ adj: null }),
+      saveAdj: () => {
+        if (!a) return;
+        if (!aOk) { this.setState({ adj: Object.assign({}, a, { err: '积分价应为不少于 100 的整数' }) }); return; }
+        if (+aVal === aD.price) { this.setState({ adj: Object.assign({}, a, { err: '新积分价与当前相同' }) }); return; }
+        const when = a.when === '立即' ? '09-30 10:32' : a.when + ' 00:00';
+        const o = Object.assign({}, over);
+        if (a.when === '立即') o[aD.key] = { price: +aVal, why: a.reason === '恢复模板价' ? '' : a.reason, since: '2026-09-30' };
+        const log = { time: when, title: '《' + aD.title + '》' + fmt(aD.price) + ' → ' + fmt(+aVal), desc: '周航 · ' + a.reason + (a.when === '立即' ? '；已生效' : '；待生效') };
+        this.setState({ over: o, adj: null, newLogs: [log].concat(st.newLogs || []),
+          toast: '《' + aD.title + '》积分价调整为 ' + fmt(+aVal) + '，' + (a.when === '立即' ? '已生效' : a.when + ' 生效') + '；选剧单中的商家将收到变价提示' });
+      }
+    }, toastVals);
+  }
+}
+</script>
+</body>
+</html>

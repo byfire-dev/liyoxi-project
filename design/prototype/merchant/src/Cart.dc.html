@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 选剧单</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+textarea::placeholder,input::placeholder{color:#6F665B}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;">
+<h1 style="margin: 0; font-size: 17px; font-weight: 600;">选剧单</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 4px 16px 20px; display: flex; flex-direction: column; gap: 12px;">
+<p style="margin: 0; padding: 10px 12px; border-radius: 10px; background: #E8EEF9; color: #2E5AAC; font-size: 13px; line-height: 1.5;"><span style="display: block;">实扣积分按当前套餐（专业版 9 折）计算；</span><span style="display: block;">加入选剧单不冻结积分，提交订购时才冻结。</span></p>
+<article style="background: #FFFFFF; border-radius: 14px; padding: 14px 12px; display: flex; gap: 10px; align-items: flex-start;"><input type="checkbox" aria-label="选择《心动便利店》" checked="{{a}}" onChange="{{toggleA}}" style="flex-shrink: 0; width: 20px; height: 20px; margin: 30px 0 0; accent-color: #C4501B;"><div aria-hidden="true" style="flex-shrink: 0; position: relative; width: 60px; height: 80px; border-radius: 6px; background: #1F2B45;"><span style="position: absolute; right: 8px; top: 8px; writing-mode: vertical-rl; font-family: 'Noto Serif SC', serif; font-size: 12px; font-weight: 900; color: #FFFFFF;">心动便利店</span></div><div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;"><span style="display: flex; align-items: center; gap: 6px;"><span style="font-size: 15px; font-weight: 600;">心动便利店</span><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E8EEF9; color: #2E5AAC; white-space: nowrap;">新剧</span></span><span style="font-size: 13px; color: #6F665B;">甜宠 · 整部 40 集</span><span style="font-size: 12px; color: #6F665B;">可使用至 2027-12-31</span><div style="display: flex; align-items: center; justify-content: space-between;"><span style="display: flex; align-items: baseline; gap: 6px;"><span style="font-size: 16px; font-weight: 700; color: #C4501B; font-variant-numeric: tabular-nums;">2,160<span style="font-size: 12px; font-weight: 600;"> 积分</span></span><span style="font-size: 12px; color: #6F665B; text-decoration: line-through;">2,400</span></span><a href="Detail.dc.html" style="min-height: 32px; padding: 0 12px; border-radius: 16px; display: flex; align-items: center; font-size: 13px; border: 1px solid #E7E1D8;">查看详情</a></div></div></article>
+<sc-if value="{{showB}}" hint-placeholder-val="{{true}}"><article style="background: #FFFFFF; border-radius: 14px; padding: 14px 12px; display: flex; gap: 10px; align-items: flex-start;"><sc-if value="{{bOk}}" hint-placeholder-val="{{false}}"><input type="checkbox" aria-label="选择《老街烟火》" checked="{{b}}" onChange="{{toggleB}}" style="flex-shrink: 0; width: 20px; height: 20px; margin: 30px 0 0; accent-color: #C4501B;"></sc-if><sc-if value="{{bPending}}" hint-placeholder-val="{{true}}"><span aria-hidden="true" style="flex-shrink: 0; width: 20px; height: 20px; margin-top: 30px; box-sizing: border-box; border: 1px solid #D6CFC4; border-radius: 4px; background: #F1ECE4;"></span></sc-if><div aria-hidden="true" style="flex-shrink: 0; position: relative; width: 60px; height: 80px; border-radius: 6px; background: #4E6B5A;"><span style="position: absolute; right: 8px; top: 8px; writing-mode: vertical-rl; font-family: 'Noto Serif SC', serif; font-size: 12px; font-weight: 900; color: #FFFFFF;">老街烟火</span></div><div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;"><span style="display: flex; align-items: center; gap: 6px;"><span style="font-size: 15px; font-weight: 600;">老街烟火</span><sc-if value="{{bPending}}" hint-placeholder-val="{{true}}"><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #FBEDE5; color: #A63F12; white-space: nowrap;">积分价已变动</span></sc-if></span><span style="font-size: 13px; color: #6F665B;">都市温情 · 整部 50 集</span><sc-if value="{{bPending}}" hint-placeholder-val="{{true}}"><span style="font-size: 12px; line-height: 1.5; color: #A63F12;"><span style="display: block;">积分价由 2,000 调整为 2,200，</span><span style="display: block;">确认后可订购</span></span></sc-if><sc-if value="{{bOk}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; color: #6F665B;">可使用至 2028-03-31</span></sc-if><div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;"><span style="display: flex; align-items: baseline; gap: 6px;"><span style="font-size: 16px; font-weight: 700; color: #C4501B; font-variant-numeric: tabular-nums;">1,980<span style="font-size: 12px; font-weight: 600;"> 积分</span></span><span style="font-size: 12px; color: #6F665B; text-decoration: line-through;">2,200</span></span><sc-if value="{{bOk}}" hint-placeholder-val="{{false}}"><a href="Mall.dc.html" style="min-height: 32px; padding: 0 12px; border-radius: 16px; display: flex; align-items: center; font-size: 13px; border: 1px solid #E7E1D8;">查看详情</a></sc-if></div><sc-if value="{{bPending}}" hint-placeholder-val="{{true}}"><span style="display: flex; justify-content: flex-end; gap: 8px;"><button type="button" onClick="{{removeB}}" style="min-height: 32px; padding: 0 12px; border-radius: 16px; display: flex; align-items: center; font-size: 13px; border: 1px solid #E7E1D8; background: #FFFFFF; font-family: inherit; color: #1D1A16; cursor: pointer;">删除</button><button type="button" onClick="{{confirmB}}" style="min-height: 32px; padding: 0 12px; border-radius: 16px; display: flex; align-items: center; font-size: 13px; border: 1px solid #C4501B; background: #FFFFFF; font-family: inherit; color: #A63F12; cursor: pointer;">确认新价格</button></span></sc-if></div></article></sc-if>
+<sc-if value="{{showC}}" hint-placeholder-val="{{true}}"><article style="background: #FFFFFF; border-radius: 14px; padding: 14px 12px; display: flex; gap: 10px; align-items: flex-start;"><span aria-hidden="true" style="flex-shrink: 0; width: 20px; height: 20px; margin-top: 30px; box-sizing: border-box; border: 1px solid #D6CFC4; border-radius: 4px; background: #F1ECE4;"></span><div aria-hidden="true" style="flex-shrink: 0; position: relative; width: 60px; height: 80px; border-radius: 6px; background: #6F6A62; opacity: 0.45;"><span style="position: absolute; right: 8px; top: 8px; writing-mode: vertical-rl; font-family: 'Noto Serif SC', serif; font-size: 12px; font-weight: 900; color: #FFFFFF;">旧时光照相馆</span></div><div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;"><span style="display: flex; align-items: center; gap: 6px;"><span style="font-size: 15px; font-weight: 600; color: #6F665B;">旧时光照相馆</span><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #FCEBEA; color: #B42318; white-space: nowrap;">已失效</span></span><span style="font-size: 13px; color: #6F665B;">家庭 · 整部 30 集</span><span style="font-size: 13px; line-height: 1.5; color: #B42318;">剧目已下架，无法订购</span><div style="display: flex; justify-content: flex-end;"><button type="button" onClick="{{removeC}}" style="min-height: 32px; padding: 0 12px; border-radius: 16px; display: flex; align-items: center; font-size: 13px; border: 1px solid #E7E1D8; background: #FFFFFF; font-family: inherit; color: #1D1A16; cursor: pointer;">删除</button></div></div></article></sc-if>
+</main>
+<div style="flex-shrink: 0; min-height: 64px; box-sizing: border-box; padding: 8px 16px; background: #FFFFFF; border-top: 1px solid #ECE6DD; display: flex; align-items: center; gap: 12px;">
+<label style="display: flex; align-items: center; gap: 6px; min-height: 44px; font-size: 14px;"><input type="checkbox" checked="{{allOn}}" onChange="{{toggleAll}}" style="width: 20px; height: 20px; margin: 0; accent-color: #C4501B;">全选</label>
+<div style="flex-grow: 1; display: flex; flex-direction: column; align-items: flex-end;"><span style="font-size: 14px;">应扣 <span style="font-size: 18px; font-weight: 700; color: #C4501B;">{{total}}</span> 积分</span><span style="font-size: 12px; color: {{subColor}};">{{sub}}</span></div>
+<sc-if value="{{canGo}}" hint-placeholder-val="{{true}}"><a href="Checkout.dc.html" style="height: 44px; padding: 0 20px; border-radius: 22px; background: #C4501B; color: #FFFFFF; display: flex; align-items: center; font-size: 15px; font-weight: 600;">去订购（{{count}}）</a></sc-if>
+<sc-if value="{{short}}" hint-placeholder-val="{{false}}"><a href="TopUp.dc.html" style="height: 44px; padding: 0 16px; border-radius: 22px; border: 1px solid #C4501B; box-sizing: border-box; background: #FFFFFF; color: #A63F12; display: flex; align-items: center; font-size: 15px; font-weight: 600;">去加购积分</a></sc-if>
+<sc-if value="{{none}}" hint-placeholder-val="{{false}}"><button type="button" disabled="{{yes}}" style="height: 44px; padding: 0 20px; border: none; border-radius: 22px; background: #D6CFC4; color: #4A433B; font-family: inherit; font-size: 15px; font-weight: 600;">去订购</button></sc-if>
+</div>
+<nav aria-label="底部导航" style="height: 64px; flex-shrink: 0; box-sizing: border-box; padding-bottom: 8px; background: #FFFFFF; border-top: 1px solid #ECE6DD; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));">
+<a href="Main.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #6F665B;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg><span style="font-size: 12px;">首页</span></a>
+<a href="Mall.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #6F665B;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><path d="m10 9 5 3-5 3z"></path></svg><span style="font-size: 12px;">短剧商城</span></a>
+<a href="Cart.dc.html" aria-current="page" style="position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #C4501B;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"></rect><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"></path></svg><span style="position: absolute; top: 5px; left: 50%; margin-left: 6px; min-width: 16px; height: 16px; box-sizing: border-box; padding: 0 4px; border-radius: 8px; background: #C4501B; color: #FFFFFF; font-size: 11px; font-weight: 600; line-height: 16px; text-align: center;">2</span><span style="font-size: 12px; font-weight: 600;">选剧单</span></a>
+<a href="Mine.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #6F665B;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"></path></svg><span style="font-size: 12px;">我的</span></a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const a = typeof st.a === 'boolean' ? st.a : true;
+    const bConfirmed = !!st.bConfirmed;
+    const b = bConfirmed && (typeof st.b === 'boolean' ? st.b : true);
+    const showB = !st.removedB;
+    const showC = !st.removedC;
+    const avail = 2920;
+    const total = (a ? 2160 : 0) + (showB && b ? 1980 : 0);
+    const count = (a ? 1 : 0) + (showB && b ? 1 : 0);
+    const selectable = 1 + (showB && bConfirmed ? 1 : 0);
+    const allOn = count === selectable;
+    const short = count > 0 && total > avail;
+    return {
+      yes: true,
+      a: a, toggleA: () => this.setState({ a: !a }),
+      b: b, toggleB: () => this.setState({ b: !b }),
+      showB: showB, bOk: bConfirmed, bPending: !bConfirmed,
+      confirmB: () => this.setState({ bConfirmed: true, b: true }),
+      removeB: () => this.setState({ removedB: true }),
+      showC: showC, removeC: () => this.setState({ removedC: true }),
+      allOn: allOn,
+      toggleAll: () => this.setState({ a: !allOn, b: bConfirmed ? !allOn : false }),
+      total: fmt(total), count: count,
+      sub: short ? '可用 2,920，还差 ' + fmt(total - avail) : '可用 2,920 积分',
+      subColor: short ? '#B42318' : '#6F665B',
+      canGo: count > 0 && !short, short: short, none: count === 0
+    };
+  }
+}
+</script>
+</body>
+</html>

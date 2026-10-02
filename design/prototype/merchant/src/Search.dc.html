@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 搜索</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+textarea::placeholder,input::placeholder{color:#6F665B}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;">
+<a href="Main.dc.html" aria-label="返回" style="position: absolute; left: 2px; top: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1D1A16;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></a>
+<h1 style="margin: 0; font-size: 17px; font-weight: 600;">搜索</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<div style="flex-shrink: 0; box-sizing: border-box; padding: 4px 16px 10px; display: flex; gap: 10px; align-items: center;">
+<label style="flex-grow: 1; min-width: 0; height: 40px; box-sizing: border-box; padding: 0 6px 0 14px; border-radius: 20px; background: #FFFFFF; border: 1px solid #C4501B; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="搜索短剧" placeholder="搜索剧名、题材、主演" value="{{q}}" onChange="{{onQ}}" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 15px; color: #1D1A16;"><sc-if value="{{hasQ}}" hint-placeholder-val="{{false}}"><button type="button" aria-label="清除搜索词" onClick="{{clearQ}}" style="flex-shrink: 0; width: 32px; height: 32px; border: none; border-radius: 16px; background: none; color: #6F665B; display: flex; align-items: center; justify-content: center; cursor: pointer;"><span style="width: 18px; height: 18px; border-radius: 9px; background: #C9C0B3; color: #FFFFFF; display: flex; align-items: center; justify-content: center;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></span></button></sc-if></label>
+<button type="button" onClick="{{submit}}" style="height: 40px; padding: 0 16px; border-radius: 20px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 15px; cursor: pointer; padding: 0 16px;">搜索</button>
+</div>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 2px 16px 24px; display: flex; flex-direction: column; gap: 14px;">
+<sc-if value="{{idle}}" hint-placeholder-val="{{true}}"><sc-if value="{{showHistory}}" hint-placeholder-val="{{true}}"><section aria-label="搜索历史" style="display: flex; flex-direction: column; gap: 10px;"><div style="display: flex; align-items: center; justify-content: space-between;"><h2 style="margin: 0; font-size: 15px; font-weight: 600;">搜索历史</h2><button type="button" onClick="{{clearHistory}}" style="min-height: 32px; padding: 0 4px; border: none; background: none; display: flex; align-items: center; gap: 4px; font-family: inherit; font-size: 13px; color: #6F665B; cursor: pointer;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"></path></svg><span>清空</span></button></div><div style="display: flex; flex-wrap: wrap; gap: 8px;"><sc-for list="{{history}}" as="h" hint-placeholder-count="3"><button type="button" onClick="{{h.pick}}" style="min-height: 34px; box-sizing: border-box; padding: 0 14px; border: none; border-radius: 17px; background: #FFFFFF; font-family: inherit; font-size: 14px; color: #1D1A16; cursor: pointer;">{{h.label}}</button></sc-for></div></section></sc-if><section aria-label="热门搜索" style="background: #FFFFFF; border-radius: 14px; padding: 14px 16px 6px; display: flex; flex-direction: column;"><div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; color: #A63F12;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s5 4.5 5 9.5A5 5 0 0 1 7 12.5C7 9.8 9 8 9 8s.5 2.5 2.5 3C11 7.5 12 3 12 3z"></path></svg><h2 style="margin: 0; font-size: 15px; font-weight: 600; color: #1D1A16;">热门搜索</h2></div><ol style="margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px;"><sc-for list="{{hot}}" as="w" hint-placeholder-count="6"><li><button type="button" onClick="{{w.pick}}" style="width: 100%; min-height: 44px; padding: 0; border: none; background: none; display: flex; align-items: center; gap: 10px; font-family: inherit; text-align: left; cursor: pointer;"><span style="flex-shrink: 0; width: 18px; font-size: 15px; font-weight: 700; font-style: italic; color: {{w.rankColor}};">{{w.rank}}</span><span style="flex-grow: 1; min-width: 0; font-size: 14px; color: #1D1A16; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{w.label}}</span><sc-if value="{{w.hasTag}}" hint-placeholder-val="{{false}}"><span style="flex-shrink: 0; font-size: 11px; font-weight: 600; padding: 0 4px; border-radius: 4px; background: {{w.tagBg}}; color: {{w.tagFg}}; line-height: 17px;">{{w.tag}}</span></sc-if></button></li></sc-for></ol></section><p style="margin: 0; padding: 0 4px; font-size: 12px; line-height: 1.6; color: #6F665B;"><span style="display: block;">支持按剧名、题材、主演搜索；</span><span style="display: block;">结果展示剧目积分价与专业版折后的实扣积分。</span></p></sc-if>
+<sc-if value="{{hasResults}}" hint-placeholder-val="{{false}}"><sc-if value="{{isFallback}}" hint-placeholder-val="{{false}}"><p style="margin: 0; padding: 10px 12px; border-radius: 10px; background: #E8EEF9; color: #2E5AAC; font-size: 13px; line-height: 1.5;"><span style="display: block;">{{fbLine1}}</span><span style="display: block;">{{fbLine2}}</span></p></sc-if><span style="font-size: 13px; color: #6F665B;">{{resultLabel}}</span><sc-for list="{{results}}" as="d" hint-placeholder-count="3"><a href="Detail.dc.html" style="display: flex; gap: 12px; background: #FFFFFF; border-radius: 12px; padding: 10px;"><div aria-hidden="true" style="flex-shrink: 0; position: relative; width: 72px; height: 96px; border-radius: 7px; overflow: hidden; background: {{d.color}};"><span style="position: absolute; top: 4px; right: 4px; bottom: 4px; left: 4px; border: 1px solid rgba(255,255,255,0.28); border-radius: 4px;"></span><span style="position: absolute; right: 9px; top: 9px; writing-mode: vertical-rl; font-family: 'Noto Serif SC', serif; font-size: 13px; font-weight: 900; letter-spacing: 2px; color: #FFFFFF;">{{d.title}}</span></div><div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;"><div style="display: flex; align-items: center; gap: 6px;"><span style="font-size: 16px; font-weight: 600;">{{d.tPre}}<span style="color: #C4501B;">{{d.tHit}}</span>{{d.tPost}}</span><sc-if value="{{d.hasBadge}}" hint-placeholder-val="{{false}}"><span style="flex-shrink: 0; font-size: 11px; font-weight: 600; padding: 0 5px; border-radius: 4px; background: {{d.badgeBg}}; color: {{d.badgeColor}}; line-height: 18px;">{{d.badge}}</span></sc-if></div><span style="display: flex; gap: 4px; font-size: 12px; color: #6F665B;"><span>{{d.gPre}}<span style="color: #C4501B; font-weight: 600;">{{d.gHit}}</span>{{d.gPost}}</span><span>· {{d.eps}} 集 · 热度 {{d.heat}}</span></span><span style="font-size: 12px; color: #6F665B;">主演：[主演姓名]</span><span style="margin-top: auto; display: flex; align-items: baseline; gap: 6px;"><span style="font-size: 15px; font-weight: 700; color: #C4501B;">{{d.ptsText}} <span style="font-size: 12px; font-weight: 600;">积分</span></span><span style="font-size: 12px; color: #6F665B;">专业版实扣 {{d.netText}}</span></span><span style="font-size: 12px; color: #6F665B;">可使用至 {{d.until}}</span></div></a></sc-for><p style="margin: 0; padding: 4px 0 0; text-align: center; font-size: 12px; color: #6F665B;">没有更多了</p></sc-if>
+<sc-if value="{{noResults}}" hint-placeholder-val="{{false}}"><div style="padding: 56px 16px 8px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;"><span style="color: #C9C0B3;"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg></span><span style="font-size: 15px; font-weight: 600;">没有找到“{{q}}”相关的短剧</span><span style="font-size: 13px; color: #6F665B;">换个关键词，或看看大家都在搜什么</span></div><div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;"><sc-for list="{{hotTop}}" as="w" hint-placeholder-count="3"><button type="button" onClick="{{w.pick}}" style="min-height: 34px; box-sizing: border-box; padding: 0 14px; border: 1px solid #E7E1D8; border-radius: 17px; background: #FFFFFF; font-family: inherit; font-size: 14px; color: #1D1A16; cursor: pointer;">{{w.label}}</button></sc-for></div><div style="display: flex; justify-content: center;"><a href="Mall.dc.html" style="height: 40px; padding: 0 16px; border-radius: 20px; border: 1px solid #C9C0B3; background: #FFFFFF; color: #1D1A16; font-weight: 600; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 14px;">去短剧商城看看</a></div></sc-if>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const q = typeof st.q === 'string' ? st.q : '';
+    const qt = q.trim();
+    const history = st.history || ['二次开业', '家庭喜剧', '古装'];
+    const fmt = (n) => n.toLocaleString('en-US');
+    const D = (title, genre, eps, pts, heat, color, badge, until, ind) => ({ title: title, genre: genre, eps: eps, pts: pts, heat: heat, color: color, badge: badge, until: until, ind: ind });
+    const all = [
+      D('巷口那家店', '都市温情', 80, 3000, 'S', '#2F4A3F', '热播', '2027-12-31', ['餐饮', '生活服务']),
+      D('二次开业', '逆袭 · 都市', 60, 2000, 'A', '#6B2D2A', '', '2027-09-30', ['餐饮', '零售']),
+      D('面馆少东家', '逆袭', 70, 2400, 'A', '#5A3E2B', '新剧', '2028-06-30', ['餐饮']),
+      D('老街烟火', '都市温情', 50, 2200, 'A', '#4E6B5A', '', '2028-03-31', ['餐饮', '生活服务']),
+      D('心动便利店', '甜宠 · 都市', 40, 2400, 'A', '#1F2B45', '新剧', '2027-12-31', ['餐饮', '零售']),
+      D('夜巷疑云', '悬疑', 45, 3000, 'S', '#3D5A6B', '热播', '2027-08-31', ['休闲娱乐']),
+      D('锦绣小厨娘', '古装', 80, 2600, 'B', '#7A5A2E', '', '2027-10-31', ['餐饮']),
+      D('家有萌娃', '家庭 · 喜剧', 36, 1200, 'B', '#5B3F63', '', '2027-06-30', ['生活服务', '亲子'])
+    ];
+    const industryOf = { 火锅: '餐饮', 烧烤: '餐饮', 面馆: '餐饮', 奶茶: '餐饮', 餐厅: '餐饮', 美甲: '丽人', 美发: '丽人', 便利店: '零售', 超市: '零售' };
+    const norm = (s) => s.replace(/[\s·]/g, '');
+    const key = norm(qt);
+    const split = (s, k) => {
+      const i = k ? s.indexOf(k) : -1;
+      return i < 0 ? [s, '', ''] : [s.slice(0, i), k, s.slice(i + k.length)];
+    };
+    const genreKey = (d) => {
+      if (!key) return '';
+      if (d.genre.indexOf(qt) >= 0) return qt;
+      const parts = d.genre.split(' · ');
+      for (let i = 0; i < parts.length; i++) { if (key.indexOf(parts[i]) >= 0) return parts[i]; }
+      return '';
+    };
+    let hits = [];
+    if (key) {
+      hits = all.filter((d) => d.title.indexOf(key) >= 0).concat(all.filter((d) => d.title.indexOf(key) < 0 && genreKey(d) !== ''));
+    }
+    const fbInd = key && hits.length === 0 ? industryOf[key] || '' : '';
+    const isFallback = fbInd !== '';
+    if (isFallback) hits = all.filter((d) => d.ind.indexOf(fbInd) >= 0);
+    const results = hits.map((d) => {
+      const t = split(d.title, isFallback ? '' : key);
+      const g = split(d.genre, isFallback || t[1] ? '' : genreKey(d));
+      return Object.assign({}, d, {
+        tPre: t[0], tHit: t[1], tPost: t[2], gPre: g[0], gHit: g[1], gPost: g[2],
+        ptsText: fmt(d.pts), netText: fmt(Math.round(d.pts * 0.9)), hasBadge: d.badge !== '',
+        badgeBg: d.badge === '新剧' ? '#E8EEF9' : '#FBEDE5', badgeColor: d.badge === '新剧' ? '#2E5AAC' : '#A63F12'
+      });
+    });
+    const remember = (w) => [w].concat(history.filter((x) => x !== w)).slice(0, 10);
+    const go = (w) => this.setState({ q: w, history: remember(w) });
+    const hotWords = [['巷口那家店', '热'], ['甜宠', ''], ['火锅', '热'], ['逆袭', ''], ['家庭喜剧', '新'], ['夜巷疑云', '']];
+    const hot = hotWords.map((w, i) => ({
+      label: w[0], rank: String(i + 1), rankColor: i < 3 ? '#C4501B' : '#9A9084',
+      hasTag: w[1] !== '', tag: w[1], tagBg: w[1] === '新' ? '#E8EEF9' : '#FBEDE5', tagFg: w[1] === '新' ? '#2E5AAC' : '#A63F12',
+      pick: () => go(w[0])
+    }));
+    return {
+      q: q, hasQ: q !== '',
+      onQ: (e) => this.setState({ q: e.target.value }),
+      clearQ: () => this.setState({ q: '' }),
+      submit: () => { if (qt) this.setState({ history: remember(qt) }); },
+      idle: !key,
+      showHistory: history.length > 0,
+      history: history.map((h) => ({ label: h, pick: () => go(h) })),
+      clearHistory: () => this.setState({ history: [] }),
+      hot: hot, hotTop: hot.slice(0, 3),
+      results: results,
+      hasResults: !!key && results.length > 0,
+      noResults: !!key && results.length === 0,
+      resultLabel: isFallback ? '适配' + fbInd + '行业 · 共 ' + results.length + ' 部' : '找到 ' + results.length + ' 部短剧',
+      isFallback: isFallback,
+      fbLine1: '未找到剧名、题材或主演包含“' + qt + '”的短剧，',
+      fbLine2: '已为您推荐适配' + fbInd + '行业的短剧。'
+    };
+  }
+}
+</script>
+</body>
+</html>

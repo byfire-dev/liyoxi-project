@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 发布任务</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;">
+<a href="Mine.dc.html" aria-label="返回" style="position: absolute; left: 2px; top: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1D1A16;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></a>
+<h1 style="margin: 0; font-size: 17px; font-weight: 600;">发布任务</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<div role="tablist" aria-label="任务状态" style="flex-shrink: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); box-sizing: border-box; padding: 0 8px; background: #FFFFFF; border-bottom: 1px solid #ECE6DD;">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+<button type="button" role="tab" aria-selected="{{t.active}}" onClick="{{t.pick}}" style="min-height: 44px; padding: 0 8px; border: none; border-bottom: 2px solid {{t.line}}; background: none; font-family: inherit; font-size: 14px; font-weight: {{t.weight}}; color: {{t.color}}; cursor: pointer;">{{t.label}}</button>
+</sc-for>
+</div>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 16px 24px; display: flex; flex-direction: column; gap: 12px;">
+<sc-if value="{{onTodo}}" hint-placeholder-val="{{true}}">
+<section aria-label="上线日" style="flex-shrink: 0; border-radius: 14px; padding: 16px; background: #1D1A16; color: #FFFFFF; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<span style="font-size: 13px; color: rgba(255,255,255,0.72);">约定上线日</span>
+<span style="font-family: 'Noto Serif SC', serif; font-size: 24px; font-weight: 900; letter-spacing: 1px;">10 月 12 日 · 周一</span>
+</div>
+<span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 4px; background: #C4501B; color: #FFFFFF;">还有 3 天</span>
+</div>
+<span style="display: flex; flex-direction: column; font-size: 13px; line-height: 1.6; color: #E9E3DA;"><span>{{bannerText}}</span><span>{{bannerText2}}</span></span>
+<ol aria-label="发布步骤" style="margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+<sc-for list="{{stepChips}}" as="c" hint-placeholder-count="3">
+<li style="box-sizing: border-box; min-height: 36px; padding: 0 6px; border-radius: 8px; background: {{c.bg}}; color: {{c.fg}}; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 600;">{{c.label}}</li>
+</sc-for>
+</ol>
+</section>
+<article aria-label="上线任务" style="background: #FFFFFF; border-radius: 14px; padding: 4px 16px; display: flex; flex-direction: column;">
+<div style="display: flex; justify-content: space-between; align-items: center; min-height: 48px; border-bottom: 1px solid #F0EBE3;">
+<span style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #FBEDE5; color: #A63F12;">上线任务</span><span style="font-size: 13px; color: #6F665B;">LYX2026092600018</span></span>
+<a href="OrderDetail.dc.html" style="font-size: 13px; color: #6F665B;">订单详情 ›</a>
+</div>
+<sc-for list="{{items}}" as="d" hint-placeholder-count="2">
+<section aria-label="{{d.aria}}" style="display: flex; flex-direction: column; gap: 12px; padding: 14px 0; border-bottom: {{d.divider}};">
+<div style="display: flex; gap: 10px; align-items: center;">
+<div aria-hidden="true" style="flex-shrink: 0; width: 42px; height: 56px; border-radius: 5px; background: {{d.color}};"></div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 600;">《{{d.title}}》{{d.range}}</span><span style="font-size: 13px; color: #6F665B;">{{d.account}}</span></div>
+<span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: {{d.stBg}}; color: {{d.stFg}};">{{d.status}}</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; min-height: 40px;">
+<span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px;">成片包</span><span style="font-size: 12px; color: #6F665B;">{{d.pkg}}</span></span>
+<button type="button" onClick="{{d.download}}" style="flex-shrink: 0; min-width: 76px; min-height: 34px; padding: 0 12px; border: 1px solid {{d.dlBorder}}; border-radius: 17px; background: #FFFFFF; font-family: inherit; font-size: 13px; font-weight: 600; color: {{d.dlFg}}; cursor: pointer;">{{d.dlLabel}}</button>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; min-height: 40px;">
+<span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px;">发布清单</span><span style="font-size: 12px; color: #6F665B;">合集名称、每集标题与话题</span></span>
+<button type="button" onClick="{{d.copy}}" style="flex-shrink: 0; min-width: 76px; min-height: 34px; padding: 0 12px; border: 1px solid {{d.cpBorder}}; border-radius: 17px; background: #FFFFFF; font-family: inherit; font-size: 13px; font-weight: 600; color: {{d.cpFg}}; cursor: pointer;">{{d.cpLabel}}</button>
+</div>
+<sc-if value="{{d.editing}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 10px; background: #F6F3EE;">
+<label for="{{d.inputId}}" style="font-size: 14px; font-weight: 600;">回填{{d.linkName}}</label>
+<div style="display: flex; gap: 8px;">
+<input id="{{d.inputId}}" type="text" placeholder="{{d.placeholder}}" value="{{d.link}}" onChange="{{d.onLink}}" style="flex-grow: 1; min-width: 0; box-sizing: border-box; height: 40px; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 14px; color: #1D1A16;">
+<button type="button" onClick="{{d.paste}}" style="flex-shrink: 0; height: 40px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16; cursor: pointer;">粘贴</button>
+</div>
+<sc-if value="{{d.hasErr}}" hint-placeholder-val="{{false}}">
+<span role="alert" style="font-size: 12px; color: #B42318;">请先粘贴{{d.linkName}}</span>
+</sc-if>
+<button type="button" onClick="{{d.submit}}" style="height: 40px; border: none; border-radius: 20px; background: #C4501B; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">提交核验</button>
+</div>
+</sc-if>
+<sc-if value="{{d.sent}}" hint-placeholder-val="{{false}}">
+<p role="status" style="margin: 0; padding: 10px 12px; border-radius: 10px; background: #E8EEF9; color: #2E5AAC; font-size: 13px; line-height: 1.5;">已回填：{{d.link}}<br>发布专员将在 1 个工作日内核验集数、账号与“广告”标识。</p>
+</sc-if>
+</section>
+</sc-for>
+<p style="margin: 0; padding: 12px 0; font-size: 12px; line-height: 1.6; color: #6F665B;"><span style="display: block;">成片使用期自上线首日起算，截止日不因延迟上线而顺延；</span><span style="display: block;">约定上线日次日仍未回填的，服务经理将与您联系。</span></p>
+</article>
+<section aria-label="发布须知" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+<h2 style="margin: 0; font-size: 15px; font-weight: 600;">发布须知</h2>
+<ol style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.6; color: #4A433B;">
+<li>在约定上线日一次性发布全部剧集，建议使用“合集”功能整部上传。</li>
+<li>标题与话题按发布清单填写，发布时不要声明原创。</li>
+<li>发布账号须与《定制内容授权书》中的账号一致。</li>
+<li>使用期结束当日须删除作品或设为仅自己可见。</li>
+</ol>
+</section>
+</sc-if>
+<sc-if value="{{onOff}}" hint-placeholder-val="{{false}}">
+<div style="padding: 72px 24px 24px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;">
+<span style="font-size: 15px; font-weight: 600;">暂无待下架任务</span>
+<span style="font-size: 13px; line-height: 1.6; color: #6F665B;"><span style="display: block;">最早结束的《家有萌娃》可使用至 2027-06-30，</span><span style="display: block;">下架任务将于 2027-05-31 生成</span></span>
+<a href="MyDramas.dc.html" style="margin-top: 8px; min-height: 44px; padding: 0 20px; border-radius: 22px; border: 1px solid #1D1A16; display: flex; align-items: center; font-size: 14px;">查看我的短剧</a>
+</div>
+</sc-if>
+<sc-if value="{{onDone}}" hint-placeholder-val="{{false}}">
+<a href="LaunchRecord.dc.html" style="background: #FFFFFF; border-radius: 14px; padding: 14px 16px; display: flex; gap: 10px; align-items: center;">
+<div aria-hidden="true" style="flex-shrink: 0; width: 42px; height: 56px; border-radius: 5px; background: #5B3F63;"></div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 600;">上线任务 · 《家有萌娃》</span><span style="font-size: 13px; color: #6F665B;">36 集 · 抖音 · 08-22 上线</span></div>
+<span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E6F2EA; color: #256A42;">核验通过</span>
+</a>
+<article style="background: #FFFFFF; border-radius: 14px; padding: 14px 16px; display: flex; gap: 10px; align-items: center;">
+<div aria-hidden="true" style="flex-shrink: 0; width: 42px; height: 56px; border-radius: 5px; background: #3D5A6B;"></div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 600;">上线任务 · 《夜巷疑云》</span><span style="font-size: 13px; color: #6F665B;">45 集 · 抖音 · 08-22 上线</span></div>
+<span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E6F2EA; color: #256A42;">核验通过</span>
+</article>
+<article style="background: #FFFFFF; border-radius: 14px; padding: 14px 16px; display: flex; gap: 10px; align-items: center;">
+<div aria-hidden="true" style="flex-shrink: 0; width: 42px; height: 56px; border-radius: 5px; background: #7A5A2E;"></div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 600;">上线任务 · 《锦绣小厨娘》</span><span style="font-size: 13px; color: #6F665B;">80 集 · 抖音 · 08-22 上线</span></div>
+<span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E6F2EA; color: #256A42;">核验通过</span>
+</article>
+</sc-if>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const tab = st.tab || 'todo';
+    const defs = [
+      { key: 'a', title: '巷口那家店', range: '整部 80 集', account: '抖音 @XX火锅', color: '#2F4A3F', pkg: '80 个视频 · 约 2.6 GB · 7 天内有效', linkName: '合集链接', placeholder: '粘贴抖音合集链接', sample: 'https://v.douyin.com/[合集链接]' },
+      { key: 'b', title: '二次开业', range: '整部 60 集', account: '抖音 @XX火锅', color: '#6B2D2A', pkg: '60 个视频 · 约 1.9 GB · 7 天内有效', linkName: '合集链接', placeholder: '粘贴抖音合集链接', sample: 'https://v.douyin.com/[合集链接 2]' }
+    ];
+    const flag = (k, name) => !!st[name + k];
+    const items = defs.map((d, i) => {
+      const dl = flag(d.key, 'dl');
+      const cp = flag(d.key, 'cp');
+      const sent = flag(d.key, 'sent');
+      const link = st['link' + d.key] || '';
+      return {
+        aria: '《' + d.title + '》发布',
+        title: d.title,
+        range: d.range,
+        account: d.account,
+        color: d.color,
+        pkg: d.pkg,
+        divider: i < defs.length - 1 ? '1px solid #F0EBE3' : 'none',
+        status: sent ? '核验中' : '待发布',
+        stBg: sent ? '#E8EEF9' : '#FBEDE5',
+        stFg: sent ? '#2E5AAC' : '#A63F12',
+        dlLabel: dl ? '已下载' : '下载',
+        dlFg: dl ? '#256A42' : '#A63F12',
+        dlBorder: dl ? '#BFDCC9' : '#C4501B',
+        download: () => this.setState({ ['dl' + d.key]: true }),
+        cpLabel: cp ? '已复制' : '复制',
+        cpFg: cp ? '#256A42' : '#1D1A16',
+        cpBorder: cp ? '#BFDCC9' : '#E7E1D8',
+        copy: () => this.setState({ ['cp' + d.key]: true }),
+        editing: !sent,
+        sent: sent,
+        inputId: 'link-' + d.key,
+        linkName: d.linkName,
+        placeholder: d.placeholder,
+        link: link,
+        onLink: (e) => this.setState({ ['link' + d.key]: e.target.value, ['err' + d.key]: false }),
+        paste: () => this.setState({ ['link' + d.key]: d.sample, ['err' + d.key]: false }),
+        hasErr: flag(d.key, 'err'),
+        submit: () => (link.trim() ? this.setState({ ['sent' + d.key]: true }) : this.setState({ ['err' + d.key]: true }))
+      };
+    });
+    const allDl = items.every((x) => x.dlLabel === '已下载');
+    const allCp = items.every((x) => x.cpLabel === '已复制');
+    const allSent = items.every((x) => x.sent);
+    const chip = (done, text) => ({ label: (done ? '✓ ' : '') + text, bg: done ? '#256A42' : 'rgba(255,255,255,0.12)', fg: '#FFFFFF' });
+    const tabDefs = [['todo', '待上线'], ['off', '待下架'], ['done', '已完成']];
+    const counts = { todo: 1, off: 0, done: 3 };
+    return {
+      tabs: tabDefs.map(([k, l]) => ({
+        label: l + ' ' + counts[k],
+        active: k === tab,
+        pick: () => this.setState({ tab: k }),
+        line: k === tab ? '#C4501B' : 'transparent',
+        weight: k === tab ? '600' : '400',
+        color: k === tab ? '#1D1A16' : '#6F665B'
+      })),
+      onTodo: tab === 'todo',
+      onOff: tab === 'off',
+      onDone: tab === 'done',
+      bannerText: allSent ? '全部链接已回填，平台将在 1 个工作日内完成核验，' : '成片已交付。请在当天把两部剧一次性发布到',
+      bannerText2: allSent ? '核验通过后订单进入“上线中”。' : '您的抖音号，并分别回填合集链接供平台核验。',
+      stepChips: [chip(allDl, '下载成片'), chip(allCp, '按清单发布'), chip(allSent, '回填链接')],
+      items: items
+    };
+  }
+}
+</script>
+</body>
+</html>

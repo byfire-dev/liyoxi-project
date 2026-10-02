@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 消息中心</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+textarea::placeholder,input::placeholder{color:#6F665B}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;">
+<a href="Mine.dc.html" aria-label="返回" style="position: absolute; left: 2px; top: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1D1A16;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></a>
+<h1 style="margin: 0; font-size: 17px; font-weight: 600;">消息中心</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<div role="tablist" aria-label="消息分类" style="flex-shrink: 0; box-sizing: border-box; padding: 0 16px 8px; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;">
+<sc-for list="{{cats}}" as="c" hint-placeholder-count="9"><button type="button" role="tab" aria-selected="{{c.on}}" onClick="{{c.pick}}" style="flex-shrink: 0; min-height: 32px; box-sizing: border-box; padding: 0 12px; border-radius: 16px; border: 1px solid {{c.border}}; background: {{c.bg}}; color: {{c.fg}}; display: flex; align-items: center; gap: 4px; font-family: inherit; font-size: 13px; white-space: nowrap; cursor: pointer;"><span>{{c.label}}</span><sc-if value="{{c.hasN}}" hint-placeholder-val="{{false}}"><span style="min-width: 16px; height: 16px; box-sizing: border-box; padding: 0 4px; border-radius: 8px; background: #B42318; color: #FFFFFF; font-size: 11px; font-weight: 600; line-height: 16px; text-align: center;">{{c.n}}</span></sc-if><sc-if value="{{c.isV11}}" hint-placeholder-val="{{false}}"><span style="font-size: 10px; font-weight: 600; padding: 0 3px; border: 1px solid {{c.vBd}}; border-radius: 3px; color: {{c.vFg}}; line-height: 14px;">V1.1</span></sc-if></button></sc-for>
+</div>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 2px 16px 24px; display: flex; flex-direction: column; gap: 12px;">
+<sc-if value="{{isList}}" hint-placeholder-val="{{true}}"><div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 2px;"><span style="font-size: 13px; color: #6F665B;">{{unreadLabel}}</span><sc-if value="{{hasUnread}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{readAll}}" style="min-height: 32px; padding: 0 4px; border: none; background: none; font-family: inherit; font-size: 13px; color: #A63F12; cursor: pointer;">全部已读</button></sc-if></div><sc-for list="{{groups}}" as="g" hint-placeholder-count="2"><section aria-label="{{g.label}}" style="background: #FFFFFF; border-radius: 14px; padding: 4px 16px; display: flex; flex-direction: column;"><h2 style="margin: 8px 0 0; font-size: 13px; font-weight: 600; color: #6F665B;">{{g.label}}</h2><sc-for list="{{g.items}}" as="m" hint-placeholder-count="3"><a href="{{m.href}}" style="display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #F0EBE3;"><span aria-hidden="true" style="flex-shrink: 0; position: relative; width: 36px; height: 36px; border-radius: 18px; background: {{m.icBg}}; color: {{m.icFg}}; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">{{m.ic}}<sc-if value="{{m.unread}}" hint-placeholder-val="{{false}}"><span style="position: absolute; right: -1px; top: -1px; width: 10px; height: 10px; box-sizing: border-box; border-radius: 5px; background: #B42318; border: 2px solid #FFFFFF;"></span></sc-if></span><span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;"><span style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;"><span style="font-size: 15px; font-weight: {{m.weight}}; color: #1D1A16;">{{m.title}}</span><span style="flex-shrink: 0; font-size: 12px; color: #6F665B; font-variant-numeric: tabular-nums;">{{m.time}}</span></span><span style="font-size: 13px; line-height: 1.5; color: {{m.bodyColor}};">{{m.body}}</span><span style="display: flex; align-items: center; gap: 2px; font-size: 12px; color: #A63F12;">{{m.cta}}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></span></span></a></sc-for></section></sc-for><sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}"><div style="padding: 60px 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;"><span style="color: #C9C0B3;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg></span><span style="font-size: 14px; color: #6F665B;">暂无此类消息</span></div></sc-if><p style="margin: 0; padding: 0 4px; font-size: 12px; line-height: 1.6; color: #6F665B;"><span style="display: block;">重要消息同时通过微信订阅消息提醒；</span><span style="display: block;">未授权订阅消息时，将以短信补发。</span></p></sc-if>
+<sc-if value="{{isNotice}}" hint-placeholder-val="{{false}}"><p style="margin: 0; padding: 10px 12px; border-radius: 10px; background: #E8EEF9; color: #2E5AAC; font-size: 13px; line-height: 1.5;"><span style="display: block;">系统公告在 V1.1 开放，以下为示例内容；</span><span style="display: block;">V1.0 规则变更时，会提示您重新同意协议。</span></p><sc-for list="{{notices}}" as="n" hint-placeholder-count="3"><article style="background: #FFFFFF; border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;"><div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;"><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: {{n.kBg}}; color: {{n.kFg}}; white-space: nowrap;">{{n.kind}}</span><span style="font-size: 12px; color: #6F665B;">{{n.time}}</span></div><span style="font-size: 15px; font-weight: 600;">{{n.title}}</span><span style="font-size: 13px; line-height: 1.6; color: #4A433B;">{{n.brief}}</span><sc-if value="{{n.hasLink}}" hint-placeholder-val="{{true}}"><a href="{{n.href}}" style="align-self: flex-start; display: flex; align-items: center; gap: 2px; font-size: 13px; color: #A63F12; min-height: 28px;">{{n.cta}}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a></sc-if></article></sc-for></sc-if>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const cat = st.cat || '全部';
+    const readAll = !!st.readAll;
+    const K = { 交付: ['交', '#FBEDE5', '#A63F12'], 订单: ['单', '#F1ECE4', '#4A433B'], 上线: ['上', '#E8EEF9', '#2E5AAC'], 套餐与积分: ['积', '#1D1A16', '#F2B48F'],
+      审核: ['审', '#E6F2EA', '#256A42'], 门店: ['店', '#EFE8F4', '#5B3F63'], 客服: ['客', '#E8EEF9', '#2E5AAC'] };
+    const M = (day, time, c, title, body, href, cta, unread) => ({ day: day, time: time, cat: c, title: title, body: body, href: href, cta: cta, unread0: !!unread });
+    const all = [
+      M('今天', '09:45', '客服', '客服已回复您的工单', 'KF20260929011：王先生您好，新片尾第 1 版已推送到“我的广告”……', 'Ticket.dc.html', '查看工单'),
+      M('今天', '09:30', '交付', '广告视频待确认', '片尾贴片 · 10 秒（国庆双人套餐）第 1 版已上传，剩余免费修改 2 次。', 'AdDetail.dc.html', '去确认', true),
+      M('昨天', '18:20', '审核', '新增门店已提交审核', 'XX 火锅（春熙店）的资质已提交，平台将在 1 个工作日内完成审核。', 'Stores.dc.html', '查看我的门店'),
+      M('昨天', '17:40', '交付', '样片待确认', '《巷口那家店》第 1 集样片已送达，确认后开始批量合成全部剧集。', 'Sample.dc.html', '去确认样片', true),
+      M('昨天', '15:32', '客服', '客服已回复您的工单', 'KF20260929011：王先生您好，已收到。新的团购片尾正在制作……', 'Ticket.dc.html', '查看工单'),
+      M('09-28', '17:30', '交付', '广告视频待确认', '片尾贴片 · 10 秒第 2 版已上传，剩余免费修改 1 次。', 'Ads.dc.html', '查看广告'),
+      M('09-28', '16:00', '套餐与积分', '积分已扣减', '4 条广告（GG20260928001～004）开始制作，扣减 180 积分，可用 2,920 积分。', 'Ledger.dc.html', '查看积分明细'),
+      M('09-28', '11:45', '客服', '工单已给出处理结果', 'KF20260928015：请确认问题是否已解决，3 天内未确认将自动变为“已解决”。', 'TicketDone.dc.html', '去确认'),
+      M('09-28', '11:30', '门店', '您上传的素材已被采用', '录音“国庆双人套餐想法”已用于制作需求“国庆双人套餐片尾”。', 'AssetDetail.dc.html', '查看素材'),
+      M('09-28', '11:02', '交付', '交付方案待确认', '订单 LYX2026092600018 的交付方案已推送，请确认定制内容、上线账号与上线日期。', 'Plan.dc.html', '去确认方案'),
+      M('09-28', '10:20', '审核', '渠道账号核验未通过', '视频号“XX 火锅”：主页截图不完整，请重新上传主页截图。', 'Accounts.dc.html', '去处理'),
+      M('更早', '09-26 10:35', '订单', '订购成功，已开始制作', 'LYX2026092600018 · 扣减 4,500 积分。服务经理将尽快联系您确认交付方案。', 'OrderDetail.dc.html', '查看订单'),
+      M('更早', '09-20 16:12', '套餐与积分', '加购积分已到账', '付款单 FK2026092000015 · 1,000 加购积分已到账，长期有效。', 'Ledger.dc.html', '查看积分明细'),
+      M('更早', '09-20 11:02', '门店', '店员小雨已加入门店', '小雨已加入 XX 火锅（万达店），可以上传门店素材了。', 'Members.dc.html', '查看门店成员'),
+      M('更早', '09-13 00:00', '套餐与积分', '本期套餐积分已发放', '专业版 09-13 至 10-12 发放 6,600 积分；上期剩余的 390 积分已清零。', 'Wallet.dc.html', '查看套餐与积分'),
+      M('更早', '09-10 20:05', '套餐与积分', '续费成功', '专业版已续费 1 个月，新周期 09-13 至 10-12，届时发放 6,600 积分。', 'Wallet.dc.html', '查看套餐与积分'),
+      M('更早', '09-05 10:00', '套餐与积分', '套餐 7 天后到期', '专业版将于 09-12 到期，剩余 390 套餐积分届时清零，续费后可继续订购。', 'PlanPick.dc.html', '去续费'),
+      M('更早', '08-22 18:05', '上线', '上线核验通过', '《家有萌娃》《夜巷疑云》《锦绣小厨娘》核验通过，成片使用期自 08-22 起。', 'LaunchRecord.dc.html', '查看上线记录'),
+      M('更早', '08-14 11:05', '订单', '发票已开具', '开通专业版 ¥6,000.00 电子发票已开具，可在小程序下载。', 'Invoices.dc.html', '查看发票'),
+      M('更早', '08-13 09:15', '套餐与积分', '专业版已开通', '有效期 08-13 至 09-12，已发放 6,600 套餐积分。', 'Wallet.dc.html', '查看套餐与积分'),
+      M('更早', '06-13 10:40', '审核', '资质审核通过', '档案已生效，开通套餐后即可订购短剧。', 'Profile.dc.html', '查看档案'),
+      M('更早', '06-13 09:20', '审核', '资质审核未通过', '证照模糊：食品经营许可证编号无法识别，修改后可重新提交审核。', 'ProfileReview.dc.html', '查看详情')
+    ];
+    const keepTail = (x) => (x.length > 14 ? x.slice(0, -6) + x.slice(-6).replace(/ /g, '\u00a0').split('').join('\u2060') : x);
+    const isRead = (m) => readAll || !m.unread0;
+    const unreadOf = (c) => all.filter((m) => !isRead(m) && (c === '全部' || m.cat === c)).length;
+    const names = ['全部', '交付', '订单', '上线', '套餐与积分', '审核', '门店', '客服', '公告'];
+    const shown = cat === '公告' ? [] : all.filter((m) => cat === '全部' || m.cat === cat);
+    const dayNames = ['今天', '昨天', '09-28', '更早'];
+    const dayLabel = { 今天: '今天 · 09-30', 昨天: '昨天 · 09-29', '09-28': '09-28', 更早: '更早' };
+    const groups = dayNames.map((d) => ({ label: dayLabel[d], items: shown.filter((m) => m.day === d).map((m) => {
+      const unread = !isRead(m);
+      return Object.assign({}, m, { body: keepTail(m.body), ic: K[m.cat][0], icBg: K[m.cat][1], icFg: K[m.cat][2], unread: unread, weight: unread ? '600' : '400',
+        bodyColor: unread ? '#4A433B' : '#6F665B' });
+    }) })).filter((g) => g.items.length > 0);
+    const total = unreadOf('全部');
+    const N = (kind, time, title, brief, href, cta) => ({ kind: kind, time: time, title: title, brief: keepTail(brief), href: href, cta: cta, hasLink: !!href,
+      kBg: kind === '规则变更' ? '#FBEDE5' : kind === '活动' ? '#E6F2EA' : '#E8EEF9', kFg: kind === '规则变更' ? '#A63F12' : kind === '活动' ? '#256A42' : '#2E5AAC' });
+    return {
+      cats: names.map((c) => {
+        const n = c === '公告' ? 0 : unreadOf(c);
+        return { label: c, on: c === cat, pick: () => this.setState({ cat: c }), n: String(n), hasN: n > 0 && c !== '全部', isV11: c === '公告',
+          vFg: c === cat ? 'rgba(255,255,255,0.85)' : '#6F665B', vBd: c === cat ? 'rgba(255,255,255,0.5)' : '#DDD5C9',
+          bg: c === cat ? '#1D1A16' : '#FFFFFF', fg: c === cat ? '#FFFFFF' : '#1D1A16', border: c === cat ? '#1D1A16' : '#E7E1D8' };
+      }),
+      isList: cat !== '公告', isNotice: cat === '公告',
+      groups: groups, isEmpty: groups.length === 0,
+      hasUnread: total > 0,
+      unreadLabel: total > 0 ? total + ' 条未读' : '暂无未读消息',
+      readAll: () => this.setState({ readAll: true }),
+      notices: [
+        N('系统通知', '2026-09-26 10:00', '国庆假期服务安排', '10 月 1 日至 7 日核验与交付顺延，假期不计入工作日时效。', '', ''),
+        N('活动', '2026-09-15 09:00', '新剧上架：《面馆少东家》', '逆袭题材，适配餐饮门店，专业版订购实扣 2,160 积分。', 'Search.dc.html', '去看看'),
+        N('规则变更', '2026-09-10 10:00', '《积分规则》v1.1 将于 10-10 生效', '补充积分退回规则：退回时原周期已结束的套餐积分，按加购积分退回。', 'Contracts.dc.html', '查看协议')
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

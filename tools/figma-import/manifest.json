@@ -1,0 +1,15 @@
+{
+  "name": "狸有戏原型导入",
+  "id": "lyx-prototype-import-20261002",
+  "api": "1.0.0",
+  "main": "code.js",
+  "editorType": [
+    "figma"
+  ],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": [
+      "none"
+    ]
+  }
+}

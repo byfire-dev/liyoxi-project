@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 加入门店</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+textarea::placeholder,input::placeholder{color:#6F665B}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;"><h1 style="margin: 0; font-size: 17px; font-weight: 600;">加入门店</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 4px 16px 20px; display: flex; flex-direction: column; gap: 12px;">
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<p role="status" style="margin: 0; padding: 10px 12px; border-radius: 10px; background: {{toastBg}}; color: {{toastFg}}; font-size: 13px; font-weight: 600; line-height: 1.5;">{{toast}}</p>
+</sc-if>
+<section aria-label="邀请信息" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 0 4px; text-align: center;"><span aria-hidden="true" style="flex-shrink: 0; width: 64px; height: 64px; border-radius: 18px; background: #C4501B; color: #FFFFFF; font-family: 'Noto Serif SC', serif; font-size: 30px; font-weight: 900; display: flex; align-items: center; justify-content: center;">火</span><span style="font-size: 19px; font-weight: 600;">XX 火锅（万达店）</span><span style="font-size: 13px; color: #6F665B;">成都 · 火锅</span></div>
+<div style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 12px; border-radius: 12px; background: #FAF8F4; font-size: 14px;"><span aria-hidden="true" style="flex-shrink: 0; width: 28px; height: 28px; border-radius: 14px; background: #C4501B; color: #FFFFFF; font-family: 'Noto Serif SC', serif; font-size: 12px; font-weight: 900; display: flex; align-items: center; justify-content: center;">王</span><span>王先生邀请您以“<b style="color: #A63F12;">店员</b>”身份加入</span></div>
+</section>
+<section aria-label="角色权限" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">加入后您可以</h2>
+<ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px;"><li style="display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.55;"><span style="flex-shrink: 0; height: 22px; display: flex; align-items: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#256A42" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span><span style="display: block;">在商家档案中上传门店素材：</span><span style="display: block;">图片、视频、录音、音频、文档、文字</span></span></li><li style="display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.55;"><span style="flex-shrink: 0; height: 22px; display: flex; align-items: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#256A42" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span>查看您上传的素材被整理、被采用的情况</span></li><li style="display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.55;"><span style="flex-shrink: 0; height: 22px; display: flex; align-items: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#256A42" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span>浏览门店档案和短剧商城</span></li></ul>
+<div style="padding-top: 12px; border-top: 1px solid #F0EBE3; display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600; color: #6F665B;">店员看不到，也不能操作</span><ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px;"><li style="display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.55;"><span style="flex-shrink: 0; height: 22px; display: flex; align-items: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6F665B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span><span>积分、订单金额、合同与发票</span></li><li style="display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.55;"><span style="flex-shrink: 0; height: 22px; display: flex; align-items: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6F665B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span><span>订购与付款，以及确认方案、样片与广告</span></li></ul></div>
+</section>
+<label for="jn-agree" style="display: flex; align-items: flex-start; gap: 8px; padding: 0 4px; cursor: pointer;"><input id="jn-agree" type="checkbox" checked="{{agree}}" onChange="{{toggle}}" style="flex-shrink: 0; margin: 2px 0 0; width: 16px; height: 16px; accent-color: #C4501B;"><span style="font-size: 12px; line-height: 1.6; color: #6F665B;">我已阅读并同意《用户服务协议》《隐私政策》</span></label>
+<span style="text-align: center; font-size: 12px; color: #6F665B;">邀请由王先生发出 · 10-01 09:40 前有效</span>
+</main>
+<footer style="flex-shrink: 0; height: 80px; box-sizing: border-box; padding: 0 16px 8px; background: #FFFFFF; border-top: 1px solid #ECE6DD; display: flex; align-items: center; gap: 12px;">
+<sc-if value="{{agree}}" hint-placeholder-val="{{false}}"><a href="StaffProfile.dc.html" style="flex-grow: 1; flex-basis: 0; height: 48px; padding: 0 16px; border-radius: 24px; background: #C4501B; color: #FFFFFF; font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 15px; gap: 8px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"></rect><path d="M11 18.5h2"></path></svg><span>微信手机号快捷验证并加入</span></a></sc-if><sc-if value="{{notAgree}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{nudge}}" style="flex-grow: 1; flex-basis: 0; height: 48px; padding: 0 16px; border-radius: 24px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"></rect><path d="M11 18.5h2"></path></svg><span>微信手机号快捷验证并加入</span></button></sc-if>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+
+    const toastTone = { ok: ['#E6F2EA', '#256A42'], info: ['#E8EEF9', '#2E5AAC'], warn: ['#FBEDE5', '#A63F12'] };
+    const tt = toastTone[st.toastTone || 'ok'];
+    const toastVals = { toast: st.toast || '', hasToast: !!st.toast, toastBg: tt[0], toastFg: tt[1] };
+
+    const agree = typeof st.agree === 'boolean' ? st.agree : false;
+    return Object.assign({
+      agree: agree, notAgree: !agree,
+      toggle: () => this.setState({ agree: !agree, toast: '' }),
+      nudge: () => this.setState({ toast: '请先阅读并同意协议', toastTone: 'warn' })
+    }, toastVals);
+  }
+}
+</script>
+</body>
+</html>

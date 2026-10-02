@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 门店素材库</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+textarea::placeholder,input::placeholder{color:#6F665B}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;">
+<a href="Profile.dc.html" aria-label="返回" style="position: absolute; left: 2px; top: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1D1A16;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></a>
+<h1 style="margin: 0; font-size: 17px; font-weight: 600;">门店素材</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 4px 16px 20px; display: flex; flex-direction: column; gap: 12px;">
+<label for="lib-q" style="flex-shrink: 0; height: 40px; box-sizing: border-box; padding: 0 14px; border-radius: 20px; background: #FFFFFF; border: 1px solid #E7E1D8; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input id="lib-q" type="search" placeholder="搜索素材、标签或上传人" value="" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: none; font-family: inherit; font-size: 14px; color: #1D1A16;"></label>
+<div role="group" aria-label="素材类型" style="flex-shrink: 0; display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px; padding: 0 16px;"><sc-for list="{{types}}" as="c" hint-placeholder-count="5"><button type="button" aria-pressed="{{c.on}}" onClick="{{c.pick}}" style="flex-shrink: 0; min-height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid {{c.border}}; background: {{c.bg}}; font-family: inherit; font-size: 13px; color: {{c.fg}}; white-space: nowrap; cursor: pointer;">{{c.label}}</button></sc-for></div>
+<div role="group" aria-label="整理状态" style="flex-shrink: 0; display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px; padding: 0 16px;"><sc-for list="{{flags}}" as="c" hint-placeholder-count="5"><button type="button" aria-pressed="{{c.on}}" onClick="{{c.pick}}" style="flex-shrink: 0; min-height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid {{c.border}}; background: {{c.bg}}; font-family: inherit; font-size: 13px; color: {{c.fg}}; white-space: nowrap; cursor: pointer;">{{c.label}}</button></sc-for></div>
+<div style="display: flex; justify-content: space-between; padding: 0 4px; font-size: 12px; color: #6F665B;"><span>{{summary}}</span><span>按上传时间</span></div>
+<div style="display: flex; flex-direction: column; gap: 10px;"><sc-for list="{{items}}" as="a" hint-placeholder-count="4"><sc-if value="{{a.isLink}}" hint-placeholder-val="{{false}}"><a href="AssetDetail.dc.html" style="background: #FFFFFF; border-radius: 14px; padding: 12px; display: flex; gap: 12px;"><span aria-hidden="true" style="flex-shrink: 0; position: relative; width: 64px; height: 64px; border-radius: 10px; background: {{a.bg}}; color: {{a.ic}}; display: flex; align-items: center; justify-content: center;"><sc-if value="{{a.isImage}}" hint-placeholder-val="{{true}}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.8"></circle><path d="m5 17 4.5-4.5 3 3 2.5-2.5L19.5 17"></path></svg></sc-if><sc-if value="{{a.isVideo}}" hint-placeholder-val="{{false}}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><path d="m10 9 5 3-5 3z"></path></svg></sc-if><sc-if value="{{a.isMic}}" hint-placeholder-val="{{false}}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"></path></svg></sc-if><sc-if value="{{a.isMusic}}" hint-placeholder-val="{{false}}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13"></path><circle cx="6.5" cy="18" r="2.5"></circle><circle cx="17.5" cy="16" r="2.5"></circle></svg></sc-if><sc-if value="{{a.isDoc}}" hint-placeholder-val="{{false}}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6v18h12V7z"></path><path d="M14 3v4h4M9 12h6M9 16h6"></path></svg></sc-if><sc-if value="{{a.isText}}" hint-placeholder-val="{{false}}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7V5h14v2"></path><path d="M12 5v14"></path><path d="M9 19h6"></path></svg></sc-if><sc-if value="{{a.hasBadge}}" hint-placeholder-val="{{false}}"><span style="position: absolute; left: 4px; bottom: 4px; font-size: 10px; padding: 0 4px; border-radius: 3px; background: rgba(15,14,12,0.6); color: #FFFFFF; line-height: 15px;">{{a.badge}}</span></sc-if></span><span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;"><span style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;"><span style="font-size: 15px; font-weight: 600; line-height: 1.4;">{{a.title}}</span><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: {{a.sBg}}; color: {{a.sFg}}; white-space: nowrap;">{{a.status}}</span></span><span style="font-size: 12px; color: #6F665B;">{{a.meta}}</span><sc-if value="{{a.hasQuote}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; line-height: 1.5; color: #4A433B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{a.quote}}</span></sc-if><span style="display: flex; flex-wrap: wrap; gap: 4px;"><sc-for list="{{a.tags}}" as="g" hint-placeholder-count="2"><span style="font-size: 11px; padding: 0 6px; border-radius: 4px; background: #F6F3EE; color: #4A433B; line-height: 18px;">{{g}}</span></sc-for></span></span></a></sc-if><sc-if value="{{a.notLink}}" hint-placeholder-val="{{true}}"><div style="background: #FFFFFF; border-radius: 14px; padding: 12px; display: flex; gap: 12px;"><span aria-hidden="true" style="flex-shrink: 0; position: relative; width: 64px; height: 64px; border-radius: 10px; background: {{a.bg}}; color: {{a.ic}}; display: flex; align-items: center; justify-content: center;"><sc-if value="{{a.isImage}}" hint-placeholder-val="{{true}}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.8"></circle><path d="m5 17 4.5-4.5 3 3 2.5-2.5L19.5 17"></path></svg></sc-if><sc-if value="{{a.isVideo}}" hint-placeholder-val="{{false}}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><path d="m10 9 5 3-5 3z"></path></svg></sc-if><sc-if value="{{a.isMic}}" hint-placeholder-val="{{false}}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"></path></svg></sc-if><sc-if value="{{a.isMusic}}" hint-placeholder-val="{{false}}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13"></path><circle cx="6.5" cy="18" r="2.5"></circle><circle cx="17.5" cy="16" r="2.5"></circle></svg></sc-if><sc-if value="{{a.isDoc}}" hint-placeholder-val="{{false}}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6v18h12V7z"></path><path d="M14 3v4h4M9 12h6M9 16h6"></path></svg></sc-if><sc-if value="{{a.isText}}" hint-placeholder-val="{{false}}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7V5h14v2"></path><path d="M12 5v14"></path><path d="M9 19h6"></path></svg></sc-if><sc-if value="{{a.hasBadge}}" hint-placeholder-val="{{false}}"><span style="position: absolute; left: 4px; bottom: 4px; font-size: 10px; padding: 0 4px; border-radius: 3px; background: rgba(15,14,12,0.6); color: #FFFFFF; line-height: 15px;">{{a.badge}}</span></sc-if></span><span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;"><span style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;"><span style="font-size: 15px; font-weight: 600; line-height: 1.4;">{{a.title}}</span><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: {{a.sBg}}; color: {{a.sFg}}; white-space: nowrap;">{{a.status}}</span></span><span style="font-size: 12px; color: #6F665B;">{{a.meta}}</span><sc-if value="{{a.hasQuote}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; line-height: 1.5; color: #4A433B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{a.quote}}</span></sc-if><span style="display: flex; flex-wrap: wrap; gap: 4px;"><sc-for list="{{a.tags}}" as="g" hint-placeholder-count="2"><span style="font-size: 11px; padding: 0 6px; border-radius: 4px; background: #F6F3EE; color: #4A433B; line-height: 18px;">{{g}}</span></sc-for></span></span></div></sc-if></sc-for></div>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}"><p style="margin: 0; padding: 32px 0; text-align: center; font-size: 13px; color: #6F665B;">没有符合条件的素材</p></sc-if>
+</main>
+<footer style="flex-shrink: 0; height: 72px; box-sizing: border-box; padding: 0 16px 8px; background: #FFFFFF; border-top: 1px solid #ECE6DD; display: flex; align-items: center; gap: 12px;">
+<a href="AssetUpload.dc.html" style="flex-grow: 1; flex-basis: 0; height: 46px; padding: 0 16px; border-radius: 23px; background: #C4501B; color: #FFFFFF; font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 15px; gap: 6px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"></path><path d="M4 14v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"></path></svg><span>上传素材</span></a>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const G = (a, b) => 'linear-gradient(135deg, ' + a + ', ' + b + ')';
+    const TONE = {"整理中": ["#E8EEF9", "#2E5AAC"], "已采用": ["#E6F2EA", "#256A42"], "可直接使用": ["#F1ECE4", "#1D1A16"], "仅供参考": ["#F1ECE4", "#4A433B"], "需肖像授权": ["#FBEDE5", "#A63F12"]};
+    const A = [
+      { t: 'image', title: '新菜：藤椒牛肉', meta: '图片 4 张 · 阿杰（店员）· 今天 09:12', status: '整理中', tags: ['菜品与产品', '自动识别中'], bg: G('#A63F12', '#D2733F'), badge: '4 张' },
+      { t: 'mic', title: '国庆双人套餐想法', meta: '录音 0:42 · 王先生（老板）· 09-27', status: '已采用', tags: ['活动优惠', '国庆', '片头片尾广告'],
+        quote: '“国庆推个双人套餐，168 块，吊龙、毛肚、虾滑都有……”', link: true },
+      { t: 'video', title: '后厨现切吊龙', meta: '视频 0:18 · 阿杰（店员）· 09-26', status: '可直接使用', tags: ['菜品与产品', '长期可用', '竖屏高清'], bg: G('#6B2D2A', '#A34A3A'), badge: '0:18' },
+      { t: 'doc', title: '秋季新菜单.pdf', meta: '文档 3 页 · 王先生（老板）· 09-25', status: '仅供参考', tags: ['菜单价目', '已提取 12 道菜'] },
+      { t: 'image', title: '顾客生日惊喜', meta: '图片 3 张 · 小雨（店员）· 09-24', status: '需肖像授权', tags: ['人物出镜', '顾客评价'], bg: G('#5B3F63', '#8A6A94'), badge: '3 张' },
+      { t: 'video', title: '店内夜景', meta: '视频 0:32 · 小雨（店员）· 09-22', status: '可直接使用', tags: ['门店环境', '长期可用'], bg: G('#2F4A3F', '#4E6B5A'), badge: '0:32' },
+      { t: 'music', title: '国庆活动口播.m4a', meta: '音频 1:36 · 王先生（老板）· 09-21', status: '仅供参考', tags: ['活动优惠', '口播台词', '国庆'] },
+      { t: 'text', title: '老顾客的一句话', meta: '文字 · 小雨（店员）· 09-20', status: '可直接使用', tags: ['顾客评价', '口播台词'],
+        quote: '“十年了，还是这口锅底最对味。”' }
+    ];
+    const TYPES = [['all', '全部', 128], ['image', '图片', 64], ['video', '视频', 21], ['mic', '录音', 18], ['music', '音频', 5], ['doc', '文档', 9], ['text', '文字', 11]];
+    const FLAGS = ['可直接使用', '已采用', '整理中', '国庆', '菜品与产品'];
+    const type = typeof st.type === 'string' ? st.type : 'all';
+    const flag = typeof st.flag === 'string' ? st.flag : '';
+    const on = (x) => ({ bg: x ? '#FFF8F3' : '#FFFFFF', border: x ? '#C4501B' : '#E7E1D8', fg: x ? '#A63F12' : '#1D1A16' });
+    const types = TYPES.map(([k, l, n]) => Object.assign({ label: l + ' ' + n, on: k === type, pick: () => this.setState({ type: k }) }, on(k === type)));
+    const flags = FLAGS.map((f) => Object.assign({ label: f, on: f === flag, pick: () => this.setState({ flag: f === flag ? '' : f }) }, on(f === flag)));
+    const list = A.filter((a) => (type === 'all' || a.t === type) && (!flag || a.status === flag || a.tags.indexOf(flag) >= 0));
+    const items = list.map((a) => {
+      const soft = ['mic', 'music', 'doc', 'text'].indexOf(a.t) >= 0;
+      return Object.assign({}, a, {
+        isImage: a.t === 'image', isVideo: a.t === 'video', isMic: a.t === 'mic', isMusic: a.t === 'music', isDoc: a.t === 'doc', isText: a.t === 'text',
+        bg: soft ? '#FBEDE5' : a.bg, ic: soft ? '#A63F12' : 'rgba(255,255,255,0.6)', hasBadge: !!a.badge, badge: a.badge || '',
+        hasQuote: !!a.quote, quote: a.quote || '', isLink: !!a.link, notLink: !a.link,
+        sBg: TONE[a.status][0], sFg: TONE[a.status][1]
+      });
+    });
+    return {
+      types: types, flags: flags, items: items, isEmpty: items.length === 0,
+      summary: type === 'all' && !flag ? '共 128 条 · 平台已整理 127 条，1 条整理中' : '已筛选：' + [type === 'all' ? '' : TYPES.filter((x) => x[0] === type)[0][1], flag].filter((x) => !!x).join('、')
+    };
+  }
+}
+</script>
+</body>
+</html>

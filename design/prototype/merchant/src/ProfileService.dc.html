@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 建档：服务与价格</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+textarea::placeholder,input::placeholder{color:#6F665B}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;">
+<a href="Profile.dc.html" aria-label="返回" style="position: absolute; left: 2px; top: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1D1A16;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></a>
+<h1 style="margin: 0; font-size: 17px; font-weight: 600;">服务与价格</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<ol aria-label="建档步骤" style="flex-shrink: 0; margin: 0; box-sizing: border-box; padding: 6px 16px 12px; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;">
+<li style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 4px; border-radius: 2px; background: #C4501B;"></span><span style="font-size: 12px; font-weight: 400; color: #4A433B;">1 基础信息</span></li>
+<li style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 4px; border-radius: 2px; background: #C4501B;"></span><span style="font-size: 12px; font-weight: 400; color: #4A433B;">2 门店形象</span></li>
+<li aria-current="step" style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 4px; border-radius: 2px; background: #C4501B;"></span><span style="font-size: 12px; font-weight: 600; color: #A63F12;">3 服务与价格</span></li>
+<li style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 4px; border-radius: 2px; background: #D6CFC4;"></span><span style="font-size: 12px; font-weight: 400; color: #6F665B;">4 资质认证</span></li>
+</ol>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 0 16px 20px; display: flex; flex-direction: column; gap: 12px;">
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<p role="status" style="margin: 0; padding: 10px 12px; border-radius: 10px; background: {{toastBg}}; color: {{toastFg}}; font-size: 13px; font-weight: 600; line-height: 1.5;">{{toast}}</p>
+</sc-if>
+<section aria-label="主推服务" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;"><span style="font-size: 14px; font-weight: 600;">主推服务 <span style="color: #B42318;">*</span></span><span style="font-size: 13px; color: {{svcCountColor}};">{{svcCount}}/10</span></div>
+<span style="display: flex; flex-direction: column; font-size: 12px; line-height: 1.5; color: #6F665B;"><span>1～10 项，每项含名称、现价、原价、图片与简介</span><span>剪辑师会从中选取菜品与价格写入广告</span></span>
+<div style="display: flex; flex-direction: column;">
+<sc-for list="{{svcs}}" as="s" hint-placeholder-count="5">
+<button type="button" onClick="{{s.edit}}" style="display: flex; align-items: center; gap: 12px; min-height: 76px; padding: 10px 0; border: none; border-bottom: 1px solid #F0EBE3; background: none; font-family: inherit; color: #1D1A16; text-align: left; cursor: pointer;">
+<span aria-hidden="true" style="flex-shrink: 0; width: 56px; height: 56px; border-radius: 10px; background: {{s.bg}}; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.5);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.8"></circle><path d="m5 17 4.5-4.5 3 3 2.5-2.5L19.5 17"></path></svg></span>
+<span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;"><span style="font-size: 15px; font-weight: 600;">{{s.name}}</span><span style="display: flex; align-items: baseline; gap: 6px;"><span style="font-size: 15px; font-weight: 700; color: #C4501B;">¥{{s.price}}</span><sc-if value="{{s.hasOrig}}" hint-placeholder-val="{{true}}"><span style="font-size: 12px; color: #6F665B; text-decoration: line-through;">¥{{s.orig}}</span></sc-if></span><span style="font-size: 12px; color: #6F665B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{s.intro}}</span></span>
+<span style="flex-shrink: 0; font-size: 13px; color: #6F665B;">编辑</span>
+</button>
+</sc-for>
+<sc-if value="{{canAdd}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{openAdd}}" style="height: 44px; padding: 0 16px; border-radius: 22px; border: 1px solid #E7E1D8; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 15px; cursor: pointer; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; border-style: dashed; border-color: #C9C0B3;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span>添加主推服务</span></button></sc-if>
+</div>
+<sc-if value="{{svcErr}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 12px; color: #B42318;">请至少添加 1 项主推服务</span></sc-if>
+</section>
+<section aria-label="优惠与团购" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="promo" style="font-size: 14px; font-weight: 600;">优惠活动</label><input id="promo" type="text" placeholder="如“到店出示视频享 9 折”" value="{{promo}}" onChange="{{onPromo}}" style="box-sizing: border-box; height: 44px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 10px; font-family: inherit; font-size: 15px; color: #1D1A16; background: #FFFFFF;"><span style="font-size: 12px; line-height: 1.5; color: #6F665B;">选填；用于片尾引导到店</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="group" style="font-size: 14px; font-weight: 600;">团购信息</label><input id="group" type="text" placeholder="团购名称、价格及所在平台" value="{{group}}" onChange="{{onGroup}}" style="box-sizing: border-box; height: 44px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 10px; font-family: inherit; font-size: 15px; color: #1D1A16; background: #FFFFFF;"><span style="font-size: 12px; line-height: 1.5; color: #6F665B;">选填；已上线的团购名称、价格及所在平台</span></div>
+</section>
+<section aria-label="核心卖点" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;"><span style="font-size: 14px; font-weight: 600;">核心卖点 <span style="color: #B42318;">*</span></span><span style="font-size: 13px; color: {{tagCountColor}};">{{tagCount}}/5</span></div>
+<span style="font-size: 12px; line-height: 1.5; color: #6F665B;">选择 1～5 个最能代表门店的标签</span>
+<div role="group" aria-label="核心卖点" style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{tags}}" as="t" hint-placeholder-count="8">
+<button type="button" aria-pressed="{{t.on}}" onClick="{{t.pick}}" style="min-height: 34px; box-sizing: border-box; padding: 0 12px; border-radius: 17px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.fg}}; font-family: inherit; font-size: 13px; cursor: pointer;">{{t.label}}</button>
+</sc-for>
+</div>
+<sc-if value="{{tagErr}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 12px; color: #B42318;">请至少选择 1 个卖点标签</span></sc-if>
+<sc-if value="{{tagMax}}" hint-placeholder-val="{{false}}"><span role="status" style="font-size: 12px; color: #A63F12;">最多选择 5 个，请先取消一个已选标签</span></sc-if>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="sellNote" style="font-size: 14px; font-weight: 600;">补充说明</label><textarea id="sellNote" rows="3" maxlength="100" placeholder="选填，不超过 100 字" value="{{sellNote}}" onChange="{{onSellNote}}" style="box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid #E7E1D8; border-radius: 10px; font-family: inherit; font-size: 14px; line-height: 1.5; color: #1D1A16; resize: none;"></textarea><span style="align-self: flex-end; font-size: 12px; color: #6F665B;">{{sellCount}}/100</span></div>
+</section>
+<section aria-label="更多偏好" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; flex-direction: column; gap: 8px;"><div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 14px; font-weight: 600; color: #6F665B;">广告风格偏好</span><span style="flex-shrink: 0; font-size: 11px; font-weight: 600; padding: 0 5px; border: 1px solid #DDD5C9; border-radius: 4px; color: #6F665B; line-height: 16px;">V1.1</span></div><div aria-disabled="true" style="display: flex; flex-wrap: wrap; gap: 8px;"><span style="min-height: 34px; box-sizing: border-box; padding: 0 12px; border-radius: 17px; border: 1px solid #ECE6DD; background: #F6F3EE; color: #6F665B; font-size: 13px; display: flex; align-items: center;">温馨</span><span style="min-height: 34px; box-sizing: border-box; padding: 0 12px; border-radius: 17px; border: 1px solid #ECE6DD; background: #F6F3EE; color: #6F665B; font-size: 13px; display: flex; align-items: center;">搞笑</span><span style="min-height: 34px; box-sizing: border-box; padding: 0 12px; border-radius: 17px; border: 1px solid #ECE6DD; background: #F6F3EE; color: #6F665B; font-size: 13px; display: flex; align-items: center;">高端</span><span style="min-height: 34px; box-sizing: border-box; padding: 0 12px; border-radius: 17px; border: 1px solid #ECE6DD; background: #F6F3EE; color: #6F665B; font-size: 13px; display: flex; align-items: center;">接地气</span><span style="min-height: 34px; box-sizing: border-box; padding: 0 12px; border-radius: 17px; border: 1px solid #ECE6DD; background: #F6F3EE; color: #6F665B; font-size: 13px; display: flex; align-items: center;">国潮</span></div></div>
+<div style="display: flex; flex-direction: column; gap: 8px;"><div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 14px; font-weight: 600; color: #6F665B;">禁用内容</span><span style="flex-shrink: 0; font-size: 11px; font-weight: 600; padding: 0 5px; border: 1px solid #DDD5C9; border-radius: 4px; color: #6F665B; line-height: 16px;">V1.1</span></div><div style="min-height: 44px; box-sizing: border-box; padding: 0 12px; border: 1px solid #ECE6DD; border-radius: 10px; background: #F6F3EE; display: flex; align-items: center; font-size: 14px; color: #6F665B;">不希望出现的词语、竞品名称等</div></div>
+<span style="display: flex; flex-direction: column; font-size: 12px; line-height: 1.5; color: #6F665B;"><span>以上两项将在 V1.1 开放</span><span>开放前如有要求，可在方案确认时告知服务经理</span></span>
+</section>
+<p style="margin: 0; padding: 10px 12px; border-radius: 10px; background: #E8EEF9; color: #2E5AAC; font-size: 13px; line-height: 1.5;"><span style="display: block;">修改服务与价格无需重新审核。</span><span style="display: block;">价格变动不会自动更新已确认的广告视频；</span><span style="display: block;">如需更新，请在“我的广告”中提出修改。</span></p>
+</main>
+<footer style="flex-shrink: 0; height: 72px; box-sizing: border-box; padding: 0 16px 8px; background: #FFFFFF; border-top: 1px solid #ECE6DD; display: flex; align-items: center; gap: 12px;">
+<button type="button" onClick="{{saveDraft}}" style="flex-grow: 1; flex-basis: 0; height: 46px; padding: 0 16px; border-radius: 23px; border: 1px solid #C9C0B3; background: #FFFFFF; color: #1D1A16; font-weight: 600; font-family: inherit; font-size: 15px; cursor: pointer;">{{draftLabel}}</button>
+<sc-if value="{{canNext}}" hint-placeholder-val="{{true}}"><a href="ProfileCert.dc.html" style="flex-grow: 1; flex-basis: 0; height: 46px; padding: 0 16px; border-radius: 23px; background: #C4501B; color: #FFFFFF; font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 15px;">保存并下一步</a></sc-if>
+<sc-if value="{{cannotNext}}" hint-placeholder-val="{{false}}"><button type="button" onClick="{{validate}}" style="flex-grow: 1; flex-basis: 0; height: 46px; padding: 0 16px; border-radius: 23px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 15px; cursor: pointer;">保存并下一步</button></sc-if>
+</footer>
+<sc-if value="{{svcOpen}}" hint-placeholder-val="{{false}}">
+<button type="button" aria-label="关闭主推服务" onClick="{{close}}" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; border: none; padding: 0; background: rgba(15,14,12,0.5); cursor: pointer;"></button>
+<section role="dialog" aria-label="主推服务" style="position: absolute; left: 0; right: 0; bottom: 0; max-height: 760px; overflow-y: auto; box-sizing: border-box; padding: 16px 16px 24px; border-radius: 16px 16px 0 0; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 17px; font-weight: 600;">{{sheetTitle}}</span><span style="font-size: 13px; line-height: 1.5; color: #6F665B;">图片建议 1:1，展示菜品或服务实拍</span></div>
+<button type="button" aria-label="关闭" onClick="{{close}}" style="flex-shrink: 0; width: 44px; height: 44px; margin: -10px -10px 0 0; border: none; background: none; color: #6F665B; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</div>
+<div style="display: flex; gap: 12px; align-items: flex-start;">
+<button type="button" onClick="{{pickImg}}" style="flex-shrink: 0; width: 88px; height: 88px; border: 1px dashed #C9C0B3; border-radius: 12px; background: {{fImgBg}}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-family: inherit; font-size: 12px; color: {{fImgFg}}; cursor: pointer;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg><span>{{fImgLabel}}</span></button>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px;"><label for="fName" style="font-size: 14px; font-weight: 600;">名称 <span style="color: #B42318;">*</span></label><input id="fName" type="text" placeholder="如“鲜切吊龙”" value="{{f.name}}" onChange="{{onFName}}" style="box-sizing: border-box; height: 44px; padding: 0 12px; border: 1px solid {{fNameBorder}}; border-radius: 10px; font-family: inherit; font-size: 15px; color: #1D1A16; background: #FFFFFF;"></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="fPrice" style="font-size: 14px; font-weight: 600;">现价 <span style="color: #B42318;">*</span></label><div style="display: flex; align-items: center; gap: 8px;"><input id="fPrice" type="number" placeholder="如 58" value="{{f.price}}" onChange="{{onFPrice}}" style="box-sizing: border-box; height: 44px; padding: 0 12px; border: 1px solid {{fPriceBorder}}; border-radius: 10px; font-family: inherit; font-size: 15px; color: #1D1A16; background: #FFFFFF; flex-grow: 1; min-width: 0;"><span style="flex-shrink: 0; font-size: 14px; color: #6F665B;">元</span></div></div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="fOrig" style="font-size: 14px; font-weight: 600;">原价</label><div style="display: flex; align-items: center; gap: 8px;"><input id="fOrig" type="number" placeholder="选填" value="{{f.orig}}" onChange="{{onFOrig}}" style="box-sizing: border-box; height: 44px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 10px; font-family: inherit; font-size: 15px; color: #1D1A16; background: #FFFFFF; flex-grow: 1; min-width: 0;"><span style="flex-shrink: 0; font-size: 14px; color: #6F665B;">元</span></div></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="fIntro" style="font-size: 14px; font-weight: 600;">简介</label><input id="fIntro" type="text" placeholder="选填，不超过 20 字" value="{{f.intro}}" onChange="{{onFIntro}}" style="box-sizing: border-box; height: 44px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 10px; font-family: inherit; font-size: 15px; color: #1D1A16; background: #FFFFFF; width: 100%;"></div>
+<sc-if value="{{fHasErr}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 13px; color: #B42318;">{{fErr}}</span></sc-if>
+<div style="display: flex; gap: 10px;">
+<sc-if value="{{editing}}" hint-placeholder-val="{{false}}"><button type="button" onClick="{{delSvc}}" style="flex-grow: 1; flex-basis: 0; height: 46px; padding: 0 16px; border-radius: 23px; border: 1px solid #F0C9C2; background: #FFFFFF; color: #B42318; font-family: inherit; font-size: 15px; cursor: pointer;">删除</button></sc-if>
+<button type="button" onClick="{{saveSvc}}" style="flex-grow: 1; flex-basis: 0; height: 46px; padding: 0 16px; border-radius: 23px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 15px; cursor: pointer;">保存</button>
+</div>
+</section>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+
+    const toastTone = { ok: ['#E6F2EA', '#256A42'], info: ['#E8EEF9', '#2E5AAC'], warn: ['#FBEDE5', '#A63F12'] };
+    const tt = toastTone[st.toastTone || 'ok'];
+    const toastVals = { toast: st.toast || '', hasToast: !!st.toast, toastBg: tt[0], toastFg: tt[1] };
+
+    const G = (a, b) => 'linear-gradient(135deg, ' + a + ', ' + b + ')';
+    const S = (k, name, price, orig, intro, bg) => ({ k: k, name: name, price: String(price), orig: orig === '' ? '' : String(orig), intro: intro, bg: bg });
+    const base = [
+      S('s1', '鲜切吊龙', 58, 68, '每日现切，入口嫩滑', G('#A63F12', '#D2733F')),
+      S('s2', '千层毛肚', 46, 52, '七上八下，脆嫩爽口', G('#8A5A3C', '#B98A5E')),
+      S('s3', '手打虾滑', 38, '', '每日现打，鲜甜弹牙', G('#C4501B', '#E89A6B')),
+      S('s4', '麻辣牛肉', 42, '', '秘制腌料，麻辣鲜香', G('#6B2D2A', '#A34A3A')),
+      S('s5', '红糖冰粉', 12, '', '手搓冰粉，解辣必点', G('#7A5A2E', '#C49A5A'))
+    ];
+    const svcs = st.svcs || base;
+    const val = (k, d) => (typeof st[k] === 'string' ? st[k] : d);
+    const promo = val('promo', '到店出示本视频享 9 折');
+    const group = val('group', '国庆双人套餐 ¥168（抖音团购）');
+    const sellNote = val('sellNote', '现炒牛油锅底；牛肉当日鲜切；商场停车方便，适合家庭聚餐');
+    const tagNames = ['现炒锅底', '食材新鲜', '适合聚餐', '停车方便', '老字号', '网红打卡', '性价比高', '环境舒适'];
+    const picked = st.picked || ['现炒锅底', '食材新鲜', '适合聚餐'];
+    const tried = !!st.tried;
+    const set = (k) => (e) => this.setState({ [k]: e.target.value, draft: false });
+    const f = st.f || { name: '', price: '', orig: '', intro: '', img: false };
+    const setF = (k) => (e) => this.setState({ f: Object.assign({}, f, { [k]: e.target.value }), fErr: '' });
+    const editKey = st.editKey || '';
+    const fErr = st.fErr || '';
+    const svcOk = svcs.length >= 1;
+    const tagOk = picked.length >= 1;
+    const ok = svcOk && tagOk;
+    return Object.assign({
+      svcs: svcs.map((s) => Object.assign({}, s, {
+        hasOrig: s.orig !== '',
+        edit: () => this.setState({ svcOpen: true, editKey: s.k, f: { name: s.name, price: s.price, orig: s.orig, intro: s.intro, img: true }, fErr: '' })
+      })),
+      svcCount: svcs.length, canAdd: svcs.length < 10,
+      svcCountColor: tried && !svcOk ? '#B42318' : '#6F665B', svcErr: tried && !svcOk,
+      openAdd: () => this.setState({ svcOpen: true, editKey: '', f: { name: '', price: '', orig: '', intro: '', img: false }, fErr: '' }),
+      promo: promo, group: group, sellNote: sellNote, sellCount: sellNote.length,
+      onPromo: set('promo'), onGroup: set('group'), onSellNote: set('sellNote'),
+      tags: tagNames.map((n) => {
+        const on = picked.indexOf(n) >= 0;
+        return { label: n, on: on, bg: on ? '#1D1A16' : '#FFFFFF', fg: on ? '#FFFFFF' : '#1D1A16', border: on ? '#1D1A16' : '#E7E1D8',
+          pick: () => {
+            if (on) { this.setState({ picked: picked.filter((x) => x !== n), draft: false, tagMax: false }); return; }
+            if (picked.length >= 5) { this.setState({ tagMax: true }); return; }
+            this.setState({ picked: picked.concat([n]), draft: false, tagMax: false });
+          } };
+      }),
+      tagMax: !!st.tagMax && picked.length >= 5,
+      tagCount: picked.length, tagCountColor: tried && !tagOk ? '#B42318' : '#6F665B', tagErr: tried && !tagOk,
+      canNext: ok, cannotNext: !ok,
+      validate: () => this.setState({ tried: true, toast: '请补充主推服务与核心卖点后再继续', toastTone: 'warn' }),
+      saveDraft: () => this.setState({ draft: true, toast: '草稿已保存，可稍后继续填写', toastTone: 'ok' }),
+      draftLabel: st.draft ? '草稿已保存' : '保存草稿',
+      svcOpen: !!st.svcOpen,
+      close: () => this.setState({ svcOpen: false }),
+      sheetTitle: editKey ? '编辑主推服务' : '添加主推服务',
+      editing: !!editKey,
+      f: f,
+      onFName: setF('name'), onFPrice: setF('price'), onFOrig: setF('orig'), onFIntro: setF('intro'),
+      fImgBg: f.img ? '#E6F2EA' : '#FAF8F4', fImgFg: f.img ? '#256A42' : '#6F665B', fImgLabel: f.img ? '已上传' : '上传图片',
+      pickImg: () => this.setState({ f: Object.assign({}, f, { img: true }) }),
+      fErr: fErr, fHasErr: !!fErr,
+      fNameBorder: fErr && !f.name.trim() ? '#B42318' : '#E7E1D8',
+      fPriceBorder: fErr && !(Number(f.price) > 0) ? '#B42318' : '#E7E1D8',
+      delSvc: () => this.setState({ svcs: svcs.filter((s) => s.k !== editKey), svcOpen: false, toast: '已删除“' + f.name + '”', toastTone: 'ok', draft: false }),
+      saveSvc: () => {
+        const name = f.name.trim();
+        const price = Number(f.price);
+        const orig = f.orig === '' ? '' : Number(f.orig);
+        if (!name || !(price > 0)) { this.setState({ fErr: '请填写名称和现价' }); return; }
+        if (orig !== '' && orig < price) { this.setState({ fErr: '原价不能低于现价' }); return; }
+        if (f.intro.length > 20) { this.setState({ fErr: '简介不超过 20 字' }); return; }
+        const item = S(editKey || ('n' + ((st.seq || 0) + 1)), name, price, orig, f.intro, editKey ? svcs.filter((s) => s.k === editKey)[0].bg : G('#5A3E2B', '#8A5A3C'));
+        const next = editKey ? svcs.map((s) => (s.k === editKey ? item : s)) : svcs.concat([item]);
+        this.setState({ svcs: next, seq: (st.seq || 0) + 1, svcOpen: false, toast: editKey ? '已保存“' + name + '”' : '已添加“' + name + '”', toastTone: 'ok', draft: false });
+      }
+    }, toastVals);
+  }
+}
+</script>
+</body>
+</html>

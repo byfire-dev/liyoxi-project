@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 确认订购</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+textarea::placeholder,input::placeholder{color:#6F665B}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;">
+<a href="Detail.dc.html" aria-label="返回" style="position: absolute; left: 2px; top: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1D1A16;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></a>
+<h1 style="margin: 0; font-size: 17px; font-weight: 600;">确认订购</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 4px 16px 20px; display: flex; flex-direction: column; gap: 12px;">
+<section aria-label="订购主体" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 6px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;"><span style="font-size: 13px; color: #6F665B;">订购主体</span><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E6F2EA; color: #256A42; white-space: nowrap;">已认证</span></div>
+<span style="font-size: 16px; font-weight: 600;">XX 餐饮管理有限公司</span>
+<span style="font-size: 13px; color: #6F665B;">下单门店：XX 火锅（万达店） · 王先生 138****5678</span>
+</section>
+<section aria-label="剧目" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; gap: 12px;"><div aria-hidden="true" style="flex-shrink: 0; position: relative; width: 52px; height: 70px; border-radius: 5px; background: #1F2B45;"><span style="position: absolute; right: 6px; top: 6px; writing-mode: vertical-rl; font-family: 'Noto Serif SC', serif; font-size: 10.5px; font-weight: 900; color: #FFFFFF;">心动便利店</span></div><div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 16px; font-weight: 600;">《心动便利店》</span><span style="font-size: 12px; color: #6F665B;">甜宠 · 整部 40 集 · 可使用至 2027-12-31</span><span style="display: flex; align-items: baseline; gap: 8px;"><span style="font-size: 13px; color: #6F665B; text-decoration: line-through;">2,400 积分</span><span style="font-size: 15px; font-weight: 700; color: #C4501B;">实扣 2,160 积分</span></span></div></div><span style="font-size: 13px; font-weight: 600; color: #256A42;">为 XX 火锅（万达店）单独定制</span>
+</section>
+<section aria-label="发布账号" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">发布账号</h2><span style="font-size: 12px; color: #6F665B;">每个平台最多 1 个</span></div>
+<div style="display: flex; flex-direction: column; margin-top: -4px;"><label for="ck-dy" style="display: flex; align-items: center; gap: 12px; min-height: 60px; border-bottom: 1px solid #F0EBE3; cursor: pointer;"><input id="ck-dy" type="checkbox" checked="{{dy}}" onChange="{{tDy}}" style="flex-shrink: 0; margin: 0; width: 18px; height: 18px; accent-color: #C4501B;"><span aria-hidden="true" style="flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700;">抖</span><span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 600;">抖音 · XX 火锅</span><span style="font-size: 12px; color: #6F665B;">抖音号：[抖音号] · 企业认证</span></span><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E6F2EA; color: #256A42; white-space: nowrap;">已核验</span></label><div style="display: flex; align-items: center; gap: 12px; min-height: 60px; opacity: 0.72;"><input id="ck-sph" type="checkbox" disabled="{{yes}}" aria-label="视频号 · XX 火锅（核验未通过，暂不可选）" style="flex-shrink: 0; margin: 0; width: 18px; height: 18px;"><span aria-hidden="true" style="flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700;">视</span><span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 600;">视频号 · XX 火锅</span><a href="Accounts.dc.html" style="font-size: 12px; color: #B42318;">主页截图不完整，补充后可选 ›</a></span><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #FCEBEA; color: #B42318; white-space: nowrap;">核验未通过</span></div></div>
+<span style="font-size: 12px; line-height: 1.5; color: #6F665B;">成片只能在所选账号发布；同时选择抖音和视频号，不加积分</span>
+</section>
+<section aria-label="定制重点" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">定制重点</h2><span style="font-size: 12px; color: #6F665B;">可多选</span></div>
+<div role="group" aria-label="定制重点" style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{focus}}" as="o" hint-placeholder-count="3">
+<button type="button" aria-pressed="{{o.on}}" onClick="{{o.pick}}" disabled="{{o.off}}" style="min-height: 34px; box-sizing: border-box; padding: 0 12px; border-radius: 17px; border: 1px solid {{o.border}}; background: {{o.bg}}; color: {{o.fg}}; font-family: inherit; font-size: 13px; cursor: pointer;">{{o.label}}</button>
+</sc-for>
+</div>
+<a href="AssetLib.dc.html" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-radius: 10px; background: #FAF8F4; font-size: 13px;"><span style="display: flex; align-items: center; gap: 6px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A63F12" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"></path></svg><span>参考素材：已从门店素材选择 6 条</span></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6F665B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="oc-note" style="font-size: 13px; color: #6F665B;">补充说明（选填，不超过 200 字）</label><textarea id="oc-note" rows="2" maxlength="200" placeholder="想在剧里突出什么" value="{{note}}" onChange="{{setNote}}" style="box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid #E7E1D8; border-radius: 10px; font-family: inherit; font-size: 14px; line-height: 1.5; color: #1D1A16; resize: none;"></textarea></div>
+</section>
+<section aria-label="制作模型" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">制作模型</h2>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px;"><span>高级模型</span><span style="font-size: 12px; color: #6F665B;">专业版默认</span></div>
+<label for="ck-top" style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid {{topBorder}}; background: {{topBg}}; cursor: pointer;"><input id="ck-top" type="checkbox" checked="{{top}}" onChange="{{tTop}}" style="flex-shrink: 0; margin: 2px 0 0; width: 18px; height: 18px; accent-color: #C4501B;"><span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600;">本次使用顶级模型</span><span style="font-size: 12px; line-height: 1.5; color: #6F665B;">画面与定制效果更好，应扣积分加扣 20%</span></span></label>
+</section>
+<section aria-label="广告视频" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">广告视频</h2><a href="Ads.dc.html" style="flex-shrink: 0; display: flex; align-items: center; gap: 2px; font-size: 13px; color: #A63F12;">我的广告<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a></div>
+<div style="display: flex; flex-direction: column; margin-top: -4px;"><div style="display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #F0EBE3;"><span style="flex-shrink: 0; width: 44px; height: 44px; border-radius: 8px; background: #2B2621; color: #F2B48F; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">片头</span><span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600;">片头贴片 · 5 秒</span><span style="font-size: 12px; color: #6F665B;">“本剧由 XX 火锅（万达店）倾情呈现”</span></span><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E6F2EA; color: #256A42; white-space: nowrap;">已确认</span></div><div style="display: flex; align-items: center; gap: 10px; padding: 10px 0;"><span style="flex-shrink: 0; width: 44px; height: 44px; border-radius: 8px; background: #2B2621; color: #F2B48F; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">片尾</span><span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600;">片尾贴片 · 10 秒</span><span style="font-size: 12px; color: #6F665B;">“到店出示本视频享 9 折”</span></span><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E6F2EA; color: #256A42; white-space: nowrap;">已确认</span></div></div>
+<span style="display: flex; flex-direction: column; font-size: 12px; line-height: 1.5; color: #6F665B;"><span>已确认的广告可重复使用，不再扣积分；</span><span>也可在方案确认时换用新确认的广告。</span></span>
+</section>
+<section aria-label="期望上线日期" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 6px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;"><span style="font-size: 16px; font-weight: 600;">期望上线日期</span><span style="font-size: 14px;">成片交付后尽快上线</span></div>
+<span style="display: flex; flex-direction: column; font-size: 12px; line-height: 1.5; color: #6F665B;"><span>也可指定日期，最早为订购后第 7 个工作日，</span><span>服务经理会与您确认</span></span>
+</section>
+<section aria-label="积分明细" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">积分明细</h2>
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 14px; color: #1D1A16;"><span>剧目积分价</span><span style="font-variant-numeric: tabular-nums;">2,400</span></div>
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 14px; color: #256A42;"><span>专业版 9 折</span><span style="font-variant-numeric: tabular-nums;">−240</span></div>
+<sc-if value="{{top}}" hint-placeholder-val="{{false}}"><div style="display: flex; justify-content: space-between; gap: 8px; font-size: 14px; color: #A63F12;"><span>顶级模型加扣 20%</span><span style="font-variant-numeric: tabular-nums;">+432</span></div></sc-if>
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 15px; font-weight: 700;"><span>应扣积分</span><span style="font-variant-numeric: tabular-nums;">{{total}}</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid #F0EBE3;"><span style="font-size: 12px; font-weight: 600; color: #6F665B;">扣减来源（先扣套餐积分）</span><div style="display: flex; justify-content: space-between; gap: 8px; font-size: 14px; color: #1D1A16;"><span>套餐积分（10-12 清零）</span><span style="font-variant-numeric: tabular-nums;">1,920</span></div><div style="display: flex; justify-content: space-between; gap: 8px; font-size: 14px; color: #1D1A16;"><span>加购积分</span><span style="font-variant-numeric: tabular-nums;">{{fromBuy}}</span></div></div>
+<span style="font-size: 12px; color: #6F665B;">订购后剩余：套餐积分 0，加购积分 {{leftBuy}}</span>
+</section>
+<p style="margin: 0; padding: 10px 12px; border-radius: 10px; background: #E8EEF9; color: #2E5AAC; font-size: 13px; line-height: 1.5;"><span style="display: block;">提交后积分先冻结，开始制作时扣减；</span><span style="display: block;">开始制作前取消，积分全额退回。</span></p>
+<label for="oc-agree" style="display: flex; align-items: flex-start; gap: 8px; padding: 0 4px; cursor: pointer;"><input id="oc-agree" type="checkbox" checked="{{agree}}" onChange="{{tAgree}}" style="flex-shrink: 0; margin: 2px 0 0; width: 16px; height: 16px; accent-color: #C4501B;"><span style="font-size: 12px; line-height: 1.6; color: #6F665B;">我已阅读并同意《定制内容授权使用协议》</span></label>
+</main>
+<footer style="flex-shrink: 0; height: 72px; box-sizing: border-box; padding: 0 16px 8px; background: #FFFFFF; border-top: 1px solid #ECE6DD; display: flex; align-items: center; gap: 12px;">
+<span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 12px; color: #6F665B;">应扣积分</span><span style="font-size: 20px; font-weight: 700; color: #C4501B;">{{total}}</span></span><sc-if value="{{ok}}" hint-placeholder-val="{{false}}"><a href="PayResult.dc.html" style="height: 46px; padding: 0 16px; border-radius: 23px; background: #C4501B; color: #FFFFFF; font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 15px; padding: 0 28px;">确认订购</a></sc-if><sc-if value="{{notOk}}" hint-placeholder-val="{{true}}"><button type="button" disabled="{{yes}}" style="height: 46px; padding: 0 20px; border: none; border-radius: 23px; background: #D6CFC4; color: #4A433B; font-family: inherit; font-size: 15px; font-weight: 600;">{{why}}</button></sc-if>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const ALL = ['主推套餐', '招牌菜', '门店环境', '品牌故事', '顾客好评'];
+    const picked = st.focus || ['主推套餐', '招牌菜', '门店环境'];
+    const focus = ALL.map((t) => {
+      const on = picked.indexOf(t) >= 0;
+      return { label: t, on: on, off: false, bg: on ? '#FFF8F3' : '#FFFFFF', fg: on ? '#A63F12' : '#1D1A16', border: on ? '#C4501B' : '#E7E1D8',
+        pick: () => this.setState({ focus: on ? picked.filter((x) => x !== t) : picked.concat([t]) }) };
+    });
+    const agree = typeof st.agree === 'boolean' ? st.agree : false;
+    const dy = typeof st.dy === 'boolean' ? st.dy : true;
+    const top = !!st.top;
+    const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const total = top ? 2592 : 2160;
+    const fromBuy = total - 1920;
+    let why = '';
+    if (!dy) why = '请选择发布账号';
+    else if (picked.length === 0) why = '请选择定制重点';
+    else if (!agree) why = '请先勾选协议';
+    return {
+      yes: true, focus: focus, dy: dy, tDy: () => this.setState({ dy: !dy }),
+      note: typeof st.note === 'string' ? st.note : '男女主来店里吃火锅，片尾带上双人套餐。',
+      setNote: (e) => this.setState({ note: e.target.value }),
+      top: top, tTop: () => this.setState({ top: !top }),
+      topBg: top ? '#FFF8F3' : '#FFFFFF', topBorder: top ? '#C4501B' : '#E7E1D8',
+      total: fmt(total), fromBuy: fmt(fromBuy), leftBuy: fmt(1000 - fromBuy),
+      agree: agree, tAgree: () => this.setState({ agree: !agree }),
+      ok: why === '', notOk: why !== '', why: why
+    };
+  }
+}
+</script>
+</body>
+</html>

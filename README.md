@@ -6,7 +6,17 @@ V1.0 交付商家端微信小程序、运营管理后台与商家电脑端下载
 
 ## 当前状态
 
-技术架构与选型评审稿已完成，尚未开始编码。
+技术架构与选型评审稿、设计规范初稿已完成，尚未开始编码。
+
+## 设计
+
+界面依据都在仓库里，开发不依赖 Figma。
+
+| 内容 | 说明 |
+| --- | --- |
+| [design/design-spec.md](design/design-spec.md) | 设计规范：颜色、字号、组件规格、状态取色、文案规则 |
+| [design/tokens.json](design/tokens.json) | 样式变量 |
+| [design/prototype/](design/prototype/README.md) | 原型快照：商家端 47 个画板、后台 56 个画板的源码与截图 |
 
 ## 文档
 

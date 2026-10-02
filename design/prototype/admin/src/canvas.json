@@ -1,0 +1,621 @@
+{
+ "v": 3,
+ "attachments": {},
+ "boards": {
+  "Accounts.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "发布 · 账号核验",
+   "w": 1440,
+   "x": 4560,
+   "y": 1400
+  },
+  "AdTasks.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "交付 · 广告制作任务",
+   "w": 1440,
+   "x": 4560,
+   "y": 0
+  },
+  "Calendar.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "发布 · 上线日历",
+   "w": 1440,
+   "x": 1520,
+   "y": 1400
+  },
+  "CreditAdjust.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "财务 · 积分调整审批",
+   "w": 1440,
+   "x": 3040,
+   "y": 8400
+  },
+  "DataEntry.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "发布 · 数据录入（V1.1）",
+   "w": 1440,
+   "x": 4560,
+   "y": 2800
+  },
+  "Delivery.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "发布 · 成片交付",
+   "w": 1440,
+   "x": 0,
+   "y": 1400
+  },
+  "DramaEdit.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "短剧库 · 编辑短剧",
+   "w": 1440,
+   "x": 1520,
+   "y": 5600
+  },
+  "Dramas.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "短剧库 · 短剧列表",
+   "w": 1440,
+   "x": 0,
+   "y": 5600
+  },
+  "FinSettle.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "财务 · 服务商结算（V1.1）",
+   "w": 1440,
+   "x": 7600,
+   "y": 8400
+  },
+  "Invoices.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "财务 · 发票管理",
+   "w": 1440,
+   "x": 4560,
+   "y": 8400
+  },
+  "Main.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "工作台",
+   "w": 1440,
+   "x": 0,
+   "y": 0
+  },
+  "MerchantDetail.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "商家 · 商家详情",
+   "w": 1440,
+   "x": 1520,
+   "y": 4200
+  },
+  "Merchants.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "商家 · 商家列表",
+   "w": 1440,
+   "x": 0,
+   "y": 4200
+  },
+  "Offline.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "发布 · 下架核查",
+   "w": 1440,
+   "x": 3040,
+   "y": 2800
+  },
+  "OpsAgreements.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "运营 · 协议管理",
+   "w": 1440,
+   "x": 3040,
+   "y": 11200
+  },
+  "OpsHome.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "运营 · 首页配置",
+   "w": 1440,
+   "x": 0,
+   "y": 11200
+  },
+  "OpsMall.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "运营 · 商城配置",
+   "w": 1440,
+   "x": 1520,
+   "y": 11200
+  },
+  "OpsNotice.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "运营 · 公告与常见问题（V1.1）",
+   "w": 1440,
+   "x": 6080,
+   "y": 11200
+  },
+  "OpsTemplates.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "运营 · 消息模板",
+   "w": 1440,
+   "x": 4560,
+   "y": 11200
+  },
+  "OrderDetail.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "订单 · 订单详情",
+   "w": 1440,
+   "x": 6080,
+   "y": 4200
+  },
+  "Orders.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "订单 · 订购单与付款单",
+   "w": 1440,
+   "x": 4560,
+   "y": 4200
+  },
+  "Overdue.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "发布 · 逾期跟踪",
+   "w": 1440,
+   "x": 0,
+   "y": 2800
+  },
+  "Params.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "套餐与积分 · 积分价模板与参数",
+   "w": 1440,
+   "x": 6080,
+   "y": 5600
+  },
+  "PartnerBinding.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "渠道 · 商家归属（V1.1）",
+   "w": 1440,
+   "x": 4560,
+   "y": 14000
+  },
+  "PartnerLevels.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "渠道 · 等级与返佣（V1.1）",
+   "w": 1440,
+   "x": 3040,
+   "y": 14000
+  },
+  "PartnerReview.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "渠道 · 入驻审核（V1.1）",
+   "w": 1440,
+   "x": 1520,
+   "y": 14000
+  },
+  "PartnerSettle.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "渠道 · 结算单（V1.1）",
+   "w": 1440,
+   "x": 6080,
+   "y": 14000
+  },
+  "Partners.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "渠道 · 服务商列表（V1.1）",
+   "w": 1440,
+   "x": 0,
+   "y": 14000
+  },
+  "Patrol.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "发布 · 作品巡检",
+   "w": 1440,
+   "x": 1520,
+   "y": 2800
+  },
+  "Payments.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "财务 · 收款流水",
+   "w": 1440,
+   "x": 0,
+   "y": 8400
+  },
+  "Pricing.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "套餐与积分 · 单剧积分价",
+   "w": 1440,
+   "x": 7600,
+   "y": 5600
+  },
+  "Receipts.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "订单 · 对公收款确认",
+   "w": 1440,
+   "x": 7600,
+   "y": 4200
+  },
+  "Reconcile.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "财务 · 对账",
+   "w": 1440,
+   "x": 6080,
+   "y": 8400
+  },
+  "Refunds.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "财务 · 退款管理",
+   "w": 1440,
+   "x": 1520,
+   "y": 8400
+  },
+  "Renewals.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "订单 · 套餐到期",
+   "w": 1440,
+   "x": 9120,
+   "y": 4200
+  },
+  "Review.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "商家 · 资质审核",
+   "w": 1440,
+   "x": 3040,
+   "y": 4200
+  },
+  "RptAds.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "报表 · 广告制作（V1.1）",
+   "w": 1440,
+   "x": 6080,
+   "y": 9800
+  },
+  "RptDelivery.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "报表 · 交付效率（V1.1）",
+   "w": 1440,
+   "x": 4560,
+   "y": 9800
+  },
+  "RptDramas.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "报表 · 短剧销售排行（V1.1）",
+   "w": 1440,
+   "x": 3040,
+   "y": 9800
+  },
+  "RptOverview.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "报表 · 经营概览",
+   "w": 1440,
+   "x": 0,
+   "y": 9800
+  },
+  "RptPartners.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "报表 · 服务商业绩（V1.1）",
+   "w": 1440,
+   "x": 9120,
+   "y": 9800
+  },
+  "RptService.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "报表 · 客服报表（V1.1）",
+   "w": 1440,
+   "x": 7600,
+   "y": 9800
+  },
+  "Service.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "客服 · 工单池",
+   "w": 1440,
+   "x": 0,
+   "y": 7000
+  },
+  "ServiceDetail.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "客服 · 工单详情",
+   "w": 1440,
+   "x": 1520,
+   "y": 7000
+  },
+  "SysDict.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "系统 · 数据字典",
+   "w": 1440,
+   "x": 3040,
+   "y": 12600
+  },
+  "SysLogs.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "系统 · 操作日志",
+   "w": 1440,
+   "x": 6080,
+   "y": 12600
+  },
+  "SysParams.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "系统 · 参数配置",
+   "w": 1440,
+   "x": 4560,
+   "y": 12600
+  },
+  "SysRoles.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "系统 · 角色权限",
+   "w": 1440,
+   "x": 1520,
+   "y": 12600
+  },
+  "SysStaff.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "系统 · 员工账号",
+   "w": 1440,
+   "x": 0,
+   "y": 12600
+  },
+  "TicketDetail.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "交付 · 工单详情",
+   "w": 1440,
+   "x": 3040,
+   "y": 0
+  },
+  "Tickets.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "交付 · 工单池",
+   "w": 1440,
+   "x": 1520,
+   "y": 0
+  },
+  "Verify.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "发布 · 链接核验",
+   "w": 1440,
+   "x": 3040,
+   "y": 1400
+  },
+  "Plans.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "套餐与积分 · 套餐管理",
+   "w": 1440,
+   "x": 3040,
+   "y": 5600
+  },
+  "PointPacks.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "套餐与积分 · 积分包管理",
+   "w": 1440,
+   "x": 4560,
+   "y": 5600
+  },
+  "PointAccounts.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "套餐与积分 · 积分账户与流水",
+   "w": 1440,
+   "x": 9120,
+   "y": 5600
+  },
+  "RptPoints.dc.html": {
+   "h": 900,
+   "is_interactive": true,
+   "title": "报表 · 积分报表",
+   "w": 1440,
+   "x": 1520,
+   "y": 9800
+  }
+ },
+ "createdOnFiles": {
+  "at": "2026-09-26T10:00:20Z",
+  "v": 1
+ },
+ "designSystems": [],
+ "launch": {
+  "view": "canvas"
+ },
+ "notes": {
+  "readme": {
+   "fill": "orange",
+   "size": 24,
+   "text": "使用说明\n1. 每个画板都可进入演示（Play）模式点击体验；左侧菜单、待办卡片与列表操作已串联到对应画板。\n2. 推荐路径：工作台 → 工单池 → 工单详情 → 订单详情；广告制作任务 → 成片交付 → 上线日历 → 链接核验 → 账号核验；逾期跟踪 → 作品巡检 → 下架核查；商家列表 → 商家详情（含门店素材、门店与成员）；资质审核（含新增门店）→ 对公收款确认；订购单与付款单 → 订单详情 → 套餐到期；短剧库 → 编辑短剧；套餐管理 → 积分包管理 → 积分价模板与参数 → 单剧积分价 → 积分账户与流水；客服工单池 → 客服工单详情；收款流水 → 退款管理 → 积分调整审批 → 发票管理 → 对账 → 服务商结算；经营概览 → 积分报表 → 短剧销售排行 → 交付效率 → 广告制作 → 客服报表 → 服务商业绩；首页配置 → 商城配置 → 协议管理 → 消息模板 → 公告与常见问题；员工账号 → 角色权限 → 数据字典 → 参数配置 → 操作日志；服务商列表 → 入驻审核 → 等级与返佣 → 商家归属 → 结算单。\n3. 左侧菜单的全部条目均已可点击；标有“V1.1”的页面与功能属于 V1.1 版本范围，V1.1 页面顶部均注明为示例数据；服务商等级、返佣比例与报表指标口径待业务确认。\n4. 当前登录人为超级管理员“周航”，可查看全部岗位的待办；示例时间为 2026 年 9 月 30 日（周三）10:30。\n5. 商家、订单、积分与金额均为示例数据，与商家端原型的示例订购单 LYX2026092600018 保持一致；列表中的“查看”“详情”统一打开示例商家 XX 火锅（万达店）及其订购单与工单，短剧库中的“编辑”统一打开草稿《街角早点铺》，客服工单池中的“查看”统一打开工单 KF20260929011。\n6. 业务模型：商家按主体开通套餐（基础版、专业版、旗舰版），用积分订购短剧与广告，每部剧为下单门店单独定制；季付、年付的套餐积分按月发放，本期内累计有效，期末统一清零；加购积分长期有效。\n7. 套餐退款（开通 7 天内且未使用积分）与订购取消（按阶段退回积分）由客服发起，统一在“财务 › 退款管理”审批与执行。\n8. 积分价、套餐折扣与扣除比例均为产品默认值（示例），上线初始值待定价。\n9. 多门店：商家以门店为单位，同一经营主体名下的门店共用套餐与积分；示例主体 XX 餐饮管理有限公司名下有万达店和资质审核中的春熙店。门店素材由交付经理复核整理，并可向门店发起素材需求；门店成员由老板在小程序中管理，后台仅可查看。",
+   "w": 560,
+   "x": 6080,
+   "y": 0,
+   "maxH": 1000
+  },
+  "row1": {
+   "kind": "title1",
+   "maxW": 5760,
+   "text": "① 工作台与交付",
+   "w": 240,
+   "x": 0,
+   "y": -300
+  },
+  "row10": {
+   "kind": "title1",
+   "maxW": 7520,
+   "text": "⑩ 系统设置",
+   "w": 240,
+   "x": 0,
+   "y": 12300
+  },
+  "row11": {
+   "kind": "title1",
+   "maxW": 7520,
+   "text": "⑪ 渠道管理（V1.1）",
+   "w": 240,
+   "x": 0,
+   "y": 13700
+  },
+  "row2": {
+   "kind": "title1",
+   "maxW": 5760,
+   "text": "② 成片与上线",
+   "w": 240,
+   "x": 0,
+   "y": 1100
+  },
+  "row3": {
+   "kind": "title1",
+   "maxW": 6000,
+   "text": "③ 逾期、巡检、下架与数据录入",
+   "w": 240,
+   "x": 0,
+   "y": 2500
+  },
+  "row4": {
+   "kind": "title1",
+   "maxW": 8000,
+   "text": "④ 商家与订单",
+   "w": 240,
+   "x": 0,
+   "y": 3900
+  },
+  "row5": {
+   "kind": "title1",
+   "maxW": 7520,
+   "text": "⑤ 短剧库与套餐积分",
+   "w": 240,
+   "x": 0,
+   "y": 5300
+  },
+  "row6": {
+   "kind": "title1",
+   "maxW": 2960,
+   "text": "⑥ 客服工单",
+   "w": 240,
+   "x": 0,
+   "y": 6700
+  },
+  "row7": {
+   "kind": "title1",
+   "maxW": 8000,
+   "text": "⑦ 财务管理",
+   "w": 240,
+   "x": 0,
+   "y": 8100
+  },
+  "row8": {
+   "kind": "title1",
+   "maxW": 8000,
+   "text": "⑧ 数据报表",
+   "w": 240,
+   "x": 0,
+   "y": 9500
+  },
+  "row9": {
+   "kind": "title1",
+   "maxW": 7520,
+   "text": "⑨ 内容运营",
+   "w": 240,
+   "x": 0,
+   "y": 10900
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Tickets.dc.html",
+  "TicketDetail.dc.html",
+  "AdTasks.dc.html",
+  "Delivery.dc.html",
+  "Calendar.dc.html",
+  "Verify.dc.html",
+  "Accounts.dc.html",
+  "Overdue.dc.html",
+  "Patrol.dc.html",
+  "Offline.dc.html",
+  "DataEntry.dc.html",
+  "Merchants.dc.html",
+  "MerchantDetail.dc.html",
+  "Review.dc.html",
+  "Orders.dc.html",
+  "OrderDetail.dc.html",
+  "Receipts.dc.html",
+  "Renewals.dc.html",
+  "Dramas.dc.html",
+  "DramaEdit.dc.html",
+  "Plans.dc.html",
+  "PointPacks.dc.html",
+  "Params.dc.html",
+  "Pricing.dc.html",
+  "PointAccounts.dc.html",
+  "Service.dc.html",
+  "ServiceDetail.dc.html",
+  "Payments.dc.html",
+  "Refunds.dc.html",
+  "CreditAdjust.dc.html",
+  "Invoices.dc.html",
+  "Reconcile.dc.html",
+  "FinSettle.dc.html",
+  "RptOverview.dc.html",
+  "RptPoints.dc.html",
+  "RptDramas.dc.html",
+  "RptDelivery.dc.html",
+  "RptAds.dc.html",
+  "RptService.dc.html",
+  "RptPartners.dc.html",
+  "OpsHome.dc.html",
+  "OpsMall.dc.html",
+  "OpsAgreements.dc.html",
+  "OpsTemplates.dc.html",
+  "OpsNotice.dc.html",
+  "SysStaff.dc.html",
+  "SysRoles.dc.html",
+  "SysDict.dc.html",
+  "SysParams.dc.html",
+  "SysLogs.dc.html",
+  "Partners.dc.html",
+  "PartnerReview.dc.html",
+  "PartnerLevels.dc.html",
+  "PartnerBinding.dc.html",
+  "PartnerSettle.dc.html"
+ ],
+ "pages": [],
+ "title": "狸有戏运营管理后台原型"
+}

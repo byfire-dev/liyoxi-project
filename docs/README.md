@@ -21,6 +21,8 @@
 | [05-risks-and-open-issues.md](05-risks-and-open-issues.md) | 风险、PRD 需修订之处、待拍板事项、上线前验证清单、平台事项 | 产品、业务、法务、财务、研发 |
 | [appendix/](appendix/README.md) | 七份子系统设计草案、外部事实核实记录、需求与原型调研记录 | 需要细节时查阅 |
 
+界面与交互的依据不在本目录：原型快照、设计规范与样式变量见 [../design/](../design/README.md)。
+
 ## 阅读顺序
 
 1. 先读 [05](05-risks-and-open-issues.md) 第 1 节。其中 6 项风险可能改变产品形态或上线时间，需要业务、法务先行处理。

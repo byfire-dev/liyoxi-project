@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 客服中心</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+textarea::placeholder{color:#6F665B}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;">
+<a href="Mine.dc.html" aria-label="返回" style="position: absolute; left: 2px; top: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1D1A16;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></a>
+<h1 style="margin: 0; font-size: 17px; font-weight: 600;">客服中心</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 4px 16px 24px; display: flex; flex-direction: column; gap: 12px;">
+<section aria-label="专属服务经理" style="background: #1D1A16; color: #FFFFFF; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span aria-hidden="true" style="flex-shrink: 0; width: 52px; height: 52px; border-radius: 26px; background: #C4501B; font-family: 'Noto Serif SC', serif; font-size: 22px; font-weight: 900; display: flex; align-items: center; justify-content: center;">林</span>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
+<span style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 17px; font-weight: 600;">小林</span><span style="font-size: 12px; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.14);">专属服务经理</span></span>
+<span style="font-size: 13px; color: #E9E3DA;">工作时间 09:00～18:00 · 负责您的全部订单</span>
+</div>
+</div>
+<div style="display: flex; gap: 10px;">
+<button type="button" onClick="{{toggleQr}}" style="flex-grow: 1; flex-basis: 0; height: 42px; border: none; border-radius: 21px; background: #C4501B; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">{{qrLabel}}</button>
+<button type="button" onClick="{{showPhone}}" style="flex-grow: 1; flex-basis: 0; height: 42px; border: 1px solid rgba(255,255,255,0.5); border-radius: 21px; background: transparent; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">{{phoneLabel}}</button>
+</div>
+<sc-if value="{{qr}}" hint-placeholder-val="{{false}}">
+<div style="align-self: center; width: 148px; height: 148px; box-sizing: border-box; border-radius: 10px; background: #FFFFFF; color: #4A433B; display: flex; align-items: center; justify-content: center; padding: 12px; text-align: center; font-size: 13px;">[服务经理企业微信二维码]</div>
+</sc-if>
+</section>
+<nav aria-label="服务入口" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;">
+<button type="button" onClick="{{openChat}}" style="min-height: 84px; border: none; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-family: inherit; font-size: 14px; color: #1D1A16; cursor: pointer;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#A63F12" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg>在线客服</button>
+<button type="button" onClick="{{openForm}}" style="min-height: 84px; border: none; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-family: inherit; font-size: 14px; color: #1D1A16; cursor: pointer;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#A63F12" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path></svg>提交工单</button>
+<div style="min-height: 84px; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 14px; color: #6F665B;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"></path></svg>常见问题<span style="font-size: 12px;">即将开放</span></div>
+</nav>
+<sc-if value="{{chat}}" hint-placeholder-val="{{false}}">
+<p role="status" style="margin: 0; padding: 10px 12px; border-radius: 10px; background: #E8EEF9; color: #2E5AAC; font-size: 13px; line-height: 1.5;">正在接入在线客服……工作时间内 30 分钟响应，非工作时间可提交工单。</p>
+</sc-if>
+<sc-if value="{{formOpen}}" hint-placeholder-val="{{false}}">
+<section aria-label="提交工单" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">提交工单</h2>
+<div role="group" aria-label="问题类型" style="display: flex; flex-direction: column; gap: 8px;">
+<span style="font-size: 14px; font-weight: 600;">问题类型</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{types}}" as="t" hint-placeholder-count="9">
+<button type="button" aria-pressed="{{t.on}}" onClick="{{t.pick}}" style="min-height: 34px; box-sizing: border-box; padding: 0 12px; border-radius: 17px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.fg}}; font-family: inherit; font-size: 13px; cursor: pointer;">{{t.label}}</button>
+</sc-for>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px;">
+<span style="font-size: 14px; font-weight: 600;">关联订单</span>
+<div style="min-height: 44px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; font-size: 14px;"><span>LYX2026092600018 · 巷口那家店 等 2 部</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: #6F665B;"><path d="m6 9 6 6 6-6"></path></svg></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px;">
+<label for="desc" style="font-size: 14px; font-weight: 600;">问题描述</label>
+<textarea id="desc" rows="4" maxlength="500" placeholder="请描述您遇到的问题，不超过 500 字" value="{{desc}}" onChange="{{onDesc}}" style="box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid #E7E1D8; border-radius: 10px; font-family: inherit; font-size: 14px; line-height: 1.5; color: #1D1A16; resize: none;"></textarea>
+<span style="align-self: flex-end; font-size: 12px; color: #6F665B;">{{descCount}}/500</span>
+</div>
+<button type="button" style="width: 80px; height: 80px; border: 1px dashed #C9C0B3; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-family: inherit; font-size: 12px; color: #6F665B; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>添加图片</button>
+<div style="display: flex; gap: 10px;">
+<button type="button" onClick="{{closeForm}}" style="flex-grow: 1; flex-basis: 0; height: 44px; border: 1px solid #C9C0B3; border-radius: 22px; background: #FFFFFF; font-family: inherit; font-size: 15px; color: #1D1A16; cursor: pointer;">取消</button>
+<button type="button" onClick="{{submit}}" style="flex-grow: 1; flex-basis: 0; height: 44px; border: none; border-radius: 22px; background: #C4501B; color: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer;">提交</button>
+</div>
+</section>
+</sc-if>
+<section aria-label="我的工单" style="background: #FFFFFF; border-radius: 14px; padding: 4px 16px; display: flex; flex-direction: column;">
+<h2 style="margin: 12px 0 4px; font-size: 16px; font-weight: 600;">我的工单</h2>
+<sc-if value="{{submitted}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-bottom: 1px solid #F0EBE3;">
+<div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 14px; font-weight: 600;">{{newType}}</span><span style="font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #FBEDE5; color: #A63F12;">待受理</span></div>
+<span style="font-size: 13px; color: #6F665B;">{{newDesc}}</span>
+<span style="font-size: 12px; color: #6F665B;">刚刚 · 关联订单 LYX2026092600018</span>
+</div>
+</sc-if>
+<a href="Ticket.dc.html" style="display: flex; flex-direction: column; gap: 4px; padding: 12px 0;">
+<div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 14px; font-weight: 600;">内容修改</span><span style="font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E8EEF9; color: #2E5AAC;">处理中</span></div>
+<span style="font-size: 13px; color: #6F665B;">希望片尾增加团购信息</span>
+<span style="font-size: 12px; color: #6F665B;">09-29 · 关联订单 LYX2026092600018</span>
+</a>
+<a href="TicketDone.dc.html" style="display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-top: 1px solid #F0EBE3;">
+<div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 14px; font-weight: 600;">发布与上线</span><span style="font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E6F2EA; color: #256A42;">已解决</span></div>
+<span style="font-size: 13px; color: #6F665B;">视频号核验未通过，需要补充哪些截图</span>
+<span style="font-size: 12px; color: #6F665B;">09-28 · 未关联订单</span>
+</a>
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-top: 1px solid #F0EBE3;">
+<div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 14px; font-weight: 600;">其他</span><span style="font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E6F2EA; color: #256A42;">已解决</span></div>
+<span style="font-size: 13px; color: #6F665B;">套餐到期后，已上线的短剧还能继续播吗</span>
+<span style="font-size: 12px; color: #6F665B;">09-26 · 关联订单 LYX2026081400006</span>
+</div>
+</section>
+<p style="margin: 0; padding: 0 4px; font-size: 12px; line-height: 1.6; color: #6F665B;">工作时间内 30 分钟响应，24 小时内给出处理方案。</p>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const qr = !!st.qr;
+    const formOpen = !!st.formOpen;
+    const type = st.type || '交付进度';
+    const desc = st.desc || '';
+    const names = ['交付进度', '广告制作', '内容修改', '发布与上线', '数据问题', '发票', '退款', '投诉建议', '其他'];
+    return {
+      qr: qr,
+      qrLabel: qr ? '收起二维码' : '添加企业微信',
+      toggleQr: () => this.setState({ qr: !qr }),
+      phoneLabel: st.phone ? '[服务电话]' : '拨打电话',
+      showPhone: () => this.setState({ phone: true }),
+      chat: !!st.chat,
+      openChat: () => this.setState({ chat: true }),
+      formOpen: formOpen,
+      openForm: () => this.setState({ formOpen: true, chat: false }),
+      closeForm: () => this.setState({ formOpen: false }),
+      types: names.map((n) => ({
+        label: n,
+        on: n === type,
+        pick: () => this.setState({ type: n }),
+        bg: n === type ? '#1D1A16' : '#FFFFFF',
+        fg: n === type ? '#FFFFFF' : '#1D1A16',
+        border: n === type ? '#1D1A16' : '#E7E1D8'
+      })),
+      desc: desc,
+      onDesc: (e) => this.setState({ desc: e.target.value }),
+      descCount: desc.length,
+      submit: () => this.setState({ formOpen: false, submitted: true, subType: type, subDesc: desc }),
+      submitted: !!st.submitted,
+      newType: st.subType || type,
+      newDesc: st.subDesc ? st.subDesc : '（未填写描述）'
+    };
+  }
+}
+</script>
+</body>
+</html>

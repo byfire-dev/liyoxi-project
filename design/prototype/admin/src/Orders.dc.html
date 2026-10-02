@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏运营后台 · 订单</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; overflow: hidden; position: relative; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; font-size: 14px;">
+<nav aria-label="主菜单" style="width: 216px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; background: #231F1B; color: #D9D1C5;">
+<div style="height: 64px; flex-shrink: 0; box-sizing: border-box; padding: 0 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #3A332C;">
+<svg width="30" height="30" viewBox="0 0 64 64" fill="none" stroke="#E8864F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12 22 25h20l12-13-2 22-20 19-20-19z"></path><path d="m21 34 5 2.5M43 34l-5 2.5"></path><circle cx="32" cy="44" r="1.8" fill="#E8864F" stroke="none"></circle></svg>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-family: 'Noto Serif SC', serif; font-size: 19px; font-weight: 900; letter-spacing: 3px; line-height: 1.1; color: #FFFFFF;">狸有戏</span><span style="font-size: 12px; line-height: 1.2; color: #9A9084;">运营管理后台</span></div>
+</div>
+<div style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px;">
+<a href="Main.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>工作台</a>
+<a href="Dramas.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="m10.5 9.5 4 2.5-4 2.5z"></path></svg>短剧库</a>
+<a href="Plans.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5 15.5 12 12 16.5 8.5 12z"></path></svg><span style="flex-grow: 1;">套餐与积分</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Merchants.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5 5.5 4.5h13L20 9.5"></path><path d="M4 9.5c0 1.5 1.2 2.5 2.7 2.5s2.6-1 2.6-2.5c0 1.5 1.2 2.5 2.7 2.5s2.7-1 2.7-2.5c0 1.5 1.1 2.5 2.6 2.5S20 11 20 9.5"></path><path d="M5.5 12v7.5h13V12"></path><path d="M10 19.5V15h4v4.5"></path></svg><span style="flex-grow: 1;">商家</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">4</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<div style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #FFFFFF;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8.5l4 4v13H6z"></path><path d="M14 3.5V8h4.5M9 12.5h6M9 16.5h4"></path></svg><span style="flex-grow: 1;">订单</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div>
+<button type="button" aria-current="{{orderCurrent}}" onClick="{{orderPick}}" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border: none; border-radius: 8px; display: flex; align-items: center; background: {{orderBg}}; color: {{orderFg}}; font-family: inherit; font-size: 13px; font-weight: {{orderWeight}}; text-align: left; cursor: pointer;">订购单</button>
+<button type="button" aria-current="{{payCurrent}}" onClick="{{payPick}}" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border: none; border-radius: 8px; display: flex; align-items: center; background: {{payBg}}; color: {{payFg}}; font-family: inherit; font-size: 13px; font-weight: {{payWeight}}; text-align: left; cursor: pointer;">付款单</button>
+<a href="Receipts.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">对公收款确认<span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">3</span></a>
+<a href="Renewals.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">套餐到期<span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">19</span></a>
+<a href="Tickets.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"></path><path d="m4 7.5 8 4.5 8-4.5M12 12v9"></path></svg><span style="flex-grow: 1;">交付</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">7</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Delivery.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15.5V4"></path><path d="m7.5 8.5 4.5-4.5 4.5 4.5"></path><path d="M5 14v5.5h14V14"></path></svg><span style="flex-grow: 1;">发布</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">10</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Service.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2"></path><rect x="3.5" y="13.5" width="4" height="6" rx="1.5"></rect><rect x="16.5" y="13.5" width="4" height="6" rx="1.5"></rect></svg><span style="flex-grow: 1;">客服</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">6</span></a>
+<a href="Payments.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m9 7.5 3 4 3-4M12 11.5V17M9.5 12.5h5M9.5 15h5"></path></svg><span style="flex-grow: 1;">财务</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">8</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="RptOverview.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7.5 16.5v-5M12 16.5v-9M16.5 16.5v-7"></path></svg><span style="flex-grow: 1;">报表</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="OpsHome.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3.5l7 4V6l-7 4z"></path><path d="M17.5 9.5a3.5 3.5 0 0 1 0 5"></path></svg><span style="flex-grow: 1;">运营</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="SysStaff.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5h9M17.5 6.5h2M4.5 12h3M11.5 12h8M4.5 17.5h7M15.5 17.5h4"></path><circle cx="15.5" cy="6.5" r="2"></circle><circle cx="9.5" cy="12" r="2"></circle><circle cx="13.5" cy="17.5" r="2"></circle></svg><span style="flex-grow: 1;">系统</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Partners.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"></circle><path d="M3.5 19a5.5 5.5 0 0 1 11 0"></path><circle cx="17" cy="9.5" r="2.5"></circle><path d="M16 14.3a4.5 4.5 0 0 1 4.5 4.7"></path></svg><span style="flex-grow: 1;">渠道</span><span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #5A5047; border-radius: 4px; font-size: 11px; line-height: 16px; color: #9A9084;">V1.1</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+</div>
+</nav>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<header style="height: 56px; flex-shrink: 0; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 16px; background: #FFFFFF; border-bottom: 1px solid #ECE6DD;">
+<nav aria-label="面包屑" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6F665B;"><span>订单</span><span aria-hidden="true">/</span><span style="color: #1D1A16; font-weight: 600;">{{crumb}}</span></nav>
+<label style="margin-left: auto; width: 300px; height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FAF8F4; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="全局搜索" placeholder="搜索商家、订单号、工单号" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<button type="button" aria-label="消息通知，5 条未读" style="position: relative; width: 40px; height: 40px; flex-shrink: 0; border: none; border-radius: 8px; background: transparent; color: #1D1A16; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg><span aria-hidden="true" style="position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; box-sizing: content-box; border: 2px solid #FFFFFF; border-radius: 6px; background: #C4501B;"></span></button>
+<div style="display: flex; align-items: center; gap: 10px; padding-left: 16px; border-left: 1px solid #ECE6DD;"><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 16px; background: #FBEDE5; color: #A63F12; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">周</span><div style="display: flex; flex-direction: column;"><span style="font-size: 14px; font-weight: 600; line-height: 1.3;">周航</span><span style="font-size: 12px; line-height: 1.3; color: #6F665B;">超级管理员</span></div></div>
+</header>
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<div role="status" style="position: absolute; top: 68px; right: 24px; z-index: 5; max-width: 540px; box-sizing: border-box; padding: 10px 8px 10px 14px; border-radius: 10px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: 0 8px 24px rgba(29, 26, 22, 0.18);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7FD19B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg><span style="flex-grow: 1;">{{toast}}</span><button type="button" aria-label="关闭提示" onClick="{{closeToast}}" style="width: 28px; height: 28px; flex-shrink: 0; border: none; border-radius: 6px; background: transparent; color: #FFFFFF; font-size: 16px; cursor: pointer;">×</button></div>
+</sc-if>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;">
+<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;"><h1 style="margin: 0; font-family: 'Noto Serif SC', serif; font-size: 24px; font-weight: 700; line-height: 1.3;">{{pageTitle}}</h1><p style="margin: 0; font-size: 13px; color: #6F665B;">{{pageNote}}</p></div>
+<button type="button" onClick="{{exportAll}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="m7.5 10.5 4.5 4.5 4.5-4.5"></path><path d="M5 19.5h14"></path></svg><span>导出</span></button>
+</div>
+<section aria-label="订单列表" style="border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; overflow: hidden;"><div role="group" aria-label="状态" style="display: flex; flex-wrap: wrap; gap: 8px; box-sizing: border-box; padding: 14px 16px 12px;"><sc-for list="{{chips}}" as="c" hint-placeholder-count="9"><button type="button" aria-pressed="{{c.on}}" onClick="{{c.pick}}" style="min-height: 32px; padding: 0 12px; border: 1px solid {{c.border}}; border-radius: 16px; background: {{c.bg}}; color: {{c.fg}}; font-family: inherit; font-size: 13px; font-weight: {{c.weight}}; cursor: pointer;">{{c.label}} {{c.count}}</button></sc-for></div><div style="display: flex; align-items: center; gap: 10px; box-sizing: border-box; padding: 0 16px 14px; border-bottom: 1px solid #ECE6DD;"><label style="width: 240px; height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="搜索订单" placeholder="{{qHint}}" value="{{q}}" onChange="{{onQ}}" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label><select aria-label="下单时间" value="{{range}}" onChange="{{onRange}}" style="height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="全部">全部时间</option><option value="今天">今天</option><option value="近 7 天">近 7 天</option><option value="近 30 天">近 30 天</option></select><sc-if value="{{isOrder}}" hint-placeholder-val="{{true}}"><span style="display: flex; gap: 10px;"><select aria-label="交付经理" value="{{mgr}}" onChange="{{onMgr}}" style="height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="全部">全部交付经理</option><option value="林晓">林晓</option><option value="苏晴">苏晴</option><option value="韩冬">韩冬</option><option value="未分配">未分配</option></select><select aria-label="剧目" value="{{drama}}" onChange="{{onDrama}}" style="height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="全部">全部剧目</option><option value="巷口那家店">巷口那家店</option><option value="二次开业">二次开业</option><option value="心动便利店">心动便利店</option><option value="夜巷疑云">夜巷疑云</option><option value="锦绣小厨娘">锦绣小厨娘</option><option value="家有萌娃">家有萌娃</option><option value="面馆少东家">面馆少东家</option></select></span></sc-if><sc-if value="{{isPay}}" hint-placeholder-val="{{false}}"><span style="display: flex; gap: 10px;"><select aria-label="付款类型" value="{{ptype}}" onChange="{{onPtype}}" style="height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="全部">全部类型</option><option value="开通">开通套餐</option><option value="续费">续费套餐</option><option value="升级">升级套餐</option><option value="加购积分">加购积分</option></select><select aria-label="支付方式" value="{{pay}}" onChange="{{onPay}}" style="height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="全部">全部支付方式</option><option value="微信支付">微信支付</option><option value="对公转账">对公转账</option></select></span></sc-if><button type="button" onClick="{{reset}}" style="min-height: 36px; padding: 0 12px; border-radius: 8px; border: none; background: transparent; color: #A63F12; font-family: inherit; font-size: 13px; cursor: pointer; margin-left: auto;">重置筛选</button></div><sc-if value="{{isOrder}}" hint-placeholder-val="{{true}}"><div role="table" aria-label="订购单" style="display: flex; flex-direction: column;"><div role="row" style="display: grid; grid-template-columns: 148px 84px 136px minmax(0, 1fr) 92px 76px 108px 108px 64px 40px; column-gap: 12px; align-items: center; min-height: 40px; box-sizing: border-box; padding: 0 16px; background: #FAF8F4; border-bottom: 1px solid #ECE6DD; font-size: 12px; font-weight: 600; color: #6F665B;">
+<span role="columnheader">订单号</span><span role="columnheader">下单时间</span><span role="columnheader">商家</span><span role="columnheader">剧目</span><span role="columnheader">发布账号</span><span role="columnheader">制作模型</span><span role="columnheader" style="text-align: right;">应扣积分</span><span role="columnheader">订单状态</span><span role="columnheader">交付经理</span><span role="columnheader" style="text-align: right;">操作</span>
+</div><sc-for list="{{orders}}" as="o" hint-placeholder-count="10">
+<div role="row" style="display: grid; grid-template-columns: 148px 84px 136px minmax(0, 1fr) 92px 76px 108px 108px 64px 40px; column-gap: 12px; align-items: center; min-height: 58px; box-sizing: border-box; padding: 6px 16px; border-bottom: 1px solid #F0EBE3; font-size: 13px;">
+<span role="cell"><a href="OrderDetail.dc.html" style="font-weight: 600; font-variant-numeric: tabular-nums; color: #1D1A16;">{{o.no}}</a></span>
+<span role="cell" style="font-variant-numeric: tabular-nums; color: #6F665B;">{{o.time}}</span>
+<span role="cell" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{o.merchant}}</span><span style="font-size: 12px; color: #6F665B;">{{o.plan}}</span></span>
+<span role="cell" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span>{{o.drama}}</span><span style="font-size: 12px; color: #6F665B;">{{o.spec}}</span></span>
+<span role="cell">{{o.account}}</span>
+<span role="cell" style="color: {{o.modelColor}};">{{o.model}}</span>
+<span role="cell" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="text-align: right; font-variant-numeric: tabular-nums;"><strong>{{o.pts}}</strong></span><span style="font-size: 12px; color: #6F665B; text-align: right; white-space: nowrap;">{{o.calc}}</span></span>
+<span role="cell" style="display: flex; flex-direction: column; align-items: flex-start; gap: 3px;"><span style="display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; background: {{o.sbg}}; color: {{o.sfg}}; font-size: 12px; font-weight: 600; white-space: nowrap;">{{o.status}}</span><span style="font-size: 12px; color: {{o.subColor}}; white-space: nowrap;">{{o.sub}}</span></span>
+<span role="cell" style="color: {{o.mgrColor}};">{{o.mgr}}</span>
+<span role="cell" style="text-align: right;"><a href="OrderDetail.dc.html" style="color: #A63F12;">详情</a></span>
+</div>
+</sc-for></div></sc-if><sc-if value="{{isPay}}" hint-placeholder-val="{{false}}"><div role="table" aria-label="付款单" style="display: flex; flex-direction: column;"><div role="row" style="display: grid; grid-template-columns: 148px 84px 150px 76px minmax(0, 1fr) 104px 76px 132px 56px; column-gap: 12px; align-items: center; min-height: 40px; box-sizing: border-box; padding: 0 16px; background: #FAF8F4; border-bottom: 1px solid #ECE6DD; font-size: 12px; font-weight: 600; color: #6F665B;">
+<span role="columnheader">付款单号</span><span role="columnheader">创建时间</span><span role="columnheader">商家与主体</span><span role="columnheader">类型</span><span role="columnheader">内容</span><span role="columnheader" style="text-align: right;">金额</span><span role="columnheader">支付方式</span><span role="columnheader">状态</span><span role="columnheader" style="text-align: right;">操作</span>
+</div><sc-for list="{{pays}}" as="p" hint-placeholder-count="10">
+<div role="row" style="display: grid; grid-template-columns: 148px 84px 150px 76px minmax(0, 1fr) 104px 76px 132px 56px; column-gap: 12px; align-items: center; min-height: 58px; box-sizing: border-box; padding: 6px 16px; border-bottom: 1px solid #F0EBE3; font-size: 13px;">
+<span role="cell"><span style="font-weight: 600; font-variant-numeric: tabular-nums;">{{p.no}}</span></span>
+<span role="cell" style="font-variant-numeric: tabular-nums; color: #6F665B;">{{p.time}}</span>
+<span role="cell" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{p.merchant}}</span><span style="font-size: 12px; color: #6F665B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{p.entity}}</span></span>
+<span role="cell"><span style="display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; background: {{p.tbg}}; color: {{p.tfg}}; font-size: 12px; font-weight: 600; white-space: nowrap;">{{p.type}}</span></span>
+<span role="cell" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span>{{p.content}}</span><span style="font-size: 12px; color: #6F665B;">{{p.contentSub}}</span></span>
+<span role="cell" style="text-align: right; font-variant-numeric: tabular-nums;"><strong>{{p.amount}}</strong></span>
+<span role="cell" style="color: #6F665B;">{{p.method}}</span>
+<span role="cell" style="display: flex; flex-direction: column; align-items: flex-start; gap: 3px;"><span style="display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; background: {{p.sbg}}; color: {{p.sfg}}; font-size: 12px; font-weight: 600; white-space: nowrap;">{{p.status}}</span><span style="font-size: 12px; color: {{p.subColor}}; white-space: nowrap;">{{p.sub}}</span></span>
+<span role="cell" style="text-align: right;"><sc-if value="{{p.canConfirm}}" hint-placeholder-val="{{false}}"><a href="Receipts.dc.html" style="color: #A63F12; font-weight: 600;">确认</a></sc-if><sc-if value="{{p.canView}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{p.view}}" style="min-height: 36px; border-radius: 8px; border: none; background: none; padding: 0; color: #A63F12; font-family: inherit; font-size: 13px; cursor: pointer;">详情</button></sc-if></span>
+</div>
+</sc-for></div></sc-if><sc-if value="{{empty}}" hint-placeholder-val="{{false}}">
+<div style="padding: 56px 24px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;"><span style="font-size: 15px; font-weight: 600;">没有符合条件的订单</span><span style="font-size: 13px; color: #6F665B;">调整筛选条件后重试</span></div>
+</sc-if><div style="display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; padding: 10px 16px; font-size: 13px; color: #6F665B;">
+<span>{{totalText}}</span>
+<div aria-hidden="true" style="display: flex; align-items: center; gap: 6px;"><span style="width: 30px; height: 30px; border: 1px solid #ECE6DD; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #C9C1B6;">‹</span><span style="width: 30px; height: 30px; border-radius: 6px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 600;">1</span><span style="padding: 0 6px;">/ {{pages}} 页</span><span style="width: 30px; height: 30px; border: 1px solid #ECE6DD; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #1D1A16;">›</span></div>
+</div></section>
+</main>
+</div>
+<sc-if value="{{drawer}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10; background: rgba(29, 26, 22, 0.35); display: flex; justify-content: flex-end;">
+<section role="dialog" aria-modal="true" aria-labelledby="pay-title" style="width: 480px; height: 100%; overflow-y: auto; box-sizing: border-box; padding: 24px; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px; box-shadow: -12px 0 32px rgba(29, 26, 22, 0.18);">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;"><div style="display: flex; flex-direction: column; gap: 6px;"><h2 id="pay-title" style="margin: 0; font-size: 18px; font-weight: 600;">付款单 {{pv.no}}</h2><span style="display: flex; align-items: center; gap: 8px;"><span style="display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; background: {{pv.tbg}}; color: {{pv.tfg}}; font-size: 12px; font-weight: 600; white-space: nowrap;">{{pv.type}}</span><span style="display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; background: {{pv.sbg}}; color: {{pv.sfg}}; font-size: 12px; font-weight: 600; white-space: nowrap;">{{pv.status}}</span></span></div><button type="button" aria-label="关闭" onClick="{{closeDrawer}}" style="width: 32px; height: 32px; flex-shrink: 0; border: none; border-radius: 8px; background: #F6F3EE; color: #1D1A16; font-size: 18px; cursor: pointer;">×</button></div>
+<div style="box-sizing: border-box; padding: 14px 16px; border-radius: 12px; background: #FFF8F3; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 12px; color: #6F665B;">{{pv.amountLabel}}</span><span style="font-family: 'Noto Serif SC', serif; font-size: 26px; font-weight: 700;">{{pv.amount}}</span><span style="font-size: 12px; color: #6F665B;">{{pv.effect}}</span></div>
+<h2 style="margin: 0; font-size: 15px; font-weight: 600;">付款信息</h2><dl style="margin: 0; display: grid; grid-template-columns: 76px minmax(0, 1fr); row-gap: 8px; column-gap: 12px; font-size: 13px;"><dt style="color: #6F665B;">商家</dt><dd style="margin: 0;">{{pv.merchant}}</dd><dt style="color: #6F665B;">付款主体</dt><dd style="margin: 0;">{{pv.entity}}</dd><dt style="color: #6F665B;">内容</dt><dd style="margin: 0;">{{pv.content}}</dd><dt style="color: #6F665B;">计算</dt><dd style="margin: 0;">{{pv.calc}}</dd><dt style="color: #6F665B;">支付方式</dt><dd style="margin: 0;">{{pv.method}}</dd><dt style="color: #6F665B;">支付记录</dt><dd style="margin: 0;">{{pv.trade}}</dd><dt style="color: #6F665B;">发票</dt><dd style="margin: 0;">{{pv.invoice}}</dd></dl>
+<h2 style="margin: 0; font-size: 15px; font-weight: 600;">操作日志</h2><div style="display: flex; flex-direction: column; gap: 6px;"><sc-for list="{{pv.logs}}" as="l" hint-placeholder-count="3"><div style="display: grid; grid-template-columns: 92px minmax(0, 1fr); column-gap: 10px; font-size: 13px; line-height: 1.6;"><span style="color: #6F665B; font-variant-numeric: tabular-nums;">{{l.time}}</span><span>{{l.text}}</span></div></sc-for></div>
+<p style="margin: 0; font-size: 12px; line-height: 1.7; color: #6F665B;">付款单仅有待支付、待确认收款、已支付、已取消、已退款 5 种状态；套餐退款在“财务 › 退款管理”中审批与执行。</p></section>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const money = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const num = (n) => n.toLocaleString('en-US');
+    const tab = (key, label, count, cur, pick) => ({
+      key: key, label: label, count: count, on: key === cur, pick: pick,
+      line: key === cur ? '#C4501B' : 'transparent', color: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400',
+      cbg: key === cur ? '#FBEDE5' : '#F3EFE9', cfg: key === cur ? '#A63F12' : '#6F665B'
+    });
+    const segOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, bg: key === cur ? '#FFFFFF' : 'transparent', fg: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400' });
+    const pillOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, border: key === cur ? '#1D1A16' : '#E7E1D8', bg: key === cur ? '#1D1A16' : '#FFFFFF', fg: key === cur ? '#FFFFFF' : '#1D1A16' });
+    const sw = (on) => ({ bg: on ? '#256A42' : '#CFC7BC', knob: on ? '18px' : '2px' });
+    const toastVals = { toast: st.toast || '', hasToast: !!st.toast, closeToast: () => this.setState({ toast: '' }) };
+
+    const view = st.view || 'order';
+    const isOrder = view === 'order';
+    const status = st.status || '全部';
+    const q = st.q || '';
+    const range = st.range || '全部';
+    const mgr = st.mgr || '全部';
+    const drama = st.drama || '全部';
+    const ptype = st.ptype || '全部';
+    const pay = st.pay || '全部';
+    const SC = { 待开工: ['#FBEDE5', '#A63F12'], 制作中: ['#E8EEF8', '#2E5AAC'], 待上线: ['#E8EEF8', '#2E5AAC'], 上线中: ['#E5F1E9', '#256A42'], 已结束: ['#EFEBE4', '#5E564C'],
+      已取消: ['#EFEBE4', '#5E564C'], 售后处理中: ['#FBEDE5', '#A63F12'], 已退回积分: ['#EFEBE4', '#5E564C'],
+      待支付: ['#FBEDE5', '#A63F12'], 待确认收款: ['#FBEDE5', '#A63F12'], 已支付: ['#E5F1E9', '#256A42'], 已退款: ['#EFEBE4', '#5E564C'] };
+    const O = (no, time, day, merchant, plan, dramaName, spec, account, model, pts, calc, status, sub, mgr) => ({ no: no, time: time, day: day, merchant: merchant, plan: plan, drama: dramaName, spec: spec,
+      account: account, model: model, pts: pts, calc: calc, status: status, sub: sub, mgr: mgr });
+    const orders = [
+      O('LYX2026093000006', '09-30 10:18', 0, '晴天洗衣', '基础版', '《家有萌娃》', '整部 36 集 · 门店定制', '抖音', '标准模型', '1,200', '原价', '待开工', '资质审核中', '未分配'),
+      O('LYX2026093000005', '09-30 10:05', 0, '悦心瑜伽', '基础版', '《心动便利店》', '整部 40 集 · 门店定制', '抖音', '标准模型', '2,400', '原价', '制作中', '工单待分配', '待分配'),
+      O('LYX2026093000004', '09-30 09:40', 0, '胖哥冒菜', '专业版', '《锦绣小厨娘》', '整部 80 集 · 门店定制', '抖音', '顶级模型', '2,808', '9 折 · 顶级 ＋20%', '制作中', '方案确认', '苏晴'),
+      O('LYX2026093000003', '09-30 09:12', 0, '小鹿亲子乐园', '基础版', '《家有萌娃》', '整部 36 集 · 门店定制', '抖音', '标准模型', '1,200', '原价', '制作中', '工单待分配', '待分配'),
+      O('LYX2026093000002', '09-30 08:58', 0, '半岛茶楼', '专业版', '《面馆少东家》', '整部 70 集 · 门店定制', '视频号', '高级模型', '2,160', '9 折', '制作中', '方案确认', '林晓'),
+      O('LYX2026093000001', '09-30 08:31', 0, '橙子宠物', '专业版', '《二次开业》', '整部 60 集 · 门店定制', '抖音', '高级模型', '1,800', '9 折', '制作中', '方案确认', '韩冬'),
+      O('LYX2026092900022', '09-29 16:48', 1, '老街烧烤', '专业版', '《锦绣小厨娘》', '整部 80 集 · 门店定制', '抖音', '高级模型', '2,340', '9 折', '制作中', '方案确认', '林晓'),
+      O('LYX2026092800020', '09-28 11:26', 2, '云间民宿', '旗舰版', '《巷口那家店》', '整部 80 集 · 门店定制', '抖音、视频号', '顶级模型', '2,400', '8 折', '制作中', '广告准备', '韩冬'),
+      O('LYX2026092600018', '09-26 10:32', 4, 'XX 火锅（万达店）', '专业版', '《巷口那家店》等 2 部', '整部 80 集、60 集 · 门店定制', '抖音', '高级模型', '4,500', '9 折 · 2 部', '制作中', '样片确认', '林晓'),
+      O('LYX2026092500009', '09-25 09:55', 5, '拾光咖啡', '专业版', '《夜巷疑云》', '整部 45 集 · 门店定制', '抖音', '高级模型', '2,700', '9 折', '售后处理中', '取消审批中', '韩冬')
+    ];
+    const P = (no, time, day, merchant, entity, type, content, contentSub, amount, method, status, sub, extra) => Object.assign({ no: no, time: time, day: day, merchant: merchant, entity: entity, type: type,
+      content: content, contentSub: contentSub, amount: amount, method: method, status: status, sub: sub }, extra || {});
+    const pays = [
+      P('FK2026093000007', '09-30 10:21', 0, '好运来便利店', '新都区好运来便利店', '开通', '基础版 · 1 个月', '支付后发放 3,000 套餐积分', 3000, '—', '待支付', '10:51 未支付自动取消',
+        { calc: '3,000 × 1 个月', effect: '支付成功后立即生效', trade: '尚未支付', invoice: '支付后可申请', logs: [{ time: '09-30 10:21', text: '商家创建付款单（开通基础版 1 个月）' }] }),
+      P('FK2026093000006', '09-30 10:02', 0, '悦心瑜伽', '成都悦心健身服务有限公司', '加购积分', '1,000 积分', '加购积分长期有效', 1000, '微信支付', '已支付', '10:02 积分已到账',
+        { calc: '1,000 积分 × 1 元', effect: '1,000 加购积分已到账', trade: '微信支付 · 10:02 · 4200002231202609300469120518', invoice: '未申请',
+          logs: [{ time: '09-30 10:02', text: '支付成功，1,000 加购积分到账' }, { time: '09-30 10:01', text: '商家创建付款单（加购 1,000 积分）' }] }),
+      P('FK2026093000005', '09-30 09:36', 0, '大鱼海鲜', '成都大鱼餐饮有限公司', '加购积分', '10,000 积分', '确认到账后积分到账', 10000, '对公转账', '待确认收款', '附言缺付款单号',
+        { calc: '10,000 积分 × 1 元', effect: '财务确认到账后积分到账', trade: '转账凭证 09:48 上传，附言缺付款单号', invoice: '确认到账后可申请',
+          logs: [{ time: '09-30 09:48', text: '商家上传转账凭证' }, { time: '09-30 09:36', text: '商家创建付款单（加购 10,000 积分，对公转账）' }] }),
+      P('FK2026093000004', '09-30 09:25', 0, '米粒烘焙', '成都米粒烘焙坊', '升级', '基础版 → 专业版', '本期剩余 20 天，补发 2,400 积分', 2000, '微信支付', '已支付', '已立即生效',
+        { calc: '(6,000 − 3,000) × 20 ÷ 30', effect: '专业版已生效，补发 2,400 套餐积分', trade: '微信支付 · 09:25 · 4200002231202609300352091147', invoice: '未申请',
+          logs: [{ time: '09-30 09:25', text: '支付成功，升级为专业版，补发 2,400 套餐积分' }, { time: '09-30 09:24', text: '商家创建付款单（升级专业版）' }] }),
+      P('FK2026093000003', '09-30 09:10', 0, '小鹿亲子乐园', '成都小鹿文化传播有限公司', '加购积分', '1,000 积分', '加购积分长期有效', 1000, '微信支付', '已支付', '09:10 积分已到账',
+        { calc: '1,000 积分 × 1 元', effect: '1,000 加购积分已到账', trade: '微信支付 · 09:10 · 4200002231202609300338714406', invoice: '未申请',
+          logs: [{ time: '09-30 09:10', text: '支付成功，1,000 加购积分到账' }] }),
+      P('FK2026093000002', '09-30 08:52', 0, '青柠茶饮（春熙路店）', '成都青柠餐饮管理有限公司', '开通', '基础版 · 3 个月', '确认到账后生效', 9000, '对公转账', '待确认收款', '凭证已上传',
+        { calc: '3,000 × 3 个月', effect: '确认到账后生效，按月发放 3,000 套餐积分', trade: '转账凭证 09:05 上传', invoice: '确认到账后可申请',
+          logs: [{ time: '09-30 09:05', text: '商家上传转账凭证' }, { time: '09-30 08:52', text: '商家创建付款单（开通基础版 3 个月，对公转账）' }] }),
+      P('FK2026093000001', '09-30 08:05', 0, '老街烧烤', '武侯区老街烧烤店', '续费', '专业版 · 1 个月', '新周期 10-22 至 11-21', 6000, '微信支付', '已支付', '本期结束后生效',
+        { calc: '6,000 × 1 个月', effect: '新周期 10-22 至 11-21，届时发放 6,600 套餐积分', trade: '微信支付 · 08:05 · 4200002231202609300214866293', invoice: '未申请',
+          logs: [{ time: '09-30 08:05', text: '支付成功，续费专业版 1 个月' }] }),
+      P('FK2026092900016', '09-29 21:40', 1, '云顶健身', '成都云顶健身有限公司', '续费', '基础版 · 1 个月', '新周期 10-04 至 11-03', 3000, '微信支付', '已支付', '本期结束后生效',
+        { calc: '3,000 × 1 个月', effect: '新周期 10-04 至 11-03，届时发放 3,000 套餐积分', trade: '微信支付 · 09-29 21:40 · 4200002231202609290783326150', invoice: '已开具电子普票',
+          logs: [{ time: '09-29 21:40', text: '支付成功，续费基础版 1 个月' }, { time: '09-29 22:10', text: '商家申请电子普票，09-30 09:30 已开具' }] }),
+      P('FK2026092900015', '09-29 19:12', 1, '桃子美甲', '成都桃子美甲店', '加购积分', '1,000 积分', '加购积分长期有效', 1000, '微信支付', '已支付', '19:12 积分已到账',
+        { calc: '1,000 积分 × 1 元', effect: '1,000 加购积分已到账', trade: '微信支付 · 09-29 19:12 · 4200002231202609290740022815', invoice: '未申请',
+          logs: [{ time: '09-29 19:12', text: '支付成功，1,000 加购积分到账' }] }),
+      P('FK2026092900014', '09-29 17:02', 1, '蓝鲸游泳馆', '成都蓝鲸体育文化有限公司', '加购积分', '1,000 积分', '支付回调晚于取消', 1000, '微信支付', '已取消', '对账差异待处理',
+        { calc: '1,000 积分 × 1 元', effect: '17:32 超时取消；微信支付账单显示 17:31:52 已支付', trade: '微信支付 · 17:31:52 · 4200002231202609290736690218（回调晚于取消）', invoice: '—',
+          logs: [{ time: '09-30 09:10', text: '对账发现差异，已转财务处理（补单或原路退款）' }, { time: '09-29 17:32', text: '30 分钟未支付，系统自动取消' }, { time: '09-29 17:02', text: '商家创建付款单（加购 1,000 积分）' }] })
+    ];
+    const OC = { 全部: 1081, 待开工: 4, 制作中: 21, 待上线: 9, 上线中: 1028, 已结束: 11, 已取消: 6, 售后处理中: 1, 已退回积分: 1 };
+    const PC = { 全部: 1386, 待支付: 1, 待确认收款: 3, 已支付: 1371, 已取消: 9, 已退款: 2 };
+    const counts = isOrder ? OC : PC;
+    const inRange = (d) => range === '全部' || (range === '今天' && d === 0) || (range === '近 7 天' && d <= 6) || (range === '近 30 天' && d <= 29);
+    const oList = orders.filter((o) => (status === '全部' || o.status === status) && inRange(o.day) && (q === '' || (o.no + o.merchant + o.drama).indexOf(q) >= 0)
+      && (mgr === '全部' || o.mgr === mgr || (mgr === '未分配' && (o.mgr === '待分配' || o.mgr === '未分配'))) && (drama === '全部' || o.drama.indexOf(drama) >= 0));
+    const pList = pays.filter((p) => (status === '全部' || p.status === status) && inRange(p.day) && (q === '' || (p.no + p.merchant + p.entity).indexOf(q) >= 0)
+      && (ptype === '全部' || p.type === ptype) && (pay === '全部' || p.method === pay));
+    const noFilter = q === '' && range === '全部' && mgr === '全部' && drama === '全部' && ptype === '全部' && pay === '全部';
+    const n = isOrder ? oList.length : pList.length;
+    const bigStatus = status === '全部' || status === '上线中' || status === '已支付' || status === '制作中' || status === '已结束' || status === '待上线' || status === '已取消';
+    const total = noFilter && bigStatus ? counts[status] : n;
+    const TC = { 开通: ['#E8EEF8', '#2E5AAC'], 续费: ['#E5F1E9', '#256A42'], 升级: ['#FBEDE5', '#A63F12'], 加购积分: ['#F1E9F5', '#6B3E86'] };
+    const pv = pays.filter((p) => p.no === st.pv)[0];
+    const navOn = (on) => ({ bg: on ? '#C4501B' : 'transparent', fg: on ? '#FFFFFF' : '#E9E2D8', w: on ? '600' : '400' });
+    const on1 = navOn(isOrder);
+    const on2 = navOn(!isOrder);
+    const switchTo = (v) => () => this.setState({ view: v, status: '全部', q: '', range: '全部', mgr: '全部', drama: '全部', ptype: '全部', pay: '全部', pv: '' });
+    return Object.assign({
+      orderCurrent: isOrder ? 'page' : 'false', orderPick: switchTo('order'), orderBg: on1.bg, orderFg: on1.fg, orderWeight: on1.w,
+      payCurrent: isOrder ? 'false' : 'page', payPick: switchTo('pay'), payBg: on2.bg, payFg: on2.fg, payWeight: on2.w,
+      crumb: isOrder ? '订购单' : '付款单',
+      pageTitle: isOrder ? '订购单' : '付款单',
+      pageNote: isOrder ? '商家用积分订购短剧：提交时冻结积分，资质审核通过、开始制作时扣减；每部剧为下单门店单独定制'
+        : '开通、续费、升级套餐与加购积分的付款记录；对公转账须财务确认到账后，套餐生效或积分到账',
+      isOrder: isOrder, isPay: !isOrder,
+      chips: Object.keys(counts).map((k) => ({ label: k, count: counts[k].toLocaleString('en-US'), on: k === status, pick: () => this.setState({ status: k }),
+        border: k === status ? '#1D1A16' : '#E7E1D8', bg: k === status ? '#1D1A16' : '#FFFFFF', fg: k === status ? '#FFFFFF' : '#1D1A16', weight: k === status ? '600' : '400' })),
+      q: q, range: range, mgr: mgr, drama: drama, ptype: ptype, pay: pay,
+      qHint: isOrder ? '订单号、商家或剧名' : '付款单号、商家或主体',
+      onQ: (e) => this.setState({ q: e.target.value }), onRange: (e) => this.setState({ range: e.target.value }), onMgr: (e) => this.setState({ mgr: e.target.value }),
+      onDrama: (e) => this.setState({ drama: e.target.value }), onPtype: (e) => this.setState({ ptype: e.target.value }), onPay: (e) => this.setState({ pay: e.target.value }),
+      reset: () => this.setState({ status: '全部', q: '', range: '全部', mgr: '全部', drama: '全部', ptype: '全部', pay: '全部' }),
+      orders: oList.map((o) => Object.assign({}, o, { sbg: SC[o.status][0], sfg: SC[o.status][1], subColor: o.status === '售后处理中' || o.status === '待开工' ? '#A63F12' : '#6F665B',
+        modelColor: o.calc.indexOf('顶级') >= 0 ? '#A63F12' : '#1D1A16', mgrColor: o.mgr === '待分配' || o.mgr === '未分配' ? '#A63F12' : '#1D1A16', calc: o.calc })),
+      pays: pList.map((p) => Object.assign({}, p, { amount: '¥' + money(p.amount), tbg: TC[p.type][0], tfg: TC[p.type][1], sbg: SC[p.status][0], sfg: SC[p.status][1],
+        subColor: p.status === '待确认收款' || p.status === '待支付' || p.sub === '对账差异待处理' ? '#A63F12' : '#6F665B',
+        canConfirm: p.status === '待确认收款', canView: p.status !== '待确认收款', view: () => this.setState({ pv: p.no }) })),
+      empty: n === 0,
+      totalText: '共 ' + total.toLocaleString('en-US') + ' 条 · 每页 10 条',
+      pages: String(Math.max(1, Math.ceil(total / 10))),
+      drawer: !!pv,
+      pv: pv ? { no: pv.no, type: pv.type, tbg: TC[pv.type][0], tfg: TC[pv.type][1], status: pv.status, sbg: SC[pv.status][0], sfg: SC[pv.status][1],
+        amountLabel: pv.status === '已支付' ? '实付金额' : '应付金额', amount: '¥' + money(pv.amount), effect: pv.effect, merchant: pv.merchant, entity: pv.entity,
+        content: pv.type + ' · ' + pv.content, calc: pv.calc, method: pv.method, trade: pv.trade, invoice: pv.invoice, logs: pv.logs }
+        : { no: '', type: '', tbg: '', tfg: '', status: '', sbg: '', sfg: '', amountLabel: '', amount: '', effect: '', merchant: '', entity: '', content: '', calc: '', method: '', trade: '', invoice: '', logs: [] },
+      closeDrawer: () => this.setState({ pv: '' }),
+      exportAll: () => this.setState({ toast: '已导出当前筛选的' + (isOrder ? '订购单' : '付款单') + '（Excel）' })
+    }, toastVals);
+  }
+}
+</script>
+</body>
+</html>

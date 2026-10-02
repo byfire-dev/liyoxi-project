@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏运营后台 · 消息模板</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; overflow: hidden; position: relative; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; font-size: 14px;">
+<nav aria-label="主菜单" style="width: 216px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; background: #231F1B; color: #D9D1C5;">
+<div style="height: 64px; flex-shrink: 0; box-sizing: border-box; padding: 0 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #3A332C;">
+<svg width="30" height="30" viewBox="0 0 64 64" fill="none" stroke="#E8864F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12 22 25h20l12-13-2 22-20 19-20-19z"></path><path d="m21 34 5 2.5M43 34l-5 2.5"></path><circle cx="32" cy="44" r="1.8" fill="#E8864F" stroke="none"></circle></svg>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-family: 'Noto Serif SC', serif; font-size: 19px; font-weight: 900; letter-spacing: 3px; line-height: 1.1; color: #FFFFFF;">狸有戏</span><span style="font-size: 12px; line-height: 1.2; color: #9A9084;">运营管理后台</span></div>
+</div>
+<div style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px;">
+<a href="Main.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>工作台</a>
+<a href="Dramas.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="m10.5 9.5 4 2.5-4 2.5z"></path></svg>短剧库</a>
+<a href="Plans.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5 15.5 12 12 16.5 8.5 12z"></path></svg><span style="flex-grow: 1;">套餐与积分</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Merchants.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5 5.5 4.5h13L20 9.5"></path><path d="M4 9.5c0 1.5 1.2 2.5 2.7 2.5s2.6-1 2.6-2.5c0 1.5 1.2 2.5 2.7 2.5s2.7-1 2.7-2.5c0 1.5 1.1 2.5 2.6 2.5S20 11 20 9.5"></path><path d="M5.5 12v7.5h13V12"></path><path d="M10 19.5V15h4v4.5"></path></svg><span style="flex-grow: 1;">商家</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">4</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Orders.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8.5l4 4v13H6z"></path><path d="M14 3.5V8h4.5M9 12.5h6M9 16.5h4"></path></svg><span style="flex-grow: 1;">订单</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">22</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Tickets.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"></path><path d="m4 7.5 8 4.5 8-4.5M12 12v9"></path></svg><span style="flex-grow: 1;">交付</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">7</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Delivery.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15.5V4"></path><path d="m7.5 8.5 4.5-4.5 4.5 4.5"></path><path d="M5 14v5.5h14V14"></path></svg><span style="flex-grow: 1;">发布</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">10</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Service.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2"></path><rect x="3.5" y="13.5" width="4" height="6" rx="1.5"></rect><rect x="16.5" y="13.5" width="4" height="6" rx="1.5"></rect></svg><span style="flex-grow: 1;">客服</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">6</span></a>
+<a href="Payments.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m9 7.5 3 4 3-4M12 11.5V17M9.5 12.5h5M9.5 15h5"></path></svg><span style="flex-grow: 1;">财务</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">8</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="RptOverview.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7.5 16.5v-5M12 16.5v-9M16.5 16.5v-7"></path></svg><span style="flex-grow: 1;">报表</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<div style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #FFFFFF;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3.5l7 4V6l-7 4z"></path><path d="M17.5 9.5a3.5 3.5 0 0 1 0 5"></path></svg><span style="flex-grow: 1;">运营</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div>
+<a href="OpsHome.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">首页配置</a>
+<a href="OpsMall.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">商城配置</a>
+<a href="OpsAgreements.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">协议管理</a>
+<a href="OpsTemplates.dc.html" aria-current="page" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #C4501B; color: #FFFFFF; font-size: 13px; font-weight: 600;">消息模板</a>
+<a href="OpsNotice.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">公告与常见问题<span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #5A5047; border-radius: 4px; font-size: 11px; line-height: 16px; color: #9A9084;">V1.1</span></a>
+<a href="SysStaff.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5h9M17.5 6.5h2M4.5 12h3M11.5 12h8M4.5 17.5h7M15.5 17.5h4"></path><circle cx="15.5" cy="6.5" r="2"></circle><circle cx="9.5" cy="12" r="2"></circle><circle cx="13.5" cy="17.5" r="2"></circle></svg><span style="flex-grow: 1;">系统</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Partners.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"></circle><path d="M3.5 19a5.5 5.5 0 0 1 11 0"></path><circle cx="17" cy="9.5" r="2.5"></circle><path d="M16 14.3a4.5 4.5 0 0 1 4.5 4.7"></path></svg><span style="flex-grow: 1;">渠道</span><span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #5A5047; border-radius: 4px; font-size: 11px; line-height: 16px; color: #9A9084;">V1.1</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+</div>
+</nav>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<header style="height: 56px; flex-shrink: 0; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 16px; background: #FFFFFF; border-bottom: 1px solid #ECE6DD;">
+<nav aria-label="面包屑" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6F665B;"><span>运营</span><span aria-hidden="true">/</span><span style="color: #1D1A16; font-weight: 600;">消息模板</span></nav>
+<label style="margin-left: auto; width: 300px; height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FAF8F4; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="全局搜索" placeholder="搜索商家、订单号、工单号" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<button type="button" aria-label="消息通知，5 条未读" style="position: relative; width: 40px; height: 40px; flex-shrink: 0; border: none; border-radius: 8px; background: transparent; color: #1D1A16; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg><span aria-hidden="true" style="position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; box-sizing: content-box; border: 2px solid #FFFFFF; border-radius: 6px; background: #C4501B;"></span></button>
+<div style="display: flex; align-items: center; gap: 10px; padding-left: 16px; border-left: 1px solid #ECE6DD;"><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 16px; background: #FBEDE5; color: #A63F12; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">周</span><div style="display: flex; flex-direction: column;"><span style="font-size: 14px; font-weight: 600; line-height: 1.3;">周航</span><span style="font-size: 12px; line-height: 1.3; color: #6F665B;">超级管理员</span></div></div>
+</header>
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<div role="status" style="position: absolute; top: 68px; right: 24px; z-index: 5; max-width: 540px; box-sizing: border-box; padding: 10px 8px 10px 14px; border-radius: 10px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: 0 8px 24px rgba(29, 26, 22, 0.18);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7FD19B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg><span style="flex-grow: 1;">{{toast}}</span><button type="button" aria-label="关闭提示" onClick="{{closeToast}}" style="width: 28px; height: 28px; flex-shrink: 0; border: none; border-radius: 6px; background: transparent; color: #FFFFFF; font-size: 16px; cursor: pointer;">×</button></div>
+</sc-if>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;">
+<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;"><h1 style="margin: 0; font-family: 'Noto Serif SC', serif; font-size: 24px; font-weight: 700; line-height: 1.3;">消息模板</h1><p style="margin: 0; font-size: 13px; color: #6F665B;">管理微信订阅消息与短信模板；订阅消息须商家在小程序中授权，未授权或发送失败时可按设置补发短信</p></div>
+</div>
+<div style="display: flex; gap: 16px; align-items: flex-start;"><section aria-label="消息模板" style="flex-shrink: 0; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; overflow: hidden; flex: 1 1 0px; min-width: 0;">
+<div role="tablist" aria-label="模板类型" style="display: flex; gap: 2px; box-sizing: border-box; padding: 0 12px; border-bottom: 1px solid #ECE6DD;">
+<sc-for list="{{kinds}}" as="t" hint-placeholder-count="2">
+<button type="button" role="tab" aria-selected="{{t.on}}" onClick="{{t.pick}}" style="flex-shrink: 0; min-height: 46px; padding: 0 10px; border: none; border-bottom: 2px solid {{t.line}}; background: none; font-family: inherit; font-size: 14px; font-weight: {{t.weight}}; color: {{t.color}}; cursor: pointer; display: flex; align-items: center; gap: 6px;"><span>{{t.label}}</span><span style="min-width: 20px; box-sizing: border-box; padding: 1px 6px; border-radius: 10px; background: {{t.cbg}}; color: {{t.cfg}}; font-size: 12px; font-weight: 600; line-height: 16px; text-align: center;">{{t.count}}</span></button>
+</sc-for>
+</div><div role="table" aria-label="消息模板" style="display: flex; flex-direction: column;"><div role="row" style="display: grid; grid-template-columns: 112px minmax(0, 1fr) 96px 60px 40px; column-gap: 12px; align-items: center; min-height: 40px; box-sizing: border-box; padding: 0 16px; background: #FAF8F4; border-bottom: 1px solid #ECE6DD; font-size: 12px; font-weight: 600; color: #6F665B;">
+<span role="columnheader">场景</span><span role="columnheader">触发时机</span><span role="columnheader" style="text-align: right;">近 7 天发送</span><span role="columnheader">补发短信</span><span role="columnheader">启用</span>
+</div><sc-for list="{{rows}}" as="r" hint-placeholder-count="17"><div role="row" onClick="{{r.pick}}" style="display: grid; grid-template-columns: 112px minmax(0, 1fr) 96px 60px 40px; column-gap: 12px; align-items: center; min-height: 35px; box-sizing: border-box; padding: 2px 16px; border-bottom: 1px solid #F0EBE3; background: {{r.bg}}; box-shadow: inset 3px 0 0 {{r.mark}}; font-size: 13px; cursor: pointer;"><span role="cell" style="font-weight: 600; white-space: nowrap;">{{r.scene}}</span><span role="cell" style="min-width: 0; color: #6F665B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{r.trigger}}</span><span role="cell" style="text-align: right; font-variant-numeric: tabular-nums;">{{r.sent}}</span><span role="cell" style="color: {{r.smsColor}};">{{r.sms}}</span><span role="cell"><button type="button" role="switch" aria-checked="{{r.on}}" aria-label="{{r.swLabel}}" onClick="{{r.toggle}}" style="position: relative; width: 36px; height: 20px; flex-shrink: 0; padding: 0; border: none; border-radius: 10px; background: {{r.swBg}}; cursor: pointer;"><span style="position: absolute; top: 2px; left: {{r.swKnob}}; width: 16px; height: 16px; border-radius: 8px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(29, 26, 22, 0.25);"></span></button></span></div></sc-for></div><p style="margin: 0; font-size: 12px; line-height: 1.7; color: #6F665B; box-sizing: border-box; padding: 10px 16px 12px;">{{foot}}</p>
+</section><section aria-label="模板详情" style="flex-shrink: 0; width: 380px; box-sizing: border-box; padding: 18px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 14px;"><div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;"><div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;"><h2 style="margin: 0; font-size: 17px; font-weight: 600;">{{cur.scene}}</h2><span style="font-size: 12px; color: #6F665B;">{{cur.idText}}</span></div><span style="display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; background: #E8EEF8; color: #2E5AAC; font-size: 12px; font-weight: 600; white-space: nowrap;">{{cur.kindLabel}}</span></div><div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">消息预览</span><div style="box-sizing: border-box; padding: 14px; border-radius: 12px; background: #EDEAE5;"><div style="box-sizing: border-box; padding: 14px; border-radius: 12px; background: #FFFFFF; box-shadow: 0 1px 3px rgba(29, 26, 22, 0.12); display: flex; flex-direction: column; gap: 8px;"><span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6F665B;"><span style="width: 16px; height: 16px; border-radius: 4px; background: #C4501B;"></span>{{cur.from}}</span><span style="font-size: 15px; font-weight: 600;">{{cur.title}}</span><sc-for list="{{cur.fields}}" as="f" hint-placeholder-count="4"><div style="display: grid; grid-template-columns: 76px minmax(0, 1fr); column-gap: 10px; font-size: 12px; line-height: 1.6;"><span style="color: #8A7F73;">{{f.k}}</span><span style="color: #1D1A16;">{{f.v}}</span></div></sc-for><span style="height: 1px; background: #F0EBE3;"></span><span style="display: flex; justify-content: space-between; font-size: 12px; color: #6F665B;"><span>{{cur.link}}</span><span>›</span></span></div></div></div><div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">字段取值</span><sc-for list="{{cur.maps}}" as="m" hint-placeholder-count="4"><div style="display: grid; grid-template-columns: 76px minmax(0, 1fr); column-gap: 10px; font-size: 12px; line-height: 1.6;"><span style="color: #6F665B;">{{m.k}}</span><span style="font-family: ui-monospace, Menlo, monospace; color: #2E5AAC;">{{m.v}}</span></div></sc-for></div><dl style="margin: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); row-gap: 6px; column-gap: 12px; font-size: 12px;">
+<dt style="color: #6F665B;">触发时机</dt><dd style="margin: 0;">{{cur.trigger}}</dd>
+<dt style="color: #6F665B;">接收人</dt><dd style="margin: 0;">{{cur.to}}</dd>
+<dt style="color: #6F665B;">发送时段</dt><dd style="margin: 0;">{{cur.window}}</dd>
+</dl><sc-if value="{{cur.isWx}}" hint-placeholder-val="{{true}}"><div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; background: #FAF8F4;"><span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; font-weight: 600;">未授权或发送失败时补发短信</span><span style="font-size: 12px; color: #6F665B;">{{cur.smsNote}}</span></span><button type="button" role="switch" aria-checked="{{cur.smsOn}}" aria-label="补发短信" onClick="{{toggleSms}}" style="position: relative; width: 36px; height: 20px; flex-shrink: 0; padding: 0; border: none; border-radius: 10px; background: {{cur.smsBg}}; cursor: pointer;"><span style="position: absolute; top: 2px; left: {{cur.smsKnob}}; width: 16px; height: 16px; border-radius: 8px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(29, 26, 22, 0.25);"></span></button></div></sc-if><div style="display: flex; gap: 10px;"><button type="button" onClick="{{testSend}}" style="min-height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 13px; cursor: pointer;">测试发送</button></div></section></div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const money = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const num = (n) => n.toLocaleString('en-US');
+    const tab = (key, label, count, cur, pick) => ({
+      key: key, label: label, count: count, on: key === cur, pick: pick,
+      line: key === cur ? '#C4501B' : 'transparent', color: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400',
+      cbg: key === cur ? '#FBEDE5' : '#F3EFE9', cfg: key === cur ? '#A63F12' : '#6F665B'
+    });
+    const segOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, bg: key === cur ? '#FFFFFF' : 'transparent', fg: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400' });
+    const pillOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, border: key === cur ? '#1D1A16' : '#E7E1D8', bg: key === cur ? '#1D1A16' : '#FFFFFF', fg: key === cur ? '#FFFFFF' : '#1D1A16' });
+    const sw = (on) => ({ bg: on ? '#256A42' : '#CFC7BC', knob: on ? '18px' : '2px' });
+    const toastVals = { toast: st.toast || '', hasToast: !!st.toast, closeToast: () => this.setState({ toast: '' }) };
+
+    const T = (key, kind, scene, trigger, to, sent, rate, sms, page, title, fields, maps, id, win) => ({ key: key, kind: kind, scene: scene, trigger: trigger, to: to, sent: sent, rate: rate, sms: sms, page: page, title: title, fields: fields, maps: maps, id: id, win: win });
+    const W = '08:00～21:00，超出时段顺延至次日 08:00';
+    const NOW = '立即发送';
+    const list = [
+      T('pay', 'wx', '付款成功', '付款单支付成功（对公转账为财务确认收款）后', '商家主账号', 64, '98.4%', false, '付款结果页',
+        '付款成功', [['付款单号', 'FK2026093000004'], ['付款内容', '升级专业版（本期剩余 20 天）'], ['实付金额', '¥2,000.00'], ['温馨提示', '已补发 2,400 套餐积分']],
+        [['付款单号', '{付款单号}'], ['付款内容', '{套餐或积分包}'], ['实付金额', '{实付金额}']], 'kF3mS7wQ…xVbN', NOW),
+      T('order', 'wx', '订购成功', '商家提交订购、积分冻结后', '商家主账号', 71, '98.6%', false, '订单详情',
+        '订购成功', [['订单编号', 'LYX2026093000005'], ['订购内容', '《心动便利店》整部 40 集'], ['冻结积分', '2,400 积分'], ['温馨提示', '服务经理将尽快联系您确认定制方案']],
+        [['订单编号', '{订单号}'], ['订购内容', '{剧名} 整部 {集数} 集'], ['冻结积分', '{应扣积分}']], 'Oa6rE2yT…9GcU', NOW),
+      T('plan', 'wx', '方案待确认', '交付经理推送交付方案后', '商家主账号', 49, '97.9%', false, '方案确认页',
+        '交付方案待确认', [['服务项目', '《巷口那家店》交付方案'], ['当前进度', '交付方案待确认'], ['温馨提示', '请确认定制重点、植入形式、上线账号与上线日期']],
+        [['服务项目', '{剧名}交付方案'], ['当前进度', '固定文案'], ['温馨提示', '固定文案']], 'Pq8tLm2R…4HwE', W),
+      T('ad', 'wx', '广告待确认', '剪辑师上传广告首版或修改版后', '商家主账号', 37, '97.3%', false, '我的广告',
+        '广告视频待确认', [['广告名称', '片尾贴片 · 10 秒'], ['当前版本', '第 2 版'], ['温馨提示', '剩余免费修改 1 次']],
+        [['广告名称', '{广告类型} · {时长}'], ['当前版本', '第 {版本号} 版'], ['温馨提示', '剩余免费修改 {次数} 次']], 'Yc5vN0aB…8JtK', W),
+      T('sample', 'wx', '样片待确认', '样片上传后；超过 2 天未处理再次提醒', '商家主账号', 41, '97.6%', true, '样片确认页',
+        '样片待确认', [['剧目', '《心动便利店》第 1 集样片'], ['当前进度', '样片待确认'], ['温馨提示', '确认后开始批量合成全部剧集']],
+        [['剧目', '{剧名}第 1 集样片'], ['当前进度', '固定文案'], ['温馨提示', '固定文案']], 'Rz7eW3hD…1QmP', W),
+      T('delivered', 'wx', '成片已交付', '发布专员推送成片包后', '商家主账号', 36, '100.0%', false, '发布任务页',
+        '成片已交付', [['剧目', '《二次开业》整部 60 集'], ['约定上线日', '2026-10-12'], ['温馨提示', '请在约定上线日一次性发布并回填链接']],
+        [['剧目', '{剧名} 整部 {集数} 集'], ['约定上线日', '{约定上线日}'], ['温馨提示', '固定文案']], 'Hs2kF9pL…6ZrC', W),
+      T('golive', 'wx', '上线提醒', '约定上线日前 1 天 09:00', '商家主账号', 33, '97.0%', true, '发布任务页',
+        '明天请上线短剧', [['剧目', '《夜巷疑云》整部 45 集'], ['上线日期', '2026-10-01'], ['上线账号', '抖音 · 橘子电玩']],
+        [['剧目', '{剧名} 整部 {集数} 集'], ['上线日期', '{约定上线日}'], ['上线账号', '{渠道} · {账号名称}']], 'Gb6wT1nV…3KsA', '定时发送'),
+      T('verify', 'wx', '核验结果', '链接核验通过或不通过后', '商家主账号', 44, '97.7%', false, '发布任务页',
+        '上线核验通过', [['剧目', '《心动便利店》'], ['核验结果', '通过'], ['说明', '成片使用期 2026-09-29 至 2027-12-31']],
+        [['剧目', '{剧名}'], ['核验结果', '{通过或不通过}'], ['说明', '{成片使用期或不通过原因}']], 'Ju4pC8xM…0LdS', W),
+      T('expire', 'wx', '套餐到期提醒', '套餐到期前 7 天、3 天、1 天及到期当天 10:00', '商家主账号', 118, '96.6%', true, '套餐与积分页',
+        '套餐即将到期', [['套餐', '专业版'], ['到期日期', '2026-10-12'], ['即将清零', '1,920 套餐积分'], ['温馨提示', '续费后可继续订购，已上线的短剧不受影响']],
+        [['套餐', '{套餐版本}'], ['到期日期', '{到期日}'], ['即将清零', '{剩余套餐积分}'], ['温馨提示', '固定文案']], 'Nw9aQ5sE…7VyG', '定时发送'),
+      T('offline', 'wx', '下架提醒', '成片使用期结束前 30 天、7 天、1 天 09:00', '商家主账号', 42, '97.6%', true, '下架任务页',
+        '成片即将到期', [['剧目', '《晚风小酒馆》'], ['下架日期', '2026-12-25'], ['温馨提示', '到期当日请删除作品或设为仅自己可见']],
+        [['剧目', '{剧名}'], ['下架日期', '{使用期结束日}'], ['温馨提示', '固定文案']], 'Te1mX6cR…9BnH', '定时发送'),
+      T('ticket', 'wx', '工单回复', '客服回复工单或提交处理结果后', '提交工单的用户', 52, '98.1%', false, '工单详情',
+        '客服已回复您的工单', [['工单编号', 'KF20260929011'], ['回复内容', '新片尾第 1 版已推送到“我的广告”'], ['处理人', '林晓']],
+        [['工单编号', '{工单号}'], ['回复内容', '{回复摘要，前 20 字}'], ['处理人', '{处理人}']], 'Vd3sK7gU…2PwJ', NOW),
+      T('invoice', 'wx', '发票已开具', '电子发票上传或纸质发票寄出后', '商家主账号', 19, '100.0%', false, '发票详情',
+        '发票已开具', [['发票抬头', '成都桃子美业有限公司'], ['发票金额', '¥3,000.00'], ['交付方式', '电子发票，可在小程序下载']],
+        [['发票抬头', '{认证主体}'], ['发票金额', '{开票金额}'], ['交付方式', '{电子或纸质}']], 'Lx8bD2rY…5TqM', W),
+      T('points', 'wx', '积分变动', '积分到账、退回或调整审批通过后', '商家主账号', 126, '97.8%', false, '积分明细',
+        '积分变动', [['变动类型', '平台补偿'], ['变动积分', '＋270 套餐积分'], ['可用积分', '4,080']],
+        [['变动类型', '{到账、退回或调整}'], ['变动积分', '{变动积分与类型}'], ['可用积分', '{变动后可用积分}']], 'Ma5nH4vZ…8CkW', W),
+      T('review', 'wx', '资质审核结果', '资质审核（含新增门店）通过或驳回后', '商家主账号', 64, '96.9%', true, '建档页',
+        '资质审核未通过', [['审核结果', '未通过'], ['原因', '营业执照照片模糊，请重新拍摄上传'], ['温馨提示', '修改后可重新提交审核']],
+        [['审核结果', '{通过或未通过}'], ['原因', '{驳回原因}'], ['温馨提示', '固定文案']], 'Wp0cJ3tF…4RxB', NOW),
+      T('member', 'wx', '成员变动', '店员加入门店，或被移出、调整所属门店后', '老板及相关店员', 6, '100.0%', false, '门店成员',
+        '门店成员变动', [['门店', 'XX 火锅（万达店）'], ['变动内容', '店员小雨已加入门店'], ['温馨提示', '可在“门店成员”中查看或调整']],
+        [['门店', '{门店名称}'], ['变动内容', '{成员}{加入、移出或调整}'], ['温馨提示', '固定文案']], 'Fk2dR8uL…3NmY', NOW),
+      T('asset', 'wx', '素材反馈', '素材被采用，或交付经理发起素材需求后', '上传人或门店成员', 23, '97.8%', false, '门店素材',
+        '您上传的素材已被采用', [['素材', '锅底翻滚特写（视频 0:12）'], ['用于', '广告视频：片尾贴片 · 10 秒'], ['温馨提示', '继续上传门店素材，定制效果更好']],
+        [['素材', '{素材标题}（{类型}）'], ['用于', '{剧名或广告名称}'], ['温馨提示', '固定文案']], 'Bt6hN2qS…7XeF', W),
+      T('refund', 'wx', '退款结果', '财务执行套餐退款后', '商家主账号', 1, '100.0%', false, '付款单详情',
+        '退款已发起', [['付款单号', 'FK2026091000004'], ['退款金额', '¥3,000.00'], ['到账说明', '原路退回至微信支付']],
+        [['付款单号', '{付款单号}'], ['退款金额', '{退款金额}'], ['到账说明', '{退款方式说明}']], 'Qe7yB1wN…6SdL', NOW),
+      T('code', 'sms', '身份验证码', '更换手机号或后台登录二次验证时', '操作人手机号', 38, '100.0%', false, '—',
+        '短信', [['短信内容', '【狸有戏】验证码 482913，5 分钟内有效，请勿泄露给他人。']], [['验证码', '{6 位数字}'], ['有效期', '5 分钟']], 'SMS_20260401', NOW),
+      T('s_review', 'sms', '资质审核结果', '订阅消息未送达时补发', '商家主账号', 11, '100.0%', false, '—',
+        '短信', [['短信内容', '【狸有戏】您的资质审核未通过：营业执照照片模糊。请进入小程序修改后重新提交。']], [['审核结果', '{通过或未通过}'], ['原因', '{驳回原因}']], 'SMS_20260402', NOW),
+      T('s_sample', 'sms', '样片待确认', '订阅消息未送达时补发', '商家主账号', 6, '100.0%', false, '—',
+        '短信', [['短信内容', '【狸有戏】《心动便利店》样片已上传 2 天，请进入小程序确认，确认后开始批量合成。']], [['剧目', '{剧名}']], 'SMS_20260403', W),
+      T('s_golive', 'sms', '上线提醒', '订阅消息未送达时补发', '商家主账号', 9, '100.0%', false, '—',
+        '短信', [['短信内容', '【狸有戏】明天（10-01）请在抖音一次性发布《夜巷疑云》全部剧集，并在小程序回填链接。']], [['日期', '{约定上线日}'], ['渠道', '{渠道}'], ['剧目', '{剧名}']], 'SMS_20260404', '定时发送'),
+      T('s_expire', 'sms', '套餐到期提醒', '订阅消息未送达时补发（仅到期前 1 天）', '商家主账号', 7, '100.0%', false, '—',
+        '短信', [['短信内容', '【狸有戏】您的专业版套餐将于 10-12 到期，1,920 套餐积分届时清零，续费后可继续订购。']], [['套餐', '{套餐版本}'], ['到期日期', '{到期日}'], ['清零积分', '{剩余套餐积分}']], 'SMS_20260405', '定时发送'),
+      T('s_offline', 'sms', '下架提醒', '订阅消息未送达时补发（仅使用期结束前 1 天）', '商家主账号', 4, '100.0%', false, '—',
+        '短信', [['短信内容', '【狸有戏】《旧时光照相馆》成片使用期 09-28 结束，请当日删除作品或设为仅自己可见。']], [['剧目', '{剧名}'], ['下架日期', '{使用期结束日}']], 'SMS_20260406', '定时发送')
+    ];
+    const kind = st.kind || 'wx';
+    const offMap = st.offMap || {};
+    const smsMap = st.smsMap || {};
+    const shown = list.filter((t) => t.kind === kind);
+    const curKey = st.cur && shown.some((t) => t.key === st.cur) ? st.cur : shown[0].key;
+    const cur = list.filter((t) => t.key === curKey)[0];
+    const isOn = (t) => offMap[t.key] !== true;
+    const smsOn = (t) => (smsMap[t.key] === undefined ? t.sms : smsMap[t.key]);
+    return Object.assign({
+      kinds: [['wx', '订阅消息', 17], ['sms', '短信', 6]].map((k) => tab(k[0], k[1], k[2], kind, () => this.setState({ kind: k[0], cur: '' }))),
+      rows: shown.map((t) => {
+        const on = isOn(t);
+        const sel = t.key === curKey;
+        return { scene: t.scene, trigger: t.trigger, sent: t.sent + ' 条 · ' + t.rate, sms: t.kind === 'sms' ? '—' : smsOn(t) ? '已开启' : '关闭', smsColor: t.kind !== 'sms' && smsOn(t) ? '#256A42' : '#9A9084',
+          on: on, swBg: on ? '#256A42' : '#CFC7BC', swKnob: on ? '18px' : '2px', swLabel: '启用“' + t.scene + '”',
+          bg: sel ? '#FFF8F3' : '#FFFFFF', mark: sel ? '#C4501B' : 'transparent',
+          pick: () => this.setState({ cur: t.key }),
+          toggle: (e) => { if (e && e.stopPropagation) e.stopPropagation(); const m = Object.assign({}, offMap); m[t.key] = on; this.setState({ offMap: m, cur: t.key, toast: (on ? '已停用' : '已启用') + '“' + t.scene + '”' + (on ? '，该场景不再发送' + (t.kind === 'sms' ? '短信' : '订阅消息') : '') }); }
+        };
+      }),
+      foot: kind === 'wx' ? '订阅消息模板在微信公众平台申请，此处配置字段取值与触发规则；成功率 ＝ 发送成功 ÷ 应发送。' : '短信签名为【狸有戏】，模板须经短信服务商审核；验证码类短信不受发送时段限制。',
+      cur: {
+        scene: cur.scene, kindLabel: cur.kind === 'wx' ? '订阅消息' : '短信', idText: (cur.kind === 'wx' ? '模板 ID ' : '模板编号 ') + cur.id,
+        from: cur.kind === 'wx' ? '狸有戏 · 服务通知' : '短信 · 106 号段', title: cur.kind === 'wx' ? cur.title : cur.scene,
+        fields: cur.fields.map((f) => ({ k: f[0], v: f[1] })),
+        link: cur.kind === 'wx' ? '进入小程序查看（' + cur.page + '）' : '短信不含跳转链接',
+        maps: cur.maps.map((m) => ({ k: m[0], v: m[1] })),
+        trigger: cur.trigger, to: cur.to, window: cur.win,
+        isWx: cur.kind === 'wx', smsOn: smsOn(cur), smsBg: smsOn(cur) ? '#256A42' : '#CFC7BC', smsKnob: smsOn(cur) ? '18px' : '2px',
+        smsNote: smsOn(cur) ? '补发“' + cur.scene + '”短信模板' : '关闭时只发送订阅消息'
+      },
+      toggleSms: () => { const m = Object.assign({}, smsMap); m[cur.key] = !smsOn(cur); this.setState({ smsMap: m }); },
+      testSend: () => this.setState({ toast: '已向测试账号发送“' + cur.scene + '”' + (cur.kind === 'wx' ? '订阅消息' : '短信') + '，请在手机上查看' })
+    }, toastVals);
+  }
+}
+</script>
+</body>
+</html>

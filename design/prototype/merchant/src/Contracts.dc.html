@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 合同与授权书</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+textarea::placeholder,input::placeholder{color:#6F665B}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;">
+<a href="Mine.dc.html" aria-label="返回" style="position: absolute; left: 2px; top: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1D1A16;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></a>
+<h1 style="margin: 0; font-size: 17px; font-weight: 600;">合同与授权书</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<div role="tablist" aria-label="文件类型" style="flex-shrink: 0; margin: 0 16px 10px; height: 40px; box-sizing: border-box; padding: 3px; border-radius: 20px; background: #ECE6DD; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px;">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="2"><button type="button" role="tab" aria-selected="{{t.on}}" onClick="{{t.pick}}" style="height: 34px; border: none; border-radius: 17px; background: {{t.bg}}; font-family: inherit; font-size: 14px; font-weight: {{t.weight}}; color: {{t.fg}}; cursor: pointer;">{{t.label}}</button></sc-for>
+</div>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 2px 16px 24px; display: flex; flex-direction: column; gap: 12px;">
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<p role="status" style="margin: 0; padding: 10px 12px; border-radius: 10px; background: {{toastBg}}; color: {{toastFg}}; font-size: 13px; font-weight: 600; line-height: 1.5;">{{toast}}</p>
+</sc-if>
+<p style="margin: 0; padding: 10px 12px; border-radius: 10px; background: #FFFFFF; display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 1.5; color: #4A433B;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#256A42" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"></path><path d="m9 12 2 2 4-4"></path></svg><span>合同、授权书与发票抬头：XX 餐饮管理有限公司</span></p>
+<sc-if value="{{isLic}}" hint-placeholder-val="{{true}}"><section aria-label="定制内容授权书" style="display: flex; flex-direction: column; gap: 10px;"><sc-for list="{{lics}}" as="l" hint-placeholder-count="5"><article style="background: #FFFFFF; border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;"><div style="display: flex; gap: 12px; align-items: flex-start;"><span aria-hidden="true" style="flex-shrink: 0; width: 40px; height: 48px; border-radius: 6px; background: #FBEDE5; color: #A63F12; display: flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6v18h12V7z"></path><path d="M14 3v4h4M9 12h6M9 16h6"></path></svg></span><div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;"><div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;"><span style="font-size: 15px; font-weight: 600;">《{{l.name}}》</span><span style="flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: {{l.stBg}}; color: {{l.stFg}}; white-space: nowrap;">{{l.st}}</span></div><span style="font-size: 12px; color: #6F665B;">{{l.spec}}</span><span style="font-size: 13px; line-height: 1.5;">授权期限：{{l.period}}</span><span style="font-size: 12px; color: #6F665B;">{{l.meta}}</span></div></div><div style="display: flex; justify-content: flex-end; gap: 10px;"><button type="button" onClick="{{l.preview}}" style="min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; gap: 4px; font-family: inherit; font-size: 13px; color: #1D1A16; cursor: pointer;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"></path><circle cx="12" cy="12" r="3"></circle></svg><span>预览</span></button><button type="button" onClick="{{l.download}}" style="min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; gap: 4px; font-family: inherit; font-size: 13px; color: #1D1A16; cursor: pointer;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="m7.5 10.5 4.5 4.5 4.5-4.5"></path><path d="M5 19.5h14"></path></svg><span>{{l.dl}}</span></button></div></article></sc-for><p style="margin: 0; padding: 0 4px; font-size: 12px; line-height: 1.6; color: #6F665B;"><span style="display: block;">授权书在订购成功后生成，按剧目与发布账号各 1 份；</span><span style="display: block;">平台续得版权的，授权期限同步顺延，可重新下载。</span></p></section></sc-if>
+<sc-if value="{{isAgr}}" hint-placeholder-val="{{false}}"><section aria-label="协议" style="background: #FFFFFF; border-radius: 14px; padding: 2px 16px; display: flex; flex-direction: column;"><sc-for list="{{agrs}}" as="a" hint-placeholder-count="6"><button type="button" onClick="{{a.open}}" style="display: flex; align-items: center; gap: 12px; min-height: 72px; padding: 12px 0; border: none; border-bottom: 1px solid #F0EBE3; background: none; font-family: inherit; color: #1D1A16; text-align: left; cursor: pointer;"><span aria-hidden="true" style="flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px; background: #F1ECE4; color: #4A433B; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6v18h12V7z"></path><path d="M14 3v4h4M9 12h6M9 16h6"></path></svg></span><span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;"><span style="display: flex; align-items: center; gap: 6px;"><span style="font-size: 15px; font-weight: 600;">{{a.name}}</span><span style="font-size: 11px; font-weight: 600; padding: 0 5px; border-radius: 4px; background: #E6F2EA; color: #256A42; line-height: 17px;">{{a.ver}}</span></span><span style="font-size: 12px; color: #6F665B;">{{a.signed}}</span><span style="font-size: 12px; color: #6F665B;">{{a.scene}}</span></span><span style="flex-shrink: 0; color: #9A9084;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></span></button></sc-for></section><p style="margin: 0; padding: 0 4px; font-size: 12px; line-height: 1.6; color: #6F665B;"><span style="display: block;">协议更新需要重新同意时，将在下次登录或订购时提示您；</span><span style="display: block;">历史版本与签署记录永久留存。</span></p></sc-if>
+</main>
+<sc-if value="{{pvOpen}}" hint-placeholder-val="{{false}}">
+<button type="button" aria-label="关闭定制内容授权书预览" onClick="{{close}}" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; border: none; padding: 0; background: rgba(15,14,12,0.5); cursor: pointer;"></button>
+<section role="dialog" aria-label="定制内容授权书预览" style="position: absolute; left: 0; right: 0; bottom: 0; max-height: 760px; overflow-y: auto; box-sizing: border-box; padding: 16px 16px 24px; border-radius: 16px 16px 0 0; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 17px; font-weight: 600;">{{pvTitle}}</span><span style="font-size: 13px; line-height: 1.5; color: #6F665B;">{{pvSub}}</span></div>
+<button type="button" aria-label="关闭" onClick="{{close}}" style="flex-shrink: 0; width: 44px; height: 44px; margin: -10px -10px 0 0; border: none; background: none; color: #6F665B; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</div>
+<div style="border: 1px solid #E7E1D8; border-radius: 10px; padding: 16px 14px; display: flex; flex-direction: column; gap: 10px; background: #FFFDF9;"><span style="align-self: center; font-family: 'Noto Serif SC', serif; font-size: 18px; font-weight: 900; letter-spacing: 3px;">定制内容授权书</span><dl style="margin: 0; display: grid; grid-template-columns: 100px minmax(0, 1fr); row-gap: 6px; column-gap: 8px; font-size: 13px; line-height: 1.5;"><sc-for list="{{pv}}" as="r" hint-placeholder-count="8"><dt style="color: #6F665B;">{{r.k}}</dt><dd style="margin: 0; display: flex; flex-direction: column;"><span>{{r.v}}</span><sc-if value="{{r.has2}}" hint-placeholder-val="{{false}}"><span>{{r.v2}}</span></sc-if></dd></sc-for></dl><span style="display: flex; flex-direction: column; font-size: 12px; line-height: 1.6; color: #6F665B;"><span>使用期结束当日须下架全部剧集；</span><span>正式授权书以双方签章版本为准。</span></span></div>
+<button type="button" onClick="{{pvDownload}}" style="height: 46px; padding: 0 16px; border-radius: 23px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 15px; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="m7.5 10.5 4.5 4.5 4.5-4.5"></path><path d="M5 19.5h14"></path></svg><span>{{pvDl}}</span></button>
+</section>
+</sc-if>
+<sc-if value="{{agrOpen}}" hint-placeholder-val="{{false}}">
+<button type="button" aria-label="关闭协议详情" onClick="{{close}}" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; border: none; padding: 0; background: rgba(15,14,12,0.5); cursor: pointer;"></button>
+<section role="dialog" aria-label="协议详情" style="position: absolute; left: 0; right: 0; bottom: 0; max-height: 760px; overflow-y: auto; box-sizing: border-box; padding: 16px 16px 24px; border-radius: 16px 16px 0 0; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 17px; font-weight: 600;">{{agrTitle}}</span><span style="font-size: 13px; line-height: 1.5; color: #6F665B;">{{agrSub}}</span></div>
+<button type="button" aria-label="关闭" onClick="{{close}}" style="flex-shrink: 0; width: 44px; height: 44px; margin: -10px -10px 0 0; border: none; background: none; color: #6F665B; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</div>
+<div style="max-height: 300px; overflow-y: auto; border: 1px solid #E7E1D8; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #FFFDF9;"><sc-for list="{{clauses}}" as="c" hint-placeholder-count="3"><div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600;">{{c.h}}</span><span style="font-size: 13px; line-height: 1.6; color: #4A433B;">{{c.t}}</span></div></sc-for><span style="font-size: 12px; color: #6F665B;">以上为节选，完整条款请下载查看。</span></div>
+<dl style="margin: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); row-gap: 6px; column-gap: 8px; font-size: 13px; line-height: 1.5;"><sc-for list="{{agrRows}}" as="r" hint-placeholder-count="3"><dt style="color: #6F665B;">{{r.k}}</dt><dd style="margin: 0;">{{r.v}}</dd></sc-for></dl>
+<button type="button" onClick="{{agrDownload}}" style="height: 46px; padding: 0 16px; border-radius: 23px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 15px; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="m7.5 10.5 4.5 4.5 4.5-4.5"></path><path d="M5 19.5h14"></path></svg><span>{{agrDl}}</span></button>
+</section>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+
+    const toastTone = { ok: ['#E6F2EA', '#256A42'], info: ['#E8EEF9', '#2E5AAC'], warn: ['#FBEDE5', '#A63F12'] };
+    const tt = toastTone[st.toastTone || 'ok'];
+    const toastVals = { toast: st.toast || '', hasToast: !!st.toast, toastBg: tt[0], toastFg: tt[1] };
+
+    const tab = st.tab || 'lic';
+    const got = st.got || {};
+    const tones = { 待生效: ['#E8EEF9', '#2E5AAC'], 生效中: ['#E6F2EA', '#256A42'], 已失效: ['#F1ECE4', '#4A433B'] };
+    const L = (key, name, st0, spec, period, meta, range) => ({ key: key, name: name, title: '《定制内容授权书》· ' + name, st: st0, spec: spec, period: period, meta: meta, range: range });
+    const lics = [
+      L('xk', '巷口那家店', '待生效', '整部 80 集 · 门店定制 · 抖音 @XX火锅', '自上线首日起至 2027-12-31', '订单 LYX2026092600018 · 09-26 10:32 生成', '《巷口那家店》第 1～80 集'),
+      L('ec', '二次开业', '待生效', '整部 60 集 · 门店定制 · 抖音 @XX火锅', '自上线首日起至 2027-09-30', '订单 LYX2026092600018 · 09-26 10:32 生成', '《二次开业》第 1～60 集'),
+      L('jy', '家有萌娃', '生效中', '整部 36 集 · 门店定制 · 抖音 @XX火锅', '2026-08-22 至 2027-06-30', '订单 LYX2026081400006 · 08-14 10:20 生成', '《家有萌娃》第 1～36 集'),
+      L('yx', '夜巷疑云', '生效中', '整部 45 集 · 门店定制 · 抖音 @XX火锅', '2026-08-22 至 2027-08-31', '订单 LYX2026081400006 · 08-14 10:20 生成', '《夜巷疑云》第 1～45 集'),
+      L('jx', '锦绣小厨娘', '生效中', '整部 80 集 · 门店定制 · 抖音 @XX火锅', '2026-08-22 至 2027-10-31', '订单 LYX2026081400006 · 08-14 10:20 生成', '《锦绣小厨娘》第 1～80 集')
+    ];
+    const A = (key, name, ver, signed, scene, eff, ref, clauses) => ({ key: key, name: name, ver: ver, signed: signed, scene: scene, eff: eff, ref: ref, clauses: clauses });
+    const agrs = [
+      A('member', '《会员服务协议》', 'v1.0', '最近确认：09-10 20:05（续费专业版时）', '首次签署：08-13 09:15（开通专业版时）', '2026-04-01', '付款单 FK2026091000011', [
+        ['第一条 套餐与权益', '套餐按经营主体开通，按版本享有每月套餐积分、订剧与广告折扣和制作模型等权益，具体以开通时的版本说明为准。'],
+        ['第二条 周期与续费', '可选 1、3、12 个月；到期前 7 天、3 天、1 天提醒续费，到期未续费的，套餐积分清零、加购积分冻结。'],
+        ['第三条 退款', '开通 7 天内且未使用积分（含冻结）的，可全额退款；其他情形不予退款。']]),
+      A('points', '《积分规则》', 'v1.0', '最近确认：09-20 16:12（加购积分时）', '首次同意：08-13 09:15（开通专业版时）', '2026-04-01', '付款单 FK2026092000015', [
+        ['一、积分来源', '套餐积分随套餐每月发放；加购积分按积分包购买，1 积分 ＝ 1 元（示例）。'],
+        ['二、有效期', '套餐积分在套餐周期内累计有效，周期结束时清零；加购积分长期有效，仅在套餐生效期间可用。'],
+        ['三、扣减与退回', '先扣套餐积分（快到期的先用），不足再扣加购积分；开始制作前取消的，冻结的积分全额退回。']]),
+      A('custom', '《定制内容授权使用协议》', 'v1.0', '最近签署：09-26 10:32（订购时）', '首次签署：08-14 10:20（订购时）', '2026-04-01', '订单 LYX2026092600018', [
+        ['第一条 授权范围', '在订购时选择的发布账号上，享有定制成片的信息网络传播权；不得再授权，不得转给其他商家或账号使用。'],
+        ['第二条 使用期', '成片使用期自上线首日起，至剧目授权期结束；平台续得版权的，同步顺延。'],
+        ['第三条 到期下架', '使用期结束当日，须删除全部作品或设为仅自己可见。']]),
+      A('ad', '《广告制作与交付服务协议》', 'v1.0', '最近签署：09-28 15:00（提交制作需求时）', '首次签署：08-14 15:00（提交制作需求时）', '2026-04-01', '需求 GG20260928001～004', [
+        ['第一条 制作流程', '商家提交制作需求后，剪辑师在 2 个工作日内完成首版，商家在小程序确认或提出修改意见。'],
+        ['第二条 修改次数', '每条广告免费修改 2 次，超出后每次修改按 1 条扣积分。'],
+        ['第三条 素材授权', '商家提供的图片、视频、音乐等素材须拥有合法权利，因素材侵权产生的责任由商家承担。']]),
+      A('user', '《用户服务协议》', 'v1.1', '最近同意：08-03 09:12（登录时）', '首次同意：06-12（注册时，v1.0）', '2026-08-01', '—', [
+        ['第一条 服务内容', '「狸有戏」为本地商家提供定制短剧、广告视频制作、植入合成与上线指导等服务，具体以订购约定为准。'],
+        ['第二条 账号与认证', '一个手机号对应一个账号；商家须以营业执照主体完成认证，认证信息用于审核、合同与开票。'],
+        ['第三条 套餐与积分', '订剧与广告制作使用积分，规则见《积分规则》；套餐开通、续费与退款见《会员服务协议》。']]),
+      A('privacy', '《隐私政策》', 'v1.1', '最近同意：08-03 09:12（登录时）', '首次同意：06-12（注册时，v1.0）', '2026-08-01', '—', [
+        ['一、我们收集的信息', '手机号用于登录；门店信息、营业执照与法人身份证件用于资质审核、生成《定制内容授权书》与开具发票。'],
+        ['二、信息的使用', '服务经理会通过企业微信联系您，沟通定制方案与上线安排。'],
+        ['三、信息的存储与保护', '敏感信息加密存储、脱敏展示，仅授权人员可在必要范围内查看。']])
+    ];
+    const pvKey = st.pvKey || 'xk';
+    const pv = lics.filter((l) => l.key === pvKey)[0];
+    const agKey = st.agKey || 'member';
+    const ag = agrs.filter((a) => a.key === agKey)[0];
+    const dl = (k, name) => this.setState({ got: Object.assign({}, got, { [k]: true }), toast: '已下载' + name + '（PDF）', toastTone: 'ok' });
+    return Object.assign({
+      tabs: [['lic', '定制内容授权书 · 5'], ['agr', '协议 · 6']].map((t) => ({ label: t[1], on: t[0] === tab, pick: () => this.setState({ tab: t[0], toast: '' }),
+        bg: t[0] === tab ? '#FFFFFF' : 'transparent', fg: t[0] === tab ? '#1D1A16' : '#6F665B', weight: t[0] === tab ? '600' : '400' })),
+      isLic: tab === 'lic', isAgr: tab === 'agr',
+      lics: lics.map((l) => Object.assign({}, l, { stBg: tones[l.st][0], stFg: tones[l.st][1], dl: got[l.key] ? '已下载' : '下载',
+        preview: () => this.setState({ pvOpen: true, pvKey: l.key }),
+        download: () => dl(l.key, l.title) })),
+      agrs: agrs.map((a) => Object.assign({}, a, { signed: a.signed, open: () => this.setState({ agrOpen: true, agKey: a.key }) })),
+      pvOpen: !!st.pvOpen,
+      pvTitle: pv.title, pvSub: pv.meta,
+      pv: [
+        { k: '授权方', v: '[狸有戏运营主体名称]' }, { k: '被授权方', v: 'XX 餐饮管理有限公司' }, { k: '下单门店', v: 'XX 火锅（万达店）' },
+        { k: '剧名与集数', v: pv.range }, { k: '许可信息', v: '[许可证号或节目编号]' }, { k: '授权平台与账号', v: '抖音 @XX火锅' },
+        { k: '授权期限', v: pv.period }, { k: '权利范围', v: '在上述账号播放；为门店定制', v2: '改编、剪辑与植入广告；不得再授权' },
+        { k: '专属声明', v: '本成片为 XX 火锅（万达店）', v2: '专属定制，不得转给他人使用' }
+      ].map((r) => Object.assign({ v2: '' }, r, { has2: !!r.v2 })),
+      pvDl: got[pv.key] ? '已下载，可再次下载' : '下载 PDF',
+      pvDownload: () => dl(pv.key, pv.title),
+      agrOpen: !!st.agrOpen,
+      agrTitle: ag.name + ' ' + ag.ver, agrSub: ag.eff + ' 起生效',
+      clauses: ag.clauses.map((c) => ({ h: c[0], t: c[1] })),
+      agrRows: [{ k: '签署记录', v: ag.signed }, { k: '', v: ag.scene }, { k: '关联单据', v: ag.ref }],
+      agrDl: got[ag.key] ? '已下载，可再次下载' : '下载 PDF',
+      agrDownload: () => dl(ag.key, ag.name),
+      close: () => this.setState({ pvOpen: false, agrOpen: false })
+    }, toastVals);
+  }
+}
+</script>
+</body>
+</html>

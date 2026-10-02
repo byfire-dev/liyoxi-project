@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏运营后台 · 工单池</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; overflow: hidden; position: relative; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; font-size: 14px;">
+<nav aria-label="主菜单" style="width: 216px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; background: #231F1B; color: #D9D1C5;">
+<div style="height: 64px; flex-shrink: 0; box-sizing: border-box; padding: 0 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #3A332C;">
+<svg width="30" height="30" viewBox="0 0 64 64" fill="none" stroke="#E8864F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12 22 25h20l12-13-2 22-20 19-20-19z"></path><path d="m21 34 5 2.5M43 34l-5 2.5"></path><circle cx="32" cy="44" r="1.8" fill="#E8864F" stroke="none"></circle></svg>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-family: 'Noto Serif SC', serif; font-size: 19px; font-weight: 900; letter-spacing: 3px; line-height: 1.1; color: #FFFFFF;">狸有戏</span><span style="font-size: 12px; line-height: 1.2; color: #9A9084;">运营管理后台</span></div>
+</div>
+<div style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px;">
+<a href="Main.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>工作台</a>
+<a href="Dramas.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="m10.5 9.5 4 2.5-4 2.5z"></path></svg>短剧库</a>
+<a href="Plans.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5 15.5 12 12 16.5 8.5 12z"></path></svg><span style="flex-grow: 1;">套餐与积分</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Merchants.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5 5.5 4.5h13L20 9.5"></path><path d="M4 9.5c0 1.5 1.2 2.5 2.7 2.5s2.6-1 2.6-2.5c0 1.5 1.2 2.5 2.7 2.5s2.7-1 2.7-2.5c0 1.5 1.1 2.5 2.6 2.5S20 11 20 9.5"></path><path d="M5.5 12v7.5h13V12"></path><path d="M10 19.5V15h4v4.5"></path></svg><span style="flex-grow: 1;">商家</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">4</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Orders.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8.5l4 4v13H6z"></path><path d="M14 3.5V8h4.5M9 12.5h6M9 16.5h4"></path></svg><span style="flex-grow: 1;">订单</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">22</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<div style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #FFFFFF;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"></path><path d="m4 7.5 8 4.5 8-4.5M12 12v9"></path></svg><span style="flex-grow: 1;">交付</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div>
+<a href="Tickets.dc.html" aria-current="page" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #C4501B; color: #FFFFFF; font-size: 13px; font-weight: 600;">工单池<span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #FFFFFF; color: #A63F12; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">{{pendingAssign}}</span></a>
+<a href="AdTasks.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">广告制作任务<span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">5</span></a>
+<a href="Delivery.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15.5V4"></path><path d="m7.5 8.5 4.5-4.5 4.5 4.5"></path><path d="M5 14v5.5h14V14"></path></svg><span style="flex-grow: 1;">发布</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">10</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Service.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2"></path><rect x="3.5" y="13.5" width="4" height="6" rx="1.5"></rect><rect x="16.5" y="13.5" width="4" height="6" rx="1.5"></rect></svg><span style="flex-grow: 1;">客服</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">6</span></a>
+<a href="Payments.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m9 7.5 3 4 3-4M12 11.5V17M9.5 12.5h5M9.5 15h5"></path></svg><span style="flex-grow: 1;">财务</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">8</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="RptOverview.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7.5 16.5v-5M12 16.5v-9M16.5 16.5v-7"></path></svg><span style="flex-grow: 1;">报表</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="OpsHome.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3.5l7 4V6l-7 4z"></path><path d="M17.5 9.5a3.5 3.5 0 0 1 0 5"></path></svg><span style="flex-grow: 1;">运营</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="SysStaff.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5h9M17.5 6.5h2M4.5 12h3M11.5 12h8M4.5 17.5h7M15.5 17.5h4"></path><circle cx="15.5" cy="6.5" r="2"></circle><circle cx="9.5" cy="12" r="2"></circle><circle cx="13.5" cy="17.5" r="2"></circle></svg><span style="flex-grow: 1;">系统</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Partners.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"></circle><path d="M3.5 19a5.5 5.5 0 0 1 11 0"></path><circle cx="17" cy="9.5" r="2.5"></circle><path d="M16 14.3a4.5 4.5 0 0 1 4.5 4.7"></path></svg><span style="flex-grow: 1;">渠道</span><span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #5A5047; border-radius: 4px; font-size: 11px; line-height: 16px; color: #9A9084;">V1.1</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+</div>
+</nav>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<header style="height: 56px; flex-shrink: 0; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 16px; background: #FFFFFF; border-bottom: 1px solid #ECE6DD;">
+<nav aria-label="面包屑" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6F665B;"><span>交付</span><span aria-hidden="true">/</span><span style="color: #1D1A16; font-weight: 600;">工单池</span></nav>
+<label style="margin-left: auto; width: 300px; height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FAF8F4; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="全局搜索" placeholder="搜索商家、订单号、工单号" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<button type="button" aria-label="消息通知，5 条未读" style="position: relative; width: 40px; height: 40px; flex-shrink: 0; border: none; border-radius: 8px; background: transparent; color: #1D1A16; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg><span aria-hidden="true" style="position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; box-sizing: content-box; border: 2px solid #FFFFFF; border-radius: 6px; background: #C4501B;"></span></button>
+<div style="display: flex; align-items: center; gap: 10px; padding-left: 16px; border-left: 1px solid #ECE6DD;"><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 16px; background: #FBEDE5; color: #A63F12; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">周</span><div style="display: flex; flex-direction: column;"><span style="font-size: 14px; font-weight: 600; line-height: 1.3;">周航</span><span style="font-size: 12px; line-height: 1.3; color: #6F665B;">超级管理员</span></div></div>
+</header>
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<div role="status" style="position: absolute; top: 68px; right: 24px; z-index: 5; max-width: 460px; box-sizing: border-box; padding: 10px 8px 10px 14px; border-radius: 10px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: 0 8px 24px rgba(29, 26, 22, 0.18);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7FD19B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg><span style="flex-grow: 1;">{{toast}}</span><button type="button" aria-label="关闭提示" onClick="{{closeToast}}" style="width: 28px; height: 28px; flex-shrink: 0; border: none; border-radius: 6px; background: transparent; color: #FFFFFF; font-size: 16px; cursor: pointer;">×</button></div>
+</sc-if>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<h1 style="margin: 0; font-family: 'Noto Serif SC', serif; font-size: 24px; font-weight: 700; line-height: 1.3;">工单池</h1>
+<p style="margin: 0; font-size: 13px; color: #6F665B;">处理中 {{activeCount}} 个 · <span style="color: #B42318; font-weight: 600;">超时或逾期 {{overCount}} 个</span> · 今日截止 {{todayCount}} 个 · 订购成功且资质审核通过后自动生成工单，同时正式扣减积分</p>
+</div>
+<button type="button" onClick="{{exportAll}}" style="min-height: 36px; padding: 0 16px; border: 1px solid #DDD5C9; border-radius: 8px; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; display: flex; align-items: center; gap: 6px; cursor: pointer;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="m7.5 10.5 4.5 4.5 4.5-4.5"></path><path d="M5 19.5h14"></path></svg>导出</button>
+</div>
+<section aria-label="工单列表" style="border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; overflow: hidden;">
+<div role="tablist" aria-label="工单状态" style="display: flex; gap: 2px; box-sizing: border-box; padding: 0 12px; border-bottom: 1px solid #ECE6DD; overflow-x: auto;">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="12">
+<button type="button" role="tab" aria-selected="{{t.on}}" onClick="{{t.pick}}" style="flex-shrink: 0; min-height: 46px; padding: 0 6px; border: none; border-bottom: 2px solid {{t.line}}; background: none; font-family: inherit; font-size: 14px; font-weight: {{t.weight}}; color: {{t.color}}; cursor: pointer; display: flex; align-items: center; gap: 4px;">{{t.label}}<span style="min-width: 20px; box-sizing: border-box; padding: 1px 6px; border-radius: 10px; background: {{t.cbg}}; color: {{t.cfg}}; font-size: 12px; font-weight: 600; line-height: 16px;">{{t.count}}</span></button>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; box-sizing: border-box; padding: 12px 16px; border-bottom: 1px solid #ECE6DD;">
+<label style="width: 240px; height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="搜索工单" placeholder="工单号、商家或剧名" value="{{q}}" onChange="{{onQ}}" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<select aria-label="交付经理" value="{{mgr}}" onChange="{{onMgr}}" style="height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="全部">全部交付经理</option><option value="林晓">林晓</option><option value="苏晴">苏晴</option><option value="韩冬">韩冬</option><option value="未分配">未分配</option></select>
+<select aria-label="制作模型" value="{{ver}}" onChange="{{onVer}}" style="height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="全部">全部模型</option><option value="标准模型">标准模型</option><option value="高级模型">高级模型</option><option value="顶级模型">顶级模型</option></select>
+<select aria-label="发布账号" value="{{ch}}" onChange="{{onCh}}" style="height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="全部">全部发布账号</option><option value="抖音">抖音</option><option value="视频号">视频号</option></select>
+<label style="min-height: 36px; display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;"><input type="checkbox" checked="{{onlyOver}}" onChange="{{toggleOver}}" style="width: 16px; height: 16px; margin: 0; accent-color: #C4501B;">仅看超时与逾期</label>
+<button type="button" onClick="{{reset}}" style="margin-left: auto; min-height: 36px; padding: 0 12px; border: none; border-radius: 8px; background: transparent; color: #A63F12; font-family: inherit; font-size: 13px; cursor: pointer;">重置筛选</button>
+</div>
+<div role="table" aria-label="工单" style="display: flex; flex-direction: column;">
+<div role="row" style="display: grid; grid-template-columns: 146px 140px minmax(0, 1fr) 96px 80px 68px 84px 116px 60px; column-gap: 12px; align-items: center; min-height: 40px; box-sizing: border-box; padding: 0 16px; background: #FAF8F4; border-bottom: 1px solid #ECE6DD; font-size: 12px; font-weight: 600; color: #6F665B;">
+<span role="columnheader">工单号</span><span role="columnheader">商家</span><span role="columnheader">剧目与集数</span><span role="columnheader">发布账号</span><span role="columnheader">约定上线日</span><span role="columnheader">交付经理</span><span role="columnheader">当前状态</span><span role="columnheader">截止时间</span><span role="columnheader">操作</span>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="10">
+<div role="row" style="display: grid; grid-template-columns: 146px 140px minmax(0, 1fr) 96px 80px 68px 84px 116px 60px; column-gap: 12px; align-items: center; min-height: 50px; box-sizing: border-box; padding: 4px 16px; border-bottom: 1px solid #F0EBE3; background: {{r.rowBg}}; font-size: 13px;">
+<span role="cell" style="font-variant-numeric: tabular-nums;">{{r.id}}</span>
+<span role="cell" style="font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{r.m}}</span>
+<span role="cell" style="min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="display: flex; align-items: center; gap: 6px; min-width: 0;"><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">《{{r.d}}》</span></span><span style="font-size: 12px; color: #6F665B;">{{r.eps}} · {{r.months}}</span></span>
+<span role="cell" style="color: #6F665B;">{{r.ch}}</span>
+<span role="cell" style="font-variant-numeric: tabular-nums;">{{r.date}}</span>
+<span role="cell" style="color: {{r.mgrColor}}; font-weight: {{r.mgrWeight}};">{{r.mgrLabel}}</span>
+<span role="cell"><span style="display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; background: {{r.sbg}}; color: {{r.sfg}}; font-size: 12px; font-weight: 600; white-space: nowrap;">{{r.s}}</span></span>
+<span role="cell" style="font-variant-numeric: tabular-nums; color: {{r.dueColor}}; font-weight: {{r.dueWeight}};">{{r.due}}</span>
+<span role="cell" style="display: flex; align-items: center;">
+<sc-if value="{{r.isAssign}}" hint-placeholder-val="{{false}}"><button type="button" onClick="{{r.assign}}" style="min-height: 30px; padding: 0 12px; border: none; border-radius: 6px; background: #C4501B; color: #FFFFFF; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">分配</button></sc-if>
+<sc-if value="{{r.isVerify}}" hint-placeholder-val="{{false}}"><a href="Verify.dc.html" style="min-height: 30px; display: inline-flex; align-items: center; color: #A63F12; font-weight: 600;">去核验</a></sc-if>
+<sc-if value="{{r.isOffline}}" hint-placeholder-val="{{false}}"><a href="Offline.dc.html" style="min-height: 30px; display: inline-flex; align-items: center; color: #A63F12; font-weight: 600;">去核查</a></sc-if>
+<sc-if value="{{r.isDelivery}}" hint-placeholder-val="{{false}}"><a href="Delivery.dc.html" style="min-height: 30px; display: inline-flex; align-items: center; color: #A63F12; font-weight: 600;">去交付</a></sc-if>
+<sc-if value="{{r.isView}}" hint-placeholder-val="{{true}}"><a href="TicketDetail.dc.html" style="min-height: 30px; display: inline-flex; align-items: center; color: #A63F12;">查看</a></sc-if>
+</span>
+</div>
+</sc-for>
+<sc-if value="{{empty}}" hint-placeholder-val="{{false}}">
+<div style="padding: 64px 24px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;"><span style="font-size: 15px; font-weight: 600;">没有符合条件的工单</span><span style="font-size: 13px; color: #6F665B;">可调整状态或筛选条件后再试</span></div>
+</sc-if>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; padding: 10px 16px; font-size: 13px; color: #6F665B;">
+<span>共 {{total}} 条 · 每页 10 条</span>
+<div aria-hidden="true" style="display: flex; align-items: center; gap: 6px;"><span style="width: 30px; height: 30px; border: 1px solid #ECE6DD; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #C9C1B6;">‹</span><span style="width: 30px; height: 30px; border-radius: 6px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 600;">1</span><span style="padding: 0 6px;">/ {{pages}} 页</span><span style="width: 30px; height: 30px; border: 1px solid #ECE6DD; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #1D1A16;">›</span></div>
+</div>
+</section>
+</main>
+</div>
+<sc-if value="{{dlgOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10; background: rgba(29, 26, 22, 0.45); display: flex; align-items: center; justify-content: center;">
+<section role="dialog" aria-modal="true" aria-labelledby="assign-title" style="width: 520px; box-sizing: border-box; padding: 24px; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 48px rgba(29, 26, 22, 0.24);">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><h2 id="assign-title" style="margin: 0; font-size: 18px; font-weight: 600;">分配交付经理</h2><p style="margin: 0; font-size: 13px; color: #6F665B;">{{dlgId}} · {{dlgMerchant}} · 《{{dlgDrama}}》{{dlgEps}}</p></div>
+<button type="button" aria-label="关闭" onClick="{{closeDlg}}" style="width: 32px; height: 32px; flex-shrink: 0; border: none; border-radius: 8px; background: #F6F3EE; color: #1D1A16; font-size: 18px; cursor: pointer;">×</button>
+</div>
+<p style="margin: 0; padding: 10px 12px; border-radius: 8px; background: #FAF8F4; font-size: 13px; line-height: 1.6; color: #6F665B;">门店区域：{{dlgArea}}。系统按城市轮询推荐交付经理，主管可手动调整；分配后交付经理须在 1 个工作日内完成方案确认。</p>
+<div role="radiogroup" aria-label="选择交付经理" style="display: flex; flex-direction: column; gap: 8px;">
+<sc-for list="{{mgrOpts}}" as="o" hint-placeholder-count="3">
+<label style="min-height: 56px; box-sizing: border-box; padding: 8px 14px; border: {{o.border}}; border-radius: 10px; background: {{o.bg}}; display: flex; align-items: center; gap: 12px; cursor: pointer;">
+<input type="radio" name="assign-mgr" checked="{{o.on}}" onChange="{{o.pick}}" style="width: 16px; height: 16px; margin: 0; accent-color: #C4501B;">
+<span aria-hidden="true" style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 16px; background: #F0EBE3; color: #1D1A16; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600;">{{o.initial}}</span>
+<span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;"><span style="display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600;">{{o.name}}<sc-if value="{{o.rec}}" hint-placeholder-val="{{false}}"><span style="padding: 0 6px; border-radius: 4px; background: #FBEDE5; color: #A63F12; font-size: 12px; line-height: 18px;">轮询推荐</span></sc-if></span><span style="font-size: 12px; color: #6F665B;">交付经理 · 成都</span></span>
+<span style="font-size: 13px; color: #6F665B;">{{o.load}}</span>
+</label>
+</sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px;">
+<label for="assign-note" style="font-size: 13px; font-weight: 600;">分配说明（选填）</label>
+<textarea id="assign-note" rows="2" maxlength="100" placeholder="如：商家首单，请优先电话联系" style="box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; line-height: 1.5; color: #1D1A16; resize: none;"></textarea>
+</div>
+<div style="display: flex; justify-content: flex-end; gap: 10px;">
+<button type="button" onClick="{{closeDlg}}" style="min-height: 40px; padding: 0 18px; border: 1px solid #DDD5C9; border-radius: 8px; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; cursor: pointer;">取消</button>
+<button type="button" onClick="{{confirmAssign}}" style="min-height: 40px; padding: 0 18px; border: none; border-radius: 8px; background: #C4501B; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">确认分配</button>
+</div>
+</section>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const tab = st.tab || '处理中';
+    const q = st.q || '';
+    const mgr = st.mgr || '全部';
+    const ver = st.ver || '全部';
+    const ch = st.ch || '全部';
+    const onlyOver = !!st.onlyOver;
+    const assigned = st.assigned || {};
+    const rot = ['苏晴', '韩冬', '林晓'];
+    const rec = rot[Object.keys(assigned).length % 3];
+    const pick = st.pick || rec;
+    const T = (id, m, d, ver, eps, months, ch, date, mgr, s, due, lv, k, area) => ({ id: id, m: m, d: d, ver: ver, eps: eps, months: months, ch: ch, date: date, mgr: mgr, s: s, due: due, lv: lv, k: k, area: area || '' });
+    // ver 与 months 均为制作模型（筛选与展示）；每张工单对应订购单中的 1 部剧，整部定制
+    const X = (id, m, d, eps, model, ch, date, mgr, s, due, lv, k, area) => T(id, m, d, model, '整部 ' + eps + ' 集', model, ch, date, mgr, s, due, lv, k, area);
+    const base = [
+      X('JF2026091800011-1', '禾田面馆', '锦绣小厨娘', 80, '标准模型', '抖音', '09-28', '苏晴', '待上线', '已逾期 2 天', 2, 1),
+      X('JF2026080500004-1', '老街烧烤', '旧时光照相馆', 30, '高级模型', '抖音', '08-07', '林晓', '到期下架', '逾期未下架', 2, 2),
+      X('JF2026092200010-1', '星河洗车', '夜巷疑云', 45, '高级模型', '抖音', '10-08', '苏晴', '成片交付', '已超时 16 小时', 2, 3),
+      X('JF2026093000003-1', '小鹿亲子乐园', '家有萌娃', 36, '标准模型', '抖音', '待确认', '', '待分配', '今天 11:12', 1, 5, '成都市龙泉驿区'),
+      X('JF2026093000005-1', '悦心瑜伽', '心动便利店', 40, '标准模型', '抖音', '待确认', '', '待分配', '今天 12:05', 1, 6, '成都市武侯区'),
+      X('JF2026092400006-1', '金牌汽修', '二次开业', 60, '高级模型', '抖音', '10-09', '苏晴', '样片确认', '今天 16:00', 1, 7),
+      X('JF2026092900022-1', '老街烧烤', '锦绣小厨娘', 80, '高级模型', '抖音', '10-16', '林晓', '方案确认', '今天 16:48', 1, 8),
+      X('JF2026092600018-2', 'XX 火锅（万达店）', '二次开业', 60, '高级模型', '抖音', '10-12', '林晓', '样片制作', '今天 18:00', 1, 9),
+      X('JF2026092800020-1', '云间民宿', '巷口那家店', 80, '顶级模型', '抖音＋视频号', '10-13', '韩冬', '广告准备', '今天 18:00', 1, 10),
+      X('JF2026092200004-1', '味道江湖串串', '锦绣小厨娘', 80, '高级模型', '抖音', '10-06', '林晓', '成片交付', '今天 18:00', 1, 11),
+      X('JF2026092300008-1', '暖暖母婴', '家有萌娃', 36, '高级模型', '抖音', '10-07', '韩冬', '成片交付', '今天 18:00', 1, 12),
+      X('JF2026091600008-1', '阿婆糖水', '心动便利店', 40, '标准模型', '抖音＋视频号', '09-29', '苏晴', '上线核验', '今天 19:02', 1, 13),
+      X('JF2026092000006-1', '拾光咖啡', '心动便利店', 40, '高级模型', '抖音', '09-29', '韩冬', '上线核验', '今天 21:36', 1, 14),
+      X('JF2026091700012-1', '云顶健身', '二次开业', 60, '标准模型', '视频号', '09-30', '韩冬', '上线核验', '10-08 08:15', 0, 37),
+      X('JF2026093000001-1', '橙子宠物', '二次开业', 60, '高级模型', '抖音', '10-14', '韩冬', '方案确认', '10-01 08:31', 0, 16),
+      X('JF2026093000002-1', '半岛茶楼', '面馆少东家', 70, '高级模型', '视频号', '待确认', '林晓', '方案确认', '10-01 08:58', 0, 16),
+      X('JF2026080800006-1', '一剪美发', '旧时光照相馆', 30, '标准模型', '抖音', '08-10', '林晓', '到期下架', '10-01 09:10', 0, 17),
+      X('JF2026091800004-1', '小满花艺', '巷口那家店', 80, '高级模型', '抖音', '09-30', '林晓', '上线核验', '10-08 09:20', 0, 38),
+      X('JF2026093000004-1', '胖哥冒菜', '锦绣小厨娘', 80, '顶级模型', '抖音', '10-15', '苏晴', '方案确认', '10-01 09:40', 0, 19),
+      X('JF2026092500007-1', '桃子美甲', '心动便利店', 40, '高级模型', '抖音＋视频号', '10-08', '韩冬', '样片确认', '10-01 11:00', 0, 20),
+      X('JF2026092500012-1', '大鱼海鲜', '巷口那家店', 80, '高级模型', '抖音', '10-10', '苏晴', '样片制作', '10-01 12:00', 0, 21),
+      X('JF2026092600009-1', '半岛茶楼', '家有萌娃', 36, '高级模型', '抖音', '10-09', '林晓', '样片确认', '10-01 15:30', 0, 22),
+      X('JF2026092600018-1', 'XX 火锅（万达店）', '巷口那家店', 80, '高级模型', '抖音', '10-12', '林晓', '样片确认', '10-01 17:40', 0, 23),
+      X('JF2026092400011-1', '瑞雪冰室', '心动便利店', 40, '标准模型', '抖音', '10-11', '韩冬', '样片制作', '10-01 18:00', 0, 24),
+      X('JF2026092100009-1', '一剪美发', '二次开业', 60, '标准模型', '抖音', '10-10', '林晓', '批量合成', '10-01 18:00', 0, 25),
+      X('JF2026092400002-1', '米粒烘焙', '家有萌娃', 36, '标准模型', '抖音', '10-14', '苏晴', '广告准备', '10-01 18:00', 0, 26),
+      X('JF2026091900006-1', '橘子电玩', '夜巷疑云', 45, '标准模型', '抖音', '10-01', '韩冬', '待上线', '10-01 23:59', 0, 27),
+      X('JF2026080300007-1', '安逸茶馆', '旧时光照相馆', 30, '标准模型', '抖音', '08-05', '韩冬', '到期下架', '今天 18:30', 1, 13),
+      X('JF2026092600011-1', '东门牛肉面', '巷口那家店', 80, '高级模型', '抖音', '10-10', '苏晴', '样片确认', '10-02 09:00', 0, 29),
+      X('JF2026092500015-1', '安逸茶馆', '锦绣小厨娘', 80, '标准模型', '抖音', '10-17', '林晓', '广告准备', '10-02 09:30', 0, 30),
+      X('JF2026092300005-1', '初见婚纱摄影', '心动便利店', 40, '标准模型', '抖音', '10-09', '韩冬', '批量合成', '10-02 18:00', 0, 31),
+      X('JF2026092400013-1', '蓝鲸游泳馆', '家有萌娃', 36, '高级模型', '视频号', '10-15', '韩冬', '广告准备', '10-02 18:00', 0, 32),
+      X('JF2026091900010-1', '绿野轻食', '心动便利店', 40, '高级模型', '抖音', '10-02', '林晓', '待上线', '10-02 23:59', 0, 33),
+      X('JF2026092000003-1', '快乐跆拳道', '家有萌娃', 36, '标准模型', '视频号', '10-03', '苏晴', '待上线', '10-03 23:59', 0, 34),
+      X('JF2026092000008-1', '书香文具', '巷口那家店', 80, '标准模型', '抖音', '10-05', '韩冬', '待上线', '10-05 23:59', 0, 35),
+      X('JF2026092100002-1', '嘉禾眼镜', '二次开业', 60, '标准模型', '抖音', '10-06', '林晓', '待上线', '10-06 23:59', 0, 36),
+      X('JF2026081400006-1', 'XX 火锅（万达店）', '家有萌娃', 36, '高级模型', '抖音', '08-22', '林晓', '服务中', '使用期至 2027-06-30', 0, 41),
+      X('JF2026081400006-2', 'XX 火锅（万达店）', '夜巷疑云', 45, '高级模型', '抖音', '08-22', '林晓', '服务中', '使用期至 2027-08-31', 0, 42),
+      X('JF2026081400006-3', 'XX 火锅（万达店）', '锦绣小厨娘', 80, '高级模型', '抖音', '08-22', '林晓', '服务中', '使用期至 2027-10-31', 0, 43),
+      X('JF2026090800003-1', '蜀香坊火锅', '夜巷疑云', 45, '顶级模型', '抖音', '09-10', '苏晴', '服务中', '使用期至 2027-08-31', 0, 44),
+      X('JF2026071000004-1', '阿婆糖水', '家有萌娃', 36, '标准模型', '抖音', '07-12', '苏晴', '服务中', '使用期至 2027-06-30', 0, 45),
+      X('JF2026091600002-1', '快乐跆拳道', '心动便利店', 40, '标准模型', '抖音', '09-18', '苏晴', '服务中', '使用期至 2027-12-31', 0, 46),
+      X('JF2026071800007-1', '云顶健身', '巷口那家店', 80, '标准模型', '抖音', '07-20', '韩冬', '服务中', '使用期至 2027-12-31', 0, 47),
+      X('JF2026081300006-1', '橙子宠物', '心动便利店', 40, '高级模型', '抖音', '08-15', '韩冬', '服务中', '使用期至 2027-12-31', 0, 48),
+      X('JF2026081800002-1', '金牌汽修', '家有萌娃', 36, '高级模型', '视频号', '08-20', '苏晴', '服务中', '使用期至 2027-06-30', 0, 49),
+      X('JF2026090300008-1', '半岛茶楼', '锦绣小厨娘', 80, '高级模型', '抖音', '09-05', '林晓', '服务中', '使用期至 2027-10-31', 0, 50)
+    ];
+    const all = base.map((r) => (assigned[r.id] ? Object.assign({}, r, { mgr: assigned[r.id], s: '方案确认', date: '待确认', due: '10-01 10:30', lv: 0 }) : r));
+    const active = all.filter((r) => r.s !== '服务中');
+    const statusNames = ['待分配', '方案确认', '广告准备', '样片制作', '样片确认', '批量合成', '成片交付', '待上线', '上线核验', '到期下架'];
+    const countOf = (s) => all.filter((r) => r.s === s).length;
+    const tabNames = ['处理中'].concat(statusNames).concat(['服务中']);
+    const tabCount = (t) => (t === '处理中' ? active.length : t === '服务中' ? '1,392' : countOf(t));
+    const match = (r) => (q === '' || r.id.indexOf(q) >= 0 || r.m.indexOf(q) >= 0 || r.d.indexOf(q) >= 0)
+      && (mgr === '全部' || (mgr === '未分配' ? r.mgr === '' : r.mgr === mgr))
+      && (ver === '全部' || r.ver === ver)
+      && (ch === '全部' || r.ch.indexOf(ch) >= 0)
+      && (!onlyOver || r.lv === 2);
+    const inTab = (r) => (tab === '处理中' ? r.s !== '服务中' : r.s === tab);
+    const list = all.filter((r) => inTab(r) && match(r)).sort((a, b) => a.k - b.k);
+    const noFilter = q === '' && mgr === '全部' && ver === '全部' && ch === '全部' && !onlyOver;
+    const total = tab === '服务中' && noFilter ? 1392 : list.length;
+    const colors = (s) => (s === '待分配' ? ['#FBEDE5', '#A63F12'] : s === '服务中' ? ['#E5F1E9', '#256A42'] : s === '到期下架' ? ['#EFEBE4', '#5E564C'] : ['#E8EEF8', '#2E5AAC']);
+    const load = { 林晓: 13, 苏晴: 9, 韩冬: 12 };
+    Object.keys(assigned).forEach((id) => { load[assigned[id]] += 1; });
+    const cur = all.filter((r) => r.id === st.dlg)[0];
+    const dlgOpen = !!cur && cur.s === '待分配';
+    return {
+      pendingAssign: countOf('待分配'),
+      activeCount: active.length,
+      overCount: active.filter((r) => r.lv === 2).length,
+      todayCount: active.filter((r) => r.lv === 1).length,
+      tabs: tabNames.map((t) => ({
+        label: t,
+        count: tabCount(t),
+        on: t === tab,
+        pick: () => this.setState({ tab: t }),
+        line: t === tab ? '#C4501B' : 'transparent',
+        weight: t === tab ? '600' : '400',
+        color: t === tab ? '#1D1A16' : '#6F665B',
+        cbg: t === tab ? '#FBEDE5' : '#F3EFE9',
+        cfg: t === tab ? '#A63F12' : '#6F665B'
+      })),
+      q: q,
+      mgr: mgr,
+      ver: ver,
+      ch: ch,
+      onlyOver: onlyOver,
+      onQ: (e) => this.setState({ q: e.target.value }),
+      onMgr: (e) => this.setState({ mgr: e.target.value }),
+      onVer: (e) => this.setState({ ver: e.target.value }),
+      onCh: (e) => this.setState({ ch: e.target.value }),
+      toggleOver: () => this.setState({ onlyOver: !onlyOver }),
+      reset: () => this.setState({ q: '', mgr: '全部', ver: '全部', ch: '全部', onlyOver: false }),
+      rows: list.slice(0, 10).map((r) => {
+        const c = colors(r.s);
+        return Object.assign({}, r, {
+          mgrLabel: r.mgr || '未分配',
+          mgrColor: r.mgr ? '#1D1A16' : '#A63F12',
+          mgrWeight: r.mgr ? '400' : '600',
+          sbg: c[0],
+          sfg: c[1],
+          dueColor: r.lv === 2 ? '#B42318' : r.lv === 1 ? '#A63F12' : '#1D1A16',
+          dueWeight: r.lv === 0 ? '400' : '600',
+          rowBg: r.lv === 2 ? '#FFF7F5' : '#FFFFFF',
+          isAssign: r.s === '待分配',
+          isVerify: r.s === '上线核验',
+          isOffline: r.s === '到期下架',
+          isDelivery: r.s === '成片交付',
+          isView: r.s !== '待分配' && r.s !== '上线核验' && r.s !== '到期下架' && r.s !== '成片交付',
+          assign: () => this.setState({ dlg: r.id, pick: rec, toast: '' })
+        });
+      }),
+      empty: list.length === 0,
+      total: total.toLocaleString('en-US'),
+      pages: Math.max(1, Math.ceil(total / 10)).toLocaleString('en-US'),
+      toast: st.toast || '',
+      hasToast: !!st.toast,
+      closeToast: () => this.setState({ toast: '' }),
+      exportAll: () => this.setState({ toast: '已按当前筛选条件导出 ' + total + ' 条工单' }),
+      dlgOpen: dlgOpen,
+      dlgId: cur ? cur.id : '',
+      dlgMerchant: cur ? cur.m : '',
+      dlgDrama: cur ? cur.d : '',
+      dlgEps: cur ? cur.eps : '',
+      dlgArea: cur ? cur.area : '',
+      mgrOpts: ['林晓', '苏晴', '韩冬'].map((n) => ({
+        name: n,
+        initial: n.charAt(0),
+        on: n === pick,
+        rec: n === rec,
+        load: '进行中 ' + load[n] + ' 单',
+        border: n === pick ? '2px solid #C4501B' : '1px solid #E7E1D8',
+        bg: n === pick ? '#FFF8F3' : '#FFFFFF',
+        pick: () => this.setState({ pick: n })
+      })),
+      closeDlg: () => this.setState({ dlg: '' }),
+      confirmAssign: () => {
+        const next = Object.assign({}, assigned);
+        next[st.dlg] = pick;
+        this.setState({ assigned: next, dlg: '', toast: '已将 ' + st.dlg + ' 分配给' + pick + '，工单进入“方案确认”，已通知交付经理' });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

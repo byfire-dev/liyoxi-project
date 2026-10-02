@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏运营后台 · 积分账户与流水</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; overflow: hidden; position: relative; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; font-size: 14px;">
+<nav aria-label="主菜单" style="width: 216px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; background: #231F1B; color: #D9D1C5;">
+<div style="height: 64px; flex-shrink: 0; box-sizing: border-box; padding: 0 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #3A332C;">
+<svg width="30" height="30" viewBox="0 0 64 64" fill="none" stroke="#E8864F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12 22 25h20l12-13-2 22-20 19-20-19z"></path><path d="m21 34 5 2.5M43 34l-5 2.5"></path><circle cx="32" cy="44" r="1.8" fill="#E8864F" stroke="none"></circle></svg>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-family: 'Noto Serif SC', serif; font-size: 19px; font-weight: 900; letter-spacing: 3px; line-height: 1.1; color: #FFFFFF;">狸有戏</span><span style="font-size: 12px; line-height: 1.2; color: #9A9084;">运营管理后台</span></div>
+</div>
+<div style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px;">
+<a href="Main.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>工作台</a>
+<a href="Dramas.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="m10.5 9.5 4 2.5-4 2.5z"></path></svg>短剧库</a>
+<div style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #FFFFFF;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5 15.5 12 12 16.5 8.5 12z"></path></svg><span style="flex-grow: 1;">套餐与积分</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div>
+<a href="Plans.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">套餐管理</a>
+<a href="PointPacks.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">积分包管理</a>
+<a href="Params.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">积分价模板与参数</a>
+<a href="Pricing.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">单剧积分价</a>
+<a href="PointAccounts.dc.html" aria-current="page" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #C4501B; color: #FFFFFF; font-size: 13px; font-weight: 600;">积分账户与流水</a>
+<a href="Merchants.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5 5.5 4.5h13L20 9.5"></path><path d="M4 9.5c0 1.5 1.2 2.5 2.7 2.5s2.6-1 2.6-2.5c0 1.5 1.2 2.5 2.7 2.5s2.7-1 2.7-2.5c0 1.5 1.1 2.5 2.6 2.5S20 11 20 9.5"></path><path d="M5.5 12v7.5h13V12"></path><path d="M10 19.5V15h4v4.5"></path></svg><span style="flex-grow: 1;">商家</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">4</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Orders.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8.5l4 4v13H6z"></path><path d="M14 3.5V8h4.5M9 12.5h6M9 16.5h4"></path></svg><span style="flex-grow: 1;">订单</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">22</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Tickets.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"></path><path d="m4 7.5 8 4.5 8-4.5M12 12v9"></path></svg><span style="flex-grow: 1;">交付</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">7</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Delivery.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15.5V4"></path><path d="m7.5 8.5 4.5-4.5 4.5 4.5"></path><path d="M5 14v5.5h14V14"></path></svg><span style="flex-grow: 1;">发布</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">10</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Service.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2"></path><rect x="3.5" y="13.5" width="4" height="6" rx="1.5"></rect><rect x="16.5" y="13.5" width="4" height="6" rx="1.5"></rect></svg><span style="flex-grow: 1;">客服</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">6</span></a>
+<a href="Payments.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m9 7.5 3 4 3-4M12 11.5V17M9.5 12.5h5M9.5 15h5"></path></svg><span style="flex-grow: 1;">财务</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">8</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="RptOverview.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7.5 16.5v-5M12 16.5v-9M16.5 16.5v-7"></path></svg><span style="flex-grow: 1;">报表</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="OpsHome.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3.5l7 4V6l-7 4z"></path><path d="M17.5 9.5a3.5 3.5 0 0 1 0 5"></path></svg><span style="flex-grow: 1;">运营</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="SysStaff.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5h9M17.5 6.5h2M4.5 12h3M11.5 12h8M4.5 17.5h7M15.5 17.5h4"></path><circle cx="15.5" cy="6.5" r="2"></circle><circle cx="9.5" cy="12" r="2"></circle><circle cx="13.5" cy="17.5" r="2"></circle></svg><span style="flex-grow: 1;">系统</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Partners.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"></circle><path d="M3.5 19a5.5 5.5 0 0 1 11 0"></path><circle cx="17" cy="9.5" r="2.5"></circle><path d="M16 14.3a4.5 4.5 0 0 1 4.5 4.7"></path></svg><span style="flex-grow: 1;">渠道</span><span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #5A5047; border-radius: 4px; font-size: 11px; line-height: 16px; color: #9A9084;">V1.1</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+</div>
+</nav>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<header style="height: 56px; flex-shrink: 0; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 16px; background: #FFFFFF; border-bottom: 1px solid #ECE6DD;">
+<nav aria-label="面包屑" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6F665B;"><span>套餐与积分</span><span aria-hidden="true">/</span><span style="color: #1D1A16; font-weight: 600;">积分账户与流水</span></nav>
+<label style="margin-left: auto; width: 300px; height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FAF8F4; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="全局搜索" placeholder="搜索商家、订单号、工单号" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<button type="button" aria-label="消息通知，5 条未读" style="position: relative; width: 40px; height: 40px; flex-shrink: 0; border: none; border-radius: 8px; background: transparent; color: #1D1A16; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg><span aria-hidden="true" style="position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; box-sizing: content-box; border: 2px solid #FFFFFF; border-radius: 6px; background: #C4501B;"></span></button>
+<div style="display: flex; align-items: center; gap: 10px; padding-left: 16px; border-left: 1px solid #ECE6DD;"><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 16px; background: #FBEDE5; color: #A63F12; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">周</span><div style="display: flex; flex-direction: column;"><span style="font-size: 14px; font-weight: 600; line-height: 1.3;">周航</span><span style="font-size: 12px; line-height: 1.3; color: #6F665B;">超级管理员</span></div></div>
+</header>
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<div role="status" style="position: absolute; top: 68px; right: 24px; z-index: 5; max-width: 540px; box-sizing: border-box; padding: 10px 8px 10px 14px; border-radius: 10px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: 0 8px 24px rgba(29, 26, 22, 0.18);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7FD19B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg><span style="flex-grow: 1;">{{toast}}</span><button type="button" aria-label="关闭提示" onClick="{{closeToast}}" style="width: 28px; height: 28px; flex-shrink: 0; border: none; border-radius: 6px; background: transparent; color: #FFFFFF; font-size: 16px; cursor: pointer;">×</button></div>
+</sc-if>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;">
+<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;"><h1 style="margin: 0; font-family: 'Noto Serif SC', serif; font-size: 24px; font-weight: 700; line-height: 1.3;">积分账户与流水</h1><p style="margin: 0; font-size: 13px; color: #6F665B;">按经营主体查询套餐积分、加购积分、冻结积分及流水；手动调整须填写原因，经财务审批后入账并通知商家</p></div>
+<dl style="flex-shrink: 0; margin: 0; display: flex; gap: 28px;"><div style="display: flex; flex-direction: column; gap: 2px;"><dt style="font-size: 12px; color: #6F665B;">积分余额</dt><dd style="margin: 0; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;">560,760</dd></div><div style="display: flex; flex-direction: column; gap: 2px;"><dt style="font-size: 12px; color: #6F665B;">其中冻结</dt><dd style="margin: 0; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;">21,600</dd></div><div style="display: flex; flex-direction: column; gap: 2px;"><dt style="font-size: 12px; color: #6F665B;">本月发放</dt><dd style="margin: 0; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;">1,067,560</dd></div><div style="display: flex; flex-direction: column; gap: 2px;"><dt style="font-size: 12px; color: #6F665B;">本月消耗</dt><dd style="margin: 0; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;">876,645</dd></div></dl>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start;"><section aria-label="积分账户" style="flex-shrink: 0; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; overflow: hidden;">
+<div style="display: flex; align-items: center; gap: 10px; box-sizing: border-box; padding: 10px 16px; border-bottom: 1px solid #ECE6DD;">
+<label style="width: 220px; height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="搜索主体或门店" placeholder="搜索主体或门店" value="{{q}}" onChange="{{onQ}}" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<select aria-label="套餐" value="{{plan}}" onChange="{{onPlan}}" style="width: 112px; height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="全部">全部套餐</option><option value="基础版">基础版</option><option value="专业版">专业版</option><option value="旗舰版">旗舰版</option><option value="已过期">已过期</option></select>
+<select aria-label="账户状态" value="{{flag}}" onChange="{{onFlag}}" style="width: 120px; height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="全部">全部账户</option><option value="冻结">有冻结积分</option><option value="清零">7 天内清零</option></select>
+</div><div role="table" aria-label="积分账户" style="display: flex; flex-direction: column;"><div role="row" style="display: grid; grid-template-columns: minmax(0, 1fr) 136px 100px 76px 84px; column-gap: 12px; align-items: center; min-height: 40px; box-sizing: border-box; padding: 0 16px; background: #FAF8F4; border-bottom: 1px solid #ECE6DD; font-size: 12px; font-weight: 600; color: #6F665B;">
+<span role="columnheader">经营主体与门店</span><span role="columnheader">套餐</span><span role="columnheader" style="text-align: right;">套餐积分</span><span role="columnheader" style="text-align: right;">加购积分</span><span role="columnheader" style="text-align: right;">可用积分</span>
+</div><sc-for list="{{accts}}" as="a" hint-placeholder-count="9">
+<div role="row" style="display: grid; grid-template-columns: minmax(0, 1fr) 136px 100px 76px 84px; column-gap: 12px; align-items: center; min-height: 54px; box-sizing: border-box; padding: 6px 16px; border-bottom: 1px solid #F0EBE3; background: {{a.bg}}; font-size: 13px;">
+<span role="cell" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><button type="button" onClick="{{a.pick}}" aria-pressed="{{a.on}}" style="padding: 0; border: none; background: none; font-family: inherit; font-size: 13px; font-weight: 600; color: {{a.nameColor}}; text-align: left; cursor: pointer;">{{a.store}}</button><span style="font-size: 12px; color: #6F665B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{a.entity}}</span></span>
+<span role="cell" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-weight: 600; color: {{a.planColor}};">{{a.plan}}</span><span style="font-size: 12px; color: #6F665B;">{{a.planSub}}</span></span>
+<span role="cell" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="text-align: right; font-variant-numeric: tabular-nums;">{{a.planPts}}</span><span style="font-size: 12px; color: {{a.clearColor}}; text-align: right;">{{a.clearText}}</span></span>
+<span role="cell" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="text-align: right; font-variant-numeric: tabular-nums; color: {{a.buyColor}};">{{a.buyPts}}</span><span style="font-size: 12px; color: #6F665B; text-align: right;">{{a.buySub}}</span></span>
+<span role="cell" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="text-align: right; font-variant-numeric: tabular-nums;"><strong>{{a.avail}}</strong></span><span style="font-size: 12px; color: #A63F12; text-align: right;">{{a.frozenText}}</span></span>
+</div>
+</sc-for></div><sc-if value="{{empty}}" hint-placeholder-val="{{false}}">
+<div style="padding: 56px 24px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;"><span style="font-size: 15px; font-weight: 600;">没有符合条件的积分账户</span><span style="font-size: 13px; color: #6F665B;">调整筛选条件后重试</span></div>
+</sc-if><div style="display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; padding: 10px 16px; font-size: 13px; color: #6F665B;">
+<span>{{totalText}}</span>
+<div aria-hidden="true" style="display: flex; align-items: center; gap: 6px;"><span style="width: 30px; height: 30px; border: 1px solid #ECE6DD; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #C9C1B6;">‹</span><span style="width: 30px; height: 30px; border-radius: 6px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 600;">1</span><span style="padding: 0 6px;">/ {{pages}} 页</span><span style="width: 30px; height: 30px; border: 1px solid #ECE6DD; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #1D1A16;">›</span></div>
+</div>
+</section><section aria-label="账户详情" style="box-sizing: border-box; padding: 16px 18px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;"><div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;"><div style="display: flex; align-items: center; gap: 8px;"><h2 style="margin: 0; font-size: 17px; font-weight: 600;">{{d.store}}</h2><span style="display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; background: #1D1A16; color: #F2B48F; font-size: 12px; font-weight: 600; white-space: nowrap;">{{d.plan}}</span></div><span style="font-size: 12px; color: #6F665B;">{{d.entity}} · {{d.period}}</span></div><a href="MerchantDetail.dc.html" style="min-height: 30px; box-sizing: border-box; padding: 0 6px; border-radius: 8px; border: none; background: transparent; color: #A63F12; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">商家详情<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a></div><div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;"><div style="box-sizing: border-box; padding: 10px 12px; border-radius: 10px; background: #FFF8F3; display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 12px; color: #6F665B;">可用积分</span><span style="font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums;">{{d.avail}}</span><span style="font-size: 12px; color: #6F665B; white-space: nowrap;">套餐 ＋ 加购</span></div><div style="box-sizing: border-box; padding: 10px 12px; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 12px; color: #6F665B;">套餐积分</span><span style="font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums;">{{d.planPts}}</span><span style="font-size: 12px; color: {{d.clearColor}}; white-space: nowrap;">{{d.clearText}}</span></div><div style="box-sizing: border-box; padding: 10px 12px; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 12px; color: #6F665B;">加购积分</span><span style="font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums;">{{d.buyPts}}</span><span style="font-size: 12px; color: #6F665B; white-space: nowrap;">{{d.buySub}}</span></div><div style="box-sizing: border-box; padding: 10px 12px; border-radius: 10px; background: #FAF8F4; display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 12px; color: #6F665B;">冻结积分</span><span style="font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums;">{{d.frozen}}</span><span style="font-size: 12px; color: #6F665B; white-space: nowrap;">{{d.frozenSub}}</span></div></div><sc-if value="{{d.hasNote}}" hint-placeholder-val="{{false}}"><p style="margin: 0; padding: 8px 12px; border-radius: 8px; background: #FBEDE5; font-size: 12px; line-height: 1.6; color: #A63F12;">{{d.note}}</p></sc-if><div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;"><h2 style="margin: 0; font-size: 15px; font-weight: 600;">积分流水</h2><span style="display: flex; align-items: center; gap: 8px;"><div role="radiogroup" aria-label="流水类型" style="display: inline-flex; padding: 3px; border-radius: 8px; background: #EFEBE4; gap: 2px;">
+<sc-for list="{{kinds}}" as="p" hint-placeholder-count="5">
+<button type="button" role="radio" aria-checked="{{p.on}}" onClick="{{p.pick}}" style="min-height: 30px; padding: 0 12px; border: none; border-radius: 6px; background: {{p.bg}}; color: {{p.fg}}; font-family: inherit; font-size: 13px; font-weight: {{p.weight}}; cursor: pointer;">{{p.label}}</button>
+</sc-for>
+</div><button type="button" onClick="{{openAdj}}" style="min-height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 13px; cursor: pointer;">手动调整</button></span></div><div role="table" aria-label="积分流水" style="display: flex; flex-direction: column; border: 1px solid #ECE6DD; border-radius: 10px; overflow: hidden;"><div role="row" style="display: grid; grid-template-columns: 72px minmax(0, 1fr) 88px 60px; column-gap: 12px; align-items: center; min-height: 40px; box-sizing: border-box; padding: 0 12px; background: #FAF8F4; border-bottom: 1px solid #ECE6DD; font-size: 12px; font-weight: 600; color: #6F665B; min-height: 34px;">
+<span role="columnheader">时间与类型</span><span role="columnheader">事项</span><span role="columnheader" style="text-align: right;">变动</span><span role="columnheader" style="text-align: right;">可用余额</span>
+</div><sc-for list="{{ledger}}" as="g" hint-placeholder-count="8">
+<div role="row" style="display: grid; grid-template-columns: 72px minmax(0, 1fr) 88px 60px; column-gap: 12px; align-items: center; min-height: 46px; box-sizing: border-box; padding: 4px 12px; border-bottom: 1px solid #F0EBE3; font-size: 13px;">
+<span role="cell" style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;"><span style="font-size: 12px; color: #6F665B; font-variant-numeric: tabular-nums;">{{g.time}}</span><span style="display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; background: {{g.kbg}}; color: {{g.kfg}}; font-size: 12px; font-weight: 600; white-space: nowrap; height: 20px; padding: 0 6px; font-size: 11px;">{{g.kind}}</span></span>
+<span role="cell" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 13px;">{{g.title}}</span><span style="font-size: 12px; color: #6F665B;">{{g.sub}}</span></span>
+<span role="cell" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; color: {{g.color}};">{{g.amount}}</span><span style="font-size: 11px; color: #6F665B; text-align: right;">{{g.src}}</span></span>
+<span role="cell" style="text-align: right; font-size: 12px; color: #6F665B; font-variant-numeric: tabular-nums;">{{g.bal}}</span>
+</div>
+</sc-for><sc-if value="{{noLedger}}" hint-placeholder-val="{{false}}">
+<div style="padding: 56px 24px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;"><span style="font-size: 15px; font-weight: 600;">该类型暂无流水</span><span style="font-size: 13px; color: #6F665B;">可切换其他类型查看</span></div>
+</sc-if></div><p style="margin: 0; font-size: 12px; line-height: 1.7; color: #6F665B;"><span style="display: block;">冻结：提交订购或广告需求时，从可用积分转入冻结；</span><span style="display: block;">扣减：开始制作时由冻结积分转出，不再影响可用余额；</span><span style="display: block;">流水按经营主体记录，门店订购时注明门店。</span></p>
+</section></div>
+</main>
+</div>
+<sc-if value="{{adjOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10; background: rgba(29, 26, 22, 0.45); display: flex; align-items: center; justify-content: center;">
+<section role="dialog" aria-modal="true" aria-labelledby="adj-title" style="width: 600px; max-height: 820px; overflow-y: auto; box-sizing: border-box; padding: 24px; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 48px rgba(29, 26, 22, 0.24);">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><h2 id="adj-title" style="margin: 0; font-size: 18px; font-weight: 600;">手动调整积分 · {{d.store}}</h2><p style="margin: 0; font-size: 13px; line-height: 1.6; color: #6F665B;">补偿、纠错等须填写原因，经财务审批后计入流水并通知商家。</p></div>
+<button type="button" aria-label="关闭" onClick="{{closeDlg}}" style="width: 32px; height: 32px; flex-shrink: 0; border: none; border-radius: 8px; background: #F6F3EE; color: #1D1A16; font-size: 18px; cursor: pointer;">×</button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px;"><div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">调整方向</span><div role="radiogroup" aria-label="调整方向" style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{adjDirs}}" as="p" hint-placeholder-count="2">
+<button type="button" role="radio" aria-checked="{{p.on}}" onClick="{{p.pick}}" style="min-height: 32px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{p.border}}; border-radius: 16px; background: {{p.bg}}; color: {{p.fg}}; font-family: inherit; font-size: 13px; cursor: pointer;">{{p.label}}</button>
+</sc-for>
+</div></div><div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">积分类型</span><div role="radiogroup" aria-label="积分类型" style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{adjKinds}}" as="p" hint-placeholder-count="2">
+<button type="button" role="radio" aria-checked="{{p.on}}" onClick="{{p.pick}}" style="min-height: 32px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{p.border}}; border-radius: 16px; background: {{p.bg}}; color: {{p.fg}}; font-family: inherit; font-size: 13px; cursor: pointer;">{{p.label}}</button>
+</sc-for>
+</div></div><div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">调整数量</span><span style="display: flex; align-items: center; gap: 6px;"><input aria-label="调整数量" type="text" value="{{adj.qty}}" onChange="{{adj.setQty}}" style="width: 120px; height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16; text-align: right;"><span style="font-size: 13px; color: #6F665B;">积分</span></span></div><div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">调整原因</span><select aria-label="调整原因" value="{{adj.reason}}" onChange="{{adj.setReason}}" style="height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="制作问题补偿">制作问题补偿</option><option value="平台原因退回">平台原因退回</option><option value="纠正错误记录">纠正错误记录</option><option value="运营活动赠送">运营活动赠送</option></select></div></div><div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">说明</span><textarea aria-label="说明" rows="3" maxlength="200" placeholder="写明依据与关联单号，商家可在积分明细中看到调整原因" value="{{adj.note}}" onChange="{{adj.setNote}}" style="box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; line-height: 1.6; color: #1D1A16; resize: none;"></textarea></div><div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; background: #FAF8F4; font-size: 13px;"><span style="color: #6F665B;">审批通过后</span><strong style="font-variant-numeric: tabular-nums;">{{adj.preview}}</strong></div><sc-if value="{{adj.hasErr}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 13px; color: #B42318;">{{adj.err}}</span></sc-if><p style="margin: 0; font-size: 12px; line-height: 1.7; color: #6F665B;">增加的套餐积分并入本期，随本期到期清零；扣减后可用积分不得小于 0。提交后由财务在“积分调整审批”中处理，全程记录操作日志。</p>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+<button type="button" onClick="{{closeDlg}}" style="min-height: 38px; padding: 0 18px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; cursor: pointer;">取消</button><button type="button" onClick="{{submitAdj}}" style="min-height: 38px; padding: 0 18px; border-radius: 8px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer;">提交财务审批</button>
+</div>
+</section>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const money = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const num = (n) => n.toLocaleString('en-US');
+    const tab = (key, label, count, cur, pick) => ({
+      key: key, label: label, count: count, on: key === cur, pick: pick,
+      line: key === cur ? '#C4501B' : 'transparent', color: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400',
+      cbg: key === cur ? '#FBEDE5' : '#F3EFE9', cfg: key === cur ? '#A63F12' : '#6F665B'
+    });
+    const segOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, bg: key === cur ? '#FFFFFF' : 'transparent', fg: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400' });
+    const pillOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, border: key === cur ? '#1D1A16' : '#E7E1D8', bg: key === cur ? '#1D1A16' : '#FFFFFF', fg: key === cur ? '#FFFFFF' : '#1D1A16' });
+    const sw = (on) => ({ bg: on ? '#256A42' : '#CFC7BC', knob: on ? '18px' : '2px' });
+    const toastVals = { toast: st.toast || '', hasToast: !!st.toast, closeToast: () => this.setState({ toast: '' }) };
+
+    const fmt = (n) => Math.round(n).toLocaleString('en-US');
+    const L = (time, kind, title, sub, amount, src, bal) => ({ time: time, kind: kind, title: title, sub: sub, amount: amount, src: src, bal: bal });
+    const A = [
+      { id: 'xx', store: 'XX 火锅（2 家门店）', entity: 'XX 餐饮管理有限公司', plan: '专业版', planSub: '月付 · 10-12 到期', period: '本期 09-13 至 10-12', planPts: 1920, buyPts: 1000, frozen: 0, clear: '10-12 24:00 清零', soon: true,
+        ledger: [
+          L('09-28 16:00', '扣减', '广告 4 条开始制作', 'GG20260928001～004', '180', '由冻结转出', '2,920'),
+          L('09-28 15:00', '冻结', '提交广告需求 4 条', 'GG20260928001～004', '−180', '套餐积分', '2,920'),
+          L('09-26 10:35', '扣减', '《巷口那家店》等 2 部开始制作', 'LYX2026092600018', '4,500', '由冻结转出', '3,100'),
+          L('09-26 10:32', '冻结', '提交订购 2 部', 'LYX2026092600018', '−4,500', '套餐积分', '3,100'),
+          L('09-20 16:12', '加购', '加购 1,000 积分', 'FK2026092000015', '＋1,000', '加购积分', '7,600'),
+          L('09-13 00:00', '发放', '发放本期套餐积分', '专业版 09-13 至 10-12', '＋6,600', '套餐积分', '6,600'),
+          L('09-12 24:00', '清零', '上期套餐积分到期清零', '专业版 08-13 至 09-12', '−390', '套餐积分', '0'),
+          L('08-14 16:00', '扣减', '广告 2 条开始制作', 'GG20260814001～002', '90', '由冻结转出', '390'),
+          L('08-14 15:00', '冻结', '提交广告需求 2 条', 'GG20260814001～002', '−90', '套餐积分', '390'),
+          L('08-14 10:25', '扣减', '《家有萌娃》等 3 部开始制作', 'LYX2026081400006', '6,120', '由冻结转出', '480'),
+          L('08-14 10:20', '冻结', '提交订购 3 部', 'LYX2026081400006', '−6,120', '套餐积分', '480'),
+          L('08-13 09:15', '发放', '开通专业版，发放本期套餐积分', 'FK2026081300003', '＋6,600', '套餐积分', '6,600')
+        ] },
+      { id: 'yj', store: '云间民宿', entity: '都江堰市云间民宿', plan: '旗舰版', planSub: '季付 · 12-19 到期', period: '本期 09-20 至 12-19（季付）', planPts: 11920, buyPts: 5000, frozen: 0, clear: '12-19 24:00 清零', soon: false,
+        note: '季付按月发放套餐积分，本期内累计有效，12-19 24:00 统一清零。',
+        ledger: [
+          L('09-28 18:00', '扣减', '广告 1 条开始制作', 'GG20260928009', '40', '由冻结转出', '16,920'),
+          L('09-28 14:30', '加购', '加购 5,000 积分', 'FK2026092800007', '＋5,000', '加购积分', '16,920'),
+          L('09-28 11:40', '冻结', '提交广告需求 1 条', 'GG20260928009', '−40', '套餐积分', '11,920'),
+          L('09-28 11:31', '扣减', '《巷口那家店》开始制作', 'LYX2026092800020', '2,400', '由冻结转出', '11,960'),
+          L('09-28 11:26', '冻结', '提交订购', 'LYX2026092800020', '−2,400', '套餐积分', '11,960'),
+          L('09-25 16:00', '扣减', '广告 1 条开始制作', 'GG20260925003', '40', '由冻结转出', '14,360'),
+          L('09-25 15:20', '冻结', '提交广告需求 1 条', 'GG20260925003', '−40', '套餐积分', '14,360'),
+          L('09-20 00:00', '发放', '发放本期第 1 个月套餐积分', '旗舰版季付 09-20 至 12-19', '＋14,400', '套餐积分', '14,400'),
+          L('09-19 24:00', '清零', '上期套餐积分到期清零', '旗舰版季付 06-20 至 09-19', '−3,160', '套餐积分', '0')
+        ] },
+      { id: 'pg', store: '胖哥冒菜', entity: '金牛区胖哥冒菜店', plan: '专业版', planSub: '月付 · 10-15 到期', period: '本期 09-16 至 10-15', planPts: 1947, buyPts: 0, frozen: 0, clear: '10-15 24:00 清零', soon: false,
+        ledger: [
+          L('09-30 09:40', '扣减', '《锦绣小厨娘》开始制作', 'LYX2026093000004', '2,808', '由冻结转出', '1,947'),
+          L('09-30 09:40', '冻结', '提交订购（顶级模型）', '2,600 × 0.9 × (1 ＋ 20%)', '−2,808', '套餐积分', '1,947'),
+          L('09-27 11:00', '扣减', '广告 1 条开始制作', 'GG20260927006', '45', '由冻结转出', '4,755'),
+          L('09-27 10:00', '冻结', '提交广告需求 1 条', 'GG20260927006', '−45', '套餐积分', '4,755'),
+          L('09-18 14:06', '扣减', '《二次开业》开始制作', 'LYX2026091800003', '1,800', '由冻结转出', '4,800'),
+          L('09-18 14:05', '冻结', '提交订购', 'LYX2026091800003', '−1,800', '套餐积分', '4,800'),
+          L('09-16 00:00', '发放', '发放本期套餐积分', '专业版 09-16 至 10-15', '＋6,600', '套餐积分', '6,600')
+        ] },
+      { id: 'yx', store: '悦心瑜伽', entity: '成都悦心健身服务有限公司', plan: '基础版', planSub: '月付 · 10-26 到期', period: '本期 09-27 至 10-26', planPts: 550, buyPts: 1000, frozen: 50, clear: '10-26 24:00 清零', soon: false,
+        ledger: [
+          L('09-30 10:12', '冻结', '提交广告需求 1 条', 'GG20260930003', '−50', '套餐积分', '1,550'),
+          L('09-30 10:05', '扣减', '《心动便利店》开始制作', 'LYX2026093000005', '2,400', '由冻结转出', '1,600'),
+          L('09-30 10:05', '冻结', '提交订购', 'LYX2026093000005', '−2,400', '套餐积分', '1,600'),
+          L('09-30 10:02', '加购', '加购 1,000 积分', 'FK2026093000006', '＋1,000', '加购积分', '4,000'),
+          L('09-27 15:40', '发放', '开通基础版，发放本期套餐积分', 'FK2026092700011', '＋3,000', '套餐积分', '3,000')
+        ] },
+      { id: 'qt', store: '晴天洗衣', entity: '成都晴天洗涤服务有限公司', plan: '基础版', planSub: '月付 · 10-28 到期', period: '本期 09-29 至 10-28', planPts: 1800, buyPts: 0, frozen: 1200, clear: '10-28 24:00 清零', soon: false,
+        note: '资质审核中：订购 LYX2026093000006 的 1,200 积分已冻结，审核通过、开始制作时扣减；审核不通过且无法补正的，全额退回。',
+        ledger: [
+          L('09-30 10:18', '冻结', '提交订购（待资质审核通过）', 'LYX2026093000006', '−1,200', '套餐积分', '1,800'),
+          L('09-29 16:40', '发放', '开通基础版，发放本期套餐积分', 'FK2026092900012', '＋3,000', '套餐积分', '3,000')
+        ] },
+      { id: 'xl', store: '小鹿亲子乐园', entity: '成都小鹿文化传播有限公司', plan: '基础版', planSub: '月付 · 10-25 到期', period: '本期 09-26 至 10-25', planPts: 1650, buyPts: 1000, frozen: 50, clear: '10-25 24:00 清零', soon: false,
+        ledger: [
+          L('09-30 09:18', '冻结', '提交广告需求 1 条', 'GG20260930001', '−50', '套餐积分', '2,650'),
+          L('09-30 09:12', '扣减', '《家有萌娃》开始制作', 'LYX2026093000003', '1,200', '由冻结转出', '2,700'),
+          L('09-30 09:12', '冻结', '提交订购', 'LYX2026093000003', '−1,200', '套餐积分', '2,700'),
+          L('09-30 09:10', '加购', '加购 1,000 积分', 'FK2026093000003', '＋1,000', '加购积分', '3,900'),
+          L('09-28 11:00', '扣减', '广告 2 条开始制作', 'GG20260928005～006', '100', '由冻结转出', '2,900'),
+          L('09-28 10:00', '冻结', '提交广告需求 2 条', 'GG20260928005～006', '−100', '套餐积分', '2,900'),
+          L('09-26 16:05', '发放', '开通基础版，发放本期套餐积分', 'FK2026092600008', '＋3,000', '套餐积分', '3,000')
+        ] },
+      { id: 'sg', store: '拾光咖啡', entity: '成都拾光咖啡有限公司', plan: '专业版', planSub: '月付 · 10-17 到期', period: '本期 09-18 至 10-17', planPts: 1560, buyPts: 0, frozen: 0, clear: '10-17 24:00 清零', soon: false,
+        note: '售后处理中：订购 LYX2026092500009 于方案确认阶段取消，扣除 10%（270 积分）后退回 2,430 积分，待财务审批（退款单 TK20260929001）。',
+        ledger: [
+          L('09-25 09:56', '扣减', '《夜巷疑云》开始制作', 'LYX2026092500009', '2,700', '由冻结转出', '1,560'),
+          L('09-25 09:55', '冻结', '提交订购', 'LYX2026092500009', '−2,700', '套餐积分', '1,560'),
+          L('09-20 15:10', '扣减', '广告 4 条开始制作', 'GG20260920005～008', '180', '由冻结转出', '4,260'),
+          L('09-20 15:05', '冻结', '提交广告需求 4 条', 'GG20260920005～008', '−180', '套餐积分', '4,260'),
+          L('09-20 11:02', '扣减', '《心动便利店》开始制作', 'LYX2026092000006', '2,160', '由冻结转出', '4,440'),
+          L('09-20 11:00', '冻结', '提交订购', 'LYX2026092000006', '−2,160', '套餐积分', '4,440'),
+          L('09-18 00:00', '发放', '发放本期套餐积分', '专业版 09-18 至 10-17', '＋6,600', '套餐积分', '6,600')
+        ] },
+      { id: 'ml', store: '米粒烘焙', entity: '成都米粒烘焙坊', plan: '专业版', planSub: '09-30 由基础版升级', period: '本期 09-21 至 10-20', planPts: 4100, buyPts: 0, frozen: 0, clear: '10-20 24:00 清零', soon: false,
+        ledger: [
+          L('09-30 09:25', '发放', '升级专业版，补发积分差额', '(6,600 − 3,000) × 20 ÷ 30', '＋2,400', '套餐积分', '4,100'),
+          L('09-24 10:30', '扣减', '《家有萌娃》开始制作', 'LYX2026092400002', '1,200', '由冻结转出', '1,700'),
+          L('09-24 10:28', '冻结', '提交订购', 'LYX2026092400002', '−1,200', '套餐积分', '1,700'),
+          L('09-22 11:00', '扣减', '广告 2 条开始制作', 'GG20260922003～004', '100', '由冻结转出', '2,900'),
+          L('09-22 10:10', '冻结', '提交广告需求 2 条', 'GG20260922003～004', '−100', '套餐积分', '2,900'),
+          L('09-21 09:30', '发放', '开通基础版，发放本期套餐积分', 'FK2026092100002', '＋3,000', '套餐积分', '3,000')
+        ] },
+      { id: 'xh', store: '星河洗车', entity: '成都星河洗车服务部', plan: '专业版', planSub: '月付 · 10-21 到期', period: '本期 09-22 至 10-21', planPts: 3810, buyPts: 0, frozen: 0, clear: '10-21 24:00 清零', soon: false,
+        note: '积分调整 TZ20260930002 待财务审批：成片交付超时 16 小时，补偿 ＋270 套餐积分（该订购应扣积分的 10%）。',
+        ledger: [
+          L('09-24 15:00', '扣减', '广告 2 条开始制作', 'GG20260924006～007', '90', '由冻结转出', '3,810'),
+          L('09-24 14:20', '冻结', '提交广告需求 2 条', 'GG20260924006～007', '−90', '套餐积分', '3,810'),
+          L('09-22 10:16', '扣减', '《夜巷疑云》开始制作', 'LYX2026092200010', '2,700', '由冻结转出', '3,900'),
+          L('09-22 10:15', '冻结', '提交订购', 'LYX2026092200010', '−2,700', '套餐积分', '3,900'),
+          L('09-22 09:50', '发放', '开通专业版，发放本期套餐积分', 'FK2026092200003', '＋6,600', '套餐积分', '6,600')
+        ] },
+      { id: 'yp', store: '一品香卤味', entity: '成华区一品香卤味店', plan: '已过期', planSub: '基础版 · 09-25 到期', period: '套餐已于 09-25 到期', planPts: 0, buyPts: 3000, frozen: 0, clear: '已清零', soon: false, expired: true,
+        note: '套餐已过期：套餐积分已于 09-25 24:00 清零，加购积分 3,000 已冻结，续费后恢复；交付经理正在跟进续费。',
+        ledger: [
+          L('09-25 24:00', '冻结', '套餐到期，加购积分冻结', '续费后恢复，不清零', '−3,000', '加购积分', '0'),
+          L('09-25 24:00', '清零', '套餐到期，本期套餐积分清零', '基础版 08-26 至 09-25', '−600', '套餐积分', '3,000'),
+          L('09-12 16:30', '扣减', '《心动便利店》开始制作', 'LYX2026091200008', '2,400', '由冻结转出', '3,600'),
+          L('09-12 16:28', '冻结', '提交订购', 'LYX2026091200008', '−2,400', '套餐积分', '3,600'),
+          L('09-05 11:20', '加购', '加购 3,000 积分', 'FK2026090500006', '＋3,000', '加购积分', '6,000'),
+          L('08-26 00:00', '发放', '发放本期套餐积分', '基础版 08-26 至 09-25', '＋3,000', '套餐积分', '3,000')
+        ] }
+    ];
+    const q = st.q || '';
+    const plan = st.plan || '全部';
+    const flag = st.flag || '全部';
+    const list = A.filter((a) => (q === '' || (a.store + a.entity).indexOf(q) >= 0) && (plan === '全部' || a.plan === plan)
+      && (flag === '全部' || (flag === '冻结' && a.frozen > 0) || (flag === '清零' && a.soon)));
+    const noFilter = q === '' && plan === '全部' && flag === '全部';
+    const sel = A.filter((a) => a.id === (st.sel || 'xx'))[0];
+    const kind = st.kind || '全部';
+    const KC = { 发放: ['#E5F1E9', '#256A42'], 加购: ['#E8EEF8', '#2E5AAC'], 冻结: ['#FBEDE5', '#A63F12'], 扣减: ['#EFEBE4', '#5E564C'], 清零: ['#EFEBE4', '#5E564C'], 退回: ['#E5F1E9', '#256A42'], 调整: ['#F1E9F5', '#6B3E86'] };
+    const kindMatch = (g) => kind === '全部' || (kind === '获得' && (g.kind === '发放' || g.kind === '加购' || g.kind === '退回' || g.kind === '调整')) || (kind === '使用' && (g.kind === '冻结' || g.kind === '扣减')) || (kind === '清零' && g.kind === '清零');
+    const ledger = sel.ledger.filter(kindMatch);
+    const adj = st.adj || {};
+    const dir = adj.dir || '增加';
+    const ak = adj.kind || '套餐积分';
+    const qty = adj.qty === undefined ? '' : adj.qty;
+    const qOk = /^\d+$/.test(String(qty)) && +qty > 0;
+    const avail = sel.planPts + sel.buyPts;
+    const after = qOk ? avail + (dir === '增加' ? +qty : -qty) : avail;
+    const setAdj = (k) => (e) => this.setState({ adj: Object.assign({}, adj, { [k]: e.target.value, err: '' }) });
+    const pend = st.pend || {};
+    return Object.assign({
+      q: q, plan: plan, flag: flag,
+      onQ: (e) => this.setState({ q: e.target.value }), onPlan: (e) => this.setState({ plan: e.target.value }), onFlag: (e) => this.setState({ flag: e.target.value }),
+      accts: list.map((a) => ({
+        store: a.store, entity: a.entity, plan: a.plan, planSub: a.planSub, planColor: a.expired ? '#B42318' : '#1D1A16',
+        planPts: fmt(a.planPts), clearText: a.clear, clearColor: a.soon ? '#A63F12' : '#6F665B',
+        buyPts: fmt(a.buyPts), buySub: a.expired ? '已冻结' : a.buyPts ? '长期有效' : '', buyColor: a.expired ? '#6F665B' : '#1D1A16',
+        frozenText: a.frozen ? '冻结 ' + fmt(a.frozen) : '',
+        avail: a.expired ? '0' : fmt(a.planPts + a.buyPts),
+        on: a.id === sel.id, nameColor: a.id === sel.id ? '#A63F12' : '#1D1A16', bg: a.id === sel.id ? '#FFF8F3' : '#FFFFFF',
+        pick: () => this.setState({ sel: a.id, kind: '全部' })
+      })),
+      empty: list.length === 0,
+      totalText: noFilter ? '共 213 个积分账户 · 套餐生效 186 个 · 每页 10 个' : '共 ' + list.length + ' 个积分账户',
+      pages: noFilter ? '22' : '1',
+      d: {
+        store: sel.store, entity: sel.entity, plan: sel.plan, period: sel.period,
+        avail: sel.expired ? '0' : fmt(avail), planPts: fmt(sel.planPts), clearText: sel.clear, clearColor: sel.soon ? '#A63F12' : '#6F665B',
+        buyPts: fmt(sel.buyPts), buySub: sel.expired ? '已冻结，续费后恢复' : '长期有效',
+        frozen: fmt(sel.frozen), frozenSub: sel.frozen ? '开始制作时扣减' : '无冻结',
+        hasNote: !!(sel.note || pend[sel.id]), note: pend[sel.id] || sel.note || ''
+      },
+      kinds: ['全部', '获得', '使用', '清零'].map((k) => segOpt(k, k, kind, () => this.setState({ kind: k }))),
+      ledger: ledger.map((g) => Object.assign({}, g, { kbg: KC[g.kind][0], kfg: KC[g.kind][1],
+        color: g.amount.charAt(0) === '＋' ? '#256A42' : g.amount.charAt(0) === '−' ? '#1D1A16' : '#6F665B' })),
+      noLedger: ledger.length === 0,
+      adjOpen: !!st.adjOpen,
+      openAdj: () => { if (sel.expired) { this.setState({ toast: '套餐已过期的账户不能手动调整积分，续费后再处理' }); return; } this.setState({ adjOpen: true, adj: {} }); },
+      closeDlg: () => this.setState({ adjOpen: false }),
+      adjDirs: ['增加', '扣减'].map((k) => pillOpt(k, k, dir, () => this.setState({ adj: Object.assign({}, adj, { dir: k, err: '' }) }))),
+      adjKinds: ['套餐积分', '加购积分'].map((k) => pillOpt(k, k, ak, () => this.setState({ adj: Object.assign({}, adj, { kind: k, err: '' }) }))),
+      adj: {
+        qty: qty, setQty: setAdj('qty'), reason: adj.reason || '制作问题补偿', setReason: setAdj('reason'), note: adj.note || '', setNote: setAdj('note'),
+        preview: qOk ? '可用 ' + fmt(avail) + ' → ' + fmt(after) + ' 积分' : '可用 ' + fmt(avail) + ' 积分',
+        err: adj.err || '', hasErr: !!adj.err
+      },
+      submitAdj: () => {
+        if (!qOk) { this.setState({ adj: Object.assign({}, adj, { err: '请填写大于 0 的整数' }) }); return; }
+        const bal = ak === '套餐积分' ? sel.planPts : sel.buyPts;
+        if (dir === '扣减' && +qty > bal) { this.setState({ adj: Object.assign({}, adj, { err: '扣减后' + ak + '不能小于 0（当前 ' + fmt(bal) + '）' }) }); return; }
+        if (String(adj.note || '').trim().length < 5) { this.setState({ adj: Object.assign({}, adj, { err: '请填写说明（不少于 5 个字）' }) }); return; }
+        const np = Object.assign({}, pend);
+        np[sel.id] = '已提交积分调整 TZ20260930003：' + ak + (dir === '增加' ? ' ＋' : ' −') + fmt(+qty) + '（' + (adj.reason || '制作问题补偿') + '），待财务审批。';
+        this.setState({ adjOpen: false, pend: np, toast: '已提交财务审批（TZ20260930003），通过后计入流水并通知商家' });
+      }
+    }, toastVals);
+  }
+}
+</script>
+</body>
+</html>

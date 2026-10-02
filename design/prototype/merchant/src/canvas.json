@@ -1,0 +1,508 @@
+{
+ "v": 3,
+ "attachments": {},
+ "boards": {
+  "Login.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M01 登录授权",
+   "w": 390,
+   "x": 0,
+   "y": 0
+  },
+  "Main.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M02 首页",
+   "w": 390,
+   "x": 470,
+   "y": 0
+  },
+  "Search.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M03 搜索页",
+   "w": 390,
+   "x": 940,
+   "y": 0
+  },
+  "Mall.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M04 短剧商城",
+   "w": 390,
+   "x": 1410,
+   "y": 0
+  },
+  "Trailer.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M05 预告片模式",
+   "w": 390,
+   "x": 1880,
+   "y": 0
+  },
+  "Detail.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M06 短剧详情（《心动便利店》）",
+   "w": 390,
+   "x": 2350,
+   "y": 0
+  },
+  "Cart.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M08 选剧单",
+   "w": 390,
+   "x": 0,
+   "y": 1300
+  },
+  "Checkout.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M09 确认订购（扣积分）",
+   "w": 390,
+   "x": 470,
+   "y": 1300
+  },
+  "PayResult.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M11 订购成功",
+   "w": 390,
+   "x": 940,
+   "y": 1300
+  },
+  "Orders.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M20 我的订单",
+   "w": 390,
+   "x": 1410,
+   "y": 1300
+  },
+  "OrderDetail.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M21 订单详情",
+   "w": 390,
+   "x": 1880,
+   "y": 1300
+  },
+  "Plan.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M22 方案确认（09-28 待确认）",
+   "w": 390,
+   "x": 2350,
+   "y": 1300
+  },
+  "Sample.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M23 样片确认",
+   "w": 390,
+   "x": 2820,
+   "y": 1300
+  },
+  "Publish.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M28 发布任务（成片交付后）",
+   "w": 390,
+   "x": 3290,
+   "y": 1300
+  },
+  "LaunchRecord.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "w": 390,
+   "title": "M24 上线记录（《家有萌娃》）",
+   "x": 3760,
+   "y": 1300
+  },
+  "Profile.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M12 商家档案",
+   "w": 390,
+   "x": 0,
+   "y": 2600
+  },
+  "ProfileBasic.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M13 建档·基础信息",
+   "w": 390,
+   "x": 470,
+   "y": 2600
+  },
+  "ProfileStore.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M14 建档·门店形象",
+   "w": 390,
+   "x": 940,
+   "y": 2600
+  },
+  "ProfileService.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M15 建档·服务与价格",
+   "w": 390,
+   "x": 1410,
+   "y": 2600
+  },
+  "ProfileCert.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M16 建档·资质认证（首次提交 · 06-12）",
+   "w": 390,
+   "x": 1880,
+   "y": 2600
+  },
+  "ProfileReview.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M17 审核结果（06-12 提交 → 06-13 通过）",
+   "w": 390,
+   "x": 2350,
+   "y": 2600
+  },
+  "Ads.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M18 我的广告（含 M42 提交制作需求）",
+   "w": 390,
+   "x": 0,
+   "y": 3900
+  },
+  "AdDetail.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "w": 390,
+   "title": "M19 广告视频详情（国庆双人套餐待确认）",
+   "x": 470,
+   "y": 3900
+  },
+  "Accounts.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M26 渠道账号",
+   "w": 390,
+   "x": 940,
+   "y": 3900
+  },
+  "Service.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M29 客服中心",
+   "w": 390,
+   "x": 1410,
+   "y": 3900
+  },
+  "Ticket.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M31 工单详情 · 处理中",
+   "w": 390,
+   "x": 1880,
+   "y": 3900
+  },
+  "TicketDone.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M31 工单详情 · 待您确认（09-28）",
+   "w": 390,
+   "x": 2350,
+   "y": 3900
+  },
+  "Mine.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M32 我的",
+   "w": 390,
+   "x": 0,
+   "y": 5200
+  },
+  "MyDramas.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M33 我的短剧",
+   "w": 390,
+   "x": 470,
+   "y": 5200
+  },
+  "Contracts.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M34 合同与授权书",
+   "w": 390,
+   "x": 940,
+   "y": 5200
+  },
+  "Invoices.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M35 发票管理",
+   "w": 390,
+   "x": 1410,
+   "y": 5200
+  },
+  "Messages.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M36 消息中心",
+   "w": 390,
+   "x": 1880,
+   "y": 5200
+  },
+  "Wallet.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M43 套餐与积分",
+   "w": 390,
+   "x": 0,
+   "y": 6500
+  },
+  "WalletExpired.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M43 套餐与积分 · 已过期（假设 10-13 仍未续费）",
+   "w": 390,
+   "x": 470,
+   "y": 6500
+  },
+  "PlanPick.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M44 选择套餐（含 M10 对公转账、付款结果）",
+   "w": 390,
+   "x": 940,
+   "y": 6500
+  },
+  "TopUp.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M45 加购积分",
+   "w": 390,
+   "x": 1410,
+   "y": 6500
+  },
+  "Ledger.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "M46 积分明细",
+   "w": 390,
+   "x": 1880,
+   "y": 6500
+  },
+  "StoreSwitch.dc.html": {
+   "x": 0,
+   "y": 7800,
+   "w": 390,
+   "h": 844,
+   "title": "M47 切换门店（弹层）",
+   "is_interactive": true
+  },
+  "Stores.dc.html": {
+   "x": 470,
+   "y": 7800,
+   "w": 390,
+   "h": 844,
+   "title": "M48 我的门店",
+   "is_interactive": true
+  },
+  "StoreAdd.dc.html": {
+   "x": 940,
+   "y": 7800,
+   "w": 390,
+   "h": 844,
+   "title": "M49 新增门店",
+   "is_interactive": true
+  },
+  "AssetLib.dc.html": {
+   "x": 1410,
+   "y": 7800,
+   "w": 390,
+   "h": 844,
+   "title": "M50 门店素材",
+   "is_interactive": true
+  },
+  "AssetUpload.dc.html": {
+   "x": 1880,
+   "y": 7800,
+   "w": 390,
+   "h": 844,
+   "title": "M51 上传素材",
+   "is_interactive": true
+  },
+  "AssetDetail.dc.html": {
+   "x": 2350,
+   "y": 7800,
+   "w": 390,
+   "h": 844,
+   "title": "M52 素材详情（录音）",
+   "is_interactive": true
+  },
+  "Members.dc.html": {
+   "x": 2820,
+   "y": 7800,
+   "w": 390,
+   "h": 844,
+   "title": "M53 门店成员",
+   "is_interactive": true
+  },
+  "Invite.dc.html": {
+   "x": 3290,
+   "y": 7800,
+   "w": 390,
+   "h": 844,
+   "title": "M54 邀请店员",
+   "is_interactive": true
+  },
+  "Join.dc.html": {
+   "x": 3760,
+   "y": 7800,
+   "w": 390,
+   "h": 844,
+   "title": "M55 受邀者加入门店",
+   "is_interactive": true
+  },
+  "StaffProfile.dc.html": {
+   "x": 4230,
+   "y": 7800,
+   "w": 390,
+   "h": 844,
+   "title": "M56 店员视角 · 商家档案",
+   "is_interactive": true
+  }
+ },
+ "createdOnFiles": {
+  "at": "2026-09-26T04:23:18Z",
+  "v": 1
+ },
+ "designSystems": [],
+ "launch": {
+  "view": "canvas"
+ },
+ "notes": {
+  "row1": {
+   "kind": "title1",
+   "maxW": 3210,
+   "text": "① 登录与选剧",
+   "w": 240,
+   "x": 0,
+   "y": -300
+  },
+  "row2": {
+   "kind": "title1",
+   "maxW": 4150,
+   "text": "② 订购与交付",
+   "w": 240,
+   "x": 0,
+   "y": 1000
+  },
+  "row3": {
+   "kind": "title1",
+   "maxW": 2740,
+   "text": "③ 商家建档",
+   "w": 240,
+   "x": 0,
+   "y": 2300
+  },
+  "row4": {
+   "kind": "title1",
+   "maxW": 2740,
+   "text": "④ 广告、账号与客服",
+   "w": 240,
+   "x": 0,
+   "y": 3600
+  },
+  "row5": {
+   "kind": "title1",
+   "maxW": 2270,
+   "text": "⑤ 个人中心",
+   "w": 240,
+   "x": 0,
+   "y": 4900
+  },
+  "readme": {
+   "fill": "orange",
+   "size": 24,
+   "text": "使用说明\n1. 每个画板都可进入演示（Play）模式点击体验，页面之间已按流程串联。\n2. 订购路径：首页 → 短剧商城 → 短剧详情 → 选剧单 → 确认订购（扣积分）→ 订购成功 → 我的订单 → 订单详情 → 方案确认 → 样片确认 → 发布任务 → 上线记录。\n3. 套餐与积分：我的 → 套餐与积分 → 选择套餐（开通、续费、升降级，含对公转账与付款结果）→ 加购积分 → 积分明细；另附套餐已过期的状态。\n4. 建档：商家档案 → 基础信息 → 门店形象 → 服务与价格 → 资质认证 → 审核结果。\n5. 广告：在“我的广告”中提交制作需求（冻结积分），并在广告视频详情中预览、确认或提出修改意见。\n6. 个人中心：从“我的”进入我的短剧、合同与授权书、发票管理与消息中心；客服中心的工单可查看详情。\n7. 门店、成员与素材：我的 → 切换门店，或进入我的门店 → 新增门店；商家档案 → 门店素材（上传素材、素材详情）与门店成员（邀请店员 → 受邀者加入 → 店员视角）。\n8. 示例时刻为 2026-09-30 上午：XX 餐饮管理有限公司为专业版（09-13 至 10-12），名下 2 家门店（万达店，以及审核中的春熙店），可用积分 2,920（套餐积分 1,920、加购积分 1,000），由名下门店共用；万达店有店员 2 位、1 个邀请待接受。资质认证与审核结果展示 6 月首次建档的流程。\n9. 套餐价格、积分数、折扣与剧目积分价均为示例，与 PRD 第 2 章一致；正式数值待定价。",
+   "w": 600,
+   "x": 2820,
+   "y": 0,
+   "maxH": 1180
+  },
+  "row6": {
+   "kind": "title1",
+   "maxW": 2270,
+   "text": "⑥ 套餐与积分",
+   "w": 240,
+   "x": 0,
+   "y": 6200
+  },
+  "row7": {
+   "kind": "title1",
+   "maxW": 4620,
+   "text": "⑦ 门店、成员与素材",
+   "w": 240,
+   "x": 0,
+   "y": 7500
+  }
+ },
+ "order": [
+  "Login.dc.html",
+  "Main.dc.html",
+  "Search.dc.html",
+  "Mall.dc.html",
+  "Trailer.dc.html",
+  "Detail.dc.html",
+  "Cart.dc.html",
+  "Checkout.dc.html",
+  "PayResult.dc.html",
+  "Orders.dc.html",
+  "OrderDetail.dc.html",
+  "Plan.dc.html",
+  "Sample.dc.html",
+  "Publish.dc.html",
+  "LaunchRecord.dc.html",
+  "Profile.dc.html",
+  "ProfileBasic.dc.html",
+  "ProfileStore.dc.html",
+  "ProfileService.dc.html",
+  "ProfileCert.dc.html",
+  "ProfileReview.dc.html",
+  "Ads.dc.html",
+  "AdDetail.dc.html",
+  "Accounts.dc.html",
+  "Service.dc.html",
+  "Ticket.dc.html",
+  "TicketDone.dc.html",
+  "Mine.dc.html",
+  "MyDramas.dc.html",
+  "Contracts.dc.html",
+  "Invoices.dc.html",
+  "Messages.dc.html",
+  "Wallet.dc.html",
+  "WalletExpired.dc.html",
+  "PlanPick.dc.html",
+  "TopUp.dc.html",
+  "Ledger.dc.html",
+  "StoreSwitch.dc.html",
+  "Stores.dc.html",
+  "StoreAdd.dc.html",
+  "AssetLib.dc.html",
+  "AssetUpload.dc.html",
+  "AssetDetail.dc.html",
+  "Members.dc.html",
+  "Invite.dc.html",
+  "Join.dc.html",
+  "StaffProfile.dc.html"
+ ],
+ "pages": [],
+ "title": "狸有戏商家端原型"
+}

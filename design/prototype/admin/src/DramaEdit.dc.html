@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏运营后台 · 短剧编辑</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; overflow: hidden; position: relative; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; font-size: 14px;">
+<nav aria-label="主菜单" style="width: 216px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; background: #231F1B; color: #D9D1C5;">
+<div style="height: 64px; flex-shrink: 0; box-sizing: border-box; padding: 0 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #3A332C;">
+<svg width="30" height="30" viewBox="0 0 64 64" fill="none" stroke="#E8864F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12 22 25h20l12-13-2 22-20 19-20-19z"></path><path d="m21 34 5 2.5M43 34l-5 2.5"></path><circle cx="32" cy="44" r="1.8" fill="#E8864F" stroke="none"></circle></svg>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-family: 'Noto Serif SC', serif; font-size: 19px; font-weight: 900; letter-spacing: 3px; line-height: 1.1; color: #FFFFFF;">狸有戏</span><span style="font-size: 12px; line-height: 1.2; color: #9A9084;">运营管理后台</span></div>
+</div>
+<div style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px;">
+<a href="Main.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>工作台</a>
+<a href="Dramas.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; background: #C4501B; color: #FFFFFF; font-size: 14px; font-weight: 600;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="m10.5 9.5 4 2.5-4 2.5z"></path></svg>短剧库</a>
+<a href="Plans.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5 15.5 12 12 16.5 8.5 12z"></path></svg><span style="flex-grow: 1;">套餐与积分</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Merchants.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5 5.5 4.5h13L20 9.5"></path><path d="M4 9.5c0 1.5 1.2 2.5 2.7 2.5s2.6-1 2.6-2.5c0 1.5 1.2 2.5 2.7 2.5s2.7-1 2.7-2.5c0 1.5 1.1 2.5 2.6 2.5S20 11 20 9.5"></path><path d="M5.5 12v7.5h13V12"></path><path d="M10 19.5V15h4v4.5"></path></svg><span style="flex-grow: 1;">商家</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">4</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Orders.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8.5l4 4v13H6z"></path><path d="M14 3.5V8h4.5M9 12.5h6M9 16.5h4"></path></svg><span style="flex-grow: 1;">订单</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">22</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Tickets.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"></path><path d="m4 7.5 8 4.5 8-4.5M12 12v9"></path></svg><span style="flex-grow: 1;">交付</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">7</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Delivery.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15.5V4"></path><path d="m7.5 8.5 4.5-4.5 4.5 4.5"></path><path d="M5 14v5.5h14V14"></path></svg><span style="flex-grow: 1;">发布</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">10</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Service.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2"></path><rect x="3.5" y="13.5" width="4" height="6" rx="1.5"></rect><rect x="16.5" y="13.5" width="4" height="6" rx="1.5"></rect></svg><span style="flex-grow: 1;">客服</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">6</span></a>
+<a href="Payments.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m9 7.5 3 4 3-4M12 11.5V17M9.5 12.5h5M9.5 15h5"></path></svg><span style="flex-grow: 1;">财务</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">8</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="RptOverview.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7.5 16.5v-5M12 16.5v-9M16.5 16.5v-7"></path></svg><span style="flex-grow: 1;">报表</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="OpsHome.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3.5l7 4V6l-7 4z"></path><path d="M17.5 9.5a3.5 3.5 0 0 1 0 5"></path></svg><span style="flex-grow: 1;">运营</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="SysStaff.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5h9M17.5 6.5h2M4.5 12h3M11.5 12h8M4.5 17.5h7M15.5 17.5h4"></path><circle cx="15.5" cy="6.5" r="2"></circle><circle cx="9.5" cy="12" r="2"></circle><circle cx="13.5" cy="17.5" r="2"></circle></svg><span style="flex-grow: 1;">系统</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Partners.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"></circle><path d="M3.5 19a5.5 5.5 0 0 1 11 0"></path><circle cx="17" cy="9.5" r="2.5"></circle><path d="M16 14.3a4.5 4.5 0 0 1 4.5 4.7"></path></svg><span style="flex-grow: 1;">渠道</span><span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #5A5047; border-radius: 4px; font-size: 11px; line-height: 16px; color: #9A9084;">V1.1</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+</div>
+</nav>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<header style="height: 56px; flex-shrink: 0; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 16px; background: #FFFFFF; border-bottom: 1px solid #ECE6DD;">
+<nav aria-label="面包屑" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6F665B;"><a href="Dramas.dc.html" style="color: #6F665B;">短剧库</a><span aria-hidden="true">/</span><span style="color: #1D1A16; font-weight: 600;">编辑短剧</span></nav>
+<label style="margin-left: auto; width: 300px; height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FAF8F4; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="全局搜索" placeholder="搜索商家、订单号、工单号" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<button type="button" aria-label="消息通知，5 条未读" style="position: relative; width: 40px; height: 40px; flex-shrink: 0; border: none; border-radius: 8px; background: transparent; color: #1D1A16; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg><span aria-hidden="true" style="position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; box-sizing: content-box; border: 2px solid #FFFFFF; border-radius: 6px; background: #C4501B;"></span></button>
+<div style="display: flex; align-items: center; gap: 10px; padding-left: 16px; border-left: 1px solid #ECE6DD;"><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 16px; background: #FBEDE5; color: #A63F12; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">周</span><div style="display: flex; flex-direction: column;"><span style="font-size: 14px; font-weight: 600; line-height: 1.3;">周航</span><span style="font-size: 12px; line-height: 1.3; color: #6F665B;">超级管理员</span></div></div>
+</header>
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<div role="status" style="position: absolute; top: 68px; right: 24px; z-index: 5; max-width: 480px; box-sizing: border-box; padding: 10px 8px 10px 14px; border-radius: 10px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: 0 8px 24px rgba(29, 26, 22, 0.18);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7FD19B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg><span style="flex-grow: 1;">{{toast}}</span><button type="button" aria-label="关闭提示" onClick="{{closeToast}}" style="width: 28px; height: 28px; flex-shrink: 0; border: none; border-radius: 6px; background: transparent; color: #FFFFFF; font-size: 16px; cursor: pointer;">×</button></div>
+</sc-if>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="display: flex; align-items: center; gap: 10px;"><h1 style="margin: 0; font-family: 'Noto Serif SC', serif; font-size: 24px; font-weight: 700; line-height: 1.3;">《{{form.title}}》</h1><span style="height: 24px; box-sizing: border-box; padding: 0 10px; border-radius: 12px; background: {{statusBg}}; color: {{statusFg}}; font-size: 13px; font-weight: 600; display: flex; align-items: center;">{{statusText}}</span></div>
+<p style="margin: 0; font-size: 13px; color: #6F665B;">创建于 2026-09-29 14:20 · 内容运营 沈蔓 · 最近保存 {{savedAt}}</p>
+</div>
+<div style="display: flex; gap: 10px; flex-shrink: 0;">
+<button type="button" onClick="{{saveDraft}}" style="min-height: 40px; padding: 0 16px; border: 1px solid #DDD5C9; border-radius: 8px; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; cursor: pointer;">{{saveLabel}}</button>
+<button type="button" onClick="{{publish}}" disabled="{{cannotPublish}}" title="{{publishTitle}}" style="min-height: 40px; padding: 0 20px; border: none; border-radius: 8px; background: {{publishBg}}; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">{{publishLabel}}</button>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start;">
+<section aria-label="短剧资料" style="border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; overflow: hidden;">
+<div role="tablist" aria-label="短剧资料" style="display: flex; gap: 4px; box-sizing: border-box; padding: 0 12px; border-bottom: 1px solid #ECE6DD;">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+<button type="button" role="tab" aria-selected="{{t.on}}" onClick="{{t.pick}}" style="min-height: 46px; padding: 0 10px; border: none; border-bottom: 2px solid {{t.line}}; background: none; font-family: inherit; font-size: 14px; font-weight: {{t.weight}}; color: {{t.color}}; display: flex; align-items: center; gap: 6px; cursor: pointer;">{{t.label}}<sc-if value="{{t.warn}}" hint-placeholder-val="{{false}}"><span role="img" aria-label="有待补充项" style="width: 7px; height: 7px; border-radius: 4px; background: #B42318;"></span></sc-if></button>
+</sc-for>
+</div>
+<sc-if value="{{tabBasic}}" hint-placeholder-val="{{true}}">
+<div role="tabpanel" aria-label="基础信息" style="box-sizing: border-box; padding: 18px 20px 20px; display: flex; gap: 20px;">
+<div style="width: 150px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">竖版封面</span><div role="img" aria-label="竖版封面：街角早点铺" style="width: 150px; height: 200px; box-sizing: border-box; padding: 12px; border-radius: 10px; background: #8A5A3C; color: #FFFFFF; display: flex; flex-direction: column; justify-content: flex-end; gap: 4px;"><span style="font-family: 'Noto Serif SC', serif; font-size: 18px; font-weight: 700; line-height: 1.3;">街角早点铺</span><span style="font-size: 11px; opacity: 0.85;">全 60 集</span></div></div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">预告片</span>
+<sc-if value="{{trailerMissing}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{uploadTrailer}}" style="width: 150px; min-height: 84px; box-sizing: border-box; border: 1px dashed #D9A08A; border-radius: 10px; background: #FFF8F3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-family: inherit; font-size: 12px; color: #A63F12; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V5"></path><path d="m7.5 9.5 4.5-4.5 4.5 4.5"></path><path d="M5 19h14"></path></svg>上传预告片<span style="color: #6F665B;">不超过 3 分钟</span></button></sc-if>
+<sc-if value="{{trailerDone}}" hint-placeholder-val="{{false}}"><div style="width: 150px; box-sizing: border-box; padding: 10px; border: 1px solid #CFE5D6; border-radius: 10px; background: #F3FAF5; display: flex; flex-direction: column; gap: 2px; font-size: 12px;"><span style="font-weight: 600; color: #256A42;">已上传</span><span>预告片.mp4</span><span style="color: #6F665B;">2 分 40 秒 · 竖屏 9:16</span></div></sc-if>
+</div>
+</div>
+<div style="flex-grow: 1; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; align-content: start;">
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="d-title" style="font-size: 13px; font-weight: 600;">剧名</label><input id="d-title" type="text" maxlength="20" value="{{form.title}}" onChange="{{onTitle}}" style="height: 38px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;"><div style="display: flex; flex-direction: column; gap: 6px;"><label for="d-eps" style="font-size: 13px; font-weight: 600;">总集数</label><input id="d-eps" type="text" value="{{form.eps}}" onChange="{{onEps}}" style="height: 38px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"></div><div style="display: flex; flex-direction: column; gap: 6px;"><label for="d-len" style="font-size: 13px; font-weight: 600;">单集时长</label><input id="d-len" type="text" value="{{form.len}}" onChange="{{onLen}}" style="height: 38px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"></div></div>
+<fieldset style="grid-column: 1 / -1; margin: 0; padding: 0; border: none; display: flex; flex-direction: column; gap: 8px;"><legend style="padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 600;">题材（多选）</legend><div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{genres}}" as="g" hint-placeholder-count="7"><button type="button" aria-pressed="{{g.on}}" onClick="{{g.toggle}}" style="min-height: 32px; padding: 0 14px; border: 1px solid {{g.border}}; border-radius: 16px; background: {{g.bg}}; color: {{g.fg}}; font-family: inherit; font-size: 13px; font-weight: {{g.weight}}; cursor: pointer;">{{g.label}}</button></sc-for>
+</div></fieldset>
+<div style="grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">标签</span><div style="display: flex; flex-wrap: wrap; gap: 8px;"><span style="height: 28px; box-sizing: border-box; padding: 0 10px; border-radius: 14px; background: #F3EFE9; font-size: 13px; display: inline-flex; align-items: center;">烟火气</span><span style="height: 28px; box-sizing: border-box; padding: 0 10px; border-radius: 14px; background: #F3EFE9; font-size: 13px; display: inline-flex; align-items: center;">小人物</span><span style="height: 28px; box-sizing: border-box; padding: 0 10px; border-radius: 14px; background: #F3EFE9; font-size: 13px; display: inline-flex; align-items: center;">父女情</span><span style="height: 28px; box-sizing: border-box; padding: 0 10px; border-radius: 14px; background: #F3EFE9; font-size: 13px; display: inline-flex; align-items: center;">老街坊</span></div></div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="d-maker" style="font-size: 13px; font-weight: 600;">出品方</label><input id="d-maker" type="text" value="{{form.maker}}" onChange="{{onMaker}}" style="height: 38px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"></div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="d-cast" style="font-size: 13px; font-weight: 600;">主演</label><input id="d-cast" type="text" value="{{form.cast}}" onChange="{{onCast}}" style="height: 38px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"></div>
+<div style="grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px;"><label for="d-intro" style="font-size: 13px; font-weight: 600;">剧情简介</label><textarea id="d-intro" rows="3" maxlength="300" value="{{form.intro}}" onChange="{{onIntro}}" style="box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; line-height: 1.6; color: #1D1A16; resize: none;"></textarea></div>
+<div style="grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px;"><span><span style="font-weight: 600;">角色介绍</span><span style="margin-left: 8px; color: #6F665B;">{{roleText}}</span></span><button type="button" onClick="{{openRoles}}" style="min-height: 32px; padding: 0; border: none; background: none; font-family: inherit; font-size: 13px; color: #A63F12; cursor: pointer;">管理角色 ›</button></div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{tabLicense}}" hint-placeholder-val="{{false}}">
+<div role="tabpanel" aria-label="许可信息" style="box-sizing: border-box; padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 16px;">
+<fieldset style="margin: 0; padding: 0; border: none;"><legend style="padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 600;">微短剧类别</legend><div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;">
+<sc-for list="{{classes}}" as="c" hint-placeholder-count="3"><label style="min-height: 56px; box-sizing: border-box; padding: 8px 12px; border: {{c.border}}; border-radius: 10px; background: {{c.bg}}; display: flex; align-items: center; gap: 10px; cursor: pointer;"><input type="radio" name="drama-class" checked="{{c.on}}" onChange="{{c.pick}}" style="width: 16px; height: 16px; margin: 0; accent-color: #C4501B;"><span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600;">{{c.label}}</span><span style="font-size: 12px; color: #6F665B;">{{c.desc}}</span></span></label></sc-for>
+</div></fieldset>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px;">
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="l-no" style="font-size: 13px; font-weight: 600;">许可证号</label><input id="l-no" type="text" value="{{form.licNo}}" onChange="{{onLicNo}}" style="height: 38px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"></div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="l-code" style="font-size: 13px; font-weight: 600;">批准文件编号或节目编号</label><input id="l-code" type="text" value="{{form.licCode}}" onChange="{{onLicCode}}" style="height: 38px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">许可文件扫描件</span>
+<sc-if value="{{licenseMissing}}" hint-placeholder-val="{{true}}"><div style="display: flex; align-items: center; gap: 12px; box-sizing: border-box; padding: 12px 14px; border: 1px dashed #D9A08A; border-radius: 10px; background: #FFF8F3;"><span style="flex-grow: 1; font-size: 13px; color: #A63F12;">尚未上传：上架前须上传许可证或批准文件扫描件（PDF 或图片）</span><button type="button" onClick="{{uploadLicense}}" style="min-height: 34px; padding: 0 14px; border: 1px solid #D9A08A; border-radius: 8px; background: #FFFFFF; color: #A63F12; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;">上传文件</button></div></sc-if>
+<sc-if value="{{licenseDone}}" hint-placeholder-val="{{false}}"><div style="display: flex; align-items: center; gap: 12px; box-sizing: border-box; padding: 12px 14px; border: 1px solid #CFE5D6; border-radius: 10px; background: #F3FAF5; font-size: 13px;"><span style="font-weight: 600; color: #256A42;">已上传</span><span>许可文件.pdf · 2 页</span></div></sc-if>
+</div>
+<p style="margin: 0; padding: 10px 12px; border-radius: 8px; background: #FAF8F4; font-size: 12px; line-height: 1.6; color: #6F665B;">片头须在明显位置标注剧名、许可证号、批准文件编号或节目编号；成片合成时保留片头信息，广告不得遮挡。一类、二类微短剧默认只开放片头、片尾贴片。</p>
+</div>
+</sc-if>
+<sc-if value="{{tabCopyright}}" hint-placeholder-val="{{false}}">
+<div role="tabpanel" aria-label="版权信息" style="box-sizing: border-box; padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 14px;">
+<dl style="margin: 0; display: grid; grid-template-columns: 132px minmax(0, 1fr); row-gap: 12px; column-gap: 16px; font-size: 14px; line-height: 1.5;">
+<dt style="color: #6F665B;">版权来源</dt><dd style="margin: 0;">授权（出品方授权本平台使用）</dd>
+<dt style="color: #6F665B;">授权平台与地域</dt><dd style="margin: 0;">抖音、视频号 · 中国大陆</dd>
+<dt style="color: #6F665B;">是否可转授权</dt><dd style="margin: 0; color: #256A42; font-weight: 600;">是</dd>
+<dt style="color: #6F665B;">是否可剪辑植入</dt><dd style="margin: 0; color: #256A42; font-weight: 600;">是</dd>
+<dt style="color: #6F665B;">版权有效期</dt><dd style="margin: 0; font-variant-numeric: tabular-nums;">2026-09-20 至 2028-09-19</dd>
+<dt style="color: #6F665B;">权属证明文件</dt><dd style="margin: 0;">授权合同.pdf · 已上传</dd>
+</dl>
+<p style="margin: 0; padding: 10px 12px; border-radius: 8px; background: #FAF8F4; font-size: 12px; line-height: 1.6; color: #6F665B;">成片使用期至版权到期日止，续得版权后同步顺延；到期前 90 天提醒，剩余授权期不足 3 个月时自动停止订购。每笔订购按发布账号生成《定制内容授权书》。</p>
+</div>
+</sc-if>
+<sc-if value="{{tabBiz}}" hint-placeholder-val="{{false}}">
+<div role="tabpanel" aria-label="商业信息" style="box-sizing: border-box; padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 16px;">
+<fieldset style="margin: 0; padding: 0; border: none;"><legend style="padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 600;">热度等级</legend><div style="display: flex; gap: 10px;">
+<sc-for list="{{heats}}" as="h" hint-placeholder-count="4"><label style="min-height: 44px; box-sizing: border-box; padding: 0 14px; border: {{h.border}}; border-radius: 10px; background: {{h.bg}}; display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;"><input type="radio" name="drama-heat" checked="{{h.on}}" onChange="{{h.pick}}" style="width: 16px; height: 16px; margin: 0; accent-color: #C4501B;"><span style="font-weight: 600;">{{h.label}}</span><span style="color: #6F665B;">模板积分价 {{h.priceText}}</span></label></sc-for>
+</div></fieldset>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px;">
+<div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 600;">适配行业</span><div style="display: flex; flex-wrap: wrap; gap: 8px;"><span style="height: 28px; box-sizing: border-box; padding: 0 10px; border-radius: 14px; background: #F3EFE9; font-size: 13px; display: inline-flex; align-items: center;">餐饮</span><span style="height: 28px; box-sizing: border-box; padding: 0 10px; border-radius: 14px; background: #F3EFE9; font-size: 13px; display: inline-flex; align-items: center;">生活服务</span><span style="height: 28px; box-sizing: border-box; padding: 0 10px; border-radius: 14px; background: #F3EFE9; font-size: 13px; display: inline-flex; align-items: center;">零售</span></div></div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="b-aud" style="font-size: 13px; font-weight: 600;">目标观众</label><input id="b-aud" type="text" value="{{form.audience}}" onChange="{{onAudience}}" style="height: 38px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"></div>
+</div>
+<fieldset style="margin: 0; padding: 0; border: none;"><legend style="padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 600;">允许的植入形式</legend><div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;">
+<label style="min-height: 44px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 10px; display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;"><input type="checkbox" checked="{{form.pre}}" onChange="{{togglePre}}" style="width: 16px; height: 16px; margin: 0; accent-color: #C4501B;">片头贴片</label>
+<label style="min-height: 44px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 10px; display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;"><input type="checkbox" checked="{{form.post}}" onChange="{{togglePost}}" style="width: 16px; height: 16px; margin: 0; accent-color: #C4501B;">片尾贴片</label>
+<label title="V1.1 开放，须经法务确认合规" style="min-height: 44px; box-sizing: border-box; padding: 0 12px; border: 1px solid #ECE6DD; border-radius: 10px; background: #FAF8F4; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #9A9084;"><input type="checkbox" disabled="{{true}}" style="width: 16px; height: 16px; margin: 0;">角标字幕条<span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #DDD5C9; border-radius: 4px; font-size: 11px; line-height: 16px;">V1.1</span></label>
+<label title="V1.1 开放，须经法务确认合规" style="min-height: 44px; box-sizing: border-box; padding: 0 12px; border: 1px solid #ECE6DD; border-radius: 10px; background: #FAF8F4; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #9A9084;"><input type="checkbox" disabled="{{true}}" style="width: 16px; height: 16px; margin: 0;">片中插播<span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #DDD5C9; border-radius: 4px; font-size: 11px; line-height: 16px;">V1.1</span></label>
+</div></fieldset>
+<p style="margin: 0; font-size: 12px; color: #6F665B;">角标字幕条与片中插播会改动剧集画面，须经法务确认合规后开放；一类、二类微短剧默认只开放片头、片尾贴片。</p>
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;"><label for="b-trial" style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600;">试看集数<span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #DDD5C9; border-radius: 4px; font-size: 11px; font-weight: 400; line-height: 16px; color: #6F665B;">V1.1</span></label><span style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6F665B;"><span>前</span><input id="b-trial" type="text" value="{{form.trial}}" onChange="{{onTrial}}" style="width: 56px; height: 34px; box-sizing: border-box; padding: 0 8px; border: 1px solid {{trialBorder}}; border-radius: 8px; font-family: inherit; font-size: 13px; text-align: right; color: #1D1A16;"><span>集免费试看</span></span><span style="font-size: 12px; color: {{trialHintColor}};">{{trialHint}}</span></div>
+</div>
+</sc-if>
+<sc-if value="{{tabEps}}" hint-placeholder-val="{{false}}">
+<div role="tabpanel" aria-label="剧集管理" style="display: flex; flex-direction: column;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; box-sizing: border-box; padding: 14px 20px;"><span style="font-size: 13px; color: #6F665B;">{{epsText}}</span><button type="button" onClick="{{openReplace}}" style="min-height: 34px; padding: 0 14px; border: 1px solid #DDD5C9; border-radius: 8px; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 13px; cursor: pointer;">批量替换原片</button></div>
+<div role="table" aria-label="剧集" style="display: flex; flex-direction: column;">
+<div role="row" style="display: grid; grid-template-columns: 72px minmax(0, 1fr) 72px 150px 80px 96px; column-gap: 12px; align-items: center; min-height: 36px; box-sizing: border-box; padding: 0 20px; background: #FAF8F4; font-size: 12px; font-weight: 600; color: #6F665B;"><span role="columnheader">集数</span><span role="columnheader">标题</span><span role="columnheader">时长</span><span role="columnheader">原片文件</span><span role="columnheader">状态</span><span role="columnheader">中插点位（V1.1）</span></div>
+<sc-for list="{{episodes}}" as="e" hint-placeholder-count="6">
+<div role="row" style="display: grid; grid-template-columns: 72px minmax(0, 1fr) 72px 150px 80px 96px; column-gap: 12px; align-items: center; min-height: 42px; box-sizing: border-box; padding: 0 20px; border-top: 1px solid #F0EBE3; font-size: 13px;"><span role="cell" style="font-variant-numeric: tabular-nums;">第 {{e.no}} 集</span><span role="cell">{{e.title}}</span><span role="cell" style="font-variant-numeric: tabular-nums;">{{e.len}}</span><span role="cell" style="color: #6F665B; font-variant-numeric: tabular-nums;">{{e.file}}</span><span role="cell" style="color: {{e.stColor}}; font-weight: 600;">{{e.stText}}</span><span role="cell" title="本剧未开放片中插播" style="color: #9A9084;">未开放</span></div>
+</sc-for>
+</div>
+<div style="box-sizing: border-box; padding: 10px 20px; border-top: 1px solid #F0EBE3; font-size: 12px; color: #6F665B;">显示第 1～6 集，共 60 集；中插点位仅在开放“片中插播”后设置</div>
+</div>
+</sc-if>
+</section>
+<div style="display: flex; flex-direction: column; gap: 12px;">
+<section aria-labelledby="chk-title" style="box-sizing: border-box; padding: 16px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between;"><h2 id="chk-title" style="margin: 0; font-size: 15px; font-weight: 600;">上架校验</h2><span style="font-size: 13px; font-weight: 600; color: {{passColor}};">{{passText}}</span></div>
+<ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px;">
+<sc-for list="{{checks}}" as="k" hint-placeholder-count="5">
+<li style="display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.5;"><span aria-hidden="true" style="width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; border-radius: 9px; background: {{k.dotBg}}; color: #FFFFFF; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;">{{k.mark}}</span><span style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px;"><span>{{k.label}}</span><span style="font-size: 12px; color: {{k.noteColor}};">{{k.note}}</span></span><sc-if value="{{k.fixable}}" hint-placeholder-val="{{false}}"><button type="button" onClick="{{k.go}}" style="min-height: 28px; padding: 0; border: none; background: none; font-family: inherit; font-size: 12px; font-weight: 600; color: #A63F12; cursor: pointer; white-space: nowrap;">去补充 ›</button></sc-if></li>
+</sc-for>
+</ul>
+<p style="margin: 0; padding-top: 10px; border-top: 1px solid #F0EBE3; font-size: 12px; line-height: 1.6; color: #6F665B;">全部通过后可上架；上架后商城展示该剧，商家即可加入选剧单订购。</p>
+</section>
+<section aria-labelledby="price-title" style="box-sizing: border-box; padding: 16px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 8px;">
+<div style="display: flex; align-items: center; justify-content: space-between;"><h2 id="price-title" style="margin: 0; font-size: 15px; font-weight: 600;">积分价</h2><a href="Pricing.dc.html" style="font-size: 13px; color: #A63F12;">去单剧积分价 ›</a></div>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 12px; color: #6F665B;">剧目积分价（积分 / 部）</span><span style="font-family: 'Noto Serif SC', serif; font-size: 22px; font-weight: 700;">{{priceText}}</span></div>
+<p style="margin: 0; font-size: 12px; line-height: 1.6; color: #6F665B;"><span style="display: block;">含全部集数的门店定制与交付，按 {{heat}} 级模板定价；</span><span style="display: block;">可在“单剧积分价”中单剧调整。</span><span style="display: block;">专业版实扣 {{net9}}，旗舰版实扣 {{net8}}。</span></p>
+</section>
+<section aria-labelledby="log-title" style="box-sizing: border-box; padding: 16px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 8px;">
+<h2 id="log-title" style="margin: 0; font-size: 15px; font-weight: 600;">操作日志</h2>
+<ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px;">
+<sc-for list="{{logs}}" as="l" hint-placeholder-count="3">
+<li style="display: flex; flex-direction: column; gap: 1px; font-size: 13px;"><span style="font-size: 12px; color: #6F665B; font-variant-numeric: tabular-nums;">{{l.time}} · {{l.who}}</span><span>{{l.text}}</span></li>
+</sc-for>
+</ol>
+</section>
+</div>
+</div>
+</main>
+</div>
+<sc-if value="{{rolesOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10; background: rgba(29, 26, 22, 0.45); display: flex; align-items: center; justify-content: center;">
+<section role="dialog" aria-modal="true" aria-labelledby="role-title" style="width: 680px; max-height: 820px; overflow-y: auto; box-sizing: border-box; padding: 24px; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 48px rgba(29, 26, 22, 0.24);">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><h2 id="role-title" style="margin: 0; font-size: 18px; font-weight: 600;">角色介绍</h2><p style="margin: 0; font-size: 13px; line-height: 1.6; color: #6F665B;">最多 8 个角色，按列表顺序展示在商家端的短剧详情中。</p></div>
+<button type="button" aria-label="关闭" onClick="{{closeDlg}}" style="width: 32px; height: 32px; flex-shrink: 0; border: none; border-radius: 8px; background: #F6F3EE; color: #1D1A16; font-size: 18px; cursor: pointer;">×</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 12px;"><div style="display: grid; grid-template-columns: 120px 120px minmax(0, 1fr) 40px; column-gap: 10px; font-size: 12px; font-weight: 600; color: #6F665B;"><span>角色名</span><span>饰演者</span><span>角色简介（展示在短剧详情）</span><span></span></div><div style="display: flex; flex-direction: column; gap: 8px;"><sc-for list="{{roles}}" as="r" hint-placeholder-count="5"><div style="display: grid; grid-template-columns: 120px 120px minmax(0, 1fr) 40px; column-gap: 10px; align-items: center;"><input type="text" aria-label="{{r.nameAria}}" value="{{r.name}}" onChange="{{r.onName}}" style="height: 34px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"><input type="text" aria-label="{{r.actorAria}}" value="{{r.actor}}" onChange="{{r.onActor}}" style="height: 34px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"><input type="text" aria-label="{{r.descAria}}" value="{{r.desc}}" onChange="{{r.onDesc}}" style="height: 34px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1D1A16;"><button type="button" onClick="{{r.remove}}" style="min-height: 30px; border-radius: 8px; border: none; background: none; padding: 0; color: #A63F12; font-family: inherit; font-size: 13px; cursor: pointer; color: #B42318;">删除</button></div></sc-for></div><button type="button" onClick="{{addRole}}" style="min-height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 13px; cursor: pointer; align-self: flex-start; display: flex; align-items: center; gap: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span>添加角色</span></button><sc-if value="{{hasRoleErr}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 13px; color: #B42318;">{{roleErr}}</span></sc-if></div>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+<button type="button" onClick="{{closeDlg}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; cursor: pointer;">取消</button><button type="button" onClick="{{saveRoles}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer;">保存</button>
+</div>
+</section>
+</div>
+</sc-if>
+<sc-if value="{{replaceOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10; background: rgba(29, 26, 22, 0.45); display: flex; align-items: center; justify-content: center;">
+<section role="dialog" aria-modal="true" aria-labelledby="rep-title" style="width: 580px; max-height: 820px; overflow-y: auto; box-sizing: border-box; padding: 24px; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 48px rgba(29, 26, 22, 0.24);">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><h2 id="rep-title" style="margin: 0; font-size: 18px; font-weight: 600;">批量替换原片</h2><p style="margin: 0; font-size: 13px; line-height: 1.6; color: #6F665B;">支持多选视频文件或上传 ZIP 压缩包，单个文件不超过 200MB。</p></div>
+<button type="button" aria-label="关闭" onClick="{{closeDlg}}" style="width: 32px; height: 32px; flex-shrink: 0; border: none; border-radius: 8px; background: #F6F3EE; color: #1D1A16; font-size: 18px; cursor: pointer;">×</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px;"><button type="button" onClick="{{pickFiles}}" style="width: 100%; height: 64px; box-sizing: border-box; border: 1px dashed #D9D1C6; border-radius: 10px; background: #FAF8F4; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; font-size: 13px; color: {{rep.fileColor}}; cursor: pointer;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V5"></path><path d="m7.5 9.5 4.5-4.5 4.5 4.5"></path><path d="M5 19.5h14"></path></svg><span>{{rep.fileText}}</span></button><sc-if value="{{rep.picked}}" hint-placeholder-val="{{false}}"><div style="border: 1px solid #ECE6DD; border-radius: 10px; overflow: hidden;"><div style="display: grid; grid-template-columns: 96px minmax(0, 1fr) 132px; column-gap: 10px; min-height: 32px; align-items: center; box-sizing: border-box; padding: 0 12px; background: #FAF8F4; font-size: 12px; font-weight: 600; color: #6F665B;"><span>文件</span><span>替换</span><span>时长（原 → 新）</span></div><sc-for list="{{rep.rows}}" as="m" hint-placeholder-count="3"><div style="display: grid; grid-template-columns: 96px minmax(0, 1fr) 132px; column-gap: 10px; align-items: center; min-height: 36px; box-sizing: border-box; padding: 4px 12px; border-top: 1px solid #F0EBE3; font-size: 13px;"><span style="font-variant-numeric: tabular-nums;">{{m.file}}</span><span>{{m.target}}</span><span style="color: #6F665B; font-variant-numeric: tabular-nums;">{{m.len}}</span></div></sc-for></div></sc-if><div style="display: flex; flex-direction: column; gap: 6px;"><label for="rep-reason" style="font-size: 13px; font-weight: 600;">替换原因</label><select id="rep-reason" value="{{rep.reason}}" onChange="{{onRepReason}}" style="width: 220px; height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="画质修复">画质修复</option><option value="片头许可信息更正">片头许可信息更正</option><option value="其他">其他</option></select></div><p style="margin: 0; font-size: 12px; line-height: 1.7; color: #6F665B;">按“E + 集数”命名的文件自动匹配对应剧集；替换后重新转码。已交付的成片不受影响，之后的样片与成片合成使用新原片；内容有实质变更的，须重新核验许可信息。</p><sc-if value="{{hasRepErr}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 13px; color: #B42318;">{{repErr}}</span></sc-if></div>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+<button type="button" onClick="{{closeDlg}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; cursor: pointer;">取消</button><button type="button" onClick="{{doReplace}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer;">确认替换</button>
+</div>
+</section>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const now = '09-30 10:32';
+    const tab = st.tab || 'basic';
+    const trailer = !!st.trailer;
+    const license = !!st.license;
+    const published = !!st.published;
+    const cls = st.cls || '二类';
+    const heat = st.heat || 'B';
+    const picked = st.genres || { 都市: true, 家庭: true };
+    const extra = st.extra || [];
+    const form = st.form || {
+      title: '街角早点铺', eps: '60 集', len: '约 1 分 30 秒', maker: '[出品方名称]', cast: '[主演姓名]',
+      intro: '老城区街角的早点铺开了二十年。店主父女守着一碗豆花、一笼包子，陪街坊们度过一个个清晨，也等回了离家多年的人。',
+      licNo: '[许可证号]', licCode: '[节目编号]', audience: '25～45 岁本地上班族与家庭', pre: true, post: true, trial: '3'
+    };
+    const R0 = [
+      { name: '老周', actor: '[演员姓名]', desc: '早点铺店主，手艺人，嘴硬心软' },
+      { name: '周小禾', actor: '[演员姓名]', desc: '老周的女儿，辞职回家帮忙打理早点铺' },
+      { name: '陈婶', actor: '[演员姓名]', desc: '隔壁杂货店老板，街坊里的热心肠' },
+      { name: '阿杰', actor: '[演员姓名]', desc: '外卖骑手，每天清晨来取第一批早点' },
+      { name: '周远', actor: '[演员姓名]', desc: '离家多年的儿子，归来后与父亲和解' }
+    ];
+    const roles = st.roles || R0;
+    const draftRoles = st.draftRoles || roles;
+    const replaced = st.replaced || false;
+    const trialOk = /^\d+$/.test(String(form.trial)) && +form.trial <= 10;
+    const bind = (k) => (e) => this.setState({ form: Object.assign({}, form, { [k]: e.target.value }) });
+    const flip = (k) => () => this.setState({ form: Object.assign({}, form, { [k]: !form[k] }) });
+    const tpl = { S: 3000, A: 2000, B: 1600, C: 1000 };
+    const price = tpl[heat];
+    const tabDefs = [
+      { key: 'basic', label: '基础信息', warn: !trailer },
+      { key: 'license', label: '许可信息', warn: !license },
+      { key: 'copyright', label: '版权信息', warn: false },
+      { key: 'biz', label: '商业信息', warn: false },
+      { key: 'eps', label: '剧集管理 60', warn: false }
+    ];
+    const checkDefs = [
+      { label: '许可信息齐全（含许可文件）', ok: license, okNote: '二类微短剧 · 许可文件已上传', badNote: '缺少许可文件扫描件', tab: 'license' },
+      { label: '版权信息齐全（含权属证明）', ok: true, okNote: '有效期至 2028-09-19', badNote: '', tab: '' },
+      { label: '版权允许转授权和剪辑植入', ok: true, okNote: '均为“是”', badNote: '', tab: '' },
+      { label: '已设置积分价', ok: true, okNote: heat + ' 级模板 ' + price.toLocaleString('en-US') + ' 积分', badNote: '', tab: '' },
+      { label: '预告片已上传（不超过 3 分钟）', ok: trailer, okNote: '2 分 40 秒', badNote: '尚未上传预告片', tab: 'basic' }
+    ];
+    const passed = checkDefs.filter((c) => c.ok).length;
+    const allOk = passed === checkDefs.length;
+    const genreNames = ['都市', '甜宠', '家庭', '逆袭', '悬疑', '古装', '喜剧'];
+    const baseLogs = [
+      { time: '09-30 10:20', who: '沈蔓', text: '填写版权信息并上传授权合同' },
+      { time: '09-29 16:05', who: '沈蔓', text: '上传 60 集原片，转码完成' },
+      { time: '09-29 14:20', who: '沈蔓', text: '创建草稿' }
+    ];
+    return {
+      form: form,
+      onTitle: bind('title'),
+      onEps: bind('eps'),
+      onLen: bind('len'),
+      onMaker: bind('maker'),
+      onCast: bind('cast'),
+      onIntro: bind('intro'),
+      onLicNo: bind('licNo'),
+      onLicCode: bind('licCode'),
+      onAudience: bind('audience'),
+      onTrial: bind('trial'),
+      trialBorder: trialOk ? '#E7E1D8' : '#B42318',
+      trialHint: trialOk ? (String(form.trial) === '0' ? '不开放试看' : '默认取参数配置中的 3 集，可按剧调整') : '请填写 0～10 的整数',
+      trialHintColor: trialOk ? '#6F665B' : '#B42318',
+      roleText: '已录入 ' + roles.length + ' 个角色',
+      openRoles: () => this.setState({ dlg: 'roles', draftRoles: roles, roleErr: '' }),
+      rolesOpen: st.dlg === 'roles',
+      roles: draftRoles.map((r, i) => {
+        const setR = (k) => (e) => { const a = draftRoles.map((x) => Object.assign({}, x)); a[i][k] = e.target.value; this.setState({ draftRoles: a, roleErr: '' }); };
+        return { name: r.name, actor: r.actor, desc: r.desc, nameAria: '第 ' + (i + 1) + ' 个角色名', actorAria: '第 ' + (i + 1) + ' 个角色的饰演者', descAria: '第 ' + (i + 1) + ' 个角色简介',
+          onName: setR('name'), onActor: setR('actor'), onDesc: setR('desc'), remove: () => this.setState({ draftRoles: draftRoles.filter((x, j) => j !== i) }) };
+      }),
+      addRole: () => { if (draftRoles.length >= 8) { this.setState({ roleErr: '最多 8 个角色' }); return; } this.setState({ draftRoles: draftRoles.concat([{ name: '', actor: '', desc: '' }]) }); },
+      roleErr: st.roleErr || '', hasRoleErr: !!st.roleErr,
+      saveRoles: () => {
+        const bad = draftRoles.findIndex((r) => !r.name.trim() || !r.desc.trim());
+        if (bad >= 0) { this.setState({ roleErr: '第 ' + (bad + 1) + ' 个角色的角色名和简介不能为空' }); return; }
+        this.setState({ roles: draftRoles, dlg: '', savedAt: now, extra: [{ time: now, who: '周航', text: '更新角色介绍（' + draftRoles.length + ' 个角色）' }].concat(extra), toast: '角色介绍已保存' });
+      },
+      epsText: replaced ? '共 60 集 · 第 3、7、12 集已替换，转码中' : '共 60 集 · 已上传 60 集 · 均已转码完成',
+      openReplace: () => this.setState({ dlg: 'replace', repPicked: false, repReason: '画质修复', repErr: '' }),
+      replaceOpen: st.dlg === 'replace',
+      rep: {
+        picked: !!st.repPicked, fileText: st.repPicked ? '已选择 3 个文件：E03.mp4、E07.mp4、E12.mp4' : '点击选择原片文件或 ZIP 压缩包',
+        fileColor: st.repPicked ? '#256A42' : '#6F665B', reason: st.repReason || '画质修复',
+        rows: [{ file: 'E03.mp4', target: '第 3 集 · 老主顾', len: '1:35 → 1:35' }, { file: 'E07.mp4', target: '第 7 集 · 豆浆机坏了', len: '1:29 → 1:30' }, { file: 'E12.mp4', target: '第 12 集 · 招牌换新', len: '1:33 → 1:33' }]
+      },
+      pickFiles: () => this.setState({ repPicked: true, repErr: '' }),
+      onRepReason: (e) => this.setState({ repReason: e.target.value }),
+      repErr: st.repErr || '', hasRepErr: !!st.repErr,
+      doReplace: () => {
+        if (!st.repPicked) { this.setState({ repErr: '请先选择要替换的原片文件' }); return; }
+        this.setState({ replaced: true, dlg: '', savedAt: now, extra: [{ time: now, who: '周航', text: '批量替换第 3、7、12 集原片（' + (st.repReason || '画质修复') + '），重新转码' }].concat(extra), toast: '已替换 3 集原片，转码完成后自动生效' });
+      },
+      closeDlg: () => this.setState({ dlg: '' }),
+      togglePre: flip('pre'),
+      togglePost: flip('post'),
+      statusText: published ? '已上架' : '草稿',
+      statusBg: published ? '#E5F1E9' : '#EFEBE4',
+      statusFg: published ? '#256A42' : '#5E564C',
+      savedAt: st.savedAt || '09-30 10:20',
+      saveLabel: published ? '保存修改' : '保存草稿',
+      saveDraft: () => this.setState({ savedAt: now, toast: published ? '修改已保存，商城展示同步更新' : '草稿已保存' }),
+      cannotPublish: !allOk || published,
+      publishBg: allOk && !published ? '#C4501B' : '#D6CFC4',
+      publishLabel: published ? '已上架' : '上架',
+      publishTitle: allOk ? '' : '上架校验未全部通过',
+      publish: () => {
+        if (!allOk || published) return;
+        this.setState({ published: true, savedAt: now, extra: [{ time: now, who: '周航', text: '通过上架校验，上架至短剧商城' }].concat(extra), toast: '《' + form.title + '》已上架，商城已展示，商家可加入选剧单订购' });
+      },
+      tabs: tabDefs.map((t) => ({
+        label: t.label,
+        warn: t.warn,
+        on: t.key === tab,
+        line: t.key === tab ? '#C4501B' : 'transparent',
+        weight: t.key === tab ? 600 : 400,
+        color: t.key === tab ? '#1D1A16' : '#6F665B',
+        pick: () => this.setState({ tab: t.key })
+      })),
+      tabBasic: tab === 'basic',
+      tabLicense: tab === 'license',
+      tabCopyright: tab === 'copyright',
+      tabBiz: tab === 'biz',
+      tabEps: tab === 'eps',
+      trailerMissing: !trailer,
+      trailerDone: trailer,
+      uploadTrailer: () => this.setState({ trailer: true, extra: [{ time: now, who: '周航', text: '上传预告片（2 分 40 秒）' }].concat(extra), toast: '预告片已上传' }),
+      licenseMissing: !license,
+      licenseDone: license,
+      uploadLicense: () => this.setState({ license: true, extra: [{ time: now, who: '周航', text: '上传许可文件扫描件' }].concat(extra), toast: '许可文件已上传' }),
+      genres: genreNames.map((g) => {
+        const on = !!picked[g];
+        return {
+          label: g,
+          on: on,
+          border: on ? '#C4501B' : '#E7E1D8',
+          bg: on ? '#FFF8F3' : '#FFFFFF',
+          fg: on ? '#A63F12' : '#1D1A16',
+          weight: on ? 600 : 400,
+          toggle: () => {
+            const next = Object.assign({}, picked);
+            if (next[g]) { delete next[g]; } else { next[g] = true; }
+            this.setState({ genres: next });
+          }
+        };
+      }),
+      classes: [
+        { label: '一类', desc: '重点微短剧，须许可证' },
+        { label: '二类', desc: '普通微短剧，须许可证' },
+        { label: '三类', desc: '其他微短剧，平台审核' }
+      ].map((c) => ({
+        label: c.label,
+        desc: c.desc,
+        on: c.label === cls,
+        border: c.label === cls ? '2px solid #C4501B' : '1px solid #E7E1D8',
+        bg: c.label === cls ? '#FFF8F3' : '#FFFFFF',
+        pick: () => this.setState({ cls: c.label })
+      })),
+      heats: ['S', 'A', 'B', 'C'].map((h) => ({
+        label: h + ' 级',
+        price: tpl[h],
+        priceText: tpl[h].toLocaleString('en-US'),
+        on: h === heat,
+        border: h === heat ? '2px solid #C4501B' : '1px solid #E7E1D8',
+        bg: h === heat ? '#FFF8F3' : '#FFFFFF',
+        pick: () => this.setState({ heat: h })
+      })),
+      heat: heat,
+      price: price,
+      priceText: price.toLocaleString('en-US'),
+      net9: Math.round(price * 0.9).toLocaleString('en-US'),
+      net8: Math.round(price * 0.8).toLocaleString('en-US'),
+      checks: checkDefs.map((c) => ({
+        label: c.label,
+        mark: c.ok ? '✓' : '!',
+        dotBg: c.ok ? '#256A42' : '#B42318',
+        note: c.ok ? c.okNote : c.badNote,
+        noteColor: c.ok ? '#6F665B' : '#B42318',
+        fixable: !c.ok && c.tab !== '',
+        go: () => this.setState({ tab: c.tab })
+      })),
+      passText: passed + ' / ' + checkDefs.length + ' 项通过',
+      passColor: allOk ? '#256A42' : '#A63F12',
+      episodes: [
+        { no: 1, title: '凌晨四点的灯', len: '1:32', file: 'E01.mp4 · 86 MB' },
+        { no: 2, title: '一碗豆花', len: '1:28', file: 'E02.mp4 · 82 MB' },
+        { no: 3, title: '老主顾', len: '1:35', file: 'E03.mp4 · 89 MB' },
+        { no: 4, title: '涨价风波', len: '1:30', file: 'E04.mp4 · 84 MB' },
+        { no: 5, title: '雨天的外卖单', len: '1:26', file: 'E05.mp4 · 80 MB' },
+        { no: 6, title: '她回来了', len: '1:40', file: 'E06.mp4 · 93 MB' }
+      ].map((e) => Object.assign({}, e, { stText: replaced && e.no === 3 ? '转码中' : '已就绪', stColor: replaced && e.no === 3 ? '#2E5AAC' : '#256A42' })),
+      logs: extra.concat(baseLogs),
+      toast: st.toast || '',
+      hasToast: !!st.toast,
+      closeToast: () => this.setState({ toast: '' })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 订单详情</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;">
+<a href="Orders.dc.html" aria-label="返回" style="position: absolute; left: 2px; top: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1D1A16;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></a>
+<h1 style="margin: 0; font-size: 17px; font-weight: 600;">订单详情</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 4px 16px 20px; display: flex; flex-direction: column; gap: 12px;">
+<section aria-label="订单状态" style="border-radius: 14px; padding: 16px; background: #E8EEF9; display: flex; align-items: center; gap: 12px;">
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 18px; font-weight: 700; color: #2E5AAC;">制作中</span><span style="font-size: 13px; color: #34496E;">第 1 集样片已送达，请在 2 天内确认</span></div>
+<a href="Sample.dc.html" style="flex-shrink: 0; min-height: 40px; padding: 0 16px; border-radius: 20px; background: #C4501B; color: #FFFFFF; display: flex; align-items: center; font-size: 14px; font-weight: 600;">去确认样片</a>
+</section>
+<section aria-label="交付进度" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">交付进度</h2>
+<ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column;">
+<sc-for list="{{steps}}" as="n" hint-placeholder-count="8">
+<li style="display: flex; gap: 12px;">
+<div aria-hidden="true" style="flex-shrink: 0; width: 20px; display: flex; flex-direction: column; align-items: center;">
+<span style="width: 20px; height: 20px; box-sizing: border-box; border-radius: 10px; border: 2px solid {{n.ring}}; background: {{n.fill}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center;"><sc-if value="{{n.done}}" hint-placeholder-val="{{true}}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></sc-if><sc-if value="{{n.current}}" hint-placeholder-val="{{false}}"><span style="width: 8px; height: 8px; border-radius: 4px; background: #C4501B;"></span></sc-if></span>
+<sc-if value="{{n.hasLine}}" hint-placeholder-val="{{true}}"><span style="flex-grow: 1; width: 2px; min-height: 16px; background: {{n.line}};"></span></sc-if>
+</div>
+<div style="padding-bottom: 14px; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600; color: {{n.titleColor}};">{{n.label}}</span><span style="font-size: 12px; line-height: 1.5; color: #6F665B;">{{n.desc}}</span></div>
+</li>
+</sc-for>
+</ol>
+</section>
+<section aria-label="剧目明细" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">剧目明细</h2>
+<div style="display: flex; gap: 10px;">
+<div aria-hidden="true" style="flex-shrink: 0; position: relative; width: 48px; height: 64px; border-radius: 5px; background: #2F4A3F;"><span style="position: absolute; right: 6px; top: 6px; writing-mode: vertical-rl; font-family: 'Noto Serif SC', serif; font-size: 10.5px; font-weight: 900; color: #FFFFFF;">巷口那家店</span></div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+<span style="display: flex; align-items: center; gap: 6px;"><span style="font-size: 15px; font-weight: 600;">巷口那家店</span><span style="font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E6F2EA; color: #256A42;">门店定制</span></span>
+<span style="font-size: 13px; color: #6F665B;">整部 80 集 · 2,700 积分 · 抖音 @XX火锅</span>
+<span style="font-size: 13px; color: #6F665B;">成片使用期：上线首日至 2027-12-31</span>
+<div style="display: flex; align-items: center; gap: 8px;"><div aria-hidden="true" style="flex-grow: 1; height: 4px; border-radius: 2px; background: #ECE6DD;"></div><span style="font-size: 12px; color: #6F665B;">待上线 · 0/80 集</span></div>
+</div>
+</div>
+<div style="display: flex; gap: 10px;">
+<div aria-hidden="true" style="flex-shrink: 0; position: relative; width: 48px; height: 64px; border-radius: 5px; background: #6B2D2A;"><span style="position: absolute; right: 6px; top: 6px; writing-mode: vertical-rl; font-family: 'Noto Serif SC', serif; font-size: 10.5px; font-weight: 900; color: #FFFFFF;">二次开业</span></div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+<span style="display: flex; align-items: center; gap: 6px;"><span style="font-size: 15px; font-weight: 600;">二次开业</span><span style="font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #E6F2EA; color: #256A42;">门店定制</span></span>
+<span style="font-size: 13px; color: #6F665B;">整部 60 集 · 1,800 积分 · 抖音 @XX火锅</span>
+<span style="font-size: 13px; color: #6F665B;">成片使用期：上线首日至 2027-09-30</span>
+<div style="display: flex; align-items: center; gap: 8px;"><div aria-hidden="true" style="flex-grow: 1; height: 4px; border-radius: 2px; background: #ECE6DD;"></div><span style="font-size: 12px; color: #6F665B;">待上线 · 0/60 集</span></div>
+</div>
+</div>
+</section>
+<section aria-label="交付方案" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">交付方案</h2><a href="Plan.dc.html" style="flex-shrink: 0; display: flex; align-items: center; gap: 2px; font-size: 13px; color: #A63F12;">查看方案<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a></div>
+<div style="display: grid; grid-template-columns: 72px minmax(0, 1fr); row-gap: 8px; font-size: 14px;">
+<span style="color: #6F665B;">定制重点</span><span>主推套餐、招牌菜、门店环境</span>
+<span style="color: #6F665B;">制作模型</span><span>高级模型（专业版）</span>
+<span style="color: #6F665B;">植入形式</span><span>片头贴片 5 秒、片尾贴片 10 秒</span>
+<span style="color: #6F665B;">上线日期</span><span>10 月 12 日，一次性上线全部剧集</span>
+<span style="color: #6F665B;">上线方式</span><span>商家自助发布，平台交付成片包</span>
+<span style="color: #6F665B;">确认时间</span><span>09-28 15:20 已确认</span>
+</div>
+</section>
+<section aria-label="积分明细" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">积分明细</h2>
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 14px;"><span>《巷口那家店》3,000 × 9 折</span><span>2,700</span></div>
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 14px;"><span>《二次开业》2,000 × 9 折</span><span>1,800</span></div>
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 15px; font-weight: 700;"><span>合计</span><span style="color: #C4501B;">4,500 积分</span></div>
+<div style="display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid #F0EBE3; font-size: 13px; color: #6F665B;"><span>09-26 10:32 冻结 4,500 积分（来自套餐积分）</span><span>09-26 10:35 开始制作，已扣减 4,500 积分</span></div>
+</section>
+<section aria-label="订单信息" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">订单信息</h2>
+<div style="display: grid; grid-template-columns: 72px minmax(0, 1fr); row-gap: 8px; font-size: 14px;">
+<span style="color: #6F665B;">订单号</span><span>LYX2026092600018</span>
+<span style="color: #6F665B;">订购时间</span><span>2026-09-26 10:32</span>
+<span style="color: #6F665B;">订购主体</span><span>XX 餐饮管理有限公司</span>
+<span style="color: #6F665B;">下单门店</span><span>XX 火锅（万达店）</span>
+</div>
+</section>
+<section aria-label="协议与授权书" style="background: #FFFFFF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 4px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">协议与授权书</h2><a href="Contracts.dc.html" style="flex-shrink: 0; display: flex; align-items: center; gap: 2px; font-size: 13px; color: #A63F12;">全部文件<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a></div>
+<div style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; font-size: 14px;"><span>《定制内容授权使用协议》</span><span style="font-size: 13px; color: #256A42;">已签署</span></div>
+<div style="display: flex; justify-content: space-between; align-items: center; min-height: 40px; font-size: 14px;"><span>《广告制作与交付服务协议》</span><span style="font-size: 13px; color: #256A42;">已签署</span></div>
+<div style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; font-size: 14px;"><span>《定制内容授权书》· 2 份</span><button type="button" aria-expanded="{{showAuth}}" onClick="{{toggleAuth}}" style="min-height: 32px; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 16px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16; cursor: pointer;">{{authLabel}}</button></div>
+<sc-if value="{{showAuth}}" hint-placeholder-val="{{false}}">
+<div style="margin-top: 4px; border: 1px solid #E7E1D8; border-radius: 10px; padding: 14px; background: #FAF8F4; display: flex; flex-direction: column; gap: 10px;">
+<span style="font-family: 'Noto Serif SC', serif; font-size: 16px; font-weight: 700; text-align: center;">定制内容授权书（预览）</span>
+<div style="display: grid; grid-template-columns: 96px minmax(0, 1fr); row-gap: 6px; font-size: 13px; line-height: 1.5;">
+<span style="color: #6F665B;">授权方</span><span>[狸有戏运营主体名称]</span>
+<span style="color: #6F665B;">被授权方</span><span>XX 餐饮管理有限公司</span>
+<span style="color: #6F665B;">下单门店</span><span>XX 火锅（万达店）</span>
+<span style="color: #6F665B;">剧名与集数</span><span>《巷口那家店》第 1～80 集</span>
+<span style="color: #6F665B;">许可信息</span><span>[许可证号或节目编号]</span>
+<span style="color: #6F665B;">授权平台与账号</span><span>抖音 @XX火锅</span>
+<span style="color: #6F665B;">授权期限</span><span>自上线首日起至 2027-12-31</span>
+<span style="color: #6F665B;">权利范围</span><span>在上述账号播放；为门店定制改编、剪辑与植入广告；不得再授权</span>
+<span style="color: #6F665B;">专属声明</span><span>本成片为 XX 火锅（万达店）专属定制</span>
+</div>
+<span style="font-size: 12px; line-height: 1.5; color: #6F665B;">使用期结束当日须下架全部剧集；正式授权书以双方签章版本为准。</span>
+</div>
+</sc-if>
+</section>
+</main>
+<footer style="flex-shrink: 0; height: 72px; box-sizing: border-box; padding: 0 16px 8px; background: #FFFFFF; border-top: 1px solid #ECE6DD; display: flex; align-items: center; gap: 12px;">
+<a href="Plan.dc.html" style="flex-grow: 1; flex-basis: 0; height: 46px; box-sizing: border-box; border: 1px solid #C9C0B3; border-radius: 23px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; color: #1D1A16;">查看方案</a>
+<a href="Service.dc.html" style="flex-grow: 1; flex-basis: 0; height: 46px; border-radius: 23px; background: #C4501B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600;">联系服务经理</a>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const showAuth = !!st.showAuth;
+    const raw = [
+      { label: '已订购（积分冻结）', desc: '09-26 10:32 · 冻结 4,500 积分', s: 'done' },
+      { label: '开始制作（积分扣减）', desc: '09-26 10:35 · 资质已通过，扣减 4,500 积分', s: 'done' },
+      { label: '服务经理已对接', desc: '09-26 11:20 · 专属服务经理：小林', s: 'done' },
+      { label: '交付方案已确认', desc: '09-28 15:20 · 片头、片尾贴片，10-12 一次性上线', s: 'done' },
+      { label: '广告视频已确认', desc: '09-29 09:40 · 片头 5 秒、片尾 10 秒（第 2 版）', s: 'done' },
+      { label: '样片待确认', desc: '第 1 集样片已送达，请在 2 天内确认', s: 'current' },
+      { label: '成片交付', desc: '样片确认后约 2 个工作日，在“发布任务”下载成片包', s: 'todo' },
+      { label: '一次性上线', desc: '10 月 12 日发布全部剧集并回填链接，平台核验', s: 'todo' },
+      { label: '使用期结束', desc: '成片可使用至剧目授权期结束，到期当日下架', s: 'todo' }
+    ];
+    const steps = raw.map((n, i) => {
+      const done = n.s === 'done';
+      const current = n.s === 'current';
+      const nextDone = i + 1 < raw.length && raw[i + 1].s === 'done';
+      return {
+        label: n.label,
+        desc: n.desc,
+        done: done,
+        current: current,
+        ring: done ? '#256A42' : (current ? '#C4501B' : '#D6CFC4'),
+        fill: done ? '#256A42' : '#FFFFFF',
+        titleColor: n.s === 'todo' ? '#6F665B' : '#1D1A16',
+        hasLine: i < raw.length - 1,
+        line: done && (nextDone || raw[i + 1].s === 'current') ? '#256A42' : '#E7E1D8'
+      };
+    });
+    return {
+      steps: steps,
+      showAuth: showAuth,
+      authLabel: showAuth ? '收起' : '预览',
+      toggleAuth: () => this.setState({ showAuth: !showAuth })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏运营后台 · 入驻审核</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; overflow: hidden; position: relative; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; font-size: 14px;">
+<nav aria-label="主菜单" style="width: 216px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; background: #231F1B; color: #D9D1C5;">
+<div style="height: 64px; flex-shrink: 0; box-sizing: border-box; padding: 0 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #3A332C;">
+<svg width="30" height="30" viewBox="0 0 64 64" fill="none" stroke="#E8864F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12 22 25h20l12-13-2 22-20 19-20-19z"></path><path d="m21 34 5 2.5M43 34l-5 2.5"></path><circle cx="32" cy="44" r="1.8" fill="#E8864F" stroke="none"></circle></svg>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-family: 'Noto Serif SC', serif; font-size: 19px; font-weight: 900; letter-spacing: 3px; line-height: 1.1; color: #FFFFFF;">狸有戏</span><span style="font-size: 12px; line-height: 1.2; color: #9A9084;">运营管理后台</span></div>
+</div>
+<div style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px;">
+<a href="Main.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>工作台</a>
+<a href="Dramas.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="m10.5 9.5 4 2.5-4 2.5z"></path></svg>短剧库</a>
+<a href="Plans.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5 15.5 12 12 16.5 8.5 12z"></path></svg><span style="flex-grow: 1;">套餐与积分</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Merchants.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5 5.5 4.5h13L20 9.5"></path><path d="M4 9.5c0 1.5 1.2 2.5 2.7 2.5s2.6-1 2.6-2.5c0 1.5 1.2 2.5 2.7 2.5s2.7-1 2.7-2.5c0 1.5 1.1 2.5 2.6 2.5S20 11 20 9.5"></path><path d="M5.5 12v7.5h13V12"></path><path d="M10 19.5V15h4v4.5"></path></svg><span style="flex-grow: 1;">商家</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">4</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Orders.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8.5l4 4v13H6z"></path><path d="M14 3.5V8h4.5M9 12.5h6M9 16.5h4"></path></svg><span style="flex-grow: 1;">订单</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">22</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Tickets.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"></path><path d="m4 7.5 8 4.5 8-4.5M12 12v9"></path></svg><span style="flex-grow: 1;">交付</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">7</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Delivery.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15.5V4"></path><path d="m7.5 8.5 4.5-4.5 4.5 4.5"></path><path d="M5 14v5.5h14V14"></path></svg><span style="flex-grow: 1;">发布</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">10</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="Service.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2"></path><rect x="3.5" y="13.5" width="4" height="6" rx="1.5"></rect><rect x="16.5" y="13.5" width="4" height="6" rx="1.5"></rect></svg><span style="flex-grow: 1;">客服</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">6</span></a>
+<a href="Payments.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m9 7.5 3 4 3-4M12 11.5V17M9.5 12.5h5M9.5 15h5"></path></svg><span style="flex-grow: 1;">财务</span><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">8</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="RptOverview.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"></path><path d="M7.5 16.5v-5M12 16.5v-9M16.5 16.5v-7"></path></svg><span style="flex-grow: 1;">报表</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="OpsHome.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3.5l7 4V6l-7 4z"></path><path d="M17.5 9.5a3.5 3.5 0 0 1 0 5"></path></svg><span style="flex-grow: 1;">运营</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<a href="SysStaff.dc.html" style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #E9E2D8;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5h9M17.5 6.5h2M4.5 12h3M11.5 12h8M4.5 17.5h7M15.5 17.5h4"></path><circle cx="15.5" cy="6.5" r="2"></circle><circle cx="9.5" cy="12" r="2"></circle><circle cx="13.5" cy="17.5" r="2"></circle></svg><span style="flex-grow: 1;">系统</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+<div style="min-height: 36px; box-sizing: border-box; padding: 0 10px 0 12px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #FFFFFF;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"></circle><path d="M3.5 19a5.5 5.5 0 0 1 11 0"></path><circle cx="17" cy="9.5" r="2.5"></circle><path d="M16 14.3a4.5 4.5 0 0 1 4.5 4.7"></path></svg><span style="flex-grow: 1;">渠道</span><span style="height: 18px; box-sizing: border-box; padding: 0 5px; border: 1px solid #5A5047; border-radius: 4px; font-size: 11px; line-height: 16px; color: #9A9084;">V1.1</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div>
+<a href="Partners.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">服务商列表</a>
+<a href="PartnerReview.dc.html" aria-current="page" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #C4501B; color: #FFFFFF; font-size: 13px; font-weight: 600;">入驻审核<sc-if value="{{hasPendBadge}}" hint-placeholder-val="{{true}}"><span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #FFFFFF; color: #A63F12; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">{{pendBadge}}</span></sc-if></a>
+<a href="PartnerLevels.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">等级与返佣</a>
+<a href="PartnerBinding.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">商家归属<span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 9px; background: #E8864F; color: #231F1B; font-size: 12px; font-weight: 700; line-height: 1; display: flex; align-items: center; justify-content: center;">1</span></a>
+<a href="PartnerSettle.dc.html" style="min-height: 32px; box-sizing: border-box; padding: 0 10px 0 40px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #E9E2D8;">结算单</a>
+</div>
+</nav>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<header style="height: 56px; flex-shrink: 0; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 16px; background: #FFFFFF; border-bottom: 1px solid #ECE6DD;">
+<nav aria-label="面包屑" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6F665B;"><span>渠道</span><span aria-hidden="true">/</span><span style="color: #1D1A16; font-weight: 600;">入驻审核</span></nav>
+<label style="margin-left: auto; width: 300px; height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FAF8F4; display: flex; align-items: center; gap: 8px; color: #6F665B;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" aria-label="全局搜索" placeholder="搜索商家、订单号、工单号" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: #1D1A16;"></label>
+<button type="button" aria-label="消息通知，5 条未读" style="position: relative; width: 40px; height: 40px; flex-shrink: 0; border: none; border-radius: 8px; background: transparent; color: #1D1A16; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg><span aria-hidden="true" style="position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; box-sizing: content-box; border: 2px solid #FFFFFF; border-radius: 6px; background: #C4501B;"></span></button>
+<div style="display: flex; align-items: center; gap: 10px; padding-left: 16px; border-left: 1px solid #ECE6DD;"><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 16px; background: #FBEDE5; color: #A63F12; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">周</span><div style="display: flex; flex-direction: column;"><span style="font-size: 14px; font-weight: 600; line-height: 1.3;">周航</span><span style="font-size: 12px; line-height: 1.3; color: #6F665B;">超级管理员</span></div></div>
+</header>
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<div role="status" style="position: absolute; top: 68px; right: 24px; z-index: 5; max-width: 540px; box-sizing: border-box; padding: 10px 8px 10px 14px; border-radius: 10px; background: #1D1A16; color: #FFFFFF; display: flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: 0 8px 24px rgba(29, 26, 22, 0.18);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7FD19B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg><span style="flex-grow: 1;">{{toast}}</span><button type="button" aria-label="关闭提示" onClick="{{closeToast}}" style="width: 28px; height: 28px; flex-shrink: 0; border: none; border-radius: 6px; background: transparent; color: #FFFFFF; font-size: 16px; cursor: pointer;">×</button></div>
+</sc-if>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;">
+<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;"><div style="display: flex; align-items: center; gap: 10px;"><h1 style="margin: 0; font-family: 'Noto Serif SC', serif; font-size: 24px; font-weight: 700; line-height: 1.3;">入驻审核</h1><span style="height: 22px; box-sizing: border-box; padding: 0 8px; border: 1px solid #DDD5C9; border-radius: 11px; display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; color: #6F665B;">V1.1</span></div><p style="margin: 0; font-size: 13px; color: #6F665B;">审核服务商提交的机构资质、服务区域与联系人；通过后推送《服务商合作协议》在线签署，签署完成即开通工作台</p></div>
+</div>
+<p style="margin: 0; padding: 6px 12px; border-radius: 8px; background: #F3EFE9; font-size: 12px; line-height: 1.6; color: #5E564C;">本页为 V1.1 功能设计，页面数据为示例数据，用于说明指标口径与展示方式。</p>
+<div style="display: flex; gap: 16px; align-items: flex-start;"><div style="flex-shrink: 0; width: 292px; display: flex; flex-direction: column; gap: 10px;"><div style="border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; overflow: hidden;"><div role="tablist" aria-label="审核状态" style="display: flex; gap: 2px; box-sizing: border-box; padding: 0 8px; border-bottom: 1px solid #ECE6DD;">
+<sc-for list="{{views}}" as="t" hint-placeholder-count="3">
+<button type="button" role="tab" aria-selected="{{t.on}}" onClick="{{t.pick}}" style="flex-shrink: 0; min-height: 46px; padding: 0 10px; border: none; border-bottom: 2px solid {{t.line}}; background: none; font-family: inherit; font-size: 14px; font-weight: {{t.weight}}; color: {{t.color}}; cursor: pointer; display: flex; align-items: center; gap: 6px;"><span>{{t.label}}</span><span style="min-width: 20px; box-sizing: border-box; padding: 1px 6px; border-radius: 10px; background: {{t.cbg}}; color: {{t.cfg}}; font-size: 12px; font-weight: 600; line-height: 16px; text-align: center;">{{t.count}}</span></button>
+</sc-for>
+</div></div><div style="display: flex; flex-direction: column; gap: 8px;"><sc-for list="{{queue}}" as="a" hint-placeholder-count="2"><button type="button" onClick="{{a.pick}}" aria-pressed="{{a.on}}" style="width: 100%; box-sizing: border-box; padding: 12px 14px; border: 1px solid {{a.border}}; border-radius: 10px; background: {{a.bg}}; text-align: left; font-family: inherit; color: #1D1A16; cursor: pointer; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 14px; font-weight: 600; line-height: 1.45;">{{a.name}}</span><span style="font-size: 12px; color: #6F665B;">{{a.kind}} · {{a.region}}</span><span style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px;"><span style="color: #6F665B;">{{a.time}}</span><sc-if value="{{a.hasFlag}}" hint-placeholder-val="{{false}}"><span style="padding: 0 6px; border-radius: 4px; background: {{a.flagBg}}; color: {{a.flagFg}}; line-height: 18px;">{{a.flag}}</span></sc-if></span></button></sc-for></div><sc-if value="{{queueEmpty}}" hint-placeholder-val="{{false}}">
+<div style="padding: 56px 24px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;"><span style="font-size: 15px; font-weight: 600;">暂无待审核的申请</span><span style="font-size: 13px; color: #6F665B;">服务商在小程序提交申请后会出现在这里</span></div>
+</sc-if></div><section aria-label="申请详情" style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 18px 20px; border: 1px solid #ECE6DD; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 14px;"><div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;"><div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;"><h2 style="margin: 0; font-size: 18px; font-weight: 600;">{{cur.name}}</h2><p style="margin: 0; font-size: 13px; color: #6F665B;">{{cur.sub}}</p></div><span style="display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; background: {{cur.sbg}}; color: {{cur.sfg}}; font-size: 12px; font-weight: 600; white-space: nowrap;">{{cur.sLabel}}</span></div><sc-if value="{{cur.hasWarn}}" hint-placeholder-val="{{false}}"><p role="alert" style="margin: 0; box-sizing: border-box; padding: 8px 12px; border-radius: 8px; background: #FBE9E7; font-size: 13px; color: #B42318;">{{cur.warn}}</p></sc-if><div style="display: flex; gap: 20px; align-items: flex-start;"><div role="img" aria-label="营业执照原图" style="width: 220px; flex-shrink: 0; box-sizing: border-box; padding: 14px; border: 1px solid #E7E1D8; border-radius: 10px; background: #FBF8F2; display: flex; flex-direction: column; align-items: center; gap: 8px;"><span style="font-size: 15px; font-weight: 700; letter-spacing: 4px; color: #8A2E1A;">营业执照</span><span style="width: 100%; height: 6px; border-radius: 3px; background: #EADFCF;"></span><span style="width: 86%; height: 6px; border-radius: 3px; background: #EADFCF;"></span><span style="width: 92%; height: 6px; border-radius: 3px; background: #EADFCF;"></span><span style="width: 70%; height: 6px; border-radius: 3px; background: #EADFCF;"></span><span style="width: 100%; height: 6px; border-radius: 3px; background: #EADFCF;"></span><span style="width: 60%; height: 6px; border-radius: 3px; background: #EADFCF;"></span><span style="align-self: flex-end; width: 44px; height: 44px; border: 2px solid #C94A3A; border-radius: 22px; opacity: 0.6;"></span><span style="font-size: 12px; color: #6F665B;">点击查看原图</span></div><div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 14px; font-weight: 600;">申请信息</span><dl style="margin: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); row-gap: 6px; column-gap: 12px; font-size: 13px;">
+<dt style="color: #6F665B;">服务区域</dt><dd style="margin: 0;">{{cur.region}}</dd>
+<dt style="color: #6F665B;">联系人</dt><dd style="margin: 0;">{{cur.contact}}</dd>
+<dt style="color: #6F665B;">团队规模</dt><dd style="margin: 0;">{{cur.team}}</dd>
+<dt style="color: #6F665B;">现有客户</dt><dd style="margin: 0;">{{cur.clients}}</dd>
+<dt style="color: #6F665B;">推广计划</dt><dd style="margin: 0;">{{cur.plan}}</dd>
+<dt style="color: #6F665B;">申请来源</dt><dd style="margin: 0;">{{cur.src}}</dd>
+</dl></div></div><div style="display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 14px; font-weight: 600;">证照比对</span><div role="table" aria-label="证照比对" style="flex-grow: 1; min-width: 0; border: 1px solid #ECE6DD; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column;"><div role="row" style="display: grid; grid-template-columns: 88px minmax(0, 1fr) minmax(0, 1fr) 64px; column-gap: 12px; align-items: center; min-height: 40px; box-sizing: border-box; padding: 0 12px; background: #FAF8F4; border-bottom: 1px solid #ECE6DD; font-size: 12px; font-weight: 600; color: #6F665B;">
+<span role="columnheader">字段</span><span role="columnheader">OCR 识别结果</span><span role="columnheader">申请填写</span><span role="columnheader">比对</span>
+</div><sc-for list="{{cur.ocr}}" as="o" hint-placeholder-count="5">
+<div role="row" style="display: grid; grid-template-columns: 88px minmax(0, 1fr) minmax(0, 1fr) 64px; column-gap: 12px; align-items: center; min-height: 36px; box-sizing: border-box; padding: 4px 12px; border-bottom: 1px solid #F0EBE3; font-size: 13px;">
+<span role="cell" style="color: #6F665B;">{{o.k}}</span>
+<span role="cell" style="line-height: 1.5;">{{o.ocr}}</span>
+<span role="cell" style="line-height: 1.5;">{{o.form}}</span>
+<span role="cell" style="color: {{o.color}}; font-weight: 600;">{{o.check}}</span>
+</div>
+</sc-for></div></div><sc-if value="{{cur.isPending}}" hint-placeholder-val="{{true}}"><div style="display: flex; justify-content: flex-end; gap: 10px;"><button type="button" onClick="{{openReject}}" style="min-height: 36px; padding: 0 18px; border-radius: 8px; border: 1px solid #E8B4AE; background: #FFFFFF; color: #B42318; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer;">驳回</button><button type="button" onClick="{{openPass}}" style="min-height: 36px; padding: 0 18px; border-radius: 8px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer;">审核通过</button></div></sc-if><sc-if value="{{cur.isDone}}" hint-placeholder-val="{{false}}"><p style="margin: 0; box-sizing: border-box; padding: 10px 12px; border-radius: 8px; background: {{cur.resultBg}}; font-size: 13px; color: {{cur.resultFg}};">{{cur.result}}</p></sc-if></section></div>
+</main>
+</div>
+<sc-if value="{{passOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10; background: rgba(29, 26, 22, 0.45); display: flex; align-items: center; justify-content: center;">
+<section role="dialog" aria-modal="true" aria-labelledby="pr-pass" style="width: 520px; max-height: 820px; overflow-y: auto; box-sizing: border-box; padding: 24px; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 48px rgba(29, 26, 22, 0.24);">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><h2 id="pr-pass" style="margin: 0; font-size: 18px; font-weight: 600;">通过入驻申请</h2><p style="margin: 0; font-size: 13px; line-height: 1.6; color: #6F665B;">通过后向申请人推送《服务商合作协议》在线签署。</p></div>
+<button type="button" aria-label="关闭" onClick="{{closeDlg}}" style="width: 32px; height: 32px; flex-shrink: 0; border: none; border-radius: 8px; background: #F6F3EE; color: #1D1A16; font-size: 18px; cursor: pointer;">×</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px;"><dl style="margin: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); row-gap: 8px; column-gap: 12px; font-size: 13px;">
+<dt style="color: #6F665B;">服务商</dt><dd style="margin: 0;">{{cur.name}}</dd>
+<dt style="color: #6F665B;">初始等级</dt><dd style="margin: 0;">普通 · 返佣 5%</dd>
+<dt style="color: #6F665B;">服务区域</dt><dd style="margin: 0;">{{cur.region}}</dd>
+</dl><div style="display: flex; flex-direction: column; gap: 6px;"><label for="pr-owner" style="font-size: 13px; font-weight: 600;">渠道运营</label><select id="pr-owner" value="{{owner}}" onChange="{{onOwner}}" style="width: 200px; height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="许诺">许诺</option></select></div><p style="margin: 0; font-size: 12px; line-height: 1.7; color: #6F665B;">入驻即为普通等级，次月起每月 1 日按上月名下实付评定；协议签署完成后开通服务商工作台并生成邀请码。</p></div>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+<button type="button" onClick="{{closeDlg}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; cursor: pointer;">取消</button><button type="button" onClick="{{doPass}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: #C4501B; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer;">确认通过</button>
+</div>
+</section>
+</div>
+</sc-if>
+<sc-if value="{{rejectOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; z-index: 10; background: rgba(29, 26, 22, 0.45); display: flex; align-items: center; justify-content: center;">
+<section role="dialog" aria-modal="true" aria-labelledby="pr-reject" style="width: 520px; max-height: 820px; overflow-y: auto; box-sizing: border-box; padding: 24px; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 48px rgba(29, 26, 22, 0.24);">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><h2 id="pr-reject" style="margin: 0; font-size: 18px; font-weight: 600;">驳回入驻申请</h2><p style="margin: 0; font-size: 13px; line-height: 1.6; color: #6F665B;">驳回后申请人可修改资料重新提交。</p></div>
+<button type="button" aria-label="关闭" onClick="{{closeDlg}}" style="width: 32px; height: 32px; flex-shrink: 0; border: none; border-radius: 8px; background: #F6F3EE; color: #1D1A16; font-size: 18px; cursor: pointer;">×</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px;"><div style="display: flex; flex-direction: column; gap: 6px;"><label for="rj-reason" style="font-size: 13px; font-weight: 600;">驳回原因</label><select id="rj-reason" value="{{rReason}}" onChange="{{onRReason}}" style="width: 100%; height: 36px; box-sizing: border-box; padding: 0 8px; border: 1px solid #E7E1D8; border-radius: 8px; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #1D1A16;"><option value="经营者与申请人不一致，且未提供授权书">经营者与申请人不一致，且未提供授权书</option><option value="资质材料不完整或不清晰">资质材料不完整或不清晰</option><option value="营业执照已注销或吊销">营业执照已注销或吊销</option><option value="其他">其他</option></select></div><div style="display: flex; flex-direction: column; gap: 6px;"><label for="rj-note" style="font-size: 13px; font-weight: 600;">说明</label><textarea id="rj-note" rows="3" maxlength="200" placeholder="将通知申请人，请说明需要补充的材料" value="{{rNote}}" onChange="{{onRNote}}" style="box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid #E7E1D8; border-radius: 8px; font-family: inherit; font-size: 13px; line-height: 1.6; color: #1D1A16; resize: none;"></textarea></div><sc-if value="{{hasRErr}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size: 13px; color: #B42318;">{{rErr}}</span></sc-if></div>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+<button type="button" onClick="{{closeDlg}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid #DDD5C9; background: #FFFFFF; color: #1D1A16; font-family: inherit; font-size: 14px; cursor: pointer;">取消</button><button type="button" onClick="{{doReject}}" style="min-height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: #B42318; color: #FFFFFF; font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer;">确认驳回</button>
+</div>
+</section>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const money = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const num = (n) => n.toLocaleString('en-US');
+    const tab = (key, label, count, cur, pick) => ({
+      key: key, label: label, count: count, on: key === cur, pick: pick,
+      line: key === cur ? '#C4501B' : 'transparent', color: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400',
+      cbg: key === cur ? '#FBEDE5' : '#F3EFE9', cfg: key === cur ? '#A63F12' : '#6F665B'
+    });
+    const segOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, bg: key === cur ? '#FFFFFF' : 'transparent', fg: key === cur ? '#1D1A16' : '#6F665B', weight: key === cur ? '600' : '400' });
+    const pillOpt = (key, label, cur, pick) => ({ key: key, label: label, on: key === cur, pick: pick, border: key === cur ? '#1D1A16' : '#E7E1D8', bg: key === cur ? '#1D1A16' : '#FFFFFF', fg: key === cur ? '#FFFFFF' : '#1D1A16' });
+    const sw = (on) => ({ bg: on ? '#256A42' : '#CFC7BC', knob: on ? '18px' : '2px' });
+    const toastVals = { toast: st.toast || '', hasToast: !!st.toast, closeToast: () => this.setState({ toast: '' }) };
+
+    const O = (k, ocr, form, ok) => ({ k: k, ocr: ocr, form: form, ok: ok });
+    const apps = [
+      { key: 'A2', base: 'pending', name: '眉山市东坡区小城故事文化传媒工作室', kind: '推广合作伙伴', area: '眉山市', time: '09-30 09:05 提交',
+        flag: '须补充授权书', flagBg: '#FBE9E7', flagFg: '#B42318', sub: '个体工商户 · 推广合作伙伴 · 09-30 09:05 提交',
+        warn: '营业执照经营者为“李建国”，与申请联系人“李悦”不一致；须补充经营者出具的授权书后才能通过。',
+        ocr: [O('名称', '眉山市东坡区小城故事文化传媒工作室', '眉山市东坡区小城故事文化传媒工作室', true), O('信用代码', '92511402MA6****4TE', '92511402MA6****4TE', true),
+          O('类型', '个体工商户', '个体工商户', true), O('经营者', '李建国', '李悦（联系人）', false), O('经营范围', '文化艺术交流；广告制作；会议及展览服务', '—', null)],
+        region: '眉山市（东坡区、彭山区）', contact: '李悦 · 158****6630', team: '4 人', clients: '本地餐饮、丽人商家 20 余家', plan: '首月签约 5 家，以餐饮为主', src: '自主申请（小程序）' },
+      { key: 'A1', base: 'pending', name: '绵阳鑫诚商务服务有限公司', kind: '推广合作伙伴', area: '绵阳市', time: '09-29 15:40 提交',
+        flag: '', flagBg: '#FFFFFF', flagFg: '#1D1A16', sub: '有限责任公司 · 推广合作伙伴 · 09-29 15:40 提交', warn: '',
+        ocr: [O('名称', '绵阳鑫诚商务服务有限公司', '绵阳鑫诚商务服务有限公司', true), O('信用代码', '91510703MA6****8XQ', '91510703MA6****8XQ', true),
+          O('类型', '有限责任公司（自然人投资或控股）', '企业', true), O('法定代表人', '何俊', '何俊（联系人）', true), O('经营范围', '企业管理咨询；市场营销策划；广告设计、代理', '—', null)],
+        region: '绵阳市（涪城区、游仙区）', contact: '何俊 · 136****2255', team: '8 人', clients: '本地商家 60 余家', plan: '首月签约 10 家，以餐饮、丽人为主', src: '渠道运营邀请（许诺）' },
+      { key: 'D5', base: 'passed', name: '德阳市旌阳区乐享本地生活服务部', kind: '推广合作伙伴', area: '德阳市', time: '07-30 审核通过', flag: '', flagBg: '#FFFFFF', flagFg: '#1D1A16',
+        sub: '个体工商户 · 推广合作伙伴 · 07-28 提交', warn: '', ocr: [O('名称', '德阳市旌阳区乐享本地生活服务部', '德阳市旌阳区乐享本地生活服务部', true), O('经营者', '周洋', '周洋（联系人）', true)],
+        region: '德阳市', contact: '周洋 · 173****2285', team: '3 人', clients: '本地商家 15 家', plan: '首月签约 3 家', src: '自主申请（小程序）', result: '许诺 07-30 审核通过；08-03 签署合作协议并开通工作台' },
+      { key: 'D4', base: 'passed', name: '乐山锦程企业服务有限公司', kind: '推广合作伙伴', area: '乐山市', time: '06-12 审核通过', flag: '', flagBg: '#FFFFFF', flagFg: '#1D1A16',
+        sub: '有限责任公司 · 推广合作伙伴 · 06-10 提交', warn: '', ocr: [O('名称', '乐山锦程企业服务有限公司', '乐山锦程企业服务有限公司', true), O('法定代表人', '陈露', '陈露（联系人）', true)],
+        region: '乐山市', contact: '陈露 · 181****6607', team: '6 人', clients: '本地商家 40 余家', plan: '首月签约 5 家', src: '渠道运营邀请（许诺）', result: '许诺 06-12 审核通过；06-15 签署合作协议并开通工作台' },
+      { key: 'D3', base: 'passed', name: '成都蓉城小店帮企业管理有限公司', kind: '推广合作伙伴', area: '成都市', time: '05-18 审核通过', flag: '', flagBg: '#FFFFFF', flagFg: '#1D1A16',
+        sub: '有限责任公司 · 推广合作伙伴 · 05-16 提交', warn: '', ocr: [O('名称', '成都蓉城小店帮企业管理有限公司', '成都蓉城小店帮企业管理有限公司', true), O('法定代表人', '赵磊', '赵磊（联系人）', true)],
+        region: '成都市', contact: '赵磊 · 150****3928', team: '9 人', clients: '本地商家 80 余家', plan: '首月签约 8 家', src: '渠道运营邀请（许诺）', result: '许诺 05-18 审核通过；05-20 签署合作协议并开通工作台' },
+      { key: 'D2', base: 'passed', name: '四川青柚网络科技有限公司', kind: '代运营机构', area: '成都市', time: '05-09 审核通过', flag: '', flagBg: '#FFFFFF', flagFg: '#1D1A16',
+        sub: '有限责任公司 · 代运营机构 · 05-07 提交', warn: '', ocr: [O('名称', '四川青柚网络科技有限公司', '四川青柚网络科技有限公司', true), O('法定代表人', '王珂', '王珂（联系人）', true)],
+        region: '成都市', contact: '王珂 · 138****0472', team: '15 人', clients: '代运营客户 120 余家', plan: '首月签约 10 家', src: '自主申请（小程序）', result: '许诺 05-09 审核通过；05-12 签署合作协议并开通工作台' },
+      { key: 'D1', base: 'passed', name: '成都橙光本地生活服务有限公司', kind: '代运营机构', area: '成都市', time: '04-03 审核通过', flag: '', flagBg: '#FFFFFF', flagFg: '#1D1A16',
+        sub: '有限责任公司 · 代运营机构 · 04-01 提交', warn: '', ocr: [O('名称', '成都橙光本地生活服务有限公司', '成都橙光本地生活服务有限公司', true), O('法定代表人', '刘晨', '刘晨（联系人）', true)],
+        region: '成都市', contact: '刘晨 · 139****5816', team: '22 人', clients: '代运营客户 200 余家', plan: '首月签约 15 家', src: '渠道运营邀请（许诺）', result: '许诺 04-03 审核通过；04-08 签署合作协议并开通工作台' },
+      { key: 'R1', base: 'rejected', name: '自贡盐都本地通信息服务部', kind: '推广合作伙伴', area: '自贡市', time: '08-18 已驳回', flag: '', flagBg: '#FFFFFF', flagFg: '#1D1A16',
+        sub: '个体工商户 · 推广合作伙伴 · 08-16 提交', warn: '', ocr: [O('名称', '自贡盐都本地通信息服务部', '自贡盐都本地通信息服务部', true), O('登记状态', '注销', '存续（申请填写）', false)],
+        region: '自贡市', contact: '王磊 · 186****1047', team: '2 人', clients: '未填写', plan: '未填写', src: '自主申请（小程序）', result: '许诺 08-18 驳回：营业执照已注销（国家企业信用信息公示系统查询），请以有效主体重新申请' }
+    ];
+    const results = st.results || {};
+    const stateOf = (a) => (results[a.key] ? results[a.key].s : a.base);
+    const view = st.view || 'pending';
+    const inView = apps.filter((a) => stateOf(a) === view);
+    const curKey = st.cur && inView.some((a) => a.key === st.cur) ? st.cur : (inView[0] ? inView[0].key : '');
+    const a = apps.filter((x) => x.key === curKey)[0] || apps[0];
+    const s = stateOf(a);
+    const SL = { pending: ['待审核', '#FBEDE5', '#A63F12'], passed: ['已通过', '#E5F1E9', '#256A42'], rejected: ['已驳回', '#FBE9E7', '#B42318'] };
+    const pendN = apps.filter((x) => stateOf(x) === 'pending').length;
+    const cnt = (k) => apps.filter((x) => stateOf(x) === k).length;
+    const rReason = st.rReason || '经营者与申请人不一致，且未提供授权书';
+    const res = results[a.key];
+    return Object.assign({
+      hasPendBadge: pendN > 0, pendBadge: pendN,
+      views: [['pending', '待审核'], ['passed', '已通过'], ['rejected', '已驳回']].map((v) => tab(v[0], v[1], cnt(v[0]), view, () => this.setState({ view: v[0], cur: '' }))),
+      queue: inView.map((x) => ({ name: x.name, kind: x.kind, region: x.area, time: results[x.key] ? results[x.key].time : x.time, hasFlag: !!x.flag && stateOf(x) === 'pending', flag: x.flag,
+        flagBg: x.flagBg, flagFg: x.flagFg, on: x.key === curKey, border: x.key === curKey ? '#C4501B' : '#ECE6DD', bg: x.key === curKey ? '#FFF8F3' : '#FFFFFF', pick: () => this.setState({ cur: x.key }) })),
+      queueEmpty: inView.length === 0,
+      cur: { name: a.name, sub: a.sub, sLabel: SL[s][0], sbg: SL[s][1], sfg: SL[s][2], hasWarn: !!a.warn && s === 'pending', warn: a.warn,
+        ocr: a.ocr.map((o) => ({ k: o.k, ocr: o.ocr, form: o.form, check: o.ok === null ? '无需比对' : o.ok ? '一致' : '不一致', color: o.ok === null ? '#9A9084' : o.ok ? '#256A42' : '#B42318' })),
+        region: a.region, contact: a.contact, team: a.team, clients: a.clients, plan: a.plan, src: a.src,
+        isPending: s === 'pending', isDone: s !== 'pending', result: res ? res.text : (a.result || ''), resultBg: s === 'rejected' ? '#FBE9E7' : '#E5F1E9', resultFg: s === 'rejected' ? '#B42318' : '#256A42' },
+      openPass: () => { if (a.warn) { this.setState({ toast: '该申请存在不一致项，请先驳回并告知申请人补充材料' }); return; } this.setState({ dlg: 'pass' }); },
+      openReject: () => this.setState({ dlg: 'reject', rNote: '', rErr: '' }),
+      passOpen: st.dlg === 'pass', rejectOpen: st.dlg === 'reject',
+      closeDlg: () => this.setState({ dlg: '' }),
+      owner: st.owner || '许诺', onOwner: (e) => this.setState({ owner: e.target.value }),
+      doPass: () => {
+        const r = Object.assign({}, results); r[a.key] = { s: 'passed', time: '09-30 审核通过', text: '周航 09-30 10:32 审核通过；已推送《服务商合作协议》在线签署，签署完成后开通工作台' };
+        this.setState({ results: r, dlg: '', toast: '已通过' + a.name + '的入驻申请，并推送合作协议' });
+      },
+      rReason: rReason, onRReason: (e) => this.setState({ rReason: e.target.value }),
+      rNote: st.rNote || '', onRNote: (e) => this.setState({ rNote: e.target.value, rErr: '' }),
+      rErr: st.rErr || '', hasRErr: !!st.rErr,
+      doReject: () => {
+        if (!(st.rNote || '').trim()) { this.setState({ rErr: '请填写说明，告知申请人需要补充的材料' }); return; }
+        const r = Object.assign({}, results); r[a.key] = { s: 'rejected', time: '09-30 已驳回', text: '周航 09-30 10:32 驳回：' + rReason + '。' + st.rNote.trim() };
+        this.setState({ results: r, dlg: '', toast: '已驳回，并通知申请人' });
+      }
+    }, toastVals);
+  }
+}
+</script>
+</body>
+</html>

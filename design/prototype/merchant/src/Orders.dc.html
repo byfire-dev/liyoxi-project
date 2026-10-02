@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>狸有戏 · 我的订单</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap">
+<style>
+body{margin:0;background:#F6F3EE}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+main::-webkit-scrollbar{display:none}
+textarea::placeholder,input::placeholder{color:#6F665B}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #F6F3EE; color: #1D1A16; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<header style="height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative; background: #FFFFFF;">
+<a href="Mine.dc.html" aria-label="返回" style="position: absolute; left: 2px; top: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1D1A16;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></a>
+<h1 style="margin: 0; font-size: 17px; font-weight: 600;">我的订单</h1>
+<div aria-hidden="true" style="position: absolute; right: 8px; top: 8px; width: 87px; height: 32px; box-sizing: border-box; border: 1px solid #E2DBD0; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-evenly;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="#1D1A16"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="2.4"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+<span style="width: 1px; height: 18px; background: #E2DBD0;"></span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D1A16" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="#1D1A16" stroke="none"></circle></svg>
+</div>
+</header>
+<div role="tablist" aria-label="订单状态" style="flex-shrink: 0; display: flex; gap: 4px; overflow-x: auto; box-sizing: border-box; padding: 0 8px; background: #FFFFFF; border-bottom: 1px solid #ECE6DD;">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="6">
+<button type="button" role="tab" aria-selected="{{t.active}}" onClick="{{t.pick}}" style="flex-shrink: 0; min-height: 44px; padding: 0 10px; border: none; border-bottom: 2px solid {{t.line}}; background: none; font-family: inherit; font-size: 14px; font-weight: {{t.weight}}; color: {{t.color}}; cursor: pointer;">{{t.label}}</button>
+</sc-for>
+</div>
+<main style="flex-grow: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 16px 24px; display: flex; flex-direction: column; gap: 12px;">
+<sc-if value="{{show1}}" hint-placeholder-val="{{true}}">
+<article style="background: #FFFFFF; border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px;"><div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 13px; color: #6F665B;">LYX2026092600018 · 09-26 10:32</span><span style="font-size: 13px; font-weight: 600; color: #2E5AAC;">制作中</span></div><div style="display: flex; gap: 10px; align-items: center;"><div aria-hidden="true" style="flex-shrink: 0; width: 42px; height: 56px; border-radius: 5px; background: #2F4A3F;"></div><div aria-hidden="true" style="flex-shrink: 0; width: 42px; height: 56px; border-radius: 5px; background: #6B2D2A;"></div><div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 600;">巷口那家店 等 2 部</span><span style="font-size: 13px; color: #6F665B;">整部定制 · 抖音</span></div><span style="flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;"><span style="font-size: 15px; font-weight: 700;">4,500</span><span style="font-size: 12px; color: #6F665B;">积分</span></span></div><a href="Sample.dc.html" style="padding: 8px 10px; border-radius: 8px; background: #FBEDE5; color: #A63F12; font-size: 13px; display: flex; align-items: center; justify-content: space-between; gap: 8px;"><span>待办：请确认《巷口那家店》第 1 集样片</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a><div style="display: flex; justify-content: flex-end; gap: 8px;"><a href="Service.dc.html" style="min-height: 36px; padding: 0 14px; border-radius: 18px; display: flex; align-items: center; font-size: 14px; border: 1px solid #E7E1D8;">联系客服</a><a href="OrderDetail.dc.html" style="min-height: 36px; padding: 0 14px; border-radius: 18px; display: flex; align-items: center; font-size: 14px; background: #C4501B; color: #FFFFFF; font-weight: 600;">查看进度</a></div></article>
+</sc-if>
+<sc-if value="{{show2}}" hint-placeholder-val="{{true}}">
+<article style="background: #FFFFFF; border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px;"><div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 13px; color: #6F665B;">LYX2026081400006 · 08-14 10:20</span><span style="font-size: 13px; font-weight: 600; color: #256A42;">上线中</span></div><div style="display: flex; gap: 10px; align-items: center;"><div aria-hidden="true" style="flex-shrink: 0; width: 42px; height: 56px; border-radius: 5px; background: #5B3F63;"></div><div aria-hidden="true" style="flex-shrink: 0; width: 42px; height: 56px; border-radius: 5px; background: #3D5A6B;"></div><div aria-hidden="true" style="flex-shrink: 0; width: 42px; height: 56px; border-radius: 5px; background: #7A5A2E;"></div><div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 600;">家有萌娃 等 3 部</span><span style="font-size: 13px; color: #6F665B;">整部定制 · 抖音</span></div><span style="flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;"><span style="font-size: 15px; font-weight: 700;">6,120</span><span style="font-size: 12px; color: #6F665B;">积分</span></span></div><div style="display: flex; align-items: center; gap: 8px; font-size: 13px;"><span style="color: #6F665B;">3 部已上线，共 161 集</span><span style="margin-left: auto; color: #6F665B;">最早 2027-06-30 到期</span></div><div style="display: flex; justify-content: flex-end; gap: 8px;"><a href="Service.dc.html" style="min-height: 36px; padding: 0 14px; border-radius: 18px; display: flex; align-items: center; font-size: 14px; border: 1px solid #E7E1D8;">联系客服</a><a href="LaunchRecord.dc.html" style="min-height: 36px; padding: 0 14px; border-radius: 18px; display: flex; align-items: center; font-size: 14px; border: 1px solid #C4501B; color: #A63F12; font-weight: 600;">上线记录</a></div></article>
+</sc-if>
+<sc-if value="{{empty}}" hint-placeholder-val="{{false}}">
+<div style="padding: 96px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;">
+<span style="font-size: 15px; font-weight: 600;">暂无相关订单</span>
+<span style="font-size: 13px; color: #6F665B;">{{emptyTip}}</span>
+<a href="Mall.dc.html" style="min-height: 44px; padding: 0 20px; border-radius: 22px; border: 1px solid #C4501B; color: #A63F12; display: flex; align-items: center; font-size: 15px; font-weight: 600;">去选剧</a>
+</div>
+</sc-if>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const tab = st.tab || '全部';
+    const labels = ['全部', '制作中', '待上线', '上线中', '已结束', '售后'];
+    const show1 = tab === '全部' || tab === '制作中';
+    const show2 = tab === '全部' || tab === '上线中';
+    const tips = { '待上线': '成片交付后，订单会进入“待上线”', '已结束': '成片使用期结束并完成下架的订单会显示在这里', '售后': '取消订购、积分退回等售后记录会显示在这里' };
+    return {
+      tabs: labels.map((l) => ({
+        label: l, active: l === tab, pick: () => this.setState({ tab: l }),
+        line: l === tab ? '#C4501B' : 'transparent', weight: l === tab ? '600' : '400', color: l === tab ? '#1D1A16' : '#6F665B'
+      })),
+      show1: show1, show2: show2, empty: !(show1 || show2), emptyTip: tips[tab] || ''
+    };
+  }
+}
+</script>
+</body>
+</html>
