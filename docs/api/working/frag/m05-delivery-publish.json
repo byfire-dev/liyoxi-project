@@ -1,0 +1,1422 @@
+{
+  "doc": "m05-delivery-publish",
+  "endpoints": [
+    {
+      "operationId": "m.channelAccount.list",
+      "method": "GET",
+      "path": "/m/channel-accounts",
+      "section": "3.1",
+      "requestSchemas": [],
+      "responseSchema": "ChannelAccountPage",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "channel.manage",
+      "transitions": []
+    },
+    {
+      "operationId": "m.channelAccount.create",
+      "method": "POST",
+      "path": "/m/channel-accounts",
+      "section": "3.2",
+      "requestSchemas": [
+        "ChannelAccountCreateBody"
+      ],
+      "responseSchema": "ChannelAccountCard",
+      "errors": [
+        "STORE_NOT_QUALIFIED",
+        "CHANNEL_ACCOUNT_TAKEN",
+        "FILE_NOT_USABLE",
+        "VALIDATION_FAILED"
+      ],
+      "events": [
+        "approval.submitted",
+        "account.submitted"
+      ],
+      "permission": null,
+      "capability": "channel.manage",
+      "transitions": [
+        "channel_account.status: (新建) → pending_verify（account.bind）",
+        "approval_request.status: (新建) → pending（kind = channel_account）"
+      ]
+    },
+    {
+      "operationId": "m.channelAccount.submit",
+      "method": "POST",
+      "path": "/m/channel-accounts/{channelAccountId}/submit",
+      "section": "3.3",
+      "requestSchemas": [
+        "ChannelAccountSubmitBody"
+      ],
+      "responseSchema": "ChannelAccountCard",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "FILE_NOT_USABLE",
+        "VALIDATION_FAILED"
+      ],
+      "events": [
+        "approval.submitted",
+        "account.submitted"
+      ],
+      "permission": null,
+      "capability": "channel.manage",
+      "transitions": [
+        "channel_account.status: abnormal → pending_verify（account.resubmit）",
+        "approval_request.status: (新建) → pending（kind = channel_account）"
+      ]
+    },
+    {
+      "operationId": "m.channelAccount.unbind",
+      "method": "POST",
+      "path": "/m/channel-accounts/{channelAccountId}/unbind",
+      "section": "3.4",
+      "requestSchemas": [],
+      "responseSchema": "ChannelAccountCard",
+      "errors": [
+        "CHANNEL_ACCOUNT_IN_USE",
+        "STATE_NOT_ALLOWED"
+      ],
+      "events": [
+        "account.unbound",
+        "approval.withdrawn"
+      ],
+      "permission": null,
+      "capability": "channel.manage",
+      "transitions": [
+        "channel_account.status: pending_verify/available/abnormal → unbound（account.unbind）",
+        "approval_request.status: pending → withdrawn（在途核验单随解绑撤回）"
+      ]
+    },
+    {
+      "operationId": "m.deliveryPlan.get",
+      "method": "GET",
+      "path": "/m/delivery-plans/{deliveryPlanId}",
+      "section": "3.5",
+      "requestSchemas": [],
+      "responseSchema": "DeliveryPlanDetail",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "order.read",
+      "transitions": []
+    },
+    {
+      "operationId": "m.deliveryPlan.confirm",
+      "method": "POST",
+      "path": "/m/delivery-plans/{deliveryPlanId}/confirm",
+      "section": "3.6",
+      "requestSchemas": [
+        "PlanConfirmBody"
+      ],
+      "responseSchema": "DeliveryPlanWriteResult",
+      "errors": [
+        "ORDER_IN_AFTER_SALE",
+        "PLAN_VERSION_STALE",
+        "STATE_NOT_ALLOWED"
+      ],
+      "events": [
+        "plan.confirmed",
+        "ticket.resumed",
+        "ticket.step_changed"
+      ],
+      "permission": null,
+      "capability": "delivery.confirm_plan",
+      "transitions": [
+        "delivery_plan.status: pending_confirm → confirmed（plan.confirm）",
+        "delivery_plan_version.decision: 空 → confirmed",
+        "delivery_ticket.step: plan_confirm → ad_prep（plan.confirmed，系统求值）",
+        "delivery_ticket.step: ad_prep → sample_making（ads.ready，广告已全部就绪时，系统求值）",
+        "delivery_ticket.step: 不变（ticket.resume，解除 plan_amendment 暂停原因）"
+      ],
+      "redactOnReplay": [
+        "content.items[].posterUrl"
+      ]
+    },
+    {
+      "operationId": "m.deliveryPlan.requestChange",
+      "method": "POST",
+      "path": "/m/delivery-plans/{deliveryPlanId}/request-change",
+      "section": "3.7",
+      "requestSchemas": [
+        "PlanChangeRequestBody"
+      ],
+      "responseSchema": "DeliveryPlanWriteResult",
+      "errors": [
+        "ORDER_IN_AFTER_SALE",
+        "STATE_NOT_ALLOWED"
+      ],
+      "events": [
+        "plan.change_requested"
+      ],
+      "permission": null,
+      "capability": "delivery.confirm_plan",
+      "transitions": [
+        "delivery_plan.status: pending_confirm → revising（plan.request_change）",
+        "delivery_plan.status: revising → revising（plan.request_change）",
+        "delivery_plan_version.decision: 空 → change_requested（仅从 pending_confirm）"
+      ],
+      "redactOnReplay": [
+        "content.items[].posterUrl"
+      ]
+    },
+    {
+      "operationId": "m.orderItem.sample.get",
+      "method": "GET",
+      "path": "/m/order-items/{orderItemId}/sample",
+      "section": "3.8",
+      "requestSchemas": [],
+      "responseSchema": "SampleView",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "delivery.confirm_sample",
+      "transitions": []
+    },
+    {
+      "operationId": "m.sample.confirm",
+      "method": "POST",
+      "path": "/m/samples/{sampleId}/confirm",
+      "section": "3.9",
+      "requestSchemas": [
+        "SampleConfirmBody"
+      ],
+      "responseSchema": "SampleWriteResult",
+      "errors": [
+        "TICKET_ON_HOLD",
+        "SAMPLE_VERSION_STALE",
+        "AD_CHANGED",
+        "SAMPLE_VIEW_CHANNEL_NOT_OFFERED",
+        "SAMPLE_NOT_VIEWABLE",
+        "STATE_NOT_ALLOWED",
+        "VALIDATION_FAILED"
+      ],
+      "events": [
+        "sample.confirmed",
+        "ticket.step_changed"
+      ],
+      "permission": null,
+      "capability": "delivery.confirm_sample",
+      "transitions": [
+        "sample.status: pushed → confirmed（sample.confirmed）",
+        "delivery_ticket.step: sample_confirm → batch_compose（sample.confirmed）"
+      ],
+      "redactOnReplay": [
+        "playable",
+        "decision.feedbackImages[].url",
+        "decision.feedbackImages[].expiresAt"
+      ]
+    },
+    {
+      "operationId": "m.sample.requestChange",
+      "method": "POST",
+      "path": "/m/samples/{sampleId}/request-change",
+      "section": "3.10",
+      "requestSchemas": [
+        "SampleRequestChangeBody"
+      ],
+      "responseSchema": "SampleWriteResult",
+      "errors": [
+        "TICKET_ON_HOLD",
+        "SAMPLE_VERSION_STALE",
+        "STATE_NOT_ALLOWED",
+        "FILE_NOT_USABLE",
+        "VALIDATION_FAILED"
+      ],
+      "events": [
+        "sample.change_requested",
+        "ticket.step_changed"
+      ],
+      "permission": null,
+      "capability": "delivery.confirm_sample",
+      "transitions": [
+        "sample.status: pushed → change_requested（sample.change_requested，合成问题）",
+        "delivery_ticket.step: sample_confirm → sample_making（sample.change_requested，合成问题）"
+      ],
+      "redactOnReplay": [
+        "playable",
+        "decision.feedbackImages[].url",
+        "decision.feedbackImages[].expiresAt"
+      ]
+    },
+    {
+      "operationId": "m.sample.downloadUrls",
+      "method": "POST",
+      "path": "/m/samples/{sampleId}/download-urls",
+      "section": "3.11",
+      "requestSchemas": [],
+      "responseSchema": "DownloadUrl",
+      "errors": [
+        "SAMPLE_VIEW_CHANNEL_NOT_OFFERED",
+        "SAMPLE_PREVIEW_NOT_READY",
+        "STATE_NOT_ALLOWED"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "delivery.confirm_sample",
+      "transitions": []
+    },
+    {
+      "operationId": "m.orderItem.release.get",
+      "method": "GET",
+      "path": "/m/order-items/{orderItemId}/release",
+      "section": "3.12",
+      "requestSchemas": [],
+      "responseSchema": "ReleaseView",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "delivery.download",
+      "transitions": []
+    },
+    {
+      "operationId": "m.orderItem.downloadGrant.create",
+      "method": "POST",
+      "path": "/m/order-items/{orderItemId}/download-grants",
+      "section": "3.13",
+      "requestSchemas": [],
+      "responseSchema": "DownloadGrantResult",
+      "errors": [
+        "DOWNLOAD_NOT_AVAILABLE",
+        "DOWNLOAD_REGRANT_LIMIT"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "delivery.download",
+      "transitions": [
+        "download_grant.state: active → superseded（旧授权，重新生成）",
+        "download_grant.state: (新建) → active（新授权）"
+      ]
+    },
+    {
+      "operationId": "m.orderItem.downloadUrls",
+      "method": "POST",
+      "path": "/m/order-items/{orderItemId}/download-urls",
+      "section": "3.14",
+      "requestSchemas": [
+        "EpisodeDownloadBody"
+      ],
+      "responseSchema": "EpisodeDownloadUrl",
+      "errors": [
+        "DOWNLOAD_GRANT_INVALID",
+        "DOWNLOAD_NOT_AVAILABLE",
+        "VALIDATION_FAILED"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "delivery.download",
+      "transitions": []
+    },
+    {
+      "operationId": "m.download.report",
+      "method": "POST",
+      "path": "/m/downloads/{downloadId}/report",
+      "section": "3.15",
+      "requestSchemas": [
+        "DownloadReportBody"
+      ],
+      "responseSchema": "DownloadReportResult",
+      "errors": [
+        "STATE_NOT_ALLOWED"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "delivery.download",
+      "transitions": []
+    },
+    {
+      "operationId": "m.orderItem.publishList.get",
+      "method": "GET",
+      "path": "/m/order-items/{orderItemId}/publish-list",
+      "section": "3.16",
+      "requestSchemas": [],
+      "responseSchema": "PublishListView",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "publish.read",
+      "transitions": []
+    },
+    {
+      "operationId": "m.launchTask.list",
+      "method": "GET",
+      "path": "/m/launch-tasks",
+      "section": "3.17",
+      "requestSchemas": [],
+      "responseSchema": "LaunchTaskOrderGroupPage",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "publish.read",
+      "transitions": []
+    },
+    {
+      "operationId": "m.launchTask.summary",
+      "method": "GET",
+      "path": "/m/launch-tasks/summary",
+      "section": "3.18",
+      "requestSchemas": [],
+      "responseSchema": "LaunchTaskSummary",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "publish.read",
+      "transitions": []
+    },
+    {
+      "operationId": "m.launchTask.get",
+      "method": "GET",
+      "path": "/m/launch-tasks/{launchTaskId}",
+      "section": "3.19",
+      "requestSchemas": [],
+      "responseSchema": "LaunchTaskDetail",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "publish.read",
+      "transitions": []
+    },
+    {
+      "operationId": "m.launchTask.submit",
+      "method": "POST",
+      "path": "/m/launch-tasks/{launchTaskId}/submit",
+      "section": "3.20",
+      "requestSchemas": [
+        "LaunchSubmitBody"
+      ],
+      "responseSchema": "LaunchTaskCard",
+      "errors": [
+        "TICKET_ON_HOLD",
+        "STATE_NOT_ALLOWED",
+        "LAUNCH_WINDOW_CLOSED",
+        "LINK_INVALID",
+        "LAUNCH_SUBMISSION_OUT_OF_RANGE"
+      ],
+      "events": [
+        "approval.submitted",
+        "launch.submitted",
+        "ticket.step_changed"
+      ],
+      "permission": null,
+      "capability": "publish.submit_link",
+      "transitions": [
+        "launch_task.review_status: pending/need_fix/passed（未满集）→ verifying（launch.submit）",
+        "approval_request.status: (新建) → pending（kind = launch_link）",
+        "delivery_ticket.step: awaiting_launch → launch_verify（launch.changed，系统求值）"
+      ]
+    },
+    {
+      "operationId": "m.takedownTask.list",
+      "method": "GET",
+      "path": "/m/takedown-tasks",
+      "section": "3.21",
+      "requestSchemas": [],
+      "responseSchema": "TakedownTaskPage",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "publish.read",
+      "transitions": []
+    },
+    {
+      "operationId": "m.takedownTask.summary",
+      "method": "GET",
+      "path": "/m/takedown-tasks/summary",
+      "section": "3.22",
+      "requestSchemas": [],
+      "responseSchema": "TakedownSummary",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "publish.read",
+      "transitions": []
+    },
+    {
+      "operationId": "m.takedownTask.confirm",
+      "method": "POST",
+      "path": "/m/takedown-tasks/{takedownTaskId}/confirm",
+      "section": "3.23",
+      "requestSchemas": [
+        "TakedownConfirmBody"
+      ],
+      "responseSchema": "TakedownTaskWriteResult",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "TAKEDOWN_METHOD_NOT_ALLOWED"
+      ],
+      "events": [
+        "takedown.merchant_confirmed",
+        "takedown.checked",
+        "ticket.step_changed",
+        "launch.voided",
+        "launch.settled",
+        "approval.withdrawn",
+        "takedown.created",
+        "ticket.archived"
+      ],
+      "permission": null,
+      "capability": "publish.takedown_confirm",
+      "transitions": [
+        "takedown_task.status: pending_merchant → merchant_confirmed（takedown.merchant_confirm）",
+        "takedown_task.status: merchant_confirmed → checked（takedown.sample_release，按比例抽查且未抽中时）",
+        "delivery_ticket.step: in_service → takedown（usage.ended，全部下架任务已由商家确认时，系统求值，工单迁移表第 15 行）",
+        "launch_task.review_status: pending/need_fix/verifying/passed → void（launch.void，未上线的任务，第 15 行收尾）",
+        "launch_task.review_status: verifying/need_fix → passed（launch.settle，已上线的任务，第 15 行收尾）",
+        "approval_request.status: pending → withdrawn（第 15 行收尾撤回在途核验单）",
+        "takedown_task.status: (新建) → pending_merchant（ensureTakedownTasks，通常不新建）",
+        "delivery_ticket.step: takedown → archived（takedown.all_checked，全部已核查时，系统求值，第 16 行）",
+        "delivery_release.state: pushed → closed（usage_ended，归档时，技术状态）"
+      ],
+      "redactOnReplay": [
+        "posterUrl"
+      ]
+    },
+    {
+      "operationId": "m.licenseLetter.list",
+      "method": "GET",
+      "path": "/m/license-letters",
+      "section": "3.24",
+      "requestSchemas": [],
+      "responseSchema": "LicenseLetterPage",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "contract.read",
+      "transitions": []
+    },
+    {
+      "operationId": "m.licenseLetter.summary",
+      "method": "GET",
+      "path": "/m/license-letters/summary",
+      "section": "3.25",
+      "requestSchemas": [],
+      "responseSchema": "LicenseLetterSummary",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "contract.read",
+      "transitions": []
+    },
+    {
+      "operationId": "m.licenseLetter.get",
+      "method": "GET",
+      "path": "/m/license-letters/{licenseLetterId}",
+      "section": "3.26",
+      "requestSchemas": [],
+      "responseSchema": "LicenseLetterDetail",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "contract.read",
+      "transitions": []
+    },
+    {
+      "operationId": "m.licenseLetter.downloadUrls",
+      "method": "POST",
+      "path": "/m/license-letters/{licenseLetterId}/download-urls",
+      "section": "3.27",
+      "requestSchemas": [
+        "LicenseLetterDownloadBody"
+      ],
+      "responseSchema": "LicenseLetterDownloadUrl",
+      "errors": [
+        "LICENSE_LETTER_NOT_READY"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "contract.read",
+      "transitions": []
+    },
+    {
+      "operationId": "m.performanceReport.list",
+      "method": "GET",
+      "path": "/m/performance-reports",
+      "section": "3.28",
+      "requestSchemas": [],
+      "responseSchema": null,
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": []
+    },
+    {
+      "operationId": "m.performanceUpload.create",
+      "method": "POST",
+      "path": "/m/performance-uploads",
+      "section": "3.29",
+      "requestSchemas": [],
+      "responseSchema": null,
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": []
+    }
+  ],
+  "schemas": [
+    {
+      "name": "ChecklistItemView",
+      "fields": [
+        "key",
+        "label",
+        "result",
+        "note"
+      ]
+    },
+    {
+      "name": "ChannelAccountBrief",
+      "fields": [
+        "channelAccountId",
+        "platform",
+        "accountName",
+        "accountUid",
+        "status"
+      ]
+    },
+    {
+      "name": "ChannelAccountCard",
+      "fields": [
+        "channelAccountId",
+        "platform",
+        "accountName",
+        "accountUid",
+        "status",
+        "accountType",
+        "submittedAccountType",
+        "certSubjectName",
+        "abnormalSource",
+        "abnormalReason",
+        "abnormalNote",
+        "roundNo",
+        "submittedAt",
+        "reviewDueAt",
+        "verifiedAt",
+        "usage",
+        "openTakedownTaskCount",
+        "actions"
+      ]
+    },
+    {
+      "name": "DeliveryPlanDetail",
+      "fields": [
+        "deliveryPlanId",
+        "orderId",
+        "orderNo",
+        "planCode",
+        "status",
+        "currentVersionNo",
+        "confirmedVersionNo",
+        "confirmedAt",
+        "staffDueAt",
+        "isOrderInAfterSale",
+        "deliveryManagerName",
+        "version",
+        "content",
+        "itemCount",
+        "totalEpisodes",
+        "openChange",
+        "changeRequests",
+        "actions"
+      ]
+    },
+    {
+      "name": "PlanVersionView",
+      "fields": [
+        "versionNo",
+        "pushedAt",
+        "pushedByName",
+        "changeSummary",
+        "decision",
+        "decidedAt"
+      ]
+    },
+    {
+      "name": "PlanContentView",
+      "fields": [
+        "focusTags",
+        "referenceAssets",
+        "profileMedia",
+        "note",
+        "launchMode",
+        "items"
+      ]
+    },
+    {
+      "name": "PlanItemView",
+      "fields": [
+        "orderItemId",
+        "dramaTitle",
+        "genres",
+        "posterUrl",
+        "episodeCount",
+        "usageEndDate",
+        "productionModel",
+        "accounts",
+        "placements",
+        "agreedLaunchDate",
+        "expectedDeliveryDate"
+      ]
+    },
+    {
+      "name": "PlanPlacementView",
+      "fields": [
+        "slot",
+        "durationSec",
+        "adId",
+        "adNo",
+        "adDisplayStatus",
+        "adCopy",
+        "latestVersionNo",
+        "nextVersionNo",
+        "openRevisionRequestedAt",
+        "confirmedVersionNo",
+        "confirmedAt",
+        "dueAt"
+      ]
+    },
+    {
+      "name": "PlanChangeRequestView",
+      "fields": [
+        "changeRequestId",
+        "onVersionNo",
+        "kinds",
+        "note",
+        "createdAt",
+        "resolvedByVersionNo"
+      ]
+    },
+    {
+      "name": "SampleView",
+      "fields": [
+        "sampleId",
+        "orderItemId",
+        "dramaTitle",
+        "versionNo",
+        "status",
+        "durationMs",
+        "pushedAt",
+        "previewChannels",
+        "adSlots",
+        "adsUsed",
+        "qcSummary",
+        "firstViewedAt",
+        "viewEvidence",
+        "offlineSentAt",
+        "confirmableVia",
+        "viewedAckAt",
+        "decision",
+        "playable",
+        "ticketStep",
+        "isPaused",
+        "sampleRoundNo",
+        "agreedLaunchDate",
+        "actions"
+      ]
+    },
+    {
+      "name": "DownloadGrantView",
+      "fields": [
+        "downloadGrantId",
+        "state",
+        "expiresAt",
+        "validDays",
+        "isExpired",
+        "createdAt"
+      ]
+    },
+    {
+      "name": "ReleaseView",
+      "fields": [
+        "deliveryReleaseId",
+        "orderItemId",
+        "releaseNo",
+        "kind",
+        "state",
+        "closeReason",
+        "pushedAt",
+        "episodeCount",
+        "totalBytes",
+        "changedEpisodeNos",
+        "episodes",
+        "savedEpisodeCount",
+        "grant",
+        "regrantRemainingToday",
+        "isDownloadable",
+        "canRegenerate"
+      ]
+    },
+    {
+      "name": "PublishListView",
+      "fields": [
+        "orderItemId",
+        "releaseNo",
+        "collectionName",
+        "cover",
+        "topics",
+        "intro",
+        "isAiDeclarationRequired",
+        "episodes",
+        "text"
+      ]
+    },
+    {
+      "name": "LaunchSubmissionView",
+      "fields": [
+        "roundNo",
+        "linkKind",
+        "collectionUrl",
+        "episodeUrlCount",
+        "reportedEpisodeCount",
+        "actualLaunchDate",
+        "submittedAt",
+        "result"
+      ]
+    },
+    {
+      "name": "LaunchTaskCard",
+      "fields": [
+        "launchTaskId",
+        "orderItemId",
+        "platform",
+        "channelAccount",
+        "reviewStatus",
+        "isLive",
+        "wentLiveAt",
+        "verifiedEpisodeCount",
+        "firstLaunchDate",
+        "completedAt",
+        "voidReason",
+        "latestSubmission",
+        "reviewDueAt",
+        "returnInfo",
+        "actions"
+      ]
+    },
+    {
+      "name": "LaunchTaskOrderGroup",
+      "fields": [
+        "orderId",
+        "orderNo",
+        "agreedLaunchDate",
+        "daysUntilLaunch",
+        "items"
+      ]
+    },
+    {
+      "name": "LaunchTaskItem",
+      "fields": [
+        "orderItemId",
+        "dramaTitle",
+        "posterUrl",
+        "episodeCount",
+        "phase",
+        "liveEpisodeCount",
+        "agreedLaunchDate",
+        "usageEndDate",
+        "ticketStep",
+        "isPaused",
+        "release",
+        "tasks"
+      ]
+    },
+    {
+      "name": "PatrolRecordView",
+      "fields": [
+        "patrolTaskId",
+        "status",
+        "checkedAt",
+        "checkedByName",
+        "results",
+        "abnormalKind",
+        "note",
+        "foundAt",
+        "recoveredAt"
+      ]
+    },
+    {
+      "name": "LaunchTaskDetail",
+      "fields": [
+        "task",
+        "accountType",
+        "launch",
+        "verifyChecks",
+        "timeline",
+        "patrols"
+      ]
+    },
+    {
+      "name": "TakedownTaskCard",
+      "fields": [
+        "takedownTaskId",
+        "orderId",
+        "orderNo",
+        "orderItemId",
+        "dramaTitle",
+        "posterUrl",
+        "episodeCount",
+        "channelAccount",
+        "triggerKind",
+        "basis",
+        "usageEndDate",
+        "dueDate",
+        "isOverdue",
+        "status",
+        "allowedMethods",
+        "merchantMethod",
+        "merchantConfirmedAt",
+        "checkedAt",
+        "stillOnlineCount",
+        "escalatedAt",
+        "actions"
+      ]
+    },
+    {
+      "name": "LicenseLetterCard",
+      "fields": [
+        "licenseLetterId",
+        "letterNo",
+        "orderId",
+        "orderNo",
+        "orderItemId",
+        "storeId",
+        "dramaTitle",
+        "episodeCount",
+        "platform",
+        "accountName",
+        "status",
+        "displayStatus",
+        "periodStartDate",
+        "periodEndDate",
+        "createdAt",
+        "currentRevNo",
+        "issuedAt",
+        "isRendering",
+        "voidReason",
+        "voidedAt",
+        "canDownload"
+      ]
+    },
+    {
+      "name": "LicenseLetterDetail",
+      "fields": [
+        "licenseLetterId",
+        "letterNo",
+        "orderId",
+        "orderNo",
+        "orderItemId",
+        "storeId",
+        "dramaTitle",
+        "episodeCount",
+        "platform",
+        "accountName",
+        "status",
+        "displayStatus",
+        "periodStartDate",
+        "periodEndDate",
+        "createdAt",
+        "currentRevNo",
+        "issuedAt",
+        "isRendering",
+        "voidReason",
+        "voidedAt",
+        "canDownload",
+        "preview",
+        "revisions"
+      ]
+    },
+    {
+      "name": "LicenseLetterPreview",
+      "fields": [
+        "licensorName",
+        "licensorCreditCodeMask",
+        "licenseeName",
+        "licenseeCreditCodeMask",
+        "storeName",
+        "dramaName",
+        "episodes",
+        "permits",
+        "account",
+        "period",
+        "clauses",
+        "consent",
+        "revNo",
+        "issuedAt",
+        "verifyUrl",
+        "contentFp",
+        "signMode"
+      ]
+    },
+    {
+      "name": "ChannelAccountCreateBody",
+      "fields": [
+        "platform",
+        "accountName",
+        "accountUid",
+        "accountType",
+        "screenshotFileIds"
+      ]
+    },
+    {
+      "name": "ChannelAccountSubmitBody",
+      "fields": [
+        "accountType",
+        "screenshotFileIds"
+      ]
+    },
+    {
+      "name": "PlanConfirmBody",
+      "fields": [
+        "versionNo"
+      ]
+    },
+    {
+      "name": "PlanChangeRequestBody",
+      "fields": [
+        "kinds",
+        "note"
+      ]
+    },
+    {
+      "name": "SampleConfirmBody",
+      "fields": [
+        "versionNo",
+        "viewedVia",
+        "hasViewed"
+      ]
+    },
+    {
+      "name": "SampleRequestChangeBody",
+      "fields": [
+        "feedbackKind",
+        "note",
+        "imageFileIds"
+      ]
+    },
+    {
+      "name": "DownloadUrl",
+      "fields": [
+        "url",
+        "expiresAt",
+        "fileName",
+        "sizeBytes"
+      ]
+    },
+    {
+      "name": "DownloadGrantResult",
+      "fields": [
+        "grant",
+        "regrantRemainingToday"
+      ]
+    },
+    {
+      "name": "EpisodeDownloadBody",
+      "fields": [
+        "kind",
+        "episodeNo"
+      ]
+    },
+    {
+      "name": "EpisodeDownloadUrl",
+      "fields": [
+        "downloadId",
+        "url",
+        "expiresAt",
+        "fileName",
+        "sizeBytes"
+      ]
+    },
+    {
+      "name": "DownloadReportBody",
+      "fields": [
+        "result"
+      ]
+    },
+    {
+      "name": "DownloadReportResult",
+      "fields": [
+        "downloadId",
+        "episodeNo",
+        "clientAck",
+        "clientAckAt"
+      ]
+    },
+    {
+      "name": "LaunchTaskSummary",
+      "fields": [
+        "todo",
+        "done",
+        "needFix"
+      ]
+    },
+    {
+      "name": "LaunchSubmitBody",
+      "fields": [
+        "linkKind",
+        "collectionUrl",
+        "episodeUrls",
+        "reportedEpisodeCount",
+        "actualLaunchDate"
+      ]
+    },
+    {
+      "name": "TakedownSummary",
+      "fields": [
+        "pending",
+        "done",
+        "overdue",
+        "nextTakedown"
+      ]
+    },
+    {
+      "name": "TakedownConfirmBody",
+      "fields": [
+        "method"
+      ]
+    },
+    {
+      "name": "LicenseLetterSummary",
+      "fields": [
+        "all",
+        "effective"
+      ]
+    },
+    {
+      "name": "LicenseLetterDownloadBody",
+      "fields": [
+        "revNo"
+      ]
+    },
+    {
+      "name": "LicenseLetterDownloadUrl",
+      "fields": [
+        "url",
+        "expiresAt",
+        "fileName",
+        "revNo"
+      ]
+    },
+    {
+      "name": "ChannelAccountPage",
+      "fields": [
+        "items",
+        "nextCursor",
+        "hasMore"
+      ]
+    },
+    {
+      "name": "LaunchTaskOrderGroupPage",
+      "fields": [
+        "items",
+        "nextCursor",
+        "hasMore"
+      ]
+    },
+    {
+      "name": "TakedownTaskPage",
+      "fields": [
+        "items",
+        "nextCursor",
+        "hasMore"
+      ]
+    },
+    {
+      "name": "LicenseLetterPage",
+      "fields": [
+        "items",
+        "nextCursor",
+        "hasMore"
+      ]
+    },
+    {
+      "name": "DeliveryPlanWriteResult",
+      "fields": [
+        "deliveryPlanId",
+        "orderId",
+        "orderNo",
+        "planCode",
+        "status",
+        "currentVersionNo",
+        "confirmedVersionNo",
+        "confirmedAt",
+        "staffDueAt",
+        "isOrderInAfterSale",
+        "deliveryManagerName",
+        "version",
+        "content",
+        "itemCount",
+        "totalEpisodes",
+        "openChange",
+        "changeRequests",
+        "actions",
+        "replayed"
+      ]
+    },
+    {
+      "name": "SampleWriteResult",
+      "fields": [
+        "sampleId",
+        "orderItemId",
+        "dramaTitle",
+        "versionNo",
+        "status",
+        "durationMs",
+        "pushedAt",
+        "previewChannels",
+        "adSlots",
+        "adsUsed",
+        "qcSummary",
+        "firstViewedAt",
+        "viewEvidence",
+        "offlineSentAt",
+        "confirmableVia",
+        "viewedAckAt",
+        "decision",
+        "playable",
+        "ticketStep",
+        "isPaused",
+        "sampleRoundNo",
+        "agreedLaunchDate",
+        "actions",
+        "replayed"
+      ]
+    },
+    {
+      "name": "TakedownTaskWriteResult",
+      "fields": [
+        "takedownTaskId",
+        "orderId",
+        "orderNo",
+        "orderItemId",
+        "dramaTitle",
+        "posterUrl",
+        "episodeCount",
+        "channelAccount",
+        "triggerKind",
+        "basis",
+        "usageEndDate",
+        "dueDate",
+        "isOverdue",
+        "status",
+        "allowedMethods",
+        "merchantMethod",
+        "merchantConfirmedAt",
+        "checkedAt",
+        "stillOnlineCount",
+        "escalatedAt",
+        "actions",
+        "replayed"
+      ]
+    }
+  ],
+  "errorCodes": [
+    {
+      "symbol": "ORDER_IN_AFTER_SALE",
+      "code": 45101,
+      "http": 409,
+      "meaning": "订购单有在途取消申请，方案的推送、确认、提出修改都暂停（10-delivery.md:413；d3-flow.md:880）。后台 `admin.deliveryPlan.push` 同样返回它",
+      "retryable": false
+    },
+    {
+      "symbol": "PLAN_VERSION_STALE",
+      "code": 45102,
+      "http": 409,
+      "meaning": "确认的方案版本不是当前版本（d3-flow.md:1139、1161）",
+      "retryable": false
+    },
+    {
+      "symbol": "TICKET_ON_HOLD",
+      "code": 45103,
+      "http": 409,
+      "meaning": "交付工单暂停中（取消审批中、方案修订待确认），属于这张工单的对象一律拒绝操作（d3-flow.md:879）。后台的样片、成片接口同样返回它；a06 的链接核验只有通过与撤销返回它，退回不检查暂停（11-publish.md:302）",
+      "retryable": false
+    },
+    {
+      "symbol": "SAMPLE_VERSION_STALE",
+      "code": 45104,
+      "http": 409,
+      "meaning": "操作的样片不是当前已推送的版本",
+      "retryable": false
+    },
+    {
+      "symbol": "AD_CHANGED",
+      "code": 45105,
+      "http": 409,
+      "meaning": "样片所用的广告版本已不是当前确认版本，不能确认（d3-flow.md:838，沿用草案名）",
+      "retryable": false
+    },
+    {
+      "symbol": "SAMPLE_NOT_VIEWABLE",
+      "code": 45106,
+      "http": 409,
+      "meaning": "声明的查看方式没有对应的提供或访问记录（d3-flow.md:1541 的 `422 SAMPLE_NOT_VIEWABLE` 按 C24 改为 409）",
+      "retryable": false
+    },
+    {
+      "symbol": "SAMPLE_VIEW_CHANNEL_NOT_OFFERED",
+      "code": 45107,
+      "http": 409,
+      "meaning": "该样片版本推送时没有提供这种查看方式；details = { previewChannels: PreviewChannel[] }",
+      "retryable": false
+    },
+    {
+      "symbol": "SAMPLE_PREVIEW_NOT_READY",
+      "code": 45108,
+      "http": 409,
+      "meaning": "样片水印版尚未生成，请稍后再试",
+      "retryable": false
+    },
+    {
+      "symbol": "DOWNLOAD_GRANT_INVALID",
+      "code": 45109,
+      "http": 409,
+      "meaning": "下载授权已过期、已被重新生成或已撤销（d7-platform.md:832）。下载页的 `portal.orderItem.downloadUrls` 同样返回它",
+      "retryable": false
+    },
+    {
+      "symbol": "DOWNLOAD_NOT_AVAILABLE",
+      "code": 45110,
+      "http": 409,
+      "meaning": "成片当前不可下载或不可重新生成授权（未交付、成片包已关闭、订单项已关闭、已过使用期、文件不可用）。下载页同样返回它",
+      "retryable": false
+    },
+    {
+      "symbol": "DOWNLOAD_REGRANT_LIMIT",
+      "code": 45111,
+      "http": 409,
+      "meaning": "今天重新生成下载授权已达 5 次",
+      "retryable": false
+    },
+    {
+      "symbol": "LICENSE_LETTER_NOT_READY",
+      "code": 45112,
+      "http": 409,
+      "meaning": "授权书（或指定版次）尚未出件",
+      "retryable": false
+    },
+    {
+      "symbol": "CHANNEL_ACCOUNT_TAKEN",
+      "code": 46101,
+      "http": 409,
+      "meaning": "同一平台同一账号 ID 已被绑定（PRD 6.10.2-1；`uq_channel_account_platform_uid_active`）",
+      "retryable": false
+    },
+    {
+      "symbol": "CHANNEL_ACCOUNT_IN_USE",
+      "code": 46102,
+      "http": 409,
+      "meaning": "账号仍被在办订单项引用或有未核查的下架任务，不能解绑（d3-flow.md:2042）",
+      "retryable": false
+    },
+    {
+      "symbol": "LINK_INVALID",
+      "code": 46103,
+      "http": 400,
+      "meaning": "上线链接不合规（d3-flow.md:1759，沿用草案名；422 按 C24 改为 400）",
+      "retryable": false
+    },
+    {
+      "symbol": "LAUNCH_SUBMISSION_OUT_OF_RANGE",
+      "code": 46104,
+      "http": 400,
+      "meaning": "回填的实际上线日期或声明集数超出允许范围（d3-flow.md:1754）",
+      "retryable": false
+    },
+    {
+      "symbol": "LAUNCH_WINDOW_CLOSED",
+      "code": 46105,
+      "http": 409,
+      "meaning": "已过使用期止日，不能再回填（d3-flow.md:1754）",
+      "retryable": false
+    },
+    {
+      "symbol": "TAKEDOWN_METHOD_NOT_ALLOWED",
+      "code": 46106,
+      "http": 409,
+      "meaning": "该账号已核验上线，不能选“未发布”（11-publish.md:654）",
+      "retryable": false
+    }
+  ],
+  "externalErrors": [
+    {
+      "symbol": "STORE_NOT_QUALIFIED",
+      "definedIn": "m04-mall-order",
+      "note": "门店闸门，与确认订购同源（d3-flow.md:419）；共用领域码归 m04（A77、C28，HTTP 409），m04 清单已定义",
+      "code": 45008
+    },
+    {
+      "symbol": "STORE_ARCHIVED",
+      "definedIn": "m02-tenant",
+      "note": "成员关系中间件返回（C17），不逐接口列"
+    },
+    {
+      "symbol": "FILE_NOT_USABLE",
+      "definedIn": "m03-profile-asset",
+      "code": 46001,
+      "note": "files.link() 的统一出口：截图未入库、被拦截、分类不符或不属本门店（3.2、3.3、3.10）"
+    }
+  ],
+  "permissions": [],
+  "capabilities": [
+    "channel.manage",
+    "contract.read",
+    "delivery.confirm_plan",
+    "delivery.confirm_sample",
+    "delivery.download",
+    "order.read",
+    "publish.read",
+    "publish.submit_link",
+    "publish.takedown_confirm"
+  ],
+  "externalSchemas": [
+    {
+      "name": "SignedUrl",
+      "definedIn": "a01-system",
+      "section": "C87：{ url, expiresAt }"
+    },
+    {
+      "name": "ImageRef",
+      "definedIn": "m08-support-misc",
+      "section": "C87：PublishListView.cover"
+    },
+    {
+      "name": "DictRef",
+      "definedIn": "约定通用结构（C85、C87，A150）",
+      "section": "C85：genres、abnormalReason、abnormalKind、reasons、contentTags"
+    },
+    {
+      "name": "Playable",
+      "definedIn": "m06-ad",
+      "section": "2.8"
+    },
+    {
+      "name": "PlayableSource",
+      "definedIn": "m06-ad",
+      "section": "2.8"
+    },
+    {
+      "name": "PlacementSlot",
+      "definedIn": "m06-ad",
+      "section": "第 4 节（枚举，x-open-enum）"
+    },
+    {
+      "name": "PreviewChannel",
+      "definedIn": "m06-ad",
+      "section": "第 4 节（枚举，A152）"
+    },
+    {
+      "name": "AdDisplayStatus",
+      "definedIn": "m06-ad",
+      "section": "第 4 节（枚举）"
+    },
+    {
+      "name": "LicensePeriod",
+      "definedIn": "p01-portal",
+      "section": "2.5"
+    },
+    {
+      "name": "LicenseConsent",
+      "definedIn": "p01-portal",
+      "section": "2.5"
+    }
+  ]
+}

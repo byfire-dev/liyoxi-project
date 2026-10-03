@@ -1,0 +1,3358 @@
+{
+ "doc": "a05-order-delivery",
+ "endpoints": [
+  {
+   "operationId": "admin.order.list",
+   "method": "GET",
+   "path": "/admin/orders",
+   "section": "3.1",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<AdminOrderCard>",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.order.summary",
+   "method": "GET",
+   "path": "/admin/orders/summary",
+   "section": "3.2",
+   "requestSchemas": [],
+   "responseSchema": "OrderSummary",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.order.quote",
+   "method": "POST",
+   "path": "/admin/orders/quote",
+   "section": "3.3",
+   "requestSchemas": [
+    "AdminOrderQuoteBody"
+   ],
+   "responseSchema": "OrderQuoteResult",
+   "errors": [
+    "PLAN_NOT_AVAILABLE",
+    "NOT_FOUND",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.order.get",
+   "method": "GET",
+   "path": "/admin/orders/{orderId}",
+   "section": "3.4",
+   "requestSchemas": [],
+   "responseSchema": "AdminOrderDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.order.activity.list",
+   "method": "GET",
+   "path": "/admin/orders/{orderId}/activities",
+   "section": "3.5",
+   "requestSchemas": [],
+   "responseSchema": "AdminCursorPage<ActivityItem>",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.order.cancelQuote",
+   "method": "POST",
+   "path": "/admin/orders/{orderId}/cancel-quote",
+   "section": "3.6",
+   "requestSchemas": [
+    "OrderCancelQuoteBody"
+   ],
+   "responseSchema": "CancelQuote",
+   "errors": [
+    "ORDER_IN_AFTER_SALE",
+    "VALIDATION_FAILED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": "order.refund.request",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.order.cancelRequest.create",
+   "method": "POST",
+   "path": "/admin/orders/{orderId}/cancel-requests",
+   "section": "3.7",
+   "requestSchemas": [
+    "OrderCancelRequestCreateBody"
+   ],
+   "responseSchema": "CancelRequestDetail",
+   "errors": [
+    "ORDER_IN_AFTER_SALE",
+    "CANCEL_ITEM_NOT_ALLOWED",
+    "CANCEL_QUOTE_CHANGED",
+    "VALIDATION_FAILED",
+    "NOT_FOUND"
+   ],
+   "events": [
+    "approval.submitted",
+    "cancel.submitted",
+    "order.status_changed",
+    "ticket.held",
+    "approval.approved",
+    "cancel.executed",
+    "approval.executed",
+    "order.item.cancelled",
+    "billing.points.returned"
+   ],
+   "permission": "order.refund.request",
+   "capability": null,
+   "transitions": [
+    "approval_request.status: (新建) → pending（submit，kind = order_cancel）",
+    "cancel_request.status: (新建) → pending_approval（cancel.submit）",
+    "drama_order.status: 推导 → after_sale（open_cancel_request_id = 本申请）",
+    "delivery_ticket.step: 不变（ticket.hold，cancel_review；步骤 1～9 的工单）",
+    "approval_request.status: pending → approved（approve，系统决定；免审批开关命中时）",
+    "cancel_request.status: pending_approval → done（cancel.auto_execute，免审批开关命中时）",
+    "order_item.phase: pending_start → cancelled（cancel.auto_execute，release）",
+    "point_hold.status: held → released（cancel.auto_execute）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.cancelRequest.list",
+   "method": "GET",
+   "path": "/admin/cancel-requests",
+   "section": "3.8",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<CancelRequestCard>",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.cancelRequest.summary",
+   "method": "GET",
+   "path": "/admin/cancel-requests/summary",
+   "section": "3.9",
+   "requestSchemas": [],
+   "responseSchema": "CancelRequestSummary",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.cancelRequest.get",
+   "method": "GET",
+   "path": "/admin/cancel-requests/{cancelRequestId}",
+   "section": "3.10",
+   "requestSchemas": [],
+   "responseSchema": "CancelRequestDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.cancelRequest.approve",
+   "method": "POST",
+   "path": "/admin/cancel-requests/{cancelRequestId}/approve",
+   "section": "3.11",
+   "requestSchemas": [
+    "CancelApproveBody"
+   ],
+   "responseSchema": "CancelRequestDetail",
+   "errors": [
+    "APPROVAL_NOT_PENDING",
+    "APPROVAL_SELF_FORBIDDEN",
+    "VERSION_CONFLICT",
+    "CONFIRM_MISMATCH",
+    "PRECONDITION_CHANGED",
+    "VALIDATION_FAILED",
+    "STEP_UP_REQUIRED"
+   ],
+   "events": [
+    "approval.approved",
+    "cancel.approved"
+   ],
+   "permission": "finance.refund.approve",
+   "capability": null,
+   "transitions": [
+    "approval_request.status: pending → approved（approve）",
+    "cancel_request.status: pending_approval → pending_execution（approval.approved）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.cancelRequest.reject",
+   "method": "POST",
+   "path": "/admin/cancel-requests/{cancelRequestId}/reject",
+   "section": "3.12",
+   "requestSchemas": [
+    "CancelRejectBody"
+   ],
+   "responseSchema": "CancelRequestDetail",
+   "errors": [
+    "APPROVAL_NOT_PENDING",
+    "APPROVAL_SELF_FORBIDDEN",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "approval.rejected",
+    "cancel.rejected",
+    "order.status_changed",
+    "ticket.resumed"
+   ],
+   "permission": "finance.refund.approve",
+   "capability": null,
+   "transitions": [
+    "approval_request.status: pending → rejected（reject）",
+    "cancel_request.status: pending_approval → not_executed（approval.rejected，close_reason = rejected）",
+    "delivery_ticket.step: 不变（ticket.resume，release_event = rejected）",
+    "drama_order.status: after_sale → 重新推导"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "xStepUp": "skip"
+  },
+  {
+   "operationId": "admin.cancelRequest.withdraw",
+   "method": "POST",
+   "path": "/admin/cancel-requests/{cancelRequestId}/withdraw",
+   "section": "3.13",
+   "requestSchemas": [
+    "CancelWithdrawBody"
+   ],
+   "responseSchema": "CancelRequestDetail",
+   "errors": [
+    "APPROVAL_NOT_PENDING",
+    "APPROVAL_WITHDRAW_FORBIDDEN",
+    "STEP_UP_REQUIRED"
+   ],
+   "events": [
+    "approval.withdrawn",
+    "cancel.withdrawn",
+    "order.status_changed",
+    "ticket.resumed"
+   ],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [
+    "approval_request.status: pending → withdrawn（withdraw）",
+    "cancel_request.status: pending_approval → not_executed（approval.withdrawn，close_reason = withdrawn）",
+    "delivery_ticket.step: 不变（ticket.resume，release_event = withdrawn）",
+    "drama_order.status: after_sale → 重新推导"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.cancelRequest.void",
+   "method": "POST",
+   "path": "/admin/cancel-requests/{cancelRequestId}/void",
+   "section": "3.14",
+   "requestSchemas": [
+    "CancelVoidBody"
+   ],
+   "responseSchema": "CancelRequestDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "PERMISSION_DENIED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "cancel.voided",
+    "order.status_changed",
+    "ticket.resumed"
+   ],
+   "permission": "order.refund.request",
+   "capability": null,
+   "transitions": [
+    "cancel_request.status: pending_execution → not_executed（cancel.void，close_reason = voided）",
+    "delivery_ticket.step: 不变（ticket.resume，release_event = voided）",
+    "drama_order.status: after_sale → 重新推导"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.cancelRequest.execute",
+   "method": "POST",
+   "path": "/admin/cancel-requests/{cancelRequestId}/execute",
+   "section": "3.15",
+   "requestSchemas": [
+    "CancelExecuteBody"
+   ],
+   "responseSchema": "CancelRequestDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "PRECONDITION_CHANGED",
+    "CONFIRM_MISMATCH",
+    "ACCOUNT_BUSY",
+    "REFUND_EXECUTOR_CONFLICT",
+    "VALIDATION_FAILED",
+    "STEP_UP_REQUIRED"
+   ],
+   "events": [
+    "cancel.executed",
+    "approval.executed",
+    "order.item.cancelled",
+    "order.item.refunded",
+    "order.item.terminated",
+    "order.item.usage_end_changed",
+    "ad.cancelled",
+    "order.status_changed",
+    "ticket.terminated",
+    "billing.points.returned",
+    "launch.voided",
+    "launch.settled",
+    "takedown.created"
+   ],
+   "permission": "finance.refund.execute",
+   "capability": null,
+   "transitions": [
+    "cancel_request.status: pending_execution → done（cancel.execute）",
+    "order_item.phase: pending_start → cancelled（cancel.execute，release）",
+    "order_item.phase: producing/to_launch → refunded/terminated（ticket.terminate）",
+    "delivery_ticket.step: 步骤 1～9 → terminated（ticket.terminate，第 19 行）",
+    "delivery_ticket.step: in_service/takedown → takedown（ticket.terminate，第 20 行）",
+    "ad.status: pending_assign/returned/producing/revising/pending_confirm → cancelled（ad.cancel）",
+    "point_hold.status: held → released；captured/refunded_partial → refunded_partial/refunded_full",
+    "drama_order.status: after_sale → cancelled/refunded/重新推导",
+    "order_item.cancelled_at / cancel_reason_code: 写入（被取消或终止的订单项，含平台原因终止的已上线项）",
+    "delivery_release.state: pushed → closed（close_reason = cancelled）",
+    "download_grant.state: active → revoked",
+    "zip_bundle.zip_state: building/ready/failed → none（成片包关闭，作废 ZIP 缓存）",
+    "launch_task.review_status: pending/verifying/need_fix → void（launch.void，void_reason = terminated，未上线的）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryTicket.list",
+   "method": "GET",
+   "path": "/admin/delivery-tickets",
+   "section": "3.16",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<DeliveryTicketCard>",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryTicket.summary",
+   "method": "GET",
+   "path": "/admin/delivery-tickets/summary",
+   "section": "3.17",
+   "requestSchemas": [],
+   "responseSchema": "DeliveryTicketSummary",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryTicket.get",
+   "method": "GET",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}",
+   "section": "3.18",
+   "requestSchemas": [],
+   "responseSchema": "DeliveryTicketDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryTicket.activity.list",
+   "method": "GET",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/activities",
+   "section": "3.19",
+   "requestSchemas": [],
+   "responseSchema": "AdminCursorPage<ActivityItem>",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryTicket.assignManager",
+   "method": "POST",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/assign-manager",
+   "section": "3.20",
+   "requestSchemas": [
+    "AssignManagerBody"
+   ],
+   "responseSchema": "DeliveryTicketDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "TICKET_ON_HOLD",
+    "ASSIGNEE_INVALID"
+   ],
+   "events": [
+    "ticket.assigned"
+   ],
+   "permission": "merchant.manager.assign",
+   "capability": null,
+   "transitions": [
+    "delivery_ticket.step: assigning → plan_confirm（ticket.assign；门店无交付经理时同门店其他未暂停的待分配工单同样迁移）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "currentSample.preview",
+    "currentSample.decision.feedbackImages"
+   ]
+  },
+  {
+   "operationId": "admin.deliveryTicket.assignEditor",
+   "method": "POST",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/assign-editor",
+   "section": "3.21",
+   "requestSchemas": [
+    "AssignStaffBody"
+   ],
+   "responseSchema": "DeliveryTicketDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "ASSIGNEE_INVALID",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": "delivery.ticket.assign_editor",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "currentSample.preview",
+    "currentSample.decision.feedbackImages"
+   ]
+  },
+  {
+   "operationId": "admin.deliveryTicket.assignPublisher",
+   "method": "POST",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/assign-publisher",
+   "section": "3.22",
+   "requestSchemas": [
+    "AssignStaffBody"
+   ],
+   "responseSchema": "DeliveryTicketDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "ASSIGNEE_INVALID",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": "delivery.ticket.assign_publisher",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "currentSample.preview",
+    "currentSample.decision.feedbackImages"
+   ]
+  },
+  {
+   "operationId": "admin.deliveryTicket.remind",
+   "method": "POST",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/remind",
+   "section": "3.23",
+   "requestSchemas": [
+    "TicketRemindBody"
+   ],
+   "responseSchema": "AdminRemindResult",
+   "errors": [
+    "REMINDED_TODAY",
+    "REMIND_NOT_APPLICABLE",
+    "PERMISSION_DENIED"
+   ],
+   "events": [
+    "manual_reminder.sent"
+   ],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryTicket.rework",
+   "method": "POST",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/rework",
+   "section": "3.24",
+   "requestSchemas": [
+    "ReworkBody"
+   ],
+   "responseSchema": "DeliveryTicketDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "TICKET_ON_HOLD",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "ticket.step_changed",
+    "sample.superseded"
+   ],
+   "permission": "delivery.ticket.rework",
+   "capability": null,
+   "transitions": [
+    "delivery_ticket.step: batch_compose/delivering → sample_making 或 ad_prep（ticket.rework）",
+    "sample.status: confirmed → superseded（sample.superseded）",
+    "episode_output.status: qc_passed（当前行）→ replaced"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "currentSample.preview",
+    "currentSample.decision.feedbackImages"
+   ]
+  },
+  {
+   "operationId": "admin.deliveryTicket.reevaluate",
+   "method": "POST",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/reevaluate",
+   "section": "3.25",
+   "requestSchemas": [],
+   "responseSchema": "ReevaluateResult",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [
+    "ticket.step_changed",
+    "sample.superseded",
+    "launch.voided",
+    "launch.settled",
+    "takedown.created"
+   ],
+   "permission": "flow.ops.manage",
+   "capability": null,
+   "transitions": [
+    "delivery_ticket.step: 按求值结果（系统求值行：第 2、3、8、9、12–15、15b、16 行）",
+    "sample.status: uploaded/qc_passed/pushed → superseded（sample.superseded，第 8 行 ad.reopened）",
+    "launch_task.review_status: pending/verifying/need_fix → void（launch.void，usage_expired；第 15、15b 行）",
+    "download_grant.state: active → revoked（第 15b 行）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryTicket.forceTransition",
+   "method": "POST",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/force-transition",
+   "section": "3.26",
+   "requestSchemas": [
+    "ForceTransitionBody"
+   ],
+   "responseSchema": "DeliveryTicketDetail",
+   "errors": [
+    "CORRECTION_NOT_ALLOWED",
+    "CONFIRM_MISMATCH",
+    "TICKET_ON_HOLD",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "ticket.step_changed"
+   ],
+   "permission": "flow.admin.transition",
+   "capability": null,
+   "transitions": [
+    "delivery_ticket.step: 更正白名单内 → 指定步骤（admin.force，is_forced = true）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "currentSample.preview",
+    "currentSample.decision.feedbackImages"
+   ]
+  },
+  {
+   "operationId": "admin.deliveryTicket.material.list",
+   "method": "GET",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/materials",
+   "section": "3.27",
+   "requestSchemas": [],
+   "responseSchema": "MaterialList",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryTicket.material.downloadUrls",
+   "method": "POST",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/materials/download-urls",
+   "section": "3.28",
+   "requestSchemas": [
+    "MaterialDownloadBody"
+   ],
+   "responseSchema": "MaterialDownloadResult",
+   "errors": [
+    "MATERIAL_NOT_AVAILABLE",
+    "VALIDATION_FAILED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": "delivery.download",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryTicket.episodeOutput.list",
+   "method": "GET",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/episode-outputs",
+   "section": "3.29",
+   "requestSchemas": [],
+   "responseSchema": "EpisodeGrid",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryTicket.episodeOutput.create",
+   "method": "POST",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/episode-outputs",
+   "section": "3.30",
+   "requestSchemas": [
+    "EpisodeRegisterBody"
+   ],
+   "responseSchema": "EpisodeRegisterResult",
+   "errors": [
+    "EPISODE_REGISTER_NOT_ALLOWED",
+    "TICKET_ON_HOLD",
+    "FILE_NOT_USABLE",
+    "PERMISSION_DENIED",
+    "VALIDATION_FAILED",
+    "PRODUCTION_NOT_READY",
+    "BATCH_PURPOSE_MISMATCH",
+    "STATE_NOT_ALLOWED",
+    "NOT_FOUND"
+   ],
+   "events": [
+    "asset.adopted"
+   ],
+   "permission": "delivery.episode.register",
+   "capability": null,
+   "transitions": [
+    "upload_batch.state: ready → committed（提交，media.consumeBatch；带 uploadBatchId 时）",
+    "episode_output.status: (新建) → uploaded（登记）",
+    "episode_output.status: 旧当前行、未决旧修订 → replaced（换版）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryTicket.inspectEpisodes",
+   "method": "POST",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/inspect-episodes",
+   "section": "3.31",
+   "requestSchemas": [
+    "InspectEpisodesBody"
+   ],
+   "responseSchema": "InspectEpisodesResult",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "EPISODE_NOT_LATEST",
+    "PRODUCTION_NOT_READY",
+    "QC_SELF_INSPECTION",
+    "CHECKLIST_VERSION_STALE",
+    "TICKET_ON_HOLD",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "ticket.step_changed",
+    "ticket.episode_qc_failed"
+   ],
+   "permission": "delivery.episode.qc",
+   "capability": null,
+   "transitions": [
+    "episode_output.status: uploaded → qc_passed / qc_rejected",
+    "delivery_ticket.step: batch_compose → delivering（episodes.all_passed，系统求值）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryTicket.inspectPackage",
+   "method": "POST",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/inspect-package",
+   "section": "3.32",
+   "requestSchemas": [
+    "InspectPackageBody"
+   ],
+   "responseSchema": "InspectPackageResult",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "CHECKLIST_VERSION_STALE",
+    "TICKET_ON_HOLD",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "ticket.step_changed"
+   ],
+   "permission": "delivery.episode.qc",
+   "capability": null,
+   "transitions": [
+    "delivery_ticket.step: batch_compose → delivering（episodes.all_passed，系统求值）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryTicket.pushPackage",
+   "method": "POST",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/push-package",
+   "section": "3.33",
+   "requestSchemas": [
+    "PushPackageBody"
+   ],
+   "responseSchema": "PushPackageResult",
+   "errors": [
+    "PACKAGE_PUSH_BLOCKED",
+    "CHECKLIST_NOT_PASSED",
+    "CHECKLIST_VERSION_STALE",
+    "STATE_NOT_ALLOWED",
+    "TICKET_ON_HOLD"
+   ],
+   "events": [
+    "package.delivered",
+    "launch.created",
+    "takedown.created",
+    "license_letter.revision_queued",
+    "ticket.step_changed",
+    "order.status_changed"
+   ],
+   "permission": "publish.package.push",
+   "capability": null,
+   "transitions": [
+    "delivery_ticket.step: delivering → awaiting_launch（package.pushed）",
+    "order_item.phase: producing → to_launch",
+    "delivery_release.state: (新建) → pushed；上一个 pushed → superseded",
+    "download_grant.state: (新建) → active",
+    "launch_task.review_status: (新建) → pending（launch.create）",
+    "zip_bundle.zip_state: (新建)/none/failed → building（预打包，media.ensureZip）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryPlan.get",
+   "method": "GET",
+   "path": "/admin/delivery-plans/{deliveryPlanId}",
+   "section": "3.34",
+   "requestSchemas": [],
+   "responseSchema": "AdminDeliveryPlanDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryPlan.draft.replace",
+   "method": "PUT",
+   "path": "/admin/delivery-plans/{deliveryPlanId}/draft",
+   "section": "3.35",
+   "requestSchemas": [
+    "PlanDraftReplaceBody"
+   ],
+   "responseSchema": "AdminDeliveryPlanDetail",
+   "errors": [
+    "VERSION_CONFLICT",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": "delivery.plan.edit",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryPlan.push",
+   "method": "POST",
+   "path": "/admin/delivery-plans/{deliveryPlanId}/push",
+   "section": "3.36",
+   "requestSchemas": [
+    "PlanPushBody"
+   ],
+   "responseSchema": "AdminDeliveryPlanDetail",
+   "errors": [
+    "ORDER_IN_AFTER_SALE",
+    "VERSION_CONFLICT",
+    "PLAN_CONTENT_INVALID",
+    "LAUNCH_DATE_OUT_OF_RANGE",
+    "PLAN_CHANGE_WINDOW_CLOSED"
+   ],
+   "events": [
+    "plan.pushed",
+    "ticket.held"
+   ],
+   "permission": "delivery.plan.push",
+   "capability": null,
+   "transitions": [
+    "delivery_plan.status: drafting/revising/pending_confirm/confirmed → pending_confirm（plan.push）",
+    "delivery_plan_version.decision: 空 → superseded（上一个未决版本）",
+    "delivery_ticket.step: 不变（ticket.hold，plan_amendment；修订周期内）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.orderItem.rescheduleLaunch",
+   "method": "POST",
+   "path": "/admin/order-items/{orderItemId}/reschedule-launch",
+   "section": "3.37",
+   "requestSchemas": [
+    "RescheduleLaunchBody"
+   ],
+   "responseSchema": "AdminOrderItemRow",
+   "errors": [
+    "LAUNCH_DATE_LOCKED",
+    "LAUNCH_DATE_OUT_OF_RANGE",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "order.item.launch_rescheduled"
+   ],
+   "permission": "delivery.plan.reschedule",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.deliveryTicket.sample.create",
+   "method": "POST",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/samples",
+   "section": "3.38",
+   "requestSchemas": [
+    "SampleCreateBody"
+   ],
+   "responseSchema": "AdminSampleView",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "TICKET_ON_HOLD",
+    "FILE_NOT_USABLE",
+    "PERMISSION_DENIED",
+    "VALIDATION_FAILED",
+    "PRODUCTION_NOT_READY"
+   ],
+   "events": [
+    "sample.uploaded",
+    "sample.superseded"
+   ],
+   "permission": "delivery.sample.upload",
+   "capability": null,
+   "transitions": [
+    "sample.status: (新建) → uploaded（sample.uploaded）",
+    "sample.status: uploaded/qc_passed → superseded（旧的未决版本）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "preview",
+    "decision.feedbackImages"
+   ]
+  },
+  {
+   "operationId": "admin.sample.inspect",
+   "method": "POST",
+   "path": "/admin/samples/{sampleId}/inspect",
+   "section": "3.39",
+   "requestSchemas": [
+    "SampleInspectBody"
+   ],
+   "responseSchema": "AdminSampleView",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "PRODUCTION_NOT_READY",
+    "QC_SELF_INSPECTION",
+    "CHECKLIST_VERSION_STALE",
+    "TICKET_ON_HOLD",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "sample.qc_passed",
+    "sample.qc_failed"
+   ],
+   "permission": "delivery.sample.qc",
+   "capability": null,
+   "transitions": [
+    "sample.status: uploaded → qc_passed（sample.qc_passed）",
+    "sample.status: uploaded → qc_rejected（sample.qc_failed）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "preview",
+    "decision.feedbackImages"
+   ]
+  },
+  {
+   "operationId": "admin.sample.markSent",
+   "method": "POST",
+   "path": "/admin/samples/{sampleId}/mark-sent",
+   "section": "3.40",
+   "requestSchemas": [],
+   "responseSchema": "AdminSampleView",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "TICKET_ON_HOLD"
+   ],
+   "events": [],
+   "permission": "delivery.sample.push",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "preview",
+    "decision.feedbackImages"
+   ]
+  },
+  {
+   "operationId": "admin.sample.push",
+   "method": "POST",
+   "path": "/admin/samples/{sampleId}/push",
+   "section": "3.41",
+   "requestSchemas": [
+    "SamplePushBody"
+   ],
+   "responseSchema": "AdminSampleView",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "AD_CHANGED",
+    "PREVIEW_OFFLINE_NOT_SENT",
+    "TICKET_ON_HOLD"
+   ],
+   "events": [
+    "sample.pushed",
+    "ticket.step_changed"
+   ],
+   "permission": "delivery.sample.push",
+   "capability": null,
+   "transitions": [
+    "sample.status: qc_passed → pushed（sample.pushed）",
+    "delivery_ticket.step: sample_making → sample_confirm（sample.pushed）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "preview",
+    "decision.feedbackImages"
+   ]
+  },
+  {
+   "operationId": "admin.sample.requestChange",
+   "method": "POST",
+   "path": "/admin/samples/{sampleId}/request-change",
+   "section": "3.42",
+   "requestSchemas": [
+    "AdminSampleRequestChangeBody"
+   ],
+   "responseSchema": "AdminSampleView",
+   "errors": [
+    "SAMPLE_VERSION_STALE",
+    "STATE_NOT_ALLOWED",
+    "AD_FREE_REVISION_EXHAUSTED",
+    "AD_CANCEL_IN_PROGRESS",
+    "TICKET_ON_HOLD",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "sample.change_requested",
+    "ad.revision_requested",
+    "ticket.step_changed",
+    "sample.superseded"
+   ],
+   "permission": "delivery.sample.feedback_on_behalf",
+   "capability": null,
+   "transitions": [
+    "sample.status: pushed → change_requested（sample.change_requested，合成问题）",
+    "sample.status: pushed → superseded（sample.change_requested，广告内容）",
+    "delivery_ticket.step: sample_confirm → sample_making（第 6 行）",
+    "delivery_ticket.step: sample_confirm → ad_prep（第 7 行）",
+    "ad.status: pending_confirm/confirmed → revising（ad.request_revision，广告内容）",
+    "ad_version.decision: 空 → revision_requested（广告在待确认时的最新版本）",
+    "delivery_ticket.step: sample_making/sample_confirm → ad_prep（ad.reopened，其他浮动绑定该广告的工单，系统求值）",
+    "sample.status: uploaded/qc_passed/pushed → superseded（sample.superseded，ad.reopened 影响的其他工单）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "preview",
+    "decision.feedbackImages"
+   ]
+  },
+  {
+   "operationId": "admin.deliveryTicket.reissue.create",
+   "method": "POST",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/reissues",
+   "section": "3.43",
+   "requestSchemas": [
+    "ReissueCreateBody"
+   ],
+   "responseSchema": "ReissueView",
+   "errors": [
+    "REISSUE_NOT_ALLOWED",
+    "TICKET_ON_HOLD",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "package.reissue_opened"
+   ],
+   "permission": "delivery.package.reissue",
+   "capability": null,
+   "transitions": [
+    "delivery_reissue.status: (新建) → open",
+    "delivery_ticket.step: 不变（status_transition 事件码 reissue.opened，from_state = to_state）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.reissue.cancel",
+   "method": "POST",
+   "path": "/admin/reissues/{reissueId}/cancel",
+   "section": "3.44",
+   "requestSchemas": [
+    "ReissueCancelBody"
+   ],
+   "responseSchema": "ReissueView",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "PERMISSION_DENIED"
+   ],
+   "events": [],
+   "permission": "delivery.package.reissue",
+   "capability": null,
+   "transitions": [
+    "delivery_reissue.status: open → cancelled",
+    "episode_output.status: 替换行 → replaced"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.reissue.publish",
+   "method": "POST",
+   "path": "/admin/reissues/{reissueId}/publish",
+   "section": "3.45",
+   "requestSchemas": [
+    "ReissuePublishBody"
+   ],
+   "responseSchema": "ReissuePublishResult",
+   "errors": [
+    "REISSUE_INCOMPLETE",
+    "PACKAGE_PUSH_BLOCKED",
+    "CHECKLIST_NOT_PASSED",
+    "STATE_NOT_ALLOWED",
+    "CHECKLIST_VERSION_STALE",
+    "TICKET_ON_HOLD"
+   ],
+   "events": [
+    "package.reissued"
+   ],
+   "permission": "publish.package.push",
+   "capability": null,
+   "transitions": [
+    "delivery_reissue.status: open → published",
+    "delivery_release.state: pushed → superseded（旧包）；(新建) → pushed（新包）",
+    "download_grant.state: active → superseded；(新建) → active",
+    "episode_output.status: 旧当前行 → replaced；替换行置当前",
+    "zip_bundle.zip_state: building/ready/failed → none（旧包被取代，作废 ZIP 缓存）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.orderItem.download.list",
+   "method": "GET",
+   "path": "/admin/order-items/{orderItemId}/downloads",
+   "section": "3.46",
+   "requestSchemas": [],
+   "responseSchema": "DownloadHistory",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.orderItem.licenseLetter.list",
+   "method": "GET",
+   "path": "/admin/order-items/{orderItemId}/license-letters",
+   "section": "3.47",
+   "requestSchemas": [],
+   "responseSchema": "LicenseLetterList",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.licenseLetter.correct",
+   "method": "POST",
+   "path": "/admin/license-letters/{licenseLetterId}/correct",
+   "section": "3.48",
+   "requestSchemas": [
+    "LicenseLetterCorrectBody"
+   ],
+   "responseSchema": "AdminLicenseLetterView",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "LICENSE_LETTER_UNCHANGED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "license_letter.revision_queued"
+   ],
+   "permission": "order.license_letter.manage",
+   "capability": null,
+   "transitions": [
+    "license_letter_revision.render_status: (新建) → queued（reason = correction）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.licenseLetter.void",
+   "method": "POST",
+   "path": "/admin/license-letters/{licenseLetterId}/void",
+   "section": "3.49",
+   "requestSchemas": [
+    "LicenseLetterVoidBody"
+   ],
+   "responseSchema": "LicenseLetterVoidResult",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "license_letter.voided",
+    "license_letter.revision_queued"
+   ],
+   "permission": "order.license_letter.manage",
+   "capability": null,
+   "transitions": [
+    "license_letter.status: pending_effective/effective → voided（manual，人工作废并重出）",
+    "license_letter.status: (新建) → pending_effective/effective（同事务重建）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.licenseLetterRevision.rerender",
+   "method": "POST",
+   "path": "/admin/license-letter-revisions/{licenseLetterRevisionId}/rerender",
+   "section": "3.50",
+   "requestSchemas": [],
+   "responseSchema": "LicenseLetterRevisionView",
+   "errors": [
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [
+    "license_letter.revision_queued"
+   ],
+   "permission": "order.license_letter.manage",
+   "capability": null,
+   "transitions": [
+    "license_letter_revision.render_status: failed → queued（重新生成）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.ad.list",
+   "method": "GET",
+   "path": "/admin/ads",
+   "section": "3.51",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<AdTaskCard>",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.ad.summary",
+   "method": "GET",
+   "path": "/admin/ads/summary",
+   "section": "3.52",
+   "requestSchemas": [],
+   "responseSchema": "AdSummary",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.ad.get",
+   "method": "GET",
+   "path": "/admin/ads/{adId}",
+   "section": "3.53",
+   "requestSchemas": [],
+   "responseSchema": "AdTaskDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.ad.assign",
+   "method": "POST",
+   "path": "/admin/ads/{adId}/assign",
+   "section": "3.54",
+   "requestSchemas": [
+    "AdAssignBody"
+   ],
+   "responseSchema": "AdTaskDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "AD_WAITING_QUALIFICATION",
+    "ASSIGNEE_INVALID",
+    "AD_CANCEL_IN_PROGRESS",
+    "ACCOUNT_BUSY"
+   ],
+   "events": [
+    "ad.assigned",
+    "billing.points.captured"
+   ],
+   "permission": "delivery.ad.assign",
+   "capability": null,
+   "transitions": [
+    "ad.status: pending_assign → producing（ad.assign）",
+    "point_hold.status: held → captured（capture）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "versions[].preview",
+    "revisions[].screenshots",
+    "referenceFiles[].thumbnail"
+   ]
+  },
+  {
+   "operationId": "admin.ad.return",
+   "method": "POST",
+   "path": "/admin/ads/{adId}/return",
+   "section": "3.55",
+   "requestSchemas": [
+    "AdReturnBody"
+   ],
+   "responseSchema": "AdTaskDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "AD_CANCEL_IN_PROGRESS",
+    "PERMISSION_DENIED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "ad.returned"
+   ],
+   "permission": "delivery.ad.return",
+   "capability": null,
+   "transitions": [
+    "ad.status: pending_assign/producing → returned（ad.return）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "versions[].preview",
+    "revisions[].screenshots",
+    "referenceFiles[].thumbnail"
+   ]
+  },
+  {
+   "operationId": "admin.ad.adVersion.create",
+   "method": "POST",
+   "path": "/admin/ads/{adId}/ad-versions",
+   "section": "3.56",
+   "requestSchemas": [
+    "AdVersionCreateBody"
+   ],
+   "responseSchema": "AdTaskDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "AD_CANCEL_IN_PROGRESS",
+    "FILE_NOT_USABLE",
+    "PRODUCTION_NOT_READY",
+    "PERMISSION_DENIED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "asset.adopted"
+   ],
+   "permission": "delivery.ad.upload",
+   "capability": null,
+   "transitions": [
+    "ad_version.decision: 空 → superseded（旧的未决版本）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "versions[].preview",
+    "revisions[].screenshots",
+    "referenceFiles[].thumbnail"
+   ]
+  },
+  {
+   "operationId": "admin.adVersion.markSent",
+   "method": "POST",
+   "path": "/admin/ad-versions/{adVersionId}/mark-sent",
+   "section": "3.57",
+   "requestSchemas": [],
+   "responseSchema": "AdminAdVersionView",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "AD_CANCEL_IN_PROGRESS"
+   ],
+   "events": [],
+   "permission": "delivery.sample.push",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "preview"
+   ]
+  },
+  {
+   "operationId": "admin.adVersion.push",
+   "method": "POST",
+   "path": "/admin/ad-versions/{adVersionId}/push",
+   "section": "3.58",
+   "requestSchemas": [
+    "AdVersionPushBody"
+   ],
+   "responseSchema": "AdTaskDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "AD_VERSION_SPEC_INVALID",
+    "PREVIEW_OFFLINE_NOT_SENT",
+    "AD_CANCEL_IN_PROGRESS",
+    "PERMISSION_DENIED"
+   ],
+   "events": [
+    "ad.version_pushed"
+   ],
+   "permission": "delivery.ad.upload",
+   "capability": null,
+   "transitions": [
+    "ad.status: producing/revising → pending_confirm（ad.push_version）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "versions[].preview",
+    "revisions[].screenshots",
+    "referenceFiles[].thumbnail"
+   ]
+  },
+  {
+   "operationId": "admin.ad.remind",
+   "method": "POST",
+   "path": "/admin/ads/{adId}/remind",
+   "section": "3.59",
+   "requestSchemas": [],
+   "responseSchema": "AdminRemindResult",
+   "errors": [
+    "REMINDED_TODAY",
+    "REMIND_NOT_APPLICABLE",
+    "PERMISSION_DENIED"
+   ],
+   "events": [
+    "manual_reminder.sent"
+   ],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.ad.requestChange",
+   "method": "POST",
+   "path": "/admin/ads/{adId}/request-change",
+   "section": "3.60",
+   "requestSchemas": [
+    "AdminAdRequestChangeBody"
+   ],
+   "responseSchema": "AdTaskDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "AD_VERSION_STALE",
+    "AD_FREE_REVISION_EXHAUSTED",
+    "AD_CANCEL_IN_PROGRESS",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "ad.revision_requested",
+    "ticket.step_changed",
+    "sample.superseded"
+   ],
+   "permission": "delivery.sample.feedback_on_behalf",
+   "capability": null,
+   "transitions": [
+    "ad.status: pending_confirm/confirmed → revising（ad.request_revision）",
+    "ad_version.decision: 空 → revision_requested（待确认时的最新版本）",
+    "delivery_ticket.step: sample_making/sample_confirm → ad_prep（ad.reopened，系统求值）",
+    "sample.status: uploaded/qc_passed/pushed → superseded（sample.superseded，ad.reopened 影响的工单）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "versions[].preview",
+    "revisions[].screenshots",
+    "referenceFiles[].thumbnail"
+   ]
+  },
+  {
+   "operationId": "admin.ad.cancelQuote",
+   "method": "POST",
+   "path": "/admin/ads/{adId}/cancel-quote",
+   "section": "3.61",
+   "requestSchemas": [
+    "AdCancelQuoteBody"
+   ],
+   "responseSchema": "CancelQuote",
+   "errors": [
+    "AD_CANCEL_IN_PROGRESS",
+    "VALIDATION_FAILED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": "order.refund.request",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.ad.cancelRequest.create",
+   "method": "POST",
+   "path": "/admin/ads/{adId}/cancel-requests",
+   "section": "3.62",
+   "requestSchemas": [
+    "AdCancelRequestCreateBody"
+   ],
+   "responseSchema": "CancelRequestDetail",
+   "errors": [
+    "AD_CANCEL_IN_PROGRESS",
+    "AD_NOT_CANCELLABLE",
+    "CANCEL_QUOTE_CHANGED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "approval.submitted",
+    "cancel.submitted",
+    "approval.approved",
+    "cancel.executed",
+    "approval.executed",
+    "ad.cancelled",
+    "billing.points.returned"
+   ],
+   "permission": "order.refund.request",
+   "capability": null,
+   "transitions": [
+    "approval_request.status: (新建) → pending（submit，kind = ad_cancel）",
+    "cancel_request.status: (新建) → pending_approval（cancel.submit）",
+    "approval_request.status: pending → approved（approve，系统决定；免审批开关命中时）",
+    "cancel_request.status: pending_approval → done（cancel.auto_execute，免审批开关命中时）",
+    "ad.status: pending_assign/returned → cancelled（ad.cancel，释放；免审批开关命中时）",
+    "point_hold.status: held → released（cancel.auto_execute）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.productionRecord.list",
+   "method": "GET",
+   "path": "/admin/production-records",
+   "section": "3.63",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<ProductionRecordView>",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "xIdempotent": "none",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.productionRecord.normalize",
+   "method": "POST",
+   "path": "/admin/production-records/{productionRecordId}/normalize",
+   "section": "3.64",
+   "requestSchemas": [
+    "NormalizeBody"
+   ],
+   "responseSchema": "ProductionJobAccepted",
+   "errors": [
+    "PRODUCTION_ACTION_NOT_ALLOWED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": "production.normalize",
+   "capability": null,
+   "transitions": [
+    "production_record.pipeline_state: (新建) → uploading（规格化产物登记）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.productionRecord.restamp",
+   "method": "POST",
+   "path": "/admin/production-records/{productionRecordId}/restamp",
+   "section": "3.65",
+   "requestSchemas": [
+    "RestampBody"
+   ],
+   "responseSchema": "ProductionJobAccepted",
+   "errors": [
+    "PRODUCTION_ACTION_NOT_ALLOWED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": "production.restamp",
+   "capability": null,
+   "transitions": [
+    "production_record.pipeline_state: (新建) → uploading（补标产物登记）"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.productionRecord.recheck",
+   "method": "POST",
+   "path": "/admin/production-records/{productionRecordId}/recheck",
+   "section": "3.66",
+   "requestSchemas": [],
+   "responseSchema": "ProductionJobAccepted",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": "production.recheck",
+   "capability": null,
+   "transitions": [
+    "production_record.pipeline_state: ready/rejected → checking"
+   ],
+   "xAuth": "staff",
+   "xIdempotent": "required",
+   "version": "V1.0"
+  }
+ ],
+ "schemas": [
+  {
+   "name": "AdminStoreBrief",
+   "fields": [
+    "storeId",
+    "storeName",
+    "entityId",
+    "entityName",
+    "city",
+    "district",
+    "qualificationStatus"
+   ]
+  },
+  {
+   "name": "AdminChecklistItemView",
+   "fields": [
+    "key",
+    "label",
+    "result",
+    "note",
+    "merchantVisible"
+   ]
+  },
+  {
+   "name": "ChecklistResultInput",
+   "fields": [
+    "checklistVersionNo",
+    "results"
+   ]
+  },
+  {
+   "name": "ActivityItem",
+   "fields": [
+    "activityId",
+    "occurredAt",
+    "actorType",
+    "actorName",
+    "actorRole",
+    "client",
+    "action",
+    "summary",
+    "targetType",
+    "targetId",
+    "targetLabel",
+    "reasonText",
+    "transition"
+   ]
+  },
+  {
+   "name": "ReturnBreakdownView",
+   "fields": [
+    "qty",
+    "backToOriginal",
+    "convertedToAddon",
+    "forfeited",
+    "lots"
+   ]
+  },
+  {
+   "name": "ReferenceFileView",
+   "fields": [
+    "fileId",
+    "source",
+    "storeAssetId",
+    "title",
+    "usability",
+    "mediaGroup",
+    "type",
+    "thumbnail"
+   ]
+  },
+  {
+   "name": "AdminOrderCard",
+   "fields": [
+    "orderId",
+    "orderNo",
+    "submittedAt",
+    "store",
+    "planCode",
+    "planName",
+    "itemCount",
+    "firstDramaTitle",
+    "firstEpisodeCount",
+    "platforms",
+    "productionModels",
+    "discountBp",
+    "isTopModel",
+    "surchargeBp",
+    "totalChargePoints",
+    "status",
+    "subStatus",
+    "statusChangedAt",
+    "deliveryManager",
+    "openCancelRequest",
+    "actions"
+   ]
+  },
+  {
+   "name": "AdminOrderItemRow",
+   "fields": [
+    "orderItemId",
+    "itemNo",
+    "dramaId",
+    "dramaTitle",
+    "genres",
+    "episodeCount",
+    "productionModel",
+    "listPricePoints",
+    "discountBp",
+    "surchargeBp",
+    "chargePoints",
+    "phase",
+    "phaseChangedAt",
+    "capturedAt",
+    "agreedLaunchDate",
+    "usageStartDate",
+    "usageEndDate",
+    "usageEndSource",
+    "liveEpisodeCount",
+    "accounts",
+    "placements",
+    "refundRequestedPoints",
+    "returnedPoints",
+    "convertedPoints",
+    "forfeitedPoints",
+    "cancelReasonCode",
+    "cancelledAt",
+    "ticket",
+    "pointHold"
+   ]
+  },
+  {
+   "name": "AdminOrderDetail",
+   "fields": [
+    "startedAt",
+    "closedAt",
+    "focus",
+    "note",
+    "expectedLaunchDate",
+    "referenceFiles",
+    "subscriptionTerm",
+    "items",
+    "deliveryPlan",
+    "pointsBreakdown",
+    "pointsEvents",
+    "agreements",
+    "licenseLetterCount",
+    "licenseLetters",
+    "merchant",
+    "cancelRequests",
+    "lockVersion"
+   ]
+  },
+  {
+   "name": "OrderSummary",
+   "fields": [
+    "tabs"
+   ]
+  },
+  {
+   "name": "OrderQuoteResult",
+   "fields": [
+    "quotedAt",
+    "dramaId",
+    "dramaTitle",
+    "heatTier",
+    "priceMode",
+    "listPricePoints",
+    "planCode",
+    "planName",
+    "discountBp",
+    "productionModel",
+    "isTopModelSelected",
+    "surchargeBp",
+    "discountedPoints",
+    "chargePoints",
+    "formula",
+    "orderable",
+    "unorderableReason"
+   ]
+  },
+  {
+   "name": "CancelQuote",
+   "fields": [
+    "quotedAt",
+    "reasonCode",
+    "lines",
+    "totalBasePoints",
+    "totalDeductPoints",
+    "totalRefundPoints",
+    "destination",
+    "needsManualDeduct",
+    "blockers",
+    "expect"
+   ]
+  },
+  {
+   "name": "CancelQuoteLine",
+   "fields": [
+    "targetType",
+    "targetId",
+    "label",
+    "episodeCount",
+    "productionModel",
+    "platforms",
+    "mode",
+    "stage",
+    "stepAtSubmit",
+    "reasonClass",
+    "chargePoints",
+    "priorRequestedPoints",
+    "ratioBp",
+    "isManualDeduct",
+    "deductPoints",
+    "deductNote",
+    "refundPoints",
+    "terminationDate",
+    "usageStartDate",
+    "usageEndDate",
+    "usageEndSource",
+    "capturedAt",
+    "preview"
+   ]
+  },
+  {
+   "name": "CancelRequestCard",
+   "fields": [
+    "cancelRequestId",
+    "requestNo",
+    "kind",
+    "store",
+    "target",
+    "reasonCode",
+    "lineCount",
+    "totalBasePoints",
+    "totalDeductPoints",
+    "totalRefundPoints",
+    "isFullReturn",
+    "status",
+    "closeReason",
+    "approvalStatus",
+    "submittedAt",
+    "requester",
+    "isSystemSubmitted",
+    "approvalDueAt",
+    "decidedAt",
+    "execDueAt",
+    "executedAt",
+    "isOverdue",
+    "actions"
+   ]
+  },
+  {
+   "name": "CancelLineView",
+   "fields": [
+    "cancelRequestLineId",
+    "result",
+    "targetState"
+   ]
+  },
+  {
+   "name": "CancelRequestDetail",
+   "fields": [
+    "note",
+    "lines",
+    "destination",
+    "resultTotals",
+    "approval",
+    "confirmChecks",
+    "execution",
+    "closeNote",
+    "recheckLog",
+    "order",
+    "ad",
+    "serviceTickets",
+    "timeline",
+    "lockVersion",
+    "actions"
+   ]
+  },
+  {
+   "name": "CancelRequestSummary",
+   "fields": [
+    "tabs",
+    "monthReturnedPoints",
+    "monthDoneCount",
+    "inProgressCount",
+    "monthRejectedCount",
+    "overdueCount"
+   ]
+  },
+  {
+   "name": "DeliveryTicketCard",
+   "fields": [
+    "deliveryTicketId",
+    "ticketNo",
+    "step",
+    "stepEnteredAt",
+    "stepDueAt",
+    "waitingOn",
+    "urgency",
+    "isPaused",
+    "pauseReasons",
+    "isStuck",
+    "store",
+    "order",
+    "orderItemId",
+    "dramaTitle",
+    "episodeCount",
+    "productionModel",
+    "platforms",
+    "agreedLaunchDate",
+    "usageEndDate",
+    "schedulePriority",
+    "deliveryManager",
+    "editor",
+    "publisher",
+    "deliveryTargetAt",
+    "deliveredAt",
+    "createdAt",
+    "actions"
+   ]
+  },
+  {
+   "name": "TicketStageView",
+   "fields": [
+    "step",
+    "visitNo",
+    "enteredAt",
+    "dueAt",
+    "completedAt",
+    "exitEvent",
+    "pausedMinutes",
+    "isBreached"
+   ]
+  },
+  {
+   "name": "DeliveryTicketDetail",
+   "fields": [
+    "pauses",
+    "pausedAt",
+    "pauseRemainingMin",
+    "sampleRoundNo",
+    "currentSampleVersionNo",
+    "milestones",
+    "stages",
+    "lockVersion",
+    "orderItem",
+    "order",
+    "merchant",
+    "plan",
+    "ads",
+    "currentSample",
+    "samples",
+    "episodeProgress",
+    "release",
+    "openReissue",
+    "openUploadBatches",
+    "publishList",
+    "launch",
+    "remindScenes",
+    "actions"
+   ]
+  },
+  {
+   "name": "PlanItemContentView",
+   "fields": [
+    "orderItemId",
+    "dramaTitle",
+    "episodeCount",
+    "allowedPlacements",
+    "accounts",
+    "placements",
+    "agreedLaunchDate",
+    "currentAgreedLaunchDate",
+    "expectedDeliveryDate"
+   ]
+  },
+  {
+   "name": "AdminPlanContentView",
+   "fields": [
+    "focus",
+    "referenceAssets",
+    "note",
+    "launchMode",
+    "items"
+   ]
+  },
+  {
+   "name": "PlanContentInput",
+   "fields": [
+    "focusCodes",
+    "referenceAssetIds",
+    "note",
+    "launchMode",
+    "items",
+    "items[].orderItemId",
+    "items[].channelAccountIds",
+    "items[].placements",
+    "items[].agreedLaunchDate",
+    "items[].expectedDeliveryDate"
+   ]
+  },
+  {
+   "name": "AdminDeliveryPlanDetail",
+   "fields": [
+    "deliveryPlanId",
+    "orderId",
+    "orderNo",
+    "store",
+    "status",
+    "draft",
+    "draftLockVersion",
+    "currentVersionNo",
+    "confirmedVersionNo",
+    "pushedAt",
+    "confirmedAt",
+    "staffDueAt",
+    "isOrderInAfterSale",
+    "versions",
+    "changeRequests",
+    "itemWindows",
+    "lockVersion",
+    "actions"
+   ]
+  },
+  {
+   "name": "QcRecordView",
+   "fields": [
+    "qcRecordId",
+    "targetType",
+    "targetId",
+    "checklistCode",
+    "checklistVersionNo",
+    "verdict",
+    "rejectReason",
+    "items",
+    "inspectedBy",
+    "inspectedAt"
+   ]
+  },
+  {
+   "name": "ProductionFactsBrief",
+   "fields": [
+    "pipelineState",
+    "gate",
+    "softWarnCount",
+    "aigcState"
+   ]
+  },
+  {
+   "name": "AdminSampleView",
+   "fields": [
+    "sampleId",
+    "deliveryTicketId",
+    "versionNo",
+    "status",
+    "fileId",
+    "durationMs",
+    "adSlots",
+    "adsUsed",
+    "uploadedBy",
+    "uploadedAt",
+    "production",
+    "qc",
+    "pushedBy",
+    "pushedAt",
+    "previewChannels",
+    "offlineSentAt",
+    "offlineSentBy",
+    "firstViewedAt",
+    "viewedAckAt",
+    "decision",
+    "confirmDueRemindAt",
+    "watermark",
+    "preview",
+    "actions"
+   ]
+  },
+  {
+   "name": "EpisodeOutputView",
+   "fields": [
+    "episodeOutputId",
+    "episodeNo",
+    "variant",
+    "revisionNo",
+    "fileId",
+    "fileName",
+    "sizeBytes",
+    "durationMs",
+    "source",
+    "status",
+    "isCurrent",
+    "deliveryReissueId",
+    "production",
+    "qc",
+    "uploadedBy",
+    "uploadedAt"
+   ]
+  },
+  {
+   "name": "EpisodeGrid",
+   "fields": [
+    "totalEpisodes",
+    "currentPassedCount",
+    "currentTotalBytes",
+    "episodes",
+    "packageQc",
+    "fileNamePattern"
+   ]
+  },
+  {
+   "name": "ReleaseAdminView",
+   "fields": [
+    "deliveryReleaseId",
+    "releaseNo",
+    "kind",
+    "state",
+    "variant",
+    "episodeCount",
+    "totalBytes",
+    "changedEpisodeNos",
+    "precheck",
+    "reason",
+    "note",
+    "pushedBy",
+    "pushedAt",
+    "supersededAt",
+    "closedAt",
+    "closeReason",
+    "savedEpisodeCount"
+   ]
+  },
+  {
+   "name": "ReissueView",
+   "fields": [
+    "reissueId",
+    "deliveryTicketId",
+    "status",
+    "episodeNos",
+    "reason",
+    "note",
+    "openedBy",
+    "openedAt",
+    "closedAt",
+    "publishedDeliveryReleaseId",
+    "replacements",
+    "actions"
+   ]
+  },
+  {
+   "name": "LicenseLetterRevisionView",
+   "fields": [
+    "licenseLetterRevisionId",
+    "revNo",
+    "reason",
+    "renderStatus",
+    "renderAttemptNo",
+    "fileId",
+    "contentFp",
+    "templateVersion",
+    "signMode",
+    "platformSignedAt",
+    "readyAt",
+    "createdAt",
+    "actions"
+   ]
+  },
+  {
+   "name": "AdminLicenseLetterView",
+   "fields": [
+    "licenseLetterId",
+    "letterNo",
+    "orderItemId",
+    "channelAccountId",
+    "platform",
+    "accountName",
+    "status",
+    "isExpired",
+    "periodStart",
+    "periodEnd",
+    "voidReason",
+    "voidedAt",
+    "createdAt",
+    "currentRevision",
+    "revisions",
+    "actions"
+   ]
+  },
+  {
+   "name": "AdTaskCard",
+   "fields": [
+    "adId",
+    "adNo",
+    "store",
+    "planName",
+    "type",
+    "durationSec",
+    "status",
+    "isWaitingQualification",
+    "editor",
+    "chargePoints",
+    "isCaptured",
+    "submittedAt",
+    "dueAt",
+    "firstDueAt",
+    "isFirstBreached",
+    "urgency",
+    "latestVersionNo",
+    "confirmedVersionNo",
+    "revisionCount",
+    "freeRevisionQuota",
+    "openCancelRequest",
+    "linkedTicketNos",
+    "actions"
+   ]
+  },
+  {
+   "name": "AdminAdVersionView",
+   "fields": [
+    "adVersionId",
+    "versionNo",
+    "fileId",
+    "durationMs",
+    "width",
+    "height",
+    "segments",
+    "uploadedBy",
+    "uploadedAt",
+    "production",
+    "pushedAt",
+    "previewChannels",
+    "offlineSentAt",
+    "offlineSentBy",
+    "decision",
+    "decidedAt",
+    "viewedVia",
+    "viewedAckAt",
+    "preview",
+    "actions"
+   ]
+  },
+  {
+   "name": "AdminAdRevisionView",
+   "fields": [
+    "adRevisionId",
+    "revisionNo",
+    "onVersionNo",
+    "source",
+    "isChargeable",
+    "chargePoints",
+    "note",
+    "segmentIndex",
+    "timeStartMs",
+    "timeEndMs",
+    "screenshots",
+    "actorType",
+    "actorName",
+    "client",
+    "dueAt",
+    "breachedAt",
+    "fulfilledByVersionNo",
+    "createdAt"
+   ]
+  },
+  {
+   "name": "AdTaskDetail",
+   "fields": [
+    "promoPoints",
+    "copy",
+    "remark",
+    "referenceFiles",
+    "returnedFrom",
+    "returnedAt",
+    "returnReason",
+    "resubmitCount",
+    "pricing",
+    "pointHold",
+    "refunds",
+    "capturedAt",
+    "confirmedAt",
+    "cancelReasonCode",
+    "cancelledAt",
+    "versions",
+    "revisions",
+    "usages",
+    "agreement",
+    "cancelRequests",
+    "serviceTickets",
+    "recentActivities",
+    "lockVersion",
+    "actions"
+   ]
+  },
+  {
+   "name": "AdSummary",
+   "fields": [
+    "tabs",
+    "overdueCount",
+    "waitingQualificationCount"
+   ]
+  },
+  {
+   "name": "ProductionRecordView",
+   "fields": [
+    "productionRecordId",
+    "kind",
+    "orderItemId",
+    "adId",
+    "episodeNo",
+    "variant",
+    "source",
+    "derivedFromFileId",
+    "productionTier",
+    "master",
+    "headAdVersionId",
+    "tailAdVersionId",
+    "aiUsage",
+    "aigcState",
+    "aigcOrigin",
+    "aigcMeta",
+    "pipelineState",
+    "check",
+    "media",
+    "uploadedBy",
+    "createdAt",
+    "actions"
+   ]
+  },
+  {
+   "name": "ProductionJobAccepted",
+   "fields": [
+    "sourceFileId",
+    "productionRecordId",
+    "pipelineState",
+    "mediaJobId",
+    "jobKind",
+    "jobState"
+   ]
+  },
+  {
+   "name": "MaterialList",
+   "fields": [
+    "masters",
+    "ads",
+    "storeAssets",
+    "profileMedia",
+    "profileText"
+   ]
+  },
+  {
+   "name": "AdminOrderQuoteBody",
+   "fields": [
+    "dramaId",
+    "planCode",
+    "isTopModel"
+   ]
+  },
+  {
+   "name": "OrderCancelQuoteBody",
+   "fields": [
+    "reasonCode",
+    "orderItemIds",
+    "terminationDate",
+    "manualDeducts"
+   ]
+  },
+  {
+   "name": "OrderCancelRequestCreateBody",
+   "fields": [
+    "reasonCode",
+    "note",
+    "orderItemIds",
+    "terminationDate",
+    "manualDeducts",
+    "expect",
+    "serviceTicketId"
+   ]
+  },
+  {
+   "name": "CancelApproveBody",
+   "fields": [
+    "lockVersion",
+    "confirm",
+    "confirmChecks"
+   ]
+  },
+  {
+   "name": "CancelRejectBody",
+   "fields": [
+    "note",
+    "reasonCodes"
+   ]
+  },
+  {
+   "name": "CancelWithdrawBody",
+   "fields": [
+    "note"
+   ]
+  },
+  {
+   "name": "CancelVoidBody",
+   "fields": [
+    "note"
+   ]
+  },
+  {
+   "name": "CancelExecuteBody",
+   "fields": [
+    "confirm",
+    "confirmChecks"
+   ]
+  },
+  {
+   "name": "AssignManagerBody",
+   "fields": [
+    "staffId",
+    "note"
+   ]
+  },
+  {
+   "name": "AssignStaffBody",
+   "fields": [
+    "staffId",
+    "reasonCode",
+    "note"
+   ]
+  },
+  {
+   "name": "TicketRemindBody",
+   "fields": [
+    "scene"
+   ]
+  },
+  {
+   "name": "ReworkBody",
+   "fields": [
+    "reason"
+   ]
+  },
+  {
+   "name": "ForceTransitionBody",
+   "fields": [
+    "toStep",
+    "note",
+    "newUsageEndDate",
+    "confirm"
+   ]
+  },
+  {
+   "name": "MaterialDownloadBody",
+   "fields": [
+    "kind",
+    "episodeNos",
+    "adVersionId",
+    "storeAssetId",
+    "fileId"
+   ]
+  },
+  {
+   "name": "EpisodeRegisterBody",
+   "fields": [
+    "items",
+    "uploadBatchId",
+    "reissueId",
+    "adoptedStoreAssetIds"
+   ]
+  },
+  {
+   "name": "InspectEpisodesBody",
+   "fields": [
+    "episodeOutputIds",
+    "checklistVersionNo",
+    "defaultResults",
+    "defaultRejectReason",
+    "exceptions"
+   ]
+  },
+  {
+   "name": "InspectPackageBody",
+   "fields": [
+    "checklistVersionNo",
+    "results",
+    "rejectReason"
+   ]
+  },
+  {
+   "name": "PushPackageBody",
+   "fields": [
+    "precheck",
+    "ackAbnormalAccount",
+    "note"
+   ]
+  },
+  {
+   "name": "PlanDraftReplaceBody",
+   "fields": [
+    "draftLockVersion",
+    "content"
+   ]
+  },
+  {
+   "name": "PlanPushBody",
+   "fields": [
+    "draftLockVersion",
+    "changeSummary"
+   ]
+  },
+  {
+   "name": "RescheduleLaunchBody",
+   "fields": [
+    "agreedLaunchDate",
+    "reason"
+   ]
+  },
+  {
+   "name": "SampleCreateBody",
+   "fields": [
+    "fileId",
+    "adSlots"
+   ]
+  },
+  {
+   "name": "SampleInspectBody",
+   "fields": [
+    "checklistVersionNo",
+    "results",
+    "rejectReason"
+   ]
+  },
+  {
+   "name": "SamplePushBody",
+   "fields": [
+    "includeWecom",
+    "markWecomSent"
+   ]
+  },
+  {
+   "name": "AdminSampleRequestChangeBody",
+   "fields": [
+    "versionNo",
+    "feedbackKind",
+    "adId",
+    "note",
+    "feedbackTimeMs",
+    "feedbackFileIds"
+   ]
+  },
+  {
+   "name": "ReissueCreateBody",
+   "fields": [
+    "episodeNos",
+    "reasonCode",
+    "note"
+   ]
+  },
+  {
+   "name": "ReissueCancelBody",
+   "fields": [
+    "note"
+   ]
+  },
+  {
+   "name": "ReissuePublishBody",
+   "fields": [
+    "precheck",
+    "note"
+   ]
+  },
+  {
+   "name": "LicenseLetterCorrectBody",
+   "fields": [
+    "correctionKinds",
+    "note"
+   ]
+  },
+  {
+   "name": "LicenseLetterVoidBody",
+   "fields": [
+    "note"
+   ]
+  },
+  {
+   "name": "AdAssignBody",
+   "fields": [
+    "staffId"
+   ]
+  },
+  {
+   "name": "AdReturnBody",
+   "fields": [
+    "reason"
+   ]
+  },
+  {
+   "name": "AdVersionCreateBody",
+   "fields": [
+    "fileId",
+    "segments",
+    "adoptedStoreAssetIds"
+   ]
+  },
+  {
+   "name": "AdVersionPushBody",
+   "fields": [
+    "includeWecom"
+   ]
+  },
+  {
+   "name": "AdminAdRequestChangeBody",
+   "fields": [
+    "versionNo",
+    "note",
+    "segmentIndex",
+    "timeStartMs",
+    "timeEndMs",
+    "screenshotFileIds"
+   ]
+  },
+  {
+   "name": "AdCancelQuoteBody",
+   "fields": [
+    "reasonCode"
+   ]
+  },
+  {
+   "name": "AdCancelRequestCreateBody",
+   "fields": [
+    "reasonCode",
+    "note",
+    "expect",
+    "serviceTicketId"
+   ]
+  },
+  {
+   "name": "NormalizeBody",
+   "fields": [
+    "note"
+   ]
+  },
+  {
+   "name": "RestampBody",
+   "fields": [
+    "tools",
+    "note"
+   ]
+  },
+  {
+   "name": "DeliveryTicketSummary",
+   "fields": [
+    "tabs",
+    "header"
+   ]
+  },
+  {
+   "name": "AdminRemindResult",
+   "fields": [
+    "scene",
+    "subjectType",
+    "subjectId",
+    "remindedAt",
+    "nextAvailableDate"
+   ]
+  },
+  {
+   "name": "ReevaluateResult",
+   "fields": [
+    "transitions",
+    "skippedReason",
+    "ticket"
+   ]
+  },
+  {
+   "name": "MaterialDownloadResult",
+   "fields": [
+    "items"
+   ]
+  },
+  {
+   "name": "EpisodeRegisterResult",
+   "fields": [
+    "items"
+   ]
+  },
+  {
+   "name": "InspectEpisodesResult",
+   "fields": [
+    "results",
+    "ticket"
+   ]
+  },
+  {
+   "name": "InspectPackageResult",
+   "fields": [
+    "qcRecord",
+    "ticket"
+   ]
+  },
+  {
+   "name": "PushPackageResult",
+   "fields": [
+    "release",
+    "grantExpiresAt",
+    "launchTaskCount",
+    "ticket"
+   ]
+  },
+  {
+   "name": "ReissuePublishResult",
+   "fields": [
+    "reissue",
+    "release"
+   ]
+  },
+  {
+   "name": "DownloadHistory",
+   "fields": [
+    "releases",
+    "grants",
+    "logs"
+   ]
+  },
+  {
+   "name": "LicenseLetterList",
+   "fields": [
+    "items"
+   ]
+  },
+  {
+   "name": "LicenseLetterVoidResult",
+   "fields": [
+    "voided",
+    "reissued"
+   ]
+  }
+ ],
+ "errorCodes": [
+  {
+   "symbol": "CANCEL_ITEM_NOT_ALLOWED",
+   "code": 45301,
+   "http": 409,
+   "meaning": "选中的订单项不能取消，或没有可取消的订单项（d3-flow.md:2115-2127 的 `invalid` 分支）",
+   "details": "`{ lines: [{ orderItemId, reason: CancelBlockReason }] }`",
+   "retryable": false
+  },
+  {
+   "symbol": "AD_NOT_CANCELLABLE",
+   "code": 45302,
+   "http": 409,
+   "meaning": "广告已确认、已取消，或仍被在办订单项绑定（d3-flow.md:1404-1406）",
+   "details": "`{ reason: 'ad_confirmed'\\|'ad_cancelled'\\|'ad_in_use', boundOrderItemIds: string[] }`",
+   "retryable": false
+  },
+  {
+   "symbol": "CANCEL_QUOTE_CHANGED",
+   "code": 45303,
+   "http": 409,
+   "meaning": "发起取消时重算的退回合计与试算时不同",
+   "details": "`{ quote: CancelQuote }`",
+   "retryable": false
+  },
+  {
+   "symbol": "PLAN_CONTENT_INVALID",
+   "code": 45304,
+   "http": 409,
+   "meaning": "方案内容校验不通过（d3-flow.md:1150-1156）",
+   "details": "`{ issues: [{ orderItemId: string \\| null, field, reason: 'item_missing'\\|'placement_missing'\\|'placement_not_allowed'\\|'ad_invalid'\\|'ad_type_mismatch'\\|'account_invalid'\\|'account_missing'\\|'launch_date_missing'\\|'ticket_unassigned' }] }`",
+   "retryable": false
+  },
+  {
+   "symbol": "PLAN_CHANGE_WINDOW_CLOSED",
+   "code": 45305,
+   "http": 409,
+   "meaning": "方案确认后的修订超出该剧的变更窗口（d3-flow.md:1167-1172）",
+   "details": "`{ items: [{ orderItemId, step, changedKinds: PlanChangeKind[] }] }`",
+   "retryable": false
+  },
+  {
+   "symbol": "LAUNCH_DATE_OUT_OF_RANGE",
+   "code": 45306,
+   "http": 400,
+   "meaning": "约定上线日早于订购日后第 7 个工作日（或今天），或晚于使用期止日",
+   "details": "`{ orderItemId, minDate, maxDate }`",
+   "retryable": false
+  },
+  {
+   "symbol": "LAUNCH_DATE_LOCKED",
+   "code": 45307,
+   "http": 409,
+   "meaning": "首个账号已核验上线，或订单项不在制作中、待上线，不能改期",
+   "details": "`{ phase, usageStartDate: string \\| null }`",
+   "retryable": false
+  },
+  {
+   "symbol": "ASSIGNEE_INVALID",
+   "code": 45308,
+   "http": 409,
+   "meaning": "接收人无效：未启用、角色不对口、与现任相同，或不在操作人的员工集合内（A77 归本文，a01、a03 引用；d4-identity.md:1324 第 4 条）",
+   "details": "{ staffId: string, reason: AssigneeInvalidReason }（not_active | role_mismatch | same_as_current | out_of_scope，x-open-enum）",
+   "retryable": false
+  },
+  {
+   "symbol": "REMIND_NOT_APPLICABLE",
+   "code": 45309,
+   "http": 409,
+   "meaning": "催办场景与对象当前状态不符",
+   "details": "`{ scene, reason }`",
+   "retryable": false
+  },
+  {
+   "symbol": "CORRECTION_NOT_ALLOWED",
+   "code": 45310,
+   "http": 409,
+   "meaning": "人工纠偏的步骤对不在白名单，或更正后结构性不变量不成立",
+   "details": "`{ reason: 'not_whitelisted'\\|'invariant_failed', allowedSteps: string[], failedInvariants: string[] }`",
+   "retryable": false
+  },
+  {
+   "symbol": "QC_SELF_INSPECTION",
+   "code": 45311,
+   "http": 409,
+   "meaning": "质检人是上传人（样片恒禁止；剧集按参数 `qc.episode.four_eyes`）",
+   "details": "无",
+   "retryable": false
+  },
+  {
+   "symbol": "PRODUCTION_NOT_READY",
+   "code": 45312,
+   "http": 409,
+   "meaning": "制作文件入库或体检未完成、或体检未通过，不能质检或登记",
+   "details": "`{ fileId, pipelineState, gate: 'pass'\\|'reject'\\|null }`",
+   "retryable": false
+  },
+  {
+   "symbol": "PREVIEW_OFFLINE_NOT_SENT",
+   "code": 45313,
+   "http": 409,
+   "meaning": "选了企业微信查看方式，但没有登记“已发送”（`ck_sample_offline_sent`、`ck_ad_version_offline_sent`）",
+   "details": "无",
+   "retryable": false
+  },
+  {
+   "symbol": "AD_FREE_REVISION_EXHAUSTED",
+   "code": 45314,
+   "http": 409,
+   "meaning": "员工代录广告修改时免费次数已用完",
+   "details": "`{ adId, freeRevisionQuota, revisionCount }`",
+   "retryable": false
+  },
+  {
+   "symbol": "EPISODE_REGISTER_NOT_ALLOWED",
+   "code": 45315,
+   "http": 409,
+   "meaning": "当前步骤不允许登记成片，或补发集号不在补发单范围内（d3-flow.md:1549-1553）",
+   "details": "`{ step, reason: 'step'\\|'reissue_required'\\|'not_in_reissue' }`",
+   "retryable": false
+  },
+  {
+   "symbol": "EPISODE_NOT_LATEST",
+   "code": 45316,
+   "http": 409,
+   "meaning": "质检只能作用于该集最新的修订（d5-media.md:1987）",
+   "details": "`{ episodeNo, latestEpisodeOutputId }`",
+   "retryable": false
+  },
+  {
+   "symbol": "PACKAGE_PUSH_BLOCKED",
+   "code": 45317,
+   "http": 409,
+   "meaning": "推送成片包或发布补发的守卫不通过（d3-flow.md:1641-1644）",
+   "details": "`{ blockers: [{ code: 'episodes_incomplete'\\|'episode_qc_pending'\\|'package_qc_pending'\\|'publish_list_incomplete'\\|'license_letter_missing'\\|'account_unbound'\\|'abnormal_account_ack_required'\\|'launch_date_missing'\\|'usage_ended', episodeNos?: integer[], channelAccountId?: string, checklistKeys?: string[] }] }`",
+   "retryable": false
+  },
+  {
+   "symbol": "REISSUE_NOT_ALLOWED",
+   "code": 45318,
+   "http": 409,
+   "meaning": "当前不能发起补发",
+   "details": "`{ reason: 'step'\\|'usage_ended'\\|'open_reissue_exists', openReissueId: string \\| null }`",
+   "retryable": false
+  },
+  {
+   "symbol": "REISSUE_INCOMPLETE",
+   "code": 45319,
+   "http": 409,
+   "meaning": "补发单里还有集没有质检通过的替换行",
+   "details": "`{ missingEpisodeNos: integer[] }`",
+   "retryable": false
+  },
+  {
+   "symbol": "MATERIAL_NOT_AVAILABLE",
+   "code": 45320,
+   "http": 409,
+   "meaning": "要下载的制作素材不可用",
+   "details": "`{ kind: MaterialKind, reason: 'master_not_ready'\\|'not_in_ticket'\\|'asset_unavailable', episodeNos?: integer[] }`",
+   "retryable": false
+  },
+  {
+   "symbol": "LICENSE_LETTER_UNCHANGED",
+   "code": 45321,
+   "http": 409,
+   "meaning": "按当前事实生成的授权书与最新版次内容相同，无需更正",
+   "details": "`{ currentRevNo }`",
+   "retryable": false
+  },
+  {
+   "symbol": "AD_WAITING_QUALIFICATION",
+   "code": 45322,
+   "http": 409,
+   "meaning": "门店资质未通过，广告暂不能指派（指派即扣积分）",
+   "details": "`{ storeId, qualificationStatus }`",
+   "retryable": false
+  },
+  {
+   "symbol": "AD_VERSION_SPEC_INVALID",
+   "code": 45323,
+   "http": 409,
+   "meaning": "广告版本规格不符（竖屏 9:16、1080×1920、时长与类型相符）",
+   "details": "`{ checks: [{ code: 'aspect'\\|'resolution'\\|'duration'\\|'file_not_ready', actual, expected }] }`",
+   "retryable": false
+  },
+  {
+   "symbol": "PRODUCTION_ACTION_NOT_ALLOWED",
+   "code": 45324,
+   "http": 409,
+   "meaning": "制作文件当前不能规格化或补标",
+   "details": "`{ action: 'normalize'\\|'restamp', reason: 'kind'\\|'pipeline_state'\\|'already_declared'\\|'file_unavailable' }`",
+   "retryable": false
+  }
+ ],
+ "externalErrors": [
+  {
+   "symbol": "ORDER_IN_AFTER_SALE",
+   "definedIn": "m05-delivery-publish",
+   "code": 45101
+  },
+  {
+   "symbol": "TICKET_ON_HOLD",
+   "definedIn": "m05-delivery-publish",
+   "code": 45103
+  },
+  {
+   "symbol": "SAMPLE_VERSION_STALE",
+   "definedIn": "m05-delivery-publish",
+   "code": 45104
+  },
+  {
+   "symbol": "AD_CHANGED",
+   "definedIn": "m05-delivery-publish",
+   "code": 45105
+  },
+  {
+   "symbol": "AD_CANCEL_IN_PROGRESS",
+   "definedIn": "m06-ad",
+   "code": 45201
+  },
+  {
+   "symbol": "AD_VERSION_STALE",
+   "definedIn": "m06-ad",
+   "code": 45202
+  },
+  {
+   "symbol": "ACCOUNT_BUSY",
+   "definedIn": "m07-billing",
+   "code": 43008
+  },
+  {
+   "symbol": "PLAN_NOT_AVAILABLE",
+   "definedIn": "m07-billing",
+   "code": 43001
+  },
+  {
+   "symbol": "REFUND_EXECUTOR_CONFLICT",
+   "definedIn": "a07-billing-finance",
+   "code": 44114,
+   "note": "A156：参数 refund.require_distinct_executor 为 true 时 3.15 拒绝审批人执行"
+  },
+  {
+   "symbol": "FILE_NOT_USABLE",
+   "definedIn": "m03-profile-asset",
+   "code": 46001,
+   "note": "details.reason 取 m03 的 FileNotUsableReason：not_stored、category_mismatch、context_mismatch、blocked、duplicate"
+  },
+  {
+   "symbol": "APPROVAL_NOT_PENDING",
+   "definedIn": "a03-merchant",
+   "code": 48201
+  },
+  {
+   "symbol": "APPROVAL_SELF_FORBIDDEN",
+   "definedIn": "a03-merchant",
+   "code": 48202
+  },
+  {
+   "symbol": "APPROVAL_WITHDRAW_FORBIDDEN",
+   "definedIn": "a03-merchant",
+   "code": 48204
+  },
+  {
+   "symbol": "CHECKLIST_VERSION_STALE",
+   "definedIn": "a01-system",
+   "code": 47306,
+   "note": "A77、C28：归 a01"
+  },
+  {
+   "symbol": "CHECKLIST_NOT_PASSED",
+   "definedIn": "a01-system",
+   "code": 47307,
+   "note": "A77、C28 共用领域码归属表：归 a01（a01 清单 47307）；a06 初稿的 46203 已释放"
+  },
+  {
+   "symbol": "BATCH_PURPOSE_MISMATCH",
+   "definedIn": "a04-content",
+   "code": 49215
+  }
+ ],
+ "genericErrorRefs": [
+  "VALIDATION_FAILED",
+  "NOT_FOUND",
+  "PERMISSION_DENIED",
+  "STEP_UP_REQUIRED",
+  "STATE_NOT_ALLOWED",
+  "VERSION_CONFLICT",
+  "CONFIRM_MISMATCH",
+  "PRECONDITION_CHANGED",
+  "REMINDED_TODAY"
+ ],
+ "permissions": [
+  "delivery.ad.assign",
+  "delivery.ad.return",
+  "delivery.ad.upload",
+  "delivery.download",
+  "delivery.episode.qc",
+  "delivery.episode.register",
+  "delivery.package.reissue",
+  "delivery.plan.edit",
+  "delivery.plan.push",
+  "delivery.plan.reschedule",
+  "delivery.sample.feedback_on_behalf",
+  "delivery.sample.push",
+  "delivery.sample.qc",
+  "delivery.sample.upload",
+  "delivery.ticket.assign_editor",
+  "delivery.ticket.assign_publisher",
+  "delivery.ticket.rework",
+  "finance.refund.approve",
+  "finance.refund.execute",
+  "flow.admin.transition",
+  "flow.ops.manage",
+  "merchant.manager.assign",
+  "order.license_letter.manage",
+  "order.refund.request",
+  "production.normalize",
+  "production.recheck",
+  "production.restamp",
+  "publish.package.push"
+ ],
+ "assertInHandler": [
+  "admin.ad.remind",
+  "admin.cancelRequest.withdraw",
+  "admin.deliveryTicket.remind"
+ ],
+ "proposedPermissions": [
+  {
+   "key": "delivery.package.reissue",
+   "module": "交付管理",
+   "defaultRoles": [
+    "delivery_manager"
+   ],
+   "stepUp": false,
+   "pool": null,
+   "basis": "d3-flow.md:3486"
+  },
+  {
+   "key": "flow.ops.manage",
+   "module": "系统设置",
+   "defaultRoles": [
+    "super_admin"
+   ],
+   "stepUp": false,
+   "pool": null,
+   "basis": "C66；d3-flow.md:3497"
+  },
+  {
+   "key": "flow.admin.transition",
+   "module": "系统设置",
+   "defaultRoles": [
+    "super_admin"
+   ],
+   "stepUp": true,
+   "pool": null,
+   "basis": "C66；d3-flow.md:3498"
+  },
+  {
+   "key": "order.license_letter.manage",
+   "module": "订单管理",
+   "defaultRoles": [
+    "cs（仅主管）"
+   ],
+   "stepUp": false,
+   "pool": null,
+   "basis": "C66；d6-notify-docs-data.md:2257"
+  },
+  {
+   "key": "production.normalize",
+   "module": "交付管理",
+   "defaultRoles": [
+    "delivery_manager"
+   ],
+   "stepUp": false,
+   "pool": null,
+   "basis": "C66；d5-media.md:2143"
+  },
+  {
+   "key": "production.restamp",
+   "module": "交付管理",
+   "defaultRoles": [
+    "delivery_manager"
+   ],
+   "stepUp": false,
+   "pool": null,
+   "basis": "C66；d5-media.md:2143"
+  },
+  {
+   "key": "production.recheck",
+   "module": "交付管理",
+   "defaultRoles": [
+    "delivery_manager"
+   ],
+   "stepUp": false,
+   "pool": null,
+   "basis": "C66"
+  }
+ ],
+ "capabilities": [],
+ "proposedEvents": [
+  {
+   "name": "order.item.launch_rescheduled",
+   "aggregate": "order_item",
+   "isTransition": false,
+   "payload": [
+    "v",
+    "orderItemId",
+    "dramaOrderId",
+    "prevDate",
+    "newDate"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ],
+   "trigger": "admin.orderItem.rescheduleLaunch",
+   "replaces": "item.launch_rescheduled"
+  },
+  {
+   "name": "package.reissue_opened",
+   "aggregate": "delivery_reissue",
+   "isTransition": false,
+   "payload": [
+    "v",
+    "deliveryReissueId",
+    "deliveryTicketId",
+    "orderItemId",
+    "episodeNos",
+    "reasonCode"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ],
+   "trigger": "admin.deliveryTicket.reissue.create",
+   "replaces": "reissue.opened"
+  },
+  {
+   "name": "ticket.episode_qc_failed",
+   "aggregate": "delivery_ticket",
+   "isTransition": false,
+   "payload": [
+    "v",
+    "deliveryTicketId",
+    "orderItemId",
+    "episodeNos",
+    "qcRecordIds"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ],
+   "trigger": "admin.deliveryTicket.inspectEpisodes",
+   "replaces": "episode.qc_failed"
+  }
+ ],
+ "externalSchemas": [
+  {
+   "name": "StaffBrief",
+   "definedIn": "a01-system",
+   "note": "a01 2.2，后台全仓共用"
+  },
+  {
+   "name": "AdminPage",
+   "definedIn": "a01-system",
+   "note": "a01 2.1；A132、C87：原 PageResult"
+  },
+  {
+   "name": "AdminCursorPage",
+   "definedIn": "a01-system",
+   "note": "a01 2.1；A132、C87：原 CursorResult"
+  },
+  {
+   "name": "SignedUrl",
+   "definedIn": "a01-system",
+   "note": "a01 2.17；url 不可空，整个对象可空（A132、C87）"
+  },
+  {
+   "name": "ApprovalDecisionView",
+   "definedIn": "a01-system",
+   "note": "a01 2.10；CancelRequestDetail.approval"
+  },
+  {
+   "name": "ImageRef",
+   "definedIn": "m08-support-misc",
+   "note": "m08 2.1；样片反馈图片、广告修改截图（A132、C87）"
+  },
+  {
+   "name": "DictRef",
+   "definedIn": "a04-content",
+   "note": "a04 2.2；约定通用结构（C85、C87）"
+  }
+ ]
+}

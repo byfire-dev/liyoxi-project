@@ -1,0 +1,859 @@
+{
+ "doc": "h01-hooks",
+ "endpoints": [
+  {
+   "operationId": "hooks.wechatpay.transaction.notify",
+   "method": "POST",
+   "path": "/hooks/wechatpay/transactions",
+   "section": "3.1",
+   "requestSchemas": [
+    "WechatpayNotification",
+    "WechatpayTransactionResource"
+   ],
+   "responseSchema": "HookAck",
+   "errors": [
+    "WEBHOOK_SIGNATURE_INVALID",
+    "WEBHOOK_TIMESTAMP_SKEWED",
+    "WEBHOOK_KEY_NOT_FOUND",
+    "WEBHOOK_DECRYPT_FAILED",
+    "WEBHOOK_PAYLOAD_INVALID",
+    "WEBHOOK_PERSIST_FAILED"
+   ],
+   "events": [
+    "payment_txn.succeeded",
+    "payment_exception.opened",
+    "billing_order.paid",
+    "billing_order.cancelled",
+    "billing.order_fulfilled",
+    "billing_order.fulfillment_blocked",
+    "billing.subscription.activated",
+    "billing.subscription.renewal_scheduled",
+    "billing.subscription.upgraded",
+    "billing.points.granted",
+    "billing.points.purchased",
+    "payment_exception.auto_healed"
+   ],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "webhook_event.process_state: — → processed / ignored（内联 T1；插入即 processed，判为 ignored 时同事务改写；15-integration-ops.md:114）",
+    "webhook_event.process_state: received / failed → processed / ignored（同一事件再次到达时的内联重处理；dead 行不处理；15-integration-ops.md:117）",
+    "webhook_event.process_state: — → failed（T1 失败后的兜底写入 T1′，mode = inbox，attempts = 1；15-integration-ops.md:116）",
+    "webhook_event.process_state: received / failed → failed / dead（已存在的行重处理再次失败，T1′ 推进 attempts，满 8 次进 dead；15-integration-ops.md:118-119）",
+    "payment_txn.status: created / prepaid / closed → succeeded（recordChannelSuccess，T1；08-billing-payment.md:317）",
+    "payment_exception.status: — → open（status_mismatch，detected_by = callback，T1；先锁 billing_order 再开单，刷新 has_open_exception；08-billing-payment.md:760）",
+    "billing_order.status: pending_payment → paid（applyPayment，提交后内联；08-billing-payment.md:164）",
+    "billing_order.fulfillment_status: none → done / blocked（提交后内联；08-billing-payment.md:199）",
+    "billing_order.status: pending_payment → cancelled（amount_mismatch / payer_mismatch，提交后内联；同事务取消 po.expire；08-billing-payment.md:165）",
+    "billing_account.sub_status: none / expired → active（fulfill，提交后内联；07-billing-ledger.md:436）",
+    "subscription_term.status: （新建）→ active / scheduled（fulfill，提交后内联；07-billing-ledger.md:539-540）",
+    "grant_schedule.status: pending → granted（第 0 个月，提交后内联）",
+    "payment_exception.status: — → open（amount_mismatch / payer_mismatch / duplicate_receipt / paid_after_cancel / fulfillment_blocked，detected_by = apply，提交后内联；08-billing-payment.md:760）",
+    "payment_exception.status: open → auto_healed（bill_only 由入账函数重新归类，提交后内联；08-billing-payment.md:767）"
+   ],
+   "xAuth": "signed",
+   "clerkView": null,
+   "xIdempotent": "natural",
+   "idempotentBy": [
+    "uq_webhook_event_provider_event_id"
+   ],
+   "lockVersion": false,
+   "version": "V1.0",
+   "hookMode": "inline",
+   "note": "T1 同事务落资金事实；status_mismatch 分支不持 payment_txn 锁、先锁 billing_order 再开单；T1 失败走兜底 T1′；提交后内联 applyPayment 失败不影响应答，兜底归 x01（billing.applyPaymentFallback、tx.unapplied_scan）；事件以 x01 事件目录为准（A95）；差异单列与键见 2.6"
+  },
+  {
+   "operationId": "hooks.wechatpay.refund.notify",
+   "method": "POST",
+   "path": "/hooks/wechatpay/refunds",
+   "section": "3.2",
+   "requestSchemas": [
+    "WechatpayNotification",
+    "WechatpayRefundResource"
+   ],
+   "responseSchema": "HookAck",
+   "errors": [
+    "WEBHOOK_SIGNATURE_INVALID",
+    "WEBHOOK_TIMESTAMP_SKEWED",
+    "WEBHOOK_KEY_NOT_FOUND",
+    "WEBHOOK_DECRYPT_FAILED",
+    "WEBHOOK_PAYLOAD_INVALID",
+    "WEBHOOK_PERSIST_FAILED"
+   ],
+   "events": [
+    "refund.completed",
+    "approval.executed",
+    "billing_order.refunded",
+    "invoice.rejected",
+    "payment_exception.resolved",
+    "payment_exception.opened",
+    "refund.execution_failed"
+   ],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "webhook_event.process_state: — → processed / ignored（内联；15-integration-ops.md:114）",
+    "webhook_event.process_state: received / failed → processed / ignored（同一事件再次到达时的内联重处理；15-integration-ops.md:117）",
+    "webhook_event.process_state: — → failed（处理事务失败后的兜底写入 T1′，mode = inbox；15-integration-ops.md:116）",
+    "webhook_event.process_state: received / failed → failed / dead（已存在的行重处理再次失败；15-integration-ops.md:118-119）",
+    "refund_txn.status: 任意 → succeeded（此前为失败终态的记 is_late_success；08-billing-payment.md:669）",
+    "refund_txn.status: created → processing（受理结果尚未落库的竞态，随后再置 closed / abnormal；08-billing-payment.md:663）",
+    "refund_txn.status: processing → closed（08-billing-payment.md:666）",
+    "refund_txn.status: processing → abnormal（08-billing-payment.md:667）",
+    "refund_request.status: executing → done（08-billing-payment.md:531）",
+    "refund_request.status: pending_execution → done（退款回调晚到，A102；同事务取消执行时限 sla.breach；08-billing-payment.md:529）",
+    "refund_request.status: executing → pending_execution（退款交易到达失败终态；08-billing-payment.md:532）",
+    "billing_order.status: paid → refunded（入账收款累计退款 ≥ 实付；08-billing-payment.md:177）",
+    "invoice_request.status: pending → rejected（reject_kind = order_refunded，写 rejected_at；同事务取消 sla.breach；08-billing-payment.md:1114）",
+    "payment_exception.status: resolving → resolved（差异转入的退款完成；08-billing-payment.md:763）",
+    "payment_exception.status: — → open（refund_over / status_mismatch（迟到成功）/ refund_amount_mismatch，detected_by = callback；08-billing-payment.md:760）"
+   ],
+   "xAuth": "signed",
+   "clerkView": null,
+   "xIdempotent": "natural",
+   "idempotentBy": [
+    "uq_webhook_event_provider_event_id"
+   ],
+   "lockVersion": false,
+   "version": "V1.0",
+   "hookMode": "inline",
+   "note": "同事务取消该退款交易未触发的 rf.poll（成功或 closed 时）；申请迁移只在本交易是申请当前的退款交易时发生；申请 done 时同事务清除开票申请的 held_by_refund_request_id（不是状态迁移，08-billing-payment.md:1131）；完成动作与 a07 3.63 一致；与 rf.poll、bill.download 同一段退款结果处理代码；差异单列与键见 2.6"
+  },
+  {
+   "operationId": "hooks.wechat.message.verify",
+   "method": "GET",
+   "path": "/hooks/wechat/messages",
+   "section": "3.3",
+   "requestSchemas": [
+    "WechatMessageVerifyQuery"
+   ],
+   "responseSchema": "HookAck",
+   "errors": [
+    "WEBHOOK_SIGNATURE_INVALID",
+    "WEBHOOK_TIMESTAMP_SKEWED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "signed",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "lockVersion": false,
+   "version": "V1.0",
+   "note": "GET 地址校验，不写收件箱（C6；A18 纯查询）"
+  },
+  {
+   "operationId": "hooks.wechat.message.receive",
+   "method": "POST",
+   "path": "/hooks/wechat/messages",
+   "section": "3.4",
+   "requestSchemas": [
+    "WechatMessageQuery",
+    "WechatMessageEnvelope"
+   ],
+   "responseSchema": "HookAck",
+   "errors": [
+    "WEBHOOK_SIGNATURE_INVALID",
+    "WEBHOOK_TIMESTAMP_SKEWED",
+    "WEBHOOK_DECRYPT_FAILED",
+    "WEBHOOK_PAYLOAD_INVALID",
+    "WEBHOOK_PERSIST_FAILED"
+   ],
+   "events": [
+    "webhook.received"
+   ],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "webhook_event.process_state: — → received（收件箱；同事务写出站事件 webhook.received，载荷 {v, webhookEventId, provider}；15-integration-ops.md:115）"
+   ],
+   "xAuth": "signed",
+   "clerkView": null,
+   "xIdempotent": "natural",
+   "idempotentBy": [
+    "uq_webhook_event_provider_event_id"
+   ],
+   "lockVersion": false,
+   "version": "V1.0",
+   "hookMode": "inbox",
+   "note": "任务进程处理收件（内容安全结果、订阅消息回执与额度）归 x01；客服消息（text / image / miniprogrampage / user_enter_tempsession）不落库，被动回复 transfer_customer_service"
+  },
+  {
+   "operationId": "hooks.wecom.event.verify",
+   "method": "GET",
+   "path": "/hooks/wecom/events",
+   "section": "3.5",
+   "requestSchemas": [
+    "WecomVerifyQuery"
+   ],
+   "responseSchema": "HookAck",
+   "errors": [
+    "WEBHOOK_SIGNATURE_INVALID",
+    "WEBHOOK_TIMESTAMP_SKEWED",
+    "WEBHOOK_DECRYPT_FAILED",
+    "WEBHOOK_SOURCE_DISABLED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "signed",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "lockVersion": false,
+   "version": "V1.0",
+   "note": "GET 地址校验，不写收件箱（C6；A18 纯查询）"
+  },
+  {
+   "operationId": "hooks.wecom.event.receive",
+   "method": "POST",
+   "path": "/hooks/wecom/events",
+   "section": "3.6",
+   "requestSchemas": [
+    "WecomEventQuery",
+    "WecomEventEnvelope"
+   ],
+   "responseSchema": "HookAck",
+   "errors": [
+    "WEBHOOK_SIGNATURE_INVALID",
+    "WEBHOOK_TIMESTAMP_SKEWED",
+    "WEBHOOK_DECRYPT_FAILED",
+    "WEBHOOK_PAYLOAD_INVALID",
+    "WEBHOOK_SOURCE_DISABLED",
+    "WEBHOOK_PERSIST_FAILED"
+   ],
+   "events": [
+    "webhook.received"
+   ],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "webhook_event.process_state: — → received（收件箱；同事务写出站事件 webhook.received，载荷 {v, webhookEventId, provider}；15-integration-ops.md:115）"
+   ],
+   "xAuth": "signed",
+   "clerkView": null,
+   "xIdempotent": "natural",
+   "idempotentBy": [
+    "uq_webhook_event_provider_event_id"
+   ],
+   "lockVersion": false,
+   "version": "V1.0",
+   "hookMode": "inbox",
+   "note": "任务进程写 wecom_contact 归 x01"
+  },
+  {
+   "operationId": "hooks.ci.mediaJob.wake",
+   "method": "POST",
+   "path": "/hooks/ci/media-jobs/{mediaJobId}",
+   "section": "3.7",
+   "requestSchemas": [
+    "MediaJobWakeQuery",
+    "CiJobCallback"
+   ],
+   "responseSchema": "HookAck",
+   "errors": [
+    "WEBHOOK_SIGNATURE_INVALID",
+    "WEBHOOK_PAYLOAD_INVALID",
+    "WEBHOOK_PERSIST_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "webhook_event.process_state: — → processed / ignored（内联；processed：media_job.state = submitted 时把 next_run_at 置为当前；否则 ignored；15-integration-ops.md:114）"
+   ],
+   "xAuth": "signed",
+   "clerkView": null,
+   "xIdempotent": "natural",
+   "idempotentBy": [
+    "uq_webhook_event_provider_event_id"
+   ],
+   "lockVersion": false,
+   "version": "V1.0",
+   "hookMode": "inline",
+   "note": "只把 state = submitted 的 media_job.next_run_at 置为当前；不改 media_job.state（06-media.md:643、697）；回调地址不支持查询参数时按 A126 处理"
+  },
+  {
+   "operationId": "hooks.asr.mediaJob.wake",
+   "method": "POST",
+   "path": "/hooks/asr/media-jobs/{mediaJobId}",
+   "section": "3.8",
+   "requestSchemas": [
+    "MediaJobWakeQuery",
+    "AsrTaskCallback"
+   ],
+   "responseSchema": "HookAck",
+   "errors": [
+    "WEBHOOK_SIGNATURE_INVALID",
+    "WEBHOOK_PAYLOAD_INVALID",
+    "WEBHOOK_SOURCE_DISABLED",
+    "WEBHOOK_PERSIST_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "webhook_event.process_state: — → processed / ignored（内联；processed：media_job.state = submitted 时把 next_run_at 置为当前；否则 ignored；15-integration-ops.md:114）"
+   ],
+   "xAuth": "signed",
+   "clerkView": null,
+   "xIdempotent": "natural",
+   "idempotentBy": [
+    "uq_webhook_event_provider_event_id"
+   ],
+   "lockVersion": false,
+   "version": "V1.0",
+   "hookMode": "inline",
+   "note": "同 hooks.ci.mediaJob.wake"
+  },
+  {
+   "operationId": "hooks.sms.statusReport.receive",
+   "method": "POST",
+   "path": "/hooks/sms/status-reports",
+   "section": "3.9",
+   "requestSchemas": [
+    "SmsStatusQuery",
+    "SmsStatusReportBody"
+   ],
+   "responseSchema": "HookAck",
+   "errors": [
+    "WEBHOOK_SIGNATURE_INVALID",
+    "WEBHOOK_PAYLOAD_INVALID",
+    "WEBHOOK_PERSIST_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "webhook_event.process_state: — → processed / ignored（内联；15-integration-ops.md:114）"
+   ],
+   "xAuth": "signed",
+   "clerkView": null,
+   "xIdempotent": "natural",
+   "idempotentBy": [
+    "uq_webhook_event_provider_event_id"
+   ],
+   "lockVersion": false,
+   "version": "V1.0",
+   "hookMode": "inline",
+   "note": "内联（作者默认，按裁决第十节导语接受）；收件箱为备选（— → received 并写 webhook.received）。只追加写 notification_delivery.receipt_status、receipt_reported_at，不改投递状态（13-notify-docs.md:381、441）"
+  },
+  {
+   "operationId": "hooks.esign.event.receive",
+   "method": "POST",
+   "path": "/hooks/esign/events",
+   "section": "3.10",
+   "requestSchemas": [],
+   "responseSchema": "HookAck",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "signed",
+   "clerkView": null,
+   "xIdempotent": "natural",
+   "idempotentBy": [
+    "uq_webhook_event_provider_event_id"
+   ],
+   "lockVersion": false,
+   "version": "V1.1",
+   "note": "V1.1，细节待设计；V1.0 不挂载路由（通用 404，不经回调框架）"
+  },
+  {
+   "operationId": "hooks.healthz.get",
+   "method": "GET",
+   "path": "/healthz",
+   "section": "3.11",
+   "requestSchemas": [],
+   "responseSchema": "LivenessStatus",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "lockVersion": false,
+   "version": "V1.0",
+   "registryKeyOnly": true,
+   "note": "A42、A83：探活不分配 operationId；此为路线图登记键（registryKeyOnly）；维护开关不拦"
+  },
+  {
+   "operationId": "hooks.readyz.get",
+   "method": "GET",
+   "path": "/readyz",
+   "section": "3.12",
+   "requestSchemas": [],
+   "responseSchema": "ReadinessStatus",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "lockVersion": false,
+   "version": "V1.0",
+   "registryKeyOnly": true,
+   "note": "A42、A83：同上；starting / draining 回 503"
+  },
+  {
+   "operationId": "hooks.health.get",
+   "method": "GET",
+   "path": "/health",
+   "section": "3.13",
+   "requestSchemas": [],
+   "responseSchema": "HealthSummary",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "lockVersion": false,
+   "version": "V1.0",
+   "registryKeyOnly": true,
+   "note": "A42 保留；只回聚合状态；degraded 回 503（A83）；flow 与 3.15 的 P1 判定同一段代码"
+  },
+  {
+   "operationId": "hooks.internalHealth.finance.get",
+   "method": "GET",
+   "path": "/internal/health/finance",
+   "section": "3.14",
+   "requestSchemas": [],
+   "responseSchema": "FinanceHealth",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "lockVersion": false,
+   "version": "V1.0",
+   "registryKeyOnly": true,
+   "note": "A42、A83：仅内网，可达范围靠网络隔离；degraded 回 503；各指标可为 null 并计入 breaches"
+  },
+  {
+   "operationId": "hooks.internalHealth.flow.get",
+   "method": "GET",
+   "path": "/internal/health/flow",
+   "section": "3.15",
+   "requestSchemas": [],
+   "responseSchema": "FlowHealth",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "lockVersion": false,
+   "version": "V1.0",
+   "registryKeyOnly": true,
+   "note": "A83 补：流程明细指标，仅内网；degraded 回 503；维护开关不拦"
+  }
+ ],
+ "schemas": [
+  {
+   "name": "HookAck",
+   "fields": [
+    "wechatpay: 200 无包体 / {code:FAIL,message}",
+    "wechat: echostr / success / 客服消息被动回复 transfer_customer_service",
+    "wecom: echostr 明文 / 空包体",
+    "ci: 200",
+    "asr: {code:0,message}",
+    "sms: {result:0,errmsg:OK}"
+   ]
+  },
+  {
+   "name": "WebhookEventRow",
+   "fields": [
+    "provider",
+    "eventId",
+    "eventType",
+    "mode",
+    "payload",
+    "payloadDigest",
+    "keyVersion",
+    "processState",
+    "attempts",
+    "nextAttemptAt",
+    "processedAt",
+    "error",
+    "payloadPurgeAt"
+   ]
+  },
+  {
+   "name": "WechatpayPayload",
+   "fields": [
+    "summary",
+    "summary.serial",
+    "summary.outTradeNo",
+    "summary.outRefundNo",
+    "summary.transactionId",
+    "summary.refundId",
+    "summary.state",
+    "summary.amountFen",
+    "summary.successAt",
+    "resourceCipher"
+   ]
+  },
+  {
+   "name": "WechatMessagePayload",
+   "fields": [
+    "event",
+    "traceId",
+    "result",
+    "wechatIdentityId",
+    "items",
+    "items[].templateId",
+    "items[].msgId",
+    "items[].status",
+    "items[].errorCode",
+    "items[].errorStatus",
+    "items[].popupScene"
+   ]
+  },
+  {
+   "name": "WecomEventPayload",
+   "fields": [
+    "changeType",
+    "staffUserid",
+    "externalUseridEnc",
+    "state",
+    "createTime"
+   ]
+  },
+  {
+   "name": "SmsStatusPayload",
+   "fields": [
+    "reports",
+    "reports[].serialNo",
+    "reports[].reportStatus",
+    "reports[].errCode",
+    "reports[].reportedAt"
+   ]
+  },
+  {
+   "name": "WechatpayNotification",
+   "fields": [
+    "Wechatpay-Timestamp",
+    "Wechatpay-Nonce",
+    "Wechatpay-Signature",
+    "Wechatpay-Serial",
+    "id",
+    "create_time",
+    "event_type",
+    "resource_type",
+    "resource",
+    "summary"
+   ]
+  },
+  {
+   "name": "WechatpayTransactionResource",
+   "fields": [
+    "mchid",
+    "appid",
+    "out_trade_no",
+    "transaction_id",
+    "trade_state",
+    "success_time",
+    "amount.total",
+    "payer.openid",
+    "attach",
+    "bank_type"
+   ]
+  },
+  {
+   "name": "WechatpayRefundResource",
+   "fields": [
+    "mchid",
+    "out_trade_no",
+    "transaction_id",
+    "out_refund_no",
+    "refund_id",
+    "refund_status",
+    "success_time",
+    "user_received_account",
+    "amount.refund",
+    "amount.total"
+   ]
+  },
+  {
+   "name": "WechatMessageVerifyQuery",
+   "fields": [
+    "signature",
+    "timestamp",
+    "nonce",
+    "echostr"
+   ]
+  },
+  {
+   "name": "WechatMessageQuery",
+   "fields": [
+    "signature",
+    "timestamp",
+    "nonce",
+    "encrypt_type",
+    "msg_signature"
+   ]
+  },
+  {
+   "name": "WechatMessageEnvelope",
+   "fields": [
+    "ToUserName",
+    "Encrypt",
+    "(解密后) MsgType",
+    "Event",
+    "FromUserName",
+    "trace_id",
+    "result",
+    "List"
+   ]
+  },
+  {
+   "name": "WecomVerifyQuery",
+   "fields": [
+    "msg_signature",
+    "timestamp",
+    "nonce",
+    "echostr"
+   ]
+  },
+  {
+   "name": "WecomEventQuery",
+   "fields": [
+    "msg_signature",
+    "timestamp",
+    "nonce"
+   ]
+  },
+  {
+   "name": "WecomEventEnvelope",
+   "fields": [
+    "ToUserName",
+    "AgentID",
+    "Encrypt",
+    "(解密后) Event",
+    "ChangeType",
+    "UserID",
+    "ExternalUserID",
+    "State",
+    "CreateTime"
+   ]
+  },
+  {
+   "name": "MediaJobWakeQuery",
+   "fields": [
+    "mediaJobId（路径）",
+    "sig（查询）"
+   ]
+  },
+  {
+   "name": "CiJobCallback",
+   "fields": [
+    "JobId",
+    "事件名"
+   ]
+  },
+  {
+   "name": "AsrTaskCallback",
+   "fields": [
+    "任务号（官方字段名接入时核对）"
+   ]
+  },
+  {
+   "name": "SmsStatusQuery",
+   "fields": [
+    "token"
+   ]
+  },
+  {
+   "name": "SmsStatusReportBody",
+   "fields": [
+    "[].sid",
+    "[].report_status",
+    "[].errmsg",
+    "[].user_receive_time"
+   ]
+  },
+  {
+   "name": "LivenessStatus",
+   "fields": [
+    "status"
+   ]
+  },
+  {
+   "name": "ReadinessStatus",
+   "fields": [
+    "status"
+   ]
+  },
+  {
+   "name": "HealthSummary",
+   "fields": [
+    "status",
+    "version",
+    "time",
+    "db",
+    "redis",
+    "worker",
+    "probeAgeSec",
+    "flow"
+   ]
+  },
+  {
+   "name": "FinanceHealth",
+   "fields": [
+    "status",
+    "time",
+    "breaches",
+    "unappliedReceipt",
+    "workerHeartbeatAgeSec",
+    "timerLagSec",
+    "webhookBacklog",
+    "certificates",
+    "billing"
+   ]
+  },
+  {
+   "name": "UnappliedReceiptStat",
+   "fields": [
+    "count",
+    "oldestAgeSec"
+   ]
+  },
+  {
+   "name": "WebhookBacklogStat",
+   "fields": [
+    "pendingCount",
+    "deadCount",
+    "oldestPendingAgeSec"
+   ]
+  },
+  {
+   "name": "CertificateLife",
+   "fields": [
+    "kind",
+    "expiresAt",
+    "daysLeft"
+   ]
+  },
+  {
+   "name": "BillingLiveness",
+   "fields": [
+    "sweepLagSec",
+    "invariantRunAgeSec",
+    "openViolationCount",
+    "valuationAgeSec",
+    "oldestBlockedFulfillmentSec"
+   ]
+  },
+  {
+   "name": "FlowHealth",
+   "fields": [
+    "status",
+    "time",
+    "breaches",
+    "warnings",
+    "oldestUnpublishedEventAgeSec",
+    "oldestDueDeliveryAgeSec",
+    "deadDeliveryCount",
+    "timerLagSec",
+    "failedTimerCount",
+    "criticalTimerFailingCount",
+    "stuckTicketCount"
+   ]
+  },
+  {
+   "name": "PaymentExceptionOpen",
+   "fields": [
+    "kind",
+    "detectedBy",
+    "billDate",
+    "amountFen",
+    "entityId",
+    "billingOrderId",
+    "paymentTxnId",
+    "refundTxnId",
+    "dedupeKey",
+    "exceptionNo",
+    "billFact",
+    "platformFact",
+    "causeText"
+   ]
+  }
+ ],
+ "errorCodes": [
+  {
+   "symbol": "WEBHOOK_SIGNATURE_INVALID",
+   "code": 46601,
+   "http": 401,
+   "retryable": false,
+   "meaning": "验签失败：平台签名、每任务 sig 或回调令牌不符（含微信支付签名探测）"
+  },
+  {
+   "symbol": "WEBHOOK_TIMESTAMP_SKEWED",
+   "code": 46602,
+   "http": 401,
+   "retryable": false,
+   "meaning": "带时间戳的协议与本机相差超过 5 分钟"
+  },
+  {
+   "symbol": "WEBHOOK_KEY_NOT_FOUND",
+   "code": 46603,
+   "http": 401,
+   "retryable": false,
+   "meaning": "微信支付 Wechatpay-Serial 在密钥表里查不到"
+  },
+  {
+   "symbol": "WEBHOOK_DECRYPT_FAILED",
+   "code": 46604,
+   "http": 500,
+   "retryable": true,
+   "meaning": "验签通过但解密失败（密钥或版本配置错误），由平台重试"
+  },
+  {
+   "symbol": "WEBHOOK_PAYLOAD_INVALID",
+   "code": 46605,
+   "http": 400,
+   "retryable": false,
+   "meaning": "验签通过但报文无法解析，或缺事件标识等必需字段"
+  },
+  {
+   "symbol": "WEBHOOK_SOURCE_DISABLED",
+   "code": 46606,
+   "http": 404,
+   "retryable": false,
+   "meaning": "该来源未启用（企业微信未开客户联系、语音识别未配置）；电子签 V1.0 不挂载路由，不用本码"
+  },
+  {
+   "symbol": "WEBHOOK_PERSIST_FAILED",
+   "code": 46607,
+   "http": 500,
+   "retryable": true,
+   "meaning": "收件行或资金事实落不了库，由平台重试"
+  }
+ ],
+ "externalErrorRefs": [],
+ "genericErrorRefs": [],
+ "permissions": [],
+ "capabilities": [],
+ "proposedEvents": []
+}

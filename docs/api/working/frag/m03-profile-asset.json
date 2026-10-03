@@ -1,0 +1,1571 @@
+{
+  "doc": "m03-profile-asset",
+  "endpoints": [
+    {
+      "operationId": "m.storeProfile.get",
+      "method": "GET",
+      "path": "/m/store-profile",
+      "section": "3.1",
+      "requestSchemas": [],
+      "responseSchema": "StoreProfileOverview | StoreProfileOverviewClerk",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "store.profile.read",
+      "transitions": [],
+      "clerkView": "trimmed",
+      "xIdempotent": "none"
+    },
+    {
+      "operationId": "m.storeProfile.basic.get",
+      "method": "GET",
+      "path": "/m/store-profile/basic",
+      "section": "3.2",
+      "requestSchemas": [],
+      "responseSchema": "StoreProfileBasic | StoreProfileBasicClerk",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "store.profile.read",
+      "transitions": [],
+      "clerkView": "trimmed",
+      "xIdempotent": "none"
+    },
+    {
+      "operationId": "m.storeProfile.basic.update",
+      "method": "PATCH",
+      "path": "/m/store-profile/basic",
+      "section": "3.3",
+      "requestSchemas": [
+        "StoreProfileBasicPatch"
+      ],
+      "responseSchema": "StoreProfileBasic & ReplayFlag",
+      "errors": [
+        "VERSION_CONFLICT",
+        "VALIDATION_FAILED",
+        "DICT_ITEM_DISABLED",
+        "INDUSTRY_NOT_OPEN",
+        "REVIEW_REQUIRED",
+        "QUALIFICATION_IN_REVIEW",
+        "PROFILE_REQUIRED_MISSING",
+        "FILE_NOT_USABLE",
+        "CONTENT_REJECTED",
+        "PROVIDER_UNAVAILABLE"
+      ],
+      "events": [
+        "store.profile.changed"
+      ],
+      "permission": null,
+      "capability": "store.profile.edit",
+      "transitions": [
+        "qualification_submission:（无）→ 草稿（ensureDraft 新建 change 草稿；非状态机迁移，不写 status_transition）"
+      ],
+      "clerkView": "none",
+      "xIdempotent": "required",
+      "lockVersion": "store_profile.lock_version",
+      "redactOnReplay": [
+        "logo.url",
+        "logo.expiresAt",
+        "logo.coverUrl"
+      ]
+    },
+    {
+      "operationId": "m.storeProfile.media.get",
+      "method": "GET",
+      "path": "/m/store-profile/media",
+      "section": "3.4",
+      "requestSchemas": [],
+      "responseSchema": "StoreProfileMedia | StoreProfileMediaClerk",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "store.profile.read",
+      "transitions": [],
+      "clerkView": "trimmed",
+      "xIdempotent": "none"
+    },
+    {
+      "operationId": "m.storeProfile.media.update",
+      "method": "PATCH",
+      "path": "/m/store-profile/media",
+      "section": "3.5",
+      "requestSchemas": [
+        "StoreProfileMediaPatch"
+      ],
+      "responseSchema": "StoreProfileMedia & ReplayFlag",
+      "errors": [
+        "VERSION_CONFLICT",
+        "VALIDATION_FAILED",
+        "PROFILE_REQUIRED_MISSING",
+        "FILE_NOT_USABLE"
+      ],
+      "events": [
+        "store.profile.changed"
+      ],
+      "permission": null,
+      "capability": "store.profile.edit",
+      "transitions": [],
+      "clerkView": "none",
+      "xIdempotent": "required",
+      "lockVersion": "store_profile.lock_version",
+      "redactOnReplay": [
+        "groups.*[].file.url",
+        "groups.*[].file.expiresAt",
+        "groups.*[].file.coverUrl"
+      ]
+    },
+    {
+      "operationId": "m.storeProfile.service.get",
+      "method": "GET",
+      "path": "/m/store-profile/service",
+      "section": "3.6",
+      "requestSchemas": [],
+      "responseSchema": "StoreProfileService | StoreProfileServiceClerk",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "store.profile.read",
+      "transitions": [],
+      "clerkView": "trimmed",
+      "xIdempotent": "none"
+    },
+    {
+      "operationId": "m.storeProfile.service.update",
+      "method": "PATCH",
+      "path": "/m/store-profile/service",
+      "section": "3.7",
+      "requestSchemas": [
+        "StoreProfileServicePatch"
+      ],
+      "responseSchema": "StoreProfileService & ReplayFlag",
+      "errors": [
+        "VERSION_CONFLICT",
+        "VALIDATION_FAILED",
+        "DICT_ITEM_DISABLED",
+        "PROFILE_REQUIRED_MISSING",
+        "FILE_NOT_USABLE",
+        "CONTENT_REJECTED",
+        "PROVIDER_UNAVAILABLE"
+      ],
+      "events": [
+        "store.profile.changed"
+      ],
+      "permission": null,
+      "capability": "store.profile.edit",
+      "transitions": [],
+      "clerkView": "none",
+      "xIdempotent": "required",
+      "lockVersion": "store_profile.lock_version",
+      "redactOnReplay": [
+        "serviceItems[].image.url",
+        "serviceItems[].image.expiresAt",
+        "serviceItems[].image.coverUrl"
+      ]
+    },
+    {
+      "operationId": "m.storeProfile.qualification.get",
+      "method": "GET",
+      "path": "/m/store-profile/qualification",
+      "section": "3.8",
+      "requestSchemas": [],
+      "responseSchema": "QualificationView | QualificationViewClerk",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "store.profile.read",
+      "transitions": [],
+      "clerkView": "trimmed",
+      "xIdempotent": "none"
+    },
+    {
+      "operationId": "m.storeProfile.qualification.update",
+      "method": "PATCH",
+      "path": "/m/store-profile/qualification",
+      "section": "3.9",
+      "requestSchemas": [
+        "QualificationDraftPatch"
+      ],
+      "responseSchema": "QualificationView",
+      "errors": [
+        "VERSION_CONFLICT",
+        "QUALIFICATION_IN_REVIEW",
+        "QUALIFICATION_CLOSED",
+        "ENTITY_NOT_VERIFIED",
+        "DECLARATION_REQUIRED"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "store.qualification.edit",
+      "transitions": [
+        "qualification_submission:（无）→ 草稿（ensureDraft；驳回后新建时 INSERT 写 resubmit_of_qualification_submission_id；非状态机迁移，不写 status_transition）"
+      ],
+      "clerkView": "none",
+      "xIdempotent": "required",
+      "lockVersion": "qualification_submission.lock_version（无草稿时为 null）"
+    },
+    {
+      "operationId": "m.storeProfile.contact.update",
+      "method": "PATCH",
+      "path": "/m/store-profile/contact",
+      "section": "3.10",
+      "requestSchemas": [
+        "ContactPatch"
+      ],
+      "responseSchema": "ContactView",
+      "errors": [
+        "VERSION_CONFLICT",
+        "VALIDATION_FAILED",
+        "SMS_CODE_INVALID",
+        "CONTENT_REJECTED",
+        "PROVIDER_UNAVAILABLE"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "store.qualification.edit",
+      "transitions": [],
+      "clerkView": "none",
+      "xIdempotent": "required",
+      "lockVersion": "store_profile.lock_version"
+    },
+    {
+      "operationId": "m.storeProfile.contactSmsCode.create",
+      "method": "POST",
+      "path": "/m/store-profile/contact/sms-codes",
+      "section": "3.11",
+      "requestSchemas": [
+        "ContactSmsCodeBody"
+      ],
+      "responseSchema": "ContactSmsCodeResult",
+      "errors": [
+        "VALIDATION_FAILED",
+        "SMS_UNAVAILABLE",
+        "RATE_LIMITED",
+        "IDEMPOTENCY_IN_PROGRESS"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "store.qualification.edit",
+      "transitions": [],
+      "clerkView": "none",
+      "xIdempotent": "required",
+      "threePhase": "先落库、提交后直发（C51，A84 已登记）",
+      "rateLimit": [
+        "m.sms",
+        "m.global"
+      ]
+    },
+    {
+      "operationId": "m.qualificationDoc.create",
+      "method": "POST",
+      "path": "/m/qualification-docs",
+      "section": "3.12",
+      "requestSchemas": [
+        "QualificationDocCreateBody"
+      ],
+      "responseSchema": "QualificationDocRecognized",
+      "errors": [
+        "FILE_NOT_USABLE",
+        "VALIDATION_FAILED",
+        "DICT_ITEM_DISABLED",
+        "IDEMPOTENCY_IN_PROGRESS",
+        "QUALIFICATION_IN_REVIEW",
+        "QUALIFICATION_CLOSED",
+        "ENTITY_NOT_VERIFIED",
+        "QUALIFICATION_DOC_NOT_ALLOWED",
+        "ENTITY_LICENSE_CHANGE_PENDING"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "store.qualification.edit",
+      "transitions": [
+        "qualification_doc（同类旧行）: 草稿中 → 已移除（重新上传同类证照，04-profile.md:478）",
+        "qualification_submission:（无）→ 草稿（ensureDraft，规则见 3.9；非状态机迁移）"
+      ],
+      "clerkView": "none",
+      "xIdempotent": "required",
+      "threePhase": "先调外部、再开事务（C51，A139 已登记）",
+      "redactOnReplay": [
+        "recognized",
+        "submitted"
+      ]
+    },
+    {
+      "operationId": "m.qualificationDoc.update",
+      "method": "PATCH",
+      "path": "/m/qualification-docs/{qualificationDocId}",
+      "section": "3.13",
+      "requestSchemas": [
+        "QualificationDocPatch"
+      ],
+      "responseSchema": "QualificationDocUpdateResult",
+      "errors": [
+        "VERSION_CONFLICT",
+        "VALIDATION_FAILED",
+        "QUALIFICATION_IN_REVIEW",
+        "STATE_NOT_ALLOWED",
+        "NOT_FOUND"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "store.qualification.edit",
+      "transitions": [],
+      "clerkView": "none",
+      "xIdempotent": "required",
+      "lockVersion": "qualification_submission.lock_version（所属轮次）"
+    },
+    {
+      "operationId": "m.qualificationDoc.remove",
+      "method": "POST",
+      "path": "/m/qualification-docs/{qualificationDocId}/remove",
+      "section": "3.14",
+      "requestSchemas": [],
+      "responseSchema": "QualificationDocRemoveResult",
+      "errors": [
+        "QUALIFICATION_IN_REVIEW",
+        "STATE_NOT_ALLOWED",
+        "NOT_FOUND"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "store.qualification.edit",
+      "transitions": [
+        "qualification_doc: 草稿中 → 已移除（从草稿移除，04-profile.md:478）"
+      ],
+      "clerkView": "none",
+      "xIdempotent": "required"
+    },
+    {
+      "operationId": "m.qualificationDoc.downloadUrls",
+      "method": "POST",
+      "path": "/m/qualification-docs/{qualificationDocId}/download-urls",
+      "section": "3.15",
+      "requestSchemas": [],
+      "responseSchema": "SignedUrl",
+      "errors": [
+        "NOT_FOUND"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "store.qualification.edit",
+      "transitions": [],
+      "clerkView": "none",
+      "xIdempotent": "none",
+      "rateLimit": [
+        "m.sign",
+        "m.global"
+      ]
+    },
+    {
+      "operationId": "m.storeProfile.qualification.discard",
+      "method": "POST",
+      "path": "/m/store-profile/qualification/discard",
+      "section": "3.16",
+      "requestSchemas": [
+        "QualificationDiscardBody"
+      ],
+      "responseSchema": "QualificationView",
+      "errors": [
+        "QUALIFICATION_IN_REVIEW",
+        "STATE_NOT_ALLOWED"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "store.qualification.edit",
+      "transitions": [
+        "qualification_submission: 草稿 → 已关闭（discarded，04-profile.md:344）",
+        "qualification_doc: 草稿中 → 已移除（所属草稿被丢弃，04-profile.md:479）"
+      ],
+      "clerkView": "none",
+      "xIdempotent": "required"
+    },
+    {
+      "operationId": "m.storeProfile.qualification.submit",
+      "method": "POST",
+      "path": "/m/store-profile/qualification/submit",
+      "section": "3.17",
+      "requestSchemas": [
+        "QualificationSubmitBody"
+      ],
+      "responseSchema": "QualificationView",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "STORE_PROFILE_INCOMPLETE",
+        "INDUSTRY_NOT_OPEN",
+        "QUALIFICATION_DOCS_INCOMPLETE",
+        "ENTITY_TYPE_MISMATCH",
+        "DECLARATION_REQUIRED",
+        "CONTACT_PHONE_UNVERIFIED",
+        "USCC_TAKEN",
+        "ENTITY_NOT_VERIFIED",
+        "QUALIFICATION_IN_REVIEW",
+        "QUALIFICATION_CLOSED",
+        "ENTITY_LICENSE_CHANGE_PENDING",
+        "QUALIFICATION_NO_CHANGE"
+      ],
+      "events": [
+        "store.qualification.submitted",
+        "store.qualification_change.submitted",
+        "approval.submitted"
+      ],
+      "permission": null,
+      "capability": "store.qualification.edit",
+      "transitions": [
+        "qualification_submission: 草稿 → 在审（提交，04-profile.md:343）",
+        "approval_request.status: （新建）→ pending（submit，03-staff-authz-audit.md:804）",
+        "store.qualification_status: unsubmitted → pending（qualification.submit，02-identity-tenant.md:622）",
+        "store.qualification_status: rejected → pending（qualification.submit，02-identity-tenant.md:625）",
+        "store.qualification_status: verified → verified（qualification.change_submit，change 轮次，02-identity-tenant.md:627）",
+        "entity.verification_status: unsubmitted/rejected → pending（qualification.submit，仅 initial 轮次，02-identity-tenant.md:540）"
+      ],
+      "clerkView": "none",
+      "xIdempotent": "required",
+      "timers": [
+        "sla.breach:approval_request:{approvalRequestId}:decision（由 approval 登记）"
+      ]
+    },
+    {
+      "operationId": "m.qualificationSubmission.list",
+      "method": "GET",
+      "path": "/m/qualification-submissions",
+      "section": "3.18",
+      "requestSchemas": [],
+      "responseSchema": "CursorPage<QualificationRecord>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "store.qualification.edit",
+      "transitions": [],
+      "clerkView": "none",
+      "xIdempotent": "none"
+    },
+    {
+      "operationId": "m.storeAsset.list",
+      "method": "GET",
+      "path": "/m/store-assets",
+      "section": "3.19",
+      "requestSchemas": [],
+      "responseSchema": "CursorPage<StoreAssetCard>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "asset.read",
+      "transitions": [],
+      "clerkView": "same",
+      "xIdempotent": "none",
+      "queryParams": [
+        "tab",
+        "status",
+        "tag",
+        "q",
+        "uploader",
+        "isSelectableAsReference",
+        "assetDemandId",
+        "ids",
+        "sort",
+        "cursor",
+        "limit"
+      ]
+    },
+    {
+      "operationId": "m.storeAsset.summary",
+      "method": "GET",
+      "path": "/m/store-assets/summary",
+      "section": "3.20",
+      "requestSchemas": [],
+      "responseSchema": "StoreAssetSummary",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "asset.read",
+      "transitions": [],
+      "clerkView": "same",
+      "xIdempotent": "none",
+      "queryParams": [
+        "status",
+        "tag",
+        "q",
+        "uploader",
+        "isSelectableAsReference",
+        "assetDemandId"
+      ]
+    },
+    {
+      "operationId": "m.storeAsset.get",
+      "method": "GET",
+      "path": "/m/store-assets/{storeAssetId}",
+      "section": "3.21",
+      "requestSchemas": [],
+      "responseSchema": "StoreAssetDetail",
+      "errors": [
+        "NOT_FOUND"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "asset.read",
+      "transitions": [],
+      "clerkView": "same",
+      "xIdempotent": "none"
+    },
+    {
+      "operationId": "m.storeAsset.create",
+      "method": "POST",
+      "path": "/m/store-assets",
+      "section": "3.22",
+      "requestSchemas": [
+        "StoreAssetCreateBody"
+      ],
+      "responseSchema": "StoreAssetCard & ReplayFlag",
+      "errors": [
+        "ASSET_UPLOAD_GATED",
+        "FILE_NOT_USABLE",
+        "VALIDATION_FAILED",
+        "DICT_ITEM_DISABLED"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "asset.upload",
+      "transitions": [
+        "store_asset.processing_state: — → pending（创建素材，06-media.md:1182）",
+        "store_asset.processing_state: pending → processing（第一个理解任务被创建，06-media.md:1183）"
+      ],
+      "clerkView": "same",
+      "xIdempotent": "required",
+      "timers": [
+        "sla.breach:store_asset:{storeAssetId}（fire_at = store_asset.due_at；admin.storeAsset.review 与素材删除按同键取消）"
+      ],
+      "redactOnReplay": [
+        "thumbnail"
+      ]
+    },
+    {
+      "operationId": "m.storeAsset.portraitAuth.create",
+      "method": "POST",
+      "path": "/m/store-assets/{storeAssetId}/portrait-auth",
+      "section": "3.23",
+      "requestSchemas": [
+        "PortraitAuthBody"
+      ],
+      "responseSchema": "StoreAssetDetail & ReplayFlag",
+      "errors": [
+        "NOT_FOUND",
+        "ASSET_PORTRAIT_AUTH_FORBIDDEN",
+        "STATE_NOT_ALLOWED",
+        "FILE_NOT_USABLE",
+        "VALIDATION_FAILED"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "asset.upload",
+      "transitions": [
+        "store_asset.usability: need_portrait_auth 不变（补交授权材料，06-media.md:1188；进入“待确认授权”派生队列）"
+      ],
+      "clerkView": "same",
+      "xIdempotent": "required",
+      "redactOnReplay": [
+        "thumbnail",
+        "files[].url",
+        "files[].expiresAt",
+        "files[].coverUrl"
+      ]
+    },
+    {
+      "operationId": "m.storeAsset.feedback.create",
+      "method": "POST",
+      "path": "/m/store-assets/{storeAssetId}/feedback",
+      "section": "3.24",
+      "requestSchemas": [
+        "AssetFeedbackBody"
+      ],
+      "responseSchema": "null",
+      "errors": [
+        "NOT_FOUND",
+        "ASSET_FEEDBACK_DAILY_LIMIT"
+      ],
+      "events": [
+        "asset.feedback_submitted"
+      ],
+      "permission": null,
+      "capability": "asset.feedback",
+      "transitions": [],
+      "clerkView": "same",
+      "xIdempotent": "required"
+    },
+    {
+      "operationId": "m.assetDemand.list",
+      "method": "GET",
+      "path": "/m/asset-demands",
+      "section": "3.25",
+      "requestSchemas": [],
+      "responseSchema": "CursorPage<AssetDemandItem>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "asset.demand.read",
+      "transitions": [],
+      "clerkView": "same",
+      "xIdempotent": "none"
+    }
+  ],
+  "schemas": [
+    {
+      "name": "MediaFileView",
+      "fields": [
+        "fileId",
+        "kind",
+        "url",
+        "expiresAt",
+        "coverUrl",
+        "durationMs",
+        "displayWidth",
+        "displayHeight",
+        "moderationState"
+      ]
+    },
+    {
+      "name": "AddressView",
+      "fields": [
+        "province",
+        "city",
+        "district",
+        "zone",
+        "detail",
+        "poiName",
+        "latitude",
+        "longitude"
+      ]
+    },
+    {
+      "name": "AddressInput",
+      "fields": [
+        "provinceCode",
+        "cityCode",
+        "districtCode",
+        "zoneCode",
+        "detail",
+        "poiName",
+        "latitude",
+        "longitude"
+      ]
+    },
+    {
+      "name": "BusinessHourSlot",
+      "fields": [
+        "start",
+        "end"
+      ]
+    },
+    {
+      "name": "Completeness",
+      "fields": [
+        "pct",
+        "requiredFilled",
+        "requiredTotal",
+        "steps"
+      ]
+    },
+    {
+      "name": "StepProgress",
+      "fields": [
+        "step",
+        "state",
+        "missing"
+      ]
+    },
+    {
+      "name": "MissingItem",
+      "fields": [
+        "item",
+        "permitType"
+      ]
+    },
+    {
+      "name": "ReplayFlag",
+      "fields": [
+        "replayed"
+      ]
+    },
+    {
+      "name": "UploaderView",
+      "fields": [
+        "actorType",
+        "role",
+        "displayName",
+        "isMe"
+      ]
+    },
+    {
+      "name": "AssetTag",
+      "fields": [
+        "dimension",
+        "tag",
+        "source",
+        "isConfirmed",
+        "validStartDate",
+        "validEndDate"
+      ]
+    },
+    {
+      "name": "StoreBrief",
+      "fields": [
+        "storeId",
+        "name",
+        "isPrimary",
+        "qualificationStatus",
+        "isChangeInReview",
+        "isFinalRejected",
+        "industry",
+        "category"
+      ]
+    },
+    {
+      "name": "StepCards",
+      "fields": [
+        "basic",
+        "media",
+        "service",
+        "qualification"
+      ]
+    },
+    {
+      "name": "QualificationBrief",
+      "fields": [
+        "status",
+        "submittedAt",
+        "dueAt",
+        "lastDecidedAt"
+      ]
+    },
+    {
+      "name": "AssetsBrief",
+      "fields": [
+        "total",
+        "recent7dCount",
+        "recent"
+      ]
+    },
+    {
+      "name": "MembersBrief",
+      "fields": [
+        "ownerDisplayName",
+        "clerkCount",
+        "pendingInvitationCount",
+        "preview"
+      ]
+    },
+    {
+      "name": "AdsBrief",
+      "fields": [
+        "confirmedCount",
+        "pendingConfirmCount",
+        "producingCount",
+        "revisingCount"
+      ]
+    },
+    {
+      "name": "StoreProfileOverview",
+      "fields": [
+        "viewerRole",
+        "store",
+        "entityName",
+        "completeness",
+        "steps",
+        "qualification",
+        "assets",
+        "members",
+        "ads"
+      ]
+    },
+    {
+      "name": "StoreProfileOverviewClerk",
+      "fields": [
+        "viewerRole",
+        "store",
+        "completeness",
+        "steps",
+        "qualification",
+        "assets",
+        "members"
+      ]
+    },
+    {
+      "name": "StoreProfileBasic",
+      "fields": [
+        "viewerRole",
+        "brandName",
+        "logo",
+        "storeName",
+        "industry",
+        "category",
+        "address",
+        "businessHours",
+        "storeTel",
+        "avgSpendFen",
+        "brandIntro",
+        "reviewFieldsLocked",
+        "reviewRequiredOnChange",
+        "pendingChange",
+        "lastEditedAt",
+        "lockVersion",
+        "completeness"
+      ]
+    },
+    {
+      "name": "StoreProfileBasicClerk",
+      "fields": [
+        "viewerRole",
+        "brandName",
+        "logo",
+        "storeName",
+        "industry",
+        "category",
+        "address",
+        "businessHours",
+        "storeTel",
+        "avgSpendFen",
+        "brandIntro",
+        "reviewFieldsLocked",
+        "reviewRequiredOnChange",
+        "lastEditedAt",
+        "completeness"
+      ]
+    },
+    {
+      "name": "PendingChange",
+      "fields": [
+        "qualificationSubmissionId",
+        "phase",
+        "storeName",
+        "industry",
+        "category",
+        "address",
+        "lockVersion"
+      ]
+    },
+    {
+      "name": "StoreProfileBasicPatch",
+      "fields": [
+        "draft",
+        "lockVersion",
+        "confirmReview",
+        "brandName",
+        "logoFileId",
+        "storeName",
+        "industryCode",
+        "categoryCode",
+        "address",
+        "businessHours",
+        "storeTel",
+        "avgSpendFen",
+        "brandIntro"
+      ]
+    },
+    {
+      "name": "StoreProfileMedia",
+      "fields": [
+        "viewerRole",
+        "groups",
+        "lockVersion",
+        "completeness"
+      ]
+    },
+    {
+      "name": "StoreProfileMediaClerk",
+      "fields": [
+        "viewerRole",
+        "groups",
+        "completeness"
+      ]
+    },
+    {
+      "name": "ProfileMediaItem",
+      "fields": [
+        "mediaItemId",
+        "position",
+        "mediaKind",
+        "file",
+        "isCopied"
+      ]
+    },
+    {
+      "name": "StoreProfileMediaPatch",
+      "fields": [
+        "draft",
+        "lockVersion",
+        "groups"
+      ]
+    },
+    {
+      "name": "StoreProfileService",
+      "fields": [
+        "viewerRole",
+        "serviceItems",
+        "promoText",
+        "groupBuyText",
+        "sellingPoints",
+        "sellingNote",
+        "lockVersion",
+        "completeness"
+      ]
+    },
+    {
+      "name": "StoreProfileServiceClerk",
+      "fields": [
+        "viewerRole",
+        "serviceItems",
+        "promoText",
+        "groupBuyText",
+        "sellingPoints",
+        "sellingNote",
+        "completeness"
+      ]
+    },
+    {
+      "name": "ServiceItem",
+      "fields": [
+        "serviceItemId",
+        "position",
+        "name",
+        "priceFen",
+        "originalPriceFen",
+        "image",
+        "intro"
+      ]
+    },
+    {
+      "name": "StoreProfileServicePatch",
+      "fields": [
+        "draft",
+        "lockVersion",
+        "serviceItems",
+        "promoText",
+        "groupBuyText",
+        "sellingPointCodes",
+        "sellingNote"
+      ]
+    },
+    {
+      "name": "ServiceItemInput",
+      "fields": [
+        "serviceItemId",
+        "name",
+        "priceFen",
+        "originalPriceFen",
+        "imageFileId",
+        "intro"
+      ]
+    },
+    {
+      "name": "QualificationView",
+      "fields": [
+        "viewerRole",
+        "storeQualificationStatus",
+        "isChangeInReview",
+        "isFinalRejected",
+        "entity",
+        "openRound",
+        "lastClosedRound",
+        "effectiveDocs",
+        "requiredPermits",
+        "contact",
+        "declaration",
+        "actions"
+      ]
+    },
+    {
+      "name": "QualificationViewClerk",
+      "fields": [
+        "viewerRole",
+        "storeQualificationStatus",
+        "isChangeInReview",
+        "isFinalRejected"
+      ]
+    },
+    {
+      "name": "EntityQualificationBrief",
+      "fields": [
+        "verificationStatus",
+        "name",
+        "entityType",
+        "usccMask",
+        "legalRepNameMask",
+        "verifiedAt"
+      ]
+    },
+    {
+      "name": "QualificationRound",
+      "fields": [
+        "qualificationSubmissionId",
+        "kind",
+        "phase",
+        "roundNo",
+        "isResubmit",
+        "claimedEntityType",
+        "declarationConfirmedAt",
+        "declarationVersion",
+        "changedFields",
+        "proposed",
+        "contactSnapshot",
+        "submittedAt",
+        "dueAt",
+        "closedAt",
+        "outcome",
+        "decidedAt",
+        "isDecidedBySystem",
+        "rejectReasons",
+        "decisionNote",
+        "systemRejectCode",
+        "finalRejectedAt",
+        "docs",
+        "lockVersion"
+      ]
+    },
+    {
+      "name": "QualificationDoc",
+      "fields": [
+        "qualificationDocId",
+        "docType",
+        "permitType",
+        "scope",
+        "origin",
+        "fileId",
+        "ocrStatus",
+        "ocrWarnings",
+        "hasSubmittedFields",
+        "holderName",
+        "certNoMask",
+        "principalNameMask",
+        "principalRole",
+        "subjectType",
+        "validStartDate",
+        "validEndDate",
+        "isLongTerm",
+        "expiryState",
+        "displayFields",
+        "verdict",
+        "isEffective",
+        "uploadedAt"
+      ]
+    },
+    {
+      "name": "ContactView",
+      "fields": [
+        "name",
+        "phoneMask",
+        "phoneVerifyState",
+        "phoneVerifiedAt",
+        "loginPhoneMask",
+        "isSmsVerifyAvailable",
+        "lockVersion"
+      ]
+    },
+    {
+      "name": "QualificationDocRecognized",
+      "fields": [
+        "qualificationSubmissionId",
+        "lockVersion",
+        "doc",
+        "recognized",
+        "submitted",
+        "entityTypeCheck",
+        "replayed"
+      ]
+    },
+    {
+      "name": "QualificationDraftPatch",
+      "fields": [
+        "lockVersion",
+        "claimedEntityType",
+        "declarationConfirmed",
+        "declarationVersion"
+      ]
+    },
+    {
+      "name": "ContactPatch",
+      "fields": [
+        "lockVersion",
+        "name",
+        "phoneSource",
+        "phone",
+        "smsCode"
+      ]
+    },
+    {
+      "name": "ContactSmsCodeBody",
+      "fields": [
+        "phone"
+      ]
+    },
+    {
+      "name": "ContactSmsCodeResult",
+      "fields": [
+        "isLoginPhone",
+        "expiresAt",
+        "resendAfterSec"
+      ]
+    },
+    {
+      "name": "QualificationDocCreateBody",
+      "fields": [
+        "fileId",
+        "docType",
+        "permitType"
+      ]
+    },
+    {
+      "name": "QualificationDocPatch",
+      "fields": [
+        "lockVersion",
+        "fields"
+      ]
+    },
+    {
+      "name": "QualificationDocUpdateResult",
+      "fields": [
+        "qualificationSubmissionId",
+        "lockVersion",
+        "doc"
+      ]
+    },
+    {
+      "name": "QualificationDocRemoveResult",
+      "fields": [
+        "qualificationDocId",
+        "removedAt",
+        "qualificationSubmissionId",
+        "lockVersion"
+      ]
+    },
+    {
+      "name": "QualificationDiscardBody",
+      "fields": [
+        "qualificationSubmissionId"
+      ]
+    },
+    {
+      "name": "QualificationSubmitBody",
+      "fields": [
+        "qualificationSubmissionId",
+        "declarationConfirmed",
+        "declarationVersion"
+      ]
+    },
+    {
+      "name": "QualificationRecord",
+      "fields": [
+        "qualificationSubmissionId",
+        "kind",
+        "roundNo",
+        "isResubmit",
+        "submittedAt",
+        "uploadedDocs",
+        "changedFields",
+        "outcome",
+        "decidedAt",
+        "isDecidedBySystem",
+        "rejectReasons",
+        "decisionNote",
+        "rejectedDocs",
+        "systemRejectCode",
+        "finalRejectedAt"
+      ]
+    },
+    {
+      "name": "StoreAssetCard",
+      "fields": [
+        "storeAssetId",
+        "type",
+        "title",
+        "displayStatus",
+        "processingState",
+        "reviewState",
+        "usability",
+        "adoptedCount",
+        "moderationState",
+        "fileCount",
+        "durationMs",
+        "pageCount",
+        "thumbnail",
+        "quote",
+        "tags",
+        "techSpecLabel",
+        "structuredItemCount",
+        "isSelectableAsReference",
+        "uploader",
+        "createdAt"
+      ]
+    },
+    {
+      "name": "StoreAssetDetail",
+      "fields": [
+        "storeAssetId",
+        "type",
+        "title",
+        "displayStatus",
+        "processingState",
+        "reviewState",
+        "usability",
+        "adoptedCount",
+        "moderationState",
+        "fileCount",
+        "durationMs",
+        "pageCount",
+        "thumbnail",
+        "quote",
+        "tags",
+        "techSpecLabel",
+        "structuredItemCount",
+        "isSelectableAsReference",
+        "uploader",
+        "createdAt",
+        "textBody",
+        "note",
+        "files",
+        "transcript",
+        "fileTranscripts",
+        "keypoints",
+        "structuredItems",
+        "isInsightPartial",
+        "tagsByDimension",
+        "reviewedBy",
+        "reviewedAt",
+        "portraitAuth",
+        "assetDemand",
+        "timeline",
+        "actions"
+      ]
+    },
+    {
+      "name": "AssetTimelineEntry",
+      "fields": [
+        "kind",
+        "at",
+        "actorName",
+        "usedBy"
+      ]
+    },
+    {
+      "name": "StoreAssetSummary",
+      "fields": [
+        "tabs",
+        "organizingCount",
+        "adoptedCount",
+        "recent7dCount",
+        "hotTags"
+      ]
+    },
+    {
+      "name": "StoreAssetCreateBody",
+      "fields": [
+        "type",
+        "fileIds",
+        "textBody",
+        "contentTagCodes",
+        "note",
+        "assetDemandId"
+      ]
+    },
+    {
+      "name": "PortraitAuthBody",
+      "fields": [
+        "fileIds"
+      ]
+    },
+    {
+      "name": "AssetFeedbackBody",
+      "fields": [
+        "content",
+        "dimension"
+      ]
+    },
+    {
+      "name": "AssetDemandItem",
+      "fields": [
+        "assetDemandId",
+        "title",
+        "shootingNote",
+        "dueDate",
+        "status",
+        "isOverdue",
+        "createdByName",
+        "receivedCount",
+        "myUploadCount",
+        "createdAt"
+      ]
+    },
+    {
+      "name": "PermitTypeExt",
+      "fields": [
+        "fields",
+        "holderNameKey",
+        "certNoKey",
+        "certNoPattern",
+        "principalNameKey",
+        "validFromKey",
+        "validToKey"
+      ]
+    },
+    {
+      "name": "PermitFieldDef",
+      "fields": [
+        "key",
+        "label",
+        "sensitive",
+        "format"
+      ]
+    },
+    {
+      "name": "StoreSellingPointExt",
+      "fields": [
+        "categoryCodes"
+      ]
+    }
+  ],
+  "errorCodes": [
+    {
+      "symbol": "REVIEW_REQUIRED",
+      "code": 49001,
+      "http": 409,
+      "meaning": "修改门店名称、地址或行业与品类须重新审核，请确认后再保存",
+      "retryable": false,
+      "details": "{ changedFields: string[] }"
+    },
+    {
+      "symbol": "PROFILE_REQUIRED_MISSING",
+      "code": 49002,
+      "http": 400,
+      "meaning": "已提交过资质的门店不能把必填项改空",
+      "retryable": false,
+      "details": "{ fields: string[] }"
+    },
+    {
+      "symbol": "QUALIFICATION_IN_REVIEW",
+      "code": 49003,
+      "http": 409,
+      "meaning": "资质正在审核中，暂不能修改",
+      "retryable": false,
+      "details": "{ qualificationSubmissionId, kind }"
+    },
+    {
+      "symbol": "QUALIFICATION_CLOSED",
+      "code": 49004,
+      "http": 409,
+      "meaning": "资质审核已终局驳回，不能再提交",
+      "retryable": false,
+      "details": null
+    },
+    {
+      "symbol": "ENTITY_NOT_VERIFIED",
+      "code": 49005,
+      "http": 409,
+      "meaning": "经营主体尚未认证，请先完成首家门店的资质审核",
+      "retryable": false,
+      "details": null
+    },
+    {
+      "symbol": "STORE_PROFILE_INCOMPLETE",
+      "code": 49006,
+      "http": 409,
+      "meaning": "门店建档必填项未填齐",
+      "retryable": false,
+      "details": "{ missing: [{ step, item: MissingItemKey, permitType: string | null }] }",
+      "note": "A123：归 m03；3.17 与 profile.assertProfileComplete（m04 订购、m06 广告）共用"
+    },
+    {
+      "symbol": "INDUSTRY_NOT_OPEN",
+      "code": 49007,
+      "http": 409,
+      "meaning": "所选行业品类或地区暂未开放",
+      "retryable": false,
+      "details": "{ field: 'industry' | 'region', code }"
+    },
+    {
+      "symbol": "QUALIFICATION_DOCS_INCOMPLETE",
+      "code": 49008,
+      "http": 409,
+      "meaning": "证照不齐、未核对或被驳回的证照未补传",
+      "retryable": false,
+      "details": "{ missing: [{ docType, permitType }], withoutSubmittedFields: string[], rejectedNotReplaced: [{ docType, permitType }] }"
+    },
+    {
+      "symbol": "ENTITY_TYPE_MISMATCH",
+      "code": 49009,
+      "http": 409,
+      "meaning": "所选主体类型与营业执照不一致",
+      "retryable": false,
+      "details": "{ claimedEntityType, recognizedSubjectType }"
+    },
+    {
+      "symbol": "DECLARATION_REQUIRED",
+      "code": 49010,
+      "http": 400,
+      "meaning": "请阅读并勾选信息确认",
+      "retryable": false,
+      "details": "{ currentVersion }"
+    },
+    {
+      "symbol": "CONTACT_PHONE_UNVERIFIED",
+      "code": 49011,
+      "http": 409,
+      "meaning": "联系人手机号未验证",
+      "retryable": false,
+      "details": null
+    },
+    {
+      "symbol": "USCC_TAKEN",
+      "code": 49012,
+      "http": 409,
+      "meaning": "该统一社会信用代码已被其他主体认证",
+      "retryable": false,
+      "details": null
+    },
+    {
+      "symbol": "ENTITY_LICENSE_CHANGE_PENDING",
+      "code": 49013,
+      "http": 409,
+      "meaning": "本主体已有一轮更换营业执照的审核在进行（M108）",
+      "retryable": false,
+      "details": "{ storeId }"
+    },
+    {
+      "symbol": "QUALIFICATION_DOC_NOT_ALLOWED",
+      "code": 49014,
+      "http": 409,
+      "meaning": "本轮不需要上传这种证照",
+      "retryable": false,
+      "details": "{ docType, roundKind }"
+    },
+    {
+      "symbol": "QUALIFICATION_NO_CHANGE",
+      "code": 49015,
+      "http": 409,
+      "meaning": "没有需要提交审核的修改",
+      "retryable": false,
+      "details": null
+    },
+    {
+      "symbol": "FILE_NOT_USABLE",
+      "code": 46001,
+      "http": 400,
+      "meaning": "文件不可用（未上传完成、类型不符、归属不符或已被拦截）",
+      "retryable": false,
+      "details": "{ fileIds: string[], reason: FileNotUsableReason }（x-open-enum：not_stored | category_mismatch | scope_mismatch | blocked | duplicate | ext_mismatch | context_mismatch）"
+    },
+    {
+      "symbol": "ASSET_UPLOAD_GATED",
+      "code": 46002,
+      "http": 409,
+      "meaning": "门店资质审核通过前，店员暂不能上传素材",
+      "retryable": false,
+      "details": null
+    },
+    {
+      "symbol": "ASSET_PORTRAIT_AUTH_FORBIDDEN",
+      "code": 46003,
+      "http": 403,
+      "meaning": "只有老板或素材上传人可以补交肖像授权",
+      "retryable": false,
+      "details": null
+    },
+    {
+      "symbol": "ASSET_FEEDBACK_DAILY_LIMIT",
+      "code": 46004,
+      "http": 409,
+      "meaning": "今天对这条素材的反馈次数已达上限，请明天再试",
+      "retryable": false,
+      "details": "{ limit: integer }"
+    }
+  ],
+  "externalErrors": [
+    {
+      "symbol": "VALIDATION_FAILED",
+      "source": "conventions C27"
+    },
+    {
+      "symbol": "ROLE_FORBIDDEN",
+      "source": "conventions C27"
+    },
+    {
+      "symbol": "NOT_FOUND",
+      "source": "conventions C27"
+    },
+    {
+      "symbol": "VERSION_CONFLICT",
+      "source": "conventions C27"
+    },
+    {
+      "symbol": "STATE_NOT_ALLOWED",
+      "source": "conventions C27"
+    },
+    {
+      "symbol": "RATE_LIMITED",
+      "source": "conventions C27"
+    },
+    {
+      "symbol": "PROVIDER_UNAVAILABLE",
+      "source": "conventions C27"
+    },
+    {
+      "symbol": "CONTENT_REJECTED",
+      "source": "m01-account（41006，A77）；details { fields: string[] }（A131）"
+    },
+    {
+      "symbol": "STORE_ARCHIVED",
+      "source": "m02-tenant（41107，A77；C17 中间件）；本文各接口不逐条列"
+    },
+    {
+      "symbol": "IDEMPOTENCY_IN_PROGRESS",
+      "source": "conventions C27"
+    },
+    {
+      "symbol": "SMS_UNAVAILABLE",
+      "source": "m01-account（41007，A77）；含发送时通道故障（3.11，第三轮）"
+    },
+    {
+      "symbol": "SMS_CODE_INVALID",
+      "source": "m01-account（41008，A77）"
+    },
+    {
+      "symbol": "DICT_ITEM_DISABLED",
+      "source": "m08-support-misc（47001，A77）"
+    }
+  ],
+  "permissions": [],
+  "capabilities": [
+    "store.profile.read",
+    "store.profile.edit",
+    "store.qualification.edit",
+    "asset.read",
+    "asset.demand.read",
+    "asset.upload",
+    "asset.feedback"
+  ],
+  "proposedCapabilities": [
+    {
+      "key": "asset.feedback",
+      "owner": true,
+      "clerk": true,
+      "archivedStoreOwner": false,
+      "note": "A87 已收入增补表；d4 能力点表待回写"
+    }
+  ],
+  "proposedEvents": [],
+  "proposedRateLimitTiers": [],
+  "proposedThreePhase": [],
+  "externalSchemas": [
+    {
+      "name": "SignedUrl",
+      "sourceDoc": "a01-system",
+      "source": "C87：{ url, expiresAt }，url 不可空、整个对象可空（C60）；本文第三轮删去同名定义"
+    },
+    {
+      "name": "CursorPage",
+      "sourceDoc": "conventions",
+      "source": "C42、C87、A150：{ items, nextCursor, hasMore }；3.18、3.19、3.25 的响应"
+    },
+    {
+      "name": "DictRef",
+      "sourceDoc": "conventions",
+      "source": "C85、C87、A151：{ code, name }；StoreProfileService.sellingPoints，以及第四轮改的 industry、category、AddressView 区划、AssetTag.tag、rejectReasons、视图里的 permitType"
+    }
+  ]
+}

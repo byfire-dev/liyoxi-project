@@ -1,0 +1,1278 @@
+{
+ "doc": "m07-billing",
+ "endpoints": [
+  {
+   "operationId": "m.wallet.get",
+   "method": "GET",
+   "path": "/m/wallet",
+   "section": "3.1",
+   "requestSchemas": [],
+   "responseSchema": "Wallet",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "wallet.read",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "lockVersion": false
+  },
+  {
+   "operationId": "m.pointLedgerEntry.list",
+   "method": "GET",
+   "path": "/m/point-ledger-entries",
+   "section": "3.2",
+   "requestSchemas": [
+    "LedgerListQuery"
+   ],
+   "responseSchema": "LedgerPage",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "ledger.read",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "lockVersion": false
+  },
+  {
+   "operationId": "m.purchasePolicy.get",
+   "method": "GET",
+   "path": "/m/purchase-policy",
+   "section": "3.3",
+   "requestSchemas": [],
+   "responseSchema": "PurchasePolicy",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "plan.purchase",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "lockVersion": false
+  },
+  {
+   "operationId": "m.plan.list",
+   "method": "GET",
+   "path": "/m/plans",
+   "section": "3.4",
+   "requestSchemas": [],
+   "responseSchema": "PlanListResult",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "plan.purchase",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "lockVersion": false
+  },
+  {
+   "operationId": "m.plan.quote",
+   "method": "POST",
+   "path": "/m/plans/quote",
+   "section": "3.5",
+   "requestSchemas": [
+    "PlanQuoteBody"
+   ],
+   "responseSchema": "PlanQuote",
+   "errors": [
+    "NOT_FOUND",
+    "PLAN_NOT_AVAILABLE",
+    "CYCLE_NOT_AVAILABLE",
+    "UPGRADE_NOT_ALLOWED_TODAY",
+    "SCHEDULED_TERM_LIMIT",
+    "PLAN_REFUND_IN_PROGRESS",
+    "PURCHASE_NOT_OFFERED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "plan.purchase",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "lockVersion": false,
+   "idempotentNote": "试算，不写库、不缓存、不拿账户锁、不 advance（A18、A20、C13）"
+  },
+  {
+   "operationId": "m.pointPack.list",
+   "method": "GET",
+   "path": "/m/point-packs",
+   "section": "3.6",
+   "requestSchemas": [],
+   "responseSchema": "PointPackListResult",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "points.topup",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "lockVersion": false
+  },
+  {
+   "operationId": "m.paymentOrder.create",
+   "method": "POST",
+   "path": "/m/payment-orders",
+   "section": "3.7",
+   "requestSchemas": [
+    "PaymentOrderCreateBody"
+   ],
+   "responseSchema": "PaymentOrderCreateResult",
+   "errors": [
+    "VALIDATION_FAILED",
+    "NOT_FOUND",
+    "PLAN_NOT_AVAILABLE",
+    "CYCLE_NOT_AVAILABLE",
+    "UPGRADE_NOT_ALLOWED_TODAY",
+    "SCHEDULED_TERM_LIMIT",
+    "PLAN_REFUND_IN_PROGRESS",
+    "TOPUP_REQUIRES_ACTIVE_PLAN",
+    "PURCHASE_QUALIFICATION_REQUIRED",
+    "QUOTE_CHANGED",
+    "PURCHASE_NOT_OFFERED",
+    "CHANNEL_NOT_ALLOWED",
+    "OPEN_ORDER_EXISTS",
+    "OPEN_ORDER_EXPIRING",
+    "AGREEMENT_VERSION_STALE",
+    "ACCOUNT_BUSY"
+   ],
+   "events": [
+    "billing_order.created"
+   ],
+   "permission": null,
+   "capability": "plan.purchase",
+   "transitions": [
+    "billing_order.status: （新建）→ pending_payment（对公同时 transfer_state = awaiting_proof）"
+   ],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "required",
+   "lockVersion": false,
+   "idempotentNote": "结果脱敏（C50、A80）：bankAccount.accountNo 不进幂等记录，重放为 null 且 replayed = true",
+   "xRedactOnReplay": [
+    "bankAccount.accountNo"
+   ]
+  },
+  {
+   "operationId": "m.paymentOrder.get",
+   "method": "GET",
+   "path": "/m/payment-orders/{paymentOrderId}",
+   "section": "3.8",
+   "requestSchemas": [],
+   "responseSchema": "PaymentOrderDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "plan.purchase",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "lockVersion": false
+  },
+  {
+   "operationId": "m.paymentOrder.wechatPrepay",
+   "method": "POST",
+   "path": "/m/payment-orders/{paymentOrderId}/wechat-prepay",
+   "section": "3.9",
+   "requestSchemas": [],
+   "responseSchema": "PrepayResult",
+   "errors": [
+    "NOT_FOUND",
+    "STATE_NOT_ALLOWED",
+    "PAYMENT_ORDER_EXPIRED",
+    "PAYMENT_ORDER_CLOSED",
+    "IDEMPOTENCY_IN_PROGRESS",
+    "PROVIDER_UNAVAILABLE",
+    "UPSTREAM_TIMEOUT",
+    "ACCOUNT_BUSY"
+   ],
+   "events": [
+    "payment_txn.succeeded",
+    "billing_order.paid",
+    "billing.order_fulfilled",
+    "billing.subscription.activated",
+    "billing.subscription.renewal_scheduled",
+    "billing.subscription.upgraded",
+    "billing.points.granted",
+    "billing.points.purchased",
+    "billing_order.fulfillment_blocked",
+    "billing_order.cancelled",
+    "payment_exception.opened",
+    "payment_exception.auto_healed"
+   ],
+   "permission": null,
+   "capability": "plan.purchase",
+   "transitions": [
+    "payment_txn.status: （新建）→ created → prepaid（渠道事实，不写状态历史）",
+    "payment_txn.status: created/prepaid → closed（老板换了微信号，关闭旧尝试）",
+    "payment_txn.status: created/prepaid/closed → succeeded（关旧尝试时查得已支付，recordChannelSuccess）",
+    "billing_order.status: pending_payment → paid（关旧尝试时查得已支付，applyPayment + fulfill，同 3.10）",
+    "billing_order.status: pending_payment → cancelled（同上，实收或付款人不符）",
+    "subscription_term.status: （新建）→ active 或 scheduled（fulfill，同 3.10）",
+    "billing_account.sub_status: none/expired → active（fulfill，同 3.10）",
+    "grant_schedule.status: pending → granted（fulfill，第 0 个月）",
+    "billing_order.fulfillment_status: none → done 或 blocked（子状态，只写审计）",
+    "payment_exception.status: （新建）→ open 或 auto_healed（不符、受阻开单；查单补记留痕）"
+   ],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "required",
+   "idempotentNote": "三段式用例（C51，多事务；x-three-phase）：幂等记录随事务 B 写；结果脱敏（C50、A80）：payParams 重放为 null，响应带 replayed",
+   "lockVersion": false,
+   "xRedactOnReplay": [
+    "payParams"
+   ],
+   "xThreePhase": "multi-tx"
+  },
+  {
+   "operationId": "m.paymentOrder.sync",
+   "method": "POST",
+   "path": "/m/payment-orders/{paymentOrderId}/sync",
+   "section": "3.10",
+   "requestSchemas": [],
+   "responseSchema": "PaymentOrderDetail",
+   "errors": [
+    "NOT_FOUND",
+    "RATE_LIMITED",
+    "ACCOUNT_BUSY"
+   ],
+   "events": [
+    "payment_txn.succeeded",
+    "billing_order.paid",
+    "billing.order_fulfilled",
+    "billing.subscription.activated",
+    "billing.subscription.renewal_scheduled",
+    "billing.subscription.upgraded",
+    "billing.points.granted",
+    "billing.points.purchased",
+    "billing_order.fulfillment_blocked",
+    "billing_order.cancelled",
+    "payment_exception.opened",
+    "payment_exception.auto_healed"
+   ],
+   "permission": null,
+   "capability": "plan.purchase",
+   "transitions": [
+    "payment_txn.status: created/prepaid → closed（查得渠道 CLOSED，只记渠道事实，不调关单）",
+    "payment_txn.status: created/prepaid/closed → succeeded（渠道事实，不写状态历史）",
+    "billing_order.status: pending_payment → paid（applyPayment）",
+    "billing_order.status: pending_payment → cancelled（实收或付款人不符，cancel_reason = amount_mismatch / payer_mismatch）",
+    "subscription_term.status: （新建）→ active 或 scheduled（fulfill）",
+    "billing_account.sub_status: none/expired → active（fulfill，付清套餐且无生效订阅）",
+    "grant_schedule.status: pending → granted（fulfill，第 0 个月）",
+    "billing_order.fulfillment_status: none → done 或 blocked（子状态，只写审计）",
+    "payment_exception.status: （新建）→ auto_healed（查单补记并入账成功的留痕，08:761）",
+    "payment_exception.status: （新建）→ open（实收或付款人不符、履约受阻）"
+   ],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "idempotentNote": "A50：只查询渠道状态，入账由账本操作键去重；三段式用例",
+   "lockVersion": false,
+   "xThreePhase": "call-first"
+  },
+  {
+   "operationId": "m.paymentOrder.cancel",
+   "method": "POST",
+   "path": "/m/payment-orders/{paymentOrderId}/cancel",
+   "section": "3.11",
+   "requestSchemas": [],
+   "responseSchema": "CancelResult",
+   "errors": [
+    "NOT_FOUND",
+    "STATE_NOT_ALLOWED",
+    "TRANSFER_PROOF_PENDING",
+    "IDEMPOTENCY_IN_PROGRESS",
+    "ACCOUNT_BUSY"
+   ],
+   "events": [
+    "billing_order.cancelled",
+    "payment_txn.succeeded",
+    "billing_order.paid",
+    "billing.order_fulfilled",
+    "billing.subscription.activated",
+    "billing.subscription.renewal_scheduled",
+    "billing.subscription.upgraded",
+    "billing.points.granted",
+    "billing.points.purchased",
+    "billing_order.fulfillment_blocked",
+    "payment_exception.opened",
+    "payment_exception.auto_healed"
+   ],
+   "permission": null,
+   "capability": "plan.purchase",
+   "transitions": [
+    "billing_order.status: pending_payment → cancelled（老板取消，cancel_reason = user；微信需名下尝试都已关闭，对公需无待确认凭证）",
+    "payment_txn.status: created/prepaid → closed（渠道事实）",
+    "payment_txn.status: created/prepaid/closed → succeeded（查单为已支付，recordChannelSuccess）",
+    "billing_order.status: pending_payment → paid（查单为已支付时，applyPayment + fulfill，同 3.10）",
+    "subscription_term.status: （新建）→ active 或 scheduled（fulfill，同 3.10）",
+    "billing_account.sub_status: none/expired → active（fulfill，同 3.10）",
+    "grant_schedule.status: pending → granted（fulfill，第 0 个月）",
+    "billing_order.fulfillment_status: none → done 或 blocked（子状态，只写审计）",
+    "payment_exception.status: （新建）→ open 或 auto_healed（同 3.10）"
+   ],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "required",
+   "idempotentNote": "三段式用例（C51，先调外部；x-three-phase）：微信先查单再关单，幂等记录随最后的事务写",
+   "lockVersion": false,
+   "xThreePhase": "call-first"
+  },
+  {
+   "operationId": "m.paymentOrder.transferProof.create",
+   "method": "POST",
+   "path": "/m/payment-orders/{paymentOrderId}/transfer-proofs",
+   "section": "3.12",
+   "requestSchemas": [
+    "TransferProofCreateBody"
+   ],
+   "responseSchema": "PaymentOrderDetail",
+   "errors": [
+    "NOT_FOUND",
+    "VALIDATION_FAILED",
+    "FILE_NOT_USABLE",
+    "STATE_NOT_ALLOWED",
+    "PAYMENT_ORDER_EXPIRED",
+    "TRANSFER_PROOF_LOCKED"
+   ],
+   "events": [
+    "transfer.proof_submitted"
+   ],
+   "permission": null,
+   "capability": "plan.purchase",
+   "transitions": [
+    "billing_order.status: pending_payment（awaiting_proof/proof_rejected）→ pending_confirmation（proof_submitted）",
+    "transfer_proof.review_status: （新建）→ pending",
+    "transfer_proof.review_status: pending → superseded（待财务处理期间重新上传，付款单状态不变）",
+    "ocr_result.status: （新建）→ pending（配置了回单识别时，随本事务，06:1500）"
+   ],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "required",
+   "lockVersion": false
+  },
+  {
+   "operationId": "m.paymentOrder.list",
+   "method": "GET",
+   "path": "/m/payment-orders",
+   "section": "3.13",
+   "requestSchemas": [
+    "PaymentOrderListQuery"
+   ],
+   "responseSchema": "PaymentOrderPage",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "invoice.*",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "lockVersion": false
+  },
+  {
+   "operationId": "m.paymentOrder.summary",
+   "method": "GET",
+   "path": "/m/payment-orders/summary",
+   "section": "3.14",
+   "requestSchemas": [
+    "PaymentOrderListQuery"
+   ],
+   "responseSchema": "PaymentOrderSummary",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "invoice.*",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "lockVersion": false
+  },
+  {
+   "operationId": "m.invoiceRequest.list",
+   "method": "GET",
+   "path": "/m/invoice-requests",
+   "section": "3.15",
+   "requestSchemas": [
+    "InvoiceRequestListQuery"
+   ],
+   "responseSchema": "InvoiceRequestPage",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "invoice.*",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "lockVersion": false
+  },
+  {
+   "operationId": "m.invoiceRequest.summary",
+   "method": "GET",
+   "path": "/m/invoice-requests/summary",
+   "section": "3.16",
+   "requestSchemas": [
+    "InvoiceRequestListQuery"
+   ],
+   "responseSchema": "InvoiceRequestSummary",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "invoice.*",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "lockVersion": false
+  },
+  {
+   "operationId": "m.invoiceRequest.create",
+   "method": "POST",
+   "path": "/m/invoice-requests",
+   "section": "3.17",
+   "requestSchemas": [
+    "InvoiceRequestCreateBody",
+    "InvoiceMailTo"
+   ],
+   "responseSchema": "InvoiceRequestCard",
+   "errors": [
+    "VALIDATION_FAILED",
+    "NOT_FOUND",
+    "INVOICE_TITLE_UNVERIFIED",
+    "INVOICE_NOT_ELIGIBLE",
+    "INVOICE_REQUEST_EXISTS",
+    "INVOICE_APPLY_EXPIRED"
+   ],
+   "events": [
+    "invoice.requested"
+   ],
+   "permission": null,
+   "capability": "invoice.*",
+   "transitions": [
+    "invoice_request.status: （新建）→ pending（老板申请）"
+   ],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "required",
+   "lockVersion": false
+  },
+  {
+   "operationId": "m.invoiceRequest.downloadUrls",
+   "method": "POST",
+   "path": "/m/invoice-requests/{invoiceRequestId}/download-urls",
+   "section": "3.18",
+   "requestSchemas": [
+    "InvoiceFileDownloadBody"
+   ],
+   "responseSchema": "SignedFileUrl",
+   "errors": [
+    "NOT_FOUND",
+    "INVOICE_FILE_UNAVAILABLE"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "invoice.*",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "idempotentNote": "签发短时地址，结果不进幂等记录（A18、A19）",
+   "lockVersion": false
+  }
+ ],
+ "schemas": [
+  {
+   "name": "PurchasePolicy",
+   "fields": [
+    "mode",
+    "isPriceShown",
+    "isPurchasePromptAllowed",
+    "channels",
+    "copy"
+   ]
+  },
+  {
+   "name": "PurchaseChannel",
+   "fields": [
+    "code",
+    "isEnabled",
+    "isRecommended",
+    "hintKey"
+   ]
+  },
+  {
+   "name": "PurchaseCopy",
+   "fields": [
+    "planNounKey",
+    "pointsNounKey",
+    "agreementKeys",
+    "payButtonKey"
+   ]
+  },
+  {
+   "name": "PlanCard",
+   "fields": [
+    "planId",
+    "code",
+    "name",
+    "rank",
+    "isCurrent",
+    "planRevisionId",
+    "monthlyFeeFen",
+    "monthlyPoints",
+    "discountBp",
+    "productionModel",
+    "maxStores",
+    "maxMembers",
+    "schedulePriority",
+    "hasMonthlyReport",
+    "cyclePrices"
+   ]
+  },
+  {
+   "name": "PlanListResult",
+   "fields": [
+    "items"
+   ]
+  },
+  {
+   "name": "PlanQuoteBody",
+   "fields": [
+    "planId",
+    "months",
+    "intent"
+   ]
+  },
+  {
+   "name": "PlanQuote",
+   "fields": [
+    "action",
+    "orderType",
+    "planId",
+    "planRevisionId",
+    "planName",
+    "fromPlanName",
+    "months",
+    "payFen",
+    "formula",
+    "effectiveMode",
+    "newTerm",
+    "firstGrantDate",
+    "benefits",
+    "upgrade",
+    "downgradeImpact",
+    "promo",
+    "validUntil",
+    "quotedAt",
+    "policy"
+   ]
+  },
+  {
+   "name": "PointPackCard",
+   "fields": [
+    "pointPackId",
+    "points",
+    "priceFen"
+   ]
+  },
+  {
+   "name": "PointPackListResult",
+   "fields": [
+    "items"
+   ]
+  },
+  {
+   "name": "PaymentOrderCreateBody",
+   "fields": [
+    "planId",
+    "months",
+    "intent",
+    "pointPackId",
+    "channel",
+    "expectAmountFen",
+    "agreementVersionIds",
+    "acknowledgedDowngradeImpact"
+   ]
+  },
+  {
+   "name": "DowngradeImpactAck",
+   "fields": [
+    "storesToRemove",
+    "membersToRemove"
+   ]
+  },
+  {
+   "name": "PaymentOrderCard",
+   "fields": [
+    "paymentOrderId",
+    "orderNo",
+    "type",
+    "status",
+    "channel",
+    "transferState",
+    "amountFen",
+    "title",
+    "createdAt",
+    "paidAt",
+    "invoiceItemName",
+    "invoiceState",
+    "activeInvoiceRequest",
+    "actions"
+   ]
+  },
+  {
+   "name": "ActiveInvoiceRequestRef",
+   "fields": [
+    "invoiceRequestId",
+    "requestNo",
+    "status"
+   ]
+  },
+  {
+   "name": "PaymentOrderDetail",
+   "fields": [
+    "paymentOrderId",
+    "orderNo",
+    "type",
+    "status",
+    "channel",
+    "transferState",
+    "amountFen",
+    "title",
+    "createdAt",
+    "paidAt",
+    "invoiceItemName",
+    "invoiceState",
+    "activeInvoiceRequest",
+    "actions",
+    "paidAmountFen",
+    "refundedAmountFen",
+    "fulfillmentStatus",
+    "formula",
+    "content",
+    "expiresAt",
+    "isConfirmingResult",
+    "isProcessingReceipt",
+    "cancelledAt",
+    "cancelReason",
+    "refundedAt",
+    "fulfillment",
+    "bankAccount",
+    "latestTransferProof",
+    "channels"
+   ]
+  },
+  {
+   "name": "PaymentOrderCreateResult",
+   "fields": [
+    "paymentOrderId",
+    "orderNo",
+    "type",
+    "status",
+    "channel",
+    "transferState",
+    "amountFen",
+    "title",
+    "createdAt",
+    "paidAt",
+    "invoiceItemName",
+    "invoiceState",
+    "activeInvoiceRequest",
+    "actions",
+    "paidAmountFen",
+    "refundedAmountFen",
+    "fulfillmentStatus",
+    "formula",
+    "content",
+    "expiresAt",
+    "isConfirmingResult",
+    "isProcessingReceipt",
+    "cancelledAt",
+    "cancelReason",
+    "refundedAt",
+    "fulfillment",
+    "bankAccount",
+    "latestTransferProof",
+    "channels",
+    "replayed"
+   ]
+  },
+  {
+   "name": "PaymentOrderContentView",
+   "fields": [
+    "kind",
+    "planId",
+    "planName",
+    "months",
+    "pointPackId",
+    "points",
+    "upgrade"
+   ]
+  },
+  {
+   "name": "BankAccountView",
+   "fields": [
+    "accountName",
+    "bankName",
+    "accountNo",
+    "accountNoMask",
+    "transferRemark"
+   ]
+  },
+  {
+   "name": "TransferProofView",
+   "fields": [
+    "transferProofId",
+    "uploadNo",
+    "reviewStatus",
+    "uploadedAt",
+    "dueAt",
+    "reviewedAt",
+    "rejectReason",
+    "rejectNote"
+   ]
+  },
+  {
+   "name": "WechatPayParams",
+   "fields": [
+    "timeStamp",
+    "nonceStr",
+    "package",
+    "signType",
+    "paySign"
+   ]
+  },
+  {
+   "name": "PrepayResult",
+   "fields": [
+    "payParams",
+    "replayed",
+    "paymentOrder"
+   ]
+  },
+  {
+   "name": "CancelResult",
+   "fields": [
+    "outcome",
+    "paymentOrder"
+   ]
+  },
+  {
+   "name": "TransferProofCreateBody",
+   "fields": [
+    "fileId"
+   ]
+  },
+  {
+   "name": "PaymentOrderListQuery",
+   "fields": [
+    "invoiceState",
+    "status",
+    "type",
+    "no",
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "PaymentOrderPage",
+   "fields": [
+    "items",
+    "nextCursor",
+    "hasMore"
+   ]
+  },
+  {
+   "name": "PaymentOrderSummary",
+   "fields": [
+    "total"
+   ]
+  },
+  {
+   "name": "Wallet",
+   "fields": [
+    "subscription",
+    "usage",
+    "points",
+    "topUp",
+    "rules"
+   ]
+  },
+  {
+   "name": "WalletSubscription",
+   "fields": [
+    "status",
+    "isRefundPending",
+    "plan",
+    "months",
+    "startDate",
+    "endDate",
+    "endsAt",
+    "remainingDays",
+    "benefits",
+    "scheduledTerms"
+   ]
+  },
+  {
+   "name": "WalletUsage",
+   "fields": [
+    "storesUsed",
+    "storeLimit",
+    "seatsUsed",
+    "memberLimit",
+    "limitReason"
+   ]
+  },
+  {
+   "name": "WalletPoints",
+   "fields": [
+    "spendablePoints",
+    "planAvailablePoints",
+    "addonAvailablePoints",
+    "heldPoints",
+    "isAddonSuspended",
+    "planGrantedThisTermPoints",
+    "planPointsExpireAt",
+    "lastExpired"
+   ]
+  },
+  {
+   "name": "WalletLastExpired",
+   "fields": [
+    "expiredPoints",
+    "expiredAt"
+   ]
+  },
+  {
+   "name": "WalletTopUp",
+   "fields": [
+    "canTopUp",
+    "blockReason"
+   ]
+  },
+  {
+   "name": "WalletRules",
+   "fields": [
+    "adUnitPoints",
+    "discountedAdUnitPoints",
+    "adFreeRevisions",
+    "topModelSurchargeBp"
+   ]
+  },
+  {
+   "name": "LedgerListQuery",
+   "fields": [
+    "tab",
+    "month",
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "LedgerEntryRow",
+   "fields": [
+    "rowKey",
+    "category",
+    "opType",
+    "lotKind",
+    "deltaPoints",
+    "occurredAt",
+    "bizDate",
+    "title",
+    "remark",
+    "formula",
+    "storeName",
+    "refNo",
+    "itemCount",
+    "holdStatus"
+   ]
+  },
+  {
+   "name": "LedgerPage",
+   "fields": [
+    "items",
+    "nextCursor",
+    "hasMore",
+    "month",
+    "prevMonth",
+    "firstEntryAt"
+   ]
+  },
+  {
+   "name": "InvoiceRequestListQuery",
+   "fields": [
+    "status",
+    "paymentOrderId",
+    "no",
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "InvoiceRequestCard",
+   "fields": [
+    "invoiceRequestId",
+    "requestNo",
+    "paymentOrderId",
+    "paymentOrderNo",
+    "paymentOrderTitle",
+    "invoiceType",
+    "medium",
+    "itemName",
+    "status",
+    "amountFen",
+    "title",
+    "taxNoMask",
+    "recvEmailMask",
+    "mailToMask",
+    "appliedAt",
+    "isHeldByRefund",
+    "reject",
+    "progressNote",
+    "docs",
+    "actions"
+   ]
+  },
+  {
+   "name": "InvoiceDocView",
+   "fields": [
+    "docKind",
+    "invoiceNo",
+    "invoiceCode",
+    "amountFen",
+    "issuedAt",
+    "hasFile",
+    "fileFormat",
+    "expressCompany",
+    "trackingNo",
+    "shippedAt",
+    "emailState"
+   ]
+  },
+  {
+   "name": "InvoiceRequestPage",
+   "fields": [
+    "items",
+    "nextCursor",
+    "hasMore"
+   ]
+  },
+  {
+   "name": "InvoiceContext",
+   "fields": [
+    "invoiceTitle",
+    "applyDefaults"
+   ]
+  },
+  {
+   "name": "InvoiceRequestSummary",
+   "fields": [
+    "total",
+    "byStatus",
+    "context"
+   ]
+  },
+  {
+   "name": "InvoiceRequestCreateBody",
+   "fields": [
+    "paymentOrderId",
+    "invoiceType",
+    "medium",
+    "addrTel",
+    "bankAccount",
+    "recvEmail",
+    "mailTo"
+   ]
+  },
+  {
+   "name": "InvoiceMailTo",
+   "fields": [
+    "recipientName",
+    "phoneSource",
+    "phone",
+    "address"
+   ]
+  },
+  {
+   "name": "InvoiceFileDownloadBody",
+   "fields": [
+    "docKind"
+   ]
+  },
+  {
+   "name": "SignedFileUrl",
+   "fields": [
+    "url",
+    "expiresAt",
+    "fileFormat",
+    "fileName"
+   ]
+  },
+  {
+   "name": "QuoteChangedDetails",
+   "fields": [
+    "kind",
+    "amountFen",
+    "quote",
+    "pointPack",
+    "totalChargePoints",
+    "items"
+   ],
+   "note": "按 kind 判别：plan {amountFen, quote: PlanQuote}；topup {amountFen, pointPack}；points {totalChargePoints, items[{dramaId|null, chargePoints}]}"
+  },
+  {
+   "name": "PointsInsufficientDetails",
+   "fields": [
+    "requiredPoints",
+    "spendablePoints",
+    "shortfallPoints"
+   ]
+  }
+ ],
+ "errorCodes": [
+  {
+   "symbol": "PLAN_NOT_AVAILABLE",
+   "code": 43001,
+   "http": 409,
+   "retryable": false,
+   "meaning": "套餐版本未上架、没有生效的价目，或积分包已下架",
+   "details": null
+  },
+  {
+   "symbol": "CYCLE_NOT_AVAILABLE",
+   "code": 43002,
+   "http": 400,
+   "retryable": false,
+   "meaning": "购买周期未启用",
+   "details": "{ enabledCycles }"
+  },
+  {
+   "symbol": "UPGRADE_NOT_ALLOWED_TODAY",
+   "code": 43003,
+   "http": 409,
+   "retryable": false,
+   "meaning": "今天不能立即升级；details.suggest = renew_next_term",
+   "details": "{ suggest: 'renew_next_term' }"
+  },
+  {
+   "symbol": "SCHEDULED_TERM_LIMIT",
+   "code": 43004,
+   "http": 409,
+   "retryable": false,
+   "meaning": "预约的未生效周期已达上限",
+   "details": "{ maxScheduledTerms }"
+  },
+  {
+   "symbol": "TOPUP_REQUIRES_ACTIVE_PLAN",
+   "code": 43005,
+   "http": 409,
+   "retryable": false,
+   "meaning": "套餐未生效，不能加购积分",
+   "details": null
+  },
+  {
+   "symbol": "PLAN_REFUND_IN_PROGRESS",
+   "code": 43006,
+   "http": 409,
+   "retryable": false,
+   "meaning": "套餐退款处理中（主体级），暂不能购买、订购或提交广告",
+   "details": null
+  },
+  {
+   "symbol": "QUOTE_CHANGED",
+   "code": 43007,
+   "http": 409,
+   "retryable": false,
+   "meaning": "价格已变化，请确认新报价；details 按 kind 判别（plan / topup / points）",
+   "details": "QuoteChangedDetails：{ kind: 'plan', amountFen, quote: PlanQuote } | { kind: 'topup', amountFen, pointPack: { pointPackId, points, priceFen } } | { kind: 'points', totalChargePoints, items: [{ dramaId: uuid | null, chargePoints }] }"
+  },
+  {
+   "symbol": "ACCOUNT_BUSY",
+   "code": 43008,
+   "http": 503,
+   "retryable": true,
+   "meaning": "积分账户正忙（等账户锁超过 3 秒），可用同一请求重试",
+   "details": null
+  },
+  {
+   "symbol": "POINTS_INSUFFICIENT",
+   "code": 43009,
+   "http": 409,
+   "retryable": false,
+   "meaning": "可用积分不足（账本在账户锁内判定；共用码，A77）",
+   "details": "{ requiredPoints, spendablePoints, shortfallPoints }"
+  },
+  {
+   "symbol": "SUBSCRIPTION_INACTIVE",
+   "code": 43010,
+   "http": 409,
+   "retryable": false,
+   "meaning": "套餐未生效，不能订购、提交广告或超次修改（共用码，A77）",
+   "details": null
+  },
+  {
+   "symbol": "PURCHASE_NOT_OFFERED",
+   "code": 44001,
+   "http": 403,
+   "retryable": false,
+   "meaning": "当前不提供在线购买（购买策略 mode ≠ in_app）",
+   "details": "{ mode }"
+  },
+  {
+   "symbol": "CHANNEL_NOT_ALLOWED",
+   "code": 44002,
+   "http": 403,
+   "retryable": false,
+   "meaning": "所选支付方式此时不可用；details.channels 带可用渠道",
+   "details": "{ channels: PurchaseChannel[] }"
+  },
+  {
+   "symbol": "PURCHASE_QUALIFICATION_REQUIRED",
+   "code": 44003,
+   "http": 409,
+   "retryable": false,
+   "meaning": "主体资质未提交或已驳回，不能购买",
+   "details": "{ verificationStatus }"
+  },
+  {
+   "symbol": "OPEN_ORDER_EXISTS",
+   "code": 44004,
+   "http": 409,
+   "retryable": false,
+   "meaning": "已有未完成的套餐付款单；details 带单号",
+   "details": "{ paymentOrderId, orderNo }"
+  },
+  {
+   "symbol": "OPEN_ORDER_EXPIRING",
+   "code": 44005,
+   "http": 409,
+   "retryable": false,
+   "meaning": "同内容的付款单即将超时，请取消后重新下单",
+   "details": "{ paymentOrderId, orderNo, expiresAt }"
+  },
+  {
+   "symbol": "PAYMENT_ORDER_EXPIRED",
+   "code": 44006,
+   "http": 409,
+   "retryable": false,
+   "meaning": "付款单已超时",
+   "details": "{ expiresAt }"
+  },
+  {
+   "symbol": "PAYMENT_ORDER_CLOSED",
+   "code": 44007,
+   "http": 409,
+   "retryable": false,
+   "meaning": "付款单已取消（预下单期间被取消或尝试已关闭）",
+   "details": null
+  },
+  {
+   "symbol": "TRANSFER_PROOF_PENDING",
+   "code": 44008,
+   "http": 409,
+   "retryable": false,
+   "meaning": "转账凭证待财务确认，暂不能取消",
+   "details": null
+  },
+  {
+   "symbol": "TRANSFER_PROOF_LOCKED",
+   "code": 44009,
+   "http": 409,
+   "retryable": false,
+   "meaning": "财务正在复核到账，暂不能更换凭证",
+   "details": null
+  },
+  {
+   "symbol": "INVOICE_NOT_ELIGIBLE",
+   "code": 44010,
+   "http": 409,
+   "retryable": false,
+   "meaning": "该付款单暂不能开票；details.reasons 列出不满足项",
+   "details": "{ reasons: string[] }"
+  },
+  {
+   "symbol": "INVOICE_REQUEST_EXISTS",
+   "code": 44011,
+   "http": 409,
+   "retryable": false,
+   "meaning": "该付款单已有有效开票申请",
+   "details": "{ invoiceRequestId, requestNo }"
+  },
+  {
+   "symbol": "INVOICE_TITLE_UNVERIFIED",
+   "code": 44012,
+   "http": 409,
+   "retryable": false,
+   "meaning": "主体认证通过后才能开票",
+   "details": null
+  },
+  {
+   "symbol": "INVOICE_APPLY_EXPIRED",
+   "code": 44013,
+   "http": 409,
+   "retryable": false,
+   "meaning": "已超过开票申请期限",
+   "details": "{ deadline }"
+  },
+  {
+   "symbol": "INVOICE_FILE_UNAVAILABLE",
+   "code": 44014,
+   "http": 409,
+   "retryable": false,
+   "meaning": "该发票暂无可下载的文件",
+   "details": null
+  }
+ ],
+ "externalErrorRefs": [
+  {
+   "symbol": "AGREEMENT_VERSION_STALE",
+   "source": "m01-account（协议同意 47400–47499；C73）"
+  },
+  {
+   "symbol": "FILE_NOT_USABLE",
+   "source": "m03-profile-asset（46001；files.link() 断言失败的统一出口）"
+  }
+ ],
+ "genericErrorRefs": [
+  "VALIDATION_FAILED",
+  "NOT_FOUND",
+  "ROLE_FORBIDDEN",
+  "STATE_NOT_ALLOWED",
+  "IDEMPOTENCY_IN_PROGRESS",
+  "RATE_LIMITED",
+  "PROVIDER_UNAVAILABLE",
+  "UPSTREAM_TIMEOUT"
+ ],
+ "permissions": [],
+ "capabilities": [
+  "wallet.read",
+  "ledger.read",
+  "plan.purchase",
+  "points.topup",
+  "invoice.*"
+ ],
+ "proposedEvents": [],
+ "externalSchemas": [
+  {
+   "name": "DictRef",
+   "definedIn": "conventions",
+   "section": "C85（约定里的通用结构，A150、A151）：TransferProofView.rejectReason、InvoiceRequestCard.reject.reason、InvoiceDocView.expressCompany"
+  }
+ ]
+}

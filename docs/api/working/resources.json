@@ -1,0 +1,1782 @@
+[
+  {
+    "table": "timer",
+    "resource": "timers",
+    "param": "timerId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "A26 补 POST /admin/timers/{timerId}/cancel（标记为不再需要）。"
+  },
+  {
+    "table": "outbox_event",
+    "resource": "outbox-events",
+    "param": "outboxEventId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "路线图 {eventId} 改 {outboxEventId}（A4）；redeliver 按词表改为 retry（C12）。只增表。"
+  },
+  {
+    "table": "outbox_delivery",
+    "resource": "outbox-deliveries",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "复合主键 (outbox_event_id, subscriber)，只有列表，不按 id 访问。"
+  },
+  {
+    "table": "status_transition",
+    "resource": "status-transitions",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "只增历史表；读取经各资源的 activities 视图。路线图 a01.status-transitions.force（POST /admin/status-transitions）的写法未被裁决覆盖，待主负责人定（复核意见 42）。"
+  },
+  {
+    "table": "work_calendar_day",
+    "resource": "calendar-days",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "主键为日期 day，按查询参数取；import 是集合动作，operationId 为 admin.calendarDay.batchImport。"
+  },
+  {
+    "table": "merchant_user",
+    "resource": "merchant-users",
+    "param": "merchantUserId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [
+      "/m/me"
+    ],
+    "notes": "商家端只经当前账号视图 /m/me 访问（A5 第一类）；注销为 POST /m/me/deletion（A7，路线图 DELETE /m/me 改写）；/m/me/summary（“我的”页聚合）与 A23 的 summary 含义不同，改为 /m/me/overview（C83；按 A41 以登记表为准）。表里没有 lock_version 列，m.me.update 不带 lockVersion（A47，C52 例外）。"
+  },
+  {
+    "table": "wechat_identity",
+    "resource": "wechat-identities",
+    "param": "wechatIdentityId",
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [
+      "/m/me/wechat-identities"
+    ],
+    "notes": "路线图 {identityId} 改 {wechatIdentityId}（A4）。移除微信身份物理删除行（M63），DELETE 合规（A7）。"
+  },
+  {
+    "table": "user_session",
+    "resource": "sessions",
+    "param": "sessionId",
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [
+      "/m/sessions/current"
+    ],
+    "notes": "POST /m/sessions（静默登录）与 POST /m/sessions/phone-login 为登录，幂等 none（A18）。/m/sessions/current 为“当前会话”视图别名（A41 第四类）：退出登录 DELETE /m/sessions/current（m.session.current.delete，幂等 none，端上把 401 当作已退出，A43）。不按 sessionId 对外访问。"
+  },
+  {
+    "table": "portal_session",
+    "resource": "portal-sessions",
+    "param": "portalSessionId",
+    "surfaces": [
+      "m",
+      "portal"
+    ],
+    "aliases": [
+      "/portal/sessions/current"
+    ],
+    "notes": "下载页当前会话 GET /portal/sessions/current（portal.session.current.get）、退出 DELETE /portal/sessions/current（portal.session.current.delete，幂等 none）；路线图 GET /portal/session、POST /portal/session/logout 改写（A41、A43、A82）。会话时长按数据模型默认：确认起 2 小时、不滑动（A65）。老板在小程序撤销 POST /m/portal-sessions/{portalSessionId}/revoke；列表 m.portalSession.list 不分页（A78，C42）。"
+  },
+  {
+    "table": "merchant_user_notice",
+    "resource": "user-notices",
+    "param": "userNoticeId",
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [
+      "/m/me/user-notices"
+    ],
+    "notes": "路线图写作 /m/me/notices/{noticeId}，与 V1.1 后台公告 /admin/notices/{noticeId} 的参数同名不同义（A4），本稿改名。物理删除允许（M63）。"
+  },
+  {
+    "table": "sms_verification",
+    "resource": "sms-codes",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [
+      "/m/store-profile/contact/sms-codes"
+    ],
+    "notes": "POST /m/sms-codes（m.smsCode.create）只管换绑手机号；资质联系人的验证码 POST /m/store-profile/contact/sms-codes（m.storeProfile.contactSmsCode.create，member + store.qualification.edit，A48），是嵌套在档案联系人单例视图 /m/store-profile/contact 下的本资源集合。两条都挂限流档位 m.sms（C68），都是“先落库、提交后直发、失败删行”的三段式用例（A84，C51）。不按 id 访问。"
+  },
+  {
+    "table": "account_change_request",
+    "resource": "account-change-requests",
+    "param": "accountChangeRequestId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "路线图写作 /admin/account-changes，按 A14 改名；决定 POST …/{accountChangeRequestId}/approve|reject，撤回 …/withdraw。"
+  },
+  {
+    "table": "entity",
+    "resource": "entities",
+    "param": "entityId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [
+      "/admin/entities/{entityId}/quota"
+    ],
+    "notes": "主体额度 PATCH /admin/entities/{entityId}/quota 为父资源下的单例子资源（A61，A5 第三类）。后台主体成员 admin.entity.member.list 不分页（A78，C43）。"
+  },
+  {
+    "table": "store",
+    "resource": "stores",
+    "param": "storeId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "删除草稿门店只做停用（M93），路线图 POST /m/stores/{storeId}/delete-draft 按词表改为 …/delete（C12）。"
+  },
+  {
+    "table": "entity_member",
+    "resource": "members",
+    "param": "memberId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [
+      "/m/me/membership",
+      "/m/me/current-store"
+    ],
+    "notes": "后台嵌套列表 /admin/entities/{entityId}/members。/m/me/membership（本人成员关系，leave）与 /m/me/current-store（切换门店 PUT /m/me/current-store，写 entity_member.last_store_id）按 /m/me 一类登记；A5 原文 /m/current-store 按 A41 作废。store_member 是关联表，经 PATCH /m/members/{memberId} 整体替换，不单列资源。entity_member、store_member 没有 lock_version 列，m.member.update、m.me.currentStore.replace 不带 lockVersion（A47，C52 例外）。m.member.list 不分页（A78，C42）。"
+  },
+  {
+    "table": "invitation",
+    "resource": "invitations",
+    "param": "invitationId",
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "落地页信息 GET /m/invitations/lookup?token=（路线图 preview 按词表改 lookup；令牌放查询参数，A3）。"
+  },
+  {
+    "table": "referral_code",
+    "resource": "referral-codes",
+    "param": "referralCodeId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": ""
+  },
+  {
+    "table": "portal_ticket",
+    "resource": "portal-tickets",
+    "param": "portalTicketId",
+    "surfaces": [
+      "m",
+      "portal"
+    ],
+    "aliases": [],
+    "notes": "下载页路线图 /portal/tickets 改为 /portal/portal-tickets（A5）。路径参数一律 portal_ticket.id（uuid）；public_id 与短码只出现在二维码与 GET /m/portal-tickets/lookup?code=（A3）。数据模型 02-identity-tenant.md:861 写 public_id“写在二维码与轮询地址里”，需回写（A66）。配对数字不一致时 POST /m/portal-tickets/{portalTicketId}/approve 返回 200 且 status = rejected（rejectReason = pair_mismatch），不返回错误码，以便票据作废能提交（A101）。"
+  },
+  {
+    "table": "staff",
+    "resource": "staff",
+    "param": "staffId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [
+      "/admin/auth/me"
+    ],
+    "notes": "复数同形 staff。当前员工视图 /admin/auth/me（其下 A60 的自助动态口令设置 /admin/auth/me/enroll-totp、/admin/auth/me/confirm-totp，再验证标记 self.mfa.reset，A88）。"
+  },
+  {
+    "table": "staff_group",
+    "resource": "staff-groups",
+    "param": "staffGroupId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": ""
+  },
+  {
+    "table": "staff_role",
+    "resource": "roles",
+    "param": "roleKey",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "自然键（A3）。PUT /admin/roles/{roleKey} 整体替换，带 lockVersion（列 lock_version）。"
+  },
+  {
+    "table": "staff_session",
+    "resource": "staff-sessions",
+    "param": "staffSessionId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [
+      "/admin/sessions/current"
+    ],
+    "notes": "路线图 {sessionId} 改 {staffSessionId}（A4）；吊销 DELETE 改 POST …/{staffSessionId}/revoke（A7：吊销写 revoked_at，不是物理删除）。/admin/sessions/current 为“当前会话”视图别名（A41 第四类）：退出登录 DELETE /admin/sessions/current（admin.session.current.delete，取代路线图 POST /admin/auth/logout，幂等 none，A43）。"
+  },
+  {
+    "table": "assignment_pool_member",
+    "resource": "assignment-pool-members",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [
+      "/admin/staff/{staffId}/pool-memberships",
+      "/admin/staff/{staffId}/duty"
+    ],
+    "notes": "复合主键 (pool, staff_id, city_code)。路线图 GET /admin/assignment-pools 读的就是本表（加 assignment_cursor），按 A5 改为 /admin/assignment-pool-members；员工名下两处为父资源下的单例子资源（A5 第三类）。"
+  },
+  {
+    "table": "assignment_history",
+    "resource": "assignment-histories",
+    "param": "assignmentHistoryId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "只增表。"
+  },
+  {
+    "table": "follow_up",
+    "resource": "follow-ups",
+    "param": "followUpId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": ""
+  },
+  {
+    "table": "audit_log",
+    "resource": "audit-logs",
+    "param": "auditLogId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "只增大表：游标分页 + totalApprox（A22）。"
+  },
+  {
+    "table": "approval_request",
+    "resource": "approvals",
+    "param": "approvalId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "只读：跨类型列表、summary、详情，聚合“我的待审批”（A14、A16）。决定与撤回走各领域资源，路线图 a01.approvals.approve / reject / withdraw 删除。"
+  },
+  {
+    "table": "store_profile",
+    "resource": "store-profiles",
+    "param": null,
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [
+      "/m/store-profile",
+      "/m/store-profile/basic",
+      "/m/store-profile/contact",
+      "/admin/stores/{storeId}/profile"
+    ],
+    "notes": "主键 store_id，不单独按 id 访问。/m/store-profile 为当前门店的单例视图（A5 第二类），/admin/stores/{storeId}/profile 为父资源下的单例子资源（A5 第三类）。"
+  },
+  {
+    "table": "store_profile_media",
+    "resource": "store-profile-media",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [
+      "/m/store-profile/media"
+    ],
+    "notes": "只经档案的“形象”一段整段读写。"
+  },
+  {
+    "table": "store_service_item",
+    "resource": "store-service-items",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [
+      "/m/store-profile/service"
+    ],
+    "notes": "只经档案的“主推服务”一段整段读写。"
+  },
+  {
+    "table": "qualification_submission",
+    "resource": "qualification-submissions",
+    "param": "qualificationSubmissionId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [
+      "/m/store-profile/qualification",
+      "/admin/stores/{storeId}/qualification"
+    ],
+    "notes": "提交唯一入口 POST /m/store-profile/qualification/submit（A32；A32 原文 /m/qualification/submit 按 A41 作废）。决定 POST /admin/qualification-submissions/{qualificationSubmissionId}/approve|reject（A14）；终局驳回影响预览改为 POST …/reject-quote（A20）。"
+  },
+  {
+    "table": "qualification_doc",
+    "resource": "qualification-docs",
+    "param": "qualificationDocId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "路线图商家端 {docId} 改 {qualificationDocId}（A4）；证照行不物理删除（写 removed_at），DELETE 改 POST …/remove（A7）。"
+  },
+  {
+    "table": "drama",
+    "resource": "dramas",
+    "param": "dramaId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [
+      "/admin/dramas/{dramaId}/basic",
+      "/admin/dramas/{dramaId}/commercial",
+      "/admin/dramas/{dramaId}/cast"
+    ],
+    "notes": "上架 POST …/list 改 …/shelve，重新上架 …/relist 并入 …/shelve（A9；服务端按当前状态选迁移 drama.list / drama.relist）。basic、commercial 与演员 cast 是父资源下的单例子资源（A61，A5 第三类）；演员子资源路线图写作 PUT /admin/dramas/{dramaId}/roles，与员工角色 roles 重名，按 A61 改为 …/cast（operationId admin.drama.cast.replace）。"
+  },
+  {
+    "table": "drama_episode",
+    "resource": "drama-episodes",
+    "param": "dramaEpisodeId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "路线图嵌套列表 GET /admin/dramas/{dramaId}/episodes 改为 …/drama-episodes（A5）。特定条件下允许物理删除（M95），但只在改总集数的同一事务里删，没有单独的 DELETE。本表没有 lock_version 列，修改 PATCH /admin/drama-episodes/{dramaEpisodeId} 带父剧目的 dramaLockVersion（A104，C52）。"
+  },
+  {
+    "table": "drama_permit",
+    "resource": "drama-permits",
+    "param": "dramaPermitId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "路线图嵌套 /admin/dramas/{dramaId}/permits 改为 …/drama-permits（A5）。本表没有 lock_version 列，修改 PATCH /admin/drama-permits/{dramaPermitId} 带父剧目的 dramaLockVersion（A104，C52）。列表 admin.drama.dramaPermit.list 不分页（A78，C43）。"
+  },
+  {
+    "table": "drama_copyright",
+    "resource": "drama-copyrights",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [
+      "/admin/dramas/{dramaId}/copyright"
+    ],
+    "notes": "主键 drama_id，父资源下的单例子资源。"
+  },
+  {
+    "table": "drama_copyright_revision",
+    "resource": "drama-copyright-revisions",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "只增。路线图嵌套创建 POST /admin/dramas/{dramaId}/copyright-revisions 已是本名。"
+  },
+  {
+    "table": "file_object",
+    "resource": "files",
+    "param": "fileId",
+    "surfaces": [
+      "m",
+      "admin",
+      "portal"
+    ],
+    "aliases": [],
+    "notes": "路线图 /m/uploads、/admin/uploads、/portal/uploads（V1.1）与 /admin/files 两个名字，按 A5 统一为 files，参数沿用 fileId（C41；按 A41 以登记表为准）。上传：POST /<端>/files 登记（natural，idempotentBy 为三条 client_token 部分唯一索引组成的数组，A49）、…/{fileId}/refresh-credentials 续签、…/complete 确认（多事务三段式，A84）、…/cancel 取消（DELETE 改 POST，A7；后台一侧 POST /admin/files/{fileId}/cancel 按 A57 补）。后台通用签发 GET /admin/files/{fileId}/url 改 POST …/download-urls（A19），A57 保留，权限在处理器里按文件归属判定（assert-in-handler）。"
+  },
+  {
+    "table": "file_purge_run",
+    "resource": "purge-runs",
+    "param": "purgeRunId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": ""
+  },
+  {
+    "table": "upload_batch",
+    "resource": "upload-batches",
+    "param": "uploadBatchId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": ""
+  },
+  {
+    "table": "upload_batch_item",
+    "resource": "upload-batch-items",
+    "param": "uploadBatchItemId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "本表没有锁列，PATCH /admin/upload-batch-items/{uploadBatchItemId} 不带锁版本，靠批次行锁且只限批次持有人（A104，C52 例外）。"
+  },
+  {
+    "table": "media_job",
+    "resource": "media-jobs",
+    "param": "mediaJobId",
+    "surfaces": [
+      "admin",
+      "hooks"
+    ],
+    "aliases": [],
+    "notes": "回调 /hooks/ci/media-jobs/{mediaJobId}、/hooks/asr/media-jobs/{mediaJobId}，签名 sig 移到查询参数（A3），provider 段不是分组段。回调的动作词为 wake（A44），限流档位 hooks.ip（C68）。"
+  },
+  {
+    "table": "production_record",
+    "resource": "production-records",
+    "param": "productionRecordId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "主键即 file_id；路线图 {fileId} 按 A4 改 {productionRecordId}，取值等于文件 id。"
+  },
+  {
+    "table": "playable_asset",
+    "resource": "playables",
+    "param": "playableId",
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "GET /m/playables/{playableId} 只用于不需留痕的播放；需要“已查看”证据的播放走 POST …/playback-urls（A19）。"
+  },
+  {
+    "table": "drama_trailer",
+    "resource": "drama-trailers",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [
+      "/admin/dramas/{dramaId}/trailer"
+    ],
+    "notes": "主键 drama_id，父资源下的单例子资源。本表没有锁列，PUT …/trailer 不带锁版本，以最后一次设置为准（A104，C52 例外）。"
+  },
+  {
+    "table": "store_asset",
+    "resource": "store-assets",
+    "param": "storeAssetId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "商家端路线图 /m/assets/{assetId} 改为 /m/store-assets/{storeAssetId}（A5，与 A26 一致）。素材反馈 POST /m/store-assets/{storeAssetId}/feedback（A41；A33 原文 /m/assets/{assetId}/feedback 作废）：不建表，写审计并经通知中心提醒交付经理（A56），能力点 asset.feedback（A87，进增补表）。筛选面板 /m/assets/facets 改为 GET /m/store-assets/summary（A23）。商家补交与员工代交肖像授权统一为 POST …/{storeAssetId}/portrait-auth（A26；商家端路线图写作 submit-portrait-auth）。后台软删除 POST …/delete（A26）。"
+  },
+  {
+    "table": "store_asset_demand",
+    "resource": "asset-demands",
+    "param": "assetDemandId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": ""
+  },
+  {
+    "table": "plan",
+    "resource": "plans",
+    "param": "planId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "上架 …/list 改 …/shelve（A9）。后台升级与续费试算（路线图 GET /admin/quotes/upgrade、/renewal）并为 POST /admin/plans/quote，请求体区分（A20）。"
+  },
+  {
+    "table": "plan_revision",
+    "resource": "plan-revisions",
+    "param": "planRevisionId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "路线图嵌套创建 POST /admin/plans/{planId}/revisions 改为 …/plan-revisions（A5）。"
+  },
+  {
+    "table": "point_pack",
+    "resource": "point-packs",
+    "param": "pointPackId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "上架 …/list 改 …/shelve（A9）。"
+  },
+  {
+    "table": "price_tier_revision",
+    "resource": "price-tier-revisions",
+    "param": "priceTierRevisionId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "只增。路线图 GET /admin/price-tiers 读本表，按 A5 改为 GET /admin/price-tier-revisions（按 tab 区分当前值与待生效值）。保存并入 POST /admin/pricing-changes（A28）。"
+  },
+  {
+    "table": "drama_price_revision",
+    "resource": "drama-price-revisions",
+    "param": "dramaPriceRevisionId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "路线图嵌套创建 POST /admin/dramas/{dramaId}/price-revisions 改为 …/drama-price-revisions（A5）。"
+  },
+  {
+    "table": "billing_param",
+    "resource": "billing-params",
+    "param": "billingParamId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "整批保存与变更记录并入 /admin/pricing-changes（A28）；撤销预约 POST …/{billingParamId}/withdraw。"
+  },
+  {
+    "table": "billing_account",
+    "resource": "point-accounts",
+    "param": "pointAccountId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [
+      "/m/wallet"
+    ],
+    "notes": "主键即 entity_id；路线图 {entityId} 按 A4 改 {pointAccountId}，取值等于主体 id。/m/wallet 为当前门店所属主体的单例视图（A5 第二类）。"
+  },
+  {
+    "table": "subscription_term",
+    "resource": "subscription-terms",
+    "param": "subscriptionTermId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": ""
+  },
+  {
+    "table": "point_ledger_entry",
+    "resource": "point-ledger-entries",
+    "param": null,
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "只增。后台路线图 /admin/point-accounts/{entityId}/ledger-entries 改为 /admin/point-accounts/{pointAccountId}/point-ledger-entries（A5）。不按 id 访问。"
+  },
+  {
+    "table": "point_adjustment_request",
+    "resource": "point-adjustment-requests",
+    "param": "pointAdjustmentRequestId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "路线图 /admin/point-adjustments 按 A14 改名；决定、撤回走本资源。"
+  },
+  {
+    "table": "term_extension_request",
+    "resource": "term-extension-requests",
+    "param": "termExtensionRequestId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "路线图 /admin/term-extensions 按 A14 改名；决定、撤回走本资源。"
+  },
+  {
+    "table": "billing_order",
+    "resource": "payment-orders",
+    "param": "paymentOrderId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": ""
+  },
+  {
+    "table": "payment_txn",
+    "resource": "payment-transactions",
+    "param": "paymentTransactionId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": ""
+  },
+  {
+    "table": "transfer_proof",
+    "resource": "transfer-proofs",
+    "param": "transferProofId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "商家端嵌套创建 POST /m/payment-orders/{paymentOrderId}/transfer-proofs。对公二人复核决定 POST …/{transferProofId}/approve-review|reject-review（A14）；V1.0 不提供撤回（A58）。A26 补 summary。识别结果（付款户名、金额、附言、时间）按交易事实返回，不走明文查看，付款账号只回脱敏串（A89，待法务、财务确认）。"
+  },
+  {
+    "table": "refund_request",
+    "resource": "refund-requests",
+    "param": "refundRequestId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "A26 补列表、详情、summary；决定与撤回走本资源（A14）。"
+  },
+  {
+    "table": "payment_exception",
+    "resource": "payment-exceptions",
+    "param": "paymentExceptionId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": ""
+  },
+  {
+    "table": "recon_day",
+    "resource": "reconciliations",
+    "param": "reconciliationId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "路线图 {reconDayId} 按 A4 改 {reconciliationId}。当月日行不分页（至多 31 行，A78，C43）；跨主体的汇总金额出接口为 string(bigint)（A90，C31）。"
+  },
+  {
+    "table": "invoice_request",
+    "resource": "invoice-requests",
+    "param": "invoiceRequestId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "商家端取发票文件 GET …/file 改 POST …/{invoiceRequestId}/download-urls（A19）；resend-email 按词表改 resend（C12）。"
+  },
+  {
+    "table": "finance_config_revision",
+    "resource": "finance-config-revisions",
+    "param": "financeConfigRevisionId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "只增。路线图 GET /admin/finance-configs 读本表，按 A5 并入 GET /admin/finance-config-revisions（按 tab 区分当前生效值；tab = current 不分页，A78）。决定、撤回走本资源（A14）。平台对公收款账号对商家返回明文、响应 no-store（A89，C40 例外，待法务、财务确认）。"
+  },
+  {
+    "table": "cart_item",
+    "resource": "cart-items",
+    "param": "cartItemId",
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "关联类行，物理删除允许（M63），DELETE 合规。"
+  },
+  {
+    "table": "drama_order",
+    "resource": "orders",
+    "param": "orderId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "试算 POST /m/orders/quote、POST /admin/orders/quote（路线图 GET /admin/quotes/order 改写，A20）；取消试算 POST /admin/orders/{orderId}/cancel-quote（A20）。"
+  },
+  {
+    "table": "order_item",
+    "resource": "order-items",
+    "param": "orderItemId",
+    "surfaces": [
+      "m",
+      "admin",
+      "portal"
+    ],
+    "aliases": [],
+    "notes": ""
+  },
+  {
+    "table": "cancel_request",
+    "resource": "cancel-requests",
+    "param": "cancelRequestId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "商家端 POST /m/cancel-requests 为 V1.1。后台嵌套创建 /admin/orders/{orderId}/cancel-requests、/admin/ads/{adId}/cancel-requests；A26 补列表、详情、summary；决定与撤回走本资源（A14）。"
+  },
+  {
+    "table": "ad",
+    "resource": "ads",
+    "param": "adId",
+    "surfaces": [
+      "m",
+      "admin",
+      "portal"
+    ],
+    "aliases": [],
+    "notes": "取消试算 POST /admin/ads/{adId}/cancel-quote（A20）；下载页预览 GET 只回元数据，签发播放地址 POST /portal/ads/{adId}/playback-urls（A19）；A26 补 summary。"
+  },
+  {
+    "table": "ad_version",
+    "resource": "ad-versions",
+    "param": "adVersionId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "路线图嵌套创建 POST /admin/ads/{adId}/versions 改为 …/ad-versions（A5）；A26 补 POST /admin/ad-versions/{adVersionId}/mark-sent，登记与推送拆成两步。"
+  },
+  {
+    "table": "delivery_ticket",
+    "resource": "delivery-tickets",
+    "param": "deliveryTicketId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "路线图 {ticketId} 改 {deliveryTicketId}（A4）。取原片 POST /admin/delivery-tickets/{deliveryTicketId}/materials/download-urls（写 master_checkout，A19）。"
+  },
+  {
+    "table": "delivery_plan",
+    "resource": "delivery-plans",
+    "param": "deliveryPlanId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [
+      "/admin/delivery-plans/{deliveryPlanId}/draft"
+    ],
+    "notes": "商家端路线图 {planId} 改 {deliveryPlanId}（A4，避免与套餐 planId 同名）。推送带 draftLockVersion（A21 例外）。"
+  },
+  {
+    "table": "sample",
+    "resource": "samples",
+    "param": "sampleId",
+    "surfaces": [
+      "m",
+      "admin",
+      "portal"
+    ],
+    "aliases": [
+      "/m/order-items/{orderItemId}/sample",
+      "/portal/order-items/{orderItemId}/sample"
+    ],
+    "notes": "保存水印版 POST /m/samples/{sampleId}/download-urls、下载页预览 POST /portal/samples/{sampleId}/playback-urls（A19；“已查看”证据与 first_viewed_at 只在这里写）。后台嵌套创建 /admin/delivery-tickets/{deliveryTicketId}/samples。request-revision 按词表改 request-change。"
+  },
+  {
+    "table": "episode_output",
+    "resource": "episode-outputs",
+    "param": "episodeOutputId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "嵌套在 /admin/delivery-tickets/{deliveryTicketId}/episode-outputs。"
+  },
+  {
+    "table": "delivery_release",
+    "resource": "delivery-releases",
+    "param": "deliveryReleaseId",
+    "surfaces": [
+      "m",
+      "admin",
+      "portal"
+    ],
+    "aliases": [
+      "/m/order-items/{orderItemId}/release",
+      "/portal/order-items/{orderItemId}/release"
+    ],
+    "notes": "下载页路线图 /portal/order-items/{orderItemId}/delivery 改为 …/release（A5 示例）。ZIP 打包失败后，下载签发请求带 retry: true 才重新打包，否则返回失败状态（A99）。"
+  },
+  {
+    "table": "delivery_reissue",
+    "resource": "reissues",
+    "param": "reissueId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "嵌套创建 /admin/delivery-tickets/{deliveryTicketId}/reissues。"
+  },
+  {
+    "table": "download_grant",
+    "resource": "download-grants",
+    "param": "downloadGrantId",
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "嵌套创建 POST /m/order-items/{orderItemId}/download-grants。"
+  },
+  {
+    "table": "delivery_download_log",
+    "resource": "downloads",
+    "param": "downloadId",
+    "surfaces": [
+      "m",
+      "admin",
+      "portal"
+    ],
+    "aliases": [],
+    "notes": "只增。签发改为 POST /m/order-items/{orderItemId}/download-urls、POST /portal/order-items/{orderItemId}/download-urls（A19；路线图写作 …/downloads），返回的 downloadId 即本表行 id；回报 POST /m/downloads/{downloadId}/report；后台列表 GET /admin/order-items/{orderItemId}/downloads。"
+  },
+  {
+    "table": "publish_list",
+    "resource": "publish-lists",
+    "param": "publishListId",
+    "surfaces": [
+      "m",
+      "admin",
+      "portal"
+    ],
+    "aliases": [
+      "/m/order-items/{orderItemId}/publish-list",
+      "/portal/order-items/{orderItemId}/publish-list",
+      "/admin/delivery-tickets/{deliveryTicketId}/publish-list"
+    ],
+    "notes": "只以父资源下的单例子资源访问（A5 第三类）。"
+  },
+  {
+    "table": "channel_account",
+    "resource": "channel-accounts",
+    "param": "channelAccountId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "商家端 resubmit 按词表改 submit（C12）；unbind 保留。"
+  },
+  {
+    "table": "channel_account_submission",
+    "resource": "channel-account-submissions",
+    "param": "channelAccountSubmissionId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "A14：账号核验决定走本资源。"
+  },
+  {
+    "table": "launch_task",
+    "resource": "launch-tasks",
+    "param": "launchTaskId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": ""
+  },
+  {
+    "table": "launch_submission",
+    "resource": "launch-submissions",
+    "param": "launchSubmissionId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "A14：链接核验决定走本资源；revoke（撤销核验通过）保留。"
+  },
+  {
+    "table": "patrol_task",
+    "resource": "patrol-tasks",
+    "param": "patrolTaskId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "report-abnormal 按词表改 mark-abnormal（C12）。"
+  },
+  {
+    "table": "takedown_task",
+    "resource": "takedown-tasks",
+    "param": "takedownTaskId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "批量核查 POST /admin/takedown-tasks/check，operationId admin.takedownTask.batchCheck（A10）；A26 补 summary。"
+  },
+  {
+    "table": "service_ticket",
+    "resource": "service-tickets",
+    "param": "serviceTicketId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "商家端路线图 {ticketId} 改 {serviceTicketId}（A4）；transfer 按词表改 reassign（C12）。A92 补 PATCH /admin/service-tickets/{serviceTicketId}（类型、优先级，带 lockVersion）与关联业务的增删（POST …/refs、POST …/refs/remove，见 service_ticket_ref）。"
+  },
+  {
+    "table": "service_ticket_entry",
+    "resource": "entries",
+    "param": "entryId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "只以 /<端>/service-tickets/{serviceTicketId}/entries 嵌套访问。"
+  },
+  {
+    "table": "service_ticket_ref",
+    "resource": "refs",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "客服工单的关联业务（A92）。只以 /admin/service-tickets/{serviceTicketId}/refs 嵌套访问：处理中补关联 POST …/refs，移除错误关联 POST …/refs/remove（请求体指明关联行；错误关联行物理删除，M95）。登记时的关联随工单创建写入；不按 id 单独访问。"
+  },
+  {
+    "table": "notify_scene",
+    "resource": "notify-scenes",
+    "param": "sceneKey",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "自然键（A3）。"
+  },
+  {
+    "table": "wx_template_slot",
+    "resource": "wx-template-slots",
+    "param": "slotKey",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "自然键（A3）。本表没有 lock_version 列，PATCH 不带 lockVersion（A47，C52 例外）。"
+  },
+  {
+    "table": "sms_template",
+    "resource": "sms-templates",
+    "param": "templateKey",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "自然键（A3）。本表没有 lock_version 列，PATCH 不带 lockVersion（A47，C52 例外）。"
+  },
+  {
+    "table": "notification_delivery",
+    "resource": "notification-deliveries",
+    "param": "notificationDeliveryId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "测试发送只写本表（purpose = test，A30）。发送日志 admin.notificationDelivery.list 用页码分页（A62，C43；路线图写的游标不采用）。"
+  },
+  {
+    "table": "merchant_message",
+    "resource": "messages",
+    "param": "messageId",
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "站内消息是账号级的：每个收件人一行，生成时已按收件人角色出文案；xAuth = user，clerkView = same，带门店上下文时按门店过滤（A52，C56）。未读数 /m/messages/unread-counts 改 GET /m/messages/summary（A23）；全部已读 /read-all 改集合动作 POST /m/messages/read（operationId m.message.batchRead）。"
+  },
+  {
+    "table": "staff_message",
+    "resource": "staff-messages",
+    "param": "staffMessageId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "mark-read 改 read、mark-all-read 改集合动作 POST /admin/staff-messages/read（C12）。"
+  },
+  {
+    "table": "agreement",
+    "resource": "agreements",
+    "param": "agreementKey",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "自然键（A3）。"
+  },
+  {
+    "table": "agreement_version",
+    "resource": "agreement-versions",
+    "param": "agreementVersionId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "商家端路线图 {versionId} 改 {agreementVersionId}（A4）；后台嵌套创建 POST /admin/agreements/{agreementKey}/versions 改为 …/agreement-versions（A5）。草稿保存为待生效 POST …/{agreementVersionId}/schedule 的守卫补“锁版本相符”，请求带 lockVersion（A105）。"
+  },
+  {
+    "table": "agreement_consent",
+    "resource": "agreement-consents",
+    "param": "agreementConsentId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "只增。A26 补 GET /admin/agreement-consents；详情只回脱敏值，明文走 POST /admin/pii-reveals（A19）。"
+  },
+  {
+    "table": "license_letter",
+    "resource": "license-letters",
+    "param": "licenseLetterId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "商家端路线图 {letterId} 改 {licenseLetterId}（A4）；下载 POST …/download-urls（A19）；A26 补 POST /admin/license-letters/{licenseLetterId}/correct。"
+  },
+  {
+    "table": "license_letter_revision",
+    "resource": "license-letter-revisions",
+    "param": "licenseLetterRevisionId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": ""
+  },
+  {
+    "table": "dict_type",
+    "resource": "dict-types",
+    "param": "dictTypeKey",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "自然键（A3）。"
+  },
+  {
+    "table": "dict_item",
+    "resource": "dict-items",
+    "param": "dictItemId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "商家端路线图 GET /m/dicts 读本表，按 A5 改为 GET /m/dict-items?types=。"
+  },
+  {
+    "table": "param_value",
+    "resource": "param-values",
+    "param": "paramValueId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "只增。路线图 /admin/params 与参数名 {paramValueId} 不一致（A4），本稿取表名 param-values；撤销预约 cancel 按词表改 withdraw（C12）。保存带 expectedRev（A21 例外）。"
+  },
+  {
+    "table": "site_config_revision",
+    "resource": "site-configs",
+    "param": "configKey",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [
+      "/admin/site-configs/{configKey}/draft",
+      "/admin/site-configs/{configKey}/revisions"
+    ],
+    "notes": "按 config_key 自然键访问（A3）；/draft 为该键的草稿单例子资源，/revisions 为该键的修订历史（同表）。发布带 baseRevNo（A21 例外），并按 A105 带草稿行的 lockVersion。"
+  },
+  {
+    "table": "home_banner",
+    "resource": "home-banners",
+    "param": "homeBannerId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "reorder 是集合动作，operationId admin.homeBanner.batchReorder（A10）。"
+  },
+  {
+    "table": "site_notice",
+    "resource": "site-notices",
+    "param": "siteNoticeId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "商家端列表 V1.1。"
+  },
+  {
+    "table": "feature_flag",
+    "resource": "feature-flags",
+    "param": "flagKey",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "自然键（A3）。"
+  },
+  {
+    "table": "checklist_template",
+    "resource": "checklist-templates",
+    "param": "checklistTemplateId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "主键 uuid（14-config-data.md:613），路线图 {templateId} 改 {checklistTemplateId}（A4）。"
+  },
+  {
+    "table": "analytics_event",
+    "resource": "analytics-events",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "只增大表，按月分区。批量上报 operationId m.analyticsEvent.batchCreate，幂等 none（A18），限流档位 m.analytics（C68），在协议同意白名单内（A85）。"
+  },
+  {
+    "table": "report_month_close",
+    "resource": "report-month-closes",
+    "param": "reportMonthCloseId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "路线图 {monthCloseId} 改 {reportMonthCloseId}（A4）。"
+  },
+  {
+    "table": "export_job",
+    "resource": "export-jobs",
+    "param": "exportJobId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "签发 POST …/{exportJobId}/download-urls（路线图 sign-url 改写，A19）。"
+  },
+  {
+    "table": "webhook_event",
+    "resource": "webhook-events",
+    "param": "webhookEventId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "回调收件大表：游标分页 + totalApprox（A22）。reset 按词表改 retry（C12）。"
+  },
+  {
+    "table": "alert_event",
+    "resource": "alerts",
+    "param": "alertId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "ack 按词表改 acknowledge（A9）。已恢复超过 180 天的行物理删除（M63），无删除接口。"
+  },
+  {
+    "table": "invariant_run",
+    "resource": "invariant-runs",
+    "param": "invariantRunId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": ""
+  },
+  {
+    "table": "invariant_violation",
+    "resource": "invariant-violations",
+    "param": "invariantViolationId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "路线图 {violationId} 改 {invariantViolationId}（A4）。"
+  },
+  {
+    "table": null,
+    "resource": "auth",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "后台登录与当前员工命名空间：login、verify-mfa、activate、set-password、enroll-totp、confirm-totp、step-up、change-password、bind-wecom，以及 /admin/auth/me（staff 的当前员工视图）。退出登录不在这里，改为 DELETE /admin/sessions/current（A43，见 staff_session）。登录与激活类、step-up 挂限流档位 admin.login（C68）。"
+  },
+  {
+    "table": null,
+    "resource": "home",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "首页聚合视图（x-auth optional）；店员视图见 C56。"
+  },
+  {
+    "table": null,
+    "resource": "todos",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "首页待办派生视图，不建表（d3:3103）；店员只看素材相关待办。能力点 todo.read（A87，进增补表）。"
+  },
+  {
+    "table": null,
+    "resource": "mall-config",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "商城配置视图，读 site_config_revision 与 dict_item。"
+  },
+  {
+    "table": null,
+    "resource": "purchase-policy",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "购买策略视图，读 finance_config_revision。"
+  },
+  {
+    "table": null,
+    "resource": "bootstrap",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "启动引导，不受最低版本门槛拦截（A39）。"
+  },
+  {
+    "table": null,
+    "resource": "notify-settings",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "通知设置视图，读 wx_template_slot、wx_subscribe_quota、notify_scene。"
+  },
+  {
+    "table": null,
+    "resource": "subscribe-results",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "订阅授权结果上报，写 wx_subscribe_quota 估计值；不单列 wx_subscribe_quota 资源。限流档位 m.subscribe（每用户 30 次 / 日，C68）。"
+  },
+  {
+    "table": null,
+    "resource": "service-manager",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "当前门店专属服务经理名片（staff + wecom_contact），店员可见（A12、A33）。能力点 support.manager.read（A87，进增补表）。名片电话字段命名避开 clerk 禁用模式（C57）。"
+  },
+  {
+    "table": null,
+    "resource": "me/overview",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "“我的”页聚合，路线图写作 /m/me/summary，因 A23 把 summary 专用于页签计数，改名（按 A41 以登记表为准）。"
+  },
+  {
+    "table": null,
+    "resource": "client-errors",
+    "param": null,
+    "surfaces": [
+      "m",
+      "admin",
+      "portal"
+    ],
+    "aliases": [],
+    "notes": "前端错误上报转发（Sentry envelope，202）。路线图三端三个名字（/m/client-errors、/admin/telemetry/envelope、/portal/telemetry/envelopes），统一为 client-errors（按 A41 以登记表为准）。限流档位 telemetry；m.clientError.create 在协议同意白名单内（A85）。"
+  },
+  {
+    "table": null,
+    "resource": "pii-reveals",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "明文查看（A19），写 audit_log；不对应业务表。幂等 none（结果含明文，A51）；权限在处理器里按对象与字段判定（assert-in-handler，A45）；限流档位 admin.pii_reveal（C68）。"
+  },
+  {
+    "table": null,
+    "resource": "pricing-changes",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "积分价模板与计费参数的变更集（A28）：POST 同一事务写 price_tier_revision 与 billing_param；GET 合并返回两类历史（取代 billing-param-changes）。"
+  },
+  {
+    "table": null,
+    "resource": "workbench",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "工作台聚合（todos、today、alerts、feed 四块）。"
+  },
+  {
+    "table": null,
+    "resource": "nav-badges",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "菜单角标聚合。"
+  },
+  {
+    "table": null,
+    "resource": "search",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "全局搜索。"
+  },
+  {
+    "table": null,
+    "resource": "reports",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "报表视图（overview、points 等；部分 V1.1）。"
+  },
+  {
+    "table": null,
+    "resource": "launch-calendar",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "上线日历聚合视图。"
+  },
+  {
+    "table": null,
+    "resource": "drama-prices",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "单剧定价列表聚合视图（drama、drama_price_revision、price_tier_revision 等）。"
+  },
+  {
+    "table": null,
+    "resource": "activities",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "各资源的活动流子视图（audit_log 活动流 + status_transition），只以 /admin/<资源>/{id}/activities 出现。"
+  },
+  {
+    "table": null,
+    "resource": "materials",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "交付工单的制作素材子视图 /admin/delivery-tickets/{deliveryTicketId}/materials；签发 …/materials/download-urls 写 master_checkout（A19）。"
+  },
+  {
+    "table": null,
+    "resource": "open-work",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "员工在办事项子视图 /admin/staff/{staffId}/open-work。"
+  },
+  {
+    "table": null,
+    "resource": "defaults",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "角色默认权限子视图 /admin/roles/{roleKey}/defaults。"
+  },
+  {
+    "table": null,
+    "resource": "listing-checks",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "上架校验子视图 /admin/dramas/{dramaId}/listing-checks（按需计算，不落库）。"
+  },
+  {
+    "table": null,
+    "resource": "media-readiness",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "媒体就绪子视图 /admin/dramas/{dramaId}/media-readiness。"
+  },
+  {
+    "table": null,
+    "resource": "debug",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "GET /admin/debug/client-ip，M0 验证用，上线后关闭。"
+  },
+  {
+    "table": null,
+    "resource": "license-verifications",
+    "param": null,
+    "surfaces": [
+      "portal"
+    ],
+    "aliases": [],
+    "notes": "授权书验真 GET /portal/license-verifications?code=（x-auth public，A37）；前端路由与二维码地址带版次 /v?code=…&rev=…，版次作为可选查询参数传给接口（A100）；验真页主体名称脱敏（A100，待法务确认）。限流档位 portal.verify（C68）。读 license_letter 与 license_letter_revision，不单列资源。"
+  },
+  {
+    "table": null,
+    "resource": "wechatpay/transactions",
+    "param": null,
+    "surfaces": [
+      "hooks"
+    ],
+    "aliases": [],
+    "notes": "微信支付结果回调；幂等 natural（uq_webhook_event_provider_event_id）。限流档位 hooks.ip（C68）；维护期间照常放行（A65）。"
+  },
+  {
+    "table": null,
+    "resource": "wechatpay/refunds",
+    "param": null,
+    "surfaces": [
+      "hooks"
+    ],
+    "aliases": [],
+    "notes": "微信退款结果回调；幂等同上。限流档位 hooks.ip（C68）；维护期间照常放行（A65）。"
+  },
+  {
+    "table": null,
+    "resource": "wechat/messages",
+    "param": null,
+    "surfaces": [
+      "hooks"
+    ],
+    "aliases": [],
+    "notes": "小程序消息推送（GET 地址校验、POST 收件）；路线图已由 message 改 messages。限流档位 hooks.ip（C68）；维护期间照常放行（A65）。"
+  },
+  {
+    "table": null,
+    "resource": "wecom/events",
+    "param": null,
+    "surfaces": [
+      "hooks"
+    ],
+    "aliases": [],
+    "notes": "企业微信回调（GET 地址校验、POST 收件），路径为路线图建议值。限流档位 hooks.ip（C68）；维护期间照常放行（A65）。"
+  },
+  {
+    "table": null,
+    "resource": "sms/status-reports",
+    "param": null,
+    "surfaces": [
+      "hooks"
+    ],
+    "aliases": [],
+    "notes": "短信状态回执；路径令牌移到查询参数 ?token=（A3）。限流档位 hooks.ip（C68）；维护期间照常放行（A65）。"
+  },
+  {
+    "table": null,
+    "resource": "esign/events",
+    "param": null,
+    "surfaces": [
+      "hooks"
+    ],
+    "aliases": [],
+    "notes": "V1.1。"
+  },
+  {
+    "table": null,
+    "resource": "healthz、readyz、health、internal/health/*",
+    "param": null,
+    "surfaces": [],
+    "aliases": [],
+    "notes": "根路径探活，不属四组、不进 OpenAPI、不分配 operationId（A42、A83）：/healthz（存活）、/readyz（就绪）、/health（外部拨测，保留）只回聚合状态；计费、资金、流程的明细走内网 /internal/health/finance、/internal/health/flow（A83 补），不经网关。降级时 /health 与内网明细返回 503；维护开关不拦探活。路线图条目保留为登记键（registryKeyOnly）：hooks.healthz.get、hooks.readyz.get、hooks.health.get、hooks.internalHealth.finance.get、hooks.internalHealth.flow.get。路线图 /livez 改 /healthz。"
+  },
+  {
+    "table": null,
+    "resource": "delegations",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "V1.1 占位，不建表。"
+  },
+  {
+    "table": null,
+    "resource": "favorites",
+    "param": "favoriteId",
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "V1.1 占位，不建表；DELETE /m/favorites/{favoriteId} 届时按 A7 核对是否物理删除。"
+  },
+  {
+    "table": null,
+    "resource": "trial-episodes",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "V1.1 占位（/m/dramas/{dramaId}/trial-episodes）；届时按 A5 改用 drama-episodes 的视图。"
+  },
+  {
+    "table": null,
+    "resource": "performance-reports",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "V1.1 占位，不建表。"
+  },
+  {
+    "table": null,
+    "resource": "performance-uploads",
+    "param": null,
+    "surfaces": [
+      "m"
+    ],
+    "aliases": [],
+    "notes": "V1.1 占位，不建表。"
+  },
+  {
+    "table": null,
+    "resource": "faqs",
+    "param": "faqId",
+    "surfaces": [
+      "m",
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "V1.1，表结构待定；DELETE /admin/faqs/{faqId} 届时按 A7 核对。"
+  },
+  {
+    "table": null,
+    "resource": "notices",
+    "param": "noticeId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "V1.1 公告，表结构待定，与 site_notice 不是同一资源；take-offline 按词表改 unpublish。"
+  },
+  {
+    "table": null,
+    "resource": "quick-replies",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "V1.1。"
+  },
+  {
+    "table": null,
+    "resource": "partners",
+    "param": "partnerId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "V1.1，不建表。"
+  },
+  {
+    "table": null,
+    "resource": "partner-applications",
+    "param": "partnerApplicationId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "V1.1，不建表；路线图 {applicationId} 届时按 A4 改 {partnerApplicationId}。"
+  },
+  {
+    "table": null,
+    "resource": "partner-levels",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "V1.1，不建表；{levelKey} 不在 A3 自然键清单内，届时定。"
+  },
+  {
+    "table": null,
+    "resource": "partner-level-changes",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "V1.1，不建表。"
+  },
+  {
+    "table": null,
+    "resource": "partner-bindings",
+    "param": null,
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "V1.1，不建表。"
+  },
+  {
+    "table": null,
+    "resource": "partner-binding-changes",
+    "param": "partnerBindingChangeId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "V1.1，不建表；路线图 {changeId} 届时按 A4 改 {partnerBindingChangeId}。"
+  },
+  {
+    "table": null,
+    "resource": "commission-statements",
+    "param": "commissionStatementId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "V1.1，不建表；路线图 {statementId} 届时按 A4 改 {commissionStatementId}；/lines 子视图。"
+  },
+  {
+    "table": null,
+    "resource": "metric-submissions",
+    "param": "metricSubmissionId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "V1.1，不建表。"
+  },
+  {
+    "table": null,
+    "resource": "metric-imports",
+    "param": "metricImportId",
+    "surfaces": [
+      "admin"
+    ],
+    "aliases": [],
+    "notes": "V1.1，不建表。"
+  }
+]

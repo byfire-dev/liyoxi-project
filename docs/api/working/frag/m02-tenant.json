@@ -1,0 +1,970 @@
+{
+ "doc": "m02-tenant",
+ "endpoints": [
+  {
+   "operationId": "m.entity.create",
+   "method": "POST",
+   "path": "/m/entities",
+   "section": "3.1",
+   "requestSchemas": [],
+   "responseSchema": "MembershipResult",
+   "errors": [
+    "ALREADY_IN_ENTITY"
+   ],
+   "events": [
+    "entity.created",
+    "store.created"
+   ],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "entity.lifecycle: — → active（entity.create）",
+    "store.lifecycle: — → active（store.create，首家门店）",
+    "entity_member.status: — → active（entity_member.create_owner）"
+   ],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.store.list",
+   "method": "GET",
+   "path": "/m/stores",
+   "section": "3.2",
+   "requestSchemas": [],
+   "responseSchema": "StoreListView",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.store.create",
+   "method": "POST",
+   "path": "/m/stores",
+   "section": "3.3",
+   "requestSchemas": [
+    "StoreCreateBody"
+   ],
+   "responseSchema": "StoreCard",
+   "errors": [
+    "STORE_LIMIT_REACHED",
+    "VALIDATION_FAILED",
+    "DICT_ITEM_DISABLED",
+    "INDUSTRY_NOT_OPEN",
+    "CONTENT_REJECTED",
+    "PROVIDER_UNAVAILABLE"
+   ],
+   "events": [
+    "store.created"
+   ],
+   "permission": null,
+   "capability": "store.create",
+   "transitions": [
+    "store.lifecycle: — → active（store.create）"
+   ],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.store.archive",
+   "method": "POST",
+   "path": "/m/stores/{storeId}/archive",
+   "section": "3.4",
+   "requestSchemas": [],
+   "responseSchema": "StoreArchiveResult",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "LAST_ACTIVE_STORE",
+    "STORE_HAS_OPEN_WORK"
+   ],
+   "events": [
+    "store.archived",
+    "invitation.revoked",
+    "entity_member.removed"
+   ],
+   "permission": null,
+   "capability": "store.archive",
+   "transitions": [
+    "store.lifecycle: active → archived（store.archive，by_owner）",
+    "invitation.status: pending → revoked（invitation.revoke，store_archived）",
+    "entity_member.status: active → removed（entity_member.cascade_remove，store_archived，只属于该店的店员）"
+   ],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.store.delete",
+   "method": "POST",
+   "path": "/m/stores/{storeId}/delete",
+   "section": "3.5",
+   "requestSchemas": [],
+   "responseSchema": "StoreDeleteResult",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "STORE_NOT_DRAFT",
+    "LAST_ACTIVE_STORE",
+    "STORE_HAS_OPEN_WORK"
+   ],
+   "events": [
+    "store.archived",
+    "store.draft_deleted",
+    "invitation.revoked",
+    "entity_member.removed"
+   ],
+   "permission": null,
+   "capability": "store.archive",
+   "transitions": [
+    "store.lifecycle: active → archived（store.draft_delete，draft_deleted）",
+    "invitation.status: pending → revoked（invitation.revoke，store_archived）",
+    "entity_member.status: active → removed（entity_member.cascade_remove，store_archived，只属于该店的店员）"
+   ],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.store.restore",
+   "method": "POST",
+   "path": "/m/stores/{storeId}/restore",
+   "section": "3.6",
+   "requestSchemas": [],
+   "responseSchema": "StoreCard",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "STORE_LIMIT_REACHED"
+   ],
+   "events": [
+    "store.restored"
+   ],
+   "permission": null,
+   "capability": "store.restore",
+   "transitions": [
+    "store.lifecycle: archived → active（store.restore）"
+   ],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.me.currentStore.replace",
+   "method": "PUT",
+   "path": "/m/me/current-store",
+   "section": "3.7",
+   "requestSchemas": [
+    "CurrentStoreBody"
+   ],
+   "responseSchema": "CurrentStoreResult",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "me.*",
+   "transitions": [],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.member.list",
+   "method": "GET",
+   "path": "/m/members",
+   "section": "3.8",
+   "requestSchemas": [],
+   "responseSchema": "MemberListView",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "member.list",
+   "transitions": [],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.member.update",
+   "method": "PATCH",
+   "path": "/m/members/{memberId}",
+   "section": "3.9",
+   "requestSchemas": [
+    "MemberUpdateBody"
+   ],
+   "responseSchema": "MemberItem",
+   "errors": [
+    "VALIDATION_FAILED",
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [
+    "entity_member.stores_changed"
+   ],
+   "permission": null,
+   "capability": "member.manage",
+   "transitions": [],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.member.remove",
+   "method": "POST",
+   "path": "/m/members/{memberId}/remove",
+   "section": "3.10",
+   "requestSchemas": [],
+   "responseSchema": "MemberRemoveResult",
+   "errors": [
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [
+    "entity_member.removed"
+   ],
+   "permission": null,
+   "capability": "member.manage",
+   "transitions": [
+    "entity_member.status: active → removed（entity_member.remove，by_owner）"
+   ],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.me.membership.leave",
+   "method": "POST",
+   "path": "/m/me/membership/leave",
+   "section": "3.11",
+   "requestSchemas": [],
+   "responseSchema": "MemberRemoveResult",
+   "errors": [
+    "OWNER_CANNOT_LEAVE"
+   ],
+   "events": [
+    "entity_member.removed"
+   ],
+   "permission": null,
+   "capability": "me.*",
+   "transitions": [
+    "entity_member.status: active → removed（entity_member.leave，self）"
+   ],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.invitation.create",
+   "method": "POST",
+   "path": "/m/invitations",
+   "section": "3.12",
+   "requestSchemas": [
+    "InvitationCreateBody"
+   ],
+   "responseSchema": "InvitationCard",
+   "errors": [
+    "SEAT_LIMIT_REACHED",
+    "INVITATION_DAILY_LIMIT",
+    "CONTENT_REJECTED",
+    "PROVIDER_UNAVAILABLE",
+    "STATE_NOT_ALLOWED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "invitation.created"
+   ],
+   "permission": null,
+   "capability": "member.manage",
+   "transitions": [
+    "invitation.status: — → pending（invitation.create）"
+   ],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.invitation.markShared",
+   "method": "POST",
+   "path": "/m/invitations/{invitationId}/mark-shared",
+   "section": "3.13",
+   "requestSchemas": [],
+   "responseSchema": "InvitationSharedResult",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "member.manage",
+   "transitions": [],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.invitation.revoke",
+   "method": "POST",
+   "path": "/m/invitations/{invitationId}/revoke",
+   "section": "3.14",
+   "requestSchemas": [
+    "InvitationRevokeBody"
+   ],
+   "responseSchema": "InvitationRevokeResult",
+   "errors": [
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [
+    "invitation.revoked"
+   ],
+   "permission": null,
+   "capability": "member.manage",
+   "transitions": [
+    "invitation.status: pending → revoked（invitation.revoke，by_owner / unshared_leave）"
+   ],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.invitation.lookup",
+   "method": "GET",
+   "path": "/m/invitations/lookup",
+   "section": "3.15",
+   "requestSchemas": [
+    "InvitationLookupQuery"
+   ],
+   "responseSchema": "InvitationPreview",
+   "errors": [
+    "INVITATION_INVALID"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.invitation.accept",
+   "method": "POST",
+   "path": "/m/invitations/{invitationId}/accept",
+   "section": "3.16",
+   "requestSchemas": [
+    "InvitationAcceptBody"
+   ],
+   "responseSchema": "MembershipResult",
+   "errors": [
+    "INVITATION_INVALID",
+    "INVITATION_USED",
+    "INVITATION_REVOKED",
+    "INVITATION_EXPIRED",
+    "INVITATION_NOT_FOR_YOU",
+    "ALREADY_OWNER",
+    "PHONE_IN_OTHER_ENTITY",
+    "CONTENT_REJECTED",
+    "PROVIDER_UNAVAILABLE"
+   ],
+   "events": [
+    "invitation.accepted",
+    "entity_member.joined",
+    "entity_member.stores_changed",
+    "entity.abandoned",
+    "entity_member.removed",
+    "store.archived"
+   ],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "invitation.status: pending → accepted（invitation.accept）",
+    "entity_member.status: — → active（entity_member.join，clerk）",
+    "entity.lifecycle: active → abandoned（entity.abandon，受邀人名下是空草稿主体时）",
+    "entity_member.status: active → removed（entity_member.cascade_remove，draft_abandoned，让位主体的老板）",
+    "store.lifecycle: active → archived（store.archive_by_entity，entity_abandoned，让位主体的门店）"
+   ],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.portalTicket.lookup",
+   "method": "GET",
+   "path": "/m/portal-tickets/lookup",
+   "section": "3.17",
+   "requestSchemas": [
+    "PortalTicketLookupQuery"
+   ],
+   "responseSchema": "PortalTicketPreview",
+   "errors": [
+    "PORTAL_TICKET_INVALID"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "portal.authorize",
+   "transitions": [],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.portalTicket.approve",
+   "method": "POST",
+   "path": "/m/portal-tickets/{portalTicketId}/approve",
+   "section": "3.18",
+   "requestSchemas": [
+    "PortalTicketApproveBody"
+   ],
+   "responseSchema": "PortalTicketDecision",
+   "errors": [
+    "PORTAL_TICKET_INVALID"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "portal.authorize",
+   "transitions": [
+    "portal_ticket.status: pending → approved（老板确认，配对数字一致）",
+    "portal_ticket.status: pending → rejected（配对数字不一致）"
+   ],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.portalTicket.reject",
+   "method": "POST",
+   "path": "/m/portal-tickets/{portalTicketId}/reject",
+   "section": "3.19",
+   "requestSchemas": [],
+   "responseSchema": "PortalTicketDecision",
+   "errors": [
+    "PORTAL_TICKET_INVALID"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "portal.authorize",
+   "transitions": [
+    "portal_ticket.status: pending → rejected（老板点“拒绝”）"
+   ],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.portalSession.list",
+   "method": "GET",
+   "path": "/m/portal-sessions",
+   "section": "3.20",
+   "requestSchemas": [],
+   "responseSchema": "PortalSessionListView",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "portal.authorize",
+   "transitions": [],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.portalSession.revoke",
+   "method": "POST",
+   "path": "/m/portal-sessions/{portalSessionId}/revoke",
+   "section": "3.21",
+   "requestSchemas": [],
+   "responseSchema": "PortalSessionItem",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "portal.authorize",
+   "transitions": [],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.delegation.create",
+   "method": "POST",
+   "path": "/m/delegations",
+   "section": "3.22",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.1"
+  }
+ ],
+ "schemas": [
+  {
+   "name": "EntityQuotaCard",
+   "fields": [
+    "entityId",
+    "name",
+    "verificationStatus",
+    "subscription",
+    "subscription.planName",
+    "subscription.endDate",
+    "subscription.isActive",
+    "storesUsed",
+    "storeLimit",
+    "seatsUsed",
+    "memberLimit",
+    "pendingInvitationCount",
+    "storesOver",
+    "seatsOver",
+    "limitReason",
+    "canAddStore"
+   ]
+  },
+  {
+   "name": "EntityBrief",
+   "fields": [
+    "entityId",
+    "name",
+    "verificationStatus"
+   ]
+  },
+  {
+   "name": "StoreCard",
+   "fields": [
+    "storeId",
+    "name",
+    "isPrimary",
+    "lifecycle",
+    "archiveReason",
+    "archivedAt",
+    "isLastSelected",
+    "city",
+    "category",
+    "qualificationStatus",
+    "verifiedAt",
+    "submittedAt",
+    "expectedDecisionAt",
+    "completenessPct",
+    "liveCount",
+    "deliveringCount",
+    "assetCount",
+    "clerkCount",
+    "pendingInvitationCount",
+    "memberPreview",
+    "todoCount",
+    "actions"
+   ]
+  },
+  {
+   "name": "StoreCardForClerk",
+   "fields": [
+    "storeId",
+    "name",
+    "isPrimary",
+    "lifecycle",
+    "isLastSelected",
+    "city",
+    "category",
+    "qualificationStatus",
+    "assetCount",
+    "clerkCount",
+    "todoCount",
+    "actions"
+   ]
+  },
+  {
+   "name": "MemberPreview",
+   "fields": [
+    "displayName",
+    "role"
+   ]
+  },
+  {
+   "name": "StoreListView",
+   "fields": [
+    "viewerRole",
+    "entity",
+    "items"
+   ]
+  },
+  {
+   "name": "StoreCreateBody",
+   "fields": [
+    "name",
+    "addressDetail",
+    "industryCode",
+    "categoryCode",
+    "copyFromStoreId",
+    "copyOptions"
+   ]
+  },
+  {
+   "name": "StoreArchiveResult",
+   "fields": [
+    "store",
+    "revokedInvitationCount",
+    "removedMemberCount"
+   ]
+  },
+  {
+   "name": "StoreDeleteResult",
+   "fields": [
+    "storeId",
+    "deletedAt"
+   ]
+  },
+  {
+   "name": "StoreBlocker",
+   "fields": [
+    "kind",
+    "count",
+    "message"
+   ]
+  },
+  {
+   "name": "CurrentStoreBody",
+   "fields": [
+    "storeId"
+   ]
+  },
+  {
+   "name": "CurrentStoreResult",
+   "fields": [
+    "storeId"
+   ]
+  },
+  {
+   "name": "MemberItem",
+   "fields": [
+    "memberId",
+    "role",
+    "displayName",
+    "phoneMask",
+    "joinedAt",
+    "isSelf",
+    "storeScope",
+    "stores",
+    "uploadCount",
+    "adoptedCount",
+    "actions"
+   ]
+  },
+  {
+   "name": "MemberItemForClerk",
+   "fields": [
+    "memberId",
+    "role",
+    "displayName",
+    "joinedAt",
+    "isSelf"
+   ]
+  },
+  {
+   "name": "MemberStoreRef",
+   "fields": [
+    "storeId",
+    "name",
+    "lifecycle",
+    "qualificationStatus"
+   ]
+  },
+  {
+   "name": "PendingInvitationItem",
+   "fields": [
+    "invitationId",
+    "role",
+    "remarkName",
+    "isPhoneRestricted",
+    "isShared",
+    "createdAt",
+    "expiresAt",
+    "actions"
+   ]
+  },
+  {
+   "name": "SeatInfo",
+   "fields": [
+    "seatsUsed",
+    "memberLimit",
+    "pendingInvitationCount",
+    "includesUnsharedDraft",
+    "seatsOver",
+    "limitReason",
+    "planName"
+   ]
+  },
+  {
+   "name": "MemberListView",
+   "fields": [
+    "viewerRole",
+    "items",
+    "pendingInvitations",
+    "seats"
+   ]
+  },
+  {
+   "name": "MemberUpdateBody",
+   "fields": [
+    "storeIds"
+   ]
+  },
+  {
+   "name": "MemberRemoveResult",
+   "fields": [
+    "memberId",
+    "status",
+    "removedAt"
+   ]
+  },
+  {
+   "name": "MembershipResult",
+   "fields": [
+    "entityId",
+    "memberId",
+    "role",
+    "storeId",
+    "isNew",
+    "abandonedEntityId"
+   ]
+  },
+  {
+   "name": "InvitationCreateBody",
+   "fields": [
+    "clientRequestId",
+    "remarkName",
+    "targetPhone"
+   ]
+  },
+  {
+   "name": "InvitationCard",
+   "fields": [
+    "invitationId",
+    "token",
+    "isReused",
+    "role",
+    "storeId",
+    "storeName",
+    "inviterName",
+    "remarkName",
+    "isPhoneRestricted",
+    "expiresAt",
+    "seats"
+   ]
+  },
+  {
+   "name": "InvitationSharedResult",
+   "fields": [
+    "invitationId",
+    "sharedAt"
+   ]
+  },
+  {
+   "name": "InvitationRevokeBody",
+   "fields": [
+    "reason"
+   ]
+  },
+  {
+   "name": "InvitationRevokeResult",
+   "fields": [
+    "invitationId",
+    "status",
+    "revokedAt"
+   ]
+  },
+  {
+   "name": "InvitationLookupQuery",
+   "fields": [
+    "token"
+   ]
+  },
+  {
+   "name": "InvitationPreview",
+   "fields": [
+    "invitationId",
+    "status",
+    "storeName",
+    "city",
+    "category",
+    "inviterName",
+    "role",
+    "isPhoneRestricted",
+    "expiresAt"
+   ]
+  },
+  {
+   "name": "InvitationAcceptBody",
+   "fields": [
+    "token",
+    "displayName"
+   ]
+  },
+  {
+   "name": "PortalTicketLookupQuery",
+   "fields": [
+    "code"
+   ]
+  },
+  {
+   "name": "PortalTicketPreview",
+   "fields": [
+    "portalTicketId",
+    "browser",
+    "regionHint",
+    "createdAt",
+    "expiresAt",
+    "pairChoices",
+    "storeId",
+    "storeName"
+   ]
+  },
+  {
+   "name": "PortalTicketApproveBody",
+   "fields": [
+    "pairDigits"
+   ]
+  },
+  {
+   "name": "PortalTicketDecision",
+   "fields": [
+    "portalTicketId",
+    "status",
+    "rejectReason",
+    "approvedAt",
+    "storeId"
+   ]
+  },
+  {
+   "name": "PortalSessionItem",
+   "fields": [
+    "portalSessionId",
+    "storeId",
+    "storeName",
+    "grantScope",
+    "browser",
+    "regionHint",
+    "authorizedAt",
+    "expiresAt",
+    "revokedAt"
+   ]
+  },
+  {
+   "name": "PortalSessionListView",
+   "fields": [
+    "items"
+   ]
+  }
+ ],
+ "errorCodes": [
+  {
+   "symbol": "ALREADY_IN_ENTITY",
+   "code": 41101,
+   "http": 409,
+   "meaning": "已是其他主体的店员，不能再建主体",
+   "retryable": false
+  },
+  {
+   "symbol": "ALREADY_OWNER",
+   "code": 41102,
+   "http": 409,
+   "meaning": "已是该主体的老板，不能接受店员邀请",
+   "retryable": false
+  },
+  {
+   "symbol": "PHONE_IN_OTHER_ENTITY",
+   "code": 41103,
+   "http": 409,
+   "meaning": "手机号已属其他主体",
+   "retryable": false
+  },
+  {
+   "symbol": "SEAT_LIMIT_REACHED",
+   "code": 41104,
+   "http": 409,
+   "meaning": "成员名额已满（含待接受的邀请）",
+   "retryable": false
+  },
+  {
+   "symbol": "STORE_LIMIT_REACHED",
+   "code": 41105,
+   "http": 409,
+   "meaning": "门店额度已满",
+   "retryable": false
+  },
+  {
+   "symbol": "QUOTA_EXCEEDED",
+   "code": 41106,
+   "http": 409,
+   "meaning": "门店数超过上限，须先停用门店才能新订购、提交广告需求（共用领域码，A77 归 m02；由 m04 m.order.create、m06 m.ad.create 返回，两者的 quote 列为 blockers）",
+   "retryable": false
+  },
+  {
+   "symbol": "STORE_ARCHIVED",
+   "code": 41107,
+   "http": 403,
+   "meaning": "门店已停用，只能做收尾操作（门店上下文中间件返回）",
+   "retryable": false
+  },
+  {
+   "symbol": "STORE_HAS_OPEN_WORK",
+   "code": 41108,
+   "http": 409,
+   "meaning": "门店有在办事项，不能停用或删除",
+   "retryable": false
+  },
+  {
+   "symbol": "LAST_ACTIVE_STORE",
+   "code": 41109,
+   "http": 409,
+   "meaning": "是主体最后一家启用中的门店",
+   "retryable": false
+  },
+  {
+   "symbol": "STORE_NOT_DRAFT",
+   "code": 41110,
+   "http": 409,
+   "meaning": "不是草稿门店，只能停用",
+   "retryable": false
+  },
+  {
+   "symbol": "INVITATION_INVALID",
+   "code": 41111,
+   "http": 404,
+   "meaning": "邀请令牌不存在或与邀请不符",
+   "retryable": false
+  },
+  {
+   "symbol": "INVITATION_USED",
+   "code": 41112,
+   "http": 410,
+   "meaning": "邀请已被使用",
+   "retryable": false
+  },
+  {
+   "symbol": "INVITATION_REVOKED",
+   "code": 41113,
+   "http": 410,
+   "meaning": "邀请已撤回",
+   "retryable": false
+  },
+  {
+   "symbol": "INVITATION_EXPIRED",
+   "code": 41114,
+   "http": 410,
+   "meaning": "邀请已过期",
+   "retryable": false
+  },
+  {
+   "symbol": "INVITATION_NOT_FOR_YOU",
+   "code": 41115,
+   "http": 403,
+   "meaning": "邀请限定了手机号，与当前账号不符",
+   "retryable": false
+  },
+  {
+   "symbol": "INVITATION_DAILY_LIMIT",
+   "code": 41116,
+   "http": 409,
+   "meaning": "当天发出的邀请已达上限",
+   "retryable": false
+  },
+  {
+   "symbol": "OWNER_CANNOT_LEAVE",
+   "code": 41117,
+   "http": 409,
+   "meaning": "老板不能退出门店",
+   "retryable": false
+  }
+ ],
+ "externalErrors": [
+  {
+   "symbol": "CONTENT_REJECTED",
+   "doc": "m01-account"
+  },
+  {
+   "symbol": "PORTAL_TICKET_INVALID",
+   "doc": "p01-portal"
+  },
+  {
+   "symbol": "PORTAL_SESSION_INVALID",
+   "doc": "p01-portal"
+  },
+  {
+   "symbol": "DICT_ITEM_DISABLED",
+   "doc": "m08-support-misc"
+  },
+  {
+   "symbol": "INDUSTRY_NOT_OPEN",
+   "doc": "m03-profile-asset"
+  }
+ ],
+ "permissions": [],
+ "capabilities": [
+  "store.create",
+  "store.archive",
+  "store.restore",
+  "member.list",
+  "member.manage",
+  "portal.authorize",
+  "me.*"
+ ]
+}
