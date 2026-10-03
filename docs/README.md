@@ -21,7 +21,9 @@
 | [05-risks-and-open-issues.md](05-risks-and-open-issues.md) | 风险、PRD 需修订之处、待拍板事项、上线前验证清单、平台事项 | 产品、业务、法务、财务、研发 |
 | [06-data-model.md](06-data-model.md) | 数据模型：建模约定、166 张表的清单与加锁顺序、相对草案的变化、待确认问题；字段级定义在 [data-model/](data-model/README.md) | 全体研发 |
 | [07-api-contract.md](07-api-contract.md) | 接口契约：四组接口的规模与文档清单、关键约定摘要、登记表、相对数据模型与草案的变化、待确认汇总；字段级定义在 [api/](api/README.md) | 全体研发、前端、测试 |
-| [08-development-plan.md](08-development-plan.md) | 开发计划（待业主确认）：前提、需要业主准备或决定的事、工程基线、9 个里程碑与工作包、覆盖对照、并行策略、质量门禁、第一步 | 业主、全体研发 |
+| [08-development-plan.md](08-development-plan.md) | 开发计划（业主已确认，执行中；进度见 plan/）：前提、需要业主准备或决定的事、工程基线、9 个里程碑与工作包、覆盖对照、并行策略、质量门禁、第一步 | 业主、全体研发 |
+| [plan/](plan/README.md) | 开发计划的执行台账：任务书、工作包状态、留桩、计划变更、外部验证、业主清单、三份运维文档 | 业主、全体研发、开发会话 |
+| [../CLAUDE.md](../CLAUDE.md) | 会话开工须知：每个开发会话开工前必读的总纲与出处 | 开发会话、全体研发 |
 | [appendix/](appendix/README.md) | 九份子系统设计草案、外部事实核实记录、需求与原型调研记录 | 需要细节时查阅 |
 
 界面与交互的依据不在本目录：原型快照、设计规范与样式变量见 [../design/](../design/README.md)。
