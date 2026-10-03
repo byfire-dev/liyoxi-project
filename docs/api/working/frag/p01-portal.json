@@ -1,0 +1,1106 @@
+{
+ "doc": "p01-portal",
+ "endpoints": [
+  {
+   "operationId": "portal.portalTicket.create",
+   "method": "POST",
+   "path": "/portal/portal-tickets",
+   "section": "3.1",
+   "requestSchemas": [],
+   "responseSchema": "PortalTicketCreated",
+   "errors": [
+    "RATE_LIMITED",
+    "ORIGIN_REJECTED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "portal_ticket.status: — → pending（02-identity-tenant.md:902）"
+   ],
+   "xAuth": "public",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "匿名建下载页票据（A18；C47 点名）",
+   "rateLimit": "portal.ticket",
+   "version": "V1.0",
+   "writes": [
+    "portal_ticket"
+   ]
+  },
+  {
+   "operationId": "portal.portalTicket.get",
+   "method": "GET",
+   "path": "/portal/portal-tickets/{portalTicketId}",
+   "section": "3.2",
+   "requestSchemas": [
+    "PortalTicketPollHeader"
+   ],
+   "responseSchema": "PortalTicketStatusView",
+   "errors": [
+    "NOT_FOUND",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询（A18）；GET 不写库，“已过期”按 expires_at 派生",
+   "rateLimit": "portal.ticket",
+   "version": "V1.0",
+   "writes": []
+  },
+  {
+   "operationId": "portal.portalTicket.exchange",
+   "method": "POST",
+   "path": "/portal/portal-tickets/{portalTicketId}/exchange",
+   "section": "3.3",
+   "requestSchemas": [
+    "PortalTicketExchangeBody"
+   ],
+   "responseSchema": "PortalTicketExchangeResult",
+   "errors": [
+    "PORTAL_TICKET_INVALID",
+    "STATE_NOT_ALLOWED",
+    "VALIDATION_FAILED",
+    "ORIGIN_REJECTED",
+    "RATE_LIMITED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "portal_ticket.status: approved → consumed（02-identity-tenant.md:906；200，status = consumed）",
+    "portal_ticket.status: approved → rejected（密钥不符、尝试达上限、确认后超过 60 秒；02-identity-tenant.md:907；随事务提交，返回 200，status = rejected，A101、C50）"
+   ],
+   "xAuth": "public",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "登录与换会话（A18；C47 点名）；路线图原写 natural（状态守卫）不采用",
+   "rateLimit": "portal.ticket",
+   "version": "V1.0",
+   "writes": [
+    "portal_ticket",
+    "portal_session（仅 consumed）",
+    "auth_event（login_success；作废时独立事务 login_fail）"
+   ]
+  },
+  {
+   "operationId": "portal.session.current.get",
+   "method": "GET",
+   "path": "/portal/sessions/current",
+   "section": "3.4",
+   "requestSchemas": [],
+   "responseSchema": "PortalSessionView",
+   "errors": [
+    "AUTH_REQUIRED",
+    "PORTAL_SESSION_INVALID"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "portal",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询（A18）；当前会话视图别名（A41、A82，C5、C14）",
+   "rateLimit": "portal.global",
+   "version": "V1.0",
+   "writes": []
+  },
+  {
+   "operationId": "portal.session.current.delete",
+   "method": "DELETE",
+   "path": "/portal/sessions/current",
+   "section": "3.5",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [
+    "AUTH_REQUIRED",
+    "PORTAL_SESSION_INVALID",
+    "ORIGIN_REJECTED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "portal",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "A43：退出登录幂等 none（C47 none 白名单登记 portal.session.current.delete），端上把 401 当作已退出",
+   "rateLimit": "portal.global",
+   "version": "V1.0",
+   "writes": [
+    "portal_session（revoked_at、revoke_reason = portal_logout）",
+    "auth_event（logout）"
+   ]
+  },
+  {
+   "operationId": "portal.orderItem.list",
+   "method": "GET",
+   "path": "/portal/order-items",
+   "section": "3.6",
+   "requestSchemas": [
+    "PortalOrderItemListQuery"
+   ],
+   "responseSchema": "PortalOrderItemPage",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "delivery.download",
+   "transitions": [],
+   "xAuth": "portal",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询（A18）",
+   "rateLimit": "portal.global",
+   "version": "V1.0",
+   "writes": []
+  },
+  {
+   "operationId": "portal.orderItem.release.get",
+   "method": "GET",
+   "path": "/portal/order-items/{orderItemId}/release",
+   "section": "3.7",
+   "requestSchemas": [],
+   "responseSchema": "PortalReleaseView",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "delivery.download",
+   "transitions": [],
+   "xAuth": "portal",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询（A18）",
+   "rateLimit": "portal.global",
+   "version": "V1.0",
+   "writes": []
+  },
+  {
+   "operationId": "portal.orderItem.downloadUrls",
+   "method": "POST",
+   "path": "/portal/order-items/{orderItemId}/download-urls",
+   "section": "3.8",
+   "requestSchemas": [
+    "PortalDownloadBody"
+   ],
+   "responseSchema": "PortalDownloadResult",
+   "errors": [
+    "DOWNLOAD_GRANT_INVALID",
+    "DOWNLOAD_NOT_AVAILABLE",
+    "VALIDATION_FAILED",
+    "NOT_FOUND",
+    "ORIGIN_REJECTED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "delivery.download",
+   "transitions": [
+    "zip_bundle.zip_state: — → building（kind = zip，首次 ensureZip；06-media.md:962）",
+    "zip_bundle.zip_state: none → building（kind = zip；06-media.md:964）",
+    "zip_bundle.zip_state: failed → building（kind = zip 且 retry = true；06-media.md:964，A99）",
+    "zip_bundle.zip_state: failed → failed（kind = zip 且 retry = false：不建任务、不升代次，A99；06 待回写）",
+    "zip_bundle.zip_state: building → building（返回打包中；06-media.md:968）",
+    "zip_bundle.zip_state: ready → ready（ZIP 仍 stored，顺延保留期；06-media.md:969；kind = zip 与 publish_list）",
+    "zip_bundle.zip_state: ready → building（kind = zip，ZIP 文件已不在；06-media.md:970）",
+    "kind = publish_list 用 ensureZip 的 peek（只查不建）：除 ready → ready 外不迁移、不建行、不建任务（06 待回写）"
+   ],
+   "xAuth": "portal",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "签发短时地址（A18、A51；C47、C60）：每次签发都留痕，结果不进幂等记录；ZIP 打包由 zip_gen 与 media_job.dedupe_key 去重",
+   "rateLimit": "portal.global",
+   "version": "V1.0",
+   "writes": [
+    "delivery_download_log（entity_id、store_id 取自成片包；client = portal；仅 state = ready 时）",
+    "zip_bundle、media_job、file_ref（经 media.ensureZip；kind = zip；publish_list 只顺延保留期）",
+    "analytics_event（package_download，source = direct，actor_id = merchant_user_id = 授权老板，role = owner；episode / zip 且 ready 时）"
+   ]
+  },
+  {
+   "operationId": "portal.orderItem.publishList.get",
+   "method": "GET",
+   "path": "/portal/order-items/{orderItemId}/publish-list",
+   "section": "3.9",
+   "requestSchemas": [],
+   "responseSchema": "PublishListView",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "delivery.download",
+   "transitions": [],
+   "xAuth": "portal",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询（A18）",
+   "rateLimit": "portal.global",
+   "version": "V1.0",
+   "writes": []
+  },
+  {
+   "operationId": "portal.orderItem.sample.get",
+   "method": "GET",
+   "path": "/portal/order-items/{orderItemId}/sample",
+   "section": "3.10",
+   "requestSchemas": [],
+   "responseSchema": "PortalSampleView",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "sample.view",
+   "transitions": [],
+   "xAuth": "portal",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询（A18、A19）：不写访问记录、不回写首次查看",
+   "rateLimit": "portal.global",
+   "version": "V1.0",
+   "writes": []
+  },
+  {
+   "operationId": "portal.sample.playbackUrls",
+   "method": "POST",
+   "path": "/portal/samples/{sampleId}/playback-urls",
+   "section": "3.11",
+   "requestSchemas": [],
+   "responseSchema": "Playable",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "SAMPLE_VIEW_CHANNEL_NOT_OFFERED",
+    "SAMPLE_PREVIEW_NOT_READY",
+    "NOT_FOUND",
+    "ORIGIN_REJECTED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "sample.view",
+   "transitions": [],
+   "xAuth": "portal",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "签发短时地址（A18、A19）：每次签发写访问审计，结果不进幂等记录",
+   "rateLimit": "portal.global",
+   "version": "V1.0",
+   "writes": [
+    "audit_log（stream = access，action = delivery.sample.portal_preview，target_type = sample，client = portal）",
+    "sample.first_viewed_at（为空时）"
+   ]
+  },
+  {
+   "operationId": "portal.ad.list",
+   "method": "GET",
+   "path": "/portal/ads",
+   "section": "3.12",
+   "requestSchemas": [
+    "PortalAdListQuery"
+   ],
+   "responseSchema": "PortalAdPage",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "ad.view",
+   "transitions": [],
+   "xAuth": "portal",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询（A18）",
+   "rateLimit": "portal.global",
+   "version": "V1.0",
+   "writes": []
+  },
+  {
+   "operationId": "portal.ad.get",
+   "method": "GET",
+   "path": "/portal/ads/{adId}",
+   "section": "3.13",
+   "requestSchemas": [],
+   "responseSchema": "PortalAdDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "ad.view",
+   "transitions": [],
+   "xAuth": "portal",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询（A18、A19）",
+   "rateLimit": "portal.global",
+   "version": "V1.0",
+   "writes": []
+  },
+  {
+   "operationId": "portal.ad.playbackUrls",
+   "method": "POST",
+   "path": "/portal/ads/{adId}/playback-urls",
+   "section": "3.14",
+   "requestSchemas": [
+    "PortalAdPlaybackBody"
+   ],
+   "responseSchema": "Playable",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "AD_VERSION_STALE",
+    "AD_PREVIEW_CHANNEL_UNAVAILABLE",
+    "PLAYABLE_UNAVAILABLE",
+    "NOT_FOUND",
+    "ORIGIN_REJECTED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "ad.view",
+   "transitions": [],
+   "xAuth": "portal",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "签发短时地址（A18、A19）：每次签发写访问审计，结果不进幂等记录",
+   "rateLimit": "portal.global",
+   "version": "V1.0",
+   "writes": [
+    "audit_log（stream = access，action = ad.version.portal_preview，target_type = ad_version，client = portal）"
+   ]
+  },
+  {
+   "operationId": "portal.licenseVerification.get",
+   "method": "GET",
+   "path": "/portal/license-verifications",
+   "section": "3.15",
+   "requestSchemas": [
+    "LicenseVerificationQuery"
+   ],
+   "responseSchema": "LicenseVerificationView",
+   "errors": [
+    "LICENSE_VERIFICATION_NOT_FOUND",
+    "RATE_LIMITED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询（A18）",
+   "rateLimit": "portal.verify",
+   "version": "V1.0",
+   "writes": []
+  },
+  {
+   "operationId": "portal.clientError.create",
+   "method": "POST",
+   "path": "/portal/client-errors",
+   "section": "3.16",
+   "requestSchemas": [
+    "SentryEnvelope"
+   ],
+   "responseSchema": null,
+   "errors": [
+    "VALIDATION_FAILED",
+    "RATE_LIMITED",
+    "ORIGIN_REJECTED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "optional",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "错误上报（A18、C47）；立即 202，不落库；DSN 项目白名单，超过 200KB 由网关返回 413（与 m08、a01 一致）",
+   "rateLimit": "telemetry",
+   "version": "V1.0",
+   "writes": []
+  },
+  {
+   "operationId": "portal.file.create",
+   "method": "POST",
+   "path": "/portal/files",
+   "section": "3.17",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "portal",
+   "clerkView": null,
+   "xIdempotent": "natural",
+   "idempotentBy": [
+    "uq_file_object_client_token_store"
+   ],
+   "idempotentNote": "V1.1，细节待设计；按 clientToken 复用未完成的登记（C59）",
+   "rateLimit": "portal.global",
+   "version": "V1.1",
+   "writes": []
+  }
+ ],
+ "schemas": [
+  {
+   "name": "DownloadBlocker",
+   "fields": [
+    "kind",
+    "reason"
+   ],
+   "note": "判别联合：{ kind: 'grant_invalid', reason: DownloadGrantInvalidReason } | { kind: 'not_available', reason: DownloadUnavailableReason }"
+  },
+  {
+   "name": "PortalTicketCreated",
+   "fields": [
+    "portalTicketId",
+    "qrUrl",
+    "shortCode",
+    "pairDigits",
+    "pollSecret",
+    "expiresAt",
+    "pollIntervalMs"
+   ]
+  },
+  {
+   "name": "PortalTicketPollHeader",
+   "fields": [
+    "X-Poll-Secret"
+   ]
+  },
+  {
+   "name": "PortalTicketStatusView",
+   "fields": [
+    "portalTicketId",
+    "status",
+    "expiresAt"
+   ]
+  },
+  {
+   "name": "PortalTicketExchangeBody",
+   "fields": [
+    "pollSecret"
+   ]
+  },
+  {
+   "name": "PortalTicketExchangeResult",
+   "fields": [
+    "status",
+    "session",
+    "rejectReason"
+   ],
+   "note": "status = consumed 时 session 为 PortalSessionView 并下发 Cookie；status = rejected 时 rejectReason 有值（A101 同一做法）"
+  },
+  {
+   "name": "PortalSessionView",
+   "fields": [
+    "portalSessionId",
+    "storeId",
+    "storeName",
+    "isStoreArchived",
+    "entityId",
+    "entityName",
+    "authorizerPhoneMask",
+    "grantScope",
+    "capabilities",
+    "authorizedAt",
+    "expiresAt",
+    "serverTime"
+   ]
+  },
+  {
+   "name": "PortalOrderItemListQuery",
+   "fields": [
+    "tab",
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "PortalOrderItemPage",
+   "fields": [
+    "items",
+    "nextCursor",
+    "hasMore"
+   ],
+   "note": "CursorPage<PortalOrderItemCard>"
+  },
+  {
+   "name": "PortalOrderItemCard",
+   "fields": [
+    "orderItemId",
+    "orderId",
+    "orderNo",
+    "dramaTitle",
+    "poster",
+    "episodeCount",
+    "phase",
+    "usageEndDate",
+    "release",
+    "grant",
+    "isDownloadable",
+    "downloadBlocker",
+    "pendingSample",
+    "activityAt"
+   ]
+  },
+  {
+   "name": "PortalReleaseBrief",
+   "fields": [
+    "deliveryReleaseId",
+    "releaseNo",
+    "kind",
+    "pushedAt",
+    "episodeCount",
+    "totalBytes",
+    "changedEpisodeNos"
+   ]
+  },
+  {
+   "name": "PortalGrantView",
+   "fields": [
+    "state",
+    "expiresAt",
+    "isExpired"
+   ]
+  },
+  {
+   "name": "PendingSampleBrief",
+   "fields": [
+    "sampleId",
+    "versionNo",
+    "pushedAt",
+    "isPreviewReady"
+   ]
+  },
+  {
+   "name": "PortalReleaseView",
+   "fields": [
+    "orderItemId",
+    "orderNo",
+    "dramaTitle",
+    "usageEndDate",
+    "deliveryReleaseId",
+    "releaseNo",
+    "kind",
+    "state",
+    "closeReason",
+    "reissueReason",
+    "pushedAt",
+    "episodeCount",
+    "totalBytes",
+    "changedEpisodeNos",
+    "episodes",
+    "grant",
+    "isDownloadable",
+    "downloadBlocker",
+    "zipFileName",
+    "hasPublishList"
+   ]
+  },
+  {
+   "name": "PortalReleaseEpisode",
+   "fields": [
+    "episodeNo",
+    "fileName",
+    "sizeBytes",
+    "isChanged",
+    "lastPortalDownloadAt"
+   ]
+  },
+  {
+   "name": "PortalDownloadBody",
+   "fields": [
+    "kind",
+    "episodeNo",
+    "retry"
+   ]
+  },
+  {
+   "name": "PortalDownloadResult",
+   "fields": [
+    "kind",
+    "state",
+    "downloadId",
+    "episodeNo",
+    "url",
+    "expiresAt",
+    "fileName",
+    "sizeBytes",
+    "pollAfterSec"
+   ]
+  },
+  {
+   "name": "PublishListView",
+   "definedIn": "m05-delivery-publish",
+   "fields": [
+    "orderItemId",
+    "releaseNo",
+    "collectionName",
+    "cover",
+    "topics",
+    "intro",
+    "isAiDeclarationRequired",
+    "episodes",
+    "text"
+   ]
+  },
+  {
+   "name": "PortalSampleView",
+   "fields": [
+    "sampleId",
+    "orderItemId",
+    "orderNo",
+    "dramaTitle",
+    "versionNo",
+    "status",
+    "pushedAt",
+    "durationMs",
+    "previewChannels",
+    "adSlots",
+    "poster",
+    "isPortalPreviewable",
+    "previewBlocker",
+    "firstViewedAt",
+    "lastPortalViewAt",
+    "decidedAt"
+   ]
+  },
+  {
+   "name": "SampleAdSlot",
+   "fields": [
+    "slot",
+    "startMs",
+    "endMs",
+    "label"
+   ]
+  },
+  {
+   "name": "PortalAdListQuery",
+   "fields": [
+    "status",
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "PortalAdPage",
+   "fields": [
+    "items",
+    "nextCursor",
+    "hasMore"
+   ],
+   "note": "CursorPage<PortalAdCard>"
+  },
+  {
+   "name": "PortalAdCard",
+   "fields": [
+    "adId",
+    "adNo",
+    "type",
+    "durationSec",
+    "status",
+    "displayStatus",
+    "copy",
+    "currentVersionNo",
+    "currentVersionPushedAt",
+    "currentPreviewChannels",
+    "confirmedVersionNo",
+    "poster",
+    "isPortalPreviewable"
+   ]
+  },
+  {
+   "name": "PortalAdDetail",
+   "fields": [
+    "adId",
+    "adNo",
+    "type",
+    "durationSec",
+    "status",
+    "displayStatus",
+    "copy",
+    "currentVersionNo",
+    "currentVersionPushedAt",
+    "currentPreviewChannels",
+    "confirmedVersionNo",
+    "poster",
+    "isPortalPreviewable",
+    "currentVersion"
+   ]
+  },
+  {
+   "name": "PortalAdVersionView",
+   "fields": [
+    "versionNo",
+    "pushedAt",
+    "durationMs",
+    "width",
+    "height",
+    "segments",
+    "previewChannels",
+    "decision",
+    "decidedAt"
+   ]
+  },
+  {
+   "name": "AdSegment",
+   "definedIn": "m06-ad",
+   "fields": [
+    "index",
+    "fromMs",
+    "toMs",
+    "label"
+   ]
+  },
+  {
+   "name": "PortalAdPlaybackBody",
+   "fields": [
+    "versionNo"
+   ]
+  },
+  {
+   "name": "Playable",
+   "definedIn": "m06-ad",
+   "fields": [
+    "playableId",
+    "kind",
+    "durationMs",
+    "width",
+    "height",
+    "posterUrl",
+    "sources",
+    "expiresAt",
+    "autoplay",
+    "muted"
+   ]
+  },
+  {
+   "name": "PlayableSource",
+   "definedIn": "m06-ad",
+   "fields": [
+    "quality",
+    "url",
+    "width",
+    "height",
+    "bitrateKbps"
+   ]
+  },
+  {
+   "name": "LicenseVerificationQuery",
+   "fields": [
+    "code",
+    "revNo"
+   ]
+  },
+  {
+   "name": "LicenseVerificationView",
+   "fields": [
+    "letterNo",
+    "displayStatus",
+    "voidedAt",
+    "platform",
+    "licensorName",
+    "licenseeNameMask",
+    "licenseeCreditCodeMask",
+    "dramaName",
+    "episodes",
+    "account",
+    "period",
+    "consent",
+    "currentRevision",
+    "hasPendingRevision",
+    "revisions",
+    "requestedRevNo",
+    "requestedRevisionState",
+    "checkedAt"
+   ]
+  },
+  {
+   "name": "LicensePeriod",
+   "fields": [
+    "startDate",
+    "startText",
+    "endDate",
+    "territory"
+   ],
+   "note": "与 m05 LicenseLetterPreview.period 共用（跨文档请求 m05 引用）"
+  },
+  {
+   "name": "LicenseConsent",
+   "fields": [
+    "consentNo",
+    "agreementName",
+    "consentedAt",
+    "operatorMask"
+   ],
+   "note": "与 m05 LicenseLetterPreview.consent 共用（跨文档请求 m05 引用）"
+  },
+  {
+   "name": "LicenseRevisionProof",
+   "fields": [
+    "revNo",
+    "reason",
+    "contentFp",
+    "pdfSha256",
+    "signMode",
+    "certSerial",
+    "certIssuer",
+    "platformSignedAt",
+    "issuedAt"
+   ]
+  },
+  {
+   "name": "LicenseRevisionBrief",
+   "fields": [
+    "revNo",
+    "reason",
+    "contentFp",
+    "pdfSha256",
+    "issuedAt",
+    "isCurrent"
+   ]
+  },
+  {
+   "name": "SentryEnvelope",
+   "fields": [
+    "(raw envelope, ≤200KB)"
+   ],
+   "note": "Content-Type application/x-sentry-envelope；与 m.clientError.create、admin.clientError.create 同形"
+  }
+ ],
+ "externalSchemas": [
+  {
+   "name": "CursorPage",
+   "definedIn": "conventions（C42）",
+   "note": "PortalOrderItemPage、PortalAdPage 即 CursorPage<T>（A132、A150、C87）"
+  },
+  {
+   "name": "SignedUrl",
+   "definedIn": "a01-system",
+   "note": "{ url, expiresAt }；poster 等字段（A132、C87）"
+  }
+ ],
+ "errorCodes": [
+  {
+   "symbol": "PORTAL_TICKET_INVALID",
+   "code": 41201,
+   "http": 410,
+   "retryable": false,
+   "meaning": "扫码登录票据不能用于本次操作：不存在、已过期、已作废、已换过会话、已被确认（m02 的三条接口），或待确认时密钥不符（d4-identity.md:2329）。只用于不写库的情形；要作废票据的拒绝返回 200 与 status = rejected（A101）。m02-tenant 的 lookup、approve、reject 同样返回它",
+   "details": "{ reason: not_found | expired | rejected | consumed | approved | secret_mismatch }（各接口取值见文档第 5 节）"
+  },
+  {
+   "symbol": "PORTAL_SESSION_INVALID",
+   "code": 41202,
+   "http": 401,
+   "retryable": false,
+   "meaning": "下载页会话失效：不存在、已过期、已吊销，或授权人已不是该主体的有效老板。带了 Cookie 而 portalAuth 不通过时返回；没带 Cookie 返回 AUTH_REQUIRED。归属 p01（A77，C28 共用领域码归属表）",
+   "details": "{ reason: not_found | expired | revoked | authorizer_invalid, revokeReason: portal_session.revoke_reason | null }"
+  },
+  {
+   "symbol": "LICENSE_VERIFICATION_NOT_FOUND",
+   "code": 47501,
+   "http": 404,
+   "retryable": false,
+   "meaning": "未查到这份授权书：验真码不存在、格式不对，或尚无已出件的版次",
+   "details": null
+  }
+ ],
+ "externalErrors": [
+  {
+   "symbol": "DOWNLOAD_GRANT_INVALID",
+   "definedIn": "m05-delivery-publish",
+   "code": 45109,
+   "http": 409
+  },
+  {
+   "symbol": "DOWNLOAD_NOT_AVAILABLE",
+   "definedIn": "m05-delivery-publish",
+   "code": 45110,
+   "http": 409
+  },
+  {
+   "symbol": "SAMPLE_VIEW_CHANNEL_NOT_OFFERED",
+   "definedIn": "m05-delivery-publish",
+   "code": 45107,
+   "http": 409
+  },
+  {
+   "symbol": "SAMPLE_PREVIEW_NOT_READY",
+   "definedIn": "m05-delivery-publish",
+   "code": 45108,
+   "http": 409
+  },
+  {
+   "symbol": "AD_VERSION_STALE",
+   "definedIn": "m06-ad",
+   "code": 45202,
+   "http": 409
+  },
+  {
+   "symbol": "AD_PREVIEW_CHANNEL_UNAVAILABLE",
+   "definedIn": "m06-ad",
+   "code": 45203,
+   "http": 409
+  },
+  {
+   "symbol": "PLAYABLE_UNAVAILABLE",
+   "definedIn": "m06-ad",
+   "code": 45206,
+   "http": 409
+  }
+ ],
+ "errorSources": {
+  "general": [
+   "AUTH_REQUIRED",
+   "ORIGIN_REJECTED",
+   "NOT_FOUND",
+   "STATE_NOT_ALLOWED",
+   "VALIDATION_FAILED",
+   "RATE_LIMITED",
+   "MAINTENANCE"
+  ],
+  "conventions": "C27"
+ },
+ "permissions": [],
+ "capabilities": [
+  "delivery.download",
+  "sample.view",
+  "ad.view"
+ ],
+ "proposedCapabilities": [
+  {
+   "key": "sample.view",
+   "usedBy": [
+    "portal.orderItem.sample.get",
+    "portal.sample.playbackUrls"
+   ],
+   "owner": true,
+   "clerk": false,
+   "archivedStoreOwner": true,
+   "note": "仅下载页会话（d5-media.md:1645、2141）；已按 A65、A87 进增补表"
+  },
+  {
+   "key": "ad.view",
+   "usedBy": [
+    "portal.ad.list",
+    "portal.ad.get",
+    "portal.ad.playbackUrls"
+   ],
+   "owner": true,
+   "clerk": false,
+   "archivedStoreOwner": true,
+   "note": "仅下载页会话（d5-media.md:1645、2141）；已按 A65、A87 进增补表"
+  }
+ ],
+ "auditActions": [
+  {
+   "action": "delivery.sample.portal_preview",
+   "stream": "access",
+   "category": "file_access",
+   "targetType": "sample",
+   "writtenBy": "portal.sample.playbackUrls",
+   "readBy": "m.sample.confirm（m05）"
+  },
+  {
+   "action": "ad.version.portal_preview",
+   "stream": "access",
+   "category": "file_access",
+   "targetType": "ad_version",
+   "writtenBy": "portal.ad.playbackUrls",
+   "readBy": "m.ad.confirm（m06）"
+  }
+ ],
+ "analyticsEvents": [
+  {
+   "name": "package_download",
+   "source": "direct",
+   "writtenBy": "portal.orderItem.downloadUrls",
+   "props": [
+    "orderId",
+    "method(episode|zip)",
+    "channel(portal)"
+   ],
+   "eventId": "srv-pkgdl-{releaseId}-{userId}-{方式}-{业务日}"
+  }
+ ],
+ "authEvents": [
+  {
+   "space": "portal",
+   "method": "ticket",
+   "event": "login_success",
+   "writtenBy": "portal.portalTicket.exchange"
+  },
+  {
+   "space": "portal",
+   "method": "ticket",
+   "event": "login_fail",
+   "writtenBy": "portal.portalTicket.exchange（作废票据时，独立事务；本稿补充）"
+  },
+  {
+   "space": "portal",
+   "method": "ticket",
+   "event": "logout",
+   "writtenBy": "portal.session.current.delete"
+  }
+ ],
+ "proposedRateLimits": [
+  {
+   "tier": "portal.verify",
+   "operationIds": [
+    "portal.licenseVerification.get"
+   ],
+   "quota": "每 IP 30 次 / 分、300 次 / 小时（p01 建议值，已写进 C68；约定第 15 节第 17 项待主负责人与运维确认）"
+  }
+ ],
+ "serviceDependencies": [
+  {
+   "function": "media.ensureZip",
+   "change": "增加重建选项 retry（A99；默认 false：zip_state = failed 时原样返回 failed，不建任务、不升代次；与 a06 admin.deliveryRelease.pack 同名同义）",
+   "owner": "数据模型 06 分组（zip_bundle 状态表 failed 行加守卫；补 failed → failed 行）",
+   "usedBy": "portal.orderItem.downloadUrls（kind = zip，请求体 retry）"
+  },
+  {
+   "function": "media.ensureZip",
+   "change": "增加只查不建选项 peek（不建行、不升代次、不建任务，返回当前 zipState；ready 且文件仍在时照常顺延保留期，文件不在时返回 none 不重打）",
+   "owner": "数据模型 06 分组",
+   "usedBy": "portal.orderItem.downloadUrls（kind = publish_list）"
+  }
+ ],
+ "dataModelWritebacks": [
+  {
+   "file": "02-identity-tenant.md:265",
+   "change": "portal_session.revoke_reason 说明里的 POST /portal/session/logout 改为 DELETE /portal/sessions/current（A43、A82）"
+  },
+  {
+   "file": "06-media.md 2.12",
+   "change": "ensureZip 签名补 retry（A99）与 peek 两个选项；状态表 failed 行加“带 retry”守卫，补 failed → failed（不带 retry）与 peek 的说明"
+  }
+ ]
+}

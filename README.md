@@ -6,7 +6,7 @@ V1.0 交付商家端微信小程序、运营管理后台与商家电脑端下载
 
 ## 当前状态
 
-技术架构与选型评审稿、设计规范初稿已完成，尚未开始编码。
+技术架构与选型评审稿、设计规范初稿、数据模型与接口契约（均为评审稿）已完成，尚未开始编码。
 
 ## 设计
 
@@ -28,6 +28,15 @@ V1.0 交付商家端微信小程序、运营管理后台与商家电脑端下载
 | [docs/03-key-designs.md](docs/03-key-designs.md) | 关键技术方案 |
 | [docs/04-adr.md](docs/04-adr.md) | 架构决策记录 |
 | [docs/05-risks-and-open-issues.md](docs/05-risks-and-open-issues.md) | 风险、待确认事项与上线前验证清单 |
+| [docs/06-data-model.md](docs/06-data-model.md) | 数据模型（字段级定义在 docs/data-model/） |
+| [docs/07-api-contract.md](docs/07-api-contract.md) | 接口契约（字段级定义在 docs/api/） |
 | [docs/appendix/](docs/appendix/README.md) | 子系统设计草案、外部事实核实记录、调研记录 |
 
 建议先读 [docs/05-risks-and-open-issues.md](docs/05-risks-and-open-issues.md) 的第 0、1 节。
+
+## 校验工具
+
+| 工具 | 说明 |
+| --- | --- |
+| [tools/schema-check](tools/schema-check/README.md) | 在临时 PostgreSQL 库里建表、执行手写约束，并逐列比对数据模型文档与库结构 |
+| [tools/api-check](tools/api-check/README.md) | 核对接口文档、路线图与结构化清单是否一致，生成接口索引、错误码与权限点登记表 |

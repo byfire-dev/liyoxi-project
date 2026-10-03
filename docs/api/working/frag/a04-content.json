@@ -1,0 +1,2322 @@
+{
+ "doc": "a04-content",
+ "endpoints": [
+  {
+   "operationId": "admin.drama.list",
+   "method": "GET",
+   "path": "/admin/dramas",
+   "section": "3.1",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）",
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "AdminDramaListQuery"
+   ],
+   "responseSchema": "Page<DramaRow>",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": []
+  },
+  {
+   "operationId": "admin.drama.summary",
+   "method": "GET",
+   "path": "/admin/dramas/summary",
+   "section": "3.2",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）",
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "AdminDramaListQuery"
+   ],
+   "responseSchema": "DramaSummary",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": []
+  },
+  {
+   "operationId": "admin.drama.create",
+   "method": "POST",
+   "path": "/admin/dramas",
+   "section": "3.3",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "edit",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "DramaCreateBody"
+   ],
+   "responseSchema": "AdminDramaDetail & ReplayFlag",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "drama.created"
+   ],
+   "timers": [],
+   "transitions": [
+    "drama.status: — → draft（drama.create，05:143）"
+   ],
+   "redactOnReplay": [
+    "posterUrl",
+    "trailer.coverUrl"
+   ]
+  },
+  {
+   "operationId": "admin.drama.get",
+   "method": "GET",
+   "path": "/admin/dramas/{dramaId}",
+   "section": "3.4",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）",
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [],
+   "responseSchema": "AdminDramaDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": [],
+   "featureFlags": [
+    "weapp.video.trailer.enabled"
+   ]
+  },
+  {
+   "operationId": "admin.drama.activity.list",
+   "method": "GET",
+   "path": "/admin/dramas/{dramaId}/activities",
+   "section": "3.5",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）",
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "CursorQuery"
+   ],
+   "responseSchema": "CursorPage<ActivityItem>（ActivityItem 由 a05 定义）",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": [],
+   "pagination": "cursor+totalApprox（A22）"
+  },
+  {
+   "operationId": "admin.drama.listingChecks.get",
+   "method": "GET",
+   "path": "/admin/dramas/{dramaId}/listing-checks",
+   "section": "3.6",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）",
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [],
+   "responseSchema": "ListingCheckResult",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": [],
+   "featureFlags": [
+    "weapp.video.trailer.enabled"
+   ]
+  },
+  {
+   "operationId": "admin.drama.basic.update",
+   "method": "PATCH",
+   "path": "/admin/dramas/{dramaId}/basic",
+   "section": "3.7",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "edit",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": "lockVersion",
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "DramaBasicPatch"
+   ],
+   "responseSchema": "AdminDramaDetail & ReplayFlag",
+   "errors": [
+    "VALIDATION_FAILED",
+    "DICT_ITEM_DISABLED",
+    "FILE_NOT_USABLE",
+    "PLACEMENT_NOT_OPEN",
+    "TOTAL_EPISODES_LOCKED",
+    "EPISODE_HAS_MASTER",
+    "LISTING_CHECK_FAILED",
+    "VERSION_CONFLICT",
+    "DRAMA_ARCHIVED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": [],
+   "redactOnReplay": [
+    "posterUrl",
+    "trailer.coverUrl"
+   ]
+  },
+  {
+   "operationId": "admin.drama.commercial.update",
+   "method": "PATCH",
+   "path": "/admin/dramas/{dramaId}/commercial",
+   "section": "3.8",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "edit",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": "lockVersion",
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "DramaCommercialPatch"
+   ],
+   "responseSchema": "AdminDramaDetail & ReplayFlag",
+   "errors": [
+    "VALIDATION_FAILED",
+    "DICT_ITEM_DISABLED",
+    "PLACEMENT_NOT_OPEN",
+    "LISTING_CHECK_FAILED",
+    "VERSION_CONFLICT",
+    "DRAMA_ARCHIVED",
+    "NOT_FOUND"
+   ],
+   "events": [
+    "drama.tier_changed"
+   ],
+   "timers": [],
+   "transitions": [],
+   "redactOnReplay": [
+    "posterUrl",
+    "trailer.coverUrl"
+   ],
+   "auditAction": "drama.heat_tier.change（热度等级有变化时）"
+  },
+  {
+   "operationId": "admin.drama.cast.replace",
+   "method": "PUT",
+   "path": "/admin/dramas/{dramaId}/cast",
+   "section": "3.9",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "edit",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": "lockVersion",
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "DramaCastBody"
+   ],
+   "responseSchema": "AdminDramaDetail & ReplayFlag",
+   "errors": [
+    "VALIDATION_FAILED",
+    "VERSION_CONFLICT",
+    "DRAMA_ARCHIVED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": [],
+   "redactOnReplay": [
+    "posterUrl",
+    "trailer.coverUrl"
+   ]
+  },
+  {
+   "operationId": "admin.drama.copyright.replace",
+   "method": "PUT",
+   "path": "/admin/dramas/{dramaId}/copyright",
+   "section": "3.10",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "edit",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": "lockVersion（drama_copyright）",
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "DramaCopyrightBody"
+   ],
+   "responseSchema": "AdminDramaDetail & ReplayFlag",
+   "errors": [
+    "VALIDATION_FAILED",
+    "FILE_NOT_USABLE",
+    "COPYRIGHT_REVISION_REQUIRED",
+    "VERSION_CONFLICT",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": [],
+   "redactOnReplay": [
+    "posterUrl",
+    "trailer.coverUrl"
+   ]
+  },
+  {
+   "operationId": "admin.drama.dramaCopyrightRevision.create",
+   "method": "POST",
+   "path": "/admin/dramas/{dramaId}/drama-copyright-revisions",
+   "section": "3.11",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": "drama.copyright.revise",
+   "module": "drama",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": "lockVersion（drama_copyright）",
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "CopyrightRevisionCreateBody"
+   ],
+   "responseSchema": "CopyrightRevisionResult & ReplayFlag",
+   "errors": [
+    "VALIDATION_FAILED",
+    "FILE_NOT_USABLE",
+    "COPYRIGHT_NO_CHANGE",
+    "COPYRIGHT_CHANGE_KIND_MISMATCH",
+    "LICENSE_SHORTEN_NOT_OPEN",
+    "LISTING_CHECK_FAILED",
+    "CONFIRM_MISMATCH",
+    "VERSION_CONFLICT",
+    "STATE_NOT_ALLOWED",
+    "DRAMA_ARCHIVED",
+    "NOT_FOUND"
+   ],
+   "events": [
+    "drama.license_extended",
+    "drama.license_shortened",
+    "drama.license_scope_changed"
+   ],
+   "timers": [
+    "content.license_end（止日变更时改期）"
+   ],
+   "transitions": [
+    "drama_copyright_revision: （新增修订行，只增，05:374）"
+   ],
+   "confirm": [
+    "prevEndDate"
+   ],
+   "redactOnReplay": [
+    "drama.posterUrl",
+    "drama.trailer.coverUrl"
+   ]
+  },
+  {
+   "operationId": "admin.drama.dramaPermit.list",
+   "method": "GET",
+   "path": "/admin/dramas/{dramaId}/drama-permits",
+   "section": "3.12",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）",
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [],
+   "responseSchema": "DramaPermitList",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": [],
+   "pagination": "none（有界小集合，A78、C43 已登记）"
+  },
+  {
+   "operationId": "admin.drama.dramaPermit.create",
+   "method": "POST",
+   "path": "/admin/dramas/{dramaId}/drama-permits",
+   "section": "3.13",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "edit",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "DramaPermitCreateBody"
+   ],
+   "responseSchema": "DramaPermitCreateResult",
+   "errors": [
+    "VALIDATION_FAILED",
+    "FILE_NOT_USABLE",
+    "PERMIT_ACTIVE_EXISTS",
+    "STATE_NOT_ALLOWED",
+    "LISTING_CHECK_FAILED",
+    "DRAMA_ARCHIVED",
+    "NOT_FOUND"
+   ],
+   "events": [
+    "drama.permit_changed"
+   ],
+   "timers": [],
+   "transitions": [
+    "drama_permit.status: active → retired（换号时先停旧行，05:269）",
+    "drama_permit.status: （新建）→ active（再插新行；uq_drama_permit_active 不能延迟检查）"
+   ]
+  },
+  {
+   "operationId": "admin.dramaPermit.update",
+   "method": "PATCH",
+   "path": "/admin/drama-permits/{dramaPermitId}",
+   "section": "3.14",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "edit",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": "dramaLockVersion",
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "DramaPermitPatch"
+   ],
+   "responseSchema": "DramaPermitResult",
+   "errors": [
+    "VALIDATION_FAILED",
+    "FILE_NOT_USABLE",
+    "PERMIT_FROZEN",
+    "PERMIT_ACTIVE_EXISTS",
+    "STATE_NOT_ALLOWED",
+    "LISTING_CHECK_FAILED",
+    "VERSION_CONFLICT",
+    "DRAMA_ARCHIVED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": []
+  },
+  {
+   "operationId": "admin.dramaPermit.retire",
+   "method": "POST",
+   "path": "/admin/drama-permits/{dramaPermitId}/retire",
+   "section": "3.15",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "edit",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "DramaPermitRetireBody"
+   ],
+   "responseSchema": "DramaPermitResult",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "LISTING_CHECK_FAILED",
+    "DRAMA_ARCHIVED",
+    "NOT_FOUND",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "drama.permit_changed"
+   ],
+   "timers": [],
+   "transitions": [
+    "drama_permit.status: active → retired（05:269）"
+   ]
+  },
+  {
+   "operationId": "admin.drama.dramaEpisode.list",
+   "method": "GET",
+   "path": "/admin/dramas/{dramaId}/drama-episodes",
+   "section": "3.16",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）",
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "DramaEpisodeListQuery"
+   ],
+   "responseSchema": "Page<DramaEpisodeRow>",
+   "errors": [
+    "VALIDATION_FAILED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": []
+  },
+  {
+   "operationId": "admin.dramaEpisode.update",
+   "method": "PATCH",
+   "path": "/admin/drama-episodes/{dramaEpisodeId}",
+   "section": "3.17",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "edit",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": "dramaLockVersion",
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "DramaEpisodePatch"
+   ],
+   "responseSchema": "DramaEpisodeResult",
+   "errors": [
+    "VALIDATION_FAILED",
+    "VERSION_CONFLICT",
+    "DRAMA_ARCHIVED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": []
+  },
+  {
+   "operationId": "admin.drama.shelve",
+   "method": "POST",
+   "path": "/admin/dramas/{dramaId}/shelve",
+   "section": "3.18",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": "drama.shelf",
+   "module": "drama",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "EmptyBody"
+   ],
+   "responseSchema": "AdminDramaDetail & ReplayFlag",
+   "errors": [
+    "LISTING_CHECK_FAILED",
+    "DRAMA_ARCHIVED",
+    "STATE_NOT_ALLOWED",
+    "NOT_FOUND"
+   ],
+   "events": [
+    "drama.listed"
+   ],
+   "timers": [
+    "content.license_end（登记）"
+   ],
+   "transitions": [
+    "drama.status: draft → listed（drama.list，05:144）",
+    "drama.status: delisted → listed（drama.relist，05:147）"
+   ],
+   "featureFlags": [
+    "weapp.video.trailer.enabled"
+   ],
+   "redactOnReplay": [
+    "posterUrl",
+    "trailer.coverUrl"
+   ]
+  },
+  {
+   "operationId": "admin.drama.delist",
+   "method": "POST",
+   "path": "/admin/dramas/{dramaId}/delist",
+   "section": "3.19",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": "drama.shelf",
+   "module": "drama",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "DramaDelistBody"
+   ],
+   "responseSchema": "AdminDramaDetail & ReplayFlag",
+   "errors": [
+    "VALIDATION_FAILED",
+    "STATE_NOT_ALLOWED",
+    "NOT_FOUND"
+   ],
+   "events": [
+    "drama.delisted"
+   ],
+   "timers": [
+    "content.license_end（取消）"
+   ],
+   "transitions": [
+    "drama.status: listed → delisted（drama.delist，05:145）",
+    "playable_asset.state: ready → retired（原因 rights_issue 时，预告片当前资产，06:900）",
+    "playable_asset.state: processing → retired（原因 rights_issue 时，预告片目标资产仍在转码；06 待补行）",
+    "playable_asset.state: failed → retired（原因 rights_issue 时，预告片目标资产转码失败；06 待补行）"
+   ],
+   "redactOnReplay": [
+    "posterUrl",
+    "trailer.coverUrl"
+   ]
+  },
+  {
+   "operationId": "admin.drama.confirmPermitRecheck",
+   "method": "POST",
+   "path": "/admin/dramas/{dramaId}/confirm-permit-recheck",
+   "section": "3.20",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "edit",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "ConfirmPermitRecheckBody"
+   ],
+   "responseSchema": "AdminDramaDetail & ReplayFlag",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "DRAMA_ARCHIVED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": [],
+   "redactOnReplay": [
+    "posterUrl",
+    "trailer.coverUrl"
+   ]
+  },
+  {
+   "operationId": "admin.drama.mediaReadiness.get",
+   "method": "GET",
+   "path": "/admin/dramas/{dramaId}/media-readiness",
+   "section": "3.21",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "drama",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）",
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [],
+   "responseSchema": "MediaReadiness",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": []
+  },
+  {
+   "operationId": "admin.drama.trailer.replace",
+   "method": "PUT",
+   "path": "/admin/dramas/{dramaId}/trailer",
+   "section": "3.22",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": "drama.media.manage",
+   "module": "drama",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "TrailerReplaceBody"
+   ],
+   "responseSchema": "TrailerBrief & ReplayFlag",
+   "errors": [
+    "FILE_NOT_USABLE",
+    "TRAILER_SOURCE_CHECKING",
+    "TRAILER_SOURCE_REJECTED",
+    "DRAMA_ARCHIVED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": [
+    "playable_asset.state: — → processing（06:896）",
+    "media_job.state: — → queued（transcode_mp4，06:683）"
+   ],
+   "lockNote": "drama_trailer 无锁列，C52 已登记为例外（A104）",
+   "redactOnReplay": [
+    "coverUrl"
+   ],
+   "reuseRule": "同源文件同规格版本已有资产：processing、ready、failed 复用（failed 设为目标后经 admin.mediaJob.retry 重试）；retired 拒绝，TRAILER_SOURCE_REJECTED（reason = retired）"
+  },
+  {
+   "operationId": "admin.uploadBatch.create",
+   "method": "POST",
+   "path": "/admin/upload-batches",
+   "section": "3.23",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": "assert-in-handler",
+   "module": null,
+   "need": null,
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "UploadBatchCreateBody"
+   ],
+   "responseSchema": "UploadBatchDetail",
+   "errors": [
+    "VALIDATION_FAILED",
+    "BATCH_FILE_INVALID",
+    "TOTAL_EPISODES_MISSING",
+    "DRAMA_ARCHIVED",
+    "PERMISSION_DENIED",
+    "NOT_FOUND",
+    "IDEMPOTENCY_KEY_REUSED"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": [
+    "upload_batch.state: — → matching（06:523）",
+    "upload_batch_item.state: — → pending（06:601）",
+    "file_object.status: — → pending（06:188）"
+   ],
+   "permissionRule": "drama_master → drama.media.manage + 模块 drama 查看；final_release → delivery.episode.register + 交付工单的数据范围与任务归属（a05 注册的 authorizeUpload）",
+   "idempotentNote": "Idempotency-Key 的值同时写入 upload_batch.idempotency_key（uq_upload_batch_created_by_staff_id_idempotency_key），24 小时后同键返回已有批次"
+  },
+  {
+   "operationId": "admin.uploadBatch.get",
+   "method": "GET",
+   "path": "/admin/upload-batches/{uploadBatchId}",
+   "section": "3.24",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": "assert-in-handler",
+   "module": null,
+   "need": null,
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）",
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [],
+   "responseSchema": "UploadBatchDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": [],
+   "permissionRule": "批次持有人，或持有该用途权限的员工（原片 drama.media.manage；成片 delivery.episode.register 且工单在数据范围内）；都不满足 404"
+  },
+  {
+   "operationId": "admin.uploadBatch.start",
+   "method": "POST",
+   "path": "/admin/upload-batches/{uploadBatchId}/start",
+   "section": "3.25",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": "assert-in-handler",
+   "module": null,
+   "need": null,
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "UploadBatchStartBody"
+   ],
+   "responseSchema": "UploadBatchDetail",
+   "errors": [
+    "BATCH_MATCH_INCOMPLETE",
+    "STATE_NOT_ALLOWED",
+    "PERMISSION_DENIED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": [
+    "upload_batch.state: matching → uploading（06:524）"
+   ],
+   "permissionRule": "只限批次持有人（upload_batch.created_by_staff_id）；非持有人 404（C24，同 a01 admin.file.*）；持有人此刻已无该用途的权限 403（原片 drama.media.manage；成片 delivery.episode.register 且工单在数据范围与任务归属内）"
+  },
+  {
+   "operationId": "admin.uploadBatch.refreshCredentials",
+   "method": "POST",
+   "path": "/admin/upload-batches/{uploadBatchId}/refresh-credentials",
+   "section": "3.26",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": "assert-in-handler",
+   "module": null,
+   "need": null,
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentReason": "签发短时凭证，结果不进幂等记录（A18、C47）",
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "EmptyBody"
+   ],
+   "responseSchema": "BatchUploadCredentials",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "PERMISSION_DENIED",
+    "PROVIDER_UNAVAILABLE",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": [],
+   "permissionRule": "只限批次持有人（upload_batch.created_by_staff_id）；非持有人 404（C24，同 a01 admin.file.*）；持有人此刻已无该用途的权限 403（原片 drama.media.manage；成片 delivery.episode.register 且工单在数据范围与任务归属内）"
+  },
+  {
+   "operationId": "admin.uploadBatchItem.update",
+   "method": "PATCH",
+   "path": "/admin/upload-batch-items/{uploadBatchItemId}",
+   "section": "3.27",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": "assert-in-handler",
+   "module": null,
+   "need": null,
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "UploadBatchItemPatch"
+   ],
+   "responseSchema": "UploadBatchDetail",
+   "errors": [
+    "VALIDATION_FAILED",
+    "BATCH_FILE_INVALID",
+    "BATCH_EPISODE_TAKEN",
+    "STATE_NOT_ALLOWED",
+    "PERMISSION_DENIED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": [
+    "upload_batch_item.state: pending/rejected → skipped（06:606）",
+    "file_object.status: pending → expired（换文件：原文件先置过期）",
+    "upload_batch_item.state: 未提交 → replaced（06:607）",
+    "file_object.status: — → pending（换上的文件，06:188）",
+    "upload_batch_item.state: — → pending（换文件新建条目，06:601）",
+    "upload_batch_item.state: checked/rejected → uploaded（成片批次改集号，06:540）",
+    "upload_batch.state: verifying → uploading（06:528）",
+    "upload_batch.state: ready → uploading（06:530）",
+    "upload_batch.state: uploading → verifying（跳过或换文件后同事务重判，06:526；触发者待 06 补员工）",
+    "upload_batch.state: verifying → ready（跳过或换文件后同事务重判，06:527；触发者待 06 补员工）",
+    "upload_batch.state: ready → verifying（成片批次改已体检条目的集号，06:540）"
+   ],
+   "permissionRule": "只限批次持有人（upload_batch.created_by_staff_id）；非持有人 404（C24，同 a01 admin.file.*）；持有人此刻已无该用途的权限 403（原片 drama.media.manage；成片 delivery.episode.register 且工单在数据范围与任务归属内）",
+   "lockNote": "upload_batch_item 无锁列，C52 已登记为例外（A104）；加锁顺序：成片改集号先 production_record（360）再批次行（380）"
+  },
+  {
+   "operationId": "admin.uploadBatchItem.complete",
+   "method": "POST",
+   "path": "/admin/upload-batch-items/{uploadBatchItemId}/complete",
+   "section": "3.28",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": "assert-in-handler",
+   "module": null,
+   "need": null,
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "EmptyBody"
+   ],
+   "responseSchema": "UploadBatchItem",
+   "errors": [
+    "CONFIRM_IN_PROGRESS",
+    "IDEMPOTENCY_IN_PROGRESS",
+    "UPLOAD_NOT_FOUND",
+    "UPLOAD_REJECTED",
+    "UPLOAD_EXPIRED",
+    "STATE_NOT_ALLOWED",
+    "PERMISSION_DENIED",
+    "NOT_FOUND"
+   ],
+   "events": [
+    "file.uploaded",
+    "file.rejected"
+   ],
+   "timers": [],
+   "transitions": [
+    "file_object.status: pending → promoting（06:191）",
+    "file_object.status: pending → rejected（06:192）",
+    "upload_batch_item.state: pending → rejected（随文件拒收，06:603）"
+   ],
+   "permissionRule": "只限批次持有人（upload_batch.created_by_staff_id）；非持有人 404（C24，同 a01 admin.file.*）；持有人此刻已无该用途的权限 403（原片 drama.media.manage；成片 delivery.episode.register 且工单在数据范围与任务归属内）",
+   "threePhase": "多事务（C51 已登记，A139；与 admin.file.complete、m.file.complete 同一实现）"
+  },
+  {
+   "operationId": "admin.uploadBatch.commit",
+   "method": "POST",
+   "path": "/admin/upload-batches/{uploadBatchId}/commit",
+   "section": "3.29",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": "drama.media.manage",
+   "module": "drama",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "EmptyBody"
+   ],
+   "responseSchema": "UploadBatchCommitResult",
+   "errors": [
+    "BATCH_PURPOSE_MISMATCH",
+    "STATE_NOT_ALLOWED",
+    "BATCH_MATCH_INCOMPLETE",
+    "PRECONDITION_CHANGED",
+    "DRAMA_ARCHIVED",
+    "NOT_FOUND"
+   ],
+   "events": [
+    "drama.masters_changed"
+   ],
+   "timers": [],
+   "transitions": [
+    "drama_episode_master.state: ready → superseded（先停旧，06:1080）",
+    "drama_episode_master.state: — → ready（再插新，is_current，06:1079）",
+    "upload_batch.state: ready → committed（06:529）"
+   ]
+  },
+  {
+   "operationId": "admin.uploadBatch.cancel",
+   "method": "POST",
+   "path": "/admin/upload-batches/{uploadBatchId}/cancel",
+   "section": "3.30",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": "assert-in-handler",
+   "module": null,
+   "need": null,
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "EmptyBody"
+   ],
+   "responseSchema": "UploadBatchDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "PERMISSION_DENIED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": [
+    "upload_batch.state: matching → canceled（06:525）",
+    "upload_batch.state: ready → canceled（06:531）",
+    "file_object.status: pending → expired（06:193）"
+   ],
+   "permissionRule": "只限批次持有人（upload_batch.created_by_staff_id）；非持有人 404（C24，同 a01 admin.file.*）；持有人此刻已无该用途的权限 403（原片 drama.media.manage；成片 delivery.episode.register 且工单在数据范围与任务归属内）"
+  },
+  {
+   "operationId": "admin.dramaPrice.list",
+   "method": "GET",
+   "path": "/admin/drama-prices",
+   "section": "3.31",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "billing",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）",
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "DramaPriceListQuery"
+   ],
+   "responseSchema": "Page<DramaPriceRow>",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": []
+  },
+  {
+   "operationId": "admin.dramaPrice.summary",
+   "method": "GET",
+   "path": "/admin/drama-prices/summary",
+   "section": "3.32",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "billing",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）",
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "DramaPriceListQuery"
+   ],
+   "responseSchema": "DramaPriceSummary",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": []
+  },
+  {
+   "operationId": "admin.drama.dramaPriceRevision.create",
+   "method": "POST",
+   "path": "/admin/dramas/{dramaId}/drama-price-revisions",
+   "section": "3.33",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": "billing.price.edit",
+   "module": "billing",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "DramaPriceRevisionCreateBody"
+   ],
+   "responseSchema": "DramaPriceRevisionCreateResult",
+   "errors": [
+    "VALIDATION_FAILED",
+    "DRAMA_PRICE_LOCKED",
+    "HEAT_TIER_MISSING",
+    "DRAMA_PRICE_UNCHANGED",
+    "DRAMA_PRICE_EFFECTIVE_AT_TAKEN",
+    "CONFIRM_MISMATCH",
+    "NOT_FOUND"
+   ],
+   "events": [
+    "pricing.drama_price_changed"
+   ],
+   "timers": [
+    "pricing.drama_price_effective（定时生效时登记）"
+   ],
+   "transitions": [
+    "drama_price_revision: （新增修订行，07:291）"
+   ],
+   "confirm": [
+    "currentPoints"
+   ],
+   "eventNote": "pricing.drama_price_changed V1.0 无订阅者（x01），不推送变价提示"
+  },
+  {
+   "operationId": "admin.dramaPriceRevision.list",
+   "method": "GET",
+   "path": "/admin/drama-price-revisions",
+   "section": "3.34",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "billing",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）",
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "DramaPriceRevisionListQuery"
+   ],
+   "responseSchema": "Page<DramaPriceRevision>",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "timers": [],
+   "transitions": []
+  },
+  {
+   "operationId": "admin.dramaPriceRevision.withdraw",
+   "method": "POST",
+   "path": "/admin/drama-price-revisions/{dramaPriceRevisionId}/withdraw",
+   "section": "3.35",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": "billing.price.edit",
+   "module": "billing",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentReason": null,
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [
+    "PriceRevisionWithdrawBody"
+   ],
+   "responseSchema": "DramaPriceRevision",
+   "errors": [
+    "REVISION_ALREADY_EFFECTIVE",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "timers": [
+    "pricing.drama_price_effective（取消）"
+   ],
+   "transitions": [
+    "drama_price_revision: 待生效 → 已撤销（写 cancelled_at，修订行，07:31、306）"
+   ]
+  },
+  {
+   "operationId": "admin.priceTierRevision.list",
+   "method": "GET",
+   "path": "/admin/price-tier-revisions",
+   "section": "3.36",
+   "version": "V1.0",
+   "xAuth": "staff",
+   "permission": null,
+   "module": "billing",
+   "need": "view",
+   "scope": "global",
+   "capability": null,
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）",
+   "lockVersion": null,
+   "rateLimit": "admin.global",
+   "requestSchemas": [],
+   "responseSchema": "PriceTierList",
+   "errors": [],
+   "events": [],
+   "timers": [],
+   "transitions": [],
+   "pagination": "none（有界小集合，A78、C43 已登记）"
+  }
+ ],
+ "schemas": [
+  {
+   "name": "DramaFileBrief",
+   "fields": [
+    "fileId",
+    "originalName",
+    "sizeBytes",
+    "mime",
+    "status",
+    "moderationState"
+   ]
+  },
+  {
+   "name": "PlanPrice",
+   "fields": [
+    "planId",
+    "planCode",
+    "planName",
+    "discountBp",
+    "discountedPoints"
+   ]
+  },
+  {
+   "name": "DramaRow",
+   "fields": [
+    "dramaId",
+    "title",
+    "posterUrl",
+    "genres",
+    "industries",
+    "dramaClass",
+    "totalEpisodes",
+    "heatTier",
+    "listPricePoints",
+    "templatePoints",
+    "priceMode",
+    "status",
+    "archivedAt",
+    "liveItems",
+    "ordersMtd",
+    "statRefreshedAt",
+    "licenseEndDate",
+    "stopOrderDate",
+    "licenseFlag",
+    "isExpiringSoon",
+    "shelveBlockedReason",
+    "actions",
+    "updatedAt"
+   ]
+  },
+  {
+   "name": "DramaSummary",
+   "fields": [
+    "counts",
+    "archived",
+    "stopped",
+    "expiringSoon",
+    "expiringSoonStopped",
+    "expiringWindowDays",
+    "minLicenseMonths"
+   ]
+  },
+  {
+   "name": "AdminDramaDetail",
+   "fields": [
+    "dramaId",
+    "title",
+    "status",
+    "archivedAt",
+    "statusChangedAt",
+    "firstListedAt",
+    "listedAt",
+    "delistedAt",
+    "delistReasonCode",
+    "delistNote",
+    "createdAt",
+    "createdBy",
+    "updatedAt",
+    "updatedBy",
+    "lockVersion",
+    "posterFileId",
+    "posterUrl",
+    "totalEpisodes",
+    "episodeDurationSec",
+    "genres",
+    "sellingTags",
+    "producerName",
+    "castNames",
+    "synopsis",
+    "roles",
+    "dramaClass",
+    "isAiGenerated",
+    "heatTier",
+    "manualBoost",
+    "industries",
+    "targetAudience",
+    "allowedPlacements",
+    "openPlacementSlots",
+    "trialEpisodeCount",
+    "isPermitRecheckRequired",
+    "bodyEditPolicy",
+    "copyright",
+    "trailer",
+    "episodeSummary",
+    "pricing",
+    "listingChecks",
+    "actions",
+    "editability"
+   ]
+  },
+  {
+   "name": "DramaRole",
+   "fields": [
+    "name",
+    "actor",
+    "desc"
+   ]
+  },
+  {
+   "name": "DramaCopyright",
+   "fields": [
+    "source",
+    "platforms",
+    "territory",
+    "hasNetworkRight",
+    "canSublicense",
+    "canEditEmbed",
+    "canAdapt",
+    "licenseStartDate",
+    "licenseEndDate",
+    "proofFiles",
+    "currentRevisionId",
+    "stopOrderDate",
+    "licenseFlag",
+    "isExpiringSoon",
+    "editMode",
+    "lockVersion"
+   ]
+  },
+  {
+   "name": "DramaPricing",
+   "fields": [
+    "listPricePoints",
+    "priceMode",
+    "templatePoints",
+    "currentRevision",
+    "pendingRevisions",
+    "tierTemplates",
+    "planPrices"
+   ]
+  },
+  {
+   "name": "DramaPermit",
+   "fields": [
+    "dramaPermitId",
+    "platform",
+    "permitKind",
+    "permitNo",
+    "scanFiles",
+    "status",
+    "retiredAt",
+    "retireReason",
+    "note",
+    "isFrozen",
+    "createdBy",
+    "createdAt",
+    "updatedAt",
+    "actions"
+   ]
+  },
+  {
+   "name": "DramaPermitList",
+   "fields": [
+    "items",
+    "dramaClass",
+    "requiredKinds",
+    "dramaLockVersion"
+   ]
+  },
+  {
+   "name": "DramaPermitCreateResult",
+   "fields": [
+    "permit",
+    "retiredPermit",
+    "dramaLockVersion"
+   ]
+  },
+  {
+   "name": "DramaPermitResult",
+   "fields": [
+    "permit",
+    "dramaLockVersion"
+   ]
+  },
+  {
+   "name": "DramaEpisodeRow",
+   "fields": [
+    "dramaEpisodeId",
+    "episodeNo",
+    "title",
+    "durationMs",
+    "masterState",
+    "currentMaster",
+    "openUploadBatchId",
+    "updatedAt"
+   ]
+  },
+  {
+   "name": "DramaEpisodeResult",
+   "fields": [
+    "episode",
+    "dramaLockVersion"
+   ]
+  },
+  {
+   "name": "ListingCheckResult",
+   "fields": [
+    "isShelvable",
+    "passedCount",
+    "total",
+    "items",
+    "evaluatedAt"
+   ]
+  },
+  {
+   "name": "ListingCheckItem",
+   "fields": [
+    "code",
+    "label",
+    "severity",
+    "isOk",
+    "note",
+    "fixTab"
+   ]
+  },
+  {
+   "name": "TrailerBrief",
+   "fields": [
+    "targetPlayableId",
+    "currentPlayableId",
+    "state",
+    "sourceFile",
+    "durationMs",
+    "width",
+    "height",
+    "coverUrl",
+    "error",
+    "setBy",
+    "setAt",
+    "readyAt"
+   ]
+  },
+  {
+   "name": "MediaReadiness",
+   "fields": [
+    "trailer",
+    "isTrailerReady",
+    "poster",
+    "masters",
+    "openUploadBatches"
+   ]
+  },
+  {
+   "name": "CopyrightRevision",
+   "fields": [
+    "dramaCopyrightRevisionId",
+    "changeKind",
+    "snapshot",
+    "prevEndDate",
+    "newEndDate",
+    "reason",
+    "proofFiles",
+    "createdBy",
+    "createdAt"
+   ]
+  },
+  {
+   "name": "CopyrightRevisionResult",
+   "fields": [
+    "revision",
+    "drama"
+   ]
+  },
+  {
+   "name": "DramaPriceRow",
+   "fields": [
+    "dramaId",
+    "title",
+    "status",
+    "archivedAt",
+    "heatTier",
+    "templatePoints",
+    "listPricePoints",
+    "priceMode",
+    "currentRevision",
+    "pricedSince",
+    "pendingRevision",
+    "planPrices",
+    "licenseEndDate",
+    "stopOrderDate",
+    "licenseFlag",
+    "isExpiringSoon",
+    "canCreatePriceRevision",
+    "priceLockReason"
+   ]
+  },
+  {
+   "name": "DramaPriceSummary",
+   "fields": [
+    "listed",
+    "customPriced",
+    "ordersMonth",
+    "statRefreshedAt",
+    "minLicenseMonths"
+   ]
+  },
+  {
+   "name": "DramaPriceRevision",
+   "fields": [
+    "dramaPriceRevisionId",
+    "dramaId",
+    "dramaTitle",
+    "mode",
+    "customPoints",
+    "prevPoints",
+    "newPoints",
+    "effectiveAt",
+    "reasonCode",
+    "note",
+    "state",
+    "cancelledAt",
+    "createdBy",
+    "createdAt",
+    "actions"
+   ]
+  },
+  {
+   "name": "DramaPriceRevisionCreateResult",
+   "fields": [
+    "revision",
+    "price"
+   ]
+  },
+  {
+   "name": "PriceTierRow",
+   "fields": [
+    "priceTierRevisionId",
+    "tier",
+    "points",
+    "effectiveAt",
+    "batchId",
+    "createdBy",
+    "createdAt",
+    "dramaCount",
+    "templateDramaCount"
+   ]
+  },
+  {
+   "name": "PriceTierList",
+   "fields": [
+    "items"
+   ]
+  },
+  {
+   "name": "UploadBatchDetail",
+   "fields": [
+    "uploadBatchId",
+    "purpose",
+    "targetId",
+    "targetLabel",
+    "variant",
+    "scope",
+    "state",
+    "expectedCount",
+    "replaceReason",
+    "isContentChanged",
+    "aiUsage",
+    "note",
+    "bucket",
+    "region",
+    "prefix",
+    "expiresAt",
+    "committedAt",
+    "createdBy",
+    "createdAt",
+    "updatedAt",
+    "counts",
+    "coverage",
+    "items",
+    "actions"
+   ]
+  },
+  {
+   "name": "UploadBatchItem",
+   "fields": [
+    "uploadBatchItemId",
+    "fileId",
+    "originalName",
+    "sizeBytes",
+    "uploadKey",
+    "fileStatus",
+    "rejectReason",
+    "episodeNo",
+    "episodeTitle",
+    "matchMethod",
+    "state",
+    "durationMs",
+    "previousDurationMs",
+    "isDurationDiffWarn",
+    "check",
+    "aiUsage",
+    "updatedAt"
+   ]
+  },
+  {
+   "name": "UploadBatchCommitResult",
+   "fields": [
+    "batch",
+    "masters"
+   ]
+  },
+  {
+   "name": "BatchUploadCredentials",
+   "fields": [
+    "bucket",
+    "region",
+    "prefix",
+    "sts",
+    "chunkSize",
+    "fileParallel",
+    "chunkParallel",
+    "expiresAt"
+   ]
+  },
+  {
+   "name": "AiUsage",
+   "fields": [
+    "used",
+    "tools",
+    "declaredBy",
+    "declaredAt",
+    "forcedByDrama"
+   ]
+  },
+  {
+   "name": "AdminDramaListQuery",
+   "fields": [
+    "page",
+    "pageSize",
+    "q",
+    "status",
+    "genreCode",
+    "industryCode",
+    "heatTier",
+    "dramaClass",
+    "isExpiringSoon",
+    "isOrderable",
+    "isArchived",
+    "sort"
+   ]
+  },
+  {
+   "name": "CursorQuery",
+   "fields": [
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "DramaCreateBody",
+   "fields": [
+    "title"
+   ]
+  },
+  {
+   "name": "DramaBasicPatch",
+   "fields": [
+    "lockVersion",
+    "title",
+    "posterFileId",
+    "totalEpisodes",
+    "episodeDurationSec",
+    "genreCodes",
+    "sellingTagCodes",
+    "producerName",
+    "castNames",
+    "synopsis",
+    "dramaClass",
+    "isAiGenerated"
+   ]
+  },
+  {
+   "name": "DramaCommercialPatch",
+   "fields": [
+    "lockVersion",
+    "heatTier",
+    "manualBoost",
+    "industryCodes",
+    "targetAudience",
+    "allowedPlacements"
+   ]
+  },
+  {
+   "name": "DramaCastBody",
+   "fields": [
+    "lockVersion",
+    "roles"
+   ]
+  },
+  {
+   "name": "DramaCopyrightBody",
+   "fields": [
+    "lockVersion",
+    "source",
+    "platforms",
+    "territory",
+    "hasNetworkRight",
+    "canSublicense",
+    "canEditEmbed",
+    "canAdapt",
+    "licenseStartDate",
+    "licenseEndDate",
+    "proofFileIds"
+   ]
+  },
+  {
+   "name": "CopyrightRevisionCreateBody",
+   "fields": [
+    "lockVersion",
+    "changeKind",
+    "copyright",
+    "reason",
+    "revisionProofFileIds",
+    "confirm"
+   ]
+  },
+  {
+   "name": "DramaPermitCreateBody",
+   "fields": [
+    "platform",
+    "permitKind",
+    "permitNo",
+    "scanFileIds",
+    "note",
+    "replacesDramaPermitId",
+    "retireReason"
+   ]
+  },
+  {
+   "name": "DramaPermitPatch",
+   "fields": [
+    "dramaLockVersion",
+    "platform",
+    "permitKind",
+    "permitNo",
+    "scanFileIds",
+    "note"
+   ]
+  },
+  {
+   "name": "DramaPermitRetireBody",
+   "fields": [
+    "retireReason"
+   ]
+  },
+  {
+   "name": "DramaEpisodeListQuery",
+   "fields": [
+    "page",
+    "pageSize",
+    "masterState"
+   ]
+  },
+  {
+   "name": "DramaEpisodePatch",
+   "fields": [
+    "dramaLockVersion",
+    "title"
+   ]
+  },
+  {
+   "name": "EmptyBody",
+   "fields": []
+  },
+  {
+   "name": "DramaDelistBody",
+   "fields": [
+    "reasonCode",
+    "note"
+   ]
+  },
+  {
+   "name": "ConfirmPermitRecheckBody",
+   "fields": [
+    "note"
+   ]
+  },
+  {
+   "name": "TrailerReplaceBody",
+   "fields": [
+    "sourceFileId"
+   ]
+  },
+  {
+   "name": "UploadBatchCreateBody",
+   "fields": [
+    "purpose",
+    "targetId",
+    "scope",
+    "replaceReason",
+    "isContentChanged",
+    "note",
+    "aiUsage",
+    "files"
+   ]
+  },
+  {
+   "name": "UploadBatchStartBody",
+   "fields": [
+    "acceptSequenceSuggestion"
+   ]
+  },
+  {
+   "name": "UploadBatchItemPatch",
+   "fields": [
+    "episodeNo",
+    "skip",
+    "replacementFile"
+   ]
+  },
+  {
+   "name": "DramaPriceListQuery",
+   "fields": [
+    "page",
+    "pageSize",
+    "q",
+    "dramaId",
+    "heatTier",
+    "priceMode",
+    "status",
+    "isArchived",
+    "sort"
+   ]
+  },
+  {
+   "name": "DramaPriceRevisionCreateBody",
+   "fields": [
+    "mode",
+    "customPoints",
+    "effectiveDate",
+    "reasonCode",
+    "note",
+    "confirm"
+   ]
+  },
+  {
+   "name": "DramaPriceRevisionListQuery",
+   "fields": [
+    "page",
+    "pageSize",
+    "dramaId",
+    "state",
+    "sort"
+   ]
+  },
+  {
+   "name": "PriceRevisionWithdrawBody",
+   "fields": [
+    "note"
+   ]
+  }
+ ],
+ "errorCodes": [
+  {
+   "symbol": "DRAMA_ARCHIVED",
+   "code": 49201,
+   "http": 409,
+   "retryable": false,
+   "meaning": "剧目已归档，资料只读，不能上架或变更版权",
+   "details": "{ archivedAt }"
+  },
+  {
+   "symbol": "LISTING_CHECK_FAILED",
+   "code": 49202,
+   "http": 409,
+   "retryable": false,
+   "meaning": "上架校验有阻断项未通过（上架、重新上架；已上架剧目的保存）",
+   "details": "{ failed: [{ code, note }] }"
+  },
+  {
+   "symbol": "TOTAL_EPISODES_LOCKED",
+   "code": 49203,
+   "http": 409,
+   "retryable": false,
+   "meaning": "已上架的剧不能修改总集数，请先下架",
+   "details": "{ totalEpisodes }"
+  },
+  {
+   "symbol": "EPISODE_HAS_MASTER",
+   "code": 49204,
+   "http": 409,
+   "retryable": false,
+   "meaning": "要删去的剧集已有原片",
+   "details": "{ episodeNos }"
+  },
+  {
+   "symbol": "PLACEMENT_NOT_OPEN",
+   "code": 49205,
+   "http": 400,
+   "retryable": false,
+   "meaning": "所选植入形式未开放或不适用于该类别",
+   "details": "{ slots, openSlots }"
+  },
+  {
+   "symbol": "COPYRIGHT_REVISION_REQUIRED",
+   "code": 49206,
+   "http": 409,
+   "retryable": false,
+   "meaning": "剧目上架过，版权信息只能经“版权变更”修改",
+   "details": null
+  },
+  {
+   "symbol": "COPYRIGHT_CHANGE_KIND_MISMATCH",
+   "code": 49207,
+   "http": 400,
+   "retryable": false,
+   "meaning": "修订类型与前后值的差异不符",
+   "details": "{ allowedKinds }"
+  },
+  {
+   "symbol": "LICENSE_SHORTEN_NOT_OPEN",
+   "code": 49208,
+   "http": 409,
+   "retryable": false,
+   "meaning": "缩短授权期或把止日改早暂不开放",
+   "details": "{ currentEndDate }"
+  },
+  {
+   "symbol": "COPYRIGHT_NO_CHANGE",
+   "code": 49209,
+   "http": 400,
+   "retryable": false,
+   "meaning": "版权信息没有变化",
+   "details": null
+  },
+  {
+   "symbol": "PERMIT_ACTIVE_EXISTS",
+   "code": 49210,
+   "http": 409,
+   "retryable": false,
+   "meaning": "同一平台、同一编号种类已有活动的许可行",
+   "details": "{ dramaPermitId }"
+  },
+  {
+   "symbol": "PERMIT_FROZEN",
+   "code": 49211,
+   "http": 409,
+   "retryable": false,
+   "meaning": "剧目上架过，许可行的平台、种类、编号不能原地修改，请换号",
+   "details": null
+  },
+  {
+   "symbol": "TRAILER_SOURCE_REJECTED",
+   "code": 49212,
+   "http": 409,
+   "retryable": false,
+   "meaning": "预告片源文件未通过体检，或该源文件的预告片资产已停用",
+   "details": "{ reason: rejected | retired, failed: [{ code, actual, expected }] }"
+  },
+  {
+   "symbol": "BATCH_FILE_INVALID",
+   "code": 49213,
+   "http": 400,
+   "retryable": false,
+   "meaning": "上传清单里有不合规的文件",
+   "details": "{ files: [{ index, reason }] }"
+  },
+  {
+   "symbol": "BATCH_MATCH_INCOMPLETE",
+   "code": 49214,
+   "http": 409,
+   "retryable": false,
+   "meaning": "集号匹配或覆盖不完整，不能开始上传或提交",
+   "details": "{ missingEpisodeNos, duplicateEpisodeNos, unmatchedItemIds, needsSequenceConfirm }"
+  },
+  {
+   "symbol": "BATCH_PURPOSE_MISMATCH",
+   "code": 49215,
+   "http": 409,
+   "retryable": false,
+   "meaning": "批次用途不符（成片批次由交付登记提交）",
+   "details": "{ purpose }"
+  },
+  {
+   "symbol": "TOTAL_EPISODES_MISSING",
+   "code": 49216,
+   "http": 409,
+   "retryable": false,
+   "meaning": "剧目还没有填写总集数，不能上传原片",
+   "details": null
+  },
+  {
+   "symbol": "BATCH_EPISODE_TAKEN",
+   "code": 49217,
+   "http": 409,
+   "retryable": false,
+   "meaning": "该集已被本批次的另一个条目占用",
+   "details": "{ uploadBatchItemId }"
+  },
+  {
+   "symbol": "TRAILER_SOURCE_CHECKING",
+   "code": 49218,
+   "http": 409,
+   "retryable": true,
+   "meaning": "预告片源文件还在体检，请稍后再试",
+   "details": "{ fileId }"
+  },
+  {
+   "symbol": "DRAMA_PRICE_LOCKED",
+   "code": 43201,
+   "http": 409,
+   "retryable": false,
+   "meaning": "剧目已停止订购、授权已结束或已归档，不能调价",
+   "details": "{ reason, stopOrderDate }"
+  },
+  {
+   "symbol": "DRAMA_PRICE_UNCHANGED",
+   "code": 43202,
+   "http": 400,
+   "retryable": false,
+   "meaning": "新积分价与当前积分价相同",
+   "details": "{ currentPoints }"
+  },
+  {
+   "symbol": "HEAT_TIER_MISSING",
+   "code": 43203,
+   "http": 409,
+   "retryable": false,
+   "meaning": "剧目没有热度等级，不能按模板定价",
+   "details": null
+  },
+  {
+   "symbol": "DRAMA_PRICE_EFFECTIVE_AT_TAKEN",
+   "code": 43204,
+   "http": 409,
+   "retryable": false,
+   "meaning": "该剧同一生效时间已有一条调价",
+   "details": "{ dramaPriceRevisionId }"
+  }
+ ],
+ "externalErrors": [
+  {
+   "symbol": "FILE_NOT_USABLE",
+   "sourceDoc": "m03-profile-asset",
+   "source": "46001；文件不可用（未入库、分类不符、被拦截）"
+  },
+  {
+   "symbol": "CONFIRM_IN_PROGRESS",
+   "sourceDoc": "m08-support-misc",
+   "source": "47055；约定 C25、C59 已命名"
+  },
+  {
+   "symbol": "UPLOAD_NOT_FOUND",
+   "sourceDoc": "m08-support-misc",
+   "source": "47056；约定 C25、C59 已命名"
+  },
+  {
+   "symbol": "UPLOAD_REJECTED",
+   "sourceDoc": "m08-support-misc",
+   "source": "47057；上传类码归 m08（A77、C28）"
+  },
+  {
+   "symbol": "UPLOAD_EXPIRED",
+   "sourceDoc": "m08-support-misc",
+   "source": "47053；上传类码归 m08（A77、C28）"
+  },
+  {
+   "symbol": "REVISION_ALREADY_EFFECTIVE",
+   "sourceDoc": "a07-billing-finance",
+   "source": "43104；修订已生效或已撤销，不能撤销"
+  },
+  {
+   "symbol": "DICT_ITEM_DISABLED",
+   "sourceDoc": "m08-support-misc",
+   "source": "409；新选的字典编码不在字典里或已停用（C85）"
+  }
+ ],
+ "genericErrorRefs": [
+  "VALIDATION_FAILED",
+  "PERMISSION_DENIED",
+  "NOT_FOUND",
+  "VERSION_CONFLICT",
+  "STATE_NOT_ALLOWED",
+  "IDEMPOTENCY_KEY_REUSED",
+  "CONFIRM_MISMATCH",
+  "PRECONDITION_CHANGED",
+  "PROVIDER_UNAVAILABLE",
+  "IDEMPOTENCY_IN_PROGRESS"
+ ],
+ "permissions": [
+  "drama.shelf",
+  "drama.copyright.revise",
+  "drama.media.manage",
+  "billing.price.edit",
+  "delivery.episode.register",
+  "assert-in-handler"
+ ],
+ "permissionSupplements": [
+  {
+   "key": "drama.copyright.revise",
+   "module": "drama（短剧库）",
+   "defaultRoles": [
+    "content_ops"
+   ],
+   "stepUp": false,
+   "pool": null,
+   "source": "d8:531、643",
+   "confirm": false
+  },
+  {
+   "key": "drama.media.manage",
+   "module": "drama（短剧库）",
+   "defaultRoles": [
+    "content_ops"
+   ],
+   "stepUp": false,
+   "pool": null,
+   "source": "d5:2143",
+   "confirm": false
+  },
+  {
+   "key": "drama.export",
+   "module": "drama（短剧库）",
+   "defaultRoles": [
+    "有短剧库查看权的角色"
+   ],
+   "stepUp": false,
+   "pool": null,
+   "source": "A88 已补登（默认授予有短剧库查看权的角色，不要求再验证）",
+   "confirm": false
+  }
+ ],
+ "moduleLevels": [
+  "drama:view",
+  "drama:edit",
+  "billing:view"
+ ],
+ "capabilities": [],
+ "flagsReferenced": [
+  "weapp.video.trailer.enabled"
+ ],
+ "paramsReferenced": [
+  "remind.copyright.days",
+  "content.placement.open_slots",
+  "billing_param:minLicenseMonths"
+ ],
+ "timers": [
+  {
+   "kind": "content.license_end",
+   "dedupeKey": "content.license_end:drama:{dramaId}:{licenseEndDate}"
+  },
+  {
+   "kind": "pricing.drama_price_effective",
+   "dedupeKey": "pricing.drama_price_effective:drama_price_revision:{dramaPriceRevisionId}"
+  }
+ ],
+ "exportKeys": [
+  {
+   "exportKey": "dramas.list",
+   "params": "同 AdminDramaListQuery（去掉 page、pageSize）",
+   "permission": "drama.export"
+  }
+ ],
+ "lockExceptions": [
+  {
+   "table": "drama_permit",
+   "field": "dramaLockVersion",
+   "column": "drama.lock_version",
+   "registered": "A104，C52 已登记"
+  },
+  {
+   "table": "drama_episode",
+   "field": "dramaLockVersion",
+   "column": "drama.lock_version",
+   "registered": "A104，C52 已登记"
+  },
+  {
+   "table": "drama_trailer",
+   "field": null,
+   "column": null,
+   "registered": "A104，C52 已登记"
+  },
+  {
+   "table": "upload_batch_item",
+   "field": null,
+   "column": null,
+   "registered": "A104，C52 已登记"
+  }
+ ],
+ "externalSchemas": [
+  {
+   "name": "StaffBrief",
+   "sourceDoc": "a01-system",
+   "source": "a01 2.2，全仓共用的员工摘要（取代本文初稿的 StaffRef）"
+  },
+  {
+   "name": "SignedUrl",
+   "sourceDoc": "a01-system",
+   "source": "a01 2.17（{ url, expiresAt }，C60）"
+  },
+  {
+   "name": "ActivityItem",
+   "sourceDoc": "a05-order-delivery",
+   "source": "a05 2.1，操作日志行（取代本文初稿的 DramaActivity）"
+  },
+  {
+   "name": "ReplayFlag",
+   "sourceDoc": "m03-profile-asset",
+   "source": "m03 第 1 节“幂等重放”：{ replayed: boolean }，与响应 DTO 取交（C50、A80）"
+  },
+  {
+   "name": "DictRef",
+   "sourceDoc": "conventions",
+   "source": "C85、C87：{ code, name }，约定的通用结构（第三轮去掉本文自定义的 isEnabled）"
+  }
+ ]
+}

@@ -1,0 +1,1143 @@
+{
+ "doc": "a02-workbench-report",
+ "endpoints": [
+  {
+   "operationId": "admin.workbench.todo.get",
+   "method": "GET",
+   "path": "/admin/workbench/todos",
+   "section": "3.1",
+   "requestSchemas": [
+    "WorkbenchTodosQuery"
+   ],
+   "responseSchema": "TodoBoard",
+   "errors": [
+    "PERMISSION_DENIED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.workbench.today.get",
+   "method": "GET",
+   "path": "/admin/workbench/today",
+   "section": "3.2",
+   "requestSchemas": [],
+   "responseSchema": "TodayBoard",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.workbench.alert.get",
+   "method": "GET",
+   "path": "/admin/workbench/alerts",
+   "section": "3.3",
+   "requestSchemas": [
+    "WorkbenchAlertsQuery"
+   ],
+   "responseSchema": "WorkbenchAlertsResult",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.workbench.feed.list",
+   "method": "GET",
+   "path": "/admin/workbench/feed",
+   "section": "3.4",
+   "requestSchemas": [
+    "WorkbenchFeedQuery"
+   ],
+   "responseSchema": "AdminCursorPage<FeedItem>",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.navBadge.get",
+   "method": "GET",
+   "path": "/admin/nav-badges",
+   "section": "3.5",
+   "requestSchemas": [],
+   "responseSchema": "NavBadges",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.search.get",
+   "method": "GET",
+   "path": "/admin/search",
+   "section": "3.6",
+   "requestSchemas": [
+    "SearchQuery"
+   ],
+   "responseSchema": "SearchResult",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.staffMessage.list",
+   "method": "GET",
+   "path": "/admin/staff-messages",
+   "section": "3.7",
+   "requestSchemas": [
+    "StaffMessageListQuery"
+   ],
+   "responseSchema": "AdminPage<StaffMessageItem>",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.staffMessage.summary",
+   "method": "GET",
+   "path": "/admin/staff-messages/summary",
+   "section": "3.8",
+   "requestSchemas": [],
+   "responseSchema": "StaffMessageSummary",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.staffMessage.read",
+   "method": "POST",
+   "path": "/admin/staff-messages/{staffMessageId}/read",
+   "section": "3.9",
+   "requestSchemas": [],
+   "responseSchema": "StaffMessageReadResult",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.staffMessage.batchRead",
+   "method": "POST",
+   "path": "/admin/staff-messages/read",
+   "section": "3.10",
+   "requestSchemas": [
+    "StaffMessageBatchReadBody"
+   ],
+   "responseSchema": "StaffMessageBatchReadResult",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.report.overview.get",
+   "method": "GET",
+   "path": "/admin/reports/overview",
+   "section": "3.11",
+   "requestSchemas": [
+    "ReportMonthQuery"
+   ],
+   "responseSchema": "OverviewReport",
+   "errors": [
+    "VALIDATION_FAILED",
+    "BUSY"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.report.points.get",
+   "method": "GET",
+   "path": "/admin/reports/points",
+   "section": "3.12",
+   "requestSchemas": [
+    "ReportMonthQuery"
+   ],
+   "responseSchema": "PointsReport",
+   "errors": [
+    "VALIDATION_FAILED",
+    "BUSY"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.reportMonthClose.list",
+   "method": "GET",
+   "path": "/admin/report-month-closes",
+   "section": "3.13",
+   "requestSchemas": [
+    "ReportMonthCloseListQuery"
+   ],
+   "responseSchema": "AdminPage<ReportMonthCloseItem>",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.reportMonthClose.reissue",
+   "method": "POST",
+   "path": "/admin/report-month-closes/{reportMonthCloseId}/reissue",
+   "section": "3.14",
+   "requestSchemas": [
+    "ReportMonthCloseReissueBody"
+   ],
+   "responseSchema": "ReportMonthCloseReissueResult",
+   "errors": [
+    "REPORT_CLOSE_NOT_CURRENT",
+    "CONFIRM_MISMATCH",
+    "STEP_UP_REQUIRED",
+    "BUSY"
+   ],
+   "events": [],
+   "permission": "report.month_close.reissue",
+   "capability": null,
+   "transitions": [
+    "report_month_close: closed → superseded（旧行）",
+    "report_month_close: (新建) → closed（新行，revision_no + 1）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.exportJob.create",
+   "method": "POST",
+   "path": "/admin/export-jobs",
+   "section": "3.15",
+   "requestSchemas": [
+    "ExportJobCreateBody"
+   ],
+   "responseSchema": "ExportJobCreateResult",
+   "errors": [
+    "VALIDATION_FAILED",
+    "PERMISSION_DENIED",
+    "STEP_UP_REQUIRED",
+    "FEATURE_DISABLED",
+    "EXPORT_CONCURRENCY_LIMIT",
+    "EXPORT_ROW_LIMIT"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [
+    "export_job: (新建) → queued"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "natural",
+   "idempotentBy": [
+    "uq_export_job_inflight"
+   ]
+  },
+  {
+   "operationId": "admin.exportJob.list",
+   "method": "GET",
+   "path": "/admin/export-jobs",
+   "section": "3.16",
+   "requestSchemas": [
+    "ExportJobListQuery"
+   ],
+   "responseSchema": "AdminPage<ExportJob>",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.exportJob.get",
+   "method": "GET",
+   "path": "/admin/export-jobs/{exportJobId}",
+   "section": "3.17",
+   "requestSchemas": [],
+   "responseSchema": "ExportJob",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.exportJob.cancel",
+   "method": "POST",
+   "path": "/admin/export-jobs/{exportJobId}/cancel",
+   "section": "3.18",
+   "requestSchemas": [],
+   "responseSchema": "ExportJob",
+   "errors": [
+    "NOT_FOUND",
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "export_job: queued → cancelled"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.exportJob.downloadUrls",
+   "method": "POST",
+   "path": "/admin/export-jobs/{exportJobId}/download-urls",
+   "section": "3.19",
+   "requestSchemas": [],
+   "responseSchema": "ExportDownloadUrl",
+   "errors": [
+    "NOT_FOUND",
+    "EXPORT_NOT_DOWNLOADABLE",
+    "EXPORT_FILE_EXPIRED"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [
+    "export_job: succeeded → expired（下载时复核不通过，同一请求事务，返回 200 + status = revoked）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.report.dramas.get",
+   "method": "GET",
+   "path": "/admin/reports/dramas",
+   "section": "3.20",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.1",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.report.delivery.get",
+   "method": "GET",
+   "path": "/admin/reports/delivery",
+   "section": "3.21",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.1",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.report.ads.get",
+   "method": "GET",
+   "path": "/admin/reports/ads",
+   "section": "3.22",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.1",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.report.service.get",
+   "method": "GET",
+   "path": "/admin/reports/service",
+   "section": "3.23",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.1",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.report.partners.get",
+   "method": "GET",
+   "path": "/admin/reports/partners",
+   "section": "3.24",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.1",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  }
+ ],
+ "schemas": [
+  {
+   "name": "AdminLink",
+   "fields": [
+    "route",
+    "params"
+   ]
+  },
+  {
+   "name": "TodoBoard",
+   "fields": [
+    "tab",
+    "availableTabs",
+    "total",
+    "items",
+    "updatedAt"
+   ]
+  },
+  {
+   "name": "TodoCard",
+   "fields": [
+    "key",
+    "label",
+    "ownerRole",
+    "count",
+    "sub",
+    "link",
+    "isDegraded"
+   ]
+  },
+  {
+   "name": "TodoSub",
+   "fields": [
+    "kind",
+    "at",
+    "amountFen",
+    "points",
+    "count"
+   ]
+  },
+  {
+   "name": "TodayBoard",
+   "fields": [
+    "date",
+    "updatedAt",
+    "cards"
+   ]
+  },
+  {
+   "name": "TodayCard",
+   "fields": [
+    "key",
+    "state",
+    "updatedAt",
+    "metrics",
+    "metrics.count",
+    "metrics.yesterdayCount",
+    "metrics.submittedItemCount",
+    "metrics.startedItemCount",
+    "metrics.heldPoints",
+    "metrics.capturedPoints",
+    "metrics.amountFen",
+    "metrics.planAmountFen",
+    "metrics.topupAmountFen",
+    "metrics.newPlanCount",
+    "metrics.renewPlanCount",
+    "metrics.activeCount",
+    "metrics.expiringIn7dCount",
+    "metrics.expiredNotRenewedCount",
+    "metrics.liveItemCount"
+   ]
+  },
+  {
+   "name": "WorkbenchAlert",
+   "fields": [
+    "kind",
+    "subjectType",
+    "subjectId",
+    "storeId",
+    "storeName",
+    "dramaTitle",
+    "detail",
+    "link",
+    "detail.ticketNo",
+    "detail.step",
+    "detail.dueAt",
+    "detail.overdueMinutes",
+    "detail.orderItemId",
+    "detail.agreedLaunchDate",
+    "detail.overdueDays",
+    "detail.isUsagePeriodExtended",
+    "detail.usageEndDate",
+    "detail.dueDate",
+    "detail.escalatedAt",
+    "detail.licenseEndDate",
+    "detail.stopOrderDate",
+    "detail.liveItems"
+   ]
+  },
+  {
+   "name": "WorkbenchAlertsResult",
+   "fields": [
+    "updatedAt",
+    "total",
+    "countsByKind",
+    "items"
+   ]
+  },
+  {
+   "name": "FeedItem",
+   "fields": [
+    "auditLogId",
+    "logNo",
+    "createdAt",
+    "stream",
+    "category",
+    "action",
+    "summary",
+    "actor",
+    "actor.actorType",
+    "actor.actorId",
+    "actor.name",
+    "actor.role",
+    "actor.client",
+    "target",
+    "target.type",
+    "target.id",
+    "target.key",
+    "target.label",
+    "entityId",
+    "storeId",
+    "link"
+   ]
+  },
+  {
+   "name": "NavBadges",
+   "fields": [
+    "updatedAt",
+    "items",
+    "items[].key",
+    "items[].menu",
+    "items[].count",
+    "menus",
+    "menus[].menu",
+    "menus[].count"
+   ]
+  },
+  {
+   "name": "SearchResult",
+   "fields": [
+    "q",
+    "groups",
+    "groups[].type",
+    "groups[].items",
+    "groups[].hasMore"
+   ]
+  },
+  {
+   "name": "SearchHit",
+   "fields": [
+    "type",
+    "id",
+    "title",
+    "subtitle",
+    "link"
+   ]
+  },
+  {
+   "name": "StaffMessageItem",
+   "fields": [
+    "staffMessageId",
+    "kind",
+    "title",
+    "body",
+    "link",
+    "readAt",
+    "createdAt"
+   ]
+  },
+  {
+   "name": "StaffMessageSummary",
+   "fields": [
+    "unreadTotal",
+    "unreadByKind",
+    "unreadByKind.todo",
+    "unreadByKind.alert",
+    "unreadByKind.approval",
+    "unreadByKind.system"
+   ]
+  },
+  {
+   "name": "StaffMessageReadResult",
+   "fields": [
+    "staffMessageId",
+    "readAt"
+   ]
+  },
+  {
+   "name": "StaffMessageBatchReadResult",
+   "fields": [
+    "readCount",
+    "readAt"
+   ]
+  },
+  {
+   "name": "OverviewReport",
+   "fields": [
+    "month",
+    "monthRange",
+    "source",
+    "asOfAt",
+    "close",
+    "metricDefVersion",
+    "finality",
+    "billing",
+    "cash",
+    "orders",
+    "cross",
+    "comparison",
+    "mrrTrend"
+   ]
+  },
+  {
+   "name": "OverviewBilling",
+   "fields": [
+    "mrrFen",
+    "payingEntityCount",
+    "newCount",
+    "renewCount",
+    "upgradeCount",
+    "renewalDueCount",
+    "renewalDoneCount",
+    "renewalRateBp",
+    "upgradeRateBp",
+    "topupRateBp",
+    "consumedPoints",
+    "consumptionRateBp",
+    "payingEntitiesByPlan"
+   ]
+  },
+  {
+   "name": "OverviewCash",
+   "fields": [
+    "receivedFen",
+    "receivedByType",
+    "receivedByPlan",
+    "receivedByCycle",
+    "dailyReceipts",
+    "refundFen",
+    "refundCount",
+    "priorMonthAdjustment"
+   ]
+  },
+  {
+   "name": "OverviewOrders",
+   "fields": [
+    "startedItemCount",
+    "submittedItemCount",
+    "orderCount",
+    "adCount"
+   ]
+  },
+  {
+   "name": "OverviewCross",
+   "fields": [
+    "payingEntitiesByIndustry"
+   ]
+  },
+  {
+   "name": "PointsReport",
+   "fields": [
+    "month",
+    "monthRange",
+    "asOfAt",
+    "valuationPolicyVersionNo",
+    "liability",
+    "flow",
+    "consumption",
+    "rates",
+    "trend",
+    "bySource",
+    "totals"
+   ]
+  },
+  {
+   "name": "PointsFlow",
+   "fields": [
+    "openingPoints",
+    "openingAt",
+    "grantedPoints",
+    "upgradeGrantedPoints",
+    "purchasedPoints",
+    "purchaseCount",
+    "purchaseAmountFen",
+    "returnedPoints",
+    "returnHoldCount",
+    "adjustedInPoints",
+    "convertedInPoints",
+    "unexpiredPoints",
+    "consumedPoints",
+    "expiredPoints",
+    "convertedOutPoints",
+    "adjustedOutPoints",
+    "revokedPoints",
+    "releasedPoints",
+    "closingPoints",
+    "closingAt"
+   ]
+  },
+  {
+   "name": "PointsSourceRow",
+   "fields": [
+    "sourceGroup",
+    "planId",
+    "planName",
+    "inflowPoints",
+    "consumedPoints",
+    "expiredPoints",
+    "balancePoints",
+    "valueFen"
+   ]
+  },
+  {
+   "name": "ReportMonthCloseItem",
+   "fields": [
+    "reportMonthCloseId",
+    "reportKey",
+    "month",
+    "revisionNo",
+    "status",
+    "finality",
+    "metricDefVersion",
+    "cutoffAt",
+    "closedAt",
+    "closedBy",
+    "reason",
+    "billingMonthCloseId",
+    "actions"
+   ]
+  },
+  {
+   "name": "ReportMonthCloseReissueResult",
+   "fields": [
+    "previous",
+    "current"
+   ]
+  },
+  {
+   "name": "ReportMonthParams",
+   "fields": [
+    "month"
+   ]
+  },
+  {
+   "name": "PointsReportExportParams",
+   "fields": [
+    "month",
+    "includeEntityBalances",
+    "includeRecognitionDetail"
+   ]
+  },
+  {
+   "name": "ReconExportParams",
+   "fields": [
+    "granularity",
+    "month",
+    "date",
+    "contents"
+   ]
+  },
+  {
+   "name": "ExportJob",
+   "fields": [
+    "exportJobId",
+    "jobNo",
+    "exportKey",
+    "title",
+    "fileName",
+    "format",
+    "isMasked",
+    "reason",
+    "params",
+    "status",
+    "rowCount",
+    "sizeBytes",
+    "error",
+    "createdAt",
+    "startedAt",
+    "finishedAt",
+    "expiresAt",
+    "downloadCount",
+    "lastDownloadedAt",
+    "actions"
+   ]
+  },
+  {
+   "name": "ExportJobCreateResult",
+   "fields": [
+    "exportJobId",
+    "jobNo",
+    "exportKey",
+    "title",
+    "fileName",
+    "format",
+    "isMasked",
+    "reason",
+    "params",
+    "status",
+    "rowCount",
+    "sizeBytes",
+    "error",
+    "createdAt",
+    "startedAt",
+    "finishedAt",
+    "expiresAt",
+    "downloadCount",
+    "lastDownloadedAt",
+    "actions",
+    "isExisting"
+   ]
+  },
+  {
+   "name": "ExportDownloadUrl",
+   "fields": [
+    "status",
+    "url",
+    "expiresAt",
+    "fileName",
+    "downloadCount"
+   ]
+  },
+  {
+   "name": "WorkbenchTodosQuery",
+   "fields": [
+    "tab"
+   ]
+  },
+  {
+   "name": "WorkbenchAlertsQuery",
+   "fields": [
+    "kind",
+    "limit"
+   ]
+  },
+  {
+   "name": "WorkbenchFeedQuery",
+   "fields": [
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "SearchQuery",
+   "fields": [
+    "q",
+    "type"
+   ]
+  },
+  {
+   "name": "StaffMessageListQuery",
+   "fields": [
+    "kind",
+    "unreadOnly",
+    "page",
+    "pageSize"
+   ]
+  },
+  {
+   "name": "StaffMessageBatchReadBody",
+   "fields": [
+    "upToStaffMessageId",
+    "kind"
+   ]
+  },
+  {
+   "name": "ReportMonthQuery",
+   "fields": [
+    "month"
+   ]
+  },
+  {
+   "name": "ReportMonthCloseListQuery",
+   "fields": [
+    "reportKey",
+    "month",
+    "status",
+    "page",
+    "pageSize"
+   ]
+  },
+  {
+   "name": "ReportMonthCloseReissueBody",
+   "fields": [
+    "reason",
+    "confirm",
+    "confirm.month",
+    "confirm.revisionNo"
+   ]
+  },
+  {
+   "name": "ExportJobCreateBody",
+   "fields": [
+    "exportKey",
+    "format",
+    "isMasked",
+    "reason",
+    "params"
+   ]
+  },
+  {
+   "name": "ExportJobListQuery",
+   "fields": [
+    "status",
+    "exportKey",
+    "createdFrom",
+    "createdTo",
+    "page",
+    "pageSize"
+   ]
+  }
+ ],
+ "externalSchemas": [
+  {
+   "name": "AdminPage",
+   "definedIn": "a01-system",
+   "note": "a01 2.1；C87：站内消息、月度快照、导出记录三个列表（原 StaffMessageListResult、ReportMonthCloseListResult、ExportJobListResult 删去）"
+  },
+  {
+   "name": "AdminCursorPage",
+   "definedIn": "a01-system",
+   "note": "a01 2.1；C87：实时动态 AdminCursorPage<FeedItem>（原 WorkbenchFeedResult 删去）"
+  },
+  {
+   "name": "AuditLogItem",
+   "definedIn": "a01-system",
+   "note": "a01 2.11；FeedItem = AuditLogItem + link"
+  }
+ ],
+ "errorCodes": [
+  {
+   "symbol": "EXPORT_CONCURRENCY_LIMIT",
+   "code": 47201,
+   "http": 409,
+   "meaning": "同时进行中的导出任务已达上限",
+   "retryable": false,
+   "details": "{ maxConcurrent, inflightExportJobIds }"
+  },
+  {
+   "symbol": "EXPORT_ROW_LIMIT",
+   "code": 47202,
+   "http": 409,
+   "meaning": "导出行数超过上限",
+   "retryable": false,
+   "details": "{ rowCount, maxRows }"
+  },
+  {
+   "symbol": "EXPORT_NOT_DOWNLOADABLE",
+   "code": 47203,
+   "http": 409,
+   "meaning": "导出任务尚未完成或未成功，暂不能下载",
+   "retryable": false,
+   "details": "{ status }"
+  },
+  {
+   "symbol": "EXPORT_FILE_EXPIRED",
+   "code": 47204,
+   "http": 410,
+   "meaning": "导出文件已过期",
+   "retryable": false,
+   "details": "{ expiredAt }"
+  },
+  {
+   "symbol": "REPORT_CLOSE_NOT_CURRENT",
+   "code": 47205,
+   "http": 409,
+   "meaning": "月度快照已被新的修订取代",
+   "retryable": false,
+   "details": "{ currentReportMonthCloseId, currentRevisionNo }"
+  }
+ ],
+ "externalErrors": [],
+ "permissions": [
+  "merchant.qualification.review",
+  "merchant.manager.assign",
+  "merchant.account_change.approve",
+  "delivery.ad.assign",
+  "publish.package.push",
+  "publish.link.verify",
+  "publish.account.verify",
+  "publish.patrol.do",
+  "publish.takedown.check",
+  "service.ticket.reply",
+  "finance.refund.approve",
+  "finance.refund.execute",
+  "finance.receipt.confirm",
+  "finance.invoice.issue",
+  "finance.recon.resolve",
+  "billing.adjust.approve",
+  "billing.extension.approve",
+  "order.export",
+  "finance.export",
+  "merchant.export",
+  "report.export",
+  "audit.export",
+  "export.unmasked",
+  "delivery.export",
+  "service.export",
+  "drama.export",
+  "billing.export",
+  "channel.export",
+  "report.month_close.reissue",
+  "sys.super_admin",
+  "merchant.asset.review",
+  "delivery.plan.push",
+  "delivery.sample.qc",
+  "delivery.ticket.assign_editor",
+  "delivery.ticket.assign_publisher",
+  "flow.ops.view"
+ ],
+ "capabilities": [],
+ "permissionSupplements": [
+  {
+   "key": "delivery.export",
+   "module": "交付管理",
+   "defaultRoles": "对 delivery 模块有查看权的角色",
+   "stepUp": false,
+   "pool": false
+  },
+  {
+   "key": "service.export",
+   "module": "客服工单",
+   "defaultRoles": "对 service 模块有查看权的角色",
+   "stepUp": false,
+   "pool": false
+  },
+  {
+   "key": "drama.export",
+   "module": "短剧库管理",
+   "defaultRoles": "对 drama 模块有查看权的角色",
+   "stepUp": false,
+   "pool": false
+  },
+  {
+   "key": "billing.export",
+   "module": "套餐与积分",
+   "defaultRoles": "对 billing 模块有查看权的角色",
+   "stepUp": false,
+   "pool": false
+  },
+  {
+   "key": "channel.export",
+   "module": "渠道管理（V1.1）",
+   "defaultRoles": "对 channel 模块有查看权的角色",
+   "stepUp": false,
+   "pool": false
+  },
+  {
+   "key": "report.month_close.reissue",
+   "module": "数据报表",
+   "defaultRoles": "财务（超级管理员拥有全部）",
+   "stepUp": true,
+   "pool": false
+  }
+ ],
+ "exportKeys": [
+  "delivery_tickets.list",
+  "stores.list",
+  "orders.list",
+  "payment_orders.list",
+  "payment_transactions.list",
+  "reconciliations.detail",
+  "service_tickets.list",
+  "audit_logs.list",
+  "report.overview",
+  "report.points",
+  "dramas.list",
+  "point_accounts.list",
+  "subscription_terms.list",
+  "report.dramas",
+  "report.delivery",
+  "report.ads",
+  "report.service",
+  "report.partners",
+  "partners.list",
+  "commission_statements.list"
+ ]
+}

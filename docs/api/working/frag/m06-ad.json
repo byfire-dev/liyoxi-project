@@ -1,0 +1,1037 @@
+{
+  "doc": "m06-ad",
+  "endpoints": [
+    {
+      "operationId": "m.ad.list",
+      "method": "GET",
+      "path": "/m/ads",
+      "section": "3.1",
+      "requestSchemas": [
+        "AdListQuery"
+      ],
+      "responseSchema": "AdCardPage",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "ad.request",
+      "xAuth": "member",
+      "clerkView": "none",
+      "xIdempotent": "none",
+      "idempotentReason": "纯查询，GET 不写库（A18、A19）",
+      "responseHeaders": [
+        "Cache-Control: no-store"
+      ],
+      "transitions": []
+    },
+    {
+      "operationId": "m.ad.quote",
+      "method": "POST",
+      "path": "/m/ads/quote",
+      "section": "3.2",
+      "requestSchemas": [
+        "AdQuoteBody"
+      ],
+      "responseSchema": "AdQuote",
+      "errors": [
+        "VALIDATION_FAILED"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "ad.request",
+      "xAuth": "member",
+      "clerkView": "none",
+      "xIdempotent": "none",
+      "idempotentReason": "试算，不写库、不缓存（A18、A20）",
+      "transitions": []
+    },
+    {
+      "operationId": "m.ad.create",
+      "method": "POST",
+      "path": "/m/ads",
+      "section": "3.3",
+      "requestSchemas": [
+        "AdCreateBody"
+      ],
+      "responseSchema": "AdState",
+      "errors": [
+        "QUOTA_EXCEEDED",
+        "STORE_NOT_QUALIFIED",
+        "SUBSCRIPTION_INACTIVE",
+        "PLAN_REFUND_IN_PROGRESS",
+        "POINTS_INSUFFICIENT",
+        "QUOTE_CHANGED",
+        "ACCOUNT_BUSY",
+        "AGREEMENT_VERSION_STALE",
+        "DICT_ITEM_DISABLED",
+        "FILE_NOT_USABLE",
+        "CONTENT_REJECTED",
+        "PROVIDER_UNAVAILABLE",
+        "VALIDATION_FAILED"
+      ],
+      "events": [
+        "ad.requested",
+        "billing.points.held"
+      ],
+      "permission": null,
+      "capability": "ad.request",
+      "xAuth": "member",
+      "clerkView": "none",
+      "xIdempotent": "required",
+      "idempotentReason": null,
+      "transitions": [
+        "ad.status: — → pending_assign（ad.submit，09-order-ad.md:801）",
+        "point_hold.status: （新建）→ held（hold，07-billing-ledger.md:843）"
+      ],
+      "timers": [
+        "arm sla.breach（sla.breach:ad:{adId}:first:0）"
+      ],
+      "writes": [
+        "agreement_consent",
+        "point_hold",
+        "point_hold_alloc",
+        "ledger_operation",
+        "point_ledger_entry",
+        "ad",
+        "file_ref",
+        "store_asset_usage",
+        "timer",
+        "status_transition",
+        "audit_log",
+        "outbox_event"
+      ]
+    },
+    {
+      "operationId": "m.ad.get",
+      "method": "GET",
+      "path": "/m/ads/{adId}",
+      "section": "3.4",
+      "requestSchemas": [],
+      "responseSchema": "AdDetail",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": "ad.request",
+      "xAuth": "member",
+      "clerkView": "none",
+      "xIdempotent": "none",
+      "idempotentReason": "纯查询，GET 不写库（A18、A19）",
+      "featureFlags": [
+        "weapp.video.ad.enabled"
+      ],
+      "responseHeaders": [
+        "Cache-Control: no-store"
+      ],
+      "transitions": []
+    },
+    {
+      "operationId": "m.ad.confirm",
+      "method": "POST",
+      "path": "/m/ads/{adId}/confirm",
+      "section": "3.5",
+      "requestSchemas": [
+        "AdConfirmBody"
+      ],
+      "responseSchema": "AdState",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "AD_CANCEL_IN_PROGRESS",
+        "AD_VERSION_STALE",
+        "AD_PREVIEW_CHANNEL_UNAVAILABLE",
+        "AD_NOT_VIEWED",
+        "VALIDATION_FAILED"
+      ],
+      "events": [
+        "ad.confirmed",
+        "ticket.step_changed"
+      ],
+      "permission": null,
+      "capability": "ad.confirm",
+      "xAuth": "member",
+      "clerkView": "none",
+      "xIdempotent": "required",
+      "idempotentReason": null,
+      "featureFlags": [
+        "weapp.video.ad.enabled（只用于 viewedVia = weapp 的兜底）"
+      ],
+      "transitions": [
+        "ad.status: pending_confirm → confirmed（ad.confirm，09-order-ad.md:806）",
+        "ad_version.decision: 空 → confirmed（09-order-ad.md:905）",
+        "delivery_ticket.step: ad_prep → sample_making（ads.ready，flow.reevaluate() 同事务求值，10-delivery.md:174）"
+      ],
+      "timers": [
+        "按 10 分组随环节切换取消、登记 sla.breach（主体 delivery_ticket_stage，仅有工单迁移时）"
+      ],
+      "writes": [
+        "ad",
+        "ad_version",
+        "delivery_ticket",
+        "delivery_ticket_stage",
+        "timer",
+        "status_transition",
+        "audit_log（action = ad.confirm，meta.versionNo）",
+        "outbox_event"
+      ],
+      "lockOrder": "预读 → 广告行按 id 升序（本广告 FOR UPDATE、其余 FOR SHARE）→ 订购单 → 订单项 → 工单 id 升序 FOR UPDATE；复核广告位集合，变了 LockSetChanged 整体重试（d3-flow.md:1360-1366）"
+    },
+    {
+      "operationId": "m.ad.requestChange",
+      "method": "POST",
+      "path": "/m/ads/{adId}/request-change",
+      "section": "3.6",
+      "requestSchemas": [
+        "AdRequestChangeBody"
+      ],
+      "responseSchema": "AdRevisionResult",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "AD_CANCEL_IN_PROGRESS",
+        "AD_VERSION_STALE",
+        "CHARGE_CHANGED",
+        "SUBSCRIPTION_INACTIVE",
+        "PLAN_REFUND_IN_PROGRESS",
+        "POINTS_INSUFFICIENT",
+        "ACCOUNT_BUSY",
+        "FILE_NOT_USABLE",
+        "CONTENT_REJECTED",
+        "PROVIDER_UNAVAILABLE",
+        "VALIDATION_FAILED"
+      ],
+      "events": [
+        "ad.revision_requested",
+        "billing.points.held",
+        "billing.points.captured",
+        "ticket.step_changed",
+        "sample.superseded"
+      ],
+      "permission": null,
+      "capability": "ad.confirm",
+      "xAuth": "member",
+      "clerkView": "none",
+      "xIdempotent": "required",
+      "idempotentReason": null,
+      "transitions": [
+        "ad.status: pending_confirm / confirmed → revising（ad.request_revision，09-order-ad.md:807）",
+        "ad_version.decision: 空 → revision_requested（仅从 pending_confirm，09-order-ad.md:906）",
+        "point_hold.status: （新建）→ held → captured（超次 charge = 同一事务 hold + capture，07-billing-ledger.md:843-849）",
+        "delivery_ticket.step: sample_making / sample_confirm → ad_prep（ad.reopened，flow.reevaluate() 同事务求值，10-delivery.md:179）",
+        "sample.status: uploaded / qc_passed / pushed → superseded（sample.superseded，绑定的广告被重新打开，10-delivery.md:648）"
+      ],
+      "timers": [
+        "arm sla.breach（sla.breach:ad:{adId}:rev:{revisionNo}）",
+        "按 10 分组随环节切换取消、登记 sla.breach（主体 delivery_ticket_stage，仅有工单迁移时）"
+      ],
+      "writes": [
+        "ad",
+        "ad_revision",
+        "ad_version",
+        "point_hold",
+        "point_hold_alloc",
+        "ledger_operation",
+        "point_ledger_entry",
+        "file_ref",
+        "delivery_ticket",
+        "delivery_ticket_stage",
+        "sample",
+        "timer",
+        "status_transition",
+        "audit_log（action = ad.request_revision，meta.versionNo、meta.revisionNo）",
+        "outbox_event"
+      ]
+    },
+    {
+      "operationId": "m.ad.submit",
+      "method": "POST",
+      "path": "/m/ads/{adId}/submit",
+      "section": "3.7",
+      "requestSchemas": [
+        "AdSubmitBody"
+      ],
+      "responseSchema": "AdState",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "AD_CANCEL_IN_PROGRESS",
+        "FILE_NOT_USABLE",
+        "CONTENT_REJECTED",
+        "PROVIDER_UNAVAILABLE",
+        "VALIDATION_FAILED"
+      ],
+      "events": [
+        "ad.resubmitted"
+      ],
+      "permission": null,
+      "capability": "ad.request",
+      "xAuth": "member",
+      "clerkView": "none",
+      "xIdempotent": "required",
+      "idempotentReason": null,
+      "transitions": [
+        "ad.status: returned → returned_from 的值（pending_assign 或 producing）（ad.resubmit，09-order-ad.md:804）"
+      ],
+      "timers": [
+        "arm sla.breach（sla.breach:ad:{adId}:first:{resubmitCount}）",
+        "cancel ad.returned_stale（ad.returned_stale:ad:{adId}:{原 resubmitCount}）"
+      ],
+      "writes": [
+        "ad",
+        "file_ref",
+        "store_asset_usage",
+        "timer",
+        "status_transition",
+        "audit_log",
+        "outbox_event"
+      ]
+    },
+    {
+      "operationId": "m.ad.downloadUrls",
+      "method": "POST",
+      "path": "/m/ads/{adId}/download-urls",
+      "section": "3.8",
+      "requestSchemas": [
+        "AdDownloadUrlsBody"
+      ],
+      "responseSchema": "DownloadUrl",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "AD_VERSION_STALE",
+        "AD_PREVIEW_CHANNEL_UNAVAILABLE"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "ad.request",
+      "xAuth": "member",
+      "clerkView": "none",
+      "xIdempotent": "none",
+      "idempotentReason": "签发短时地址，结果不进幂等记录，避免回放过期地址（A18、A19）",
+      "featureFlags": [
+        "weapp.video.ad.enabled（只用于兜底）"
+      ],
+      "responseHeaders": [
+        "Cache-Control: no-store"
+      ],
+      "transitions": [],
+      "writes": [
+        "audit_log（stream = access，category = file_access，action = ad.version.album_download，actor_type = merchant，client = weapp，target_type = ad_version）"
+      ]
+    },
+    {
+      "operationId": "m.playable.get",
+      "method": "GET",
+      "path": "/m/playables/{playableId}",
+      "section": "3.9",
+      "requestSchemas": [],
+      "responseSchema": "Playable",
+      "errors": [
+        "AUTH_REQUIRED",
+        "NOT_A_MEMBER",
+        "ROLE_FORBIDDEN",
+        "STORE_ARCHIVED",
+        "FEATURE_DISABLED",
+        "PLAYABLE_UNAVAILABLE",
+        "NOT_FOUND"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": "assert-in-handler",
+      "xAuth": "optional",
+      "clerkView": "same",
+      "xIdempotent": "none",
+      "idempotentReason": "纯查询，GET 不写库（A18、A19）",
+      "featureFlags": [
+        "weapp.video.trailer.enabled",
+        "weapp.video.sample.enabled",
+        "weapp.video.ad.enabled"
+      ],
+      "responseHeaders": [
+        "Cache-Control: no-store"
+      ],
+      "transitions": []
+    }
+  ],
+  "schemas": [
+    {
+      "name": "AdListQuery",
+      "fields": [
+        "tab",
+        "type",
+        "isSelectable",
+        "sort",
+        "cursor",
+        "limit"
+      ]
+    },
+    {
+      "name": "AdCardPage",
+      "fields": [
+        "items",
+        "nextCursor",
+        "hasMore"
+      ]
+    },
+    {
+      "name": "AdCard",
+      "fields": [
+        "adId",
+        "adNo",
+        "type",
+        "durationSec",
+        "status",
+        "displayStatus",
+        "waitingReason",
+        "returnReason",
+        "copy",
+        "promoPoints",
+        "coverUrl",
+        "coverExpiresAt",
+        "currentVersionNo",
+        "currentPreviewChannels",
+        "confirmedVersionNo",
+        "confirmedAt",
+        "isSelectable",
+        "freeRevisionQuota",
+        "revisionCount",
+        "freeRevisionsRemaining",
+        "chargePoints",
+        "isCaptured",
+        "dueAt",
+        "dueKind",
+        "usage",
+        "hasOpenCancelRequest",
+        "submittedAt",
+        "updatedAt",
+        "actions"
+      ]
+    },
+    {
+      "name": "AdDetail",
+      "extends": "AdCard",
+      "fields": [
+        "remark",
+        "unitPricePoints",
+        "discountBp",
+        "capturedAt",
+        "firstDueAt",
+        "editorName",
+        "revisionUnitChargePoints",
+        "revisionScreenshotMax",
+        "currentVersion",
+        "playable",
+        "alternatives",
+        "viewEvidence",
+        "confirmableVia",
+        "versions",
+        "revisions",
+        "references",
+        "floatingPlacements",
+        "relatedServiceTickets",
+        "timeline"
+      ]
+    },
+    {
+      "name": "AdUsage",
+      "fields": [
+        "inUseCount",
+        "firstDramaTitle"
+      ]
+    },
+    {
+      "name": "AdVersionView",
+      "fields": [
+        "versionNo",
+        "uploadedAt",
+        "pushedAt",
+        "durationMs",
+        "width",
+        "height",
+        "segments",
+        "previewChannels",
+        "offlineSentAt",
+        "decision",
+        "decidedAt",
+        "confirmViewedVia",
+        "viewedAckAt"
+      ]
+    },
+    {
+      "name": "AdSegment",
+      "fields": [
+        "index",
+        "fromMs",
+        "toMs",
+        "label"
+      ]
+    },
+    {
+      "name": "AdRevisionView",
+      "fields": [
+        "revisionNo",
+        "onVersionNo",
+        "source",
+        "isChargeable",
+        "chargePoints",
+        "segmentIndex",
+        "timeStartMs",
+        "timeEndMs",
+        "note",
+        "screenshots",
+        "actorType",
+        "createdAt",
+        "dueAt",
+        "fulfilledByVersionNo"
+      ]
+    },
+    {
+      "name": "AdRevisionWritten",
+      "fields": [
+        "revisionNo",
+        "onVersionNo",
+        "source",
+        "isChargeable",
+        "chargePoints",
+        "segmentIndex",
+        "timeStartMs",
+        "timeEndMs",
+        "note",
+        "screenshotFileIds",
+        "actorType",
+        "createdAt",
+        "dueAt",
+        "fulfilledByVersionNo"
+      ]
+    },
+    {
+      "name": "Playable",
+      "fields": [
+        "playableId",
+        "kind",
+        "durationMs",
+        "width",
+        "height",
+        "posterUrl",
+        "sources",
+        "expiresAt",
+        "autoplay",
+        "muted"
+      ],
+      "note": "全仓唯一定义（m05、p01、m04 引用）；资产未就绪时所在资源返回 null；不能在小程序内播放时 sources = []、expiresAt = null；m.playable.get 的结果 sources 恒非空"
+    },
+    {
+      "name": "PlayableSource",
+      "fields": [
+        "quality",
+        "url",
+        "width",
+        "height",
+        "bitrateKbps"
+      ]
+    },
+    {
+      "name": "AdAlternatives",
+      "fields": [
+        "canSaveToAlbum",
+        "canPreviewOnPortal",
+        "isOfflineSent"
+      ]
+    },
+    {
+      "name": "AdReference",
+      "fields": [
+        "kind",
+        "storeAssetId",
+        "fileId",
+        "assetType",
+        "title",
+        "mediaGroup",
+        "category",
+        "thumbUrl",
+        "thumbExpiresAt"
+      ]
+    },
+    {
+      "name": "AdFloatingPlacement",
+      "fields": [
+        "orderItemId",
+        "orderId",
+        "orderNo",
+        "dramaTitle",
+        "slot",
+        "ticketStep",
+        "isTicketPaused",
+        "agreedLaunchDate",
+        "serviceManagerName"
+      ]
+    },
+    {
+      "name": "AdRelatedServiceTicket",
+      "fields": [
+        "serviceTicketId",
+        "ticketNo",
+        "status",
+        "type",
+        "createdAt"
+      ]
+    },
+    {
+      "name": "AdTimelineEntry",
+      "fields": [
+        "at",
+        "action",
+        "title",
+        "detail",
+        "versionNo",
+        "actorType"
+      ]
+    },
+    {
+      "name": "AdState",
+      "fields": [
+        "adId",
+        "adNo",
+        "status",
+        "displayStatus",
+        "waitingReason",
+        "currentVersionNo",
+        "confirmedVersionNo",
+        "confirmedAt",
+        "revisionCount",
+        "freeRevisionsRemaining",
+        "chargePoints",
+        "isCaptured",
+        "dueAt",
+        "dueKind",
+        "hasOpenCancelRequest",
+        "actions"
+      ]
+    },
+    {
+      "name": "AdRevisionResult",
+      "fields": [
+        "ad",
+        "revision"
+      ]
+    },
+    {
+      "name": "AdQuote",
+      "fields": [
+        "unitPoints",
+        "discountBp",
+        "chargePoints",
+        "freeRevisions",
+        "planName",
+        "availablePoints",
+        "availableAfterPoints",
+        "typeOptions",
+        "storeGate",
+        "blockers",
+        "agreement",
+        "quotedAt"
+      ]
+    },
+    {
+      "name": "AdTypeOption",
+      "fields": [
+        "type",
+        "durationOptions"
+      ]
+    },
+    {
+      "name": "AdAgreementInfo",
+      "fields": [
+        "agreementKey",
+        "name",
+        "agreementVersionId",
+        "versionLabel",
+        "needsCheck"
+      ]
+    },
+    {
+      "name": "AdQuoteBody",
+      "fields": [
+        "type",
+        "durationSec"
+      ]
+    },
+    {
+      "name": "AdCreateBody",
+      "fields": [
+        "type",
+        "durationSec",
+        "promoPointCodes",
+        "copy",
+        "remark",
+        "referenceStoreAssetIds",
+        "referenceFileIds",
+        "expectChargePoints",
+        "agreementVersionId",
+        "isAgreementChecked"
+      ]
+    },
+    {
+      "name": "AdConfirmBody",
+      "fields": [
+        "versionNo",
+        "viewedVia",
+        "hasViewed"
+      ]
+    },
+    {
+      "name": "AdRequestChangeBody",
+      "fields": [
+        "versionNo",
+        "segmentIndex",
+        "timeStartMs",
+        "timeEndMs",
+        "note",
+        "screenshotFileIds",
+        "acceptChargePoints"
+      ]
+    },
+    {
+      "name": "AdSubmitBody",
+      "fields": [
+        "copy",
+        "remark",
+        "addReferenceStoreAssetIds",
+        "addReferenceFileIds"
+      ]
+    },
+    {
+      "name": "AdDownloadUrlsBody",
+      "fields": [
+        "versionNo"
+      ]
+    }
+  ],
+  "errorCodes": [
+    {
+      "symbol": "AD_CANCEL_IN_PROGRESS",
+      "code": 45201,
+      "http": 409,
+      "retryable": false,
+      "meaning": "广告有在途的取消申请，审批结束前不能确认、提出修改或重新提交",
+      "details": null
+    },
+    {
+      "symbol": "AD_VERSION_STALE",
+      "code": 45202,
+      "http": 409,
+      "retryable": false,
+      "meaning": "请求里的版本号不是当前版本",
+      "details": "{ currentVersionNo: integer | null }"
+    },
+    {
+      "symbol": "AD_PREVIEW_CHANNEL_UNAVAILABLE",
+      "code": 45203,
+      "http": 409,
+      "retryable": false,
+      "meaning": "这一版推送时没有提供这种查看方式",
+      "details": "{ previewChannels: PreviewChannel[] }"
+    },
+    {
+      "symbol": "AD_NOT_VIEWED",
+      "code": 45204,
+      "http": 409,
+      "retryable": false,
+      "meaning": "还没有通过所选方式查看过这一版（含开关被关闭后以 weapp 确认的兜底）",
+      "details": "{ viewedVia: PreviewChannel, requiredEvidence: album_saved | portal_viewed | album_or_portal }"
+    },
+    {
+      "symbol": "CHARGE_CHANGED",
+      "code": 45205,
+      "http": 409,
+      "retryable": false,
+      "meaning": "超次修改的扣减积分与页面提示不一致，或需要扣积分但尚未确认（沿用 d3-flow.md:1312 的符号名）",
+      "details": "{ isChargeable: boolean, chargePoints: integer, freeRevisionsRemaining: integer }"
+    },
+    {
+      "symbol": "PLAYABLE_UNAVAILABLE",
+      "code": 45206,
+      "http": 409,
+      "retryable": false,
+      "meaning": "可播放资产不是 ready（处理中、失败或已停用）",
+      "details": "{ state: PlayableState }"
+    }
+  ],
+  "errorRefs": [
+    {
+      "symbol": "QUOTA_EXCEEDED",
+      "definedIn": "m02-tenant",
+      "code": 41106,
+      "basis": "d4-identity.md:673；A77",
+      "expectedHttp": 409
+    },
+    {
+      "symbol": "STORE_ARCHIVED",
+      "definedIn": "m02-tenant",
+      "code": 41107,
+      "basis": "C17；A77",
+      "expectedHttp": 403
+    },
+    {
+      "symbol": "STORE_NOT_QUALIFIED",
+      "definedIn": "m04-mall-order",
+      "code": 45008,
+      "basis": "d3-flow.md:419、431；A77",
+      "expectedHttp": 409,
+      "details": "{ storeId, reason: StoreNotQualifiedReason }"
+    },
+    {
+      "symbol": "SUBSCRIPTION_INACTIVE",
+      "definedIn": "m07-billing",
+      "code": 43010,
+      "basis": "d1-ledger.md:1724；A77；m07-billing.md 第 5 节（m07 清单待同步）",
+      "expectedHttp": 409
+    },
+    {
+      "symbol": "POINTS_INSUFFICIENT",
+      "definedIn": "m07-billing",
+      "code": 43009,
+      "basis": "d1-ledger.md:1724；A77；m07-billing.md 第 5 节（m07 清单待同步）",
+      "expectedHttp": 409,
+      "details": "{ requiredPoints, spendablePoints, shortfallPoints }"
+    },
+    {
+      "symbol": "PLAN_REFUND_IN_PROGRESS",
+      "definedIn": "m07-billing",
+      "code": 43006,
+      "basis": "07-billing-ledger.md:843",
+      "expectedHttp": 409
+    },
+    {
+      "symbol": "QUOTE_CHANGED",
+      "definedIn": "m07-billing",
+      "code": 43007,
+      "basis": "d1-ledger.md:1724；A77；details 取 QuoteChangedDetails 的 points 分支",
+      "expectedHttp": 409
+    },
+    {
+      "symbol": "ACCOUNT_BUSY",
+      "definedIn": "m07-billing",
+      "code": 43008,
+      "basis": "d1-ledger.md:1724；C26（可重试）",
+      "expectedHttp": 503
+    },
+    {
+      "symbol": "AGREEMENT_VERSION_STALE",
+      "definedIn": "m01-account",
+      "code": 47401,
+      "basis": "d6-notify-docs-data.md:1154、2259；C73；A77",
+      "expectedHttp": 409,
+      "details": "{ agreementKey, currentAgreementVersionId }"
+    },
+    {
+      "symbol": "CONTENT_REJECTED",
+      "definedIn": "m01-account",
+      "code": 41006,
+      "basis": "d4-identity.md:2317；A77",
+      "expectedHttp": 400,
+      "details": "{ fields: string[] }"
+    },
+    {
+      "symbol": "DICT_ITEM_DISABLED",
+      "definedIn": "m08-support-misc",
+      "code": 47001,
+      "basis": "A77；m08 dicts.assertEnabled",
+      "expectedHttp": 409
+    },
+    {
+      "symbol": "FILE_NOT_USABLE",
+      "definedIn": "m03-profile-asset",
+      "code": 46001,
+      "basis": "files.link() 断言失败的统一出口（m03 第 5 节）",
+      "expectedHttp": 400
+    },
+    {
+      "symbol": "STATE_NOT_ALLOWED",
+      "definedIn": "conventions C27（通用）",
+      "code": 40902,
+      "expectedHttp": 409
+    },
+    {
+      "symbol": "VALIDATION_FAILED",
+      "definedIn": "conventions C27（通用）",
+      "code": 40001,
+      "expectedHttp": 400
+    },
+    {
+      "symbol": "FEATURE_DISABLED",
+      "definedIn": "conventions C27（通用）",
+      "code": 40306,
+      "expectedHttp": 403
+    },
+    {
+      "symbol": "NOT_FOUND",
+      "definedIn": "conventions C27（通用）",
+      "code": 40401,
+      "expectedHttp": 404
+    },
+    {
+      "symbol": "AUTH_REQUIRED",
+      "definedIn": "conventions C27（通用）",
+      "code": 40101,
+      "expectedHttp": 401
+    },
+    {
+      "symbol": "NOT_A_MEMBER",
+      "definedIn": "conventions C27（通用）",
+      "code": 40302,
+      "expectedHttp": 403
+    },
+    {
+      "symbol": "ROLE_FORBIDDEN",
+      "definedIn": "conventions C27（通用）",
+      "code": 40303,
+      "expectedHttp": 403
+    },
+    {
+      "symbol": "PROVIDER_UNAVAILABLE",
+      "definedIn": "conventions C27（通用）",
+      "code": 50001,
+      "expectedHttp": 503
+    }
+  ],
+  "events": [
+    {
+      "name": "ad.requested",
+      "aggregate": "ad",
+      "source": "x01-events-jobs；d3-flow.md:2721"
+    },
+    {
+      "name": "ad.confirmed",
+      "aggregate": "ad",
+      "source": "x01-events-jobs；d3-flow.md:2721"
+    },
+    {
+      "name": "ad.revision_requested",
+      "aggregate": "ad",
+      "source": "x01-events-jobs；d3-flow.md:1315、2721"
+    },
+    {
+      "name": "ad.resubmitted",
+      "aggregate": "ad",
+      "source": "x01-events-jobs（已登记，迁移码 ad.resubmit）"
+    },
+    {
+      "name": "billing.points.held",
+      "aggregate": "billing_account",
+      "source": "x01-events-jobs；账本函数发出"
+    },
+    {
+      "name": "billing.points.captured",
+      "aggregate": "billing_account",
+      "source": "x01-events-jobs；账本函数发出"
+    },
+    {
+      "name": "ticket.step_changed",
+      "aggregate": "delivery_ticket",
+      "source": "x01-events-jobs；flow.reevaluate() 同事务求值（10:174、10:179）"
+    },
+    {
+      "name": "sample.superseded",
+      "aggregate": "sample",
+      "source": "x01-events-jobs；广告重新打开（10:648）"
+    }
+  ],
+  "auditActions": [
+    {
+      "action": "ad.submit",
+      "stream": "activity",
+      "targetType": "ad",
+      "writtenBy": "m.ad.create（迁移审计行）"
+    },
+    {
+      "action": "ad.confirm",
+      "stream": "activity",
+      "targetType": "ad",
+      "writtenBy": "m.ad.confirm（迁移审计行，meta.versionNo）"
+    },
+    {
+      "action": "ad.request_revision",
+      "stream": "activity",
+      "targetType": "ad",
+      "writtenBy": "m.ad.requestChange（迁移审计行，meta.versionNo、meta.revisionNo）"
+    },
+    {
+      "action": "ad.resubmit",
+      "stream": "activity",
+      "targetType": "ad",
+      "writtenBy": "m.ad.submit（迁移审计行）"
+    },
+    {
+      "action": "ad.version.album_download",
+      "stream": "access",
+      "category": "file_access",
+      "targetType": "ad_version",
+      "writtenBy": "m.ad.downloadUrls"
+    },
+    {
+      "action": "ad.version.portal_preview",
+      "stream": "access",
+      "category": "file_access",
+      "targetType": "ad_version",
+      "writtenBy": "portal.ad.playbackUrls（p01-portal）"
+    }
+  ],
+  "permissions": [],
+  "capabilities": [
+    "ad.request",
+    "ad.confirm",
+    "delivery.confirm_sample"
+  ],
+  "paramKeys": [
+    {
+      "key": "ad.duration_options",
+      "default": "{ opening: [3, 5], ending: [5, 10] }",
+      "status": "A107、A146 补登（07 待回写清单）"
+    },
+    {
+      "key": "ad.revision_screenshot_max",
+      "default": 1,
+      "status": "A107、A146 补登（07 待回写清单）"
+    },
+    {
+      "key": "content.placement.open_slots",
+      "status": "已登记（14-config-data.md:305）"
+    }
+  ],
+  "moduleHooks": [
+    {
+      "name": "StoreCloseGuard.ad_in_production",
+      "for": "m02-tenant"
+    },
+    {
+      "name": "ads.getAdNos",
+      "for": "m03-profile-asset"
+    },
+    {
+      "name": "ads.isSelectable",
+      "for": "m04-mall-order"
+    }
+  ],
+  "externalSchemas": [
+    {
+      "name": "ImageRef",
+      "definedIn": "m08-support-misc",
+      "note": "修改轮次截图（2.7）；初稿 SignedImage 删去（A132）"
+    },
+    {
+      "name": "QuoteBlocker",
+      "definedIn": "m04-mall-order",
+      "note": "m.ad.quote 的 blockers；广告报价不带 dramaId（A132）"
+    },
+    {
+      "name": "DownloadUrl",
+      "definedIn": "m05-delivery-publish",
+      "note": "m.ad.downloadUrls 的响应；原 AdDownloadUrl 删去（A150）"
+    },
+    {
+      "name": "DictRef",
+      "definedIn": "conventions（C85）",
+      "note": "AdCard.promoPoints；AdRelatedServiceTicket.type（A151，原 typeCode + typeName）；原 PromoPoint 删去（A133）"
+    },
+    {
+      "name": "QuoteChangedDetails",
+      "definedIn": "m07-billing",
+      "note": "QUOTE_CHANGED 的 details，points 分支（A131）"
+    }
+  ]
+}

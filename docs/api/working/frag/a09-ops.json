@@ -1,0 +1,2527 @@
+{
+  "doc": "a09-ops",
+  "endpoints": [
+    {
+      "operationId": "admin.agreement.list",
+      "method": "GET",
+      "path": "/admin/agreements",
+      "section": "3.1",
+      "requestSchemas": [
+        "AdminAgreementListQuery"
+      ],
+      "responseSchema": "AdminPage<AgreementListItem>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "none",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.agreement.get",
+      "method": "GET",
+      "path": "/admin/agreements/{agreementKey}",
+      "section": "3.2",
+      "requestSchemas": [],
+      "responseSchema": "AgreementDetail",
+      "errors": [
+        "NOT_FOUND"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "none",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.agreement.agreementVersion.create",
+      "method": "POST",
+      "path": "/admin/agreements/{agreementKey}/agreement-versions",
+      "section": "3.3",
+      "requestSchemas": [
+        "AgreementVersionCreateBody"
+      ],
+      "responseSchema": "AgreementVersionMutationResult",
+      "errors": [
+        "NOT_FOUND",
+        "AGREEMENT_DRAFT_EXISTS",
+        "FILE_NOT_USABLE",
+        "AGREEMENT_CONTENT_CONVERT_FAILED",
+        "PERMISSION_DENIED"
+      ],
+      "events": [],
+      "permission": "assert-in-handler",
+      "capability": null,
+      "transitions": [
+        "agreement_version: (新建) → draft"
+      ],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.agreementVersion.update",
+      "method": "PATCH",
+      "path": "/admin/agreement-versions/{agreementVersionId}",
+      "section": "3.4",
+      "requestSchemas": [
+        "AgreementVersionUpdateBody"
+      ],
+      "responseSchema": "AgreementVersionMutationResult",
+      "errors": [
+        "NOT_FOUND",
+        "STATE_NOT_ALLOWED",
+        "VERSION_CONFLICT",
+        "FILE_NOT_USABLE",
+        "AGREEMENT_CONTENT_CONVERT_FAILED"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [
+        "agreement_version: draft → draft"
+      ],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "lockVersion": true
+    },
+    {
+      "operationId": "admin.agreementVersion.schedule",
+      "method": "POST",
+      "path": "/admin/agreement-versions/{agreementVersionId}/schedule",
+      "section": "3.5",
+      "requestSchemas": [
+        "AgreementVersionScheduleBody"
+      ],
+      "responseSchema": "AgreementVersionScheduleResult",
+      "errors": [
+        "NOT_FOUND",
+        "STATE_NOT_ALLOWED",
+        "VERSION_CONFLICT",
+        "AGREEMENT_DRAFT_INCOMPLETE",
+        "AGREEMENT_EFFECTIVE_TOO_SOON",
+        "AGREEMENT_PENDING_EXISTS",
+        "AGREEMENT_SHORT_NOTICE",
+        "STEP_UP_REQUIRED"
+      ],
+      "events": [
+        "site_notice.announced"
+      ],
+      "permission": "assert-in-handler",
+      "capability": null,
+      "transitions": [
+        "agreement_version: draft → pending",
+        "site_notice: (新建) → announced（只对 member、points）"
+      ],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "lockVersion": true
+    },
+    {
+      "operationId": "admin.agreementVersion.withdraw",
+      "method": "POST",
+      "path": "/admin/agreement-versions/{agreementVersionId}/withdraw",
+      "section": "3.6",
+      "requestSchemas": [
+        "AgreementVersionWithdrawBody"
+      ],
+      "responseSchema": "AgreementVersionWithdrawResult",
+      "errors": [
+        "NOT_FOUND",
+        "STATE_NOT_ALLOWED",
+        "AGREEMENT_WITHDRAW_TOO_LATE"
+      ],
+      "events": [
+        "site_notice.withdrawn"
+      ],
+      "permission": null,
+      "capability": null,
+      "transitions": [
+        "agreement_version: pending → withdrawn",
+        "agreement_version: (新建) → draft（复制为新草稿；已有草稿时不复制）",
+        "site_notice: announced → withdrawn（有公告时）"
+      ],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.agreementConsent.list",
+      "method": "GET",
+      "path": "/admin/agreement-consents",
+      "section": "3.7",
+      "requestSchemas": [
+        "AgreementConsentListQuery"
+      ],
+      "responseSchema": "AdminPage<AgreementConsentItem>",
+      "errors": [
+        "VALIDATION_FAILED"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "none",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.agreementConsent.get",
+      "method": "GET",
+      "path": "/admin/agreement-consents/{agreementConsentId}",
+      "section": "3.8",
+      "requestSchemas": [],
+      "responseSchema": "AgreementConsentDetail",
+      "errors": [
+        "NOT_FOUND"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "none",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.siteNotice.list",
+      "method": "GET",
+      "path": "/admin/site-notices",
+      "section": "3.9",
+      "requestSchemas": [
+        "SiteNoticeListQuery"
+      ],
+      "responseSchema": "AdminPage<SiteNoticeItem>",
+      "errors": [
+        "PERMISSION_DENIED"
+      ],
+      "events": [],
+      "permission": "assert-in-handler",
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "none",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.homeBanner.list",
+      "method": "GET",
+      "path": "/admin/home-banners",
+      "section": "3.10",
+      "requestSchemas": [
+        "HomeBannerListQuery"
+      ],
+      "responseSchema": "AdminPage<HomeBannerItem>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "none",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.homeBanner.create",
+      "method": "POST",
+      "path": "/admin/home-banners",
+      "section": "3.11",
+      "requestSchemas": [
+        "HomeBannerCreateBody"
+      ],
+      "responseSchema": "HomeBannerItem & ReplayFlag",
+      "errors": [
+        "VALIDATION_FAILED",
+        "FILE_NOT_USABLE",
+        "BANNER_TARGET_INVALID",
+        "BANNER_LIMIT_EXCEEDED"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "redactOnReplay": [
+        "imageUrl"
+      ]
+    },
+    {
+      "operationId": "admin.homeBanner.batchReorder",
+      "method": "POST",
+      "path": "/admin/home-banners/reorder",
+      "section": "3.12",
+      "requestSchemas": [
+        "HomeBannerReorderBody"
+      ],
+      "responseSchema": "HomeBannerReorderResult",
+      "errors": [
+        "VALIDATION_FAILED",
+        "BANNER_ORDER_STALE"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "redactOnReplay": [
+        "items[].imageUrl"
+      ]
+    },
+    {
+      "operationId": "admin.homeBanner.update",
+      "method": "PATCH",
+      "path": "/admin/home-banners/{homeBannerId}",
+      "section": "3.13",
+      "requestSchemas": [
+        "HomeBannerUpdateBody"
+      ],
+      "responseSchema": "HomeBannerItem & ReplayFlag",
+      "errors": [
+        "NOT_FOUND",
+        "VERSION_CONFLICT",
+        "STATE_NOT_ALLOWED",
+        "VALIDATION_FAILED",
+        "FILE_NOT_USABLE",
+        "BANNER_TARGET_INVALID",
+        "BANNER_LIMIT_EXCEEDED"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "lockVersion": true,
+      "redactOnReplay": [
+        "imageUrl"
+      ]
+    },
+    {
+      "operationId": "admin.siteConfig.get",
+      "method": "GET",
+      "path": "/admin/site-configs/{configKey}",
+      "section": "3.14",
+      "requestSchemas": [],
+      "responseSchema": "SiteConfigView",
+      "errors": [
+        "NOT_FOUND"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "none",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.siteConfig.draft.replace",
+      "method": "PUT",
+      "path": "/admin/site-configs/{configKey}/draft",
+      "section": "3.15",
+      "requestSchemas": [
+        "SiteConfigDraftBody"
+      ],
+      "responseSchema": "SiteConfigView",
+      "errors": [
+        "NOT_FOUND",
+        "VALIDATION_FAILED",
+        "VERSION_CONFLICT"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [
+        "site_config_revision: (新建) → draft",
+        "site_config_revision: draft → draft"
+      ],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "lockVersion": true
+    },
+    {
+      "operationId": "admin.siteConfig.publish",
+      "method": "POST",
+      "path": "/admin/site-configs/{configKey}/publish",
+      "section": "3.16",
+      "requestSchemas": [
+        "SiteConfigPublishBody"
+      ],
+      "responseSchema": "SiteConfigView",
+      "errors": [
+        "NOT_FOUND",
+        "STATE_NOT_ALLOWED",
+        "VERSION_CONFLICT",
+        "CONFIG_REV_CONFLICT",
+        "VALIDATION_FAILED",
+        "CONFIG_REF_INVALID"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [
+        "site_config_revision: draft → published",
+        "site_config_revision: published → archived（旧版）"
+      ],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "concurrencyField": "baseRevNo",
+      "lockVersion": true
+    },
+    {
+      "operationId": "admin.siteConfig.revision.list",
+      "method": "GET",
+      "path": "/admin/site-configs/{configKey}/revisions",
+      "section": "3.17",
+      "requestSchemas": [
+        "SiteConfigRevisionListQuery"
+      ],
+      "responseSchema": "AdminPage<SiteConfigRevisionView>",
+      "errors": [
+        "NOT_FOUND"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "none",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.notifyScene.list",
+      "method": "GET",
+      "path": "/admin/notify-scenes",
+      "section": "3.18",
+      "requestSchemas": [
+        "NotifySceneListQuery"
+      ],
+      "responseSchema": "NotifySceneListResult",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "none",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.notifyScene.summary",
+      "method": "GET",
+      "path": "/admin/notify-scenes/summary",
+      "section": "3.19",
+      "requestSchemas": [
+        "NotifySceneSummaryQuery"
+      ],
+      "responseSchema": "NotifySceneSummary",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "none",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.notifyScene.update",
+      "method": "PATCH",
+      "path": "/admin/notify-scenes/{sceneKey}",
+      "section": "3.20",
+      "requestSchemas": [
+        "NotifySceneUpdateBody"
+      ],
+      "responseSchema": "NotifySceneRow",
+      "errors": [
+        "NOT_FOUND",
+        "VALIDATION_FAILED",
+        "VERSION_CONFLICT",
+        "NOTIFY_SCENE_NOT_CONFIGURABLE"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "lockVersion": true
+    },
+    {
+      "operationId": "admin.notifyScene.disable",
+      "method": "POST",
+      "path": "/admin/notify-scenes/{sceneKey}/disable",
+      "section": "3.21",
+      "requestSchemas": [
+        "NotifySceneDisableBody"
+      ],
+      "responseSchema": "NotifySceneRow",
+      "errors": [
+        "NOT_FOUND",
+        "STATE_NOT_ALLOWED",
+        "VERSION_CONFLICT",
+        "NOTIFY_SCENE_NOT_CONFIGURABLE"
+      ],
+      "events": [],
+      "permission": "sys.super_admin",
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "lockVersion": true
+    },
+    {
+      "operationId": "admin.notifyScene.enable",
+      "method": "POST",
+      "path": "/admin/notify-scenes/{sceneKey}/enable",
+      "section": "3.22",
+      "requestSchemas": [
+        "NotifySceneEnableBody"
+      ],
+      "responseSchema": "NotifySceneRow",
+      "errors": [
+        "NOT_FOUND",
+        "VALIDATION_FAILED",
+        "STATE_NOT_ALLOWED",
+        "VERSION_CONFLICT"
+      ],
+      "events": [],
+      "permission": "sys.super_admin",
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "lockVersion": true
+    },
+    {
+      "operationId": "admin.notifyScene.testSend",
+      "method": "POST",
+      "path": "/admin/notify-scenes/{sceneKey}/test-send",
+      "section": "3.23",
+      "requestSchemas": [
+        "NotifyTestSendBody"
+      ],
+      "responseSchema": "NotifyTestSendResult",
+      "errors": [
+        "NOT_FOUND",
+        "NOTIFY_SCENE_NOT_CONFIGURABLE",
+        "NOTIFY_CHANNEL_NOT_READY",
+        "NOTIFY_TEST_RECIPIENT_MISSING",
+        "RATE_LIMITED",
+        "IDEMPOTENCY_IN_PROGRESS"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [
+        "notification_delivery: (新建) → sending（直发，purpose = test）",
+        "notification_delivery: sending → sent",
+        "notification_delivery: sending → failed"
+      ],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": true,
+      "rateLimit": "admin.notify_test（C68 已登记；与 admin.smsTemplate.testSend 合并计数，每名员工 5 次 / 分）"
+    },
+    {
+      "operationId": "admin.notificationDelivery.list",
+      "method": "GET",
+      "path": "/admin/notification-deliveries",
+      "section": "3.24",
+      "requestSchemas": [
+        "NotificationDeliveryListQuery"
+      ],
+      "responseSchema": "AdminPage<NotificationDeliveryItem>",
+      "errors": [
+        "VALIDATION_FAILED",
+        "PERMISSION_DENIED"
+      ],
+      "events": [],
+      "permission": "assert-in-handler",
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "none",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.notificationDelivery.resend",
+      "method": "POST",
+      "path": "/admin/notification-deliveries/{notificationDeliveryId}/resend",
+      "section": "3.25",
+      "requestSchemas": [
+        "NotificationDeliveryResendBody"
+      ],
+      "responseSchema": "NotificationDeliveryItem",
+      "errors": [
+        "NOT_FOUND",
+        "NOTIFY_RESEND_NOT_ALLOWED"
+      ],
+      "events": [],
+      "permission": "notify.resend",
+      "capability": null,
+      "transitions": [
+        "notification_delivery: (新建) → pending（origin = manual）"
+      ],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.wxTemplateSlot.list",
+      "method": "GET",
+      "path": "/admin/wx-template-slots",
+      "section": "3.26",
+      "requestSchemas": [
+        "WxTemplateSlotListQuery"
+      ],
+      "responseSchema": "AdminPage<WxTemplateSlotItem>",
+      "errors": [],
+      "events": [],
+      "permission": "sys.super_admin",
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "none",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.wxTemplateSlot.update",
+      "method": "PATCH",
+      "path": "/admin/wx-template-slots/{slotKey}",
+      "section": "3.27",
+      "requestSchemas": [
+        "WxTemplateSlotUpdateBody"
+      ],
+      "responseSchema": "WxTemplateSlotItem",
+      "errors": [
+        "NOT_FOUND",
+        "VALIDATION_FAILED",
+        "WX_SLOT_FIELDS_MISMATCH"
+      ],
+      "events": [],
+      "permission": "sys.super_admin",
+      "capability": null,
+      "transitions": [
+        "wx_template_slot: unconfigured → active"
+      ],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.wxTemplateSlot.disable",
+      "method": "POST",
+      "path": "/admin/wx-template-slots/{slotKey}/disable",
+      "section": "3.28",
+      "requestSchemas": [
+        "WxTemplateSlotDisableBody"
+      ],
+      "responseSchema": "WxTemplateSlotItem",
+      "errors": [
+        "NOT_FOUND",
+        "STATE_NOT_ALLOWED"
+      ],
+      "events": [],
+      "permission": "sys.super_admin",
+      "capability": null,
+      "transitions": [
+        "wx_template_slot: active → disabled（manual）"
+      ],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.wxTemplateSlot.enable",
+      "method": "POST",
+      "path": "/admin/wx-template-slots/{slotKey}/enable",
+      "section": "3.29",
+      "requestSchemas": [
+        "WxTemplateSlotEnableBody"
+      ],
+      "responseSchema": "WxTemplateSlotItem",
+      "errors": [
+        "NOT_FOUND",
+        "STATE_NOT_ALLOWED"
+      ],
+      "events": [],
+      "permission": "sys.super_admin",
+      "capability": null,
+      "transitions": [
+        "wx_template_slot: disabled → active"
+      ],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.smsTemplate.list",
+      "method": "GET",
+      "path": "/admin/sms-templates",
+      "section": "3.30",
+      "requestSchemas": [
+        "SmsTemplateListQuery"
+      ],
+      "responseSchema": "AdminPage<SmsTemplateItem>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "none",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.smsTemplate.update",
+      "method": "PATCH",
+      "path": "/admin/sms-templates/{templateKey}",
+      "section": "3.31",
+      "requestSchemas": [
+        "SmsTemplateUpdateBody"
+      ],
+      "responseSchema": "SmsTemplateItem",
+      "errors": [
+        "NOT_FOUND",
+        "VALIDATION_FAILED",
+        "SMS_TEMPLATE_CONFIG_INVALID"
+      ],
+      "events": [],
+      "permission": "sys.super_admin",
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.smsTemplate.summary",
+      "method": "GET",
+      "path": "/admin/sms-templates/summary",
+      "section": "3.32",
+      "requestSchemas": [
+        "SmsTemplateSummaryQuery"
+      ],
+      "responseSchema": "SmsTemplateSummary",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "none",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.smsTemplate.testSend",
+      "method": "POST",
+      "path": "/admin/sms-templates/{templateKey}/test-send",
+      "section": "3.33",
+      "requestSchemas": [],
+      "responseSchema": "NotifyTestSendResult",
+      "errors": [
+        "NOT_FOUND",
+        "NOTIFY_CHANNEL_NOT_READY",
+        "NOTIFY_TEST_RECIPIENT_MISSING",
+        "RATE_LIMITED",
+        "IDEMPOTENCY_IN_PROGRESS"
+      ],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [
+        "notification_delivery: (新建) → sending（直发，purpose = test，channel = sms）",
+        "notification_delivery: sending → sent",
+        "notification_delivery: sending → failed"
+      ],
+      "version": "V1.0",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": true,
+      "rateLimit": "admin.notify_test（C68 已登记，与 admin.notifyScene.testSend 合并计数，A148）"
+    },
+    {
+      "operationId": "admin.homeBanner.summary",
+      "method": "GET",
+      "path": "/admin/home-banners/summary",
+      "section": "3.34",
+      "requestSchemas": [],
+      "responseSchema": "HomeBannerSummary",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.0",
+      "xIdempotent": "none",
+      "idempotentBy": null
+    },
+    {
+      "operationId": "admin.notice.list",
+      "method": "GET",
+      "path": "/admin/notices",
+      "section": "3.35",
+      "requestSchemas": [],
+      "responseSchema": null,
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.1",
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "note": "V1.1，细节待设计"
+    },
+    {
+      "operationId": "admin.notice.create",
+      "method": "POST",
+      "path": "/admin/notices",
+      "section": "3.36",
+      "requestSchemas": [],
+      "responseSchema": null,
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.1",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "note": "V1.1，细节待设计"
+    },
+    {
+      "operationId": "admin.notice.update",
+      "method": "PATCH",
+      "path": "/admin/notices/{noticeId}",
+      "section": "3.37",
+      "requestSchemas": [],
+      "responseSchema": null,
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.1",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "note": "V1.1，细节待设计"
+    },
+    {
+      "operationId": "admin.notice.publish",
+      "method": "POST",
+      "path": "/admin/notices/{noticeId}/publish",
+      "section": "3.38",
+      "requestSchemas": [],
+      "responseSchema": null,
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.1",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "note": "V1.1，细节待设计"
+    },
+    {
+      "operationId": "admin.notice.unpublish",
+      "method": "POST",
+      "path": "/admin/notices/{noticeId}/unpublish",
+      "section": "3.39",
+      "requestSchemas": [],
+      "responseSchema": null,
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.1",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "note": "V1.1，细节待设计"
+    },
+    {
+      "operationId": "admin.faq.list",
+      "method": "GET",
+      "path": "/admin/faqs",
+      "section": "3.40",
+      "requestSchemas": [],
+      "responseSchema": null,
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.1",
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "note": "V1.1，细节待设计"
+    },
+    {
+      "operationId": "admin.faq.create",
+      "method": "POST",
+      "path": "/admin/faqs",
+      "section": "3.41",
+      "requestSchemas": [],
+      "responseSchema": null,
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.1",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "note": "V1.1，细节待设计"
+    },
+    {
+      "operationId": "admin.faq.update",
+      "method": "PATCH",
+      "path": "/admin/faqs/{faqId}",
+      "section": "3.42",
+      "requestSchemas": [],
+      "responseSchema": null,
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.1",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "note": "V1.1，细节待设计"
+    },
+    {
+      "operationId": "admin.faq.delete",
+      "method": "DELETE",
+      "path": "/admin/faqs/{faqId}",
+      "section": "3.43",
+      "requestSchemas": [],
+      "responseSchema": null,
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "capability": null,
+      "transitions": [],
+      "version": "V1.1",
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "note": "V1.1，细节待设计"
+    }
+  ],
+  "schemas": [
+    {
+      "name": "AgreementFileBrief",
+      "fields": [
+        "fileId",
+        "originalName",
+        "sizeBytes",
+        "mime"
+      ]
+    },
+    {
+      "name": "AdminAgreementVersionBrief",
+      "fields": [
+        "agreementVersionId",
+        "versionLabel",
+        "effectiveAt"
+      ]
+    },
+    {
+      "name": "AgreementListItem",
+      "fields": [
+        "agreementKey",
+        "name",
+        "subjectKind",
+        "consentMode",
+        "scenes",
+        "signSceneLabel",
+        "audienceLabel",
+        "sinceVersion",
+        "currentVersion",
+        "pendingVersion",
+        "draftVersion"
+      ]
+    },
+    {
+      "name": "AgreementVersionItem",
+      "fields": [
+        "agreementVersionId",
+        "agreementKey",
+        "major",
+        "minor",
+        "versionLabel",
+        "status",
+        "displayStatus",
+        "effectiveAt",
+        "summary",
+        "isReconsentRequired",
+        "isLegalApproved",
+        "sourceFile",
+        "pdfFile",
+        "hasContentHtml",
+        "contentSha256",
+        "siteNoticeId",
+        "shortNoticeReason",
+        "expectedConsents",
+        "activatedAt",
+        "createdBy",
+        "publishedBy",
+        "lockVersion",
+        "createdAt",
+        "updatedAt",
+        "actions"
+      ]
+    },
+    {
+      "name": "AgreementDetail",
+      "fields": [
+        "agreementKey",
+        "name",
+        "subjectKind",
+        "consentMode",
+        "scenes",
+        "signSceneLabel",
+        "audienceLabel",
+        "sinceVersion",
+        "currentVersion",
+        "pendingVersion",
+        "draftVersion",
+        "versions",
+        "currentContentHtml",
+        "draftContentHtml",
+        "reconsentProgress"
+      ]
+    },
+    {
+      "name": "ReconsentProgress",
+      "fields": [
+        "agreementVersionId",
+        "versionLabel",
+        "consentedCount",
+        "expectedCount",
+        "ratioBp"
+      ]
+    },
+    {
+      "name": "AgreementVersionCreateBody",
+      "fields": [
+        "bumpMajor",
+        "effectiveAt",
+        "summary",
+        "sourceFileId",
+        "pdfFileId",
+        "isReconsentRequired",
+        "isLegalApproved"
+      ]
+    },
+    {
+      "name": "AgreementVersionUpdateBody",
+      "fields": [
+        "effectiveAt",
+        "summary",
+        "sourceFileId",
+        "pdfFileId",
+        "isReconsentRequired",
+        "isLegalApproved",
+        "lockVersion"
+      ]
+    },
+    {
+      "name": "AgreementVersionMutationResult",
+      "fields": [
+        "version",
+        "contentHtml",
+        "conversion"
+      ]
+    },
+    {
+      "name": "ContentConversion",
+      "fields": [
+        "state",
+        "warnings"
+      ]
+    },
+    {
+      "name": "AgreementVersionScheduleBody",
+      "fields": [
+        "lockVersion",
+        "shortNoticeReason"
+      ]
+    },
+    {
+      "name": "AgreementVersionScheduleResult",
+      "fields": [
+        "version",
+        "siteNotice"
+      ]
+    },
+    {
+      "name": "AgreementVersionWithdrawBody",
+      "fields": [
+        "reason"
+      ]
+    },
+    {
+      "name": "AgreementVersionWithdrawResult",
+      "fields": [
+        "withdrawn",
+        "newDraft",
+        "siteNotice"
+      ]
+    },
+    {
+      "name": "AgreementConsentListQuery",
+      "fields": [
+        "agreementKey",
+        "agreementVersionId",
+        "merchantUserId",
+        "entityId",
+        "storeId",
+        "scene",
+        "method",
+        "bizType",
+        "bizId",
+        "no",
+        "consentNo",
+        "consentedFrom",
+        "consentedTo",
+        "page",
+        "pageSize",
+        "sort"
+      ]
+    },
+    {
+      "name": "AgreementConsentItem",
+      "fields": [
+        "agreementConsentId",
+        "consentNo",
+        "agreementKey",
+        "agreementName",
+        "agreementVersionId",
+        "versionLabel",
+        "scene",
+        "method",
+        "merchantUserId",
+        "phoneMask",
+        "operatorNameMask",
+        "role",
+        "entityId",
+        "entityName",
+        "usccMask",
+        "storeId",
+        "storeName",
+        "bizType",
+        "bizId",
+        "bizNo",
+        "consentedAt"
+      ]
+    },
+    {
+      "name": "AgreementConsentDetail",
+      "fields": [
+        "agreementConsentId",
+        "consentNo",
+        "agreementKey",
+        "agreementName",
+        "agreementVersionId",
+        "versionLabel",
+        "scene",
+        "method",
+        "merchantUserId",
+        "phoneMask",
+        "operatorNameMask",
+        "role",
+        "entityId",
+        "entityName",
+        "usccMask",
+        "storeId",
+        "storeName",
+        "bizType",
+        "bizId",
+        "bizNo",
+        "consentedAt",
+        "contentSha256",
+        "isContentHashConsistent",
+        "appid",
+        "hasOpenidSnapshot",
+        "ipMask",
+        "userAgent",
+        "device",
+        "requestId",
+        "revealableFields",
+        "createdAt"
+      ]
+    },
+    {
+      "name": "SiteNoticeListQuery",
+      "fields": [
+        "kind",
+        "refId",
+        "status",
+        "displayState",
+        "effectiveFrom",
+        "effectiveTo",
+        "page",
+        "pageSize",
+        "sort"
+      ]
+    },
+    {
+      "name": "SiteNoticeItem",
+      "fields": [
+        "siteNoticeId",
+        "kind",
+        "refId",
+        "title",
+        "summary",
+        "summaryNoPrice",
+        "effectiveAt",
+        "announcedAt",
+        "leadDays",
+        "shortNoticeReason",
+        "link",
+        "isBarEnabled",
+        "status",
+        "displayState",
+        "createdBy",
+        "withdrawnBy",
+        "withdrawnAt",
+        "createdAt"
+      ]
+    },
+    {
+      "name": "BannerJumpTarget",
+      "fields": [
+        "dramaId",
+        "categoryKey",
+        "route",
+        "params"
+      ]
+    },
+    {
+      "name": "HomeBannerItem",
+      "fields": [
+        "homeBannerId",
+        "title",
+        "imageFileId",
+        "imageUrl",
+        "jumpKind",
+        "jumpTarget",
+        "jumpTargetLabel",
+        "startAt",
+        "endAt",
+        "isEnabled",
+        "position",
+        "displayState",
+        "clickCount",
+        "lockVersion",
+        "createdBy",
+        "updatedBy",
+        "createdAt",
+        "updatedAt",
+        "actions"
+      ]
+    },
+    {
+      "name": "HomeBannerListQuery",
+      "fields": [
+        "displayState",
+        "isEnded",
+        "page",
+        "pageSize",
+        "sort"
+      ]
+    },
+    {
+      "name": "HomeBannerCreateBody",
+      "fields": [
+        "title",
+        "imageFileId",
+        "jumpKind",
+        "jumpTarget",
+        "startAt",
+        "endAt",
+        "isEnabled"
+      ]
+    },
+    {
+      "name": "HomeBannerUpdateBody",
+      "fields": [
+        "title",
+        "imageFileId",
+        "jumpKind",
+        "jumpTarget",
+        "startAt",
+        "endAt",
+        "isEnabled",
+        "lockVersion"
+      ]
+    },
+    {
+      "name": "HomeBannerReorderBody",
+      "fields": [
+        "homeBannerIds"
+      ]
+    },
+    {
+      "name": "HomeBannerReorderResult",
+      "fields": [
+        "items",
+        "replayed"
+      ]
+    },
+    {
+      "name": "HomeBannerSummary",
+      "fields": [
+        "live",
+        "scheduled",
+        "ended",
+        "disabled",
+        "maxActive"
+      ]
+    },
+    {
+      "name": "MallConfig",
+      "fields": [
+        "categories",
+        "hotWords",
+        "filters",
+        "sorts",
+        "defaultSort",
+        "weights"
+      ]
+    },
+    {
+      "name": "MallCategory",
+      "fields": [
+        "key",
+        "name",
+        "genreCodes",
+        "visible",
+        "fixed"
+      ]
+    },
+    {
+      "name": "MallBand",
+      "fields": [
+        "key",
+        "label",
+        "min",
+        "max"
+      ]
+    },
+    {
+      "name": "HomeRecommendConfig",
+      "fields": [
+        "recommendCount",
+        "pins",
+        "defaultTab",
+        "newDays"
+      ]
+    },
+    {
+      "name": "SiteConfigView",
+      "fields": [
+        "configKey",
+        "published",
+        "draft",
+        "refs"
+      ]
+    },
+    {
+      "name": "SiteConfigRevisionView",
+      "fields": [
+        "siteConfigRevisionId",
+        "revNo",
+        "status",
+        "content",
+        "note",
+        "publishedAt",
+        "publishedBy"
+      ]
+    },
+    {
+      "name": "SiteConfigDraftView",
+      "fields": [
+        "siteConfigRevisionId",
+        "baseRevNo",
+        "content",
+        "note",
+        "lockVersion",
+        "createdBy",
+        "updatedAt"
+      ]
+    },
+    {
+      "name": "SiteConfigRefs",
+      "fields": [
+        "categoryStats",
+        "pins",
+        "invalidRefs",
+        "affectedBanners"
+      ]
+    },
+    {
+      "name": "ConfigRefIssue",
+      "fields": [
+        "path",
+        "code",
+        "reason"
+      ]
+    },
+    {
+      "name": "SiteConfigDraftBody",
+      "fields": [
+        "content",
+        "baseRevNo",
+        "note",
+        "lockVersion"
+      ]
+    },
+    {
+      "name": "SiteConfigPublishBody",
+      "fields": [
+        "lockVersion",
+        "baseRevNo"
+      ]
+    },
+    {
+      "name": "SiteConfigRevisionListQuery",
+      "fields": [
+        "status",
+        "page",
+        "pageSize"
+      ]
+    },
+    {
+      "name": "NotifyStats7d",
+      "fields": [
+        "planned",
+        "sent",
+        "noQuota",
+        "skipped",
+        "failed",
+        "successRateBp",
+        "reachRateBp",
+        "computedAt"
+      ]
+    },
+    {
+      "name": "NotifyPreview",
+      "fields": [
+        "channel",
+        "title",
+        "fields",
+        "fieldMappings",
+        "landingPage"
+      ]
+    },
+    {
+      "name": "NotifySceneRow",
+      "fields": [
+        "sceneKey",
+        "name",
+        "audience",
+        "isSceneEnabled",
+        "isExtEnabled",
+        "smsPolicy",
+        "isSmsFallbackEnabled",
+        "canToggleSmsFallback",
+        "smsNodes",
+        "sendWindow",
+        "sendWindowText",
+        "collapseWindowSec",
+        "isManagerEscalationEnabled",
+        "wxTemplateSlot",
+        "smsTemplate",
+        "triggerText",
+        "recipientText",
+        "preview",
+        "stats7d",
+        "lockVersion",
+        "updatedBy",
+        "updatedAt",
+        "actions"
+      ]
+    },
+    {
+      "name": "NotifySceneListQuery",
+      "fields": [
+        "tab",
+        "q",
+        "page",
+        "pageSize"
+      ]
+    },
+    {
+      "name": "NotifySceneListResult",
+      "fields": [
+        "tab",
+        "items",
+        "page",
+        "pageSize",
+        "total"
+      ]
+    },
+    {
+      "name": "NotifySceneSummaryQuery",
+      "fields": [
+        "q"
+      ]
+    },
+    {
+      "name": "NotifySceneSummary",
+      "fields": [
+        "wx",
+        "other"
+      ]
+    },
+    {
+      "name": "NotifySceneUpdateBody",
+      "fields": [
+        "isExtEnabled",
+        "isSmsFallbackEnabled",
+        "lockVersion"
+      ]
+    },
+    {
+      "name": "NotifySceneDisableBody",
+      "fields": [
+        "reason",
+        "lockVersion"
+      ]
+    },
+    {
+      "name": "NotifySceneEnableBody",
+      "fields": [
+        "reason",
+        "lockVersion"
+      ]
+    },
+    {
+      "name": "NotifyTestSendBody",
+      "fields": [
+        "channel"
+      ]
+    },
+    {
+      "name": "NotifyTestSendResult",
+      "fields": [
+        "notificationDeliveryId",
+        "channel",
+        "status",
+        "reason",
+        "targetMasked",
+        "errorCode",
+        "errorMsg",
+        "sentAt"
+      ]
+    },
+    {
+      "name": "NotificationDeliveryListQuery",
+      "fields": [
+        "sceneKey",
+        "channel",
+        "status",
+        "reason",
+        "origin",
+        "purpose",
+        "isDirect",
+        "notificationId",
+        "bizType",
+        "bizId",
+        "merchantUserId",
+        "staffId",
+        "entityId",
+        "storeId",
+        "createdFrom",
+        "createdTo",
+        "page",
+        "pageSize",
+        "sort"
+      ]
+    },
+    {
+      "name": "NotificationDeliveryItem",
+      "fields": [
+        "notificationDeliveryId",
+        "channel",
+        "origin",
+        "status",
+        "reason",
+        "isDirect",
+        "purpose",
+        "resendNo",
+        "attemptNo",
+        "maxAttempts",
+        "dueAt",
+        "targetMasked",
+        "smsTemplateKey",
+        "providerMsgId",
+        "errorCode",
+        "errorMsg",
+        "receiptStatus",
+        "receiptReportedAt",
+        "sentAt",
+        "finishedAt",
+        "createdAt",
+        "notification",
+        "actions"
+      ]
+    },
+    {
+      "name": "NotificationDeliveryResendBody",
+      "fields": [
+        "reason"
+      ]
+    },
+    {
+      "name": "WxTemplateSlotItem",
+      "fields": [
+        "slotKey",
+        "title",
+        "providerTemplateId",
+        "fields",
+        "expectedFields",
+        "status",
+        "disabledReason",
+        "failStreak",
+        "usedByScenes",
+        "createdAt",
+        "updatedAt",
+        "actions"
+      ]
+    },
+    {
+      "name": "WxTemplateSlotListQuery",
+      "fields": [
+        "status",
+        "page",
+        "pageSize"
+      ]
+    },
+    {
+      "name": "WxTemplateSlotUpdateBody",
+      "fields": [
+        "providerTemplateId",
+        "title",
+        "fields"
+      ]
+    },
+    {
+      "name": "WxTemplateSlotDisableBody",
+      "fields": [
+        "reason"
+      ]
+    },
+    {
+      "name": "WxTemplateSlotEnableBody",
+      "fields": [
+        "reason"
+      ]
+    },
+    {
+      "name": "SmsTemplateItem",
+      "fields": [
+        "templateKey",
+        "label",
+        "kind",
+        "status",
+        "signName",
+        "providerTemplateId",
+        "params",
+        "usedByScenes",
+        "directPurposes",
+        "triggerText",
+        "recipientText",
+        "sendWindowText",
+        "preview",
+        "stats7d",
+        "lastOkAt",
+        "createdAt",
+        "updatedAt",
+        "actions"
+      ]
+    },
+    {
+      "name": "SmsTemplateListQuery",
+      "fields": [
+        "q",
+        "status",
+        "kind",
+        "page",
+        "pageSize"
+      ]
+    },
+    {
+      "name": "SmsTemplateSummaryQuery",
+      "fields": [
+        "q"
+      ]
+    },
+    {
+      "name": "SmsTemplateSummary",
+      "fields": [
+        "total",
+        "byStatus"
+      ]
+    },
+    {
+      "name": "SmsTemplateUpdateBody",
+      "fields": [
+        "providerTemplateId",
+        "signName",
+        "status"
+      ]
+    },
+    {
+      "name": "AdminAgreementListQuery",
+      "fields": [
+        "page",
+        "pageSize"
+      ]
+    }
+  ],
+  "externalSchemas": [
+    {
+      "name": "StaffBrief",
+      "sourceDoc": "a01-system",
+      "source": "a01 2.2，全仓共用的员工摘要（取代本文初稿的 StaffRef）"
+    },
+    {
+      "name": "ReplayFlag",
+      "sourceDoc": "m03-profile-asset",
+      "source": "{ replayed: boolean }，与写接口响应取交（C50、A80）"
+    },
+    {
+      "name": "AdminPage",
+      "sourceDoc": "a01-system",
+      "source": "a01 公共结构，后台页码分页响应 { items, page, pageSize, total }（C43、C87，A132）"
+    },
+    {
+      "name": "SignedUrl",
+      "sourceDoc": "a01-system",
+      "source": "a01 公共结构 { url, expiresAt }（C60、C87，A132）"
+    }
+  ],
+  "errorCodes": [
+    {
+      "symbol": "BANNER_LIMIT_EXCEEDED",
+      "code": 47101,
+      "http": 409,
+      "meaning": "同一时间生效的 Banner 将超过上限",
+      "retryable": false,
+      "details": "{ at, activeCount, maxActive }"
+    },
+    {
+      "symbol": "BANNER_ORDER_STALE",
+      "code": 47102,
+      "http": 409,
+      "meaning": "Banner 列表已变化，请刷新后重新排序",
+      "retryable": false,
+      "details": "{ missingHomeBannerIds, unknownHomeBannerIds }"
+    },
+    {
+      "symbol": "BANNER_TARGET_INVALID",
+      "code": 47103,
+      "http": 400,
+      "meaning": "Banner 跳转目标无效（短剧不存在、未上架或不可订，分类不存在，页面不可选）",
+      "retryable": false,
+      "details": "{ jumpKind, reason: drama_not_found | drama_not_listed | drama_not_orderable | category_not_found | route_not_allowed | params_invalid }"
+    },
+    {
+      "symbol": "CONFIG_REV_CONFLICT",
+      "code": 47104,
+      "http": 409,
+      "meaning": "站点配置已有人发布过新版本",
+      "retryable": false,
+      "details": "{ publishedRevNo, publishedAt, publishedByName }"
+    },
+    {
+      "symbol": "CONFIG_REF_INVALID",
+      "code": 47105,
+      "http": 409,
+      "meaning": "站点配置引用的题材、行业或短剧已失效",
+      "retryable": false,
+      "details": "{ items: ConfigRefIssue[] }"
+    },
+    {
+      "symbol": "AGREEMENT_DRAFT_EXISTS",
+      "code": 47106,
+      "http": 409,
+      "meaning": "该协议已有草稿",
+      "retryable": false,
+      "details": "{ draftAgreementVersionId, versionLabel }"
+    },
+    {
+      "symbol": "AGREEMENT_DRAFT_INCOMPLETE",
+      "code": 47107,
+      "http": 409,
+      "meaning": "协议草稿缺文件、摘要、生效时间或法务审定",
+      "retryable": false,
+      "details": "{ missing }"
+    },
+    {
+      "symbol": "AGREEMENT_EFFECTIVE_TOO_SOON",
+      "code": 47108,
+      "http": 409,
+      "meaning": "生效时间须晚于当前时间 10 分钟以上",
+      "retryable": false,
+      "details": "{ earliestEffectiveAt }"
+    },
+    {
+      "symbol": "AGREEMENT_SHORT_NOTICE",
+      "code": 47109,
+      "http": 409,
+      "meaning": "距生效不足公告期",
+      "retryable": false,
+      "details": "{ minDays, leadDays, earliestEffectiveAt, canOverride }"
+    },
+    {
+      "symbol": "AGREEMENT_PENDING_EXISTS",
+      "code": 47110,
+      "http": 409,
+      "meaning": "该协议已有待生效版本",
+      "retryable": false,
+      "details": "{ pendingAgreementVersionId, versionLabel, effectiveAt }"
+    },
+    {
+      "symbol": "AGREEMENT_WITHDRAW_TOO_LATE",
+      "code": 47111,
+      "http": 409,
+      "meaning": "版本即将或已经生效，或已有同意记录，不能撤回",
+      "retryable": false,
+      "details": "{ reason, effectiveAt }"
+    },
+    {
+      "symbol": "AGREEMENT_CONTENT_CONVERT_FAILED",
+      "code": 47112,
+      "http": 400,
+      "meaning": "Word 正文无法转换为展示格式",
+      "retryable": false,
+      "details": "{ fileId }"
+    },
+    {
+      "symbol": "NOTIFY_SCENE_NOT_CONFIGURABLE",
+      "code": 47113,
+      "http": 409,
+      "meaning": "该通知场景不支持这项设置",
+      "retryable": false,
+      "details": "{ sceneKey, reason }"
+    },
+    {
+      "symbol": "NOTIFY_CHANNEL_NOT_READY",
+      "code": 47114,
+      "http": 409,
+      "meaning": "订阅消息模板或短信模板未配置或已停用",
+      "retryable": false,
+      "details": "{ channel, slotKey, templateKey, status }"
+    },
+    {
+      "symbol": "NOTIFY_TEST_RECIPIENT_MISSING",
+      "code": 47115,
+      "http": 409,
+      "meaning": "当前员工没有登记测试接收人，请联系超级管理员在参数配置里登记",
+      "retryable": false,
+      "details": "{ channel }"
+    },
+    {
+      "symbol": "NOTIFY_RESEND_NOT_ALLOWED",
+      "code": 47116,
+      "http": 409,
+      "meaning": "这条投递不能重发",
+      "retryable": false,
+      "details": "{ reason, status }"
+    },
+    {
+      "symbol": "WX_SLOT_FIELDS_MISMATCH",
+      "code": 47117,
+      "http": 400,
+      "meaning": "订阅消息模板字段与场景不一致",
+      "retryable": false,
+      "details": "{ expected, actualFieldNames }"
+    },
+    {
+      "symbol": "SMS_TEMPLATE_CONFIG_INVALID",
+      "code": 47118,
+      "http": 400,
+      "meaning": "短信模板配置不完整或不允许这样修改",
+      "retryable": false,
+      "details": "{ reason }"
+    }
+  ],
+  "externalErrors": [
+    {
+      "symbol": "FILE_NOT_USABLE",
+      "definedIn": "m03-profile-asset",
+      "code": 46001,
+      "reasonsUsed": [
+        "not_stored",
+        "category_mismatch",
+        "ext_mismatch"
+      ]
+    }
+  ],
+  "genericErrorRefs": [
+    "VALIDATION_FAILED",
+    "PERMISSION_DENIED",
+    "STEP_UP_REQUIRED",
+    "NOT_FOUND",
+    "VERSION_CONFLICT",
+    "STATE_NOT_ALLOWED",
+    "IDEMPOTENCY_IN_PROGRESS",
+    "RATE_LIMITED"
+  ],
+  "permissions": [
+    "sys.super_admin",
+    "agreement.short_notice",
+    "notify.resend",
+    "docs.consent.evidence"
+  ],
+  "capabilities": [],
+  "permissionSupplements": [
+    {
+      "key": "sys.super_admin",
+      "module": "系统设置",
+      "defaultRoles": "仅超级管理员",
+      "stepUp": false,
+      "pool": false,
+      "note": "A45；a01 已登记同一键；再验证建议“否”与 a01 第二轮一致（键共用），以注册表为准"
+    },
+    {
+      "key": "agreement.short_notice",
+      "module": "运营",
+      "defaultRoles": "仅超级管理员",
+      "stepUp": true,
+      "pool": false
+    },
+    {
+      "key": "notify.resend",
+      "module": "运营",
+      "defaultRoles": "内容运营、客服",
+      "stepUp": false,
+      "pool": false
+    },
+    {
+      "key": "docs.consent.evidence",
+      "module": "运营",
+      "defaultRoles": "仅超级管理员（法务取证时临时授予）",
+      "stepUp": true,
+      "pool": false,
+      "note": "经 a01 admin.piiReveal.create 使用"
+    }
+  ],
+  "moduleLevels": {
+    "view": "ops ≥ v",
+    "edit": "ops = e"
+  },
+  "auditCategories": [
+    "ops_config",
+    "agreement",
+    "notify_config"
+  ],
+  "rateLimitTiers": [
+    {
+      "tier": "admin.notify_test",
+      "operationIds": [
+        "admin.notifyScene.testSend",
+        "admin.smsTemplate.testSend"
+      ],
+      "quota": "每名员工 5 次 / 分钟，两条合并计数（d6:676）",
+      "status": "C68 已登记，两条合并计数（A148）"
+    }
+  ],
+  "proposedThreePhase": [
+    {
+      "operationId": "admin.smsTemplate.testSend",
+      "kind": "先落库",
+      "note": "形态同 admin.notifyScene.testSend；已登记进 C51（先落库，A148）"
+    }
+  ],
+  "paramsReferenced": [
+    "home.banner.max_active",
+    "agreement.announce_min_days",
+    "notify.window.start",
+    "notify.window.end",
+    "notify.test_recipients"
+  ],
+  "notifyScenes": [
+    {
+      "sceneKey": "m.pay_success",
+      "audience": "merchant",
+      "events": [
+        "billing_order.paid"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.order_submitted",
+      "audience": "merchant",
+      "events": [
+        "order.submitted"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.plan_pending",
+      "audience": "merchant",
+      "events": [
+        "plan.pushed"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.ad_pending",
+      "audience": "merchant",
+      "events": [
+        "ad.version_pushed"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.sample_pending",
+      "audience": "merchant",
+      "events": [
+        "sample.pushed"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.delivered",
+      "audience": "merchant",
+      "events": [
+        "package.delivered"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.launch_remind",
+      "audience": "merchant",
+      "events": [],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.verify_result",
+      "audience": "merchant",
+      "events": [
+        "launch.verified",
+        "launch.returned"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.plan_expiring",
+      "audience": "merchant",
+      "events": [],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.offline_remind",
+      "audience": "merchant",
+      "events": [
+        "takedown.created"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.ticket_reply",
+      "audience": "merchant",
+      "events": [
+        "service_ticket.replied",
+        "service_ticket.result_submitted",
+        "service_ticket.closed"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.invoice_issued",
+      "audience": "merchant",
+      "events": [
+        "invoice.issued"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.points_changed",
+      "audience": "merchant",
+      "events": [
+        "billing.points.granted",
+        "billing.points.purchased",
+        "billing.points.returned",
+        "billing.points.adjusted"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.review_result",
+      "audience": "merchant",
+      "events": [
+        "store.qualification.approved",
+        "store.qualification.rejected",
+        "store.qualification_change.submitted",
+        "store.qualification_change.approved",
+        "store.qualification_change.rejected"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.member_changed",
+      "audience": "merchant",
+      "events": [
+        "entity_member.joined",
+        "entity_member.removed",
+        "entity_member.stores_changed",
+        "entity_member.promoted"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.asset_feedback",
+      "audience": "merchant",
+      "events": [
+        "asset.adopted",
+        "asset.reviewed",
+        "asset.demand_created"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.refund_result",
+      "audience": "merchant",
+      "events": [
+        "refund.completed",
+        "refund.rejected"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.rule_change_notice",
+      "audience": "merchant",
+      "events": [
+        "site_notice.announced"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "m.rule_change_withdrawn",
+      "audience": "merchant",
+      "events": [
+        "site_notice.withdrawn"
+      ],
+      "source": "补登"
+    },
+    {
+      "sceneKey": "m.plan_activated",
+      "audience": "merchant",
+      "events": [
+        "billing.subscription.activated"
+      ],
+      "source": "补登（x01 3.7）"
+    },
+    {
+      "sceneKey": "m.plan_renewed",
+      "audience": "merchant",
+      "events": [
+        "billing.subscription.renewal_scheduled"
+      ],
+      "source": "补登（x01 3.7）"
+    },
+    {
+      "sceneKey": "m.plan_upgraded",
+      "audience": "merchant",
+      "events": [
+        "billing.subscription.upgraded"
+      ],
+      "source": "补登（x01 3.7）"
+    },
+    {
+      "sceneKey": "m.plan_extended",
+      "audience": "merchant",
+      "events": [
+        "billing.subscription.resumed",
+        "billing.subscription.extended"
+      ],
+      "source": "补登（x01 3.7）"
+    },
+    {
+      "sceneKey": "m.points_captured",
+      "audience": "merchant",
+      "events": [
+        "billing.points.captured"
+      ],
+      "source": "补登（x01 3.7）"
+    },
+    {
+      "sceneKey": "m.points_expired",
+      "audience": "merchant",
+      "events": [
+        "billing.points.expired"
+      ],
+      "source": "补登（x01 3.7）"
+    },
+    {
+      "sceneKey": "m.transfer_rejected",
+      "audience": "merchant",
+      "events": [
+        "transfer.rejected"
+      ],
+      "source": "补登（d6:253）"
+    },
+    {
+      "sceneKey": "m.invoice_rejected",
+      "audience": "merchant",
+      "events": [
+        "invoice.rejected"
+      ],
+      "source": "补登（d6:253）"
+    },
+    {
+      "sceneKey": "m.store_review_submitted",
+      "audience": "merchant",
+      "events": [
+        "store.qualification.submitted"
+      ],
+      "source": "补登（d6:253）"
+    },
+    {
+      "sceneKey": "m.profile_proxy_edited",
+      "audience": "merchant",
+      "events": [
+        "store.profile.changed"
+      ],
+      "source": "补登（d6:253）"
+    },
+    {
+      "sceneKey": "m.channel_account_result",
+      "audience": "merchant",
+      "events": [
+        "account.verified",
+        "account.abnormal"
+      ],
+      "source": "补登（d6:253）"
+    },
+    {
+      "sceneKey": "m.patrol_abnormal",
+      "audience": "merchant",
+      "events": [
+        "patrol.abnormal",
+        "patrol.recovered"
+      ],
+      "source": "补登（d6:253）"
+    },
+    {
+      "sceneKey": "m.license_letter_updated",
+      "audience": "merchant",
+      "events": [
+        "license_letter.issued"
+      ],
+      "source": "补登（d6:253）"
+    },
+    {
+      "sceneKey": "m.account_security",
+      "audience": "merchant",
+      "events": [
+        "merchant_user.wechat_bound",
+        "merchant_user.phone_changed"
+      ],
+      "source": "补登（13-notify-docs.md:156-158）"
+    },
+    {
+      "sceneKey": "m.order_progress",
+      "audience": "merchant",
+      "events": [
+        "order.started",
+        "order.item.cancelled",
+        "order.item.refunded",
+        "order.item.terminated",
+        "order.item.went_live",
+        "order.item.live_revoked",
+        "order.item.usage_end_changed",
+        "order.item.launch_rescheduled",
+        "ad.returned",
+        "ad.cancelled",
+        "package.reissued",
+        "publish_list.updated",
+        "ticket.archived",
+        "launch.verify_revoked",
+        "takedown.checked",
+        "takedown.found_online",
+        "takedown.basis_reopened"
+      ],
+      "source": "补登（x01 订阅栏“通知商家”的其余事件）"
+    },
+    {
+      "sceneKey": "m.cart_price_changed",
+      "audience": "merchant",
+      "events": [
+        "pricing.drama_price_changed"
+      ],
+      "source": "补登（x01 的请求）"
+    },
+    {
+      "sceneKey": "m.refund_initiated",
+      "audience": "merchant",
+      "events": [
+        "payment_exception.refund_requested"
+      ],
+      "source": "补登（x01 的请求）"
+    },
+    {
+      "sceneKey": "s.work_ticket_assigned",
+      "audience": "staff",
+      "events": [
+        "ticket.assigned",
+        "assignment.transferred",
+        "ticket.created"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "s.step_overdue",
+      "audience": "staff",
+      "events": [
+        "ticket.sla_breached",
+        "ad.sla_breached"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "s.kf_assigned",
+      "audience": "staff",
+      "events": [
+        "service_ticket.created",
+        "service_ticket.transferred",
+        "service_ticket.reopened"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "s.kf_response_overdue",
+      "audience": "staff",
+      "events": [
+        "service_ticket.escalated"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "s.complaint_created",
+      "audience": "staff",
+      "events": [
+        "service_ticket.created"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "s.launch_overdue",
+      "audience": "staff",
+      "events": [],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "s.offline_overdue",
+      "audience": "staff",
+      "events": [
+        "takedown.escalated"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "s.copyright_expiring",
+      "audience": "staff",
+      "events": [],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "s.approval_pending",
+      "audience": "staff",
+      "events": [
+        "approval.submitted"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "s.approval_decided",
+      "audience": "staff",
+      "events": [
+        "approval.approved",
+        "approval.rejected"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "s.receipt_pending",
+      "audience": "staff",
+      "events": [
+        "transfer.proof_submitted"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "s.merchant_unreached",
+      "audience": "staff",
+      "events": [],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "s.export_ready",
+      "audience": "staff",
+      "events": [
+        "export.succeeded",
+        "export.failed"
+      ],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "s.system_alert",
+      "audience": "staff",
+      "events": [],
+      "source": "播种"
+    },
+    {
+      "sceneKey": "s.approval_overdue",
+      "audience": "staff",
+      "events": [
+        "approval.sla_breached"
+      ],
+      "source": "补登（x01 待确认 4）"
+    },
+    {
+      "sceneKey": "s.handover_overdue",
+      "audience": "staff",
+      "events": [
+        "assignment.sla_breached"
+      ],
+      "source": "补登（x01 待确认 4）"
+    },
+    {
+      "sceneKey": "s.asset_feedback",
+      "audience": "staff",
+      "events": [
+        "asset.feedback_submitted"
+      ],
+      "source": "补登（m03、x01 的请求）"
+    },
+    {
+      "sceneKey": "s.asset_review_overdue",
+      "audience": "staff",
+      "events": [
+        "asset.sla_breached"
+      ],
+      "source": "补登（x01 待确认 4）"
+    },
+    {
+      "sceneKey": "s.finance_overdue",
+      "audience": "staff",
+      "events": [
+        "transfer.sla_breached",
+        "invoice.sla_breached"
+      ],
+      "source": "补登（x01 待确认 4）"
+    },
+    {
+      "sceneKey": "s.payment_exception",
+      "audience": "staff",
+      "events": [
+        "payment_exception.opened"
+      ],
+      "source": "补登（x01 待确认 4）"
+    },
+    {
+      "sceneKey": "s.kf_solution_overdue",
+      "audience": "staff",
+      "events": [
+        "service_ticket.solution_overdue"
+      ],
+      "source": "补登（x01 待确认 4）"
+    },
+    {
+      "sceneKey": "s.kf_supplemented",
+      "audience": "staff",
+      "events": [
+        "service_ticket.supplemented"
+      ],
+      "source": "补登（m08、a08 第二轮的请求）"
+    },
+    {
+      "sceneKey": "s.kf_todo",
+      "audience": "staff",
+      "events": [
+        "order.rejected_stale",
+        "ad.returned_stale"
+      ],
+      "source": "补登（x01 待确认 4）"
+    },
+    {
+      "sceneKey": "s.finance_config",
+      "audience": "staff",
+      "events": [
+        "finance_config.proposed",
+        "finance_config.approved"
+      ],
+      "source": "补登（x01 订阅栏）"
+    },
+    {
+      "sceneKey": "s.delivery_progress",
+      "audience": "staff",
+      "events": [
+        "ticket.step_changed",
+        "ticket.held",
+        "ticket.resumed",
+        "ticket.terminated",
+        "ticket.archived",
+        "plan.change_requested",
+        "plan.confirmed",
+        "sample.check_rejected",
+        "sample.qc_failed",
+        "ticket.episode_qc_failed",
+        "package.reissue_opened",
+        "sample.confirmed",
+        "sample.change_requested",
+        "ad.requested",
+        "ad.assigned",
+        "ad.resubmitted",
+        "ad.confirmed",
+        "ad.revision_requested"
+      ],
+      "source": "补登（x01 订阅栏）"
+    },
+    {
+      "sceneKey": "s.publish_progress",
+      "audience": "staff",
+      "events": [
+        "takedown.merchant_confirmed",
+        "launch.verify_revoked"
+      ],
+      "source": "补登（x01 订阅栏）"
+    },
+    {
+      "sceneKey": "s.merchant_changed",
+      "audience": "staff",
+      "events": [
+        "store.archived",
+        "entity_member.promoted"
+      ],
+      "source": "补登（x01 订阅栏）"
+    }
+  ]
+}

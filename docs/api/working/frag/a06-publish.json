@@ -1,0 +1,1794 @@
+{
+ "doc": "a06-publish",
+ "endpoints": [
+  {
+   "operationId": "admin.channelAccount.list",
+   "method": "GET",
+   "path": "/admin/channel-accounts",
+   "section": "3.1",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<ChannelAccountRow>",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.channelAccount.summary",
+   "method": "GET",
+   "path": "/admin/channel-accounts/summary",
+   "section": "3.2",
+   "requestSchemas": [],
+   "responseSchema": "ChannelAccountSummary",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.channelAccount.get",
+   "method": "GET",
+   "path": "/admin/channel-accounts/{channelAccountId}",
+   "section": "3.3",
+   "requestSchemas": [],
+   "responseSchema": "ChannelAccountDetail",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.channelAccount.markAbnormal",
+   "method": "POST",
+   "path": "/admin/channel-accounts/{channelAccountId}/mark-abnormal",
+   "section": "3.4",
+   "requestSchemas": [
+    "ChannelAccountMarkAbnormalBody"
+   ],
+   "responseSchema": "ChannelAccountDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "DICT_ITEM_DISABLED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "account.abnormal"
+   ],
+   "permission": "publish.account.mark_abnormal",
+   "capability": null,
+   "transitions": [
+    "channel_account.status: available → abnormal（account.mark_abnormal，11-publish.md:133）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.channelAccountSubmission.get",
+   "method": "GET",
+   "path": "/admin/channel-account-submissions/{channelAccountSubmissionId}",
+   "section": "3.5",
+   "requestSchemas": [],
+   "responseSchema": "ChannelAccountSubmissionDetail",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.channelAccountSubmission.approve",
+   "method": "POST",
+   "path": "/admin/channel-account-submissions/{channelAccountSubmissionId}/approve",
+   "section": "3.6",
+   "requestSchemas": [
+    "ChannelAccountApproveBody"
+   ],
+   "responseSchema": "ChannelAccountDecisionResult",
+   "errors": [
+    "APPROVAL_NOT_PENDING",
+    "VERSION_CONFLICT",
+    "CONFIRM_MISMATCH",
+    "STATE_NOT_ALLOWED",
+    "ACCOUNT_COMPARE_MISMATCH",
+    "CHECKLIST_NOT_PASSED",
+    "CHECKLIST_VERSION_STALE",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "approval.approved",
+    "account.verified"
+   ],
+   "permission": "publish.account.verify",
+   "capability": null,
+   "transitions": [
+    "approval_request.status: pending → approved（approve，03-staff-authz-audit.md:805）",
+    "channel_account.status: pending_verify → available（account.verify_pass，11-publish.md:130）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.channelAccountSubmission.reject",
+   "method": "POST",
+   "path": "/admin/channel-account-submissions/{channelAccountSubmissionId}/reject",
+   "section": "3.7",
+   "requestSchemas": [
+    "ChannelAccountRejectBody"
+   ],
+   "responseSchema": "ChannelAccountDecisionResult",
+   "errors": [
+    "APPROVAL_NOT_PENDING",
+    "STATE_NOT_ALLOWED",
+    "DICT_ITEM_DISABLED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "approval.rejected",
+    "account.abnormal"
+   ],
+   "permission": "publish.account.verify",
+   "capability": null,
+   "transitions": [
+    "approval_request.status: pending → rejected（reject，03-staff-authz-audit.md:806）",
+    "channel_account.status: pending_verify → abnormal（account.verify_reject，11-publish.md:131）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.deliveryTicket.publishList.get",
+   "method": "GET",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/publish-list",
+   "section": "3.8",
+   "requestSchemas": [],
+   "responseSchema": "PublishListAdminView",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.deliveryTicket.publishList.replace",
+   "method": "PUT",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/publish-list",
+   "section": "3.9",
+   "requestSchemas": [
+    "PublishListReplaceBody"
+   ],
+   "responseSchema": "PublishListSaveResult",
+   "errors": [
+    "VERSION_CONFLICT",
+    "PUBLISH_LIST_LOCKED",
+    "TICKET_ON_HOLD",
+    "STATE_NOT_ALLOWED",
+    "FILE_NOT_USABLE",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "publish_list.updated"
+   ],
+   "permission": "publish.list.edit",
+   "capability": null,
+   "transitions": [
+    "zip_bundle.zip_state: building/ready/failed → none（推送后修订时作废 ZIP 缓存，06-media.md:975；10-delivery.md:886）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.deliveryTicket.publishList.import",
+   "method": "POST",
+   "path": "/admin/delivery-tickets/{deliveryTicketId}/publish-list/import",
+   "section": "3.10",
+   "requestSchemas": [
+    "PublishListImportBody"
+   ],
+   "responseSchema": "PublishListImportResult",
+   "errors": [
+    "PUBLISH_LIST_IMPORT_INVALID",
+    "VERSION_CONFLICT",
+    "PUBLISH_LIST_LOCKED",
+    "TICKET_ON_HOLD",
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [
+    "publish_list.updated"
+   ],
+   "permission": "publish.list.edit",
+   "capability": null,
+   "transitions": [
+    "zip_bundle.zip_state: building/ready/failed → none（推送后修订时作废 ZIP 缓存，06-media.md:975）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.deliveryRelease.get",
+   "method": "GET",
+   "path": "/admin/delivery-releases/{deliveryReleaseId}",
+   "section": "3.11",
+   "requestSchemas": [],
+   "responseSchema": "DeliveryReleaseDetail",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.deliveryRelease.pack",
+   "method": "POST",
+   "path": "/admin/delivery-releases/{deliveryReleaseId}/pack",
+   "section": "3.12",
+   "requestSchemas": [],
+   "responseSchema": "DeliveryReleasePackResult",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "DOWNLOAD_GRANT_INVALID"
+   ],
+   "events": [],
+   "permission": "publish.package.push",
+   "capability": null,
+   "transitions": [
+    "zip_bundle.zip_state: (新建)/none → building（ensureZip，06-media.md:962-964）",
+    "zip_bundle.zip_state: failed → building（ensureZip 带重建选项 retry: true，A99）",
+    "zip_bundle.zip_state: ready → building（ZIP 文件已不在，06-media.md:970）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.launchCalendar.get",
+   "method": "GET",
+   "path": "/admin/launch-calendar",
+   "section": "3.13",
+   "requestSchemas": [],
+   "responseSchema": "LaunchCalendar",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.launchTask.list",
+   "method": "GET",
+   "path": "/admin/launch-tasks",
+   "section": "3.14",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<LaunchTrackItem>",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.launchTask.summary",
+   "method": "GET",
+   "path": "/admin/launch-tasks/summary",
+   "section": "3.15",
+   "requestSchemas": [],
+   "responseSchema": "LaunchTrackSummary",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.launchSubmission.get",
+   "method": "GET",
+   "path": "/admin/launch-submissions/{launchSubmissionId}",
+   "section": "3.16",
+   "requestSchemas": [],
+   "responseSchema": "LaunchSubmissionDetail",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.launchSubmission.approve",
+   "method": "POST",
+   "path": "/admin/launch-submissions/{launchSubmissionId}/approve",
+   "section": "3.17",
+   "requestSchemas": [
+    "LaunchSubmissionApproveBody"
+   ],
+   "responseSchema": "LaunchSubmissionDetail",
+   "errors": [
+    "APPROVAL_NOT_PENDING",
+    "APPROVAL_SELF_FORBIDDEN",
+    "VERSION_CONFLICT",
+    "CONFIRM_MISMATCH",
+    "TICKET_ON_HOLD",
+    "STATE_NOT_ALLOWED",
+    "LAUNCH_VERIFY_COUNT_OUT_OF_RANGE",
+    "CHECKLIST_NOT_PASSED",
+    "CHECKLIST_VERSION_STALE",
+    "FILE_NOT_USABLE"
+   ],
+   "events": [
+    "approval.approved",
+    "launch.verified",
+    "ticket.step_changed",
+    "order.item.went_live",
+    "order.status_changed",
+    "takedown.basis_reopened"
+   ],
+   "permission": "publish.link.verify",
+   "capability": null,
+   "transitions": [
+    "approval_request.status: pending → approved（approve，03-staff-authz-audit.md:805）",
+    "launch_submission.result: pending → passed / passed_partial（11-publish.md:399）",
+    "launch_task.review_status: verifying → passed（launch.verify_pass，11-publish.md:301）",
+    "delivery_ticket.step: awaiting_launch / launch_verify → in_service（launch.changed，10-delivery.md:185 第 14 行，系统求值，首个账号上线时）",
+    "order_item.phase: to_launch → live（09-order-ad.md:356，首个账号上线时）",
+    "takedown_task.status: merchant_confirmed → pending_merchant（takedown.basis_reopen，11-publish.md:658，仅“未发布”确认的任务）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.launchSubmission.reject",
+   "method": "POST",
+   "path": "/admin/launch-submissions/{launchSubmissionId}/reject",
+   "section": "3.18",
+   "requestSchemas": [
+    "LaunchSubmissionRejectBody"
+   ],
+   "responseSchema": "LaunchSubmissionDetail",
+   "errors": [
+    "APPROVAL_NOT_PENDING",
+    "APPROVAL_SELF_FORBIDDEN",
+    "DICT_ITEM_DISABLED",
+    "VALIDATION_FAILED",
+    "FILE_NOT_USABLE"
+   ],
+   "events": [
+    "approval.rejected",
+    "launch.returned",
+    "ticket.step_changed"
+   ],
+   "permission": "publish.link.verify",
+   "capability": null,
+   "transitions": [
+    "approval_request.status: pending → rejected（reject，03-staff-authz-audit.md:806）",
+    "launch_submission.result: pending → returned（11-publish.md:400）",
+    "launch_task.review_status: verifying → need_fix（launch.return，11-publish.md:302）",
+    "delivery_ticket.step: launch_verify → awaiting_launch（launch.changed，10-delivery.md:184 第 13 行，系统求值）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.launchSubmission.revoke",
+   "method": "POST",
+   "path": "/admin/launch-submissions/{launchSubmissionId}/revoke",
+   "section": "3.19",
+   "requestSchemas": [
+    "LaunchSubmissionRevokeBody"
+   ],
+   "responseSchema": "LaunchSubmissionDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "TICKET_ON_HOLD",
+    "LAUNCH_REVOKE_WINDOW_CLOSED",
+    "LAUNCH_REVOKE_BLOCKED",
+    "CONFIRM_MISMATCH"
+   ],
+   "events": [
+    "launch.verify_revoked",
+    "approval.submitted",
+    "ticket.step_changed",
+    "order.item.live_revoked",
+    "order.status_changed",
+    "patrol.voided"
+   ],
+   "permission": "publish.link.verify_revoke",
+   "capability": null,
+   "transitions": [
+    "launch_submission.result: passed / passed_partial → revoked（11-publish.md:402）",
+    "launch_submission.result: (新建) → pending（重开行，11-publish.md:398、404）",
+    "approval_request.status: (新建) → pending（submit，03-staff-authz-audit.md:804；kind = launch_link，撤销人送审）",
+    "launch_task.review_status: passed → verifying（launch.verify_revoke，11-publish.md:303）",
+    "delivery_ticket.step: in_service → launch_verify（launch.verify_revoked，10-delivery.md:193 第 21 行，不再有已上线任务时）",
+    "order_item.phase: live → to_launch（09-order-ad.md:357）",
+    "patrol_task.status: pending / abnormal → void（patrol.void，11-publish.md:547）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.patrolTask.list",
+   "method": "GET",
+   "path": "/admin/patrol-tasks",
+   "section": "3.20",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<PatrolTaskRow>",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.patrolTask.summary",
+   "method": "GET",
+   "path": "/admin/patrol-tasks/summary",
+   "section": "3.21",
+   "requestSchemas": [],
+   "responseSchema": "PatrolSummary",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.patrolTask.get",
+   "method": "GET",
+   "path": "/admin/patrol-tasks/{patrolTaskId}",
+   "section": "3.22",
+   "requestSchemas": [],
+   "responseSchema": "PatrolTaskDetail",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.patrolTask.create",
+   "method": "POST",
+   "path": "/admin/patrol-tasks",
+   "section": "3.23",
+   "requestSchemas": [
+    "PatrolTaskCreateBody"
+   ],
+   "responseSchema": "PatrolTaskCreateResult",
+   "errors": [
+    "PATROL_NOT_ELIGIBLE",
+    "NOT_FOUND"
+   ],
+   "events": [
+    "patrol.created"
+   ],
+   "permission": "publish.patrol.do",
+   "capability": null,
+   "transitions": [
+    "patrol_task.status: (新建) → pending（patrol.create，11-publish.md:542；source = manual）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.patrolTask.markNormal",
+   "method": "POST",
+   "path": "/admin/patrol-tasks/{patrolTaskId}/mark-normal",
+   "section": "3.24",
+   "requestSchemas": [
+    "PatrolTaskMarkNormalBody"
+   ],
+   "responseSchema": "PatrolTaskDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "CHECKLIST_NOT_PASSED",
+    "CHECKLIST_VERSION_STALE",
+    "FILE_NOT_USABLE",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "patrol.passed"
+   ],
+   "permission": "publish.patrol.do",
+   "capability": null,
+   "transitions": [
+    "patrol_task.status: pending → normal（patrol.ok，11-publish.md:543）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.patrolTask.markAbnormal",
+   "method": "POST",
+   "path": "/admin/patrol-tasks/{patrolTaskId}/mark-abnormal",
+   "section": "3.25",
+   "requestSchemas": [
+    "PatrolTaskMarkAbnormalBody"
+   ],
+   "responseSchema": "PatrolTaskDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "CHECKLIST_VERSION_STALE",
+    "DICT_ITEM_DISABLED",
+    "FILE_NOT_USABLE",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "patrol.abnormal"
+   ],
+   "permission": "publish.patrol.do",
+   "capability": null,
+   "transitions": [
+    "patrol_task.status: pending → abnormal（patrol.abnormal，11-publish.md:544；登记定时器 patrol.followup）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.patrolTask.recover",
+   "method": "POST",
+   "path": "/admin/patrol-tasks/{patrolTaskId}/recover",
+   "section": "3.26",
+   "requestSchemas": [
+    "PatrolTaskRecoverBody"
+   ],
+   "responseSchema": "PatrolTaskDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "CHECKLIST_NOT_PASSED",
+    "CHECKLIST_VERSION_STALE",
+    "FILE_NOT_USABLE",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "patrol.recovered"
+   ],
+   "permission": "publish.patrol.do",
+   "capability": null,
+   "transitions": [
+    "patrol_task.status: abnormal → recovered（patrol.recover，11-publish.md:546；取消定时器 patrol.followup）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.patrolTask.remind",
+   "method": "POST",
+   "path": "/admin/patrol-tasks/{patrolTaskId}/remind",
+   "section": "3.27",
+   "requestSchemas": [],
+   "responseSchema": "PatrolTaskDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "REMINDED_TODAY"
+   ],
+   "events": [
+    "patrol.reminded",
+    "manual_reminder.sent"
+   ],
+   "permission": "publish.patrol.do",
+   "capability": null,
+   "transitions": [
+    "patrol_task.status: abnormal → abnormal（patrol.remind，11-publish.md:545；remind_count + 1）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.takedownTask.list",
+   "method": "GET",
+   "path": "/admin/takedown-tasks",
+   "section": "3.28",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<TakedownTaskRow>",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.takedownTask.batchCheck",
+   "method": "POST",
+   "path": "/admin/takedown-tasks/check",
+   "section": "3.29",
+   "requestSchemas": [
+    "TakedownBatchCheckBody"
+   ],
+   "responseSchema": "TakedownBatchCheckResult",
+   "errors": [
+    "TAKEDOWN_BATCH_REJECTED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "takedown.checked",
+    "ticket.archived",
+    "order.status_changed"
+   ],
+   "permission": "publish.takedown.check",
+   "capability": null,
+   "transitions": [
+    "takedown_task.status: merchant_confirmed / pending_merchant → checked（takedown.check_pass，11-publish.md:655）",
+    "delivery_ticket.step: takedown → archived（takedown.all_checked，10-delivery.md:188 第 16 行，系统求值）",
+    "order_item.phase: to_launch / live → ended / refunded（09-order-ad.md:358）",
+    "delivery_release.state: pushed → closed（usage_ended，10-delivery.md:883，随归档）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.takedownTask.summary",
+   "method": "GET",
+   "path": "/admin/takedown-tasks/summary",
+   "section": "3.30",
+   "requestSchemas": [],
+   "responseSchema": "AdminTakedownSummary",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.takedownTask.get",
+   "method": "GET",
+   "path": "/admin/takedown-tasks/{takedownTaskId}",
+   "section": "3.31",
+   "requestSchemas": [],
+   "responseSchema": "TakedownTaskDetail",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.takedownTask.check",
+   "method": "POST",
+   "path": "/admin/takedown-tasks/{takedownTaskId}/check",
+   "section": "3.32",
+   "requestSchemas": [
+    "TakedownCheckBody"
+   ],
+   "responseSchema": "TakedownTaskDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "PRECONDITION_CHANGED",
+    "CHECKLIST_NOT_PASSED",
+    "CHECKLIST_VERSION_STALE",
+    "FILE_NOT_USABLE",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "takedown.checked",
+    "ticket.archived",
+    "order.status_changed"
+   ],
+   "permission": "publish.takedown.check",
+   "capability": null,
+   "transitions": [
+    "takedown_task.status: merchant_confirmed / pending_merchant → checked（takedown.check_pass，11-publish.md:655）",
+    "delivery_ticket.step: takedown → archived（takedown.all_checked，10-delivery.md:188 第 16 行，系统求值）",
+    "order_item.phase: to_launch / live → ended / refunded（09-order-ad.md:358）",
+    "delivery_release.state: pushed → closed（usage_ended，10-delivery.md:883，随归档）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.takedownTask.escalate",
+   "method": "POST",
+   "path": "/admin/takedown-tasks/{takedownTaskId}/escalate",
+   "section": "3.33",
+   "requestSchemas": [
+    "TakedownNoteBody"
+   ],
+   "responseSchema": "TakedownTaskDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "TAKEDOWN_NOT_OVERDUE"
+   ],
+   "events": [
+    "takedown.escalated"
+   ],
+   "permission": "publish.takedown.check",
+   "capability": null,
+   "transitions": [
+    "takedown_task.status: pending_merchant → pending_merchant（takedown.escalate，11-publish.md:659；写 escalated_at）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.takedownTask.markOnline",
+   "method": "POST",
+   "path": "/admin/takedown-tasks/{takedownTaskId}/mark-online",
+   "section": "3.34",
+   "requestSchemas": [
+    "TakedownNoteBody"
+   ],
+   "responseSchema": "TakedownTaskDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [
+    "takedown.found_online"
+   ],
+   "permission": "publish.takedown.check",
+   "capability": null,
+   "transitions": [
+    "takedown_task.status: merchant_confirmed → pending_merchant（takedown.still_online，11-publish.md:657）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.takedownTask.sendBreachNotice",
+   "method": "POST",
+   "path": "/admin/takedown-tasks/{takedownTaskId}/send-breach-notice",
+   "section": "3.35",
+   "requestSchemas": [],
+   "responseSchema": "TakedownTaskDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "TAKEDOWN_NOT_OVERDUE",
+    "REMINDED_TODAY"
+   ],
+   "events": [
+    "takedown.breach_notified",
+    "manual_reminder.sent"
+   ],
+   "permission": "publish.takedown.breach_notice",
+   "capability": null,
+   "transitions": [
+    "takedown_task.status: pending_merchant → pending_merchant（takedown.breach_notice，11-publish.md:660；breach_notice_count + 1）"
+   ],
+   "version": "V1.0",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.metricImport.create",
+   "method": "POST",
+   "path": "/admin/metric-imports",
+   "section": "3.36",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": "publish.metrics.enter",
+   "capability": null,
+   "transitions": [],
+   "version": "V1.1",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.metricImport.template.get",
+   "method": "GET",
+   "path": "/admin/metric-imports/template",
+   "section": "3.37",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.1",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.metricImport.commit",
+   "method": "POST",
+   "path": "/admin/metric-imports/{metricImportId}/commit",
+   "section": "3.38",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": "publish.metrics.enter",
+   "capability": null,
+   "transitions": [],
+   "version": "V1.1",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.metricSubmission.list",
+   "method": "GET",
+   "path": "/admin/metric-submissions",
+   "section": "3.39",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.1",
+   "xIdempotent": "none",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.metricSubmission.approve",
+   "method": "POST",
+   "path": "/admin/metric-submissions/{metricSubmissionId}/approve",
+   "section": "3.40",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": "publish.metrics.enter",
+   "capability": null,
+   "transitions": [],
+   "version": "V1.1",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  },
+  {
+   "operationId": "admin.metricSubmission.reject",
+   "method": "POST",
+   "path": "/admin/metric-submissions/{metricSubmissionId}/reject",
+   "section": "3.41",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": "publish.metrics.enter",
+   "capability": null,
+   "transitions": [],
+   "version": "V1.1",
+   "xIdempotent": "required",
+   "idempotentBy": null
+  }
+ ],
+ "schemas": [
+  {
+   "name": "OrderItemBrief",
+   "fields": [
+    "orderItemId",
+    "orderId",
+    "orderNo",
+    "orderedAt",
+    "dramaTitle",
+    "episodeCount",
+    "productionModel",
+    "phase",
+    "agreedLaunchDate",
+    "usageStartDate",
+    "usageEndDate",
+    "usageEndSource",
+    "liveEpisodeCount"
+   ]
+  },
+  {
+   "name": "TicketBrief",
+   "fields": [
+    "deliveryTicketId",
+    "ticketNo",
+    "step",
+    "isPaused",
+    "pauseReasons",
+    "deliveryManager",
+    "publisher",
+    "deliveryTargetAt",
+    "deliveredAt"
+   ]
+  },
+  {
+   "name": "ApprovalView",
+   "fields": [
+    "approvalId",
+    "kind",
+    "status",
+    "roundNo",
+    "submittedAt",
+    "dueAt",
+    "badges",
+    "requester",
+    "decidedBy",
+    "isDecidedBySystem",
+    "decidedAt",
+    "decisionNote",
+    "reasons",
+    "lockVersion",
+    "actions",
+    "submitter",
+    "submitClient",
+    "checklist",
+    "confirmChecks"
+   ]
+  },
+  {
+   "name": "ChannelAccountRow",
+   "fields": [
+    "channelAccountId",
+    "store",
+    "platform",
+    "accountName",
+    "accountUid",
+    "status",
+    "accountType",
+    "submittedAccountType",
+    "certSubjectName",
+    "isCertSubjectMatched",
+    "abnormalSource",
+    "abnormalReason",
+    "abnormalNote",
+    "boundAt",
+    "submittedAt",
+    "verifiedAt",
+    "verifiedBy",
+    "unboundAt",
+    "latestRound",
+    "previousDecision",
+    "usage",
+    "activeDramas",
+    "openTakedownTaskCount",
+    "actions"
+   ]
+  },
+  {
+   "name": "ChannelAccountSummary",
+   "fields": [
+    "total",
+    "pendingVerify",
+    "available",
+    "abnormal",
+    "unbound"
+   ]
+  },
+  {
+   "name": "ChannelAccountRoundView",
+   "fields": [
+    "channelAccountSubmissionId",
+    "roundNo",
+    "kind",
+    "submittedAt",
+    "filled",
+    "screenshotCount",
+    "compareRows",
+    "approval"
+   ]
+  },
+  {
+   "name": "CompareRowView",
+   "fields": [
+    "field",
+    "filled",
+    "recognized",
+    "match"
+   ]
+  },
+  {
+   "name": "ChannelAccountEventView",
+   "fields": [
+    "at",
+    "kind",
+    "actorType",
+    "actorName",
+    "reasons",
+    "note"
+   ]
+  },
+  {
+   "name": "ChannelAccountDetail",
+   "fields": [
+    "…ChannelAccountRow",
+    "rounds",
+    "history"
+   ]
+  },
+  {
+   "name": "ChannelAccountSubmissionDetail",
+   "fields": [
+    "channelAccountSubmissionId",
+    "roundNo",
+    "kind",
+    "isCurrentRound",
+    "submittedAt",
+    "submittedByName",
+    "account",
+    "filled",
+    "screenshots",
+    "compareRows",
+    "approval",
+    "otherRounds",
+    "history",
+    "actions"
+   ]
+  },
+  {
+   "name": "ChannelAccountDecisionResult",
+   "fields": [
+    "channelAccountSubmissionId",
+    "roundNo",
+    "kind",
+    "isCurrentRound",
+    "submittedAt",
+    "submittedByName",
+    "account",
+    "filled",
+    "screenshots",
+    "compareRows",
+    "approval",
+    "otherRounds",
+    "history",
+    "actions",
+    "replayed"
+   ]
+  },
+  {
+   "name": "ChannelAccountMarkAbnormalBody",
+   "fields": [
+    "reasonCode",
+    "note"
+   ]
+  },
+  {
+   "name": "ChannelAccountApproveBody",
+   "fields": [
+    "lockVersion",
+    "confirm",
+    "confirmChecks",
+    "accountType",
+    "certSubjectName",
+    "compareRows",
+    "checklistVersionNo",
+    "results"
+   ]
+  },
+  {
+   "name": "ChannelAccountRejectBody",
+   "fields": [
+    "reasonCode",
+    "note",
+    "compareRows"
+   ]
+  },
+  {
+   "name": "PublishListAdminView",
+   "fields": [
+    "publishListId",
+    "ticket",
+    "orderItem",
+    "collectionName",
+    "cover",
+    "titleTemplate",
+    "topics",
+    "intro",
+    "isAiDeclarationRequired",
+    "episodes",
+    "completeness",
+    "isEditable",
+    "lockReason",
+    "savedBy",
+    "savedAt",
+    "lockVersion",
+    "activeRelease"
+   ]
+  },
+  {
+   "name": "PublishListSaveResult",
+   "fields": [
+    "publishListId",
+    "ticket",
+    "orderItem",
+    "collectionName",
+    "cover",
+    "titleTemplate",
+    "topics",
+    "intro",
+    "isAiDeclarationRequired",
+    "episodes",
+    "completeness",
+    "isEditable",
+    "lockReason",
+    "savedBy",
+    "savedAt",
+    "lockVersion",
+    "activeRelease",
+    "replayed"
+   ]
+  },
+  {
+   "name": "PublishListReplaceBody",
+   "fields": [
+    "lockVersion",
+    "collectionName",
+    "coverFileId",
+    "titleTemplate",
+    "topics",
+    "intro",
+    "episodes"
+   ]
+  },
+  {
+   "name": "PublishListImportBody",
+   "fields": [
+    "lockVersion",
+    "format",
+    "content"
+   ]
+  },
+  {
+   "name": "PublishListImportResult",
+   "fields": [
+    "publishList",
+    "importedRowCount",
+    "updatedEpisodeNos",
+    "replayed"
+   ]
+  },
+  {
+   "name": "ReleaseManifestItem",
+   "fields": [
+    "episodeNo",
+    "outputId",
+    "fileId",
+    "fileName",
+    "sizeBytes",
+    "crc64",
+    "isChanged"
+   ]
+  },
+  {
+   "name": "DeliveryReleaseDetail",
+   "fields": [
+    "deliveryReleaseId",
+    "releaseNo",
+    "kind",
+    "state",
+    "variant",
+    "episodeCount",
+    "totalBytes",
+    "changedEpisodeNos",
+    "precheck",
+    "reason",
+    "note",
+    "pushedBy",
+    "pushedAt",
+    "supersededAt",
+    "closedAt",
+    "closeReason",
+    "savedEpisodeCount",
+    "ticket",
+    "orderItem",
+    "store",
+    "manifest",
+    "publishListText",
+    "activeGrant",
+    "actions"
+   ]
+  },
+  {
+   "name": "DeliveryReleasePackResult",
+   "fields": [
+    "deliveryReleaseId",
+    "zipBundleId",
+    "zipState",
+    "zipGen",
+    "zipFileId",
+    "publishListFileId"
+   ]
+  },
+  {
+   "name": "LaunchTaskBrief",
+   "fields": [
+    "launchTaskId",
+    "platform",
+    "account",
+    "reviewStatus",
+    "isLive",
+    "currentRoundNo",
+    "verifiedEpisodeCount",
+    "firstLaunchDate",
+    "isOverdue",
+    "currentSubmissionId",
+    "latestPassedSubmissionId"
+   ]
+  },
+  {
+   "name": "LaunchCalendarItem",
+   "fields": [
+    "orderItemId",
+    "ticket",
+    "store",
+    "dramaTitle",
+    "episodeCount",
+    "agreedLaunchDate",
+    "isDateTentative",
+    "calendarStatus",
+    "accounts",
+    "tasks",
+    "isDeliveryLate",
+    "overdueDays",
+    "latestFollowUp",
+    "actions"
+   ]
+  },
+  {
+   "name": "LaunchCalendar",
+   "fields": [
+    "from",
+    "to",
+    "today",
+    "stats",
+    "days",
+    "total",
+    "isTruncated"
+   ]
+  },
+  {
+   "name": "LaunchTrackItem",
+   "fields": [
+    "orderItem",
+    "ticket",
+    "store",
+    "isDelivered",
+    "overdue",
+    "daysUntilLaunch",
+    "tasks",
+    "followUpCount",
+    "followUps",
+    "lastRemindedAt",
+    "isRemindedToday",
+    "actions"
+   ]
+  },
+  {
+   "name": "LaunchTrackSummary",
+   "fields": [
+    "overdue",
+    "upcoming",
+    "deliveringSoon",
+    "all",
+    "last30Days"
+   ]
+  },
+  {
+   "name": "LaunchRoundView",
+   "fields": [
+    "launchSubmissionId",
+    "roundNo",
+    "result",
+    "submittedAt",
+    "reportedEpisodeCount",
+    "verifiedEpisodeCount",
+    "actualLaunchDate",
+    "reopenOfLaunchSubmissionId",
+    "decidedAt",
+    "decidedBy",
+    "reasons",
+    "decisionNote"
+   ]
+  },
+  {
+   "name": "LaunchSubmissionDetail",
+   "fields": [
+    "launchSubmissionId",
+    "launchTaskId",
+    "roundNo",
+    "result",
+    "isCurrentRound",
+    "reopenOfLaunchSubmissionId",
+    "link",
+    "verifiedEpisodeCount",
+    "evidenceFileIds",
+    "account",
+    "task",
+    "orderItem",
+    "ticket",
+    "store",
+    "licenseLetter",
+    "approval",
+    "projectedUsageStartDate",
+    "isPartialGoesLive",
+    "rounds",
+    "otherTasks",
+    "revoke",
+    "actions"
+   ]
+  },
+  {
+   "name": "LaunchSubmissionApproveBody",
+   "fields": [
+    "lockVersion",
+    "confirm",
+    "confirmChecks",
+    "verifiedEpisodeCount",
+    "checklistVersionNo",
+    "results",
+    "evidenceFileIds"
+   ]
+  },
+  {
+   "name": "LaunchSubmissionRejectBody",
+   "fields": [
+    "reasonCodes",
+    "note",
+    "evidenceFileIds"
+   ]
+  },
+  {
+   "name": "LaunchSubmissionRevokeBody",
+   "fields": [
+    "reason",
+    "confirm"
+   ]
+  },
+  {
+   "name": "PatrolTaskRow",
+   "fields": [
+    "patrolTaskId",
+    "weekStartDate",
+    "source",
+    "status",
+    "store",
+    "orderItemId",
+    "dramaTitle",
+    "episodeCount",
+    "usageEndDate",
+    "launchTaskId",
+    "account",
+    "previousPatrol",
+    "abnormalKind",
+    "checkedAt",
+    "foundAt",
+    "recoveredAt",
+    "publisher"
+   ]
+  },
+  {
+   "name": "PatrolTaskDetail",
+   "fields": [
+    "…PatrolTaskRow",
+    "orderItem",
+    "ticket",
+    "liveLink",
+    "checklistCode",
+    "checklistVersionNo",
+    "results",
+    "note",
+    "evidenceFileIds",
+    "checkedBy",
+    "notifiedAt",
+    "remindCount",
+    "lastRemindedAt",
+    "isRemindedToday",
+    "followUpDueAt",
+    "history",
+    "actions"
+   ]
+  },
+  {
+   "name": "PatrolSummary",
+   "fields": [
+    "weekStartDate",
+    "weekEndDate",
+    "batch",
+    "all",
+    "pending",
+    "abnormal",
+    "normal",
+    "checked"
+   ]
+  },
+  {
+   "name": "PatrolTaskCreateBody",
+   "fields": [
+    "launchTaskId",
+    "reason"
+   ]
+  },
+  {
+   "name": "PatrolTaskCreateResult",
+   "fields": [
+    "isNew",
+    "patrolTask"
+   ]
+  },
+  {
+   "name": "PatrolTaskMarkNormalBody",
+   "fields": [
+    "checklistVersionNo",
+    "results",
+    "evidenceFileIds"
+   ]
+  },
+  {
+   "name": "PatrolTaskMarkAbnormalBody",
+   "fields": [
+    "abnormalKindCode",
+    "note",
+    "evidenceFileIds",
+    "checklistVersionNo",
+    "results"
+   ]
+  },
+  {
+   "name": "PatrolTaskRecoverBody",
+   "fields": [
+    "checklistVersionNo",
+    "results",
+    "evidenceFileIds"
+   ]
+  },
+  {
+   "name": "TakedownTaskRow",
+   "fields": [
+    "takedownTaskId",
+    "status",
+    "triggerKind",
+    "basis",
+    "store",
+    "orderItemId",
+    "orderNo",
+    "dramaTitle",
+    "episodeCount",
+    "account",
+    "usageEndDate",
+    "dueDate",
+    "isOverdue",
+    "overdueDays",
+    "checkDueAt",
+    "isCheckOverdue",
+    "merchantMethod",
+    "merchantConfirmedAt",
+    "stillOnlineCount",
+    "escalatedAt",
+    "breachNoticeCount",
+    "checkMethod",
+    "checkedAt",
+    "publisher",
+    "actions"
+   ]
+  },
+  {
+   "name": "TakedownEventView",
+   "fields": [
+    "at",
+    "kind",
+    "actorType",
+    "actorName",
+    "node",
+    "note"
+   ]
+  },
+  {
+   "name": "TakedownTaskDetail",
+   "fields": [
+    "…TakedownTaskRow",
+    "orderItem",
+    "ticket",
+    "launchTaskId",
+    "merchantConfirmedByName",
+    "expectedChecklistCode",
+    "checklistCode",
+    "checklistVersionNo",
+    "results",
+    "evidenceFileIds",
+    "checkedBy",
+    "isBreachNoticedToday",
+    "timeline"
+   ]
+  },
+  {
+   "name": "AdminTakedownSummary",
+   "fields": [
+    "pending",
+    "waiting",
+    "checked",
+    "overdue",
+    "dueToday",
+    "checkOverdue"
+   ]
+  },
+  {
+   "name": "TakedownCheckBody",
+   "fields": [
+    "checklistCode",
+    "checklistVersionNo",
+    "results",
+    "evidenceFileIds"
+   ]
+  },
+  {
+   "name": "TakedownBatchCheckBody",
+   "fields": [
+    "items"
+   ]
+  },
+  {
+   "name": "TakedownBatchCheckResult",
+   "fields": [
+    "items",
+    "archivedTicketIds"
+   ]
+  },
+  {
+   "name": "TakedownNoteBody",
+   "fields": [
+    "note"
+   ]
+  }
+ ],
+ "errorCodes": [
+  {
+   "symbol": "PATROL_NOT_ELIGIBLE",
+   "code": 46202,
+   "http": 409,
+   "meaning": "不能发起巡检：上线任务不在线、订单项不在上线中或工单不在服务中（11-publish.md:542）",
+   "retryable": false,
+   "details": "{ reason }"
+  },
+  {
+   "symbol": "PUBLISH_LIST_LOCKED",
+   "code": 46204,
+   "http": 409,
+   "meaning": "首个上线任务已提交回填，发布清单已锁定（d3-flow.md:1635）",
+   "retryable": false,
+   "details": "{ lockedAt }"
+  },
+  {
+   "symbol": "PUBLISH_LIST_IMPORT_INVALID",
+   "code": 46205,
+   "http": 400,
+   "meaning": "导入内容有错，整批未写入",
+   "retryable": false,
+   "details": "{ rows: [{ rowNo, episodeNo, column, message }] }"
+  },
+  {
+   "symbol": "ACCOUNT_COMPARE_MISMATCH",
+   "code": 46206,
+   "http": 409,
+   "meaning": "比对表有不一致项，或企业认证的认证主体与营业执照主体不一致，不能通过（11-publish.md:109、130）",
+   "retryable": false,
+   "details": "{ fields }"
+  },
+  {
+   "symbol": "LAUNCH_VERIFY_COUNT_OUT_OF_RANGE",
+   "code": 46207,
+   "http": 400,
+   "meaning": "核验集数不在“max(1, 已核验集数) 至本次声明集数”之间（d3-flow.md:1755；ck_launch_submission_verified）",
+   "retryable": false,
+   "details": "{ min, max }"
+  },
+  {
+   "symbol": "LAUNCH_REVOKE_WINDOW_CLOSED",
+   "code": 46208,
+   "http": 409,
+   "meaning": "已超过撤销核验通过的时限（参数 launch.verify_revoke_window）",
+   "retryable": false,
+   "details": "{ decidedAt, deadlineAt }"
+  },
+  {
+   "symbol": "LAUNCH_REVOKE_BLOCKED",
+   "code": 46209,
+   "http": 409,
+   "meaning": "该订单项已有商家确认或已核查的下架任务，不能撤销核验通过（11-publish.md:303）",
+   "retryable": false,
+   "details": "{ takedownTaskIds }"
+  },
+  {
+   "symbol": "TAKEDOWN_NOT_OVERDUE",
+   "code": 46210,
+   "http": 409,
+   "meaning": "今天未过应完成日，不能升级或发违约提醒（11-publish.md:659-660）",
+   "retryable": false,
+   "details": "{ dueDate }"
+  },
+  {
+   "symbol": "TAKEDOWN_BATCH_REJECTED",
+   "code": 46211,
+   "http": 409,
+   "meaning": "批量核查中有任务不满足条件，整批未处理",
+   "retryable": false,
+   "details": "{ items: [{ index, takedownTaskId, error, message }] }"
+  }
+ ],
+ "externalErrors": [
+  {
+   "symbol": "APPROVAL_NOT_PENDING",
+   "definedIn": "a03-merchant",
+   "note": "审批区间 48200–48299；d4-identity.md:2335；03-staff-authz-audit.md:808。约定 C27 取舍③也列为保留的领域码"
+  },
+  {
+   "symbol": "APPROVAL_SELF_FORBIDDEN",
+   "definedIn": "a03-merchant",
+   "note": "审批区间 48200–48299；d4-identity.md:2334（403）；约定 C25 举例"
+  },
+  {
+   "symbol": "CHECKLIST_VERSION_STALE",
+   "definedIn": "a01-system",
+   "note": "清单类归 a01（A77、C28 归属表）；47306"
+  },
+  {
+   "symbol": "CHECKLIST_NOT_PASSED",
+   "definedIn": "a01-system",
+   "note": "清单类归 a01（A77、C28 归属表）：47307，400，details { missingKeys, failedKeys, invalidNaKeys }；a06 初稿的 46203 释放"
+  },
+  {
+   "symbol": "TICKET_ON_HOLD",
+   "definedIn": "m05-delivery-publish",
+   "note": "45103；details.reasons；发布清单保存与导入、链接核验通过与撤销"
+  },
+  {
+   "symbol": "DOWNLOAD_GRANT_INVALID",
+   "definedIn": "m05-delivery-publish",
+   "note": "45109"
+  },
+  {
+   "symbol": "FILE_NOT_USABLE",
+   "definedIn": "m03-profile-asset",
+   "note": "46001"
+  },
+  {
+   "symbol": "DICT_ITEM_DISABLED",
+   "definedIn": "m08-support-misc",
+   "note": "47001，409，details { dictTypeKey, code }（A77）；原因、异常类型编码不在字典里或已停用"
+  }
+ ],
+ "permissions": [
+  "publish.account.mark_abnormal",
+  "publish.account.verify",
+  "publish.list.edit",
+  "publish.package.push",
+  "publish.link.verify",
+  "publish.link.verify_revoke",
+  "publish.patrol.do",
+  "publish.takedown.check",
+  "publish.takedown.breach_notice",
+  "publish.metrics.enter"
+ ],
+ "capabilities": [],
+ "permissionSupplements": [
+  {
+   "key": "publish.link.verify_revoke",
+   "module": "发布管理",
+   "defaultRoles": "发布专员*、交付经理*（仅主管）",
+   "stepUp": false,
+   "pool": false,
+   "confirm": true,
+   "note": "A129 采纳；3.19 撤销核验通过，confirm = { roundNo, verifiedEpisodeCount }"
+  },
+  {
+   "key": "publish.metrics.enter",
+   "module": "发布管理",
+   "defaultRoles": "发布专员",
+   "stepUp": false,
+   "pool": false,
+   "confirm": false,
+   "note": "A129 采纳；V1.1 数据录入（3.36、3.38、3.40、3.41）"
+  }
+ ],
+ "externalSchemas": [
+  {
+   "name": "ImageRef",
+   "definedIn": "m08-support-misc",
+   "section": "2.1（A132：替代“SignedUrl & { fileId }”）"
+  },
+  {
+   "name": "AdminPage",
+   "definedIn": "a01-system",
+   "section": "2.1"
+  },
+  {
+   "name": "StaffBrief",
+   "definedIn": "a01-system",
+   "section": "2.2"
+  },
+  {
+   "name": "ApprovalDecisionView",
+   "definedIn": "a01-system",
+   "section": "2.10（ApprovalView 的基础）"
+  },
+  {
+   "name": "AdminStoreBrief",
+   "definedIn": "a05-order-delivery",
+   "section": "2.1"
+  },
+  {
+   "name": "AdminChecklistItemView",
+   "definedIn": "a05-order-delivery",
+   "section": "2.1"
+  },
+  {
+   "name": "ChecklistResultInput",
+   "definedIn": "a05-order-delivery",
+   "section": "2.1"
+  },
+  {
+   "name": "ReleaseAdminView",
+   "definedIn": "a05-order-delivery",
+   "section": "2.7（DeliveryReleaseDetail 的基础）"
+  },
+  {
+   "name": "FollowUpItem",
+   "definedIn": "a03-merchant",
+   "section": "2.10"
+  },
+  {
+   "name": "ChannelAccountBrief",
+   "definedIn": "m05-delivery-publish",
+   "section": "2.1"
+  },
+  {
+   "name": "DictRef",
+   "definedIn": "conventions",
+   "section": "C85（通用结构，A150）"
+  }
+ ]
+}

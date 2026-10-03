@@ -1,0 +1,1309 @@
+{
+ "doc": "m04-mall-order",
+ "endpoints": [
+  {
+   "operationId": "m.home.get",
+   "method": "GET",
+   "path": "/m/home",
+   "section": "3.1",
+   "requestSchemas": [
+    "HomeQuery"
+   ],
+   "responseSchema": "HomeView",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "optional",
+   "clerkView": "trimmed",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "version": "V1.0",
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）"
+  },
+  {
+   "operationId": "m.todo.list",
+   "method": "GET",
+   "path": "/m/todos",
+   "section": "3.2",
+   "requestSchemas": [
+    "TodoListQuery"
+   ],
+   "responseSchema": "TodoPage",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "todo.read",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "trimmed",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "version": "V1.0",
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）"
+  },
+  {
+   "operationId": "m.mallConfig.get",
+   "method": "GET",
+   "path": "/m/mall-config",
+   "section": "3.3",
+   "requestSchemas": [],
+   "responseSchema": "MallConfigView",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "version": "V1.0",
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）"
+  },
+  {
+   "operationId": "m.drama.list",
+   "method": "GET",
+   "path": "/m/dramas",
+   "section": "3.4",
+   "requestSchemas": [
+    "DramaListQuery"
+   ],
+   "responseSchema": "DramaListPage",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "catalog.read",
+   "transitions": [],
+   "xAuth": "optional",
+   "clerkView": "trimmed",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "version": "V1.0",
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）"
+  },
+  {
+   "operationId": "m.drama.search",
+   "method": "GET",
+   "path": "/m/dramas/search",
+   "section": "3.5",
+   "requestSchemas": [
+    "DramaSearchQuery"
+   ],
+   "responseSchema": "DramaSearchPage",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "catalog.read",
+   "transitions": [],
+   "xAuth": "optional",
+   "clerkView": "trimmed",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "version": "V1.0",
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）"
+  },
+  {
+   "operationId": "m.drama.get",
+   "method": "GET",
+   "path": "/m/dramas/{dramaId}",
+   "section": "3.6",
+   "requestSchemas": [],
+   "responseSchema": "DramaDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "catalog.read",
+   "transitions": [],
+   "xAuth": "optional",
+   "clerkView": "trimmed",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "version": "V1.0",
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）"
+  },
+  {
+   "operationId": "m.drama.trialEpisode.list",
+   "method": "GET",
+   "path": "/m/dramas/{dramaId}/trial-episodes",
+   "section": "3.7",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "catalog.read",
+   "transitions": [],
+   "xAuth": "optional",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "version": "V1.1",
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）"
+  },
+  {
+   "operationId": "m.favorite.create",
+   "method": "POST",
+   "path": "/m/favorites",
+   "section": "3.8",
+   "requestSchemas": [
+    "FavoriteCreateBody"
+   ],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "same",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "version": "V1.1"
+  },
+  {
+   "operationId": "m.favorite.delete",
+   "method": "DELETE",
+   "path": "/m/favorites/{favoriteId}",
+   "section": "3.9",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "same",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "version": "V1.1"
+  },
+  {
+   "operationId": "m.cartItem.list",
+   "method": "GET",
+   "path": "/m/cart-items",
+   "section": "3.10",
+   "requestSchemas": [],
+   "responseSchema": "CartView",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "cart.*",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "version": "V1.0",
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）"
+  },
+  {
+   "operationId": "m.cartItem.create",
+   "method": "POST",
+   "path": "/m/cart-items",
+   "section": "3.11",
+   "requestSchemas": [
+    "CartItemCreateBody"
+   ],
+   "responseSchema": "CartItem",
+   "errors": [
+    "NOT_FOUND",
+    "DRAMA_NOT_ORDERABLE",
+    "CART_LIMIT_REACHED",
+    "STORE_ARCHIVED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "cart.*",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "natural",
+   "idempotentBy": [
+    "uq_cart_item_store_id_drama_id"
+   ],
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.cartItem.delete",
+   "method": "DELETE",
+   "path": "/m/cart-items/{cartItemId}",
+   "section": "3.12",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "cart.*",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.cartItem.acceptPrice",
+   "method": "POST",
+   "path": "/m/cart-items/{cartItemId}/accept-price",
+   "section": "3.13",
+   "requestSchemas": [
+    "CartItemAcceptPriceBody"
+   ],
+   "responseSchema": "CartItemAcceptResult",
+   "errors": [
+    "CART_PRICE_CHANGED",
+    "DRAMA_NOT_ORDERABLE",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "cart.*",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "version": "V1.0",
+   "redactOnReplay": [
+    "drama.posterUrl"
+   ]
+  },
+  {
+   "operationId": "m.order.quote",
+   "method": "POST",
+   "path": "/m/orders/quote",
+   "section": "3.14",
+   "requestSchemas": [
+    "OrderQuoteBody"
+   ],
+   "responseSchema": "OrderQuote",
+   "errors": [
+    "SUBSCRIPTION_INACTIVE",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "order.create",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "version": "V1.0",
+   "idempotentReason": "试算，不写库、不缓存（A18、A20）"
+  },
+  {
+   "operationId": "m.order.create",
+   "method": "POST",
+   "path": "/m/orders",
+   "section": "3.15",
+   "requestSchemas": [
+    "OrderCreateBody"
+   ],
+   "responseSchema": "OrderCreateResult",
+   "errors": [
+    "STORE_PROFILE_INCOMPLETE",
+    "STORE_NOT_QUALIFIED",
+    "INDUSTRY_NOT_OPEN",
+    "QUOTA_EXCEEDED",
+    "SUBSCRIPTION_INACTIVE",
+    "PLAN_REFUND_IN_PROGRESS",
+    "DRAMA_NOT_ORDERABLE",
+    "ORDER_ACCOUNT_INVALID",
+    "ORDER_AD_INVALID",
+    "FILE_NOT_USABLE",
+    "LAUNCH_DATE_TOO_EARLY",
+    "AGREEMENT_VERSION_STALE",
+    "QUOTE_CHANGED",
+    "POINTS_INSUFFICIENT",
+    "ACCOUNT_BUSY",
+    "VALIDATION_FAILED",
+    "STORE_ARCHIVED"
+   ],
+   "events": [
+    "order.submitted",
+    "billing.points.held"
+   ],
+   "permission": null,
+   "capability": "order.create",
+   "transitions": [
+    "drama_order.status: — → pending_start（order.submit）",
+    "order_item.phase: — → pending_start（order.submit）",
+    "point_hold: — → held（hold）"
+   ],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "version": "V1.0",
+   "redactOnReplay": [
+    "items[].posterUrl"
+   ]
+  },
+  {
+   "operationId": "m.order.list",
+   "method": "GET",
+   "path": "/m/orders",
+   "section": "3.16",
+   "requestSchemas": [
+    "OrderListQuery"
+   ],
+   "responseSchema": "OrderCardPage",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "order.read",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "version": "V1.0",
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）"
+  },
+  {
+   "operationId": "m.order.get",
+   "method": "GET",
+   "path": "/m/orders/{orderId}",
+   "section": "3.17",
+   "requestSchemas": [],
+   "responseSchema": "OrderDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "order.read",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "version": "V1.0",
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）"
+  },
+  {
+   "operationId": "m.orderItem.list",
+   "method": "GET",
+   "path": "/m/order-items",
+   "section": "3.18",
+   "requestSchemas": [
+    "OrderItemListQuery"
+   ],
+   "responseSchema": "OrderItemRowPage",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "order.read",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "version": "V1.0",
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）"
+  },
+  {
+   "operationId": "m.orderItem.summary",
+   "method": "GET",
+   "path": "/m/order-items/summary",
+   "section": "3.19",
+   "requestSchemas": [
+    "OrderItemSummaryQuery"
+   ],
+   "responseSchema": "OrderItemSummary",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "order.read",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "version": "V1.0",
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）"
+  },
+  {
+   "operationId": "m.orderItem.get",
+   "method": "GET",
+   "path": "/m/order-items/{orderItemId}",
+   "section": "3.20",
+   "requestSchemas": [],
+   "responseSchema": "OrderItemDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "order.read",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "version": "V1.0",
+   "idempotentReason": "纯查询，GET 不写库（A18、A19）"
+  },
+  {
+   "operationId": "m.cancelRequest.create",
+   "method": "POST",
+   "path": "/m/cancel-requests",
+   "section": "3.21",
+   "requestSchemas": [
+    "CancelRequestCreateBody"
+   ],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "cancel_request.status: — → pending_approval（cancel.submit）"
+   ],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "version": "V1.1"
+  }
+ ],
+ "schemas": [
+  {
+   "name": "DramaCard",
+   "fields": [
+    "dramaId",
+    "title",
+    "posterUrl",
+    "genres",
+    "totalEpisodes",
+    "heatTier",
+    "badge",
+    "listPricePoints",
+    "discountedPoints",
+    "usableUntilDate"
+   ],
+   "clerkOmits": [
+    "discountedPoints"
+   ]
+  },
+  {
+   "name": "Todo",
+   "fields": [
+    "todoId",
+    "kind",
+    "tag",
+    "title",
+    "dueAt",
+    "urgency",
+    "subjectType",
+    "subjectId",
+    "orderId",
+    "orderItemId",
+    "link"
+   ]
+  },
+  {
+   "name": "HomeQuery",
+   "fields": [
+    "cityCode"
+   ]
+  },
+  {
+   "name": "HomeView",
+   "fields": [
+    "viewerRole",
+    "city",
+    "banners",
+    "noticeBar",
+    "launchOverview",
+    "recommend",
+    "hot",
+    "new",
+    "defaultTab",
+    "cartCount"
+   ],
+   "clerkFields": [
+    "viewerRole",
+    "city",
+    "banners"
+   ],
+   "guestFields": [
+    "viewerRole",
+    "city",
+    "banners",
+    "hot",
+    "new",
+    "defaultTab"
+   ]
+  },
+  {
+   "name": "TodoListQuery",
+   "fields": [
+    "limit",
+    "cursor",
+    "orderId",
+    "orderItemId"
+   ]
+  },
+  {
+   "name": "TodoPage",
+   "fields": [
+    "viewerRole",
+    "items",
+    "nextCursor",
+    "hasMore"
+   ],
+   "clerkNote": "viewerRole = clerk 时 items 只含 kind = asset_demand 且 store_asset_demand.notify_scope = owner_and_clerks"
+  },
+  {
+   "name": "MallConfigView",
+   "fields": [
+    "revNo",
+    "categories",
+    "hotWords",
+    "filters",
+    "sorts",
+    "defaultSort",
+    "genres",
+    "industries"
+   ]
+  },
+  {
+   "name": "DramaListQuery",
+   "fields": [
+    "q",
+    "category",
+    "genreCodes",
+    "industryCodes",
+    "episodeBand",
+    "priceBand",
+    "sort",
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "DramaListPage",
+   "fields": [
+    "viewerRole",
+    "viewerPlan",
+    "items",
+    "nextCursor",
+    "hasMore"
+   ]
+  },
+  {
+   "name": "DramaSearchQuery",
+   "fields": [
+    "q",
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "DramaSearchPage",
+   "fields": [
+    "viewerRole",
+    "viewerPlan",
+    "mode",
+    "fallbackIndustry",
+    "items",
+    "nextCursor",
+    "hasMore",
+    "totalApprox"
+   ]
+  },
+  {
+   "name": "DramaDetail",
+   "fields": [
+    "dramaId",
+    "title",
+    "posterUrl",
+    "genres",
+    "totalEpisodes",
+    "heatTier",
+    "badge",
+    "listPricePoints",
+    "discountedPoints",
+    "usableUntilDate",
+    "viewerRole",
+    "orderability",
+    "episodeDurationSec",
+    "producerName",
+    "castNames",
+    "synopsis",
+    "roles",
+    "industries",
+    "targetAudience",
+    "sellingTags",
+    "dramaClass",
+    "allowedPlacements",
+    "placementDurations",
+    "platforms",
+    "permits",
+    "adUnitPoints",
+    "topModelSurchargeBp",
+    "trailer",
+    "owner"
+   ],
+   "clerkOmits": [
+    "discountedPoints",
+    "owner"
+   ],
+   "ownerFields": [
+    "planName",
+    "productionModel",
+    "discountBp",
+    "adDiscountedPoints",
+    "spendablePoints",
+    "expiringPlanPoints",
+    "planPointsExpireAt",
+    "termEndDate",
+    "cartItemId"
+   ]
+  },
+  {
+   "name": "CartItem",
+   "fields": [
+    "cartItemId",
+    "drama",
+    "state",
+    "invalidReason",
+    "snapshotPricePoints",
+    "currentPricePoints",
+    "discountedPoints",
+    "addedAt",
+    "priceAckedAt",
+    "actions"
+   ]
+  },
+  {
+   "name": "CartView",
+   "fields": [
+    "items",
+    "limit",
+    "plan",
+    "spendablePoints"
+   ]
+  },
+  {
+   "name": "CartItemCreateBody",
+   "fields": [
+    "dramaId"
+   ]
+  },
+  {
+   "name": "CartItemAcceptPriceBody",
+   "fields": [
+    "acceptedPricePoints"
+   ]
+  },
+  {
+   "name": "OrderQuoteBody",
+   "fields": [
+    "dramaIds",
+    "isTopModel",
+    "channelAccountIds"
+   ]
+  },
+  {
+   "name": "OrderQuote",
+   "fields": [
+    "quotedAt",
+    "store",
+    "plan",
+    "items",
+    "totalChargePoints",
+    "spendablePoints",
+    "pointsShortfall",
+    "allocation",
+    "balanceAfter",
+    "channelAccounts",
+    "ads",
+    "earliestLaunchDate",
+    "agreement",
+    "blockers",
+    "expect"
+   ]
+  },
+  {
+   "name": "OrderCreateBody",
+   "fields": [
+    "dramaIds",
+    "channelAccountIds",
+    "focusCodes",
+    "referenceStoreAssetIds",
+    "note",
+    "isTopModel",
+    "adIds",
+    "expectedLaunchDate",
+    "agreementVersionId",
+    "expect"
+   ],
+   "note": "交易接口只提交 agreementVersionId（custom_license 的当前版本，m01 3.12 解析口径），服务端按版本行补协议键；不用 m01 的 ConsentInput（m01-account.md:130）"
+  },
+  {
+   "name": "QuoteBlocker",
+   "fields": [
+    "code",
+    "message",
+    "dramaId"
+   ],
+   "note": "公共结构（A132、C87），本文定义，m06 引用；dramaId 可选，只在订购报价里出现（整单级为 null）"
+  },
+  {
+   "name": "OrderListQuery",
+   "fields": [
+    "tab",
+    "no",
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "OrderCard",
+   "fields": [
+    "orderId",
+    "orderNo",
+    "submittedAt",
+    "status",
+    "subStatus",
+    "tab",
+    "itemCount",
+    "firstDramaTitle",
+    "platforms",
+    "totalChargePoints",
+    "pinnedTodo",
+    "liveSummary",
+    "returnedPoints",
+    "actions"
+   ]
+  },
+  {
+   "name": "OrderCardPage",
+   "fields": [
+    "items",
+    "nextCursor",
+    "hasMore"
+   ]
+  },
+  {
+   "name": "OrderDetail",
+   "fields": [
+    "orderId",
+    "orderNo",
+    "submittedAt",
+    "status",
+    "subStatus",
+    "tab",
+    "itemCount",
+    "totalChargePoints",
+    "statusChangedAt",
+    "startedAt",
+    "closedAt",
+    "entityName",
+    "storeId",
+    "storeName",
+    "planCode",
+    "planName",
+    "discountBp",
+    "isTopModel",
+    "surchargeBp",
+    "focus",
+    "note",
+    "expectedLaunchDate",
+    "referenceStoreAssetIds",
+    "pendingTodo",
+    "items",
+    "deliveryPlan",
+    "pointsEvents",
+    "afterSales",
+    "agreements",
+    "licenseLetters",
+    "actions"
+   ]
+  },
+  {
+   "name": "OrderItemInOrder",
+   "fields": [
+    "orderItemId",
+    "itemNo",
+    "dramaId",
+    "dramaTitle",
+    "posterUrl",
+    "genres",
+    "episodeCount",
+    "phase",
+    "phaseChangedAt",
+    "ticketStep",
+    "listPricePoints",
+    "discountBp",
+    "surchargeBp",
+    "chargePoints",
+    "productionModel",
+    "accounts",
+    "placements",
+    "agreedLaunchDate",
+    "usageStartDate",
+    "usageEndDate",
+    "usageEndSource",
+    "liveEpisodeCount",
+    "returnPoints",
+    "cancelReasonCode",
+    "cancelledAt",
+    "timeline"
+   ]
+  },
+  {
+   "name": "TimelineNode",
+   "fields": [
+    "key",
+    "state",
+    "at"
+   ]
+  },
+  {
+   "name": "PointsEvent",
+   "fields": [
+    "opType",
+    "occurredAt",
+    "points",
+    "planPoints",
+    "addonPoints"
+   ]
+  },
+  {
+   "name": "CancelRecord",
+   "fields": [
+    "cancelRequestId",
+    "requestNo",
+    "status",
+    "closeReason",
+    "kind",
+    "reasonCode",
+    "submittedAt",
+    "executedAt",
+    "totalRefundPoints",
+    "lines"
+   ]
+  },
+  {
+   "name": "OrderItemListQuery",
+   "fields": [
+    "tab",
+    "orderId",
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "OrderItemRow",
+   "fields": [
+    "orderItemId",
+    "orderId",
+    "orderNo",
+    "dramaId",
+    "dramaTitle",
+    "posterUrl",
+    "genres",
+    "episodeCount",
+    "phase",
+    "ticketStep",
+    "accounts",
+    "agreedLaunchDate",
+    "usageStartDate",
+    "usageEndDate",
+    "remainingDays",
+    "liveEpisodeCount",
+    "pendingTodo"
+   ]
+  },
+  {
+   "name": "OrderItemRowPage",
+   "fields": [
+    "items",
+    "nextCursor",
+    "hasMore"
+   ]
+  },
+  {
+   "name": "OrderItemSummaryQuery",
+   "fields": [
+    "orderId"
+   ]
+  },
+  {
+   "name": "OrderItemSummary",
+   "fields": [
+    "all",
+    "live",
+    "to_launch",
+    "ended",
+    "delivering"
+   ]
+  },
+  {
+   "name": "OrderItemDetail",
+   "fields": [
+    "orderItemId",
+    "orderId",
+    "orderNo",
+    "dramaId",
+    "dramaTitle",
+    "posterUrl",
+    "genres",
+    "episodeCount",
+    "phase",
+    "phaseChangedAt",
+    "ticketStep",
+    "accounts",
+    "agreedLaunchDate",
+    "usageStartDate",
+    "usageEndDate",
+    "usageEndSource",
+    "remainingDays",
+    "liveEpisodeCount"
+   ]
+  },
+  {
+   "name": "FavoriteCreateBody",
+   "fields": [
+    "dramaId"
+   ],
+   "version": "V1.1"
+  },
+  {
+   "name": "CancelRequestCreateBody",
+   "fields": [],
+   "version": "V1.1",
+   "note": "细节待设计"
+  },
+  {
+   "name": "CartItemAcceptResult",
+   "fields": [
+    "cartItemId",
+    "drama",
+    "state",
+    "invalidReason",
+    "snapshotPricePoints",
+    "currentPricePoints",
+    "discountedPoints",
+    "addedAt",
+    "priceAckedAt",
+    "actions",
+    "replayed"
+   ],
+   "note": "A80：重放时 drama.posterUrl 为 null，replayed = true"
+  },
+  {
+   "name": "OrderCreateResult",
+   "fields": [
+    "orderId",
+    "orderNo",
+    "submittedAt",
+    "status",
+    "subStatus",
+    "tab",
+    "itemCount",
+    "totalChargePoints",
+    "statusChangedAt",
+    "startedAt",
+    "closedAt",
+    "entityName",
+    "storeId",
+    "storeName",
+    "planCode",
+    "planName",
+    "discountBp",
+    "isTopModel",
+    "surchargeBp",
+    "focus",
+    "note",
+    "expectedLaunchDate",
+    "referenceStoreAssetIds",
+    "pendingTodo",
+    "items",
+    "deliveryPlan",
+    "pointsEvents",
+    "afterSales",
+    "agreements",
+    "licenseLetters",
+    "actions",
+    "replayed"
+   ],
+   "note": "A80：重放时 items[].posterUrl 为 null，replayed = true"
+  },
+  {
+   "name": "LicenseLetterBrief",
+   "fields": [
+    "licenseLetterId",
+    "letterNo",
+    "orderItemId",
+    "platform",
+    "accountName",
+    "status",
+    "displayStatus",
+    "periodStartDate",
+    "periodEndDate"
+   ],
+   "note": "m05 LicenseLetterCard 的子集；不含 status = voided 的行"
+  },
+  {
+   "name": "DeliveryPlanSummary",
+   "fields": [
+    "deliveryPlanId",
+    "status",
+    "confirmedVersionNo",
+    "confirmedAt",
+    "summaryVersionNo",
+    "focus",
+    "launchMode",
+    "placements",
+    "agreedLaunchDate"
+   ],
+   "note": "OrderDetail.deliveryPlan；摘要取已确认版本，未确认时取最近推送版本"
+  }
+ ],
+ "errorCodes": [
+  {
+   "symbol": "CART_LIMIT_REACHED",
+   "code": 45001,
+   "http": 409,
+   "retryable": false,
+   "meaning": "选剧单已达上限（50 部）",
+   "details": "{ limit }"
+  },
+  {
+   "symbol": "CART_PRICE_CHANGED",
+   "code": 45002,
+   "http": 409,
+   "retryable": false,
+   "meaning": "确认新价格时标价又变了",
+   "details": "{ currentPricePoints }"
+  },
+  {
+   "symbol": "ORDER_ACCOUNT_INVALID",
+   "code": 45003,
+   "http": 409,
+   "retryable": false,
+   "meaning": "所选发布账号不可用于本次订购",
+   "details": "{ channelAccountId, reason: not_in_store | not_available }"
+  },
+  {
+   "symbol": "ORDER_AD_INVALID",
+   "code": 45004,
+   "http": 409,
+   "retryable": false,
+   "meaning": "所选广告不可用于本次订购",
+   "details": "{ adId, reason: not_in_store | not_confirmed | cancelled | cancel_pending | slot_not_allowed, dramaId? }"
+  },
+  {
+   "symbol": "LAUNCH_DATE_TOO_EARLY",
+   "code": 45005,
+   "http": 400,
+   "retryable": false,
+   "meaning": "期望上线日早于订购日后第 7 个工作日",
+   "details": "{ earliestLaunchDate }"
+  },
+  {
+   "symbol": "STORE_NOT_QUALIFIED",
+   "code": 45008,
+   "http": 409,
+   "retryable": false,
+   "meaning": "门店资质尚未通过，暂不能订购、绑定发布账号或提交广告需求（门店闸门 blocked）；共用领域码，m05、m06 引用（A77）",
+   "details": "{ storeId, reason: not_submitted | pending_review | rejected | final_rejected }"
+  },
+  {
+   "symbol": "DRAMA_NOT_ORDERABLE",
+   "code": 49301,
+   "http": 409,
+   "retryable": false,
+   "meaning": "剧目当前不可订购",
+   "details": "{ dramaId, reason: not_listed | stopped | platform_not_licensed | permit_missing }"
+  }
+ ],
+ "externalErrors": [
+  {
+   "symbol": "SUBSCRIPTION_INACTIVE",
+   "sourceDoc": "m07-billing",
+   "source": "43010（A77）；d1-ledger.md:1724"
+  },
+  {
+   "symbol": "POINTS_INSUFFICIENT",
+   "sourceDoc": "m07-billing",
+   "source": "43009（A77、A131）；details { requiredPoints, spendablePoints, shortfallPoints }"
+  },
+  {
+   "symbol": "QUOTE_CHANGED",
+   "sourceDoc": "m07-billing",
+   "source": "43007（A131）；details 为 m07 QuoteChangedDetails 的 points 分支 { kind: 'points', totalChargePoints, items: [{ dramaId, chargePoints }] }"
+  },
+  {
+   "symbol": "ACCOUNT_BUSY",
+   "sourceDoc": "m07-billing",
+   "source": "43008，503，可重试（A77）"
+  },
+  {
+   "symbol": "PLAN_REFUND_IN_PROGRESS",
+   "sourceDoc": "m07-billing",
+   "source": "43006"
+  },
+  {
+   "symbol": "AGREEMENT_VERSION_STALE",
+   "sourceDoc": "m01-account",
+   "source": "47401（A77）；conventions.md C73"
+  },
+  {
+   "symbol": "QUOTA_EXCEEDED",
+   "sourceDoc": "m02-tenant",
+   "source": "41106（A77）；details { storesUsed, storeLimit, storesOver }"
+  },
+  {
+   "symbol": "STORE_ARCHIVED",
+   "sourceDoc": "m02-tenant",
+   "source": "41107，403（A77；C17 中间件）"
+  },
+  {
+   "symbol": "STORE_PROFILE_INCOMPLETE",
+   "sourceDoc": "m03-profile-asset",
+   "source": "49006（A123）；details.missing 为 array<{ step, item: MissingItemKey, permitType: string | null }>；出口 profile.assertProfileComplete（只查前三步）"
+  },
+  {
+   "symbol": "INDUSTRY_NOT_OPEN",
+   "sourceDoc": "m03-profile-asset",
+   "source": "49007"
+  },
+  {
+   "symbol": "FILE_NOT_USABLE",
+   "sourceDoc": "m03-profile-asset",
+   "source": "46001（files.link() 断言失败）"
+  },
+  {
+   "symbol": "VALIDATION_FAILED",
+   "sourceDoc": "conventions",
+   "source": "C27"
+  },
+  {
+   "symbol": "NOT_FOUND",
+   "sourceDoc": "conventions",
+   "source": "C27"
+  },
+  {
+   "symbol": "ROLE_FORBIDDEN",
+   "sourceDoc": "conventions",
+   "source": "C27"
+  }
+ ],
+ "permissions": [],
+ "capabilities": [
+  "catalog.read",
+  "cart.*",
+  "order.read",
+  "order.create",
+  "todo.read"
+ ],
+ "capabilitiesProposed": [
+  {
+   "key": "todo.read",
+   "owner": true,
+   "clerk": true,
+   "archivedStoreOwner": true,
+   "note": "A87 已收进增补表；m.todo.list 使用"
+  }
+ ],
+ "flagsReferenced": [
+  "weapp.video.trailer.enabled",
+  "weapp.trailer.feed",
+  "release.trial_episodes"
+ ],
+ "releasedCodes": [
+  {
+   "code": 45006,
+   "was": "ORDER_BLOCKED_OVER_STORE_LIMIT",
+   "replacedBy": "QUOTA_EXCEEDED（m02）"
+  },
+  {
+   "code": 45007,
+   "was": "ORDER_REFERENCE_ASSET_INVALID",
+   "replacedBy": "VALIDATION_FAILED（与 m06 一致）"
+  }
+ ],
+ "paramsReferenced": [
+  "catalog.search.industry_fallback（A107 补登，布尔，默认开）",
+  "ad.duration_options（A146 登记，默认 { opening: [3, 5], ending: [5, 10] }）",
+  "content.placement.open_slots",
+  "trial.episodes"
+ ],
+ "externalSchemas": [
+  {
+   "name": "QuoteChangedDetails",
+   "sourceDoc": "m07-billing",
+   "source": "QUOTE_CHANGED.details，订购取 points 分支（A131）"
+  },
+  {
+   "name": "DictRef",
+   "sourceDoc": "conventions",
+   "source": "C85 { code, name }，genres、industries、focus 等"
+  },
+  {
+   "name": "CursorPage",
+   "sourceDoc": "conventions",
+   "source": "C42 { items, nextCursor, hasMore }；TodoPage = CursorPage<Todo> + viewerRole"
+  },
+  {
+   "name": "SignedUrl",
+   "sourceDoc": "a01-system",
+   "source": "C60、C87 { url, expiresAt }"
+  }
+ ],
+ "servicePorts": [
+  {
+   "name": "order.countOpenOrdersByEntity",
+   "caller": "m01 注销守卫（open_order，A134）",
+   "rule": "drama_order.status ∉ {ended, cancelled, refunded}"
+  },
+  {
+   "name": "StoreCloseGuard.countBlocking（order 注册）",
+   "caller": "m02 门店停用守卫（open_order）",
+   "rule": "drama_order.status ∈ {pending_start, producing, to_launch, after_sale}"
+  },
+  {
+   "name": "order.countOrderItemsByPhase",
+   "caller": "m.orderItem.summary；m02 StoreCard；m08 overview",
+   "rule": "{ all, live, to_launch, ended, delivering = producing + to_launch }"
+  },
+  {
+   "name": "order.countTodos",
+   "caller": "m02 StoreCard.todoCount；m08 overview",
+   "rule": "与 m.todo.list 派生同源"
+  },
+  {
+   "name": "order.getOrderNos",
+   "caller": "m03 素材详情时间线",
+   "rule": "drama_order.id → order_no"
+  },
+  {
+   "name": "order.countCartBadge",
+   "caller": "m.home.get 的 cartCount 字段；m08 概览的 cartCount",
+   "rule": "cart_item 中 state ≠ invalid 的行数"
+  }
+ ]
+}

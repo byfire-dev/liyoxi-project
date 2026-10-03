@@ -1,0 +1,5599 @@
+{
+ "doc": "x01-events-jobs",
+ "events": [
+  {
+   "name": "calendar.imported",
+   "aggregate": "（无，aggregate_type 为空）",
+   "module": "sla",
+   "status": "v1",
+   "draftNames": "d3:3054；01:542",
+   "payload": [
+    "v",
+    "calendarVersion",
+    "year",
+    "changedDays"
+   ],
+   "subscribers": [
+    "delivery.onCalendarImported",
+    "approval.onCalendarImported",
+    "staff.onCalendarImported",
+    "media.onCalendarImported",
+    "billing.onCalendarImported",
+    "order.onCalendarImported",
+    "support.onCalendarImported",
+    "publish.onCalendarImported"
+   ]
+  },
+  {
+   "name": "merchant_user.registered",
+   "aggregate": "merchant_user",
+   "module": "identity",
+   "status": "v1",
+   "draftNames": "迁移码 merchant_user.register（02:1009）",
+   "payload": [
+    "v",
+    "merchantUserId",
+    "via",
+    "sourceType",
+    "sourceReferralCodeId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "merchant_user.disabled",
+   "aggregate": "merchant_user",
+   "module": "identity",
+   "status": "v1",
+   "draftNames": "迁移码 merchant_user.disable",
+   "payload": [
+    "v",
+    "merchantUserId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "merchant_user.enabled",
+   "aggregate": "merchant_user",
+   "module": "identity",
+   "status": "v1",
+   "draftNames": "迁移码 merchant_user.enable",
+   "payload": [
+    "v",
+    "merchantUserId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "merchant_user.deleted",
+   "aggregate": "merchant_user",
+   "module": "identity",
+   "status": "v1",
+   "draftNames": "02:139、1021",
+   "payload": [
+    "v",
+    "merchantUserId",
+    "reason",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onMerchantUserDeleted"
+   ]
+  },
+  {
+   "name": "merchant_user.phone_changed",
+   "aggregate": "merchant_user",
+   "module": "identity",
+   "status": "v1",
+   "draftNames": "02:443、1020",
+   "payload": [
+    "v",
+    "merchantUserId",
+    "via",
+    "accountChangeRequestId"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "merchant_user.wechat_bound",
+   "aggregate": "merchant_user",
+   "module": "identity",
+   "status": "v1",
+   "draftNames": "account.new_wechat_bound（02:1019；13:157；d4:293-295）",
+   "payload": [
+    "v",
+    "merchantUserId",
+    "wechatIdentityId"
+   ],
+   "subscribers": [
+    "identity.onWechatBound",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "entity.created",
+   "aggregate": "entity",
+   "module": "tenant",
+   "status": "v1",
+   "draftNames": "迁移码 entity.create",
+   "payload": [
+    "v",
+    "entityId",
+    "firstStoreId",
+    "ownerUserId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "entity.abandoned",
+   "aggregate": "entity",
+   "module": "tenant",
+   "status": "v1",
+   "draftNames": "02:1022",
+   "payload": [
+    "v",
+    "entityId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "profile.onTenantLifecycle"
+   ]
+  },
+  {
+   "name": "entity.closed",
+   "aggregate": "entity",
+   "module": "tenant",
+   "status": "v1",
+   "draftNames": "02:1023",
+   "payload": [
+    "v",
+    "entityId",
+    "closedBy",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "profile.onTenantLifecycle"
+   ]
+  },
+  {
+   "name": "store.created",
+   "aggregate": "store",
+   "module": "tenant",
+   "status": "v1",
+   "draftNames": "迁移码 store.create",
+   "payload": [
+    "v",
+    "storeId",
+    "entityId",
+    "isFirstStore",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "store.archived",
+   "aggregate": "store",
+   "module": "tenant",
+   "status": "v1",
+   "draftNames": "02:1024",
+   "payload": [
+    "v",
+    "storeId",
+    "entityId",
+    "archiveReason",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "profile.onTenantLifecycle",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "store.draft_deleted",
+   "aggregate": "store",
+   "module": "tenant",
+   "status": "v1",
+   "draftNames": "02:1025",
+   "payload": [
+    "v",
+    "storeId",
+    "entityId"
+   ],
+   "subscribers": [
+    "profile.onTenantLifecycle"
+   ]
+  },
+  {
+   "name": "store.restored",
+   "aggregate": "store",
+   "module": "tenant",
+   "status": "v1",
+   "draftNames": "02:1026",
+   "payload": [
+    "v",
+    "storeId",
+    "entityId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "profile.onTenantLifecycle"
+   ]
+  },
+  {
+   "name": "entity_member.joined",
+   "aggregate": "entity_member",
+   "module": "tenant",
+   "status": "v1",
+   "draftNames": "本稿补（d4:704、736 的“邀请被接受后通知老板”；迁移码 entity_member.join）",
+   "payload": [
+    "v",
+    "entityMemberId",
+    "entityId",
+    "merchantUserId",
+    "invitationId",
+    "storeIds",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "entity_member.removed",
+   "aggregate": "entity_member",
+   "module": "tenant",
+   "status": "v1",
+   "draftNames": "02:1027",
+   "payload": [
+    "v",
+    "entityMemberId",
+    "entityId",
+    "merchantUserId",
+    "role",
+    "removeReason",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "entity_member.promoted",
+   "aggregate": "entity_member",
+   "module": "tenant",
+   "status": "v1",
+   "draftNames": "本稿补（迁移码 entity_member.promote_owner，from = to；新老板不是成员时的 entity_member.create_owner 并入本事件，A143）",
+   "payload": [
+    "v",
+    "entityMemberId",
+    "entityId",
+    "merchantUserId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "entity_member.stores_changed",
+   "aggregate": "entity_member",
+   "module": "tenant",
+   "status": "v1",
+   "draftNames": "本稿补（d4:748 的“调整门店”通知；d6:247）",
+   "payload": [
+    "v",
+    "entityMemberId",
+    "entityId",
+    "merchantUserId",
+    "addedStoreIds",
+    "removedStoreIds",
+    "invitationId"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "invitation.created",
+   "aggregate": "invitation",
+   "module": "tenant",
+   "status": "v1",
+   "draftNames": "迁移码 invitation.create",
+   "payload": [
+    "v",
+    "invitationId",
+    "entityId",
+    "storeId",
+    "expiresAt",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "invitation.accepted",
+   "aggregate": "invitation",
+   "module": "tenant",
+   "status": "v1",
+   "draftNames": "迁移码 invitation.accept",
+   "payload": [
+    "v",
+    "invitationId",
+    "entityId",
+    "storeId",
+    "acceptedByUserId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "invitation.revoked",
+   "aggregate": "invitation",
+   "module": "tenant",
+   "status": "v1",
+   "draftNames": "迁移码 invitation.revoke",
+   "payload": [
+    "v",
+    "invitationId",
+    "entityId",
+    "storeId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "invitation.expired",
+   "aggregate": "invitation",
+   "module": "tenant",
+   "status": "v1",
+   "draftNames": "迁移码 invitation.expire",
+   "payload": [
+    "v",
+    "invitationId",
+    "entityId",
+    "storeId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "staff.created",
+   "aggregate": "staff",
+   "module": "staff",
+   "status": "v1",
+   "draftNames": "本稿补（03:217-219）",
+   "payload": [
+    "v",
+    "staffId",
+    "roleKey",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "staff.enabled",
+   "aggregate": "staff",
+   "module": "staff",
+   "status": "v1",
+   "draftNames": "本稿补",
+   "payload": [
+    "v",
+    "staffId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "staff.disabled",
+   "aggregate": "staff",
+   "module": "staff",
+   "status": "v1",
+   "draftNames": "d3:2733",
+   "payload": [
+    "v",
+    "staffId",
+    "handoverBatchId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "approval.submitted",
+   "aggregate": "approval_request",
+   "module": "approval",
+   "status": "v1",
+   "draftNames": "d3:2731",
+   "payload": [
+    "v",
+    "approvalRequestId",
+    "kind",
+    "category",
+    "subjectType",
+    "subjectId",
+    "entityId",
+    "storeId",
+    "roundNo",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "support.onBizEvent"
+   ]
+  },
+  {
+   "name": "approval.approved",
+   "aggregate": "approval_request",
+   "module": "approval",
+   "status": "v1",
+   "draftNames": "d3:2731",
+   "payload": [
+    "v",
+    "approvalRequestId",
+    "kind",
+    "subjectType",
+    "subjectId",
+    "isDecidedBySystem",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "support.onBizEvent"
+   ]
+  },
+  {
+   "name": "approval.rejected",
+   "aggregate": "approval_request",
+   "module": "approval",
+   "status": "v1",
+   "draftNames": "d3:2731",
+   "payload": [
+    "v",
+    "approvalRequestId",
+    "kind",
+    "subjectType",
+    "subjectId",
+    "reasonCodes",
+    "isDecidedBySystem",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "support.onBizEvent"
+   ]
+  },
+  {
+   "name": "approval.withdrawn",
+   "aggregate": "approval_request",
+   "module": "approval",
+   "status": "v1",
+   "draftNames": "本稿补（03:807）",
+   "payload": [
+    "v",
+    "approvalRequestId",
+    "kind",
+    "subjectType",
+    "subjectId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "support.onBizEvent"
+   ]
+  },
+  {
+   "name": "approval.executed",
+   "aggregate": "approval_request",
+   "module": "approval",
+   "status": "v1",
+   "draftNames": "d3:2731",
+   "payload": [
+    "v",
+    "approvalRequestId",
+    "kind",
+    "domainType",
+    "domainId"
+   ],
+   "subscribers": [
+    "support.onBizEvent"
+   ]
+  },
+  {
+   "name": "approval.sla_breached",
+   "aggregate": "approval_request",
+   "module": "approval",
+   "status": "v1",
+   "draftNames": "d3:2718",
+   "payload": [
+    "v",
+    "approvalRequestId",
+    "kind",
+    "purpose",
+    "dueAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "assignment.transferred",
+   "aggregate": "assignment_history",
+   "module": "staff",
+   "status": "v1",
+   "draftNames": "d3:2733；03:475",
+   "payload": [
+    "v",
+    "batchId",
+    "countsBySource",
+    "toStaffId",
+    "reasonCode"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "assignment.sla_breached",
+   "aggregate": "assignment_history",
+   "module": "staff",
+   "status": "v1",
+   "draftNames": "本稿补（d3 N6）",
+   "payload": [
+    "v",
+    "assignmentHistoryId",
+    "storeId",
+    "toStaffId",
+    "contactDueAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "store.qualification.submitted",
+   "aggregate": "store",
+   "module": "profile",
+   "status": "v1",
+   "draftNames": "d9:699；04:640",
+   "payload": [
+    "v",
+    "storeId",
+    "entityId",
+    "submissionId",
+    "kind",
+    "roundNo"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "analytics.fromOutbox"
+   ]
+  },
+  {
+   "name": "store.qualification.approved",
+   "aggregate": "store",
+   "module": "profile",
+   "status": "v1",
+   "draftNames": "d9:700；d3:2713",
+   "payload": [
+    "v",
+    "storeId",
+    "entityId",
+    "submissionId",
+    "kind"
+   ],
+   "subscribers": [
+    "order.onQualificationDecided",
+    "profile.onQualificationApproved",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "store.qualification.rejected",
+   "aggregate": "store",
+   "module": "profile",
+   "status": "v1",
+   "draftNames": "d9:701；d3:2713",
+   "payload": [
+    "v",
+    "storeId",
+    "entityId",
+    "submissionId",
+    "isFinal",
+    "reasonCodes",
+    "isSystem"
+   ],
+   "subscribers": [
+    "order.onQualificationDecided",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "store.qualification.withdrawn",
+   "aggregate": "store",
+   "module": "profile",
+   "status": "v1",
+   "draftNames": "d9:702",
+   "payload": [
+    "v",
+    "storeId",
+    "submissionId"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "store.qualification_change.submitted",
+   "aggregate": "store",
+   "module": "profile",
+   "status": "v1",
+   "draftNames": "d9:703",
+   "payload": [
+    "v",
+    "storeId",
+    "entityId",
+    "submissionId",
+    "changedFields"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "store.qualification_change.approved",
+   "aggregate": "store",
+   "module": "profile",
+   "status": "v1",
+   "draftNames": "d9:703",
+   "payload": [
+    "v",
+    "storeId",
+    "entityId",
+    "submissionId",
+    "changedFields"
+   ],
+   "subscribers": [
+    "profile.onQualificationApproved",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "store.qualification_change.rejected",
+   "aggregate": "store",
+   "module": "profile",
+   "status": "v1",
+   "draftNames": "d9:703",
+   "payload": [
+    "v",
+    "storeId",
+    "entityId",
+    "submissionId",
+    "reasonCodes"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "store.qualification_change.withdrawn",
+   "aggregate": "store",
+   "module": "profile",
+   "status": "v1",
+   "draftNames": "04:362（本稿补的 change 轮次撤回）",
+   "payload": [
+    "v",
+    "storeId",
+    "submissionId"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "store.profile.changed",
+   "aggregate": "store",
+   "module": "profile",
+   "status": "v1",
+   "draftNames": "d9:704",
+   "payload": [
+    "v",
+    "storeId",
+    "entityId",
+    "fields",
+    "source"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "drama.created",
+   "aggregate": "drama",
+   "module": "content",
+   "status": "v1",
+   "draftNames": "迁移码 drama.create",
+   "payload": [
+    "v",
+    "dramaId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "drama.listed",
+   "aggregate": "drama",
+   "module": "content",
+   "status": "v1",
+   "draftNames": "d8:546；05:144、147",
+   "payload": [
+    "v",
+    "dramaId",
+    "isRelist",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "drama.delisted",
+   "aggregate": "drama",
+   "module": "content",
+   "status": "v1",
+   "draftNames": "d8:547；05:145-146",
+   "payload": [
+    "v",
+    "dramaId",
+    "reasonCode",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "drama.tier_changed",
+   "aggregate": "drama",
+   "module": "content",
+   "status": "v1",
+   "draftNames": "d8:548；07:1600",
+   "payload": [
+    "v",
+    "dramaId",
+    "fromTier",
+    "toTier"
+   ],
+   "subscribers": [
+    "billing.onTierChanged"
+   ]
+  },
+  {
+   "name": "drama.license_extended",
+   "aggregate": "drama",
+   "module": "content",
+   "status": "v1",
+   "draftNames": "d8:549；d3:2734",
+   "payload": [
+    "v",
+    "dramaId",
+    "dramaCopyrightRevisionId",
+    "prevEndDate",
+    "newEndDate"
+   ],
+   "subscribers": [
+    "publish.onLicenseExtended"
+   ]
+  },
+  {
+   "name": "drama.license_shortened",
+   "aggregate": "drama",
+   "module": "content",
+   "status": "v1",
+   "draftNames": "d8:550",
+   "payload": [
+    "v",
+    "dramaId",
+    "dramaCopyrightRevisionId",
+    "prevEndDate",
+    "newEndDate"
+   ],
+   "subscribers": [
+    "order.onLicenseShortened"
+   ]
+  },
+  {
+   "name": "drama.license_scope_changed",
+   "aggregate": "drama",
+   "module": "content",
+   "status": "v1",
+   "draftNames": "d8:551",
+   "payload": [
+    "v",
+    "dramaId",
+    "dramaCopyrightRevisionId",
+    "platformsRemoved",
+    "platformsAdded",
+    "isTerritoryChanged"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "drama.permit_changed",
+   "aggregate": "drama",
+   "module": "content",
+   "status": "v1",
+   "draftNames": "d8:552；05:269",
+   "payload": [
+    "v",
+    "dramaId",
+    "dramaPermitId",
+    "platform"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "file.uploaded",
+   "aggregate": "file_object",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "d5:2139；06:1838",
+   "payload": [
+    "v",
+    "fileId",
+    "category",
+    "storeId",
+    "entityId"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "file.stored",
+   "aggregate": "file_object",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "d5:2139",
+   "payload": [
+    "v",
+    "fileId",
+    "category",
+    "storeId"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "file.rejected",
+   "aggregate": "file_object",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "d5:2139",
+   "payload": [
+    "v",
+    "fileId",
+    "category",
+    "rejectCode"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "file.moderated",
+   "aggregate": "file_object",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "d5:2139",
+   "payload": [
+    "v",
+    "fileId",
+    "category",
+    "moderationState",
+    "storeId"
+   ],
+   "subscribers": [
+    "profile.onFileModerated"
+   ]
+  },
+  {
+   "name": "media.production.checked",
+   "aggregate": "production_record",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "d5:2139",
+   "payload": [
+    "v",
+    "fileId",
+    "kind",
+    "orderItemId",
+    "gate",
+    "durationMs"
+   ],
+   "subscribers": [
+    "delivery.onProductionChecked"
+   ]
+  },
+  {
+   "name": "media.production.derived",
+   "aggregate": "production_record",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "d5:2139",
+   "payload": [
+    "v",
+    "fileId",
+    "sourceFileId",
+    "derivation"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "media.playable.ready",
+   "aggregate": "playable_asset",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "d5:2139",
+   "payload": [
+    "v",
+    "playableAssetId",
+    "ownerType",
+    "ownerId",
+    "kind"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "media.playable.failed",
+   "aggregate": "playable_asset",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "d5:2139",
+   "payload": [
+    "v",
+    "playableAssetId",
+    "ownerType",
+    "ownerId",
+    "kind"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "media.release.zip_ready",
+   "aggregate": "zip_bundle",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "d5:2139；M8",
+   "payload": [
+    "v",
+    "zipBundleId",
+    "ownerType",
+    "ownerId",
+    "zipGen"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "media.ocr.completed",
+   "aggregate": "ocr_result",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "06:1501（本稿新增，M8）",
+   "payload": [
+    "v",
+    "ocrResultId",
+    "docType",
+    "status"
+   ],
+   "subscribers": [
+    "billing.onOcrCompleted"
+   ]
+  },
+  {
+   "name": "asset.processed",
+   "aggregate": "store_asset",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "d5:2139",
+   "payload": [
+    "v",
+    "storeAssetId",
+    "storeId",
+    "entityId"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "asset.review_needed",
+   "aggregate": "store_asset",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "d5:2139",
+   "payload": [
+    "v",
+    "storeAssetId",
+    "storeId",
+    "dueAt"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "asset.reviewed",
+   "aggregate": "store_asset",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "06:1849（本稿定名；d6:248）",
+   "payload": [
+    "v",
+    "storeAssetId",
+    "storeId",
+    "usability",
+    "uploadActorType",
+    "uploaderUserId"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "asset.adopted",
+   "aggregate": "store_asset",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "06:1849（本稿定名；PRD:730）",
+   "payload": [
+    "v",
+    "storeAssetId",
+    "storeId",
+    "usedByType",
+    "usedById",
+    "uploaderUserId"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "asset.demand_created",
+   "aggregate": "store_asset_demand",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "06:1849（本稿定名；PRD:731）",
+   "payload": [
+    "v",
+    "storeAssetDemandId",
+    "storeId",
+    "notifyScope",
+    "dueDate"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "asset.feedback_submitted",
+   "aggregate": "store_asset",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "m03 3.24（A33、A56：素材反馈不建表，经通知中心提醒交付经理）",
+   "payload": [
+    "v",
+    "storeAssetId",
+    "storeId",
+    "entityId",
+    "actorRole"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "asset.sla_breached",
+   "aggregate": "store_asset",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "本稿补（d3 T33；M22）",
+   "payload": [
+    "v",
+    "storeAssetId",
+    "storeId",
+    "dueAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "drama.masters_changed",
+   "aggregate": "drama",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "d5:2139；06:1847",
+   "payload": [
+    "v",
+    "dramaId",
+    "uploadBatchId",
+    "episodeNos",
+    "isContentChanged"
+   ],
+   "subscribers": [
+    "content.onMastersChanged"
+   ]
+  },
+  {
+   "name": "drama.trailer_ready",
+   "aggregate": "drama",
+   "module": "media",
+   "status": "v1",
+   "draftNames": "d5:2139；06:1847",
+   "payload": [
+    "v",
+    "dramaId",
+    "playableAssetId"
+   ],
+   "subscribers": [
+    "content.onTrailerReady"
+   ]
+  },
+  {
+   "name": "billing.subscription.activated",
+   "aggregate": "subscription_term",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v",
+    "termId",
+    "entityId",
+    "planId",
+    "startsAt",
+    "endsAt",
+    "sourceBillingOrderId"
+   ],
+   "subscribers": [
+    "order.onSubscriptionActivated",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "billing.subscription.renewal_scheduled",
+   "aggregate": "subscription_term",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v",
+    "termId",
+    "entityId",
+    "startsAt",
+    "endsAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "billing.subscription.rolled_over",
+   "aggregate": "subscription_term",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720；d4:662",
+   "payload": [
+    "v",
+    "termId",
+    "prevTermId",
+    "entityId"
+   ],
+   "subscribers": [
+    "tenant.onEntitlementChanged"
+   ]
+  },
+  {
+   "name": "billing.subscription.upgraded",
+   "aggregate": "subscription_term",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v",
+    "termId",
+    "entityId",
+    "fromPlanId",
+    "toPlanId"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "billing.subscription.expired",
+   "aggregate": "subscription_term",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720；d4:662",
+   "payload": [
+    "v",
+    "termId",
+    "entityId",
+    "endedAt"
+   ],
+   "subscribers": [
+    "tenant.onEntitlementChanged"
+   ]
+  },
+  {
+   "name": "billing.subscription.resumed",
+   "aggregate": "subscription_term",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v",
+    "termId",
+    "entityId",
+    "newEndsAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "billing.subscription.extended",
+   "aggregate": "subscription_term",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v",
+    "termId",
+    "entityId",
+    "prevEndsAt",
+    "newEndsAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "billing.subscription.refund_suspended",
+   "aggregate": "subscription_term",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v",
+    "termId",
+    "entityId",
+    "refundRequestId"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "billing.subscription.refund_resumed",
+   "aggregate": "subscription_term",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v",
+    "termId",
+    "entityId",
+    "refundRequestId"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "billing.subscription.refunded",
+   "aggregate": "subscription_term",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v",
+    "termId",
+    "entityId",
+    "termStatus",
+    "refundRequestId",
+    "paymentExceptionId"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "billing.points.granted",
+   "aggregate": "billing_account",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v",
+    "entityId",
+    "termId",
+    "grantScheduleId",
+    "points",
+    "monthIndex"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "billing.points.purchased",
+   "aggregate": "billing_account",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v",
+    "entityId",
+    "billingOrderId",
+    "points"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "billing.points.held",
+   "aggregate": "billing_account",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v",
+    "entityId",
+    "pointHoldId",
+    "points",
+    "refType",
+    "refId"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "billing.points.captured",
+   "aggregate": "billing_account",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v",
+    "entityId",
+    "pointHoldId",
+    "points",
+    "refType",
+    "refId"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "billing.points.returned",
+   "aggregate": "billing_account",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v",
+    "entityId",
+    "pointHoldId",
+    "returnedPoints",
+    "convertedPoints",
+    "forfeitedPoints"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "billing.points.expired",
+   "aggregate": "billing_account",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v",
+    "entityId",
+    "termId",
+    "expiredPoints"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "analytics.fromOutbox"
+   ]
+  },
+  {
+   "name": "billing.points.adjusted",
+   "aggregate": "billing_account",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v",
+    "entityId",
+    "pointAdjustmentRequestId",
+    "deltaPoints"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "billing.order_fulfilled",
+   "aggregate": "billing_order",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720；d2:1188",
+   "payload": [
+    "v",
+    "billingOrderId",
+    "entityId",
+    "contentType",
+    "termId"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "billing.plan_revision_scheduled",
+   "aggregate": "plan_revision",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720；07:1596",
+   "payload": [
+    "v",
+    "planRevisionId",
+    "planId",
+    "effectiveAt"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "billing.param_change_scheduled",
+   "aggregate": "billing_param",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:1720；07:1597",
+   "payload": [
+    "v",
+    "billingParamId",
+    "changeId",
+    "paramKey",
+    "effectiveAt"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "pricing.drama_price_changed",
+   "aggregate": "drama_price_revision 或 drama",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d1:717、1720；07:1598",
+   "payload": [
+    "v",
+    "dramaId",
+    "dramaPriceRevisionId",
+    "cause",
+    "effectiveAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "payment_txn.succeeded",
+   "aggregate": "payment_txn",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d2:1188",
+   "payload": [
+    "v",
+    "paymentTxnId",
+    "billingOrderId",
+    "amountFen",
+    "channel"
+   ],
+   "subscribers": [
+    "billing.applyPaymentFallback"
+   ]
+  },
+  {
+   "name": "billing_order.created",
+   "aggregate": "billing_order",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "本稿补（08:162-163）",
+   "payload": [
+    "v",
+    "billingOrderId",
+    "entityId",
+    "storeId",
+    "orderType",
+    "channel",
+    "amountFen",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "billing_order.paid",
+   "aggregate": "billing_order",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d2:1188；d6 写作 payment.paid（d6:233、1843；14:752）",
+   "payload": [
+    "v",
+    "billingOrderId",
+    "entityId",
+    "storeId",
+    "orderType",
+    "channel",
+    "amountFen",
+    "paidPaymentTxnId",
+    "placedByUserId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "analytics.fromOutbox",
+    "billing.uploadShippingInfo"
+   ]
+  },
+  {
+   "name": "billing_order.cancelled",
+   "aggregate": "billing_order",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d2:1188",
+   "payload": [
+    "v",
+    "billingOrderId",
+    "entityId",
+    "cancelReason",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "billing_order.refunded",
+   "aggregate": "billing_order",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d2:1188",
+   "payload": [
+    "v",
+    "billingOrderId",
+    "entityId",
+    "refundedFen",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "billing_order.fulfillment_blocked",
+   "aggregate": "billing_order",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "billing_order.fulfillment_exception（d2:1188）",
+   "payload": [
+    "v",
+    "billingOrderId",
+    "entityId",
+    "paymentExceptionId"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "transfer.proof_submitted",
+   "aggregate": "transfer_proof",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d2:1188；01:652",
+   "payload": [
+    "v",
+    "transferProofId",
+    "billingOrderId",
+    "entityId",
+    "dueAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "transfer.rejected",
+   "aggregate": "transfer_proof",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d2:1188；01:652",
+   "payload": [
+    "v",
+    "transferProofId",
+    "billingOrderId",
+    "entityId",
+    "reasonCodes"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "transfer.sla_breached",
+   "aggregate": "transfer_proof",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "本稿补（d3 T32；M22）",
+   "payload": [
+    "v",
+    "transferProofId",
+    "billingOrderId",
+    "dueAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "refund_txn.created",
+   "aggregate": "refund_txn",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "refund_txn.submit（d2:1188；01:653）",
+   "payload": [
+    "v",
+    "refundTxnId",
+    "refundRequestId",
+    "amountFen"
+   ],
+   "subscribers": [
+    "billing.submitRefundTxn"
+   ]
+  },
+  {
+   "name": "refund.submitted",
+   "aggregate": "refund_request",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "本稿补（08:523）",
+   "payload": [
+    "v",
+    "refundRequestId",
+    "approvalRequestId",
+    "ruleCode",
+    "amountFen",
+    "billingOrderId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "refund.approved",
+   "aggregate": "refund_request",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d2:1188",
+   "payload": [
+    "v",
+    "refundRequestId",
+    "execDueAt",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "refund.rejected",
+   "aggregate": "refund_request",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d2:1188；d6:249",
+   "payload": [
+    "v",
+    "refundRequestId",
+    "billingOrderId",
+    "entityId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "refund.withdrawn",
+   "aggregate": "refund_request",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "refund.cancelled（d2:1188）",
+   "payload": [
+    "v",
+    "refundRequestId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "refund.voided",
+   "aggregate": "refund_request",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "refund.cancelled（d2:1188）",
+   "payload": [
+    "v",
+    "refundRequestId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "refund.execution_started",
+   "aggregate": "refund_request",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "本稿补（08:527）",
+   "payload": [
+    "v",
+    "refundRequestId",
+    "refundTxnId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "refund.completed",
+   "aggregate": "refund_request",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "refund.done（d2:1188；d6:249）",
+   "payload": [
+    "v",
+    "refundRequestId",
+    "billingOrderId",
+    "entityId",
+    "amountFen",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "refund.execution_failed",
+   "aggregate": "refund_request",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "本稿补（08:532）",
+   "payload": [
+    "v",
+    "refundRequestId",
+    "refundTxnId",
+    "txnStatus",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "payment_exception.opened",
+   "aggregate": "payment_exception",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "exception.opened（d2:1188）",
+   "payload": [
+    "v",
+    "paymentExceptionId",
+    "kind",
+    "billingOrderId",
+    "paymentTxnId",
+    "amountFen",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "payment_exception.auto_healed",
+   "aggregate": "payment_exception",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "本稿补（08:761、767、768）",
+   "payload": [
+    "v",
+    "paymentExceptionId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "payment_exception.refund_requested",
+   "aggregate": "payment_exception",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "本稿补（08:762）",
+   "payload": [
+    "v",
+    "paymentExceptionId",
+    "refundRequestId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "payment_exception.reopened",
+   "aggregate": "payment_exception",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "本稿补（08:764）",
+   "payload": [
+    "v",
+    "paymentExceptionId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "payment_exception.resolved",
+   "aggregate": "payment_exception",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "本稿补（08:763、765、766）",
+   "payload": [
+    "v",
+    "paymentExceptionId",
+    "resolution",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "invoice.requested",
+   "aggregate": "invoice_request",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "本稿补（08:1110）",
+   "payload": [
+    "v",
+    "invoiceRequestId",
+    "billingOrderId",
+    "entityId",
+    "dueAt",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "invoice.issued",
+   "aggregate": "invoice_doc",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d2:1188；08:1213；01:656",
+   "payload": [
+    "v",
+    "invoiceDocId",
+    "invoiceRequestId",
+    "entityId",
+    "medium",
+    "needsEmail"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "invoice.rejected",
+   "aggregate": "invoice_request",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d2:1188",
+   "payload": [
+    "v",
+    "invoiceRequestId",
+    "entityId",
+    "rejectKind",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "invoice.red_requested",
+   "aggregate": "invoice_request",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "本稿补（08:1115）",
+   "payload": [
+    "v",
+    "invoiceRequestId",
+    "refundRequestId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "invoice.red_issued",
+   "aggregate": "invoice_doc",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "本稿补（08:1116）",
+   "payload": [
+    "v",
+    "invoiceDocId",
+    "invoiceRequestId"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "invoice.red_cancelled",
+   "aggregate": "invoice_request",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "本稿补（08:1117）",
+   "payload": [
+    "v",
+    "invoiceRequestId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "invoice.sla_breached",
+   "aggregate": "invoice_request",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "本稿补（M22）",
+   "payload": [
+    "v",
+    "invoiceRequestId",
+    "dueAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "recon.day_closed",
+   "aggregate": "recon_day",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d2:1188",
+   "payload": [
+    "v",
+    "reconDayId",
+    "bizDate",
+    "status",
+    "diffCount"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "finance_config.proposed",
+   "aggregate": "finance_config_revision",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d2:1188",
+   "payload": [
+    "v",
+    "financeConfigRevisionId",
+    "configKey",
+    "approvalRequestId"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "finance_config.approved",
+   "aggregate": "finance_config_revision",
+   "module": "billing",
+   "status": "v1",
+   "draftNames": "d2:1188",
+   "payload": [
+    "v",
+    "financeConfigRevisionId",
+    "configKey",
+    "effectiveAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "order.submitted",
+   "aggregate": "drama_order",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "d3:2712",
+   "payload": [
+    "v",
+    "dramaOrderId",
+    "entityId",
+    "storeId",
+    "orderItemIds",
+    "totalPoints",
+    "placedByUserId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "analytics.fromOutbox"
+   ]
+  },
+  {
+   "name": "order.started",
+   "aggregate": "drama_order",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "d3:2714",
+   "payload": [
+    "v",
+    "dramaOrderId",
+    "entityId",
+    "storeId",
+    "orderItemIds",
+    "deliveryTicketIds",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "docs.onLicenseFacts",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "order.status_changed",
+   "aggregate": "drama_order",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "d3:2716",
+   "payload": [
+    "v",
+    "dramaOrderId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "order.rejected_stale",
+   "aggregate": "drama_order",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "本稿补（d3 N4，d3:698）",
+   "payload": [
+    "v",
+    "dramaOrderId",
+    "storeId",
+    "rejectedAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "order.item.cancelled",
+   "aggregate": "order_item",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "d3:2715",
+   "payload": [
+    "v",
+    "orderItemId",
+    "dramaOrderId",
+    "cancelRequestId",
+    "returnedPoints",
+    "convertedPoints",
+    "forfeitedPoints",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "docs.onLicenseFacts",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "order.item.refunded",
+   "aggregate": "order_item",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "d3:2715",
+   "payload": [
+    "v",
+    "orderItemId",
+    "dramaOrderId",
+    "cancelRequestId",
+    "returnedPoints",
+    "convertedPoints",
+    "forfeitedPoints",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "docs.onLicenseFacts",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "order.item.terminated",
+   "aggregate": "order_item",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "d3:2715",
+   "payload": [
+    "v",
+    "orderItemId",
+    "dramaOrderId",
+    "cancelRequestId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "docs.onLicenseFacts",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "order.item.went_live",
+   "aggregate": "order_item",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "item.live（d3:2725）",
+   "payload": [
+    "v",
+    "orderItemId",
+    "dramaOrderId",
+    "usageStartDate",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "docs.onLicenseFacts",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "order.item.live_revoked",
+   "aggregate": "order_item",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "item.live_revoked（d3:2725）",
+   "payload": [
+    "v",
+    "orderItemId",
+    "dramaOrderId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "docs.onLicenseFacts",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "order.item.usage_end_changed",
+   "aggregate": "order_item",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "item.usage_end_changed（d3:2726）",
+   "payload": [
+    "v",
+    "orderItemId",
+    "dramaOrderId",
+    "prevEndDate",
+    "newEndDate",
+    "usageEndSource"
+   ],
+   "subscribers": [
+    "docs.onLicenseFacts",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "order.item.launch_rescheduled",
+   "aggregate": "order_item",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "第三轮补（a05 3.37；初稿 item.launch_rescheduled 违反 N3）",
+   "payload": [
+    "v",
+    "orderItemId",
+    "dramaOrderId",
+    "prevDate",
+    "newDate"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "cancel.submitted",
+   "aggregate": "cancel_request",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "本稿补（迁移码 cancel.submit）",
+   "payload": [
+    "v",
+    "cancelRequestId",
+    "approvalRequestId",
+    "kind",
+    "subjectType",
+    "subjectId",
+    "totalRefundPoints",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "cancel.approved",
+   "aggregate": "cancel_request",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "本稿补",
+   "payload": [
+    "v",
+    "cancelRequestId",
+    "execDueAt",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "cancel.rejected",
+   "aggregate": "cancel_request",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "本稿补",
+   "payload": [
+    "v",
+    "cancelRequestId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "cancel.withdrawn",
+   "aggregate": "cancel_request",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "本稿补",
+   "payload": [
+    "v",
+    "cancelRequestId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "cancel.executed",
+   "aggregate": "cancel_request",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "本稿补（迁移码 cancel.execute、cancel.auto_execute）",
+   "payload": [
+    "v",
+    "cancelRequestId",
+    "isAutoExecuted",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "cancel.voided",
+   "aggregate": "cancel_request",
+   "module": "order",
+   "status": "v1",
+   "draftNames": "本稿补",
+   "payload": [
+    "v",
+    "cancelRequestId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "ad.requested",
+   "aggregate": "ad",
+   "module": "ad",
+   "status": "v1",
+   "draftNames": "d3:2721",
+   "payload": [
+    "v",
+    "adId",
+    "entityId",
+    "storeId",
+    "adType",
+    "points",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "analytics.fromOutbox"
+   ]
+  },
+  {
+   "name": "ad.assigned",
+   "aggregate": "ad",
+   "module": "ad",
+   "status": "v1",
+   "draftNames": "d3:2721",
+   "payload": [
+    "v",
+    "adId",
+    "editorId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "ad.returned",
+   "aggregate": "ad",
+   "module": "ad",
+   "status": "v1",
+   "draftNames": "d3:2721",
+   "payload": [
+    "v",
+    "adId",
+    "returnedFrom",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "support.onBizEvent"
+   ]
+  },
+  {
+   "name": "ad.resubmitted",
+   "aggregate": "ad",
+   "module": "ad",
+   "status": "v1",
+   "draftNames": "本稿补（迁移码 ad.resubmit）",
+   "payload": [
+    "v",
+    "adId",
+    "resubmitCount",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "ad.version_pushed",
+   "aggregate": "ad",
+   "module": "ad",
+   "status": "v1",
+   "draftNames": "d3:2721",
+   "payload": [
+    "v",
+    "adId",
+    "versionNo",
+    "previewChannels",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "support.onBizEvent"
+   ]
+  },
+  {
+   "name": "ad.confirmed",
+   "aggregate": "ad",
+   "module": "ad",
+   "status": "v1",
+   "draftNames": "d3:2721",
+   "payload": [
+    "v",
+    "adId",
+    "versionNo",
+    "viewedVia",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "support.onBizEvent",
+    "analytics.fromOutbox"
+   ]
+  },
+  {
+   "name": "ad.revision_requested",
+   "aggregate": "ad",
+   "module": "ad",
+   "status": "v1",
+   "draftNames": "d3:2721",
+   "payload": [
+    "v",
+    "adId",
+    "revisionNo",
+    "onVersionNo",
+    "isCharged",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "support.onBizEvent"
+   ]
+  },
+  {
+   "name": "ad.cancelled",
+   "aggregate": "ad",
+   "module": "ad",
+   "status": "v1",
+   "draftNames": "d3:2721",
+   "payload": [
+    "v",
+    "adId",
+    "cancelRequestId",
+    "returnedPoints",
+    "forfeitedPoints",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "support.onBizEvent"
+   ]
+  },
+  {
+   "name": "ad.returned_stale",
+   "aggregate": "ad",
+   "module": "ad",
+   "status": "v1",
+   "draftNames": "d3:2721",
+   "payload": [
+    "v",
+    "adId",
+    "storeId",
+    "returnedAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "ad.sla_breached",
+   "aggregate": "ad",
+   "module": "ad",
+   "status": "v1",
+   "draftNames": "d3:2718",
+   "payload": [
+    "v",
+    "adId",
+    "purpose",
+    "revisionNo",
+    "dueAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "ticket.created",
+   "aggregate": "delivery_ticket",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2717",
+   "payload": [
+    "v",
+    "deliveryTicketId",
+    "dramaOrderId",
+    "orderItemId",
+    "deliveryManagerId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "support.onBizEvent"
+   ]
+  },
+  {
+   "name": "ticket.assigned",
+   "aggregate": "delivery_ticket",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2717",
+   "payload": [
+    "v",
+    "deliveryTicketId",
+    "dramaOrderId",
+    "deliveryManagerId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "support.onBizEvent"
+   ]
+  },
+  {
+   "name": "ticket.step_changed",
+   "aggregate": "delivery_ticket",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2717",
+   "payload": [
+    "v",
+    "deliveryTicketId",
+    "dramaOrderId",
+    "orderItemId",
+    "isForced",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "support.onBizEvent"
+   ]
+  },
+  {
+   "name": "ticket.held",
+   "aggregate": "delivery_ticket",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2719",
+   "payload": [
+    "v",
+    "deliveryTicketId",
+    "orderItemId",
+    "reason",
+    "refType",
+    "refId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "docs.onLicenseFacts",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "ticket.resumed",
+   "aggregate": "delivery_ticket",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2719",
+   "payload": [
+    "v",
+    "deliveryTicketId",
+    "orderItemId",
+    "reason",
+    "refId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "docs.onLicenseFacts",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "ticket.terminated",
+   "aggregate": "delivery_ticket",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2719",
+   "payload": [
+    "v",
+    "deliveryTicketId",
+    "orderItemId",
+    "cancelRequestId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "docs.onLicenseFacts",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "ticket.archived",
+   "aggregate": "delivery_ticket",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2719",
+   "payload": [
+    "v",
+    "deliveryTicketId",
+    "orderItemId",
+    "itemPhase",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "docs.onLicenseFacts",
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "ticket.sla_breached",
+   "aggregate": "delivery_ticket",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2718",
+   "payload": [
+    "v",
+    "deliveryTicketId",
+    "deliveryTicketStageId",
+    "step",
+    "dueAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "ticket.episode_qc_failed",
+   "aggregate": "delivery_ticket",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "第三轮补（a05 3.31；初稿 episode.qc_failed 违反 N3）",
+   "payload": [
+    "v",
+    "deliveryTicketId",
+    "orderItemId",
+    "episodeNos",
+    "qcRecordIds"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "plan.pushed",
+   "aggregate": "delivery_plan",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2720",
+   "payload": [
+    "v",
+    "deliveryPlanId",
+    "dramaOrderId",
+    "versionNo",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "plan.change_requested",
+   "aggregate": "delivery_plan",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2720",
+   "payload": [
+    "v",
+    "deliveryPlanId",
+    "dramaOrderId",
+    "versionNo",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "plan.confirmed",
+   "aggregate": "delivery_plan",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2720",
+   "payload": [
+    "v",
+    "deliveryPlanId",
+    "dramaOrderId",
+    "versionNo",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "docs.onLicenseFacts",
+    "notify.onEvent",
+    "analytics.fromOutbox"
+   ]
+  },
+  {
+   "name": "sample.uploaded",
+   "aggregate": "sample",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "10:651 建议名（迁移码 sample.uploaded）",
+   "payload": [
+    "v",
+    "sampleId",
+    "deliveryTicketId",
+    "dramaOrderId",
+    "versionNo",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "sample.check_rejected",
+   "aggregate": "sample",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "10:651 建议名",
+   "payload": [
+    "v",
+    "sampleId",
+    "deliveryTicketId",
+    "versionNo",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "sample.qc_failed",
+   "aggregate": "sample",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "10:651 建议名",
+   "payload": [
+    "v",
+    "sampleId",
+    "deliveryTicketId",
+    "versionNo",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "sample.qc_passed",
+   "aggregate": "sample",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "10:651 建议名",
+   "payload": [
+    "v",
+    "sampleId",
+    "deliveryTicketId",
+    "versionNo",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "sample.pushed",
+   "aggregate": "sample",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2722",
+   "payload": [
+    "v",
+    "sampleId",
+    "deliveryTicketId",
+    "dramaOrderId",
+    "versionNo",
+    "previewChannels",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "support.onBizEvent"
+   ]
+  },
+  {
+   "name": "sample.confirmed",
+   "aggregate": "sample",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2722",
+   "payload": [
+    "v",
+    "sampleId",
+    "deliveryTicketId",
+    "dramaOrderId",
+    "versionNo",
+    "viewedVia",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "support.onBizEvent",
+    "analytics.fromOutbox"
+   ]
+  },
+  {
+   "name": "sample.change_requested",
+   "aggregate": "sample",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2722",
+   "payload": [
+    "v",
+    "sampleId",
+    "deliveryTicketId",
+    "dramaOrderId",
+    "versionNo",
+    "feedbackKind",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "support.onBizEvent",
+    "analytics.fromOutbox"
+   ]
+  },
+  {
+   "name": "sample.superseded",
+   "aggregate": "sample",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "10:651 建议名",
+   "payload": [
+    "v",
+    "sampleId",
+    "deliveryTicketId",
+    "versionNo",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "package.delivered",
+   "aggregate": "delivery_release",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2723；10:876",
+   "payload": [
+    "v",
+    "deliveryReleaseId",
+    "deliveryTicketId",
+    "orderItemId",
+    "episodeCount",
+    "grantExpiresAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "package.reissued",
+   "aggregate": "delivery_reissue",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2723；10:966",
+   "payload": [
+    "v",
+    "deliveryReissueId",
+    "deliveryReleaseId",
+    "orderItemId",
+    "episodeNos"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "package.reissue_opened",
+   "aggregate": "delivery_reissue",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "第三轮补（a05 3.43；初稿 reissue.opened 违反 N3）",
+   "payload": [
+    "v",
+    "deliveryReissueId",
+    "deliveryTicketId",
+    "orderItemId",
+    "episodeNos",
+    "reasonCode"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "publish_list.updated",
+   "aggregate": "publish_list",
+   "module": "delivery",
+   "status": "v1",
+   "draftNames": "d3:2723；10:1159",
+   "payload": [
+    "v",
+    "publishListId",
+    "deliveryTicketId",
+    "isAfterPush"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "account.submitted",
+   "aggregate": "channel_account",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "d3:2730；11:129、132",
+   "payload": [
+    "v",
+    "channelAccountId",
+    "entityId",
+    "storeId",
+    "platform",
+    "approvalRequestId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "account.verified",
+   "aggregate": "channel_account",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "d3:2730；11:130",
+   "payload": [
+    "v",
+    "channelAccountId",
+    "entityId",
+    "storeId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "account.abnormal",
+   "aggregate": "channel_account",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "d3:2730；11:131、133",
+   "payload": [
+    "v",
+    "channelAccountId",
+    "entityId",
+    "storeId",
+    "abnormalSource",
+    "reasonCode",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "account.unbound",
+   "aggregate": "channel_account",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "d3:2730；11:134",
+   "payload": [
+    "v",
+    "channelAccountId",
+    "entityId",
+    "storeId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "launch.created",
+   "aggregate": "launch_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "本稿补（迁移码 launch.create）",
+   "payload": [
+    "v",
+    "launchTaskId",
+    "orderItemId",
+    "channelAccountId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "launch.submitted",
+   "aggregate": "launch_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "d3:2724；11:300",
+   "payload": [
+    "v",
+    "launchTaskId",
+    "orderItemId",
+    "deliveryTicketId",
+    "roundNo",
+    "approvalRequestId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "analytics.fromOutbox"
+   ]
+  },
+  {
+   "name": "launch.verified",
+   "aggregate": "launch_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "d3:2724；11:301",
+   "payload": [
+    "v",
+    "launchTaskId",
+    "orderItemId",
+    "verifiedEpisodeCount",
+    "isLive",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "launch.returned",
+   "aggregate": "launch_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "d3:2724；11:302",
+   "payload": [
+    "v",
+    "launchTaskId",
+    "orderItemId",
+    "reasonCodes",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "launch.verify_revoked",
+   "aggregate": "launch_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "d3:2724；11:303",
+   "payload": [
+    "v",
+    "launchTaskId",
+    "orderItemId",
+    "isLive",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "launch.voided",
+   "aggregate": "launch_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "11:304",
+   "payload": [
+    "v",
+    "launchTaskId",
+    "orderItemId",
+    "voidReason",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "launch.settled",
+   "aggregate": "launch_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "11:305",
+   "payload": [
+    "v",
+    "launchTaskId",
+    "orderItemId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "takedown.created",
+   "aggregate": "takedown_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "d3:2727；11:653",
+   "payload": [
+    "v",
+    "takedownTaskId",
+    "orderItemId",
+    "channelAccountId",
+    "dueDate",
+    "basis",
+    "triggerKind",
+    "node",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "takedown.merchant_confirmed",
+   "aggregate": "takedown_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "d3:2727；11:654",
+   "payload": [
+    "v",
+    "takedownTaskId",
+    "orderItemId",
+    "merchantMethod",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "takedown.checked",
+   "aggregate": "takedown_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "d3:2727；11:655-656",
+   "payload": [
+    "v",
+    "takedownTaskId",
+    "orderItemId",
+    "checkMethod",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "takedown.found_online",
+   "aggregate": "takedown_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "本稿补（迁移码 takedown.still_online）",
+   "payload": [
+    "v",
+    "takedownTaskId",
+    "orderItemId",
+    "stillOnlineCount",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "takedown.basis_reopened",
+   "aggregate": "takedown_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "本稿补（迁移码 takedown.basis_reopen）",
+   "payload": [
+    "v",
+    "takedownTaskId",
+    "orderItemId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "takedown.escalated",
+   "aggregate": "takedown_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "d3:2727；11:659",
+   "payload": [
+    "v",
+    "takedownTaskId",
+    "orderItemId",
+    "dueDate",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "takedown.breach_notified",
+   "aggregate": "takedown_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "本稿补（迁移码 takedown.breach_notice）",
+   "payload": [
+    "v",
+    "takedownTaskId",
+    "breachNoticeCount",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "takedown.voided",
+   "aggregate": "takedown_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "本稿补（迁移码 takedown.void）",
+   "payload": [
+    "v",
+    "takedownTaskId",
+    "orderItemId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "patrol.created",
+   "aggregate": "patrol_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "本稿补（迁移码 patrol.create）",
+   "payload": [
+    "v",
+    "patrolTaskId",
+    "launchTaskId",
+    "orderItemId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "patrol.passed",
+   "aggregate": "patrol_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "本稿补（迁移码 patrol.ok）",
+   "payload": [
+    "v",
+    "patrolTaskId",
+    "launchTaskId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "patrol.abnormal",
+   "aggregate": "patrol_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "d3:2729；11:544",
+   "payload": [
+    "v",
+    "patrolTaskId",
+    "launchTaskId",
+    "orderItemId",
+    "abnormalKindCode",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "patrol.reminded",
+   "aggregate": "patrol_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "本稿补（迁移码 patrol.remind）",
+   "payload": [
+    "v",
+    "patrolTaskId",
+    "remindCount",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "patrol.recovered",
+   "aggregate": "patrol_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "d3:2729；11:546",
+   "payload": [
+    "v",
+    "patrolTaskId",
+    "launchTaskId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "patrol.voided",
+   "aggregate": "patrol_task",
+   "module": "publish",
+   "status": "v1",
+   "draftNames": "本稿补（迁移码 patrol.void）",
+   "payload": [
+    "v",
+    "patrolTaskId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "service_ticket.created",
+   "aggregate": "service_ticket",
+   "module": "support",
+   "status": "v1",
+   "draftNames": "d3:2732；12:191",
+   "payload": [
+    "v",
+    "serviceTicketId",
+    "entityId",
+    "storeId",
+    "typeCode",
+    "source",
+    "ownerStaffId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent",
+    "analytics.fromOutbox"
+   ]
+  },
+  {
+   "name": "service_ticket.replied",
+   "aggregate": "service_ticket",
+   "module": "support",
+   "status": "v1",
+   "draftNames": "d3:2732；12:191",
+   "payload": [
+    "v",
+    "serviceTicketId",
+    "entryId",
+    "isFirstResponse"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "service_ticket.supplemented",
+   "aggregate": "service_ticket",
+   "module": "support",
+   "status": "v1",
+   "draftNames": "第三轮补（12:191；A95、A144；m08 3.8）",
+   "payload": [
+    "v",
+    "serviceTicketId",
+    "entryId",
+    "storeId",
+    "ownerStaffId"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "service_ticket.result_submitted",
+   "aggregate": "service_ticket",
+   "module": "support",
+   "status": "v1",
+   "draftNames": "d3:2732；12:191",
+   "payload": [
+    "v",
+    "serviceTicketId",
+    "autoResolveAt",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "service_ticket.resolved",
+   "aggregate": "service_ticket",
+   "module": "support",
+   "status": "v1",
+   "draftNames": "d3:2732；12:191",
+   "payload": [
+    "v",
+    "serviceTicketId",
+    "resolvedVia",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "service_ticket.reopened",
+   "aggregate": "service_ticket",
+   "module": "support",
+   "status": "v1",
+   "draftNames": "d3:2732；12:191",
+   "payload": [
+    "v",
+    "serviceTicketId",
+    "round",
+    "isForced",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "service_ticket.closed",
+   "aggregate": "service_ticket",
+   "module": "support",
+   "status": "v1",
+   "draftNames": "d3:2732；12:191",
+   "payload": [
+    "v",
+    "serviceTicketId",
+    "closeReason",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "service_ticket.solution_overdue",
+   "aggregate": "service_ticket",
+   "module": "support",
+   "status": "v1",
+   "draftNames": "本稿补（d3 T9 的“提醒负责人”）",
+   "payload": [
+    "v",
+    "serviceTicketId",
+    "ownerStaffId",
+    "solutionDueAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "service_ticket.transferred",
+   "aggregate": "service_ticket",
+   "module": "support",
+   "status": "v1",
+   "draftNames": "d3:2732；12:191",
+   "payload": [
+    "v",
+    "serviceTicketId",
+    "fromStaffId",
+    "toStaffId",
+    "reasonCode",
+    "assignmentBatchId",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "service_ticket.escalated",
+   "aggregate": "service_ticket",
+   "module": "support",
+   "status": "v1",
+   "draftNames": "d3:2732；12:191",
+   "payload": [
+    "v",
+    "serviceTicketId",
+    "responseDueAt",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "notify.mail_delivered",
+   "aggregate": "notification_delivery",
+   "module": "notify",
+   "status": "v1",
+   "draftNames": "d6:950；13:1200",
+   "payload": [
+    "v",
+    "notificationDeliveryId",
+    "bizType",
+    "bizId"
+   ],
+   "subscribers": [
+    "billing.onMailResult"
+   ]
+  },
+  {
+   "name": "notify.mail_failed",
+   "aggregate": "notification_delivery",
+   "module": "notify",
+   "status": "v1",
+   "draftNames": "d6:950；13:1200",
+   "payload": [
+    "v",
+    "notificationDeliveryId",
+    "bizType",
+    "bizId",
+    "reason"
+   ],
+   "subscribers": [
+    "billing.onMailResult"
+   ]
+  },
+  {
+   "name": "license_letter.revision_queued",
+   "aggregate": "license_letter",
+   "module": "docs",
+   "status": "v1",
+   "draftNames": "d6:1297；13:1036",
+   "payload": [
+    "v",
+    "licenseLetterId",
+    "revisionId",
+    "reason"
+   ],
+   "subscribers": [
+    "docs.onRevisionQueued"
+   ]
+  },
+  {
+   "name": "license_letter.issued",
+   "aggregate": "license_letter",
+   "module": "docs",
+   "status": "v1",
+   "draftNames": "d6:1353；13:1038",
+   "payload": [
+    "v",
+    "licenseLetterId",
+    "revisionId",
+    "entityId",
+    "storeId",
+    "orderItemId"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "license_letter.voided",
+   "aggregate": "license_letter",
+   "module": "docs",
+   "status": "v1",
+   "draftNames": "本稿补（13:945-947）",
+   "payload": [
+    "v",
+    "licenseLetterId",
+    "voidReason",
+    "fromState",
+    "toState",
+    "transition"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "manual_reminder.sent",
+   "aggregate": "manual_reminder_log",
+   "module": "notify",
+   "status": "v1",
+   "draftNames": "本稿补（d6:739；01:660 的“人工催办写入成功后的事件”）",
+   "payload": [
+    "v",
+    "manualReminderLogId",
+    "subjectType",
+    "subjectId",
+    "scene",
+    "bizDate"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "site_notice.announced",
+   "aggregate": "site_notice",
+   "module": "config",
+   "status": "v1",
+   "draftNames": "d6:1714；14:528",
+   "payload": [
+    "v",
+    "siteNoticeId",
+    "kind",
+    "refId",
+    "effectiveAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "site_notice.withdrawn",
+   "aggregate": "site_notice",
+   "module": "config",
+   "status": "v1",
+   "draftNames": "d6:1716；14:529",
+   "payload": [
+    "v",
+    "siteNoticeId",
+    "kind",
+    "refId"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "export.succeeded",
+   "aggregate": "export_job",
+   "module": "exports",
+   "status": "v1",
+   "draftNames": "本稿补（d6:274 的“导出完成”，事件名草案未给）",
+   "payload": [
+    "v",
+    "exportJobId",
+    "exportKey",
+    "requestedByStaffId",
+    "expiresAt"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "export.failed",
+   "aggregate": "export_job",
+   "module": "exports",
+   "status": "v1",
+   "draftNames": "本稿补",
+   "payload": [
+    "v",
+    "exportJobId",
+    "exportKey",
+    "requestedByStaffId"
+   ],
+   "subscribers": [
+    "notify.onEvent"
+   ]
+  },
+  {
+   "name": "webhook.received",
+   "aggregate": "webhook_event",
+   "module": "security",
+   "status": "v1",
+   "draftNames": "d4:1832；15:115",
+   "payload": [
+    "v",
+    "webhookEventId",
+    "provider"
+   ],
+   "subscribers": [
+    "security.onWebhookReceived"
+   ]
+  },
+  {
+   "name": "sample.remind_due",
+   "aggregate": "—",
+   "module": "—",
+   "status": "not_emitted",
+   "draftNames": "d3:2728",
+   "payload": [
+    "v"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "ad.confirm_remind_due",
+   "aggregate": "—",
+   "module": "—",
+   "status": "not_emitted",
+   "draftNames": "d3:2728",
+   "payload": [
+    "v"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "launch.remind_due",
+   "aggregate": "—",
+   "module": "—",
+   "status": "not_emitted",
+   "draftNames": "d3:2728",
+   "payload": [
+    "v"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "launch.overdue_due",
+   "aggregate": "—",
+   "module": "—",
+   "status": "not_emitted",
+   "draftNames": "d3:2728",
+   "payload": [
+    "v"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "takedown.remind_due",
+   "aggregate": "—",
+   "module": "—",
+   "status": "not_emitted",
+   "draftNames": "d3:2728",
+   "payload": [
+    "v"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "billing.renewal_reminder_due",
+   "aggregate": "—",
+   "module": "—",
+   "status": "not_emitted",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "billing.invariant_violated",
+   "aggregate": "—",
+   "module": "—",
+   "status": "not_emitted",
+   "draftNames": "d1:1720",
+   "payload": [
+    "v"
+   ],
+   "subscribers": []
+  },
+  {
+   "name": "billing.month_closed",
+   "aggregate": "billing_month_close",
+   "module": "billing",
+   "status": "reserved",
+   "draftNames": "d1:1720；d6:2114",
+   "payload": [
+    "v",
+    "billingMonthCloseId",
+    "month"
+   ],
+   "subscribers": [
+    "reports.onMonthClosed"
+   ]
+  }
+ ],
+ "timers": [
+  {
+   "kind": "invitation.expire",
+   "subject": "invitation",
+   "critical": false,
+   "dedupeKey": "invitation.expire:invitation:{invitationId}"
+  },
+  {
+   "kind": "order.start",
+   "subject": "drama_order",
+   "critical": true,
+   "dedupeKey": "order.start:drama_order:{dramaOrderId}"
+  },
+  {
+   "kind": "order.rejected_stale",
+   "subject": "drama_order",
+   "critical": false,
+   "dedupeKey": "order.rejected_stale:drama_order:{dramaOrderId}:r{资质轮次 roundNo}"
+  },
+  {
+   "kind": "usage.end",
+   "subject": "order_item",
+   "critical": true,
+   "dedupeKey": "usage.end:order_item:{orderItemId}:{usageEndDate}"
+  },
+  {
+   "kind": "usage.resync",
+   "subject": "order_item",
+   "critical": true,
+   "dedupeKey": "usage.resync:order_item:{orderItemId}:{dramaCopyrightRevisionId}"
+  },
+  {
+   "kind": "takedown.create",
+   "subject": "order_item",
+   "critical": true,
+   "dedupeKey": "takedown.create:order_item:{orderItemId}:{usageEndDate}"
+  },
+  {
+   "kind": "sla.breach",
+   "subject": "delivery_ticket_stage",
+   "critical": false,
+   "dedupeKey": "sla.breach:delivery_ticket_stage:{deliveryTicketStageId}"
+  },
+  {
+   "kind": "sla.breach",
+   "subject": "ad",
+   "critical": false,
+   "dedupeKey": "首版 sla.breach:ad:{adId}:first:{resubmit_count}；修改版 sla.breach:ad:{adId}:rev:{revision_no}"
+  },
+  {
+   "kind": "sla.breach",
+   "subject": "approval_request",
+   "critical": false,
+   "dedupeKey": "sla.breach:approval_request:{approvalRequestId}:decision；sla.breach:approval_request:{approvalRequestId}:execution"
+  },
+  {
+   "kind": "sla.breach",
+   "subject": "assignment_history",
+   "critical": false,
+   "dedupeKey": "sla.breach:assignment_history:{assignmentHistoryId}"
+  },
+  {
+   "kind": "sla.breach",
+   "subject": "store_asset",
+   "critical": false,
+   "dedupeKey": "sla.breach:store_asset:{storeAssetId}"
+  },
+  {
+   "kind": "sla.breach",
+   "subject": "transfer_proof",
+   "critical": false,
+   "dedupeKey": "sla.breach:transfer_proof:{transferProofId}"
+  },
+  {
+   "kind": "sla.breach",
+   "subject": "invoice_request",
+   "critical": false,
+   "dedupeKey": "sla.breach:invoice_request:{invoiceRequestId}"
+  },
+  {
+   "kind": "ad.returned_stale",
+   "subject": "ad",
+   "critical": false,
+   "dedupeKey": "ad.returned_stale:ad:{adId}:{resubmit_count}"
+  },
+  {
+   "kind": "service.first_response_due",
+   "subject": "service_ticket",
+   "critical": false,
+   "dedupeKey": "service.first_response_due:service_ticket:{serviceTicketId}:r{reopened_count}"
+  },
+  {
+   "kind": "service.solution_due",
+   "subject": "service_ticket",
+   "critical": false,
+   "dedupeKey": "service.solution_due:service_ticket:{serviceTicketId}"
+  },
+  {
+   "kind": "service.auto_resolve",
+   "subject": "service_ticket",
+   "critical": true,
+   "dedupeKey": "service.auto_resolve:service_ticket:{serviceTicketId}:{awaiting_confirm_at 的 Unix 毫秒数}"
+  },
+  {
+   "kind": "takedown.overdue",
+   "subject": "takedown_task",
+   "critical": false,
+   "dedupeKey": "takedown.overdue:takedown_task:{takedownTaskId}:{dueDate}"
+  },
+  {
+   "kind": "patrol.followup",
+   "subject": "patrol_task",
+   "critical": false,
+   "dedupeKey": "patrol.followup:patrol_task:{patrolTaskId}"
+  },
+  {
+   "kind": "content.license_end",
+   "subject": "drama",
+   "critical": false,
+   "dedupeKey": "content.license_end:drama:{dramaId}:{licenseEndDate}"
+  },
+  {
+   "kind": "po.expire",
+   "subject": "billing_order",
+   "critical": true,
+   "dedupeKey": "po.expire:billing_order:{billingOrderId}"
+  },
+  {
+   "kind": "po.transfer_ttl",
+   "subject": "billing_order",
+   "critical": false,
+   "dedupeKey": "po.transfer_ttl:billing_order:{billingOrderId}:{expires_at 的 Unix 毫秒数}"
+  },
+  {
+   "kind": "rf.poll",
+   "subject": "refund_txn",
+   "critical": false,
+   "dedupeKey": "rf.poll:refund_txn:{refundTxnId}:n{第几次查询}"
+  },
+  {
+   "kind": "pricing.drama_price_effective",
+   "subject": "drama_price_revision",
+   "critical": false,
+   "dedupeKey": "pricing.drama_price_effective:drama_price_revision:{dramaPriceRevisionId}"
+  }
+ ],
+ "jobs": [
+  {
+   "kind": "billing.sweep.daily",
+   "schedule": "每日 00:00",
+   "owner": "billing（07）"
+  },
+  {
+   "kind": "bill.download",
+   "schedule": "每日 10:30；失败 30 分钟后重试，14:00 仍失败告警；补扫近 90 天未完成的账单日",
+   "owner": "billing（08）"
+  },
+  {
+   "kind": "tx.unapplied_scan",
+   "schedule": "每 5 分钟",
+   "owner": "billing（08）"
+  },
+  {
+   "kind": "receipt.daily_digest",
+   "schedule": "每日 18:00",
+   "owner": "billing（08）"
+  },
+  {
+   "kind": "order.pending_start_sweep",
+   "schedule": "每 5 分钟",
+   "owner": "order（09）"
+  },
+  {
+   "kind": "patrol.weekly_generate",
+   "schedule": "每周一 09:00",
+   "owner": "publish（11）"
+  },
+  {
+   "kind": "calendar.coverage_check",
+   "schedule": "每月 1 日 10:00",
+   "owner": "sla（01）"
+  },
+  {
+   "kind": "media.sweep",
+   "schedule": "每 10 分钟；清除运行在每日首轮（03:00 后）",
+   "owner": "media（06）"
+  },
+  {
+   "kind": "content.stat_refresh",
+   "schedule": "每小时",
+   "owner": "content（05）"
+  },
+  {
+   "kind": "content.archive_sweep",
+   "schedule": "每日 02:30（草案未给时刻，本稿定）",
+   "owner": "content（05）"
+  },
+  {
+   "kind": "notify.remind_scan",
+   "schedule": "每 5 分钟",
+   "owner": "notify（13）"
+  },
+  {
+   "kind": "notify.sms_keepalive",
+   "schedule": "每日 10:20",
+   "owner": "notify（13）"
+  },
+  {
+   "kind": "notify.sms_balance",
+   "schedule": "每日 10:20",
+   "owner": "notify（13）"
+  },
+  {
+   "kind": "docs.sweep",
+   "schedule": "每 5 分钟",
+   "owner": "docs（13）"
+  },
+  {
+   "kind": "evidence.consent_digest",
+   "schedule": "每日 00:40",
+   "owner": "docs（13）"
+  },
+  {
+   "kind": "analytics.partitions",
+   "schedule": "每月 20 日",
+   "owner": "analytics（14）"
+  },
+  {
+   "kind": "analytics.dedup_purge",
+   "schedule": "每日 04:10",
+   "owner": "analytics（14）"
+  },
+  {
+   "kind": "export.sweep",
+   "schedule": "每 5 分钟",
+   "owner": "exports（14）"
+  },
+  {
+   "kind": "reports.finalize",
+   "schedule": "每日 00:30",
+   "owner": "reports（14）"
+  },
+  {
+   "kind": "invariant.full",
+   "schedule": "每日 03:30",
+   "owner": "ops（15）"
+  },
+  {
+   "kind": "invariant.quick",
+   "schedule": "每 10 分钟",
+   "owner": "ops（15）"
+  },
+  {
+   "kind": "ops.retention",
+   "schedule": "每小时（“每日”项在当日第一轮）",
+   "owner": "ops（15）"
+  },
+  {
+   "kind": "ops.cert_check",
+   "schedule": "每日 09:00",
+   "owner": "ops（15）"
+  },
+  {
+   "kind": "backup.pgdump",
+   "schedule": "每日 03:10",
+   "owner": "ops（15）"
+  },
+  {
+   "kind": "stg.pay.autorefund",
+   "schedule": "每 5 分钟（只在预发注册）",
+   "owner": "ops（15）"
+  }
+ ],
+ "loops": [
+  "出站中继",
+  "出站派发",
+  "定时器扫描",
+  "ensureRecurring",
+  "探针 probe()",
+  "账务推进 advance",
+  "notify.scan",
+  "webhook.reprocess",
+  "media_job 执行循环",
+  "flow.reevaluate_sweep",
+  "flow.reconcile_sweep"
+ ],
+ "subscribers": [
+  {
+   "name": "notify.onEvent",
+   "module": "notify",
+   "critical": false
+  },
+  {
+   "name": "notify.onMerchantUserDeleted",
+   "module": "notify",
+   "critical": false
+  },
+  {
+   "name": "analytics.fromOutbox",
+   "module": "analytics",
+   "critical": false
+  },
+  {
+   "name": "support.onBizEvent",
+   "module": "support",
+   "critical": false
+  },
+  {
+   "name": "docs.onLicenseFacts",
+   "module": "docs",
+   "critical": true
+  },
+  {
+   "name": "docs.onRevisionQueued",
+   "module": "docs",
+   "critical": false
+  },
+  {
+   "name": "order.onQualificationDecided",
+   "module": "order",
+   "critical": true
+  },
+  {
+   "name": "order.onSubscriptionActivated",
+   "module": "order",
+   "critical": true
+  },
+  {
+   "name": "order.onLicenseShortened",
+   "module": "order",
+   "critical": false
+  },
+  {
+   "name": "publish.onLicenseExtended",
+   "module": "publish",
+   "critical": true
+  },
+  {
+   "name": "profile.onTenantLifecycle",
+   "module": "profile",
+   "critical": false
+  },
+  {
+   "name": "profile.onQualificationApproved",
+   "module": "profile",
+   "critical": false
+  },
+  {
+   "name": "profile.onFileModerated",
+   "module": "profile",
+   "critical": false
+  },
+  {
+   "name": "identity.onWechatBound",
+   "module": "identity",
+   "critical": false
+  },
+  {
+   "name": "tenant.onEntitlementChanged",
+   "module": "tenant",
+   "critical": false
+  },
+  {
+   "name": "content.onMastersChanged",
+   "module": "content",
+   "critical": false
+  },
+  {
+   "name": "content.onTrailerReady",
+   "module": "content",
+   "critical": false
+  },
+  {
+   "name": "billing.onTierChanged",
+   "module": "billing",
+   "critical": false
+  },
+  {
+   "name": "billing.onOcrCompleted",
+   "module": "billing",
+   "critical": false
+  },
+  {
+   "name": "billing.onMailResult",
+   "module": "billing",
+   "critical": false
+  },
+  {
+   "name": "billing.applyPaymentFallback",
+   "module": "billing",
+   "critical": false
+  },
+  {
+   "name": "billing.submitRefundTxn",
+   "module": "billing",
+   "critical": false
+  },
+  {
+   "name": "billing.uploadShippingInfo",
+   "module": "billing",
+   "critical": false
+  },
+  {
+   "name": "delivery.onProductionChecked",
+   "module": "delivery",
+   "critical": false
+  },
+  {
+   "name": "security.onWebhookReceived",
+   "module": "security",
+   "critical": false
+  },
+  {
+   "name": "reports.onMonthClosed",
+   "module": "reports",
+   "critical": false
+  },
+  {
+   "name": "delivery.onCalendarImported",
+   "module": "delivery",
+   "critical": false
+  },
+  {
+   "name": "approval.onCalendarImported",
+   "module": "approval",
+   "critical": false
+  },
+  {
+   "name": "staff.onCalendarImported",
+   "module": "staff",
+   "critical": false
+  },
+  {
+   "name": "media.onCalendarImported",
+   "module": "media",
+   "critical": false
+  },
+  {
+   "name": "billing.onCalendarImported",
+   "module": "billing",
+   "critical": false
+  },
+  {
+   "name": "order.onCalendarImported",
+   "module": "order",
+   "critical": false
+  },
+  {
+   "name": "support.onCalendarImported",
+   "module": "support",
+   "critical": false
+  },
+  {
+   "name": "publish.onCalendarImported",
+   "module": "publish",
+   "critical": false
+  }
+ ],
+ "attributions": [
+  {
+   "ref": "01-kernel-flow.md:87",
+   "column": "idempotency_record.state",
+   "transition": "—→done",
+   "via": "内核"
+  },
+  {
+   "ref": "01-kernel-flow.md:88-90",
+   "column": "idempotency_record.state",
+   "transition": "—→in_progress→done；过期后续占",
+   "via": "内核"
+  },
+  {
+   "ref": "01-kernel-flow.md:91",
+   "column": "idempotency_record",
+   "transition": "过期行删除",
+   "via": "周期任务"
+  },
+  {
+   "ref": "01-kernel-flow.md:275",
+   "column": "outbox_delivery.status",
+   "transition": "—→pending",
+   "via": "进程内循环"
+  },
+  {
+   "ref": "01-kernel-flow.md:276-278",
+   "column": "outbox_delivery.status",
+   "transition": "pending/retry→leased；租约过期重派；入队失败回 pending",
+   "via": "进程内循环"
+  },
+  {
+   "ref": "01-kernel-flow.md:279-282",
+   "column": "outbox_delivery.status",
+   "transition": "leased→done / retry / dead",
+   "via": "订阅者"
+  },
+  {
+   "ref": "01-kernel-flow.md:360-366",
+   "column": "timer.status",
+   "transition": "timers.arm：新建、改期、复活",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "01-kernel-flow.md:367-369",
+   "column": "timer.status",
+   "transition": "scheduled→dispatched；租约过期重认领；入队失败回 scheduled",
+   "via": "进程内循环"
+  },
+  {
+   "ref": "01-kernel-flow.md:370-372",
+   "column": "timer.status",
+   "transition": "dispatched→fired / skipped / scheduled / failed",
+   "via": "定时器"
+  },
+  {
+   "ref": "01-kernel-flow.md:373",
+   "column": "timer.status",
+   "transition": "scheduled/dispatched→cancelled",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "02-identity-tenant.md:129",
+   "column": "merchant_user.status",
+   "transition": "active→deleted（purge_empty）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "02-identity-tenant.md:524",
+   "column": "entity.lifecycle",
+   "transition": "active→abandoned",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "02-identity-tenant.md:542",
+   "column": "entity.verification_status",
+   "transition": "pending→rejected（系统）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "02-identity-tenant.md:543",
+   "column": "entity.verification_status",
+   "transition": "pending→提交前的值（qualification.withdraw）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "02-identity-tenant.md:611",
+   "column": "store.lifecycle",
+   "transition": "active→archived（entity_abandoned）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "02-identity-tenant.md:626",
+   "column": "store.qualification_status",
+   "transition": "pending→提交前的值（qualification.withdraw）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "02-identity-tenant.md:628",
+   "column": "store.qualification_status",
+   "transition": "verified→verified（qualification.change_withdraw）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "02-identity-tenant.md:692",
+   "column": "entity_member.status",
+   "transition": "active(clerk)→removed（cascade_remove 的系统部分）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "02-identity-tenant.md:695",
+   "column": "entity_member.status",
+   "transition": "active(owner)→removed（空草稿让位）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "02-identity-tenant.md:788",
+   "column": "invitation.status",
+   "transition": "pending→revoked（系统联动部分）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "02-identity-tenant.md:789",
+   "column": "invitation.status",
+   "transition": "pending→expired",
+   "via": "定时器"
+  },
+  {
+   "ref": "02-identity-tenant.md:905",
+   "column": "portal_ticket.status",
+   "transition": "pending 超过 expires_at（不改状态）",
+   "via": "周期任务"
+  },
+  {
+   "ref": "02-identity-tenant.md:907",
+   "column": "portal_ticket.status",
+   "transition": "approved→rejected（系统）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "03-staff-authz-audit.md:217",
+   "column": "staff.status",
+   "transition": "—→active（命令行引导）",
+   "via": "命令行"
+  },
+  {
+   "ref": "03-staff-authz-audit.md:804",
+   "column": "approval_request.status",
+   "transition": "—→pending（系统提交）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "03-staff-authz-audit.md:805",
+   "column": "approval_request.status",
+   "transition": "pending→approved（免审批，系统）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "03-staff-authz-audit.md:806",
+   "column": "approval_request.status",
+   "transition": "pending→rejected（系统）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "03-staff-authz-audit.md:807",
+   "column": "approval_request.status",
+   "transition": "pending→withdrawn（系统代撤）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "04-profile.md:344",
+   "column": "qualification_submission（派生阶段）",
+   "transition": "草稿→已关闭（discarded，系统部分）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "04-profile.md:346",
+   "column": "qualification_submission（派生阶段）",
+   "transition": "在审→已关闭（rejected，duplicate_entity）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "04-profile.md:347",
+   "column": "qualification_submission（派生阶段）",
+   "transition": "在审→已关闭（withdrawn）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "04-profile.md:479",
+   "column": "qualification_doc（派生阶段）",
+   "transition": "草稿中→已移除（草稿被系统丢弃）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "04-profile.md:480",
+   "column": "qualification_doc（派生阶段）",
+   "transition": "在审→verdict（系统驳回部分）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "04-profile.md:482",
+   "column": "qualification_doc（派生阶段）",
+   "transition": "在审→不变（轮次被撤回）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "05-content.md:146",
+   "column": "drama.status",
+   "transition": "listed→delisted（drama.license_expire）",
+   "via": "定时器"
+  },
+  {
+   "ref": "05-content.md:153",
+   "column": "drama.archived_at（不是迁移）",
+   "transition": "写归档时间",
+   "via": "周期任务"
+  },
+  {
+   "ref": "06-media.md:189",
+   "column": "file_object.status",
+   "transition": "—→stored（系统写入）",
+   "via": "任务进程"
+  },
+  {
+   "ref": "06-media.md:193",
+   "column": "file_object.status",
+   "transition": "pending→expired（过期清扫部分）",
+   "via": "周期任务"
+  },
+  {
+   "ref": "06-media.md:194-195",
+   "column": "file_object.status",
+   "transition": "promoting→stored / rejected",
+   "via": "任务进程"
+  },
+  {
+   "ref": "06-media.md:197",
+   "column": "file_object.moderation_state",
+   "transition": "stored→stored（审核判定）",
+   "via": "任务进程"
+  },
+  {
+   "ref": "06-media.md:198",
+   "column": "file_object.status",
+   "transition": "stored→deleting→deleted",
+   "via": "周期任务"
+  },
+  {
+   "ref": "06-media.md:196",
+   "column": "file_object.status",
+   "transition": "stored→stored（引用、释放）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "06-media.md:279-283",
+   "column": "file_ref.state",
+   "transition": "link、release、重新 link、顺延",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "06-media.md:355-357",
+   "column": "file_purge_run.state",
+   "transition": "—→proposed / held / running",
+   "via": "周期任务"
+  },
+  {
+   "ref": "06-media.md:360-362",
+   "column": "file_purge_run.state",
+   "transition": "approved→running→done / aborted",
+   "via": "周期任务"
+  },
+  {
+   "ref": "06-media.md:526-527",
+   "column": "upload_batch.state",
+   "transition": "uploading→verifying→ready",
+   "via": "任务进程"
+  },
+  {
+   "ref": "06-media.md:532",
+   "column": "upload_batch.state",
+   "transition": "未结束→expired",
+   "via": "周期任务"
+  },
+  {
+   "ref": "06-media.md:602-605",
+   "column": "upload_batch_item.state",
+   "transition": "pending→uploaded / rejected；uploaded→checked / rejected",
+   "via": "任务进程"
+  },
+  {
+   "ref": "06-media.md:683",
+   "column": "media_job.state",
+   "transition": "—→queued",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "06-media.md:684-693",
+   "column": "media_job.state",
+   "transition": "领取、提交、回查、成功、重试、失败",
+   "via": "任务进程"
+  },
+  {
+   "ref": "06-media.md:695",
+   "column": "media_job.state",
+   "transition": "任意未结束状态→canceled",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "06-media.md:779",
+   "column": "production_record.pipeline_state",
+   "transition": "—→uploading（规格化、补标产物，worker 部分）",
+   "via": "任务进程"
+  },
+  {
+   "ref": "06-media.md:780-783",
+   "column": "production_record.pipeline_state",
+   "transition": "uploading→checking / rejected；checking→ready / rejected",
+   "via": "任务进程"
+  },
+  {
+   "ref": "06-media.md:896",
+   "column": "playable_asset.state",
+   "transition": "—→processing（样片体检通过，worker 部分）",
+   "via": "任务进程"
+  },
+  {
+   "ref": "06-media.md:897-900",
+   "column": "playable_asset.state",
+   "transition": "processing→ready / failed / retired；ready→retired",
+   "via": "任务进程"
+  },
+  {
+   "ref": "06-media.md:901",
+   "column": "playable_asset.state",
+   "transition": "processing / failed→retired（剧目因版权或许可下架）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "06-media.md:902",
+   "column": "playable_asset.state",
+   "transition": "failed→ready（worker 部分）",
+   "via": "任务进程"
+  },
+  {
+   "ref": "06-media.md:962-970",
+   "column": "zip_bundle.zip_state",
+   "transition": "ensureZip",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "06-media.md:972-974",
+   "column": "zip_bundle.zip_state",
+   "transition": "building→ready / 不变 / failed",
+   "via": "任务进程"
+  },
+  {
+   "ref": "06-media.md:975",
+   "column": "zip_bundle.zip_state",
+   "transition": "→none（作废缓存）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "06-media.md:976-977",
+   "column": "zip_bundle.zip_state",
+   "transition": "ready→none；清单文件列置空",
+   "via": "周期任务"
+  },
+  {
+   "ref": "06-media.md:1183",
+   "column": "store_asset.processing_state",
+   "transition": "pending→processing（worker 部分）",
+   "via": "任务进程"
+  },
+  {
+   "ref": "06-media.md:1184",
+   "column": "store_asset.processing_state",
+   "transition": "→processed",
+   "via": "任务进程"
+  },
+  {
+   "ref": "06-media.md:1190",
+   "column": "store_asset.adopted_count",
+   "transition": "写入采用记录",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "06-media.md:1193",
+   "column": "store_asset.due_at（日历重算）",
+   "transition": "重算并重设 sla.breach",
+   "via": "订阅者"
+  },
+  {
+   "ref": "06-media.md:1500",
+   "column": "ocr_result.status",
+   "transition": "—→pending",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "06-media.md:1501",
+   "column": "ocr_result.status",
+   "transition": "pending→ok / unavailable / unreadable",
+   "via": "任务进程"
+  },
+  {
+   "ref": "07-billing-ledger.md:436",
+   "column": "billing_account.sub_status",
+   "transition": "none/expired→active（fulfill）",
+   "via": "回调处理"
+  },
+  {
+   "ref": "07-billing-ledger.md:437",
+   "column": "billing_account.sub_status",
+   "transition": "active→active（续接、升级、延长）",
+   "via": "进程内循环"
+  },
+  {
+   "ref": "07-billing-ledger.md:438",
+   "column": "billing_account.sub_status",
+   "transition": "active→expired",
+   "via": "进程内循环"
+  },
+  {
+   "ref": "07-billing-ledger.md:440",
+   "column": "billing_account.sub_status",
+   "transition": "active→expired / none（退款收回）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "07-billing-ledger.md:539-540",
+   "column": "subscription_term.status",
+   "transition": "（新建）→scheduled / active",
+   "via": "回调处理"
+  },
+  {
+   "ref": "07-billing-ledger.md:541",
+   "column": "subscription_term.status",
+   "transition": "scheduled→active",
+   "via": "进程内循环"
+  },
+  {
+   "ref": "07-billing-ledger.md:542",
+   "column": "subscription_term.status",
+   "transition": "scheduled→cancelled",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "07-billing-ledger.md:543",
+   "column": "subscription_term.status",
+   "transition": "active→ended",
+   "via": "进程内循环"
+  },
+  {
+   "ref": "07-billing-ledger.md:545-547",
+   "column": "subscription_term.status",
+   "transition": "→refunded / cancelled",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "07-billing-ledger.md:553-556",
+   "column": "subscription_term.refund_request_id（标记）",
+   "transition": "开、合",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "07-billing-ledger.md:687",
+   "column": "grant_schedule.status",
+   "transition": "pending→granted",
+   "via": "进程内循环"
+  },
+  {
+   "ref": "07-billing-ledger.md:688",
+   "column": "grant_schedule.status",
+   "transition": "pending→cancelled",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "07-billing-ledger.md:844",
+   "column": "point_hold.status",
+   "transition": "held→captured（开工）",
+   "via": "定时器"
+  },
+  {
+   "ref": "07-billing-ledger.md:845-846",
+   "column": "point_hold.status",
+   "transition": "held→released；captured→refunded_*",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "08-billing-payment.md:164",
+   "column": "billing_order.status",
+   "transition": "pending_payment→paid（applyPayment）",
+   "via": "回调处理"
+  },
+  {
+   "ref": "08-billing-payment.md:165",
+   "column": "billing_order.status",
+   "transition": "→cancelled（金额或付款人不符）",
+   "via": "回调处理"
+  },
+  {
+   "ref": "08-billing-payment.md:166",
+   "column": "billing_order.status",
+   "transition": "pending_payment（微信）→cancelled（超时）",
+   "via": "定时器"
+  },
+  {
+   "ref": "08-billing-payment.md:175",
+   "column": "billing_order.status",
+   "transition": "pending_payment（对公）→cancelled（到期）",
+   "via": "定时器"
+  },
+  {
+   "ref": "08-billing-payment.md:177",
+   "column": "billing_order.status",
+   "transition": "paid→refunded",
+   "via": "回调处理"
+  },
+  {
+   "ref": "08-billing-payment.md:199",
+   "column": "billing_order.fulfillment_status",
+   "transition": "none→done / blocked",
+   "via": "回调处理"
+  },
+  {
+   "ref": "08-billing-payment.md:317",
+   "column": "payment_txn.status",
+   "transition": "created/prepaid/closed→succeeded",
+   "via": "回调处理"
+  },
+  {
+   "ref": "08-billing-payment.md:318",
+   "column": "payment_txn.status",
+   "transition": "created/prepaid→closed",
+   "via": "定时器"
+  },
+  {
+   "ref": "08-billing-payment.md:319",
+   "column": "payment_txn.status",
+   "transition": "—→succeeded（对账补建孤儿交易）",
+   "via": "周期任务"
+  },
+  {
+   "ref": "08-billing-payment.md:404",
+   "column": "transfer_proof.check_result",
+   "transition": "pending→pending（识别完成）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "08-billing-payment.md:529",
+   "column": "refund_request.status",
+   "transition": "pending_execution→done（退款回调晚到，A102）",
+   "via": "回调处理"
+  },
+  {
+   "ref": "08-billing-payment.md:531",
+   "column": "refund_request.status",
+   "transition": "executing→done",
+   "via": "回调处理"
+  },
+  {
+   "ref": "08-billing-payment.md:532",
+   "column": "refund_request.status",
+   "transition": "executing→pending_execution",
+   "via": "回调处理"
+  },
+  {
+   "ref": "08-billing-payment.md:663",
+   "column": "refund_txn.status",
+   "transition": "created→processing",
+   "via": "订阅者"
+  },
+  {
+   "ref": "08-billing-payment.md:664",
+   "column": "refund_txn.status",
+   "transition": "created→created（记 fail_code，同单号重试）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "08-billing-payment.md:666-667",
+   "column": "refund_txn.status",
+   "transition": "processing→closed / abnormal",
+   "via": "回调处理"
+  },
+  {
+   "ref": "08-billing-payment.md:668",
+   "column": "refund_txn.status",
+   "transition": "abnormal→abandoned",
+   "via": "命令行"
+  },
+  {
+   "ref": "08-billing-payment.md:669",
+   "column": "refund_txn.status",
+   "transition": "任意→succeeded",
+   "via": "回调处理"
+  },
+  {
+   "ref": "08-billing-payment.md:760",
+   "column": "payment_exception.status",
+   "transition": "—→open（系统开单）",
+   "via": "回调处理"
+  },
+  {
+   "ref": "08-billing-payment.md:761",
+   "column": "payment_exception.status",
+   "transition": "—→auto_healed（对账自愈留痕）",
+   "via": "周期任务"
+  },
+  {
+   "ref": "08-billing-payment.md:763",
+   "column": "payment_exception.status",
+   "transition": "resolving→resolved",
+   "via": "回调处理"
+  },
+  {
+   "ref": "08-billing-payment.md:764",
+   "column": "payment_exception.status",
+   "transition": "resolving→open",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "08-billing-payment.md:767",
+   "column": "payment_exception.status",
+   "transition": "open→auto_healed（bill_only 重新归类）",
+   "via": "回调处理"
+  },
+  {
+   "ref": "08-billing-payment.md:768",
+   "column": "payment_exception.status",
+   "transition": "open→auto_healed（platform_only）",
+   "via": "周期任务"
+  },
+  {
+   "ref": "08-billing-payment.md:852-857",
+   "column": "wx_bill_file.status",
+   "transition": "全部迁移",
+   "via": "周期任务"
+  },
+  {
+   "ref": "08-billing-payment.md:935-939",
+   "column": "wx_bill_line.match_state",
+   "transition": "写入与重跑",
+   "via": "周期任务"
+  },
+  {
+   "ref": "08-billing-payment.md:1008-1011",
+   "column": "recon_day.status",
+   "transition": "wait / ok / diff / fixed",
+   "via": "周期任务"
+  },
+  {
+   "ref": "08-billing-payment.md:1114",
+   "column": "invoice_request.status",
+   "transition": "pending→rejected（order_refunded）",
+   "via": "回调处理"
+  },
+  {
+   "ref": "08-billing-payment.md:1115",
+   "column": "invoice_request.status",
+   "transition": "issued→red_pending",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "08-billing-payment.md:1117",
+   "column": "invoice_request.status",
+   "transition": "red_pending→issued",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "08-billing-payment.md:1213-1214",
+   "column": "invoice_doc.email_state",
+   "transition": "none→queued / skipped",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "08-billing-payment.md:1215-1216",
+   "column": "invoice_doc.email_state",
+   "transition": "queued→sent / failed",
+   "via": "订阅者"
+  },
+  {
+   "ref": "09-order-ad.md:197",
+   "column": "drama_order.status（推导）",
+   "transition": "pending_start→producing",
+   "via": "定时器"
+  },
+  {
+   "ref": "09-order-ad.md:198",
+   "column": "drama_order.status（推导）",
+   "transition": "随工单步骤变化（系统部分）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "09-order-ad.md:199-201",
+   "column": "drama_order.status（推导）",
+   "transition": "→after_sale / 恢复 / 执行结果（系统部分）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "09-order-ad.md:352",
+   "column": "order_item.phase",
+   "transition": "pending_start→producing",
+   "via": "定时器"
+  },
+  {
+   "ref": "09-order-ad.md:353",
+   "column": "order_item.phase",
+   "transition": "pending_start→cancelled（系统部分）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "09-order-ad.md:358",
+   "column": "order_item.phase",
+   "transition": "to_launch/live→ended / refunded（系统部分）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "09-order-ad.md:547",
+   "column": "cancel_request.status",
+   "transition": "—→pending_approval（整店取消）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "09-order-ad.md:550",
+   "column": "cancel_request.status",
+   "transition": "pending_approval→not_executed（对象失效时系统撤回）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "09-order-ad.md:551",
+   "column": "cancel_request.status",
+   "transition": "pending_execution→done（触发者列的“系统”）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "09-order-ad.md:552",
+   "column": "cancel_request.status",
+   "transition": "pending_execution→not_executed（对象失效时系统作废）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "09-order-ad.md:553",
+   "column": "cancel_request.status",
+   "transition": "pending_approval→done（auto_execute）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "09-order-ad.md:808-809",
+   "column": "ad.status",
+   "transition": "→cancelled",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "09-order-ad.md:1087",
+   "column": "ad、ad_revision、cancel_request 的时限（日历重算）",
+   "transition": "重算并重设 sla.breach",
+   "via": "订阅者"
+  },
+  {
+   "ref": "10-delivery.md:173",
+   "column": "delivery_ticket.step",
+   "transition": "plan_confirm→ad_prep（系统求值部分）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "10-delivery.md:174",
+   "column": "delivery_ticket.step",
+   "transition": "ad_prep→sample_making（ads.ready）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "10-delivery.md:179",
+   "column": "delivery_ticket.step",
+   "transition": "→ad_prep（ad.reopened）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "10-delivery.md:180",
+   "column": "delivery_ticket.step",
+   "transition": "batch_compose→delivering",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "10-delivery.md:183-185",
+   "column": "delivery_ticket.step",
+   "transition": "launch.changed",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "10-delivery.md:186-187",
+   "column": "delivery_ticket.step",
+   "transition": "→takedown（usage.ended）",
+   "via": "定时器"
+  },
+  {
+   "ref": "10-delivery.md:188",
+   "column": "delivery_ticket.step",
+   "transition": "takedown→archived",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "10-delivery.md:189-190",
+   "column": "delivery_ticket.step",
+   "transition": "ticket.hold / ticket.resume（from = to）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "10-delivery.md:191-192",
+   "column": "delivery_ticket.step",
+   "transition": "→terminated / takedown（ticket.terminate）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "10-delivery.md:193",
+   "column": "delivery_ticket.step",
+   "transition": "in_service→launch_verify（launch.verify_revoked）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "10-delivery.md:272",
+   "column": "delivery_ticket_stage.due_at（日历重算）",
+   "transition": "重算并重设 sla.breach（工单另写 from = to）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "10-delivery.md:641",
+   "column": "sample.status",
+   "transition": "uploaded→check_rejected",
+   "via": "订阅者"
+  },
+  {
+   "ref": "10-delivery.md:648",
+   "column": "sample.status",
+   "transition": "→superseded（系统）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "10-delivery.md:649",
+   "column": "sample.status",
+   "transition": "confirmed→superseded",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "10-delivery.md:724",
+   "column": "episode_output.status",
+   "transition": "uploaded→check_rejected",
+   "via": "订阅者"
+  },
+  {
+   "ref": "10-delivery.md:881-883",
+   "column": "delivery_release.state",
+   "transition": "pushed→superseded / closed",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "10-delivery.md:884",
+   "column": "delivery_release.state",
+   "transition": "closed→pushed（版权续期）",
+   "via": "定时器"
+  },
+  {
+   "ref": "10-delivery.md:1036",
+   "column": "download_grant.state",
+   "transition": "active→revoked",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "11-publish.md:299",
+   "column": "launch_task.review_status",
+   "transition": "—→pending",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "11-publish.md:304-305",
+   "column": "launch_task.review_status",
+   "transition": "launch.void / launch.settle",
+   "via": "定时器"
+  },
+  {
+   "ref": "11-publish.md:401",
+   "column": "launch_submission.result",
+   "transition": "pending→withdrawn",
+   "via": "定时器"
+  },
+  {
+   "ref": "11-publish.md:542",
+   "column": "patrol_task.status",
+   "transition": "—→pending（系统部分）",
+   "via": "周期任务"
+  },
+  {
+   "ref": "11-publish.md:547",
+   "column": "patrol_task.status",
+   "transition": "→void",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "11-publish.md:549",
+   "column": "follow_up（巡检跟进待办）",
+   "transition": "写系统跟进待办",
+   "via": "定时器"
+  },
+  {
+   "ref": "11-publish.md:653",
+   "column": "takedown_task.status",
+   "transition": "—→pending_merchant（系统）",
+   "via": "定时器"
+  },
+  {
+   "ref": "11-publish.md:656",
+   "column": "takedown_task.status",
+   "transition": "merchant_confirmed→checked（sample_release）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "11-publish.md:658",
+   "column": "takedown_task.status",
+   "transition": "merchant_confirmed→pending_merchant（basis_reopen）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "11-publish.md:659",
+   "column": "takedown_task.status",
+   "transition": "pending_merchant→不变（escalate，系统部分）",
+   "via": "定时器"
+  },
+  {
+   "ref": "11-publish.md:661",
+   "column": "takedown_task.status",
+   "transition": "pending_merchant→void",
+   "via": "定时器"
+  },
+  {
+   "ref": "11-publish.md:671",
+   "column": "takedown_task.check_due_at（日历重算）",
+   "transition": "重算（另写 from = to）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "12-support.md:155",
+   "column": "service_ticket.status",
+   "transition": "awaiting_confirm→resolved（auto_resolve）",
+   "via": "定时器"
+  },
+  {
+   "ref": "12-support.md:159-160",
+   "column": "service_ticket.status",
+   "transition": "assign / transfer（from = to，系统部分）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "12-support.md:161",
+   "column": "service_ticket.status",
+   "transition": "escalate（from = to）",
+   "via": "定时器"
+  },
+  {
+   "ref": "12-support.md:189",
+   "column": "service_ticket.response_due_at（日历重算）",
+   "transition": "重算并改期（另写 from = to）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "13-notify-docs.md:246-247",
+   "column": "wx_template_slot.status",
+   "transition": "active→disabled（template_invalid、field_mismatch_streak）",
+   "via": "任务进程"
+  },
+  {
+   "ref": "13-notify-docs.md:424",
+   "column": "notification_delivery.status",
+   "transition": "—→pending（派发、补发判定）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "13-notify-docs.md:425",
+   "column": "notification_delivery.status",
+   "transition": "—→sending（直发）",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "13-notify-docs.md:426-434",
+   "column": "notification_delivery.status",
+   "transition": "认领、守卫、预检、顺延、调用、成功、重试、失败",
+   "via": "任务进程"
+  },
+  {
+   "ref": "13-notify-docs.md:431、433-434",
+   "column": "notification_delivery.status",
+   "transition": "直发测试投递 sending→sent / failed",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "13-notify-docs.md:435-436",
+   "column": "notification_delivery.status",
+   "transition": "sending 租约过期→pending / failed",
+   "via": "进程内循环"
+  },
+  {
+   "ref": "13-notify-docs.md:437",
+   "column": "notification_delivery.status",
+   "transition": "failed→sent（迟到的成功）",
+   "via": "任务进程"
+  },
+  {
+   "ref": "13-notify-docs.md:766-767",
+   "column": "agreement_version.status",
+   "transition": "pending→active；active→superseded",
+   "via": "周期任务"
+  },
+  {
+   "ref": "13-notify-docs.md:940-946",
+   "column": "license_letter.status",
+   "transition": "建信、生效、止日变化、作废（对齐函数）",
+   "via": "订阅者"
+  },
+  {
+   "ref": "13-notify-docs.md:1036",
+   "column": "license_letter_revision.render_status",
+   "transition": "—→queued",
+   "via": "订阅者"
+  },
+  {
+   "ref": "13-notify-docs.md:1037-1038",
+   "column": "license_letter_revision.render_status",
+   "transition": "queued→rendering→ready",
+   "via": "任务进程"
+  },
+  {
+   "ref": "13-notify-docs.md:1039-1040",
+   "column": "license_letter_revision.render_status",
+   "transition": "rendering→queued / failed（租约过期）",
+   "via": "周期任务"
+  },
+  {
+   "ref": "14-config-data.md:388",
+   "column": "site_config_revision.status",
+   "transition": "published→archived",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "14-config-data.md:528",
+   "column": "site_notice.status",
+   "transition": "—→announced",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "14-config-data.md:662",
+   "column": "checklist_template.status",
+   "transition": "active→retired",
+   "via": "随调用方事务"
+  },
+  {
+   "ref": "14-config-data.md:889",
+   "column": "report_month_close.status",
+   "transition": "—→closed",
+   "via": "订阅者"
+  },
+  {
+   "ref": "14-config-data.md:890",
+   "column": "report_month_close.status",
+   "transition": "closed→superseded（系统部分）",
+   "via": "周期任务"
+  },
+  {
+   "ref": "14-config-data.md:979",
+   "column": "export_job.status",
+   "transition": "queued→running",
+   "via": "任务进程"
+  },
+  {
+   "ref": "14-config-data.md:981",
+   "column": "export_job.status",
+   "transition": "running→succeeded",
+   "via": "任务进程"
+  },
+  {
+   "ref": "14-config-data.md:982",
+   "column": "export_job.status",
+   "transition": "running→queued",
+   "via": "周期任务"
+  },
+  {
+   "ref": "14-config-data.md:983",
+   "column": "export_job.status",
+   "transition": "running→failed",
+   "via": "任务进程"
+  },
+  {
+   "ref": "14-config-data.md:984",
+   "column": "export_job.status",
+   "transition": "succeeded→expired",
+   "via": "周期任务"
+  },
+  {
+   "ref": "15-integration-ops.md:114",
+   "column": "webhook_event.process_state",
+   "transition": "—→processed / ignored（内联）",
+   "via": "回调处理"
+  },
+  {
+   "ref": "15-integration-ops.md:115-116",
+   "column": "webhook_event.process_state",
+   "transition": "—→received / failed（收件箱、兜底写入）",
+   "via": "回调处理"
+  },
+  {
+   "ref": "15-integration-ops.md:117-119",
+   "column": "webhook_event.process_state",
+   "transition": "received/failed→processed / ignored / failed / dead",
+   "via": "订阅者"
+  },
+  {
+   "ref": "15-integration-ops.md:127",
+   "column": "webhook_event.payload（不是迁移）",
+   "transition": "到期清除载荷",
+   "via": "周期任务"
+  },
+  {
+   "ref": "15-integration-ops.md:120",
+   "column": "webhook_event.process_state",
+   "transition": "dead→received（人工重置）",
+   "via": "命令行"
+  },
+  {
+   "ref": "15-integration-ops.md:251-253",
+   "column": "alert_event.status",
+   "transition": "—→open；再次越限、升级",
+   "via": "进程内循环"
+  },
+  {
+   "ref": "15-integration-ops.md:255-256",
+   "column": "alert_event.status",
+   "transition": "open/acked→resolved（探针恢复、静默期满）",
+   "via": "进程内循环"
+  },
+  {
+   "ref": "15-integration-ops.md:258",
+   "column": "alert_event.status",
+   "transition": "resolved→新建 open",
+   "via": "进程内循环"
+  },
+  {
+   "ref": "15-integration-ops.md:254、257",
+   "column": "alert_event.status",
+   "transition": "open→acked；open/acked→resolved（人工）",
+   "via": "命令行"
+  },
+  {
+   "ref": "15-integration-ops.md:331-334",
+   "column": "invariant_run.status",
+   "transition": "—→running→succeeded / failed",
+   "via": "周期任务"
+  },
+  {
+   "ref": "15-integration-ops.md:427-430",
+   "column": "invariant_violation（处理过程）",
+   "transition": "新建、再次发现、自愈",
+   "via": "周期任务"
+  },
+  {
+   "ref": "15-integration-ops.md:431",
+   "column": "invariant_violation（处理过程）",
+   "transition": "人工处理",
+   "via": "命令行"
+  },
+  {
+   "ref": "15-integration-ops.md:432",
+   "column": "invariant_violation（处理过程）",
+   "transition": "已解决→再次发现新建",
+   "via": "周期任务"
+  }
+ ]
+}

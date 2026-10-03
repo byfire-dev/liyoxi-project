@@ -1,0 +1,1513 @@
+{
+ "doc": "m08-support-misc",
+ "externalSchemas": [
+  {"name": "PendingConsent", "definedIn": "m01-account", "note": "m01 2.5；Bootstrap.pendingConsents 的元素（A131、C87）"},
+  {"name": "CursorPage", "definedIn": "conventions（C42）", "note": "ServiceTicketPage、MessagePage 即 CursorPage<T>（A150、C87）"},
+  {"name": "DictRef", "definedIn": "conventions（C85）", "note": "OverviewStore.city、category；ChannelAccountAttention.abnormalReason；ServiceTicketCard/Detail.type；ServiceTicketDetail.withdrawReason（A151）"}
+ ],
+ "endpoints": [
+  {
+   "operationId": "m.bootstrap.get",
+   "method": "GET",
+   "path": "/m/bootstrap",
+   "section": "3.1",
+   "requestSchemas": [],
+   "responseSchema": "Bootstrap",
+   "errors": [
+    "INTERNAL"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "optional",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询，GET 不写库（A18、A19）",
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.dictItem.list",
+   "method": "GET",
+   "path": "/m/dict-items",
+   "section": "3.2",
+   "requestSchemas": [
+    "DictItemListQuery"
+   ],
+   "responseSchema": "DictItemListResult",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询；有界小集合不分页，响应 { items }（C42、A78）",
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.me.overview.get",
+   "method": "GET",
+   "path": "/m/me/overview",
+   "section": "3.3",
+   "requestSchemas": [],
+   "responseSchema": "MeOverview | MeOverviewForClerk",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "me.*",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "trimmed",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询",
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.serviceManager.get",
+   "method": "GET",
+   "path": "/m/service-manager",
+   "section": "3.4",
+   "requestSchemas": [],
+   "responseSchema": "ServiceManagerView",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "support.manager.read",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询",
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.serviceTicket.list",
+   "method": "GET",
+   "path": "/m/service-tickets",
+   "section": "3.5",
+   "requestSchemas": [
+    "ServiceTicketListQuery"
+   ],
+   "responseSchema": "ServiceTicketPage",
+   "errors": [
+    "ROLE_FORBIDDEN"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "ticket.*",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询",
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.serviceTicket.create",
+   "method": "POST",
+   "path": "/m/service-tickets",
+   "section": "3.6",
+   "requestSchemas": [
+    "ServiceTicketCreateBody"
+   ],
+   "responseSchema": "ServiceTicketDetail",
+   "errors": [
+    "ROLE_FORBIDDEN",
+    "DICT_ITEM_DISABLED",
+    "NOT_FOUND",
+    "FILE_NOT_USABLE",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "service_ticket.created"
+   ],
+   "permission": null,
+   "capability": "ticket.*",
+   "transitions": [
+    "service_ticket.status: （新建）→ pending（submit，12-support.md:149）"
+   ],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentNote": null,
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.serviceTicket.get",
+   "method": "GET",
+   "path": "/m/service-tickets/{serviceTicketId}",
+   "section": "3.7",
+   "requestSchemas": [],
+   "responseSchema": "ServiceTicketDetail",
+   "errors": [
+    "NOT_FOUND",
+    "ROLE_FORBIDDEN"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "ticket.*",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询",
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.serviceTicket.entry.create",
+   "method": "POST",
+   "path": "/m/service-tickets/{serviceTicketId}/entries",
+   "section": "3.8",
+   "requestSchemas": [
+    "ServiceTicketEntryCreateBody"
+   ],
+   "responseSchema": "ServiceTicketEntryView",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "FILE_NOT_USABLE",
+    "NOT_FOUND",
+    "ROLE_FORBIDDEN",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "service_ticket.supplemented"
+   ],
+   "permission": null,
+   "capability": "ticket.*",
+   "transitions": [
+    "service_ticket.status: processing 不变（商家补充说明只写条目，不写状态历史，12-support.md:152）"
+   ],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentNote": null,
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.serviceTicket.confirm",
+   "method": "POST",
+   "path": "/m/service-tickets/{serviceTicketId}/confirm",
+   "section": "3.9",
+   "requestSchemas": [],
+   "responseSchema": "ServiceTicketDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "NOT_FOUND",
+    "ROLE_FORBIDDEN"
+   ],
+   "events": [
+    "service_ticket.resolved"
+   ],
+   "permission": null,
+   "capability": "ticket.*",
+   "transitions": [
+    "service_ticket.status: awaiting_confirm → resolved（confirm，12-support.md:154）"
+   ],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentNote": null,
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.serviceTicket.reopen",
+   "method": "POST",
+   "path": "/m/service-tickets/{serviceTicketId}/reopen",
+   "section": "3.10",
+   "requestSchemas": [
+    "ServiceTicketReopenBody"
+   ],
+   "responseSchema": "ServiceTicketDetail",
+   "errors": [
+    "TICKET_REOPEN_WINDOW_CLOSED",
+    "STATE_NOT_ALLOWED",
+    "NOT_FOUND",
+    "ROLE_FORBIDDEN",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "service_ticket.reopened"
+   ],
+   "permission": null,
+   "capability": "ticket.*",
+   "transitions": [
+    "service_ticket.status: awaiting_confirm → processing（reopen，12-support.md:156）",
+    "service_ticket.status: resolved → processing（reopen，12-support.md:156）"
+   ],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentNote": null,
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.serviceTicket.withdraw",
+   "method": "POST",
+   "path": "/m/service-tickets/{serviceTicketId}/withdraw",
+   "section": "3.11",
+   "requestSchemas": [
+    "ServiceTicketWithdrawBody"
+   ],
+   "responseSchema": "ServiceTicketDetail",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "DICT_ITEM_DISABLED",
+    "NOT_FOUND",
+    "ROLE_FORBIDDEN"
+   ],
+   "events": [
+    "service_ticket.closed"
+   ],
+   "permission": null,
+   "capability": "ticket.*",
+   "transitions": [
+    "service_ticket.status: pending → closed（withdraw，12-support.md:157）",
+    "service_ticket.status: processing → closed（withdraw，12-support.md:157）"
+   ],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentNote": null,
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.serviceTicket.rate",
+   "method": "POST",
+   "path": "/m/service-tickets/{serviceTicketId}/rate",
+   "section": "3.12",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "ticket.*",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentNote": null,
+   "rateLimit": "m.global",
+   "version": "V1.1"
+  },
+  {
+   "operationId": "m.faq.list",
+   "method": "GET",
+   "path": "/m/faqs",
+   "section": "3.13",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询",
+   "rateLimit": "m.global",
+   "version": "V1.1"
+  },
+  {
+   "operationId": "m.message.list",
+   "method": "GET",
+   "path": "/m/messages",
+   "section": "3.14",
+   "requestSchemas": [
+    "MessageListQuery"
+   ],
+   "responseSchema": "MessagePage",
+   "errors": [
+    "NOT_A_MEMBER"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "assert-in-handler",
+   "transitions": [],
+   "xAuth": "user",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询",
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.message.summary",
+   "method": "GET",
+   "path": "/m/messages/summary",
+   "section": "3.15",
+   "requestSchemas": [],
+   "responseSchema": "MessageSummary",
+   "errors": [
+    "NOT_A_MEMBER"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "assert-in-handler",
+   "transitions": [],
+   "xAuth": "user",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询",
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.message.batchRead",
+   "method": "POST",
+   "path": "/m/messages/read",
+   "section": "3.16",
+   "requestSchemas": [
+    "MessageBatchReadBody"
+   ],
+   "responseSchema": "MessageBatchReadResult",
+   "errors": [
+    "NOT_A_MEMBER",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "assert-in-handler",
+   "transitions": [],
+   "xAuth": "user",
+   "clerkView": "same",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentNote": null,
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.message.read",
+   "method": "POST",
+   "path": "/m/messages/{messageId}/read",
+   "section": "3.17",
+   "requestSchemas": [],
+   "responseSchema": "MessageReadResult",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "assert-in-handler",
+   "transitions": [],
+   "xAuth": "user",
+   "clerkView": "same",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentNote": null,
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.siteNotice.list",
+   "method": "GET",
+   "path": "/m/site-notices",
+   "section": "3.18",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询",
+   "rateLimit": "m.global",
+   "version": "V1.1"
+  },
+  {
+   "operationId": "m.notifySetting.list",
+   "method": "GET",
+   "path": "/m/notify-settings",
+   "section": "3.19",
+   "requestSchemas": [],
+   "responseSchema": "NotifySettings",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "user",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询",
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.subscribeResult.create",
+   "method": "POST",
+   "path": "/m/subscribe-results",
+   "section": "3.20",
+   "requestSchemas": [
+    "SubscribeResultBody"
+   ],
+   "responseSchema": "SubscribeResultOutcome",
+   "errors": [
+    "VALIDATION_FAILED",
+    "RATE_LIMITED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "user",
+   "clerkView": "same",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentNote": "Idempotency-Key = subscribeReport:<reportId>",
+   "rateLimit": "m.subscribe",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.file.create",
+   "method": "POST",
+   "path": "/m/files",
+   "section": "3.21",
+   "requestSchemas": [
+    "MerchantFileCreateBody",
+    "FileCreateItem"
+   ],
+   "responseSchema": "FileRegistrationList",
+   "errors": [
+    "ROLE_FORBIDDEN",
+    "ASSET_UPLOAD_GATED",
+    "STORE_ARCHIVED",
+    "FILE_TYPE_NOT_ALLOWED",
+    "FILE_TOO_LARGE",
+    "UPLOAD_CREDENTIAL_LIMIT",
+    "PROVIDER_UNAVAILABLE",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "assert-in-handler",
+   "transitions": [
+    "file_object.status: （新建）→ pending（登记，06-media.md:188）"
+   ],
+   "xAuth": "member",
+   "clerkView": "same",
+   "xIdempotent": "natural",
+   "idempotentBy": [
+    "uq_file_object_client_token_store",
+    "uq_file_object_client_token_noscope"
+   ],
+   "idempotentNote": null,
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.file.get",
+   "method": "GET",
+   "path": "/m/files/{fileId}",
+   "section": "3.22",
+   "requestSchemas": [],
+   "responseSchema": "FileStatusView",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "纯查询",
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.file.complete",
+   "method": "POST",
+   "path": "/m/files/{fileId}/complete",
+   "section": "3.23",
+   "requestSchemas": [],
+   "responseSchema": "FileStatusView",
+   "errors": [
+    "CONFIRM_IN_PROGRESS",
+    "UPLOAD_NOT_FOUND",
+    "UPLOAD_REJECTED",
+    "UPLOAD_EXPIRED",
+    "NOT_FOUND"
+   ],
+   "events": [
+    "file.uploaded",
+    "file.rejected"
+   ],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "file_object.status: pending → promoting（确认且对象相符，06-media.md:191）",
+    "file_object.status: pending → rejected（确认但不符，06-media.md:192）"
+   ],
+   "xAuth": "member",
+   "clerkView": "same",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentNote": "C51 登记的多事务三段式用例（A84）：幂等记录随事务二写入；拒收状态不回滚",
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.file.refreshCredentials",
+   "method": "POST",
+   "path": "/m/files/{fileId}/refresh-credentials",
+   "section": "3.24",
+   "requestSchemas": [],
+   "responseSchema": "FileRegistration",
+   "errors": [
+    "UPLOAD_EXPIRED",
+    "UPLOAD_CREDENTIAL_LIMIT",
+    "STATE_NOT_ALLOWED",
+    "PROVIDER_UNAVAILABLE",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "file_object.status: pending → pending（续签临时密钥，06-media.md:190；仅 multipart）"
+   ],
+   "xAuth": "member",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "签发上传凭证，结果不进幂等记录（C47、C59）",
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.file.cancel",
+   "method": "POST",
+   "path": "/m/files/{fileId}/cancel",
+   "section": "3.25",
+   "requestSchemas": [],
+   "responseSchema": "FileStatusView",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "file_object.status: pending → expired（客户端取消，06-media.md:193）"
+   ],
+   "xAuth": "member",
+   "clerkView": "same",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "idempotentNote": null,
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.analyticsEvent.batchCreate",
+   "method": "POST",
+   "path": "/m/analytics-events",
+   "section": "3.26",
+   "requestSchemas": [
+    "AnalyticsEventBatch",
+    "ClientAnalyticsEvent"
+   ],
+   "responseSchema": "AnalyticsIngestResult",
+   "errors": [
+    "VALIDATION_FAILED",
+    "FEATURE_DISABLED",
+    "RATE_LIMITED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "optional",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "埋点：事件按 event_id 在 analytics_event_dedup 去重，不经幂等记录（A18、C47）",
+   "rateLimit": "m.analytics",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.clientError.create",
+   "method": "POST",
+   "path": "/m/client-errors",
+   "section": "3.27",
+   "requestSchemas": [
+    "SentryEnvelope"
+   ],
+   "responseSchema": null,
+   "errors": [
+    "VALIDATION_FAILED",
+    "RATE_LIMITED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "optional",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "idempotentNote": "错误上报（A18、C47）；立即 202",
+   "rateLimit": "telemetry",
+   "version": "V1.0"
+  }
+ ],
+ "schemas": [
+  {
+   "name": "ImageRef",
+   "fields": [
+    "fileId",
+    "url",
+    "expiresAt"
+   ]
+  },
+  {
+   "name": "DeepLink",
+   "fields": [
+    "route",
+    "params"
+   ]
+  },
+  {
+   "name": "EntryLink",
+   "fields": [
+    "route",
+    "params",
+    "label"
+   ]
+  },
+  {
+   "name": "MerchantStaffBrief",
+   "fields": [
+    "name",
+    "roleKind"
+   ]
+  },
+  {
+   "name": "Bootstrap",
+   "fields": [
+    "serverTime",
+    "minClientVersion",
+    "flags",
+    "versions",
+    "uploadLimits",
+    "download",
+    "copy",
+    "support",
+    "notice",
+    "degraded",
+    "pendingConsents",
+    "subscribePlan",
+    "subscribeCooldownDays",
+    "subscribeMaxPerAsk",
+    "context"
+   ]
+  },
+  {
+   "name": "SubscribePlanItem",
+   "fields": [
+    "point",
+    "slots"
+   ]
+  },
+  {
+   "name": "SubscribePlanSlot",
+   "fields": [
+    "slotKey",
+    "tmplId"
+   ]
+  },
+  {
+   "name": "ConfigVersions",
+   "fields": [
+    "dict",
+    "site",
+    "agreement"
+   ]
+  },
+  {
+   "name": "SupportConfig",
+   "fields": [
+    "mode",
+    "corpId",
+    "kfUrl"
+   ]
+  },
+  {
+   "name": "MaintenanceNotice",
+   "fields": [
+    "title",
+    "body",
+    "expectedEndAt"
+   ]
+  },
+  {
+   "name": "DictItemListQuery",
+   "fields": [
+    "typeKey",
+    "parentCode",
+    "includeDisabled"
+   ]
+  },
+  {
+   "name": "DictItemListResult",
+   "fields": [
+    "items"
+   ]
+  },
+  {
+   "name": "DictTypeItems",
+   "fields": [
+    "typeKey",
+    "name",
+    "structure",
+    "versionNo",
+    "items"
+   ]
+  },
+  {
+   "name": "MerchantDictItemView",
+   "fields": [
+    "code",
+    "parentCode",
+    "name",
+    "description",
+    "tags",
+    "ext",
+    "position",
+    "isSelectable"
+   ]
+  },
+  {
+   "name": "MeOverview",
+   "fields": [
+    "viewerRole",
+    "currentStore",
+    "subscription",
+    "stores",
+    "storeStats",
+    "entries",
+    "unreadMessageCount"
+   ]
+  },
+  {
+   "name": "MeOverviewForClerk",
+   "fields": [
+    "viewerRole",
+    "currentStore",
+    "stores",
+    "unreadMessageCount"
+   ]
+  },
+  {
+   "name": "OverviewStore",
+   "fields": [
+    "storeId",
+    "name",
+    "isPrimary",
+    "lifecycle",
+    "qualificationStatus",
+    "city",
+    "category",
+    "role",
+    "assetCount",
+    "clerkCount",
+    "completenessPct",
+    "review"
+   ]
+  },
+  {
+   "name": "OverviewPlanCard",
+   "fields": [
+    "status",
+    "isRefundPending",
+    "planName",
+    "endDate",
+    "remainingDays",
+    "spendablePoints",
+    "planAvailablePoints",
+    "addonAvailablePoints",
+    "planPointsExpireAt",
+    "isAddonSuspended"
+   ]
+  },
+  {
+   "name": "OverviewStoresCard",
+   "fields": [
+    "visibleCount",
+    "storeLimit",
+    "reviewingStores"
+   ]
+  },
+  {
+   "name": "OverviewStoreStats",
+   "fields": [
+    "liveCount",
+    "deliveringCount",
+    "cartCount"
+   ]
+  },
+  {
+   "name": "OverviewEntries",
+   "fields": [
+    "adPendingConfirmCount",
+    "launchTaskTodoCount",
+    "hasLaunchTasks",
+    "channelAccountCount",
+    "channelAccountAttention",
+    "ticketAwaitingConfirmCount"
+   ]
+  },
+  {
+   "name": "ChannelAccountAttention",
+   "fields": [
+    "channelAccountId",
+    "platform",
+    "status",
+    "abnormalSource",
+    "abnormalReason"
+   ]
+  },
+  {
+   "name": "ServiceManagerView",
+   "fields": [
+    "manager",
+    "workHours",
+    "responsePromise"
+   ]
+  },
+  {
+   "name": "ServiceManagerCard",
+   "fields": [
+    "name",
+    "roleKind",
+    "wecomQr",
+    "serviceTel",
+    "isWecomAdded"
+   ]
+  },
+  {
+   "name": "ServiceTicketListQuery",
+   "fields": [
+    "status",
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "ServiceTicketPage",
+   "fields": [
+    "items",
+    "nextCursor",
+    "hasMore"
+   ]
+  },
+  {
+   "name": "ServiceTicketCard",
+   "fields": [
+    "serviceTicketId",
+    "ticketNo",
+    "status",
+    "type",
+    "title",
+    "relatedOrder",
+    "autoResolveAt",
+    "createdAt"
+   ]
+  },
+  {
+   "name": "ServiceTicketDetail",
+   "fields": [
+    "serviceTicketId",
+    "ticketNo",
+    "status",
+    "source",
+    "type",
+    "title",
+    "description",
+    "images",
+    "contactPhoneMask",
+    "relatedOrder",
+    "owner",
+    "progress",
+    "firstResponseAt",
+    "awaitingConfirmAt",
+    "autoResolveAt",
+    "resolvedAt",
+    "resolvedVia",
+    "reopenDeadlineAt",
+    "closedAt",
+    "closeReason",
+    "withdrawReason",
+    "closeNote",
+    "reopenedCount",
+    "entries",
+    "actions",
+    "canAddEntry",
+    "createdAt"
+   ]
+  },
+  {
+   "name": "RelatedOrderBrief",
+   "fields": [
+    "orderId",
+    "orderNo"
+   ]
+  },
+  {
+   "name": "TicketProgressStep",
+   "fields": [
+    "step",
+    "at",
+    "state"
+   ]
+  },
+  {
+   "name": "ServiceTicketEntryView",
+   "fields": [
+    "entryId",
+    "kind",
+    "tag",
+    "senderKind",
+    "sender",
+    "body",
+    "images",
+    "link",
+    "createdAt"
+   ]
+  },
+  {
+   "name": "ServiceTicketCreateBody",
+   "fields": [
+    "typeCode",
+    "orderId",
+    "description",
+    "imageFileIds",
+    "phoneSource",
+    "contactPhone"
+   ]
+  },
+  {
+   "name": "ServiceTicketEntryCreateBody",
+   "fields": [
+    "body",
+    "imageFileIds"
+   ]
+  },
+  {
+   "name": "ServiceTicketReopenBody",
+   "fields": [
+    "note"
+   ]
+  },
+  {
+   "name": "ServiceTicketWithdrawBody",
+   "fields": [
+    "reasonCode"
+   ]
+  },
+  {
+   "name": "MessageListQuery",
+   "fields": [
+    "tab",
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "MessagePage",
+   "fields": [
+    "items",
+    "nextCursor",
+    "hasMore"
+   ]
+  },
+  {
+   "name": "MessageItem",
+   "fields": [
+    "messageId",
+    "category",
+    "title",
+    "body",
+    "ctaText",
+    "link",
+    "storeId",
+    "isRead",
+    "readAt",
+    "createdAt",
+    "createdDate"
+   ]
+  },
+  {
+   "name": "MessageSummary",
+   "fields": [
+    "total",
+    "byTab",
+    "byStore"
+   ]
+  },
+  {
+   "name": "MessageTabCount",
+   "fields": [
+    "tab",
+    "unreadCount"
+   ]
+  },
+  {
+   "name": "MessageBatchReadBody",
+   "fields": [
+    "upToMessageId",
+    "tab"
+   ]
+  },
+  {
+   "name": "MessageBatchReadResult",
+   "fields": [
+    "markedCount",
+    "summary"
+   ]
+  },
+  {
+   "name": "MessageReadResult",
+   "fields": [
+    "messageId",
+    "readAt"
+   ]
+  },
+  {
+   "name": "NotifySettings",
+   "fields": [
+    "items",
+    "cooldownDays",
+    "maxPerAsk"
+   ]
+  },
+  {
+   "name": "NotifySettingItem",
+   "fields": [
+    "slotKey",
+    "title",
+    "sceneNames",
+    "tmplId",
+    "state",
+    "estRemaining",
+    "lastAcceptAt"
+   ]
+  },
+  {
+   "name": "SubscribeResultBody",
+   "fields": [
+    "reportId",
+    "point",
+    "results"
+   ]
+  },
+  {
+   "name": "SubscribeResultOutcome",
+   "fields": [
+    "appliedCount",
+    "ignoredCount"
+   ]
+  },
+  {
+   "name": "MerchantFileCreateBody",
+   "fields": [
+    "category",
+    "licenseKind",
+    "files"
+   ]
+  },
+  {
+   "name": "FileCreateItem",
+   "fields": [
+    "fileName",
+    "sizeBytes",
+    "clientToken"
+   ]
+  },
+  {
+   "name": "FileRegistrationList",
+   "fields": [
+    "items"
+   ]
+  },
+  {
+   "name": "FileRegistration",
+   "fields": [
+    "fileId",
+    "clientToken",
+    "status",
+    "mode",
+    "bucket",
+    "region",
+    "key",
+    "post",
+    "sts",
+    "chunkSize",
+    "chunkParallel",
+    "expiresAt",
+    "uploadExpiresAt",
+    "credentialsLeft"
+   ]
+  },
+  {
+   "name": "PostPolicy",
+   "fields": [
+    "url",
+    "fields"
+   ]
+  },
+  {
+   "name": "StsCredential",
+   "fields": [
+    "tmpSecretId",
+    "tmpSecretKey",
+    "sessionToken",
+    "startTime",
+    "expiredTime"
+   ]
+  },
+  {
+   "name": "FileStatusView",
+   "fields": [
+    "fileId",
+    "category",
+    "status",
+    "rejectReason",
+    "declaredSizeBytes",
+    "sizeBytes",
+    "mime",
+    "moderationState",
+    "storedAt",
+    "uploadExpiresAt",
+    "createdAt"
+   ]
+  },
+  {
+   "name": "AnalyticsEventBatch",
+   "fields": [
+    "sentAt",
+    "anonymousId",
+    "sessionId",
+    "clientVersion",
+    "platform",
+    "scene",
+    "events"
+   ]
+  },
+  {
+   "name": "ClientAnalyticsEvent",
+   "fields": [
+    "eventId",
+    "name",
+    "occurredAt",
+    "storeId",
+    "props"
+   ]
+  },
+  {
+   "name": "AppLaunchProps",
+   "fields": [
+    "channelCode",
+    "hasInvitation"
+   ]
+  },
+  {
+   "name": "ProfileStepSaveProps",
+   "fields": [
+    "step",
+    "durationMs"
+   ]
+  },
+  {
+   "name": "StoreSwitchProps",
+   "fields": [
+    "fromPage"
+   ]
+  },
+  {
+   "name": "MallViewProps",
+   "fields": [
+    "category",
+    "filters",
+    "sort",
+    "mode"
+   ]
+  },
+  {
+   "name": "TrailerPlayProps",
+   "fields": [
+    "dramaId",
+    "playMs",
+    "finished"
+   ]
+  },
+  {
+   "name": "DramaDetailViewProps",
+   "fields": [
+    "dramaId",
+    "fromPage"
+   ]
+  },
+  {
+   "name": "ShareClickProps",
+   "fields": [
+    "page",
+    "dramaId"
+   ]
+  },
+  {
+   "name": "BannerClickProps",
+   "fields": [
+    "homeBannerId"
+   ]
+  },
+  {
+   "name": "PlaybackFallbackProps",
+   "fields": [
+    "playableId",
+    "network",
+    "fromQuality",
+    "toQuality",
+    "sdkVersion"
+   ]
+  },
+  {
+   "name": "TrailerFirstFrameProps",
+   "fields": [
+    "playableId",
+    "firstFrameMs",
+    "network",
+    "quality"
+   ]
+  },
+  {
+   "name": "AnalyticsIngestResult",
+   "fields": [
+    "accepted",
+    "duplicated",
+    "rejected",
+    "dropped"
+   ]
+  },
+  {
+   "name": "SentryEnvelope",
+   "fields": [
+    "(raw envelope, ≤200KB)"
+   ],
+   "note": "Content-Type application/x-sentry-envelope；与 admin.clientError.create、portal 错误上报同形"
+  }
+ ],
+ "errorCodes": [
+  {
+   "symbol": "TICKET_REOPEN_WINDOW_CLOSED",
+   "code": 45501,
+   "http": 409,
+   "retryable": false,
+   "meaning": "工单已解决超过可重新打开的天数（或参数为 0）",
+   "details": "{ resolvedAt, windowDays }"
+  },
+  {
+   "symbol": "DICT_ITEM_DISABLED",
+   "code": 47001,
+   "http": 409,
+   "retryable": false,
+   "meaning": "所选字典项已停用或不存在",
+   "details": "{ dictTypeKey, code }"
+  },
+  {
+   "symbol": "FILE_TYPE_NOT_ALLOWED",
+   "code": 47051,
+   "http": 400,
+   "retryable": false,
+   "meaning": "扩展名不在该分类的白名单内",
+   "details": "{ allowedExts: string[] }"
+  },
+  {
+   "symbol": "FILE_TOO_LARGE",
+   "code": 47052,
+   "http": 400,
+   "retryable": false,
+   "meaning": "文件超过分类与端的大小上限；小程序视频超限时引导服务经理代传（A35）",
+   "details": "{ maxBytes: string, canDelegate: boolean }"
+  },
+  {
+   "symbol": "UPLOAD_EXPIRED",
+   "code": 47053,
+   "http": 409,
+   "retryable": false,
+   "meaning": "上传登记已过期或已取消",
+   "details": null
+  },
+  {
+   "symbol": "UPLOAD_CREDENTIAL_LIMIT",
+   "code": 47054,
+   "http": 409,
+   "retryable": false,
+   "meaning": "临时密钥已签发 30 次",
+   "details": null
+  },
+  {
+   "symbol": "CONFIRM_IN_PROGRESS",
+   "code": 47055,
+   "http": 409,
+   "retryable": true,
+   "meaning": "另一个确认请求正在处理",
+   "details": null
+  },
+  {
+   "symbol": "UPLOAD_NOT_FOUND",
+   "code": 47056,
+   "http": 409,
+   "retryable": false,
+   "meaning": "写入区没有对象",
+   "details": null
+  },
+  {
+   "symbol": "UPLOAD_REJECTED",
+   "code": 47057,
+   "http": 400,
+   "retryable": false,
+   "meaning": "文件与登记信息不符，已拒收",
+   "details": "{ rejectReason }"
+  }
+ ],
+ "externalErrors": [
+  {
+   "symbol": "VALIDATION_FAILED",
+   "definedIn": "conventions C27"
+  },
+  {
+   "symbol": "ROLE_FORBIDDEN",
+   "definedIn": "conventions C27"
+  },
+  {
+   "symbol": "NOT_A_MEMBER",
+   "definedIn": "conventions C27"
+  },
+  {
+   "symbol": "NOT_FOUND",
+   "definedIn": "conventions C27"
+  },
+  {
+   "symbol": "STATE_NOT_ALLOWED",
+   "definedIn": "conventions C27"
+  },
+  {
+   "symbol": "FEATURE_DISABLED",
+   "definedIn": "conventions C27"
+  },
+  {
+   "symbol": "RATE_LIMITED",
+   "definedIn": "conventions C27"
+  },
+  {
+   "symbol": "PROVIDER_UNAVAILABLE",
+   "definedIn": "conventions C27"
+  },
+  {
+   "symbol": "INTERNAL",
+   "definedIn": "conventions C27"
+  },
+  {
+   "symbol": "FILE_NOT_USABLE",
+   "definedIn": "m03-profile-asset"
+  },
+  {
+   "symbol": "ASSET_UPLOAD_GATED",
+   "definedIn": "m03-profile-asset"
+  },
+  {
+   "symbol": "STORE_ARCHIVED",
+   "definedIn": "m02-tenant（C17 中间件）"
+  }
+ ],
+ "permissions": [],
+ "capabilities": [
+  "ticket.*",
+  "message.read",
+  "store.profile.edit",
+  "store.qualification.edit",
+  "asset.upload",
+  "channel.manage",
+  "delivery.confirm_sample",
+  "ad.confirm",
+  "plan.purchase",
+  "points.topup",
+  "me.*",
+  "support.manager.read"
+ ],
+ "proposedCapabilities": [
+  {
+   "key": "support.manager.read",
+   "usedBy": "m.serviceManager.get",
+   "owner": true,
+   "clerk": true,
+   "archivedStoreOwner": true,
+   "note": "新键，A87 已收入增补表（C56、C66）；d4 能力点表待回写"
+  }
+ ],
+ "proposedEvents": [
+  {
+   "name": "service_ticket.supplemented",
+   "aggregate": "service_ticket",
+   "payload": "{ serviceTicketId, entryId, storeId, ownerStaffId? }",
+   "subscribers": [
+    "notify.onEvent（提醒负责人：a09 2.9 场景 s.kf_supplemented，接收人 service_ticket.owner_staff_id）"
+   ],
+   "note": "12 分组事件清单已登记（12-support.md:191，A144）；x01 事件目录尚未登记，按 A95 由 x01 补登"
+  }
+ ],
+ "proposedParams": [
+  "upload.weapp_video_max_mb",
+  "download.weapp_save_mode"
+ ],
+ "proposedFlags": [
+  {
+   "key": "ops.maintenance_notice",
+   "valueType": "json",
+   "exposedTo": "client",
+   "default": null
+  }
+ ],
+ "proposedRateLimits": []
+}

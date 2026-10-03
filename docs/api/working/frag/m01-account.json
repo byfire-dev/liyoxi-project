@@ -1,0 +1,915 @@
+{
+ "doc": "m01-account",
+ "endpoints": [
+  {
+   "operationId": "m.session.create",
+   "method": "POST",
+   "path": "/m/sessions",
+   "section": "3.1",
+   "requestSchemas": [
+    "SilentLoginBody",
+    "DeviceInfo"
+   ],
+   "responseSchema": "SilentLoginResult",
+   "errors": [
+    "WECHAT_UNAVAILABLE",
+    "WECHAT_CODE_INVALID"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "m.login.silent",
+   "version": "V1.0",
+   "idempotentNote": "登录与换会话（A18）"
+  },
+  {
+   "operationId": "m.session.phoneLogin",
+   "method": "POST",
+   "path": "/m/sessions/phone-login",
+   "section": "3.2",
+   "requestSchemas": [
+    "PhoneLoginBody",
+    "ConsentInput",
+    "Attribution",
+    "DeviceInfo"
+   ],
+   "responseSchema": "PhoneLoginResult",
+   "errors": [
+    "WECHAT_UNAVAILABLE",
+    "WECHAT_CODE_INVALID",
+    "PHONE_REGION_UNSUPPORTED",
+    "CONSENT_REQUIRED",
+    "AGREEMENT_VERSION_STALE",
+    "VALIDATION_FAILED",
+    "ACCOUNT_DISABLED",
+    "REVERIFY_REQUIRED"
+   ],
+   "events": [
+    "merchant_user.registered",
+    "merchant_user.wechat_bound",
+    "entity_member.removed",
+    "entity.abandoned",
+    "store.archived"
+   ],
+   "permission": null,
+   "capability": null,
+   "transitions": [
+    "merchant_user.status: （新建）→ active（merchant_user.register）",
+    "entity_member.status: active → removed（entity_member.cascade_remove，dormant，休眠保护移除店员；操作人 system）",
+    "entity.lifecycle: active → abandoned（entity.abandon，休眠老板的空草稿让位）",
+    "store.lifecycle: active → archived（store.archive_by_entity，entity_abandoned；操作人 system）",
+    "entity_member.status: active → removed（entity_member.cascade_remove，draft_abandoned；操作人 system）"
+   ],
+   "xAuth": "public",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "m.login.phone",
+   "version": "V1.0",
+   "idempotentNote": "登录与换会话（A18）"
+  },
+  {
+   "operationId": "m.session.current.delete",
+   "method": "DELETE",
+   "path": "/m/sessions/current",
+   "section": "3.3",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "user",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "m.global",
+   "version": "V1.0",
+   "idempotentNote": "退出登录（A43：端上把 401 当作已退出）"
+  },
+  {
+   "operationId": "m.me.get",
+   "method": "GET",
+   "path": "/m/me",
+   "section": "3.4",
+   "requestSchemas": [],
+   "responseSchema": "MeView",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "user",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "m.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询"
+  },
+  {
+   "operationId": "m.me.update",
+   "method": "PATCH",
+   "path": "/m/me",
+   "section": "3.5",
+   "requestSchemas": [
+    "MeUpdateBody"
+   ],
+   "responseSchema": "MeUser",
+   "errors": [
+    "CONTENT_REJECTED",
+    "PROVIDER_UNAVAILABLE"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "me.*",
+   "transitions": [],
+   "xAuth": "user",
+   "clerkView": "same",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.smsCode.create",
+   "method": "POST",
+   "path": "/m/sms-codes",
+   "section": "3.6",
+   "requestSchemas": [
+    "SmsCodeCreateBody"
+   ],
+   "responseSchema": "SmsCodeResult",
+   "errors": [
+    "SMS_UNAVAILABLE",
+    "RATE_LIMITED",
+    "IDEMPOTENCY_IN_PROGRESS",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "me.*",
+   "transitions": [],
+   "xAuth": "user",
+   "clerkView": "same",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "m.sms",
+   "version": "V1.0",
+   "idempotentNote": "三段式“先落库”（C51，A84）：占用 → 事务插入验证码并提交 → 事务外 sendDirect → 落成功；发送失败删行"
+  },
+  {
+   "operationId": "m.me.changePhone",
+   "method": "POST",
+   "path": "/m/me/change-phone",
+   "section": "3.7",
+   "requestSchemas": [
+    "ChangePhoneBody"
+   ],
+   "responseSchema": "MeUser",
+   "errors": [
+    "SMS_UNAVAILABLE",
+    "SMS_CODE_INVALID",
+    "WECHAT_UNAVAILABLE",
+    "WECHAT_CODE_INVALID",
+    "PHONE_REGION_UNSUPPORTED",
+    "PHONE_UNCHANGED",
+    "PHONE_TAKEN",
+    "IDEMPOTENCY_IN_PROGRESS"
+   ],
+   "events": [
+    "merchant_user.phone_changed",
+    "merchant_user.deleted",
+    "approval.withdrawn"
+   ],
+   "permission": null,
+   "capability": "me.*",
+   "transitions": [
+    "merchant_user.status（占用新号码、从无成员关系的空账号）: active → deleted（merchant_user.purge_empty；操作人 system）",
+    "approval_request.status（kind = account_change，以被清理的空账号为对象）: pending → withdrawn（withdraw，系统代撤）"
+   ],
+   "xAuth": "user",
+   "clerkView": "same",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "m.global",
+   "version": "V1.0",
+   "idempotentNote": "三段式“先外调”（C51，A84）：getPhoneNumber 在事务前"
+  },
+  {
+   "operationId": "m.me.wechatIdentity.list",
+   "method": "GET",
+   "path": "/m/me/wechat-identities",
+   "section": "3.8",
+   "requestSchemas": [
+    "CursorQuery"
+   ],
+   "responseSchema": "WechatIdentityPage",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": "me.*",
+   "transitions": [],
+   "xAuth": "user",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "m.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询"
+  },
+  {
+   "operationId": "m.me.wechatIdentity.delete",
+   "method": "DELETE",
+   "path": "/m/me/wechat-identities/{wechatIdentityId}",
+   "section": "3.9",
+   "requestSchemas": [],
+   "responseSchema": "WechatIdentityRemoveResult",
+   "errors": [
+    "NOT_FOUND",
+    "IDENTITY_TOO_NEW"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "me.*",
+   "transitions": [],
+   "xAuth": "user",
+   "clerkView": "same",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.me.userNotice.acknowledge",
+   "method": "POST",
+   "path": "/m/me/user-notices/{userNoticeId}/acknowledge",
+   "section": "3.10",
+   "requestSchemas": [],
+   "responseSchema": "UserNoticeAckResult",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "me.*",
+   "transitions": [],
+   "xAuth": "user",
+   "clerkView": "same",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.me.deletion.create",
+   "method": "POST",
+   "path": "/m/me/deletion",
+   "section": "3.11",
+   "requestSchemas": [
+    "DeletionBody"
+   ],
+   "responseSchema": "DeletionResult",
+   "errors": [
+    "ACCOUNT_DELETION_BLOCKED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "merchant_user.deleted",
+    "entity_member.removed",
+    "entity.closed",
+    "store.archived",
+    "invitation.revoked",
+    "approval.withdrawn"
+   ],
+   "permission": null,
+   "capability": "me.*",
+   "transitions": [
+    "merchant_user.status: active → deleted（merchant_user.delete）",
+    "entity_member.status: active → removed（entity_member.cascade_remove，account_deleted；店员本人或老板本人）",
+    "entity.lifecycle: active → closed（entity.close，老板注销）",
+    "entity_member.status: active → removed（entity_member.cascade_remove，entity_closed；主体关闭联动其他成员）",
+    "invitation.status: pending → revoked（invitation.revoke，entity_closed）",
+    "store.lifecycle: active → archived（store.archive_by_entity，entity_closed）",
+    "approval_request.status（kind = account_change，以本账号为对象）: pending → withdrawn（withdraw，系统代撤）"
+   ],
+   "xAuth": "user",
+   "clerkView": "same",
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.agreement.list",
+   "method": "GET",
+   "path": "/m/agreements",
+   "section": "3.12",
+   "requestSchemas": [
+    "AgreementListQuery"
+   ],
+   "responseSchema": "AgreementCurrentPage",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "m.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询"
+  },
+  {
+   "operationId": "m.agreementVersion.get",
+   "method": "GET",
+   "path": "/m/agreement-versions/{agreementVersionId}",
+   "section": "3.13",
+   "requestSchemas": [],
+   "responseSchema": "AgreementVersionDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": "same",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "m.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询"
+  },
+  {
+   "operationId": "m.agreementConsent.create",
+   "method": "POST",
+   "path": "/m/agreement-consents",
+   "section": "3.14",
+   "requestSchemas": [
+    "AgreementConsentCreateBody",
+    "ConsentInput",
+    "DeviceInfo"
+   ],
+   "responseSchema": "AgreementConsentReceipt",
+   "errors": [
+    "AGREEMENT_VERSION_STALE",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "user",
+   "clerkView": "same",
+   "xIdempotent": "natural",
+   "idempotentBy": [
+    "uq_agreement_consent_no_biz"
+   ],
+   "rateLimit": "m.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "m.agreementConsent.list",
+   "method": "GET",
+   "path": "/m/agreement-consents",
+   "section": "3.15",
+   "requestSchemas": [
+    "AgreementConsentQuery"
+   ],
+   "responseSchema": "AgreementConsentPage",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "trimmed",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "m.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询"
+  },
+  {
+   "operationId": "m.agreementConsent.summary",
+   "method": "GET",
+   "path": "/m/agreement-consents/summary",
+   "section": "3.16",
+   "requestSchemas": [
+    "AgreementConsentSummaryQuery"
+   ],
+   "responseSchema": "AgreementConsentSummary",
+   "errors": [
+    "ROLE_FORBIDDEN"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": "contract.read",
+   "transitions": [],
+   "xAuth": "member",
+   "clerkView": "none",
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "m.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询"
+  }
+ ],
+ "schemas": [
+  {
+   "name": "MeView",
+   "fields": [
+    "user",
+    "memberships",
+    "pendingConsents",
+    "notices"
+   ]
+  },
+  {
+   "name": "MeUser",
+   "fields": [
+    "merchantUserId",
+    "displayName",
+    "phoneMask",
+    "registeredAt",
+    "actions"
+   ]
+  },
+  {
+   "name": "MembershipBrief",
+   "fields": [
+    "memberId",
+    "role",
+    "memberDisplayName",
+    "joinedAt",
+    "lastStoreId",
+    "entity",
+    "stores"
+   ]
+  },
+  {
+   "name": "MembershipStore",
+   "fields": [
+    "storeId",
+    "name",
+    "isPrimary",
+    "lifecycle",
+    "qualificationStatus"
+   ]
+  },
+  {
+   "name": "PendingConsent",
+   "fields": [
+    "agreementKey",
+    "agreementVersionId",
+    "name",
+    "versionLabel",
+    "effectiveAt",
+    "summary"
+   ]
+  },
+  {
+   "name": "UserNotice",
+   "fields": [
+    "userNoticeId",
+    "kind",
+    "occurredAt",
+    "message"
+   ]
+  },
+  {
+   "name": "ConsentInput",
+   "fields": [
+    "agreementKey",
+    "agreementVersionId"
+   ]
+  },
+  {
+   "name": "DeviceInfo",
+   "fields": [
+    "model",
+    "system",
+    "wechatVersion",
+    "sdkVersion"
+   ]
+  },
+  {
+   "name": "Attribution",
+   "fields": [
+    "channelCode",
+    "inviteCode",
+    "scene"
+   ]
+  },
+  {
+   "name": "SilentLoginBody",
+   "fields": [
+    "loginCode",
+    "device"
+   ]
+  },
+  {
+   "name": "SilentLoginResult",
+   "fields": [
+    "needPhone",
+    "token",
+    "me"
+   ]
+  },
+  {
+   "name": "PhoneLoginBody",
+   "fields": [
+    "loginCode",
+    "phoneCode",
+    "consents",
+    "consentScene",
+    "attribution",
+    "device"
+   ]
+  },
+  {
+   "name": "PhoneLoginResult",
+   "fields": [
+    "token",
+    "me",
+    "isNewUser",
+    "switchedFrom"
+   ]
+  },
+  {
+   "name": "MeUpdateBody",
+   "fields": [
+    "displayName"
+   ]
+  },
+  {
+   "name": "SmsCodeCreateBody",
+   "fields": [
+    "purpose"
+   ]
+  },
+  {
+   "name": "SmsCodeResult",
+   "fields": [
+    "purpose",
+    "targetPhoneMask",
+    "expiresAt",
+    "resendAfterSec"
+   ]
+  },
+  {
+   "name": "ChangePhoneBody",
+   "fields": [
+    "oldSmsCode",
+    "newPhoneCode"
+   ]
+  },
+  {
+   "name": "CursorQuery",
+   "fields": [
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "WechatIdentityItem",
+   "fields": [
+    "wechatIdentityId",
+    "boundAt",
+    "lastLoginAt",
+    "deviceSummary",
+    "isCurrent",
+    "actions"
+   ]
+  },
+  {
+   "name": "WechatIdentityPage",
+   "fields": [
+    "items",
+    "nextCursor",
+    "hasMore"
+   ]
+  },
+  {
+   "name": "WechatIdentityRemoveResult",
+   "fields": [
+    "wechatIdentityId",
+    "revokedSessionCount",
+    "isCurrentSessionRevoked"
+   ]
+  },
+  {
+   "name": "UserNoticeAckResult",
+   "fields": [
+    "userNoticeId",
+    "ackedAt"
+   ]
+  },
+  {
+   "name": "DeletionBody",
+   "fields": [
+    "hasConfirmed"
+   ]
+  },
+  {
+   "name": "DeletionResult",
+   "fields": [
+    "deletedAt"
+   ]
+  },
+  {
+   "name": "DeletionBlocker",
+   "fields": [
+    "kind",
+    "count"
+   ]
+  },
+  {
+   "name": "AgreementListQuery",
+   "fields": [
+    "agreementKey",
+    "scene",
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "AgreementVersionBrief",
+   "fields": [
+    "agreementVersionId",
+    "versionLabel",
+    "effectiveAt",
+    "summary",
+    "isReconsentRequired"
+   ]
+  },
+  {
+   "name": "AgreementCurrent",
+   "fields": [
+    "agreementKey",
+    "name",
+    "subjectKind",
+    "consentMode",
+    "scenes",
+    "currentVersion",
+    "upcomingVersion"
+   ]
+  },
+  {
+   "name": "AgreementCurrentPage",
+   "fields": [
+    "items",
+    "nextCursor",
+    "hasMore"
+   ]
+  },
+  {
+   "name": "AgreementVersionDetail",
+   "fields": [
+    "agreementVersionId",
+    "agreementKey",
+    "name",
+    "versionLabel",
+    "major",
+    "minor",
+    "phase",
+    "effectiveAt",
+    "summary",
+    "isReconsentRequired",
+    "contentHtml",
+    "contentSha256",
+    "pdf"
+   ]
+  },
+  {
+   "name": "AgreementConsentCreateBody",
+   "fields": [
+    "consents",
+    "device"
+   ]
+  },
+  {
+   "name": "AgreementConsentReceipt",
+   "fields": [
+    "consents",
+    "pendingConsents"
+   ]
+  },
+  {
+   "name": "AgreementConsentQuery",
+   "fields": [
+    "subjectKind",
+    "agreementKey",
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "AgreementConsentSummaryQuery",
+   "fields": [
+    "subjectKind",
+    "agreementKey"
+   ]
+  },
+  {
+   "name": "ConsentRecord",
+   "fields": [
+    "consentNo",
+    "consentedAt",
+    "scene",
+    "method",
+    "versionLabel",
+    "bizType",
+    "bizNo",
+    "bizTitle"
+   ]
+  },
+  {
+   "name": "ConsentRecordForClerk",
+   "fields": [
+    "consentNo",
+    "consentedAt",
+    "scene",
+    "method",
+    "versionLabel"
+   ]
+  },
+  {
+   "name": "SignedAgreementItem",
+   "fields": [
+    "agreementKey",
+    "name",
+    "subjectKind",
+    "consentedVersion",
+    "currentVersionId",
+    "isCurrentVersionConsented",
+    "latestConsent",
+    "firstConsent"
+   ]
+  },
+  {
+   "name": "SignedAgreementItemForClerk",
+   "fields": [
+    "agreementKey",
+    "name",
+    "subjectKind",
+    "consentedVersion",
+    "currentVersionId",
+    "isCurrentVersionConsented",
+    "latestConsent",
+    "firstConsent"
+   ]
+  },
+  {
+   "name": "AgreementConsentPage",
+   "fields": [
+    "viewerRole",
+    "items",
+    "nextCursor",
+    "hasMore"
+   ]
+  },
+  {
+   "name": "AgreementConsentSummary",
+   "fields": [
+    "all"
+   ]
+  }
+ ],
+ "errorCodes": [
+  {
+   "symbol": "WECHAT_UNAVAILABLE",
+   "code": 41001,
+   "http": 503,
+   "retryable": true,
+   "meaning": "code2Session 或 getPhoneNumber 失败、超时；默认文案“手机号验证服务暂不可用，请稍后重试”（不出现“微信”）"
+  },
+  {
+   "symbol": "WECHAT_CODE_INVALID",
+   "code": 41002,
+   "http": 400,
+   "retryable": false,
+   "meaning": "loginCode 或 phoneCode 无效、过期或已使用"
+  },
+  {
+   "symbol": "PHONE_REGION_UNSUPPORTED",
+   "code": 41003,
+   "http": 400,
+   "retryable": false,
+   "meaning": "非中国大陆手机号"
+  },
+  {
+   "symbol": "ACCOUNT_DISABLED",
+   "code": 41004,
+   "http": 403,
+   "retryable": false,
+   "meaning": "手机号登录时账号已被后台禁用"
+  },
+  {
+   "symbol": "REVERIFY_REQUIRED",
+   "code": 41005,
+   "http": 403,
+   "retryable": false,
+   "meaning": "休眠保护：长期未登录的老板账号换微信，需人工复核"
+  },
+  {
+   "symbol": "CONTENT_REJECTED",
+   "code": 41006,
+   "http": 400,
+   "retryable": false,
+   "meaning": "提交的文字未通过内容安全检测（共用码，A77；details { fields: string[] }）",
+   "details": "{ fields: string[] }"
+  },
+  {
+   "symbol": "SMS_UNAVAILABLE",
+   "code": 41007,
+   "http": 503,
+   "retryable": false,
+   "meaning": "短信通道未配置、模板不可用或发送失败（共用码，A77；m03 资质联系人验证码共用）"
+  },
+  {
+   "symbol": "SMS_CODE_INVALID",
+   "code": 41008,
+   "http": 400,
+   "retryable": false,
+   "meaning": "短信验证码错误、过期、已用或已作废（共用码，A77；m03 共用）",
+   "details": "{ attemptsLeft: integer | null }"
+  },
+  {
+   "symbol": "PHONE_UNCHANGED",
+   "code": 41009,
+   "http": 400,
+   "retryable": false,
+   "meaning": "新手机号与当前手机号相同"
+  },
+  {
+   "symbol": "PHONE_TAKEN",
+   "code": 41010,
+   "http": 409,
+   "retryable": false,
+   "meaning": "新手机号已被有成员关系或已禁用的账号使用"
+  },
+  {
+   "symbol": "IDENTITY_TOO_NEW",
+   "code": 41011,
+   "http": 403,
+   "retryable": false,
+   "meaning": "当前微信绑定不足 7 天，不能移除其他微信",
+   "details": "{ removableAt: string(date-time) }"
+  },
+  {
+   "symbol": "ACCOUNT_DELETION_BLOCKED",
+   "code": 41012,
+   "http": 409,
+   "retryable": false,
+   "meaning": "老板注销时主体有未办结事项（details.blockers）",
+   "details": "{ blockers: DeletionBlocker[] }"
+  },
+  {
+   "symbol": "AGREEMENT_VERSION_STALE",
+   "code": 47401,
+   "http": 409,
+   "retryable": false,
+   "meaning": "提交的协议版本不是当前版本（按 m.agreement.list 的唯一口径判定；登录、重新同意、交易共用，A77）",
+   "details": "{ agreementKey: string, currentAgreementVersionId: string(uuid) | null }"
+  }
+ ],
+ "permissions": [],
+ "externalSchemas": [
+  "EntityBrief"
+ ],
+ "capabilities": [
+  "me.*",
+  "contract.read"
+ ],
+ "errorSources": {
+  "general": [
+   "VALIDATION_FAILED",
+   "CONSENT_REQUIRED",
+   "RATE_LIMITED",
+   "IDEMPOTENCY_IN_PROGRESS",
+   "NOT_FOUND",
+   "ROLE_FORBIDDEN",
+   "PROVIDER_UNAVAILABLE"
+  ],
+  "conventions": "C27",
+  "sharedOwned": [
+   "CONTENT_REJECTED",
+   "SMS_UNAVAILABLE",
+   "SMS_CODE_INVALID",
+   "AGREEMENT_VERSION_STALE"
+  ]
+ }
+}

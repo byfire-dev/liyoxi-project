@@ -1,0 +1,3693 @@
+{
+ "doc": "a01-system",
+ "endpoints": [
+  {
+   "operationId": "admin.auth.login",
+   "method": "POST",
+   "path": "/admin/auth/login",
+   "section": "3.1",
+   "requestSchemas": [
+    "LoginBody"
+   ],
+   "responseSchema": "AuthNext",
+   "errors": [
+    "AUTH_FAILED",
+    "IP_NOT_ALLOWED",
+    "RATE_LIMITED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.login",
+   "version": "V1.0",
+   "idempotentNote": "登录与换会话（A18）"
+  },
+  {
+   "operationId": "admin.auth.verifyMfa",
+   "method": "POST",
+   "path": "/admin/auth/verify-mfa",
+   "section": "3.2",
+   "requestSchemas": [
+    "VerifyMfaBody"
+   ],
+   "responseSchema": "StaffMe",
+   "errors": [
+    "AUTH_FAILED",
+    "RATE_LIMITED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.login",
+   "version": "V1.0",
+   "idempotentNote": "登录与换会话（A18）"
+  },
+  {
+   "operationId": "admin.auth.activate",
+   "method": "POST",
+   "path": "/admin/auth/activate",
+   "section": "3.3",
+   "requestSchemas": [
+    "ActivateBody"
+   ],
+   "responseSchema": "AuthNext",
+   "errors": [
+    "AUTH_FAILED",
+    "IP_NOT_ALLOWED",
+    "RATE_LIMITED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.login",
+   "version": "V1.0",
+   "idempotentNote": "登录前的激活，没有会话（C47）"
+  },
+  {
+   "operationId": "admin.auth.setPassword",
+   "method": "POST",
+   "path": "/admin/auth/set-password",
+   "section": "3.4",
+   "requestSchemas": [
+    "SetPasswordBody"
+   ],
+   "responseSchema": "AuthNext",
+   "errors": [
+    "AUTH_TICKET_INVALID",
+    "PASSWORD_POLICY_VIOLATED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.login",
+   "version": "V1.0",
+   "idempotentNote": "登录前的激活，没有会话（C47）"
+  },
+  {
+   "operationId": "admin.auth.enrollTotp",
+   "method": "POST",
+   "path": "/admin/auth/enroll-totp",
+   "section": "3.5",
+   "requestSchemas": [
+    "EnrollTotpBody"
+   ],
+   "responseSchema": "TotpEnrollment",
+   "errors": [
+    "AUTH_TICKET_INVALID",
+    "TOTP_ALREADY_ENROLLED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.login",
+   "version": "V1.0",
+   "idempotentNote": "登录前的首次绑定，没有会话（C47）"
+  },
+  {
+   "operationId": "admin.auth.confirmTotp",
+   "method": "POST",
+   "path": "/admin/auth/confirm-totp",
+   "section": "3.6",
+   "requestSchemas": [
+    "ConfirmTotpBody"
+   ],
+   "responseSchema": "TotpConfirmResult",
+   "errors": [
+    "AUTH_TICKET_INVALID",
+    "MFA_CODE_INVALID",
+    "TOTP_ALREADY_ENROLLED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "public",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.login",
+   "version": "V1.0",
+   "idempotentNote": "登录前的首次绑定，换会话（C47）"
+  },
+  {
+   "operationId": "admin.auth.stepUp",
+   "method": "POST",
+   "path": "/admin/auth/step-up",
+   "section": "3.7",
+   "requestSchemas": [
+    "StepUpBody"
+   ],
+   "responseSchema": "StepUpResult",
+   "errors": [
+    "MFA_CODE_INVALID",
+    "RATE_LIMITED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.login",
+   "version": "V1.0",
+   "idempotentNote": "再验证，归入登录与换会话（C47）"
+  },
+  {
+   "operationId": "admin.auth.me.get",
+   "method": "GET",
+   "path": "/admin/auth/me",
+   "section": "3.8",
+   "requestSchemas": [],
+   "responseSchema": "StaffMe",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.auth.changePassword",
+   "method": "POST",
+   "path": "/admin/auth/change-password",
+   "section": "3.9",
+   "requestSchemas": [
+    "ChangePasswordBody"
+   ],
+   "responseSchema": null,
+   "errors": [
+    "PASSWORD_INCORRECT",
+    "PASSWORD_POLICY_VIOLATED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.auth.bindWecom",
+   "method": "POST",
+   "path": "/admin/auth/bind-wecom",
+   "section": "3.10",
+   "requestSchemas": [
+    "BindWecomSelfBody"
+   ],
+   "responseSchema": "StaffWecom",
+   "errors": [
+    "FEATURE_DISABLED",
+    "VALIDATION_FAILED",
+    "WECOM_CODE_INVALID",
+    "WECOM_USERID_TAKEN",
+    "PROVIDER_UNAVAILABLE",
+    "IDEMPOTENCY_IN_PROGRESS"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "threePhase": "先调外部、再开事务（仅扫码分支；开关 admin.wecom_web_login.enabled 关闭时为手填分支，不调外部）",
+   "idempotentNote": "状态写入；扫码分支是三段式用例（C51）"
+  },
+  {
+   "operationId": "admin.session.current.delete",
+   "method": "DELETE",
+   "path": "/admin/sessions/current",
+   "section": "3.11",
+   "requestSchemas": [],
+   "responseSchema": null,
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "退出登录（A43）；重复退出无副作用，端上把 401 当作已退出"
+  },
+  {
+   "operationId": "admin.staff.list",
+   "method": "GET",
+   "path": "/admin/staff",
+   "section": "3.12",
+   "requestSchemas": [
+    "StaffListQuery"
+   ],
+   "responseSchema": "AdminPage<StaffListItem>",
+   "errors": [
+    "PERMISSION_DENIED"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.staff.get",
+   "method": "GET",
+   "path": "/admin/staff/{staffId}",
+   "section": "3.13",
+   "requestSchemas": [],
+   "responseSchema": "StaffDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.staff.create",
+   "method": "POST",
+   "path": "/admin/staff",
+   "section": "3.14",
+   "requestSchemas": [
+    "StaffCreateBody"
+   ],
+   "responseSchema": "StaffMutationResult",
+   "errors": [
+    "STAFF_PHONE_TAKEN",
+    "VALIDATION_FAILED",
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [
+    "staff.created"
+   ],
+   "permission": "sys.staff.manage",
+   "capability": null,
+   "transitions": [
+    "staff.status: (新建) → active（待激活）",
+    "staff.status: (新建) → pending"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "activation.activationCode"
+   ]
+  },
+  {
+   "operationId": "admin.staff.update",
+   "method": "PATCH",
+   "path": "/admin/staff/{staffId}",
+   "section": "3.15",
+   "requestSchemas": [
+    "StaffUpdateBody"
+   ],
+   "responseSchema": "StaffDetail",
+   "errors": [
+    "OPEN_WORK_EXISTS",
+    "SELF_OPERATION_FORBIDDEN",
+    "LAST_SUPER_ADMIN",
+    "LEAD_REMOVAL_ACK_REQUIRED",
+    "VERSION_CONFLICT",
+    "FILE_NOT_USABLE",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": "sys.staff.manage",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.staff.enable",
+   "method": "POST",
+   "path": "/admin/staff/{staffId}/enable",
+   "section": "3.16",
+   "requestSchemas": [
+    "ActivationDeliveryBody"
+   ],
+   "responseSchema": "StaffMutationResult",
+   "errors": [
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [
+    "staff.enabled"
+   ],
+   "permission": "sys.staff.manage",
+   "capability": null,
+   "transitions": [
+    "staff.status: pending → active（待激活）",
+    "staff.status: disabled → active（待激活）"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "activation.activationCode"
+   ]
+  },
+  {
+   "operationId": "admin.staff.disable",
+   "method": "POST",
+   "path": "/admin/staff/{staffId}/disable",
+   "section": "3.17",
+   "requestSchemas": [
+    "StaffDisableBody"
+   ],
+   "responseSchema": "HandoverResult",
+   "errors": [
+    "CANNOT_DISABLE_SELF",
+    "LAST_SUPER_ADMIN",
+    "NO_HANDOVER_CANDIDATE",
+    "ASSIGNEE_INVALID",
+    "CONFIRM_MISMATCH",
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [
+    "staff.disabled",
+    "assignment.transferred",
+    "service_ticket.transferred"
+   ],
+   "permission": "sys.staff.secure_ops",
+   "capability": null,
+   "transitions": [
+    "staff.status: active → disabled",
+    "service_ticket.status: transfer（from = to，客服工单负责人改派，12-support.md:160、168）"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.staff.openWork.get",
+   "method": "GET",
+   "path": "/admin/staff/{staffId}/open-work",
+   "section": "3.18",
+   "requestSchemas": [],
+   "responseSchema": "OpenWorkSummary",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": "sys.staff.manage",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.staff.handover",
+   "method": "POST",
+   "path": "/admin/staff/{staffId}/handover",
+   "section": "3.19",
+   "requestSchemas": [
+    "HandoverBody"
+   ],
+   "responseSchema": "HandoverResult",
+   "errors": [
+    "ASSIGNEE_INVALID",
+    "NO_HANDOVER_CANDIDATE",
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [
+    "assignment.transferred",
+    "service_ticket.transferred"
+   ],
+   "permission": "sys.staff.manage",
+   "capability": null,
+   "transitions": [
+    "service_ticket.status: transfer（from = to，客服工单负责人改派，12-support.md:160、168）"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.staff.resetPassword",
+   "method": "POST",
+   "path": "/admin/staff/{staffId}/reset-password",
+   "section": "3.20",
+   "requestSchemas": [
+    "StaffSecureOpBody"
+   ],
+   "responseSchema": "StaffMutationResult",
+   "errors": [
+    "SELF_OPERATION_FORBIDDEN",
+    "CONFIRM_MISMATCH",
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "sys.staff.secure_ops",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "activation.activationCode"
+   ]
+  },
+  {
+   "operationId": "admin.staff.resetMfa",
+   "method": "POST",
+   "path": "/admin/staff/{staffId}/reset-mfa",
+   "section": "3.21",
+   "requestSchemas": [
+    "StaffSecureOpBody"
+   ],
+   "responseSchema": "StaffMutationResult",
+   "errors": [
+    "SELF_OPERATION_FORBIDDEN",
+    "CONFIRM_MISMATCH",
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "sys.staff.secure_ops",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "activation.activationCode"
+   ]
+  },
+  {
+   "operationId": "admin.staff.reissueActivationCode",
+   "method": "POST",
+   "path": "/admin/staff/{staffId}/reissue-activation-code",
+   "section": "3.22",
+   "requestSchemas": [
+    "ActivationDeliveryBody"
+   ],
+   "responseSchema": "ActivationIssue",
+   "errors": [
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "sys.staff.manage",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "redactOnReplay": [
+    "activationCode"
+   ]
+  },
+  {
+   "operationId": "admin.staff.unlock",
+   "method": "POST",
+   "path": "/admin/staff/{staffId}/unlock",
+   "section": "3.23",
+   "requestSchemas": [
+    "UnlockBody"
+   ],
+   "responseSchema": "StaffDetail",
+   "errors": [],
+   "events": [],
+   "permission": "sys.staff.manage",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.staff.inviteWecom",
+   "method": "POST",
+   "path": "/admin/staff/{staffId}/invite-wecom",
+   "section": "3.24",
+   "requestSchemas": [],
+   "responseSchema": "StaffWecom",
+   "errors": [
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "sys.staff.wecom_bind",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.staff.bindWecom",
+   "method": "POST",
+   "path": "/admin/staff/{staffId}/bind-wecom",
+   "section": "3.25",
+   "requestSchemas": [
+    "StaffWecomBindBody"
+   ],
+   "responseSchema": "StaffWecom",
+   "errors": [
+    "WECOM_USERID_TAKEN",
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "sys.staff.wecom_bind",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.staff.poolMembership.replace",
+   "method": "PUT",
+   "path": "/admin/staff/{staffId}/pool-memberships",
+   "section": "3.26",
+   "requestSchemas": [
+    "PoolMembershipReplaceBody"
+   ],
+   "responseSchema": "StaffDetail",
+   "errors": [
+    "POOL_ROLE_MISMATCH",
+    "VERSION_CONFLICT",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": "sys.staff.manage",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.staff.duty.update",
+   "method": "PATCH",
+   "path": "/admin/staff/{staffId}/duty",
+   "section": "3.27",
+   "requestSchemas": [
+    "DutyUpdateBody"
+   ],
+   "responseSchema": "PoolMember",
+   "errors": [
+    "POOL_ROLE_MISMATCH",
+    "PERMISSION_DENIED"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.assignmentPoolMember.list",
+   "method": "GET",
+   "path": "/admin/assignment-pool-members",
+   "section": "3.28",
+   "requestSchemas": [],
+   "responseSchema": "PoolMemberList",
+   "errors": [
+    "PERMISSION_DENIED"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.staffGroup.list",
+   "method": "GET",
+   "path": "/admin/staff-groups",
+   "section": "3.29",
+   "requestSchemas": [],
+   "responseSchema": "StaffGroupList",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.staffSession.list",
+   "method": "GET",
+   "path": "/admin/staff-sessions",
+   "section": "3.30",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<StaffSessionView>",
+   "errors": [],
+   "events": [],
+   "permission": "sys.session.revoke",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.staffSession.revoke",
+   "method": "POST",
+   "path": "/admin/staff-sessions/{staffSessionId}/revoke",
+   "section": "3.31",
+   "requestSchemas": [
+    "ReasonOptionalBody"
+   ],
+   "responseSchema": "StaffSessionView",
+   "errors": [
+    "SELF_OPERATION_FORBIDDEN",
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "sys.session.revoke",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.role.list",
+   "method": "GET",
+   "path": "/admin/roles",
+   "section": "3.32",
+   "requestSchemas": [],
+   "responseSchema": "RoleSummaryList",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.role.get",
+   "method": "GET",
+   "path": "/admin/roles/{roleKey}",
+   "section": "3.33",
+   "requestSchemas": [],
+   "responseSchema": "RoleDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.role.defaults.get",
+   "method": "GET",
+   "path": "/admin/roles/{roleKey}/defaults",
+   "section": "3.34",
+   "requestSchemas": [],
+   "responseSchema": "RoleConfig",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.role.replace",
+   "method": "PUT",
+   "path": "/admin/roles/{roleKey}",
+   "section": "3.35",
+   "requestSchemas": [
+    "RoleReplaceBody"
+   ],
+   "responseSchema": "RoleDetail",
+   "errors": [
+    "ROLE_LOCKED",
+    "VERSION_CONFLICT",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": "sys.role.edit",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.approval.list",
+   "method": "GET",
+   "path": "/admin/approvals",
+   "section": "3.36",
+   "requestSchemas": [
+    "ApprovalListQuery"
+   ],
+   "responseSchema": "AdminPage<ApprovalItem>",
+   "errors": [
+    "PERMISSION_DENIED"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.approval.summary",
+   "method": "GET",
+   "path": "/admin/approvals/summary",
+   "section": "3.37",
+   "requestSchemas": [],
+   "responseSchema": "ApprovalCounts",
+   "errors": [],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.approval.get",
+   "method": "GET",
+   "path": "/admin/approvals/{approvalId}",
+   "section": "3.38",
+   "requestSchemas": [],
+   "responseSchema": "ApprovalDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.auditLog.list",
+   "method": "GET",
+   "path": "/admin/audit-logs",
+   "section": "3.39",
+   "requestSchemas": [
+    "AuditLogListQuery"
+   ],
+   "responseSchema": "AdminCursorPage<AuditLogItem>",
+   "errors": [
+    "PERMISSION_DENIED"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.auditLog.get",
+   "method": "GET",
+   "path": "/admin/audit-logs/{auditLogId}",
+   "section": "3.40",
+   "requestSchemas": [],
+   "responseSchema": "AuditLogDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.piiReveal.create",
+   "method": "POST",
+   "path": "/admin/pii-reveals",
+   "section": "3.41",
+   "requestSchemas": [
+    "PiiRevealBody"
+   ],
+   "responseSchema": "PiiRevealResult",
+   "errors": [
+    "PERMISSION_DENIED",
+    "STEP_UP_REQUIRED",
+    "NOT_FOUND",
+    "RATE_LIMITED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.pii_reveal",
+   "version": "V1.0",
+   "idempotentNote": "结果含明文，不进幂等记录（A51）"
+  },
+  {
+   "operationId": "admin.dictType.list",
+   "method": "GET",
+   "path": "/admin/dict-types",
+   "section": "3.42",
+   "requestSchemas": [],
+   "responseSchema": "DictTypeList",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.dictItem.list",
+   "method": "GET",
+   "path": "/admin/dict-items",
+   "section": "3.43",
+   "requestSchemas": [],
+   "responseSchema": "DictItemList",
+   "errors": [
+    "PERMISSION_DENIED"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.dictItem.create",
+   "method": "POST",
+   "path": "/admin/dict-items",
+   "section": "3.44",
+   "requestSchemas": [
+    "DictItemCreateBody"
+   ],
+   "responseSchema": "DictItemView",
+   "errors": [
+    "DICT_TYPE_NOT_EDITABLE",
+    "DICT_NAME_DUPLICATED",
+    "DICT_ITEM_DISABLED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": "sys.dict.edit",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.dictItem.update",
+   "method": "PATCH",
+   "path": "/admin/dict-items/{dictItemId}",
+   "section": "3.45",
+   "requestSchemas": [
+    "DictItemUpdateBody"
+   ],
+   "responseSchema": "DictItemView",
+   "errors": [
+    "DICT_NAME_DUPLICATED",
+    "DICT_ITEM_IN_USE",
+    "DICT_ITEM_LOCKED",
+    "VERSION_CONFLICT",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": "sys.dict.edit",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.paramValue.list",
+   "method": "GET",
+   "path": "/admin/param-values",
+   "section": "3.46",
+   "requestSchemas": [],
+   "responseSchema": "ParamList",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.paramValue.replace",
+   "method": "PUT",
+   "path": "/admin/param-values",
+   "section": "3.47",
+   "requestSchemas": [
+    "ParamReplaceBody"
+   ],
+   "responseSchema": "ParamList",
+   "errors": [
+    "VALIDATION_FAILED",
+    "VERSION_CONFLICT"
+   ],
+   "events": [],
+   "permission": "sys.param.edit",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.paramValue.withdraw",
+   "method": "POST",
+   "path": "/admin/param-values/{paramValueId}/withdraw",
+   "section": "3.48",
+   "requestSchemas": [
+    "ReasonOptionalBody"
+   ],
+   "responseSchema": "ParamItem",
+   "errors": [
+    "PARAM_WITHDRAW_TOO_LATE",
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "sys.param.edit",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.calendarDay.list",
+   "method": "GET",
+   "path": "/admin/calendar-days",
+   "section": "3.49",
+   "requestSchemas": [],
+   "responseSchema": "CalendarYear",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.calendarDay.batchImport",
+   "method": "POST",
+   "path": "/admin/calendar-days/import",
+   "section": "3.50",
+   "requestSchemas": [
+    "CalendarImportBody"
+   ],
+   "responseSchema": "CalendarImportResult",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [
+    "calendar.imported"
+   ],
+   "permission": "sys.param.edit",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.featureFlag.list",
+   "method": "GET",
+   "path": "/admin/feature-flags",
+   "section": "3.51",
+   "requestSchemas": [],
+   "responseSchema": "FeatureFlagList",
+   "errors": [],
+   "events": [],
+   "permission": "sys.super_admin",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.featureFlag.update",
+   "method": "PATCH",
+   "path": "/admin/feature-flags/{flagKey}",
+   "section": "3.52",
+   "requestSchemas": [
+    "FeatureFlagUpdateBody"
+   ],
+   "responseSchema": "FeatureFlagView",
+   "errors": [
+    "VALIDATION_FAILED",
+    "VERSION_CONFLICT"
+   ],
+   "events": [],
+   "permission": "sys.super_admin",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.checklistTemplate.list",
+   "method": "GET",
+   "path": "/admin/checklist-templates",
+   "section": "3.53",
+   "requestSchemas": [],
+   "responseSchema": "ChecklistTemplateList",
+   "errors": [
+    "PERMISSION_DENIED"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.checklistTemplate.create",
+   "method": "POST",
+   "path": "/admin/checklist-templates",
+   "section": "3.54",
+   "requestSchemas": [
+    "ChecklistTemplateCreateBody"
+   ],
+   "responseSchema": "ChecklistTemplateView",
+   "errors": [
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": "flow.checklist.manage",
+   "capability": null,
+   "transitions": [
+    "checklist_template.status: (新建) → draft"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.checklistTemplate.activate",
+   "method": "POST",
+   "path": "/admin/checklist-templates/{checklistTemplateId}/activate",
+   "section": "3.55",
+   "requestSchemas": [],
+   "responseSchema": "ChecklistTemplateView",
+   "errors": [
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "flow.checklist.manage",
+   "capability": null,
+   "transitions": [
+    "checklist_template.status: draft → active",
+    "checklist_template.status: active → retired（同编码旧版本）"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.checklistTemplate.discard",
+   "method": "POST",
+   "path": "/admin/checklist-templates/{checklistTemplateId}/discard",
+   "section": "3.56",
+   "requestSchemas": [],
+   "responseSchema": "ChecklistTemplateView",
+   "errors": [
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "flow.checklist.manage",
+   "capability": null,
+   "transitions": [
+    "checklist_template.status: draft → retired"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.file.create",
+   "method": "POST",
+   "path": "/admin/files",
+   "section": "3.57",
+   "requestSchemas": [
+    "AdminFileCreateBody"
+   ],
+   "responseSchema": "FileRegistration",
+   "errors": [
+    "FILE_CATEGORY_NOT_ALLOWED",
+    "FILE_TOO_LARGE",
+    "FILE_TYPE_NOT_ALLOWED",
+    "PRODUCTION_CONTEXT_REQUIRED",
+    "PERMISSION_DENIED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [
+    "file_object.status: (新建) → pending",
+    "production_record.pipeline_state: (新建) → uploading"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "natural",
+   "idempotentBy": [
+    "uq_file_object_client_token_store",
+    "uq_file_object_client_token_noscope"
+   ],
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.file.refreshCredentials",
+   "method": "POST",
+   "path": "/admin/files/{fileId}/refresh-credentials",
+   "section": "3.58",
+   "requestSchemas": [],
+   "responseSchema": "FileRegistration",
+   "errors": [
+    "UPLOAD_EXPIRED",
+    "UPLOAD_CREDENTIAL_LIMIT",
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "签发上传凭证（C47、C59）"
+  },
+  {
+   "operationId": "admin.file.complete",
+   "method": "POST",
+   "path": "/admin/files/{fileId}/complete",
+   "section": "3.59",
+   "requestSchemas": [],
+   "responseSchema": "AdminFileView",
+   "errors": [
+    "CONFIRM_IN_PROGRESS",
+    "UPLOAD_NOT_FOUND",
+    "UPLOAD_REJECTED",
+    "UPLOAD_EXPIRED",
+    "IDEMPOTENCY_IN_PROGRESS"
+   ],
+   "events": [
+    "file.uploaded",
+    "file.rejected"
+   ],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [
+    "file_object.status: pending → promoting",
+    "file_object.status: pending → rejected"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "threePhase": "多事务（与 m.file.complete 同法）"
+  },
+  {
+   "operationId": "admin.file.get",
+   "method": "GET",
+   "path": "/admin/files/{fileId}",
+   "section": "3.60",
+   "requestSchemas": [],
+   "responseSchema": "AdminFileView",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.file.downloadUrls",
+   "method": "POST",
+   "path": "/admin/files/{fileId}/download-urls",
+   "section": "3.61",
+   "requestSchemas": [
+    "FileDownloadUrlsBody"
+   ],
+   "responseSchema": "SignedUrl",
+   "errors": [
+    "FILE_NOT_AVAILABLE",
+    "FILE_CATEGORY_NOT_ALLOWED",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "签发短时地址，结果不进幂等记录（A18）"
+  },
+  {
+   "operationId": "admin.file.list",
+   "method": "GET",
+   "path": "/admin/files",
+   "section": "3.62",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<AdminFileView>",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.file.restore",
+   "method": "POST",
+   "path": "/admin/files/{fileId}/restore",
+   "section": "3.63",
+   "requestSchemas": [
+    "ReasonRequiredBody"
+   ],
+   "responseSchema": "AdminFileView",
+   "errors": [
+    "FILE_RESTORE_WINDOW_PASSED",
+    "STATE_NOT_ALLOWED",
+    "PROVIDER_UNAVAILABLE",
+    "IDEMPOTENCY_IN_PROGRESS"
+   ],
+   "events": [],
+   "permission": "files.restore",
+   "capability": null,
+   "transitions": [
+    "file_object.status: deleted → stored"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "threePhase": "先调外部、再开事务（移除删除标记；事务复核失败时加回删除标记）"
+  },
+  {
+   "operationId": "admin.file.erase",
+   "method": "POST",
+   "path": "/admin/files/{fileId}/erase",
+   "section": "3.64",
+   "requestSchemas": [
+    "FileEraseBody"
+   ],
+   "responseSchema": "AdminFileView",
+   "errors": [
+    "FILE_IN_USE",
+    "CONFIRM_MISMATCH",
+    "STATE_NOT_ALLOWED",
+    "PROVIDER_UNAVAILABLE",
+    "IDEMPOTENCY_IN_PROGRESS"
+   ],
+   "events": [],
+   "permission": "files.erase",
+   "capability": null,
+   "transitions": [
+    "file_object.status: stored → deleting（员工彻底删除，事务一，06-media.md:199）",
+    "file_object.status: deleting → deleted（员工彻底删除，事务二，06-media.md:200）"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "threePhase": "多事务（按 fileId 互斥；事务一 stored → deleting → 事务外删除全部历史版本 → 事务二置 deleted 并写 erased_at，提交后执行清除后钩子）"
+  },
+  {
+   "operationId": "admin.purgeRun.list",
+   "method": "GET",
+   "path": "/admin/purge-runs",
+   "section": "3.65",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<PurgeRunView>",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.purgeRun.approve",
+   "method": "POST",
+   "path": "/admin/purge-runs/{purgeRunId}/approve",
+   "section": "3.66",
+   "requestSchemas": [
+    "PurgeApproveBody"
+   ],
+   "responseSchema": "PurgeRunView",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "CONFIRM_MISMATCH"
+   ],
+   "events": [],
+   "permission": "files.purge.approve",
+   "capability": null,
+   "transitions": [
+    "file_purge_run.state: proposed → approved",
+    "file_purge_run.state: held → approved"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.purgeRun.reject",
+   "method": "POST",
+   "path": "/admin/purge-runs/{purgeRunId}/reject",
+   "section": "3.67",
+   "requestSchemas": [
+    "ReasonRequiredBody"
+   ],
+   "responseSchema": "PurgeRunView",
+   "errors": [
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "files.purge.approve",
+   "xStepUp": "skip",
+   "capability": null,
+   "transitions": [
+    "file_purge_run.state: proposed → rejected",
+    "file_purge_run.state: held → rejected"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.mediaJob.list",
+   "method": "GET",
+   "path": "/admin/media-jobs",
+   "section": "3.68",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<MediaJobView>",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.mediaJob.retry",
+   "method": "POST",
+   "path": "/admin/media-jobs/{mediaJobId}/retry",
+   "section": "3.69",
+   "requestSchemas": [
+    "NoteOptionalBody"
+   ],
+   "responseSchema": "MediaJobView",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "MEDIA_JOB_NOT_RETRYABLE"
+   ],
+   "events": [],
+   "permission": "media.job.retry",
+   "capability": null,
+   "transitions": [
+    "media_job.state: failed → queued"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.alert.list",
+   "method": "GET",
+   "path": "/admin/alerts",
+   "section": "3.70",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<AlertView>",
+   "errors": [],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.alert.acknowledge",
+   "method": "POST",
+   "path": "/admin/alerts/{alertId}/acknowledge",
+   "section": "3.71",
+   "requestSchemas": [
+    "NoteOptionalBody"
+   ],
+   "responseSchema": "AlertView",
+   "errors": [
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "sys.health.manage",
+   "capability": null,
+   "transitions": [
+    "alert_event.status: open → acked"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.alert.resolve",
+   "method": "POST",
+   "path": "/admin/alerts/{alertId}/resolve",
+   "section": "3.72",
+   "requestSchemas": [
+    "NoteRequiredBody"
+   ],
+   "responseSchema": "AlertView",
+   "errors": [
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "sys.health.manage",
+   "capability": null,
+   "transitions": [
+    "alert_event.status: open → resolved",
+    "alert_event.status: acked → resolved"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.invariantRun.list",
+   "method": "GET",
+   "path": "/admin/invariant-runs",
+   "section": "3.73",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<InvariantRunView>",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.invariantRun.create",
+   "method": "POST",
+   "path": "/admin/invariant-runs",
+   "section": "3.74",
+   "requestSchemas": [
+    "InvariantRunCreateBody"
+   ],
+   "responseSchema": "InvariantRunView",
+   "errors": [
+    "PERMISSION_DENIED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": "flow.ops.manage",
+   "capability": null,
+   "transitions": [
+    "invariant_run.status: (新建) → running"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.invariantViolation.list",
+   "method": "GET",
+   "path": "/admin/invariant-violations",
+   "section": "3.75",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<InvariantViolationView>",
+   "errors": [],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.invariantViolation.resolve",
+   "method": "POST",
+   "path": "/admin/invariant-violations/{invariantViolationId}/resolve",
+   "section": "3.76",
+   "requestSchemas": [
+    "ResolutionBody"
+   ],
+   "responseSchema": "InvariantViolationView",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "PERMISSION_DENIED"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.timer.list",
+   "method": "GET",
+   "path": "/admin/timers",
+   "section": "3.77",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<TimerView>",
+   "errors": [],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.timer.reschedule",
+   "method": "POST",
+   "path": "/admin/timers/{timerId}/reschedule",
+   "section": "3.78",
+   "requestSchemas": [
+    "NoteOptionalBody"
+   ],
+   "responseSchema": "TimerView",
+   "errors": [
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "flow.ops.manage",
+   "capability": null,
+   "transitions": [
+    "timer.status: failed → scheduled"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.timer.cancel",
+   "method": "POST",
+   "path": "/admin/timers/{timerId}/cancel",
+   "section": "3.79",
+   "requestSchemas": [
+    "ReasonRequiredBody"
+   ],
+   "responseSchema": "TimerView",
+   "errors": [
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "flow.ops.manage",
+   "capability": null,
+   "transitions": [
+    "timer.status: failed → cancelled"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.outboxDelivery.list",
+   "method": "GET",
+   "path": "/admin/outbox-deliveries",
+   "section": "3.80",
+   "requestSchemas": [],
+   "responseSchema": "AdminPage<OutboxDeliveryView>",
+   "errors": [],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.outboxEvent.retry",
+   "method": "POST",
+   "path": "/admin/outbox-events/{outboxEventId}/retry",
+   "section": "3.81",
+   "requestSchemas": [
+    "OutboxRetryBody"
+   ],
+   "responseSchema": "OutboxDeliveryView",
+   "errors": [
+    "NOT_FOUND",
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "flow.ops.manage",
+   "capability": null,
+   "transitions": [
+    "outbox_delivery.status: dead → retry"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.webhookEvent.list",
+   "method": "GET",
+   "path": "/admin/webhook-events",
+   "section": "3.82",
+   "requestSchemas": [],
+   "responseSchema": "AdminCursorPage<WebhookEventView>",
+   "errors": [],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.webhookEvent.retry",
+   "method": "POST",
+   "path": "/admin/webhook-events/{webhookEventId}/retry",
+   "section": "3.83",
+   "requestSchemas": [
+    "NoteOptionalBody"
+   ],
+   "responseSchema": "WebhookEventView",
+   "errors": [
+    "STATE_NOT_ALLOWED"
+   ],
+   "events": [],
+   "permission": "flow.ops.manage",
+   "capability": null,
+   "transitions": [
+    "webhook_event.process_state: dead → received"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0"
+  },
+  {
+   "operationId": "admin.clientError.create",
+   "method": "POST",
+   "path": "/admin/client-errors",
+   "section": "3.84",
+   "requestSchemas": [
+    "SentryEnvelope"
+   ],
+   "responseSchema": null,
+   "errors": [
+    "RATE_LIMITED",
+    "VALIDATION_FAILED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "optional",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "telemetry",
+   "version": "V1.0",
+   "idempotentNote": "错误上报（A18）"
+  },
+  {
+   "operationId": "admin.debug.clientIp.get",
+   "method": "GET",
+   "path": "/admin/debug/client-ip",
+   "section": "3.85",
+   "requestSchemas": [],
+   "responseSchema": "ClientIpEcho",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": "sys.super_admin",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询（GET 不写库，A19）"
+  },
+  {
+   "operationId": "admin.auth.me.enrollTotp",
+   "method": "POST",
+   "path": "/admin/auth/me/enroll-totp",
+   "section": "3.86",
+   "requestSchemas": [],
+   "responseSchema": "TotpReEnrollment",
+   "errors": [
+    "STEP_UP_REQUIRED"
+   ],
+   "events": [],
+   "permission": "self.mfa.reset",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.login",
+   "version": "V1.0",
+   "idempotentNote": "结果只有一次性的新密钥，重放没有意义（C50 与 none 的分工）；重复调用只覆盖待确认密钥；已登记进 C47 的 none 清单（A139）"
+  },
+  {
+   "operationId": "admin.auth.me.confirmTotp",
+   "method": "POST",
+   "path": "/admin/auth/me/confirm-totp",
+   "section": "3.87",
+   "requestSchemas": [
+    "ConfirmTotpSelfBody"
+   ],
+   "responseSchema": "TotpReEnrollResult",
+   "errors": [
+    "STEP_UP_REQUIRED",
+    "STATE_NOT_ALLOWED",
+    "MFA_CODE_INVALID"
+   ],
+   "events": [],
+   "permission": "self.mfa.reset",
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.login",
+   "version": "V1.0",
+   "idempotentNote": "有业务写入（替换密钥、重发恢复码、吊销其他会话）；结果脱敏（A80）",
+   "redactOnReplay": [
+    "recoveryCodes"
+   ]
+  },
+  {
+   "operationId": "admin.staff.summary",
+   "method": "GET",
+   "path": "/admin/staff/summary",
+   "section": "3.88",
+   "requestSchemas": [],
+   "responseSchema": "StaffCounts",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "纯查询"
+  },
+  {
+   "operationId": "admin.file.cancel",
+   "method": "POST",
+   "path": "/admin/files/{fileId}/cancel",
+   "section": "3.89",
+   "requestSchemas": [],
+   "responseSchema": "AdminFileView",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "CONFIRM_IN_PROGRESS",
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": "assert-in-handler",
+   "capability": null,
+   "transitions": [
+    "file_object.status: pending → expired（客户端取消）"
+   ],
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "version": "V1.0",
+   "idempotentNote": "状态迁移（A17）"
+  }
+ ],
+ "schemas": [
+  {
+   "name": "AdminPage",
+   "fields": [
+    "items",
+    "page",
+    "pageSize",
+    "total"
+   ]
+  },
+  {
+   "name": "AdminCursorPage",
+   "fields": [
+    "items",
+    "nextCursor",
+    "hasMore",
+    "totalApprox"
+   ]
+  },
+  {
+   "name": "StaffBrief",
+   "fields": [
+    "staffId",
+    "staffNo",
+    "name",
+    "roleKey",
+    "isLead",
+    "status"
+   ]
+  },
+  {
+   "name": "StaffMe",
+   "fields": [
+    "staff",
+    "displayName",
+    "phoneMask",
+    "roleName",
+    "staffGroup",
+    "moduleLevels",
+    "permissions",
+    "dataScope",
+    "wecomBindStatus",
+    "mustChangePassword",
+    "recoveryCodesLeft",
+    "session",
+    "flags",
+    "serverTime"
+   ]
+  },
+  {
+   "name": "AuthNext",
+   "fields": [
+    "next",
+    "ticket",
+    "ticketExpiresAt",
+    "methods"
+   ]
+  },
+  {
+   "name": "StaffListItem",
+   "fields": [
+    "staffId",
+    "staffNo",
+    "name",
+    "roleKey",
+    "isLead",
+    "status",
+    "phoneMask",
+    "staffGroup",
+    "dataScope",
+    "wecomBindStatus",
+    "pools",
+    "lastLoginAt",
+    "isActivated",
+    "isLocked",
+    "disabledReason",
+    "handoverTo",
+    "openWorkCount",
+    "openWorkBySource",
+    "onDuty",
+    "isRecommended",
+    "isSelf",
+    "actions"
+   ]
+  },
+  {
+   "name": "StaffDetail",
+   "fields": [
+    "(StaffListItem)",
+    "displayName",
+    "servicePhone",
+    "wecom",
+    "poolMemberships",
+    "security",
+    "pendingActivation",
+    "disabledAt",
+    "disabledBy",
+    "createdAt",
+    "createdBy",
+    "updatedAt",
+    "lockVersion"
+   ]
+  },
+  {
+   "name": "StaffWecom",
+   "fields": [
+    "status",
+    "userid",
+    "boundAt",
+    "qrFileId",
+    "qrUrl"
+   ]
+  },
+  {
+   "name": "OpenWorkSummary",
+   "fields": [
+    "staff",
+    "total",
+    "bySource",
+    "candidates",
+    "pendingApprovalsAsRequester"
+   ]
+  },
+  {
+   "name": "ActivationIssue",
+   "fields": [
+    "purpose",
+    "delivery",
+    "expiresAt",
+    "activationCode",
+    "replayed"
+   ]
+  },
+  {
+   "name": "StaffMutationResult",
+   "fields": [
+    "staff",
+    "activation",
+    "replayed"
+   ]
+  },
+  {
+   "name": "HandoverResult",
+   "fields": [
+    "staff",
+    "batchId",
+    "moved",
+    "handoverTo"
+   ]
+  },
+  {
+   "name": "PoolMember",
+   "fields": [
+    "pool",
+    "staff",
+    "city",
+    "onDuty",
+    "updatedAt"
+   ]
+  },
+  {
+   "name": "PoolMemberList",
+   "fields": [
+    "items",
+    "cursors"
+   ]
+  },
+  {
+   "name": "StaffGroupList",
+   "fields": [
+    "items"
+   ]
+  },
+  {
+   "name": "StaffSessionView",
+   "fields": [
+    "staffSessionId",
+    "staff",
+    "authMethod",
+    "ipMask",
+    "userAgent",
+    "createdAt",
+    "lastSeenAt",
+    "idleExpiresAt",
+    "absoluteExpiresAt",
+    "revokedAt",
+    "revokeReason",
+    "isCurrent",
+    "actions"
+   ]
+  },
+  {
+   "name": "RoleSummary",
+   "fields": [
+    "roleKey",
+    "name",
+    "description",
+    "dataScope",
+    "isLocked",
+    "availableFrom",
+    "members",
+    "memberCount",
+    "updatedAt",
+    "updatedBy"
+   ]
+  },
+  {
+   "name": "RoleSummaryList",
+   "fields": [
+    "items"
+   ]
+  },
+  {
+   "name": "RoleConfig",
+   "fields": [
+    "roleKey",
+    "moduleLevels",
+    "actions",
+    "dataScope"
+   ]
+  },
+  {
+   "name": "RoleDetail",
+   "fields": [
+    "(RoleSummary)",
+    "moduleLevels",
+    "actions",
+    "lockVersion",
+    "isDefault"
+   ]
+  },
+  {
+   "name": "ApprovalItem",
+   "fields": [
+    "approvalId",
+    "requestNo",
+    "kind",
+    "category",
+    "status",
+    "roundNo",
+    "subjectType",
+    "subjectId",
+    "entityId",
+    "storeId",
+    "deliveryTicketId",
+    "summary",
+    "domain",
+    "badges",
+    "submitter",
+    "requester",
+    "handler",
+    "submittedAt",
+    "dueAt",
+    "decidedBy",
+    "isDecidedBySystem",
+    "decidedAt",
+    "decisionNote",
+    "reasons",
+    "lockVersion",
+    "actions"
+   ]
+  },
+  {
+   "name": "ApprovalDetail",
+   "fields": [
+    "(ApprovalItem)",
+    "checklist",
+    "confirmChecks",
+    "sla",
+    "timeline",
+    "operations"
+   ]
+  },
+  {
+   "name": "ApprovalCounts",
+   "fields": [
+    "items",
+    "total",
+    "pointsAdjustMonth"
+   ]
+  },
+  {
+   "name": "AuditLogItem",
+   "fields": [
+    "auditLogId",
+    "logNo",
+    "createdAt",
+    "stream",
+    "category",
+    "action",
+    "summary",
+    "actor",
+    "target",
+    "entityId",
+    "storeId"
+   ]
+  },
+  {
+   "name": "AuditLogDetail",
+   "fields": [
+    "(AuditLogItem)",
+    "reason",
+    "before",
+    "after",
+    "meta",
+    "authMethod",
+    "ipMask",
+    "requestId",
+    "jobName",
+    "onBehalfOfEntityId",
+    "link"
+   ]
+  },
+  {
+   "name": "PiiRevealResult",
+   "fields": [
+    "value",
+    "field",
+    "auditLogId"
+   ]
+  },
+  {
+   "name": "DictTypeView",
+   "fields": [
+    "typeKey",
+    "name",
+    "structure",
+    "maxDepth",
+    "isSystem",
+    "canCreate",
+    "disablePolicy",
+    "isMerchantVisible",
+    "versionNo",
+    "itemCount",
+    "enabledCount",
+    "levelCounts"
+   ]
+  },
+  {
+   "name": "DictTypeList",
+   "fields": [
+    "items"
+   ]
+  },
+  {
+   "name": "DictItemView",
+   "fields": [
+    "dictItemId",
+    "typeKey",
+    "code",
+    "parentCode",
+    "name",
+    "description",
+    "isEnabled",
+    "tags",
+    "ext",
+    "position",
+    "refCount",
+    "updatedAt",
+    "lockVersion"
+   ]
+  },
+  {
+   "name": "DictItemList",
+   "fields": [
+    "items",
+    "types"
+   ]
+  },
+  {
+   "name": "ParamItem",
+   "fields": [
+    "key",
+    "group",
+    "label",
+    "description",
+    "type",
+    "unit",
+    "range",
+    "defaultValue",
+    "value",
+    "rev",
+    "latestRev",
+    "effectiveAt",
+    "savedBy",
+    "savedAt",
+    "pending",
+    "snapshotOn"
+   ]
+  },
+  {
+   "name": "ParamList",
+   "fields": [
+    "items",
+    "groups",
+    "lastSaved"
+   ]
+  },
+  {
+   "name": "CalendarYear",
+   "fields": [
+    "items",
+    "year",
+    "calendarVersion",
+    "holidays",
+    "days",
+    "importedAt",
+    "workHours"
+   ]
+  },
+  {
+   "name": "CalendarImportResult",
+   "fields": [
+    "year",
+    "isChanged",
+    "changedDays",
+    "calendarVersion",
+    "holidayCount",
+    "adjustedWorkdayCount",
+    "source",
+    "calendar"
+   ]
+  },
+  {
+   "name": "FeatureFlagView",
+   "fields": [
+    "flagKey",
+    "valueType",
+    "defaultValue",
+    "rules",
+    "exposedTo",
+    "description",
+    "options",
+    "updatedAt",
+    "updatedBy",
+    "lockVersion"
+   ]
+  },
+  {
+   "name": "FeatureFlagList",
+   "fields": [
+    "items"
+   ]
+  },
+  {
+   "name": "ChecklistTemplateView",
+   "fields": [
+    "checklistTemplateId",
+    "code",
+    "versionNo",
+    "status",
+    "items",
+    "activatedAt",
+    "retiredAt",
+    "createdBy",
+    "createdAt",
+    "updatedAt",
+    "lockVersion",
+    "actions"
+   ]
+  },
+  {
+   "name": "ChecklistTemplateList",
+   "fields": [
+    "items"
+   ]
+  },
+  {
+   "name": "AdminFileView",
+   "fields": [
+    "fileId",
+    "category",
+    "scopeType",
+    "entityId",
+    "storeId",
+    "status",
+    "rejectReason",
+    "originalName",
+    "ext",
+    "mime",
+    "sizeBytes",
+    "declaredSizeBytes",
+    "moderationState",
+    "uploader",
+    "onBehalfStoreId",
+    "storedAt",
+    "purgeAfter",
+    "deletedAt",
+    "erasedAt",
+    "restorableUntil",
+    "liveRefCount",
+    "production",
+    "check",
+    "actions"
+   ]
+  },
+  {
+   "name": "SignedUrl",
+   "fields": [
+    "url",
+    "expiresAt"
+   ]
+  },
+  {
+   "name": "PurgeRunView",
+   "fields": [
+    "purgeRunId",
+    "mode",
+    "state",
+    "candidateCount",
+    "candidateBytes",
+    "byCategory",
+    "heldReason",
+    "decidedBy",
+    "decidedAt",
+    "deletedCount",
+    "guardTrips",
+    "startedAt",
+    "finishedAt",
+    "createdAt",
+    "actions"
+   ]
+  },
+  {
+   "name": "MediaJobView",
+   "fields": [
+    "mediaJobId",
+    "kind",
+    "provider",
+    "mode",
+    "subject",
+    "parent",
+    "state",
+    "attemptNo",
+    "maxAttempts",
+    "externalJobId",
+    "error",
+    "nextRunAt",
+    "deadlineAt",
+    "billable",
+    "startedAt",
+    "finishedAt",
+    "createdAt",
+    "actions"
+   ]
+  },
+  {
+   "name": "AlertView",
+   "fields": [
+    "alertId",
+    "fingerprint",
+    "rule",
+    "severity",
+    "kind",
+    "status",
+    "firstSeenAt",
+    "lastSeenAt",
+    "resolvedAt",
+    "occurrences",
+    "lastValue",
+    "lastNotifiedAt",
+    "notifyCount",
+    "ackedBy",
+    "ackedAt",
+    "note",
+    "actions"
+   ]
+  },
+  {
+   "name": "InvariantRunView",
+   "fields": [
+    "invariantRunId",
+    "mode",
+    "trigger",
+    "scope",
+    "status",
+    "startedAt",
+    "finishedAt",
+    "checksRun",
+    "violationsFound",
+    "error"
+   ]
+  },
+  {
+   "name": "InvariantViolationView",
+   "fields": [
+    "invariantViolationId",
+    "invariantRunId",
+    "code",
+    "module",
+    "severity",
+    "subject",
+    "entityId",
+    "detail",
+    "firstSeenAt",
+    "lastSeenAt",
+    "autoHealedAt",
+    "resolvedAt",
+    "resolvedBy",
+    "resolution",
+    "actions"
+   ]
+  },
+  {
+   "name": "TimerView",
+   "fields": [
+    "timerId",
+    "kind",
+    "subject",
+    "entityId",
+    "storeId",
+    "fireAt",
+    "retryAt",
+    "dedupeKey",
+    "status",
+    "attempts",
+    "dispatchNo",
+    "leaseUntil",
+    "firedAt",
+    "lastError",
+    "payload",
+    "result",
+    "createdAt",
+    "updatedAt",
+    "actions"
+   ]
+  },
+  {
+   "name": "OutboxDeliveryView",
+   "fields": [
+    "outboxEventId",
+    "subscriber",
+    "status",
+    "attempts",
+    "dispatchNo",
+    "nextAttemptAt",
+    "leaseUntil",
+    "consumedAt",
+    "lastError",
+    "event",
+    "createdAt",
+    "updatedAt",
+    "actions"
+   ]
+  },
+  {
+   "name": "WebhookEventView",
+   "fields": [
+    "webhookEventId",
+    "provider",
+    "eventId",
+    "eventType",
+    "mode",
+    "processState",
+    "attempts",
+    "receivedAt",
+    "nextAttemptAt",
+    "processedAt",
+    "error",
+    "summary",
+    "payloadPurgedAt",
+    "actions"
+   ]
+  },
+  {
+   "name": "TotpEnrollment",
+   "fields": [
+    "otpauthUri",
+    "secret",
+    "ticket",
+    "ticketExpiresAt"
+   ]
+  },
+  {
+   "name": "TotpConfirmResult",
+   "fields": [
+    "me",
+    "recoveryCodes"
+   ]
+  },
+  {
+   "name": "StepUpResult",
+   "fields": [
+    "stepUpValidUntil"
+   ]
+  },
+  {
+   "name": "ClientIpEcho",
+   "fields": [
+    "clientIp",
+    "remoteAddr",
+    "xForwardedFor",
+    "xRealIp",
+    "trustedProxyHops"
+   ]
+  },
+  {
+   "name": "LoginBody",
+   "fields": [
+    "phone",
+    "password"
+   ]
+  },
+  {
+   "name": "VerifyMfaBody",
+   "fields": [
+    "ticket",
+    "method",
+    "code"
+   ]
+  },
+  {
+   "name": "ActivateBody",
+   "fields": [
+    "phone",
+    "activationCode"
+   ]
+  },
+  {
+   "name": "SetPasswordBody",
+   "fields": [
+    "ticket",
+    "newPassword"
+   ]
+  },
+  {
+   "name": "EnrollTotpBody",
+   "fields": [
+    "ticket"
+   ]
+  },
+  {
+   "name": "ConfirmTotpBody",
+   "fields": [
+    "ticket",
+    "code"
+   ]
+  },
+  {
+   "name": "StepUpBody",
+   "fields": [
+    "method",
+    "code"
+   ]
+  },
+  {
+   "name": "ChangePasswordBody",
+   "fields": [
+    "currentPassword",
+    "newPassword"
+   ]
+  },
+  {
+   "name": "BindWecomSelfBody",
+   "fields": [
+    "wecomUserid",
+    "code"
+   ]
+  },
+  {
+   "name": "StaffCreateBody",
+   "fields": [
+    "name",
+    "phone",
+    "roleKey",
+    "isLead",
+    "staffGroupId",
+    "activateNow",
+    "activationDelivery",
+    "inviteWecom",
+    "displayName",
+    "servicePhone"
+   ]
+  },
+  {
+   "name": "StaffUpdateBody",
+   "fields": [
+    "name",
+    "roleKey",
+    "isLead",
+    "staffGroupId",
+    "displayName",
+    "servicePhone",
+    "wecomQrFileId",
+    "ackNoLead",
+    "lockVersion"
+   ]
+  },
+  {
+   "name": "ActivationDeliveryBody",
+   "fields": [
+    "activationDelivery"
+   ]
+  },
+  {
+   "name": "StaffDisableBody",
+   "fields": [
+    "handoverToStaffId",
+    "reason",
+    "note",
+    "confirm"
+   ]
+  },
+  {
+   "name": "HandoverBody",
+   "fields": [
+    "handoverToStaffId",
+    "reason",
+    "note"
+   ]
+  },
+  {
+   "name": "StaffSecureOpBody",
+   "fields": [
+    "confirm",
+    "activationDelivery",
+    "note"
+   ]
+  },
+  {
+   "name": "UnlockBody",
+   "fields": [
+    "bucket",
+    "note"
+   ]
+  },
+  {
+   "name": "StaffWecomBindBody",
+   "fields": [
+    "wecomUserid",
+    "takeOver"
+   ]
+  },
+  {
+   "name": "PoolMembershipReplaceBody",
+   "fields": [
+    "memberships",
+    "lockVersion"
+   ]
+  },
+  {
+   "name": "DutyUpdateBody",
+   "fields": [
+    "onDuty"
+   ]
+  },
+  {
+   "name": "ReasonOptionalBody",
+   "fields": [
+    "reason"
+   ]
+  },
+  {
+   "name": "ReasonRequiredBody",
+   "fields": [
+    "reason"
+   ]
+  },
+  {
+   "name": "NoteOptionalBody",
+   "fields": [
+    "note"
+   ]
+  },
+  {
+   "name": "NoteRequiredBody",
+   "fields": [
+    "note"
+   ]
+  },
+  {
+   "name": "RoleReplaceBody",
+   "fields": [
+    "moduleLevels",
+    "actions",
+    "dataScope",
+    "lockVersion"
+   ]
+  },
+  {
+   "name": "PiiRevealBody",
+   "fields": [
+    "subjectType",
+    "subjectId",
+    "field",
+    "purpose",
+    "note"
+   ]
+  },
+  {
+   "name": "DictItemCreateBody",
+   "fields": [
+    "typeKey",
+    "parentCode",
+    "name",
+    "description",
+    "tags",
+    "ext"
+   ]
+  },
+  {
+   "name": "DictItemUpdateBody",
+   "fields": [
+    "name",
+    "description",
+    "isEnabled",
+    "tags",
+    "ext",
+    "position",
+    "lockVersion"
+   ]
+  },
+  {
+   "name": "ParamReplaceBody",
+   "fields": [
+    "items",
+    "reason"
+   ]
+  },
+  {
+   "name": "CalendarImportBody",
+   "fields": [
+    "year",
+    "days",
+    "source"
+   ]
+  },
+  {
+   "name": "FeatureFlagUpdateBody",
+   "fields": [
+    "defaultValue",
+    "rules",
+    "description",
+    "lockVersion"
+   ]
+  },
+  {
+   "name": "ChecklistTemplateCreateBody",
+   "fields": [
+    "code",
+    "items"
+   ]
+  },
+  {
+   "name": "AdminFileCreateBody",
+   "fields": [
+    "category",
+    "fileName",
+    "sizeBytes",
+    "mime",
+    "clientToken",
+    "storeId",
+    "entityId",
+    "onBehalfStore",
+    "production"
+   ]
+  },
+  {
+   "name": "FileDownloadUrlsBody",
+   "fields": [
+    "disposition",
+    "purpose"
+   ]
+  },
+  {
+   "name": "FileEraseBody",
+   "fields": [
+    "reason",
+    "confirm"
+   ]
+  },
+  {
+   "name": "PurgeApproveBody",
+   "fields": [
+    "confirm",
+    "note"
+   ]
+  },
+  {
+   "name": "InvariantRunCreateBody",
+   "fields": [
+    "modules",
+    "codes",
+    "entityIds"
+   ]
+  },
+  {
+   "name": "ResolutionBody",
+   "fields": [
+    "resolution"
+   ]
+  },
+  {
+   "name": "OutboxRetryBody",
+   "fields": [
+    "subscriber",
+    "note"
+   ]
+  },
+  {
+   "name": "SentryEnvelope",
+   "fields": [
+    "(raw envelope, ≤200KB)"
+   ],
+   "note": "Content-Type application/x-sentry-envelope；与 m.clientError.create、portal 错误上报同形"
+  },
+  {
+   "name": "ApprovalSummary",
+   "fields": [
+    "title",
+    "lines",
+    "amountFen",
+    "points",
+    "domain"
+   ]
+  },
+  {
+   "name": "ApprovalDecisionView",
+   "fields": [
+    "approvalId",
+    "kind",
+    "status",
+    "roundNo",
+    "submittedAt",
+    "dueAt",
+    "badges",
+    "requester",
+    "decidedBy",
+    "isDecidedBySystem",
+    "decidedAt",
+    "decisionNote",
+    "reasons",
+    "lockVersion",
+    "actions"
+   ]
+  },
+  {
+   "name": "ApprovalListQuery",
+   "fields": [
+    "tab",
+    "kind",
+    "status",
+    "storeId",
+    "entityId",
+    "q",
+    "overdue",
+    "submittedFrom",
+    "submittedTo",
+    "page",
+    "pageSize",
+    "sort"
+   ]
+  },
+  {
+   "name": "AuditLogListQuery",
+   "fields": [
+    "stream",
+    "category",
+    "actorType",
+    "actorId",
+    "targetType",
+    "targetId",
+    "targetKey",
+    "entityId",
+    "storeId",
+    "q",
+    "createdFrom",
+    "createdTo",
+    "cursor",
+    "limit"
+   ]
+  },
+  {
+   "name": "StaffListQuery",
+   "fields": [
+    "q",
+    "roleKey",
+    "status",
+    "isLead",
+    "staffGroupId",
+    "pool",
+    "withLoad",
+    "recommendPool",
+    "recommendCityCode",
+    "page",
+    "pageSize",
+    "sort"
+   ]
+  },
+  {
+   "name": "StaffCounts",
+   "fields": [
+    "total",
+    "byStatus",
+    "pendingActivation",
+    "locked"
+   ]
+  },
+  {
+   "name": "TotpReEnrollment",
+   "fields": [
+    "otpauthUri",
+    "secret",
+    "pendingExpiresAt"
+   ]
+  },
+  {
+   "name": "TotpReEnrollResult",
+   "fields": [
+    "recoveryCodes",
+    "recoveryCodesLeft",
+    "replayed"
+   ]
+  },
+  {
+   "name": "ConfirmTotpSelfBody",
+   "fields": [
+    "code"
+   ]
+  }
+ ],
+ "errorCodes": [
+  {
+   "symbol": "AUTH_TICKET_INVALID",
+   "code": 48001,
+   "http": 401,
+   "retryable": false,
+   "meaning": "设置密码或绑定动态口令的票据无效或过期"
+  },
+  {
+   "symbol": "TOTP_ALREADY_ENROLLED",
+   "code": 48002,
+   "http": 409,
+   "retryable": false,
+   "meaning": "已绑定动态口令，不能用激活码重新绑定"
+  },
+  {
+   "symbol": "PASSWORD_POLICY_VIOLATED",
+   "code": 48003,
+   "http": 400,
+   "retryable": false,
+   "meaning": "密码不符合规则"
+  },
+  {
+   "symbol": "PASSWORD_INCORRECT",
+   "code": 48004,
+   "http": 400,
+   "retryable": false,
+   "meaning": "当前密码不正确"
+  },
+  {
+   "symbol": "MFA_CODE_INVALID",
+   "code": 48005,
+   "http": 400,
+   "retryable": false,
+   "meaning": "动态口令或恢复码不正确"
+  },
+  {
+   "symbol": "CANNOT_DISABLE_SELF",
+   "code": 48006,
+   "http": 409,
+   "retryable": false,
+   "meaning": "不能禁用当前登录的账号"
+  },
+  {
+   "symbol": "SELF_OPERATION_FORBIDDEN",
+   "code": 48007,
+   "http": 409,
+   "retryable": false,
+   "meaning": "不能对自己执行该操作"
+  },
+  {
+   "symbol": "LAST_SUPER_ADMIN",
+   "code": 48008,
+   "http": 409,
+   "retryable": false,
+   "meaning": "至少保留一名启用的超级管理员"
+  },
+  {
+   "symbol": "OPEN_WORK_EXISTS",
+   "code": 48009,
+   "http": 409,
+   "retryable": false,
+   "meaning": "名下有在办事项，须先移交再改角色"
+  },
+  {
+   "symbol": "NO_HANDOVER_CANDIDATE",
+   "code": 48010,
+   "http": 409,
+   "retryable": false,
+   "meaning": "没有同岗位的启用员工可接收"
+  },
+  {
+   "symbol": "LEAD_REMOVAL_ACK_REQUIRED",
+   "code": 48012,
+   "http": 409,
+   "retryable": false,
+   "meaning": "改动后该组没有主管，须确认"
+  },
+  {
+   "symbol": "STAFF_PHONE_TAKEN",
+   "code": 48013,
+   "http": 409,
+   "retryable": false,
+   "meaning": "手机号已被其他员工使用"
+  },
+  {
+   "symbol": "WECOM_USERID_TAKEN",
+   "code": 48014,
+   "http": 409,
+   "retryable": false,
+   "meaning": "企业微信 userid 已绑定其他员工"
+  },
+  {
+   "symbol": "WECOM_CODE_INVALID",
+   "code": 48015,
+   "http": 400,
+   "retryable": false,
+   "meaning": "企业微信扫码 code 无效或过期"
+  },
+  {
+   "symbol": "ROLE_LOCKED",
+   "code": 48016,
+   "http": 409,
+   "retryable": false,
+   "meaning": "超级管理员角色不可修改"
+  },
+  {
+   "symbol": "POOL_ROLE_MISMATCH",
+   "code": 48017,
+   "http": 409,
+   "retryable": false,
+   "meaning": "员工岗位与分配池不符或未启用"
+  },
+  {
+   "symbol": "FILE_CATEGORY_NOT_ALLOWED",
+   "code": 46401,
+   "http": 400,
+   "retryable": false,
+   "meaning": "该分类不能在此登记或签发"
+  },
+  {
+   "symbol": "PRODUCTION_CONTEXT_REQUIRED",
+   "code": 46402,
+   "http": 400,
+   "retryable": false,
+   "meaning": "制作文件缺制作上下文或 AI 使用声明"
+  },
+  {
+   "symbol": "FILE_NOT_AVAILABLE",
+   "code": 46403,
+   "http": 409,
+   "retryable": false,
+   "meaning": "文件未入库、已清除或已拦截"
+  },
+  {
+   "symbol": "FILE_RESTORE_WINDOW_PASSED",
+   "code": 46404,
+   "http": 409,
+   "retryable": false,
+   "meaning": "已超过可恢复期限"
+  },
+  {
+   "symbol": "FILE_IN_USE",
+   "code": 46405,
+   "http": 409,
+   "retryable": false,
+   "meaning": "文件仍有在用引用"
+  },
+  {
+   "symbol": "MEDIA_JOB_NOT_RETRYABLE",
+   "code": 46406,
+   "http": 409,
+   "retryable": false,
+   "meaning": "业务对象已不需要该任务"
+  },
+  {
+   "symbol": "DICT_TYPE_NOT_EDITABLE",
+   "code": 47301,
+   "http": 409,
+   "retryable": false,
+   "meaning": "字典类型不可新增"
+  },
+  {
+   "symbol": "DICT_NAME_DUPLICATED",
+   "code": 47302,
+   "http": 409,
+   "retryable": false,
+   "meaning": "同级重名"
+  },
+  {
+   "symbol": "DICT_ITEM_IN_USE",
+   "code": 47303,
+   "http": 409,
+   "retryable": false,
+   "meaning": "字典项被引用，不能停用"
+  },
+  {
+   "symbol": "DICT_ITEM_LOCKED",
+   "code": 47304,
+   "http": 409,
+   "retryable": false,
+   "meaning": "字典项规则不允许该操作"
+  },
+  {
+   "symbol": "PARAM_WITHDRAW_TOO_LATE",
+   "code": 47305,
+   "http": 409,
+   "retryable": false,
+   "meaning": "参数已生效或即将生效，不能撤销"
+  },
+  {
+   "symbol": "CHECKLIST_VERSION_STALE",
+   "code": 47306,
+   "http": 409,
+   "retryable": false,
+   "meaning": "清单模板版本已不是当前版"
+  },
+  {
+   "symbol": "CHECKLIST_NOT_PASSED",
+   "code": 47307,
+   "http": 400,
+   "retryable": false,
+   "meaning": "清单没有全部通过：必填条目缺结论、有不通过项，或在不允许“不适用”的条目上填了不适用",
+   "details": "{ missingKeys: string[], failedKeys: string[], invalidNaKeys: string[] }"
+  }
+ ],
+ "permissions": [
+  "sys.staff.manage",
+  "sys.staff.secure_ops",
+  "sys.staff.wecom_bind",
+  "sys.session.revoke",
+  "sys.role.edit",
+  "sys.dict.edit",
+  "sys.param.edit",
+  "sys.super_admin",
+  "flow.checklist.manage",
+  "flow.ops.manage",
+  "sys.health.manage",
+  "billing.invariant.resolve",
+  "media.job.retry",
+  "files.purge.approve",
+  "files.restore",
+  "files.erase",
+  "pii.phone.reveal",
+  "pii.license.view",
+  "pii.bank.reveal",
+  "docs.consent.evidence",
+  "merchant.qualification.review",
+  "delivery.download",
+  "service.ticket.assign",
+  "service.ticket.transfer",
+  "merchant.manager.assign",
+  "merchant.manager.transfer",
+  "delivery.ticket.assign_editor",
+  "delivery.ad.assign",
+  "delivery.ticket.assign_publisher",
+  "audit.export",
+  "merchant.profile.proxy_edit",
+  "finance.invoice.issue",
+  "finance.refund.execute",
+  "order.payment.create_offline",
+  "publish.takedown.check",
+  "publish.patrol.do",
+  "finance.refund.approve",
+  "billing.adjust.approve",
+  "billing.extension.approve",
+  "finance.config.approve",
+  "merchant.account_change.approve",
+  "finance.receipt.confirm",
+  "publish.account.verify",
+  "publish.link.verify",
+  "flow.ops.view",
+  "self.mfa.reset",
+  "merchant.asset.upload_on_behalf",
+  "merchant.asset.review",
+  "merchant.account_change.request",
+  "finance.invoice.red",
+  "service.ticket.reply",
+  "drama.media.manage",
+  "drama.copyright.revise",
+  "assert-in-handler"
+ ],
+ "capabilities": [],
+ "errorSources": {
+  "general": [
+   "AUTH_FAILED",
+   "IP_NOT_ALLOWED",
+   "RATE_LIMITED",
+   "FEATURE_DISABLED",
+   "PROVIDER_UNAVAILABLE",
+   "IDEMPOTENCY_IN_PROGRESS",
+   "PERMISSION_DENIED",
+   "NOT_FOUND",
+   "VALIDATION_FAILED",
+   "VERSION_CONFLICT",
+   "STATE_NOT_ALLOWED",
+   "CONFIRM_MISMATCH",
+   "STEP_UP_REQUIRED"
+  ],
+  "conventions": "C27",
+  "otherDocs": {
+   "FILE_NOT_USABLE": "m03-profile-asset（46001）",
+   "FILE_TYPE_NOT_ALLOWED": "m08-support-misc（47051）",
+   "FILE_TOO_LARGE": "m08-support-misc（47052）",
+   "UPLOAD_EXPIRED": "m08-support-misc（47053）",
+   "UPLOAD_CREDENTIAL_LIMIT": "m08-support-misc（47054）",
+   "CONFIRM_IN_PROGRESS": "m08-support-misc（47055）",
+   "UPLOAD_NOT_FOUND": "m08-support-misc（47056）",
+   "UPLOAD_REJECTED": "m08-support-misc（47057）",
+   "ASSIGNEE_INVALID": "a05-order-delivery（45308；A77 共用领域码，取代本文初稿的 HANDOVER_TARGET_INVALID）",
+   "DICT_ITEM_DISABLED": "m08-support-misc（47001；A77）"
+  }
+ },
+ "externalSchemas": [
+  {
+   "name": "FileRegistration",
+   "sourceDoc": "m08-support-misc",
+   "source": "m08 2.10，后台登记与续签的响应同一个 schema（3.57、3.58）"
+  },
+  {
+   "name": "PostPolicy",
+   "sourceDoc": "m08-support-misc",
+   "source": "m08 2.10，FileRegistration.post"
+  },
+  {
+   "name": "StsCredential",
+   "sourceDoc": "m08-support-misc",
+   "source": "m08 2.10，FileRegistration.sts"
+  },
+  {
+   "name": "DictRef",
+   "sourceDoc": "a04-content",
+   "source": "{ code, name }（约定通用结构，C85、C87）；ApprovalItem.reasons、ApprovalDecisionView.reasons"
+  }
+ ],
+ "permissionSupplements": [
+  {
+   "key": "sys.staff.secure_ops",
+   "module": "系统设置",
+   "defaultRoles": "仅超级管理员",
+   "stepUp": true,
+   "pool": false,
+   "confirm": false,
+   "note": "A46、A88：禁用、重置密码、重置第二因子（A129）"
+  },
+  {
+   "key": "self.mfa.reset",
+   "module": "系统设置（自助标记）",
+   "defaultRoles": "全体员工（标记，不进角色配置）",
+   "stepUp": true,
+   "pool": false,
+   "confirm": false,
+   "note": "A88、A129；3.86、3.87"
+  },
+  {
+   "key": "sys.super_admin",
+   "module": "系统设置",
+   "defaultRoles": "仅超级管理员",
+   "stepUp": false,
+   "pool": false,
+   "confirm": false,
+   "note": "A45；A129：不另设再验证标记；a09 共用"
+  },
+  {
+   "key": "flow.ops.view",
+   "module": "系统设置（流程运维）",
+   "defaultRoles": "仅超级管理员",
+   "stepUp": false,
+   "pool": false,
+   "confirm": false,
+   "note": "A129 采纳；a02 工作台 flow_ops 待办同一判定"
+  },
+  {
+   "key": "flow.ops.manage",
+   "module": "系统设置（流程运维）",
+   "defaultRoles": "仅超级管理员",
+   "stepUp": false,
+   "pool": false,
+   "confirm": false,
+   "note": "定时器重排与取消、死信重投、回调重置、手动校验"
+  },
+  {
+   "key": "sys.health.manage",
+   "module": "系统设置（系统健康）",
+   "defaultRoles": "超级管理员、财务主管",
+   "stepUp": false,
+   "pool": false,
+   "confirm": false,
+   "note": "认领、关闭告警；处理非资金类违规"
+  },
+  {
+   "key": "media.job.retry",
+   "module": "系统设置",
+   "defaultRoles": "超级管理员、内容运营",
+   "stepUp": false,
+   "pool": false,
+   "confirm": false,
+   "note": "媒体任务人工重试"
+  },
+  {
+   "key": "files.purge.approve",
+   "module": "系统设置（文件清除放行）",
+   "defaultRoles": "仅超级管理员",
+   "stepUp": true,
+   "pool": false,
+   "confirm": false,
+   "note": "建议再验证（批量不可逆）；驳回 admin.purgeRun.reject 已登记 C86（x-step-up: skip，A149）"
+  },
+  {
+   "key": "files.restore",
+   "module": "系统设置（文件清除放行）",
+   "defaultRoles": "仅超级管理员",
+   "stepUp": false,
+   "pool": false,
+   "confirm": false,
+   "note": ""
+  },
+  {
+   "key": "files.erase",
+   "module": "系统设置（文件清除放行）",
+   "defaultRoles": "仅超级管理员",
+   "stepUp": true,
+   "pool": false,
+   "confirm": true,
+   "note": "A36；回显 confirm { fileId, category }"
+  }
+ ]
+}

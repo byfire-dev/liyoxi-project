@@ -1,0 +1,4764 @@
+{
+  "doc": "a07-billing-finance",
+  "endpoints": [
+    {
+      "operationId": "admin.plan.list",
+      "method": "GET",
+      "path": "/admin/plans",
+      "section": "3.1",
+      "version": "V1.0",
+      "requestSchemas": [
+        "PlanListQuery"
+      ],
+      "responseSchema": "PlanCatalog",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "billing",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.plan.summary",
+      "method": "GET",
+      "path": "/admin/plans/summary",
+      "section": "3.2",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "PlanSummary",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "billing",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.plan.create",
+      "method": "POST",
+      "path": "/admin/plans",
+      "section": "3.3",
+      "version": "V1.0",
+      "requestSchemas": [
+        "PlanCreateBody"
+      ],
+      "responseSchema": "PlanAdminColumn",
+      "errors": [
+        "PLAN_CODE_TAKEN",
+        "PLAN_RANK_TAKEN"
+      ],
+      "events": [],
+      "permission": "billing.plan.edit",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.plan.shelve",
+      "method": "POST",
+      "path": "/admin/plans/{planId}/shelve",
+      "section": "3.4",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "PlanAdminColumn",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "PLAN_REVISION_MISSING"
+      ],
+      "events": [],
+      "permission": "billing.plan.edit",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "plan.is_listed: false → true"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.plan.delist",
+      "method": "POST",
+      "path": "/admin/plans/{planId}/delist",
+      "section": "3.5",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "PlanAdminColumn",
+      "errors": [
+        "STATE_NOT_ALLOWED"
+      ],
+      "events": [],
+      "permission": "billing.plan.edit",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "plan.is_listed: true → false"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.plan.update",
+      "method": "PATCH",
+      "path": "/admin/plans/{planId}",
+      "section": "3.85",
+      "version": "V1.0",
+      "requestSchemas": [
+        "PlanUpdateBody"
+      ],
+      "responseSchema": "PlanAdminColumn",
+      "errors": [
+        "VERSION_CONFLICT",
+        "CHANGESET_EMPTY"
+      ],
+      "events": [],
+      "permission": "billing.plan.edit",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": "plan.lock_version",
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.plan.planRevision.create",
+      "method": "POST",
+      "path": "/admin/plans/{planId}/plan-revisions",
+      "section": "3.6",
+      "version": "V1.0",
+      "requestSchemas": [
+        "PlanRevisionCreateBody"
+      ],
+      "responseSchema": "PlanRevisionView",
+      "errors": [
+        "REVISION_PENDING_EXISTS",
+        "NOTICE_PERIOD_REQUIRED",
+        "PLAN_TIER_ORDER_INVALID",
+        "CHANGESET_EMPTY"
+      ],
+      "events": [
+        "site_notice.announced",
+        "billing.plan_revision_scheduled"
+      ],
+      "permission": "billing.plan.edit",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "site_notice.status: （新建）→ announced（非首个修订）",
+        "plan_revision: （新建）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.planRevision.list",
+      "method": "GET",
+      "path": "/admin/plan-revisions",
+      "section": "3.7",
+      "version": "V1.0",
+      "requestSchemas": [
+        "PlanRevisionListQuery"
+      ],
+      "responseSchema": "AdminPage<PlanRevisionListItem>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "billing",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.planRevision.withdraw",
+      "method": "POST",
+      "path": "/admin/plan-revisions/{planRevisionId}/withdraw",
+      "section": "3.8",
+      "version": "V1.0",
+      "requestSchemas": [
+        "RevisionWithdrawBody"
+      ],
+      "responseSchema": "PlanRevisionView",
+      "errors": [
+        "REVISION_ALREADY_EFFECTIVE",
+        "CONFIRM_MISMATCH"
+      ],
+      "events": [
+        "site_notice.withdrawn"
+      ],
+      "permission": "billing.plan.edit",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "plan_revision.cancelled_at: 空 → 写入",
+        "site_notice.status: announced → withdrawn"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.plan.quote",
+      "method": "POST",
+      "path": "/admin/plans/quote",
+      "section": "3.9",
+      "version": "V1.0",
+      "requestSchemas": [
+        "AdminPlanQuoteBody"
+      ],
+      "responseSchema": "AdminPlanQuote",
+      "errors": [
+        "PLAN_NOT_AVAILABLE",
+        "CYCLE_NOT_AVAILABLE",
+        "UPGRADE_NOT_ALLOWED_TODAY",
+        "SCHEDULED_TERM_LIMIT",
+        "PLAN_REFUND_IN_PROGRESS"
+      ],
+      "events": [],
+      "permission": "assert-in-handler",
+      "permissionAlso": [],
+      "moduleView": "billing|order",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pointPack.list",
+      "method": "GET",
+      "path": "/admin/point-packs",
+      "section": "3.10",
+      "version": "V1.0",
+      "requestSchemas": [
+        "PointPackListQuery"
+      ],
+      "responseSchema": "PointPackList",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "billing",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pointPack.summary",
+      "method": "GET",
+      "path": "/admin/point-packs/summary",
+      "section": "3.11",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "PointPackSummary",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "billing",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pointPack.create",
+      "method": "POST",
+      "path": "/admin/point-packs",
+      "section": "3.12",
+      "version": "V1.0",
+      "requestSchemas": [
+        "PointPackCreateBody"
+      ],
+      "responseSchema": "PointPackRow",
+      "errors": [
+        "POINT_PACK_DUPLICATE"
+      ],
+      "events": [],
+      "permission": "billing.pack.edit",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pointPack.update",
+      "method": "PATCH",
+      "path": "/admin/point-packs/{pointPackId}",
+      "section": "3.13",
+      "version": "V1.0",
+      "requestSchemas": [
+        "PointPackUpdateBody"
+      ],
+      "responseSchema": "PointPackRow",
+      "errors": [
+        "VERSION_CONFLICT",
+        "POINT_PACK_DUPLICATE"
+      ],
+      "events": [],
+      "permission": "billing.pack.edit",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": "point_pack.lock_version",
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pointPack.shelve",
+      "method": "POST",
+      "path": "/admin/point-packs/{pointPackId}/shelve",
+      "section": "3.14",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "PointPackRow",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "POINT_PACK_DUPLICATE"
+      ],
+      "events": [],
+      "permission": "billing.pack.edit",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "point_pack.is_listed: false → true"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pointPack.delist",
+      "method": "POST",
+      "path": "/admin/point-packs/{pointPackId}/delist",
+      "section": "3.15",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "PointPackRow",
+      "errors": [
+        "STATE_NOT_ALLOWED"
+      ],
+      "events": [],
+      "permission": "billing.pack.edit",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "point_pack.is_listed: true → false"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.billingParam.list",
+      "method": "GET",
+      "path": "/admin/billing-params",
+      "section": "3.16",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "BillingParamList",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "billing",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pricingChange.list",
+      "method": "GET",
+      "path": "/admin/pricing-changes",
+      "section": "3.17",
+      "version": "V1.0",
+      "requestSchemas": [
+        "PricingChangeListQuery"
+      ],
+      "responseSchema": "AdminPage<PricingChangeRecord>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "billing",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pricingChange.create",
+      "method": "POST",
+      "path": "/admin/pricing-changes",
+      "section": "3.18",
+      "version": "V1.0",
+      "requestSchemas": [
+        "PricingChangeBody"
+      ],
+      "responseSchema": "PricingChangeRecord",
+      "errors": [
+        "CHANGESET_EMPTY",
+        "PARAM_PENDING_EXISTS",
+        "NOTICE_PERIOD_REQUIRED",
+        "VALIDATION_FAILED"
+      ],
+      "events": [
+        "site_notice.announced",
+        "billing.param_change_scheduled",
+        "pricing.drama_price_changed"
+      ],
+      "permission": "assert-in-handler",
+      "permissionAlso": [
+        "billing.price.edit",
+        "billing.param.edit"
+      ],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "site_notice.status: （新建）→ announced（含需公告的键）",
+        "billing_param: （新建）",
+        "price_tier_revision: （新建）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.billingParam.withdraw",
+      "method": "POST",
+      "path": "/admin/billing-params/{billingParamId}/withdraw",
+      "section": "3.19",
+      "version": "V1.0",
+      "requestSchemas": [
+        "RevisionWithdrawBody"
+      ],
+      "responseSchema": "BillingParamView",
+      "errors": [
+        "REVISION_ALREADY_EFFECTIVE",
+        "CONFIRM_MISMATCH"
+      ],
+      "events": [
+        "site_notice.withdrawn"
+      ],
+      "permission": "billing.param.edit",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "billing_param.cancelled_at: 空 → 写入",
+        "site_notice.status: announced → withdrawn（变更集需公告的键全部撤销时）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pointAccount.list",
+      "method": "GET",
+      "path": "/admin/point-accounts",
+      "section": "3.20",
+      "version": "V1.0",
+      "requestSchemas": [
+        "PointAccountListQuery"
+      ],
+      "responseSchema": "AdminPage<PointAccountRow>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "billing",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pointAccount.summary",
+      "method": "GET",
+      "path": "/admin/point-accounts/summary",
+      "section": "3.21",
+      "version": "V1.0",
+      "requestSchemas": [
+        "PointAccountListQuery"
+      ],
+      "responseSchema": "PointAccountSummary",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "billing",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pointAccount.get",
+      "method": "GET",
+      "path": "/admin/point-accounts/{pointAccountId}",
+      "section": "3.22",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "PointAccountDetail",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "billing",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pointAccount.pointLedgerEntry.list",
+      "method": "GET",
+      "path": "/admin/point-accounts/{pointAccountId}/point-ledger-entries",
+      "section": "3.23",
+      "version": "V1.0",
+      "requestSchemas": [
+        "AdminLedgerQuery"
+      ],
+      "responseSchema": "AdminCursorPage<AdminLedgerRow>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "billing",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pointAccount.adjustmentQuote",
+      "method": "POST",
+      "path": "/admin/point-accounts/{pointAccountId}/adjustment-quote",
+      "section": "3.24",
+      "version": "V1.0",
+      "requestSchemas": [
+        "AdjustmentQuoteBody"
+      ],
+      "responseSchema": "AdjustmentQuote",
+      "errors": [],
+      "events": [],
+      "permission": "billing.adjust.request",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pointAdjustmentRequest.create",
+      "method": "POST",
+      "path": "/admin/point-adjustment-requests",
+      "section": "3.25",
+      "version": "V1.0",
+      "requestSchemas": [
+        "PointAdjustmentCreateBody"
+      ],
+      "responseSchema": "PointAdjustmentRequestDetail",
+      "errors": [
+        "APPROVAL_ALREADY_PENDING",
+        "ADJUST_ACCOUNT_INACTIVE",
+        "ADJUST_EXCEEDS_AVAILABLE",
+        "ADJUST_HOLD_INVALID",
+        "CONFIRM_MISMATCH"
+      ],
+      "events": [
+        "approval.submitted"
+      ],
+      "permission": "billing.adjust.request",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: （新建）→ pending（kind = points_adjust）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pointAdjustmentRequest.get",
+      "method": "GET",
+      "path": "/admin/point-adjustment-requests/{pointAdjustmentRequestId}",
+      "section": "3.26",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "PointAdjustmentRequestDetail",
+      "errors": [],
+      "events": [],
+      "permission": "assert-in-handler",
+      "permissionAlso": [],
+      "moduleView": "billing|finance",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pointAdjustmentRequest.approve",
+      "method": "POST",
+      "path": "/admin/point-adjustment-requests/{pointAdjustmentRequestId}/approve",
+      "section": "3.27",
+      "version": "V1.0",
+      "requestSchemas": [
+        "ApproveBody"
+      ],
+      "responseSchema": "PointAdjustmentRequestDetail",
+      "errors": [
+        "APPROVAL_NOT_PENDING",
+        "APPROVAL_SELF_FORBIDDEN",
+        "STEP_UP_REQUIRED",
+        "VERSION_CONFLICT",
+        "CONFIRM_MISMATCH",
+        "PRECONDITION_CHANGED",
+        "ACCOUNT_BUSY"
+      ],
+      "events": [
+        "approval.approved",
+        "billing.points.adjusted"
+      ],
+      "permission": "billing.adjust.approve",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: pending → approved",
+        "point_hold.status: captured / refunded_partial → refunded_partial / refunded_full（platform_refund）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": "approval_request.lock_version",
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.pointAdjustmentRequest.reject",
+      "method": "POST",
+      "path": "/admin/point-adjustment-requests/{pointAdjustmentRequestId}/reject",
+      "section": "3.28",
+      "version": "V1.0",
+      "requestSchemas": [
+        "RejectBody"
+      ],
+      "responseSchema": "PointAdjustmentRequestDetail",
+      "errors": [
+        "APPROVAL_NOT_PENDING",
+        "APPROVAL_SELF_FORBIDDEN"
+      ],
+      "events": [
+        "approval.rejected"
+      ],
+      "permission": "billing.adjust.approve",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: pending → rejected"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global",
+      "xStepUp": "skip"
+    },
+    {
+      "operationId": "admin.pointAdjustmentRequest.withdraw",
+      "method": "POST",
+      "path": "/admin/point-adjustment-requests/{pointAdjustmentRequestId}/withdraw",
+      "section": "3.29",
+      "version": "V1.0",
+      "requestSchemas": [
+        "WithdrawBody"
+      ],
+      "responseSchema": "PointAdjustmentRequestDetail",
+      "errors": [
+        "APPROVAL_NOT_PENDING",
+        "APPROVAL_WITHDRAW_FORBIDDEN",
+        "STEP_UP_REQUIRED"
+      ],
+      "events": [
+        "approval.withdrawn"
+      ],
+      "permission": "assert-in-handler",
+      "permissionAlso": [
+        "billing.adjust.approve"
+      ],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: pending → withdrawn"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.subscriptionTerm.list",
+      "method": "GET",
+      "path": "/admin/subscription-terms",
+      "section": "3.30",
+      "version": "V1.0",
+      "requestSchemas": [
+        "SubscriptionTermListQuery"
+      ],
+      "responseSchema": "AdminPage<SubscriptionTermRow>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "order",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.subscriptionTerm.summary",
+      "method": "GET",
+      "path": "/admin/subscription-terms/summary",
+      "section": "3.31",
+      "version": "V1.0",
+      "requestSchemas": [
+        "SubscriptionTermListQuery"
+      ],
+      "responseSchema": "SubscriptionTermSummary",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "order",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.subscriptionTerm.get",
+      "method": "GET",
+      "path": "/admin/subscription-terms/{subscriptionTermId}",
+      "section": "3.32",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "SubscriptionTermDetail",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "order",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.subscriptionTerm.extensionQuote",
+      "method": "POST",
+      "path": "/admin/subscription-terms/{subscriptionTermId}/extension-quote",
+      "section": "3.33",
+      "version": "V1.0",
+      "requestSchemas": [
+        "ExtensionQuoteBody"
+      ],
+      "responseSchema": "ExtensionQuote",
+      "errors": [],
+      "events": [],
+      "permission": "billing.extension.request",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.subscriptionTerm.remind",
+      "method": "POST",
+      "path": "/admin/subscription-terms/{subscriptionTermId}/remind",
+      "section": "3.34",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "RemindResult",
+      "errors": [
+        "REMIND_NOT_APPLICABLE",
+        "REMINDED_TODAY"
+      ],
+      "events": [
+        "manual_reminder.sent"
+      ],
+      "permission": "order.renewal.remind",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.termExtensionRequest.create",
+      "method": "POST",
+      "path": "/admin/term-extension-requests",
+      "section": "3.35",
+      "version": "V1.0",
+      "requestSchemas": [
+        "TermExtensionCreateBody"
+      ],
+      "responseSchema": "TermExtensionRequestDetail",
+      "errors": [
+        "EXTENSION_NOT_APPLICABLE",
+        "PLAN_REFUND_IN_PROGRESS",
+        "APPROVAL_ALREADY_PENDING",
+        "CONFIRM_MISMATCH"
+      ],
+      "events": [
+        "approval.submitted"
+      ],
+      "permission": "billing.extension.request",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: （新建）→ pending（kind = subscription_extend）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.termExtensionRequest.get",
+      "method": "GET",
+      "path": "/admin/term-extension-requests/{termExtensionRequestId}",
+      "section": "3.36",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "TermExtensionRequestDetail",
+      "errors": [],
+      "events": [],
+      "permission": "assert-in-handler",
+      "permissionAlso": [],
+      "moduleView": "order|billing",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.termExtensionRequest.approve",
+      "method": "POST",
+      "path": "/admin/term-extension-requests/{termExtensionRequestId}/approve",
+      "section": "3.37",
+      "version": "V1.0",
+      "requestSchemas": [
+        "ApproveBody"
+      ],
+      "responseSchema": "TermExtensionRequestDetail",
+      "errors": [
+        "APPROVAL_NOT_PENDING",
+        "APPROVAL_SELF_FORBIDDEN",
+        "PERMISSION_DENIED",
+        "VERSION_CONFLICT",
+        "CONFIRM_MISMATCH",
+        "PRECONDITION_CHANGED",
+        "ACCOUNT_BUSY"
+      ],
+      "events": [
+        "approval.approved",
+        "billing.subscription.extended",
+        "billing.subscription.resumed"
+      ],
+      "permission": "billing.extension.approve",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: pending → approved",
+        "subscription_term.end_date / ends_at 顺延（情况 A，未到期）",
+        "subscription_term.status: ended → active（情况 B，到期后补批）",
+        "billing_account.sub_status: expired → active（情况 B）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": "approval_request.lock_version",
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.termExtensionRequest.reject",
+      "method": "POST",
+      "path": "/admin/term-extension-requests/{termExtensionRequestId}/reject",
+      "section": "3.38",
+      "version": "V1.0",
+      "requestSchemas": [
+        "RejectBody"
+      ],
+      "responseSchema": "TermExtensionRequestDetail",
+      "errors": [
+        "APPROVAL_NOT_PENDING",
+        "APPROVAL_SELF_FORBIDDEN"
+      ],
+      "events": [
+        "approval.rejected"
+      ],
+      "permission": "billing.extension.approve",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: pending → rejected"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global",
+      "xStepUp": "skip"
+    },
+    {
+      "operationId": "admin.termExtensionRequest.withdraw",
+      "method": "POST",
+      "path": "/admin/term-extension-requests/{termExtensionRequestId}/withdraw",
+      "section": "3.39",
+      "version": "V1.0",
+      "requestSchemas": [
+        "WithdrawBody"
+      ],
+      "responseSchema": "TermExtensionRequestDetail",
+      "errors": [
+        "APPROVAL_NOT_PENDING",
+        "APPROVAL_WITHDRAW_FORBIDDEN"
+      ],
+      "events": [
+        "approval.withdrawn"
+      ],
+      "permission": "assert-in-handler",
+      "permissionAlso": [
+        "billing.extension.approve"
+      ],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: pending → withdrawn"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.paymentOrder.list",
+      "method": "GET",
+      "path": "/admin/payment-orders",
+      "section": "3.40",
+      "version": "V1.0",
+      "requestSchemas": [
+        "AdminPaymentOrderListQuery"
+      ],
+      "responseSchema": "AdminPage<PaymentOrderAdminRow>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "order",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.paymentOrder.summary",
+      "method": "GET",
+      "path": "/admin/payment-orders/summary",
+      "section": "3.41",
+      "version": "V1.0",
+      "requestSchemas": [
+        "AdminPaymentOrderListQuery"
+      ],
+      "responseSchema": "AdminPaymentOrderSummary",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "order",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.paymentOrder.get",
+      "method": "GET",
+      "path": "/admin/payment-orders/{paymentOrderId}",
+      "section": "3.42",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "PaymentOrderAdminDetail",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "order",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.paymentOrder.create",
+      "method": "POST",
+      "path": "/admin/payment-orders",
+      "section": "3.43",
+      "version": "V1.0",
+      "requestSchemas": [
+        "OfflineOrderCreateBody"
+      ],
+      "responseSchema": "PaymentOrderAdminDetail",
+      "errors": [
+        "OFFLINE_ORDER_DISABLED",
+        "BANK_ACCOUNT_NOT_CONFIGURED",
+        "PURCHASE_QUALIFICATION_REQUIRED",
+        "OPEN_ORDER_EXISTS",
+        "PLAN_NOT_AVAILABLE",
+        "CYCLE_NOT_AVAILABLE",
+        "UPGRADE_NOT_ALLOWED_TODAY",
+        "SCHEDULED_TERM_LIMIT",
+        "TOPUP_REQUIRES_ACTIVE_PLAN",
+        "PLAN_REFUND_IN_PROGRESS",
+        "QUOTE_CHANGED",
+        "CONFIRM_MISMATCH"
+      ],
+      "events": [
+        "billing_order.created"
+      ],
+      "permission": "order.payment.create_offline",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "billing_order.status: （新建）→ pending_payment（awaiting_proof）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.paymentOrder.transferProof.create",
+      "method": "POST",
+      "path": "/admin/payment-orders/{paymentOrderId}/transfer-proofs",
+      "section": "3.44",
+      "version": "V1.0",
+      "requestSchemas": [
+        "TransferProofUploadBody"
+      ],
+      "responseSchema": "TransferProofDetail",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "PAYMENT_ORDER_EXPIRED",
+        "TRANSFER_PROOF_LOCKED",
+        "FILE_NOT_USABLE"
+      ],
+      "events": [
+        "transfer.proof_submitted"
+      ],
+      "permission": "finance.receipt.confirm",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "transfer_proof.review_status: （新建）→ pending",
+        "billing_order.status: pending_payment → pending_confirmation（proof_submitted）",
+        "transfer_proof.review_status: pending → superseded（重新上传）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.transferProof.list",
+      "method": "GET",
+      "path": "/admin/transfer-proofs",
+      "section": "3.45",
+      "version": "V1.0",
+      "requestSchemas": [
+        "TransferProofListQuery"
+      ],
+      "responseSchema": "AdminPage<TransferProofQueueItem>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "order",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.transferProof.summary",
+      "method": "GET",
+      "path": "/admin/transfer-proofs/summary",
+      "section": "3.46",
+      "version": "V1.0",
+      "requestSchemas": [
+        "TransferProofListQuery"
+      ],
+      "responseSchema": "TransferProofSummary",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "order",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.transferProof.get",
+      "method": "GET",
+      "path": "/admin/transfer-proofs/{transferProofId}",
+      "section": "3.47",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "TransferProofDetail",
+      "errors": [],
+      "events": [],
+      "permission": "assert-in-handler",
+      "permissionAlso": [],
+      "moduleView": "order|finance",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.transferProof.confirm",
+      "method": "POST",
+      "path": "/admin/transfer-proofs/{transferProofId}/confirm",
+      "section": "3.48",
+      "version": "V1.0",
+      "requestSchemas": [
+        "TransferConfirmBody"
+      ],
+      "responseSchema": "TransferConfirmResult",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "VERSION_CONFLICT",
+        "CONFIRMER_IS_ORDER_CREATOR",
+        "TRANSFER_AMOUNT_MISMATCH",
+        "BANK_SERIAL_DUPLICATE",
+        "CONFIRM_MISMATCH",
+        "STEP_UP_REQUIRED",
+        "ACCOUNT_BUSY"
+      ],
+      "events": [
+        "billing_order.paid",
+        "billing.order_fulfilled",
+        "billing.subscription.activated",
+        "billing.subscription.renewal_scheduled",
+        "billing.subscription.upgraded",
+        "billing.points.granted",
+        "billing.points.purchased",
+        "billing_order.fulfillment_blocked",
+        "payment_exception.opened",
+        "approval.submitted"
+      ],
+      "permission": "finance.receipt.confirm",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "billing_order.status: pending_confirmation → paid",
+        "transfer_proof.review_status: pending → accepted",
+        "billing_order.fulfillment_status: none → done / blocked",
+        "billing_account.sub_status: none / expired → active（套餐）",
+        "payment_exception.status: （新建）→ open（履约受阻）",
+        "billing_order.transfer_state: proof_submitted → confirm_review（需复核）",
+        "approval_request.status: （新建）→ pending（kind = transfer_confirm，需复核）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": "transfer_proof.lock_version",
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.transferProof.reject",
+      "method": "POST",
+      "path": "/admin/transfer-proofs/{transferProofId}/reject",
+      "section": "3.49",
+      "version": "V1.0",
+      "requestSchemas": [
+        "TransferRejectBody"
+      ],
+      "responseSchema": "TransferProofDetail",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "VERSION_CONFLICT"
+      ],
+      "events": [
+        "transfer.rejected"
+      ],
+      "permission": "finance.receipt.reject",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "transfer_proof.review_status: pending → rejected",
+        "billing_order.status: pending_confirmation → pending_payment（proof_rejected）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": "transfer_proof.lock_version",
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.transferProof.approveReview",
+      "method": "POST",
+      "path": "/admin/transfer-proofs/{transferProofId}/approve-review",
+      "section": "3.50",
+      "version": "V1.0",
+      "requestSchemas": [
+        "ApproveBody"
+      ],
+      "responseSchema": "TransferConfirmResult",
+      "errors": [
+        "APPROVAL_NOT_PENDING",
+        "APPROVAL_SELF_FORBIDDEN",
+        "VERSION_CONFLICT",
+        "CONFIRM_MISMATCH",
+        "BANK_SERIAL_DUPLICATE",
+        "STEP_UP_REQUIRED",
+        "ACCOUNT_BUSY"
+      ],
+      "events": [
+        "approval.approved",
+        "billing_order.paid",
+        "billing.order_fulfilled",
+        "billing.subscription.activated",
+        "billing.subscription.renewal_scheduled",
+        "billing.subscription.upgraded",
+        "billing.points.granted",
+        "billing.points.purchased",
+        "billing_order.fulfillment_blocked",
+        "payment_exception.opened"
+      ],
+      "permission": "finance.receipt.confirm",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: pending → approved",
+        "transfer_proof.review_status: pending → accepted",
+        "billing_order.status: pending_confirmation（confirm_review）→ paid"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": "approval_request.lock_version",
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.transferProof.rejectReview",
+      "method": "POST",
+      "path": "/admin/transfer-proofs/{transferProofId}/reject-review",
+      "section": "3.51",
+      "version": "V1.0",
+      "requestSchemas": [
+        "RejectBody"
+      ],
+      "responseSchema": "TransferProofDetail",
+      "errors": [
+        "APPROVAL_NOT_PENDING",
+        "APPROVAL_SELF_FORBIDDEN"
+      ],
+      "events": [
+        "approval.rejected"
+      ],
+      "permission": "finance.receipt.confirm",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: pending → rejected",
+        "billing_order.transfer_state: confirm_review → proof_submitted"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global",
+      "xStepUp": "skip"
+    },
+    {
+      "operationId": "admin.paymentTransaction.list",
+      "method": "GET",
+      "path": "/admin/payment-transactions",
+      "section": "3.52",
+      "version": "V1.0",
+      "requestSchemas": [
+        "PaymentTransactionListQuery"
+      ],
+      "responseSchema": "AdminPage<PaymentTransactionRow>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "finance",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.paymentTransaction.summary",
+      "method": "GET",
+      "path": "/admin/payment-transactions/summary",
+      "section": "3.53",
+      "version": "V1.0",
+      "requestSchemas": [
+        "PaymentTransactionListQuery"
+      ],
+      "responseSchema": "PaymentTransactionSummary",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "finance",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.paymentOrder.refundQuote",
+      "method": "POST",
+      "path": "/admin/payment-orders/{paymentOrderId}/refund-quote",
+      "section": "3.54",
+      "version": "V1.0",
+      "requestSchemas": [
+        "RefundQuoteBody"
+      ],
+      "responseSchema": "CashRefundQuote",
+      "errors": [],
+      "events": [],
+      "permission": "order.refund.request",
+      "permissionAlso": [
+        "refund.override.request"
+      ],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.paymentOrder.refundRequest.create",
+      "method": "POST",
+      "path": "/admin/payment-orders/{paymentOrderId}/refund-requests",
+      "section": "3.55",
+      "version": "V1.0",
+      "requestSchemas": [
+        "RefundRequestCreateBody"
+      ],
+      "responseSchema": "RefundRequestDetail",
+      "errors": [
+        "REFUND_NOT_SUPPORTED",
+        "REFUND_REQUEST_EXISTS",
+        "PLAN_REFUND_NOT_ELIGIBLE",
+        "CONFIRM_MISMATCH",
+        "ACCOUNT_BUSY"
+      ],
+      "events": [
+        "approval.submitted",
+        "refund.submitted",
+        "billing.subscription.refund_suspended"
+      ],
+      "permission": "order.refund.request",
+      "permissionAlso": [
+        "refund.override.request"
+      ],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: （新建）→ pending（kind = plan_refund）",
+        "refund_request.status: （新建）→ pending_approval",
+        "subscription_term.refund_request_id: 空 → 非空（套餐规则）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.refundRequest.list",
+      "method": "GET",
+      "path": "/admin/refund-requests",
+      "section": "3.56",
+      "version": "V1.0",
+      "requestSchemas": [
+        "RefundRequestListQuery"
+      ],
+      "responseSchema": "AdminPage<RefundRequestRow>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "finance",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.refundRequest.summary",
+      "method": "GET",
+      "path": "/admin/refund-requests/summary",
+      "section": "3.57",
+      "version": "V1.0",
+      "requestSchemas": [
+        "RefundRequestListQuery"
+      ],
+      "responseSchema": "RefundRequestSummary",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "finance",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.refundRequest.get",
+      "method": "GET",
+      "path": "/admin/refund-requests/{refundRequestId}",
+      "section": "3.58",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "RefundRequestDetail",
+      "errors": [],
+      "events": [],
+      "permission": "assert-in-handler",
+      "permissionAlso": [],
+      "moduleView": "finance|order",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.refundRequest.approve",
+      "method": "POST",
+      "path": "/admin/refund-requests/{refundRequestId}/approve",
+      "section": "3.59",
+      "version": "V1.0",
+      "requestSchemas": [
+        "ApproveBody"
+      ],
+      "responseSchema": "RefundRequestDetail",
+      "errors": [
+        "APPROVAL_NOT_PENDING",
+        "APPROVAL_SELF_FORBIDDEN",
+        "STEP_UP_REQUIRED",
+        "VERSION_CONFLICT",
+        "CONFIRM_MISMATCH",
+        "PRECONDITION_CHANGED"
+      ],
+      "events": [
+        "approval.approved",
+        "refund.approved",
+        "invoice.red_requested"
+      ],
+      "permission": "finance.refund.approve",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: pending → approved",
+        "refund_request.status: pending_approval → pending_execution",
+        "invoice_request.status: issued → red_pending（入账收款的退款）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": "approval_request.lock_version",
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.refundRequest.reject",
+      "method": "POST",
+      "path": "/admin/refund-requests/{refundRequestId}/reject",
+      "section": "3.60",
+      "version": "V1.0",
+      "requestSchemas": [
+        "RejectBody"
+      ],
+      "responseSchema": "RefundRequestDetail",
+      "errors": [
+        "APPROVAL_NOT_PENDING",
+        "APPROVAL_SELF_FORBIDDEN"
+      ],
+      "events": [
+        "approval.rejected",
+        "refund.rejected",
+        "billing.subscription.refund_resumed",
+        "payment_exception.reopened"
+      ],
+      "permission": "finance.refund.approve",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: pending → rejected",
+        "refund_request.status: pending_approval → not_executed（rejected）",
+        "subscription_term.refund_request_id: 非空 → 空（套餐规则）",
+        "payment_exception.status: resolving → open（差异转入）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global",
+      "xStepUp": "skip"
+    },
+    {
+      "operationId": "admin.refundRequest.withdraw",
+      "method": "POST",
+      "path": "/admin/refund-requests/{refundRequestId}/withdraw",
+      "section": "3.61",
+      "version": "V1.0",
+      "requestSchemas": [
+        "WithdrawBody"
+      ],
+      "responseSchema": "RefundRequestDetail",
+      "errors": [
+        "APPROVAL_NOT_PENDING",
+        "APPROVAL_WITHDRAW_FORBIDDEN",
+        "STEP_UP_REQUIRED"
+      ],
+      "events": [
+        "approval.withdrawn",
+        "refund.withdrawn",
+        "billing.subscription.refund_resumed",
+        "payment_exception.reopened"
+      ],
+      "permission": "assert-in-handler",
+      "permissionAlso": [
+        "finance.refund.approve"
+      ],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: pending → withdrawn",
+        "refund_request.status: pending_approval → not_executed（withdrawn）",
+        "subscription_term.refund_request_id: 非空 → 空（套餐规则）",
+        "payment_exception.status: resolving → open（差异转入）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.refundRequest.execute",
+      "method": "POST",
+      "path": "/admin/refund-requests/{refundRequestId}/execute",
+      "section": "3.62",
+      "version": "V1.0",
+      "requestSchemas": [
+        "RefundExecuteBody"
+      ],
+      "responseSchema": "RefundRequestDetail",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "REFUND_ROUTE_NOT_ALLOWED",
+        "RED_INVOICE_REQUIRED",
+        "REFUND_EXCEEDS_REFUNDABLE",
+        "REFUND_TXN_OPEN",
+        "REFUND_EXECUTOR_CONFLICT",
+        "PLAN_REFUND_NOT_ELIGIBLE",
+        "CONFIRM_MISMATCH",
+        "STEP_UP_REQUIRED",
+        "IDEMPOTENCY_IN_PROGRESS",
+        "ACCOUNT_BUSY"
+      ],
+      "events": [
+        "refund.execution_started",
+        "refund_txn.created",
+        "billing.subscription.refunded",
+        "billing.subscription.rolled_over"
+      ],
+      "permission": "finance.refund.execute",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "refund_request.status: pending_execution → executing",
+        "subscription_term.status: active → refunded / scheduled → cancelled / ended → refunded（套餐规则）",
+        "grant_schedule.status: pending → cancelled",
+        "billing_account.sub_status: active → expired（无后续周期）",
+        "refund_txn.status: （新建）→ created",
+        "refund_txn.status: created → processing（E2 落外调结果；成功只由回调与 rf.poll 落）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": true,
+      "lockVersion": null,
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.refundRequest.recordOffline",
+      "method": "POST",
+      "path": "/admin/refund-requests/{refundRequestId}/record-offline",
+      "section": "3.63",
+      "version": "V1.0",
+      "requestSchemas": [
+        "RefundOfflineBody"
+      ],
+      "responseSchema": "RefundRequestDetail",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "REFUND_TXN_OPEN",
+        "RED_INVOICE_REQUIRED",
+        "REFUND_EXCEEDS_REFUNDABLE",
+        "PAYEE_NAME_MISMATCH",
+        "BANK_SERIAL_DUPLICATE",
+        "PLAN_REFUND_NOT_ELIGIBLE",
+        "FILE_NOT_USABLE",
+        "REFUND_EXECUTOR_CONFLICT",
+        "CONFIRM_MISMATCH",
+        "ACCOUNT_BUSY"
+      ],
+      "events": [
+        "refund.completed",
+        "approval.executed",
+        "billing_order.refunded",
+        "invoice.rejected",
+        "payment_exception.resolved",
+        "billing.subscription.refunded",
+        "billing.subscription.rolled_over"
+      ],
+      "permission": "finance.refund.execute",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "refund_request.status: pending_execution → done",
+        "refund_txn.status: （新建）→ succeeded（offline）",
+        "billing_order.status: paid → refunded（累计退款 ≥ 实付）",
+        "invoice_request.status: pending → rejected（order_refunded）",
+        "payment_exception.status: resolving → resolved（差异转入）",
+        "subscription_term.status: active → refunded / scheduled → cancelled / ended → refunded（套餐规则）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.refundRequest.retry",
+      "method": "POST",
+      "path": "/admin/refund-requests/{refundRequestId}/retry",
+      "section": "3.64",
+      "version": "V1.0",
+      "requestSchemas": [
+        "RefundRetryBody"
+      ],
+      "responseSchema": "RefundRequestDetail",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "CONFIRM_MISMATCH",
+        "IDEMPOTENCY_IN_PROGRESS",
+        "STEP_UP_REQUIRED"
+      ],
+      "events": [],
+      "permission": "finance.refund.execute",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "refund_txn.status: created → processing（受理，含同步返回已成功；成功由回调与 rf.poll 落）",
+        "refund_txn.status: created → created（仍失败，记 fail_code）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": true,
+      "lockVersion": null,
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.refundRequest.confirmNotAccepted",
+      "method": "POST",
+      "path": "/admin/refund-requests/{refundRequestId}/confirm-not-accepted",
+      "section": "3.65",
+      "version": "V1.0",
+      "requestSchemas": [
+        "RefundRetryBody"
+      ],
+      "responseSchema": "RefundRequestDetail",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "REFUND_NOT_ACCEPTED_UNCONFIRMED",
+        "PROVIDER_UNAVAILABLE",
+        "UPSTREAM_TIMEOUT",
+        "CONFIRM_MISMATCH",
+        "STEP_UP_REQUIRED"
+      ],
+      "events": [
+        "refund.execution_failed"
+      ],
+      "permission": "finance.refund.execute",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "refund_txn.status: created → not_accepted",
+        "refund_request.status: executing → pending_execution"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": true,
+      "lockVersion": null,
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.refundRequest.void",
+      "method": "POST",
+      "path": "/admin/refund-requests/{refundRequestId}/void",
+      "section": "3.66",
+      "version": "V1.0",
+      "requestSchemas": [
+        "RefundVoidBody"
+      ],
+      "responseSchema": "RefundRequestDetail",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "REFUND_ALREADY_REVOKED",
+        "REFUND_TXN_OPEN",
+        "CONFIRM_MISMATCH",
+        "STEP_UP_REQUIRED"
+      ],
+      "events": [
+        "refund.voided",
+        "invoice.red_cancelled",
+        "billing.subscription.refund_resumed",
+        "payment_exception.reopened"
+      ],
+      "permission": "finance.refund.approve",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "refund_request.status: pending_execution → not_executed（voided）",
+        "invoice_request.status: red_pending → issued",
+        "payment_exception.status: resolving → open（差异转入）",
+        "subscription_term.refund_request_id: 非空 → 空（套餐规则）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.invoiceRequest.list",
+      "method": "GET",
+      "path": "/admin/invoice-requests",
+      "section": "3.67",
+      "version": "V1.0",
+      "requestSchemas": [
+        "AdminInvoiceRequestListQuery"
+      ],
+      "responseSchema": "AdminPage<InvoiceRequestAdminRow>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "finance",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.invoiceRequest.summary",
+      "method": "GET",
+      "path": "/admin/invoice-requests/summary",
+      "section": "3.68",
+      "version": "V1.0",
+      "requestSchemas": [
+        "AdminInvoiceRequestListQuery"
+      ],
+      "responseSchema": "AdminInvoiceRequestSummary",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "finance",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.invoiceRequest.get",
+      "method": "GET",
+      "path": "/admin/invoice-requests/{invoiceRequestId}",
+      "section": "3.69",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "InvoiceRequestAdminDetail",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "finance",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.invoiceRequest.issue",
+      "method": "POST",
+      "path": "/admin/invoice-requests/{invoiceRequestId}/issue",
+      "section": "3.70",
+      "version": "V1.0",
+      "requestSchemas": [
+        "InvoiceIssueBody"
+      ],
+      "responseSchema": "InvoiceRequestAdminDetail",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "INVOICE_ISSUE_BLOCKED",
+        "INVOICE_NO_TAKEN",
+        "FILE_NOT_USABLE",
+        "CONFIRM_MISMATCH"
+      ],
+      "events": [
+        "invoice.issued"
+      ],
+      "permission": "finance.invoice.issue",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "invoice_request.status: pending → issued",
+        "invoice_doc.email_state: none → queued / skipped（电子）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.invoiceRequest.reject",
+      "method": "POST",
+      "path": "/admin/invoice-requests/{invoiceRequestId}/reject",
+      "section": "3.71",
+      "version": "V1.0",
+      "requestSchemas": [
+        "InvoiceRejectBody"
+      ],
+      "responseSchema": "InvoiceRequestAdminDetail",
+      "errors": [
+        "STATE_NOT_ALLOWED"
+      ],
+      "events": [
+        "invoice.rejected"
+      ],
+      "permission": "finance.invoice.issue",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "invoice_request.status: pending → rejected（manual）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.invoiceRequest.issueRed",
+      "method": "POST",
+      "path": "/admin/invoice-requests/{invoiceRequestId}/issue-red",
+      "section": "3.72",
+      "version": "V1.0",
+      "requestSchemas": [
+        "InvoiceRedBody"
+      ],
+      "responseSchema": "InvoiceRequestAdminDetail",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "INVOICE_NO_TAKEN",
+        "FILE_NOT_USABLE",
+        "CONFIRM_MISMATCH"
+      ],
+      "events": [
+        "invoice.red_issued"
+      ],
+      "permission": "finance.invoice.red",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "invoice_request.status: red_pending → red_issued"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.invoiceRequest.resend",
+      "method": "POST",
+      "path": "/admin/invoice-requests/{invoiceRequestId}/resend",
+      "section": "3.73",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "InvoiceRequestAdminDetail",
+      "errors": [
+        "STATE_NOT_ALLOWED"
+      ],
+      "events": [],
+      "permission": "finance.invoice.issue",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "invoice_doc.email_state: failed → queued"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.reconciliation.list",
+      "method": "GET",
+      "path": "/admin/reconciliations",
+      "section": "3.74",
+      "version": "V1.0",
+      "requestSchemas": [
+        "ReconMonthQuery"
+      ],
+      "responseSchema": "ReconMonth",
+      "errors": [
+        "VALIDATION_FAILED"
+      ],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "finance",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.reconciliation.rerun",
+      "method": "POST",
+      "path": "/admin/reconciliations/{reconciliationId}/rerun",
+      "section": "3.75",
+      "version": "V1.0",
+      "requestSchemas": [
+        "ReconRerunBody"
+      ],
+      "responseSchema": "ReconDayRow",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "RECON_BILL_NOT_READY",
+        "CONFIRM_MISMATCH"
+      ],
+      "events": [
+        "payment_exception.opened",
+        "payment_exception.auto_healed",
+        "recon.day_closed"
+      ],
+      "permission": "finance.recon.resolve",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "payment_exception.status: （新建）→ open / auto_healed",
+        "payment_exception.status: open → auto_healed（platform_only）",
+        "recon_day.status: 重算（wait / ok / diff / fixed）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.paymentException.list",
+      "method": "GET",
+      "path": "/admin/payment-exceptions",
+      "section": "3.76",
+      "version": "V1.0",
+      "requestSchemas": [
+        "PaymentExceptionListQuery"
+      ],
+      "responseSchema": "AdminPage<PaymentExceptionRow>",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "finance",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.paymentException.get",
+      "method": "GET",
+      "path": "/admin/payment-exceptions/{paymentExceptionId}",
+      "section": "3.77",
+      "version": "V1.0",
+      "requestSchemas": [],
+      "responseSchema": "PaymentExceptionDetail",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "finance",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.paymentException.create",
+      "method": "POST",
+      "path": "/admin/payment-exceptions",
+      "section": "3.78",
+      "version": "V1.0",
+      "requestSchemas": [
+        "ExceptionCreateBody"
+      ],
+      "responseSchema": "PaymentExceptionDetail",
+      "errors": [
+        "BANK_SERIAL_DUPLICATE",
+        "CONFIRM_MISMATCH",
+        "STEP_UP_REQUIRED"
+      ],
+      "events": [
+        "payment_exception.opened"
+      ],
+      "permission": "finance.recon.resolve",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "payment_exception.status: （新建）→ open（bank_unmatched）",
+        "payment_txn.status: （新建）→ succeeded（孤儿收款）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.paymentException.resolve",
+      "method": "POST",
+      "path": "/admin/payment-exceptions/{paymentExceptionId}/resolve",
+      "section": "3.79",
+      "version": "V1.0",
+      "requestSchemas": [
+        "ExceptionResolveBody"
+      ],
+      "responseSchema": "ExceptionResolveResult",
+      "errors": [
+        "STATE_NOT_ALLOWED",
+        "RESOLUTION_NOT_ALLOWED",
+        "VERSION_CONFLICT",
+        "CHANNEL_RECHECK_FAILED",
+        "LINK_ORDER_INVALID",
+        "REFUND_REQUEST_EXISTS",
+        "BANK_SERIAL_DUPLICATE",
+        "PAYEE_NAME_MISMATCH",
+        "CONFIRM_MISMATCH",
+        "PROVIDER_UNAVAILABLE",
+        "UPSTREAM_TIMEOUT",
+        "ACCOUNT_BUSY"
+      ],
+      "events": [
+        "payment_exception.refund_requested",
+        "approval.submitted",
+        "refund.submitted",
+        "payment_exception.resolved",
+        "billing.order_fulfilled",
+        "billing_order.paid",
+        "billing_order.created",
+        "billing.subscription.activated",
+        "billing.subscription.renewal_scheduled",
+        "billing.subscription.upgraded",
+        "billing.points.granted",
+        "billing.points.purchased",
+        "billing_order.fulfillment_blocked",
+        "billing_order.refunded",
+        "invoice.red_requested",
+        "billing.subscription.refunded",
+        "billing.subscription.rolled_over",
+        "payment_exception.opened"
+      ],
+      "permission": "finance.recon.resolve",
+      "permissionAlso": [
+        "sys.super_admin"
+      ],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "payment_exception.status: open → resolving（refund）",
+        "payment_exception.status: open → resolved",
+        "refund_request.status: （新建）→ pending_approval（refund）",
+        "approval_request.status: （新建）→ pending（refund）",
+        "billing_order.status: cancelled → paid（restore）",
+        "billing_order.status: （新建）→ paid（rebuild_order）",
+        "billing_order.status: pending_payment / pending_confirmation → paid（link_order）",
+        "transfer_proof.review_status: pending → accepted（link_order）",
+        "billing_order.fulfillment_status: blocked → done（retried）",
+        "billing_order.status: paid → refunded（record_channel_refund）",
+        "invoice_request.status: issued → red_pending（record_channel_refund）",
+        "subscription_term.status: scheduled / active / ended → cancelled / refunded（record_channel_refund，周期不在退款处理中时）",
+        "payment_exception.status: （新建）→ open（entitlement_unrecovered）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": true,
+      "lockVersion": "payment_exception.lock_version",
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.financeConfigRevision.list",
+      "method": "GET",
+      "path": "/admin/finance-config-revisions",
+      "section": "3.80",
+      "version": "V1.0",
+      "requestSchemas": [
+        "FinanceConfigListQuery"
+      ],
+      "responseSchema": "FinanceConfigRevisionList",
+      "errors": [],
+      "events": [],
+      "permission": null,
+      "permissionAlso": [],
+      "moduleView": "finance",
+      "capability": null,
+      "transitions": [],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "none",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.financeConfigRevision.create",
+      "method": "POST",
+      "path": "/admin/finance-config-revisions",
+      "section": "3.81",
+      "version": "V1.0",
+      "requestSchemas": [
+        "FinanceConfigProposeBody"
+      ],
+      "responseSchema": "FinanceConfigRevisionView",
+      "errors": [
+        "APPROVAL_ALREADY_PENDING",
+        "CHANGESET_EMPTY",
+        "CONFIRM_MISMATCH",
+        "STEP_UP_REQUIRED"
+      ],
+      "events": [
+        "finance_config.proposed",
+        "approval.submitted"
+      ],
+      "permission": "finance.config.propose",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: （新建）→ pending（kind = finance_config_change）"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.financeConfigRevision.approve",
+      "method": "POST",
+      "path": "/admin/finance-config-revisions/{financeConfigRevisionId}/approve",
+      "section": "3.82",
+      "version": "V1.0",
+      "requestSchemas": [
+        "ApproveBody"
+      ],
+      "responseSchema": "FinanceConfigRevisionView",
+      "errors": [
+        "APPROVAL_NOT_PENDING",
+        "APPROVAL_SELF_FORBIDDEN",
+        "VERSION_CONFLICT",
+        "CONFIRM_MISMATCH",
+        "STEP_UP_REQUIRED"
+      ],
+      "events": [
+        "approval.approved",
+        "finance_config.approved"
+      ],
+      "permission": "finance.config.approve",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: pending → approved",
+        "finance_config_revision.effective_at: 空 → 写入"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": "approval_request.lock_version",
+      "confirm": true,
+      "rateLimit": "admin.global"
+    },
+    {
+      "operationId": "admin.financeConfigRevision.reject",
+      "method": "POST",
+      "path": "/admin/finance-config-revisions/{financeConfigRevisionId}/reject",
+      "section": "3.83",
+      "version": "V1.0",
+      "requestSchemas": [
+        "RejectBody"
+      ],
+      "responseSchema": "FinanceConfigRevisionView",
+      "errors": [
+        "APPROVAL_NOT_PENDING",
+        "APPROVAL_SELF_FORBIDDEN"
+      ],
+      "events": [
+        "approval.rejected"
+      ],
+      "permission": "finance.config.approve",
+      "permissionAlso": [],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: pending → rejected"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global",
+      "xStepUp": "skip"
+    },
+    {
+      "operationId": "admin.financeConfigRevision.withdraw",
+      "method": "POST",
+      "path": "/admin/finance-config-revisions/{financeConfigRevisionId}/withdraw",
+      "section": "3.84",
+      "version": "V1.0",
+      "requestSchemas": [
+        "WithdrawBody"
+      ],
+      "responseSchema": "FinanceConfigRevisionView",
+      "errors": [
+        "APPROVAL_NOT_PENDING",
+        "APPROVAL_WITHDRAW_FORBIDDEN",
+        "STEP_UP_REQUIRED"
+      ],
+      "events": [
+        "approval.withdrawn"
+      ],
+      "permission": "assert-in-handler",
+      "permissionAlso": [
+        "finance.config.approve"
+      ],
+      "moduleView": null,
+      "capability": null,
+      "transitions": [
+        "approval_request.status: pending → withdrawn"
+      ],
+      "xAuth": "staff",
+      "clerkView": null,
+      "xIdempotent": "required",
+      "idempotentBy": null,
+      "threePhase": false,
+      "lockVersion": null,
+      "confirm": false,
+      "rateLimit": "admin.global"
+    }
+  ],
+  "schemas": [
+    {
+      "name": "EntityRef",
+      "fields": [
+        "entityId",
+        "name",
+        "primaryStoreId",
+        "primaryStoreName",
+        "storeCount",
+        "verificationStatus",
+        "managerStaff"
+      ]
+    },
+    {
+      "name": "ApprovalInfo",
+      "fields": [
+        "approvalId",
+        "kind",
+        "status",
+        "roundNo",
+        "submittedAt",
+        "dueAt",
+        "badges",
+        "requester",
+        "decidedBy",
+        "isDecidedBySystem",
+        "decidedAt",
+        "decisionNote",
+        "reasons",
+        "lockVersion",
+        "actions",
+        "requestNo",
+        "requesterRoleName",
+        "confirmChecks"
+      ],
+      "extends": "ApprovalDecisionView（a01-system 2.10）"
+    },
+    {
+      "name": "ApproveBody",
+      "fields": [
+        "lockVersion",
+        "confirm",
+        "confirmChecks"
+      ]
+    },
+    {
+      "name": "RejectBody",
+      "fields": [
+        "reasonCodes",
+        "note"
+      ]
+    },
+    {
+      "name": "WithdrawBody",
+      "fields": [
+        "note"
+      ]
+    },
+    {
+      "name": "PlanRevisionView",
+      "fields": [
+        "planRevisionId",
+        "planId",
+        "revisionNo",
+        "monthlyFeeFen",
+        "monthlyPoints",
+        "discountBp",
+        "productionModel",
+        "maxStores",
+        "maxMembers",
+        "schedulePriority",
+        "hasMonthlyReport",
+        "cyclePrices",
+        "hasFirstCyclePromo",
+        "effectiveAt",
+        "status",
+        "cancelledAt",
+        "notice",
+        "createdBy",
+        "createdAt",
+        "actions"
+      ]
+    },
+    {
+      "name": "PlanAdminColumn",
+      "fields": [
+        "planId",
+        "code",
+        "name",
+        "rank",
+        "scope",
+        "isListed",
+        "columnStatus",
+        "current",
+        "pending",
+        "activeEntityCount",
+        "newThisMonthCount",
+        "renewedThisMonthCount",
+        "lockVersion",
+        "actions"
+      ]
+    },
+    {
+      "name": "PointPackRow",
+      "fields": [
+        "pointPackId",
+        "points",
+        "priceFen",
+        "isListed",
+        "position",
+        "soldThisMonthCount",
+        "soldThisMonthFen",
+        "lockVersion",
+        "updatedAt",
+        "actions"
+      ]
+    },
+    {
+      "name": "BillingParamView",
+      "fields": [
+        "key",
+        "needsNotice",
+        "schema",
+        "defaultValue",
+        "current",
+        "pending",
+        "actions"
+      ]
+    },
+    {
+      "name": "PricingChangeRecord",
+      "fields": [
+        "changeSetId",
+        "createdAt",
+        "createdBy",
+        "note",
+        "tierItems",
+        "paramItems",
+        "notice",
+        "summaryText"
+      ]
+    },
+    {
+      "name": "PointAccountRow",
+      "fields": [
+        "pointAccountId",
+        "entity",
+        "subscription",
+        "planAvailablePoints",
+        "planPointsExpireAt",
+        "addonAvailablePoints",
+        "isAddonSuspended",
+        "heldPoints",
+        "spendablePoints",
+        "isRefundPending",
+        "hasPendingAdjustment"
+      ],
+      "note": "isRefundPending 与 spendablePoints 的退款闸门为主体级（任一 scheduled / active 周期被标记，同 m07 2.0）"
+    },
+    {
+      "name": "PointAccountDetail",
+      "fields": [
+        "pointAccountId",
+        "entity",
+        "subscription",
+        "planAvailablePoints",
+        "planPointsExpireAt",
+        "addonAvailablePoints",
+        "isAddonSuspended",
+        "heldPoints",
+        "spendablePoints",
+        "isRefundPending",
+        "hasPendingAdjustment",
+        "currentTerm",
+        "scheduledTerms",
+        "planGrantedThisTerm",
+        "lastExpired",
+        "notices",
+        "actions"
+      ]
+    },
+    {
+      "name": "AdminLedgerRow",
+      "fields": [
+        "rowKey",
+        "ledgerOperationId",
+        "opType",
+        "category",
+        "lotKind",
+        "deltaPoints",
+        "qty",
+        "occurredAt",
+        "bizDate",
+        "title",
+        "formula",
+        "refNo",
+        "store",
+        "spendableAfterPoints",
+        "heldAfterPoints",
+        "actor"
+      ]
+    },
+    {
+      "name": "PointAdjustmentRequestDetail",
+      "fields": [
+        "pointAdjustmentRequestId",
+        "requestNo",
+        "entity",
+        "direction",
+        "lotKind",
+        "adjustPoints",
+        "signedPoints",
+        "reasonCode",
+        "note",
+        "pointHold",
+        "termExtensionRequest",
+        "spendableBeforePoints",
+        "spendableAfterPreviewPoints",
+        "currentSpendablePoints",
+        "applied",
+        "relatedServiceTickets",
+        "approval",
+        "actions"
+      ]
+    },
+    {
+      "name": "ReminderNode",
+      "fields": [
+        "node",
+        "dueDate",
+        "state",
+        "channels"
+      ]
+    },
+    {
+      "name": "SubscriptionTermRow",
+      "fields": [
+        "subscriptionTermId",
+        "entity",
+        "plan",
+        "months",
+        "startDate",
+        "endDate",
+        "status",
+        "remainingDays",
+        "expiredDays",
+        "reminders",
+        "points",
+        "renewal",
+        "intent",
+        "manager",
+        "remindedToday",
+        "actions"
+      ]
+    },
+    {
+      "name": "SubscriptionTermDetail",
+      "fields": [
+        "subscriptionTermId",
+        "entity",
+        "plan",
+        "months",
+        "startDate",
+        "endDate",
+        "status",
+        "remainingDays",
+        "expiredDays",
+        "reminders",
+        "points",
+        "renewal",
+        "intent",
+        "manager",
+        "remindedToday",
+        "actions",
+        "endsAt",
+        "benefits",
+        "pointsForecast",
+        "orderItems",
+        "nextTerm",
+        "extensions",
+        "pendingExtension",
+        "latestFollowUp"
+      ]
+    },
+    {
+      "name": "ExtensionQuote",
+      "fields": [
+        "mode",
+        "targetSubscriptionTermId",
+        "isTargetDifferent",
+        "days",
+        "prevEndDate",
+        "newEndDate",
+        "newEndsAt",
+        "restorePoints",
+        "shiftedTerms",
+        "blockReasons"
+      ]
+    },
+    {
+      "name": "TermExtensionRequestDetail",
+      "fields": [
+        "termExtensionRequestId",
+        "requestNo",
+        "entity",
+        "subscriptionTerm",
+        "days",
+        "reason",
+        "note",
+        "preview",
+        "applied",
+        "relatedAdjustments",
+        "approval",
+        "actions"
+      ]
+    },
+    {
+      "name": "PaymentOrderAdminRow",
+      "fields": [
+        "paymentOrderId",
+        "orderNo",
+        "createdAt",
+        "entity",
+        "store",
+        "type",
+        "title",
+        "contentNote",
+        "amountFen",
+        "paidAmountFen",
+        "refundedAmountFen",
+        "channel",
+        "status",
+        "transferState",
+        "fulfillmentStatus",
+        "statusNote",
+        "hasOpenException",
+        "source",
+        "pendingTransferProofId",
+        "actions"
+      ]
+    },
+    {
+      "name": "PaymentTxnView",
+      "fields": [
+        "paymentTransactionId",
+        "attemptNo",
+        "channel",
+        "status",
+        "outTradeNo",
+        "channelTxnNo",
+        "channelAmountFen",
+        "feeFen",
+        "channelSuccessAt",
+        "isApplied",
+        "refundedFen",
+        "reconState",
+        "payerName",
+        "confirmedBy",
+        "reviewedBy"
+      ]
+    },
+    {
+      "name": "PaymentOrderAdminDetail",
+      "fields": [
+        "paymentOrderId",
+        "orderNo",
+        "createdAt",
+        "entity",
+        "store",
+        "type",
+        "title",
+        "contentNote",
+        "amountFen",
+        "paidAmountFen",
+        "refundedAmountFen",
+        "channel",
+        "status",
+        "transferState",
+        "fulfillmentStatus",
+        "statusNote",
+        "hasOpenException",
+        "source",
+        "pendingTransferProofId",
+        "actions",
+        "formula",
+        "content",
+        "effectNote",
+        "expiresAt",
+        "paidAt",
+        "cancelledAt",
+        "refundedAt",
+        "fulfilledAt",
+        "cancelReason",
+        "fulfillment",
+        "placedBy",
+        "createdBy",
+        "contractNo",
+        "clientPlatform",
+        "clientVersion",
+        "bankAccount",
+        "paymentTxns",
+        "transferProofs",
+        "refundRequests",
+        "invoice",
+        "openExceptions",
+        "logs",
+        "lockVersion"
+      ]
+    },
+    {
+      "name": "TransferProofQueueItem",
+      "fields": [
+        "transferProofId",
+        "uploadNo",
+        "paymentOrderId",
+        "orderNo",
+        "orderType",
+        "entity",
+        "amountFen",
+        "uploadedAt",
+        "uploadedBy",
+        "dueAt",
+        "isOverdue",
+        "hints",
+        "reviewStatus",
+        "reviewedAt",
+        "reviewedBy"
+      ]
+    },
+    {
+      "name": "TransferProofDetail",
+      "fields": [
+        "transferProofId",
+        "uploadNo",
+        "paymentOrderId",
+        "orderNo",
+        "orderType",
+        "entity",
+        "amountFen",
+        "uploadedAt",
+        "uploadedBy",
+        "dueAt",
+        "isOverdue",
+        "hints",
+        "reviewStatus",
+        "reviewedAt",
+        "reviewedBy",
+        "order",
+        "bizHints",
+        "fileId",
+        "fileMime",
+        "ocr",
+        "checks",
+        "firstConfirm",
+        "review",
+        "rejectReason",
+        "rejectNote",
+        "otherUploads",
+        "secondReviewThresholdFen",
+        "lockVersion",
+        "actions"
+      ]
+    },
+    {
+      "name": "PaymentTransactionRow",
+      "fields": [
+        "paymentTransactionId",
+        "channelSuccessAt",
+        "channelTxnNo",
+        "channel",
+        "paymentOrder",
+        "entity",
+        "channelAmountFen",
+        "feeFen",
+        "refundedFen",
+        "isApplied",
+        "reconState",
+        "payerName"
+      ]
+    },
+    {
+      "name": "CashRefundQuote",
+      "fields": [
+        "supported",
+        "unsupportedReason",
+        "rules",
+        "suggestedRule",
+        "refundableFen",
+        "paymentTxn",
+        "term",
+        "windowDeadline",
+        "withinWindow",
+        "unused",
+        "sideEffects",
+        "routePreview",
+        "invoice",
+        "openRequest"
+      ]
+    },
+    {
+      "name": "RefundTxnView",
+      "fields": [
+        "refundTxnId",
+        "outRefundNo",
+        "channel",
+        "origin",
+        "status",
+        "amountFen",
+        "channelRefundNo",
+        "submitCount",
+        "lastSubmitAt",
+        "isRetryHalted",
+        "failCode",
+        "failMessage",
+        "successAt",
+        "userReceivedAccount",
+        "isLateSuccess",
+        "offline"
+      ]
+    },
+    {
+      "name": "RefundRequestRow",
+      "fields": [
+        "refundRequestId",
+        "requestNo",
+        "source",
+        "entity",
+        "paymentOrder",
+        "amountFen",
+        "ruleCode",
+        "ruleText",
+        "status",
+        "closeReason",
+        "execRoute",
+        "execDueAt",
+        "isExecOverdue",
+        "hasExecError",
+        "requester",
+        "createdAt",
+        "decidedAt",
+        "doneAt",
+        "closedAt"
+      ]
+    },
+    {
+      "name": "RefundRequestDetail",
+      "fields": [
+        "refundRequestId",
+        "requestNo",
+        "source",
+        "entity",
+        "paymentOrder",
+        "amountFen",
+        "ruleCode",
+        "ruleText",
+        "status",
+        "closeReason",
+        "execRoute",
+        "execDueAt",
+        "isExecOverdue",
+        "hasExecError",
+        "requester",
+        "createdAt",
+        "decidedAt",
+        "doneAt",
+        "closedAt",
+        "reason",
+        "note",
+        "isOverride",
+        "baseAmountFen",
+        "deductAmountFen",
+        "paymentTxn",
+        "breakdown",
+        "stageNote",
+        "recheckLog",
+        "invoice",
+        "entitlementRevokedAt",
+        "executedBy",
+        "executedAt",
+        "voidedBy",
+        "closeNote",
+        "execError",
+        "refundTxns",
+        "allowedRoutes",
+        "canRetry",
+        "canConfirmNotAccepted",
+        "paymentException",
+        "relatedServiceTickets",
+        "approval",
+        "logs",
+        "actions"
+      ]
+    },
+    {
+      "name": "InvoiceRequestAdminRow",
+      "fields": [
+        "invoiceRequestId",
+        "requestNo",
+        "entity",
+        "paymentOrder",
+        "amountFen",
+        "invoiceType",
+        "medium",
+        "needsMail",
+        "status",
+        "appliedAt",
+        "dueAt",
+        "isHeldByRefund",
+        "resultNote"
+      ]
+    },
+    {
+      "name": "InvoiceRequestAdminDetail",
+      "fields": [
+        "invoiceRequestId",
+        "requestNo",
+        "entity",
+        "paymentOrder",
+        "amountFen",
+        "invoiceType",
+        "medium",
+        "needsMail",
+        "status",
+        "appliedAt",
+        "dueAt",
+        "isHeldByRefund",
+        "resultNote",
+        "title",
+        "taxNoMask",
+        "addrTelMask",
+        "bankAccountMask",
+        "recvEmailMask",
+        "mailToMask",
+        "itemName",
+        "orderPaidAt",
+        "orderChannel",
+        "prechecks",
+        "heldByRefund",
+        "docs",
+        "reject",
+        "lockVersion",
+        "actions"
+      ],
+      "note": "reject = { kind, reason: DictRef | null, note, rejectedBy: StaffBrief | null, rejectedAt }（C85）"
+    },
+    {
+      "name": "ReconDayRow",
+      "fields": [
+        "billDate",
+        "reconciliationId",
+        "platformPay",
+        "billPay",
+        "bank",
+        "refund",
+        "feeFen",
+        "diff",
+        "status",
+        "billFileStatus",
+        "runCount",
+        "lastRunAt",
+        "actions"
+      ]
+    },
+    {
+      "name": "ReconMonth",
+      "fields": [
+        "items",
+        "month",
+        "overview.platform",
+        "overview.wechatBill",
+        "overview.refund",
+        "overview.diff",
+        "dayStatusCounts",
+        "openExceptions",
+        "prevMonthAllOk"
+      ],
+      "note": "A78 有界小集合：日行在 items，月度概览等为并列上下文"
+    },
+    {
+      "name": "PaymentExceptionRow",
+      "fields": [
+        "paymentExceptionId",
+        "exceptionNo",
+        "kind",
+        "detectedBy",
+        "billDate",
+        "entity",
+        "paymentOrder",
+        "channelTxnNo",
+        "amountFen",
+        "causeText",
+        "status",
+        "resolution",
+        "createdAt",
+        "resolvedAt",
+        "isOverdue"
+      ]
+    },
+    {
+      "name": "PaymentExceptionDetail",
+      "fields": [
+        "paymentExceptionId",
+        "exceptionNo",
+        "kind",
+        "detectedBy",
+        "billDate",
+        "entity",
+        "paymentOrder",
+        "channelTxnNo",
+        "amountFen",
+        "causeText",
+        "status",
+        "resolution",
+        "createdAt",
+        "resolvedAt",
+        "isOverdue",
+        "billFact",
+        "platformFact",
+        "paymentTxn",
+        "refundTxn",
+        "wxBillLine",
+        "allowedResolutions",
+        "linkCandidates",
+        "hints",
+        "resolutionNote",
+        "resolvedBy",
+        "refundRequest",
+        "lockVersion",
+        "actions"
+      ]
+    },
+    {
+      "name": "FinanceConfigRevisionView",
+      "fields": [
+        "financeConfigRevisionId",
+        "configKey",
+        "payload",
+        "changeNote",
+        "effectiveAt",
+        "state",
+        "createdAt",
+        "approval",
+        "actions"
+      ]
+    },
+    {
+      "name": "StoreRef",
+      "fields": [
+        "storeId",
+        "name"
+      ]
+    },
+    {
+      "name": "PlanCreateBody",
+      "fields": [
+        "code",
+        "name",
+        "rank"
+      ]
+    },
+    {
+      "name": "PlanUpdateBody",
+      "fields": [
+        "lockVersion",
+        "name"
+      ]
+    },
+    {
+      "name": "PlanRevisionCreateBody",
+      "fields": [
+        "monthlyFeeFen",
+        "monthlyPoints",
+        "discountBp",
+        "maxStores",
+        "maxMembers",
+        "productionModel",
+        "schedulePriority",
+        "hasMonthlyReport",
+        "cyclePrices",
+        "effectiveDate",
+        "firstCyclePromo",
+        "notice"
+      ],
+      "note": "notice = { title?, summary?, summaryNoPrice?, isBarEnabled? }（isBarEnabled 同 a09 SiteNoticeItem.isBarEnabled，列 site_notice.bar_enabled，C39）"
+    },
+    {
+      "name": "AdminPlanQuoteBody",
+      "fields": [
+        "kind",
+        "planId",
+        "pointAccountId",
+        "months",
+        "intent",
+        "fromPlanId",
+        "remainingDays"
+      ]
+    },
+    {
+      "name": "PricingChangeBody",
+      "fields": [
+        "tiers",
+        "params",
+        "params[].key",
+        "params[].value",
+        "params[].effectiveDate",
+        "notice",
+        "note"
+      ],
+      "note": "notice = { title?, summary?, summaryNoPrice?, isBarEnabled? }（isBarEnabled 同 a09 SiteNoticeItem.isBarEnabled，列 site_notice.bar_enabled，C39）"
+    },
+    {
+      "name": "PointAccountListQuery",
+      "fields": [
+        "q",
+        "planId",
+        "subStatus",
+        "flag",
+        "page",
+        "pageSize",
+        "sort"
+      ]
+    },
+    {
+      "name": "PointAdjustmentCreateBody",
+      "fields": [
+        "pointAccountId",
+        "storeId",
+        "direction",
+        "lotKind",
+        "adjustPoints",
+        "reasonCode",
+        "note",
+        "pointHoldId",
+        "termExtensionRequestId",
+        "serviceTicketId",
+        "confirm"
+      ]
+    },
+    {
+      "name": "SubscriptionTermListQuery",
+      "fields": [
+        "tab",
+        "q",
+        "managerId",
+        "planId",
+        "page",
+        "pageSize"
+      ]
+    },
+    {
+      "name": "TermExtensionCreateBody",
+      "fields": [
+        "subscriptionTermId",
+        "days",
+        "reasonCode",
+        "note",
+        "confirm"
+      ]
+    },
+    {
+      "name": "AdminPaymentOrderListQuery",
+      "fields": [
+        "tab",
+        "q",
+        "no",
+        "entityId",
+        "storeId",
+        "type",
+        "channel",
+        "source",
+        "hasOpenException",
+        "createdFrom",
+        "createdTo",
+        "page",
+        "pageSize"
+      ],
+      "note": "与 m07 同名结构不同构，后台一侧加 Admin 前缀（A132、A150、C87）"
+    },
+    {
+      "name": "OfflineOrderCreateBody",
+      "fields": [
+        "entityId",
+        "storeId",
+        "kind",
+        "planId",
+        "months",
+        "intent",
+        "pointPackId",
+        "expectAmountFen",
+        "contractNo",
+        "confirm"
+      ]
+    },
+    {
+      "name": "TransferConfirmBody",
+      "fields": [
+        "lockVersion",
+        "bankSerialNo",
+        "payerBankCode",
+        "confirm",
+        "confirmChecks"
+      ]
+    },
+    {
+      "name": "PaymentTransactionListQuery",
+      "fields": [
+        "q",
+        "successFrom",
+        "successTo",
+        "orderType",
+        "channel",
+        "reconState",
+        "isApplied",
+        "page",
+        "pageSize"
+      ]
+    },
+    {
+      "name": "RefundRequestCreateBody",
+      "fields": [
+        "ruleCode",
+        "reasonCode",
+        "note",
+        "serviceTicketId",
+        "confirm"
+      ]
+    },
+    {
+      "name": "RefundRequestListQuery",
+      "fields": [
+        "tab",
+        "q",
+        "entityId",
+        "storeId",
+        "ruleCode",
+        "source",
+        "overdueOnly",
+        "page",
+        "pageSize"
+      ]
+    },
+    {
+      "name": "RefundOfflineBody",
+      "fields": [
+        "transferDate",
+        "bankSerialNo",
+        "payeeName",
+        "payeeBank",
+        "payeeAccount",
+        "receiptFileId",
+        "note",
+        "confirm",
+        "confirmChecks"
+      ]
+    },
+    {
+      "name": "InvoiceIssueBody",
+      "fields": [
+        "invoiceNo",
+        "invoiceCode",
+        "fileId",
+        "expressCompanyCode",
+        "trackingNo",
+        "confirm"
+      ]
+    },
+    {
+      "name": "ExceptionCreateBody",
+      "fields": [
+        "receivedAt",
+        "amountFen",
+        "payerName",
+        "bankSerialNo",
+        "payerBankCode",
+        "note",
+        "confirm"
+      ]
+    },
+    {
+      "name": "ExceptionResolveBody",
+      "fields": [
+        "lockVersion",
+        "resolution",
+        "note",
+        "linkPaymentOrderId",
+        "offlineReturn",
+        "confirm"
+      ]
+    },
+    {
+      "name": "FinanceConfigProposeBody",
+      "fields": [
+        "configKey",
+        "payload",
+        "changeNote",
+        "confirm"
+      ]
+    },
+    {
+      "name": "PlanListQuery",
+      "fields": [
+        "includeDelisted"
+      ]
+    },
+    {
+      "name": "PlanRevisionListQuery",
+      "fields": [
+        "planId",
+        "status",
+        "page",
+        "pageSize"
+      ]
+    },
+    {
+      "name": "RevisionWithdrawBody",
+      "fields": [
+        "note",
+        "confirm"
+      ]
+    },
+    {
+      "name": "PointPackListQuery",
+      "fields": [
+        "isListed"
+      ]
+    },
+    {
+      "name": "PointPackCreateBody",
+      "fields": [
+        "points",
+        "priceFen",
+        "position"
+      ]
+    },
+    {
+      "name": "PointPackUpdateBody",
+      "fields": [
+        "lockVersion",
+        "points",
+        "priceFen",
+        "position"
+      ]
+    },
+    {
+      "name": "PricingChangeListQuery",
+      "fields": [
+        "kind",
+        "key",
+        "createdFrom",
+        "createdTo",
+        "page",
+        "pageSize"
+      ]
+    },
+    {
+      "name": "AdminLedgerQuery",
+      "fields": [
+        "tab",
+        "lotKind",
+        "storeId",
+        "occurredFrom",
+        "occurredTo",
+        "cursor",
+        "limit"
+      ]
+    },
+    {
+      "name": "AdjustmentQuoteBody",
+      "fields": [
+        "direction",
+        "lotKind",
+        "adjustPoints",
+        "reasonCode",
+        "pointHoldId"
+      ]
+    },
+    {
+      "name": "ExtensionQuoteBody",
+      "fields": [
+        "days"
+      ]
+    },
+    {
+      "name": "TransferProofUploadBody",
+      "fields": [
+        "fileId",
+        "note"
+      ]
+    },
+    {
+      "name": "TransferProofListQuery",
+      "fields": [
+        "tab",
+        "q",
+        "page",
+        "pageSize"
+      ]
+    },
+    {
+      "name": "TransferRejectBody",
+      "fields": [
+        "lockVersion",
+        "reasonCode",
+        "note"
+      ]
+    },
+    {
+      "name": "RefundQuoteBody",
+      "fields": [
+        "ruleCode"
+      ]
+    },
+    {
+      "name": "RefundExecuteBody",
+      "fields": [
+        "confirm",
+        "confirmChecks"
+      ]
+    },
+    {
+      "name": "RefundRetryBody",
+      "fields": [
+        "confirm"
+      ]
+    },
+    {
+      "name": "RefundVoidBody",
+      "fields": [
+        "note",
+        "confirm"
+      ]
+    },
+    {
+      "name": "AdminInvoiceRequestListQuery",
+      "fields": [
+        "tab",
+        "q",
+        "invoiceType",
+        "medium",
+        "page",
+        "pageSize"
+      ],
+      "note": "与 m07 同名结构不同构，后台一侧加 Admin 前缀（A132、A150、C87）"
+    },
+    {
+      "name": "InvoiceRejectBody",
+      "fields": [
+        "reasonCode",
+        "note"
+      ]
+    },
+    {
+      "name": "InvoiceRedBody",
+      "fields": [
+        "invoiceNo",
+        "invoiceCode",
+        "fileId",
+        "redReason",
+        "confirm"
+      ]
+    },
+    {
+      "name": "ReconMonthQuery",
+      "fields": [
+        "month"
+      ]
+    },
+    {
+      "name": "ReconRerunBody",
+      "fields": [
+        "confirm"
+      ]
+    },
+    {
+      "name": "PaymentExceptionListQuery",
+      "fields": [
+        "tab",
+        "kind",
+        "billDateFrom",
+        "billDateTo",
+        "q",
+        "page",
+        "pageSize"
+      ]
+    },
+    {
+      "name": "FinanceConfigListQuery",
+      "fields": [
+        "tab",
+        "configKey",
+        "financeConfigRevisionId",
+        "page",
+        "pageSize"
+      ]
+    },
+    {
+      "name": "PlanSummary",
+      "fields": [
+        "activeEntityCount",
+        "mrrFen",
+        "newThisMonthCount",
+        "renewedThisMonthCount",
+        "asOf"
+      ]
+    },
+    {
+      "name": "PointPackSummary",
+      "fields": [
+        "month",
+        "topupCount",
+        "topupFen",
+        "topupEntityCount",
+        "topupRateBp",
+        "monthly"
+      ]
+    },
+    {
+      "name": "PointAccountSummary",
+      "fields": [
+        "accountCount",
+        "activeAccountCount",
+        "balancePoints",
+        "heldPoints",
+        "grantedThisMonthPoints",
+        "consumedThisMonthPoints"
+      ]
+    },
+    {
+      "name": "AdminPlanQuote",
+      "fields": [
+        "scope",
+        "quote",
+        "generic"
+      ],
+      "note": "generic.upgrade 的每月积分差字段名 monthlyDeltaPoints（同 m07 PlanQuote.upgrade）"
+    },
+    {
+      "name": "AdjustmentQuote",
+      "fields": [
+        "spendableBeforePoints",
+        "spendableAfterPoints",
+        "lotAvailableBefore",
+        "lotAvailableAfter",
+        "planPointsExpireAt",
+        "pointHold",
+        "isAllowed",
+        "blockReasons"
+      ]
+    },
+    {
+      "name": "SubscriptionTermSummary",
+      "fields": [
+        "expiring",
+        "expired",
+        "renewed",
+        "renewedFen",
+        "renewedAheadCount",
+        "renewalRate"
+      ]
+    },
+    {
+      "name": "PaymentTransactionSummary",
+      "fields": [
+        "filtered",
+        "today",
+        "month",
+        "monthRefund",
+        "openDiff"
+      ]
+    },
+    {
+      "name": "RefundRequestSummary",
+      "fields": [
+        "tabs",
+        "executingCount",
+        "monthRefunded",
+        "inProgressCount",
+        "monthRejectedCount",
+        "overdueCount"
+      ]
+    },
+    {
+      "name": "AdminInvoiceRequestSummary",
+      "fields": [
+        "pending",
+        "red_pending",
+        "processed",
+        "pendingAmountFen",
+        "issuedThisMonth"
+      ],
+      "note": "与 m07 同名结构不同构，后台一侧加 Admin 前缀（A132、A150、C87）"
+    },
+    {
+      "name": "PlanCatalog",
+      "fields": [
+        "items",
+        "enabledCycles"
+      ]
+    },
+    {
+      "name": "PlanRevisionListItem",
+      "fields": [
+        "planRevisionId",
+        "planId",
+        "revisionNo",
+        "monthlyFeeFen",
+        "monthlyPoints",
+        "discountBp",
+        "productionModel",
+        "maxStores",
+        "maxMembers",
+        "schedulePriority",
+        "hasMonthlyReport",
+        "cyclePrices",
+        "hasFirstCyclePromo",
+        "effectiveAt",
+        "status",
+        "cancelledAt",
+        "notice",
+        "createdBy",
+        "createdAt",
+        "actions",
+        "plan"
+      ],
+      "note": "PlanRevisionView 加 plan: { planId, name }；admin.planRevision.list 的 AdminPage 元素"
+    },
+    {
+      "name": "PointPackList",
+      "fields": [
+        "items"
+      ]
+    },
+    {
+      "name": "BillingParamList",
+      "fields": [
+        "items",
+        "noticeDays",
+        "earliestNoticedEffectiveDate"
+      ]
+    },
+    {
+      "name": "RemindResult",
+      "fields": [
+        "manualReminderLogId",
+        "bizDate",
+        "remindedToday"
+      ]
+    },
+    {
+      "name": "AdminPaymentOrderSummary",
+      "fields": [
+        "all",
+        "pending_payment",
+        "pending_confirmation",
+        "paid",
+        "cancelled",
+        "refunded"
+      ],
+      "note": "与 m07 同名结构不同构，后台一侧加 Admin 前缀（A132、A150、C87）"
+    },
+    {
+      "name": "TransferProofSummary",
+      "fields": [
+        "pending",
+        "processed_today",
+        "pendingAmountFen"
+      ]
+    },
+    {
+      "name": "TransferConfirmResult",
+      "fields": [
+        "transferProofId",
+        "uploadNo",
+        "paymentOrderId",
+        "orderNo",
+        "orderType",
+        "entity",
+        "amountFen",
+        "uploadedAt",
+        "uploadedBy",
+        "dueAt",
+        "isOverdue",
+        "hints",
+        "reviewStatus",
+        "reviewedAt",
+        "reviewedBy",
+        "order",
+        "bizHints",
+        "fileId",
+        "fileMime",
+        "ocr",
+        "checks",
+        "firstConfirm",
+        "review",
+        "rejectReason",
+        "rejectNote",
+        "otherUploads",
+        "secondReviewThresholdFen",
+        "lockVersion",
+        "actions",
+        "outcome"
+      ]
+    },
+    {
+      "name": "ExceptionResolveResult",
+      "fields": [
+        "paymentExceptionId",
+        "exceptionNo",
+        "kind",
+        "detectedBy",
+        "billDate",
+        "entity",
+        "paymentOrder",
+        "channelTxnNo",
+        "amountFen",
+        "causeText",
+        "status",
+        "resolution",
+        "createdAt",
+        "resolvedAt",
+        "isOverdue",
+        "billFact",
+        "platformFact",
+        "paymentTxn",
+        "refundTxn",
+        "wxBillLine",
+        "allowedResolutions",
+        "linkCandidates",
+        "hints",
+        "resolutionNote",
+        "resolvedBy",
+        "refundRequest",
+        "lockVersion",
+        "actions",
+        "outcome"
+      ]
+    },
+    {
+      "name": "FinanceConfigRevisionList",
+      "fields": [
+        "items"
+      ],
+      "note": "oneOf：tab = current → { items: FinanceConfigRevisionView[] }（A78、C43 有界小集合）；tab = history → AdminPage<FinanceConfigRevisionView>（a01 2.1）"
+    }
+  ],
+  "errorCodes": [
+    {
+      "symbol": "REVISION_PENDING_EXISTS",
+      "code": 43101,
+      "http": 409,
+      "retryable": false,
+      "meaning": "该套餐已有待生效的价目修订，请先撤销再改",
+      "details": "`{ planRevisionId, effectiveAt }`"
+    },
+    {
+      "symbol": "PARAM_PENDING_EXISTS",
+      "code": 43102,
+      "http": 409,
+      "retryable": false,
+      "meaning": "参数已有待生效的修订，请先撤销再改",
+      "details": "`{ items: [{ key, billingParamId, effectiveAt }] }`"
+    },
+    {
+      "symbol": "NOTICE_PERIOD_REQUIRED",
+      "code": 43103,
+      "http": 400,
+      "retryable": false,
+      "meaning": "生效时间须在公告期之后",
+      "details": "`{ earliestEffectiveDate, keys? }`"
+    },
+    {
+      "symbol": "REVISION_ALREADY_EFFECTIVE",
+      "code": 43104,
+      "http": 409,
+      "retryable": false,
+      "meaning": "修订已生效或已撤销，不能撤销",
+      "details": "`{ effectiveAt, cancelledAt }`"
+    },
+    {
+      "symbol": "CHANGESET_EMPTY",
+      "code": 43105,
+      "http": 400,
+      "retryable": false,
+      "meaning": "没有需要保存的变化",
+      "details": "—"
+    },
+    {
+      "symbol": "PLAN_CODE_TAKEN",
+      "code": 43106,
+      "http": 409,
+      "retryable": false,
+      "meaning": "版本码已存在",
+      "details": "—"
+    },
+    {
+      "symbol": "PLAN_RANK_TAKEN",
+      "code": 43107,
+      "http": 409,
+      "retryable": false,
+      "meaning": "版本等级已被占用",
+      "details": "`{ planId }`"
+    },
+    {
+      "symbol": "PLAN_TIER_ORDER_INVALID",
+      "code": 43108,
+      "http": 409,
+      "retryable": false,
+      "meaning": "高等级版本的价格与积分须高于低等级版本",
+      "details": "`{ conflictPlanId, field }`"
+    },
+    {
+      "symbol": "PLAN_REVISION_MISSING",
+      "code": 43109,
+      "http": 409,
+      "retryable": false,
+      "meaning": "套餐没有生效价目或缺少启用周期的价格，不能上架",
+      "details": "`{ missingCycles }`"
+    },
+    {
+      "symbol": "POINT_PACK_DUPLICATE",
+      "code": 43110,
+      "http": 409,
+      "retryable": false,
+      "meaning": "上架中已有相同积分数的积分包",
+      "details": "`{ pointPackId }`"
+    },
+    {
+      "symbol": "ADJUST_ACCOUNT_INACTIVE",
+      "code": 43111,
+      "http": 409,
+      "retryable": false,
+      "meaning": "套餐未生效的账户不能手动调整，续费后再处理",
+      "details": "—"
+    },
+    {
+      "symbol": "ADJUST_EXCEEDS_AVAILABLE",
+      "code": 43112,
+      "http": 409,
+      "retryable": false,
+      "meaning": "扣减数量超过该类型的可用积分",
+      "details": "`{ availablePoints }`"
+    },
+    {
+      "symbol": "ADJUST_HOLD_INVALID",
+      "code": 43113,
+      "http": 409,
+      "retryable": false,
+      "meaning": "关联的订购或广告不能做平台原因退回",
+      "details": "`{ holdStatus, returnablePoints }`"
+    },
+    {
+      "symbol": "EXTENSION_NOT_APPLICABLE",
+      "code": 43114,
+      "http": 409,
+      "retryable": false,
+      "meaning": "当前周期不能发起补偿延长",
+      "details": "`{ termStatus }`"
+    },
+    {
+      "symbol": "PLAN_REFUND_NOT_ELIGIBLE",
+      "code": 43115,
+      "http": 409,
+      "retryable": false,
+      "meaning": "不符合套餐退款规则（d2 的 422 按 C24 改为 409）",
+      "details": "`{ rule, reasons }`"
+    },
+    {
+      "symbol": "OFFLINE_ORDER_DISABLED",
+      "code": 44101,
+      "http": 403,
+      "retryable": false,
+      "meaning": "线下开单未开启",
+      "details": "—"
+    },
+    {
+      "symbol": "BANK_ACCOUNT_NOT_CONFIGURED",
+      "code": 44102,
+      "http": 409,
+      "retryable": false,
+      "meaning": "尚未配置生效的对公收款账户",
+      "details": "—"
+    },
+    {
+      "symbol": "CONFIRMER_IS_ORDER_CREATOR",
+      "code": 44103,
+      "http": 403,
+      "retryable": false,
+      "meaning": "开单员工不能确认本单到账",
+      "details": "—"
+    },
+    {
+      "symbol": "TRANSFER_AMOUNT_MISMATCH",
+      "code": 44104,
+      "http": 409,
+      "retryable": false,
+      "meaning": "到账金额与应付不一致，请驳回凭证并登记异常到账",
+      "details": "`{ amountFen }`"
+    },
+    {
+      "symbol": "BANK_SERIAL_DUPLICATE",
+      "code": 44105,
+      "http": 409,
+      "retryable": false,
+      "meaning": "该银行流水号已被使用",
+      "details": "`{ conflicts: [{ ref, payerBank: DictRef \\| null }] }`（`ref` 为付款单号或差异单号；`payerBank` 为字典 `bank`，C85）"
+    },
+    {
+      "symbol": "REFUND_NOT_SUPPORTED",
+      "code": 44106,
+      "http": 409,
+      "retryable": false,
+      "meaning": "该付款单不支持现金退款（d2 的 422 按 C24 改为 409）",
+      "details": "`{ reasonCode }`"
+    },
+    {
+      "symbol": "REFUND_REQUEST_EXISTS",
+      "code": 44107,
+      "http": 409,
+      "retryable": false,
+      "meaning": "该笔收款已有在途退款申请",
+      "details": "`{ refundRequestId, requestNo }`"
+    },
+    {
+      "symbol": "RED_INVOICE_REQUIRED",
+      "code": 44108,
+      "http": 409,
+      "retryable": false,
+      "meaning": "请先完成红字发票，再执行退款（d2:988）",
+      "details": "`{ invoiceRequestId, requestNo, status }`"
+    },
+    {
+      "symbol": "REFUND_EXCEEDS_REFUNDABLE",
+      "code": 44109,
+      "http": 409,
+      "retryable": false,
+      "meaning": "退款金额超过可退余额",
+      "details": "`{ refundableFen }`"
+    },
+    {
+      "symbol": "REFUND_TXN_OPEN",
+      "code": 44110,
+      "http": 409,
+      "retryable": false,
+      "meaning": "申请名下有未完成或已成功的退款交易",
+      "details": "`{ refundTxnId, status }`"
+    },
+    {
+      "symbol": "REFUND_ALREADY_REVOKED",
+      "code": 44111,
+      "http": 409,
+      "retryable": false,
+      "meaning": "套餐权益已回收，申请不能作废，须完成退款",
+      "details": "`{ entitlementRevokedAt }`"
+    },
+    {
+      "symbol": "REFUND_ROUTE_NOT_ALLOWED",
+      "code": 44112,
+      "http": 409,
+      "retryable": false,
+      "meaning": "该退款不能走所选方式",
+      "details": "`{ allowedRoutes }`"
+    },
+    {
+      "symbol": "REFUND_NOT_ACCEPTED_UNCONFIRMED",
+      "code": 44113,
+      "http": 409,
+      "retryable": false,
+      "meaning": "还不能确认微信未受理",
+      "details": "`{ reasons }`"
+    },
+    {
+      "symbol": "REFUND_EXECUTOR_CONFLICT",
+      "code": 44114,
+      "http": 403,
+      "retryable": false,
+      "meaning": "执行人不能是审批人",
+      "details": "—"
+    },
+    {
+      "symbol": "PAYEE_NAME_MISMATCH",
+      "code": 44115,
+      "http": 400,
+      "retryable": false,
+      "meaning": "对公付款的退款，收款户名须与购买主体一致",
+      "details": "`{ expectedName }`"
+    },
+    {
+      "symbol": "INVOICE_ISSUE_BLOCKED",
+      "code": 44116,
+      "http": 409,
+      "retryable": false,
+      "meaning": "付款单已不满足开票条件",
+      "details": "`{ reasons }`"
+    },
+    {
+      "symbol": "INVOICE_NO_TAKEN",
+      "code": 44117,
+      "http": 409,
+      "retryable": false,
+      "meaning": "该发票代码与号码已被使用",
+      "details": "—"
+    },
+    {
+      "symbol": "RESOLUTION_NOT_ALLOWED",
+      "code": 44118,
+      "http": 409,
+      "retryable": false,
+      "meaning": "该差异不能这样处理",
+      "details": "`{ allowed }`"
+    },
+    {
+      "symbol": "CHANNEL_RECHECK_FAILED",
+      "code": 44119,
+      "http": 409,
+      "retryable": false,
+      "meaning": "微信实时查询结果不支持该处理",
+      "details": "`{ channelState, channelAmountFen }`"
+    },
+    {
+      "symbol": "LINK_ORDER_INVALID",
+      "code": 44120,
+      "http": 409,
+      "retryable": false,
+      "meaning": "所选付款单不能关联这笔到账",
+      "details": "`{ reasons }`"
+    },
+    {
+      "symbol": "RECON_BILL_NOT_READY",
+      "code": 44121,
+      "http": 409,
+      "retryable": false,
+      "meaning": "该日账单尚未下载解析",
+      "details": "`{ billFileStatus }`"
+    }
+  ],
+  "externalErrors": [
+    {
+      "symbol": "PLAN_NOT_AVAILABLE",
+      "definedIn": "m07-billing",
+      "source": "frag/m07-billing.json errorCodes"
+    },
+    {
+      "symbol": "CYCLE_NOT_AVAILABLE",
+      "definedIn": "m07-billing",
+      "source": "frag/m07-billing.json errorCodes"
+    },
+    {
+      "symbol": "UPGRADE_NOT_ALLOWED_TODAY",
+      "definedIn": "m07-billing",
+      "source": "frag/m07-billing.json errorCodes"
+    },
+    {
+      "symbol": "SCHEDULED_TERM_LIMIT",
+      "definedIn": "m07-billing",
+      "source": "frag/m07-billing.json errorCodes"
+    },
+    {
+      "symbol": "TOPUP_REQUIRES_ACTIVE_PLAN",
+      "definedIn": "m07-billing",
+      "source": "frag/m07-billing.json errorCodes"
+    },
+    {
+      "symbol": "PLAN_REFUND_IN_PROGRESS",
+      "definedIn": "m07-billing",
+      "source": "frag/m07-billing.json errorCodes"
+    },
+    {
+      "symbol": "QUOTE_CHANGED",
+      "definedIn": "m07-billing",
+      "source": "frag/m07-billing.json errorCodes"
+    },
+    {
+      "symbol": "ACCOUNT_BUSY",
+      "definedIn": "m07-billing",
+      "source": "frag/m07-billing.json errorCodes"
+    },
+    {
+      "symbol": "PURCHASE_QUALIFICATION_REQUIRED",
+      "definedIn": "m07-billing",
+      "source": "frag/m07-billing.json errorCodes"
+    },
+    {
+      "symbol": "OPEN_ORDER_EXISTS",
+      "definedIn": "m07-billing",
+      "source": "frag/m07-billing.json errorCodes"
+    },
+    {
+      "symbol": "PAYMENT_ORDER_EXPIRED",
+      "definedIn": "m07-billing",
+      "source": "frag/m07-billing.json errorCodes"
+    },
+    {
+      "symbol": "TRANSFER_PROOF_LOCKED",
+      "definedIn": "m07-billing",
+      "source": "frag/m07-billing.json errorCodes"
+    },
+    {
+      "symbol": "FILE_NOT_USABLE",
+      "definedIn": "m03-profile-asset",
+      "source": "frag/m03-profile-asset.json errorCodes（46001）"
+    },
+    {
+      "symbol": "APPROVAL_ALREADY_PENDING",
+      "definedIn": "a03-merchant",
+      "source": "frag/a03-merchant.json errorCodes（48201–48204）"
+    },
+    {
+      "symbol": "APPROVAL_NOT_PENDING",
+      "definedIn": "a03-merchant",
+      "source": "frag/a03-merchant.json errorCodes（48201–48204）"
+    },
+    {
+      "symbol": "APPROVAL_SELF_FORBIDDEN",
+      "definedIn": "a03-merchant",
+      "source": "frag/a03-merchant.json errorCodes（48201–48204）"
+    },
+    {
+      "symbol": "APPROVAL_WITHDRAW_FORBIDDEN",
+      "definedIn": "a03-merchant",
+      "source": "frag/a03-merchant.json errorCodes（48201–48204）"
+    },
+    {
+      "symbol": "REMIND_NOT_APPLICABLE",
+      "definedIn": "a05-order-delivery",
+      "source": "frag/a05-order-delivery.json errorCodes（45309）"
+    }
+  ],
+  "genericErrorRefs": [
+    "VALIDATION_FAILED",
+    "IDEMPOTENCY_KEY_REQUIRED",
+    "PERMISSION_DENIED",
+    "STEP_UP_REQUIRED",
+    "NOT_FOUND",
+    "VERSION_CONFLICT",
+    "STATE_NOT_ALLOWED",
+    "CONFIRM_MISMATCH",
+    "PRECONDITION_CHANGED",
+    "IDEMPOTENCY_IN_PROGRESS",
+    "PROVIDER_UNAVAILABLE",
+    "UPSTREAM_TIMEOUT",
+    "BUSY",
+    "REMINDED_TODAY"
+  ],
+  "permissions": [
+    "billing.adjust.approve",
+    "billing.adjust.request",
+    "billing.extension.approve",
+    "billing.extension.request",
+    "billing.pack.edit",
+    "billing.param.edit",
+    "billing.plan.edit",
+    "billing.price.edit",
+    "finance.config.approve",
+    "finance.config.propose",
+    "finance.invoice.issue",
+    "finance.invoice.red",
+    "finance.receipt.confirm",
+    "finance.receipt.reject",
+    "finance.recon.resolve",
+    "finance.refund.approve",
+    "finance.refund.execute",
+    "order.payment.create_offline",
+    "order.refund.request",
+    "order.renewal.remind",
+    "refund.override.request",
+    "sys.super_admin"
+  ],
+  "capabilities": [],
+  "permissionSupplements": [
+    {
+      "key": "finance.config.propose",
+      "module": "财务管理",
+      "defaultRoles": "财务（超级管理员拥有全部）",
+      "stepUp": true,
+      "pool": false,
+      "basis": "d2-payment.md:1446、1493",
+      "confirm": true
+    },
+    {
+      "key": "finance.config.approve",
+      "module": "财务管理",
+      "defaultRoles": "财务（超级管理员拥有全部）",
+      "stepUp": true,
+      "pool": false,
+      "basis": "d2-payment.md:1446、1493",
+      "confirm": true,
+      "note": "批准要求回显；驳回按 C86 登记 x-step-up: skip，代撤不要求回显"
+    },
+    {
+      "key": "refund.override.request",
+      "module": "订单管理",
+      "defaultRoles": "仅超级管理员",
+      "stepUp": true,
+      "pool": false,
+      "basis": "d2-payment.md:1486；08-billing-payment.md:456",
+      "confirm": true
+    },
+    {
+      "key": "order.renewal.remind",
+      "module": "订单管理",
+      "defaultRoles": "交付经理、客服",
+      "stepUp": false,
+      "pool": false,
+      "basis": "proto-admin-b.md:292",
+      "confirm": false
+    },
+    {
+      "key": "sys.super_admin",
+      "module": "系统设置",
+      "defaultRoles": "仅超级管理员",
+      "stepUp": false,
+      "pool": false,
+      "basis": "A45；d2-payment.md:1117",
+      "confirm": true,
+      "note": "A129：不另设再验证标记"
+    }
+  ],
+  "stepUpChanges": [
+    {
+      "key": "finance.recon.resolve",
+      "stepUp": true,
+      "basis": "A46"
+    },
+    {
+      "key": "order.payment.create_offline",
+      "stepUp": true,
+      "basis": "A46"
+    }
+  ],
+  "events": [
+    "approval.approved",
+    "approval.executed",
+    "approval.rejected",
+    "approval.submitted",
+    "approval.withdrawn",
+    "billing.order_fulfilled",
+    "billing.param_change_scheduled",
+    "billing.plan_revision_scheduled",
+    "billing.points.adjusted",
+    "billing.points.granted",
+    "billing.points.purchased",
+    "billing.subscription.activated",
+    "billing.subscription.extended",
+    "billing.subscription.refund_resumed",
+    "billing.subscription.refund_suspended",
+    "billing.subscription.refunded",
+    "billing.subscription.renewal_scheduled",
+    "billing.subscription.resumed",
+    "billing.subscription.rolled_over",
+    "billing.subscription.upgraded",
+    "billing_order.created",
+    "billing_order.fulfillment_blocked",
+    "billing_order.paid",
+    "billing_order.refunded",
+    "finance_config.approved",
+    "finance_config.proposed",
+    "invoice.issued",
+    "invoice.red_cancelled",
+    "invoice.red_issued",
+    "invoice.red_requested",
+    "invoice.rejected",
+    "manual_reminder.sent",
+    "payment_exception.auto_healed",
+    "payment_exception.opened",
+    "payment_exception.refund_requested",
+    "payment_exception.reopened",
+    "payment_exception.resolved",
+    "pricing.drama_price_changed",
+    "recon.day_closed",
+    "refund.approved",
+    "refund.completed",
+    "refund.execution_failed",
+    "refund.execution_started",
+    "refund.rejected",
+    "refund.submitted",
+    "refund.voided",
+    "refund.withdrawn",
+    "refund_txn.created",
+    "site_notice.announced",
+    "site_notice.withdrawn",
+    "transfer.proof_submitted",
+    "transfer.rejected"
+  ],
+  "externalSchemas": [
+    {
+      "name": "StaffBrief",
+      "definedIn": "a01-system",
+      "section": "2.2"
+    },
+    {
+      "name": "ApprovalDecisionView",
+      "definedIn": "a01-system",
+      "section": "2.10"
+    },
+    {
+      "name": "DictRef",
+      "definedIn": "conventions",
+      "section": "C85（约定里的通用结构，A150）"
+    },
+    {
+      "name": "AdminPage",
+      "definedIn": "a01-system",
+      "section": "2.1"
+    },
+    {
+      "name": "AdminCursorPage",
+      "definedIn": "a01-system",
+      "section": "2.1"
+    },
+    {
+      "name": "PlanQuote",
+      "definedIn": "m07-billing",
+      "section": "2.3"
+    },
+    {
+      "name": "QuoteChangedDetails",
+      "definedIn": "m07-billing",
+      "section": "5（A131）"
+    },
+    {
+      "name": "PaymentOrderContentView",
+      "definedIn": "m07-billing",
+      "section": "2.6"
+    },
+    {
+      "name": "InvoiceDocView",
+      "definedIn": "m07-billing",
+      "section": "2.9"
+    }
+  ]
+}

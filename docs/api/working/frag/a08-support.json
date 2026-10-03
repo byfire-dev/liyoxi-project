@@ -1,0 +1,950 @@
+{
+ "doc": "a08-support",
+ "endpoints": [
+  {
+   "operationId": "admin.serviceTicket.list",
+   "method": "GET",
+   "path": "/admin/service-tickets",
+   "section": "3.1",
+   "requestSchemas": [
+    "AdminServiceTicketListQuery"
+   ],
+   "responseSchema": "AdminPage<AdminServiceTicketRow>",
+   "errors": [
+    "PERMISSION_DENIED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "idempotentNote": "纯查询（GET 不写库，A19）",
+   "scope": "task"
+  },
+  {
+   "operationId": "admin.serviceTicket.summary",
+   "method": "GET",
+   "path": "/admin/service-tickets/summary",
+   "section": "3.2",
+   "requestSchemas": [
+    "AdminServiceTicketSummaryQuery"
+   ],
+   "responseSchema": "AdminServiceTicketSummary",
+   "errors": [
+    "PERMISSION_DENIED"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "idempotentNote": "纯查询（GET 不写库，A19）",
+   "scope": "task"
+  },
+  {
+   "operationId": "admin.serviceTicket.create",
+   "method": "POST",
+   "path": "/admin/service-tickets",
+   "section": "3.3",
+   "requestSchemas": [
+    "AdminServiceTicketRegisterBody"
+   ],
+   "responseSchema": "AdminServiceTicketWriteResult",
+   "errors": [
+    "DICT_ITEM_DISABLED",
+    "ASSIGNEE_INVALID",
+    "NOT_FOUND",
+    "FILE_NOT_USABLE",
+    "VALIDATION_FAILED",
+    "PERMISSION_DENIED"
+   ],
+   "events": [
+    "service_ticket.created"
+   ],
+   "permission": "service.ticket.register",
+   "capability": null,
+   "transitions": [
+    "service_ticket.status: （新建）→ processing（register，12-support.md:150）"
+   ],
+   "version": "V1.0",
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "redactOnReplay": [
+    "images[].url",
+    "images[].expiresAt",
+    "entries[].images[].url",
+    "entries[].images[].expiresAt"
+   ],
+   "scope": "task"
+  },
+  {
+   "operationId": "admin.serviceTicket.get",
+   "method": "GET",
+   "path": "/admin/service-tickets/{serviceTicketId}",
+   "section": "3.4",
+   "requestSchemas": [],
+   "responseSchema": "AdminServiceTicketDetail",
+   "errors": [
+    "NOT_FOUND"
+   ],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "idempotentNote": "纯查询（GET 不写库，A19）",
+   "scope": "task"
+  },
+  {
+   "operationId": "admin.serviceTicket.entry.create",
+   "method": "POST",
+   "path": "/admin/service-tickets/{serviceTicketId}/entries",
+   "section": "3.5",
+   "requestSchemas": [
+    "AdminServiceTicketEntryCreateBody"
+   ],
+   "responseSchema": "AdminServiceTicketWriteResult",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "FILE_NOT_USABLE",
+    "NOT_FOUND",
+    "VALIDATION_FAILED",
+    "PERMISSION_DENIED"
+   ],
+   "events": [
+    "service_ticket.replied"
+   ],
+   "permission": "service.ticket.reply",
+   "capability": null,
+   "transitions": [
+    "service_ticket.status: pending → processing（reply，首次回复商家，12-support.md:151）",
+    "service_ticket.status: processing 不变（回复、内部备注只写条目，不写状态历史，12-support.md:152）"
+   ],
+   "version": "V1.0",
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "redactOnReplay": [
+    "images[].url",
+    "images[].expiresAt",
+    "entries[].images[].url",
+    "entries[].images[].expiresAt"
+   ],
+   "scope": "task"
+  },
+  {
+   "operationId": "admin.serviceTicket.submitResult",
+   "method": "POST",
+   "path": "/admin/service-tickets/{serviceTicketId}/submit-result",
+   "section": "3.6",
+   "requestSchemas": [
+    "AdminServiceTicketSubmitResultBody"
+   ],
+   "responseSchema": "AdminServiceTicketWriteResult",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "SERVICE_TICKET_NOT_OWNER",
+    "NOT_FOUND",
+    "VALIDATION_FAILED",
+    "PERMISSION_DENIED"
+   ],
+   "events": [
+    "service_ticket.result_submitted"
+   ],
+   "permission": "service.ticket.reply",
+   "capability": null,
+   "transitions": [
+    "service_ticket.status: processing → awaiting_confirm（submit_result，12-support.md:153）"
+   ],
+   "version": "V1.0",
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "redactOnReplay": [
+    "images[].url",
+    "images[].expiresAt",
+    "entries[].images[].url",
+    "entries[].images[].expiresAt"
+   ],
+   "scope": "task"
+  },
+  {
+   "operationId": "admin.serviceTicket.close",
+   "method": "POST",
+   "path": "/admin/service-tickets/{serviceTicketId}/close",
+   "section": "3.7",
+   "requestSchemas": [
+    "AdminServiceTicketCloseBody"
+   ],
+   "responseSchema": "AdminServiceTicketWriteResult",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "SERVICE_TICKET_NOT_OWNER",
+    "NOT_FOUND",
+    "VALIDATION_FAILED",
+    "PERMISSION_DENIED"
+   ],
+   "events": [
+    "service_ticket.closed"
+   ],
+   "permission": "service.ticket.close",
+   "capability": null,
+   "transitions": [
+    "service_ticket.status: pending → closed（close，12-support.md:158）",
+    "service_ticket.status: processing → closed（close，12-support.md:158）",
+    "service_ticket.status: awaiting_confirm → closed（close，12-support.md:158）"
+   ],
+   "version": "V1.0",
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "redactOnReplay": [
+    "images[].url",
+    "images[].expiresAt",
+    "entries[].images[].url",
+    "entries[].images[].expiresAt"
+   ],
+   "scope": "task"
+  },
+  {
+   "operationId": "admin.serviceTicket.assign",
+   "method": "POST",
+   "path": "/admin/service-tickets/{serviceTicketId}/assign",
+   "section": "3.8",
+   "requestSchemas": [
+    "AdminServiceTicketAssignBody"
+   ],
+   "responseSchema": "AdminServiceTicketWriteResult",
+   "errors": [
+    "SERVICE_TICKET_ALREADY_ASSIGNED",
+    "ASSIGNEE_INVALID",
+    "STATE_NOT_ALLOWED",
+    "DICT_ITEM_DISABLED",
+    "NOT_FOUND",
+    "PERMISSION_DENIED"
+   ],
+   "events": [
+    "service_ticket.transferred"
+   ],
+   "permission": "service.ticket.assign",
+   "capability": null,
+   "transitions": [
+    "service_ticket.status: 未结状态不变（assign，from = to，12-support.md:159）"
+   ],
+   "version": "V1.0",
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "redactOnReplay": [
+    "images[].url",
+    "images[].expiresAt",
+    "entries[].images[].url",
+    "entries[].images[].expiresAt"
+   ],
+   "scope": "task"
+  },
+  {
+   "operationId": "admin.serviceTicket.reassign",
+   "method": "POST",
+   "path": "/admin/service-tickets/{serviceTicketId}/reassign",
+   "section": "3.9",
+   "requestSchemas": [
+    "AdminServiceTicketReassignBody"
+   ],
+   "responseSchema": "AdminServiceTicketWriteResult",
+   "errors": [
+    "SERVICE_TICKET_NOT_ASSIGNED",
+    "ASSIGNEE_INVALID",
+    "SERVICE_TICKET_NOT_OWNER",
+    "STATE_NOT_ALLOWED",
+    "DICT_ITEM_DISABLED",
+    "NOT_FOUND",
+    "PERMISSION_DENIED"
+   ],
+   "events": [
+    "service_ticket.transferred"
+   ],
+   "permission": "service.ticket.transfer",
+   "capability": null,
+   "transitions": [
+    "service_ticket.status: 未结状态不变（transfer，from = to，12-support.md:160）"
+   ],
+   "version": "V1.0",
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "redactOnReplay": [
+    "images[].url",
+    "images[].expiresAt",
+    "entries[].images[].url",
+    "entries[].images[].expiresAt"
+   ],
+   "scope": "task"
+  },
+  {
+   "operationId": "admin.serviceTicket.forceTransition",
+   "method": "POST",
+   "path": "/admin/service-tickets/{serviceTicketId}/force-transition",
+   "section": "3.10",
+   "requestSchemas": [
+    "AdminServiceTicketForceTransitionBody"
+   ],
+   "responseSchema": "AdminServiceTicketWriteResult",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "CONFIRM_MISMATCH",
+    "STEP_UP_REQUIRED",
+    "NOT_FOUND",
+    "VALIDATION_FAILED",
+    "PERMISSION_DENIED"
+   ],
+   "events": [
+    "service_ticket.reopened"
+   ],
+   "permission": "flow.admin.transition",
+   "capability": null,
+   "transitions": [
+    "service_ticket.status: closed → processing（admin.force，is_forced = true，12-support.md:162）"
+   ],
+   "version": "V1.0",
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "redactOnReplay": [
+    "images[].url",
+    "images[].expiresAt",
+    "entries[].images[].url",
+    "entries[].images[].expiresAt"
+   ],
+   "scope": "task"
+  },
+  {
+   "operationId": "admin.serviceTicket.update",
+   "method": "PATCH",
+   "path": "/admin/service-tickets/{serviceTicketId}",
+   "section": "3.11",
+   "requestSchemas": [
+    "AdminServiceTicketUpdateBody"
+   ],
+   "responseSchema": "AdminServiceTicketWriteResult",
+   "errors": [
+    "VERSION_CONFLICT",
+    "STATE_NOT_ALLOWED",
+    "DICT_ITEM_DISABLED",
+    "NOT_FOUND",
+    "VALIDATION_FAILED",
+    "PERMISSION_DENIED"
+   ],
+   "events": [],
+   "permission": "service.ticket.reply",
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "redactOnReplay": [
+    "images[].url",
+    "images[].expiresAt",
+    "entries[].images[].url",
+    "entries[].images[].expiresAt"
+   ],
+   "scope": "task"
+  },
+  {
+   "operationId": "admin.serviceTicket.ref.create",
+   "method": "POST",
+   "path": "/admin/service-tickets/{serviceTicketId}/refs",
+   "section": "3.12",
+   "requestSchemas": [
+    "AdminServiceTicketRefCreateBody"
+   ],
+   "responseSchema": "AdminServiceTicketWriteResult",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "SERVICE_TICKET_REF_EXISTS",
+    "NOT_FOUND",
+    "VALIDATION_FAILED",
+    "PERMISSION_DENIED"
+   ],
+   "events": [],
+   "permission": "service.ticket.reply",
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "redactOnReplay": [
+    "images[].url",
+    "images[].expiresAt",
+    "entries[].images[].url",
+    "entries[].images[].expiresAt"
+   ],
+   "scope": "task"
+  },
+  {
+   "operationId": "admin.serviceTicket.ref.batchRemove",
+   "method": "POST",
+   "path": "/admin/service-tickets/{serviceTicketId}/refs/remove",
+   "section": "3.13",
+   "requestSchemas": [
+    "AdminServiceTicketRefRemoveBody"
+   ],
+   "responseSchema": "AdminServiceTicketWriteResult",
+   "errors": [
+    "STATE_NOT_ALLOWED",
+    "NOT_FOUND",
+    "VALIDATION_FAILED",
+    "PERMISSION_DENIED"
+   ],
+   "events": [],
+   "permission": "service.ticket.reply",
+   "capability": null,
+   "transitions": [],
+   "version": "V1.0",
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "required",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "redactOnReplay": [
+    "images[].url",
+    "images[].expiresAt",
+    "entries[].images[].url",
+    "entries[].images[].expiresAt"
+   ],
+   "scope": "task"
+  },
+  {
+   "operationId": "admin.quickReply.list",
+   "method": "GET",
+   "path": "/admin/quick-replies",
+   "section": "3.14",
+   "requestSchemas": [],
+   "responseSchema": "QuickReplyList",
+   "errors": [],
+   "events": [],
+   "permission": null,
+   "capability": null,
+   "transitions": [],
+   "version": "V1.1",
+   "xAuth": "staff",
+   "clerkView": null,
+   "xIdempotent": "none",
+   "idempotentBy": null,
+   "rateLimit": "admin.global",
+   "idempotentNote": "纯查询（GET 不写库，A19）",
+   "scope": null
+  }
+ ],
+ "schemas": [
+  {
+   "name": "AdminServiceTicketListQuery",
+   "fields": [
+    "tab",
+    "q",
+    "no",
+    "storeId",
+    "typeCode",
+    "priority",
+    "source",
+    "ownerStaffId",
+    "isUnassigned",
+    "isResponseOverdue",
+    "createdFrom",
+    "createdTo",
+    "sort",
+    "page",
+    "pageSize"
+   ]
+  },
+  {
+   "name": "AdminServiceTicketSummaryQuery",
+   "fields": [
+    "q",
+    "no",
+    "storeId",
+    "typeCode",
+    "priority",
+    "source",
+    "ownerStaffId",
+    "isUnassigned",
+    "isResponseOverdue",
+    "createdFrom",
+    "createdTo"
+   ]
+  },
+  {
+   "name": "AdminServiceTicketSummary",
+   "fields": [
+    "counts",
+    "responseOverdue",
+    "resolvedToday",
+    "unassigned",
+    "asOf"
+   ]
+  },
+  {
+   "name": "ServiceTicketRefBrief",
+   "fields": [
+    "refType",
+    "refId",
+    "no"
+   ]
+  },
+  {
+   "name": "ServiceTicketRefView",
+   "fields": [
+    "refType",
+    "refId",
+    "linkedAt",
+    "no",
+    "status",
+    "detail"
+   ]
+  },
+  {
+   "name": "ServiceTicketSlaView",
+   "fields": [
+    "phase",
+    "response",
+    "solution",
+    "autoResolve"
+   ]
+  },
+  {
+   "name": "SlaLimit",
+   "fields": [
+    "amount",
+    "unit"
+   ]
+  },
+  {
+   "name": "AdminServiceTicketRow",
+   "fields": [
+    "serviceTicketId",
+    "ticketNo",
+    "source",
+    "createdAt",
+    "storeId",
+    "storeName",
+    "primaryRef",
+    "type",
+    "description",
+    "priority",
+    "status",
+    "statusNotes",
+    "sla",
+    "owner",
+    "storeDeliveryManager",
+    "actions"
+   ]
+  },
+  {
+   "name": "AdminServiceTicketDetail",
+   "fields": [
+    "serviceTicketId",
+    "ticketNo",
+    "source",
+    "createdAt",
+    "storeId",
+    "storeName",
+    "primaryRef",
+    "type",
+    "description",
+    "priority",
+    "status",
+    "statusNotes",
+    "sla",
+    "owner",
+    "storeDeliveryManager",
+    "entityId",
+    "storeTicketCount",
+    "submitter",
+    "contactPhoneMask",
+    "registeredBy",
+    "images",
+    "slaDetail",
+    "resolvedVia",
+    "closeReason",
+    "closeNote",
+    "withdrawReason",
+    "reopenedCount",
+    "refs",
+    "entries",
+    "composeModes",
+    "actions",
+    "lockVersion"
+   ]
+  },
+  {
+   "name": "AdminServiceTicketWriteResult",
+   "fields": [
+    "serviceTicketId",
+    "ticketNo",
+    "source",
+    "createdAt",
+    "storeId",
+    "storeName",
+    "primaryRef",
+    "type",
+    "description",
+    "priority",
+    "status",
+    "statusNotes",
+    "sla",
+    "owner",
+    "storeDeliveryManager",
+    "entityId",
+    "storeTicketCount",
+    "submitter",
+    "contactPhoneMask",
+    "registeredBy",
+    "images",
+    "slaDetail",
+    "resolvedVia",
+    "closeReason",
+    "closeNote",
+    "withdrawReason",
+    "reopenedCount",
+    "refs",
+    "entries",
+    "composeModes",
+    "actions",
+    "lockVersion",
+    "replayed"
+   ],
+   "note": "AdminServiceTicketDetail + replayed；images[].url、images[].expiresAt、entries[].images[].url、entries[].images[].expiresAt 可空（结果脱敏，C50）"
+  },
+  {
+   "name": "AdminServiceTicketEntry",
+   "fields": [
+    "entryId",
+    "kind",
+    "tag",
+    "actorType",
+    "staff",
+    "merchant",
+    "client",
+    "body",
+    "merchantBody",
+    "images",
+    "link",
+    "isVisibleToMerchant",
+    "isSolution",
+    "createdAt"
+   ]
+  },
+  {
+   "name": "AdminServiceTicketRegisterBody",
+   "fields": [
+    "storeId",
+    "source",
+    "typeCode",
+    "priority",
+    "description",
+    "imageFileIds",
+    "refs",
+    "ownerMode",
+    "ownerStaffId",
+    "submitterUserId",
+    "phoneSource",
+    "contactPhone"
+   ]
+  },
+  {
+   "name": "AdminServiceTicketEntryCreateBody",
+   "fields": [
+    "kind",
+    "body",
+    "imageFileIds",
+    "isSolution"
+   ]
+  },
+  {
+   "name": "AdminServiceTicketSubmitResultBody",
+   "fields": [
+    "result"
+   ]
+  },
+  {
+   "name": "AdminServiceTicketCloseBody",
+   "fields": [
+    "closeReason",
+    "closeNote"
+   ]
+  },
+  {
+   "name": "AdminServiceTicketAssignBody",
+   "fields": [
+    "toStaffId",
+    "reasonCode",
+    "note"
+   ]
+  },
+  {
+   "name": "AdminServiceTicketReassignBody",
+   "fields": [
+    "toStaffId",
+    "reasonCode",
+    "note"
+   ]
+  },
+  {
+   "name": "AdminServiceTicketForceTransitionBody",
+   "fields": [
+    "toStatus",
+    "note",
+    "confirm"
+   ]
+  },
+  {
+   "name": "AdminServiceTicketUpdateBody",
+   "fields": [
+    "typeCode",
+    "priority",
+    "lockVersion"
+   ]
+  },
+  {
+   "name": "AdminServiceTicketRefCreateBody",
+   "fields": [
+    "refType",
+    "refId"
+   ]
+  },
+  {
+   "name": "AdminServiceTicketRefRemoveBody",
+   "fields": [
+    "refs"
+   ]
+  },
+  {
+   "name": "QuickReplyList",
+   "fields": [
+    "items"
+   ],
+   "version": "V1.1"
+  }
+ ],
+ "errorCodes": [
+  {
+   "symbol": "SERVICE_TICKET_ALREADY_ASSIGNED",
+   "code": 45601,
+   "http": 409,
+   "retryable": false,
+   "meaning": "工单已有负责人，请使用转派",
+   "details": "{ ownerStaffId }"
+  },
+  {
+   "symbol": "SERVICE_TICKET_NOT_ASSIGNED",
+   "code": 45602,
+   "http": 409,
+   "retryable": false,
+   "meaning": "工单还没有负责人，请使用分配",
+   "details": null
+  },
+  {
+   "symbol": "SERVICE_TICKET_NOT_OWNER",
+   "code": 45604,
+   "http": 403,
+   "retryable": false,
+   "meaning": "只有当前负责人或主管可以执行这个操作",
+   "details": "{ ownerStaffId }"
+  },
+  {
+   "symbol": "SERVICE_TICKET_REF_EXISTS",
+   "code": 45605,
+   "http": 409,
+   "retryable": false,
+   "meaning": "这条业务已经关联在本工单上",
+   "details": "{ refType, refId }"
+  }
+ ],
+ "externalErrors": [
+  {
+   "symbol": "ASSIGNEE_INVALID",
+   "definedIn": "a05-order-delivery（45308，共用领域码，A77、C28）"
+  },
+  {
+   "symbol": "DICT_ITEM_DISABLED",
+   "definedIn": "m08-support-misc（47001）"
+  },
+  {
+   "symbol": "FILE_NOT_USABLE",
+   "definedIn": "m03-profile-asset（46001）"
+  }
+ ],
+ "permissions": [
+  "service.ticket.register",
+  "service.ticket.reply",
+  "service.ticket.close",
+  "service.ticket.assign",
+  "service.ticket.transfer",
+  "flow.admin.transition",
+  "pii.phone.reveal",
+  "service.export"
+ ],
+ "capabilities": [],
+ "moduleLevels": [
+  {
+   "module": "service",
+   "need": "view",
+   "usedBy": [
+    "admin.serviceTicket.list",
+    "admin.serviceTicket.summary",
+    "admin.serviceTicket.get",
+    "admin.quickReply.list"
+   ]
+  }
+ ],
+ "externalSchemas": [
+  {"name": "StaffBrief", "sourceDoc": "a01-system", "source": "a01 2.2（C87）：负责人、登记人、条目发送人、门店交付经理"},
+  {"name": "AdminPage", "sourceDoc": "a01-system", "source": "a01 2.1（C87）：工单池列表 AdminPage<AdminServiceTicketRow>"},
+  {"name": "ImageRef", "sourceDoc": "m08-support-misc", "source": "m08 2.1（C87）：工单与条目图片"},
+  {"name": "EntryLink", "sourceDoc": "m08-support-misc", "source": "m08 2.1：条目深链按钮"},
+  {"name": "DictRef", "sourceDoc": "conventions", "source": "C85、C87：工单行与详情的 type、详情的 withdrawReason（A151）"}
+ ],
+ "permissionSupplements": [
+  {
+   "key": "service.quick_reply.manage",
+   "module": "客服工单",
+   "defaultRoles": "客服（仅主管）",
+   "stepUp": false,
+   "pool": false,
+   "confirm": false,
+   "version": "V1.1"
+  }
+ ],
+ "permissionNotes": [
+  "flow.admin.transition：增补表（C66 已列）；再验证标“要”（A129；12-support.md:162 第二因子是守卫）",
+  "service.ticket.assign：A129 定为“分配无负责人的工单（仅主管）”，待分配池 service_ticket；service.ticket.transfer：“负责人转出；主管可改派任意工单”。以 07 主文档注册表为准，d4 附录不回改",
+  "service.ticket.reply：A92 补的改类型与优先级、补关联、移除关联沿用此键，不另设新键；a01 后台上传 ticket_attachment 也按此键判权（a01-system.md:581）",
+  "数据范围：除快捷回复外全部 scope: task（A92、A129：门店 = 本人或本组负责的门店，负责人 = service_ticket.owner_staff_id，无待分配池）"
+ ],
+ "timers": [
+  {
+   "kind": "service.solution_due",
+   "registeredBy": [
+    "admin.serviceTicket.create",
+    "admin.serviceTicket.forceTransition"
+   ],
+   "cancelledBy": [
+    "admin.serviceTicket.entry.create",
+    "admin.serviceTicket.submitResult",
+    "admin.serviceTicket.close"
+   ],
+   "dedupeKey": "service.solution_due:service_ticket:{serviceTicketId}",
+   "keyNote": "A96、A144：类型段用最终表名 service_ticket，与 12-support.md:185-187 一致"
+  },
+  {
+   "kind": "service.first_response_due",
+   "registeredBy": [],
+   "cancelledBy": [
+    "admin.serviceTicket.entry.create",
+    "admin.serviceTicket.submitResult",
+    "admin.serviceTicket.close"
+   ],
+   "dedupeKey": "service.first_response_due:service_ticket:{serviceTicketId}:r{reopened_count}",
+   "keyNote": "A96、A144：类型段用最终表名 service_ticket，与 12-support.md:185-187 一致"
+  },
+  {
+   "kind": "service.auto_resolve",
+   "registeredBy": [
+    "admin.serviceTicket.submitResult"
+   ],
+   "cancelledBy": [
+    "admin.serviceTicket.close"
+   ],
+   "dedupeKey": "service.auto_resolve:service_ticket:{serviceTicketId}:{awaiting_confirm_at 的 Unix 毫秒数}",
+   "keyNote": "A96、A144：类型段用最终表名 service_ticket，与 12-support.md:185-187 一致"
+  }
+ ],
+ "exportKeys": [],
+ "exportKeysReferenced": [
+  "service_tickets.list（a02-workbench-report 定义）"
+ ],
+ "auditCategories": [
+  {
+   "stream": "activity",
+   "category": "service_ticket",
+   "usedBy": [
+    "admin.serviceTicket.update",
+    "admin.serviceTicket.ref.create",
+    "admin.serviceTicket.ref.batchRemove"
+   ],
+   "note": "模块登记的活动流类别，A107、A146 进 07 主文档待回写清单；a02 2.7 已登记为 service 模块"
+  },
+  {
+   "stream": "ops",
+   "category": "flow",
+   "usedBy": [
+    "admin.serviceTicket.forceTransition"
+   ]
+  }
+ ],
+ "enums": [
+  {
+   "name": "ServiceTicketLinkableRefType",
+   "values": [
+    "drama_order",
+    "billing_order",
+    "delivery_ticket",
+    "ad"
+   ]
+  },
+  {
+   "name": "AdminServiceTicketAction",
+   "values": [
+    "assign",
+    "reassign",
+    "submit-result",
+    "close",
+    "force-transition",
+    "update",
+    "create-ref",
+    "remove-ref"
+   ]
+  },
+  {"name": "AdminServiceTicketTab", "values": ["open", "pending", "processing", "awaiting_confirm", "resolved", "closed", "all"]},
+  {"name": "AdminServiceTicketSort", "values": ["urgency", "-createdAt", "createdAt"]},
+  {"name": "ServiceSlaPhase", "values": ["response_pending", "response_overdue", "solution_pending", "solution_overdue", "solution_given", "awaiting_confirm", "resolved", "closed"]},
+  {"name": "ServiceTicketStatusNote", "values": ["escalated", "with_store_manager", "cancel_pending_approval", "refund_pending_approval"]},
+  {"name": "ServiceTicketOwnerMode", "values": ["round_robin", "specified"]}
+ ]
+}

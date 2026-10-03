@@ -1,0 +1,5111 @@
+{
+ "conventions": {
+  "主键": [
+   "业务表主键为 id uuid，UUID v7，由应用生成，不设数据库默认值（R1；04:83-88）。接口里以字符串传输。",
+   "流水与日志表在 uuid 主键之外另带 seq bigint GENERATED ALWAYS AS IDENTITY（唯一），只用于排序与回放；seq 不出接口，需要时转字符串。本清单 pk = uuid+seq 的表：outbox_event、status_transition、audit_log、auth_event、assignment_history、subscription_event、ledger_operation、point_ledger_entry、drama_copyright_revision、delivery_download_log、manual_reminder_log、agreement_consent、param_value。其中 outbox_event、param_value、assignment_history 允许受限的更新，append_only = false（M14）。",
+   "seq 这个列名只指 pk = uuid+seq 的表上的 bigint identity 列（M16）。子表里的顺序号另取名：store_asset_file.seq → position，point_hold_alloc.seq → alloc_no；草案里同类的 order_item.seq（d3:321）、ad_revision.seq（d3:1237）、transfer_proof.seq（d2:273）、notification_delivery.seq（d6:421）M16 没有点名，字段级阶段按同一规则改名。",
+   "不用 uuid 代理主键的例外（逐表见 pk 字段；pk 里只有一列的 composite(x) 表示自然键或父表主键）：① 键是代码登记常量的配置表用自然键（staff_role、notify_scene、wx_template_slot、sms_template、agreement、dict_type、feature_flag、valuation_policy、worker_lease、work_calendar_day）；② 与父表一对一的扩展表以父表主键为主键（billing_account、store_profile、drama_copyright、drama_stat、drama_trailer、media_info、media_check、production_record）；③ 纯关联表与明细表用复合主键（store_member、order_item_account、publish_list_episode、service_ticket_ref、store_asset_file、point_hold_alloc、wx_subscribe_quota、master_checkout、assignment_pool_member、assignment_cursor）；④ 基础设施与派生表用自然复合键（idempotency_record、biz_sequence、outbox_delivery、billing_entity_daily、point_entry_valuation、analytics_event、analytics_event_dedup、analytics_identity）。",
+   "多态引用列（subject_id、ref_id、owner_id、target_id 等）一律 uuid；草案里用 0 作哨兵的地方（d5:500-502、900；d3:2765）改为可空列加部分唯一索引。"
+  ],
+  "时间": [
+   "时刻列 timestamptz，库内存 UTC；Prisma 写 @db.Timestamptz(3)。",
+   "“哪一天”用 date，按 Asia/Shanghai 取日（01:257）；报表分组列统一叫 biz_date。",
+   "所有表有 created_at，可变表有 updated_at。业务时间由注入的时钟写入，业务 SQL 不写 now()（d7:209）；账本操作取拿到账户锁之后的时钟（d1:129）。列默认值 now() 只用于租约、收件这类基础设施表。"
+  ],
+  "金额与积分": [
+   "单据金额一律 integer（分），列名以 _fen 结尾（M15）。依据 ADR-007（04:61）与 d1:164、d2:188：单行上限约 2,147 万元，单张付款单最大 14.4 万元（03:65）。d3:240 的“bigint（分）”不采用：Prisma 把 bigint 映射成 BigInt，不能直接进 JSON 与 Zod 的 number，这正是 R1 放弃 bigint 主键的理由之一（03:601）。",
+   "bigint 的例外（M15；已确认，主文档待回写，rulings 第四节第 3 项）：① recon_day 的全部 7 个 *_fen 汇总列（跨主体的日汇总）；② media_job.est_cost_micro；③ 字节数（size_bytes、total_bytes 等）。凡 bigint 列出接口时转字符串。其余汇总在 SQL 里临时转 bigint、在接口边界转字符串（d2:188），或放在 jsonb 快照里。",
+   "积分列 integer，不存在小数积分；业务表的积分列以 _points 结尾，账本表内部用 qty。",
+   "media_job.est_cost_micro（10^-6 元，bigint）与 billable_qty numeric(12,3) 是外部调用的成本估算与计量值，不是账务金额，登记为例外（d5:641-643）。",
+   "全仓只有一个取整函数（四舍五入），在 packages/shared（01:256；d1:169-173）。"
+  ],
+  "比例": [
+   "比例存万分比整数，列名以 _bp 结尾（9 折 = 9000，20% = 2000）。"
+  ],
+  "枚举": [
+   "枚举列用 text + CHECK，不用数据库原生 enum；取值的唯一来源是 packages/contract 的 Zod enum（ADR-003；d1:183；d2:189），packages/shared 的状态迁移表引用同一份常量。",
+   "新增枚举值、事件类型、定时器类型先声明、下一版再写入（04:36；d7:2439）；CHECK 的变更用 NOT VALID + VALIDATE（d7:1806）。",
+   "字典编码（dict_item.code）不是枚举：业务表存 code，不建外键，由不变量校验引用存在（d6:1505）。"
+  ],
+  "归属列": [
+   "门店维度的表同时带 entity_id 与 store_id，主体维度的表只带 entity_id，全局表不带（01:255）。平台级或主体未知的行，归属列为空（M13）。本清单 tenant 字段给出每张表的结论。",
+   "接口会按 id 直接读写的子表也带归属列（创建时从父行或来源复制，不可变），如 ad_version、sample、episode_output、delivery_release、cancel_request_line、playable_asset（M18）；只经父表访问的关联表与明细表不带。d2、d3、d5 草案里缺归属列的表按此补齐。",
+   "L1 及以上的表对 entity、store 建外键；L0 的表（outbox_event、timer、status_transition、audit_log 等）只存 id，不建外键，且可空。",
+   "归属列可空的情形（M13、M18）：approval_request 的 entity_id、store_id 都可空（平台级与账号类类型没有主体），按 kind 写 CHECK；refund_request、refund_txn 的 entity_id 在孤儿收款退款时可空；playable_asset 的预告片等平台级资产两列为空；follow_up 的 store_id 可空（M3）。"
+  ],
+  "操作人列": [
+   "操作人类型四类：merchant、staff、system、partner（R15）；partner 在 V1.0 只声明、不写入。下载页请求的操作人是商家用户。",
+   "操作人可能是多种类型时用三列：actor_type、actor_id（uuid，system 时为空）、client（客户端来源：weapp / portal / admin，系统动作为空）；不用 jsonb 存操作人（d3:2563、2267 需改）。",
+   "操作人固定为员工或商家用户时用单列并带类型后缀：<动作>_by_staff_id、<动作>_by_user_id（如 created_by_staff_id、placed_by_user_id）；L1 及以上的表建外键，L0 的表不建。草案里的 created_by、decided_by、requested_by 等按此改名。",
+   "老板还是店员记在角色快照列（owner / clerk），不进操作人类型（d4:158）。"
+  ],
+  "乐观锁": [
+   "多人会改的行带 lock_version int NOT NULL DEFAULT 0（d3:239；d8:128）；d2、d4 的 version 列改名 lock_version。状态迁移用事务内 FOR UPDATE 加状态守卫，内容编辑用 lock_version。"
+  ],
+  "软删除": [
+   "不设全局的 deleted_at 约定。业务对象用状态列或生命周期列加时间戳表达停用（archived_at、unbound_at、retired_at 等）；证据类数据不删。",
+   "允许物理删除的只有：过期的幂等记录、埋点去重行、已触发的周期定时器行、过期票据、注销用户的站内消息、超过保留期的埋点分区与安全事件。文件对象删除后行保留（d5:400）。"
+  ],
+  "只增表": [
+   "append_only = true 的表：数据库应用角色只有 INSERT、SELECT 权限，另有 BEFORE UPDATE OR DELETE 与 TRUNCATE 触发器拦截（01:259；d4:1630-1638）。草案里只写了权限、没写触发器的表（d3:2553；d6:1098）补触发器。",
+   "delivery_download_log.client_ack 允许由触发器放行、从 NULL 改一次（d5:843）。",
+   "带生效时间的修订行（plan_revision、drama_price_revision、billing_param、param_value）不算只增表：生效前可写一次 cancelled_at，由触发器限制其余列不可改（M14）。",
+   "M14 的两处更正：assignment_history 改为 append_only = false（要补“已联系”标记与截止时间）；auth_event 保持只增，但触发器只拦 UPDATE，DELETE 只经清理函数（保留 12 个月，d4:1645）。"
+  ],
+  "状态": [
+   "state_machine = true 的表（25 张业务状态机）：状态只经 flow.transition() 迁移，每次写 status_transition。这是对 01:260“状态迁移只经 flow.transition()”的收窄，已确认，主文档待回写（rulings 第四节第 1 项）。",
+   "两类状态列不写状态历史：① 账本内部状态（subscription_term、grant_schedule、point_hold），由计费函数在账户锁内推进，历史在 subscription_event 与 point_ledger_entry；② 技术状态与处理进度（任务、投递、渲染、文件、票据、收件、告警等），用带原状态条件的 UPDATE。",
+   "状态迁移表是 packages/shared 里的代码数据，不是数据库表（03:234）。",
+   "M31：status_transition 只供指标与进度时间轴；活动流统一读 audit_log，flow.transition() 在同一事务里补写一条活动流的审计行。",
+   "M19：status_transition.machine 的取值一律用最终表名。",
+   "M22：素材复核、对公收款确认、开票申请是处理队列，不进 approval_request；store_asset、transfer_proof、invoice_request 各带 due_at 与时限参数快照列，sla.breach 定时器以它们为主体，“审核时效”指标从领域表取，工作台待办走派生查询。",
+   "M12：“同一对象只允许一张在途申请”由领域表表达——有执行步的审批类型在提交时即建领域行，领域行带 closed_at，部分唯一索引建在领域表上（WHERE closed_at IS NULL）；approval_request 的去重索引只覆盖 status = pending，只供没有执行步的类型使用。"
+  ],
+  "敏感字段三件套": [
+   "手机号、统一社会信用代码、银行账号等：<名>_enc text（AES-256-GCM 密文）、<名>_bidx bytea（HMAC 盲索引，只在需要等值查找时建）、<名>_mask text（脱敏串）（01:261；d4:547）。手机号可另带 <名>_last4 供后台按后四位检索（d4:184）。",
+   "草案里只有密文列的表（d2:371-374、332、393；d3:2445；d6:1107、1110）按此补列；密文列类型统一为 text（d6、d3 写的是 bytea）。"
+  ],
+  "业务单号": [
+   "对人展示用业务单号，列名 <对象>_no，UNIQUE；由 kernel 的 biz_sequence(prefix, biz_date) 在事务内取号（d3:241）。",
+   "已出现的前缀：LYX 订购单、FK 付款单、GG 广告、JF 交付工单、KF 客服工单、TK 退款与取消、TZ 积分调整、YQ 补偿延长、KP 开票申请、CY 差异单、ZH 账号变更、DC 导出任务、SQ 授权书（d3:241；d2:198、288、341、366；d1:568；d4:1463；d6:1195、2145）；日志编号 RZ 由数据库序列生成（d4:1518、2096）。",
+   "经审批的单据（TK、TZ、YQ、ZH）单号只存 approval_request.request_no，领域表经一对一外键取，不重复存。"
+  ],
+  "命名规则": [
+   "表名单数蛇形（R2）。子表带父表前缀（delivery_ticket_stage、store_asset_file）。",
+   "外键列：被引用表全名 + _id（M17：delivery_ticket_id、service_ticket_id、portal_ticket_id、drama_order_id、billing_order_id），不再出现含义不明的 ticket_id、order_id；指向人的列可用角色名（delivery_manager_id、approved_by_user_id），文件引用沿用全仓约定的 file_id。不用 text 存其他表的 id（d3 的 hold_ref、d6 引用 D1 对象的 text 列改为 uuid）。多态引用用 <角色>_type + <角色>_id。hold_id、term_id、release_id、asset_id、letter_id 这类缩写是否一并展开，M17 没有点名，字段级阶段统一。",
+   "多态引用的 *_type 取值与 status_transition.machine 的取值一律用最终表名（M19；如 order_item、ad、subscription_term、delivery_reissue、delivery_plan）；账本幂等键里的类型段同样用最终表名。尚无存量数据，不保留旧值。相对草案改掉的取值见 decisions.md 第 8 节。",
+   "数组引用列 <名>_ids uuid[] 只用于文件与素材的有序小集合，不建外键，一律经 file_ref 登记。例外（M20）：订购单与广告需求的参考素材不存数组列，统一经 file_ref 登记（owner 为订购单或广告，role = reference）；其中来自素材库的另写一行 store_asset_usage，来自档案媒体的只走 file_ref。",
+   "时间列：时刻以 _at 结尾，日期以 _date 结尾（biz_date 除外）。",
+   "布尔列：is_ / has_ / can_ 前缀或 _enabled 后缀，NOT NULL 带默认值；能用时间戳表达的不用布尔（revoked_at 而不是 is_revoked）。",
+   "快照列以 _snapshot 结尾，jsonb，每列对应 packages/contract 里的一个 Zod schema。",
+   "约束与索引名：pk_<表>、uq_<表>_<列>、ix_<表>_<列>、fk_<表>_<列>、ck_<表>_<规则>、ex_<表>_<规则>、trg_<表>_<时机>；不超过 63 个字符。",
+   "部分唯一索引、排他约束、CHECK、防改触发器在迁移里手写 SQL，持续集成比对约束清单（01:262）。"
+  ],
+  "跨模块外键": [
+   "下层的表不引用上层的表（01:161、180）。需要关联时由上层表持有外键；下层必须记住上层对象时只存 id、不建外键，并在 cross_module_fks 里注明。",
+   "同层之间的外键允许；同层的同步调用另按白名单。白名单：d7:204 的 order → ad、order → delivery、delivery → ad、delivery → publish，L1 内 identity → tenant、staff → approval、portal → identity；M29 增补 content → media、identity → approval、identity → docs、tenant → docs、profile → approval、profile → tenant、profile → media。d9 另要求增补 profile → identity（d9:743），M29 没有这一条，未加，待主负责人裁决；在此之前 profile 不同步调用 identity（d9 给的退路是 profile 定义端口、identity 注册）。",
+   "下层要写上层的表时用端口：kernel 定义端口，上层注册实现，下层不直接写——analytics_event（analytics）、invariant_violation（ops）、alert_event（ops，M30）。merchant_user.consent_stamp 由 identity 自己写，docs 的 assertConsents 只返回是否已齐与指纹（M29）。media 不写 L3 的表（M8）。"
+  ],
+  "加锁顺序": [
+   "全系统只有一份加锁顺序表（01:304），合并结果在 decisions.md 第 6 节；每张表的 lock_rank 即它在表里的次序，数值小的先锁，同一张表的多行按 id 升序。",
+   "lock_rank = null 表示不参与排序：该表的行不与其他已有业务行同时加锁，或只在已持有其父行、主体行、审批单行或计费账户行锁的事务里修改（如 timer、outbox_delivery、计费内部行、一对一的无执行步领域表）。一对一领域表里的例外：qualification_submission 有草稿态，草稿编辑与提交不持有审批单行锁，参与排序（65；d9:466、749）。",
+   "主干是 01:304 的九类（审批单 → 门店 → 广告 → 订购单 → 订单项 → 工单 → 付款单 → 收款交易 → 计费账户）；领域申请单紧跟审批单之后（M32）；计费账户永远最后，一个事务只锁一个主体的计费账户。",
+   "lock_rank 以 10 为步长，留出插入空位；新增需要排序的表时改 decisions.md 第 6 节与本字段两处。"
+  ],
+  "Prisma 映射规则": [
+   "模型名帕斯卡命名并 @@map 到蛇形表名；字段小驼峰并 @map 到蛇形列名（R2）。",
+   "uuid：String @db.Uuid，主键不写 @default；seq：BigInt @unique @default(autoincrement())；金额与积分：Int；M15 的 bigint 列（recon_day 的 *_fen 汇总、est_cost_micro、字节数）：BigInt，出接口转字符串；timestamptz：DateTime @db.Timestamptz(3)；date：DateTime @db.Date；uuid[]：String[] @db.Uuid；枚举：String（CHECK 手写）。",
+   "复合主键用 @@id([...])，自然键用 String @id。约束与索引用 map 参数写出上面的名字。",
+   "以上写法已用 prisma 7.10.0 的 validate 检查过语法，没有做迁移与运行验证。"
+  ],
+  "无表模块": [
+   "authz（权限点注册表在 packages/contract，d4:1160）、providers（外部能力配置走环境变量与受控配置）、workbench（待办为派生查询，不建 work_item，d3:3103）没有自己的表。V1.1 的 partner 不建表（01:176）。"
+  ]
+ },
+ "groups": [
+  {
+   "group": "01-kernel-flow",
+   "title": "内核与流程基础：幂等、业务单号、出站事件与投递、定时器、状态历史、工作日历",
+   "modules": [
+    "kernel",
+    "events",
+    "timers",
+    "flow",
+    "sla"
+   ]
+  },
+  {
+   "group": "02-identity-tenant",
+   "title": "身份与租户：商家账号、商家会话与下载页会话、短信验证码、企业微信联系人、主体、门店、成员、邀请、渠道码与邀请码、下载页票据",
+   "modules": [
+    "identity",
+    "tenant",
+    "portal"
+   ]
+  },
+  {
+   "group": "03-staff-authz-audit",
+   "title": "员工、运营跟进记录、权限、审计与统一审批单",
+   "modules": [
+    "staff",
+    "authz",
+    "audit",
+    "security",
+    "approval"
+   ]
+  },
+  {
+   "group": "04-profile",
+   "title": "门店档案与资质审核",
+   "modules": [
+    "profile"
+   ]
+  },
+  {
+   "group": "05-content",
+   "title": "短剧库",
+   "modules": [
+    "content"
+   ]
+  },
+  {
+   "group": "06-media",
+   "title": "文件、媒体任务、素材、素材理解、证照识别、ZIP 缓存",
+   "modules": [
+    "media"
+   ]
+  },
+  {
+   "group": "07-billing-ledger",
+   "title": "价目、订阅、积分账本",
+   "modules": [
+    "billing"
+   ]
+  },
+  {
+   "group": "08-billing-payment",
+   "title": "付款单、收款交易、退款、对账、发票",
+   "modules": [
+    "billing"
+   ]
+  },
+  {
+   "group": "09-order-ad",
+   "title": "选剧单、订购单、订单项、取消申请、广告",
+   "modules": [
+    "order",
+    "ad"
+   ]
+  },
+  {
+   "group": "10-delivery",
+   "title": "交付工单、方案、样片、成片、质检、成片包",
+   "modules": [
+    "delivery"
+   ]
+  },
+  {
+   "group": "11-publish",
+   "title": "渠道账号与账号核验提交、上线、巡检、下架",
+   "modules": [
+    "publish"
+   ]
+  },
+  {
+   "group": "12-support",
+   "title": "客服工单",
+   "modules": [
+    "support"
+   ]
+  },
+  {
+   "group": "13-notify-docs",
+   "title": "通知与人工催办限频、协议、同意记录、授权书",
+   "modules": [
+    "notify",
+    "docs"
+   ]
+  },
+  {
+   "group": "14-config-data",
+   "title": "字典、参数、站点配置、开关、清单模板、埋点、报表快照、导出",
+   "modules": [
+    "config",
+    "analytics",
+    "reports",
+    "exports"
+   ]
+  },
+  {
+   "group": "15-integration-ops",
+   "title": "回调收件、健康与探针、不变量校验结果",
+   "modules": [
+    "security",
+    "providers",
+    "ops"
+   ]
+  }
+ ],
+ "tables": [
+  {
+   "name": "idempotency_record",
+   "module": "kernel",
+   "group": "01-kernel-flow",
+   "layer": "L0",
+   "purpose": "全仓统一的写接口幂等表：幂等行与业务写同事务，并发同键请求阻塞在主键上，只持久化成功结果；三段式用例用 in_progress + locked_until 占用",
+   "sources": [
+    {
+     "draft": "d7",
+     "lines": "414-425（字段表）；427-466（单事务/三段式/自然幂等的机制）；2281、2353（汇总与对 D3 的调整要求）"
+    },
+    {
+     "draft": "d3",
+     "lines": "3192-3197（用法 443、3184）"
+    }
+   ],
+   "renamed_from": [
+    "idempotency_key"
+   ],
+   "merged_from": [
+    "d3:idempotency_record"
+   ],
+   "pk": "composite(scope, actor_key, key)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "定义以 d7:414-425 为准（actor_key 取代 actor_id，加 state、locked_until，response_* 改 result；d7:2353）。d3:3193-3196 的同名表并入；d2 原稿的 idempotency_key 不建（d7:412）。actor_key 的类型段只用四类操作人，下载页请求写商家用户，不写 portal:<会话 id>（R15；d7:419 的示例需改）。过期行物理删除（保留 24 小时）。"
+  },
+  {
+   "name": "biz_sequence",
+   "module": "kernel",
+   "group": "01-kernel-flow",
+   "layer": "L0",
+   "purpose": "业务编号流水：按前缀+日期取号（LYX/GG/KF/TK 等）",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "241"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(prefix, biz_date)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "草案只有行内定义（d3:241）。01:165 把业务单号归 kernel。灾备后各前缀上跳的约定见 d2:177。"
+  },
+  {
+   "name": "outbox_event",
+   "module": "events",
+   "group": "01-kernel-flow",
+   "layer": "L0",
+   "purpose": "出站事件：业务事务内写入的领域事件；published_at 表示已为每个订阅者生成投递行",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "2607-2620"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid+seq",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "entity_id、store_id 可空且不建外键（L0）。中继按 seq 升序扫描，替换 d3:2648-2649 的 ORDER BY id；seq 是 bigint identity，不出接口。aggregate_id 改 uuid。actor 改为 actor_type + actor_id + client 三列（R15）。行会被回写 published_at，不是只增表。 d9：profile 发出的事件类型：store.qualification.submitted / approved / rejected / withdrawn，store.qualification_change.submitted / approved / rejected，store.profile.changed（d9:697-704）；负载只带 id 与字段名，订阅者回库读取（d9:706）。变更重审用独立的事件名，避免触发 order 对 store.qualification.rejected 的待开工超期待办与整店取消（d9:604）。profile 订阅的事件：自己的 store.qualification.approved（驳回信用代码相同的其他在审轮次）、tenant 的门店停用 / 恢复 / 草稿门店删除 / 主体关闭或放弃（事件名待 D4 定）、media 的 file.moderated（d9:710-717）。新增事件类型按约定先声明、下一版再写入。"
+  },
+  {
+   "name": "outbox_delivery",
+   "module": "events",
+   "group": "01-kernel-flow",
+   "layer": "L0",
+   "purpose": "事件 × 订阅者的投递行：库里的投递真相（状态、失败次数、租约、派发序号），由库驱动重投与死信",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "2622-2639"
+    },
+    {
+     "draft": "d7",
+     "lines": "1431-1440（字段表）；1412-1429（重投扫描 events.redeliver）；1442-1447（规则）；2016（告警规则 6）；2351（要求 D3 新增）"
+    }
+   ],
+   "renamed_from": [
+    "event_consumption"
+   ],
+   "merged_from": [
+    "event_redelivery"
+   ],
+   "pk": "composite(event_id, subscriber)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "事件 × 订阅者的投递真相（01:305；03:235）。d7:1431-1440 的 event_redelivery 是针对 d3 v1 的 event_consumption 提的增量，d3 v2 的本表已带失败次数、租约、派发序号与死信（d3:2622-2636），不再另建；d7 探针与 d6:85 引用的 event_consumption 改读本表（d3:176）。"
+  },
+  {
+   "name": "timer",
+   "module": "timers",
+   "group": "01-kernel-flow",
+   "layer": "L0",
+   "purpose": "定时器：到期时间为业务真相的一行一时限；含周期任务行（subject_id = 0）；扫描认领后经 BullMQ 或进程内执行",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "2760-2814"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "含周期任务行（R7）。增加 result jsonb 存运行摘要，取代 d7 已删除的 job_run（d7:1619、2352）。周期任务行的 subject_id 改为可空（d3:2765 用 0 作哨兵，改 UUID 后不可用）。纯提醒不登记定时器行（R6）。entity_id、store_id 可空且不建外键。M19：subject_type 取值用最终表名（d3:2764 的 order、ticket_stage、approval 改为 drama_order、delivery_ticket_stage、approval_request）。M22：素材复核、对公收款确认、开票申请的 sla.breach 定时器，主体类型为 store_asset、transfer_proof、invoice_request（d3:2962-2963 原以审批单为主体）。M21：周期任务写审计时，audit_log.timer_id 指向本表的定时器行。status 属技术状态，不写状态历史。不参与锁排序：只有已持有该定时器主体业务行锁的事务才改它（d3:939）。 d9：profile 没有自己登记的、会改状态的定时器。资质审核时限的 sla.breach 由 approval 在提交时登记、主体为审批单；证照到期提醒不是定时器，由 notify 按规则派生；每日不变量任务 profile.invariants 是周期任务行，由 ops 调度（d9:721-728）。"
+  },
+  {
+   "name": "status_transition",
+   "module": "flow",
+   "group": "01-kernel-flow",
+   "layer": "L0",
+   "purpose": "状态变更历史：transition() 每次迁移写一行（含不改状态的暂停/恢复/改派/改期/补发），停留时长在写入时固化，支撑指标与时间线",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "2552-2583"
+    }
+   ],
+   "renamed_from": [
+    "state_transition",
+    "state_transitions"
+   ],
+   "merged_from": [],
+   "pk": "uuid+seq",
+   "tenant": "store",
+   "append_only": true,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "表名用主文档的 status_transition（03:234）；d6:87 写作 state_transition。entity_id 改为可空（d8:642：短剧库是全局对象，d3:2558 现为 NOT NULL）。M19：machine 取值一律用最终表名，即本清单 state_machine = true 的 25 张表的表名；d3:2555-2556 的 order、ticket、plan、approval 改为 drama_order、delivery_ticket、delivery_plan、approval_request。actor 拆为 actor_type、actor_id、client（R15）。补防改触发器（d3:2553 只写了权限）。biz_date 已在 d3:2569。M31：本表只供指标与进度时间轴；活动流（商家详情的操作日志、工作台实时动态、各单据详情的日志）统一读 audit_log，flow.transition() 在同一事务里补写一条活动流的审计行（d3:914 现为“员工操作或规则要求时才写审计”，需改）。“状态迁移只经 flow.transition()”收窄为业务状态机：已确认，主文档待回写（rulings 第四节第 1 项；01:260）。 d9：门店资质结论与主体认证结论的迁移经 tenant 的函数调用 flow.transition()，machine 取 store、entity。这两张表各有两个状态字段（lifecycle 与资质 / 认证结论）共用同一个 machine 取值，d9 用事件名前缀 qualification. 区分；是否在本表加一列区分，待 flow 的定义方确认（d9:462、803 ①）。已通过门店的变更重审 from = to，照常写一行（d9:462）。"
+  },
+  {
+   "name": "work_calendar_day",
+   "module": "sla",
+   "group": "01-kernel-flow",
+   "layer": "L0",
+   "purpose": "工作日历：一天一行（是否工作日、类型、导入批次号），年度放假安排导入覆盖",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "2990-2999"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(day)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "自然键 day date。年度放假安排由超级管理员导入（03:242）。"
+  },
+  {
+   "name": "merchant_user",
+   "module": "identity",
+   "group": "02-identity-tenant",
+   "layer": "L1",
+   "purpose": "小程序商家用户账号；一个手机号一个账号，可挂多个微信身份",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "177-191（状态机 433-442；休眠保护 444-465）"
+    }
+   ],
+   "renamed_from": [
+    "users"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 80,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "增加 consent_stamp（用户级协议版本集合的指纹；d6:1131、1160-1171）。M29：consent_stamp 由 identity 自己写——docs 的 assertConsents 只返回是否已齐与指纹，不写 identity 的表（d6:1131、1167 由 docs 更新用户行的写法需改）；identity → docs 已进同层白名单。d5:449 称 users。手机号按三件套 phone_enc / phone_bidx / phone_mask，另留 phone_last4（d4:182-184）。M6：source_type 与码值快照（d4:187-188）在注册时由服务端按 referral_code 判定；取值见 enums_shared 的 source_type。 d9：profile 的表以 <动作>_by_user_id 列引用本表（store_profile_media.created_by_user_id、qualification_submission.submitted_by_user_id / created_by_user_id、qualification_doc.uploaded_by_user_id）。资质联系人手机号默认取登录手机号，profile 要读登录手机号的三列，调用路径与 sms_verification 的核销相同，取决于 profile → identity 是否进白名单（d9:132、743、801 ⑥）。"
+  },
+  {
+   "name": "wechat_identity",
+   "module": "identity",
+   "group": "02-identity-tenant",
+   "layer": "L1",
+   "purpose": "微信身份（appid+openid），多对一挂到商家账号",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "193-203"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 90,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "user_session",
+   "module": "identity",
+   "group": "02-identity-tenant",
+   "layer": "L1",
+   "purpose": "商家端会话：一次登录（一台设备）一行，不透明令牌，每请求主键点查",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "205-217（令牌与每请求校验 310-341）"
+    }
+   ],
+   "renamed_from": [
+    "user_sessions"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "R4：商家会话存 PostgreSQL。下载页会话是独立的 portal_session，不采用 d5:94 的 user_sessions.client = portal 写法。portal_session 同在 identity（M1）。"
+  },
+  {
+   "name": "portal_session",
+   "module": "identity",
+   "group": "02-identity-tenant",
+   "layer": "L1",
+   "purpose": "电脑端下载页会话：老板在小程序里对某台电脑的一次授权，2 小时绝对过期",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "487-499（规则 501-513；时序 515-530）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "portal_ticket_id",
+     "ref": "portal_ticket",
+     "note": "同层（identity 的表引用 portal 的表）；UNIQUE：一张票据只换一次会话（d4:493）。同步调用方向仍是 portal → identity（d7:204、195）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "R4：下载页会话存 PostgreSQL。M1：归 identity（与 d4:140、d7:195 一致）——三类会话都在身份侧，老板被禁用、被更换、注销、强制下线时吊销其授权出的下载页会话与状态变更同事务（d4:510）；portal 只留 portal_ticket。R5：去掉 source = code、download_portal_link 引用与 grant.orderItemIds（d4:493、496），source / source_ref 收敛为 portal_ticket_id（M17 的列名）。approved_by_user_id（授权的老板，d4:494）指向同模块的 merchant_user，每请求校验其仍是该主体的有效老板（d4:501）。R15：下载页请求的操作人是商家用户，客户端来源记 portal，不设 portal 操作人类型（d4:158、1528 需改）。"
+  },
+  {
+   "name": "merchant_user_notice",
+   "module": "identity",
+   "group": "02-identity-tenant",
+   "layer": "L1",
+   "purpose": "账号上的一次性提示（如“账号在新的微信上登录”），老板下次打开首页置顶展示，点“知道了”后关闭",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "265、389、2254-2256"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "新增。d4 有接口 POST /m/me/notices/{id}/ack，但没有定义存放它的表或列（d4:265、389、2256）。字段在字段级阶段定。"
+  },
+  {
+   "name": "sms_verification",
+   "module": "identity",
+   "group": "02-identity-tenant",
+   "layer": "L1",
+   "purpose": "商家侧短信验证码：用途、目标手机号盲索引、验证码哈希、过期时间、尝试次数、使用时间；只存哈希",
+   "sources": [
+    {
+     "draft": "rulings",
+     "lines": "M5"
+    },
+    {
+     "draft": "d4",
+     "lines": "945-955（staff_activation 的结构）；405（换绑手机号自助路径：向原手机号发短信验证码）；2094（资质联系人手机号改为非登录手机号时须短信验证）"
+    },
+    {
+     "draft": "proto-merchant-b",
+     "lines": "107"
+    },
+    {
+     "draft": "05",
+     "lines": "19、300（自建短信登录是否做，待真机验证 V19）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "新增（M5）。结构参照 d4:945-955 的 staff_activation：purpose、目标手机号盲索引（phone_bidx）、code_hash、expires_at、attempts、used_at。用途枚举：换绑手机号（d4:405）、资质联系人手机号验证（d4:2094；proto-merchant-b.md:107），另留 login（自建短信登录，默认不启用，05:19）；前两个取值的英文写法字段级阶段定。库里没有验证码明文。本表没有状态机。资质联系人手机号验证的调用方是 profile，而 profile → identity 不在 M29 的同层白名单内，调用路径待 d9-profile 定（见 decisions.md 第 5 节 M5 行）。 d9：用途“资质联系人手机号验证”对应 store_profile.contact_phone_source = sms_verified（d9:132），由 PUT /profile/contact 带验证码时核销（d9:667）。d9 给的调用路径是 profile 同步调用 identity（读登录手机号的三列、核销验证码），为此要求同层白名单增补 profile → identity；若不增补，改为 profile 定义端口、identity 注册（d9:743、806 ①、807 ④）。M29 的白名单没有这一条，本清单未增补，待主负责人裁决（decisions.md 第 12 节）。"
+  },
+  {
+   "name": "wecom_contact",
+   "module": "identity",
+   "group": "02-identity-tenant",
+   "layer": "L1",
+   "purpose": "商家用户与员工的企业微信外部联系人关系：由企业微信回调写入，后台“企业微信已添加”读它",
+   "sources": [
+    {
+     "draft": "rulings",
+     "lines": "M7"
+    },
+    {
+     "draft": "d4",
+     "lines": "1862（企业微信回调：inbox 模式，处理 add_external_contact 与 add_half_external_contact）"
+    },
+    {
+     "draft": "proto-admin-a",
+     "lines": "162"
+    },
+    {
+     "draft": "proto-admin-b",
+     "lines": "67"
+    },
+    {
+     "draft": "01",
+     "lines": "418"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "staff_id",
+     "ref": "staff",
+     "note": "同层（identity 的表引用 staff 的表）；只是外键，不产生 identity → staff 的同步调用"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "新增（M7）。列：merchant_user_id（同模块外键）、staff_id、外部联系人标识（加密，按敏感字段约定存 _enc，回调按标识找行时另建盲索引）、added_at、removed_at。由企业微信回调写入（经 webhook_event 的 inbox 模式，d4:1862）；后台商家详情页头与工单详情侧栏的“企业微信已添加”（proto-admin-b.md:67；proto-admin-a.md:162）读它。关系解除写 removed_at，不删行。"
+  },
+  {
+   "name": "account_change_request",
+   "module": "identity",
+   "group": "02-identity-tenant",
+   "layer": "L1",
+   "purpose": "账号类变更申请（换绑手机号、老板更换、老板复核）的内容与执行结果；与审批单一对一",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "1458-1475（状态机 1477-1494；审批单据约定 1392-1402）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 40,
+   "cross_module_fks": [
+    {
+     "column": "approval_request_id",
+     "ref": "approval_request",
+     "note": "一对一（R3）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "d4:142 放在 staff 模块；内容是商家账号换绑与老板更换，改归 identity（老板更换的执行调用 tenant，identity → tenant 在同层白名单内，d7:204）。按 R3 拆出审批列：status、decided_by、decided_at、decision_note 与发起人 ≠ 审批人的 CHECK 移到 approval_request，本表只留内容（kind、payload、reason）与执行结果。单号前缀 ZH（d4:1463）改存 approval_request.request_no。payload 里的证明材料文件经 file_ref 登记。M12：通过即同事务生效、没有执行步（d4:1480），d4:1475 的两条部分唯一索引改由 approval_request 上只覆盖 status = pending 的去重索引表达。M13：entity_id 可空的两类（换绑、复核填账号所属主体，d4:1467）沿用。M32：锁顺序上紧跟审批单之后。"
+  },
+  {
+   "name": "entity",
+   "module": "tenant",
+   "group": "02-identity-tenant",
+   "layer": "L1",
+   "purpose": "经营主体：租户骨架、主体名称与统一社会信用代码（唯一性）、认证结论",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "538-555（唯一性 628-636；生命周期联动 796-801）"
+    },
+    {
+     "draft": "d9",
+     "lines": "285-295（要求增补的列与语义调整）；436（主体结论的取值与迁移）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 100,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "verification_status 列在本表、由 profile 维护（d4:544），因为信用代码的部分唯一索引依赖它（d4:555）。主体创建时同事务建 billing_account 行（d4:555；d1:317）：tenant 在 L1，不直接调用 billing，由 billing 注册端口实现。乐观锁列 version 改名 lock_version。M6：source_type 与码值快照（d4:550，创建时从创建人账号复制）的来源同 merchant_user，最终由 referral_code 判定。 d9：要求增补两列——legal_rep_name_mask text（d4 只有密文列，d9:291）；verified_at timestamptz 可空，第一次把结论置 verified 时写入，之后经 change 轮次更换营业执照不改它（d9:292）。verification_status 的列说明由“主体营业执照的审核结论”（d4:544）改为“含主体营业执照的那一轮（initial）的结论”：initial 轮次被驳回时主体结论一律置 rejected，即使被点名的只是门店级证照（d9:295、436）；它决定 profile.isQualificationDead 与 d2 的 qualification_failed 套餐退款口径，待 D4、D2 确认（d9:651、793）。name、entity_type、uscc_*、legal_rep_name_enc 由 tenant.applyEntityVerification 在审核通过的事务里写入（d9:293、546）；tenant 另提供 findVerifiedEntityByUsccBidx 供提交时查重（d9:745）。状态历史的 machine 取 entity 时，lifecycle 与 verification_status 共用同一个取值，是否加列区分待 flow 的定义方确认（d9:462）。主体关闭或放弃的出站事件名待 D4 定稿：profile 订阅它来撤回在审轮次、丢弃草稿、释放证照引用（d9:716、801 ③）。以上需 D4 回写。"
+  },
+  {
+   "name": "store",
+   "module": "tenant",
+   "group": "02-identity-tenant",
+   "layer": "L1",
+   "purpose": "门店：租户骨架、生命周期、交付经理与资质结论（档案在 store_profile）",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "557-567（状态机 785-794）"
+    },
+    {
+     "draft": "d9",
+     "lines": "285-295（要求增补的列）；417-462（资质结论的取值与迁移）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 130,
+   "cross_module_fks": [
+    {
+     "column": "delivery_manager_id",
+     "ref": "staff",
+     "note": "同层（tenant → staff）；可空 = 待分配（d4:567）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "d4 只列了租户骨架列，其余列“归建档设计”（d4:557）：档案列放 store_profile。门店资质结论列（未提交 / 审核中 / 已通过 / 已驳回，prd-tech.md:230）放本表、由 profile 写入，做法同 entity.verification_status。 d9：门店资质结论列定为 qualification_status text NOT NULL DEFAULT unsubmitted，CHECK in (unsubmitted, pending, verified, rejected)，取值同 enums_shared 的 qualification_status；d4 的 store 字段表没有这一列（d9:289）。name 改为允许为空：首家门店在第一次点“开始建档”时创建，此时还没有门店名称（d9:290）。表仍归 tenant，profile 只经 tenant 的函数写：createStore、renameStore、setStoreQualification，另有只读的 getStoreGateFacts（d9:64、745、801 ②）。setStoreQualification 内部调用 flow.transition()，状态历史的 machine 取 store，与 lifecycle 的迁移共用同一个取值，事件名带 qualification. 前缀区分；是否在状态历史上加一列区分，待 flow 的定义方确认（d9:462）。已通过门店的变更重审不改本列（d9:17、458-460）。StoreCloseGuard 里“审核中的资质”改由 profile 注册，profile 另注册“主体未认证时的首家门店”一项；删除草稿门店也须经过同一守卫（d9:736、801 ④）。门店停用、恢复、草稿门店删除的出站事件名待 D4 定稿，profile 订阅它们来丢弃草稿轮次、释放或恢复档案文件引用（d9:713-715、801 ③）。以上需 D4 回写。"
+  },
+  {
+   "name": "entity_member",
+   "module": "tenant",
+   "group": "02-identity-tenant",
+   "layer": "L1",
+   "purpose": "用户在主体中的角色（老板 / 店员）与成员关系",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "569-588（状态机 752-761）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 120,
+   "cross_module_fks": [
+    {
+     "column": "user_id",
+     "ref": "merchant_user",
+     "note": "同层（tenant → identity 的表）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "store_member",
+   "module": "tenant",
+   "group": "02-identity-tenant",
+   "layer": "L1",
+   "purpose": "店员所属门店（老板隐含拥有全部门店，不建行）",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "590-596"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(entity_member_id, store_id)",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "纯关联表，保留复合主键与两条复合外键（d4:594-595）。"
+  },
+  {
+   "name": "invitation",
+   "module": "tenant",
+   "group": "02-identity-tenant",
+   "layer": "L1",
+   "purpose": "店员邀请（一次性 token，24 小时有效，待接受占名额）",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "598-618（状态机 688-707；创建与接受 709-742）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 110,
+   "cross_module_fks": [
+    {
+     "column": "accepted_user_id",
+     "ref": "merchant_user",
+     "note": ""
+    }
+   ],
+   "version": "V1.0",
+   "notes": "invitation.expire 会翻转状态，用定时器（d4:618）。"
+  },
+  {
+   "name": "referral_code",
+   "module": "tenant",
+   "group": "02-identity-tenant",
+   "layer": "L1",
+   "purpose": "渠道码与邀请码登记：码、来源类型、归属员工、状态；注册归因时服务端按它判定来源",
+   "sources": [
+    {
+     "draft": "rulings",
+     "lines": "M6"
+    },
+    {
+     "draft": "d4",
+     "lines": "187-188（merchant_user 的 source_type 与码值列）；550（entity 的归因快照）"
+    },
+    {
+     "draft": "d7",
+     "lines": "678（来源追踪：服务端首触落库，端上不自报来源类型）"
+    },
+    {
+     "draft": "proto-merchant-a",
+     "lines": "83、87、93"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "owner_staff_id",
+     "ref": "staff",
+     "note": "同层（tenant 的表引用 staff 的表）；归属员工"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "新增（M6）。列：code（UNIQUE）、source_type（sales / campaign，V1.1 加 partner）、归属员工、状态。merchant_user 与 entity 上的 source_type 与码值快照在注册时由服务端按本表判定（d7:678）；identity 读本表经 identity → tenant 的同层白名单（d7:204）。码的生成规则与状态取值在字段级阶段定。"
+  },
+  {
+   "name": "portal_ticket",
+   "module": "portal",
+   "group": "02-identity-tenant",
+   "layer": "L1",
+   "purpose": "电脑端下载页扫码登录票据：电脑创建 → 老板在小程序扫码并点选配对数字确认 → 电脑凭 pollSecret 换取下载页会话",
+   "sources": [
+    {
+     "draft": "d7",
+     "lines": "1219-1235（字段表与索引）；1237-1247（状态机）；1249-1259（接口）；1261-1263（配对数字与会话）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "approved_by_user_id",
+     "ref": "merchant_user",
+     "note": "portal → identity 在同层白名单内（d7:204）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "主键改 uuid；对外仍用随机的 public_id（d7:1224）。status 为技术状态。保留 7 天后物理删除（d7:1235）。M1：portal 模块只留本表；换取到的会话行 portal_session 由 identity 创建与校验（d7:195），portal_session.portal_ticket_id 指回本表。"
+  },
+  {
+   "name": "staff",
+   "module": "staff",
+   "group": "03-staff-authz-audit",
+   "layer": "L1",
+   "purpose": "后台员工账号（手机号 + 密码 + TOTP；一人一角色；含登录失败分桶锁定与企业微信绑定）",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "917-941（状态机 1121-1131）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 20,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "登录失败分桶锁定列存 PostgreSQL（d4:941）。手机号按敏感字段三件套。TOTP 绑定中的密钥暂存位置草案未写（d4:1054），字段级阶段在本表定列。"
+  },
+  {
+   "name": "staff_group",
+   "module": "staff",
+   "group": "03-staff-authz-audit",
+   "layer": "L1",
+   "purpose": "员工分组（“本组”数据范围的组织实体；迁移时每个角色各建一个默认组）",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "943"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "草案只有行内定义，列数表述前后不一（d4:943）。"
+  },
+  {
+   "name": "staff_role",
+   "module": "staff",
+   "group": "03-staff-authz-audit",
+   "layer": "L1",
+   "purpose": "后台角色（8 行固定角色；模块等级、敏感操作权限点、数据范围）",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "1145-1158"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(key)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "8 个预置角色，自然键 key（d4:1149）。权限点注册表在 packages/contract，不是表（d4:1160）。authz 模块没有自己的表。 d9：权限点 merchant.qualification.view 需 D4 登记（d3 已用、d4 的权限点表里没有）；比对异常放行用 merchant.qualification.override，D5 的 merchant.review.override 作废（d9:801 ⑤）。权限点在代码注册表里，不涉及本表的列。"
+  },
+  {
+   "name": "staff_activation",
+   "module": "staff",
+   "group": "03-staff-authz-audit",
+   "layer": "L1",
+   "purpose": "员工一次性激活码 / 重置码（只存哈希，24 小时有效，错 5 次作废）",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "945-955"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "staff_session",
+   "module": "staff",
+   "group": "03-staff-authz-audit",
+   "layer": "L1",
+   "purpose": "后台员工会话（Cookie；空闲 60 分钟滑动、绝对 12 小时；带 step-up 时间）",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "957-969（会话与防跨站 1076-1082）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "R4：员工会话存 PostgreSQL；禁用员工与吊销会话同事务。"
+  },
+  {
+   "name": "assignment_pool_member",
+   "module": "staff",
+   "group": "03-staff-authz-audit",
+   "layer": "L1",
+   "purpose": "轮询分配池成员：交付经理（按城市）、剪辑师、发布专员、客服（on_duty = 当班/接单中开关）",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "634-640（客服当班 2536）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(pool, staff_id, city_code)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "由 d3 的“流程基础”改归 staff（L1）：交付经理、剪辑师、发布专员、客服四个池分属 delivery、ad、publish、support 四个 L3 模块，放在任何一个都会产生同层互调；放 L1 后都是向下调用。客服当班用 on_duty（03:329）。"
+  },
+  {
+   "name": "assignment_cursor",
+   "module": "staff",
+   "group": "03-staff-authz-audit",
+   "layer": "L1",
+   "purpose": "轮询游标：每个池 × 范围记录上一次分配到的员工",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "641-643（pickNext 646-653）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(pool, scope_key)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 10,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "同上。草案未写 pool、scope_key 的类型（d3:641-643）。"
+  },
+  {
+   "name": "assignment_history",
+   "module": "staff",
+   "group": "03-staff-authz-audit",
+   "layer": "L1",
+   "purpose": "改派记录：员工禁用移交或转移交付经理时，逐对象一行，同一批次共用 batch_id",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "3142-3147（用法 3135、3157；N6 时限 2974）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid+seq",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "归 staff 的理由同 assignment_pool_member；d4:168 原写“归 D3”。禁用员工事务（staff 模块）直接写本表，各业务模块按端口注册“在办来源与改派方式”（d3:3111-3120）。subject 为多态引用，不建外键；subject_type 取值用最终表名（M19）。M14：append_only = false——N6“新交付经理 1 个工作日内联系商家”（d3:2974）要在行上补“已联系”标记与截止时间（d3:3143-3146 缺这两列）。主键仍是 uuid + seq。"
+  },
+  {
+   "name": "follow_up",
+   "module": "staff",
+   "group": "03-staff-authz-audit",
+   "layer": "L1",
+   "purpose": "运营跟进记录（逾期未上线、续费、补发后确认等）：多态主体，可带下次跟进时间；续费跟进的行带续费意向 intent",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1820-1825"
+    },
+    {
+     "draft": "rulings",
+     "lines": "M3"
+    },
+    {
+     "draft": "proto-admin-b",
+     "lines": "290、298、346"
+    },
+    {
+     "draft": "prd-tech",
+     "lines": "48"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "subject_id",
+     "ref": "order_item | subscription_term | store | patrol_task | takedown_task | delivery_reissue",
+     "note": "只存 id，不建外键。按 subject_type 多态（M3）；取值用最终表名（M19）：d3:1822 的 subscription、package_reissue 改为 subscription_term、delivery_reissue。其中多数在更高层"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "M3：由 publish（L3）下沉到 staff（L1），定位为“运营跟进记录”。tenant = entity：entity_id 必填，store_id 可空（续费跟进按主体归属，prd-tech.md:48）。主体多态、不建外键。续费跟进的行带续费意向 intent（d3:1824；proto-admin-b.md:290）。后台“套餐到期”页的续费意向由读侧（L4）取每个订阅周期最新一条跟进组装，billing 不引用本表。草案只有行内写法（d3:1820-1825）。created_by 写“员工或 system”，按操作人约定改为 actor_type + actor_id。"
+  },
+  {
+   "name": "audit_log",
+   "module": "audit",
+   "group": "03-staff-authz-audit",
+   "layer": "L0",
+   "purpose": "审计日志单表（ops / activity / access 三条流），只追加，与业务写同事务；门店活动流是它的一个查询",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "1516-1567（三条流 1580-1586；写入规则 1592-1614；只追加保证 1630-1638；保留 1644）"
+    }
+   ],
+   "renamed_from": [
+    "audit_logs"
+   ],
+   "merged_from": [
+    "file_access_log"
+   ],
+   "pk": "uuid+seq",
+   "tenant": "store",
+   "append_only": true,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "单表三条流（ops / activity / access）。d4:144 称“表归 kernel”，01:167 有独立的 audit 模块，归 audit。actor_type 去掉 portal 取值并增加 client 列（R15；d4:1528）。敏感文件读地址的签发留痕写 access 流：d4:162、1588 指向 D5 的 file_access_log，而 d5:112 已删除该表并改写本表，两稿互指（d7:2366），定为本表。M27：下载页或相册保存对样片文件的访问也写 access 流，并回写 sample.first_viewed_at。M21：job_run_id（d4:1549）改为 timer_id（周期任务的定时器行，不建外键），保留 job_name（d4:1548）。M31：activity 流是活动流的唯一来源——商家详情的操作日志、工作台实时动态、各单据详情的日志都读它；flow.transition() 在同一事务里补写一条 activity 流的审计行。所有引用列不建外键（d4:1529-1544 的 DDL 即如此）。日志编号 RZ 由数据库序列生成（d4:1518、2096）。 d9：profile 的留痕落点——商家保存前三步与改联系人写 activity 流（记改了哪些字段）；员工代改写 ops 流（原因、备注、前后值、通知结果，填 on_behalf_of_entity_id）；审核员修正证照字段写前后值（脱敏）；证照原图与明文字段的读取写 access 流（d9:316-322）。"
+  },
+  {
+   "name": "auth_event",
+   "module": "audit",
+   "group": "03-staff-authz-audit",
+   "layer": "L0",
+   "purpose": "登录与安全事件（三个身份空间共用；失败登录等没有业务事务的事件），保留 12 个月",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "1590（保留与清理 1645）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid+seq",
+   "tenant": "none",
+   "append_only": true,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "登录与安全事件，三个身份空间共用。草案只有行内定义（d4:1590）。subject_id 多态，不建外键。M14：保持只增，但触发器只拦 UPDATE；DELETE 只经清理函数（保留 12 个月，d4:1645 的 purge_auth_event）。"
+  },
+  {
+   "name": "approval_request",
+   "module": "approval",
+   "group": "03-staff-authz-audit",
+   "layer": "L1",
+   "purpose": "统一单级审批单：只记录“批没批”（谁提交、谁决定、结论、原因、时限、留痕）；内容与执行状态在一对一的领域表",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "2247-2292（状态机 2294-2321；kind 注册 2323-2371；合并口径 2409-2425）"
+    },
+    {
+     "draft": "d4",
+     "lines": "1379-1402"
+    },
+    {
+     "draft": "d2",
+     "lines": "174、289、396"
+    },
+    {
+     "draft": "d1",
+     "lines": "568-575"
+    }
+   ],
+   "renamed_from": [
+    "approval_requests"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 30,
+   "cross_module_fks": [
+    {
+     "column": "subject_id",
+     "ref": "store | channel_account | launch_submission | billing_order | drama_order | ad | billing_account | subscription_term | merchant_user | entity | finance_config_revision | transfer_proof",
+     "note": "只存 id，不建外键。按 kind 多态（d3:2351-2362）；subject_type 取值用最终表名（M19）；其中多数在更高层"
+    },
+    {
+     "column": "delivery_ticket_id",
+     "ref": "delivery_ticket",
+     "note": "只存 id，不建外键。只作数据范围键（d3:2257）；L1 不引用 L3。M17：由 ticket_id 改名"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "R3 / ADR-019。以 d3:2247-2292 为基线并收窄：status 只留 pending / approved / rejected / withdrawn（d4:1465 的四态），去掉 executing、done 与 exec_due_at、executed_by、executed_at、exec_confirm_checks、execution_ref、execution_error（d3:2259、2271、2277-2281），这些移到领域表；payload、precheck 不再承载领域内容，只留展示摘要。保留通用的决定留痕列：reason_codes、decision_note、checklist_code / version 与清单结论、confirm_checks、due_at、sla_snapshot、round_no、dedupe_key、idempotency_key，以及发起人 ≠ 审批人的 CHECK（d3:2286）。列名定为 request_no、kind（d3:2250-2251；d4 写作 no、type）。subject 为多态引用。M17：ticket_id（d3:2257）改名 delivery_ticket_id，保留为数据范围用的无外键列；related_service_ticket_id（d3:2282）删除，关联由 service_ticket_ref 持有（L1 不引用 L3）。M13：entity_id、store_id 都可空（平台级与账号类类型没有主体），按 kind 写 CHECK（哪些类型必填 entity_id）。M12：去重索引只覆盖 status = pending（d3:2287 原为 pending / approved / executing），只供没有执行步的类型使用（d3:2351-2353、2361-2362 的资质审核、账号核验、链接核验、积分调整、补偿延长；账号类变更通过即同事务生效，d4:1480；其余类型是否有执行步在登记时定）；有执行步的类型（plan_refund、order_cancel、ad_cancel、qualification_cancel，d3:2357-2360）的“同一对象只允许一张在途”由领域表 refund_request、cancel_request 上 WHERE closed_at IS NULL 的部分唯一索引表达。范围：员工发起的审批全部进入；商家提交的审核只有资质审核、账号核验、链接核验进入；开票申请、对公收款确认、素材复核不进（已确认，rulings 第五节、M22），它们的时限与超时定时器在各自的领域表上。M25：对公大额二人复核启用时登记为 kind = transfer_confirm，subject 为 transfer_proof；默认不启用。M31：审批单的活动流读 audit_log，状态历史只供指标与进度时间轴。 d9：资质审核不新增审批类型——initial、new_store、change 三种轮次共用 kind = qualification，轮次类型在 qualification_submission.kind，审批事件上分不出轮次类型（d9:18、200、488）。kind = qualification 时 entity_id、store_id 必填（M13 的按 kind 的 CHECK；d9:333）；subject 为门店（d9:485）；round_no 与轮次行的 round_no 同步写入（d9:202）。dedupe_key = qualification:{storeId} 照填，作在途唯一的第二道；第一道是 qualification_submission 上 WHERE closed_at IS NULL 的部分唯一索引（d9:226）。approval.reject 的请求体增加 rejectedDocIds，透传给 profile 的处理器；本表只记原因与说明，被点名的证照记在 qualification_doc.verdict，终局驳回的时间记在 qualification_submission 与 store_profile（d9:523、527、803 ②）。不为此在本表加列。时限参数 sla.review.qualification，sla.breach 定时器以审批单为主体，由 approval 在提交时登记（d9:485、569-571）。"
+  },
+  {
+   "name": "store_profile",
+   "module": "profile",
+   "group": "04-profile",
+   "layer": "L1",
+   "purpose": "门店档案当前值（与 store 一对一）：建档前三步的标量字段（基础信息，服务与价格里的优惠、团购、卖点）、资质联系人、完整度缓存、复制来源与复制项、生效轮次指针、资质相关的时间点、最近修改人",
+   "sources": [
+    {
+     "draft": "d9",
+     "lines": "94、105-146（数据库级约束 328；四步的数据落点 340-349；完整度 363-378；新增门店与复制 380-398；文件引用 303）"
+    },
+    {
+     "draft": "d4",
+     "lines": "538、557"
+    },
+    {
+     "draft": "prd-tech",
+     "lines": "37-40、228-230"
+    },
+    {
+     "draft": "proto-merchant-b",
+     "lines": "494-497"
+    },
+    {
+     "draft": "proto-admin-b",
+     "lines": "330-332"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(store_id)",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 135,
+   "cross_module_fks": [
+    {
+     "column": "store_id",
+     "ref": "store",
+     "note": "主键即外键；与 entity_id 组成复合外键 → store(id, entity_id)（d9:111）；同层（profile → tenant）"
+    },
+    {
+     "column": "logo_file_id",
+     "ref": "file_object",
+     "note": "同层（profile → media）；可空；d9:114 写“指向 file_object”；分类 profile_image；经 file_ref 登记（ref_type = store_profile，role = logo，d9:303）"
+    },
+    {
+     "column": "copied_from_store_id",
+     "ref": "store",
+     "note": "同层；可空；复制来源门店（d9:136）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "字段级定义以 d9-profile 为准（M11；d9:3、11），取代此前“七份草案都没有定义”的暂定条目；表名不变。职责由“前三步”改为“前三步与联系人”（d9:807 ①）：联系人姓名与手机号存本表、不进审核，与前三步一样原地保存（d9:13、84、130-133）。门店名称不在本表，生效值是 store.name（d9:146）；门店资质结论在 store.qualification_status（d9:16、79），本表不重复建列。首家门店的档案行在 profile 第一次读写时补建（INSERT … ON CONFLICT DO NOTHING），新增门店的档案行在创建门店的同一事务里建（d9:107）。重审字段（行业与品类、省市区、详细地址，d9:115-119）在已通过门店上不原地改：待审值存 qualification_submission 的 proposed_*，通过事务里写回（d9:14、549-551）。敏感字段：contact_phone_enc / contact_phone_mask，没有等值查找场景、不建盲索引列（d9:131）；store_tel 是公开信息、不加密，列名不用 phone（d9:122）。zone_code 存功能区编码，district_code 只存行政区划（d9:118）。字典编码列（industry_code、category_code、省市区、zone_code、selling_point_codes）存 code、不建外键。business_hours 是 jsonb 时段数组，selling_point_codes、copy_options 是 text[]（d9:121、127、137）。effective_qualification_submission_id 指向最近一次通过的轮次（同模块外键，d9:138）；first_submitted_at、first_verified_at、last_decided_at、final_rejected_at 四个时间点见 d9:139-140。completeness_pct、required_filled、required_total 是缓存，口径是 packages/shared 里的纯函数（d9:20、134-135、365）。带 lock_version（d9:142）。last_edit_actor_type / last_edit_actor_id 只有两列（d9:141），约定“操作人列”的三列里还有 client，字段级阶段对齐。ad_style_code、banned_terms 是 V1.1 的字段位，V1.0 不写入（d9:129）。索引见 d9:144，数据库级约束见 d9:328。锁顺序：d9:749 的次序是“审批单 → 资质轮次 → 主体 → 门店 → 档案行 → 子表行”，本表排在 store 之后（135，数值为并入时所定）；商家保存前三步只锁本行并比对 lock_version，改门店名称时另锁门店行（d9:750）。提示：已通过门店保存基础信息并确认重审时，同一请求既写本行又写 change 草稿轮次（d9:599），按全局次序应先锁轮次行、再锁本行；d9 第 8 节（d9:749-750）没有写这条路径，字段级阶段或接口契约里补。"
+  },
+  {
+   "name": "store_profile_media",
+   "module": "profile",
+   "group": "04-profile",
+   "layer": "L1",
+   "purpose": "档案媒体行：门头（door）、店内环境（interior）、服务或产品实拍（product）、已有宣传素材（promo）四组，带组内顺序 position、图片或视频、图注，引用文件；移除只写 removed_at，不物理删除",
+   "sources": [
+    {
+     "draft": "d9",
+     "lines": "95、148-174（数据库级约束 329；文件引用 304、309-310；复制档案 386-393）"
+    },
+    {
+     "draft": "d5",
+     "lines": "273-274、295、366"
+    },
+    {
+     "draft": "proto-merchant-b",
+     "lines": "61、494"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "file_id",
+     "ref": "file_object",
+     "note": "同层（profile → media）；NOT NULL，建外键（d9:156）；文件类别 profile_image / profile_video / profile_promo；经 file_ref 登记（ref_type = store_profile_media，role = main，d9:304）"
+    },
+    {
+     "column": "created_by_user_id",
+     "ref": "merchant_user",
+     "note": "同层（profile → identity 的表）；只是外键，不产生同步调用。d9 写“指向 merchant_user”（d9:160）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "字段级定义以 d9-profile 为准（M11）；表名不变。归属列 entity_id、store_id 为复合外键 → store(id, entity_id)（d9:153）。分组列 media_group（door / interior / product / promo）、类型列 media_kind（image / video）用 CHECK（d9:154、157、329）。组内顺序列叫 position（M16；d9:155）。部分唯一索引 UNIQUE (store_id, media_group, file_id) WHERE removed_at IS NULL，另有同条件的 (store_id, media_group, position) 普通索引（d9:163）。各组的数量与规格在应用层校验，锁 store_profile 行后现数（d9:165-174），所以本表不单独排锁序。copied_from_store_id 在复制档案带入时填（d9:159），d9 没有写是否建外键，字段级阶段定。caption 留列，V1.0 是否开放填写待定（d9:158）。复制档案只复制引用，被复制的文件归属来源门店（d9:309）。M20：订购与广告的参考素材来自档案媒体时只经 file_ref 登记；本行被移除后只要订购单或广告的引用还在，文件不会被清除（d9:310）。不与 store_asset 合并业务表（d5:295；d9:57）。"
+  },
+  {
+   "name": "store_service_item",
+   "module": "profile",
+   "group": "04-profile",
+   "layer": "L1",
+   "purpose": "门店主推服务（每家门店未移除的行 1–10 项）：名称、现价、原价、图片、简介、排序 position；移除只写 removed_at",
+   "sources": [
+    {
+     "draft": "d9",
+     "lines": "96、176-190（数据库级约束 330；文件引用 305；复制档案 391）"
+    },
+    {
+     "draft": "prd-tech",
+     "lines": "37"
+    },
+    {
+     "draft": "proto-merchant-b",
+     "lines": "76、495"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "image_file_id",
+     "ref": "file_object",
+     "note": "同层（profile → media）；可空；d9:186 写“指向 file_object”；经 file_ref 登记（ref_type = store_service_item，role = image，d9:305）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "字段级定义以 d9-profile 为准（M11）；表名不变。归属列 entity_id、store_id 为复合外键（d9:181）。price_fen integer、必须大于 0；original_price_fen 可空、不低于 price_fen（d9:184-185、330）。排序列 position（d9:182）。1–10 项只在应用层校验（d9:190、334）。店员只读的“服务与价格”含现价、原价：D4 的店员回放测试禁用键扫描命中 price 即失败，d9 要求把这两个键加进白名单（d9:801 ⑦）。锁顺序上是档案行之后的子表行（d9:749），不单独排锁序。"
+  },
+  {
+   "name": "qualification_submission",
+   "module": "profile",
+   "group": "04-profile",
+   "layer": "L1",
+   "purpose": "资质轮次：门店的一轮资质材料一行——先是草稿（submitted_at 为空、尚无审批单），提交后与一张审批单一对一，决定、撤回或草稿丢弃后关闭；存轮次类型（initial / new_store / change）、所选主体类型、信息确认、送审值 proposed_*、联系人快照、系统比对汇总、结论 outcome、通过方式与终局驳回时间",
+   "sources": [
+    {
+     "draft": "d9",
+     "lines": "97、192-233（决策 K2、K3 80-81；数据库级约束 331；草稿 357；提交 464-488；驳回与补正 521-530；通过事务 532-563；变更重审 597-604）"
+    },
+    {
+     "draft": "prd-tech",
+     "lines": "39、228-230"
+    },
+    {
+     "draft": "proto-merchant-b",
+     "lines": "496-497"
+    },
+    {
+     "draft": "proto-admin-b",
+     "lines": "331"
+    },
+    {
+     "draft": "d3",
+     "lines": "2292、2351、2373-2380"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 65,
+   "cross_module_fks": [
+    {
+     "column": "approval_request_id",
+     "ref": "approval_request",
+     "note": "同层（profile → approval）；可空（草稿）、UNIQUE，提交时写入，一对一（R3；d9:213）；kind = qualification，三种轮次类型共用这一个 kind（d9:18、488）；决定时限 1 个工作日（d3:2351；d9:569）"
+    },
+    {
+     "column": "submitted_by_user_id",
+     "ref": "merchant_user",
+     "note": "同层（profile → identity 的表）；只是外键，不产生同步调用。d9 写“指向 merchant_user”（d9:215）；可空，只有老板能提交"
+    },
+    {
+     "column": "created_by_user_id",
+     "ref": "merchant_user",
+     "note": "同层（profile → identity 的表）；只是外键，不产生同步调用。d9 写“指向 merchant_user”（d9:221）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "字段级定义以 d9-profile 为准（M11）；表名不变。本表没有状态列、不走状态历史（d9:16、80）：草稿、在审、已关闭由 submitted_at、closed_at 与一对一的审批单表达；outcome（approved / rejected / withdrawn / discarded）只在关闭时写一次。门店结论在 store.qualification_status、主体结论在 entity.verification_status，由审批处理器经 tenant 的函数在同一事务里改（d9:75、79）。草稿就是未提交的轮次行，不另建草稿表（d9:81）；第 4 步的主体类型、信息确认存在未关闭的那一轮上（d9:13）。M12：在途唯一由本表表达——uq_qualification_submission_open：UNIQUE (store_id) WHERE closed_at IS NULL；另有 uq_qualification_submission_entity_open：UNIQUE (entity_id) WHERE closed_at IS NULL AND kind = 'initial'（d9:226-227）；审批单的 dedupe_key（qualification:{storeId}）同时填写，作第二道（d9:226）。四个 CHECK、UNIQUE (store_id, round_no)、UNIQUE (approval_request_id) 见 d9:228、331。待审值：已通过门店改门店名称、地址、行业与品类时，新值只写 proposed_store_name、proposed_industry_code / proposed_category_code、proposed_address_snapshot，提交时三组一律填全，通过事务只按 changed_fields 写回（d9:14、204-207、549-551）。resubmit_of_qualification_submission_id 自引用上一轮被驳回的轮次（d9:201）；round_no 提交时写入并同步到审批单（d9:202）。“信用代码与其他在审主体相同”的重复标记不落库，读时按证照行的 cert_no_bidx 派生（d9:233）。declaration_confirmed_at / declaration_version 现记在本行；是否改记 agreement_consent 待法务（d9:209-210、794）。final_rejected_at 只允许出现在 initial、new_store 轮次（d9:220），store_profile 上另存一份（d9:140、527）。提交后商家侧的列不再变，是应用层守卫（d9:231、334）。带 lock_version，是证照行的聚合根（d9:222）。锁顺序：领域申请单紧跟审批单之后（M32；d9:749），排 65；提交事务是轮次行 → 主体行（仅 initial）→ 门店行（d9:466），通过事务是审批单 → 轮次 → 主体 → 门店（d9:540）。此前清单按“只在持有审批单行锁的事务里修改”记为 null；d9 的草稿编辑与提交都不持有审批单行锁，改为有次序。"
+  },
+  {
+   "name": "qualification_doc",
+   "module": "profile",
+   "group": "04-profile",
+   "layer": "L1",
+   "purpose": "证照行：挂在资质轮次下（N:1），每轮的行是本轮要审的全集（新上传 uploaded，或由上一轮原样带入 carried）；存证照类型与归属（属主体 / 属门店）、图片、识别结果引用、商家提交值与审核修正值（密文）、逐项比对结论、证件号与负责人姓名（敏感字段）、有效期、本轮结论 verdict、生效时间与被取代时间",
+   "sources": [
+    {
+     "draft": "d9",
+     "lines": "98、235-283（决策 K5 83；数据库级约束 332；文件引用 306-308；驳回 523；通过事务里的生效切换 542-545）"
+    },
+    {
+     "draft": "prd-tech",
+     "lines": "40"
+    },
+    {
+     "draft": "proto-admin-b",
+     "lines": "332"
+    },
+    {
+     "draft": "d5",
+     "lines": "943"
+    },
+    {
+     "draft": "03",
+     "lines": "497-499"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "file_id",
+     "ref": "file_object",
+     "note": "同层（profile → media）；NOT NULL，建外键（d9:245）；分类 kyc_license / kyc_permit；经 file_ref 登记（ref_type = qualification_doc，role = main），引用在证照挂到草稿行时建立（d9:306-308）"
+    },
+    {
+     "column": "ocr_result_id",
+     "ref": "ocr_result",
+     "note": "同层；可空，建外键（d9:246）；识别值只存在 ocr_result（d5:943），识别不可用时为空"
+    },
+    {
+     "column": "uploaded_by_user_id",
+     "ref": "merchant_user",
+     "note": "同层（profile → identity 的表）；只是外键，不产生同步调用。d9 写“指向 merchant_user”（d9:262）；只有老板能上传证照"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "字段级定义以 d9-profile 为准（M11）；表名不变。相对暂定条目的两处改动（d9:807 ②）：store_id 不可空，是提交这一轮的门店（d9:240）；新增 scope（entity / store）区分属主体还是属门店——营业执照属主体、其余属门店（d9:244、268），此前的“store_id 可空”作废。挂在轮次下：qualification_submission_id NOT NULL（同模块外键，d9:241）；origin（uploaded / carried）与 carried_from_qualification_doc_id（自引用）记带入关系（d9:247-248、283）。d5:943 规定的四列照收：ocr_result_id、submitted_fields_enc、reviewed_fields_enc、field_checks（jsonb，不含识别原值）（d9:246-251）。敏感字段：cert_no_enc / cert_no_bidx / cert_no_mask（盲索引用于信用代码查重）、principal_name_enc / principal_name_mask（不建盲索引）（d9:253-254）。一轮里每种证照一行：UNIQUE (qualification_submission_id, doc_type, COALESCE(permit_type, ''))；生效唯一是两个部分唯一索引（属主体的按 entity_id，属门店的按 store_id + doc_type + permit_type，条件都是 effective_from IS NOT NULL AND superseded_at IS NULL）；另有四个 CHECK（d9:266-268、332）。部分唯一索引不能延迟检查，通过事务先把原生效行置 superseded_at、再把本轮各行置 effective_from（d9:542-545）。被取代的行与文件不删除，引用不释放（d9:562）。permit_type 存许可证类型字典的编码，字典类型待 D6 增补（d9:243、805 ①）。valid_from / valid_to 用 date，is_long_term 表示营业期限为“长期”（d9:257-258）；到期只提醒、不改状态（d9:21）。行的改动以轮次为聚合根（d9:222），不单独排锁序。证照原图与明文字段的读取写 audit_log 的 access 流（d9:322）。"
+  },
+  {
+   "name": "drama",
+   "module": "content",
+   "group": "05-content",
+   "layer": "L1",
+   "purpose": "剧目：基础、商业、状态（草稿 / 已上架 / 已下架）与运营字段",
+   "sources": [
+    {
+     "draft": "d8",
+     "lines": "94-134"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 140,
+   "cross_module_fks": [
+    {
+     "column": "poster_file_id",
+     "ref": "file_object",
+     "note": "同层（content → media；d8:108）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "R12。全局资源，不带 entity_id、store_id（d8:7）。状态迁移经 flow.transition()，machine = drama（d8:271）。“停止订购”“授权已结束”是派生状态，不落库（d8:12）。锁顺序：d8:595 称剧目行不在 01:304 的加锁顺序表里；M32 要求 state_machine = true 的表都定次序，本表排在门店之后、广告之前（理由见 decisions.md 第 6 节）。"
+  },
+  {
+   "name": "drama_episode",
+   "module": "content",
+   "group": "05-content",
+   "layer": "L1",
+   "purpose": "剧集：集号、标题、时长、V1.1 / V2.0 预留点位",
+   "sources": [
+    {
+     "draft": "d8",
+     "lines": "136-151"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "d5:449、775 以它为外键目标并预留 insert_points、custom_slots。时长由 content 收到 drama.masters_changed 后回填，media 不写本表（d8:144）。"
+  },
+  {
+   "name": "drama_permit",
+   "module": "content",
+   "group": "05-content",
+   "layer": "L1",
+   "purpose": "许可信息：剧 × 播出平台 × 编号种类；换号即换行",
+   "sources": [
+    {
+     "draft": "d8",
+     "lines": "164-188"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "scan_file_ids 为 uuid[]，经 file_ref 登记（d8:644 第 ④ 项）。status（active / retired）是行状态，不经状态历史。"
+  },
+  {
+   "name": "drama_copyright",
+   "module": "content",
+   "group": "05-content",
+   "layer": "L1",
+   "purpose": "版权信息当前值（每部剧一行），含授权期止日",
+   "sources": [
+    {
+     "draft": "d8",
+     "lines": "190-210"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(drama_id)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "license_end_date 是成片使用期止日的唯一来源（d8:15）。"
+  },
+  {
+   "name": "drama_copyright_revision",
+   "module": "content",
+   "group": "05-content",
+   "layer": "L1",
+   "purpose": "版权信息修订（只增）：续期、缩短、范围变更、更正",
+   "sources": [
+    {
+     "draft": "d8",
+     "lines": "212-240"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid+seq",
+   "tenant": "none",
+   "append_only": true,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "d8:216-217 已按 uuid + seq 书写。"
+  },
+  {
+   "name": "drama_stat",
+   "module": "content",
+   "group": "05-content",
+   "layer": "L1",
+   "purpose": "订购统计（派生、可重算）：近 30 天订购、当月订购、上线中部数",
+   "sources": [
+    {
+     "draft": "d8",
+     "lines": "242-252"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(drama_id)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "由周期任务经 DramaUsagePort 向 order 取数后整表覆盖（d8:252、581）；L1 不引用 L3 的表。"
+  },
+  {
+   "name": "file_object",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "登记四个桶内所有对象（含系统派生物）的唯一文件表；业务表只存 file_id，不存 URL",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "456-508（状态机 1209-1223；分类取值 259-290）"
+    }
+   ],
+   "renamed_from": [
+    "files"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 410,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "四个桶内所有对象的唯一登记表；业务表只存 file_id。entity_id、store_id 随 scope_type 可空。status 与 moderation_state 是技术状态。唯一索引里的 COALESCE(列, 0) 哨兵改 UUID 后须重写（d5:500-502）。deleted 行不物理删除（d5:400）。M15：size_bytes 等字节数列用 bigint，出接口转字符串。全局加锁顺序里文件行在媒体任务行之后、计费账户之前，多行按 id 升序（d5:340、2043）。 d9：profile 用到的分类是 profile_image、profile_video、profile_promo（Logo、档案媒体、服务图片）与 kyc_license、kyc_permit（证照）（d9:114、156、245）。复制档案时被复制的文件归属来源门店，需 D5 确认 profile_* 分类允许同主体跨门店引用（d9:309、804 ③）。"
+  },
+  {
+   "name": "file_ref",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "文件引用登记：谁在用这个文件、释放后保留到何时；清除只看这张表",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "510-522（语义 336-370）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "ref_type + ref_id 多态，键取自代码登记表 FILE_REF_TYPES（d5:354、513），不建外键。所有 file_id 列与 *_file_ids 数组列都经它登记。M19：ref_type 取值用最终表名——d5:361-365 的 release、playable、drama_master 改为 delivery_release、playable_asset、drama_episode_master；ZIP 的引用方（d5:362）随 M8 改为 zip_bundle。M20：订购单与广告需求的参考素材不存数组列，统一在本表登记（ref_type 为 drama_order 或 ad，role = reference）。 d9：FILE_REF_TYPES 须登记 profile 的四个引用类型与角色（ref_type 用最终表名，M19）：store_profile / logo、store_profile_media / main、store_service_item / image、qualification_doc / main（d9:299-306）。证照的引用在挂到草稿行的事务里建立，不等提交；d9:308 指出 d5:368 现写“业务提交”时建立、而从未被引用的文件入库 24 小时后即可清除（d5:353），需 D5 改（d9:804 ②）。释放与保留：Logo 被替换、档案媒体行或服务图片行被移除 → 30 天，门店注销 → 180 天；草稿证照行被替换或草稿被丢弃 → 7 天；已提交过的证照行不释放，直到主体终止合作后 3 年（d9:303-306、713-716）。复制档案只复制引用，登记时的归属断言用同一主体、不用同一门店，需 D5 确认 profile_* 分类允许同主体跨门店引用（d9:309）。"
+  },
+  {
+   "name": "file_purge_run",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "清除任务每次运行的记录；数量/字节熔断与人工放行、驳回的载体",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "524-536（算法 377-398）"
+    }
+   ],
+   "renamed_from": [
+    "purge_run"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "改名以区别于 invariant_run。candidate_ids 为 uuid[]。放行 / 驳回是运维闸门，不进审批单。"
+  },
+  {
+   "name": "media_info",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "与 file_object 一对一的媒体探测事实（仅图片/音频/视频），不含结论",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "542-562"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(file_id)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "media_check",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "一个文件按其分类对应规格做一次体检的结论（硬性项、预警项、门禁）",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "659-668（体检项 1264-1284）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(file_id)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "upload_batch",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "后台批量上传批次（整部原片 / 成片），整批提交或不提交",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "570-590（状态图 1149-1166；规则 1168-1192）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 380,
+   "cross_module_fks": [
+    {
+     "column": "target_id",
+     "ref": "drama | order_item",
+     "note": "只存 id，不建外键。按 purpose 多态；order_item 在 L3"
+    }
+   ],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "upload_batch_item",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "批次条目：文件与集号的匹配关系及条目状态（体检结论读 media_check）",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "592-604"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "media_job",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "所有需要等结果的外部或本机媒体工作（入库、体检、转码、打包、审核、转写、识图、OCR 等）的任务行；带租约、回查与父对象汇合，队列只做唤醒",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "614-651（状态机 1321-1335；租约表 1349-1358；收尾 1364-1373）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 400,
+   "cross_module_fks": [
+    {
+     "column": "subject_id / parent_id",
+     "ref": "file_object | zip_bundle | store_asset | ocr_result | playable_asset | upload_batch | production_record",
+     "note": "只存 id，不建外键。多态；M8 之后打包任务指向 zip_bundle，引用的都是 media 自己的表"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "est_cost_micro 以 10^-6 元为单位、billable_qty 为 numeric(12,3)（d5:641-643）：是外部调用的成本估算与计量值，不是账务金额，作为“金额存整数分”的登记例外保留；M15：est_cost_micro 用 bigint，出接口转字符串。M19：subject_type、parent_type 的取值用最终表名——d5:623 的 file、release、ocr 改为 file_object、zip_bundle、ocr_result；d5:625 的 playable、production、release 改为 playable_asset、production_record、zip_bundle。state 为技术状态。收尾事务的锁顺序“父对象 → 任务行 → 文件行”（d5:1375）已并入全局加锁顺序表。"
+  },
+  {
+   "name": "production_record",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "每个样片/成片/广告文件一行的制作留痕：所用原片与广告版本、AI 使用声明与隐式标识状态、入库流水线进度",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "670-695（归属说明 708；pipeline_state 状态机 1973-1982）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(file_id)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 360,
+   "cross_module_fks": [
+    {
+     "column": "order_item_id",
+     "ref": "order_item",
+     "note": "只存 id，不建外键。L1 不引用 L3"
+    },
+    {
+     "column": "ad_id",
+     "ref": "ad",
+     "note": "只存 id，不建外键。同上"
+    },
+    {
+     "column": "head_ad_version_id / tail_ad_version_id",
+     "ref": "ad_version",
+     "note": "只存 id，不建外键。d5 写作 ad_video_version（d5:683-684）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "制作留痕与 AI 标识状态。render_item_id（V1.1）、similarity（V1.0 恒空）为预留空列（d5:679）。pipeline_state、aigc_state 为技术状态。"
+  },
+  {
+   "name": "master_checkout",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "取料记录：某剪辑师为某订购项某集最近一次取到的原片版本（上传成片时据此认定所用原片）",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "697-705（写入时机 1194、1964）"
+    }
+   ],
+   "renamed_from": [
+    "material_issue"
+   ],
+   "merged_from": [],
+   "pk": "composite(order_item_id, episode_no, staff_id)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "order_item_id",
+     "ref": "order_item",
+     "note": "只存 id，不建外键。L1 不引用 L3"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "取料记录。原名 material_issue 容易读成“素材问题”，改名。"
+  },
+  {
+   "name": "playable_asset",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "预告片/样片/广告共用的可播放资产抽象，播放接口只认它（档位、封面、水印、转码规格版本）",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "715-733（说明 744-747）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 350,
+   "cross_module_fks": [
+    {
+     "column": "owner_id",
+     "ref": "drama | order_item | ad",
+     "note": "只存 id，不建外键。按 owner_type 多态；取值 drama | order_item | ad 已是最终表名（d5:719；M19）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "预告片流水线不在 V1.0 关键路径（03:431）。state 为技术状态。M18：补 entity_id、store_id（预告片等平台级资产为空），创建时从来源复制。草案没有归属列（d5:715-731）。"
+  },
+  {
+   "name": "zip_bundle",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "ZIP 缓存：某个属主（V1.0 只有成片包的一次发布批次）的打包状态、打包代次与 ZIP 文件；可随时重打，不是业务数据",
+   "sources": [
+    {
+     "draft": "rulings",
+     "lines": "M8"
+    },
+    {
+     "draft": "d5",
+     "lines": "794-796（zip_state、zip_gen、zip_file_id 三列）；1664-1685（ensureZip、打包任务、收尾、失败、清除）；362（ZIP 的引用与保留期）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 390,
+   "cross_module_fks": [
+    {
+     "column": "owner_id",
+     "ref": "delivery_release",
+     "note": "只存 id，不建外键。按 owner_type 多态（M8）；delivery_release 在 L3。owner_type 取值用最终表名（M19）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "新增（M8）。从 delivery_release 拆出：zip_state（none / building / ready / failed）、zip_gen、zip_file_id（同模块外键，指向 file_object），UNIQUE (owner_type, owner_id)。d5:1667-1675 的 ensureZip 改为锁本表的行；打包任务 media_job 的主体与父对象（d5:623、625 的 release）改为本表；清除后钩子把 zip_state 置回 none（d5:1683）也只写本表。不带归属列，经属主访问。zip_state 是技术状态。"
+  },
+  {
+   "name": "drama_trailer",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "每部剧当前生效的预告片指针（target / current 两个资产），防止迟到的转码结果覆盖较新的设置",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "735-741（流程 1293、1303-1305）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(drama_id)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "drama_id",
+     "ref": "drama",
+     "note": "同层（media 的表引用 content 的表）；同步调用只允许 content → media（d8:589-590）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "归 media（d8:132、162）：已确认，主文档待回写（rulings 第四节第 2 项；01:170）。V1.0 小程序内不播放预告片（R8）。"
+  },
+  {
+   "name": "drama_episode_master",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "每集原片的版本行（rev 递增，每集至多一个当前版本），只在批次提交时创建",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "752-770（提交逻辑 1190）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "drama_id",
+     "ref": "drama",
+     "note": "同层"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "每集原片的版本行。01:170 把“原片版本”列在 content；d5:179、752-770 已在 media 建表并在批次提交事务里写入，d8:162、623（C12）也按 media 执行。本清单归 media（文件与体检在 media；content 经端口取剧目事实，持有引用）：已确认，主文档待回写（rulings 第四节第 2 项；01:170）。mezzanine_file_id 为 V1.1 预留空列。"
+  },
+  {
+   "name": "store_asset",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "门店素材业务行（图/视频/录音/音频/文档/文字），三个正交维度：处理进度、复核与可用性、被采用次数",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "850-877"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 370,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "三个正交维度：处理进度、复核与可用性、采用次数（03:480）。素材复核不进审批单（已确认，rulings 第五节、M22），结论写本表的 review_state、usability（d5:864-869）；d3:2354 的 kind = store_asset 不采用。M22：补 due_at 与时限参数快照列；sla.breach 定时器的主体为本表（d3:2963 的 T33）；“审核时效”指标从本表取；工作台待办走派生查询。 d9：新增门店勾选“品牌故事素材”时，由 media 提供函数把来源门店的品牌故事素材复制到本店素材库（只复制引用，d9:393、804 ⑧）。素材上传鉴权要判断“新增门店通过前店员不能上传”：经 media 定义、profile 实现的 StoreGatePort 取闸门，media 不同步调用 profile（d9:738、804 ⑦）。"
+  },
+  {
+   "name": "store_asset_file",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "素材与文件的有序关联（一条素材可含多个文件）",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "879-885"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(asset_id, position)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "M16：顺序号列 seq（d5:881、883）改名 position；seq 这个名字只留给 pk = uuid+seq 的表上的 bigint identity 列。"
+  },
+  {
+   "name": "store_asset_insight",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "素材理解的机器产出，一步一行、可重跑（转写、识图、文档文本、结构化条目、汇总、技术规格）",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "887-900（内容契约 1753-1766；复用 1805）"
+    }
+   ],
+   "renamed_from": [
+    "asset_insight"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "统一素材域前缀 store_asset_。uq_insight 里的 COALESCE(file_id, 0) 哨兵须重写（d5:900）。"
+  },
+  {
+   "name": "store_asset_tag",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "素材标签（内容/用途/时效三个维度；来源区分机器、上传人、复核人）",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "902-911（规则 1774-1778）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "store_asset_usage",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "素材被引用为参考或被采用的使用记录",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "913-920（守卫 1784-1785）"
+    }
+   ],
+   "renamed_from": [
+    "asset_usage"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "used_by_id",
+     "ref": "ad | drama_order | order_item | ad_version | episode_output",
+     "note": "只存 id，不建外键。按 used_by_type 多态；取值用最终表名（M19）：d5:916 的 ad_request 改为 ad；M20 的订购单参考素材以 drama_order 为引用方"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "M20：订购单与广告需求的参考素材里来自素材库的，除 file_ref 之外另写一行本表（role = reference）；来自档案媒体的只走 file_ref。M19：used_by_type 取值用最终表名。"
+  },
+  {
+   "name": "store_asset_demand",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "素材需求：交付经理向门店征集素材（名称、拍摄说明、完成时间、通知对象、状态）",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "91、860"
+    },
+    {
+     "draft": "prd-tech",
+     "lines": "45"
+    },
+    {
+     "draft": "proto-merchant-b",
+     "lines": "507"
+    },
+    {
+     "draft": "proto-admin-b",
+     "lines": "91"
+    },
+    {
+     "draft": "d3",
+     "lines": "2963"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "新增。store_asset.demand_id 指向它（d5:860），但 d5:91 把素材需求划到“规则在别处”，d3 只在 T33 提到 asset_request.due（d3:2963），没有任何草案建表。归 media，与 store_asset 同模块。"
+  },
+  {
+   "name": "ocr_result",
+   "module": "media",
+   "group": "06-media",
+   "layer": "L1",
+   "purpose": "证照与回单的 OCR 识别结果（应用层加密），识别值只存这一处；业务表只存 ocr_result_id 与比对结论",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "926-940（口径 943）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "识别值只存这一处（应用层加密）。草案没有归属列（d5:926-939），按 01:255 补 entity_id（store_id 可空），便于按主体鉴权与清除。status 是识别结果，不是状态机。 d9：qualification_doc.ocr_result_id 引用本表，识别不可用时为空（d9:246）；分支机构执照用 business_license 的识别驱动（d9:804 ④）。ocr.runFieldChecks 的输入与比对规则有三处待 D5 确认：C1 的基准可以不传（initial 轮次不产出 C1）、C8 的基准由调用方指定、新增许可证编号格式与许可证经营场所两项比对（d9:490-497、804 ④）。比对结论存 qualification_doc.field_checks 与 qualification_submission.check_summary，不含识别原值；本表的列不因此变化。"
+  },
+  {
+   "name": "plan",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "套餐版本（基础版/专业版/旗舰版，可新增），承载版本码、升降级比较用的 rank、上下架",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "187-196"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "plan_revision",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "套餐价目修订（不可变行，带生效时间）：月费、每月积分、折扣、制作模型、名额、各周期总价、首期优惠位",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "198-227"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "announcement_id",
+     "ref": "site_notice",
+     "note": "d1:216 的 announcement_ref text 改为外键（L2 → L0）；d6:1696"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "不可变修订行：唯一允许的更新是生效前写 cancelled_at（d1:221），由触发器限制。不算严格只增表。"
+  },
+  {
+   "name": "plan_promo_claim",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "首期优惠使用记录：每个主体对每个价目修订的优惠只用一次",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "229（规则见 1047-1055；约束 617）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "草案只有行内写法，未写主键与是否只增（d1:229）。UNIQUE(entity_id, plan_revision_id)（d1:617）。"
+  },
+  {
+   "name": "point_pack",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "加购积分包（积分数、价格、上下架、排序），可原地修改并写审计日志",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "231-241"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "price_tier_revision",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "剧目热度等级（S/A/B/C）的模板积分价修订，带生效时间",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "243-252"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "不可变修订行，没有 cancelled_at（d1:243-252）。"
+  },
+  {
+   "name": "drama_price_revision",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "单剧定价修订（即调价记录）：按模板或单剧自定义积分价，带生效时间，可在生效前撤销",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "254-268"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "drama_id",
+     "ref": "drama",
+     "note": "L2 → L1（d8:641 第 ① 项）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "不可变修订行，生效前可写 cancelled_at。"
+  },
+  {
+   "name": "billing_param",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "积分规则参数：按键存储、逐键生效的不可变行（广告单价、免费修改次数、加扣比例、取消扣除比例等会进入单据快照、影响计价与账务的键）",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "270-309"
+    }
+   ],
+   "renamed_from": [
+    "billing_param_revision"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "announcement_id",
+     "ref": "site_notice",
+     "note": "同 plan_revision"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "计费规则参数归 billing（03:129、585）；d2:170 称 billing_param_revision。M24：会进入单据快照、影响计价与账务的键留在本表（d1:295-307 的键清单）；付款单超时、对公转账有效期、升级报价有效期三个时限键放 config 的 param_value。d1:306 的 upgradeQuoteValidHours 属于被移走的升级报价有效期，移走后本表留 12 个键；M24 原文写“d1 的 13 个”，两处字面有出入，逐键归属与这一点见 decisions.md 第 7 节。"
+  },
+  {
+   "name": "billing_account",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "主体计费账户：每主体一行，是所有改钱改积分事务的唯一行锁，同时缓存订阅状态与各类余额",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "313-328"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(entity_id)",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 420,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "每主体一行，是全局锁序里最后一把锁（01:304）。主键即 entity_id。sub_status 是订阅状态缓存，不写状态历史。计费内部行（subscription_term、grant_schedule、point_lot、point_hold 等）只在持有本表行锁时修改（d1:1189），不单独排锁序。"
+  },
+  {
+   "name": "subscription_term",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "订阅周期：一次套餐购买对应一个周期，含权益快照、起止、延长天数、退款处理中标记",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "330-355"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "source_payment_order_id 改名 source_billing_order_id（d1 沿用 payment_order，主文档与 d2 用 billing_order；与 M17 的 billing_order_id 写法一致）。refund_request_id 由 text 单号改为 uuid 外键（同模块）。status 由 advance / fulfill / revokeTerm 在账户锁内推进，历史在 subscription_event，不并入 status_transition（d3:2581）。周期不重叠的排他约束依赖 btree_gist（d1:1878）。"
+  },
+  {
+   "name": "subscription_event",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "订阅事件（只增）：开通、续费预约、续接、升降级、延长、过期、恢复、退款等，供经营指标取数",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "357-370"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid+seq",
+   "tenant": "entity",
+   "append_only": true,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "订阅的事实表，等价于订阅的状态历史。operator_type 改用统一的四类操作人（d1:368）。M17：payment_order_id（d1:365）改名 billing_order_id。"
+  },
+  {
+   "name": "grant_schedule",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "月度发放计划：周期创建时一次生成 N 行，记每月应发积分与分摊的套餐款，是“付款→各月→批次”的唯一分摊台账",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "372-387"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "“付款 → 各月 → 批次”的唯一分摊台账；d2 的 payment_allocation 不建（d1:387；d2:169）。"
+  },
+  {
+   "name": "point_lot",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "积分批次：按来源、到期、入账成本存放积分，七个桶之和恒等于入账数量",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "391-417"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "origin_entry_seq 改为 origin_entry_id（指向 point_ledger_entry 的 uuid 主键）。source_id 为多态引用。"
+  },
+  {
+   "name": "point_hold",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "冻结单：一笔订购明细 / 广告任务 / 超次修改占用的积分，带计价与规则快照",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "419-435"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "ref_id",
+     "ref": "order_item | ad | ad_revision",
+     "note": "只存 id，不建外键。按 ref_type 多态；L2 不引用 L3。反向由 order_item.hold_id、ad.hold_id、ad_revision.charge_hold_id 持有外键"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "M19：purpose / ref_type 的取值用最终表名 order_item / ad / ad_revision（d1:425-426 写作 drama_order_item / ad_task / ad_revision）；账本幂等键的类型段随之改为 hold:order_item:{id}、hold:ad:{id}、hold:ad_revision:{id}（d1:1496）。尚无存量数据，不保留旧值。on_behalf_of（V1.1 代操作位，d1:435）按 01:176 不保留。status 由计费函数在账户锁内推进，只在持有 billing_account 行锁时修改。"
+  },
+  {
+   "name": "point_hold_alloc",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "冻结分摊：一张冻结单落在哪些批次、各多少，以及各批次已退回 / 被清零的数量",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "437-447"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(hold_id, alloc_no)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "纯明细表，不带归属列，经 point_hold 访问。M16：分摊顺序号 seq（d1:442）改名 alloc_no。"
+  },
+  {
+   "name": "ledger_operation",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "账本操作：幂等登记（op_key）+ 展示行，记每次操作对两类可用积分的净变动与操作后余额",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "449-464（幂等键全表 1485-1504）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid+seq",
+   "tenant": "store",
+   "append_only": true,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "ref_id",
+     "ref": "关联单据",
+     "note": "只存 id，不建外键。按 ref_type 多态；审批入账时 ref_type = approval_request（d1:575 写作 approval；M19）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "op_key 全表唯一（ADR-013）。store_id 可空。on_behalf_of 不保留（01:176）。M19：op_key 里的类型段用最终表名（d1:1489-1503 的 payment_order、schedule、term、hold 与 hold:{ref_type} 的取值都改），对照见 decisions.md 第 8 节；尚无存量数据，不保留旧值。"
+  },
+  {
+   "name": "point_ledger_entry",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "积分流水（只增，只记数量）：批次内“桶到桶”的数量移动，一批次一行，可完整回放",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "466-499"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid+seq",
+   "tenant": "entity",
+   "append_only": true,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "草案以自增 seq 为主键（d1:470）。按 R1 改为 uuid 主键 + seq（bigint identity，全局回放顺序）；其他表对它的引用改指 uuid。"
+  },
+  {
+   "name": "billing_entity_daily",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "主体 × 业务日的每日快照：订阅状态、MRR、各桶余额、积分负债与折算价值、未发放月份预收款；可重算",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "579-590（生成规则 1609-1615）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(biz_date, entity_id)",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "派生快照，可重算。reports 只读它（d6:2037）。"
+  },
+  {
+   "name": "valuation_policy",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "估值口径版本：入账成本的折算方式、取整与尾差规则；V1.0 只有版本 1",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "592（口径变更 1377-1378）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(version)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "估值口径版本，V1.0 只有版本 1。"
+  },
+  {
+   "name": "point_entry_valuation",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "流水的派生估值（可删除重算）：每条流水带走或带回多少价值、之后批次的剩余价值，按口径版本各存一套",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "594-603（算法 1345-1365）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(entry_id, policy_version)",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "派生，可删除重算（ADR-015）。主键由 (entry_seq, policy_version) 改为 (entry_id, policy_version)。"
+  },
+  {
+   "name": "point_adjustment_request",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "积分调整单：补偿、纠错、活动赠送的调整内容（方向、积分类型、数量、原因）与入账结果；与审批单一对一",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "568-575"
+    },
+    {
+     "draft": "d3",
+     "lines": "2361、2420"
+    },
+    {
+     "draft": "d4",
+     "lines": "1435"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "approval_request_id",
+     "ref": "approval_request",
+     "note": "一对一（R3）；kind = points_adjust，单号前缀 TZ（d1:568）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "新增（恢复）。d1 原稿有这张表，修订稿删除并把内容放进审批单 payload（d1:568）；d3:2420 仍把它当领域单据。R3 要求领域表保存内容与执行状态，故恢复。同一主体同时只允许一张在审（d1:572）：通过即入账、没有执行步（d3:2361），按 M12 由 approval_request 上只覆盖 status = pending 的去重索引表达。只在持有审批单行锁的事务里修改，不单独排锁序。"
+  },
+  {
+   "name": "term_extension_request",
+   "module": "billing",
+   "group": "07-billing-ledger",
+   "layer": "L2",
+   "purpose": "补偿延长单：延长天数、原因与执行结果；与审批单一对一",
+   "sources": [
+    {
+     "draft": "d1",
+     "lines": "568-575"
+    },
+    {
+     "draft": "d3",
+     "lines": "2362、2420"
+    },
+    {
+     "draft": "d4",
+     "lines": "1436"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "approval_request_id",
+     "ref": "approval_request",
+     "note": "一对一（R3）；kind = subscription_extend，单号前缀 YQ（d1:568）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "新增（恢复），理由同上。“主管审批延长、积分入账另经财务审批”用两张单级审批单串联（04:137）。没有执行步（d3:2362），同一主体的在途去重按 M12 走 approval_request 的去重索引（d1:573 的 plan.extend:{entityId}）。只在持有审批单行锁的事务里修改，不单独排锁序。"
+  },
+  {
+   "name": "billing_order",
+   "module": "billing",
+   "group": "08-billing-payment",
+   "layer": "L2",
+   "purpose": "付款单（FK…）：开通/续费/升级/加购四类购买的业务单据，严格 5 态，保存内容快照、应付/实收/已退金额与履约结果",
+   "sources": [
+    {
+     "draft": "d2",
+     "lines": "194-232（状态机 445-485；创建 487-519）"
+    }
+   ],
+   "renamed_from": [
+    "payment_order"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 290,
+   "cross_module_fks": [
+    {
+     "column": "placed_by_user_id",
+     "ref": "merchant_user",
+     "note": ""
+    },
+    {
+     "column": "created_by_staff_id",
+     "ref": "staff",
+     "note": "线下签约代建（03:91）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "付款单；d1 称 payment_order（d1:352、365、229）。store_id 可空、仅展示（d2:200），不算归属列。agreement_versions jsonb（d2:221）按 R13 删除，同意证据只在 agreement_consent（biz_type / biz_id 指回付款单）。V1.1“代操作人”留痕列只在本表保留（01:176；d2:60 现稿未留）。乐观锁列 version 改 lock_version。状态迁移补写状态历史（d2:190、1150 现为带原状态条件的 UPDATE）。M24：expires_at（d2:211）取 param_value 的 billing.payment.order_timeout_minutes、billing.payment.transfer_valid_days；升级单另受报价快照 validUntil 约束。"
+  },
+  {
+   "name": "payment_txn",
+   "module": "billing",
+   "group": "08-billing-payment",
+   "layer": "L2",
+   "purpose": "收款交易：渠道侧一次收款尝试，成功的即“收款流水”；保存渠道实收金额、付款人、attach、对账状态；对公到账与孤儿到账也落在此表",
+   "sources": [
+    {
+     "draft": "d2",
+     "lines": "234-267（recordChannelSuccess/applyPayment 585-638）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 300,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "草案没有归属列（d2:238）：补 entity_id，孤儿到账（billing_order_id 为空）时可空。status 记录渠道事实，不写状态历史。银行流水号与付款行在本表（d2:251-252）——实际到账的那笔交易，不放 transfer_proof（商家上传的凭证）：已确认，主文档待回写（rulings 第四节第 4 项；03:26）。"
+  },
+  {
+   "name": "transfer_proof",
+   "module": "billing",
+   "group": "08-billing-payment",
+   "layer": "L2",
+   "purpose": "对公转账凭证：商家或员工上传的回单文件、OCR 结果、系统比对结果、财务审核结论；二人复核时暂存第一人的确认内容",
+   "sources": [
+    {
+     "draft": "d2",
+     "lines": "269-282"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 310,
+   "cross_module_fks": [
+    {
+     "column": "file_id",
+     "ref": "file_object",
+     "note": ""
+    },
+    {
+     "column": "ocr_result_id",
+     "ref": "ocr_result",
+     "note": "d5:115 要求把 ocr_result jsonb 改为引用"
+    },
+    {
+     "column": "review_approval_request_id",
+     "ref": "approval_request",
+     "note": "可空（M25）；仅当启用对公大额二人复核时指向 kind = transfer_confirm 的审批单，L2 → L1"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "对公凭证的确认是 d2 自己的状态机（billing_order.transfer_state + 本表 review_status），不镜像进审批单（d2:174；已确认，rulings 第五节、M22）。M22：补 due_at 与时限参数快照列；sla.breach 定时器的主体为本表（d3:2962 的 T32 原写审批单）；“审核时效”指标从本表取；工作台待办走派生查询。M25：对公大额二人复核若启用（受控配置开关 controls.receipt_second_review_fen，d2:1443，默认不开启），登记为审批类型 transfer_confirm，本表留可空的 review_approval_request_id；不另设绕开统一审批单的复核通道。first_confirm（d2:279）留在本表作内容。银行流水号与付款行不在本表而在 payment_txn（已确认，rulings 第四节第 4 项；03:26 待回写）。d2:273 的 seq（同一付款单第几次上传）是子表顺序号，按 M16 的规则须改名；M16 只点了两张表，本列的新列名留字段级阶段定。"
+  },
+  {
+   "name": "refund_request",
+   "module": "billing",
+   "group": "08-billing-payment",
+   "layer": "L2",
+   "purpose": "现金退款申请：套餐退款的核算快照与执行状态；与审批单一对一",
+   "sources": [
+    {
+     "draft": "d2",
+     "lines": "284-314（状态机 841-884）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 70,
+   "cross_module_fks": [
+    {
+     "column": "approval_request_id",
+     "ref": "approval_request",
+     "note": "一对一（R3）；kind = plan_refund，单号前缀 TK"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "只保留 kind = cash。d2:290-298 的 kind = points（订购与广告取消退回积分）连同 subject_type / subject_id、unit、points 的 breakdown 拆到 order 模块的 cancel_request：billing 在 L2，不能引用 drama_order、ad（L3），且核算与执行本就归订购模块（03:103；d2:173）；这一处理已确认（rulings 第五节）。service_ticket_id（d2:303）删除，关联由 service_ticket_ref 持有。M12：套餐退款有执行步，提交时即建本表的行；带 closed_at（审批被驳回或撤回、或执行完成时写入）；“同一笔收款只允许一张在途退款”的部分唯一索引建在本表（WHERE closed_at IS NULL，取代 d2:314 按 status 列举的写法）。status 只留执行一侧（待执行、执行中、已退款、已作废），待审批 / 已驳回 / 已撤回由审批单表达（d2:304、308 的冗余按 R3 去掉）。M13：孤儿收款退款时 entity_id 可空（billing_order_id 也为空，d2:293）。store_id 不再需要。锁顺序：领域申请单紧跟审批单之后（M32；d2:1139）。 d9：套餐退款规则 qualification_failed 依赖的判定由 merchant.isQualificationDead 改名 profile.isQualificationDead；口径是主体结论为 rejected 且该主体最近一轮 initial 提交被终局驳回，不区分被点名的是营业执照还是门店级证照，待 D2 确认（d9:651、802）。"
+  },
+  {
+   "name": "refund_txn",
+   "module": "billing",
+   "group": "08-billing-payment",
+   "layer": "L2",
+   "purpose": "退款交易：渠道侧一次退款的资金事实（微信原路退、线下退款登记、事后补记的渠道退款）",
+   "sources": [
+    {
+     "draft": "d2",
+     "lines": "316-335（执行 886-939）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 320,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "补 entity_id。status 记录渠道事实。线下登记的收款账号按敏感字段三件套（d2:332）。M13：孤儿收款退款时 entity_id 可空。"
+  },
+  {
+   "name": "payment_exception",
+   "module": "billing",
+   "group": "08-billing-payment",
+   "layer": "L2",
+   "purpose": "差异单（CY…）：实时异常与 T+1 对账差异共用的单据，14 种类型，每种有固定的可选处理",
+   "sources": [
+    {
+     "draft": "d2",
+     "lines": "337-350（处理矩阵 1097-1125）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 340,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "差异单（CY…）。补 entity_id（可空：对公到账无对应付款单时）。"
+  },
+  {
+   "name": "wx_bill_file",
+   "module": "billing",
+   "group": "08-billing-payment",
+   "layer": "L2",
+   "purpose": "微信交易账单文件：按商户号、账单日记录下载/解析状态与 COS 归档位置",
+   "sources": [
+    {
+     "draft": "d2",
+     "lines": "354（流程 1037-1054）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "草案只有行内写法（d2:354）。status 为技术状态。"
+  },
+  {
+   "name": "wx_bill_line",
+   "module": "billing",
+   "group": "08-billing-payment",
+   "layer": "L2",
+   "purpose": "微信交易账单明细行（收款行/退款行），保存账单原始字段与匹配结果",
+   "sources": [
+    {
+     "draft": "d2",
+     "lines": "356（匹配算法 1056-1084）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "草案只有行内写法（d2:356）；attach 列是否有值待核。"
+  },
+  {
+   "name": "recon_day",
+   "module": "billing",
+   "group": "08-billing-payment",
+   "layer": "L2",
+   "purpose": "每日对账汇总：按账单日 × 渠道记录平台侧与账单侧的收款/退款笔数金额、差异数与对账状态",
+   "sources": [
+    {
+     "draft": "d2",
+     "lines": "358（状态说明 1088-1095）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "UNIQUE(bill_date, channel)。M15：全部 7 个 *_fen 汇总列是跨主体的日汇总，用 bigint，只在对账服务内以 BigInt 处理，出接口转字符串（d2:188 的“聚合转 bigint、边界转字符串”）。已确认，主文档待回写（rulings 第四节第 3 项；01:256）。"
+  },
+  {
+   "name": "invoice_request",
+   "module": "billing",
+   "group": "08-billing-payment",
+   "layer": "L2",
+   "purpose": "开票申请（KP…）：商家按付款单全额申请开票，抬头/税号从认证主体快照；承载待开票、已开具、驳回、待红冲、已红冲状态",
+   "sources": [
+    {
+     "draft": "d2",
+     "lines": "362-382（状态机 1361-1391）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 330,
+   "cross_module_fks": [
+    {
+     "column": "applied_by_user_id",
+     "ref": "merchant_user",
+     "note": ""
+    }
+   ],
+   "version": "V1.0",
+   "notes": "开票申请（KP…）不镜像进审批单（d2:174；已确认，rulings 第五节、M22），d3:2355 的 kind = invoice 不采用。M22：补 due_at 与时限参数快照列；sla.breach 定时器的主体为本表；“审核时效”指标从本表取；工作台待办走派生查询。tax_no、addr_tel、bank_account、recv_email、mail_to 按敏感字段规则（d2:371-374 只标了 enc）。"
+  },
+  {
+   "name": "invoice_doc",
+   "module": "billing",
+   "group": "08-billing-payment",
+   "layer": "L2",
+   "purpose": "票据：一张开票申请下的蓝字/红字发票（号码、文件、快递、邮件状态）",
+   "sources": [
+    {
+     "draft": "d2",
+     "lines": "384"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "entity",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "file_id",
+     "ref": "file_object",
+     "note": ""
+    }
+   ],
+   "version": "V1.0",
+   "notes": "R14：邮件只经通知中心发送；email_state 由通知结果事件回写（d6:950-953），本模块不直接调 mail Provider（d2:1399 需改）。"
+  },
+  {
+   "name": "finance_config_revision",
+   "module": "billing",
+   "group": "08-billing-payment",
+   "layer": "L2",
+   "purpose": "受控财务配置的版本表：对公收款账户、购买策略规则表、内控开关组；提议人 ≠ 批准人，按生效时间取当前值",
+   "sources": [
+    {
+     "draft": "d2",
+     "lines": "386-400（键与流程 1435-1448）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "approval_request_id",
+     "ref": "approval_request",
+     "note": "一对一（R3）；kind 为 d2:396 的 finance.config_change"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "受控财务配置（收款账户、购买入口策略、内控开关，d2:1439-1444）。不是严格只增表：批准时回写 effective_at（d2:394-398）。status 的 proposed / approved / rejected / withdrawn 与 approved_by <> proposed_by 的 CHECK 按 R3 改由审批单表达，本表只留内容与 effective_at。M24：购买入口策略与支付限额等受控配置只在本表（需审批），不映射到 param_value。M25：对公大额二人复核的开关（controls.receipt_second_review_fen，d2:1443）在本表，默认不启用。只在持有审批单行锁的事务里修改，不单独排锁序。"
+  },
+  {
+   "name": "cart_item",
+   "module": "order",
+   "group": "09-order-ad",
+   "layer": "L3",
+   "purpose": "选剧单：按门店保存待订购的剧目与加入时的积分价快照；状态不落库，读取时算（valid/price_changed/invalid）",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "250-270"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "drama_id",
+     "ref": "drama",
+     "note": "L3 → L1"
+    },
+    {
+     "column": "added_by_user_id",
+     "ref": "merchant_user",
+     "note": ""
+    }
+   ],
+   "version": "V1.0",
+   "notes": "按门店保存（d3:266）。状态读取时算，不落库。"
+  },
+  {
+   "name": "drama_order",
+   "module": "order",
+   "group": "09-order-ad",
+   "layer": "L3",
+   "purpose": "订购单：一单多部剧的头，保存下单时的套餐/折扣/加扣快照、整单定制录入，以及由订单项聚合物化出的状态",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "284-316"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 160,
+   "cross_module_fks": [
+    {
+     "column": "term_id",
+     "ref": "subscription_term",
+     "note": "L3 → L2"
+    },
+    {
+     "column": "agreement_consent_id",
+     "ref": "agreement_consent",
+     "note": "L3 → L1；R13"
+    },
+    {
+     "column": "delivery_manager_id",
+     "ref": "staff",
+     "note": "冗余，转移时同步（d3:307）"
+    },
+    {
+     "column": "placed_by_user_id",
+     "ref": "merchant_user",
+     "note": ""
+    }
+   ],
+   "version": "V1.0",
+   "notes": "订购单状态由订单项聚合后物化（03:248-275）。open_after_sale_id 改指 cancel_request。acting_as（V1.1 代操作人，d3:291）按 01:176 不保留。M20：参考素材不存数组列，d3:303 的 reference_asset_ids 删除，统一经 file_ref 登记（owner 为本订购单，role = reference）；其中来自素材库的另写一行 store_asset_usage，来自档案媒体的只走 file_ref。 d9：order 对资质事件的订阅——store.qualification.approved 后为待开工订购单登记 order.start；store.qualification.rejected 且 final = true 时生成 qualification_cancel 申请（d9:700-701）；变更重审的 store.qualification_change.* 不触发这两条，需 D3 确认（d9:604、803 ⑤）。闸门与建档齐全的判定改调 profile.storeGate、profile.assertProfileComplete（D3 文中写作 merchant.storeGate）；补偿扫描要的“资质通过时间”“终局驳回的门店”取 profile.getStoreFacts 的 firstVerifiedAt、finalRejectedAt，不直接查 profile 的表（d9:631-633、653、803 ③⑧）。order 实现 QualificationImpactPort.previewFinalReject，供终局驳回的影响预览（d9:735）。"
+  },
+  {
+   "name": "order_item",
+   "module": "order",
+   "group": "09-order-ad",
+   "layer": "L3",
+   "purpose": "订单项：订购单里的一部剧，承载计价快照、账本冻结单引用、四个退回数量、阶段（由工单步骤推导）、使用期起止",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "318-354（退回四列说明 376；阶段定义 478-511）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 170,
+   "cross_module_fks": [
+    {
+     "column": "drama_id",
+     "ref": "drama",
+     "note": "L3 → L1"
+    },
+    {
+     "column": "hold_id",
+     "ref": "point_hold",
+     "note": "d3:332 的 hold_ref text 改为外键（L3 → L2）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "drama_snapshot 增加 allowedPlacements（d8:642 第 ④ 项）。usage_end_date 取剧目授权止日（d8:405）。M17：order_id（d3:320）改名 drama_order_id。d3:321 的 seq（订购单内序号，对应工单号后缀）是子表顺序号，按 M16 的规则须改名；M16 没有点名，新列名留字段级阶段定。"
+  },
+  {
+   "name": "order_item_account",
+   "module": "order",
+   "group": "09-order-ad",
+   "layer": "L3",
+   "purpose": "订单项的发布账号（每平台至多 1 个）；授权书、上线任务按“订单项 × 账号”展开",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "356-362"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(order_item_id, channel_account_id)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "channel_account_id",
+     "ref": "channel_account",
+     "note": "同层（order 的表引用 publish 的表）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "order_item_placement",
+   "module": "order",
+   "group": "09-order-ad",
+   "layer": "L3",
+   "purpose": "广告位绑定：订单项的片头/片尾位绑定哪条广告；bound_version_no 为空表示浮动，样片确认时钉住版本",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "364-373（规则 1328-1358）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "ad_id",
+     "ref": "ad",
+     "note": "同层；order → ad 在白名单内（d7:204）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "cancel_request",
+   "module": "order",
+   "group": "09-order-ad",
+   "layer": "L3",
+   "purpose": "取消申请（订购取消、广告取消、资质终局驳回后的整店取消）：申请级的原因、说明、合计与执行状态；与审批单一对一，明细在 cancel_request_line",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "2193-2221、2357-2359、2416-2425"
+    },
+    {
+     "draft": "d2",
+     "lines": "173、290-298"
+    },
+    {
+     "draft": "03",
+     "lines": "103、302"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 50,
+   "cross_module_fks": [
+    {
+     "column": "approval_request_id",
+     "ref": "approval_request",
+     "note": "一对一（R3）；kind = order_cancel / ad_cancel / qualification_cancel，单号前缀 TK"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "新增。d3 没有申请头表，申请级信息放在审批单 payload（d3:2221）；d2 把它做成 refund_request 的 kind = points（d2:290）。R3 要求一对一的领域表，L2 又不能引用 L3，所以在 order 模块建头表，承载 d2:297-311 里 points 一侧的列与 d3 审批单上的执行状态列（executing / done、exec_due_at、executed_by 等）。执行入口只有 order.executeCancel（d3:2156）。归 order、refund_request 只管现金退款、后台“退款管理”按审批类型聚合两类单据：已确认（rulings 第五节）。M12：订购取消、广告取消、资质相关取消都有执行步，提交时即建本表的行；带 closed_at（审批被驳回或撤回、或执行完成时写入）；“同一订购单 / 广告只允许一张在途申请”的部分唯一索引建在本表（WHERE closed_at IS NULL）。M32：锁顺序上紧跟审批单之后（d2 把积分类申请放在审批单之后、d3 把明细行放在领域行之后，取前者）；d3:2161-2163 的加锁步骤相应调整为“审批单 → 本表与明细行 → 广告 → 订购单 → 订单项 → 工单 → 子表”。"
+  },
+  {
+   "name": "cancel_request_line",
+   "module": "order",
+   "group": "09-order-ad",
+   "layer": "L3",
+   "purpose": "取消申请的逐项核算与实际结果：一行=一个订单项或一条广告；id 即账本退回幂等键 refund:{id} 的来源",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "2193-2221"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 60,
+   "cross_module_fks": [
+    {
+     "column": "hold_id",
+     "ref": "point_hold",
+     "note": "hold_ref text 改为外键（L3 → L2）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "approval_id（d3:2198）改为 cancel_request_id。id 是账本退回幂等键 refund:{id} 的来源（d3:2196）。target 为 order_item | ad 多态。样片确认后至上线前的扣除由客服填写、财务核定（03:310），ratio_bp 可空、deduct 人工录入（d3:2208-2209 需相应调整）。M19：target_type 取值 order_item | ad 已是最终表名。M32：与头表一起紧跟审批单之后加锁（d3:2163 的加锁点前移）。"
+  },
+  {
+   "name": "ad",
+   "module": "ad",
+   "group": "09-order-ad",
+   "layer": "L3",
+   "purpose": "广告：一条广告=一次制作需求+它的所有版本，独立 GG 编号；承载计价快照、冻结单引用、退回四列、免费修改额度与状态",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1182-1216（状态机 1255-1291）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 150,
+   "cross_module_fks": [
+    {
+     "column": "hold_id",
+     "ref": "point_hold",
+     "note": "hold_ref text 改为外键"
+    },
+    {
+     "column": "editor_id",
+     "ref": "staff",
+     "note": ""
+    },
+    {
+     "column": "requested_by_user_id",
+     "ref": "merchant_user",
+     "note": ""
+    }
+   ],
+   "version": "V1.0",
+   "notes": "一条广告 = 一次制作需求 + 所有版本（GG…）。其他草案称广告任务 ad_task / 广告需求 ad_request（d2:295；d5:916），都指本表。M20：参考素材不存数组列，d3:1192 的 reference_asset_ids 删除，统一经 file_ref 登记（owner 为本广告，role = reference）；其中来自素材库的另写一行 store_asset_usage，来自档案媒体的只走 file_ref。"
+  },
+  {
+   "name": "ad_version",
+   "module": "ad",
+   "group": "09-order-ad",
+   "layer": "L3",
+   "purpose": "广告视频版本：上传、推送、不可播放时的线下提供时间、商家决定",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1218-1232"
+    }
+   ],
+   "renamed_from": [
+    "ad_video_version"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "file_id",
+     "ref": "file_object",
+     "note": ""
+    }
+   ],
+   "version": "V1.0",
+   "notes": "d5 写作 ad_video_version（d5:449、683-684）。"
+  },
+  {
+   "name": "ad_revision",
+   "module": "ad",
+   "group": "09-order-ad",
+   "layer": "L3",
+   "purpose": "广告修改轮次：一次修改意见一行，记录是否计费、超次扣减的冻结单、时间段与截图、由哪个版本满足",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1234-1250（规则 1297-1326）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "charge_hold_id",
+     "ref": "point_hold",
+     "note": "charge_hold_ref text 改为外键"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "d3:1237 的 seq（第几次修改）是子表顺序号，按 M16 的规则须改名；M16 没有点名，新列名留字段级阶段定。"
+  },
+  {
+   "name": "delivery_ticket",
+   "module": "delivery",
+   "group": "10-delivery",
+   "layer": "L3",
+   "purpose": "交付工单：开工后一部剧一张，11 步+已归档+已终止；承载负责人、环节时限、暂停计数与里程碑时间",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "732-760（步骤枚举 794；迁移表 828-860）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 180,
+   "cross_module_fks": [
+    {
+     "column": "order_item_id",
+     "ref": "order_item",
+     "note": "同层（delivery 的表引用 order 的表）"
+    },
+    {
+     "column": "drama_id",
+     "ref": "drama",
+     "note": ""
+    },
+    {
+     "column": "manager_id / editor_id / publisher_id",
+     "ref": "staff",
+     "note": "任务处理人只存在工单上（d3:242）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "M17：order_id（d3:736）改名 drama_order_id。"
+  },
+  {
+   "name": "delivery_ticket_stage",
+   "module": "delivery",
+   "group": "10-delivery",
+   "layer": "L3",
+   "purpose": "环节记录：工单每进入一次环节一行，记录截止时间、完成时间、暂停分钟、是否超时与时限参数快照（支撑时效指标）",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "762-774"
+    }
+   ],
+   "renamed_from": [
+    "ticket_stage"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "改名：加 delivery_ 前缀，避免与 service_ticket 混淆。M17：ticket_id（d3:764）改名 delivery_ticket_id。"
+  },
+  {
+   "name": "delivery_ticket_pause",
+   "module": "delivery",
+   "group": "10-delivery",
+   "layer": "L3",
+   "purpose": "工单暂停原因集合：一个原因一行（取消审批中 / 方案修订待确认，可叠加），解除时写 released_at",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "776-787（语义 826、862-888）"
+    }
+   ],
+   "renamed_from": [
+    "ticket_hold"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "ref_id",
+     "ref": "approval_request | delivery_plan_version",
+     "note": "只存 id，不建外键。按 ref_type 多态"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "改名：hold 在账本里指积分冻结（point_hold），这里是工单暂停原因（03:201、289）。M17：ticket_id（d3:778）改名 delivery_ticket_id。M19：ref_type 取值用最终表名——d3:780 的 approval、plan_version 改为 approval_request、delivery_plan_version。"
+  },
+  {
+   "name": "delivery_plan",
+   "module": "delivery",
+   "group": "10-delivery",
+   "layer": "L3",
+   "purpose": "交付方案：一张订购单一份，保存草稿（jsonb PlanContent）、当前/已确认版本号与方案状态",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1055-1066（PlanContent 1092-1106）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 200,
+   "cross_module_fks": [
+    {
+     "column": "drama_order_id",
+     "ref": "drama_order",
+     "note": "同层；M17：由 order_id（d3:1058）改名"
+    }
+   ],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "delivery_plan_version",
+   "module": "delivery",
+   "group": "10-delivery",
+   "layer": "L3",
+   "purpose": "方案版本：推送即生成，内容快照不可变；记录商家对该版本的决定",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1068-1079"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "delivery_plan_change_request",
+   "module": "delivery",
+   "group": "10-delivery",
+   "layer": "L3",
+   "purpose": "商家对方案提出的结构化修改请求（“联系服务经理修改”），被后续版本解决时回写版本号",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1081-1089"
+    }
+   ],
+   "renamed_from": [
+    "plan_change_request"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "改名：plan_ 前缀在 billing 里指套餐（plan、plan_revision），这里是交付方案的修改请求。"
+  },
+  {
+   "name": "sample",
+   "module": "delivery",
+   "group": "10-delivery",
+   "layer": "L3",
+   "purpose": "样片版本：每个版本一行，流程视角（质检、推送、查看方式、商家决定与修改意见）；文件事实按 file_id 取自 media",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1416-1445"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 260,
+   "cross_module_fks": [
+    {
+     "column": "file_id",
+     "ref": "file_object",
+     "note": ""
+    },
+    {
+     "column": "decided_by_user_id",
+     "ref": "merchant_user",
+     "note": ""
+    }
+   ],
+   "version": "V1.0",
+   "notes": "deliverable_version_id（d3:1423）删除：d5 修订稿已删除 deliverable_version（d5:103），文件事实按 file_id 读 media_check、production_record。preview_channels 的 portal 指下载页扫码登录后的预览，不生成“链接 + 提取码”（R5；d3:1535-1536 需改）。M27：样片“已查看”的证据不另建表——下载页或相册保存对样片文件的访问写 audit_log 的访问流；本表留 first_viewed_at（由访问回写）与商家在小程序勾选确认的 viewed_ack_at、viewed_ack_by（按操作人列约定落为 viewed_ack_by_user_id）。M17：ticket_id（d3:1421）改名 delivery_ticket_id。"
+  },
+  {
+   "name": "episode_output",
+   "module": "delivery",
+   "group": "10-delivery",
+   "layer": "L3",
+   "purpose": "成片剧集：每集每变体每修订一行，流程视角（质检状态、是否当前版、补发替换集）；文件事实按 file_id 取自 media",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1447-1465（登记规则 1549-1557）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 220,
+   "cross_module_fks": [
+    {
+     "column": "file_id",
+     "ref": "file_object",
+     "note": ""
+    }
+   ],
+   "version": "V1.0",
+   "notes": "deliverable_version_id 删除（同 sample）。is_current 改为质检通过才置真（d5:103）。M28：三类剧双平台是否出两套成片未定，V1.0 每集成片只有一个版本；variant 保留为可空列、默认空（d3:1451 为 NOT NULL DEFAULT common），不为它建额外的表。M15：size_bytes（d3:1455）为 bigint，出接口转字符串。M17：ticket_id（d3:1449）改名 delivery_ticket_id。"
+  },
+  {
+   "name": "qc_record",
+   "module": "delivery",
+   "group": "10-delivery",
+   "layer": "L3",
+   "purpose": "质检记录：对样片、单集、成片包的一次清单检查结论，保存模板编码与版本号",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1479-1491"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "template_code + template_version",
+     "ref": "checklist_template",
+     "note": "只存 id，不建外键。逻辑引用"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "target 多态：sample | episode_output | delivery_release。M17：ticket_id（d3:1481）改名 delivery_ticket_id。M19：target_type 取值用最终表名——d3:1482 的 episode、package 改为 episode_output、delivery_release。"
+  },
+  {
+   "name": "delivery_release",
+   "module": "delivery",
+   "group": "10-delivery",
+   "layer": "L3",
+   "purpose": "成片包的一次推送或补发：不可变的文件清单快照、交付前检查结果、发布清单文本（只留业务快照，ZIP 缓存在 media 的 zip_bundle）",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "780-804（生命周期函数 1554-1572；ZIP 1666-1685）"
+    },
+    {
+     "draft": "d3",
+     "lines": "1579-1592"
+    },
+    {
+     "draft": "d3",
+     "lines": "1565-1577"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [
+    "delivery_package_release",
+    "delivery_package"
+   ],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": 210,
+   "cross_module_fks": [
+    {
+     "column": "publish_list_file_id",
+     "ref": "file_object",
+     "note": ""
+    }
+   ],
+   "version": "V1.0",
+   "notes": "同一对象只留一套。以 d5:780-804 为基线，并入 d3:1579-1592 的 kind、reason_code、note、precheck_version；d3 的 delivery_package（每工单一行的头表，d3:1565-1577）不建，它的授权到期、重新生成次数、撤销由 download_grant 承担（d5:104-105）。归 delivery（L3）而不是 d5 主张的 media：本表与下面两张都引用 order_item、delivery_ticket，L1 不能引用 L3。M8：ZIP 缓存三列 zip_state、zip_gen、zip_file_id（d5:794-796）拆到 media 的 zip_bundle（按 owner_type + owner_id 关联本表，多态无外键），本表只留业务快照；打包、收尾、清除后置空（d5:1667-1683）都只写 zip_bundle，media 不写 L3 的表。M15：total_bytes 为 bigint，出接口转字符串。M17：ticket_id（d5:783）改名 delivery_ticket_id。variant（d5:785）在本表仍是 NOT NULL DEFAULT common；M28 只裁了 episode_output.variant，本列是否同步改为可空留字段级阶段。state 是技术状态。"
+  },
+  {
+   "name": "delivery_reissue",
+   "module": "delivery",
+   "group": "10-delivery",
+   "layer": "L3",
+   "purpose": "补发单：成片包推送后替换个别集，从发起到发布（或取消）",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1594-1605（流程 1665-1681）"
+    }
+   ],
+   "renamed_from": [
+    "package_reissue"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "补发单。delivery_package 不建后改名。status（open / published / cancelled）不写状态历史，补发动作在 status_transition 里以工单事件记录（d3:2562）。M17：ticket_id（d3:1596）改名 delivery_ticket_id。"
+  },
+  {
+   "name": "download_grant",
+   "module": "delivery",
+   "group": "10-delivery",
+   "layer": "L3",
+   "purpose": "成片下载的业务授权（默认 7 天，可重新生成）；过期由 expires_at 判定",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "806-821"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "随 delivery_release 归 delivery。grantee_type 的 partner 为 V1.1（d5:810）。state 是技术状态。release_id（d5:809）这类缩写是否也按 M17 展开为被引用表全名，M17 没有点名，留字段级阶段统一。"
+  },
+  {
+   "name": "delivery_download_log",
+   "module": "delivery",
+   "group": "10-delivery",
+   "layer": "L3",
+   "purpose": "成片/ZIP/发布清单的每次签发下载记录（业务数据，后台看“商家已保存 45/80”）",
+   "sources": [
+    {
+     "draft": "d5",
+     "lines": "823-840（说明 843）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid+seq",
+   "tenant": "store",
+   "append_only": true,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "成片下载记录是业务数据（“商家已保存 45 / 80”），保留独立的表（d5:112）。client_ack 是唯一允许事后更新一次的列，由触发器限制（d5:843）。actor_type 按 R15；client 列即客户端来源（weapp / portal / admin，d5:834）。"
+  },
+  {
+   "name": "publish_list",
+   "module": "delivery",
+   "group": "10-delivery",
+   "layer": "L3",
+   "purpose": "发布清单（合集名、封面、标题模板、话题、简介、AI 声明），进入“成片交付”时创建，每工单一份",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1607-1618"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "cover_file_id",
+     "ref": "file_object",
+     "note": ""
+    }
+   ],
+   "version": "V1.0",
+   "notes": "发布清单，每工单一份，归 delivery（d3:225）。M17：表名保留；ticket_id（d3:1609）改名 delivery_ticket_id。"
+  },
+  {
+   "name": "publish_list_episode",
+   "module": "delivery",
+   "group": "10-delivery",
+   "layer": "L3",
+   "purpose": "发布清单的逐集覆盖内容（看点、标题、话题、简介）与“因补发而变化”的推送序号",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1620-1628"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(delivery_ticket_id, episode_no)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "M17：ticket_id（d3:1621）改名 delivery_ticket_id；表名保留，归 delivery。"
+  },
+  {
+   "name": "channel_account",
+   "module": "publish",
+   "group": "11-publish",
+   "layer": "L3",
+   "purpose": "渠道账号（抖音号/视频号）绑定与核验状态；不存任何平台密码或令牌",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "2009-2031（状态机 2033-2048）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 190,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "M4：本表只存当前值（账号名、账号 ID、账号类型、认证主体、状态）。每轮核验的填报快照、截图文件与比对结果在 channel_account_submission（每轮一行，与 approval_request 一对一，kind = channel_account，d3:2352）；d3:2019 的 screenshot_file_ids 与 d3:2046 存在审批单清单结论里的比对表都移到那张表。不存任何平台密码或令牌（d3:2031）。 d9：主体名称经 change 轮次变更后，已核验的账号是否要重新核验待业务与法务定，现不联动（d9:613、819）。"
+  },
+  {
+   "name": "channel_account_submission",
+   "module": "publish",
+   "group": "11-publish",
+   "layer": "L3",
+   "purpose": "账号核验的每轮提交：渠道账号每提交或重新提交一次一行，记轮次类型（新绑定 / 重新提交）、当轮填报快照、截图文件与比对结果；与审批单一对一",
+   "sources": [
+    {
+     "draft": "rulings",
+     "lines": "M4"
+    },
+    {
+     "draft": "d3",
+     "lines": "2010-2028（channel_account 字段）；2037、2040（绑定建第 1 轮核验单、重新提交建新一轮）；2046（比对表）；2352（kind = channel_account）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "approval_request_id",
+     "ref": "approval_request",
+     "note": "一对一（R3；M4）；kind = channel_account，L3 → L1"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "新增（M4）。按 R3，核验的内容在本表、批没批在审批单。存：channel_account_id（同模块外键）、轮次类型（新绑定、重新提交）、当轮填报快照（账号名、账号 ID 等）、截图文件（screenshot_file_ids uuid[]，经 file_ref 登记）、比对结果（d3:2046 的 [{ field, filled, recognized, match }]）。本表没有自己的状态机：账号状态在 channel_account 上并走状态历史。只在持有 channel_account 与对应审批单行锁的事务里修改，不单独排锁序。列名与取值在字段级阶段定。"
+  },
+  {
+   "name": "launch_task",
+   "module": "publish",
+   "group": "11-publish",
+   "layer": "L3",
+   "purpose": "上线任务：粒度“订单项 × 发布账号”；is_live 表达已上线事实，review_status 表达最近一轮回填的审核结果",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1693-1715（状态机 1736-1761）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 230,
+   "cross_module_fks": [
+    {
+     "column": "order_item_id",
+     "ref": "order_item",
+     "note": "同层"
+    },
+    {
+     "column": "delivery_ticket_id",
+     "ref": "delivery_ticket",
+     "note": "同层；M17：由 ticket_id（d3:1697）改名"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "executor_type / executor_id（V1.1，d3:1701-1702）按 01:176 不保留。"
+  },
+  {
+   "name": "launch_submission",
+   "module": "publish",
+   "group": "11-publish",
+   "layer": "L3",
+   "purpose": "链接回填：上线任务每次回填一行（合集或逐集链接、声明已发布集数、实际上线日），关联核验审批单",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1717-1731"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "approval_request_id",
+     "ref": "approval_request",
+     "note": "一对一（R3）；kind = launch_link"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "链接核验的领域表：回填内容在本表，结论在审批单。approval_id 改名 approval_request_id。"
+  },
+  {
+   "name": "patrol_batch",
+   "module": "publish",
+   "group": "11-publish",
+   "layer": "L3",
+   "purpose": "每周巡检抽查批次（按周幂等）",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1864-1865（生成规则 1885-1897）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "草案只有行内写法（d3:1864-1865）。"
+  },
+  {
+   "name": "patrol_task",
+   "module": "publish",
+   "group": "11-publish",
+   "layer": "L3",
+   "purpose": "巡检任务：粒度“批次 × 上线任务”，记录清单结果、异常类型、通知与恢复",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1867-1882（状态机 1899-1909）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 250,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "M17：ticket_id（d3:1871）改名 delivery_ticket_id。"
+  },
+  {
+   "name": "takedown_task",
+   "module": "publish",
+   "group": "11-publish",
+   "layer": "L3",
+   "purpose": "下架任务与核查：粒度“订单项 × 发布账号”，商家确认下架方式，发布专员按清单核查并留证据截图",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1917-1945（生成规则与状态机 1947-2001）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 280,
+   "cross_module_fks": [
+    {
+     "column": "template_code + template_version",
+     "ref": "checklist_template",
+     "note": "只存 id，不建外键。逻辑引用"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "evidence_file_ids 为 uuid[]，保存不少于 3 年（d3:1940）。M17：ticket_id（d3:1921）改名 delivery_ticket_id。"
+  },
+  {
+   "name": "service_ticket",
+   "module": "support",
+   "group": "12-support",
+   "layer": "L3",
+   "purpose": "客服工单：来源、类型、优先级、负责人、状态与三类时限（首次响应、处理方案、自动解决）",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "2433-2463（状态机 2489-2517）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 270,
+   "cross_module_fks": [
+    {
+     "column": "submitter_user_id",
+     "ref": "merchant_user",
+     "note": ""
+    },
+    {
+     "column": "owner_id",
+     "ref": "staff",
+     "note": ""
+    }
+   ],
+   "version": "V1.0",
+   "notes": "contact_phone_enc 按敏感字段规则补脱敏列（d3:2445）。image_file_ids 为 uuid[]。"
+  },
+  {
+   "name": "service_ticket_entry",
+   "module": "support",
+   "group": "12-support",
+   "layer": "L3",
+   "purpose": "客服工单会话时间线：商家消息、员工回复、内部备注、系统事件（含业务事件深链）",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "2465-2477"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "M17：ticket_id（d3:2467）改名 service_ticket_id。"
+  },
+  {
+   "name": "service_ticket_ref",
+   "module": "support",
+   "group": "12-support",
+   "layer": "L3",
+   "purpose": "客服工单关联的业务对象（订单、付款单、交付工单、广告、审批单），用于业务事件写入时间线",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "2479-2484"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(service_ticket_id, ref_type, ref_id)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "ref_id",
+     "ref": "drama_order | billing_order | delivery_ticket | ad | approval_request",
+     "note": "只存 id，不建外键。按 ref_type 多态"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "客服工单与业务对象的关联只存在这里：审批单与退款申请上的工单引用列都已删除（L1、L2 不引用 L3）。M17：ticket_id（d3:2480）改名 service_ticket_id。M19：ref_type 取值用最终表名——d3:2481 的 order、payment_order、approval 改为 drama_order、billing_order、approval_request。"
+  },
+  {
+   "name": "notify_scene",
+   "module": "notify",
+   "group": "13-notify-docs",
+   "layer": "L1",
+   "purpose": "通知场景的可切换开关与通道绑定（场景定义本身在代码注册表里，库里只存开关、槽位与短信策略）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "350-367"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(scene_key)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "d9：需 D6 配合——m.review_result 接上 store.qualification_change.submitted / approved / rejected；代改档案通知接 store.profile.changed；增加证照到期提醒的规则与场景（节点默认到期前 30 天，查询端口 profile.listDocsExpiringOn）（d9:703-704、725、740、805 ②③）。这些场景的文案变量经 profile 注册的只读解析函数取，notify 不直接读 profile 的表（d9:706、737）。联系人手机号在 V1.0 不作为通知接收号码，审核结果通知仍发给老板（d9:777）。"
+  },
+  {
+   "name": "wx_template_slot",
+   "module": "notify",
+   "group": "13-notify-docs",
+   "layer": "L1",
+   "purpose": "微信订阅消息模板槽位（槽位键 → 模板 ID 与字段定义，按环境配置；与场景解耦）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "369-381"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(slot_key)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "sms_template",
+   "module": "notify",
+   "group": "13-notify-docs",
+   "layer": "L1",
+   "purpose": "短信模板登记（模板键 → 服务商模板 ID、签名、变量定义、保活与失效探测状态）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "383-393"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(template_key)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "notification",
+   "module": "notify",
+   "group": "13-notify-docs",
+   "layer": "L1",
+   "purpose": "一次通知 =“场景 × 业务对象 × 节点 × 接收人”，带去重键；所有派发的幂等锚点",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "395-411"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "source_event_id",
+     "ref": "outbox_event",
+     "note": "只存 id，不建外键。草案只写“出站事件 id”，没有写外键（d6:402）；出站事件的保留期未定"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "去重键是所有派发的幂等锚点，也承担纯提醒的去重（R6）。entity_id、store_id 可空。"
+  },
+  {
+   "name": "notification_delivery",
+   "module": "notify",
+   "group": "13-notify-docs",
+   "layer": "L1",
+   "purpose": "通知在某个通道上的一次发送；同时是到期任务、发送日志与成功率数据源；验证码等“直发”也借用此表做限频与对账",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "413-438"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "status 为技术状态。target_ref 不落明文（d6:429）。d6:421 的 seq（同一通知同一通道的第几次投递）是子表顺序号，按 M16 的规则须改名；M16 没有点名，新列名留字段级阶段定。"
+  },
+  {
+   "name": "merchant_message",
+   "module": "notify",
+   "group": "13-notify-docs",
+   "layer": "L1",
+   "purpose": "商家端站内消息（收件箱行；与通知一对一，派发时同事务写入）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "440-457"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "user_id",
+     "ref": "merchant_user",
+     "note": "同层"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "游标分页与 read-all 依赖主键可排序（d6:746-761）：UUID v7 按时间有序，可沿用。用户注销时物理删除（d6:782）。"
+  },
+  {
+   "name": "staff_message",
+   "module": "notify",
+   "group": "13-notify-docs",
+   "layer": "L1",
+   "purpose": "后台员工站内消息（后台铃铛）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "459"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "staff_id",
+     "ref": "staff",
+     "note": "同层"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "草案只有行内写法（d6:459）。"
+  },
+  {
+   "name": "wx_subscribe_quota",
+   "module": "notify",
+   "group": "13-notify-docs",
+   "layer": "L1",
+   "purpose": "订阅消息额度估计值（每个微信身份 × 槽位一行）；不是证据表，随微信身份级联删除",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "461-471"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(wechat_identity_id, slot_key)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "wechat_identity_id",
+     "ref": "wechat_identity",
+     "note": "同层；ON DELETE CASCADE（d6:465）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": ""
+  },
+  {
+   "name": "manual_reminder_log",
+   "module": "notify",
+   "group": "13-notify-docs",
+   "layer": "L1",
+   "purpose": "人工催办限频闸：发催办通知之前先插一行，同一对象同一场景每日 1 次，靠唯一约束实现",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1827-1833"
+    }
+   ],
+   "renamed_from": [
+    "reminder_log"
+   ],
+   "merged_from": [],
+   "pk": "uuid+seq",
+   "tenant": "none",
+   "append_only": true,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "subject_id",
+     "ref": "各履约对象",
+     "note": "只存 id，不建外键。按 subject_type 多态（d3:1828）；取值用最终表名（M19）"
+    },
+    {
+     "column": "sent_by_staff_id",
+     "ref": "staff",
+     "note": "同层；d3:1829 的 sent_by 按操作人列约定改名"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "M2：由 publish（L3）下沉到 notify（L1）——它是发催办通知前的限频闸，各履约模块向下调用。人工催办的每日限频靠 UNIQUE (subject_type, subject_id, scene, biz_date)（d3:1827-1830）。改名：自动提醒由 notify 规则派生并用 notification 去重（R6），本表只管人工催办。"
+  },
+  {
+   "name": "agreement",
+   "module": "docs",
+   "group": "13-notify-docs",
+   "layer": "L1",
+   "purpose": "协议清单（V1.0 由迁移播种 6 份，后台不可增删）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "1028（清单见 1014-1022）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(key)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "V1.0 只播种 6 份（M9；03:570）。d6:1028 的第 7 份（服务商合作协议，d6:2438 写“受开关控制、V1.0 不可见”）不在 V1.0 播种，留到 V1.1 的迁移。"
+  },
+  {
+   "name": "agreement_version",
+   "module": "docs",
+   "group": "13-notify-docs",
+   "layer": "L1",
+   "purpose": "协议版本（Word + PDF 双文件、展示版 HTML、内容哈希、到点生效）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "1030-1052"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "source_file_id / pdf_file_id",
+     "ref": "file_object",
+     "note": "同层"
+    },
+    {
+     "column": "notice_id",
+     "ref": "site_notice",
+     "note": "L1 → L0"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "status 翻转只是簿记，当前版本按 effective_at 实时解析（d6:1086-1090），不写状态历史。"
+  },
+  {
+   "name": "agreement_consent",
+   "module": "docs",
+   "group": "13-notify-docs",
+   "layer": "L1",
+   "purpose": "协议同意记录（证据）：每次交易 / 登录 / 加入落一条，记版本、内容哈希、场景、单据、身份与设备快照",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "1098-1120"
+    },
+    {
+     "draft": "d4",
+     "lines": "219-228（两套同意 258、1882）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [
+    "user_consent"
+   ],
+   "pk": "uuid+seq",
+   "tenant": "store",
+   "append_only": true,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "user_id",
+     "ref": "merchant_user",
+     "note": "同层；注销只改状态不删行（d6:1105）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "R13：同意记录只此一张，由 docs 的 assertConsents 统一写入（d6:1127）。d4 的 user_consent 并入，登录与加入流程改调同一接口（M29：identity → docs、tenant → docs 进同层白名单）。M29：assertConsents 只返回是否已齐与指纹，merchant_user.consent_stamp 由 identity 自己写。biz_type / biz_id 多态指向付款单、订购单、广告，不建外键；biz_type 取值用最终表名 billing_order / drama_order / ad（M19）。保存微信身份快照（openid 的 HMAC）与设备信息（03:570）。补防改触发器（d6:1098 只写了权限）。手机号与信用代码按敏感字段规则。对外的“同意记录编号”用 seq 或业务单号，字段级阶段定。entity_id、store_id 可空。 d9：建档第 4 步的“信息确认”现记在 qualification_submission（declaration_confirmed_at、declaration_version），不进本表，等法务结论；若认定它属于同意记录，那两列删除、轮次行改存同意记录的 id，由路由层的用例函数先调 docs 记录同意、再调 profile，不增补 profile → docs 的白名单（d9:210、794、821）。"
+  },
+  {
+   "name": "license_letter",
+   "module": "docs",
+   "group": "13-notify-docs",
+   "layer": "L1",
+   "purpose": "《定制内容授权书》信件：订单项 × 平台账号一份，保存法律要素现状（状态、起止日）与验真码",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "1197-1214"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "store",
+   "append_only": false,
+   "state_machine": true,
+   "lock_rank": 240,
+   "cross_module_fks": [
+    {
+     "column": "drama_order_id",
+     "ref": "drama_order",
+     "note": "只存 id，不建外键。docs 在 L1，不引用 L3。M17：由 order_id（d6:1203）改名"
+    },
+    {
+     "column": "order_item_id",
+     "ref": "order_item",
+     "note": "只存 id，不建外键。同上"
+    },
+    {
+     "column": "channel_account_id",
+     "ref": "channel_account",
+     "note": "只存 id，不建外键。同上"
+    },
+    {
+     "column": "drama_id",
+     "ref": "drama",
+     "note": "同层"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "粒度“订单项 × 发布账号”（03:574）。订购与账号的事实经上层注册的端口取（d6:1263-1270），一致性由对账扫描兜底（d3:3220 ①）。许可号取订单项快照（d8:188）。 d9：主体名称或门店名称经变更重审生效后，已生成的授权书是否换版待 D6 与法务定，现不联动（d9:612、805 ④、819）。"
+  },
+  {
+   "name": "license_letter_revision",
+   "module": "docs",
+   "group": "13-notify-docs",
+   "layer": "L1",
+   "purpose": "授权书的每一版 PDF（快照、内容指纹、渲染状态、签署信息、文件）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "1216-1252"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "file_id",
+     "ref": "file_object",
+     "note": "同层"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "快照与版次不可变，render_status 与文件、签署信息会回写，不算严格只增表。M26：同时支持图片章与电子签两种签署方式，列名 sign_method（d6:1232 写作 sign_mode，取值 platform_cert / esign_seal / stamp）；平台签署时间必有、商家签署时间可空（d6:1233 只有一个 signed_at，拆为两列）。是否强制双方电子签待法务，不影响表结构。"
+  },
+  {
+   "name": "dict_type",
+   "module": "config",
+   "group": "14-config-data",
+   "layer": "L0",
+   "purpose": "数据字典类型（结构、编码规则、是否可新增、停用策略、对小程序是否可见、版本号）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "1471（类型清单见 1456-1467）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(type_key)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "草案只有行内写法（d6:1471）。 d9：需 D6 增加两个字典类型——门店核心卖点标签（暂名 store_selling_point，可按品类过滤）、行业许可证类型（暂名 permit_type，industry 的扩展属性 requiredCerts 引用它，带识别字段清单与许可证编号的格式规则）；reject_reason 的 store_review 场景播种“其他”（d9:805 ①⑥⑦）。profile 的表存这些字典的 code：industry、region（含 functionalZone 的功能区，存 store_profile.zone_code）、卖点标签、许可证类型（d9:115-118、127、243）。行业、区划的引用计数由 profile 向 config 注册，供字典停用校验（d9:741）。"
+  },
+  {
+   "name": "dict_item",
+   "module": "config",
+   "group": "14-config-data",
+   "layer": "L0",
+   "purpose": "数据字典项（列表 / 树 + 扩展属性）；业务表存不可变的 code，不建外键",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "1473-1488"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "业务表存不可变的 code，不建外键（d6:1505）。"
+  },
+  {
+   "name": "param_value",
+   "module": "config",
+   "group": "14-config-data",
+   "layer": "L0",
+   "purpose": "参数值（定义在代码里，值按生效时间追加；一行 = 某个键从某时刻起的值）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "1560-1570"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid+seq",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "参数定义在代码里，值按生效时间追加；seq 即参数修订号（d6:1564 用 id 充当）。M14：append_only = false，与 billing_param 同类——触发器只放行生效前写一次 cancelled_at（d6:1568），其余列不可改。d2 文中的 sys_config.*（d1:309；d6:1552）存取走本表。计费规则参数不在本表（d6:1541）。M24：付款单超时、对公转账有效期、升级报价有效期三个时限键放本表：billing.payment.order_timeout_minutes、billing.payment.transfer_valid_days、billing.upgrade_quote_valid_hours（默认 48）；购买入口策略与支付限额等受控配置只在 finance_config_revision，不映射到本表（d6:170、1552 把 billing.purchase_policy 落到参数服务的写法作废）。逐键归属见 decisions.md 第 7 节。 d9：资质审核时限取 sla.review.qualification，可调范围 1～5 个工作日（d9:569）；需 D6 增加证照到期提醒的参数（暂名 remind.cert_expiry.days，默认 30，d9:805 ②）。"
+  },
+  {
+   "name": "site_config_revision",
+   "module": "config",
+   "group": "14-config-data",
+   "layer": "L0",
+   "purpose": "站点配置修订（商城配置、首页推荐位的整份 JSON；草稿 → 发布 → 归档）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "1611-1622"
+    }
+   ],
+   "renamed_from": [
+    "config_revision"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "改名：与 billing 的 finance_config_revision 区分。JSON 里引用的短剧 id 不建外键，发布前经 CatalogRefPort 校验在架（d8:582）。status（草稿 / 发布 / 归档）不写状态历史。"
+  },
+  {
+   "name": "home_banner",
+   "module": "config",
+   "group": "14-config-data",
+   "layer": "L0",
+   "purpose": "首页 Banner（各有时间窗，保存即生效；状态按时间派生）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "1660-1662"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "image_file_id",
+     "ref": "file_object",
+     "note": "只存 id，不建外键。config 在 L0，不引用 L1；经 file_ref 登记"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "草案只有行内写法（d6:1660-1662）。"
+  },
+  {
+   "name": "site_notice",
+   "module": "config",
+   "group": "14-config-data",
+   "layer": "L0",
+   "purpose": "规则变更公告记录（价目修订 / 计费参数 / 协议版本变更保存时同事务建立；驱动站内消息与首页公告条）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "1692-1708"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "ref_id",
+     "ref": "plan_revision | billing_param | agreement_version",
+     "note": "只存 id，不建外键。按 kind 多态；反向由这三张表持有 announcement_id / notice_id 外键"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "规则变更公告记录（03:587）。"
+  },
+  {
+   "name": "feature_flag",
+   "module": "config",
+   "group": "14-config-data",
+   "layer": "L0",
+   "purpose": "特性开关（键 → 有序规则 → 值；版本隐藏、内容形态、通道急停与版本下限）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "1737-1746"
+    }
+   ],
+   "renamed_from": [
+    "feature_flags"
+   ],
+   "merged_from": [],
+   "pk": "composite(key)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "weapp.video.trailer.enabled 的 V1.0 默认值为关（04:195；d5:1489、d7:512 写的是开，需改）。"
+  },
+  {
+   "name": "checklist_template",
+   "module": "config",
+   "group": "14-config-data",
+   "layer": "L0",
+   "purpose": "可配置、带版本的清单模板（质检、交付前检查、链接核验、巡检、下架核查、账号核验共用）",
+   "sources": [
+    {
+     "draft": "d3",
+     "lines": "1467-1477（规则 1494-1513）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "由 d3 的“交付”改归 config（L0）：质检、交付前检查、链接核验、巡检、下架核查、账号核验共用（d3:1467-1477），其中账号核验与链接核验经 approval（L1）引用，留在 delivery（L3）会造成下层引用上层。按 (code, version) 逻辑引用，不建外键。"
+  },
+  {
+   "name": "analytics_event",
+   "module": "analytics",
+   "group": "14-config-data",
+   "layer": "L4",
+   "purpose": "埋点事件（端上上报 / 出站派生 / 用例直记三种来源），按 occurred_at 月度 RANGE 分区",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "1926-1967"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(occurred_at, id)",
+   "tenant": "store",
+   "append_only": true,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "按 occurred_at 月度分区，分区表主键须含分区键；id 为 uuid（d6:1930-1931 原为 bigint identity），不另设 seq。actor_kind 改用统一的四类操作人并补 client（d6:1935）。埋点契约里业务 ID 的数字串校验要改（d6:1894、1914）。用例事务内直记的写入函数在 kernel/track（d6:126、138）：L0 不直接写 L4 的表，由 kernel 定义端口、analytics 注册实现。归属列可空、不建外键。M30：告警（alert_event）与不变量违规（invariant_violation）用同样的“kernel 定义端口、上层注册实现”。 d9：埋点 profile_submit 需 D6 改由 store.qualification.submitted 派生并只计 kind = initial（现由 approval.submitted 派生，审批事件分不出轮次类型，变更重审会被计成建档提交）；store_add_submit 只在 kind = new_store 且 round_no = 1 的提交事务里直记，属性取 store_profile 的 copied_from_store_id、copy_options（d9:396、488、805 ⑤）。"
+  },
+  {
+   "name": "analytics_event_dedup",
+   "module": "analytics",
+   "group": "14-config-data",
+   "layer": "L4",
+   "purpose": "埋点事件去重表（event_id 唯一；每日清理 8 天前的行）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "1948"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(event_id)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "每日物理清理 8 天前的行（d6:1948）。"
+  },
+  {
+   "name": "analytics_identity",
+   "module": "analytics",
+   "group": "14-config-data",
+   "layer": "L4",
+   "purpose": "匿名标识与用户的关联（登录成功时把本机 anonymous_id 关联到用户，用于“访问 → 登录”漏斗拼接）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "1950"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(anonymous_id)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "草案只有行内写法（d6:1950）。"
+  },
+  {
+   "name": "report_month_close",
+   "module": "reports",
+   "group": "14-config-data",
+   "layer": "L4",
+   "purpose": "经营概览等跨域报表的月度快照（拷贝 D1 月结结果 + 本模块算的收款、退款、订购部数、分布）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "2086-2100"
+    }
+   ],
+   "renamed_from": [
+    "report_month_closing"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "billing_close_ref",
+     "ref": "billing_month_close（上线时不建，M10）",
+     "note": "只存 id，不建外键。L4 → L2；d6:2099 为 varchar 标识。被引用的月结表上线时不建（M10），首个月结前随它一并补齐并核对本列"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "改名：与 billing_month_close 用同一个词。billing_month_close 上线时不建（M10：首个月结前补，结构待月结制度确定），本表随首批迁移建表、首个月结前无数据，billing_close_ref 可空。status 不写状态历史。"
+  },
+  {
+   "name": "export_job",
+   "module": "exports",
+   "group": "14-config-data",
+   "layer": "L4",
+   "purpose": "异步导出任务（申请、认领与租约、文件、过期、下载计数）",
+   "sources": [
+    {
+     "draft": "d6",
+     "lines": "2141-2162"
+    }
+   ],
+   "renamed_from": [
+    "export_jobs"
+   ],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "requested_by_staff_id",
+     "ref": "staff",
+     "note": ""
+    },
+    {
+     "column": "file_id",
+     "ref": "file_object",
+     "note": ""
+    }
+   ],
+   "version": "V1.0",
+   "notes": "R10：按发起人在执行时刻的权限与数据范围重查；scope_at_request 只作审计（d6:2151、2181）。单号前缀 DC（d6:2145）。status 为技术状态。文件保留期 03:591 写 24 小时，d6:2158 写脱敏 7 天、明文 24 小时，是参数，不影响表。"
+  },
+  {
+   "name": "webhook_event",
+   "module": "security",
+   "group": "15-integration-ops",
+   "layer": "L0",
+   "purpose": "外部回调收件箱 / 去重表（全系统一张；inline 与 inbox 两种处理模式）",
+   "sources": [
+    {
+     "draft": "d4",
+     "lines": "1844-1856（框架 1789-1842；Provider 配置 1858-1864）"
+    },
+    {
+     "draft": "d2",
+     "lines": "402-407（写入 572-583）"
+    }
+   ],
+   "renamed_from": [
+    "inbound_events"
+   ],
+   "merged_from": [
+    "d2:webhook_event"
+   ],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "全系统一张回调收件箱，归 security（01:167；d4:145、161）。M23：表结构骨架取 d4:1848-1856（provider、event_id、event_type、mode、received_at、payload、payload_digest、process_state（含 dead）、attempts、next_attempt_at、processed_at、error、payload_purge_at），主键按 R1 改 uuid；微信支付这一 Provider 的载荷按 03:59 与 d2:404-407 执行：只存 APIv3 密文三元组（resource_cipher）、key_version 与不含 openid 的摘要（summary），另留 serial；密文 180 天后清空（d2:407），摘要保留不少于 3 年。d4:1860“微信支付 payload = full（存解密后的资源）”的写法作废。两稿各自保留的列见 decisions.md 第 9 节。process_state 为技术状态。"
+  },
+  {
+   "name": "worker_lease",
+   "module": "ops",
+   "group": "15-integration-ops",
+   "layer": "L4",
+   "purpose": "worker 单活的数据库租约（固定一行 primary）：谁持有租约谁干活；/health 与探针读它判断 worker 存活与探针新鲜度",
+   "sources": [
+    {
+     "draft": "d7",
+     "lines": "1528-1537（字段表）；1539-1561（续约、看门狗、让出）；1947、2021（探针写 probe_at、失联告警）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "composite(name)",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "固定一行 primary。d2:1631 的“worker 心跳表”即本表。"
+  },
+  {
+   "name": "alert_event",
+   "module": "ops",
+   "group": "15-integration-ops",
+   "layer": "L4",
+   "purpose": "告警事件的去重与跟踪：探针规则越限与 ops.alerts.raise() 的事件型告警共用，记录次数、通知、认领与恢复",
+   "sources": [
+    {
+     "draft": "d7",
+     "lines": "1973-1989（字段表与约束）；1991-1999（状态机）；1935-1948（探针写入逻辑）；2003（后台系统健康页）"
+    }
+   ],
+   "renamed_from": [],
+   "merged_from": [],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "acked_by_staff_id",
+     "ref": "staff",
+     "note": "草案未写是否外键（d7:1987）"
+    }
+   ],
+   "version": "V1.0",
+   "notes": "status 为技术状态。M30：kernel 定义告警端口，ops 注册实现；下层不直接写本表（d6:827-828、d7:1422 里各模块直接调 ops.alerts.raise() 的写法改经端口）。与 analytics_event、invariant_violation 同一做法。"
+  },
+  {
+   "name": "invariant_run",
+   "module": "ops",
+   "group": "15-integration-ops",
+   "layer": "L4",
+   "purpose": "不变量校验的一次运行记录（quick / full；定时、发布后、演练、手工触发）",
+   "sources": [
+    {
+     "draft": "d7",
+     "lines": "2071（行内定义）；2055-2069（框架）；2349（合并各草案同构表的建议）"
+    },
+    {
+     "draft": "d1",
+     "lines": "605（用途 1539）"
+    }
+   ],
+   "renamed_from": [
+    "ops_invariant_run"
+   ],
+   "merged_from": [
+    "billing_invariant_run"
+   ],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [],
+   "version": "V1.0",
+   "notes": "不变量校验的运行记录，全仓一套（d7:2349）。草案只有行内写法（d7:2071）。"
+  },
+  {
+   "name": "invariant_violation",
+   "module": "ops",
+   "group": "15-integration-ops",
+   "layer": "L4",
+   "purpose": "不变量违规明细：同一违规持续存在时只更新 last_seen_at；后台“系统健康”页查看并填写处理结论",
+   "sources": [
+    {
+     "draft": "d7",
+     "lines": "2073-2085（字段表与索引）；2087-2089；2020（告警规则 10）；2349"
+    },
+    {
+     "draft": "d3",
+     "lines": "3237-3241（写入点 1022、3219-3221、3271）"
+    },
+    {
+     "draft": "d1",
+     "lines": "605（用途 1539；处理接口 1714）"
+    }
+   ],
+   "renamed_from": [
+    "ops_invariant_violation"
+   ],
+   "merged_from": [
+    "d3:invariant_violation",
+    "billing_invariant_violation"
+   ],
+   "pk": "uuid",
+   "tenant": "none",
+   "append_only": false,
+   "state_machine": false,
+   "lock_rank": null,
+   "cross_module_fks": [
+    {
+     "column": "subject_id",
+     "ref": "各领域表",
+     "note": "只存 id，不建外键。按 subject_type 多态"
+    },
+    {
+     "column": "resolved_by_staff_id",
+     "ref": "staff",
+     "note": ""
+    }
+   ],
+   "version": "V1.0",
+   "notes": "表名用主文档的 invariant_violation（03:240），字段以 d7:2073-2085 为准（最完整），d3:3237-3241 与 d1:605 的同构表并入。归 ops（L4）：各模块只登记检查项、返回违规，由 ops 调度并落库（d7:2055-2069）；d3 的补偿扫描（如 STUCK_TICKET，d3:3219）同样以检查项返回，不由 L0 直接写本表。后台“流程运维”（d3:3275-3283）与“系统健康”（d7:2089）两页读同一张表。 d9：profile 登记十条每日不变量 I1–I10（d9:755-766），由周期任务 profile.invariants 返回违规、ops 调度并落本表（d9:726）。"
+  }
+ ],
+ "enums_shared": [
+  {
+   "name": "actor_type",
+   "values": [
+    "merchant",
+    "staff",
+    "system",
+    "partner"
+   ],
+   "note": "操作人类型（R15）。取值同 d3:2563；d1 的 merchant_user / partner_user（d1:368）、d4 的 portal（d4:158、1528）、d5 的 user（d5:466、832）、d6 的 actor_kind（d6:1935）都改用这一组。partner 在 V1.0 只声明不写入。"
+  },
+  {
+   "name": "client",
+   "values": [
+    "weapp",
+    "portal",
+    "admin"
+   ],
+   "note": "客户端来源（R15 的“另记客户端来源”）。取值取自 d5:834 的 delivery_download_log.client；系统动作为空。d2:204 的 source（miniapp / admin）与之对齐。"
+  },
+  {
+   "name": "channel_platform",
+   "values": [
+    "douyin",
+    "wechat_channels"
+   ],
+   "note": "渠道平台（d3:359、2013；d8:198）。drama_permit.platform 另有 all（d8:170）。成片变体：episode_output.variant 按 M28 可空、默认空；delivery_release、upload_batch 的 variant 另有 common（d5:785、574）。"
+  },
+  {
+   "name": "merchant_role",
+   "values": [
+    "owner",
+    "clerk"
+   ],
+   "note": "商家角色快照（d4:158；d6:1108）。V1.1 增加管理员。"
+  },
+  {
+   "name": "source_type",
+   "values": [
+    "organic",
+    "sales",
+    "campaign",
+    "partner"
+   ],
+   "note": "注册来源类型，merchant_user、entity 的归因快照与 referral_code 共用（d4:187、550；M6）。organic 表示没有带码；referral_code 的来源类型为 sales / campaign，partner 在 V1.1 启用、V1.0 只声明。d4:187 原列的是 organic / sales / partner，campaign 为 M6 所加。"
+  },
+  {
+   "name": "placement_slot",
+   "values": [
+    "opening",
+    "ending",
+    "corner",
+    "mid_roll"
+   ],
+   "note": "植入形式 / 广告位（d8:121；d3:1101）。V1.0 只接受 opening、ending，后两个为 V1.1 预留。"
+  },
+  {
+   "name": "heat_tier",
+   "values": [
+    "S",
+    "A",
+    "B",
+    "C"
+   ],
+   "note": "热度等级，content 维护、billing 的模板价按它取值（d8:118；d1:243-252）。"
+  },
+  {
+   "name": "return_reason_class",
+   "values": [
+    "merchant",
+    "platform",
+    "qualification"
+   ],
+   "note": "退回原因类别，order 与 billing 共用（d3:130、159-166）。"
+  },
+  {
+   "name": "point_lot_kind",
+   "values": [
+    "plan",
+    "addon"
+   ],
+   "note": "积分类型：套餐积分、加购积分（d1:391-417；d3:138）。"
+  },
+  {
+   "name": "point_hold_purpose",
+   "values": [
+    "order_item",
+    "ad",
+    "ad_revision"
+   ],
+   "note": "冻结用途，也是账本幂等键的一段（d1:425-426；d3:123、3186）。M19：取值用最终表名，d1 的 drama_order_item / ad_task 改为 order_item / ad；尚无存量数据，不保留旧值。"
+  },
+  {
+   "name": "pay_channel",
+   "values": [
+    "wechat_jsapi",
+    "bank_transfer"
+   ],
+   "note": "收款渠道（d2:203）；V1.0 不为虚拟支付预留取值（03:90）。退款渠道另有 offline（d2:322）。"
+  },
+  {
+   "name": "approval_status",
+   "values": [
+    "pending",
+    "approved",
+    "rejected",
+    "withdrawn"
+   ],
+   "note": "审批单状态（R3；d4:1465）。执行状态在各领域表。"
+  },
+  {
+   "name": "approval_kind",
+   "values": [
+    "qualification",
+    "channel_account",
+    "launch_link",
+    "order_cancel",
+    "ad_cancel",
+    "qualification_cancel",
+    "plan_refund",
+    "points_adjust",
+    "subscription_extend",
+    "finance_config_change",
+    "account_change",
+    "transfer_confirm"
+   ],
+   "note": "前九个取自 d3:2351-2362（去掉不进审批单的 store_asset、invoice、bank_receipt，已确认，M22）；finance_config_change、account_change 对应 d2:396 的 finance.config_change 与 d4:1458-1475 的账号类变更，写法为本清单统一。transfer_confirm 是对公大额二人复核（M25；d2:212、279），默认不启用（由受控配置开关）。d1 的 points.adjust / plan.extend（d1:568）、d2 的 refund（d2:289）、d4 的 term_extension（d4:1436）改用这一组。有执行步的四个：order_cancel、ad_cancel、qualification_cancel、plan_refund（d3:2357-2360；M12）。文件彻底删除（d5:402）启用时再登记。"
+  },
+  {
+   "name": "qualification_status",
+   "values": [
+    "unsubmitted",
+    "pending",
+    "verified",
+    "rejected"
+   ],
+   "note": "资质结论，tenant 的 entity / store 与 profile 共用（d4:544；prd-tech.md:230）。store.qualification_status 的列定义与四个取值的含义见 d9:289、419-424；entity.verification_status 用同一组，d9 把它的语义改为“initial 轮次的结论”（d9:295、436，待 D4、D2 确认）。"
+  },
+  {
+   "name": "entity_type",
+   "values": [
+    "enterprise",
+    "individual"
+   ],
+   "note": "主体类型：企业、个体工商户。tenant 的 entity.entity_type（d4:546）与 profile 的 qualification_submission.claimed_entity_type 共用（d9:203）。证照上识别出的主体类型 qualification_doc.subject_type 另有 branch、unknown，不属于这一组（d9:256）。"
+  }
+ ]
+}
