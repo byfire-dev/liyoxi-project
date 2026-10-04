@@ -192,7 +192,7 @@
 | `pnpm db:catalog-diff` | 系统目录比对：由底稿建的参照库 `lyx_schema_check` 与迁移库 `lyx_migrate_check` 的表、列、约束定义、索引定义、触发器、函数体逐项 0 差异，数量两组口径对得上；出报告。两个库怎么建、参数与口径见 [README](packages/db/README.md) 第 6 节。它的用例（`infra/ci/test/db-*.test.ts`）与 `gates:selftest` 里它的反例也要连本地的 PostgreSQL，各建各的临时库，用完删掉 |
 | `pnpm db:verify-managed` | 托管库验证：对 `DATABASE_URL` 指的、`lyx_` 开头的空库报告两个扩展可建、迁移跑通、计数表；不打印连接串。业主在托管库到位时跑；本地演练的做法见 [README](packages/db/README.md) 第 7 节 |
 | `pnpm admin:build`、`pnpm portal:build` | 后台、下载页的生产构建（产物在各自的 `dist/app`），随后查产物：文件名带内容哈希、写入了构建号、不含夹具。见 [README](apps/admin/README.md) |
-| `pnpm admin:e2e` | 后台 Playwright 冒烟：先出一份带样例页的构建，起它的预览，走一条用例，出四张截图（`apps/admin/dist/e2e-shots`）。浏览器怎么备见 [README](apps/admin/README.md) |
+| `pnpm admin:e2e` | 后台 Playwright 冒烟：先出一份带样例页的构建，起它的预览，走一条用例，出外壳与三种骨架的截图（`apps/admin/dist/e2e-shots`）。浏览器怎么备见 [README](apps/admin/README.md) |
 | `pnpm --filter @liyoxi/admin test`、`pnpm --filter @liyoxi/portal test` | 后台、下载页的单测。根上的 `pnpm test` 不含这两个应用：它们的单测与构建共用各自的 `vite.config.ts` |
 | `node infra/ci/pages/generate.mjs`（加 `--check` 只比对） | 由后台菜单登记表与下载页页面清单重新生成 `docs/plan/pages.md`。用法见 [脚本](infra/ci/pages/generate.mjs) 开头的注释 |
 
