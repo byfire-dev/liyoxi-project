@@ -170,6 +170,8 @@
 | `pnpm test` | Vitest。项目：`packages/*`、`apps/api`、`apps/worker`、`infra` |
 | `pnpm --filter @liyoxi/shared test` | 只跑 `packages/shared` 的用例：PRD 2.9 七例、锚定日、工作日、金额格式化，性质测试（固定种子、每个性质 200 轮），导出自测与静态扫描，另在两个进程时区下重跑一遍。种子与轮次的改法见 [vitest.config.ts](packages/shared/vitest.config.ts) 开头的注释 |
 | `pnpm depcheck` | 依赖方向与分层检查：先核对分层登记（`node infra/ci/check-layers.mjs`，可单独跑），再对全仓跑 dependency-cruiser。规则见 [.dependency-cruiser.cjs](.dependency-cruiser.cjs) 开头的注释；模块的层与同层白名单在 [layers.json](infra/ci/layers.json)；反例夹具见 [README](infra/ci/fixtures/layers/README.md) |
+| `pnpm contract:generate` | 由 `packages/contract/src` 重新生成三份 OpenAPI 与类型，写进 `packages/contract/generated/`。改了契约源码先跑它再提交。用法见 [脚本](packages/contract/scripts/generate.ts) 开头的注释 |
+| `pnpm contract:check` | 契约生成物与源码无差异：重新生成后 `git diff --exit-code`，不一致即非 0 退出 |
 | `pnpm check:rename` | 换名检查：出现参考工程的旧名或旧的小程序目录即失败。口径见 [脚本](infra/ci/check-rename.mjs) 开头的注释 |
 | `node infra/ci/check-release-age.mjs`（加 `--since <git 引用>` 只查新增的版本） | 锁文件里每个版本都发布满 7 天。用法见 [脚本](infra/ci/check-release-age.mjs) 开头的注释 |
 
@@ -178,7 +180,6 @@
 | 命令 | 由谁提供 | 做什么 |
 | --- | --- | --- |
 | `pnpm gates:selftest` | W0-03 | 对变异夹具逐个跑检查并断言失败 |
-| `contract:check` | W0-08 | 契约生成物与源码无差异 |
 | `contract:docs-check` | W0-10 | 路由元数据与 routemap.json 逐字段对账 |
 | `pnpm demo:m0` | W0-30 | 一条命令重放 M0 样例用例 |
 | `pnpm demo:mN` | 各里程碑的合流包 | 重放该里程碑演示 |
