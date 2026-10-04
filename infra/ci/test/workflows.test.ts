@@ -352,6 +352,7 @@ describe("ci.yml", () => {
       "pnpm typecheck",
       "pnpm depcheck",
       "pnpm test",
+      "pnpm contract:check",
       "pnpm -r --if-present build",
       "node infra/ci/check-env-example.mjs",
       "node infra/ci/secret-scan.mjs",

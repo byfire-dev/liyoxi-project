@@ -84,6 +84,10 @@ jobs:
         run: pnpm depcheck
       - name: 测试
         run: pnpm test
+      # 契约生成物与源码无差异（W0-08）：重新生成后 git diff --exit-code。排在“测试”之后：
+      # 契约自测要拿提交的生成物与现生成的逐字节比对，得赶在这一步把文件重新写出来之前跑
+      - name: contract:check
+        run: pnpm contract:check
       - name: 构建
         run: pnpm -r --if-present build
       - name: .env.example 核对
