@@ -84,6 +84,14 @@ jobs:
         run: pnpm typecheck
       - name: 依赖方向与五层
         run: pnpm depcheck
+      # 本地存储驱动的用例要连 MinIO（W0-19）。镜像、端口、账号都取 infra/compose/local.yml，只起 minio 一个服务
+      - name: 起 MinIO
+        run: docker compose -f infra/compose/local.yml up -d --wait minio
+      # 带 LYX_TEST_MINIO=required：MinIO 连不上即失败。后面“测试”一步里它连不上只会跳过
+      - name: MinIO 驱动的用例
+        env:
+          LYX_TEST_MINIO: required
+        run: pnpm exec vitest run packages/services/src/providers/storage/minio.test.ts
       - name: 测试
         run: pnpm test
       # 契约生成物与源码无差异（W0-08）：重新生成后 git diff --exit-code。排在“测试”之后：

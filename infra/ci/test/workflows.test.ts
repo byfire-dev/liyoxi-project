@@ -353,6 +353,8 @@ describe("ci.yml", () => {
       "pnpm lint:colors",
       "pnpm typecheck",
       "pnpm depcheck",
+      "docker compose -f infra/compose/local.yml up -d --wait minio",
+      "pnpm exec vitest run packages/services/src/providers/storage/minio.test.ts",
       "pnpm test",
       "pnpm contract:check",
       // W0-26：设计生成物无差异（它的下一步上传预览页，没有 run）

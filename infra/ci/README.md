@@ -32,6 +32,7 @@
 
 - PR 上按分支分组：同一个分支的新提交会取消在途的运行。推到 main 时一个提交一组：不取消，也不会因为排队被后一次合并顶掉，每次合并都跑完。
 - 执行机只写在 `ci.yml` 的一处（`verify` 的 `runs-on` 带锚点 `&runner`），`nightly.yml` 另有一处。改成自托管执行机时改这两处；自托管机器上要有 Docker 与 `gh`。
+- MinIO 不是服务容器（W0-19 加）：`verify` 在“测试”之前有两步，先用 compose 文件只起 `minio` 一个服务（镜像、端口、账号只写在 `infra/compose/local.yml` 一处），再带 `LYX_TEST_MINIO=required` 跑本地存储驱动的用例，MinIO 连不上即失败。不带这个变量时（“测试”一步、每晚任务、本机没起依赖）那份用例里要连 MinIO 的几组只跳过。每晚任务不起 MinIO。
 - 格式那一步跑的是 `pnpm format:check --ignore-path .prettierignore`：忽略项只认 `.prettierignore`（门禁文件）。Prettier 缺省把 `.gitignore` 也当忽略文件读，往 `.gitignore` 加一行就能让已入库的文件不查格式，而 `.gitignore` 不是门禁文件。本地直接跑 `pnpm format:check` 仍会读 `.gitignore`（本机的 `.vscode/` 之类不用查）；两者只在“已入库又被 `.gitignore` 盖住”的文件上有差别，以 CI 为准。
 - `contract:check`（W0-08）排在“测试”之后，两步都在必过里，缺一不可。`contract:check` 先重新生成、再 `git diff --exit-code`：`git diff` 看不到未跟踪的文件，新增一种生成物却忘了 `git add` 时它不会红；这由契约自测里问 git 索引的那一条拦，所以 `pnpm test` 要在 git 检出里跑。契约自测另有一条拿提交的生成物与现生成的逐字节比对，要赶在 `contract:check` 把文件重新写出来之前跑。
 - 工作流的写法有约束，`test/workflows.test.ts` 按行读、认不出就失败：顶格的键与任务下面四格缩进的键不带引号；`jobs:` 逐字一行；任务编号写成两格缩进的 `<编号>:`，冒号后面不带注释；每个任务恰好一行 `name: <编号>`，检查名与任务编号相同。必过检查名 `required` 在全部工作流里只有一个。哪个工作流都不给令牌 `checks`、`statuses` 的写权限（有了它能经接口造出任意名字的检查）。

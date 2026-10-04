@@ -8,6 +8,10 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./testing": {
+      "types": "./src/testing/index.ts",
+      "default": "./src/testing/index.ts"
     }
   },
   "scripts": {
@@ -16,6 +20,9 @@
     "build": "echo '源码包：exports 直接指向 src，没有构建'"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1141.0",
+    "@aws-sdk/s3-presigned-post": "3.1141.0",
+    "@aws-sdk/s3-request-presigner": "3.1141.0",
     "@liyoxi/contract": "workspace:*",
     "@liyoxi/db": "workspace:*",
     "@liyoxi/shared": "workspace:*",
