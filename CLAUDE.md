@@ -56,7 +56,7 @@
 | 层 | 版本 | 不能装的 |
 | --- | --- | --- |
 | 运行时 | Node 24（≥24.19）；pnpm 10.34.5；TypeScript 5.9.3 | TypeScript 7、pnpm 12 |
-| 服务端 | Hono 4.13 + @hono/zod-openapi 1.6；Zod 4.6；Prisma 7.10.0（三包同版）；PostgreSQL 17；BullMQ 6.3 + Redis 7；@react-pdf/renderer 4.9；write-excel-file 4.1 | Prisma 8 候选版、xlsx |
+| 服务端 | Hono 4.13 + @hono/zod-openapi 1.6；Zod 4.6；Prisma 7.9.1（三包同版）；PostgreSQL 17；BullMQ 6.3 + Redis 7；@react-pdf/renderer 4.9；write-excel-file 4.1 | Prisma 8 候选版、xlsx |
 | 小程序 | Taro 4.2.1（Vite）；React 18.3.1；NutUI React Taro 3.0.20；Zustand 5 | NutUI 的 cpp 变体 |
 | 后台与下载页 | React 19.3；Vite 8.3；Ant Design 6.6；TanStack Router / Query；openapi-fetch；ECharts 6.1 | echarts-for-react |
 | 测试 | Vitest 4.1.11；fast-check 4.10；Playwright 1.63 | Vitest 5 |
