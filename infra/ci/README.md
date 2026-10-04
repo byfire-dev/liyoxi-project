@@ -136,8 +136,8 @@ node infra/ci/classify-gate-changes.mjs --base origin/main --labels gate-change
 
 前提：这个口径不看生成物里写了什么，它与源码一致不一致全靠条目的 `check` 写的那道检查。所以只有“CI 的 `verify` 里确实有一步在跑、重新生成后比对”的目录才配用它。`test/gate-generated.test.ts` 对清单里每个 `generated` 条目逐条核对，有一条不满足 `pnpm test` 就红：
 
-- 写了 `check`，且它逐字是 `ci.yml` 的 `verify` 里单独的一步（一行 `run:`），那一步不带条件；
-- `check` 是“`pnpm <根脚本>`”，根脚本的写法是“`pnpm <重新生成的根脚本> && git diff --exit-code -- <目录>`”（后面可以再接别的步骤，不许接 `||`、`;`）；
+- 写了 `check`，且它逐字是 `ci.yml` 的 `verify` 里单独的一步（一行 `run:`），那一步不带条件（`if`、`continue-on-error` 写在步骤开头的“`- if:`”也算）；
+- `check` 是“`pnpm <根脚本>`”，根脚本的写法是“`pnpm <重新生成的根脚本> && git diff --exit-code -- <目录>`”（后面可以再用 `&&` 接别的步骤，不许出现 `||`、`;`、单个的 `&` 与换行）；
 - 条目的匹配式就是“`<目录>/**`”，与根脚本比对的是同一个目录。
 
 没有这样一道检查的目录不要登记成 `generated`。条目没写 `check` 的，分类把它名下的改动一律按放松算（门禁自测有反例）。
@@ -148,7 +148,9 @@ node infra/ci/classify-gate-changes.mjs --base origin/main --labels gate-change
 - 改生成脚本本身不归这个口径管。`packages/contract/scripts/`、`packages/shared/scripts/`、来源 `design/tokens.json` 与契约源码都不是门禁文件；工作区包 `package.json` 里的 `generate`、`design:generate` 脚本改了也不判（`manifest` 口径只管 `typecheck`、`test`、`lint`）。生成脚本改了输出再重新生成，检查是绿的，分类判只增。把包里的 `generate` 脚本改成空转会被用例拦下（契约自测与 `test/design-generated.test.ts` 不经它、直接调生成脚本来比对），改生成脚本的输出则没有东西拦。清单里出现“重新生成的生成物”时，业主要连同生成脚本与来源的差异一起看。
 - `git diff --exit-code` 看不到未跟踪的文件：新增一种生成物却没入库，要靠别的兜底。契约是契约自测里问 git 索引的那一条（所以 `pnpm test` 与 `contract:check` 缺一不可，第 2 节），设计是 `design:check` 的第三步 `check-untracked.mjs`。新登记一个生成物目录时要带同样的兜底；用例不核对这一点。
 - 删除算放松，而带 `gate-change` 的 PR 只许改门禁文件。重新生成后确实少了一份文件（比如去掉一种文档）的，工作包 PR 与 `gate-change` PR 都装不下“改源码 + 删生成物”。办法是分两个 PR：先用 `gate-change` PR 给条目加一条 `except` 把要删的那个文件划出去，再在工作包 PR 里改源码并删掉它。现有两个目录的文件集合是固定的（契约三份文档各两个文件，设计六个文件），还没遇到过。
-- 内容没变而文件属性有变（加可执行位）、文件类型有变（换成符号链接）判不出，按放松算。
+- 内容没变而文件属性有变（加可执行位）、文件类型有变（换成符号链接）判不出，按放松算。内容有变的同时又改了属性的，只按内容判成只增，属性的变动不报。
+- 生成物目录里多出一份已入库的手写文件，或把包里的生成脚本改成空转之后手改生成物：`pnpm contract:check` 自己是绿的，拦它的是 `pnpm test` 里的契约自测与门禁自测的反例。清单里“与源码一致由 `pnpm contract:check` 把关”这句话，要连同这两道兜底一起理解。
+- 用例核对的是“根脚本长什么样”，不核对“重新生成”那个脚本实际做了什么（把它改成空操作，用例不红）；那由上一条说的兜底与生成脚本自己的用例管。
 
 ## 6. 状态汇总
 

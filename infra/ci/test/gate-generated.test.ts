@@ -77,7 +77,7 @@ function generatedEntryProblems(
     const step = steps.find((lines) => lines.includes(`        run: ${check}`));
     if (step === undefined) {
       problems.push(`${where}：检查命令 ${check} 不是 ci.yml 的 verify 里单独的一步`);
-    } else if (step.some((line) => /^ {8}(?:if|continue-on-error):/.test(line))) {
+    } else if (step.some((line) => /^(?: {6}- | {8})(?:if|continue-on-error):/.test(line))) {
       problems.push(`${where}：verify 里跑 ${check} 的那一步带了条件，不是每次都跑`);
     }
     const dir = entry.pattern.endsWith("/**") ? entry.pattern.slice(0, -3) : "";
@@ -92,7 +92,7 @@ function generatedEntryProblems(
       continue;
     }
     const shape = new RegExp(
-      `^pnpm ([\\w:-]+) && git diff --exit-code -- ${escapeRegExp(dir)}(?: && [^|;]+)?$`,
+      `^pnpm ([\\w:-]+) && git diff --exit-code -- ${escapeRegExp(dir)}(?: && [^|;&\\n]+)*$`,
     );
     const generate = body.match(shape)?.[1];
     if (generate === undefined || generate === name || scripts[generate] === undefined) {
@@ -185,6 +185,22 @@ describe("清单里的 generated 条目：写的检查确实在 CI 里跑", () =
         withCi(CONTRACT_STEP, `${CONTRACT_STEP}        if: github.event_name == 'push'\n`),
         "：verify 里跑 pnpm contract:check 的那一步带了条件，不是每次都跑",
       ],
+      [
+        "那一步带了条件，条件写在步骤开头",
+        withCi(
+          CONTRACT_STEP,
+          "      - if: github.event_name == 'push'\n        name: contract:check\n        run: pnpm contract:check\n",
+        ),
+        "：verify 里跑 pnpm contract:check 的那一步带了条件，不是每次都跑",
+      ],
+      [
+        "那一步失败了也往下走，写在步骤开头",
+        withCi(
+          CONTRACT_STEP,
+          "      - continue-on-error: true\n        name: contract:check\n        run: pnpm contract:check\n",
+        ),
+        "：verify 里跑 pnpm contract:check 的那一步带了条件，不是每次都跑",
+      ],
     ];
 
     it.each(workflows)("工作流里%s：查得出", (_label, workflow, problem) => {
@@ -228,6 +244,14 @@ describe("清单里的 generated 条目：写的检查确实在 CI 里跑", () =
       [
         "后面接了失败也算过的写法",
         `pnpm contract:generate && git diff --exit-code -- ${CONTRACT} || true`,
+      ],
+      [
+        "后面把比对的结果丢掉（接一条放到后台的命令，整条的退出码是 0）",
+        `pnpm contract:generate && git diff --exit-code -- ${CONTRACT} && true & true`,
+      ],
+      [
+        "后面换行再接一条命令",
+        `pnpm contract:generate && git diff --exit-code -- ${CONTRACT}\ntrue`,
       ],
       ["“重新生成”那一步是它自己", `pnpm contract:check && git diff --exit-code -- ${CONTRACT}`],
       [
