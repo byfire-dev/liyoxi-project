@@ -2,17 +2,41 @@
   "name": "@liyoxi/contract",
   "version": "0.1.0",
   "private": true,
-  "description": "接口契约唯一手写源：Zod schema、路由元数据、错误码与各登记表（骨架由 W0-08 接）",
+  "description": "接口契约唯一手写源：Zod schema、路由元数据、错误码与各登记表",
   "type": "module",
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./errors": {
+      "types": "./src/errors/index.ts",
+      "default": "./src/errors/index.ts"
+    },
+    "./types/merchant": {
+      "types": "./generated/merchant.d.ts"
+    },
+    "./types/admin": {
+      "types": "./generated/admin.d.ts"
+    },
+    "./types/portal": {
+      "types": "./generated/portal.d.ts"
     }
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run --passWithNoTests",
-    "build": "echo '源码包：exports 直接指向 src，没有构建'"
+    "test": "vitest run",
+    "build": "echo '源码包：exports 直接指向 src，没有构建'",
+    "generate": "tsx scripts/generate.ts",
+    "check": "pnpm generate && git diff --exit-code -- generated"
+  },
+  "dependencies": {
+    "@hono/zod-openapi": "1.6.3",
+    "hono": "4.13.9",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0",
+    "tsx": "4.23.15"
   }
 }

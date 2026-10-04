@@ -17,6 +17,8 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p infra && tsc --noEmit -p infra/ci/fixtures/base && tsc --noEmit -p infra/ci/fixtures/node-lib && tsc --noEmit -p infra/ci/fixtures/node-app && tsc --noEmit -p infra/ci/fixtures/web-react19 && tsc --noEmit -p infra/ci/fixtures/taro-react18 && pnpm -r --if-present typecheck",
     "test": "vitest run",
+    "contract:generate": "pnpm --filter @liyoxi/contract generate",
+    "contract:check": "pnpm contract:generate && git diff --exit-code -- packages/contract/generated",
     "depcheck": "node infra/ci/check-layers.mjs && depcruise apps packages infra --config .dependency-cruiser.cjs",
     "check:rename": "node infra/ci/check-rename.mjs"
   },
