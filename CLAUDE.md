@@ -168,6 +168,7 @@
 | `pnpm format:check`（`pnpm format` 改写） | Prettier 格式检查。不碰 `docs/`、`design/`、`tools/` 与全部 `*.md` |
 | `pnpm typecheck` | 类型检查：根、`infra`、五份 tsconfig 预设的最小工程（见 [README](infra/ci/fixtures/README.md)）、各工作区包 |
 | `pnpm test` | Vitest。项目：`packages/*`、`apps/api`、`apps/worker`、`infra` |
+| `pnpm depcheck` | 依赖方向与分层检查：先核对分层登记（`node infra/ci/check-layers.mjs`，可单独跑），再对全仓跑 dependency-cruiser。规则见 [.dependency-cruiser.cjs](.dependency-cruiser.cjs) 开头的注释；模块的层与同层白名单在 [layers.json](infra/ci/layers.json)；反例夹具见 [README](infra/ci/fixtures/layers/README.md) |
 | `pnpm check:rename` | 换名检查：出现参考工程的旧名或旧的小程序目录即失败。口径见 [脚本](infra/ci/check-rename.mjs) 开头的注释 |
 | `node infra/ci/check-release-age.mjs`（加 `--since <git 引用>` 只查新增的版本） | 锁文件里每个版本都发布满 7 天。用法见 [脚本](infra/ci/check-release-age.mjs) 开头的注释 |
 

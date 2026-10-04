@@ -122,8 +122,8 @@ liyoxi/
 
 ```mermaid
 flowchart LR
-  shared --> contract --> services
-  shared --> services
+  contract -->|"纯常量子路径"| shared --> services
+  contract --> services
   db --> services
   services --> api
   services --> worker
@@ -137,12 +137,14 @@ flowchart LR
   shared --> portal
 ```
 
+箭头从被依赖的一方指向依赖它的一方。`shared` 与 `contract` 的方向按开发计划 第 4.2 节 Q4 改写（见文末勘误）：`contract` 在最底下，不依赖任何工作区包。
+
 规则（左列是规则，右列是谁来拦）：
 
 | # | 规则 | 强制手段 |
 |---|---|---|
-| D1 | `shared` 不依赖任何工作区包；不 import `node:*`、不 import `react` | dependency-cruiser |
-| D2 | `contract` 只依赖 `shared`；不 import `react`、`@prisma/*` | dependency-cruiser |
+| D1 | `shared` 的工作区依赖只许 `contract`，且只引它的纯常量子路径（经任何路径都到不了 Zod 运行时）；不依赖 `db`、`services` 与应用；不 import `node:*`、不 import `react` | dependency-cruiser |
+| D2 | `contract` 不依赖任何工作区包；不 import `react`、`@prisma/*` | dependency-cruiser |
 | D3 | `db` 只被 `services` import；`api`、`worker`、三个前端的**源码**不得 import `@liyoxi/db`、`@prisma/client`、`pg` | dependency-cruiser + ESLint `no-restricted-imports`（编辑器即时提示） |
 | D4 | `api`、`worker` 只经 `@liyoxi/services` 的公开入口拿业务能力；路由与任务处理器里不得出现 `prisma.` 调用 | dependency-cruiser（禁 import）+ 代码评审 |
 | D5 | 三个前端不得 import `@liyoxi/services`、`@liyoxi/db` | 包清单里不声明（pnpm 严格隔离下 import 即构建失败）+ dependency-cruiser |
@@ -158,8 +160,12 @@ flowchart LR
 
 ```js
 forbidden: [
+  { name: 'contract-is-leaf', from: { path: '^packages/contract/' },
+    to: { path: '^packages/(?!contract/)|^apps/' } },
   { name: 'shared-is-pure', from: { path: '^packages/shared/src' },
-    to: { path: '^(packages/(contract|db|services)|apps)/|^node:|^react' } },
+    to: { path: '^(packages/(db|services)|apps)/|^node:|^react' } },
+  { name: 'shared-no-zod', from: { path: '^packages/shared/' },
+    to: { path: 'node_modules/zod', reachable: true } },
   { name: 'db-only-from-services', from: { pathNot: '^packages/(services|db)/' },
     to: { path: '^packages/db/|@prisma/client|^pg$' } },
   { name: 'fe-no-server', from: { path: '^apps/(weapp|admin|portal)/' },
@@ -170,9 +176,11 @@ forbidden: [
   { name: 'providers-via-types', from: { path: '^packages/services/src/(?!providers|kernel|testing)' },
     to: { path: '^packages/services/src/providers/(?!types)' } },
   { name: 'no-circular', from: {}, to: { circular: true } },
-  // 分层规则见 2.3，由 infra/ci 的生成脚本按层表展开成若干条 forbidden
+  // 分层规则见 2.3，配置加载时读 infra/ci/layers.json，按层表展开成若干条 forbidden
 ]
 ```
+
+片段只示意写法。落地的规则名与正则以仓库根的 `.dependency-cruiser.cjs` 为准：`shared-is-pure` 在那里拆成 `shared-only-contract`、`shared-no-node`、`shared-no-react` 三条；`weapp-no-zod` 与 `shared-no-zod` 一样用可达性；`module-public-api` 除各模块的 `index.ts` 外另放行 `providers/types.ts`（D8 要领域模块引它）；每条规则同时匹配“解析后的路径”与“解析不了时留下的包名”两种写法（包清单没声明的工作区包在 pnpm 隔离下解析不了）。
 
 **包形态**沿用参考工程：工作区包 `exports` 直接指向 `src/*.ts`，开发期零构建；`api`、`worker` 用 tsup 打包并把 `@liyoxi/*` 内联【调研 ref-arch §1.4】。因此 `apps/api/package.json` 仍需声明 `pg`、`bullmq` 等第三方运行时依赖（打包后要能解析到），这不违反 D3——D3 约束的是源码 import。
 
@@ -2546,3 +2554,17 @@ Playwright，约 12 条，覆盖“钱、权限、主流程”：登录与第二
 |---|---|
 | 2.6 | 第 2.6 节的补丁号以 [02](../../02-tech-selection.md) 第 5.5 节为准。W0-01 于 2026-10-04 按“满 7 天”重取，与本文不同的有：Prettier 3.9.9、commitlint 21.2.3、`@types/node` 24.19.0、`tsx` 4.23.15、`bullmq` 6.3.9、`@tanstack/react-query` 5.103.3；`miniprogram-ci` 评估后仍锁 2.1.31（2.1.47 只在 `beta` 标签下） |
 | 2.7 | `trustPolicy: no-downgrade` 另带一条豁免 `semver@6.3.1`，原因登记在 02 第 5.5 节“可信级别豁免” |
+
+**勘误（W0-02，随空包与分层门禁）**
+
+`shared` 与 `contract` 的依赖方向改为以 [01](../../01-architecture.md) 第 4.2 节为准：应用 → services → db / shared → contract。依据：[开发计划](../../08-development-plan.md) 第 4.2 节 Q4 的默认（主文档优先；业主到 W0-02 开工时未另行答复，2026-10-04 记默许）。第 2.2 节的依赖方向图、D1、D2 两行与示意片段已同步改写，其余设计内容未变。落地的规则以仓库根的 `.dependency-cruiser.cjs` 与 `infra/ci/layers.json` 为准。
+
+| 涉及的节 | 原写法 | 现写法 |
+|---|---|---|
+| 2.2 依赖方向图 | `shared --> contract --> services`；`shared --> services` | `contract --> shared --> services`；`contract --> services` |
+| 2.2 D1 | `shared` 不依赖任何工作区包 | `shared` 的工作区依赖只许 `contract`，且只引它的纯常量子路径，经任何路径都到不了 Zod 运行时 |
+| 2.2 D2 | `contract` 只依赖 `shared` | `contract` 不依赖任何工作区包 |
+| 2.2 示意片段 | `shared-is-pure` 的 `to` 里含 `contract` | 去掉 `contract`；加 `contract-is-leaf`、`shared-no-zod` 两条；分层规则改为配置加载时展开，不落生成文件 |
+| 2.2 示意片段 | `module-public-api` 只放行 `index.ts`，与 D8“领域模块只依赖 `providers/types`”相抵；工作区包只按解析后的路径匹配 | 片段没改，加了一句说明。落地时 `providers/types.ts` 也算模块入口；包清单没声明的工作区包解析不了、留下的是包名，规则两种写法都匹配 |
+| 2.2 D3 | `api`、`worker` 的源码不得 import `@liyoxi/db`（01 第 4.2 节另写“只在进程装配时引用客户端工厂”） | 没改：先全禁。W0-07b 定了组合根的位置后，放开一个装配文件走单独的 `gate-change` PR |
+| 2.3 调用规则 1 | 同层白名单“初始内容只有”7 条 | 没改正文。白名单以 [06](../../06-data-model.md) 第 3.6 节为准（在这 7 条上增补，共 18 条），照抄进 `infra/ci/layers.json`；L0、L4 同层可互引、只禁成环，L2 只有一个模块 |
