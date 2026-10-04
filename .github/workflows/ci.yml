@@ -123,7 +123,8 @@ jobs:
         run: node infra/ci/check-release-age.mjs --since "$SINCE" --registry https://registry.npmjs.org/
       - name: gates:selftest
         run: pnpm gates:selftest
-      - name: 状态汇总无差异
+      # 只核对各包的状态文件合不合规（取值、字段、依赖指向）。状态汇总不入库，这里不生成也不比对
+      - name: 状态文件核对
         run: node infra/ci/status-summary.mjs --check
 
   gate-classify:

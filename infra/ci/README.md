@@ -16,7 +16,7 @@
 | `secret-scan.mjs` | 密钥扫描：gitleaks 官方镜像的固定标签，扫 HEAD 能到的全部提交，合并提交按它相对第一个父提交的差异扫（别的分支上的提交由它自己的 PR 扫）。放行项只在仓库根的 `.gitleaks.toml`，逐条写原因；写在被扫文件里的行内放行注释（`gitleaks:allow`）不认。所有文件都按文本出差异（`--text`），`.gitattributes` 里把一类文件标成 `-diff`、`binary` 也照扫。git 历史没读全（gitleaks 报了 git 的错误）按没跑完算，不报通过 | CI；本机要有 Docker |
 | `classify-gate-changes.mjs`、`gate-files.json` | 门禁改动分类：只增（`gate-touch`）与放松（`gate-change`） | CI 的 `gate-classify` 任务 |
 | `ci-required.mjs` | 汇总任务 `required`：判定必过任务的结论，统计耗时，出 `ci-duration.json` | CI 的 `required` 任务 |
-| `status-summary.mjs` | 生成 `docs/plan/status/SUMMARY.md` | `pnpm status:summary`；CI 用 `--check` 核对无差异 |
+| `status-summary.mjs` | 核对各包的状态文件合不合规；生成状态汇总 `docs/plan/status/SUMMARY.md`（不入库，要看时现生成） | CI 用 `--check` 只核对状态文件；`pnpm status:summary` 在本地现生成（第 6 节） |
 | `selftest/run.mjs`、`selftest/cases/` | 门禁自测：一个反例一个文件 | `pnpm gates:selftest`；CI |
 | `fixtures/` | tsconfig 预设的最小工程；依赖方向与分层的反例夹具 | `pnpm typecheck`；用例与门禁自测 |
 
@@ -26,7 +26,7 @@
 
 | 任务 | 内容 | 备注 |
 | --- | --- | --- |
-| `verify` | 冻结安装 → lint、格式、换名、类型 → 依赖方向与五层 → 测试 → `contract:check` → 构建 → `.env.example` 核对 → 密钥扫描、依赖审计、新增依赖发布时长 → `gates:selftest` → 状态汇总无差异 | 挂 PostgreSQL 17 与 Redis 7.4 两个服务容器，端口与账号同 `infra/compose/local.yml` |
+| `verify` | 冻结安装 → lint、格式、换名、类型 → 依赖方向与五层 → 测试 → `contract:check` → 构建 → `.env.example` 核对 → 密钥扫描、依赖审计、新增依赖发布时长 → `gates:selftest` → 状态文件核对 | 挂 PostgreSQL 17 与 Redis 7.4 两个服务容器，端口与账号同 `infra/compose/local.yml` |
 | `gate-classify` | 门禁改动分类；把清单写进 PR 描述顶部两个标记之间；有只增项就打 `gate-touch` | 只在 PR 上跑；只有它能写 PR |
 | `required` | 依赖上面全部任务；任何一个没成功即失败；出时长统计 | 业主在 main 的保护规则里只把它设为必过 |
 
@@ -152,6 +152,9 @@ node infra/ci/classify-gate-changes.mjs --base origin/main --labels gate-change
 - 生成物目录里多出一份已入库的手写文件，或把包里的生成脚本改成空转之后手改生成物：`pnpm contract:check` 自己是绿的，拦它的是 `pnpm test` 里的契约自测与门禁自测的反例。清单里“与源码一致由 `pnpm contract:check` 把关”这句话，要连同这两道兜底一起理解。
 - 用例核对的是“根脚本长什么样”，不核对“重新生成”那个脚本实际做了什么（把它改成空操作，用例不红）；那由上一条说的兜底与生成脚本自己的用例管。
 
-## 6. 状态汇总
+## 6. 状态文件核对与状态汇总
 
-`docs/plan/status/SUMMARY.md` 是生成物。改了自己的状态文件（包括开 PR 后填 PR 编号），重新跑 `pnpm status:summary` 并提交；冲突时变基后重新生成，不手工合并。规则见 [docs/plan/status/README.md](../../docs/plan/status/README.md) 第 5 节。
+- CI 的“状态文件核对”一步跑 `node infra/ci/status-summary.mjs --check`：只查各包的状态文件合不合规（第一行的写法、字段表的键、状态取值、编号与文件名、依赖指向的包与里程碑），有问题即失败，并指出是哪个文件的哪一项。它不写文件，也不读、不比对任何已有的汇总。
+- 状态汇总 `docs/plan/status/SUMMARY.md` 不入库（在 `.gitignore` 里）。要看时跑 `pnpm status:summary` 现生成；它是当前检出里那些状态文件的快照，换了分支、拉了 main 就重新跑。带不带 `--check`，状态文件不合规都一样失败。
+- 改了自己的状态文件（包括开 PR 后填 PR 编号），不用再生成、提交汇总。各 PR 只改自己的状态文件，互不冲突。
+- 规则见 [docs/plan/status/README.md](../../docs/plan/status/README.md) 第 5 节。

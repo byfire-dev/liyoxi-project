@@ -1,11 +1,13 @@
 #!/usr/bin/env node
-// 状态汇总：读 docs/plan/status/ 下各包的状态文件，生成 SUMMARY.md（docs/plan/status/README.md 第 5 节）。
+// 状态汇总：读 docs/plan/status/ 下各包的状态文件，核对它们合不合规，生成 SUMMARY.md
+//（docs/plan/status/README.md 第 5 节）。汇总不入库，要看时现生成；CI 只核对状态文件。
 //
 // 用法：node infra/ci/status-summary.mjs [--dir <状态目录>] [--check]
 //   不带参数  读 docs/plan/status/*.md（README.md、SUMMARY.md 除外），写 docs/plan/status/SUMMARY.md。
 //             根脚本是 pnpm status:summary
 //   --dir     换一个状态目录（用例与反例用）；汇总写到该目录下的 SUMMARY.md
-//   --check   不写文件，只比对：现有的 SUMMARY.md 与重新生成的不一致即失败
+//   --check   只核对：状态文件能不能生成出汇总。有不合规的即失败，并指出是哪个文件的哪一项。
+//             不写文件，也不读、不比对已有的 SUMMARY.md（CI 的“状态文件核对”一步）
 // 口径：
 //   1. 每个状态文件第一行是“# <编号> <名称>”，字段表的键照 README 第 2 节；编号与文件名一致。
 //   2. “状态”只认 README 第 3 节的四个取值，别的即报错。
@@ -13,7 +15,7 @@
 //      “M<n> 退出”指该里程碑的包全部完成；其余（Q、E 项与文字条件）脚本判不了，原样列出。
 //   4. 可开工的包 = 状态是“未开工”，且依赖里的工作包（含“M<n> 退出”展开的）都写着“完成”。
 //   5. 输出不带时间，同样的输入生成同样的文件。
-// 退出码：0 通过；1 状态文件有问题，或 --check 发现不一致；2 用法或环境错误。
+// 退出码：0 通过；1 状态文件有问题（带不带 --check 都一样）；2 用法或环境错误。
 // 本脚本不引依赖。
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -159,7 +161,7 @@ for (const item of packages) {
 }
 
 if (problems.length > 0) {
-  console.error(`状态汇总未通过：${problems.length} 处`);
+  console.error(`状态文件核对未通过：${problems.length} 处`);
   for (const problem of problems) console.error(`  ${problem}`);
   process.exit(1);
 }
@@ -182,11 +184,11 @@ const out = [];
 out.push("# 进度汇总");
 out.push("");
 out.push(
-  "<!-- 生成物：由 pnpm status:summary（infra/ci/status-summary.mjs）从本目录各包的状态文件生成。不手改；冲突时变基后重新生成。 -->",
+  "<!-- 生成物：由 pnpm status:summary（infra/ci/status-summary.mjs）从本目录各包的状态文件现生成。不入库，不手改；要看最新的就重新跑一遍。 -->",
 );
 out.push("");
 out.push(
-  "各包的状态以各自的文件为准；改了状态文件就重新跑 `pnpm status:summary`，CI 核对本文件与重新生成的结果无差异。写法见 [README.md](README.md)。",
+  "各包的状态以各自的文件为准；本文件只是生成那一刻的快照，不入库，CI 也不比对它。写法见 [README.md](README.md)。",
 );
 out.push("");
 out.push("## 1. 计数");
@@ -237,14 +239,10 @@ const target = join(options.dir, "SUMMARY.md");
 const shownTarget = relative(process.cwd(), target) || "SUMMARY.md";
 
 if (options.check) {
-  const current = existsSync(target) ? readFileSync(target, "utf8") : null;
-  if (current !== generated) {
-    console.error(
-      `状态汇总未通过：${shownTarget} 与状态文件不一致。重新跑 pnpm status:summary 并提交，不要手改。`,
-    );
-    process.exit(1);
-  }
-  console.log(`状态汇总核对通过：${shownTarget} 与 ${packages.length} 个状态文件一致。`);
+  // 走到这里说明状态文件都合规，汇总也生成得出来（generated 已在内存里）。不写、不比对
+  console.log(
+    `状态文件核对通过：${shownDir} 下 ${packages.length} 个状态文件合规，能生成出汇总（没有写文件）。`,
+  );
 } else {
   writeFileSync(target, generated);
   const readyIds = ready.map((item) => item.id).join("、") || "无";
