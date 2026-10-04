@@ -32,14 +32,19 @@ const db = env.PGDATABASE;
 if (!/^lyx_[a-z0-9_]{1,58}$/.test(db))
   stop(2, "DATABASE_URL 指的库名要以 lyx_ 开头：只在专门的空库上验证");
 
-/** 抹掉连接信息：连接串本身、主机、口令、账号（先抹长的），以及 psql 报错里括号中的解析地址 */
+/**
+ * 抹掉连接信息：连接串本身、“主机:端口”、主机、口令、账号（先抹长的），
+ * 以及 psql 报错里括号中的解析地址与 “port <端口>”
+ */
 function redact(text) {
-  const secrets = [process.env.DATABASE_URL, env.PGPASSWORD, env.PGHOST, env.PGUSER]
+  const hostPort = `${env.PGHOST}:${env.PGPORT}`;
+  const secrets = [process.env.DATABASE_URL, hostPort, env.PGPASSWORD, env.PGHOST, env.PGUSER]
     .filter((value) => value && value.length >= 3)
     .sort((a, b) => b.length - a.length);
   return secrets
     .reduce((out, value) => out.replaceAll(value, "‹已隐去›"), text)
-    .replace(/\([0-9a-fA-F:.]{3,}\)/g, "(‹已隐去›)");
+    .replace(/\([0-9a-fA-F:.]{3,}\)/g, "(‹已隐去›)")
+    .replace(/\bport \d+/g, "port ‹已隐去›");
 }
 
 /** 查一句，返回各行（竖线分隔的列） */

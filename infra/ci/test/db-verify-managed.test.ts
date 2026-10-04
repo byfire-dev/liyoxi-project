@@ -13,6 +13,7 @@ import { repoRoot } from "./helpers.js";
 interface DbLib {
   recreateDb(name: string): void;
   dropDb(name: string): void;
+  sqlOrThrow(db: string, sql: string): string;
 }
 const lib = (await import(pathToFileURL(join(repoRoot, "infra/ci/db-lib.mjs")).href)) as DbLib;
 
@@ -78,6 +79,27 @@ describe("db-verify-managed.mjs", () => {
       expect(again.stderr).toMatch(
         /库 lyx_test_infra_managed_\d+ 里已经有 17[12] 张表：要一个空库/,
       );
+    },
+  );
+
+  it(
+    "迁移中途失败：退出码 1，给出迁移工具的输出，其中没有主机、端口、账号、口令",
+    { timeout: 120_000 },
+    () => {
+      // 空库里先占掉迁移要建的一个序列名：库里没有表，过得了“空库”这一关，迁移跑到建序列那句失败
+      lib.recreateDb(DB);
+      lib.sqlOrThrow(DB, "CREATE SEQUENCE audit_no_seq");
+      const result = verify(urlOf(DB));
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("- 迁移：没跑通。迁移工具的输出（连接信息已抹掉）：");
+      expect(result.stdout).toContain("audit_no_seq");
+      expect(result.stdout).toContain("结论：不通过。迁移没跑通");
+      const { hostname, port, username } = new URL(base);
+      const output = result.stdout + result.stderr;
+      for (const secret of [hostname, `:${port}`, username, password, "postgresql:"]) {
+        expect(secret.length).toBeGreaterThan(2);
+        expect(output).not.toContain(secret);
+      }
     },
   );
 });
