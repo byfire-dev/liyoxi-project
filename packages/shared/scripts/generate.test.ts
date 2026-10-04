@@ -46,16 +46,25 @@ describe("生成物无差异", () => {
   });
 });
 
-describe("生成脚本里没有写死的色值", () => {
-  const sources = listFiles(scriptsDir).filter(
-    (file) => file.endsWith(".ts") && !file.endsWith(".test.ts"),
-  );
+describe("生成物之外不写色值：生成脚本与设计地基手写的源文件", () => {
+  const packageDir = join(scriptsDir, "..");
+  // 只扫设计地基自己的目录；shared 里别的纯函数不归这条管
+  const own = ["src/design", "src/mask", "src/format"].map((dir) => join(packageDir, dir));
+  const sources = [...listFiles(scriptsDir), ...own.flatMap(listFiles)]
+    .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts"))
+    .filter((file) => !file.includes("/format/") || /\/(?:datetime|duration)\.ts$/.test(file))
+    .filter((file) => !file.includes("/generated/"))
+    .map((file) => [file.slice(packageDir.length + 1), file] as const);
 
-  it("脚本找得到", () => {
-    expect(sources.map((file) => file.slice(scriptsDir.length)).sort()).toContain("generate.ts");
+  it("脚本与手写的源文件都扫到了", () => {
+    const names = sources.map(([name]) => name);
+    expect(names).toContain("scripts/generate.ts");
+    expect(names).toContain("scripts/lib/antd-theme.ts");
+    expect(names).toContain("src/design/status-tone/index.ts");
+    expect(names).toContain("src/mask/index.ts");
   });
 
-  it.each(sources.map((file) => [file.slice(scriptsDir.length), file]))("%s", (_name, file) => {
+  it.each(sources)("%s", (_name, file) => {
     const hits = readFileSync(file, "utf8")
       .split("\n")
       .filter((line) => COLOR_LITERAL.test(line));
