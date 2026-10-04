@@ -1,0 +1,5 @@
+// 注释里的色值不算：原型这里写的是 #c4501b，实现取变量
+.home__price {
+  color: $lyx-color-primary-text; /* 不写 rgb(166, 63, 18) */
+  background: url(https://example.invalid/a.png) no-repeat; // 地址里的 // 不是注释
+}
