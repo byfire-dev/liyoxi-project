@@ -4,10 +4,11 @@
 `infra/ci/test/layers.test.ts` 进到夹具目录里跑 dependency-cruiser，用的是仓库根的 `.dependency-cruiser.cjs` 与 `infra/ci/layers.json`，逐条断言退出码与报出的规则名。
 `pnpm depcheck` 不扫本目录（规则里已排除 `infra/ci/fixtures/`）。
 
-写法上的四点：
+写法上的五点：
 
 - 夹具里没有 `node_modules`。跨包的引用写成相对路径时，解析结果与真实仓库里按包名引用相同（都落到 `packages/<包>/src/…`）；写成包名时解析不了，留下的是包名本身。两种写法规则都要拦，所以夹具里两种都有。
 - 所以夹具测不到“第三方包装上之后”的情形：那时终点是 `node_modules` 下的真实路径，规则里排除哪些路径（`exclude`）也跟着起作用。这一段不放夹具（`node_modules`、`dist` 进不了版本库），由用例在仓库外的临时目录里按 pnpm 的摆法现造，见下面第二张表。
+- “解析不了”不能只靠夹具里没有 `node_modules`：模块解析会沿目录一直往上找，夹具的上层（仓库根、检出所在的目录、家目录）装了同名的包，引用就被解析到那里去。实测过检出放在家目录之下、家目录里有 `node_modules/zod` 的情形：终点成了 `../../…/node_modules/zod/index.d.cts`，与 `expected` 里的包名对不上；上层只有类型包 `@types/react` 或有同名的 `@liyoxi/db` 时，对应的违规整条不见。所以用例跑夹具时给解析设了界（命令行加 `--webpack-config infra/ci/test/resolve-in-tree.mjs`，原因见该文件开头的注释）：解析结果落在夹具目录之外的，一律当作解析不了。夹具的结果因此不随检出位置与外面装了什么而变，由用例的“夹具的结果不随检出位置与外面装了什么而变”一组在仓库外现造的树上验证。规则没有因此改动；`pnpm depcheck` 不带这个参数。
 - 文件只写副作用导入（`import "…";`），免得被 lint 判成未使用。本目录不进任何 tsconfig，不做类型检查。
 - 一个反例一个夹具。加规则时加一个夹具，并在用例的 `expected` 表里写上期望的违规；用例会核对“每个夹具都有用例、每条规则都有夹具报出过”。
 

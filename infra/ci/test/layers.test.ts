@@ -18,9 +18,11 @@ import { makeTempDir, repoRoot, run, writeFiles } from "./helpers.js";
 // 依赖方向与分层门禁的用例（W0-02 任务书 第 7 节第 3–7 条）。
 // 反例是 infra/ci/fixtures/layers/ 下的小树，一个反例一个夹具；进到夹具目录里跑
 // dependency-cruiser，用的是仓库根的那份规则，所以改规则不必改夹具。
+// 跑夹具时给解析设了界（resolve-in-tree.mjs），夹具的结果不随检出位置与外面装了什么而变。
 
 const depcruiseBin = join(repoRoot, "node_modules/dependency-cruiser/bin/dependency-cruiser.mjs");
 const configPath = join(repoRoot, ".dependency-cruiser.cjs");
+const resolveInTreePath = join(repoRoot, "infra/ci/test/resolve-in-tree.mjs");
 const fixturesDir = join(repoRoot, "infra/ci/fixtures/layers");
 const checkLayersScript = join(repoRoot, "infra/ci/check-layers.mjs");
 const layersPath = join(repoRoot, "infra/ci/layers.json");
@@ -37,9 +39,17 @@ interface CruiseResult {
   output: string;
 }
 
-/** 对一个目录跑 dependency-cruiser，报告格式与 pnpm depcheck 相同 */
-function cruiseDir(dir: string, targets: readonly string[]): CruiseResult {
-  const result = run(process.execPath, [depcruiseBin, ...targets, "--config", configPath], dir);
+/** 对一个目录跑 dependency-cruiser，报告格式与 pnpm depcheck 相同。extraArgs 是另加的命令行参数 */
+function cruiseDir(
+  dir: string,
+  targets: readonly string[],
+  extraArgs: readonly string[] = [],
+): CruiseResult {
+  const result = run(
+    process.execPath,
+    [depcruiseBin, ...targets, "--config", configPath, ...extraArgs],
+    dir,
+  );
   const output = result.output.replace(ANSI, "");
   const matches = [...output.matchAll(/^\s*error ([\w-]+): (\S+) → ?(\S*)$/gm)];
   const violations = matches.map(([, rule, from, to]) => `${rule}: ${from} → ${to}`).sort();
@@ -47,10 +57,17 @@ function cruiseDir(dir: string, targets: readonly string[]): CruiseResult {
   return { status: result.status, violations, rules, output };
 }
 
-function cruise(fixture: string): CruiseResult {
-  const dir = join(fixturesDir, fixture);
+/**
+ * 跑一个夹具。夹具自成一棵树：默认给解析设界，落在夹具目录之外的一律当作解析不了，
+ * 按包名写的引用留下的就总是包名本身。bounded 传 false 只给对照用例用，看不设界时会怎样
+ */
+function cruiseFixture(dir: string, bounded = true): CruiseResult {
   const targets = ["apps", "packages"].filter((name) => existsSync(join(dir, name)));
-  return cruiseDir(dir, targets);
+  return cruiseDir(dir, targets, bounded ? ["--webpack-config", resolveInTreePath] : []);
+}
+
+function cruise(fixture: string): CruiseResult {
+  return cruiseFixture(join(fixturesDir, fixture));
 }
 
 /** 夹具 → 期望的全部违规。空数组 = 应当通过。成环的夹具另测（终点不稳定，只比规则名） */
@@ -145,8 +162,9 @@ const expected: Record<string, string[]> = {
   allowed: [],
 };
 
-function expectViolations(fixture: string): CruiseResult {
-  const result = cruise(fixture);
+/** root 是夹具所在的目录；默认是仓库里的那份，证明“结果不随位置而变”的用例传仓库外的副本 */
+function expectViolations(fixture: string, root = fixturesDir): CruiseResult {
+  const result = cruiseFixture(join(root, fixture));
   const wanted = expected[fixture] ?? [];
   expect(result.violations, result.output).toEqual([...wanted].sort());
   if (wanted.length === 0) expect(result.status, result.output).toBe(0);
@@ -270,6 +288,119 @@ describe("其余包间规则各有反例", () => {
 
   it("正例：允许的方向全部走一遍，违规 0 条", () => {
     expectViolations("allowed");
+  });
+});
+
+describe("夹具的结果不随检出位置与外面装了什么而变", () => {
+  // 模块解析会沿目录一直往上找 node_modules。检出放在家目录之下、家目录里又有 node_modules/zod 时，
+  // 夹具里的 import "zod" 被解析到了那里：终点成了 ../../…/node_modules/zod/index.d.cts，与 expected
+  // 里的包名对不上。有的违规还会整条不见，改写报出来的路径救不回来，所以办法是给解析设界。
+  // 这里在仓库外照那个样子造一棵树：<根>/node_modules/<包>/ 与 <根>/checkout/<夹具>/。
+
+  const cleanups: Array<() => void> = [];
+  afterEach(() => {
+    while (cleanups.length > 0) cleanups.pop()?.();
+  });
+
+  /** 夹具的全部文件：相对路径 → 内容 */
+  function readFixture(fixture: string): Record<string, string> {
+    const dir = join(fixturesDir, fixture);
+    return Object.fromEntries(
+      readdirSync(dir, { recursive: true, withFileTypes: true })
+        .filter((entry) => entry.isFile())
+        .map((entry) => join(entry.parentPath, entry.name))
+        .map((file) => [file.slice(dir.length + 1), readFileSync(file, "utf8")]),
+    );
+  }
+
+  /** 夹具里按包名写的引用，如 zod、@liyoxi/config/eslint。Node 内置模块不算 */
+  function bareSpecifiers(fixture: string): string[] {
+    const found = Object.values(readFixture(fixture)).flatMap((source) =>
+      [...source.matchAll(/(?:import|from)\s+"([^".][^"]*)"/g)].map(([, name]) => name ?? ""),
+    );
+    return [...new Set(found)].filter((name) => process.getBuiltinModule(name) === undefined);
+  }
+
+  /** 在 root/node_modules 下装一个假包；引用带子路径的（@liyoxi/config/eslint）子路径也解析得到 */
+  function installAbove(root: string, specifier: string): void {
+    const name = specifier
+      .split("/")
+      .slice(0, specifier.startsWith("@") ? 2 : 1)
+      .join("/");
+    const subpath = specifier.slice(name.length + 1);
+    // 类型包没有 main，入口是 types 指的声明文件
+    const [field, entry] = name.startsWith("@types/")
+      ? ["types", "index.d.ts"]
+      : ["main", "index.js"];
+    writeFiles(join(root, "node_modules", name), {
+      "package.json": JSON.stringify({ name, version: "0.0.0", [field]: entry }),
+      [entry]: "export {};\n",
+      ...(subpath === "" ? {} : { [`${subpath}.js`]: "export {};\n" }),
+    });
+  }
+
+  /** 造一棵树：packages 装在 <根>/node_modules 下，fixtures 拷到 <根>/checkout 下。返回 <根>/checkout */
+  function checkoutBelow(packages: readonly string[], fixtures: readonly string[]): string {
+    const temp = makeTempDir("lyx-layers-above-");
+    cleanups.push(temp.cleanup);
+    for (const specifier of packages) installAbove(temp.dir, specifier);
+    const checkout = join(temp.dir, "checkout");
+    for (const fixture of fixtures) writeFiles(join(checkout, fixture), readFixture(fixture));
+    return checkout;
+  }
+
+  const sorted = (fixture: string): string[] => [...(expected[fixture] ?? [])].sort();
+  const zodFixtures = ["shared-reaches-zod", "weapp-reaches-zod"];
+
+  it("上层目录有 node_modules/zod：两条 zod 规则照样报出，终点仍是包名", () => {
+    const checkout = checkoutBelow(["zod"], zodFixtures);
+    expect(expectViolations("shared-reaches-zod", checkout).rules).toEqual(["shared-no-zod"]);
+    expect(expectViolations("weapp-reaches-zod", checkout).rules).toEqual(["weapp-no-zod"]);
+  });
+
+  it("对照：同一棵树不设界，zod 被解析到上层去，终点与 expected 对不上", () => {
+    const checkout = checkoutBelow(["zod"], zodFixtures);
+    for (const fixture of zodFixtures) {
+      const result = cruiseFixture(join(checkout, fixture), false);
+      expect(result.output).toContain("→ ../../node_modules/zod/index.js");
+      expect(result.violations, fixture).not.toEqual(sorted(fixture));
+    }
+  });
+
+  it("夹具按包名引用的包在上层全都装着：凡有这类引用的夹具，结果都与 expected 逐字相同", () => {
+    const fixtures = Object.keys(expected).filter((fixture) => bareSpecifiers(fixture).length > 0);
+    const packages = [...new Set(fixtures.flatMap(bareSpecifiers))];
+    // 扫得出东西：两条 zod 规则的终点，以及工作区包、数据库驱动、react 都在里面
+    expect(packages).toEqual(
+      expect.arrayContaining([
+        "zod",
+        "@hono/zod-openapi",
+        "react",
+        "pg",
+        "@prisma/client",
+        "@liyoxi/db",
+        "@liyoxi/config/eslint",
+      ]),
+    );
+
+    const checkout = checkoutBelow(packages, fixtures);
+    for (const fixture of fixtures) expectViolations(fixture, checkout);
+    // 对照：不设界时 @liyoxi/db 被解析到上层去，按包名引用的那两条不再与 expected 相同
+    expect(cruiseFixture(join(checkout, "fe-imports-db"), false).violations).not.toEqual(
+      sorted("fe-imports-db"),
+    );
+  });
+
+  it("上层只有类型包 @types/react（react 会被解析成它）：react 的两条规则照样报出", () => {
+    const fixtures = ["shared-impure", "contract-imports-react-prisma"];
+    const checkout = checkoutBelow(["@types/react"], fixtures);
+    for (const fixture of fixtures) expectViolations(fixture, checkout);
+    // 对照：不设界时 react 被解析成 ../../node_modules/@types/react/index.d.ts，结果与 expected 不同
+    //（眼下的规则认不出这个路径，react 那一条整条不见）
+    for (const fixture of fixtures) {
+      const result = cruiseFixture(join(checkout, fixture), false);
+      expect(result.violations, fixture).not.toEqual(sorted(fixture));
+    }
   });
 });
 
