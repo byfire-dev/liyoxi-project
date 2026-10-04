@@ -26,13 +26,16 @@ export function maskUscc(code: string): string {
   return keepEnds(code, 12, 2);
 }
 
-/** 邮箱：留前缀的前一半（向上取整，至多 7 位）与域名 → yunjian****@163.com */
+/**
+ * 邮箱：留前缀的前一半（向上取整，至多 7 位）与域名 → yunjian****@163.com。
+ * 前缀不整个露出：只有 1 位时一位不留 → ****@x.com
+ */
 export function maskEmail(email: string): string {
   const trimmed = email.trim();
   const at = trimmed.lastIndexOf("@");
   if (at <= 0) return FOUR;
   const local = Array.from(trimmed.slice(0, at));
-  const keep = Math.min(7, Math.ceil(local.length / 2));
+  const keep = Math.min(7, Math.ceil(local.length / 2), local.length - 1);
   return `${local.slice(0, keep).join("")}${FOUR}${trimmed.slice(at)}`;
 }
 

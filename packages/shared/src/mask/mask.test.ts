@@ -65,10 +65,11 @@ describe("边界：不多露一位", () => {
     expect(maskPhone("+8613812345678")).toBe("+86****5678");
   });
 
-  it("邮箱前缀至多留 7 位，很短时只留一位", () => {
+  it("邮箱前缀至多留 7 位；前缀不整个露出，只有 1 位时一位不留", () => {
     expect(maskEmail("averyverylongmailbox@example.com")).toBe("averyve****@example.com");
+    expect(maskEmail("abc@x.com")).toBe("ab****@x.com");
     expect(maskEmail("ab@x.com")).toBe("a****@x.com");
-    expect(maskEmail("a@x.com")).toBe("a****@x.com");
+    expect(maskEmail("a@x.com")).toBe("****@x.com");
   });
 
   it("座机没写连字符时按号段取区号", () => {
