@@ -186,6 +186,11 @@
 | `pnpm --dir spikes/license-pdf render`（另有 `test`、`render:container`、`typecheck`） | 授权书 PDF 渲染验证（X-03）：出三份样张与报告；跑用例；在 `node:24-slim` 容器里复跑。独立工程，先 `pnpm --dir spikes/license-pdf install --frozen-lockfile`。见 [README](spikes/license-pdf/README.md) |
 | `pnpm mediatool:verify` | mediatool 隔离容器的验证：构建镜像，起验证用的 Compose，现场造测试片，在调用端容器里跑用例，再核对容器配置；跑完删掉容器与卷。本机要有 Docker。见 [README](infra/docker/mediatool/README.md) |
 | `pnpm mediatool:bench` | 同上，另造一条约 200MB 的片子，量“体检 + 封面”与加标的耗时 |
+| `pnpm db:generate` | 生成数据库客户端到 `packages/db/dist/generated/`（不入库）。`pnpm typecheck`、`pnpm test`、构建之前要先有它，`pnpm install` 不会顺带生成；不连库。见 [README](packages/db/README.md) 第 2、3 节 |
+| `pnpm db:validate` | `prisma validate`：校验 `packages/db/prisma/schema.prisma`。不连库 |
+| `pnpm db:deploy` | `prisma migrate deploy`：对 `DATABASE_URL` 指的库跑全部待执行的迁移，可重复跑。`pnpm test` 里 `packages/db` 的用例要连迁移库 `lyx_migrate_check`，没建就失败、不跳过：怎么建、报错怎么看见 [README](packages/db/README.md) 第 3 节 |
+| `pnpm db:catalog-diff` | 系统目录比对：由底稿建的参照库 `lyx_schema_check` 与迁移库 `lyx_migrate_check` 的表、列、约束定义、索引定义、触发器、函数体逐项 0 差异，数量两组口径对得上；出报告。两个库怎么建、参数与口径见 [README](packages/db/README.md) 第 6 节 |
+| `pnpm db:verify-managed` | 托管库验证：对 `DATABASE_URL` 指的、`lyx_` 开头的空库报告两个扩展可建、迁移跑通、计数表；不打印连接串。业主在托管库到位时跑；本地演练的做法见 [README](packages/db/README.md) 第 7 节 |
 
 本地连接参数：配置只经 `loadEnv`（`packages/services/src/kernel/env.ts`）读环境变量，会话与测试不建、不读 `.env`，在命令前或 shell 里给出。取值出处是 [local.yml](infra/compose/local.yml)，账号与口令是固定的开发值，只对本机这套容器有效；CI 的服务容器用同一组值。
 
