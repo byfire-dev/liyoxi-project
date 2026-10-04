@@ -37,7 +37,7 @@
 | 下载页 | `/api/v1/portal/*` | `portal.<域名>`（与下载页同源） | 下载页 SPA | 会话 Cookie | `01-architecture.md:434`；`d7-platform.md:1276` |
 | 外部回调 | `/api/v1/hooks/*` | `api.<域名>` | 微信支付、微信消息推送、企业微信、数据万象、语音识别、短信 | 验签，或查询参数里的每任务签名与令牌（A3） | `01-architecture.md:425`；`d7-platform.md:1634` |
 
-- 网关与应用各做一层 Host 判断：`api.` 只放行 `/m/`、`/hooks/` 与探活，`admin.` 只放行后台静态资源与 `/admin/`，`portal.` 只放行下载页静态资源与 `/portal/`，其余组合 404（`d4-identity.md:1893`；`01-architecture.md:438`）。预发用 `*-stg.<域名>`（`d7-platform.md:1630`）。`<域名>` 待定（`d7-platform.md:2420` Q2）。
+- 网关与应用各做一层 Host 判断：`api.` 只放行 `/m/`、`/hooks/` 与探活，`admin.` 只放行后台静态资源与 `/admin/`，`portal.` 只放行下载页静态资源与 `/portal/`，其余组合 404（`d4-identity.md:1893`；`01-architecture.md:438`）。预发用 `*.stg.<域名>`。`<域名>` 已定为 `liyoxi.timavia.com`，即生产 `api.liyoxi.timavia.com`、预发 `api.stg.liyoxi.timavia.com`（业主 2026-10-04；[ADR-041](../adr/0041-预发先行-单机预发-共用AppID.md)）。
 - 探活（A38、A42、A83）：根路径三条，不在四组之内：`/healthz`（存活）、`/readyz`（就绪）、`/health`（外部拨测，保留）。三条都只回聚合状态，不暴露分项细节。计费、资金、流程的明细指标都走内网 `/internal/health/*`，不经网关对外：`/internal/health/finance`（已含 d1 的计费分项）、`/internal/health/flow`（A83 补，流程分项，`d3-flow.md:3223-3232`）。内网明细只靠网络隔离，`x-auth` 记为 `public`，在 `public` 黄金文件里标“仅内网”（h01 的默认）。
   - 探活**不进 OpenAPI、不分配 operationId**（A42、A83）。路线图里的条目保留为“只登记、不进 OpenAPI”（字段 `registryKeyOnly: true`），登记键 `hooks.healthz.get`、`hooks.readyz.get`、`hooks.health.get`、`hooks.internalHealth.finance.get`、`hooks.internalHealth.flow.get` 只作清单编号，不作幂等 scope，也不进限流与豁免清单。
   - 降级时 `/health` 与内网明细返回 HTTP 503（响应体仍是聚合状态），让只看状态码的拨测也能报警（A83）。
@@ -836,7 +836,7 @@ V1.0 小程序不播放预告片、样片默认不在小程序内播放（`05-ri
 
 **C76 版本前缀。** V1.x 期间只有 `/api/v1`。不靠新前缀做破坏性变更；兼容靠下面的在役版本规则。
 
-**C77 在役版本与打标签。** 小程序“生产上传”工作流在**上传生产 AppID 的那一步**给对应提交打 `weapp-vX.Y.Z`，从这一刻起该版本的契约受保护（`d7-platform.md:240`、`1871-1872`）；在役版本 = 全部 `weapp-v*` 标签减去 `packages/contract/released/retired.json` 里登记的版本；审核被拒、放弃发布、或已被 `client.min_version` 淘汰的版本由 PR 写进 `retired.json`（`d7-platform.md:241`、`1878`）。后台与下载页只对最近一个服务端发布标签 `vX.Y.Z` 比较（`d7-platform.md:242`）。服务端先于小程序发布，并对全部在役版本兼容（`d7-platform.md:1879`）。
+**C77 在役版本与打标签。** 小程序“生产上传”工作流在**上传生产 AppID 的那一步**给对应提交打 `weapp-vX.Y.Z`，从这一刻起该版本的契约受保护（`d7-platform.md:240`、`1871-1872`）；在役版本 = 全部 `weapp-v*` 标签减去 `packages/contract/released/retired.json` 里登记的版本；审核被拒、放弃发布、或已被 `client.min_version` 淘汰的版本由 PR 写进 `retired.json`（`d7-platform.md:241`、`1878`）。后台与下载页只对最近一个服务端发布标签 `vX.Y.Z` 比较（`d7-platform.md:242`）。服务端先于小程序发布，并对全部在役版本兼容（`d7-platform.md:1879`）。预发与生产共用一个 AppID 之后（ADR-041），“上传生产 AppID 的那一步”读作“上传送审或发布候选版本的那一步”：合并后自动上传到预发的版本不打标签。
 
 **C78 破坏性变更的判定。** 删路径或方法；改 `operationId`；请求新增必填字段；响应删字段或把必有字段改成可空；请求枚举删值；响应枚举加值而该字段未标 `x-open-enum`（`d7-platform.md:243`）。`contract:compat` 在 CI 里对每个在役标签做结构比较（`d7-platform.md:245`）。确需破坏时，同一个 PR 把受影响版本写进 `retired.json`，并在发布检查表登记“上线后提高 `client.min_version`”（`d7-platform.md:244`）。
 
