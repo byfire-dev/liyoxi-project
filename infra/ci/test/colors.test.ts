@@ -116,6 +116,40 @@ describe("口径", () => {
     ["at 规则参数里的色值", "a.scss", "@include tint(#abc) { margin: 0; }\n", "#abc"],
     ["带值的嵌套属性里的色值", "a.scss", ".a { border: 1px solid #fff { left: 0; } }\n", "#fff"],
     ["没写分号的最后一条声明", "a.css", ".a { color: #dad }\n", "#dad"],
+    // 由已有颜色算出新颜色也算写色值：参数是变量也一样（要用就先进 design/tokens.json）
+    [
+      "color-mix()",
+      "a.css",
+      ".a { color: color-mix(in srgb, var(--a) 50%, transparent); }\n",
+      "color-mix(…)",
+    ],
+    [
+      "Sass 给变量加透明度",
+      "a.scss",
+      ".a { color: transparentize($lyx-color-text-primary, 0.55); }\n",
+      "transparentize(…)",
+    ],
+    ["Sass 调暗", "a.scss", ".a { color: darken($lyx-color-primary, 10%); }\n", "darken(…)"],
+    ["Sass 调亮", "a.scss", ".a { color: lighten($lyx-color-primary, 10%); }\n", "lighten(…)"],
+    ["Sass 混色", "a.scss", ".a { color: mix($lyx-a, $lyx-b); }\n", "mix(…)"],
+    [
+      "Sass 模块写法的 color.adjust()",
+      "a.scss",
+      ".a { color: color.adjust($lyx-a, $alpha: -0.5); }\n",
+      "color.adjust(…)",
+    ],
+    [
+      "Sass 模块写法的 color.scale()",
+      "a.scss",
+      ".a { color: color.scale($lyx-a, $lightness: 20%); }\n",
+      "color.scale(…)",
+    ],
+    [
+      "mixin 参数里的 Sass 颜色运算",
+      "a.scss",
+      "@include tint(fade-out($lyx-a, 0.5)) { margin: 0; }\n",
+      "fade-out(…)",
+    ],
   ])("%s 被拦下", (_label, name, content, found) => {
     const result = check({ [`apps/admin/src/pages/${name}`]: content });
     expect(result.status).toBe(1);
@@ -147,6 +181,22 @@ describe("口径", () => {
     ["url(#id)", "a.scss", ".a { fill: url(#fade); mask: url('#bad'); }\n"],
     ["同名尾巴的自定义函数", "a.scss", ".a { color: lyx-color(primary); width: lyx-rgb($a); }\n"],
     ["模板插值的编号", "a.ts", "export const a = (no: number) => `工单 #${no}`;\n"],
+    [
+      "与 CSS 滤镜同名的函数",
+      "a.scss",
+      ".a { filter: grayscale(1) invert(0.5) saturate(2) opacity(0.5); }\n",
+    ],
+    [
+      "名字里带 mix、lighten 的别的东西",
+      "a.scss",
+      ".a { width: lyx-mix($a); height: map.mix($a); mix-blend-mode: multiply; }\n@function lighten-bg($c) {\n  @return $c;\n}\n",
+    ],
+    [
+      "代码里与 Sass 颜色运算同名的函数",
+      "a.ts",
+      "export const m = (a: number, b: number) => mix(a, b) + darken(a);\n",
+    ],
+    ["注释里的 Sass 颜色运算", "a.scss", "// 原型写的是 darken($a, 10%)\n.a { margin: 0; }\n"],
   ])("%s 不误报", (_label, name, content) => {
     const result = check({ [`apps/weapp/src/pages/${name}`]: content });
     expect(result.stderr).toBe("");

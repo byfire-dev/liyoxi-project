@@ -7,21 +7,39 @@
 // 口径：
 //   1. 扫 apps/weapp/src、apps/admin/src、apps/portal/src 下的 .scss、.css、.ts、.tsx。
 //   2. 写了十六进制色值（#RGB、#RGBA、#RRGGBB、#RRGGBBAA）或颜色函数（rgb()、rgba()、hsl()、hsla()、hwb()、
-//      lab()、lch()、oklab()、oklch()、color(<色彩空间> …)）即失败，并指出文件、行、列。
+//      lab()、lch()、oklab()、oklch()、color(<色彩空间> …)、color-mix()）即失败，并指出文件、行、列。
 //      颜色取样式变量或主题，状态色取状态字典（@liyoxi/shared 的 design 子路径）。
-//      给变量加透明度（rgba($lyx-color-text-primary, 0.45)）也算：规范里带透明度的颜色都是单列的变量
-//      （mask、fill-on-dark），要用就先进 design/tokens.json。
+//      由已有颜色算出新颜色也算，不管参数是不是变量：规范里带透明度的颜色都是单列的变量（mask、fill-on-dark），
+//      要用就先进 design/tokens.json。两类写法：
+//        给变量加透明度的颜色函数，如 rgba($lyx-color-text-primary, 0.45)、color-mix(in srgb, … transparent)；
+//        .scss 里 Sass 的颜色运算：transparentize()、fade-out()、fade-in()、opacify()、lighten()、darken()、
+//        desaturate()、adjust-hue()、adjust-color()、scale-color()、change-color()、complement()、mix()，
+//        以及 color.adjust()、color.scale()、color.change()、color.mix()、color.complement()、
+//        color.grayscale()、color.invert()。
 //   3. 注释里的不算。样式文件里，选择器位置的 #add 是 id，不算；url(#id) 不算。
 //      .ts、.tsx 里，十六进制只认字符串与模板字符串里的（类的私有字段 #abc 不算）；颜色函数在哪都算。
+//      Sass 的颜色运算只在 .scss 里认：.css 没有这些函数，.ts 里同名的函数（mix() 之类）多半是别的东西。
 //   4. 放行两类：/generated/ 目录下、且第一行带“生成物，勿手改”文件头的生成物；白名单里列的路径。
 //      白名单一行一个：文件路径，或以 / 结尾的目录；# 开头是注释。初始为空（规范 第 1.6 节
 //      “不进变量的颜色”用到时再加）。加条目属“放松”类门禁改动，走单独的 gate-change PR。
 // 退出码：0 通过；1 有违规；2 用法或环境错误。
-// 本脚本不引依赖，不解析语法，只认字符串、注释与样式文件的花括号。已知查不到的与会多报的：
-//   查不到：命名色（color: red）；color-mix() 里的命名色；第 1 条之外的扩展名（.less、.js、.jsx、.wxss、.html 等）。
+// 本脚本不引依赖，不解析语法，只认字符串、注释与样式文件的花括号。已知查不到的、会多报的、会认反的：
+//   查不到：
+//     命名色（color: red、transparent）。
+//     与 CSS 滤镜同名的 Sass 颜色函数 grayscale()、invert()、saturate()、opacity()（拦了会误伤 filter 的写法）。
+//     第 1 条之外的扩展名：.sass、.less、.mts、.cts、.js、.jsx、.vue、.svg、.wxss、.html 等。
+//     src 下软链接过去的目录（不跟进去）。
+//     不写成色值样子的色值：数字 0xc4501b、拼出来的字符串（"#" + "c4501b"）。
+//     任何 /generated/ 目录下、第一行抄了文件头的手写文件（第 4 条的口径如此；这类新文件复审时要看）。
 //   会多报：字符串里写死的“#123”这类编号（编号是变量、写成模板插值时不受影响）。
-//   .ts、.tsx 里的正则字面量不单独识别：里面带引号时后面的注释可能认不出来（多报）；里面带 // 时同一行的
-//   后半截会被当成注释（那半行不扫）。页面代码里这两种写法少见，遇到时把正则单独放一行。
+//   会认反（.ts、.tsx）：正则字面量、JSX 文本里落单的引号、嵌套的模板字符串都不单独识别。一个落单的引号会把
+//     它后面的字符串与代码认反，到下一个同样的引号或行尾为止（反引号到下一个反引号为止）：后面的注释可能被
+//     当成字符串（多报），后面字符串里的十六进制可能看不到（漏报）。实测漏掉的三种：
+//       export const re = /"/; export const c = "#abcdef";
+//       <p>say "hi</p>; export const c = "#abcdef";
+//       `x ${`#123456`} y`
+//     正则里带 // 时，同一行的后半截会被当成注释（那半行不扫）。
+//     页面代码里这几种写法少见，遇到时把正则、带引号的文案单独放一行，嵌套的模板字符串拆开写。
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -38,7 +56,13 @@ const HEX =
   /(?<![&\w])(?<!url\(\s*["']?)#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![\w-])/gi;
 /** 颜色函数。color() 只认第一个参数是色彩空间或 from 的（CSS 的写法），免得拦下同名的自定义函数 */
 const COLOR_FUNCTION =
-  /(?<![\w$-])(?:(?:(?:rgb|hsl)a?|hwb|lab|lch|oklab|oklch)\s*\(|color\(\s*(?:from|srgb|srgb-linear|display-p3|a98-rgb|prophoto-rgb|rec2020|xyz|xyz-d50|xyz-d65)\s)/gi;
+  /(?<![\w$-])(?:(?:(?:rgb|hsl)a?|hwb|lab|lch|oklab|oklch|color-mix)\s*\(|color\(\s*(?:from|srgb|srgb-linear|display-p3|a98-rgb|prophoto-rgb|rec2020|xyz|xyz-d50|xyz-d65)\s)/gi;
+/**
+ * Sass 里由已有颜色算出新颜色的函数，只在 .scss 里认。前面带 - 或 . 的是别的函数（lyx-mix()、map.mix()），
+ * 模块写法只认 color. 开头的。与 CSS 滤镜同名的 grayscale()、invert()、saturate()、opacity() 不认
+ */
+const SASS_COLOR_FUNCTION =
+  /(?<![\w$.-])(?:(?:transparentize|fade-out|fade-in|opacify|lighten|darken|desaturate|adjust-hue|adjust-color|scale-color|change-color|complement|mix)\s*\(|color\.(?:adjust|scale|change|mix|complement|grayscale|invert)\s*\()/gi;
 
 function fail(message) {
   console.error(`页面色值检查：${message}`);
@@ -179,7 +203,9 @@ function findColors(file, raw) {
   for (const match of (isStyle ? code : strings).matchAll(HEX)) {
     if (!inSelector(match.index)) hits.push({ index: match.index, found: match[0] });
   }
-  for (const match of code.matchAll(COLOR_FUNCTION)) {
+  const functions = [...code.matchAll(COLOR_FUNCTION)];
+  if (file.endsWith(".scss")) functions.push(...code.matchAll(SASS_COLOR_FUNCTION));
+  for (const match of functions) {
     hits.push({
       index: match.index,
       found: `${match[0].slice(0, match[0].indexOf("(")).trim()}(…)`,
