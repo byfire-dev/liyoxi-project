@@ -87,6 +87,13 @@ describe("图标数据与 mask 变量", () => {
 });
 
 // ---- 与原型对账：图标集 = 原型源码里 24 画布、不填充的线性图形，一个不多、一个不少
+// （登记在 NOT_IN_PROTOTYPE 里的除外：那是原型之外新增的）
+
+/**
+ * 原型之外新增的图标：名字登记在这里，不参加与原型的对账。现在为空。
+ * 新增图标的画法照 scripts/README.md“怎么改”一节；线宽按规范 第 9.1 节（18px 及以上 1.8、16px 及以下 2）。
+ */
+const NOT_IN_PROTOTYPE: readonly string[] = [];
 
 interface ProtoShape {
   body: string;
@@ -147,20 +154,32 @@ function prototypeWidth(shape: ProtoShape): number {
 describe("与原型对账", () => {
   const shapes = prototypeShapes();
   const linear = [...shapes.values()].filter((shape) => shape.linear);
+  const fromPrototype = icons.filter((icon) => !NOT_IN_PROTOTYPE.includes(icon.name));
 
-  it("原型里每个不填充的线性图形都收了，图标集里没有原型之外的图形", () => {
+  it("原型里每个不填充的线性图形都收了，图标集里没有登记之外的图形", () => {
     expect(linear.length).toBeGreaterThan(0);
-    expect(icons.map((icon) => icon.body).sort()).toEqual(linear.map((shape) => shape.body).sort());
+    expect(fromPrototype.map((icon) => icon.body).sort()).toEqual(
+      linear.map((shape) => shape.body).sort(),
+    );
+  });
+
+  it("登记为“原型之外新增”的图标：图标集里有它，原型里确实没有它的图形，名字不重复登记", () => {
+    expect(new Set(NOT_IN_PROTOTYPE).size).toBe(NOT_IN_PROTOTYPE.length);
+    for (const name of NOT_IN_PROTOTYPE) {
+      const icon = icons.find((item) => item.name === name);
+      expect(icon, name).toBeDefined();
+      if (icon) expect(shapes.has(icon.body), name).toBe(false);
+    }
   });
 
   it("没收的只有实心图形与右上角胶囊示意", () => {
     const skipped = [...shapes.values()].filter((shape) => !shape.linear);
-    expect(skipped.length).toBe(shapes.size - icons.length);
+    expect(skipped.length).toBe(shapes.size - fromPrototype.length);
     for (const shape of skipped) expect(icons.some((icon) => icon.body === shape.body)).toBe(false);
   });
 
   it("线宽照原型原样保留", () => {
-    for (const icon of icons) {
+    for (const icon of fromPrototype) {
       const shape = shapes.get(icon.body);
       expect(shape, icon.name).toBeDefined();
       if (shape) expect(icon.strokeWidth, icon.name).toBe(prototypeWidth(shape));

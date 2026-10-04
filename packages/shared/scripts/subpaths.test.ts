@@ -18,7 +18,10 @@ const own = Object.entries(manifest.exports)
     file: resolve(packageDir, typeof target === "string" ? target : target.default),
   }));
 
-const IMPORT = /(?:^|\n)\s*(?:import|export)\s[^;]*?from\s+"([^"]+)"|import\("([^"]+)"\)/g;
+// 三种写法：带 from 的 import / export、没有 from 的 import "x"（只为副作用引入）、动态 import("x")。
+// 本包的全部子路径另由 src/index.test.ts（W0-11）按语法树扫一遍；这里是设计地基自己的一道，按文本认
+const IMPORT =
+  /(?:^|\n)\s*(?:import|export)\s[^;]*?from\s+"([^"]+)"|(?:^|\n)\s*import\s+"([^"]+)"|import\("([^"]+)"\)/g;
 /** 小程序里没有的东西：Node 内置模块、React、Zod 运行时 */
 const FORBIDDEN_IMPORT = /^(?:node:|react(?:-dom)?(?:\/|$)|zod(?:\/|$)|@hono\/zod-openapi)/;
 const NODE_BUILTIN = /^(?:fs|path|os|url|crypto|child_process|buffer|util|stream|events)(?:\/|$)/;
@@ -33,7 +36,7 @@ function reachable(entry: string): Map<string, string[]> {
     const file = queue.pop();
     if (file === undefined || seen.has(file)) continue;
     const text = readFileSync(file, "utf8");
-    const specifiers = [...text.matchAll(IMPORT)].map((m) => m[1] ?? m[2] ?? "");
+    const specifiers = [...text.matchAll(IMPORT)].map((m) => m[1] ?? m[2] ?? m[3] ?? "");
     seen.set(file, specifiers);
     for (const specifier of specifiers) {
       if (specifier.startsWith("."))
@@ -95,6 +98,8 @@ describe("本包新增的子路径", () => {
     expect(FORBIDDEN_IMPORT.test("react/jsx-runtime")).toBe(true);
     expect(FORBIDDEN_IMPORT.test("zod")).toBe(true);
     expect([...'import { readFileSync } from "node:fs";'.matchAll(IMPORT)][0]?.[1]).toBe("node:fs");
+    expect([...'import "node:fs";'.matchAll(IMPORT)][0]?.[2]).toBe("node:fs");
+    expect([...'const fs = await import("node:fs");'.matchAll(IMPORT)][0]?.[3]).toBe("node:fs");
     expect(FORBIDDEN_GLOBAL.test("const tz = process.env.TZ;")).toBe(true);
   });
 });
