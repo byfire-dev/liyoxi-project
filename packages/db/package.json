@@ -11,8 +11,18 @@
     }
   },
   "scripts": {
+    "generate": "prisma generate",
+    "validate": "prisma validate",
+    "migrate:deploy": "prisma migrate deploy",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --passWithNoTests",
     "build": "echo '源码包：exports 直接指向 src，没有构建'"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.9.1",
+    "@prisma/client": "7.9.1"
+  },
+  "devDependencies": {
+    "prisma": "7.9.1"
   }
 }
