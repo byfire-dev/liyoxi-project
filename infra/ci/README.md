@@ -98,6 +98,7 @@ node infra/ci/classify-gate-changes.mjs --base origin/main --labels gate-change
 | `lockfile` | `packages` 段新增条目（`importers`、`snapshots` 两段跟着新增的不单列） | `packages` 段的条目被移除或替换，已有条目的内容有变（来源、校验值）；头部设置有变；`importers` 段里已有依赖的 specifier、解析版本有变或被删；`snapshots` 段里已有条目的依赖版本有变或被删。版本后面括号里的 peer 解析不比（加一个依赖就会让它变）。`snapshots` 的条目按完整的键（带 peer 解析）逐个比；键本身变了的，退回与同名的几份并在一起比；新出现的同名条目（多一份 peer 解析）里，依赖版本与基线上同名条目不一致也算放松，这个包自己声明的 peer 依赖除外 |
 | `layers` | 新增模块登记 | 改已登记模块的层；改同层策略或白名单；改非模块目录名单 |
 | `registry` | `gate-files.json` 新增条目 | 改、删已有条目 |
+| `generated` | 入库的生成物：内容有变（重新生成）、新增文件。不逐行判；清单里逐个文件列出加了几行、删了几行，并写明由哪道检查把关它与源码一致 | 删除已有的生成物；条目没写 `check`（判不出）；内容没变而文件属性有变、文件类型有变（换成符号链接之类，判不出） |
 
 - 删除任何门禁文件都算放松。判不出的按放松算。
 - 一个文件命中几条就按几条各判一遍。`except` 里的路径不按那一条判，但仍算门禁路径：本目录下的 `.md` 没有别的条目，不逐行判；检查脚本与 `selftest/` 由各自的 `new-file` 条目判。
@@ -117,12 +118,37 @@ node infra/ci/classify-gate-changes.mjs --base origin/main --labels gate-change
   - `required` 汇总脚本 `ci-required.mjs` 跑的是 PR 自己检出里的那一份。PR 改它就能让 `required` 变绿；这种改动会被分类判成放松、`gate-classify` 会红，但平台只看 `required`。所以凡是动 `infra/ci/` 下已有脚本的 PR，业主直接看差异，并同时看 `gate-classify` 的结论。
   - 工作流的用例按换行符分行。注释里夹 U+2028、U+0085 这类字符时，有的 YAML 解析器会把它当换行，可能藏下一个任务；GitHub 一侧怎么解析没有核实。用例也只读小写的 `.yml`、`.yaml`，检查名比较区分大小写；GitHub 认不认大写扩展名、检查名比不比大小写同样没有核实。
   - `.gitattributes` 把文件交给 LFS 的过滤器时，入库的是指针，密钥扫描看不到本体。本仓库不用 LFS。
-- 已知的限度：计划 第 5.3 节把“重新生成的生成物”列在只增类，分类脚本现在没有这一种口径。设计生成物目录 `packages/shared/src/design/generated/**` 按 `append` 登记：新增文件、加行（加一个变量、加一个图标）算只增；已有的行有变（改一个已有变量的取值或说明、删变量、改生成脚本的输出格式）判成放松，而它的来源 `design/tokens.json` 与生成脚本不是门禁文件，放进带 `gate-change` 的 PR 也过不了。要做这类改动，先用单独的 `gate-change` PR 给分类脚本补一种生成物的口径，或另定办法（`docs/plan/status/W0-26.md` 偏差 17，待业主定）。
 - 被新提交顶掉的运行：整次运行的结论是“已取消”，但其中 `required` 任务自己记成失败（它带 `if: always()`，前面的任务被取消时照样跑并判不通过）。被顶掉的是旧提交，PR 上看的是最新提交的结果；运行历史里会留一条红的 `required`，属预期。
-- 契约生成物 `packages/contract/generated/**`（W0-08 登记）：算门禁路径，但不逐行判，条目的 `except` 盖住了整个匹配式。现有的口径里没有“重新生成算只增”的一种：按 `append` 判，加一条路由后重新生成就是放松（`"paths": {}` 那一行被改，`"minLength": 1` 这类行命中关键字；实测）。所以重新生成的生成物不出现在 PR 顶部的清单里，也不因此打 `gate-touch`；删掉一份生成物分类也不报。它与源码一致由 `contract:check` 与契约自测把关，手改、漏生成、少一份都会红。要照计划 第 5.3 节把“重新生成的生成物”列成只增，得给分类脚本加一种口径（改已有的检查脚本，须单独的 `gate-change` PR），待业主定（`docs/plan/status/W0-08.md` 偏差 10）。
 - 还没登记的：工作区包自己的 `tsconfig.json` 与 `vitest.config.ts`。在里面关 `strict`、收窄 `include` 现在判为“没有门禁改动”。`vitest.config.ts` 按 `append` 登记会把正常的改写（一行拆成多行、往 `include` 里加一项）也判成放松；`tsconfig.json` 现在可以按 `tsconfig` 登记，没有这个问题。登记不登记、按什么口径，待业主定（`docs/plan/status/W0-03.md` 偏差 6）。
 
-登记新的门禁文件：往 `gate-files.json` 的 `files` 末尾加一条（`pattern`、`kind`、`note`）。`pattern` 里 `**` 跨目录、`*` 不跨目录。白名单、基线、黄金文件这类“一动就该让业主看”的用 `frozen`；规则与配置用 `append`；tsconfig 用 `tsconfig`。新依赖一律写精确版本，写成范围会被判成放松。`infra/ci/` 下的检查脚本（`.mjs`）与 `selftest/` 已经被现有条目按 `new-file` 盖住，不用再登记；放在别处的检查脚本按 `new-file` 登记。
+登记新的门禁文件：往 `gate-files.json` 的 `files` 末尾加一条（`pattern`、`kind`、`note`）。`pattern` 里 `**` 跨目录、`*` 不跨目录。白名单、基线、黄金文件这类“一动就该让业主看”的用 `frozen`；规则与配置用 `append`；tsconfig 用 `tsconfig`；入库的生成物目录用 `generated`，另写 `check`，前提见第 5.1 节。新依赖一律写精确版本，写成范围会被判成放松。`infra/ci/` 下的检查脚本（`.mjs`）与 `selftest/` 已经被现有条目按 `new-file` 盖住，不用再登记；放在别处的检查脚本按 `new-file` 登记。
+
+### 5.1 生成物（`generated`）
+
+来历：计划 第 5.3 节把“重新生成的生成物”列在只增类，分类脚本第一版没有这一种口径。契约生成物当时登记成“算门禁路径、不逐行判”（条目的 `except` 盖住整个匹配式：重新生成不进清单，删掉一份也不报）；设计生成物按 `append` 登记（改一个已有变量的取值就判成放松，而来源 `design/tokens.json` 不是门禁文件，带 `gate-change` 的 PR 也放不进去）。业主 2026-10-05 同意加这一种口径（原话：“生成物的门禁口径、状态汇总不入库：两个减少摩擦的门禁改动。同意。”），两处登记统一到它上面。
+
+| 目录 | `check` | 谁写它 |
+| --- | --- | --- |
+| `packages/contract/generated/**` | `pnpm contract:check` | `pnpm contract:generate` |
+| `packages/shared/src/design/generated/**` | `pnpm design:check` | `pnpm design:generate` |
+
+怎么判：名下的文件内容有变、新增文件，都算只增，逐个文件列进 PR 顶部的清单（如“重新生成的生成物，内容有变：加 3 行、删 1 行（与源码一致由 `pnpm design:check` 把关）”），CI 打 `gate-touch`。删除已有的生成物算放松。改这类条目（换检查命令、拿掉 `check`、加 `except`）与改别的条目一样，是放松。
+
+前提：这个口径不看生成物里写了什么，它与源码一致不一致全靠条目的 `check` 写的那道检查。所以只有“CI 的 `verify` 里确实有一步在跑、重新生成后比对”的目录才配用它。`test/gate-generated.test.ts` 对清单里每个 `generated` 条目逐条核对，有一条不满足 `pnpm test` 就红：
+
+- 写了 `check`，且它逐字是 `ci.yml` 的 `verify` 里单独的一步（一行 `run:`），那一步不带条件；
+- `check` 是“`pnpm <根脚本>`”，根脚本的写法是“`pnpm <重新生成的根脚本> && git diff --exit-code -- <目录>`”（后面可以再接别的步骤，不许接 `||`、`;`）；
+- 条目的匹配式就是“`<目录>/**`”，与根脚本比对的是同一个目录。
+
+没有这样一道检查的目录不要登记成 `generated`。条目没写 `check` 的，分类把它名下的改动一律按放松算（门禁自测有反例）。
+
+限度：
+
+- 生成物与源码是否一致，完全靠那道检查，分类不重复判。检查那一步被拿掉、根脚本被改，由 `workflow`、`root-manifest` 两种口径判成放松，上面的用例也会红；除此之外，分类不知道那道检查还管不管用。
+- 改生成脚本本身不归这个口径管。`packages/contract/scripts/`、`packages/shared/scripts/`、来源 `design/tokens.json` 与契约源码都不是门禁文件；工作区包 `package.json` 里的 `generate`、`design:generate` 脚本改了也不判（`manifest` 口径只管 `typecheck`、`test`、`lint`）。生成脚本改了输出再重新生成，检查是绿的，分类判只增。把包里的 `generate` 脚本改成空转会被用例拦下（契约自测与 `test/design-generated.test.ts` 不经它、直接调生成脚本来比对），改生成脚本的输出则没有东西拦。清单里出现“重新生成的生成物”时，业主要连同生成脚本与来源的差异一起看。
+- `git diff --exit-code` 看不到未跟踪的文件：新增一种生成物却没入库，要靠别的兜底。契约是契约自测里问 git 索引的那一条（所以 `pnpm test` 与 `contract:check` 缺一不可，第 2 节），设计是 `design:check` 的第三步 `check-untracked.mjs`。新登记一个生成物目录时要带同样的兜底；用例不核对这一点。
+- 删除算放松，而带 `gate-change` 的 PR 只许改门禁文件。重新生成后确实少了一份文件（比如去掉一种文档）的，工作包 PR 与 `gate-change` PR 都装不下“改源码 + 删生成物”。办法是分两个 PR：先用 `gate-change` PR 给条目加一条 `except` 把要删的那个文件划出去，再在工作包 PR 里改源码并删掉它。现有两个目录的文件集合是固定的（契约三份文档各两个文件，设计六个文件），还没遇到过。
+- 内容没变而文件属性有变（加可执行位）、文件类型有变（换成符号链接）判不出，按放松算。
 
 ## 6. 状态汇总
 
