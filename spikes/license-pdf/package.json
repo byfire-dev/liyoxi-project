@@ -1,0 +1,27 @@
+{
+  "name": "@liyoxi/spike-license-pdf",
+  "version": "0.0.0",
+  "private": true,
+  "description": "X-03 技术验证：授权书 PDF 渲染。一次性代码，不进根工作区，不进生产构建",
+  "type": "module",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=24.19.0 <25",
+    "pnpm": ">=10.34.5 <11"
+  },
+  "scripts": {
+    "render": "node src/cli.ts",
+    "render:container": "node scripts/render-container.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@react-pdf/renderer": "4.9.0",
+    "react": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

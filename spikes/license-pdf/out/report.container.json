@@ -1,0 +1,57 @@
+{
+  "generatedAt": "2026-10-04T09:04:43.650Z",
+  "image": "node:24-slim",
+  "imageDigests": "[\"node@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6\"]",
+  "environment": {
+    "node": "v24.21.0",
+    "platform": "linux/arm64",
+    "renderer": "@react-pdf/renderer 4.9.0",
+    "react": "19.3.0",
+    "templateVersion": "x03-spike-1"
+  },
+  "systemFontFilesInContainer": 0,
+  "fontDirInContainer": "/fonts（只读挂载仓库的 infra/docker/server/fonts）",
+  "install": "pnpm install --frozen-lockfile --prod",
+  "samples": [
+    {
+      "name": "short",
+      "pagesOnHost": 1,
+      "pagesInContainer": 1,
+      "samePages": true,
+      "bytesInContainer": 70046,
+      "coldRenderMs": 120,
+      "warmRenderMs": 24,
+      "peakRssMb": 209.2,
+      "fontsInFile": "NotoSansSC-Bold、NotoSerifSC-Bold、NotoSerifSC-Regular",
+      "onlyBundledFonts": true,
+      "uncoveredChars": ""
+    },
+    {
+      "name": "long",
+      "pagesOnHost": 4,
+      "pagesInContainer": 4,
+      "samePages": true,
+      "bytesInContainer": 166514,
+      "coldRenderMs": 157,
+      "warmRenderMs": 51,
+      "peakRssMb": 204.2,
+      "fontsInFile": "NotoSansSC-Bold、NotoSerifSC-Bold、NotoSerifSC-Regular",
+      "onlyBundledFonts": true,
+      "uncoveredChars": ""
+    },
+    {
+      "name": "extreme",
+      "pagesOnHost": 6,
+      "pagesInContainer": 6,
+      "samePages": true,
+      "bytesInContainer": 141790,
+      "coldRenderMs": 193,
+      "warmRenderMs": 92,
+      "peakRssMb": 251,
+      "fontsInFile": "NotoSansSC-Bold、NotoSerifSC-Bold、NotoSerifSC-Regular",
+      "onlyBundledFonts": true,
+      "uncoveredChars": "𠮷 U+20BB7、😀 U+1F600、𰻝 U+30EDD"
+    }
+  ],
+  "problems": ""
+}

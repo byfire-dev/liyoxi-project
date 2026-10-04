@@ -1,0 +1,108 @@
+{
+  "generatedAt": "2026-10-04T09:04:10.236Z",
+  "environment": {
+    "node": "v24.20.0",
+    "platform": "darwin/arm64",
+    "renderer": "@react-pdf/renderer 4.9.0",
+    "react": "19.3.0",
+    "templateVersion": "x03-spike-1"
+  },
+  "fonts": {
+    "dir": "infra/docker/server/fonts",
+    "sharedCodePoints": 30880,
+    "files": [
+      {
+        "file": "NotoSerifSC-Regular.ttf",
+        "use": "正文",
+        "bytes": 14807636,
+        "sha256": "c358a69de3df5f423a8946a7b03e3126fb6ba116f1130a463455b4e39e1f0742"
+      },
+      {
+        "file": "NotoSerifSC-Bold.ttf",
+        "use": "正文加粗、表头",
+        "bytes": 14806580,
+        "sha256": "9c6a2ba736e4b499c84f65ce366bd3625c0401885fd3e585ace50fb738b96ff6"
+      },
+      {
+        "file": "NotoSansSC-Bold.ttf",
+        "use": "标题、条款标题",
+        "bytes": 10549020,
+        "sha256": "9a38ae0ab28cd5a256f9ea8e00dedc688aac17f7915fcb000572990afa956b96"
+      }
+    ]
+  },
+  "limits": {
+    "maxBytes": 1048576
+  },
+  "samples": [
+    {
+      "name": "short",
+      "label": "短",
+      "file": "short.pdf",
+      "letterNo": "SQ2026092600018-1-DY",
+      "revNo": 1,
+      "contentFingerprint": "1726788383e7708e7e153f1ea20152b7f59cde7e1bacb2cbfaade7ddb21e43ac",
+      "pages": 1,
+      "pagesSecondRender": 1,
+      "pageObjectsInFile": 1,
+      "pagesWithFooter": 1,
+      "bytes": 70046,
+      "withinSizeLimit": true,
+      "coldRenderMs": 84,
+      "warmRenderMs": 21,
+      "processMs": 244,
+      "peakRssMb": 240.4,
+      "fontsInFile": "NotoSansSC-Bold、NotoSerifSC-Bold、NotoSerifSC-Regular",
+      "onlyBundledFonts": true,
+      "uncoveredChars": ""
+    },
+    {
+      "name": "long",
+      "label": "长",
+      "file": "long.pdf",
+      "letterNo": "SQ2026092600018-1-SPH",
+      "revNo": 2,
+      "contentFingerprint": "aec8f94a69bb92490bf79fdf0553468897c181c9a4c945ae3c88c92942889e45",
+      "pages": 4,
+      "pagesSecondRender": 4,
+      "pageObjectsInFile": 4,
+      "pagesWithFooter": 4,
+      "bytes": 166514,
+      "withinSizeLimit": true,
+      "coldRenderMs": 116,
+      "warmRenderMs": 47,
+      "processMs": 304,
+      "peakRssMb": 246.8,
+      "fontsInFile": "NotoSansSC-Bold、NotoSerifSC-Bold、NotoSerifSC-Regular",
+      "onlyBundledFonts": true,
+      "uncoveredChars": ""
+    },
+    {
+      "name": "extreme",
+      "label": "极端",
+      "file": "extreme.pdf",
+      "letterNo": "SQ2026092600018-12-SPH-2",
+      "revNo": 12,
+      "contentFingerprint": "ec712944cbcae346eb6a8ace8dffb3acd8b416fb9d68fb797362f1b068fe16c1",
+      "pages": 6,
+      "pagesSecondRender": 6,
+      "pageObjectsInFile": 6,
+      "pagesWithFooter": 6,
+      "bytes": 141790,
+      "withinSizeLimit": true,
+      "coldRenderMs": 148,
+      "warmRenderMs": 72,
+      "processMs": 363,
+      "peakRssMb": 285.4,
+      "fontsInFile": "NotoSansSC-Bold、NotoSerifSC-Bold、NotoSerifSC-Regular",
+      "onlyBundledFonts": true,
+      "uncoveredChars": "𠮷 U+20BB7、😀 U+1F600、𰻝 U+30EDD"
+    }
+  ],
+  "missingGlyph": {
+    "behaviourWithoutGuard": "字体没收的字不报错：@react-pdf/renderer 换用不嵌入的 Helvetica 来画，显示成错误的拉丁符号并压住后面的字，文件里多出 /BaseFont /Helvetica",
+    "guard": "渲染前按随附字体的 cmap 逐字检查，没收的字换成“〓”，并列在各样张的 uncoveredChars 里",
+    "howToDetectInFile": "文件里的字体名只应是随附的三个；onlyBundledFonts 为 false 即说明有字回退"
+  },
+  "problems": ""
+}
