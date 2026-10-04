@@ -24,13 +24,14 @@
 
 | 任务 | 内容 | 备注 |
 | --- | --- | --- |
-| `verify` | 冻结安装 → lint、格式、换名、类型 → 依赖方向与五层 → 测试 → 构建 → `.env.example` 核对 → 密钥扫描、依赖审计、新增依赖发布时长 → `gates:selftest` → 状态汇总无差异 | 挂 PostgreSQL 17 与 Redis 7.4 两个服务容器，端口与账号同 `infra/compose/local.yml` |
+| `verify` | 冻结安装 → lint、格式、换名、类型 → 依赖方向与五层 → 测试 → `contract:check` → 构建 → `.env.example` 核对 → 密钥扫描、依赖审计、新增依赖发布时长 → `gates:selftest` → 状态汇总无差异 | 挂 PostgreSQL 17 与 Redis 7.4 两个服务容器，端口与账号同 `infra/compose/local.yml` |
 | `gate-classify` | 门禁改动分类；把清单写进 PR 描述顶部两个标记之间；有只增项就打 `gate-touch` | 只在 PR 上跑；只有它能写 PR |
 | `required` | 依赖上面全部任务；任何一个没成功即失败；出时长统计 | 业主在 main 的保护规则里只把它设为必过 |
 
 - PR 上按分支分组：同一个分支的新提交会取消在途的运行。推到 main 时一个提交一组：不取消，也不会因为排队被后一次合并顶掉，每次合并都跑完。
 - 执行机只写在 `ci.yml` 的一处（`verify` 的 `runs-on` 带锚点 `&runner`），`nightly.yml` 另有一处。改成自托管执行机时改这两处；自托管机器上要有 Docker 与 `gh`。
 - 格式那一步跑的是 `pnpm format:check --ignore-path .prettierignore`：忽略项只认 `.prettierignore`（门禁文件）。Prettier 缺省把 `.gitignore` 也当忽略文件读，往 `.gitignore` 加一行就能让已入库的文件不查格式，而 `.gitignore` 不是门禁文件。本地直接跑 `pnpm format:check` 仍会读 `.gitignore`（本机的 `.vscode/` 之类不用查）；两者只在“已入库又被 `.gitignore` 盖住”的文件上有差别，以 CI 为准。
+- `contract:check`（W0-08）排在“测试”之后，两步都在必过里，缺一不可。`contract:check` 先重新生成、再 `git diff --exit-code`：`git diff` 看不到未跟踪的文件，新增一种生成物却忘了 `git add` 时它不会红；这由契约自测里问 git 索引的那一条拦，所以 `pnpm test` 要在 git 检出里跑。契约自测另有一条拿提交的生成物与现生成的逐字节比对，要赶在 `contract:check` 把文件重新写出来之前跑。
 - 工作流的写法有约束，`test/workflows.test.ts` 按行读、认不出就失败：顶格的键与任务下面四格缩进的键不带引号；`jobs:` 逐字一行；任务编号写成两格缩进的 `<编号>:`，冒号后面不带注释；每个任务恰好一行 `name: <编号>`，检查名与任务编号相同。必过检查名 `required` 在全部工作流里只有一个。哪个工作流都不给令牌 `checks`、`statuses` 的写权限（有了它能经接口造出任意名字的检查）。
 - 第三方 Action 固定到提交 SHA，行尾注明版本；升级单独成 PR。
 - CI 里不放密钥。工作流里的连接串是本地开发的固定值，只对当次运行的服务容器有效。
@@ -45,6 +46,8 @@
 5. 根脚本要加命令时只新增，不改已有的；命令补进 `CLAUDE.md` 第 9 节。
 
 这些都是“只增”类改动：CI 打 `gate-touch`，差异列在 PR 描述顶部。不要在已有的步骤里加行、改行，也不要改已有的检查脚本与反例（加一行也算）：那会被判成放松，要改就走单独的 `gate-change` PR。
+
+`test/workflows.test.ts` 的“verify 的步骤齐全”一条逐条列了 `verify` 里的命令：往 `verify` 加一步时，在那张清单的同一位置加一行，否则 `pnpm test` 会红。只加这一行是“只增”（用例按 `append` 判）。
 
 ## 4. 怎么加一个反例
 
@@ -66,6 +69,7 @@ export default {
 - 形似密钥、真实配置、旧名的字符串在运行时拼出来，不作为字面量入库。
 - 本地跑单个反例：`node infra/ci/selftest/run.mjs --only <文件名里的一段>`。
 - 有几例要用到外部条件：名字以 `secret-scan-` 开头的要本机 Docker 在运行，`audit-vulnerable-dep` 要能连 `registry.npmjs.org`。条件不具备时这几例会红，不会被悄悄跳过。
+- `contract-check-stale-generated` 在仓库外的副本里跑真的 `pnpm contract:check`：要 pnpm 在 PATH 上、本仓库的依赖已安装（副本的依赖用符号链接指回 `packages/contract/node_modules`）。它改的是 `DictRef`：提交的生成物里只有 `DictRef`、`ErrorBody`、`SentryEnvelope` 三个组件，改别的结构生成物不变。
 
 ## 5. 门禁改动分类
 
@@ -110,6 +114,7 @@ node infra/ci/classify-gate-changes.mjs --base origin/main --labels gate-change
   - 工作流的用例按换行符分行。注释里夹 U+2028、U+0085 这类字符时，有的 YAML 解析器会把它当换行，可能藏下一个任务；GitHub 一侧怎么解析没有核实。用例也只读小写的 `.yml`、`.yaml`，检查名比较区分大小写；GitHub 认不认大写扩展名、检查名比不比大小写同样没有核实。
   - `.gitattributes` 把文件交给 LFS 的过滤器时，入库的是指针，密钥扫描看不到本体。本仓库不用 LFS。
 - 被新提交顶掉的运行：整次运行的结论是“已取消”，但其中 `required` 任务自己记成失败（它带 `if: always()`，前面的任务被取消时照样跑并判不通过）。被顶掉的是旧提交，PR 上看的是最新提交的结果；运行历史里会留一条红的 `required`，属预期。
+- 契约生成物 `packages/contract/generated/**`（W0-08 登记）：算门禁路径，但不逐行判，条目的 `except` 盖住了整个匹配式。现有的口径里没有“重新生成算只增”的一种：按 `append` 判，加一条路由后重新生成就是放松（`"paths": {}` 那一行被改，`"minLength": 1` 这类行命中关键字；实测）。所以重新生成的生成物不出现在 PR 顶部的清单里，也不因此打 `gate-touch`；删掉一份生成物分类也不报。它与源码一致由 `contract:check` 与契约自测把关，手改、漏生成、少一份都会红。要照计划 第 5.3 节把“重新生成的生成物”列成只增，得给分类脚本加一种口径（改已有的检查脚本，须单独的 `gate-change` PR），待业主定（`docs/plan/status/W0-08.md` 偏差 10）。
 - 还没登记的：工作区包自己的 `tsconfig.json` 与 `vitest.config.ts`。在里面关 `strict`、收窄 `include` 现在判为“没有门禁改动”。`vitest.config.ts` 按 `append` 登记会把正常的改写（一行拆成多行、往 `include` 里加一项）也判成放松；`tsconfig.json` 现在可以按 `tsconfig` 登记，没有这个问题。登记不登记、按什么口径，待业主定（`docs/plan/status/W0-03.md` 偏差 6）。
 
 登记新的门禁文件：往 `gate-files.json` 的 `files` 末尾加一条（`pattern`、`kind`、`note`）。`pattern` 里 `**` 跨目录、`*` 不跨目录。白名单、基线、黄金文件这类“一动就该让业主看”的用 `frozen`；规则与配置用 `append`；tsconfig 用 `tsconfig`。新依赖一律写精确版本，写成范围会被判成放松。`infra/ci/` 下的检查脚本（`.mjs`）与 `selftest/` 已经被现有条目按 `new-file` 盖住，不用再登记；放在别处的检查脚本按 `new-file` 登记。
