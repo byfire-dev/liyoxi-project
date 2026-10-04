@@ -1,0 +1,78 @@
+{
+  "说明": [
+    "packages/services/src 下的模块登记表：模块 → 层，外加各层的同层策略（01 第 5 节；06 第 3.6 节；D7 第 2.3 节）。",
+    ".dependency-cruiser.cjs 在加载时读本文件，展开成分层规则；infra/ci/check-layers.mjs 核对本文件与模块目录一一对应。",
+    "新增模块先在 modules 里登记层，再建目录。改已登记模块的层、改 sameLayer 的策略或白名单，只在单独的 gate-change PR 里做。"
+  ],
+  "servicesDir": "packages/services/src",
+  "layers": ["L0", "L1", "L2", "L3", "L4"],
+  "modules": {
+    "kernel": "L0",
+    "events": "L0",
+    "timers": "L0",
+    "flow": "L0",
+    "sla": "L0",
+    "authz": "L0",
+    "audit": "L0",
+    "security": "L0",
+    "config": "L0",
+    "providers": "L0",
+    "identity": "L1",
+    "tenant": "L1",
+    "profile": "L1",
+    "staff": "L1",
+    "approval": "L1",
+    "content": "L1",
+    "media": "L1",
+    "notify": "L1",
+    "docs": "L1",
+    "portal": "L1",
+    "billing": "L2",
+    "order": "L3",
+    "ad": "L3",
+    "delivery": "L3",
+    "publish": "L3",
+    "support": "L3",
+    "workbench": "L4",
+    "reports": "L4",
+    "analytics": "L4",
+    "exports": "L4",
+    "ops": "L4"
+  },
+  "sameLayer": {
+    "L0": {
+      "policy": "free",
+      "note": "横切层：同层可互引，只禁成环（W0-02 任务书 第 11 节第 4 项）"
+    },
+    "L1": {
+      "policy": "whitelist",
+      "allow": {
+        "identity": ["tenant", "approval", "docs", "notify", "media"],
+        "tenant": ["docs"],
+        "staff": ["approval", "media"],
+        "portal": ["identity"],
+        "profile": ["approval", "tenant", "media", "identity"],
+        "content": ["media"]
+      },
+      "note": "照抄 06 第 3.6 节。identity → notify 只限验证码与换绑通知的直发，这一条工具拦不到，靠评审"
+    },
+    "L2": {
+      "policy": "whitelist",
+      "allow": {},
+      "note": "只有 billing 一个模块；以后同层再加模块，默认互不可引"
+    },
+    "L3": {
+      "policy": "whitelist",
+      "allow": {
+        "order": ["ad", "delivery"],
+        "delivery": ["ad", "publish"]
+      },
+      "note": "照抄 06 第 3.6 节"
+    },
+    "L4": {
+      "policy": "free",
+      "note": "读侧层：同层可互引，只禁成环（W0-02 任务书 第 11 节第 4 项）"
+    }
+  },
+  "nonModuleDirs": ["testing"]
+}

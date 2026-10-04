@@ -1,0 +1,23 @@
+{
+  "name": "@liyoxi/services",
+  "version": "0.1.0",
+  "private": true,
+  "description": "业务逻辑唯一落点：31 个模块分五层，对外只暴露各自的 index.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "build": "echo '源码包：exports 直接指向 src，没有构建'"
+  },
+  "dependencies": {
+    "@liyoxi/contract": "workspace:*",
+    "@liyoxi/db": "workspace:*",
+    "@liyoxi/shared": "workspace:*"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "@liyoxi/db",
+  "version": "0.1.0",
+  "private": true,
+  "description": "唯一数据访问层：Prisma schema、迁移、客户端工厂（首版迁移由 W0-05 接）",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "build": "echo '源码包：exports 直接指向 src，没有构建'"
+  }
+}

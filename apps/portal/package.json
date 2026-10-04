@@ -1,0 +1,22 @@
+{
+  "name": "@liyoxi/portal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "电脑端下载页（React 19 · Vite 8；骨架由 W0-28 接）",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "echo '占位：前端测试由 W0-28 接'",
+    "build": "echo '占位：真实构建由 W0-28 接'"
+  },
+  "dependencies": {
+    "@liyoxi/contract": "workspace:*",
+    "@liyoxi/shared": "workspace:*",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0"
+  }
+}

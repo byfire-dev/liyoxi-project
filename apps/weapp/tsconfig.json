@@ -1,0 +1,3 @@
+{
+  "extends": "../../packages/config/tsconfig/taro-react18.json"
+}
