@@ -30,7 +30,9 @@ V1.0 交付商家端微信小程序、运营管理后台与商家电脑端下载
 | [docs/05-risks-and-open-issues.md](docs/05-risks-and-open-issues.md) | 风险、待确认事项与上线前验证清单 |
 | [docs/06-data-model.md](docs/06-data-model.md) | 数据模型（字段级定义在 docs/data-model/） |
 | [docs/07-api-contract.md](docs/07-api-contract.md) | 接口契约（字段级定义在 docs/api/） |
-| [docs/08-development-plan.md](docs/08-development-plan.md) | 开发计划（待确认） |
+| [docs/08-development-plan.md](docs/08-development-plan.md) | 开发计划（已确认，执行中；进度见 docs/plan/） |
+| [docs/plan/](docs/plan/README.md) | 开发计划的执行台账：任务书、工作包状态、留桩、计划变更、外部验证、业主清单、三份运维文档 |
+| [CLAUDE.md](CLAUDE.md) | 会话开工须知：每个开发会话开工前必读的总纲与出处 |
 | [docs/appendix/](docs/appendix/README.md) | 子系统设计草案、外部事实核实记录、调研记录 |
 
 建议先读 [docs/05-risks-and-open-issues.md](docs/05-risks-and-open-issues.md) 的第 0、1 节。
