@@ -4,7 +4,7 @@
 | --- | --- |
 | 做什么 | 验证 `@react-pdf/renderer` 只靠随镜像分发的静态 TTF，能不能把《定制内容授权书》的长文本渲染对：中文换行、分页、生僻字 |
 | 任务书 | `docs/plan/tasks/X-03.md` |
-| 结论 | `docs/adr/` 下 X-03 的 ADR；台账 `docs/plan/external-verification/v12-authorization-pdf.md` |
+| 结论 | ADR-042（`docs/adr/0042-授权书PDF用react-pdf渲染-Noto静态TTF-并段换行.md`）；台账 `docs/plan/external-verification/v12-authorization-pdf.md` |
 | 性质 | 一次性验证代码。独立工程：自己的 `package.json`、锁文件与 pnpm 设置，不进根工作区，不进生产构建。结论入 ADR 后可删 |
 | 文字 | 样张里的条款全部是占位，非法务定稿；每页页眉都标了 |
 
