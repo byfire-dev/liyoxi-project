@@ -1,4 +1,5 @@
 // 契约自测（任务书 W0-08 第 7 节第 1–6 条）。段落标题里的“验收 N”对应任务书的验收编号。
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -322,6 +323,10 @@ describe("验收 3：样例路由进三份文档", () => {
 });
 
 describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
+  // 下面这一条钉的是 M0 骨架的现状，不是长期的黄金条目，后面的包要按新的现状替换它：
+  //   - W0-10 登记第一批路由时，改 allRoutes、allRegistryOnly 与“paths 为空”三处；
+  //   - 各域第一个后端 PR 加具名结构时，改组件清单（现在只有 DictRef、ErrorBody、SentryEnvelope）。
+  // 这两处是预期替换，不算“删改已有黄金条目”。替换时把断言换成新的现状（条数、组件名），不要整条删掉。
   it("登记表里没有真实路由：三份文档 paths 为空，但都有通用结构与错误体", async () => {
     expect(allRoutes).toEqual([]);
     expect(allRegistryOnly).toEqual([]);
@@ -345,6 +350,20 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
     for (const [name, content] of fresh) {
       expect(readFileSync(join(GENERATED_DIR, name), "utf8"), name).toBe(content);
     }
+  });
+
+  it("都已交给 git：已跟踪的文件清单与现生成的一致（新增了生成物就 git add）", async () => {
+    // pnpm contract:check 用 git diff，看不见未跟踪的文件；它又会先把文件生成出来，
+    // 所以同一个检出里先跑它、再跑上一条用例，上一条也看不出“新增的生成物忘了提交”。
+    // 这里直接问 git 的索引，与两步的先后无关。需要在 git 检出里跑（contract:check 同样需要）。
+    const tracked = execFileSync("git", ["ls-files", "--", "generated"], {
+      cwd: packageDir,
+      encoding: "utf8",
+    });
+    const fresh = await renderGenerated();
+    expect(tracked.split("\n").filter(Boolean).sort()).toEqual(
+      [...fresh.keys()].map((name) => `generated/${name}`).sort(),
+    );
   });
 
   it("生成的类型与 Zod 结构同形", () => {
@@ -597,13 +616,29 @@ describe("验收 6：纯常量子路径不带 Zod", () => {
       "src/errors/types.ts",
     ]);
     expect(scan.packages).toEqual([]);
+    // 参数不是字面量的动态 import 扫描跟不过去：纯常量子路径里一处都不许有
+    expect(scan.unresolved).toEqual([]);
   });
 
   it("反例：经一层转手、只在类型上引 zod，也扫得出来", () => {
     const scan = importsReachableFrom(join(packageDir, "src/__fixtures__/reach-zod/entry.ts"));
-    expect(scan.packages).toEqual(["@hono/zod-openapi", "hono", "zod"]);
+    // zod/mini 是模板字符串写的动态 import（import(`zod/mini`)），hono 是引号写的
+    expect(scan.packages).toEqual(["@hono/zod-openapi", "hono", "zod", "zod/mini"]);
+    expect(scan.unresolved.map((item) => item.slice(packageDir.length + 1))).toEqual([
+      "src/__fixtures__/reach-zod/leaf.ts: import(name);",
+    ]);
     const fromRoot = importsReachableFrom(join(packageDir, "src/index.ts"));
     expect(fromRoot.packages).toContain("@hono/zod-openapi");
+    expect(fromRoot.unresolved).toEqual([]);
+  });
+
+  it("src/zod.ts 直接 import zod：依赖方向检查靠这一行看见 Zod", () => {
+    // weapp-no-zod、shared-no-zod 按“能不能走到 zod”来拦，而 @hono/zod-openapi 解析到它的 dist/，
+    // 被该检查的排除项滤掉（状态文件 W0-08 偏差 6）。所以这行直接 import 不能删，
+    // 也不能改成只经 @hono/zod-openapi 拿 z：那样小程序与 shared 引包入口时门禁看不见。
+    const scan = importsReachableFrom(join(packageDir, "src/zod.ts"));
+    expect(scan.files.map((file) => file.slice(packageDir.length + 1))).toEqual(["src/zod.ts"]);
+    expect(scan.packages).toEqual(["@hono/zod-openapi", "zod"]);
   });
 
   it("./types/* 只给类型，指向生成的声明文件；声明文件不引任何模块", () => {
