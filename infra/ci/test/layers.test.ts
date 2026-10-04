@@ -1,10 +1,19 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { makeTempDir, repoRoot, run } from "./helpers.js";
+import { makeTempDir, repoRoot, run, writeFiles } from "./helpers.js";
 
 // 依赖方向与分层门禁的用例（W0-02 任务书 第 7 节第 3–7 条）。
 // 反例是 infra/ci/fixtures/layers/ 下的小树，一个反例一个夹具；进到夹具目录里跑
@@ -350,6 +359,138 @@ describe("规则与夹具对得上", () => {
     expect(
       pattern("db-only-from-services").test(pnpm("pg-pool@3.0.0", "pg-pool", "index.js")),
     ).toBe(false);
+  });
+});
+
+describe("第三方包的入口在 dist/ 下也拦得住", () => {
+  // exclude 比的是解析后的路径。夹具里没有 node_modules，第三方包解析不了、留下的是包名，
+  // 测不到“装上之后入口落在 dist/ 下”的情形：那时路径里带 /dist/，被排除构建产物的那一条滤掉过，
+  // 以第三方包为终点的规则就看不见它。这里按 pnpm 的摆法在仓库外造一棵装好了的树来验。
+
+  const cleanups: Array<() => void> = [];
+  afterEach(() => {
+    while (cleanups.length > 0) cleanups.pop()?.();
+  });
+
+  /**
+   * 按 pnpm 的摆法装一个假包：实体在根的 node_modules/.pnpm/<store>/node_modules/<包>/，入口在 dist/ 下；
+   * 声明它的工作区包下面放一个指过去的软链接。返回解析后的路径
+   */
+  function installFake(root: string, owner: string, pkg: string, store: string): string {
+    const location = `node_modules/.pnpm/${store}/node_modules/${pkg}`;
+    writeFiles(join(root, location), {
+      "package.json": JSON.stringify({ name: pkg, version: "0.0.0", main: "dist/index.js" }),
+      "dist/index.js": "export {};\n",
+    });
+    const link = join(root, owner, "node_modules", pkg);
+    mkdirSync(dirname(link), { recursive: true });
+    symlinkSync(join(root, location), link, "dir");
+    return `${location}/dist/index.js`;
+  }
+
+  async function loadExclude(): Promise<RegExp> {
+    const loaded = (await import(pathToFileURL(configPath).href)) as {
+      default: { options: { exclude: { path: string[] } } };
+    };
+    // dependency-cruiser 把数组里的几条用 | 接成一条正则
+    return new RegExp(loaded.default.options.exclude.path.join("|"));
+  }
+
+  it("装好的树里，五条以第三方包为终点的规则各报出一条，终点都在 node_modules/…/dist/ 下", () => {
+    const temp = makeTempDir("lyx-layers-dist-");
+    cleanups.push(temp.cleanup);
+    // 临时目录在 macOS 上是软链接；解析结果按真实路径算，起点也得是真实路径
+    const root = realpathSync(temp.dir);
+
+    writeFiles(root, {
+      "apps/weapp/src/index.ts":
+        'import "../../../packages/contract/src/index.js";\n\nexport {};\n',
+      "apps/api/src/index.ts": 'import "pg";\n\nexport {};\n',
+      "packages/contract/src/index.ts": 'import "./routes.js";\n\nexport {};\n',
+      "packages/contract/src/routes.ts": 'import "@hono/zod-openapi";\n\nexport {};\n',
+      "packages/contract/src/client.ts": 'import "@prisma/adapter-pg";\n\nexport {};\n',
+      "packages/shared/src/index.ts": 'import "../../contract/src/index.js";\n\nexport {};\n',
+      "packages/shared/src/view.ts": 'import "react";\n\nexport {};\n',
+      // 对照：仓库自己的构建产物照旧不扫，这一条不该报出来
+      "packages/contract/dist/index.js": 'import "react";\n\nexport {};\n',
+    });
+    const zodOpenapi = installFake(
+      root,
+      "packages/contract",
+      "@hono/zod-openapi",
+      "@hono+zod-openapi@1.6.3_hono@4.13.9_zod@4.6.5",
+    );
+    const adapter = installFake(
+      root,
+      "packages/contract",
+      "@prisma/adapter-pg",
+      "@prisma+adapter-pg@7.10.0",
+    );
+    const react = installFake(root, "packages/shared", "react", "react@18.3.1");
+    const pg = installFake(root, "apps/api", "pg", "pg@8.23.0");
+
+    const result = cruiseDir(root, ["apps", "packages"]);
+    expect(result.violations, result.output).toEqual(
+      [
+        `contract-no-react-prisma: packages/contract/src/client.ts → ${adapter}`,
+        `db-only-from-services: apps/api/src/index.ts → ${pg}`,
+        `shared-no-react: packages/shared/src/view.ts → ${react}`,
+        `shared-no-zod: packages/shared/src/index.ts → ${zodOpenapi}`,
+        `weapp-no-zod: apps/weapp/src/index.ts → ${zodOpenapi}`,
+      ].sort(),
+    );
+    expect(result.status, result.output).not.toBe(0);
+    // 小程序没有直接引它：是经 contract 转了两手到的，报告里带出这条路
+    expect(result.output).toContain("packages/contract/src/routes.ts");
+  });
+
+  it("本仓库：入口在 node_modules/…/dist/ 下的第三方包留在图里", () => {
+    // 用例文件都引 vitest，它的入口在 dist/ 下。这条边在，说明真实安装下 exclude 没有把这类包滤掉
+    const result = run(
+      process.execPath,
+      [depcruiseBin, "infra/ci/test", "--config", configPath, "--output-type", "json"],
+      repoRoot,
+    );
+    expect(result.status, result.output).toBe(0);
+    const graph = JSON.parse(result.stdout) as {
+      modules: Array<{ dependencies: Array<{ module: string; resolved: string }> }>;
+    };
+    const intoDist = graph.modules
+      .flatMap((module) => module.dependencies)
+      .filter((dependency) => /(?:^|\/)node_modules\/.+\/dist\//.test(dependency.resolved));
+    expect(intoDist.map((dependency) => dependency.module)).toContain("vitest");
+  });
+
+  it("exclude 只排除仓库自己的构建与覆盖率产物，不排除 node_modules 里的路径", async () => {
+    const exclude = await loadExclude();
+    const pnpm = (store: string, pkg: string, file: string) =>
+      `node_modules/.pnpm/${store}/node_modules/${pkg}/${file}`;
+
+    for (const path of [
+      "dist/index.js",
+      "packages/contract/dist/index.js",
+      "apps/api/dist/main.js",
+      "coverage/lcov-report/index.html",
+      "packages/shared/coverage/lcov.info",
+      "infra/ci/fixtures/layers/allowed/apps/api/src/index.ts",
+    ]) {
+      expect(exclude.test(path), path).toBe(true);
+    }
+    for (const path of [
+      pnpm("@hono+zod-openapi@1.6.3_hono@4.13.9_zod@4.6.5", "@hono/zod-openapi", "dist/index.mjs"),
+      pnpm("hono@4.13.9", "hono", "dist/index.js"),
+      pnpm("@vitest+coverage-v8@4.1.11", "@vitest/coverage-v8", "dist/index.js"),
+      // 没跟着软链接走到 .pnpm 时，路径是工作区包自己的 node_modules
+      "packages/contract/node_modules/@hono/zod-openapi/dist/index.mjs",
+      // 在夹具目录里跑时，仓库根的 node_modules 在起点之外
+      `../../../../${pnpm("vitest@4.1.11", "vitest", "dist/index.d.ts")}`,
+      // 名字里带 dist、coverage 的源码不是产物
+      "packages/shared/src/dist.ts",
+      "packages/services/src/reports/coverage.ts",
+      "packages/contract/src/index.ts",
+    ]) {
+      expect(exclude.test(path), path).toBe(false);
+    }
   });
 });
 
