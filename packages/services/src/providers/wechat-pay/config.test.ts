@@ -154,6 +154,12 @@ describe("齐全", () => {
     expect(resolved.config.refundNotifyUrl).toMatch(/refunds$/);
   });
 
+  it("APIv3 密钥首尾的空白（文件结尾的换行）不计入长度", () => {
+    const resolved = resolveWechatPayConfig({ ...full, apiV3Key: `${full.apiV3Key}\n` });
+    if (resolved.state !== "configured") throw new Error("应当是已配置");
+    expect(resolved.config.apiV3Keys.current.key).toBe(full.apiV3Key);
+  });
+
   it("createWechatPay 给出真实驱动", () => {
     expect(createWechatPay(full)).toMatchObject({ status: "wechatpay-v3", configured: true });
   });

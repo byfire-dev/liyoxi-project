@@ -540,6 +540,17 @@ describe("账单：申请与下载", () => {
     expect(JSON.stringify(result)).toContain("拒收");
   });
 
+  it("摘要算法不是 SHA1：不发请求，直接拒绝", async () => {
+    expect(
+      await driver().downloadBill({ downloadUrl, hashValue: sha1, hashType: "SHA256" }),
+    ).toMatchObject({ ok: false, reason: "rejected" });
+    replies.push(file(bill));
+    expect(
+      await driver().downloadBill({ downloadUrl, hashValue: sha1, hashType: "sha1" }),
+    ).toMatchObject({ ok: true });
+    expect(sent).toHaveLength(1);
+  });
+
   it("下载地址不在微信支付的域名下：不发请求，直接拒绝", async () => {
     for (const url of [
       "https://evil.example.invalid/v3/billdownload/file?token=x",
@@ -692,6 +703,20 @@ describe("应答验签、超时与错误归一", () => {
   it("2xx 的应答不是 JSON 对象：不可用", async () => {
     replies.push(signed(200, "[]"));
     expect(await query()).toMatchObject({ ok: false, reason: "unavailable" });
+  });
+
+  it("3xx：不跟随重定向，按被拒绝归一", async () => {
+    let redirect: RequestInit["redirect"];
+    const fetchImpl = (async (_input: string | URL | Request, init?: RequestInit) => {
+      redirect = init?.redirect;
+      return new Response(null, {
+        status: 302,
+        headers: { Location: "https://elsewhere.example.invalid/" },
+      });
+    }) as typeof fetch;
+    const result = await driver({}, { fetchImpl }).queryByOutTradeNo({ outTradeNo: NO });
+    expect(result).toMatchObject({ ok: false, reason: "rejected" });
+    expect(redirect).toBe("manual");
   });
 
   it("可以换接入点：baseUrl 用备域名", async () => {

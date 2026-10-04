@@ -69,10 +69,11 @@ export interface WechatPayDriver extends WechatPayProvider {
   queryRefund(input: { outRefundNo: string }): Promise<ProviderResult<WechatPayRefund>>;
   /** 申请交易账单（bill_type=ALL）。当日没有账单返回 null */
   applyTradeBill(input: { billDate: string }): Promise<ProviderResult<TradeBillTicket | null>>;
-  /** 下载账单并校验摘要值；不符即拒收 */
+  /** 下载账单并校验摘要值；不符即拒收。hashType 给了就核对：只认 SHA1 */
   downloadBill(input: {
     downloadUrl: string;
     hashValue: string;
+    hashType?: string;
   }): Promise<ProviderResult<{ text: string }>>;
   /** 回调入口：验签并解密，给出判别结果（实际所用的密钥版本、序列号、摘要） */
   verifyNotification(input: {
@@ -160,7 +161,11 @@ export function createWechatPayDriver(
   async function downloadBill(input: {
     downloadUrl: string;
     hashValue: string;
+    hashType?: string;
   }): Promise<ProviderResult<{ text: string }>> {
+    if (input.hashType !== undefined && input.hashType.toUpperCase() !== "SHA1") {
+      return failed("rejected", "账单的摘要算法不是 SHA1，校验不了");
+    }
     const url = URL.canParse(input.downloadUrl) ? new URL(input.downloadUrl) : null;
     if (!url || ![client.baseUrl, ...BILL_ORIGINS].includes(url.origin)) {
       return failed("rejected", "账单下载地址不在微信支付的域名下");

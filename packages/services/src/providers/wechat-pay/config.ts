@@ -92,7 +92,9 @@ export function resolveWechatPayConfig(settings: WechatPaySettings): WechatPayCo
   } catch {
     problems.push("merchantPrivateKeyPem: 不是合规的私钥 PEM");
   }
-  if (Buffer.byteLength(s.apiV3Key, "utf8") !== 32) problems.push("apiV3Key: 长度必须是 32 个字节");
+  // 从文件里读出来的密钥常带一个结尾的换行：去掉首尾空白再算长度
+  const apiV3Key = s.apiV3Key.trim();
+  if (Buffer.byteLength(apiV3Key, "utf8") !== 32) problems.push("apiV3Key: 长度必须是 32 个字节");
   if (!s.publicKeyId.startsWith(PUBLIC_KEY_ID_PREFIX)) {
     problems.push(`publicKeyId: 要以 ${PUBLIC_KEY_ID_PREFIX} 开头`);
   }
@@ -114,7 +116,7 @@ export function resolveWechatPayConfig(settings: WechatPaySettings): WechatPayCo
       merchantPrivateKey,
       publicKeyId: s.publicKeyId.trim(),
       apiV3Keys: {
-        current: { kid: s.apiV3KeyId ?? "v1", key: s.apiV3Key },
+        current: { kid: s.apiV3KeyId ?? "v1", key: apiV3Key },
         previous: s.previousApiV3Key,
       },
       verifiers: [

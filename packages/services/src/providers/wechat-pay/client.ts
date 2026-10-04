@@ -129,6 +129,8 @@ export function createClient(config: ClientConfig, deps: ClientDeps): WechatPayC
         method: spec.method,
         headers,
         body: body === "" ? undefined : body,
+        // 微信支付的接口不重定向：遇到 3xx 不跟随（带着签名头去别的地址不合适），按被拒绝归一
+        redirect: "manual",
         signal: AbortSignal.timeout(config.timeoutMs ?? DEFAULT_TIMEOUT_MS),
       });
       bytes = Buffer.from(await response.arrayBuffer());
