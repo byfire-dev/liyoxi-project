@@ -35,6 +35,14 @@ const ZOD_RUNTIME = thirdParty(["zod", "@hono/zod-openapi"]);
 /** 测试与脚本：不随包给到使用方（shared 的静态扫描用例要读源码文件，得用 node:fs） */
 const NOT_SHIPPED = ["\\.(?:test|spec)\\.[cm]?[jt]sx?$", "/(?:test|scripts)/"];
 
+/**
+ * 仓库自己的构建与覆盖率产物：路径里有 dist、coverage 一段，且整条路径不经过 node_modules。
+ * exclude 比的是解析后的路径，命中的模块连同指向它的依赖边一起从图里拿掉。
+ * 第三方包的入口常在 dist/ 下（pnpm 下是 node_modules/.pnpm/<包>@<版本>/node_modules/<包>/dist/…），
+ * 不带前面的否定就会把它们滤掉，以第三方包为终点的规则随之看不见这些包。
+ */
+const OWN_BUILD_OUTPUT = "^(?!.*(?:^|/)node_modules/).*(?:^|/)(?:dist|coverage)/";
+
 // ---------- 包间方向（D1–D6、D10） ----------
 
 const packageRules = [
@@ -239,7 +247,7 @@ module.exports = {
   options: {
     doNotFollow: { path: ["node_modules"] },
     // 反例夹具自成一棵树，由 infra/ci/test/layers.test.ts 逐个进去跑，不混进全仓的结果
-    exclude: { path: ["^infra/ci/fixtures/", "(?:^|/)(?:dist|coverage)/"] },
+    exclude: { path: ["^infra/ci/fixtures/", OWN_BUILD_OUTPUT] },
     // import type 也算依赖：下层不得在类型上依赖上层
     tsPreCompilationDeps: true,
     enhancedResolveOptions: {
