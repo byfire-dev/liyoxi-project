@@ -103,6 +103,13 @@ node infra/ci/classify-gate-changes.mjs --base origin/main --labels gate-change
 - 已知的限度：遮蔽只登记了上面几个文件名与 `package.json` 的几个键。没盖到的有：`apps/*`、`packages/*` 之外的目录里新增的 `package.json`（里面同样可以写 `prettier` 键）、`package.yaml`、`.editorconfig`（Prettier 会读，只影响缩进一类的格式）。
 - 已知的限度：锁文件只判“已有的有没有变”。`packages` 段新增的条目只列名字，不看来源（写成 `tarball:` 网址的也只算“新增 1 个版本”）；往已有的 `snapshots` 条目里加一个依赖、新出现的同名条目里多一个依赖，都不列。清单里写“锁文件新增 N 个版本”的，业主要看锁文件的差异。
 - 已知的限度：gitleaks 的默认规则自带一份按路径的放行（`useDefault = true` 带进来的，不是本仓库写的）。实测私钥放在 `deploy/key.svg`、`deploy/.gitleaks.toml`、`deploy/pnpm-lock.yaml` 里都不命中（放在 `deploy/key.txt` 里命中）。
+- 已知的限度（第二次独立检验试出、本包没有再堵的写法；看到相关改动时业主要看差异）：
+  - 锁文件里新出现的同名条目换一种写法（行内写法、换缩进、把依赖挪到 `optionalDependencies`、干脆不写这个依赖），分类读不到它的依赖，判成“没有门禁改动”，而冻结安装通过、装上的版本变了。
+  - 锁文件的头部只查 `importers:` 之前的部分，同样的行写到文件末尾不查；`.pnpmfile.cjs` 还没登记成门禁文件。两者合起来，一个 PR 能装上安装钩子而不被判。
+  - `required` 汇总脚本 `ci-required.mjs` 跑的是 PR 自己检出里的那一份。PR 改它就能让 `required` 变绿；这种改动会被分类判成放松、`gate-classify` 会红，但平台只看 `required`。所以凡是动 `infra/ci/` 下已有脚本的 PR，业主直接看差异，并同时看 `gate-classify` 的结论。
+  - 工作流的用例按换行符分行。注释里夹 U+2028、U+0085 这类字符时，有的 YAML 解析器会把它当换行，可能藏下一个任务；GitHub 一侧怎么解析没有核实。用例也只读小写的 `.yml`、`.yaml`，检查名比较区分大小写；GitHub 认不认大写扩展名、检查名比不比大小写同样没有核实。
+  - `.gitattributes` 把文件交给 LFS 的过滤器时，入库的是指针，密钥扫描看不到本体。本仓库不用 LFS。
+- 被新提交顶掉的运行：整次运行的结论是“已取消”，但其中 `required` 任务自己记成失败（它带 `if: always()`，前面的任务被取消时照样跑并判不通过）。被顶掉的是旧提交，PR 上看的是最新提交的结果；运行历史里会留一条红的 `required`，属预期。
 - 还没登记的：工作区包自己的 `tsconfig.json` 与 `vitest.config.ts`。在里面关 `strict`、收窄 `include` 现在判为“没有门禁改动”。`vitest.config.ts` 按 `append` 登记会把正常的改写（一行拆成多行、往 `include` 里加一项）也判成放松；`tsconfig.json` 现在可以按 `tsconfig` 登记，没有这个问题。登记不登记、按什么口径，待业主定（`docs/plan/status/W0-03.md` 偏差 6）。
 
 登记新的门禁文件：往 `gate-files.json` 的 `files` 末尾加一条（`pattern`、`kind`、`note`）。`pattern` 里 `**` 跨目录、`*` 不跨目录。白名单、基线、黄金文件这类“一动就该让业主看”的用 `frozen`；规则与配置用 `append`；tsconfig 用 `tsconfig`。新依赖一律写精确版本，写成范围会被判成放松。`infra/ci/` 下的检查脚本（`.mjs`）与 `selftest/` 已经被现有条目按 `new-file` 盖住，不用再登记；放在别处的检查脚本按 `new-file` 登记。
