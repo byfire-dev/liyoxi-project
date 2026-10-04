@@ -13,6 +13,8 @@ const read = (path: string) => readFileSync(join(repoRoot, path), "utf8");
 const ci = read(".github/workflows/ci.yml");
 const GENERATED = "packages/shared/src/design/generated";
 const ALLOWLIST = "infra/ci/colors-allowlist.txt";
+/** generated 口径在清单里写明的把关检查（infra/ci/gate-files.json 里这个条目的 check） */
+const GUARD = "与源码一致由 `pnpm design:check` 把关";
 
 /** verify 任务的全文：从它的键到下一个任务的键 */
 function verifyJob(): string {
@@ -88,9 +90,9 @@ describe("门禁文件清单", () => {
   const entries = (JSON.parse(read("infra/ci/gate-files.json")) as { files: Entry[] }).files;
   const kindOf = (pattern: string) => entries.find((entry) => entry.pattern === pattern)?.kind;
 
-  it("白名单按 frozen 登记，生成物目录按 append 登记", () => {
+  it("白名单按 frozen 登记，生成物目录按 generated 登记", () => {
     expect(kindOf(ALLOWLIST)).toBe("frozen");
-    expect(kindOf(`${GENERATED}/**`)).toBe("append");
+    expect(kindOf(`${GENERATED}/**`)).toBe("generated");
   });
 
   it("两个检查脚本与四个反例已被原有条目按 new-file 盖住，不另登记", () => {
@@ -145,18 +147,23 @@ describe("门禁改动分类：照清单判这两处的改动", () => {
     });
     expect(result.status).toBe(0);
     expect(result.output).toContain("判定：只增");
-    expect(result.output).toContain(`\`${GENERATED}/admin.scss\`：新增文件`);
-    expect(result.output).toContain(`\`${GENERATED}/merchant.scss\`：新增 1 行`);
+    expect(result.output).toContain(`\`${GENERATED}/admin.scss\`：新增生成物（${GUARD}）`);
+    expect(result.output).toContain(
+      `\`${GENERATED}/merchant.scss\`：重新生成的生成物，内容有变：加 1 行、删 0 行（${GUARD}）`,
+    );
   });
 
-  // 已知的限度：分类脚本现在没有“重新生成的生成物”这一种口径（计划 第 5.3 节把它列在“只增”里）。
-  // append 把已有行的变动判成放松，所以改一个已有变量的取值、改生成脚本的输出格式，现在都过不了分类。
-  // 见 docs/plan/status/W0-26.md“偏差”。口径补上（单独的 gate-change PR）时，这一条跟着改。
-  it("生成物里已有的行变了：现在判成放松（已知的限度）", () => {
+  // 口径已补上（单独的 gate-change PR，业主 2026-10-05 同意）：生成物目录按 generated 登记，
+  // 重新生成一律算只增并列出（计划 第 5.3 节），与来源一致由 design:check 把关。
+  // 此前按 append 登记，这一条钉的是“已有的行变了判成放松”（docs/plan/status/W0-26.md 偏差 17）。
+  it("生成物里已有的行变了（改一个已有变量的取值后重新生成）：只增，列进清单给业主看", () => {
     const result = classify({
       [`${GENERATED}/merchant.scss`]: "// 生成物，勿手改\n$lyx-radius-card: 12px;\n",
     });
-    expect(result.status).toBe(1);
-    expect(result.output).toContain(`\`${GENERATED}/merchant.scss\`：删改了已有行`);
+    expect(result.status).toBe(0);
+    expect(result.output).toContain("判定：只增");
+    expect(result.output).toContain(
+      `\`${GENERATED}/merchant.scss\`：重新生成的生成物，内容有变：加 1 行、删 1 行（${GUARD}）`,
+    );
   });
 });
