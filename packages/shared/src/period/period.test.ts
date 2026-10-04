@@ -52,21 +52,25 @@ const tableRow = (start: string, months: number, end: string, grants: string[]) 
 };
 
 describe("锚定日：03 第 2.3 节的四行（示例按非闰年）", () => {
-  it.each([
+  const rows = [
     tableRow("2026-09-13", 1, "2026-10-12", ["2026-09-13"]),
     tableRow("2026-09-20", 3, "2026-12-19", ["2026-09-20", "2026-10-20", "2026-11-20"]),
     tableRow("2027-01-31", 1, "2027-02-27", ["2027-01-31"]),
     tableRow("2027-01-31", 3, "2027-04-29", ["2027-01-31", "2027-02-28", "2027-03-31"]),
-  ])("$name", ({ start, months, end, grants }) => {
-    const term = termDates(start, months);
-    expect(term).toEqual({
-      startDate: start,
-      anchorDay: anchorDayOf(start),
-      months,
-      endDate: end,
+  ];
+  // 不用 it.each：它会把长的用例名截断，业主就没法逐格对照了
+  for (const { name, start, months, end, grants } of rows) {
+    it(name, () => {
+      const term = termDates(start, months);
+      expect(term).toEqual({
+        startDate: start,
+        anchorDay: anchorDayOf(start),
+        months,
+        endDate: end,
+      });
+      expect(grantDates(term)).toEqual(grants);
     });
-    expect(grantDates(term)).toEqual(grants);
-  });
+  }
 });
 
 describe("锚定日：闰年", () => {
