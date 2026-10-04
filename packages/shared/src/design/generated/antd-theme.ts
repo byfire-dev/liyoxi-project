@@ -1,0 +1,57 @@
+// 生成物，勿手改。来源：design/tokens.json 与规范 第 5.4 节的全局主题表。重新生成：pnpm design:generate
+// 只有全局主题；组件级覆盖在后台骨架（W0-28）。
+
+/** Ant Design 全局主题。用法：<ConfigProvider theme={antdTheme}>；类型按安装的 antd 版本标 ThemeConfig */
+export const antdTheme = {
+  token: {
+    colorPrimary: "#C4501B",
+    colorLink: "#A63F12",
+    colorSuccess: "#256A42",
+    colorInfo: "#2E5AAC",
+    colorError: "#B42318",
+    colorWarning: "#A63F12",
+    colorSuccessBg: "#E6F2EA",
+    colorInfoBg: "#E8EEF9",
+    colorErrorBg: "#FBE9E7",
+    colorWarningBg: "#FBEDE5",
+    colorSuccessBorder: "#B9DCC5",
+    colorErrorBorder: "#E8B4AE",
+    colorPrimaryBg: "#FFF8F3",
+    colorPrimaryBgHover: "#FBEDE5",
+    colorTextBase: "#1D1A16",
+    colorText: "#1D1A16",
+    colorTextSecondary: "#6F665B",
+    colorTextTertiary: "#6F665B",
+    colorTextQuaternary: "#9A9084",
+    colorTextPlaceholder: "#6F665B",
+    colorBorder: "#E7E1D8",
+    colorBorderSecondary: "#ECE6DD",
+    colorSplit: "#F0EBE3",
+    colorBgLayout: "#F6F3EE",
+    colorBgContainer: "#FFFFFF",
+    colorBgElevated: "#FFFFFF",
+    colorFillAlter: "#FAF8F4",
+    colorFillSecondary: "#F0EBE3",
+    colorFillTertiary: "#F6F3EE",
+    colorBgMask: "rgba(29, 26, 22, 0.45)",
+    colorBgSpotlight: "#1D1A16",
+    borderRadius: 8,
+    borderRadiusLG: 12,
+    borderRadiusSM: 6,
+    borderRadiusXS: 4,
+    controlHeight: 36,
+    controlHeightLG: 40,
+    controlHeightSM: 32,
+    fontSize: 14,
+    fontSizeSM: 12,
+    fontSizeLG: 16,
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
+    fontWeightStrong: 600,
+    boxShadow: "0 8px 24px rgba(29, 26, 22, 0.18)",
+    boxShadowSecondary: "0 8px 24px rgba(29, 26, 22, 0.18)",
+    wireframe: false,
+  },
+} as const;
+
+/** 衬线字体不进主题：只用于页面标题、指标数字、品牌字、头像块 */
+export const fontFamilySerif = "'Noto Serif SC', 'Songti SC', serif";

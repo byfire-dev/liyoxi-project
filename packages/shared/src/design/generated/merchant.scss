@@ -1,0 +1,131 @@
+// 生成物，勿手改。来源：design/tokens.json（shared、merchant 两段）。重新生成：pnpm design:generate
+// 只声明变量，不产出 CSS。小程序 designWidth 设 375，px 数值原样写进样式文件，不乘换算系数（规范 第 4.1 节）。
+
+// ---- shared.color
+$lyx-color-primary: #C4501B; // 主按钮底、选中描边、页签下划线、角标底、图标强调。不作文字色，橙色文字用 primary-text
+$lyx-color-primary-text: #A63F12; // 强调文字、文字链接
+$lyx-color-primary-bg: #FBEDE5; // 强调浅底：图标底、头像底、提示条
+$lyx-color-primary-bg-subtle: #FFF8F3; // 选中项的浅底
+$lyx-color-text-primary: #1D1A16; // 正文、标题
+$lyx-color-text-regular: #4A433B; // 次级正文、中性标签文字、行首图标。后台原型的 #5E564C 并入此值
+$lyx-color-text-secondary: #6F665B; // 辅助说明、表头、占位符、未选中的页签
+$lyx-color-text-disabled: #9A9084; // 禁用与未开放项。对比度不足 4.5，不承载必须阅读的信息
+$lyx-color-text-inverse: #FFFFFF; // 主色底、深色底上的文字
+$lyx-color-bg-page: #F6F3EE; // 页面底色
+$lyx-color-bg-card: #FFFFFF; // 卡片、输入框、弹层、底栏
+$lyx-color-bg-subtle: #FAF8F4; // 卡片内的浅块、表头、上传占位
+$lyx-color-bg-inverse: #1D1A16; // 深色卡片、后台轻提示、筛选项选中底
+$lyx-color-fill-neutral: #F0EBE3; // 中性标签底、中性说明块、后台分段控件轨道。合并原型的 #F1ECE4、#EFEBE4、#F3EFE9
+$lyx-color-fill-disabled: #D6CFC4; // 禁用按钮底、开关关闭轨道、未到达的步骤。合并原型的 #CFC7BC、#C9C1B6
+$lyx-color-border: #E7E1D8; // 输入框、下拉、小按钮、搜索框描边
+$lyx-color-border-light: #ECE6DD; // 后台卡片描边；顶栏底边、底栏顶边、页签条底边
+$lyx-color-divider: #F0EBE3; // 列表行、表格行的分隔线
+$lyx-color-mask: rgba(29, 26, 22, 0.45); // 弹层遮罩。商家端原型的 rgba(15,14,12,0.5) 并入此值
+$lyx-color-success: #256A42; // 成功、生效、正常
+$lyx-color-success-bg: #E6F2EA; // 成功浅底。后台原型的 #E5F1E9 并入此值
+$lyx-color-info: #2E5AAC; // 进行中、等待对方
+$lyx-color-info-bg: #E8EEF9; // 进行中浅底。后台原型的 #E8EEF8 并入此值
+$lyx-color-warning: #A63F12; // 待处理。与 primary-text 同值
+$lyx-color-warning-bg: #FBEDE5; // 待处理浅底。与 primary-bg 同值
+$lyx-color-danger: #B42318; // 错误、驳回、异常、已过期、危险操作
+$lyx-color-danger-bg: #FBE9E7; // 错误浅底。商家端原型的 #FCEBEA 并入此值
+$lyx-color-danger-border: #E8B4AE; // 危险描边按钮（驳回、移除、删除）的描边
+$lyx-color-neutral: #4A433B; // 已结束、中性分类的标签文字
+$lyx-color-neutral-bg: #F0EBE3; // 已结束、中性分类的标签底。与 fill-neutral 同值
+
+// ---- shared.font
+$lyx-font-family-sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; // 全部界面文字
+$lyx-font-family-serif: 'Noto Serif SC', 'Songti SC', serif; // 品牌字、封面占位的剧名、头像首字；后台的页面标题与统计数字。原型为 'Noto Serif SC', serif，这里补了系统宋体作回落
+$lyx-font-family-mono: ui-monospace, Menlo, monospace; // 后台的编码字段
+$lyx-font-weight-regular: 400; // 正文、说明
+$lyx-font-weight-semibold: 600; // 标题、按钮、表单标签、状态标签
+$lyx-font-weight-bold: 700; // 数字强调；后台衬线标题
+$lyx-font-weight-black: 900; // 只与衬线体搭配：品牌字、封面剧名、头像首字
+
+// ---- shared.space
+$lyx-space-2: 2px;
+$lyx-space-4: 4px;
+$lyx-space-6: 6px;
+$lyx-space-8: 8px;
+$lyx-space-10: 10px;
+$lyx-space-12: 12px;
+$lyx-space-14: 14px;
+$lyx-space-16: 16px;
+$lyx-space-20: 20px;
+$lyx-space-24: 24px;
+
+// ---- shared.radius
+$lyx-radius-xs: 2px; // 进度条、细条
+$lyx-radius-sm: 4px; // 方角标签、小标记
+$lyx-radius-md: 8px; // 商家端缩略图；后台控件
+$lyx-radius-lg: 10px; // 卡内浅块、内嵌块；商家端的输入框与提示条（后台提示条用 8px）
+$lyx-radius-pill: 999px; // 胶囊按钮、筛选项、角标、后台状态标签
+
+// ---- shared.border-width
+$lyx-border-width-default: 1px; // 常规描边
+$lyx-border-width-strong: 2px; // 页签下划线；后台的选中描边（队列项、原因单选、单选卡）；红点的白色外环
+$lyx-border-width-ring: 1.5px; // 只用于后台步骤节点的空环
+
+// ---- merchant.color
+$lyx-color-border-strong: #C9C0B3; // 次按钮描边、虚线上传框
+$lyx-color-fill-track: #ECE6DD; // 分段控件轨道、进度条轨道、未到达的序号圆
+$lyx-color-accent-on-dark: #F2B48F; // 深色卡片上的强调文字、会员徽标文字
+$lyx-color-text-on-dark-secondary: #E9E3DA; // 深色卡片上的说明文字
+$lyx-color-fill-on-dark: rgba(255, 255, 255, 0.12); // 深色卡片内的标签底与浅块底
+$lyx-color-switch-on: #C4501B; // 开关开启
+$lyx-color-badge-bg: #C4501B; // 页面内的数字角标底。未读红点用 danger
+
+// ---- merchant.font-size
+$lyx-font-size-title: 17px; // 页面标题、弹层标题、卡片外的分组标题。字重 600
+$lyx-font-size-heading: 16px; // 卡片标题。字重 600
+$lyx-font-size-body: 15px; // 按钮、输入框文字、列表主标题
+$lyx-font-size-body-sm: 14px; // 表单标签（600）、多行输入、页签、次级正文
+$lyx-font-size-caption: 13px; // 辅助说明、提示条、小按钮
+$lyx-font-size-tag: 12px; // 标签（600）、次要说明、底部标签栏文字
+$lyx-font-size-mini: 11px; // 数字角标、缩略图上的标注
+$lyx-font-size-display: 24px; // 展示型标题：详情页的剧名、套餐名、门店名、深色横幅的标题。衬线 900，字间距 1px。原型的 18 到 28 并入此值
+$lyx-font-size-number-lg: 28px; // 余额大数字。字重 700，行高 1.1。原型的 26、30、32 并入此值
+$lyx-font-size-number-md: 22px; // 统计数字、详情页价格、结果页标题。字重 700。原型的 20 并入此值
+$lyx-font-size-number-sm: 18px; // 合计金额。字重 700
+
+// ---- merchant.line-height
+$lyx-line-height-body: 1.5; // 多行说明、提示条
+
+// ---- merchant.space
+$lyx-space-page: 16px; // 页面左右边距
+$lyx-space-section: 12px; // 卡片之间、卡片内分组之间
+$lyx-space-card-padding: 16px; // 卡片内边距
+$lyx-space-form-gap: 16px; // 表单字段之间
+$lyx-space-field-gap: 6px; // 字段内：标签、控件、说明之间
+
+// ---- merchant.radius
+$lyx-radius-card: 14px; // 卡片
+$lyx-radius-card-lg: 16px; // 头部大卡、深色卡
+$lyx-radius-sheet: 16px; // 底部弹层的上两角
+$lyx-radius-input: 10px; // 输入框、多行输入、选择器入口
+$lyx-radius-tile: 12px; // 剧目宫格卡、单选卡、40 图标底
+$lyx-radius-thumb: 6px; // 列表里的封面缩略图。原型的 5、6、7 并入此值
+$lyx-radius-cover: 8px; // 宫格封面、广告视频缩略图；横滑卡封面用 10px
+$lyx-radius-tag: 4px; // 状态标签
+
+// ---- merchant.size
+$lyx-size-tabbar: 64px; // 底部标签栏（原型画法；实现用微信原生 tabBar）
+$lyx-size-footer-bar: 64px; // 底部操作栏的内容高度，另加 8px 与底部安全区
+$lyx-size-button-xl: 48px; // 登录页、结果页的按钮
+$lyx-size-button-lg: 46px; // 底部操作栏、弹层底部、卡片内的主次按钮
+$lyx-size-button-md: 40px; // 行内按钮、搜索旁按钮、输入条发送
+$lyx-size-button-sm: 32px; // 胶囊小按钮（复制、切换、查看详情）与列表卡片里的小号按钮
+$lyx-size-chip: 34px; // 筛选胶囊、选项胶囊
+$lyx-size-chip-lg: 40px; // 弹层里的大号选项胶囊
+$lyx-size-segment: 40px; // 分段控件轨道高，内部项 34px
+$lyx-size-input: 44px; // 单行输入框、选择器入口
+$lyx-size-search: 40px; // 搜索框
+$lyx-size-tab: 44px; // 页内下划线页签
+$lyx-size-list-row: 52px; // 单行列表行的最小高度
+$lyx-size-list-row-double: 64px; // 带头像或图标的双行列表行的最小高度
+$lyx-size-touch-min: 44px; // 可点区域的最小边长
+$lyx-size-icon: 22px; // 行首图标。线宽 1.8
+$lyx-size-icon-tile: 44px; // 首页快捷入口的图标底，圆角 14px；另有 40px（圆角 12px）、36px（圆角 10px）、32px（圆角 8px）三档
+$lyx-size-checkbox: 18px; // 复选框、单选框
+$lyx-size-switch-width: 34px; // 开关轨道宽，高 20px，滑块 16px
+$lyx-size-badge: 18px; // 列表行里的数字角标高；标签栏角标 16px
