@@ -1,3 +1,5 @@
+import { readdirSync } from "node:fs";
+
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createPrismaClient } from "./index.js";
@@ -55,14 +57,18 @@ describe("createPrismaClient", () => {
     expect(typeof (await prisma.analyticsEvent.count())).toBe("number");
   });
 
-  it("交互式事务里 $queryRaw 可用", async () => {
+  it("交互式事务里 $queryRaw 可用；迁移库上每个迁移恰一行且已完成", async () => {
     const rows = await prisma.$transaction(
       (tx) =>
-        tx.$queryRaw<Array<{ finished: bigint }>>`
-          select count(*) as finished from _prisma_migrations
-           where finished_at is not null and rolled_back_at is null`,
+        tx.$queryRaw<Array<{ name: string; done: boolean }>>`
+          select migration_name as name, finished_at is not null and rolled_back_at is null as done
+            from _prisma_migrations order by migration_name`,
     );
-    expect(Number(rows[0]?.finished)).toBeGreaterThanOrEqual(1);
+    // 任务书 第 7 节第 3 条：现在只有首版迁移一个目录，即“恰一行且已完成”；以后加了迁移，这里跟着目录走
+    const migrations = readdirSync(new URL("../prisma/migrations", import.meta.url), {
+      withFileTypes: true,
+    }).flatMap((entry) => (entry.isDirectory() ? [entry.name] : []));
+    expect(rows).toEqual(migrations.sort().map((name) => ({ name, done: true })));
   });
 
   it("三个会话超时下发到了连接上，事务内外都生效", async () => {
