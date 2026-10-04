@@ -7,6 +7,8 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 import {
+  dataAccessFiles,
+  dataAccessRules,
   repoRules,
   scriptFiles,
   scriptRules,
@@ -43,6 +45,11 @@ export default defineConfig(
       globals: { ...globals.node },
     },
     rules: repoRules,
+  },
+  {
+    // 应用层源码：不引数据包与数据库驱动（D3）。片段里已并入全仓的禁用项
+    files: dataAccessFiles,
+    rules: dataAccessRules,
   },
   {
     // 服务端：禁 console.log
