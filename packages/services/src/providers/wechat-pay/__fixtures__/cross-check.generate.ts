@@ -18,6 +18,7 @@ import { join } from "node:path";
 import { format, resolveConfig } from "prettier";
 import { expect, it } from "vitest";
 
+import { createFakeWechatPay } from "../../../testing/index.js";
 import { aeadDecrypt, createApiV3Keyring, createVerifierTable } from "../keyring.js";
 import { verifyAndDecrypt } from "../notification.js";
 import {
@@ -223,6 +224,29 @@ it("跨实现核对：官方 Go SDK、官方文档、官方 Java SDK 的向量",
       body,
     };
   });
+  // 假微信支付（@liyoxi/services/testing）切到真实结构后发出的通知：同样交给官方 SDK 去验签解密
+  const fake = createFakeWechatPay({ clock: { now: () => now } });
+  fake.useWireFormat({ keyPair: wechatPay, serial: wechatPay.serial, apiV3Key });
+  await fake.createJsapiOrder({
+    outTradeNo: "FK20261004000009z9y8",
+    description: "跨实现核对",
+    amountFen: 19900,
+    payerOpenid: "o-test-openid-0009",
+    attach: "v1.e.o.N.r.12",
+  });
+  const fakePaid = fake.pay("FK20261004000009z9y8");
+  await fake.createRefund({
+    outTradeNo: "FK20261004000009z9y8",
+    outRefundNo: "TK20261004000009",
+    refundFen: 19900,
+    totalFen: 19900,
+  });
+  for (const notification of [fakePaid, fake.completeRefund("TK20261004000009")]) {
+    const { headers, rawBody } = fake.encode(notification);
+    const eventType =
+      notification.kind === "transaction" ? "TRANSACTION.SUCCESS" : "REFUND.SUCCESS";
+    deliveries.push({ name: `${eventType}（假微信支付发出）`, headers, body: rawBody });
+  }
   const toSign: Delivery[] = specs.slice(0, 2).map((spec, index) => ({
     name: `${spec.eventType}（官方 SDK 签名）`,
     headers: {
@@ -332,7 +356,7 @@ it("跨实现核对：官方 Go SDK、官方文档、官方 Java SDK 的向量",
       "pnpm wxpay:vectors 的产物，不手改。它记下本实现与微信支付官方实现对同一批输入的核对结果（X-04 任务书 第 7 节第 2 条）。",
       "sign：签名串由本实现构造、用现场生成的临时私钥签名；官方 Go SDK 用同一把私钥签出的结果逐字节相等，并且它的验签器接受本实现的签名、拒绝改过一个字节的签名串。",
       "seal：容器里按 AEAD_AES_256_GCM 加密（官方 Go SDK 只有解密函数，加密用的是 Go 标准库），官方 SDK 与本实现解出同一明文。",
-      "notifications：本仓库用例的支架造的通知，官方 SDK 的通知处理器验签解密通过，与本实现的结果一致。sdkSigned：由官方 SDK 签名的通知，本实现验签解密通过。",
+      "notifications：本仓库用例的支架造的通知，与假微信支付（测试替身）切到真实结构后发出的通知，官方 SDK 的通知处理器验签解密通过，与本实现的结果一致。sdkSigned：由官方 SDK 签名的通知，本实现验签解密通过。",
       "officialDocs、officialJavaAead：官方文档与官方 Java SDK 的示例，现场取回核对。",
       `文件里没有任何私钥。验签用的公钥在 publicKeys；解密用的测试 APIv3 密钥由 wechatpay-server.ts 的 testApiV3Key("${KEY_TAG}") 现场拼出，一看就是假值。vectors.test.ts 在 CI 里拿这份文件再核一遍。`,
     ],

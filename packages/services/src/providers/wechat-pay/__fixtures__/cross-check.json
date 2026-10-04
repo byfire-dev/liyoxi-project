@@ -3,11 +3,11 @@
     "pnpm wxpay:vectors 的产物，不手改。它记下本实现与微信支付官方实现对同一批输入的核对结果（X-04 任务书 第 7 节第 2 条）。",
     "sign：签名串由本实现构造、用现场生成的临时私钥签名；官方 Go SDK 用同一把私钥签出的结果逐字节相等，并且它的验签器接受本实现的签名、拒绝改过一个字节的签名串。",
     "seal：容器里按 AEAD_AES_256_GCM 加密（官方 Go SDK 只有解密函数，加密用的是 Go 标准库），官方 SDK 与本实现解出同一明文。",
-    "notifications：本仓库用例的支架造的通知，官方 SDK 的通知处理器验签解密通过，与本实现的结果一致。sdkSigned：由官方 SDK 签名的通知，本实现验签解密通过。",
+    "notifications：本仓库用例的支架造的通知，与假微信支付（测试替身）切到真实结构后发出的通知，官方 SDK 的通知处理器验签解密通过，与本实现的结果一致。sdkSigned：由官方 SDK 签名的通知，本实现验签解密通过。",
     "officialDocs、officialJavaAead：官方文档与官方 Java SDK 的示例，现场取回核对。",
     "文件里没有任何私钥。验签用的公钥在 publicKeys；解密用的测试 APIv3 密钥由 wechatpay-server.ts 的 testApiV3Key(\"crosscheck\") 现场拼出，一看就是假值。vectors.test.ts 在 CI 里拿这份文件再核一遍。"
   ],
-  "generatedAt": "2026-10-04T17:16:56.794Z",
+  "generatedAt": "2026-10-04T17:18:38.748Z",
   "tools": {
     "sdk": "github.com/wechatpay-apiv3/wechatpay-go v0.2.21",
     "go": "go1.25.14",
@@ -19,8 +19,8 @@
     "wechatPay": "PUB_KEY_ID_0000000000000000000000000000000001"
   },
   "publicKeys": {
-    "merchant": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAloWXHiTTGgrlhlDV9KOe\ntgknWWof66lutJ+mkZqQ9P7Pmssms256nBOBVR/yYJDAwny1OsrNALxDjubUEGRj\njYze+ZVFnZbpYjmpdtIJmOK9gr3dEic4khpHCevQXUuiyG8Xn5N2F3a5nTKmICeI\njiTil9H6KBGFIoLs3sR4Qerrcsf6udVnc8tNy3ru3CtAbrnXMu6bKeclmEUtC56V\nC8z+MwLP25ailkKn12ms61ab3NQX1HFt0lTEB8wrcHghqPpQrpBugTqbHX8CcLUM\nISFLnvBnh/UZALhtfYUI0UPpfCaP6UVl4cCFSVmtpEkBcdYRltJfRDpLtCAMulSf\nQQIDAQAB\n-----END PUBLIC KEY-----\n",
-    "wechatPay": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1xxLlbKA5F9eJoox71EB\nX6SsqvE+zo/sVupBnVtXTuo6uBq3/4SmDy67kc1tbeJgUqDD/YIKNJuXCmiDKnyM\n0wX//NIDqKGeHsTZUi6mMl5tJiSp0X985sBkI5yJ8Bc4Qk0TwBWDoYPeGJ/htvXH\nf/2q54dbB2tcf8oc5w+vWLitUf+Pdnet/CYRLH28SQf3wnYMifhMwbYhcXtBA/Vk\n2Wc1jryZdUbchopBtTLni+XiAbf6lMAotWYQ047cIB4MQvOg1bmfDYh0R8tLQrZq\nOniFTO3nbL4OWswuPm31gqitg0oAAao1l2AepMEstwPAzLoV+P1tKakRGjcymq5H\ndwIDAQAB\n-----END PUBLIC KEY-----\n"
+    "merchant": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAt3g2wB15d9wE6v5wDsxr\n5fTqUm3ZuSOjKo8Dnk36+SD2oak1YW9xObs1lNmtQhrPZGbaMTAS93YZTX4jGRyV\n6TdkuFxrHcJsFR8PkY2AIZkFPvfN6Pl55h3ugyLzfpWsNIfADIGKBAQkT/ZbrxvA\nSBYMR4ypKiUqIeS3nb8EgQYXU96XlVvKm7TuHWgvrFH80tCY2jWCL65jjw6i6Jdh\nR/oyc60tMFgxZrJFmk1E4VfSk9lb9dkzcaTly4RTQ2bVrvXkHRMOPvJPxWg0L9qS\n8RwV6jThpergoy2iPMw7simTTf5jXqgsgo1riqtc4IEcJv0KzX0GTGeury6CxkKT\nOwIDAQAB\n-----END PUBLIC KEY-----\n",
+    "wechatPay": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzeF3057S1YWRfoBohxkX\nCPZgQ+iiRIPJ7zjTfiBgx6OhW4Cg9poStSfB1gOlaA7KMpI9/Cflu12NytG8WtAu\n4xqF3JQcjOE4NNdcG+R93Icp+5cwNJeIvAJZn/yWm9I1Ixvc0UpS/Mp9az4NN6By\nCRRAmBFxJqvKUh/95gNm5/AOjJ1E4JmsyqMuUAcWSbNqowy2+g2zjW51cX0uqaNW\n4+gxGAiFPCordKFs4EEGu9xLFdZfQtMidUZqDazc+8O064y0ZRf85ob5NuyWr8rM\n1nLS9rQ3alCkCp6g4g0i3xwUnCS2obtreWD0g6JVnSOsHjw7W5FJoktJzLgD9Mol\nJwIDAQAB\n-----END PUBLIC KEY-----\n"
   },
   "apiV3KeyTag": "crosscheck",
   "sign": [
@@ -28,7 +28,7 @@
       "name": "请求签名：JSAPI 下单",
       "by": "merchant",
       "message": "POST\n/v3/pay/transactions/jsapi\n1791000000\n593BEC0C930BF1AFEB40B4A08C8FB242\n{\"appid\":\"wx0000000000000000\",\"mchid\":\"1900000109\",\"description\":\"狸有戏·标准版套餐（12 个月）\",\"out_trade_no\":\"FK20261004000001a1b2\",\"notify_url\":\"https://api.example.invalid/api/v1/hooks/wechatpay/transactions\",\"amount\":{\"total\":19900,\"currency\":\"CNY\"},\"payer\":{\"openid\":\"o-test-openid-0001\"}}\n",
-      "signature": "e1Zhpc2qzWfEKRVcv9+McxUc5pu9FUI4C7fpoJEZdTa+xEAbACX5Jx6k2eEU0a6ojnnBJ/j6otgzALIHlWkhUrb2mpLnUUPtBnEhhUDhJweaiLwhEJU9f0PQqrcJKmyaWDQciU6GwCB/45lUMgPZAbW7x+KHg0KAZR2rWVX8+y9gcNy3zsbgtZS9++PKsem0V/+Ch34696ddVGaCCYdnAf47LBLetMSM/wNvI0rL5ulj+NvMKQwC49E1FIc6+1jJ86uCVKYc2tYTmlNSNQz9d5RHRhS3j9IvmXGcToqkJr6DSzxYQ7Sf3sbeW3vxo0MtTR7Kft1O4QWNUXHjxCr4wQ==",
+      "signature": "CGBP7eeRdNVYZ17LToe/X6gisyDFbl3Ci3vIuhmioBYXUblNlLyn9YWj8nGS2Gbb4RUBPP2+1sejb9+EhaEL48ANAAPSMXqb9HsFq74m0GmcSdkutb9EL5opjnOgnPkuQBHyJ/cQTOrDGOzvHMBHMZVvhITJKfiTgeSBnsTtd0WksZlyAhs2bUuRI85rwA01zqdpLpxMuahhpOHvZcMeIu7Lib/YYJWzgGJU3aDd9Bbsy1sdfDGU/PUbFu7crF/rACBJd/G8OTqhJLiRr/a7JEIrE9EIhJYxRH2laG1kalV1ZLo12qQZI72C810LmEtKpD3r6psGC+Ebs7nGymWBPg==",
       "sdkSignatureEqualsOurs": true,
       "sdkVerifiesOurs": true,
       "sdkRejectsTampered": true
@@ -37,7 +37,7 @@
       "name": "请求签名：查单（带查询串）",
       "by": "merchant",
       "message": "GET\n/v3/pay/transactions/out-trade-no/FK20261004000001a1b2?mchid=1900000109\n1791000000\n593BEC0C930BF1AFEB40B4A08C8FB242\n\n",
-      "signature": "e6qE+7m1Y+nwVO2AESm9GtHL6Y6UAYsiBFZ2vexZHUGH7ROJAUWal0IkicpDv4Nf+Nyr3Bv6nL1FykU2ECiMePsKiA9otDzJPgrxgZSmxfrJWvLPLc+9tkMM8LFHQmGgg4f9MhaN1pXnW8UJ0XvISArpr+p+n0uRhsON57VoNSNtbPQxLtS+Cnzsg06zUUmV7e6BgPte0X+8MICxHg5FLwAhLgWvSD90G9f1ifTi/mx9UKgNRv21rCA/BwBt8vnGTiLzMDRiEnisXnnH4p7nUpImpHBcrfQD2lDAHMO1HKsLyKKdk9Y7oHTJTr7yUoM5uE8wVg/IhmecAGMIHNN9Ow==",
+      "signature": "B397rAjKpNW5hnA0deY95IgH17ersXlnUoYrlMAufmNpSFkRCa0eSDgreY4liaxrozJvc7y0vzZi8ghj2ist5NkKXYbjMCKaL3aULQjAyOpXzdUfiIE7Gv4NGUX64y6ju4pUQZpeZyd8rCpJV2btA3mvTecfOSzkmQxRWcdvB9enT5ExYd/9gkyT828KQj32Jk9oppHnarfSgSSjMlJ6MQQ/TkNj1uJkEdWNRHHev0RpgnH/bVp1+d431lJzu6S/gStZWrrVF+9MdDMBPZxrCPhjF1skyXWGBFuwxhZ+BOVE4oTBO9mwdkX4D/fclamPQ2dQMTzZWXGZE/CSbOWHTA==",
       "sdkSignatureEqualsOurs": true,
       "sdkVerifiesOurs": true,
       "sdkRejectsTampered": true
@@ -46,7 +46,7 @@
       "name": "请求签名：关单",
       "by": "merchant",
       "message": "POST\n/v3/pay/transactions/out-trade-no/FK20261004000001a1b2/close\n1791000000\n593BEC0C930BF1AFEB40B4A08C8FB242\n{\"mchid\":\"1900000109\"}\n",
-      "signature": "L+CEvlKryqQ2XYwyPby6r+lV+TfAIzDNTXikfs4XeLRpl0AQDkcbbHIPBacm8o0YByKBunCZi6uaNf5hsWjH7YLo1xj9A6zNvstAOt3ELetfPwc5TUC3vMNIixpyu0ODL6vVMSQ9pYJQFdr5fFcrE7k+eIKkQiVswJPs/CI8Q05+BplLP4TPOelQul9lfos1fMatyqmqmCwd+0V++iFB1qn2FMnmlaARodsXaF0ywBAoQuOF+AdA5N6sduDm4pFZ10qwX28sfMwZP+QBjCMB7vevXpmxTAKX6MExYRfMIuNVqLNJpQf1zj+uI6X7H9D1ClK5pb7xzyKqW19Kkre1tg==",
+      "signature": "DsUWJcoYh4QRojORV1K7VXBIY0RwIBdiqDG4Fd4Nx/SlwHhOsYkSSvTnkidGI3CHp6ahC7gl9jcMD141Yk+At5ZF2TsJpl5S6HJhcDwA471b3vwrd7ewUFi+0GNNdyL8nLpI5jzzJbz8ANNxXhATep0/g5vbBB23zq9IMI7prvLhUy03+7ftrHIaOeMjx4EdCkCFnAPrJxxNyz2OLvXB5SjVKaK0G2U36Co7USrCmUzPCJyYsDlmVaiE16Z38fR0PPKjUjpyYMiTibTjPGIpoWYv5y8W/+k0KWfQ8XS1YtkFcjLKsTXwRZZ0xomoAxv5WH3gF/biEveUOJknwafEXA==",
       "sdkSignatureEqualsOurs": true,
       "sdkVerifiesOurs": true,
       "sdkRejectsTampered": true
@@ -55,7 +55,7 @@
       "name": "请求签名：申请交易账单",
       "by": "merchant",
       "message": "GET\n/v3/bill/tradebill?bill_date=2026-10-03&bill_type=ALL\n1791000000\n593BEC0C930BF1AFEB40B4A08C8FB242\n\n",
-      "signature": "AuksQCuS31HCV/qMhVZaGus3SrSSMtwY2C7Zs8hEQ9JW0JNCdp/uNCF3z87qINm8pvrOPsm4W86WoEVJLa7+lwJxzT4dFRal1EoDipXxsh6I4vS3zNEAeVSo9WoGO9LaOMv1Vk1ForvoAT9BrmP4oUkZPivbf2+RbOJ35ZKEPS7NfJaVDIh24uBQ0Tdx/fZbqxmh6PgvZyaXzUCi2yPzmWyBU7dFR3AUC8eh5gmcbAqUqI66/DPCvKGtjveq34o8KqXwZ9KsC7l1kr50ICN46lVPL711rqYhOLcYjoM7nidn7iVvQmhfaPZHZR2NSYLHmNTFE9dtqdMGkd03C9mKWw==",
+      "signature": "SmRlTNmskcAwEPCCkviafIhqXTC+mVBmqC9Ar70baNqwEZqJ5vNZ+/8UDWwdcq+BHmyCyvu9BPlwJbM3a60EcetycRa/ViJAqsQXASvRR5ui7QS890ChS1bntGPCCN6nv5LUbe3Q3kDy9oBZNZ5cQa7SHM5JSdvLXXiMQZgU2n4nRRkD+/h4a2NrTBizFP1PT1JPhiCslElIAuB3S7RakrbImvHTw5SDwz8ur7weE61bZ1x0vWEtgVUP9xl6zjnY3Fun6LY9v7wkg0F2HHFMbhkZOrLOmX2d6XSyGbcDXOoWZN3x06npSwr+SUvbS4EWWXlgE3Te0pgLYCD4C1WhQA==",
       "sdkSignatureEqualsOurs": true,
       "sdkVerifiesOurs": true,
       "sdkRejectsTampered": true
@@ -64,7 +64,7 @@
       "name": "调起支付签名",
       "by": "merchant",
       "message": "wx0000000000000000\n1791000000\n593BEC0C930BF1AFEB40B4A08C8FB242\nprepay_id=wx201410272009395522657a690389285100\n",
-      "signature": "EMfXS92eAtamWw/9ueqFLH0oWuEaDDqSfaAMYtNxPjABx908d7YLUvLd4hHxWGR5BZ0p3CMDkobhuJtypdgtlsPBBpirUtpgyGnSqF8rTdM81ZR/yrXZ2sDLvKjOrKpGUi/lRrhKe3+VB1hsFE+DH+7WyiYhuJrPK1T6wEH6WcMZWaeRxQthQRAMRnVQo9sZ5UBEbza8KX9w4rNUqYQqC7XnvvglZ1jLB6gKwsJVtuA5m4NKzdgSjBIyvDbnLdB4IwJMy0wT63N6hnkox7byiSF1QjO5GdTYdTQ5Pc4n1vVPlDpS9ljq6pNxpgqp8cebknFCKhV/1NOtwlHM6SDDfA==",
+      "signature": "eL2lmGfvCEe+qnXsaBghNR2axWPxR2cKZacdS8hcZntQA7d8hYBoE85Gff/Kp0OvlkmIuUm/c8WpPzGAOuyNys4XkkLb++OcKJ1EtTquvwaG+6ZavIADPswMtMiJTF/nOR5x7qbwY6lOykwGDdjTjlaoM0hDROnHRpiyhnpTUS2FRvuhmz9A2zwD6OrKaA1LKN4ZmER3fCHLL2uulSc/9gZ7McQAenGf1tFN4Z4d2+/52jlrzMqOvoVZldBJB6GoRur1rkaU7QebE+MWBJ+8X4RBM4VYBDgow4xJMioB+YZh59Vs2Et785tMqPolqjvp+OQcDuFfcpDCX5uVaxztTA==",
       "sdkSignatureEqualsOurs": true,
       "sdkVerifiesOurs": true,
       "sdkRejectsTampered": true
@@ -73,7 +73,7 @@
       "name": "应答验签串：下单应答",
       "by": "wechatPay",
       "message": "1791000000\nd824f2e086d3c1df\n{\"prepay_id\":\"wx201410272009395522657a690389285100\"}\n",
-      "signature": "vZV7+hMlJJMJyL74PhRkx1gAnSgO4zdgkhZ4KHxOAS25YIX4fTGC1nY/lbyiwvPo9YjyIyULwTnOSPN8EdNqeTU0fP7uQa70rmzgwmRft7zZZtiaBI8pc0RG23srRzkJkCvHt8COYuxpMCWhOo9h0YIV5Qv1BnN8urN7Gms9Z27kp/PXEvPjkKpPce4WsnmcrGiT9IrN2cKwSwKewn7flNS2TVtHqDGVjAk2HDjCfC0rFzB0eywbrt1skbMKrYsGCFNYYccT92wavWQt8vuZP/WJDJcJi1dwbmbuanwhfy4+ZEPonC1ALGX0jk0SAVRiv1z6Cn2LO1Bo9S8edGviIg==",
+      "signature": "sF4xPElI3xf5LYElFyvED3Wjo6WVpfIn9LwA0ZdoPx0tRr0ft9WXLugLLBZvp628VuPxoZAkBPpAA00wyw/W6yYhENIAfkYuWZPM/wJy9bfPacPdBHkH5TYIXKCbbT/ARqsYnLs+9KnENEnoSST10CCB/Bp3CxZhHClt1bZrPiYOSEkcrcvbcL8UXW9N6KX10P+c+IfIQIqSmTfIG2PeXs1LhBxwWROqodZjrzIDMBiNyD9YufQdZO49VAnb3JioITYQVrGbkxIWWMpiIgCGbezOWGQTa45YMxxX5jaRGjki+ngDy1hEMSy1KlKN56Fx8npNkk/DIVwciRHEhpyNuw==",
       "sdkSignatureEqualsOurs": true,
       "sdkVerifiesOurs": true,
       "sdkRejectsTampered": true
@@ -82,7 +82,7 @@
       "name": "应答验签串：空应答（204）",
       "by": "wechatPay",
       "message": "1791000000\nn\n\n",
-      "signature": "Q5JipODX7bv9+1xwdXN7fIYonRdWg2xIiqmLZxfd9sHxKF53j3YedWMeggRo5Gpib/FoAgpOs6QEhylI4DglgU89OhWyblJ3riFasWizHz8HmlTvd2/+4W7peb2JAwfii9637eAolHRszzl7u8mzGR4MiD0ESw3jnnTsHpJhIZjfRRJqgfim/UZ8B/RycUQUkq5B5Acq2q9iPlpQfPT4KQga4Dd9EMmYDVK4YDXJJhTt/h5X2f5xMqot+UD3LBTIu6gD/c0BvZAnMdcHMZT0NWOe70Ty2Ehi/rG01n05EoR2RYjdPl5mdYD9jNjd0jcK2NGFRCj6sY4YeWVRySPT+A==",
+      "signature": "HkjFtfYUCop4O0FOgNSY4zw0/sEr+QNTps4YWgtjkj2N2SBQmke2awQFs0CfvLYqlYmxbJgcvYLfRXzOsK8WltXQnnyWhhQsrNhTw372ka8p94qJ8R27x5VfH8xAK9zl8w95qKEZqZW54+OlSqIQJtXTdwCT5LkWAY6DiLrnlQrV3YDVpkKob8FhqXDtz4ErDcyt1IRf7Xkt5GeqBcPNB+lnQ1mAN7I+W1WTv0OnVzq3vv7hkmT4EgWkVhUjLpZe0fFDJJcaLunqKj7xgWOp0Jny6d1r1vGijLnThsvFnj0PGcDoXuehI3jjRM4+IYxfBqFSyvMiu7MetUxi1M7b6A==",
       "sdkSignatureEqualsOurs": true,
       "sdkVerifiesOurs": true,
       "sdkRejectsTampered": true
@@ -121,12 +121,12 @@
     {
       "name": "TRANSACTION.SUCCESS（本仓库用例的支架造）",
       "headers": {
-        "Wechatpay-Timestamp": "1791134216",
-        "Wechatpay-Nonce": "2b4e3f45c61ddba7d08c26bfa6d9ee83",
+        "Wechatpay-Timestamp": "1791134318",
+        "Wechatpay-Nonce": "66e4d8d11f731fa3554b48d7bb859df2",
         "Wechatpay-Serial": "PUB_KEY_ID_0000000000000000000000000000000001",
-        "Wechatpay-Signature": "nNIEOpbTHAEJ1ETcR7kdrF23iMDK63Bup+m7ZJQQedofoN5LBgDgQaQa4AwNREIs5yQm6wlCf0Wp0T5060VCkS5d2EpaOPtNdoevV0oAmwUr74rW0vww9kiAv+yijNWVFrfSORM7tHCuHQmj7MkPbEqCqWesEOStehVF76sGt/oyn/2D39y8osCEmtA0XdwMiaeUSkwkZRPDN1I+DSImetoHyl5+oEsRBW21ITfS/mGOc3DxK0EDSMMYwxo4nEPW9ymtq0sG27+zOZtRgV3qkxxYN/pQE8LXiYIaP5yanCIE+2jSoYgV6/NqxolnCr9blxSD3YcFS1rHPIPmYjgJpw=="
+        "Wechatpay-Signature": "xWm67VXtX3AsOP7MYLESbCsRZEgA7zUjX7A1vit/ARteXIfiH2z32xLxq/CvcIJ7qGWfVH/ylHv/GYVhxLjOWYqoKoEu83yEn01sK+WKc//Rei2NLQ0GruA6P8Ri+0nYCHjs0s593b6Vf5VkN80AlOLGE6wtsLPTi0Y8oc6WwY1PNRfa/Rc3+hXPTV67o00jK6xfA0EwGndzAzvAOoX6V0i9HRDhgz4IyADy47bZHdzn44OUnFB4hmN15DFzpLNTqatH2mfjfgRgZvch1+b3ekADruDLmMnUwvU0kI2C7zYzkJqcU9mHqdrnQkJV2liOm1hJ8GE/h+vg/phwjK51pA=="
       },
-      "body": "{\"id\":\"EV-CROSS-0001\",\"create_time\":\"2026-10-04T10:00:00+08:00\",\"resource_type\":\"encrypt-resource\",\"event_type\":\"TRANSACTION.SUCCESS\",\"summary\":\"测试通知\",\"resource\":{\"original_type\":\"transaction\",\"algorithm\":\"AEAD_AES_256_GCM\",\"ciphertext\":\"GN6//Mteaiy229Kja+rA4p0ooLC9ICdRRhLMtksjbEpWNAuhnsk9sI8g7OvZkqEw5lt1tCadkK8RjYpHJHvkU1Zak61XRmYR6WBO1M+Rw51d5xfLrhmzyLZ5Q/iv3WiDdDaRr4h07EcD6pHQubeRJBx59Kb6C23cWpU5RIrkfM7z95avC6VqVnK7BYPqkm568Wc02pcvZQS0lkBIQ3OXpsFVVUgQzHS/C9fjZQIOs38yE3mkISVy7MErq2ri2TIfOKb2pMX1PQy/Z4JT3BwkmAaZvSqS2/P+N7L6klf/2RtgFBhXNNeJFwMRgLb6mflR2fWJqWZEW+EsO47sBLuBn65WwyJRGoBEJhotO1dxKPaOhIMKgrOT98zOauWM407VnwuuLfU2DMpeSVCh7OSMw9pB0kH9uQBnXd956eSlB5odBKN1n1bDgbTFh6G90FV/uAEXqVa5RD0e8iwZVLgkGCUQLX9WsE4XKGdbM3Y553slpVHEadwiyFjzIrcWgkxuT/0nkwlim8ODGmWiYISWtDP+GakMFXFFSjNJNtngcqA2kbhEFzQ+uWfO4/mri0QNPr9COkZpYshM6STnLbA=\",\"associated_data\":\"transaction\",\"nonce\":\"4b78a2fa71af\"}}",
+      "body": "{\"id\":\"EV-CROSS-0001\",\"create_time\":\"2026-10-04T10:00:00+08:00\",\"resource_type\":\"encrypt-resource\",\"event_type\":\"TRANSACTION.SUCCESS\",\"summary\":\"测试通知\",\"resource\":{\"original_type\":\"transaction\",\"algorithm\":\"AEAD_AES_256_GCM\",\"ciphertext\":\"rHofirYbpVvHlJv2+GSByo8TpwWoFuHXJGYl8PbBjCpftp/YYZGG0GD0+Wia5twFJDnF2/JShNfsmBUZ1z9g8zQ5e1nDakgGq57Gd790jZUk77yM063zJTuQ26r6Ka7ydU/pNz+5B9nfYHoxt6sHTD2Wmn7TI/4F2+8BdNOYjxFnzAjO0F7ptYzEly7l3zIQNntRfAsixu95j3yjiv3wyCq1O679Ddhp0LN/Qsk2ciBBxXknZL7sWnnnD0toGvJ7nPKGDxcrocnYif2Wp/FwLJ1iDwH2lPE6CmRmAZn063lNVwUzUPsDjaXmBDbV+CbwHoNe4gmBGhUMHpmUKTy0besJncOWk6fgsXEfGlk8jrxEFn+df4/fgMLaZpvMjsr3sihCMywxNEnmGm629ezn0uhOKhqQcCTIP4gAWetQx8qSGbFyLMCXLXjUfdDLQ11WQERJUMX/06EGt8dZuIj1+oyf7eQ/v7JnRczBaQ+KsHfjmJ9z6fMZtzP34oY64g6N10Hj3OFnZIkUMinAcp9lZFo0/FMLfCDFTtfktNak9zOFUlyAAhBb2vvRZJsJX2q+5+eP+AT56UIpc2OSfiw=\",\"associated_data\":\"transaction\",\"nonce\":\"afec8b2ce299\"}}",
       "sdkAccepted": true,
       "ourAccepted": true,
       "id": "EV-CROSS-0001",
@@ -137,12 +137,12 @@
     {
       "name": "REFUND.SUCCESS（本仓库用例的支架造）",
       "headers": {
-        "Wechatpay-Timestamp": "1791134216",
-        "Wechatpay-Nonce": "143a8b6005e9b7445bb8414fcdec6f76",
+        "Wechatpay-Timestamp": "1791134318",
+        "Wechatpay-Nonce": "80ad60c2f47fab9d2bf731afa8439898",
         "Wechatpay-Serial": "PUB_KEY_ID_0000000000000000000000000000000001",
-        "Wechatpay-Signature": "LQZ+vyF0R3ROJ5wN/BxQ0C6ELwrS3bST8AOsmsyq9KxXl/qLtmFfj0U9MYh3VP8TvJOIGzOdJiU3+Fkt1SR33raH9Bb9+6xEltDYiXJ2l0yMJCpRfZTan6a6ad2aDk/k1gotfVKqETTxmKwTiOnV3gqmCq6kaUo12YdzwkZZ70uKkO/qyNSgKvn9nwv+yd65Z2Gbb+8fe4njsr8HrEoosL0jfo9laZkbjV4BEqDckMyQPkA0H414R0YaYzFSja5bzmqSqTZzEd0oAWhHPKjJtriDPm2aVUK4wOKddy43PMLPo2d1ZCSL4TR+9wgxEigw5cgCRoRluIdD6NnpM3s2/A=="
+        "Wechatpay-Signature": "OP4MxZRHYb3eWQF8/ELkdd3J5eKeyDCw+78amXI+UOHYUj0VoyalTeO4sd+0BQp3XrzLWU6YCQTM+sifwnw6ZNPUZIcEwn4DXOM62SyzJ/QXIruHTZE/ZXkm3PcEFIZRWEXgqIwidEgo3vl6aMCkxZSlqMSX4MYeSsM4xT+OIlB4j8qqK8gfTwic0UUuyNPIgt+hafMT1cHqnOhjwNEEjOQfhTwgutw8IHs8+pGuPsdB+CFx2aP7XCsHntjNbmo2DomxUXCdfzMS0/In0iYJfvZRDXCUemPH8JIkFo2JtOSwuWsJMwBD3KuRzYW8bDNmngG2B+l7PX7Es7ZF2pS7nQ=="
       },
-      "body": "{\"id\":\"EV-CROSS-0002\",\"create_time\":\"2026-10-04T10:00:00+08:00\",\"resource_type\":\"encrypt-resource\",\"event_type\":\"REFUND.SUCCESS\",\"summary\":\"测试通知\",\"resource\":{\"original_type\":\"refund\",\"algorithm\":\"AEAD_AES_256_GCM\",\"ciphertext\":\"YDM3VR3YoBz6liz32nyDXpchRP0xl8UIjojn+RpCRRyTyAvijK461/YGGi7dM3Y8ntw60/Yr2yqdS5WWRP003SmhWiL/+ogJv5Mgc/n0iKY2HxNlqK8XxwRE45atVBarUV5vAfrQ+HPL4WUP9im+EJrMcpyz6PWdGKHZe5LjATpve4TKfYpKmxQ+znxWuZeBGsr5bMDn11yJv9mlNM6+Jbi7atpoAPk0JA1LnTOqM2PYICuv2vCFtbnHi+m1xC3gjNt5XBQB4ps8Q/TmKF05IFCXj3RmGv2NuNeQJeI3QsFRs7TKaD3qE72yOy+MSqYMRKD/U2/kbOUaQ8hStcanorE5pJPTArskkRXtiYP7kmcFtYb/N+Ed+Gw1bw2ZuZ7Gc3ChybKubUBfAKpltCEyUT/AvMafMT26DCPb/A/z7hqif2LWEOnpFLq8+P3T7RJTvCX6cbn4Pp2c/Fq66QwiswRVvVYtg8oGVSwE4AH7JEn1whGKN/01MSvsPzZG6g97K2gTFTMt/1kYNfCaH1w=\",\"associated_data\":\"refund\",\"nonce\":\"a56cb8207d6d\"}}",
+      "body": "{\"id\":\"EV-CROSS-0002\",\"create_time\":\"2026-10-04T10:00:00+08:00\",\"resource_type\":\"encrypt-resource\",\"event_type\":\"REFUND.SUCCESS\",\"summary\":\"测试通知\",\"resource\":{\"original_type\":\"refund\",\"algorithm\":\"AEAD_AES_256_GCM\",\"ciphertext\":\"RMDrH79DKx8SjOVL3XK7PyVCkWc7TKSqqunS2NQR2IIxfOMx5Yv5vXheBej7bAD4BjLUcScem+pPr9AARO9lnr6+yC0nakXxRxctAA2f3B7MGu/Wq4sm0LoshF/rvzacMyAdMZfxsxIUC4j5Tyyg/XAaeHYQlpLxSdaEFptmbI3rEkNDEPtzKvgsW/UTeSbmZSLcEiB4+Qkz7nx4ecW/YW96fuTVUhWw7CS7r5kOYfx7CiKxlQ8UuLuqDrpX0kjeP88kWdCqfKKv/+DdwGW1NuCT7mGMcbJHeqqFXoYZ+y92rC6vk0sPZTRa9qK8HcQthoawwf964d2vvyP1wb+GitA1MdXGRmv6akWAdLtkgLZgvXRUMZfjtss3OIqtM4l3nokI0s1tD5XhC9Kt9xddTj33bb5bK+Xd4IED/bRMbn7x9QCl5ou2flvCbuPUvahXaqpyTsZ3gzTqbgGIaVgtFzpUSg3YnplhdMFAsR/xpKx2Cm7BNtynagAhj5cPq0477/34Bt2aOwiWqTF8ZWE=\",\"associated_data\":\"refund\",\"nonce\":\"e70d3f59c531\"}}",
       "sdkAccepted": true,
       "ourAccepted": true,
       "id": "EV-CROSS-0002",
@@ -153,12 +153,12 @@
     {
       "name": "REFUND.ABNORMAL（本仓库用例的支架造）",
       "headers": {
-        "Wechatpay-Timestamp": "1791134216",
-        "Wechatpay-Nonce": "ceedb48e135eadcccdf34c0fdc82051d",
+        "Wechatpay-Timestamp": "1791134318",
+        "Wechatpay-Nonce": "f4b8dbd0c63386bee7c1bca5024089a5",
         "Wechatpay-Serial": "PUB_KEY_ID_0000000000000000000000000000000001",
-        "Wechatpay-Signature": "KZfeHRqKHrQWWuaVGAiT51MAnG3sX0eeuTDJXyO2x38Qa5j0yeHDx1QyDgFv4F9y21Efy/7H2ntDSHos+choS+vMPKQpIbc8OV7G6VpmEIJekaim4RMgoVEawyOg6RUnnVyZucsNy4L6faZa2HxlpLoCl97lEe2Fw0ju1ZUcDJlrioWaicblTEglXHkRkN5f1S5j+7MmYcvg2LToOxtkEcTro1jTKuvtbc61F+6izanBUYyC1NqsvJVqjPpSilmzENirB7GhMP9JAd9qp2lfz79FzEuUuIuXjnKzYawZBEVo6mmuOlYdPDotKZ3Vtrzrf5zVqbldGntQtFwVNyYliQ=="
+        "Wechatpay-Signature": "Vx19cwC+eS4o4YHxzBoySXEbl6pv48KnC+5QPI7oD5NESF2ThbLDa3aaOStA8JDkoNb/y/8qR0a7CbE1QitrRm80A0P2b+1B+h/+rB8pIctHy2I9cUIe5oJsiABBzm51jrFtfk+6j5BHsHJ563Mag0iGby161CGUEr3z3j2qE3H+Jt1P35WSgVs8i236iG2DzKMJsIOJ+aXPVpebwPOTiibIP2aGMPASQOngpYYgYsB3dM+UIqkcZBTW5Z7gWQfQ5NpQz80eyzzRWnbkQz2T/QG4OcLz9erGblHlvXYCAkI68fP2LTQGAgDceoGJwxtEBB3OJ5jfbujzcV9SsRfbqg=="
       },
-      "body": "{\"id\":\"EV-CROSS-0003\",\"create_time\":\"2026-10-04T10:00:00+08:00\",\"resource_type\":\"encrypt-resource\",\"event_type\":\"REFUND.ABNORMAL\",\"summary\":\"测试通知\",\"resource\":{\"original_type\":\"refund\",\"algorithm\":\"AEAD_AES_256_GCM\",\"ciphertext\":\"wxcVV7H7Odpc3Pjcbi/S8CYRRPaHPcvpdJKgdAse/FBxkjJUkOwurWw1swNAxFAEXHNZ9sRNVII8JDZUc0+QZFPZUG/6iM/U6L8ZxQE3mmnxhwNNobK4v04X9qcW+9sA64H0gOg5mDd2jjCGYyytd4iGhCxsYF54km9ZOwaMFtz8aupHr+7dCPAwpb/v0ADRvGc05pA69eH2RTA6ADww/iw9zWXYEnhd3yddfW4BBIE5/NrvOnusJYwTWmCtQHl7xBfsbA1b6RuUSNJlVC238rJR4PCMD+GgbS5wVVskgjuoO/g55s6fO62jeXuZL5PTY/YgnCfu2m6rrN0phxowu1SHn+AdKgkZ3ytI6tGitx4ngXj0bz/jDEwqbilZxUaHflB+P/JARIPntlbxM+GL7Ba+ijy2QRwi3uBRtoCx/CjCdACIUUuURSj/Fp8OVlERxonFhNjfhF8bOw2jLJxWCREgVQE=\",\"associated_data\":\"refund\",\"nonce\":\"12320ba501d4\"}}",
+      "body": "{\"id\":\"EV-CROSS-0003\",\"create_time\":\"2026-10-04T10:00:00+08:00\",\"resource_type\":\"encrypt-resource\",\"event_type\":\"REFUND.ABNORMAL\",\"summary\":\"测试通知\",\"resource\":{\"original_type\":\"refund\",\"algorithm\":\"AEAD_AES_256_GCM\",\"ciphertext\":\"83AHvKERPjY8/fLv2grAgwQapN9KEYzs/vNgs8POtXhiKFbJUwqQnRSmLbIvC76suqzywuGRDWJ+4IurK3N8hIr/EQSPd2Zp5ZHQicvIGqW8jQ3rISS4vGo3ANE1ZLTfIbkNn3Y1IJlTZjGnDvJTZ10JtFm89ouD2cJ6tSePvJx7u2xEo8ZZugRhSq3ScORAv8rDDcpP/stB2/ihwRCbujwxVuKcmdalIvGBW/Fs6oK7eBOncYRTP7bd26IGPeRNL7UeUIcGQejzYqpZ4Q2rb9KT7iGbAvL20gjoWDeNM37LVNbW1eo6EpWhZDtLqu4d/Q+b874BmFImy4LmuvvjjAVhSlvZOluR0ItTQHCyj7cb/Bb3+oVabE//RUXqqKYLGBxXDDIzuXoe1+nzY3HRpk06XWHwfhE1U29UpK9kDew9s6Py+wOlIXP+cvVGtPE18sVSyMSu8rqcXHEJ5mdco2XI06s=\",\"associated_data\":\"refund\",\"nonce\":\"3a2c94f56451\"}}",
       "sdkAccepted": true,
       "ourAccepted": true,
       "id": "EV-CROSS-0003",
@@ -169,17 +169,51 @@
     {
       "name": "REFUND.CLOSED（本仓库用例的支架造）",
       "headers": {
-        "Wechatpay-Timestamp": "1791134216",
-        "Wechatpay-Nonce": "1cdc34a37c8fb54be5d4616b0b6c7d31",
+        "Wechatpay-Timestamp": "1791134318",
+        "Wechatpay-Nonce": "0df1ab344c4e68e6d1d7ce812c5bac2f",
         "Wechatpay-Serial": "PUB_KEY_ID_0000000000000000000000000000000001",
-        "Wechatpay-Signature": "OHWkBPrzQT9Sa13SSf9ok5cRqsRsemDYI2AaM8QMaJafLpujOz2TvJ82p2vYP43IWBd1K6otXVqXIwpgWz7QftLzJNGlKDZDEjWu0qEM+HClIUFRiNgK2/DVTyG4yRMzkvPyPWDJ7EZYxDIxRJmZx0qTu1FAwnf7nziS3nB13YSl0kPxptS6K2pcFgQDEr45sh/lP5J0DPh+qWQnrBmNEvAOfXKfPDiwR7k77ITBZOGpDb8UAGOhB7RozVSB9at00L6D/yYpVAxJZNmYjAv9bZEigDCIs/lx48LLQifDDcT66IIWCo5G+VOAzNXzMiCyi6vOtFICXH0BshdiN7s4tw=="
+        "Wechatpay-Signature": "dq4Xrmv3vJl1QJLYG+f9unp9um057MB8KrEHy0UH9Ka6lhL9R9drUCLLY0qkoEdDEyxFkogfQjfCeA6nN3tSAoma5+Xf3nm0jD5PGr860NrJBIUdWVxl5x6IfjlobM2KTKHFsCfatLXCIPLOw9MGPHOWuG5HrljLNrMxSUA6YvyMdBW1alB8X5GpDnJmQWQOuOfW3oPtJjvL3gc140FgQE1pE6z/Fye6jAmZ/B8mULNNBEzCKifX+2n3/KuJy4GbnuCBjkdN11u89lb4nYQF1y7F07c+EgZWzIQ4tu1PVay3r7APh01qI/uHrg34LcE9SrEY+aBATUtFWM1/G+LJwA=="
       },
-      "body": "{\"id\":\"EV-CROSS-0004\",\"create_time\":\"2026-10-04T10:00:00+08:00\",\"resource_type\":\"encrypt-resource\",\"event_type\":\"REFUND.CLOSED\",\"summary\":\"测试通知\",\"resource\":{\"original_type\":\"refund\",\"algorithm\":\"AEAD_AES_256_GCM\",\"ciphertext\":\"c7/RpxYCdITuLb3mfvJ9cgGrVcbGuBd9tgzeVDpxqhqGtJjU9O5IHxu7x6lb67yXFC9kTzCaXHvdt9Qv7er1d9q/A67dgXjeu+RsY+tuPQ4DG2hTCSeX2Tgd6V9SY7Jw4nTKY/BmurPfDKXaENdJYykC8hm4+ZopWHcansOnmbQqpYbLXkplwSvENn3/vV0QhCI4iG1d5XDQj4lhnW2YnkI7J0cdZSxlaRRgC84PRi91N95Why9l6VrWUA9YRyE7c6BsuRp62hSTdV5dYQXG34Xh41vAPUi3rED6VjeiyLacgTcvlHP05NvdQ09WFWO40psr9WPhgiPK4LQipg/0GJRMLkw2XmgHEEiICzl6/BniOAw2IojMv2OSWt72CJY8WlbGGmMN6Q6pg5q3OC76V/i2kr2WGVF6/r9AQhMKFXUmq+Zrz0ogeUv8Np5nl6JmC+CAU0v75sfjgyhTCoVzzRVH\",\"associated_data\":\"refund\",\"nonce\":\"17c961a19239\"}}",
+      "body": "{\"id\":\"EV-CROSS-0004\",\"create_time\":\"2026-10-04T10:00:00+08:00\",\"resource_type\":\"encrypt-resource\",\"event_type\":\"REFUND.CLOSED\",\"summary\":\"测试通知\",\"resource\":{\"original_type\":\"refund\",\"algorithm\":\"AEAD_AES_256_GCM\",\"ciphertext\":\"0W8aJ86310f6hfOlJHTXYcHFiAroQTYXNw3cQhoPr6dJ3uUpnQQP2bmhNvcx8Wt/tyGL9g7/tuNQfMdZ76krxIR29JxWOdzVamMCLgo4CZKa2nTSN2CAD+nsYdJwejibLrbcgn3Ws6gnHmnnfJZHpwwcuyK/7E7ZDcfa+DOiz3ybyzcp48d9Eh0Q/my6FJkaOjemPmAeIbJhtlCCQATLtQ2V3+HEieFijACPhvupFgB7azbI0/1Yp/5+odcADDGkP7RW3mh0rIp/TaPiXZ9nIFM9nC5v+G1ZEpYPUKizWnMRfi71V7uFkZ71Ka8V4aebAY7dS12i4kB+nYnx3TAGCwcGvIRrZlVsp5exm3fMraG8l2aqnCfWyVAWmaiGj9yI0gGufj/dY9BNchTke3yKtKgk/OoO3uoej3yR6J0B7VRWYakfsKw8sz4lMe9R82E/C4Bgv9EMwaQECsd56xwpd2n9\",\"associated_data\":\"refund\",\"nonce\":\"ae43a8c6033b\"}}",
       "sdkAccepted": true,
       "ourAccepted": true,
       "id": "EV-CROSS-0004",
       "eventType": "REFUND.CLOSED",
       "plaintext": "{\"mchid\":\"1900000109\",\"out_trade_no\":\"FK20261004000001a1b2\",\"transaction_id\":\"4200000000202610040000000001\",\"out_refund_no\":\"TK20261004000001\",\"refund_id\":\"50000000002026100400000000001\",\"refund_status\":\"CLOSED\",\"user_received_account\":\"支付用户零钱\",\"amount\":{\"total\":19900,\"refund\":19900,\"payer_total\":19900,\"payer_refund\":19900}}",
+      "sameResult": true
+    },
+    {
+      "name": "TRANSACTION.SUCCESS（假微信支付发出）",
+      "headers": {
+        "Wechatpay-Timestamp": "1791134318",
+        "Wechatpay-Nonce": "778b48285334ca1ed49de38340d5690d",
+        "Wechatpay-Serial": "PUB_KEY_ID_0000000000000000000000000000000001",
+        "Wechatpay-Signature": "zN6BguZ/oEYP6VUaa4nj5hZh3QOiKCu5eGMpj/ZiL1N4i+oquA0wykThjQFKpOBpx/q5ZC1ExjC2yKwnVIBobVVDvzNrKGY/GECfGuLzvJgSJYMIWBkCftfOpCEDF25NutUMqvm2dldQLetI2vYkTIlldDHoMuVDsN+6GM55oZi44rDaZNHF5zuTOC3bReOSbgjhoh5RkIZV03Ve0W+KRQHVwIz//f9dyPzfDBuZbpZ/BLvY7W5bPcEDKloeZz4VIWL5u4jCvrHMMFXGwuIiNTP2ECmJm/gJ3w/5/fgBobzwPjuNehTGW0QEuLiZqLEzvu72fl+fgSBXCNWGpbXDvw==",
+        "Wechatpay-Signature-Type": "WECHATPAY2-SHA256-RSA2048"
+      },
+      "body": "{\"id\":\"fake-notify-000003\",\"create_time\":\"2026-10-05T01:18:38+08:00\",\"resource_type\":\"encrypt-resource\",\"event_type\":\"TRANSACTION.SUCCESS\",\"summary\":\"支付成功\",\"resource\":{\"original_type\":\"transaction\",\"algorithm\":\"AEAD_AES_256_GCM\",\"ciphertext\":\"ssEjkOxeOp3I7LyaNzpOs+je6ltewiulvlSKOMnbvMpZqR+7+e4j/hQQaXmv9Gi4UeuyaARwhDiHOjpqrkVdGe8qu9vcy7flIXEIKAisHKpVLMobh5HBQV1zQrORyTj+zxw+xmUmb+Rh8LIXchLsXoSrarZFdCsn50Gc1X5OdG0GQ8NjUa6pvg5ct1LeFBnrHFmjNHaqvM/o0apXvN6g05pcu0AggtoNcuq/Vbd5fz89dUmZaTp8MqMJZfZ4puB5Ah5fUGqN7lo00Sg+WoZZFwFMTW4LXdFDW01tzE7KZRS4Uy5RtnHClLdBTOz1fOXhRy93N2HJlDTAmtuUojPOpsODDWqNrBPgY603T+orB6rtRbFicPiQ/QDgQGAbqIad4eshfr+KEZDzWvBq0y/pBRxh22SuejR8uk33JN005EdK+BVNf5hCRcvoLmCtzDhRxaoy7kDWAXaRykJEPoKcGbQ4tXzZLHkqNYHxB5IqXjmP2b9YfT0Fw8rvtVn2T0MhDov0YHyO0ySL5iRXgtiHi/SGr9H96V8G2cd7/u0OkWJVekJwB6gGT9jc/q1mujTUvg==\",\"associated_data\":\"transaction\",\"nonce\":\"e60b255b66ec\"}}",
+      "sdkAccepted": true,
+      "ourAccepted": true,
+      "id": "fake-notify-000003",
+      "eventType": "TRANSACTION.SUCCESS",
+      "plaintext": "{\"mchid\":\"1900000109\",\"appid\":\"wx0000000000000000\",\"out_trade_no\":\"FK20261004000009z9y8\",\"transaction_id\":\"fake-txn-000002\",\"trade_type\":\"JSAPI\",\"trade_state\":\"SUCCESS\",\"trade_state_desc\":\"支付成功\",\"bank_type\":\"OTHERS\",\"attach\":\"v1.e.o.N.r.12\",\"success_time\":\"2026-10-05T01:18:38+08:00\",\"payer\":{\"openid\":\"o-test-openid-0009\"},\"amount\":{\"total\":19900,\"payer_total\":19900,\"currency\":\"CNY\",\"payer_currency\":\"CNY\"}}",
+      "sameResult": true
+    },
+    {
+      "name": "REFUND.SUCCESS（假微信支付发出）",
+      "headers": {
+        "Wechatpay-Timestamp": "1791134318",
+        "Wechatpay-Nonce": "3d4ae0cf0622ec346873ac7b1ec8f1f0",
+        "Wechatpay-Serial": "PUB_KEY_ID_0000000000000000000000000000000001",
+        "Wechatpay-Signature": "WbIWidq3Yid3MnjzY0AbAfR+FR3KriD7kipOLehQ067MhxMsdwZP8K6+O6QtJ/T9Uh8UjaHSvsIXqhVsztkMPf0Qd6kgUK1HsGAflQf+if78u1HE7OgOnfLk9VdwyiUmDRVmrWzDtSRGyCShn4UOHIKY4mRNfn7fZ1iKBjeVnynvbPnBq8khASbUjZYSqnX93xVAeRpUPcWAO3i724E0pa/RhKoTJaUBENgknmZYrDHSr+9f2qpw7Bk6LUPH3grZjWUu5qJZqUF7Itq+8l4BYZ2GrG0lbDBtRaeLesroC80lceC2/EAeMqhIAABESedIxMXXBaPgx6fQHE4p+t2vzw==",
+        "Wechatpay-Signature-Type": "WECHATPAY2-SHA256-RSA2048"
+      },
+      "body": "{\"id\":\"fake-notify-000005\",\"create_time\":\"2026-10-05T01:18:38+08:00\",\"resource_type\":\"encrypt-resource\",\"event_type\":\"REFUND.SUCCESS\",\"summary\":\"退款通知\",\"resource\":{\"original_type\":\"refund\",\"algorithm\":\"AEAD_AES_256_GCM\",\"ciphertext\":\"6JaSsSjENkGjAiHvCMq1nQI3R5o3+rETFTmZyMxYOX7618eVqjIaD/KGdVBuAYQtcmV1LYtAx/3wLZHFrq1e9fUmg+MexXPwO6Z6x3cQucCryxOGCWsmQQ2A3UZg8zziDAtX2OC94vqv4KLJoDWkgenGXhqpNCdYN1eKY+v91SkXsl+A3Bm445LJLpPF2bR+yVTOGV1o0XHPhwMyQz8HTuD227JomrdjgM4lUdvXPacGnl3NFx4S7RiPxMDlyD7ifob2iIoak5u3cJUr9TVb+Qig1xY7ysAw/jzicp9ZLKJ6j/k0AaQdt70/w9HOyoiqG0FS2bxWxGy0wtyqU39TYXTPCuM8tpPMb0VTBYpkmg08sNAO+UZ0N4cHp5w5cMfFP2cu9MGXcaP6culawqe1qRpOAb8wqZQZxQSe/q9BOyC0uEpWqUz5JTLangQv48uAnvrEjEQJn/UiVow/9gWrP22+pvYeY+Swo/F4CiVAWQ5rniRvHoA=\",\"associated_data\":\"refund\",\"nonce\":\"73d4059876d2\"}}",
+      "sdkAccepted": true,
+      "ourAccepted": true,
+      "id": "fake-notify-000005",
+      "eventType": "REFUND.SUCCESS",
+      "plaintext": "{\"mchid\":\"1900000109\",\"out_trade_no\":\"FK20261004000009z9y8\",\"transaction_id\":\"fake-txn-000002\",\"out_refund_no\":\"TK20261004000009\",\"refund_id\":\"fake-refund-000004\",\"refund_status\":\"SUCCESS\",\"success_time\":\"2026-10-05T01:18:38+08:00\",\"user_received_account\":\"支付用户零钱\",\"amount\":{\"total\":19900,\"refund\":19900,\"payer_total\":19900,\"payer_refund\":19900}}",
       "sameResult": true
     }
   ],
@@ -189,10 +223,10 @@
       "headers": {
         "Wechatpay-Nonce": "sdk-signed-0",
         "Wechatpay-Serial": "PUB_KEY_ID_0000000000000000000000000000000001",
-        "Wechatpay-Signature": "AOEYVuxl/IvXbYfYwPoVNQfr5+Xup+N/WmyeMJTVHzyk4YBmNlAFoyR1Y+AuGpbl74JfmxGyJ30Cq4CbJW2B1AWstTs52YkBTOSmFyzCJqWaCfr7pDu1NbvaQ4s0uC/h+YGxS7CWSZEisMfXSOFDE65gch/gRW5fsWQDFlQ8ebuE8nJFjyTUsuBCEk0e/CFeb+6YOBSjc+Enshe/bOlOFmYbRVeOcGJGwHyKPp0oqY6E0vNisu12lGi9SVrKPkAHwzJzcaMcqF+qrvyO6kgSjOIYkJKSu29A0PWcFWiAzlfmDfuT8G0d29WFF55lOSVlnrnJ+1Ux7LQIxWtfwQrIUA==",
-        "Wechatpay-Timestamp": "1791134216"
+        "Wechatpay-Signature": "u6taDmnQcskvmAvQ7YPxivbaKNC9Fhlip65ea0CW1l/ufPZ7MPqWJ0K1UyqaUfDCCV71Tdx1HEOyytv1vO2f3aFq7LNmQrK1aQzfoOKo/5ZT4kY1FJ6JDVWxZkFDNUPhbBE/JXiDJnr0hGRBOnHnWgb01OJN0Y2XkpcYnB4AgHXbptgbaEce/nbnFH9mQglBOw/x7BLUv2Zc+gAkFcNd+00SkqSFmaXffztp9LK38HIdKuD4atotsgmjIRQdFRoeW0eEM4o4W2cEPKWlW/JG4dEavRMP/brzDjK7xvC55tCAj7dtIYJ31up/x5zrgsnjeiJO/uxbTjAajpIR7J/zzg==",
+        "Wechatpay-Timestamp": "1791134318"
       },
-      "body": "{\"id\":\"EV-CROSS-0001\",\"create_time\":\"2026-10-04T10:00:00+08:00\",\"resource_type\":\"encrypt-resource\",\"event_type\":\"TRANSACTION.SUCCESS\",\"summary\":\"测试通知\",\"resource\":{\"original_type\":\"transaction\",\"algorithm\":\"AEAD_AES_256_GCM\",\"ciphertext\":\"BG23G5D+FLC+YmhClz8psw+ijEmew/UQET5n7v3GluAOmmb/d7XhEmGWcM/yZ4nYJYgJ5LuSYsKi2MVqHEyhAuVyHeghAfeqatlEYYMm6RwQuoFGuEJ7UKsyC1nRE1gUFfLntbA4Dzdgw/wf75/xo9zvLx80onmsOvGRAvzrwu7AyNd1U1QQxj6sqvemHSmU4USYXUPR3WAB+MVPX4IABvaxb+BGDtGXlwz6Sj2GMUotl9+VE73eNJnzXj84JgLBMMR8ZAIFzu++ZjvdslF6l4dQYPVSNZUENK1jFxWMrNM/lldLnv7Z7KlDyRSqoNdPqVYgv2K3yYbJ2Gl7rar7gAGxZrahS41p2dN2YkQ0V0YwrF2Q/gIKxjv3SnraCu7nUF05eiKi1sraAzbuW8f6/47JOvAUbNSX1OK7ZLpHxDA8JZfaGSJD6v0k5RpUwXOPFaEcDDoXS19ShSEx8EOd5ALfCwcx3FGgPTNkrX84UmqH5AiI2RNJuX+1+uFSyvRZhYA5Kb9VahjT/XBS39wcsNvYRitAzQX6Amh4fCPPJLy3Tiwe2tIXOFRNs9oQXscZVsI0WMeoHaqKYA+nJt4=\",\"associated_data\":\"transaction\",\"nonce\":\"f4c7bf64d369\"}}",
+      "body": "{\"id\":\"EV-CROSS-0001\",\"create_time\":\"2026-10-04T10:00:00+08:00\",\"resource_type\":\"encrypt-resource\",\"event_type\":\"TRANSACTION.SUCCESS\",\"summary\":\"测试通知\",\"resource\":{\"original_type\":\"transaction\",\"algorithm\":\"AEAD_AES_256_GCM\",\"ciphertext\":\"ybLCw6GpQk4VaYcZO29xfzxkih6exNHG5zOoOnFuQf5u2lfxiVoZ4FOg1kTljWhNDdMYu0MH1xCY4mNl+3Ut5hhES1qgptXE9tHzzmyH5tbNA1zaxPO5vFjNSm3SNn1ZkGzm9J8k8A8jWOQaRZuw+QvZ7LQSQlmvXzY+fl3zvFsHaT3xAtf/JsNjB76LIPl6okWRLAhqkpMPNajGfh6xCzTVW8xSScRN3K0m96OkFHPpZI3P8fRhQUQ1DmJATvDccrvww8pGxfNIR80+/s+7ZJisDBT+PsoIWGl2UkY0oR5HusJyMxmdDd0GkZRB6Ratr+VRi1PCZReeCFWn5Xp0472PRAqkKgnft4NqqknJbD2XNk7DItrbPdze5fBiw5brXsPPDGjwHTX6YbdXEwMAIkl3YlZkwpshs4sybdk441GaNs4OIgp15PNriEkuTwx/PNJWwSwujapEqmffWKWXus7+uR+6si/cYBGLJYZKvnn+IPRlvzQcyCWWsyH0xFoxkbd0IoVXPWLKHDjjlmyi5Ja+1S39lV4nPVL3YRIGQu3JIzwIwf6JzBW9Pldcj0ScaZfMoWapLPKoVLoqZ2o=\",\"associated_data\":\"transaction\",\"nonce\":\"1a6fde3f5af3\"}}",
       "ourAccepted": true,
       "id": "EV-CROSS-0001"
     },
@@ -201,10 +235,10 @@
       "headers": {
         "Wechatpay-Nonce": "sdk-signed-1",
         "Wechatpay-Serial": "PUB_KEY_ID_0000000000000000000000000000000001",
-        "Wechatpay-Signature": "nZKEboZHlJZyAr6GnUV4mXedNw3e3+7gGI1UdT51iDeKZF96LDI73w8L8eiGGL6pjnlakCxqzKH9Sw27R0G50vt/wGHaiH7RqV4Sm+zgjRjGa+bKfTreQ2Vgz5768BGNPo5XKp1jmP8cVMY6IuHUsu38GCsBkDKwJEkVQKOMvqczwxbEYiVNdaugp6h6lInuZnJL30N/QoyoQPSTA82LdOV2PjR9bsiTjhqIG6paYKYIc2Gba9yl6f0aRux07NQ9kOS2xs5sUytVufnQSi2zqCnYj9YN9gRoCGWKxMzHXQUknQ8Hmb7JcmcYu57kVTQOUHRkro7eC9vALArlrTxN0Q==",
-        "Wechatpay-Timestamp": "1791134216"
+        "Wechatpay-Signature": "SZ61C2GSLa7lNZjDPfH43QY9TP46qCDW0D+zb87HuAqunbRrAqFfYm2KblA9CZsGtGZsNUf/wrbDv/SVp36/8er4gVn8fAmSTMzeVtfwo6K2c8fu4S7qVLlWaBMy8qUeY9eK6QS4h8RcUA3RqtZki2owVBE46KA2cERSMONDTGNcCjZ+v5+lRndBzVIsOFGV4KBaAXP6yQj4D85w9nN6jZLRCzTOHWBW1a63ggyYbSZA/w12MVefBkuUBrKpCR466ROXIzPwMKxhEpvgNKG9mlG92I1NKsBx2yFu9iH2z85c/XB/LwFRzhISCxo+kX9CcJp0tNUdCdejp91BETklGA==",
+        "Wechatpay-Timestamp": "1791134318"
       },
-      "body": "{\"id\":\"EV-CROSS-0002\",\"create_time\":\"2026-10-04T10:00:00+08:00\",\"resource_type\":\"encrypt-resource\",\"event_type\":\"REFUND.SUCCESS\",\"summary\":\"测试通知\",\"resource\":{\"original_type\":\"refund\",\"algorithm\":\"AEAD_AES_256_GCM\",\"ciphertext\":\"y5CaECITcC1Cc2YgZNW1UKHioAxNm0CBEPhP99Rp6O3Ag3C/ueTxYUt0J+kOXhfGTyWMSl9149umO/ZXBUs6mUvPKSyg6F59taj7CsZphCYHqOpPtX7stYNM7HGk+SkBA1wHnWktaSame9BPkdSHECxR2DB70aVOPY6HYmg5abtu2baytpBWEPWkoV8wpeZFsRk3PILh+ht3eQSXEwzQ/LQjQ/JalJfDuwdWs/8l2zOsPSGej5AY27rOmjaM3dYYd5O1rNoZ3cOC+yPbYyiKtpP2VVHVnn6EEqOuvSpT3L/7TiMYwePj2Pp6CzqHfv0cG0PTA4nP4zPU+kusJFjEpyJfH4o4LY0G38Grg5K3KsjYqyDppcdd6T/uuGpdRCityU189/E+keKm477Uitkx9OE0ByUQYL3pd/rAqgmhvliX/DeAzHc/7eLXvTySctUUwP+Ldl4Pu8NlTc23H0ddeXytCwkeipbXE6jr4cijc/ojJhx3rLHbTaYlgDOIkDjL+mbFcWInKdcyhAA7fFo=\",\"associated_data\":\"refund\",\"nonce\":\"9f7db610388b\"}}",
+      "body": "{\"id\":\"EV-CROSS-0002\",\"create_time\":\"2026-10-04T10:00:00+08:00\",\"resource_type\":\"encrypt-resource\",\"event_type\":\"REFUND.SUCCESS\",\"summary\":\"测试通知\",\"resource\":{\"original_type\":\"refund\",\"algorithm\":\"AEAD_AES_256_GCM\",\"ciphertext\":\"ut8yiHRclHUx8fgyTGnpaG7WdZMDcjX5cAzQLXF80y3O311H77PDu9P0SQYbte/fAAjE69+wq9Bxv/NrP5IIfzqq6Ru5K/QbcYNXW3nUEQzcx/FGMIRfXXC4iAbmI2hYGVofc0TrhR0otYK7IN6+DVeD+yC410cuh9Txv9sC+XgFhsr42/fQYSbEp7V/w4hWB28FzLQ7vdyJX7aD/ISI7AXL6hSRSzsovNRKAGrhnYFXcAqRlaOp7bSEaJtUNgLl8RTqQ8fuWfP6/U36RwN6TOfQvtFJ7RsEuylGH1Sxfin2XVFTvqZ+g+POR4hqQYnkyLdh3O8/8wWrRRLWT4RGKb5pZcxzZ1qt3U0+zEwXMAkQcbTdvc7DFW+k3nBdjqN0zWrAoWwj5rWiWPafEYa4C4YVZaKxsd+8Jm5sXmVd8Ijsm2nIw/nqr7VvYQZme21adPqhI+7++tMO8i0kG1JfYgZRZeH3dIksg5dlqXWIMTaV3Wj0w1qLLJrli7StNDsA6psb8KQV6Gq9J8GK7yo=\",\"associated_data\":\"refund\",\"nonce\":\"85b67cd3513f\"}}",
       "ourAccepted": true,
       "id": "EV-CROSS-0002"
     }
