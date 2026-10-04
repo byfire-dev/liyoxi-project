@@ -27,7 +27,9 @@
     "check:rename": "node infra/ci/check-rename.mjs",
     "design:generate": "pnpm --filter @liyoxi/shared run design:generate",
     "design:check": "pnpm design:generate && git diff --exit-code -- packages/shared/src/design/generated && node infra/ci/check-untracked.mjs packages/shared/src/design/generated",
-    "lint:colors": "node infra/ci/check-colors.mjs"
+    "lint:colors": "node infra/ci/check-colors.mjs",
+    "mediatool:verify": "node infra/docker/mediatool/verify/run.mjs verify",
+    "mediatool:bench": "node infra/docker/mediatool/verify/run.mjs bench"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",
