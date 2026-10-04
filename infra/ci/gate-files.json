@@ -100,6 +100,16 @@
       "except": ["packages/contract/generated/**"],
       "kind": "append",
       "note": "契约生成物（三份 OpenAPI 与类型）：算门禁路径，不逐行判（except 盖住整个匹配式）；与源码一致由 contract:check 与契约自测核对"
+    },
+    {
+      "pattern": "infra/ci/colors-allowlist.txt",
+      "kind": "frozen",
+      "note": "页面色值检查的白名单"
+    },
+    {
+      "pattern": "packages/shared/src/design/generated/**",
+      "kind": "append",
+      "note": "设计生成物：色值检查放行这个目录，只由 pnpm design:generate 写"
     }
   ]
 }
