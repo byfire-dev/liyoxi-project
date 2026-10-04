@@ -63,10 +63,11 @@ import type { StorageProvider } from "../providers/types.js";
 ## 5. 本地 MinIO
 
 - 连接参数是 `infra/compose/local.yml` 那套共享容器的固定开发值（`LOCAL_MINIO`），不是密钥；与 compose 文件是否一致由 `storage/minio.test.ts` 核对。
+- AWS SDK 缺省会去读环境变量与 `~/.aws` 下的文件找配置。驱动把这些选项全部写明，SDK 就不读那些文件；升级 AWS SDK 后要重查一遍（看有没有新增的这类选项）。
 - 四个桶：`lyx-local-secure`、`lyx-local-asset`、`lyx-local-media`、`lyx-local-pub`，都是私有桶。驱动第一次用到时建好，已有的不动；compose 里不另建桶。
 - 直传只能落在写入区 `incoming/`；入库是条件复制到正式区（对上源对象的 etag 才复制）。
 - 没有临时密钥、没有版本控制：分块上传与续传在这里测不到。
-- MinIO 没起来不影响启动，调用时返回 `unavailable`。用例要连它：先 `pnpm infra:up`。
+- MinIO 没起来不影响启动，调用时返回 `unavailable`。用例要连它：先 `pnpm infra:up`。连不上时 `storage/minio.test.ts` 里要连它的几组跳过并在标准错误里提示；带 `LYX_TEST_MINIO=required` 跑则直接失败（CI 的那一步与验收都带着它）。
 - 那套容器由几个 worktree 共用：用例每次运行用自己的键前缀，只删自己建的对象，不删桶。
 
 ## 6. 加一个真实驱动
