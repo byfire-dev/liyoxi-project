@@ -21,7 +21,7 @@ export type NotificationFailureKind =
   | "key_not_found"
   /** 验签通过但解不开：APIv3 密钥或版本不对 */
   | "decrypt_failed"
-  /** 报文不全：外层不是 JSON、缺 id、resource 不合规，或解密后缺必需字段 */
+  /** 报文不全：外层不是 JSON、缺 id、resource 不合规，或解密后缺必需字段、状态与事件类型对不上 */
   | "payload_invalid";
 
 export interface NotificationFailure {
@@ -128,20 +128,25 @@ export function verifyAndDecrypt(
   if (!resource) return fail("payload_invalid", "解密后的资源不是 JSON 对象");
 
   const mapped = mapResource(id, eventType, serial, resource);
-  if (!mapped) return fail("payload_invalid", `解密后的 ${eventType} 缺必需字段`);
+  if (!mapped) return fail("payload_invalid", `解密后的 ${eventType} 缺必需字段或状态不合规`);
   return { ok: true, id, eventType, serial, kid: opened.kid, resourceCipher, resource, ...mapped };
 }
 
 type Mapped = Pick<NotificationSuccess, "notification" | "summary">;
 
-/** 归一成接口的类型，并给出不含 openid 的摘要。必需字段照 h01 第 3.1、3.2 节；缺了返回 null */
+/**
+ * 归一成接口的类型，并给出不含 openid 的摘要。必需字段与取值约束照 h01 第 3.1、3.2 节；不满足返回 null：
+ * 支付成功通知的 trade_state 只认 SUCCESS；退款通知的 refund_status 要与事件类型是同一个（REFUND.SUCCESS
+ * 配 SUCCESS，余类推，所以 PROCESSING 一律不收），成功的要带 success_time。处理事务 T1 不做业务判断，
+ * 这几样在这里拦。商户号、AppID 是否属于本系统不在这里判（字段原样给出，归处理函数）。
+ */
 function mapResource(id: string, eventType: string, serial: string, r: Json): Mapped | null {
   const transactionId = text(r.transaction_id);
   if (eventType === "TRANSACTION.SUCCESS") {
     const transaction = mapTransaction(r);
     if (!transaction || !text(r.mchid) || !text(r.appid) || !transactionId) return null;
     const { outTradeNo, tradeState, amountFen, payerOpenid, successAt } = transaction;
-    if (!amountFen || !payerOpenid || !successAt) return null;
+    if (tradeState !== "SUCCESS" || !amountFen || !payerOpenid || !successAt) return null;
     return {
       notification: { kind: "transaction", id, transaction },
       summary: {
@@ -159,6 +164,8 @@ function mapResource(id: string, eventType: string, serial: string, r: Json): Ma
     const successAt = text(r.success_time);
     const total = fen(isObject(r.amount) ? r.amount.total : undefined);
     if (!refund || !text(r.mchid) || !transactionId || total === undefined) return null;
+    if (eventType !== `REFUND.${refund.status}`) return null;
+    if (successAt === undefined && refund.status === "SUCCESS") return null;
     if (successAt !== undefined && Number.isNaN(Date.parse(successAt))) return null;
     return {
       notification: { kind: "refund", id, refund },

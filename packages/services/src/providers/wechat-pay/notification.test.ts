@@ -10,7 +10,8 @@ import {
   transactionResource,
 } from "./__fixtures__/wechatpay-server.js";
 import type { NotificationSpec, TestIdentity } from "./__fixtures__/wechatpay-server.js";
-import { createApiV3Keyring, createVerifierTable } from "./keyring.js";
+import { aeadDecrypt, createApiV3Keyring, createVerifierTable } from "./keyring.js";
+import type { ResourceCipher } from "./keyring.js";
 import { verifyAndDecrypt } from "./notification.js";
 import type { NotificationDeps, NotificationResult } from "./notification.js";
 
@@ -319,12 +320,44 @@ describe("没有通过的通知", () => {
     ["退款通知缺订单金额", "REFUND.SUCCESS", refundResource({ amount: { refund: 100 } })],
     ["退款通知状态不认识", "REFUND.CLOSED", refundResource({ refund_status: "DONE" })],
     ["解密后不是对象", "TRANSACTION.SUCCESS", [1, 2]],
+    // 以下是复审补的（h01 第 3.1、3.2 节的取值约束）
+    ["退款通知金额是 0", "REFUND.SUCCESS", refundResource({ amount: { total: 19900, refund: 0 } })],
+    ["REFUND.SUCCESS 缺成功时间", "REFUND.SUCCESS", refundResource({ success_time: undefined })],
+    ["REFUND.SUCCESS 成功时间写错", "REFUND.SUCCESS", refundResource({ success_time: "昨天" })],
   ])("解密后缺必需字段 · %s", (_name, eventType, resource) => {
     expect(deliver({ id: "EV-BAD", eventType, resource }).result).toMatchObject({
       ok: false,
       kind: "payload_invalid",
     });
   });
+
+  it.each(["NOTPAY", "CLOSED", "REFUND", "REVOKED", "USERPAYING", "PAYERROR"])(
+    "支付成功通知里的 trade_state 是 %s：报文不合规，不当作支付成功",
+    (tradeState) => {
+      const resource = transactionResource({ trade_state: tradeState });
+      const { result } = deliver({ id: "EV-STATE", eventType: "TRANSACTION.SUCCESS", resource });
+      expect(result).toMatchObject({ ok: false, kind: "payload_invalid" });
+    },
+  );
+
+  it.each([
+    ["REFUND.SUCCESS", "CLOSED"],
+    ["REFUND.SUCCESS", "ABNORMAL"],
+    ["REFUND.SUCCESS", "PROCESSING"],
+    ["REFUND.CLOSED", "SUCCESS"],
+    ["REFUND.CLOSED", "PROCESSING"],
+    ["REFUND.ABNORMAL", "SUCCESS"],
+    ["REFUND.ABNORMAL", "PROCESSING"],
+  ])(
+    "退款通知 %s 里的 refund_status 是 %s：状态与事件类型对不上，报文不合规",
+    (eventType, status) => {
+      const resource = refundResource({ refund_status: status });
+      expect(deliver({ id: "EV-STATE", eventType, resource }).result).toMatchObject({
+        ok: false,
+        kind: "payload_invalid",
+      });
+    },
+  );
 
   it("失败的结果里没有请求体、签名与密钥", () => {
     const { headers, rawBody } = deliver(PAID);
@@ -351,5 +384,70 @@ describe("验签身份表", () => {
     for (const entry of wrong) {
       expect(() => createVerifierTable([entry])).toThrow(/^验签身份 [0-9A-Z_]+：/);
     }
+  });
+
+  it("私钥填进公钥一栏、PEM 写坏：建不起来，报错只有序列号与原因", () => {
+    const body = publicKey.publicKeyPem.split("\n")[1] ?? "";
+    const wrong = [
+      { serial: publicKey.serial, pem: publicKey.privateKeyPem, reason: /要配公钥，不是私钥$/ },
+      { serial: publicKey.serial, pem: "这不是一把公钥", reason: /PEM 不合规$/ },
+      {
+        serial: publicKey.serial,
+        pem: `-----BEGIN PUBLIC KEY-----\n${body.slice(8)}\n-----END PUBLIC KEY-----\n`,
+        reason: /PEM 不合规$/,
+      },
+      {
+        serial: certificate.serial,
+        pem: "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----\n",
+        reason: /PEM 不合规$/,
+      },
+    ];
+    for (const { serial, pem, reason } of wrong) {
+      const build = () => createVerifierTable([{ serial, pem }]);
+      expect(build).toThrow(reason);
+      expect(build).toThrow(new RegExp(`^验签身份 ${serial}：`));
+      expect(build).not.toThrow(/DECODER|asn1|routines/i);
+    }
+  });
+
+  it("证书序列号在配置里写成小写：照证书自己的序列号（大写）登记，微信发来的大写序列号查得到", () => {
+    const table = createVerifierTable([
+      { serial: certificate.serial.toLowerCase(), pem: certificate.certificatePem },
+    ]);
+    expect(table.lookup(certificate.serial)).toMatchObject({
+      kind: "certificate",
+      serial: certificate.serial,
+    });
+    const rawBody = notificationBody(CURRENT.key, PAID);
+    const headers = signedHeaders(certificate, rawBody, NOW);
+    expect(verifyAndDecrypt({ ...deps, verifiers: table }, { headers, rawBody })).toMatchObject({
+      ok: true,
+      serial: certificate.serial,
+    });
+  });
+});
+
+describe("收件行里存的 resourceCipher 不完整（到期清除后，或存坏了）", () => {
+  it("解密与密钥环都返回 null，不抛错", () => {
+    const good = deliver(PAID).result;
+    if (!good.ok) throw new Error(good.detail);
+    const { resourceCipher } = good;
+    const broken = [
+      null,
+      undefined,
+      {},
+      { ...resourceCipher, ciphertext: undefined },
+      { ...resourceCipher, ciphertext: 123 },
+      { ...resourceCipher, ciphertext: ["AAAA"] },
+      { ...resourceCipher, nonce: undefined },
+      { ...resourceCipher, nonce: 12 },
+      { ...resourceCipher, associated_data: 7 },
+    ] as unknown as ResourceCipher[];
+    for (const cipher of broken) {
+      expect(aeadDecrypt(Buffer.from(CURRENT.key), cipher)).toBeNull();
+      expect(deps.keyring.decrypt(cipher)).toBeNull();
+      expect(deps.keyring.decrypt(cipher, "v2")).toBeNull();
+    }
+    expect(deps.keyring.decrypt(resourceCipher, "v2")).not.toBeNull();
   });
 });
