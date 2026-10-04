@@ -40,7 +40,7 @@
 | [W0-06b](W0-06b.md) | 结构防漂移门禁 | 未开工 | — | W0-06a；Q3 | 乙 | M | 无 |
 | [W0-07](W0-07.md) | 事务单元 | 未开工 | — | W0-05、W0-05b、W0-09a | 甲 | M | 无 |
 | [W0-07b](W0-07b.md) | 服务装配 | 未开工 | — | W0-07 | 乙 | M | 无 |
-| [W0-08](W0-08.md) | `packages/contract` 骨架 | 完成 | [#9](https://github.com/byfire-dev/liyoxi-project/pull/9)；收尾 PR（验收第 8 条）待填 | W0-02 | 乙 | M | 无 |
+| [W0-08](W0-08.md) | `packages/contract` 骨架 | 完成 | [#9](https://github.com/byfire-dev/liyoxi-project/pull/9)；收尾 PR（验收第 8 条）[#17](https://github.com/byfire-dev/liyoxi-project/pull/17) | W0-02 | 乙 | M | 无 |
 | [W0-09a](W0-09a.md) | x01 名称登记与枚举 | 未开工 | — | W0-05、W0-08 | 乙 | M | 无 |
 | [W0-09b](W0-09b.md) | 接口侧注册表 | 未开工 | — | W0-08、W0-09a | 乙 | M | 无 |
 | [W0-10](W0-10.md) | 路由元数据接管 | 未开工 | — | W0-05、W0-08、W0-09b | 乙 | L | 无 |
