@@ -11,8 +11,8 @@
 | 最晚关闭点 | M5 授权书包合并前；签名后表现 M8 进入前。X-03 是 M5 授权书包的进入条件 |
 | 不通过的退路 | 模板 PDF 贴字 |
 | 状态 | 进行中 |
-| 结论 | 渲染部分（X-03）：技术核对通过，不走贴字退路；待业主看样（任务书 第 8 节七条）后定稿。字体用随镜像分发的 Noto Serif SC、Noto Sans SC 静态 TTF（与思源同源，SIL OFL 1.1），放 `infra/docker/server/fonts/`；换行不用 D6 第 3.5.3 节写的逐字回调（行尾会多出连字符），改用并段回调；字体没收的字（扩展 B 区以后的生僻字、表情符号）渲染前换成“〓”并记录。对 G5-B 的影响：照 ADR 的“决定”第 3–6 节实现，条款定稿后用真文本复测。签名后表现（G5-B）：未开始 |
-| 证据 | [ADR](../../adr/draft-X-03-授权书PDF用react-pdf渲染-Noto静态TTF-并段换行.md)；样张与报告：`spikes/license-pdf/out/`（`short.pdf`、`long.pdf`、`extreme.pdf`、`report.json`、`report.container.json`）；命令输出见 X-03 的 PR 评论；渲染、用例、容器复跑三条另由 CI 的 `spike-license-pdf` 工作流重跑（不是必过检查），产物 `license-pdf-out` |
+| 结论 | 渲染部分（X-03）：通过，不走贴字退路，结论已定稿为 ADR-042。技术核对通过（任务书 第 7 节第 1–5 条）；业主 2026-10-05 确认看样通过，是整体结论，没有逐条给出任务书 第 8 节七条的“可以 / 不可以”。字体用随镜像分发的 Noto Serif SC、Noto Sans SC 静态 TTF（与思源同源，SIL OFL 1.1），放 `infra/docker/server/fonts/`；换行不用 D6 第 3.5.3 节写的逐字回调（行尾会多出连字符），改用并段回调；字体没收的字（扩展 B 区以后的生僻字、表情符号）渲染前换成“〓”并记录，这样的文件能否照常出件业主没有单独答复，仍待 G5-B 与业主定。对 G5-B 的影响：照 ADR-042 的“决定”第 3–6 节实现，条款定稿后用真文本复测。签名后表现（G5-B）：未开始，所以本项状态仍是“进行中” |
+| 证据 | [ADR-042](../../adr/0042-授权书PDF用react-pdf渲染-Noto静态TTF-并段换行.md)；业主看样：2026-10-05，业主答复“是的，我看过了。”（问的是“合并是否表示三份样张的看样通过了”），用的阅读器与机型业主没有说明；样张与报告：`spikes/license-pdf/out/`（`short.pdf`、`long.pdf`、`extreme.pdf`、`report.json`、`report.container.json`）；命令输出见 X-03 的 [PR #14](https://github.com/byfire-dev/liyoxi-project/pull/14) 评论；渲染、用例、容器复跑三条另由 CI 的 `spike-license-pdf` 工作流重跑（不是必过检查），产物 `license-pdf-out` |
 | 关闭日期 |  |
 
 业主事项的状态见 [业主清单](../owner-checklist.md)。填写规则见 [README](README.md)。
