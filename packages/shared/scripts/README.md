@@ -9,7 +9,7 @@
 | 命令 | 做什么 |
 | --- | --- |
 | `pnpm design:generate` | 读 `design/tokens.json` 与图标源，重写 `packages/shared/src/design/generated/` 下的六个生成物，并出一页预览 |
-| `pnpm design:check` | 重新生成，再跑 `git diff --exit-code -- packages/shared/src/design/generated`，最后查这个目录下没有未跟踪的文件（`infra/ci/check-untracked.mjs`）。有差异即失败：要么生成物被手改了，要么改了来源没重新生成，要么新出的生成物没有 `git add` |
+| `pnpm design:check` | 重新生成，再跑 `git diff --exit-code -- packages/shared/src/design/generated`，最后查这个目录下没有未跟踪的文件（`infra/ci/check-untracked.mjs`）。有差异即失败：要么生成物被手改了，要么改了来源没重新生成，要么新出的生成物没有 `git add`。CI 必过；三种失败各有一个反例在 `infra/ci/selftest/cases/design-generated-*.mjs` |
 | `pnpm --filter @liyoxi/shared test` | 生成物与来源对账、与规范对账、图标与原型对账，以及格式化与脱敏函数的用例 |
 
 `generate.ts` 的参数（直接用 `pnpm --filter @liyoxi/shared exec tsx scripts/generate.ts …` 跑时）：
@@ -39,6 +39,8 @@
 ## 预览页
 
 `pnpm design:generate` 同时写 `packages/shared/dist/design-preview/index.html`（`dist/` 已被忽略，不入库）。内容：两端色板、字号、全部图标（带名字与线宽）、状态标签两端各一列。合并前业主对照规范 第 1、6、9 节与原型截图看它。
+
+CI 里不用自己生成：`verify` 任务的“设计生成物无差异”一步顺带写出预览页，下一步把这个目录作为产物 `design-preview` 上传（目录里没有文件时那一步失败）。在 PR 的 CI 运行页面的 Artifacts 里下载、解压后打开 `index.html`。
 
 ## 怎么改
 
