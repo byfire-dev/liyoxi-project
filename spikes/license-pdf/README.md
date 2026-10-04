@@ -34,6 +34,8 @@
 
 `render:container` 要本机有 docker，且容器能访问 registry（要下载 pnpm 与生产依赖）。
 
+CI：`.github/workflows/spike-license-pdf.yml`。改到本目录、`infra/docker/server/fonts/` 或该工作流文件的 PR 上自动跑，也可以手动触发；别的 PR 上不跑。它只装本工程的依赖，依次跑 `render`、`test`、`render:container`（任务书 第 7 节第 1–3 条），把那次运行渲染出的 `out/` 传成产物 `license-pdf-out`。不是必过检查，失败不挡合并。根目录的 CI（`ci.yml`）不装本工程的依赖，不跑这三条。
+
 ## 2. 目录
 
 | 路径 | 内容 |
