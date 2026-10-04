@@ -1,0 +1,68 @@
+# 狸有戏 · mediatool 隔离容器的验证（X-02 任务书 第 4 节、第 7 节第 1–9 条、第 11 节第 7 项）。
+#
+# 不是必过检查：不进 ci.yml 的汇总任务 required，失败不挡合并。它给 X-02 与以后改镜像、改调用端的 PR 出证据。
+# 触发：改到镜像定义、容器内服务、验证用例、调用端或本文件的 PR；手动。别的 PR 上不跑。
+# 步骤对着任务书 第 7 节：第 1 条构建镜像并核对 ffmpeg 版本；第 2–6 条是 pnpm mediatool:verify；
+# 第 7 条是调用端的用例；第 8 条是 pnpm mediatool:bench。测试片在容器里现场生成，不入库，也不上传。
+# 产物 mediatool-out：两份报告（verify-report.json、bench-report.json）与 mediatool 容器的日志。
+# 写法照 infra/ci/README.md 第 2 节：任务编号与名字相同，键不带引号，第三方 Action 固定到提交 SHA。
+name: mediatool-verify
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - infra/docker/mediatool/**
+      - packages/services/src/providers/mediatool/**
+      - .github/workflows/mediatool-verify.yml
+
+concurrency:
+  group: mediatool-verify-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  mediatool-verify:
+    name: mediatool-verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: 检出
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 装 pnpm（版本取 package.json 的 packageManager）
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: 装 Node（版本取 .nvmrc）
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: 冻结安装
+        run: pnpm install --frozen-lockfile
+      - name: 第 1 条：镜像可构建
+        run: docker build -t liyoxi/mediatool:verify infra/docker/mediatool
+      - name: 第 1 条：镜像里的 ffmpeg 版本（与钉死的是否一致，构建时与 mediatool:verify 里各核对一次）
+        run: docker run --rm --network none liyoxi/mediatool:verify ffmpeg -hide_banner -version
+      - name: 容器内服务与验证脚本的类型检查
+        run: pnpm exec tsc --noEmit -p infra/docker/mediatool
+      - name: 第 2–6 条：写后读回一致、体检与封面、容器约束、恶意输入
+        env:
+          LYX_MEDIATOOL_OUT: ${{ runner.temp }}/mediatool-out
+        run: pnpm mediatool:verify
+      - name: 第 7 条：调用端不信任输出
+        run: pnpm exec vitest run packages/services/src/providers/mediatool
+      - name: 第 8 条：耗时
+        env:
+          LYX_MEDIATOOL_OUT: ${{ runner.temp }}/mediatool-out
+        run: pnpm mediatool:bench
+      - name: 上传报告
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mediatool-out
+          path: ${{ runner.temp }}/mediatool-out/
+          if-no-files-found: warn
+          retention-days: 30

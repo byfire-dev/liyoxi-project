@@ -1,0 +1,75 @@
+# 狸有戏 · mediatool 的验证用 Compose（X-02 任务书 第 4、10 节）。只给 pnpm mediatool:verify 与 pnpm mediatool:bench 用：
+# 编排在 verify/run.mjs，先构建镜像、再起这里的容器、跑完即拆。不是本地开发要常驻的那一套（那一套在 W1-22）。
+#
+# mediatool 一段就是 D5 第 6.6 节的全部约束，W1-22 照抄这一段（README.md 第 3 节）：
+# 无网络、根只读、/tmp 是 64MB 内存盘、只挂共享目录 /work、非 root、去掉全部能力、no-new-privileges、
+# 进程数 128、内存 1GB、CPU 1 核；不注入任何环境变量，不挂任何密钥文件。
+# fixtures、caller 是验证用的两个一次性容器，经 docker compose run 起：
+#   fixtures 用同一个镜像里的 ffmpeg 现场造测试片（不入库），并做“不带约束时会怎样”的对照；
+#   caller   扮演调用端（生产里是 worker）：用没装任何东西的基础镜像，经共享目录里的套接字调 mediatool，跑 verify/ 下的用例。
+name: lyx-mediatool-verify
+
+services:
+  mediatool:
+    image: liyoxi/mediatool:verify
+    network_mode: none
+    read_only: true
+    user: "1000:1000"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 1
+    tmpfs:
+      - /tmp:size=64m
+    volumes:
+      - work:/work
+
+  fixtures:
+    image: liyoxi/mediatool:verify
+    profiles:
+      - tools
+    depends_on:
+      mediatool:
+        condition: service_healthy
+    network_mode: none
+    user: "1000:1000"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - work:/work
+      - ./verify:/verify:ro
+      # 业主给的样片目录（任务书 第 8 节）；没有时挂一个空目录
+      - ${LYX_X02_SAMPLES:-./verify/no-samples}:/samples:ro
+    command: ["node", "/verify/make-fixtures.mjs", "small"]
+
+  caller:
+    # 与 Dockerfile 的 FROM 同一个摘要
+    image: node:24-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
+    profiles:
+      - tools
+    depends_on:
+      mediatool:
+        condition: service_healthy
+    network_mode: none
+    read_only: true
+    user: "1000:1000"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      # Dockerfile 里钉死的 ffmpeg 版本，由编排脚本读出来传给用例核对
+      LYX_EXPECT_FFMPEG: ${LYX_EXPECT_FFMPEG:-}
+    volumes:
+      - work:/work
+      - ./verify:/verify:ro
+    command: ["node", "--test", "--test-concurrency=1", "/verify/cases/*.test.mjs"]
+
+volumes:
+  # mediatool 与调用端共享的目录。命名卷第一次挂载时沿用镜像里 /work 的属主（1000:1000）
+  work:

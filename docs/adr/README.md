@@ -5,7 +5,7 @@
 | 本目录放什么 | 建仓后新增的 ADR，一条一个文件 |
 | 依据 | [04 架构决策记录](../04-adr.md) 文首；[开发计划](../08-development-plan.md) 第 3 节前提 ⑫、第 5.1、7.4、13 节 |
 | 模板 | [template.md](template.md) |
-| 当前最大编号 | ADR-042（[0042-授权书PDF用react-pdf渲染-Noto静态TTF-并段换行.md](0042-授权书PDF用react-pdf渲染-Noto静态TTF-并段换行.md)）。ADR-001–ADR-040 在 04 里 |
+| 当前最大编号 | ADR-043（[0043-mediatool隔离容器本地可行-ffmpeg用Debian仓库的5.1.9-经共享卷里的套接字调用.md](0043-mediatool隔离容器本地可行-ffmpeg用Debian仓库的5.1.9-经共享卷里的套接字调用.md)）。ADR-001–ADR-040 在 04 里 |
 
 ## 1. 与 04 的关系
 
