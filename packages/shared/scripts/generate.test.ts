@@ -4,13 +4,14 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { buildGenerated, buildPreview, paths } from "./generate.js";
+import { buildGenerated, buildPreview, extraFiles, paths } from "./generate.js";
 import { GENERATED_BANNER } from "./lib/tokens.js";
 
 const scriptsDir = fileURLToPath(new URL(".", import.meta.url));
 
-/** 色值的写法：十六进制、rgb()、rgba()、hsl()、hsla()。与 infra/ci/check-colors.mjs 同一口径 */
-const COLOR_LITERAL = /#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b|\b(?:rgb|hsl)a?\(/;
+/** 色值的写法：十六进制与颜色函数。认哪些函数与 infra/ci/check-colors.mjs 一致（color() 这里不分参数，一律算） */
+const COLOR_LITERAL =
+  /#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b|\b(?:(?:rgb|hsl)a?|hwb|lab|lch|oklab|oklch|color)\(/;
 
 function listFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((item) =>
@@ -35,6 +36,14 @@ describe("生成物无差异", () => {
     for (const [name, content] of fresh) {
       expect(readFileSync(join(paths.generated, name), "utf8"), name).toBe(content);
     }
+  });
+
+  it("目录里不是脚本写的文件认得出来（生成时据此拒绝，不靠 git）", () => {
+    const fresh = buildGenerated();
+    const [first = "", ...rest] = [...fresh.keys()];
+    expect(extraFiles(paths.generated, fresh)).toEqual([]);
+    expect(extraFiles(paths.generated, new Map(rest.map((name) => [name, ""])))).toEqual([first]);
+    expect(extraFiles(join(paths.generated, "no-such-dir"), fresh)).toEqual([]);
   });
 
   it("每个生成物带“勿手改”的文件头，不带时间戳", () => {
