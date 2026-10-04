@@ -226,7 +226,9 @@ export function dueAt(calendar: WorkCalendar, from: Date, policy: SlaPolicy): Wo
     case "natural_days": {
       const unitMs =
         unit === "natural_hours" ? 60 * MS_PER_MINUTE : MINUTES_PER_DAY * MS_PER_MINUTE;
-      const at = new Date(from.getTime() + count(amount, "时限数量", 0) * unitMs);
+      const fromMs = from.getTime();
+      if (Number.isNaN(fromMs)) throw new RangeError("工作日历：无效的起算时刻");
+      const at = new Date(fromMs + count(amount, "时限数量", 0) * unitMs);
       return { at, usedFallback: false, fallbackDates: [] };
     }
     default:

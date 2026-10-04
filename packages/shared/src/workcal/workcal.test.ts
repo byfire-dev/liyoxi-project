@@ -112,6 +112,19 @@ describe("时限策略：五种单位各一例（14 分组 第 4.2 节）", () =
       dueAt(calendar, bj("2026-09-30 10:00"), { amount: 1_441, unit: "same_day_cutoff" }),
     ).toThrow(RangeError);
   });
+
+  it("起算时刻无效即抛错，五种单位都一样", () => {
+    const invalid = new Date(Number.NaN);
+    for (const unit of [
+      "work_minutes",
+      "work_days",
+      "natural_hours",
+      "natural_days",
+      "same_day_cutoff",
+    ] as const) {
+      expect(() => dueAt(calendar, invalid, { amount: 1, unit })).toThrow(RangeError);
+    }
+  });
 });
 
 describe("调休上班日与放假日", () => {
