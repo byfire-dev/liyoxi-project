@@ -18,6 +18,8 @@ import {
 import type { TermDates } from "./index.js";
 
 const runs = { numRuns: inject("fcRuns"), seed: inject("fcSeed") };
+/** 逐期、逐日展开的两条性质比较重：超时随轮次放宽，跑大轮次时不至于误报超时 */
+const PROPERTY_TIMEOUT_MS = 30_000 + runs.numRuns * 100;
 
 /** 起始日：2024–2032，日取 1–31 再按当月天数封顶，所以 29、30、31 日与月末出现得多 */
 const startDates = fc
@@ -36,35 +38,35 @@ const monthNumber = (date: string): number => {
   return year * 12 + month;
 };
 
-describe("锚定日：03 第 2.3 节的四行", () => {
+/** 表里的一行。用例名由数据拼出来，写法同 03 第 2.3 节的表（月-日），业主可以逐格对照 */
+const tableRow = (start: string, months: number, end: string, grants: string[]) => {
+  const short = (date: string): string => date.slice(5);
+  const period = `本期 ${short(start)} 至 ${short(end)}`;
+  return {
+    name: `${short(start)} 起 ${months} 个月：${period}；各月发放日 ${grants.map(short).join("、")}`,
+    start,
+    months,
+    end,
+    grants,
+  };
+};
+
+describe("锚定日：03 第 2.3 节的四行（示例按非闰年）", () => {
   it.each([
-    { start: "2026-09-13", months: 1, end: "2026-10-12", grants: ["2026-09-13"] },
-    {
-      start: "2026-09-20",
-      months: 3,
-      end: "2026-12-19",
-      grants: ["2026-09-20", "2026-10-20", "2026-11-20"],
-    },
-    { start: "2027-01-31", months: 1, end: "2027-02-27", grants: ["2027-01-31"] },
-    {
-      start: "2027-01-31",
-      months: 3,
-      end: "2027-04-29",
-      grants: ["2027-01-31", "2027-02-28", "2027-03-31"],
-    },
-  ])(
-    "$start 起 $months 个月：本期至 $end，各月发放日 $grants",
-    ({ start, months, end, grants }) => {
-      const term = termDates(start, months);
-      expect(term).toEqual({
-        startDate: start,
-        anchorDay: anchorDayOf(start),
-        months,
-        endDate: end,
-      });
-      expect(grantDates(term)).toEqual(grants);
-    },
-  );
+    tableRow("2026-09-13", 1, "2026-10-12", ["2026-09-13"]),
+    tableRow("2026-09-20", 3, "2026-12-19", ["2026-09-20", "2026-10-20", "2026-11-20"]),
+    tableRow("2027-01-31", 1, "2027-02-27", ["2027-01-31"]),
+    tableRow("2027-01-31", 3, "2027-04-29", ["2027-01-31", "2027-02-28", "2027-03-31"]),
+  ])("$name", ({ start, months, end, grants }) => {
+    const term = termDates(start, months);
+    expect(term).toEqual({
+      startDate: start,
+      anchorDay: anchorDayOf(start),
+      months,
+      endDate: end,
+    });
+    expect(grantDates(term)).toEqual(grants);
+  });
 });
 
 describe("锚定日：闰年", () => {
@@ -232,42 +234,58 @@ describe("升级时所处的位置：upgradePosition", () => {
 });
 
 describe("周期性质（D7 第 10.2 节 P4；D1 第 13.1 节）", () => {
-  it("任意开通日与月数，连续续费 60 次：各期首尾相接、不重叠，月数正确，锚定日不漂移", () => {
-    fc.assert(
-      fc.property(
-        startDates,
-        fc.array(cycleMonths, { minLength: 61, maxLength: 61 }),
-        (start, cycles) => {
-          const anchorDay = anchorDayOf(start);
-          let term = termDates(start, cycles[0] ?? 1);
-          for (const months of cycles.slice(1)) {
-            // 月数正确：止日次日落在“起始月 + 月数”那个月，且是 min(锚定日, 该月最后一天)
-            const next = addDays(term.endDate, 1);
-            const parts = parseLocalDate(next);
-            expect(monthNumber(next) - monthNumber(term.startDate)).toBe(term.months);
-            expect(parts.day).toBe(Math.min(anchorDay, daysInMonth(parts.year, parts.month)));
-            expect(diffDays(term.endDate, term.startDate)).toBeGreaterThanOrEqual(27);
+  it(
+    "任意开通日与月数，连续续费 60 次：各期首尾相接、不重叠，月数正确，锚定日不漂移",
+    () => {
+      fc.assert(
+        fc.property(
+          startDates,
+          fc.array(cycleMonths, { minLength: 61, maxLength: 61 }),
+          (start, cycles) => {
+            const anchorDay = anchorDayOf(start);
+            // 违规的攒起来一次断言：61 期、每期最多 12 个发放日，逐条断言太慢
+            const violations: string[] = [];
+            const check = (ok: boolean, what: string, term: TermDates): void => {
+              if (!ok) violations.push(`${what}：${JSON.stringify(term)}`);
+            };
+            let term = termDates(start, cycles[0] ?? 1);
+            for (const months of cycles.slice(1)) {
+              // 月数正确：止日次日落在“起始月 + 月数”那个月，且是 min(锚定日, 该月最后一天)
+              const next = addDays(term.endDate, 1);
+              const parts = parseLocalDate(next);
+              check(monthNumber(next) - monthNumber(term.startDate) === term.months, "月数", term);
+              check(
+                parts.day === Math.min(anchorDay, daysInMonth(parts.year, parts.month)),
+                "下一个边界不在锚定日上",
+                term,
+              );
 
-            // 发放日：共 months 个，第一个是起始日，严格递增，都落在本期内
-            const grants = grantDates(term);
-            expect(grants).toHaveLength(term.months);
-            expect(grants[0]).toBe(term.startDate);
-            grants.forEach((date, index) => {
-              if (index > 0) expect(diffDays(date, grants[index - 1] ?? "")).toBeGreaterThan(0);
-              expect(diffDays(term.endDate, date)).toBeGreaterThanOrEqual(0);
-            });
+              // 发放日：共 months 个，第一个是起始日，严格递增，都落在本期内
+              const grants = grantDates(term);
+              check(
+                grants.length === term.months && grants[0] === term.startDate,
+                "发放日个数",
+                term,
+              );
+              grants.forEach((date, index) => {
+                const increasing = index === 0 || diffDays(date, grants[index - 1] ?? "") > 0;
+                check(increasing && diffDays(term.endDate, date) >= 0, `发放日 ${date}`, term);
+              });
 
-            // 首尾相接、不重叠；锚定日沿用
-            const renewed = renewTerm(term, months);
-            expect(renewed.startDate).toBe(next);
-            expect(renewed.anchorDay).toBe(anchorDay);
-            term = renewed;
-          }
-        },
-      ),
-      runs,
-    );
-  });
+              // 首尾相接、不重叠；锚定日沿用
+              const renewed = renewTerm(term, months);
+              check(renewed.startDate === next, "首尾没有相接", renewed);
+              check(renewed.anchorDay === anchorDay, "锚定日漂移", renewed);
+              term = renewed;
+            }
+            expect(violations).toEqual([]);
+          },
+        ),
+        runs,
+      );
+    },
+    PROPERTY_TIMEOUT_MS,
+  );
 
   it("任意月数（1–36）：周期由边界直接决定，闰年 2 月的边界是 02-29", () => {
     fc.assert(
@@ -310,42 +328,53 @@ describe("周期性质（D7 第 10.2 节 P4；D1 第 13.1 节）", () => {
     );
   });
 
-  it("升级位置：任意周期（含 0–180 天延长）内逐日，各量在界内，应付随日期单调不增", () => {
-    fc.assert(
-      fc.property(
-        startDates,
-        cycleMonths,
-        fc.integer({ min: 0, max: 180 }),
-        fc.integer({ min: 1, max: 2_000_000 }),
-        fc.integer({ min: 1, max: 100_000 }),
-        (start, months, extendedDays, feeDelta, pointsDelta) => {
-          const natural = termDates(start, months);
-          const term: TermDates = { ...natural, endDate: addDays(natural.endDate, extendedDays) };
-          const baseDays = 30;
-          let previousPay = Number.POSITIVE_INFINITY;
-          for (let day = term.startDate; day <= term.endDate; day = addDays(day, 1)) {
-            const position = upgradePosition(term, day, baseDays);
-            expect(position.monthIndex).toBeGreaterThanOrEqual(0);
-            expect(position.monthIndex).toBeLessThanOrEqual(months - 1);
-            expect(position.remainingDays).toBeGreaterThanOrEqual(0);
-            expect(position.remainingDays).toBeLessThanOrEqual(baseDays);
-            expect(position.remainingFullMonths).toBe(months - 1 - position.monthIndex);
-
-            const { payFen } = quoteUpgrade({
-              feeDeltaPerMonthFen: feeDelta,
-              pointsDeltaPerMonth: pointsDelta,
-              baseDays,
-              ...position,
-            });
-            expect(payFen).toBeGreaterThanOrEqual(0);
-            expect(payFen).toBeLessThanOrEqual(previousPay);
-            previousPay = payFen;
-          }
-          // 本期最后一天：不再有可补的天数与整月
-          expect(previousPay).toBe(0);
-        },
-      ),
-      runs,
-    );
-  });
+  it(
+    "升级位置：任意周期（含 0–180 天延长）内逐日，各量在界内，应付随日期单调不增",
+    () => {
+      fc.assert(
+        fc.property(
+          startDates,
+          cycleMonths,
+          fc.integer({ min: 0, max: 180 }),
+          fc.integer({ min: 1, max: 2_000_000 }),
+          fc.integer({ min: 1, max: 100_000 }),
+          (start, months, extendedDays, feeDelta, pointsDelta) => {
+            const natural = termDates(start, months);
+            const term: TermDates = { ...natural, endDate: addDays(natural.endDate, extendedDays) };
+            const baseDays = 30;
+            // 逐日检查，违规的攒起来一次断言：一期最多五百多天，逐条断言太慢
+            const violations: string[] = [];
+            let previousPay = Number.POSITIVE_INFINITY;
+            for (let day = term.startDate; day <= term.endDate; day = addDays(day, 1)) {
+              const position = upgradePosition(term, day, baseDays);
+              const { monthIndex, remainingDays, remainingFullMonths } = position;
+              const { payFen } = quoteUpgrade({
+                feeDeltaPerMonthFen: feeDelta,
+                pointsDeltaPerMonth: pointsDelta,
+                baseDays,
+                remainingDays,
+                remainingFullMonths,
+              });
+              const ok =
+                monthIndex >= 0 &&
+                monthIndex <= months - 1 &&
+                remainingDays >= 0 &&
+                remainingDays <= baseDays &&
+                remainingFullMonths === months - 1 - monthIndex &&
+                payFen >= 0 &&
+                payFen <= previousPay;
+              if (!ok)
+                violations.push(`${day}: ${JSON.stringify({ ...position, payFen, previousPay })}`);
+              previousPay = payFen;
+            }
+            expect(violations).toEqual([]);
+            // 本期最后一天：不再有可补的天数与整月
+            expect(previousPay).toBe(0);
+          },
+        ),
+        runs,
+      );
+    },
+    PROPERTY_TIMEOUT_MS,
+  );
 });

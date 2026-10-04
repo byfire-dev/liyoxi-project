@@ -44,6 +44,8 @@ describe.skipIf(process.env.LYX_TZ_PROBE_OFFSET !== undefined)("进程时区无�
     ({ tz, offset }) => {
       const env: Record<string, string | undefined> = { ...process.env };
       for (const key of Object.keys(env)) if (key.startsWith("VITEST")) delete env[key];
+      // 子进程是来验时区的，不是来跑大轮次的：轮次回到默认值，种子照常继承
+      delete env.LYX_FC_RUNS;
       const result = spawnSync(process.execPath, [vitestCli, "run", "--reporter=json", ...FILES], {
         cwd: packageRoot,
         encoding: "utf8",

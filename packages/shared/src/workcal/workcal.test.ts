@@ -352,20 +352,25 @@ describe("工作日性质（D7 第 10.2 节 P7）", () => {
     );
   });
 
-  it("addWorkingMinutes 与逐分钟累加的朴素实现一致；累计出来的工作分钟数恰为所加的数", () => {
-    fc.assert(
-      fc.property(scenarios, fc.integer({ min: 0, max: 3_000 }), (scenario, minutes) => {
-        const cal = calendarOf(scenario);
-        const from = toInstant(localMs(scenario));
-        const actual = addWorkingMinutes(cal, from, minutes);
-        expect(actual.at.getTime()).toBe(
-          toInstant(naiveAddWorkingMinutes(scenario, localMs(scenario), minutes)).getTime(),
-        );
-        expect(workingMinutesBetween(cal, from, actual.at).minutes).toBe(minutes);
-      }),
-      runs,
-    );
-  });
+  it(
+    "addWorkingMinutes 与逐分钟累加的朴素实现一致；累计出来的工作分钟数恰为所加的数",
+    () => {
+      fc.assert(
+        fc.property(scenarios, fc.integer({ min: 0, max: 3_000 }), (scenario, minutes) => {
+          const cal = calendarOf(scenario);
+          const from = toInstant(localMs(scenario));
+          const actual = addWorkingMinutes(cal, from, minutes);
+          expect(actual.at.getTime()).toBe(
+            toInstant(naiveAddWorkingMinutes(scenario, localMs(scenario), minutes)).getTime(),
+          );
+          expect(workingMinutesBetween(cal, from, actual.at).minutes).toBe(minutes);
+        }),
+        runs,
+      );
+      // 朴素实现逐分钟走，轮次多时比较慢：超时随轮次放宽
+    },
+    30_000 + runs.numRuns * 50,
+  );
 
   it("nthWorkdayAfter：结果是工作日，且它与起点之间恰有 n − 1 个工作日", () => {
     fc.assert(
