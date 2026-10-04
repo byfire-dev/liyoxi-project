@@ -51,12 +51,19 @@ function parseArgs(argv) {
 
 const tempDirs = [];
 
+// 被测命令一律不带颜色输出：CI 里设了 CI=true，Prettier 等工具会给输出上色，
+// “[warn]”中间就夹了转义码，反例里按文字写的失败原因会对不上（本机不设 CI 时看不出来）。
+function plainOutputEnv(extra) {
+  const { FORCE_COLOR: _dropped, ...rest } = process.env;
+  return { ...rest, NO_COLOR: "1", ...extra };
+}
+
 function run(command, args = [], { cwd = repoRoot, input, env } = {}) {
   const result = spawnSync(command, args, {
     cwd,
     input,
     encoding: "utf8",
-    env: env ? { ...process.env, ...env } : process.env,
+    env: plainOutputEnv(env),
     timeout: CASE_TIMEOUT_MS,
     maxBuffer: 64 * 1024 * 1024,
   });
