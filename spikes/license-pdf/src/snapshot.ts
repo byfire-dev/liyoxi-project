@@ -24,7 +24,11 @@ export interface LicenseSnapshot {
   verifyUrl: string;
 }
 
-/** 规范化 JSON：对象的键按码位排序，数组保持原序，不留空白 */
+/**
+ * 规范化 JSON：对象的键排序，数组保持原序，不留空白。
+ * 排序用 Array.prototype.sort() 的默认顺序，即按 UTF-16 码元比，不是按码位比。现在的键全是 ASCII，
+ * 两种比法结果相同；键里出现基本平面以外的字符时会不同，G5-B 定稿时把排序规则写准。
+ */
 export function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
