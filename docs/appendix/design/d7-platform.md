@@ -2539,3 +2539,10 @@ Playwright，约 12 条，覆盖“钱、权限、主流程”：登录与第二
 | `docs/08-platform-config.md` | [`docs/plan/platform-config.md`](../../plan/platform-config.md) | 4.14、7.2、8.5 |
 | `docs/09-deployment.md` | [`docs/plan/runbook.md`](../../plan/runbook.md) | 7.5、7.8、9.4 |
 | `docs/10-qa-checklist.md` | [`docs/plan/qa-checklist.md`](../../plan/qa-checklist.md) | 10.6 |
+
+**勘误（W0-01，随根骨架）**
+
+| 涉及的节 | 现在以什么为准 |
+|---|---|
+| 2.6 | 第 2.6 节的补丁号以 [02](../../02-tech-selection.md) 第 5.5 节为准。W0-01 于 2026-10-04 按“满 7 天”重取，与本文不同的有：Prettier 3.9.9、commitlint 21.2.3、`@types/node` 24.19.0、`tsx` 4.23.15、`bullmq` 6.3.9、`@tanstack/react-query` 5.103.3；`miniprogram-ci` 评估后仍锁 2.1.31（2.1.47 只在 `beta` 标签下） |
+| 2.7 | `trustPolicy: no-downgrade` 另带一条豁免 `semver@6.3.1`，原因登记在 02 第 5.5 节“可信级别豁免” |

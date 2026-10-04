@@ -163,6 +163,13 @@
 | `python3 tools/schema-check/check.py`（加 `--keep` 保留校验库） | 校验数据模型草稿自洽。见 [README](tools/schema-check/README.md) |
 | `python3 tools/api-check/check.py` | 核对接口文档自洽。见 [README](tools/api-check/README.md) |
 | `python3 tools/api-check/gen_registries.py`、`gen_permissions.py` | 重新生成接口索引、错误码与权限点登记表 |
+| `pnpm install --frozen-lockfile` | 按锁文件安装，顺带装上提交钩子。pnpm 的版本由 `packageManager` 锁定，会自动切过去 |
+| `pnpm lint`（`pnpm lint:fix` 自动修） | ESLint。规则片段在 `packages/config/eslint/`，装配在根 `eslint.config.js` |
+| `pnpm format:check`（`pnpm format` 改写） | Prettier 格式检查。不碰 `docs/`、`design/`、`tools/` 与全部 `*.md` |
+| `pnpm typecheck` | 类型检查：根、`infra`、五份 tsconfig 预设的最小工程（见 [README](infra/ci/fixtures/README.md)）、各工作区包 |
+| `pnpm test` | Vitest。项目：`packages/*`、`apps/api`、`apps/worker`、`infra` |
+| `pnpm check:rename` | 换名检查：出现参考工程的旧名或旧的小程序目录即失败。口径见 [脚本](infra/ci/check-rename.mjs) 开头的注释 |
+| `node infra/ci/check-release-age.mjs`（加 `--since <git 引用>` 只查新增的版本） | 锁文件里每个版本都发布满 7 天。用法见 [脚本](infra/ci/check-release-age.mjs) 开头的注释 |
 
 计划已定名、要等对应工作包合并后才有：
 
