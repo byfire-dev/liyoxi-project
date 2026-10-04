@@ -1,0 +1,38 @@
+{
+  "name": "liyoxi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "狸有戏：面向本地生活商家的短剧营销工具",
+  "type": "module",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=24.19.0 <25",
+    "pnpm": ">=10.34.5 <11"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p infra && tsc --noEmit -p infra/ci/fixtures/base && tsc --noEmit -p infra/ci/fixtures/node-lib && tsc --noEmit -p infra/ci/fixtures/node-app && tsc --noEmit -p infra/ci/fixtures/web-react19 && tsc --noEmit -p infra/ci/fixtures/taro-react18 && pnpm -r --if-present typecheck",
+    "test": "vitest run",
+    "check:rename": "node infra/ci/check-rename.mjs"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "21.2.3",
+    "@commitlint/config-conventional": "21.2.3",
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.0",
+    "eslint": "10.11.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.12.0",
+    "husky": "9.1.7",
+    "lint-staged": "17.4.1",
+    "prettier": "3.9.9",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.1",
+    "vitest": "4.1.11"
+  }
+}
