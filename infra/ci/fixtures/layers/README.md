@@ -8,7 +8,7 @@
 
 - 夹具里没有 `node_modules`。跨包的引用写成相对路径时，解析结果与真实仓库里按包名引用相同（都落到 `packages/<包>/src/…`）；写成包名时解析不了，留下的是包名本身。两种写法规则都要拦，所以夹具里两种都有。
 - 所以夹具测不到“第三方包装上之后”的情形：那时终点是 `node_modules` 下的真实路径，规则里排除哪些路径（`exclude`）也跟着起作用。这一段不放夹具（`node_modules`、`dist` 进不了版本库），由用例在仓库外的临时目录里按 pnpm 的摆法现造，见下面第二张表。
-- “解析不了”不能只靠夹具里没有 `node_modules`：模块解析会沿目录一直往上找，夹具的上层（仓库根、检出所在的目录、家目录）装了同名的包，引用就被解析到那里去。实测过检出放在家目录之下、家目录里有 `node_modules/zod` 的情形：终点成了 `../../…/node_modules/zod/index.d.cts`，与 `expected` 里的包名对不上；上层只有类型包 `@types/react` 或有同名的 `@liyoxi/db` 时，对应的违规整条不见。所以用例跑夹具时给解析设了界（命令行加 `--webpack-config infra/ci/test/resolve-in-tree.mjs`，原因见该文件开头的注释）：解析结果落在夹具目录之外的，一律当作解析不了。夹具的结果因此不随检出位置与外面装了什么而变，由用例的“夹具的结果不随检出位置与外面装了什么而变”一组在仓库外现造的树上验证。规则没有因此改动；`pnpm depcheck` 不带这个参数。
+- “解析不了”不能只靠夹具里没有 `node_modules`：模块解析会沿目录一直往上找，夹具的上层（仓库根、检出所在的目录、家目录）装了同名的包，引用就被解析到那里去。实测过检出放在家目录之下、家目录里有 `node_modules/zod` 的情形：终点成了 `../../…/node_modules/zod/index.d.cts`，与 `expected` 里的包名对不上；上层只有类型包 `@types/react` 时终点成了 `../../node_modules/@types/react/index.d.ts`，同样对不上（规则把类型包算上之前，这一条整条不见）；上层有同名的 `@liyoxi/db` 时，对应的违规整条不见。所以用例跑夹具时给解析设了界（命令行加 `--webpack-config infra/ci/test/resolve-in-tree.mjs`，原因见该文件开头的注释）：解析结果落在夹具目录之外的，一律当作解析不了。夹具的结果因此不随检出位置与外面装了什么而变，由用例的“夹具的结果不随检出位置与外面装了什么而变”一组在仓库外现造的树上验证。规则没有因此改动；`pnpm depcheck` 不带这个参数。
 - 文件只写副作用导入（`import "…";`），免得被 lint 判成未使用。本目录不进任何 tsconfig，不做类型检查。
 - 一个反例一个夹具。加规则时加一个夹具，并在用例的 `expected` 表里写上期望的违规；用例会核对“每个夹具都有用例、每条规则都有夹具报出过”。
 
@@ -46,3 +46,12 @@
 | 装好的树 | 临时目录里按 pnpm 的摆法装四个假包（实体在 `node_modules/.pnpm/<包>@<版本>/node_modules/<包>/`，入口在 `dist/` 下，声明它的包下面放软链接）：`apps/weapp`、shared 经 contract 转两手到 `@hono/zod-openapi`；contract 引 `@prisma/adapter-pg`；shared 引 `react`；`apps/api` 引 `pg`。另放一个 `packages/contract/dist/` 下的文件作对照 | `weapp-no-zod`、`shared-no-zod`、`contract-no-react-prisma`、`shared-no-react`、`db-only-from-services` 各一条，终点都是 `node_modules/…/dist/index.js`；`dist/` 下那个文件不报 |
 | 本仓库的图 | 对 `infra/ci/test` 出 JSON 报告（用例文件都引 `vitest`，它的入口在 `dist/` 下） | 图里有终点在 `node_modules/…/dist/` 下的 `vitest` |
 | `exclude` 的正则 | 逐条比路径 | 仓库自己的 `dist/`、`coverage/` 与本目录命中；`node_modules` 里的 `dist/`、名字里带 `dist` 的源码不命中 |
+
+同样由用例现造的（`layers.test.ts` 的“只装了类型包、没装本体时也拦得住”一组）。
+dependency-cruiser 解析时除了 `node_modules` 还找 `node_modules/@types`：只装了 `@types/react`、没装 `react` 时，`import type … from "react"` 的终点是 `node_modules/…/@types/react/index.d.ts`。规则把类型包按它描述的那个包算（`.dependency-cruiser.cjs` 的 `thirdParty()`；带 scope 的包对应 `@types/<scope>__<名>`）：
+
+| 用例 | 摆了什么 | 期望 |
+| --- | --- | --- |
+| 只装了类型包的树 | 临时目录里按 pnpm 的摆法只装 `@types/react`、`@types/pg`（实体在 `node_modules/.pnpm/@types+<名>@<版本>/node_modules/@types/<名>/`，包清单只有 `types`，声明它的包下面放软链接），不装 `react`、`pg`：shared、contract 各用 `import type` 引 `react`；`apps/api` 引 `pg`。对照：`apps/admin` 引 `react`、services 引 `pg` | `shared-no-react`、`contract-no-react-prisma`、`db-only-from-services` 各一条，终点都是 `node_modules/…/@types/<名>/index.d.ts`；两条对照不报 |
+| 带 scope 的包 | 只装 `@types/prisma__client`：contract 一个文件引 `@prisma/client`，另一个直接引 `@types/prisma__client` | 前者解析不了（dependency-cruiser 不做 `<scope>__<名>` 的换名），终点是包名 `@prisma/client`；后者终点是 `node_modules/…/@types/prisma__client/index.d.ts`。`contract-no-react-prisma`、`db-only-from-services` 两种都报 |
+| 规则的正则（在“规则与夹具对得上”一组的“第三方包装上之后同样命中”里） | 逐条比 `@types/` 下的路径 | `@types/react`、`@types/react-dom`、`@types/pg`、`@types/prisma__client`、`@types/hono__zod-openapi` 等命中各自的规则；名字只是开头相同的 `@types/react-is`、`@types/pg-pool`、`@types/zod-to-x` 不命中 |
