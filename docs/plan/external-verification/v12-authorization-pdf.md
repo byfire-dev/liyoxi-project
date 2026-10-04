@@ -12,7 +12,7 @@
 | 不通过的退路 | 模板 PDF 贴字 |
 | 状态 | 进行中 |
 | 结论 | 渲染部分（X-03）：技术核对通过，不走贴字退路；待业主看样（任务书 第 8 节七条）后定稿。字体用随镜像分发的 Noto Serif SC、Noto Sans SC 静态 TTF（与思源同源，SIL OFL 1.1），放 `infra/docker/server/fonts/`；换行不用 D6 第 3.5.3 节写的逐字回调（行尾会多出连字符），改用并段回调；字体没收的字（扩展 B 区以后的生僻字、表情符号）渲染前换成“〓”并记录。对 G5-B 的影响：照 ADR 的“决定”第 3–6 节实现，条款定稿后用真文本复测。签名后表现（G5-B）：未开始 |
-| 证据 | [ADR](../../adr/draft-X-03-授权书PDF用react-pdf渲染-Noto静态TTF-并段换行.md)；样张与报告：`spikes/license-pdf/out/`（`short.pdf`、`long.pdf`、`extreme.pdf`、`report.json`、`report.container.json`）；命令输出见 X-03 的 PR 评论 |
+| 证据 | [ADR](../../adr/draft-X-03-授权书PDF用react-pdf渲染-Noto静态TTF-并段换行.md)；样张与报告：`spikes/license-pdf/out/`（`short.pdf`、`long.pdf`、`extreme.pdf`、`report.json`、`report.container.json`）；命令输出见 X-03 的 PR 评论；渲染、用例、容器复跑三条另由 CI 的 `spike-license-pdf` 工作流重跑（不是必过检查），产物 `license-pdf-out` |
 | 关闭日期 |  |
 
 业主事项的状态见 [业主清单](../owner-checklist.md)。填写规则见 [README](README.md)。
