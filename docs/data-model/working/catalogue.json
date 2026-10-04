@@ -96,7 +96,7 @@
    "模型名帕斯卡命名并 @@map 到蛇形表名；字段小驼峰并 @map 到蛇形列名（R2）。",
    "uuid：String @db.Uuid，主键不写 @default；seq：BigInt @unique @default(autoincrement())；金额与积分：Int；M15 的 bigint 列（recon_day 的 *_fen 汇总、est_cost_micro、字节数）：BigInt，出接口转字符串；timestamptz：DateTime @db.Timestamptz(3)；date：DateTime @db.Date；uuid[]：String[] @db.Uuid；枚举：String（CHECK 手写）。",
    "复合主键用 @@id([...])，自然键用 String @id。约束与索引用 map 参数写出上面的名字。",
-   "以上写法已用 prisma 7.10.0 的 validate 检查过语法，没有做迁移与运行验证。"
+   "以上写法已用 prisma 7.9.1 的 validate 检查过语法，没有做迁移与运行验证。"
   ],
   "无表模块": [
    "authz（权限点注册表在 packages/contract，d4:1160）、providers（外部能力配置走环境变量与受控配置）、workbench（待办为派生查询，不建 work_item，d3:3103）没有自己的表。V1.1 的 partner 不建表（01:176）。"
