@@ -1,10 +1,13 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createDateTimeFormat } from "./datetime.js";
+import { APP_UTC_OFFSET_MINUTES, calendarDate } from "../time/index.js";
+import { appDateTimeFormat, createDateTimeFormat } from "./datetime.js";
 
-// 用例里的偏移是测试入参（北京时间 +480 分钟）。应用里用“时区”子路径（W0-11）导出的偏移，不在源码里另写
-const BEIJING = 480;
-const format = createDateTimeFormat(BEIJING);
+// 规范的例子都对绑定了应用时区的出口断言：页面与服务端用的就是它
+const format = appDateTimeFormat;
 
 describe("规范 第 7 节的例子", () => {
   it("默认 MM-DD HH:mm → 09-28 10:12", () => {
@@ -50,6 +53,50 @@ describe("规范 第 7 节的例子", () => {
   });
 });
 
+describe("绑定应用时区的出口", () => {
+  const INSTANTS = [
+    "2026-09-28T02:12:00Z",
+    "2026-10-12T15:59:59.999Z", // 北京时间 10-12 23:59:59.999
+    "2026-10-12T16:00:00Z", // 北京时间 10-13 00:00
+    "2026-12-31T16:00:00Z", // 北京时间次年 01-01 00:00
+    "2024-02-28T16:00:00Z", // 北京时间闰日 02-29 00:00
+  ];
+
+  it("偏移取自“时区”子路径：与按 APP_UTC_OFFSET_MINUTES 现造的一组逐项相同", () => {
+    const expected = createDateTimeFormat(APP_UTC_OFFSET_MINUTES);
+    const now = "2026-10-12T16:00:30Z";
+    for (const at of INSTANTS) {
+      expect(appDateTimeFormat.dateTime(at)).toBe(expected.dateTime(at));
+      expect(appDateTimeFormat.dateTimeFull(at)).toBe(expected.dateTimeFull(at));
+      expect(appDateTimeFormat.date(at)).toBe(expected.date(at));
+      expect(appDateTimeFormat.dateInSentence(at)).toBe(expected.dateInSentence(at));
+      expect(appDateTimeFormat.dateRange(at, now)).toBe(expected.dateRange(at, now));
+      expect(appDateTimeFormat.deadline(at)).toBe(expected.deadline(at));
+      expect(appDateTimeFormat.relative(at, now)).toBe(expected.relative(at, now));
+    }
+  });
+
+  it("“哪一天”与时区子路径的 calendarDate 一致：显示的日期就是业务规则算的那一天", () => {
+    for (const at of INSTANTS) {
+      expect(appDateTimeFormat.date(at)).toBe(calendarDate(new Date(at)));
+    }
+    expect(appDateTimeFormat.date("2026-10-12T15:59:59.999Z")).toBe("2026-10-12");
+    expect(appDateTimeFormat.date("2026-10-12T16:00:00Z")).toBe("2026-10-13");
+  });
+
+  it("换了偏移就不是它：绑定的确实是应用时区，不是 UTC", () => {
+    expect(appDateTimeFormat.dateTime("2026-09-28T02:12:00Z")).toBe("09-28 10:12");
+    expect(createDateTimeFormat(0).dateTime("2026-09-28T02:12:00Z")).toBe("09-28 02:12");
+  });
+
+  it("源码里不另写时区常量：没有写死的偏移与时区名", () => {
+    const source = readFileSync(fileURLToPath(new URL("./datetime.ts", import.meta.url)), "utf8");
+    expect(source).toContain('from "../time/index.js"');
+    expect(source).toContain("createDateTimeFormat(APP_UTC_OFFSET_MINUTES)");
+    expect(source).not.toMatch(/\b480\b|\b8\s*\*\s*60\b|Asia\/|UTC\+8|GMT\+8/);
+  });
+});
+
 describe("入参", () => {
   it("Date、毫秒时间戳、带时区的字符串结果相同", () => {
     const iso = "2026-09-28T02:12:00.000Z";
@@ -63,6 +110,14 @@ describe("入参", () => {
     expect(() => format.dateTime(Number.NaN)).toThrow(RangeError);
     expect(() => createDateTimeFormat(8)).not.toThrow();
     expect(() => createDateTimeFormat(480.5)).toThrow(RangeError);
+  });
+
+  it("“哪一天”不是真实存在的日期即报错，不原样写出去", () => {
+    expect(() => format.date("2027-13-45")).toThrow(RangeError);
+    expect(() => format.dateInSentence("2026-00-00")).toThrow(RangeError);
+    expect(() => format.dateRange("2026-09-31", "2026-10-12")).toThrow(RangeError);
+    expect(() => format.date("2026-02-29")).toThrow(RangeError);
+    expect(format.date("2028-02-29")).toBe("2028-02-29");
   });
 
   it("换一个偏移，同一时刻的写法跟着变", () => {

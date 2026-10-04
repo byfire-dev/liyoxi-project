@@ -1,12 +1,15 @@
 // 时间、日期、区间、相对时间的显示格式（规范 第 7 节）。金额、积分、增减在 format/money（W0-11）。
 //
-// 时区：结果只取决于入参与给定的偏移，不读运行机器的时区，不用 Intl。
-// 应用时区的偏移不在这里另写一份：由调用方把“时区”子路径（W0-11）的偏移传进 createDateTimeFormat。
+// 页面与服务端用 appDateTimeFormat：它绑定应用时区（北京时间），偏移取自“时区”子路径 ../time（W0-11），
+// 本文件不另写时区常量。createDateTimeFormat(偏移) 留给用例与确实要按别的偏移出字的地方。
+// 时区：结果只取决于入参与偏移，不读运行机器的时区，不用 Intl。
 // “现在”由调用方传入（业务时间用注入的时钟），本文件不取当前时间。
+
+import { APP_UTC_OFFSET_MINUTES, parseLocalDate } from "../time/index.js";
 
 /** 时刻：Date、毫秒时间戳，或带时区的 ISO 8601 字符串（以 Z 或 ±hh:mm 结尾） */
 export type Instant = Date | number | string;
-/** “哪一天”：YYYY-MM-DD，已经是应用时区的日历日期，不再换算 */
+/** “哪一天”：YYYY-MM-DD，已经是应用时区的日历日期，不再换算。不是真实存在的日期即报错 */
 export type Day = string;
 
 interface WallClock {
@@ -35,7 +38,8 @@ export interface DateTimeFormat {
 }
 
 const ISO_WITH_ZONE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
-const DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
+/** 长得像“哪一天”的字符串：交给时区子路径的 parseLocalDate 拆，月、日出了范围由它报错 */
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const MINUTE_MS = 60_000;
 
 const two = (value: number): string => String(value).padStart(2, "0");
@@ -67,8 +71,8 @@ const md = (c: WallClock): string => `${two(c.month)}-${two(c.day)}`;
 const hm = (c: WallClock): string => `${two(c.hour)}:${two(c.minute)}`;
 
 /**
- * 按给定的 UTC 偏移（分钟）出一组格式化函数。偏移须是整数，如北京时间传 480。
- * 应用里统一传“时区”子路径导出的应用时区偏移，不在各处写数字。
+ * 按给定的 UTC 偏移（分钟）出一组格式化函数。偏移须是整数分钟。
+ * 应用里不直接调它：用下面绑定了应用时区的 appDateTimeFormat，不在各处写偏移。
  */
 export function createDateTimeFormat(utcOffsetMinutes: number): DateTimeFormat {
   if (!Number.isInteger(utcOffsetMinutes) || Math.abs(utcOffsetMinutes) > 18 * 60) {
@@ -76,15 +80,8 @@ export function createDateTimeFormat(utcOffsetMinutes: number): DateTimeFormat {
   }
   const clock = (at: Instant): WallClock => wallClock(toEpochMs(at), utcOffsetMinutes);
   const dayOf = (at: Instant | Day): WallClock => {
-    const match = typeof at === "string" ? DAY.exec(at) : null;
-    if (!match) return clock(at);
-    return {
-      year: Number(match[1]),
-      month: Number(match[2]),
-      day: Number(match[3]),
-      hour: 0,
-      minute: 0,
-    };
+    if (typeof at !== "string" || !DAY.test(at)) return clock(at);
+    return { ...parseLocalDate(at), hour: 0, minute: 0 };
   };
   const dateTime = (at: Instant): string => `${md(clock(at))} ${hm(clock(at))}`;
   const dateTimeFull = (at: Instant): string => `${ymd(clock(at))} ${hm(clock(at))}`;
@@ -114,3 +111,9 @@ export function createDateTimeFormat(utcOffsetMinutes: number): DateTimeFormat {
     },
   };
 }
+
+/**
+ * 应用时区（北京时间）下的一组格式化函数：页面与服务端显示时间都用它。
+ * 偏移是“时区”子路径的 APP_UTC_OFFSET_MINUTES，与按“日”的业务规则（calendarDate、dayRange）同一个来源。
+ */
+export const appDateTimeFormat: DateTimeFormat = createDateTimeFormat(APP_UTC_OFFSET_MINUTES);
