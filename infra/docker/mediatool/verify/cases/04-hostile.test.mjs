@@ -170,6 +170,15 @@ test("hostile：带 .. 或绝对路径的请求被拒", async () => {
     (await call("POST", "/probe", { path: `${FX}/no-such.mp4`, demuxers: ["mov"] })).status,
     404,
   );
+  // 输出撞上输入：直接写会把输入盖掉
+  const clash = await call("POST", "/poster", {
+    path: good,
+    demuxer: "mov",
+    atMs: 0,
+    outPath: good,
+  });
+  assert.equal(clash.status, 400);
+  assert.equal(clash.json.error.code, "bad_path");
 });
 
 test("hostile：经符号链接指到共享目录之外的路径被拒；目录、套接字不当文件读", async () => {

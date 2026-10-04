@@ -231,6 +231,20 @@ async function probeFile(abs, sizeBytes, demuxers, left) {
   throw new RequestError("demux_failed", `按 ${demuxers.join("、")} 解不开：${reason}`, 422);
 }
 
+/**
+ * 产物先写到 <输出>.part，办成了再改名。输出与它的 .part 都不能撞上输入文件。
+ * @param {unknown} outPath
+ * @param {{ abs: string, jobDir: string }} input
+ */
+async function outputPair(outPath, input) {
+  const out = await outputFile(outPath, input.jobDir);
+  const part = `${out}.part`;
+  if (out === input.abs || part === input.abs) {
+    throw new RequestError("bad_path", "输出不能与输入是同一个文件");
+  }
+  return { out, part };
+}
+
 // ---------- 三个操作 ----------
 
 /** @param {any} body */
@@ -257,8 +271,7 @@ export async function poster(body) {
     throw new RequestError("bad_request", "atMs 要是 0 到一天之内的整数毫秒");
   }
   const input = await inputFile(body.path);
-  const out = await outputFile(body.outPath, input.jobDir);
-  const part = `${out}.part`;
+  const { out, part } = await outputPair(body.outPath, input);
   try {
     for (const atMs of body.atMs > 0 ? [body.atMs, 0] : [0]) {
       for (const quality of POSTER_QUALITIES) {
@@ -315,10 +328,10 @@ export async function stampAigc(body) {
     );
   }
   const input = await inputFile(body.path);
-  const out = await outputFile(body.outPath, input.jobDir);
-  if (out === input.abs) throw new RequestError("bad_path", "输出不能与输入是同一个文件");
-  const part = `${out}.part`;
+  const { out, part } = await outputPair(body.outPath, input);
   try {
+    // 先清掉同名的残留（包括别人放在这里的符号链接），再让 ffmpeg 写
+    await rm(part, { force: true });
     const result = await tool(
       "ffmpeg",
       [
