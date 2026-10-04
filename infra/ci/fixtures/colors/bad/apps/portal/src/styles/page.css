@@ -1,0 +1,8 @@
+/* 反例：页面样式里写 rgba() */
+.download-page {
+  margin: 0;
+}
+
+.download-page__mask {
+  background: rgba(29, 26, 22, 0.45);
+}

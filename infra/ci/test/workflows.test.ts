@@ -349,10 +349,14 @@ describe("ci.yml", () => {
       // 只认 .prettierignore：不让 .gitignore（不是门禁文件）决定哪些文件不查格式
       "pnpm format:check --ignore-path .prettierignore",
       "pnpm check:rename",
+      // W0-26：页面不写色值
+      "pnpm lint:colors",
       "pnpm typecheck",
       "pnpm depcheck",
       "pnpm test",
       "pnpm contract:check",
+      // W0-26：设计生成物无差异（它的下一步上传预览页，没有 run）
+      "pnpm design:check",
       "pnpm -r --if-present build",
       "node infra/ci/check-env-example.mjs",
       "node infra/ci/secret-scan.mjs",

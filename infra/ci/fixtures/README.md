@@ -14,3 +14,5 @@
 两个前端工程不含 JSX：JSX 的类型要靠 `@types/react`，由用预设的应用自己装（W0-27a、W0-28）。
 
 `layers/` 是另一类夹具：依赖方向与分层的反例，不做类型检查，见[该目录的 README](layers/README.md)。
+
+`colors/` 是“页面不写色值”检查的夹具（写了色值的页面、放行的生成物与白名单路径），不做类型检查，见[该目录的 README](colors/README.md)。

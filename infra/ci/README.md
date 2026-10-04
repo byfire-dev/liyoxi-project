@@ -11,6 +11,8 @@
 | `check-release-age.mjs` | 锁文件里的版本都发布满 7 天 | CI（`--since` 只查新增的） |
 | `check-layers.mjs`、`layers.json` | 模块分层登记与目录一一对应 | `pnpm depcheck`；CI |
 | `check-env-example.mjs` | `.env.example` 的键集合等于 `loadEnv` 的键集合，值都是占位 | CI |
+| `check-colors.mjs`、`colors-allowlist.txt` | 页面不写色值：三个前端的 `src` 里出现十六进制、颜色函数或 Sass 的颜色运算即失败。白名单初始为空，按 `frozen` 登记，加条目走单独的 `gate-change` PR | `pnpm lint:colors`；CI |
+| `check-untracked.mjs` | 给定目录下没有 git 未跟踪的文件（生成物都已入库） | `pnpm design:check` 的第三步；CI |
 | `secret-scan.mjs` | 密钥扫描：gitleaks 官方镜像的固定标签，扫 HEAD 能到的全部提交，合并提交按它相对第一个父提交的差异扫（别的分支上的提交由它自己的 PR 扫）。放行项只在仓库根的 `.gitleaks.toml`，逐条写原因；写在被扫文件里的行内放行注释（`gitleaks:allow`）不认。所有文件都按文本出差异（`--text`），`.gitattributes` 里把一类文件标成 `-diff`、`binary` 也照扫。git 历史没读全（gitleaks 报了 git 的错误）按没跑完算，不报通过 | CI；本机要有 Docker |
 | `classify-gate-changes.mjs`、`gate-files.json` | 门禁改动分类：只增（`gate-touch`）与放松（`gate-change`） | CI 的 `gate-classify` 任务 |
 | `ci-required.mjs` | 汇总任务 `required`：判定必过任务的结论，统计耗时，出 `ci-duration.json` | CI 的 `required` 任务 |
@@ -36,6 +38,7 @@
 - 第三方 Action 固定到提交 SHA，行尾注明版本；升级单独成 PR。
 - CI 里不放密钥。工作流里的连接串是本地开发的固定值，只对当次运行的服务容器有效。
 - 时长：`required` 的运行摘要与产物 `ci-duration.json` 列出各必过任务的耗时与合计。预算 15 分钟，超了只标出、不阻断（M0 退出时由 W0-30 核对）。
+- 设计地基（W0-26）在 `verify` 里加了三步：换名检查之后的“页面不写色值”（`pnpm lint:colors`）；测试之后的“设计生成物无差异”（`pnpm design:check`）与“上传设计预览页”。预览页是产物 `design-preview`（`packages/shared/dist/design-preview/`，不入库），目录里没有文件时上传那一步失败；业主合并前在运行页面的 Artifacts 里下载来看。
 
 ## 3. 怎么加一步检查
 
@@ -113,6 +116,7 @@ node infra/ci/classify-gate-changes.mjs --base origin/main --labels gate-change
   - `required` 汇总脚本 `ci-required.mjs` 跑的是 PR 自己检出里的那一份。PR 改它就能让 `required` 变绿；这种改动会被分类判成放松、`gate-classify` 会红，但平台只看 `required`。所以凡是动 `infra/ci/` 下已有脚本的 PR，业主直接看差异，并同时看 `gate-classify` 的结论。
   - 工作流的用例按换行符分行。注释里夹 U+2028、U+0085 这类字符时，有的 YAML 解析器会把它当换行，可能藏下一个任务；GitHub 一侧怎么解析没有核实。用例也只读小写的 `.yml`、`.yaml`，检查名比较区分大小写；GitHub 认不认大写扩展名、检查名比不比大小写同样没有核实。
   - `.gitattributes` 把文件交给 LFS 的过滤器时，入库的是指针，密钥扫描看不到本体。本仓库不用 LFS。
+- 已知的限度：计划 第 5.3 节把“重新生成的生成物”列在只增类，分类脚本现在没有这一种口径。设计生成物目录 `packages/shared/src/design/generated/**` 按 `append` 登记：新增文件、加行（加一个变量、加一个图标）算只增；已有的行有变（改一个已有变量的取值或说明、删变量、改生成脚本的输出格式）判成放松，而它的来源 `design/tokens.json` 与生成脚本不是门禁文件，放进带 `gate-change` 的 PR 也过不了。要做这类改动，先用单独的 `gate-change` PR 给分类脚本补一种生成物的口径，或另定办法（`docs/plan/status/W0-26.md` 偏差 17，待业主定）。
 - 被新提交顶掉的运行：整次运行的结论是“已取消”，但其中 `required` 任务自己记成失败（它带 `if: always()`，前面的任务被取消时照样跑并判不通过）。被顶掉的是旧提交，PR 上看的是最新提交的结果；运行历史里会留一条红的 `required`，属预期。
 - 契约生成物 `packages/contract/generated/**`（W0-08 登记）：算门禁路径，但不逐行判，条目的 `except` 盖住了整个匹配式。现有的口径里没有“重新生成算只增”的一种：按 `append` 判，加一条路由后重新生成就是放松（`"paths": {}` 那一行被改，`"minLength": 1` 这类行命中关键字；实测）。所以重新生成的生成物不出现在 PR 顶部的清单里，也不因此打 `gate-touch`；删掉一份生成物分类也不报。它与源码一致由 `contract:check` 与契约自测把关，手改、漏生成、少一份都会红。要照计划 第 5.3 节把“重新生成的生成物”列成只增，得给分类脚本加一种口径（改已有的检查脚本，须单独的 `gate-change` PR），待业主定（`docs/plan/status/W0-08.md` 偏差 10）。
 - 还没登记的：工作区包自己的 `tsconfig.json` 与 `vitest.config.ts`。在里面关 `strict`、收窄 `include` 现在判为“没有门禁改动”。`vitest.config.ts` 按 `append` 登记会把正常的改写（一行拆成多行、往 `include` 里加一项）也判成放松；`tsconfig.json` 现在可以按 `tsconfig` 登记，没有这个问题。登记不登记、按什么口径，待业主定（`docs/plan/status/W0-03.md` 偏差 6）。

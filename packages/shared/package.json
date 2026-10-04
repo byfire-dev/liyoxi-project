@@ -36,17 +36,50 @@
     "./workcal": {
       "types": "./src/workcal/index.ts",
       "default": "./src/workcal/index.ts"
+    },
+    "./design/tokens": {
+      "types": "./src/design/generated/tokens.ts",
+      "default": "./src/design/generated/tokens.ts"
+    },
+    "./design/antd-theme": {
+      "types": "./src/design/generated/antd-theme.ts",
+      "default": "./src/design/generated/antd-theme.ts"
+    },
+    "./design/icons": {
+      "types": "./src/design/generated/icons.ts",
+      "default": "./src/design/generated/icons.ts"
+    },
+    "./design/status-tone": {
+      "types": "./src/design/status-tone/index.ts",
+      "default": "./src/design/status-tone/index.ts"
+    },
+    "./design/merchant.scss": "./src/design/generated/merchant.scss",
+    "./design/admin.scss": "./src/design/generated/admin.scss",
+    "./design/icons-mask.scss": "./src/design/generated/icons-mask.scss",
+    "./format/datetime": {
+      "types": "./src/format/datetime.ts",
+      "default": "./src/format/datetime.ts"
+    },
+    "./format/duration": {
+      "types": "./src/format/duration.ts",
+      "default": "./src/format/duration.ts"
+    },
+    "./mask": {
+      "types": "./src/mask/index.ts",
+      "default": "./src/mask/index.ts"
     }
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "build": "echo '源码包：exports 直接指向 src，没有构建'"
+    "build": "echo '源码包：exports 直接指向 src，没有构建'",
+    "design:generate": "tsx scripts/generate.ts"
   },
   "dependencies": {
     "@liyoxi/contract": "workspace:*"
   },
   "devDependencies": {
-    "fast-check": "4.10.2"
+    "fast-check": "4.10.2",
+    "tsx": "4.23.15"
   }
 }

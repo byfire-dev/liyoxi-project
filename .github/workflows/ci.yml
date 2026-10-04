@@ -78,6 +78,8 @@ jobs:
         run: pnpm format:check --ignore-path .prettierignore
       - name: 换名检查
         run: pnpm check:rename
+      - name: 页面不写色值
+        run: pnpm lint:colors
       - name: 类型
         run: pnpm typecheck
       - name: 依赖方向与五层
@@ -88,6 +90,17 @@ jobs:
       # 契约自测要拿提交的生成物与现生成的逐字节比对，得赶在这一步把文件重新写出来之前跑
       - name: contract:check
         run: pnpm contract:check
+      # 重新生成样式变量、后台主题、图标数据，与入库的生成物比对；顺带写出预览页（不入库），下一步上传
+      - name: 设计生成物无差异
+        run: pnpm design:check
+      # 预览页：两端色板、字号、全部图标、状态标签。业主合并前对照规范与原型截图看（W0-26 任务书 第 8 节）
+      - name: 上传设计预览页
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: design-preview
+          path: packages/shared/dist/design-preview/
+          if-no-files-found: error
+          retention-days: 30
       - name: 构建
         run: pnpm -r --if-present build
       - name: .env.example 核对

@@ -21,7 +21,7 @@ const fcSeed = envInteger("LYX_FC_SEED", 20261004, Number.MIN_SAFE_INTEGER);
 export default defineProject({
   test: {
     name: "shared",
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],
     provide: { fcRuns, fcSeed },
   },
 });

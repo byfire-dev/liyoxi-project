@@ -1,0 +1,8 @@
+// 反例：页面样式里写十六进制色值
+.order-card {
+  padding: 16px;
+
+  &__price {
+    color: #a63f12;
+  }
+}
