@@ -54,7 +54,8 @@ if (!prepared.ok) {
   if (process.env.LYX_TEST_MINIO === "required") {
     throw new Error(`本地 MinIO 用不了：${prepared.message}`);
   }
-  console.warn(`[minio.test] 要连本地 MinIO 的用例跳过：${prepared.message}`);
+  // 直接写标准错误：Vitest 不显示通过的用例文件里 console 的输出
+  process.stderr.write(`[minio.test] 要连本地 MinIO 的用例跳过：${prepared.message}\n`);
 }
 /** 要连 MinIO 的用例组 */
 const live = prepared.ok ? describe : describe.skip;
