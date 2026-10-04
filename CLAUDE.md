@@ -179,6 +179,9 @@
 | `pnpm contract:check` | 契约生成物与源码无差异：重新生成后 `git diff --exit-code`，不一致即非 0 退出 |
 | `pnpm check:rename` | 换名检查：出现参考工程的旧名或旧的小程序目录即失败。口径见 [脚本](infra/ci/check-rename.mjs) 开头的注释 |
 | `node infra/ci/check-release-age.mjs`（加 `--since <git 引用>` 只查新增的版本） | 锁文件里每个版本都发布满 7 天。用法见 [脚本](infra/ci/check-release-age.mjs) 开头的注释 |
+| `pnpm design:generate` | 由 `design/tokens.json` 与图标源重新生成样式变量、后台主题、图标数据，并出一页预览（不入库）。来源、生成物与子路径见 [README](packages/shared/scripts/README.md) |
+| `pnpm design:check` | 生成物无差异：重新生成后 `git diff --exit-code`。生成物不手改 |
+| `pnpm lint:colors` | 页面不写色值：三个前端的 `src` 里出现十六进制、`rgb()`、`hsl()` 即失败。口径与白名单见 [脚本](infra/ci/check-colors.mjs) 开头的注释 |
 
 本地连接参数：配置只经 `loadEnv`（`packages/services/src/kernel/env.ts`）读环境变量，会话与测试不建、不读 `.env`，在命令前或 shell 里给出。取值出处是 [local.yml](infra/compose/local.yml)，账号与口令是固定的开发值，只对本机这套容器有效；CI 的服务容器用同一组值。
 
