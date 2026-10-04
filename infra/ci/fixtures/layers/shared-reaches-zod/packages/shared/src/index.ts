@@ -1,0 +1,3 @@
+import "./money.js";
+
+export {};
