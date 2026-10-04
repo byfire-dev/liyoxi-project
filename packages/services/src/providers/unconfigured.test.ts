@@ -281,7 +281,7 @@ describe("可降级的能力：返回可识别的“未配置”结果，调用�
     ),
   );
 
-  it.each(cases)("$appEnv $name.$method", async ({ appEnv, name, method }) => {
+  it.each(cases)("$appEnv：$name 的 $method", async ({ appEnv, name, method }) => {
     const { providers } = build(appEnv);
     // 是正常返回（resolves），不是抛错
     await expect(callWithSample(providers, name, method)).resolves.toMatchObject({

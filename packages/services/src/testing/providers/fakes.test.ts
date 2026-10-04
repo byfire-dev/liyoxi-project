@@ -31,7 +31,7 @@ function setup() {
 }
 
 describe("每个方法：记录调用、注入失败、注入延迟", () => {
-  it.each(ALL_PROVIDER_METHODS)("$provider.$method", async ({ provider, method }) => {
+  it.each(ALL_PROVIDER_METHODS)("$provider 的 $method", async ({ provider, method }) => {
     const { clock, fakes, control } = setup();
     const fake = control(provider);
 

@@ -96,15 +96,18 @@ describe("外呼前钩子：每个方法的入口调一次", () => {
     return { seen, providers: build((call) => void seen.push(call)) };
   }
 
-  it.each(ALL_PROVIDER_METHODS)("未配置实现 $provider.$method", async ({ provider, method }) => {
-    const { seen, providers } = hooked((beforeCall) =>
-      createProviders({ appEnv: "prod", logger: createRecordingLogger(), beforeCall }),
-    );
-    await callWithSample(providers, provider, method);
-    expect(seen).toEqual([{ provider, method }]);
-  });
+  it.each(ALL_PROVIDER_METHODS)(
+    "未配置实现：$provider 的 $method",
+    async ({ provider, method }) => {
+      const { seen, providers } = hooked((beforeCall) =>
+        createProviders({ appEnv: "prod", logger: createRecordingLogger(), beforeCall }),
+      );
+      await callWithSample(providers, provider, method);
+      expect(seen).toEqual([{ provider, method }]);
+    },
+  );
 
-  it.each(ALL_PROVIDER_METHODS)("替身 $provider.$method", async ({ provider, method }) => {
+  it.each(ALL_PROVIDER_METHODS)("替身：$provider 的 $method", async ({ provider, method }) => {
     const { seen, providers } = hooked((beforeCall) => createFakeProviders({ beforeCall }));
     await callWithSample(providers, provider, method);
     expect(seen).toEqual([{ provider, method }]);
@@ -143,7 +146,7 @@ describe("外呼前钩子：每个方法的入口调一次", () => {
   });
 
   it.each(ALL_PROVIDER_METHODS)(
-    "钩子抛错：$provider.$method 原样抛给调用方，实现没有被调用",
+    "钩子抛错：$provider 的 $method 原样抛给调用方，实现没有被调用",
     async ({ provider, method }) => {
       const inTransaction = new Error("在事务里调了外部服务");
       const fakes = createFakeProviders({
