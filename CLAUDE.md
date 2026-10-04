@@ -36,14 +36,14 @@
 
 固定提示语：“读 `CLAUDE.md` 与 `docs/plan/tasks/<编号>.md`，完成工作包 <编号>”（08 第 5.3 节）。
 
-1. 读本文件、状态汇总、本包任务书。会话不带记忆，只凭这三样开工。状态汇总在 `docs/plan/status/README.md` 第 6 节（手工表；与单个状态文件不一致时以单个文件为准），W0-03 合并后是 `docs/plan/status/SUMMARY.md`。
+1. 读本文件、状态汇总、本包任务书。会话不带记忆，只凭这三样开工。状态汇总不入库：跑 `pnpm status:summary` 现生成，写到 `docs/plan/status/SUMMARY.md`（被 git 忽略；它是生成那一刻的快照，与单个状态文件不一致时以单个文件为准，重新跑一遍即可）。
 2. 核对任务书“依赖”列的包已全部合并：main 上该包的状态文件写“完成”即已合并。上游未合并，不得基于其分支开工。
 3. 任务书不存在时分两种。`docs/plan/tasks/README.md` 第 3 节列的 13 个 S、M 包：按 08 第 7.2 节的清单行与任务书模板补全，先查该 README 第 5 节的移交表，随 PR 提交。L 与甲类包：停下报告，不自己写。
 4. 一个会话一个工作包，在独立 worktree 里做，从最新 main 切分支。
 5. 只改任务书允许的目录；只新增任务书允许的依赖。
 6. 超出范围即停并报告。默认：把原因写进本包状态文件的“阻塞原因”，并在回复里说明（W0-04 定）。
 7. 先交付可读的中间成果，再做完整。默认：长时间没有产出就停下汇报，不空转（W0-04 定）。
-8. 收尾：把 `docs/plan/status/<编号>.md` 的状态写成“完成”（取值见 `docs/plan/status/README.md` 第 3 节），开 PR 后填上 PR 编号；按 PR 模板填描述。会话不自行合并。
+8. 收尾：把 `docs/plan/status/<编号>.md` 的状态写成“完成”（取值见 `docs/plan/status/README.md` 第 3 节），开 PR 后填上 PR 编号；按 PR 模板填描述。只改自己这一个状态文件，状态汇总不用生成、不用提交。会话不自行合并。
 
 待评审的非草稿 PR 到上限（默认 5 个）不开新包（08 第 3 节 ⑥、第 5.3 节）。
 
@@ -166,7 +166,7 @@
 | `pnpm install --frozen-lockfile` | 按锁文件安装，顺带装上提交钩子。pnpm 的版本由 `packageManager` 锁定，会自动切过去 |
 | `pnpm infra:up`、`pnpm infra:down` | 起、停本地依赖（PostgreSQL 17、Redis 7.4、MinIO），要本机 Docker 在运行。`infra:up` 等到三个服务都健康才返回；`infra:down` 不删数据卷。只有一份共享实例，在哪个 worktree 里跑都是同一套容器。端口、账号见 [local.yml](infra/compose/local.yml)，连接串的写法见表后 |
 | `pnpm gates:selftest` | 门禁自测：对固定的反例逐个跑对应的检查，断言检查失败且原因对得上。其中几例要外部条件：密钥扫描的要 Docker，依赖审计的要外网。怎么加反例见 [README](infra/ci/README.md) 第 4 节 |
-| `pnpm status:summary` | 重新生成状态汇总 `docs/plan/status/SUMMARY.md`。改了状态文件就跑一次并提交 |
+| `pnpm status:summary` | 现生成状态汇总 `docs/plan/status/SUMMARY.md`：计数、可开工的包、各包状态。文件不入库（被 git 忽略），不用提交；换了分支、拉了 main 就重新跑。状态文件不合规时报错并指出是哪个文件的哪一项；CI 的“状态文件核对”只做这道核对（`node infra/ci/status-summary.mjs --check`，不写文件），见 [README](infra/ci/README.md) 第 6 节 |
 | `node infra/ci/check-env-example.mjs` | 核对 `.env.example`：键集合等于 `loadEnv` 的键集合，值都是占位 |
 | `node infra/ci/classify-gate-changes.mjs --base origin/main` | 本地试跑门禁改动分类：看本分支的改动会被判成只增还是放松。口径见 [README](infra/ci/README.md) 第 5 节 |
 | `pnpm lint`（`pnpm lint:fix` 自动修） | ESLint。规则片段在 `packages/config/eslint/`，装配在根 `eslint.config.js` |
