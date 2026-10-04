@@ -14,5 +14,14 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --passWithNoTests",
     "build": "echo '源码包：exports 直接指向 src，没有构建'"
+  },
+  "dependencies": {
+    "@hono/zod-openapi": "1.6.3",
+    "hono": "4.13.9",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0",
+    "tsx": "4.23.15"
   }
 }
