@@ -36,6 +36,10 @@ const SORT_KEY = /^[A-Za-z][A-Za-z0-9]*$/;
 /**
  * 排序参数 sort（约定 C44）：逗号分隔，字段名前加 - 表示降序，如 -createdAt,orderNo。
  * 可排序字段与具名排序值（如 urgency）由各列表列在 keys 里；服务端总是追加 id 作为最后一个排序键。
+ *
+ * 本包定的做法：约定 C44 写“用 enum 声明可排序字段与默认排序”。sort 的取值是逗号分隔的组合，
+ * 整个参数写不成 enum，所以可排序字段在契约源码里逐个列举（keys），到 OpenAPI 里是 pattern + default，
+ * 生成的类型是 string。文档里要不要另列可排序字段，W0-10 接管路由前定（PR 描述第 7 节）。
  */
 export function sortQuery<const K extends readonly [string, ...string[]]>(
   keys: K,
