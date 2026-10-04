@@ -351,8 +351,16 @@ describe("ci.yml", () => {
       "pnpm check:rename",
       // W0-26：页面不写色值
       "pnpm lint:colors",
+      // W0-05：数据库客户端不入库，类型检查之前先生成
+      "pnpm db:generate",
       "pnpm typecheck",
       "pnpm depcheck",
+      // W0-05：首版迁移的等价性证明，排在“测试”之前（上传比对报告那一步没有 run）
+      "pnpm db:validate",
+      "npm ci --prefix tools/schema-check --no-audit --no-fund --registry https://registry.npmjs.org/ && python3 tools/schema-check/check.py --keep",
+      'psql -X -w -d postgres -c "CREATE DATABASE lyx_migrate_check" && pnpm db:deploy',
+      "pnpm db:catalog-diff",
+      "pnpm db:deploy && pnpm db:catalog-diff",
       "docker compose -f infra/compose/local.yml up -d --wait minio",
       "pnpm exec vitest run packages/services/src/providers/storage/minio.test.ts",
       "pnpm test",

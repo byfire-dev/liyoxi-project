@@ -80,10 +80,50 @@ jobs:
         run: pnpm check:rename
       - name: 页面不写色值
         run: pnpm lint:colors
+      # 数据库客户端是生成物，不入库（W0-05）：类型检查与测试之前先生成。这一步不连库
+      - name: 生成数据库客户端
+        run: pnpm db:generate
       - name: 类型
         run: pnpm typecheck
       - name: 依赖方向与五层
         run: pnpm depcheck
+      # 以下几步是首版迁移的等价性证明（W0-05），排在“测试”之前：packages/db 的用例要连迁移库 lyx_migrate_check
+      - name: prisma validate
+        run: pnpm db:validate
+      # 参照库 lyx_schema_check 由底稿建，也就是在 PostgreSQL 17 上复核一遍 schema-check。校验工具有自己的锁文件（npm）；
+      # NPM_CONFIG_IGNORE_SCRIPTS 让这次安装不执行任何包的安装脚本
+      - name: 由底稿建参照库（schema-check）
+        env:
+          NPM_CONFIG_IGNORE_SCRIPTS: "true"
+          PGHOST: localhost
+          PGPORT: "5442"
+          PGUSER: liyoxi
+          PGPASSWORD: lyx-local-dev
+        run: npm ci --prefix tools/schema-check --no-audit --no-fund --registry https://registry.npmjs.org/ && python3 tools/schema-check/check.py --keep
+      - name: 空库跑全部迁移
+        env:
+          PGHOST: localhost
+          PGPORT: "5442"
+          PGUSER: liyoxi
+          PGPASSWORD: lyx-local-dev
+          DATABASE_URL: postgresql://liyoxi:lyx-local-dev@localhost:5442/lyx_migrate_check
+        run: psql -X -w -d postgres -c "CREATE DATABASE lyx_migrate_check" && pnpm db:deploy
+      # 表、列、约束定义、索引定义、触发器、函数体六类逐项 0 差异，数量两组口径对得上；报告在下面上传
+      - name: 系统目录比对
+        run: pnpm db:catalog-diff
+      - name: 再跑一遍迁移与比对（重复执行无副作用）
+        env:
+          DATABASE_URL: postgresql://liyoxi:lyx-local-dev@localhost:5442/lyx_migrate_check
+        run: pnpm db:deploy && pnpm db:catalog-diff
+      # 业主合并前打开这份报告看（W0-05 任务书 第 8 节）。比对没过时也传，好看差在哪
+      - name: 上传系统目录比对报告
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: db-catalog-diff
+          path: packages/db/dist/catalog-diff/
+          if-no-files-found: warn
+          retention-days: 30
       # 本地存储驱动的用例要连 MinIO（W0-19）。镜像、端口、账号都取 infra/compose/local.yml，只起 minio 一个服务
       - name: 起 MinIO
         run: docker compose -f infra/compose/local.yml up -d --wait minio
