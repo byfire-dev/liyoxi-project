@@ -12,12 +12,23 @@
     "./errors": {
       "types": "./src/errors/index.ts",
       "default": "./src/errors/index.ts"
+    },
+    "./types/merchant": {
+      "types": "./generated/merchant.d.ts"
+    },
+    "./types/admin": {
+      "types": "./generated/admin.d.ts"
+    },
+    "./types/portal": {
+      "types": "./generated/portal.d.ts"
     }
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --passWithNoTests",
-    "build": "echo '源码包：exports 直接指向 src，没有构建'"
+    "build": "echo '源码包：exports 直接指向 src，没有构建'",
+    "generate": "tsx scripts/generate.ts",
+    "check": "pnpm generate && git diff --exit-code -- generated"
   },
   "dependencies": {
     "@hono/zod-openapi": "1.6.3",
