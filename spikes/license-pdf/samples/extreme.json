@@ -1,0 +1,111 @@
+{
+  "licensor": {
+    "name": "某某文化传媒（上海）有限公司（占位）",
+    "creditCode": "91310000MA1FL0AB0C"
+  },
+  "licensee": {
+    "name": "上海䶮记鱻麤餐饮管理（集团）股份有限公司浦东新区陆家嘴环路第一千二百三十四号分公司",
+    "creditCode": "91310115MA1K4XYZ9Q",
+    "store": "䶮记·鱻麤馆（〇〇广场浦东陆家嘴国际金融中心旗舰店 B1 层 0123456789 号铺）"
+  },
+  "drama": {
+    "name": "巷口那家店之龘龘向荣：一个名字特别长的剧目用来检查要素表里的换行",
+    "episodes": 120,
+    "permits": [
+      {
+        "kind": "节目编号",
+        "number": "（沪）网微剧审字（2026）第 001 号 / V010123456789012345678901234567890123456789（占位，故意写得很长）",
+        "platform": "channels"
+      },
+      {
+        "kind": "备案号",
+        "number": "V0201234567890123（占位）",
+        "platform": "douyin"
+      },
+      {
+        "kind": "网络剧片发行许可证",
+        "number": "V0301234567890123（占位）",
+        "platform": "channels"
+      },
+      {
+        "kind": "上线备案号",
+        "number": "（沪）网微剧审字（2026）第 004 号 / V040123456789012345678901234567890123456789（占位，故意写得很长）",
+        "platform": "douyin"
+      },
+      {
+        "kind": "节目编号",
+        "number": "V0501234567890123（占位）",
+        "platform": "channels"
+      },
+      {
+        "kind": "备案号",
+        "number": "V0601234567890123（占位）",
+        "platform": "douyin"
+      },
+      {
+        "kind": "网络剧片发行许可证",
+        "number": "（沪）网微剧审字（2026）第 007 号 / V070123456789012345678901234567890123456789（占位，故意写得很长）",
+        "platform": "channels"
+      },
+      {
+        "kind": "上线备案号",
+        "number": "V0801234567890123（占位）",
+        "platform": "douyin"
+      },
+      {
+        "kind": "节目编号",
+        "number": "V0901234567890123（占位）",
+        "platform": "channels"
+      },
+      {
+        "kind": "备案号",
+        "number": "（沪）网微剧审字（2026）第 010 号 / V100123456789012345678901234567890123456789（占位，故意写得很长）",
+        "platform": "douyin"
+      },
+      {
+        "kind": "网络剧片发行许可证",
+        "number": "V1101234567890123（占位）",
+        "platform": "channels"
+      },
+      {
+        "kind": "上线备案号",
+        "number": "V1201234567890123（占位）",
+        "platform": "douyin"
+      },
+      {
+        "kind": "节目编号",
+        "number": "（沪）网微剧审字（2026）第 013 号 / V130123456789012345678901234567890123456789（占位，故意写得很长）",
+        "platform": "channels"
+      },
+      {
+        "kind": "备案号",
+        "number": "V1401234567890123（占位）",
+        "platform": "douyin"
+      }
+    ]
+  },
+  "account": {
+    "platform": "channels",
+    "name": "𠮷野家官方号😀（字体没收的字会印成〓）",
+    "accountId": "sphABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+  },
+  "period": {
+    "start": "2026-10-20",
+    "startText": "自上线首日起",
+    "end": "2027-12-31",
+    "territory": "中华人民共和国境内（为本授权书之目的，不含香港特别行政区、澳门特别行政区及台湾地区）；发布平台的服务范围超出上述地域的，以平台允许设置的可见地域为限"
+  },
+  "rightsClauseKey": "x1.rights",
+  "exclusiveClauseKey": "x1.exclusive",
+  "obligationClauseKey": "x1.offline",
+  "consent": {
+    "consentId": "0199a7c2-5b1e-7d3a-9f42-6c8e1b2a4d70",
+    "agreement": "定制内容授权使用协议 v12.34（含《〈补充说明〉修订稿》）",
+    "at": "2026-09-26T23:59:59+08:00",
+    "by": "欧阳𬌗龘（138****5678）"
+  },
+  "letterNo": "SQ2026092600018-12-SPH-2",
+  "revNo": 12,
+  "issuedAt": "2026-12-31T23:59:59+08:00",
+  "verifyUrl": "https://portal.example-with-a-very-long-domain-name-for-testing.com.cn/v/AbCdEfGh12345678?from=license-letter&letterNo=SQ2026092600018-12-SPH-2&rev=12&channel=channels&lang=zh-CN"
+}

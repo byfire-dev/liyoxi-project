@@ -1,0 +1,36 @@
+{
+  "licensor": {
+    "name": "某某文化传媒（上海）有限公司（占位）",
+    "creditCode": "91310000MA1FL0AB0C"
+  },
+  "licensee": {
+    "name": "示例餐饮管理有限公司",
+    "creditCode": "91310115MA1K4XYZ9Q",
+    "store": "示例火锅（万达店）"
+  },
+  "drama": {
+    "name": "巷口那家店",
+    "episodes": 80,
+    "permits": [{ "kind": "节目编号", "number": "V0000000000000（占位）", "platform": "douyin" }]
+  },
+  "account": { "platform": "douyin", "name": "示例火锅", "accountId": "88888888" },
+  "period": {
+    "start": null,
+    "startText": "自上线首日起",
+    "end": "2027-12-31",
+    "territory": "中国大陆"
+  },
+  "rightsClauseKey": "s1.rights",
+  "exclusiveClauseKey": "s1.exclusive",
+  "obligationClauseKey": "s1.offline",
+  "consent": {
+    "consentId": "0199a7c2-5b1e-7d3a-9f42-6c8e1b2a4d70",
+    "agreement": "定制内容授权使用协议 v1.0",
+    "at": "2026-09-26T10:32:05+08:00",
+    "by": "王*（138****5678）"
+  },
+  "letterNo": "SQ2026092600018-1-DY",
+  "revNo": 1,
+  "issuedAt": "2026-09-26T10:35:00+08:00",
+  "verifyUrl": "https://portal.example.com/v/AbCdEfGh12345678"
+}
