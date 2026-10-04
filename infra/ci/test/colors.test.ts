@@ -25,12 +25,9 @@ function check(files: Record<string, string>, allowlist = "") {
 }
 
 describe("干净仓库通过", () => {
-  it("本仓库通过，白名单初始为空", () => {
-    const result = run("node", [script], repoRoot);
-    expect(result.stderr).toBe("");
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain("页面色值检查通过");
-    expect(result.stdout).toContain("放行 0 个");
+  // 只断言退出码：以后三个前端里有了生成物或白名单加了条目，“放行几个”会变，这条不该跟着改
+  it("本仓库通过", () => {
+    expect(run("node", [script], repoRoot).status).toBe(0);
   });
 });
 
@@ -84,6 +81,22 @@ describe("放行", () => {
     expect(result.stderr).toContain("apps/weapp/src/legacy-new/b.scss:1:13");
     expect(result.stderr).not.toContain("legacy/a.scss");
   });
+
+  it("生成物要两样都占：在 generated 目录下，且第一行带“生成物，勿手改”的文件头", () => {
+    const banner = "// 生成物，勿手改。来源：夹具\n";
+    const result = check({
+      "apps/admin/src/generated/theme.ts": `${banner}export const a = "#c4501b";\n`,
+      "apps/admin/src/generated/theme.css": "/* 生成物，勿手改 */\n.a { color: #c4501b; }\n",
+      // 只是目录叫 generated，手写的页面
+      "apps/weapp/src/pages/generated/index.scss": ".a { color: #123456; }\n",
+      // 只是抄了文件头，不在生成物目录
+      "apps/weapp/src/pages/home/index.ts": `${banner}export const a = "#654321";\n`,
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("共 2 处");
+    expect(result.stderr).toContain("apps/weapp/src/pages/generated/index.scss:1:13");
+    expect(result.stderr).toContain("apps/weapp/src/pages/home/index.ts:2:19");
+  });
 });
 
 describe("口径", () => {
@@ -94,6 +107,15 @@ describe("口径", () => {
     ["大写的 RGB()", "a.css", ".a { color: RGB(0 0 0); }\n", "RGB(…)"],
     ["行内 style", "a.tsx", 'export const s = { color: "#C4501B" };\n', "#C4501B"],
     ["模板字符串", "a.ts", "export const s = `border: 1px solid #E7E1D8`;\n", "#E7E1D8"],
+    ["oklch()", "a.scss", ".a { color: oklch(60% 0.15 50); }\n", "oklch(…)"],
+    ["hwb()", "a.css", ".a { color: hwb(194 0% 0%); }\n", "hwb(…)"],
+    ["lab()", "a.ts", 'export const s = "lab(29% 39 20)";\n', "lab(…)"],
+    ["color()", "a.scss", ".a { color: color(display-p3 1 0 0); }\n", "color(…)"],
+    ["url(//…) 之后的色值", "a.scss", ".a { background: url(//c.invalid/a.png) #fff; }\n", "#fff"],
+    ["给变量加透明度", "a.scss", ".a { color: rgba($lyx-color-text-primary, 0.45); }\n", "rgba(…)"],
+    ["at 规则参数里的色值", "a.scss", "@include tint(#abc) { margin: 0; }\n", "#abc"],
+    ["带值的嵌套属性里的色值", "a.scss", ".a { border: 1px solid #fff { left: 0; } }\n", "#fff"],
+    ["没写分号的最后一条声明", "a.css", ".a { color: #dad }\n", "#dad"],
   ])("%s 被拦下", (_label, name, content, found) => {
     const result = check({ [`apps/admin/src/pages/${name}`]: content });
     expect(result.status).toBe(1);
@@ -112,6 +134,19 @@ describe("口径", () => {
     ["代码注释里的编号", "a.ts", "// 见 PR #123\nexport const a = 1;\n"],
     ["锚点与 HTML 实体", "a.tsx", 'export const a = ["#top", "&#8212;", "#/pages/home"];\n'],
     ["id 选择器", "a.scss", "#app { margin: 0; }\n"],
+    [
+      "名字像色值的 id 选择器",
+      "a.scss",
+      "#add { margin: 0; }\n.a #bad,\n#fee { margin: 0; }\n.b-#{$n} #dad:hover { margin: 0; }\n",
+    ],
+    [
+      "类的私有字段",
+      "a.ts",
+      "export class A {\n  #abc = 1;\n  #add() {\n    return this.#abc;\n  }\n}\n",
+    ],
+    ["url(#id)", "a.scss", ".a { fill: url(#fade); mask: url('#bad'); }\n"],
+    ["同名尾巴的自定义函数", "a.scss", ".a { color: lyx-color(primary); width: lyx-rgb($a); }\n"],
+    ["模板插值的编号", "a.ts", "export const a = (no: number) => `工单 #${no}`;\n"],
   ])("%s 不误报", (_label, name, content) => {
     const result = check({ [`apps/weapp/src/pages/${name}`]: content });
     expect(result.stderr).toBe("");
