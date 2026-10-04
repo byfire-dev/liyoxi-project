@@ -26,7 +26,7 @@
     "depcheck": "node infra/ci/check-layers.mjs && depcruise apps packages infra --config .dependency-cruiser.cjs",
     "check:rename": "node infra/ci/check-rename.mjs",
     "design:generate": "pnpm --filter @liyoxi/shared run design:generate",
-    "design:check": "pnpm design:generate && git diff --exit-code -- packages/shared/src/design/generated",
+    "design:check": "pnpm design:generate && git diff --exit-code -- packages/shared/src/design/generated && node infra/ci/check-untracked.mjs packages/shared/src/design/generated",
     "lint:colors": "node infra/ci/check-colors.mjs"
   },
   "devDependencies": {

@@ -9,7 +9,7 @@
 | 命令 | 做什么 |
 | --- | --- |
 | `pnpm design:generate` | 读 `design/tokens.json` 与图标源，重写 `packages/shared/src/design/generated/` 下的六个生成物，并出一页预览 |
-| `pnpm design:check` | 重新生成，再跑 `git diff --exit-code -- packages/shared/src/design/generated`。有差异即失败：要么生成物被手改了，要么改了来源没重新生成 |
+| `pnpm design:check` | 重新生成，再跑 `git diff --exit-code -- packages/shared/src/design/generated`，最后查这个目录下没有未跟踪的文件（`infra/ci/check-untracked.mjs`）。有差异即失败：要么生成物被手改了，要么改了来源没重新生成，要么新出的生成物没有 `git add` |
 | `pnpm --filter @liyoxi/shared test` | 生成物与来源对账、与规范对账、图标与原型对账，以及格式化与脱敏函数的用例 |
 
 `generate.ts` 的参数（直接用 `pnpm --filter @liyoxi/shared exec tsx scripts/generate.ts …` 跑时）：
@@ -18,6 +18,8 @@
 | --- | --- |
 | `--out <目录>` | 生成物写到别的目录，不动仓库里的那一份。门禁自测的反例用它 |
 | `--no-preview` | 不出预览页 |
+
+生成物目录只由脚本写：目录里有不是脚本写的文件时，脚本不生成，指出文件名并以退出码 1 结束。
 
 ## 来源与生成物
 
