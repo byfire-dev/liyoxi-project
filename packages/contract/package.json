@@ -2,12 +2,16 @@
   "name": "@liyoxi/contract",
   "version": "0.1.0",
   "private": true,
-  "description": "接口契约唯一手写源：Zod schema、路由元数据、错误码与各登记表（骨架由 W0-08 接）",
+  "description": "接口契约唯一手写源：Zod schema、路由元数据、错误码与各登记表",
   "type": "module",
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./errors": {
+      "types": "./src/errors/index.ts",
+      "default": "./src/errors/index.ts"
     }
   },
   "scripts": {
