@@ -94,6 +94,12 @@
     },
     { "pattern": ".prettierignore", "kind": "frozen", "note": "格式检查的忽略项" },
     { "pattern": ".gitleaks.toml", "kind": "frozen", "note": "密钥扫描的放行项" },
-    { "pattern": ".gitleaksignore", "kind": "frozen", "note": "密钥扫描的放行项" }
+    { "pattern": ".gitleaksignore", "kind": "frozen", "note": "密钥扫描的放行项" },
+    {
+      "pattern": "packages/contract/generated/**",
+      "except": ["packages/contract/generated/**"],
+      "kind": "append",
+      "note": "契约生成物（三份 OpenAPI 与类型）：算门禁路径，不逐行判（except 盖住整个匹配式）；与源码一致由 contract:check 与契约自测核对"
+    }
   ]
 }
