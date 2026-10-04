@@ -1,0 +1,17 @@
+{
+  "name": "@liyoxi/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "统一服务端入口：Hono 4 + OpenAPI 3.1（骨架由 W0-22 接）",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "build": "echo '占位：真实构建（tsup）由 W0-22 接'"
+  },
+  "dependencies": {
+    "@liyoxi/contract": "workspace:*",
+    "@liyoxi/services": "workspace:*",
+    "@liyoxi/shared": "workspace:*"
+  }
+}

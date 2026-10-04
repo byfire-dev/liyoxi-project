@@ -17,6 +17,7 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p infra && tsc --noEmit -p infra/ci/fixtures/base && tsc --noEmit -p infra/ci/fixtures/node-lib && tsc --noEmit -p infra/ci/fixtures/node-app && tsc --noEmit -p infra/ci/fixtures/web-react19 && tsc --noEmit -p infra/ci/fixtures/taro-react18 && pnpm -r --if-present typecheck",
     "test": "vitest run",
+    "depcheck": "node infra/ci/check-layers.mjs && depcruise apps packages infra --config .dependency-cruiser.cjs",
     "check:rename": "node infra/ci/check-rename.mjs"
   },
   "devDependencies": {
@@ -24,6 +25,7 @@
     "@commitlint/config-conventional": "21.2.3",
     "@eslint/js": "10.0.1",
     "@types/node": "24.19.0",
+    "dependency-cruiser": "18.4.0",
     "eslint": "10.11.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-react-hooks": "7.1.1",

@@ -1,0 +1,22 @@
+{
+  "name": "@liyoxi/weapp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "商家端微信小程序（Taro 4 · React 18；工程由 W0-27a 接）",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "echo '占位：前端测试由 W0-27a 接'",
+    "build": "echo '占位：真实构建由 W0-27a 接'"
+  },
+  "dependencies": {
+    "@liyoxi/contract": "workspace:*",
+    "@liyoxi/shared": "workspace:*",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7"
+  }
+}
