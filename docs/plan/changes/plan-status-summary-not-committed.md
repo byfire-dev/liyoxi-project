@@ -6,4 +6,4 @@
 | 原因 | 状态汇总入库时，改了状态文件的 PR 之间要么在这份生成物上冲突，要么合并后汇总过期、核对变红；每合并一个，其余在途的都要变基后重新生成。业主 2026-10-05 的原话：“生成物的门禁口径、状态汇总不入库：两个减少摩擦的门禁改动。同意。”（[owner-checklist.md](../owner-checklist.md) 第 5 节） |
 | 影响的包 | 各包的依赖、顺序、规模、级别都不变。W0-03：它交付的汇总脚本与 CI 步骤被本次改动修改，任务书 第 7 节第 11 条的验收命令（重新生成后比对入库的文件）不再适用，第 5 条里的步骤名“状态汇总无差异”同此，任务书是当时的记录，没有回改。之后每个工作包：收尾只改自己的状态文件，不再生成、提交汇总。W0-30：三张汇总表的生成脚本若也把汇总入库，会有同样的问题，入不入库届时再定（已记进 [tasks/README.md](../tasks/README.md) 第 5 节移交表第 9 行） |
 | 类别 | —（台账做法，不属拆并、顺序、估算、归属、留桩） |
-| PR | 分两个：单独的 `gate-change` PR（脚本、CI 步骤、用例与反例、`infra/ci/README.md`）与紧随其后的说明 PR（删掉入库的汇总、`.gitignore`、`CLAUDE.md` 与 `docs/` 下的说明，本记录在其中）。编号开 PR 后填 |
+| PR | 分两个：单独的 `gate-change` PR（脚本、CI 步骤、用例与反例、`infra/ci/README.md`）与紧随其后的说明 PR（删掉入库的汇总、`.gitignore`、`CLAUDE.md` 与 `docs/` 下的说明，本记录在其中）。前者是 [#22](https://github.com/byfire-dev/liyoxi-project/pull/22)，后者是 [#26](https://github.com/byfire-dev/liyoxi-project/pull/26) |
