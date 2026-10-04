@@ -6,6 +6,8 @@
 //   2. packages/services 的五层与同层白名单不写在这里：加载时读 infra/ci/layers.json 展开，不落生成文件。
 //   3. 工作区包有两种写法都要拦：解析成功时是路径（packages/db/src/index.ts）；
 //      包清单没声明、解析不了时留下的是包名（@liyoxi/db）。第三方包同理。
+//      第三方包的类型包按它描述的那个包算：只装了 @types/react、没装 react 时，
+//      import type … from "react" 落在 node_modules/@types/react/ 下，照样按 react 拦。
 //   4. 只增规则随工作包 PR；删改已有规则只在单独的 gate-change PR 里做。
 //
 // 本文件是 CommonJS，而全仓 lint 禁 require()，所以内置模块用 process.getBuiltinModule 取。
@@ -27,8 +29,22 @@ const workspace = (dir, names) => `^${dir}/${oneOf(names)}/|^@liyoxi/${oneOf(nam
 /** allowed 之外的全部工作区包 */
 const workspaceExcept = (allowed) =>
   `^packages/(?!${oneOf(allowed)}/)|^apps/|^@liyoxi/(?!${oneOf(allowed)}(?:/|$))`;
-/** 第三方包：node_modules 下的路径（pnpm 下前面还有 .pnpm 一段），或解析不了时留下的包名 */
-const thirdParty = (names) => `(?:^|/)node_modules/${oneOf(names)}(?:/|$)|^${oneOf(names)}(?:/|$)`;
+/** 类型包的名字：react → @types/react；带 scope 的 @prisma/client → @types/prisma__client */
+const typesPackage = (name) => `@types/${name.replace(/^@([^/]+)\//, "$1__")}`;
+/**
+ * 第三方包：node_modules 下的路径（pnpm 下前面还有 .pnpm 一段），或解析不了时留下的包名。
+ * 包的类型包按这个包算。dependency-cruiser 解析时除了 node_modules 还找 node_modules/@types：
+ * 只装了类型包、没装本体时，import type … from "react" 的终点是 node_modules/@types/react/index.d.ts。
+ */
+const thirdParty = (names) => {
+  const any = oneOf(names.flatMap((name) => [name, typesPackage(name)]));
+  return `(?:^|/)node_modules/${any}(?:/|$)|^${any}(?:/|$)`;
+};
+/** 一个 scope 下的全部第三方包（@prisma/…），连同它们的类型包（@types/prisma__…） */
+const thirdPartyScope = (scope) => {
+  const any = `(?:@${escapeRe(scope)}/|@types/${escapeRe(scope)}__)`;
+  return `(?:^|/)node_modules/${any}|^${any}`;
+};
 
 /** 带进 Zod 运行时的包：zod 本身，以及把它当运行时依赖的 @hono/zod-openapi */
 const ZOD_RUNTIME = thirdParty(["zod", "@hono/zod-openapi"]);
@@ -58,7 +74,7 @@ const packageRules = [
     comment: "D2：contract 不 import react、@prisma/*（02 第 5.4 节）",
     severity: "error",
     from: { path: "^packages/contract/" },
-    to: { path: `${thirdParty(["react", "react-dom"])}|(?:^|/)node_modules/@prisma/|^@prisma/` },
+    to: { path: `${thirdParty(["react", "react-dom"])}|${thirdPartyScope("prisma")}` },
   },
   {
     name: "shared-only-contract",

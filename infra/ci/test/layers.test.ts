@@ -396,9 +396,10 @@ describe("夹具的结果不随检出位置与外面装了什么而变", () => {
     const checkout = checkoutBelow(["@types/react"], fixtures);
     for (const fixture of fixtures) expectViolations(fixture, checkout);
     // 对照：不设界时 react 被解析成 ../../node_modules/@types/react/index.d.ts，结果与 expected 不同
-    //（眼下的规则认不出这个路径，react 那一条整条不见）
+    //（规则把类型包按 react 算，react 那一条照样报出，只是终点成了这个路径、不再是包名）
     for (const fixture of fixtures) {
       const result = cruiseFixture(join(checkout, fixture), false);
+      expect(result.output).toContain("→ ../../node_modules/@types/react/index.d.ts");
       expect(result.violations, fixture).not.toEqual(sorted(fixture));
     }
   });
@@ -490,6 +491,50 @@ describe("规则与夹具对得上", () => {
     expect(
       pattern("db-only-from-services").test(pnpm("pg-pool@3.0.0", "pg-pool", "index.js")),
     ).toBe(false);
+
+    // 类型包按它描述的那个包算：只装了类型包、没装本体时，终点落在 node_modules/@types/ 下
+    const types = (name: string, version = "1.0.0") =>
+      pnpm(`@types+${name}@${version}`, `@types/${name}`, "index.d.ts");
+    const hits: Record<string, string[]> = {
+      "shared-no-react": ["react", "react-dom"],
+      "contract-no-react-prisma": ["react", "react-dom", "prisma__client", "prisma__adapter-pg"],
+      "db-only-from-services": ["pg", "prisma__client"],
+      "shared-no-zod": ["zod", "hono__zod-openapi"],
+      "weapp-no-zod": ["zod", "hono__zod-openapi"],
+    };
+    // 名字只是开头相同的别的类型包：不误报。prisma__adapter-pg 只有 contract 那条按整个 scope 拦
+    const misses: Record<string, string[]> = {
+      "shared-no-react": ["react-is", "react-router", "pg"],
+      "contract-no-react-prisma": ["react-is", "prismatic", "pg"],
+      "db-only-from-services": ["pg-pool", "prisma__adapter-pg", "react"],
+      "shared-no-zod": ["zod-to-x", "hono__node-server", "react"],
+      "weapp-no-zod": ["zod-to-x", "hono__node-server", "react"],
+    };
+    for (const [name, packages] of Object.entries(hits)) {
+      for (const pkg of packages) {
+        expect(pattern(name).test(types(pkg)), `${name} ← @types/${pkg}`).toBe(true);
+        // 没跟着软链接走到 .pnpm 时，路径是工作区包自己的 node_modules
+        expect(
+          pattern(name).test(`packages/shared/node_modules/@types/${pkg}/index.d.ts`),
+          `${name} ← @types/${pkg}`,
+        ).toBe(true);
+        // 直接按类型包的名字引用、又解析不了时，留下的是类型包的名字
+        expect(pattern(name).test(`@types/${pkg}`), `${name} ← @types/${pkg}`).toBe(true);
+      }
+    }
+    for (const [name, packages] of Object.entries(misses)) {
+      for (const pkg of packages) {
+        expect(pattern(name).test(types(pkg)), `${name} ← @types/${pkg}`).toBe(false);
+        expect(pattern(name).test(`@types/${pkg}`), `${name} ← @types/${pkg}`).toBe(false);
+      }
+    }
+    // 把类型包当对等依赖的别的包：类型包的名字只出现在 .pnpm 那一段的目录名里，不误报
+    for (const name of Object.keys(hits)) {
+      expect(
+        pattern(name).test(pnpm("other@1.0.0_@types+react@18.3.1", "other", "index.js")),
+        name,
+      ).toBe(false);
+    }
   });
 });
 
@@ -622,6 +667,119 @@ describe("第三方包的入口在 dist/ 下也拦得住", () => {
     ]) {
       expect(exclude.test(path), path).toBe(false);
     }
+  });
+});
+
+describe("只装了类型包、没装本体时也拦得住", () => {
+  // dependency-cruiser 解析时除了 node_modules 还找 node_modules/@types。只装了 @types/react、没装 react 时，
+  // import type … from "react" 的终点是 node_modules/…/@types/react/index.d.ts，不在 node_modules/react/ 下；
+  // 规则把类型包按它描述的那个包算，才认得出这个终点。夹具里没有 node_modules，测不到这一段，
+  // 这里按 pnpm 的摆法在仓库外造一棵只装了类型包的树来验。
+
+  const cleanups: Array<() => void> = [];
+  afterEach(() => {
+    while (cleanups.length > 0) cleanups.pop()?.();
+  });
+
+  /** 仓库外的一棵空树。临时目录在 macOS 上是软链接；解析结果按真实路径算，起点也得是真实路径 */
+  function makeTree(): string {
+    const temp = makeTempDir("lyx-layers-types-");
+    cleanups.push(temp.cleanup);
+    return realpathSync(temp.dir);
+  }
+
+  /**
+   * 按 pnpm 的摆法只装一个类型包：实体在根的 node_modules/.pnpm/@types+<名>@<版本>/node_modules/@types/<名>/，
+   * 包清单只有 types、没有 main；owners 里声明它的工作区包下面各放一个指过去的软链接。返回解析后的路径
+   */
+  function installTypesOnly(
+    root: string,
+    owners: readonly string[],
+    name: string,
+    version: string,
+    declarations: string,
+  ): string {
+    const pkg = `@types/${name}`;
+    const location = `node_modules/.pnpm/@types+${name}@${version}/node_modules/${pkg}`;
+    writeFiles(join(root, location), {
+      "package.json": JSON.stringify({ name: pkg, version, types: "index.d.ts" }),
+      "index.d.ts": declarations,
+    });
+    for (const owner of owners) {
+      const link = join(root, owner, "node_modules", pkg);
+      mkdirSync(dirname(link), { recursive: true });
+      symlinkSync(join(root, location), link, "dir");
+    }
+    return `${location}/index.d.ts`;
+  }
+
+  it("只装了 @types/react、@types/pg 的树里，三条规则各报出一条，终点都在 node_modules/…/@types/ 下", () => {
+    const root = makeTree();
+    const usesReact = 'import type { ReactNode } from "react";\n\nexport type View = ReactNode;\n';
+    const usesPg = 'import type { Pool } from "pg";\n\nexport type Db = Pool;\n';
+    writeFiles(root, {
+      "packages/shared/src/view.ts": usesReact,
+      "packages/contract/src/view.ts": usesReact,
+      "apps/api/src/index.ts": usesPg,
+      // 对照：后台本来就用 react，services 本来就可以引 pg，这两条不该报出来
+      "apps/admin/src/index.ts": usesReact,
+      "packages/services/src/kernel/index.ts": usesPg,
+    });
+    const react = installTypesOnly(
+      root,
+      ["packages/shared", "packages/contract", "apps/admin"],
+      "react",
+      "18.3.1",
+      "export type ReactNode = unknown;\n",
+    );
+    const pg = installTypesOnly(
+      root,
+      ["apps/api", "packages/services"],
+      "pg",
+      "8.11.0",
+      "export interface Pool {\n  end(): Promise<void>;\n}\n",
+    );
+
+    const result = cruiseDir(root, ["apps", "packages"]);
+    expect(result.violations, result.output).toEqual(
+      [
+        `contract-no-react-prisma: packages/contract/src/view.ts → ${react}`,
+        `db-only-from-services: apps/api/src/index.ts → ${pg}`,
+        `shared-no-react: packages/shared/src/view.ts → ${react}`,
+      ].sort(),
+    );
+    expect(result.status, result.output).not.toBe(0);
+  });
+
+  it("带 scope 的包：按包名引用时解析不了、留下包名；直接按类型包的名字引用，终点是换了名的类型包。两种都报", () => {
+    // 带 scope 的包，类型包叫 @types/<scope>__<名>。dependency-cruiser 找的是 node_modules/@types/@prisma/client，
+    // 不做这个换名：只装了类型包时 import type … from "@prisma/client" 解析不了，留下的是包名。
+    // 换了名的类型包只在直接按它的名字引用时出现在终点里
+    const root = makeTree();
+    writeFiles(root, {
+      "packages/contract/src/client.ts":
+        'import type { PrismaClient } from "@prisma/client";\n\nexport type Client = PrismaClient;\n',
+      "packages/contract/src/direct.ts":
+        'import type { PrismaClient } from "@types/prisma__client";\n\nexport type Client = PrismaClient;\n',
+    });
+    const types = installTypesOnly(
+      root,
+      ["packages/contract"],
+      "prisma__client",
+      "1.0.0",
+      "export interface PrismaClient {\n  $disconnect(): Promise<void>;\n}\n",
+    );
+
+    const result = cruiseDir(root, ["packages"]);
+    expect(result.violations, result.output).toEqual(
+      [
+        "contract-no-react-prisma: packages/contract/src/client.ts → @prisma/client",
+        `contract-no-react-prisma: packages/contract/src/direct.ts → ${types}`,
+        "db-only-from-services: packages/contract/src/client.ts → @prisma/client",
+        `db-only-from-services: packages/contract/src/direct.ts → ${types}`,
+      ].sort(),
+    );
+    expect(result.status, result.output).not.toBe(0);
   });
 });
 
