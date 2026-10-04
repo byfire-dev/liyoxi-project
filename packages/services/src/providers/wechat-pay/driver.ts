@@ -86,7 +86,8 @@ export interface WechatPayDriver extends WechatPayProvider {
 
 export interface WechatPayDriverDeps {
   fetchImpl?: typeof fetch;
-  now?: () => Date;
+  /** 时钟必须注入（接入时给内核的时钟）：请求与调起支付的时间戳、应答与回调的 5 分钟判定都用它 */
+  now: () => Date;
   nonce?: () => string;
   logger?: ProviderLogger;
   beforeCall?: BeforeProviderCall;
@@ -97,14 +98,18 @@ const toFailure = (outcome: Extract<HttpOutcome, { ok: false }>): WechatPayFailu
   code: outcome.code,
 });
 
-/** 下载到的账单与申请时拿到的摘要值（SHA1，十六进制）是否一致 */
+/** 下载到的账单与申请时拿到的摘要值（SHA1，40 位十六进制）是否一致。摘要值的写法不对一律算不一致 */
 export function verifyBillDigest(bytes: Uint8Array, hashValue: string): boolean {
-  const actual = createHash("sha1").update(bytes).digest();
-  const expected = Buffer.from(hashValue.trim().toLowerCase(), "hex");
-  return expected.length === actual.length && timingSafeEqual(actual, expected);
+  const expected = hashValue.trim().toLowerCase();
+  // 先卡写法：Buffer.from(…, "hex") 遇到非法字符只是截断，后面跟着别的字符也会被当成一致
+  if (!/^[0-9a-f]{40}$/.test(expected)) return false;
+  return timingSafeEqual(createHash("sha1").update(bytes).digest(), Buffer.from(expected, "hex"));
 }
 
 const positiveFen = (value: number): boolean => Number.isSafeInteger(value) && value > 0;
+
+/** 应答验过签，但里面的单号不是请求的那个：丢弃应答，不把别的单的状态交给调用方 */
+const OTHER = "微信支付的应答里的单号与请求的不是同一个，应答已丢弃";
 
 /** 时刻 → RFC 3339，写成北京时间 */
 const rfc3339 = (at: Date): string =>
@@ -112,9 +117,9 @@ const rfc3339 = (at: Date): string =>
 
 export function createWechatPayDriver(
   config: WechatPayConfig,
-  deps: WechatPayDriverDeps = {},
+  deps: WechatPayDriverDeps,
 ): WechatPayDriver {
-  const now = deps.now ?? (() => new Date());
+  const { now } = deps;
   const nonce = deps.nonce ?? randomNonce;
   const verifiers = createVerifierTable(config.verifiers);
   const keyring = createApiV3Keyring(config.apiV3Keys.current, config.apiV3Keys.previous);
@@ -128,13 +133,22 @@ export function createWechatPayDriver(
     const out = await client.request({ method: "GET", path: `${path}?mchid=${mchid}` });
     if (!out.ok) return toFailure(out);
     const transaction = mapTransaction(out.json ?? {});
-    return transaction ? ok(transaction) : failed("unavailable", "微信支付的查单应答不合规");
+    if (!transaction) return failed("unavailable", "微信支付的查单应答不合规");
+    return transaction.outTradeNo === outTradeNo ? ok(transaction) : failed("unavailable", OTHER);
   }
 
-  function refundOf(out: HttpOutcome): ProviderResult<WechatPayRefund> {
+  /** 退款与退款查询的应答：单号要与请求的是同一个（outTradeNo 只有发起退款时核对） */
+  function refundOf(
+    out: HttpOutcome,
+    asked: { outRefundNo: string; outTradeNo?: string },
+  ): ProviderResult<WechatPayRefund> {
     if (!out.ok) return toFailure(out);
     const refund = mapRefund(out.json ?? {});
-    return refund ? ok(refund) : failed("unavailable", "微信支付的退款应答不合规");
+    if (!refund) return failed("unavailable", "微信支付的退款应答不合规");
+    const same =
+      refund.outRefundNo === asked.outRefundNo &&
+      (asked.outTradeNo === undefined || refund.outTradeNo === asked.outTradeNo);
+    return same ? ok(refund) : failed("unavailable", OTHER);
   }
 
   async function applyTradeBill(billDate: string): Promise<ProviderResult<TradeBillTicket | null>> {
@@ -271,13 +285,13 @@ export function createWechatPayDriver(
       if (input.reason !== undefined) body.reason = input.reason;
       if (config.refundNotifyUrl) body.notify_url = config.refundNotifyUrl;
       const path = "/v3/refund/domestic/refunds";
-      return refundOf(await client.request({ method: "POST", path, body }));
+      return refundOf(await client.request({ method: "POST", path, body }), input);
     },
 
     async queryRefund({ outRefundNo }) {
       hook("queryRefund");
       const path = `/v3/refund/domestic/refunds/${encodeURIComponent(outRefundNo)}`;
-      return refundOf(await client.request({ method: "GET", path }));
+      return refundOf(await client.request({ method: "GET", path }), { outRefundNo });
     },
 
     async applyTradeBill({ billDate }) {
@@ -308,7 +322,7 @@ export function createWechatPayDriver(
  */
 export function createWechatPay(
   settings: WechatPaySettings,
-  deps: WechatPayDriverDeps = {},
+  deps: WechatPayDriverDeps,
 ): WechatPayProvider {
   const resolved = resolveWechatPayConfig(settings);
   if (resolved.state === "unconfigured") return unconfiguredWechatPay;

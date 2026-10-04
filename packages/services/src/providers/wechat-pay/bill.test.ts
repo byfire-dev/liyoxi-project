@@ -81,6 +81,20 @@ describe("摘要值", () => {
     expect(verifyBillDigest(bytes, sha1.slice(2))).toBe(false);
     expect(verifyBillDigest(bytes, "")).toBe(false);
   });
+
+  it("对的 40 位十六进制后面（或前面、中间）跟着别的字符：不一致（复审补的）", () => {
+    for (const hashValue of [
+      `${sha1}zz`,
+      `${sha1} zz`,
+      `${sha1}00`,
+      `${sha1}\n${sha1}`,
+      `0x${sha1}`,
+      `${sha1.slice(0, 20)} ${sha1.slice(20)}`,
+      `${sha1.slice(0, 39)}g`,
+    ]) {
+      expect(verifyBillDigest(bytes, hashValue)).toBe(false);
+    }
+  });
 });
 
 describe("样本解析", () => {

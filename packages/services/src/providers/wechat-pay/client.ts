@@ -5,8 +5,11 @@
 //   连不上、超时、5xx、429                      → unavailable（可以重试）
 //   其余 4xx                                    → rejected（带微信的错误码，如 ORDER_NOT_EXIST）
 //   2xx 而应答验签不过（含时间戳超 5 分钟）     → unavailable：应答丢弃，由调用方重试（官方文档 4013053249 第 5 节）
-// 非 2xx 的应答不验签，只读错误码（官方 Go SDK 同此）。账单下载的应答不带签名，靠摘要值校验（unsigned）。
+// 非 2xx 的应答不验签，只读错误码（官方 Go SDK 同此；D2 第 10.2 节写“所有应答也要验签”，出入记在状态文件偏差里）。
+// 所以错误码是没验过签的：调用方拿它分支时要知道这一点（如 NO_STATEMENT_EXIST 不足以单独认定当日没有交易）。
+// 账单下载的应答不带签名，靠摘要值校验（unsigned）。
 // 错误信息只带状态码、错误码与微信的 Request-ID；请求体、Authorization 头、地址里的查询串都不进信息与日志。
+// 时钟必须注入（deps.now）：请求时间戳与应答时间戳的 5 分钟判定都用它，不取系统时间。
 
 import { randomBytes } from "node:crypto";
 import type { KeyObject } from "node:crypto";
@@ -43,7 +46,7 @@ export interface ClientConfig {
 export interface ClientDeps {
   verifiers: VerifierTable;
   fetchImpl?: typeof fetch;
-  now?: () => Date;
+  now: () => Date;
   /** 请求随机串；缺省 32 位大写十六进制 */
   nonce?: () => string;
   logger?: ProviderLogger;
@@ -78,9 +81,13 @@ export interface WechatPayClient {
 
 export const randomNonce = (): string => randomBytes(16).toString("hex").toUpperCase();
 
+// 错误码与 Request-ID 取自没验签的应答：只放行各自的写法（如 ORDER_NOT_EXIST），别的不进结果、信息与日志
+const ERROR_CODE = /^[A-Z][A-Z0-9_]{1,63}$/;
+const REQUEST_ID = /^[\w-]{1,64}$/;
+
 export function createClient(config: ClientConfig, deps: ClientDeps): WechatPayClient {
   const doFetch = deps.fetchImpl ?? fetch;
-  const now = deps.now ?? (() => new Date());
+  const { now } = deps;
   const baseUrl = config.baseUrl ?? DEFAULT_BASE_URL;
 
   async function request(spec: RequestSpec): Promise<HttpOutcome> {
@@ -138,9 +145,10 @@ export function createClient(config: ClientConfig, deps: ClientDeps): WechatPayC
       return failure("unavailable", "连不上或超时");
     }
     const { status } = response;
-    const requestId = response.headers.get("Request-ID");
+    const requestId = REQUEST_ID.exec(response.headers.get("Request-ID") ?? "")?.[0];
     if (status < 200 || status >= 300) {
-      const code = text(parseObject(bytes.toString("utf8"))?.code);
+      const raw = text(parseObject(bytes.toString("utf8"))?.code) ?? "";
+      const code = ERROR_CODE.test(raw) ? raw : undefined;
       const retryable = status >= 500 || status === 429;
       return retryable
         ? failure("unavailable", "暂时不可用", status, code, requestId)

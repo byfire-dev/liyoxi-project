@@ -5,6 +5,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestSetup } from "./__fixtures__/test-setup.js";
 import type { TestSetup } from "./__fixtures__/test-setup.js";
 import {
+  generateCertificateIdentity,
   generateIdentity,
   notificationBody,
   refundResource,
@@ -15,6 +16,7 @@ import { DEFAULT_TIMEOUT_MS } from "./client.js";
 import type { WechatPayConfig } from "./config.js";
 import { createWechatPayDriver } from "./driver.js";
 import type { WechatPayDriver, WechatPayDriverDeps, WechatPayFailure } from "./driver.js";
+import type { ResourceCipher } from "./keyring.js";
 import { miniProgramPaySignMessage, requestSignMessage, rsaVerify } from "./sign.js";
 
 // 八个方法的请求与应答（X-04 任务书 第 7 节第 4 条）。用注入的 fetchImpl 扮演微信支付：
@@ -290,6 +292,63 @@ describe("查单 queryByOutTradeNo", () => {
     expect(await driver().queryByOutTradeNo({ outTradeNo: NO })).toMatchObject({
       ok: false,
       reason: "unavailable",
+    });
+  });
+});
+
+describe("应答里的单号要与请求的是同一个（复审补的）", () => {
+  it("查单：应答验签通过但写的是别的商户单号，丢弃应答，不可用", async () => {
+    replies.push(signed(200, transactionResource({ out_trade_no: "FK20261004000002c3d4" })));
+    const result = await driver().queryByOutTradeNo({ outTradeNo: NO });
+    expect(result).toMatchObject({ ok: false, reason: "unavailable" });
+    expect(JSON.stringify(result)).toContain("不是同一个");
+    expect(JSON.stringify(result)).not.toContain("FK20261004000002c3d4");
+  });
+
+  it("关单被拒后的回查：回查到的是别的单的“已支付”，不当作本单已支付", async () => {
+    replies.push(
+      refused(400, "INVALID_REQUEST"),
+      signed(200, transactionResource({ out_trade_no: "FK20261004000002c3d4" })),
+    );
+    expect(await driver().closeOrder({ outTradeNo: NO })).toMatchObject({
+      ok: false,
+      reason: "unavailable",
+    });
+  });
+
+  it("退款：应答里的退款单号或商户单号不是请求的，丢弃应答；退款查询只核对退款单号", async () => {
+    const accepted = {
+      refund_id: "50000000002026100400000000001",
+      out_refund_no: "TK20261004000001",
+      out_trade_no: NO,
+      status: "PROCESSING",
+      amount: { total: 19900, refund: 19900 },
+    };
+    const input = {
+      outTradeNo: NO,
+      outRefundNo: "TK20261004000001",
+      refundFen: 19900,
+      totalFen: 19900,
+    };
+    replies.push(
+      signed(200, { ...accepted, out_refund_no: "TK20261004000002" }),
+      signed(200, { ...accepted, out_trade_no: "FK20261004000002c3d4" }),
+      signed(200, { ...accepted, out_refund_no: "TK20261004000002" }),
+      signed(200, { ...accepted, out_trade_no: "FK20261004000002c3d4" }),
+    );
+    for (const call of [
+      () => driver().createRefund(input),
+      () => driver().createRefund(input),
+      () => driver().queryRefund({ outRefundNo: "TK20261004000001" }),
+    ]) {
+      const result = await call();
+      expect(result).toMatchObject({ ok: false, reason: "unavailable" });
+      expect(JSON.stringify(result)).toContain("不是同一个");
+    }
+    // 退款查询的入参只有退款单号：商户单号不同照常返回，由调用方与退款交易所指的收款核对
+    expect(await driver().queryRefund({ outRefundNo: "TK20261004000001" })).toMatchObject({
+      ok: true,
+      value: { outRefundNo: "TK20261004000001", outTradeNo: "FK20261004000002c3d4" },
     });
   });
 });
@@ -645,6 +704,74 @@ describe("应答验签、超时与错误归一", () => {
     expect(JSON.stringify(result)).toContain("应答验签失败");
   });
 
+  it("应答验签按 Wechatpay-Serial 选公钥：公钥与平台证书并存时，谁的序列号就用谁的公钥验", async () => {
+    const certificate = generateCertificateIdentity();
+    const both: Partial<WechatPayConfig> = {
+      verifiers: [
+        ...setup.config.verifiers,
+        { serial: certificate.serial, pem: certificate.certificatePem },
+      ],
+    };
+    const reply =
+      (signer: typeof setup.platform, serial: string): Reply =>
+      () =>
+        new Response(body, {
+          status: 200,
+          headers: { ...signedHeaders(signer, body, NOW), "Wechatpay-Serial": serial },
+        });
+    // 各用各的：都通过
+    replies.push(
+      reply(setup.platform, setup.platform.serial),
+      reply(certificate, certificate.serial),
+    );
+    expect(await query(both)).toMatchObject({ ok: true });
+    expect(await query(both)).toMatchObject({ ok: true });
+    // 互相冒用：签名是表里另一把密钥签的，序列号写的是这一把，不通过（“表里有一把验得过就算过”拦不住这两例）
+    replies.push(
+      reply(certificate, setup.platform.serial),
+      reply(setup.platform, certificate.serial),
+    );
+    for (let round = 0; round < 2; round += 1) {
+      const result = await query(both);
+      expect(result).toMatchObject({ ok: false, reason: "unavailable" });
+      expect(JSON.stringify(result)).toContain("应答验签失败");
+    }
+  });
+
+  it.each([
+    ["小写", "order_not_exist"],
+    ["带空格与说明", "ORDER_NOT_EXIST 订单不存在"],
+    ["带换行", "PARAM_ERROR\nlevel=error msg=伪造的日志行"],
+    ["带入参", `ORDER:${NO}`],
+    ["太长", "A".repeat(65)],
+    ["不是字符串", 40401],
+  ])("错误码取自没验签的应答体，写法不认（%s）：不带进结果、信息与日志", async (_name, code) => {
+    const logged: unknown[] = [];
+    const logger = { warn: (...args: unknown[]) => void logged.push(args) };
+    replies.push(() => new Response(JSON.stringify({ code, message: "x" }), { status: 400 }));
+    const result = (await driver(
+      {},
+      { logger: logger as WechatPayDriverDeps["logger"] },
+    ).queryByOutTradeNo({ outTradeNo: NO })) as WechatPayFailure;
+    expect(result).toMatchObject({ ok: false, reason: "rejected" });
+    expect(result.code).toBeUndefined();
+    expect(result.message).toBe("微信支付拒绝了请求（HTTP 400）");
+    expect(JSON.stringify(logged)).not.toContain(String(code).slice(0, 8));
+  });
+
+  it("Request-ID 同样取自没验签的应答：写法不认的不带进信息与日志", async () => {
+    replies.push(
+      () =>
+        new Response(JSON.stringify({ code: "PARAM_ERROR" }), {
+          status: 400,
+          headers: { "Request-ID": "REQ 1 level=error msg=forged" },
+        }),
+    );
+    const result = (await query()) as WechatPayFailure;
+    expect(result).toMatchObject({ ok: false, reason: "rejected", code: "PARAM_ERROR" });
+    expect(result.message).toBe("微信支付拒绝了请求（HTTP 400，PARAM_ERROR）");
+  });
+
   it("204 的空应答同样要验签", async () => {
     replies.push(() => new Response(null, { status: 204 }));
     expect(await driver().closeOrder({ outTradeNo: NO })).toMatchObject({
@@ -816,6 +943,14 @@ describe("回调入口（驱动上的两个写法）与重处理", () => {
     expect(result).toMatchObject({ id: "EV-0001", kid: "v2", serial: setup.platform.serial });
     expect(subject.reopenResource(result.resourceCipher, "v2")).toEqual(result.resource);
     expect(subject.reopenResource(result.resourceCipher, "v1")).toBeNull();
+  });
+
+  it("reopenResource：收件行里的 resourceCipher 已清除或存坏了，返回 null，不抛错", () => {
+    const subject = driver();
+    const broken = [null, undefined, {}, { algorithm: "AEAD_AES_256_GCM", nonce: "n" }];
+    for (const cipher of broken as unknown as ResourceCipher[]) {
+      expect(subject.reopenResource(cipher, "v2")).toBeNull();
+    }
   });
 
   it("生效状态是驱动名，configured 为 true", () => {
