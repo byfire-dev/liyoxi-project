@@ -1,0 +1,19 @@
+{
+  "说明": [
+    "微信支付官方 SDK 仓库里自带的测试向量，原样收入（X-04 任务书 第 11 节第 1 项）。vectors.test.ts 逐条核对。只收公开的证书、输入、签名与密文，不收任何私钥。",
+    "没有收的一处：官方 Java SDK（wechatpay-java 0.2.17）AeadAesCipherTest 的加密向量。它要连同 SDK 仓库里那把公开的测试 APIv3 密钥一起才能用，而那把密钥形似真密钥，入库会被密钥扫描拦下。改由 pnpm wxpay:vectors 现场从 SDK 仓库取回核对，结果记在 cross-check.json 的 officialJavaAead（不含密钥）。"
+  ],
+  "goNotification": {
+    "source": "官方 Go SDK github.com/wechatpay-apiv3/wechatpay-go v0.2.21（提交 6dbd7ce2ec5967ac2de5fa053479b411967b9c29），core/notify/notify_test.go 的 TestHandler_ParseNotifyRequest",
+    "note": "一条完整的通知：平台证书、四个请求头、请求体。本实现用它核对“按证书序列号选平台证书验签”。它的解密部分用不上：SDK 这条用例的 APIv3 密钥只有 16 个字节（实际是 AES-128），而真实的 APIv3 密钥固定 32 个字节，本实现只认 32 个字节。",
+    "certificatePem": "-----BEGIN CERTIFICATE-----\nMIIDVzCCAj+gAwIBAgIJANfOWdH1ItcBMA0GCSqGSIb3DQEBCwUAMEIxCzAJBgNV\nBAYTAlhYMRUwEwYDVQQHDAxEZWZhdWx0IENpdHkxHDAaBgNVBAoME0RlZmF1bHQg\nQ29tcGFueSBMdGQwHhcNMjEwNDI3MDg1NTIzWhcNMzEwNDI1MDg1NTIzWjBCMQsw\nCQYDVQQGEwJYWDEVMBMGA1UEBwwMRGVmYXVsdCBDaXR5MRwwGgYDVQQKDBNEZWZh\ndWx0IENvbXBhbnkgTHRkMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA\n2VCTd91fnUn73Xy9DLvt/V62TVxRTEEstVdeRaZ3B3leO0pldE806mXO4RwdHXag\nHQ4vGeZN0yqm++rDsGK+U3AH7kejyD2pXshNP9Cq5YwbptiLGtjcquw4HNxJQUOm\nDeJf2vg6byms9RUipiq4SzbJKqJFlUpbuIPDpSpWz10PYmyCNeDGUUK65E5h2B83\n4uxl1zNLYQCrkdBzb8oUxwYeP5a2DNxmjL5lsJML7DGr5znsevnoqGRwTm9fxCGf\ny8wus7hwKz6clt3Whmmda7UAdb1c08hEQFVRbF14AR73xbnd8N0obCWJPCbzMCtk\naSef4FdEEgEXJiw0VAJT8wIDAQABo1AwTjAdBgNVHQ4EFgQUT1c7nd/SUO76HSoZ\numNUJv1R5PwwHwYDVR0jBBgwFoAUT1c7nd/SUO76HSoZumNUJv1R5PwwDAYDVR0T\nBAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAfTjxKRQMzNB/U6ZoCUS+BSNfa2Oh\n0plMN6ZuzwiVVZwg1jywvv5yv04koS7Pd4i9E4gt9ZBUQXlpq+A3oOCEEHNRR6b2\nkyazGRM7s0OP5X21WrbpSmKmU6K7hkfx30yYs08LVs/Q8DIhvaj1FCFeJzUCzYn/\nfHMq4tsbKO0dKAeydPM/nrUZBmaYQVKMVOORGLFjFKVO7JV6Kq/R86ouhjEPgJOe\n2xulNBUcjicqtZlBdEh/PWCYP2SpGVDclKm8jeo175T3EVAkdKzzmfpxtMmnMlmq\ncTJOU9TxuGvNASMtjj7pYIerTx+xgZDXEVBWFW9PjJ0TV06tCRsgSHItgg==\n-----END CERTIFICATE-----\n",
+    "serial": "D7CE59D1F522D701",
+    "timestamp": "1624523846",
+    "nonce": "EcZ9Cmy4Xyx1i6RlJQzLcCyEqDa26NBz",
+    "signature": "tJHIiIS9eB2hAYstmAmbbD3ZE5LiIm/Ug5tuL4fC0YOFRWIHV39UFIZXC0e9Wl6lBu6sKvkqDkzpqzBsVHyXFlbYZTOQrVdG4b6LfTnK4mikv9++ixJMd3vTf2yCqvBkh98zs3Ds5zsYQakzbcwhmw4fMJs4nPLws28H0UW9FjDR//rxELLwXvV1VEA1IBLX70xptjL8hrfUjEE8kkry6yNJTHZRU8CAc7qHli2Ng1V1qb9ARbK8A3ThmFmPQvRGrapI/jS2laKKgYUmfdEdkNO6B2Cke5e8VTxY406ArAmQ90GAihDwIcb16TQMnzCMBoutnwZKNiKRACrFmtxw2Q==",
+    "body": "{\"id\":\"3119dfba-e649-5eec-ab1e-3412bc4d2e17\",\"create_time\":\"2021-06-24T16:37:26+08:00\",\"resource_type\":\"encrypt-resource\",\"event_type\":\"PAYSCORE.USER_OPEN_SERVICE\",\"summary\":\"签约成功\",\"resource\":{\"original_type\":\"payscore\",\"algorithm\":\"AEAD_AES_256_GCM\",\"ciphertext\":\"YDS3lKPaC4Y52Gf3uhft5qUBlIa8b428AWTtTauHQfQrRw+X1WpiuHIDy0vo1Vd6VEq67aVyqPdDYMkRVSDaZL3iZttevRMOoPKMifozg6XPWjIZumks/GpT48lI4NizyeaqLBokNebthah3o1H76qSlO9NkDjp9bzmKLEYYH9TEklFUpsvPqOTOcgSLgh21YJXYR7dEBXFgRLiNIKRgO5JdXh1hccRUAlyVWxE54PXpnQ==\",\"associated_data\":\"payscore\",\"nonce\":\"Kj7QIyUiYx1q\"}}",
+    "id": "3119dfba-e649-5eec-ab1e-3412bc4d2e17",
+    "eventType": "PAYSCORE.USER_OPEN_SERVICE",
+    "plaintext": "{\"mchid\":\"1234567890\",\"appid\":\"054aa7d7a2a54ab5898df65bd96f001c\",\"create_time\":\"2020-06-30T12:12:00+08:00\",\"out_contract_code\":\"21640bdbd08e473e828f3206a2741c6e\"}"
+  }
+}

@@ -29,7 +29,8 @@
     "design:check": "pnpm design:generate && git diff --exit-code -- packages/shared/src/design/generated && node infra/ci/check-untracked.mjs packages/shared/src/design/generated",
     "lint:colors": "node infra/ci/check-colors.mjs",
     "mediatool:verify": "node infra/docker/mediatool/verify/run.mjs verify",
-    "mediatool:bench": "node infra/docker/mediatool/verify/run.mjs bench"
+    "mediatool:bench": "node infra/docker/mediatool/verify/run.mjs bench",
+    "wxpay:vectors": "vitest run --config packages/services/src/providers/wechat-pay/__fixtures__/vectors.vitest.config.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",
