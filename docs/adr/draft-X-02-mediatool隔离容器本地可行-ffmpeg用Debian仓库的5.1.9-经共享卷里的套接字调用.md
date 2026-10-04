@@ -28,7 +28,7 @@ mediatool 按 D5 第 6.6 节的约定在本地可行，V11 的本地部分通过
 | ffmpeg / ffprobe | 5.1.9，Debian 12 官方仓库的包 `ffmpeg=7:5.1.9-0+deb12u1`，`apt-get install --no-install-recommends`，版本号写死在 `Dockerfile`；装完当场核对版本 |
 | 软件源 | 走 HTTPS（`https://deb.debian.org`）。基础镜像没带系统根证书，用 Node 自带的那一份给 apt 验证书，装完即删，软件源文件改回原样 |
 | 其余 | 拿掉 npm、yarn、corepack；用户 `1000:1000`（基础镜像自带的 `node`）；`/work` 属于它；自带 `HEALTHCHECK` |
-| 大小 | 约 239MB（基础镜像约 81MB）。ffmpeg 连带装了 196 个包 |
+| 大小 | 压缩后约 239MB（基础镜像约 81MB），解开后文件系统约 614MB：ffmpeg 连带装了 196 个包，占约 416MB |
 
 没有换官方静态构建：任务书 第 11 节第 2 项说的是仓库里的 ffmpeg 读不回 AIGC 或不支持所需参数时才换，5.1.9 都支持。
 
@@ -104,7 +104,7 @@ mediatool 按 D5 第 6.6 节的约定在本地可行，V11 的本地部分通过
 
 ## 代价
 
-1. 镜像约 239MB，ffmpeg 带进来 196 个包。Debian 给 ffmpeg 出安全更新后旧版本会撤掉，镜像构建会失败：改版本号、重跑验证、单独成 PR（`infra/docker/mediatool/README.md` 第 7 节）。
+1. 镜像压缩后约 239MB、解开后约 614MB，ffmpeg 带进来 196 个包。Debian 给 ffmpeg 出安全更新后旧版本会撤掉，镜像构建会失败：改版本号、重跑验证、单独成 PR（`infra/docker/mediatool/README.md` 第 7 节）。
 2. 容器内服务约 870 行（含注释与空行），比 D5 第 6.6 节说的“约两百行”多：多在体检报告的整形、路径核对、排队与自查。
 3. 带数据轨的 mov（如时间码轨 `tmcd`）按 `-map 0` 流拷贝成 mp4 会失败，报 `remux_failed`。剪辑软件导出的 mov 常带这条轨。G3-A 要定：拒收并提示导出时去掉，还是把参数改成只带音视频轨（改参数要回写 D5 第 6.6 节）。
 4. 没有验的：硬超时的 30 / 90 秒上限没有用跑满的输入验过；`mp3`、`wav`、`aac` 三个解复用器在白名单里但没有验；封面只做结构检查，不解码；抖音、视频号的上传页能否读到标识（任务书不做，业主手验后记入 V11 备注）；业主的真实样片（放到 `~/.lyx/samples/x02/` 后重跑 `pnpm mediatool:verify` 即加测）。
