@@ -4,3 +4,4 @@ export { z } from "./zod.js";
 
 export * from "./errors/index.js";
 export * from "./common/index.js";
+export * from "./routes/index.js";
