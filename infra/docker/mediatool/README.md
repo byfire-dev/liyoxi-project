@@ -1,6 +1,6 @@
 # mediatool：隔离的媒体工具容器
 
-依据：[D5](../../../docs/appendix/design/d5-media.md) 第 6.2、6.6、12.1 节；[04](../../../docs/04-adr.md) ADR-030；[D7](../../../docs/appendix/design/d7-platform.md) 第 7.4 节；X-02 任务书。验证结论见 [ADR](../../../docs/adr/draft-X-02-mediatool隔离容器本地可行-ffmpeg用Debian仓库的5.1.9-经共享卷里的套接字调用.md)。
+依据：[D5](../../../docs/appendix/design/d5-media.md) 第 6.2、6.6、12.1 节；[04](../../../docs/04-adr.md) ADR-030；[D7](../../../docs/appendix/design/d7-platform.md) 第 7.4 节；X-02 任务书。验证结论见 [ADR](../../../docs/adr/0043-mediatool隔离容器本地可行-ffmpeg用Debian仓库的5.1.9-经共享卷里的套接字调用.md)。
 
 商家上传的视频来自任意注册用户，ffmpeg 是历史漏洞密集的解析器。所以解析放在这个容器里做：它没有网络、没有密钥、根文件系统只读，只读写一个与调用端共享的目录。本文写给 W1-22（整套 Compose 复用这份镜像定义）与 G3-A（媒体任务接上调用端）。
 

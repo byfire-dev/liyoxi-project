@@ -1,4 +1,4 @@
-# ADR-待分配 mediatool 隔离容器本地可行：ffmpeg 用 Debian 12 仓库的 5.1.9，经共享卷里的 Unix 套接字调用
+# ADR-043 mediatool 隔离容器本地可行：ffmpeg 用 Debian 12 仓库的 5.1.9，经共享卷里的 Unix 套接字调用
 
 | 项 | 内容 |
 | --- | --- |
