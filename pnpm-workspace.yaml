@@ -1,0 +1,24 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# 安装脚本默认不执行，只放行下面的白名单（02 第 5.1 节第 3 条）
+onlyBuiltDependencies:
+  - "@parcel/watcher"
+  - "@prisma/client"
+  - "@prisma/engines"
+  - "@swc/core"
+  - "@tarojs/binding"
+  - esbuild
+  - prisma
+  - sharp
+
+# 发布未满 7 天的版本不安装，单位是分钟（02 第 5.1 节第 2 条；ADR-035）
+minimumReleaseAge: 10080
+
+# 一个包的发布可信级别不得低于它更早发布的版本（按发布日期比，不按版本号）
+trustPolicy: no-downgrade
+
+# 可信级别的豁免，逐个写到精确版本，原因登记在 02 第 5.5 节
+trustPolicyExclude:
+  - "semver@6.3.1"

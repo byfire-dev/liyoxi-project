@@ -1,0 +1,19 @@
+# 依赖、构建与测试产物
+node_modules
+dist
+coverage
+pnpm-lock.yaml
+
+# 依据文档、设计稿与校验工具：不格式化（表格是手排的）
+docs/
+design/
+tools/
+*.md
+
+# 智能体会话的 git worktree
+.claude/worktrees/
+
+# 生成物：只认这三个路径模式，后面的包把生成物放进这里，不再加忽略项
+**/generated/**
+packages/db/snapshot/**
+packages/contract/golden/**

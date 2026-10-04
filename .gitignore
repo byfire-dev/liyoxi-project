@@ -18,3 +18,9 @@ coverage/
 # 日志与临时文件
 *.log
 .logs/
+
+# 智能体会话的 git worktree
+.claude/worktrees/
+
+# TypeScript 增量构建信息
+*.tsbuildinfo

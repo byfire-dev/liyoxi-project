@@ -1,0 +1,3 @@
+{
+  "extends": "../../../../packages/config/tsconfig/web-react19.json"
+}

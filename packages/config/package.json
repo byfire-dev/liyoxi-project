@@ -1,0 +1,11 @@
+{
+  "name": "@liyoxi/config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "共享 tsconfig 预设与 ESLint 规则片段",
+  "type": "module",
+  "files": [
+    "tsconfig",
+    "eslint"
+  ]
+}

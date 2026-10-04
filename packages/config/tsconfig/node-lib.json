@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "rootDir": "${configDir}",
+    "types": ["node"]
+  },
+  "include": ["${configDir}/src", "${configDir}/test", "${configDir}/scripts", "${configDir}/*.ts"]
+}
