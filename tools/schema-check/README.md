@@ -2,7 +2,7 @@
 
 校验 [docs/data-model/](../../docs/data-model/README.md) 里的数据库结构草稿是否自洽：
 
-1. Prisma（版本锁定 7.10.0）校验 `schema.prisma`；
+1. Prisma（版本锁定 7.9.1）校验 `schema.prisma`；
 2. 离线生成建表语句，在临时 PostgreSQL 库里真正执行；
 3. 按顺序执行 `constraints/` 里的手写约束（CHECK、部分唯一索引、排他约束、触发器）；
 4. 逐列比对各分组文档的字段表与库里的实际结构；

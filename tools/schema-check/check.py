@@ -2,7 +2,7 @@
 """校验数据模型草稿。
 
 步骤：
-1. 用 Prisma 7.10.0 对 docs/data-model/schema.prisma 做 format 检查与 validate；
+1. 用 Prisma 7.9.1 对 docs/data-model/schema.prisma 做 format 检查与 validate；
 2. 离线生成建表语句（prisma migrate diff --from-empty）；
 3. 在一个临时数据库里执行建表语句，再按文件名顺序执行 docs/data-model/constraints/*.sql；
 4. 逐列比对各分组文档里的字段表与库里的实际结构（列名、类型、可空）；
