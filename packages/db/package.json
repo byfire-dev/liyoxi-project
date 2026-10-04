@@ -16,7 +16,7 @@
     "migrate:deploy": "prisma migrate deploy",
     "migration:build": "node scripts/build-init-migration.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "build": "echo '源码包：exports 直接指向 src，没有构建'"
   },
   "dependencies": {
