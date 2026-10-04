@@ -32,6 +32,10 @@
 //                  这个包自己声明的 peer 依赖除外
 //   layers         只许新增模块登记；改已登记模块的层、改同层策略或白名单算放松
 //   registry       门禁文件清单只许新增条目
+//   generated      入库的生成物（计划 第 5.3 节“重新生成的生成物”属只增）。内容有变、新增文件都算只增并列出，不逐行判；
+//                  它与源码一致不一致本脚本不判，全靠条目的 check 写的那道检查（重新生成后比对，在 CI 的 verify 里跑；
+//                  写的命令是不是真在跑由 infra/ci/test/gate-generated.test.ts 核对）。条目没写 check 的判不出，算放松；
+//                  内容没变而文件属性变了、文件类型变了（改成符号链接之类）也判不出，算放松
 //   删除任何门禁文件都算放松。
 // 结论：没有放松项即通过。有放松项时 PR 必须带 gate-change 标签；带 gate-change 的 PR 不得改门禁文件以外的路径。
 // 退出码：0 通过；1 不通过；2 用法或环境错误。
@@ -720,6 +724,14 @@ function byLayers({ baseText, headText }) {
   return { touch, loosen };
 }
 
+/** generated 条目写的检查命令：没写、写的不是字符串、只有空白，都算没写（返回空串） */
+const checkOf = (entry) => (typeof entry?.check === "string" ? entry.check.trim() : "");
+/** 清单里新增条目时列出的口径：generated 另带上它的检查命令，业主在清单里就能看到由哪道检查把关 */
+const kindLabel = (entry) =>
+  entry?.kind === "generated"
+    ? `generated，检查：${checkOf(entry) || "没写"}`
+    : String(entry?.kind);
+
 function byRegistry({ baseText, headText }) {
   const touch = [];
   const loosen = [];
@@ -731,7 +743,7 @@ function byRegistry({ baseText, headText }) {
   const [before, after] = [index(base), index(head)];
   if (baseText === null) return { touch: [`新增门禁文件清单，共 ${after.size} 条`], loosen };
   for (const [pattern, entry] of after) {
-    if (!before.has(pattern)) touch.push(`新增门禁文件条目 \`${pattern}\`（${entry.kind}）`);
+    if (!before.has(pattern)) touch.push(`新增门禁文件条目 \`${pattern}\`（${kindLabel(entry)}）`);
     else if (stable(before.get(pattern)) !== stable(entry))
       loosen.push(`改了已有的门禁文件条目 \`${pattern}\``);
   }
@@ -761,6 +773,38 @@ function byNewFile(change, entry) {
   return { touch: [], loosen: [`改了已有的${note}：这类文件只许新增，改已有的判不出是不是放松`] };
 }
 
+/**
+ * generated：入库的生成物（脚本从源码生成，不手改）。内容有变、新增文件都算只增并列出，不逐行判：
+ * 生成物里的行会随源码整段地变，逐行判只会把正常的重新生成判成放松。
+ * 它与源码一致不一致，这里不判，全靠条目的 check 写的那道检查（重新生成后比对）。所以条目必须写 check：
+ * 没写就没有检查替它把关，判不出，按放松算。check 写的命令是不是真在 CI 的 verify 里跑、是不是
+ * “重新生成 → git diff --exit-code -- 该目录”，由 infra/ci/test/gate-generated.test.ts 核对。
+ * 删除生成物由主流程按“删除了门禁文件”判。改生成脚本本身不归这个口径管。
+ */
+function byGenerated(change, entry) {
+  const check = checkOf(entry);
+  if (check === "") {
+    return {
+      touch: [],
+      loosen: [
+        `条目 \`${entry.pattern}\` 没有写明把关它的检查命令（check），判不出这份生成物与源码是否一致`,
+      ],
+    };
+  }
+  const guard = `与源码一致由 \`${check}\` 把关`;
+  if (change.status === "A") return { touch: [`新增生成物（${guard}）`], loosen: [] };
+  if (change.status !== "M") {
+    return { touch: [], loosen: [`生成物的文件类型有变（git 状态 ${change.status}），判不出`] };
+  }
+  if (change.baseText === change.headText) {
+    return { touch: [], loosen: ["生成物的内容没变而文件属性有变，判不出"] };
+  }
+  const count = (side) => change.hunks.reduce((sum, hunk) => sum + hunk[side].length, 0);
+  const [added, removed] = [count("added"), count("removed")];
+  const size = added + removed > 0 ? `：加 ${added} 行、删 ${removed} 行` : "";
+  return { touch: [`重新生成的生成物，内容有变${size}（${guard}）`], loosen: [] };
+}
+
 const KINDS = {
   append: (change) =>
     change.status === "A"
@@ -779,6 +823,7 @@ const KINDS = {
   lockfile: byLockfile,
   layers: byLayers,
   registry: byRegistry,
+  generated: byGenerated,
 };
 
 // ---------- 主流程 ----------
