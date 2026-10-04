@@ -2,20 +2,51 @@
   "name": "@liyoxi/shared",
   "version": "0.1.0",
   "private": true,
-  "description": "纯函数：计价与取整、周期日期、状态机表、工作日、格式化（由 W0-11 接）",
+  "description": "纯函数：计价与取整、周期日期、状态机表、工作日、格式化",
   "type": "module",
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./alloc": {
+      "types": "./src/alloc/index.ts",
+      "default": "./src/alloc/index.ts"
+    },
+    "./assert": {
+      "types": "./src/assert.ts",
+      "default": "./src/assert.ts"
+    },
+    "./format/money": {
+      "types": "./src/format/money.ts",
+      "default": "./src/format/money.ts"
+    },
+    "./period": {
+      "types": "./src/period/index.ts",
+      "default": "./src/period/index.ts"
+    },
+    "./pricing": {
+      "types": "./src/pricing/index.ts",
+      "default": "./src/pricing/index.ts"
+    },
+    "./time": {
+      "types": "./src/time/index.ts",
+      "default": "./src/time/index.ts"
+    },
+    "./workcal": {
+      "types": "./src/workcal/index.ts",
+      "default": "./src/workcal/index.ts"
     }
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "build": "echo '源码包：exports 直接指向 src，没有构建'"
   },
   "dependencies": {
     "@liyoxi/contract": "workspace:*"
+  },
+  "devDependencies": {
+    "fast-check": "4.10.2"
   }
 }
