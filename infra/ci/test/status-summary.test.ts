@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { makeTempDir, repoRoot, run, writeFiles } from "./helpers.js";
 
 // 状态汇总脚本的用例（W0-03 任务书 第 7 节第 11 条；docs/plan/status/README.md 第 5 节）。
+// 状态汇总不入库：--check 只核对状态文件合不合规，不写、不读、不比对 SUMMARY.md。
 
 const script = join(repoRoot, "infra/ci/status-summary.mjs");
 
@@ -62,10 +63,11 @@ function readyIds(summary: string): string[] {
 }
 
 describe("本仓库", () => {
-  it("SUMMARY.md 与各包的状态文件一致（改了状态文件要重新跑 pnpm status:summary）", () => {
+  it("各包的状态文件合规，能生成出汇总（--check 通过）", () => {
     const result = run("node", [script, "--check"], repoRoot);
     expect(result.stderr).toBe("");
     expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/状态文件核对通过：docs\/plan\/status 下 \d+ 个状态文件合规/);
   });
 });
 
@@ -139,7 +141,8 @@ describe("生成", () => {
     expect(first.read()).toBe(before);
     const check = run("node", [script, "--dir", first.dir, "--check"], repoRoot);
     expect(check.status).toBe(0);
-    expect(check.stdout).toContain("与 10 个状态文件一致");
+    expect(check.stdout).toContain("10 个状态文件合规");
+    expect(first.read()).toBe(before);
   });
 
   it("没有可开工的包时照实写", () => {
@@ -180,23 +183,97 @@ describe("状态文件有问题即报错", () => {
   });
 });
 
-describe("--check：汇总与状态文件不一致即失败", () => {
-  it("改了状态文件没重新生成", () => {
+// --check 与生成走的是同一套核对：同样失败，同样指出是哪个文件的哪一项，也不留下汇总文件
+describe("--check：状态文件有问题即失败，并点名", () => {
+  const check = (files: Record<string, string>) => summarize(files, ["--check"]);
+
+  it.each(["待评审", "已合并", "done", ""])("状态取值“%s”不在范围内", (status) => {
+    const outcome = check({ "W0-01.md": statusFile("W0-01", { status }) });
+    expect(outcome.status).toBe(1);
+    expect(outcome.stderr).toContain("状态文件核对未通过：1 处");
+    expect(outcome.stderr).toContain(`W0-01.md：状态“${status}”不在取值范围内`);
+    expect(() => outcome.read()).toThrow(/ENOENT/);
+  });
+
+  it("依赖里的包没有状态文件", () => {
+    const outcome = check({ "W0-02.md": statusFile("W0-02", { deps: "W0-01" }) });
+    expect(outcome.status).toBe(1);
+    expect(outcome.stderr).toContain("W0-02.md：依赖里的 W0-01 没有状态文件");
+  });
+
+  it("依赖里的“M<n> 退出”对不上任何里程碑", () => {
+    const outcome = check({ "W0-02.md": statusFile("W0-02", { deps: "M7 退出" }) });
+    expect(outcome.status).toBe(1);
+    expect(outcome.stderr).toContain("W0-02.md：依赖里的“M7 退出”对不上任何里程碑");
+  });
+
+  it("标题、“编号”一行与文件名不一致", () => {
+    const outcome = check({ "W0-09.md": statusFile("W0-01") });
+    expect(outcome.status).toBe(1);
+    expect(outcome.stderr).toContain("W0-09.md：标题、“编号”一行与文件名里的编号不一致");
+  });
+
+  it("字段表缺键", () => {
+    const text = statusFile("W0-01").replace(/^\| 依赖 .*\n/m, "");
+    const outcome = check({ "W0-01.md": text });
+    expect(outcome.status).toBe(1);
+    expect(outcome.stderr).toContain("W0-01.md：字段表缺 依赖");
+  });
+
+  it("第一行不是“# <编号> <名称>”", () => {
+    const text = statusFile("W0-01").replace(/^# .*\n/, "W0-01 没有井号\n");
+    const outcome = check({ "W0-01.md": text });
+    expect(outcome.status).toBe(1);
+    expect(outcome.stderr).toContain("W0-01.md：第一行要写成“# <编号> <名称>”");
+  });
+
+  it("几个文件各有问题时逐个点名，合规的不提", () => {
+    const outcome = check({
+      "W0-01.md": statusFile("W0-01", { status: "待评审" }),
+      "W0-02.md": statusFile("W0-02", { status: "完成" }),
+      "W0-03.md": statusFile("W0-03", { deps: "W0-99" }),
+    });
+    expect(outcome.status).toBe(1);
+    expect(outcome.stderr).toContain("状态文件核对未通过：2 处");
+    expect(outcome.stderr).toContain("W0-01.md：状态“待评审”不在取值范围内");
+    expect(outcome.stderr).toContain("W0-03.md：依赖里的 W0-99 没有状态文件");
+    expect(outcome.stderr).not.toContain("W0-02.md");
+  });
+});
+
+describe("--check：只核对状态文件，不写、不读、不比对汇总", () => {
+  it("没有汇总文件也通过，跑完也不留下汇总文件", () => {
+    const outcome = summarize({ "W0-01.md": statusFile("W0-01") }, ["--check"]);
+    expect(outcome.stderr).toBe("");
+    expect(outcome.status).toBe(0);
+    expect(outcome.stdout).toContain("1 个状态文件合规");
+    expect(() => outcome.read()).toThrow(/ENOENT/);
+  });
+
+  it("本地留着一份过期的汇总：照样通过，那份文件原样不动", () => {
     const first = summarize({ "W0-01.md": statusFile("W0-01") });
+    const stale = first.read();
     writeFileSync(join(first.dir, "W0-01.md"), statusFile("W0-01", { status: "完成" }));
     const check = run("node", [script, "--dir", first.dir, "--check"], repoRoot);
-    expect(check.status).toBe(1);
-    expect(check.stderr).toContain("SUMMARY.md 与状态文件不一致");
+    expect(check.stderr).toBe("");
+    expect(check.status).toBe(0);
+    expect(first.read()).toBe(stale);
   });
 
-  it("手改了汇总", () => {
+  it("本地那份汇总被改成任意内容：照样通过，也不把它当状态文件读", () => {
     const first = summarize({ "W0-01.md": statusFile("W0-01") });
-    writeFileSync(join(first.dir, "SUMMARY.md"), first.read().replace("未开工", "完成"));
-    expect(run("node", [script, "--dir", first.dir, "--check"], repoRoot).status).toBe(1);
+    writeFileSync(join(first.dir, "SUMMARY.md"), "随手写的，不是状态文件\n");
+    const check = run("node", [script, "--dir", first.dir, "--check"], repoRoot);
+    expect(check.stderr).toBe("");
+    expect(check.status).toBe(0);
+    expect(check.stdout).toContain("1 个状态文件合规");
   });
 
-  it("还没有汇总文件", () => {
-    const outcome = summarize({ "W0-01.md": statusFile("W0-01") }, ["--check"]);
-    expect(outcome.status).toBe(1);
+  it("状态文件改坏之后，本地那份旧汇总救不了它", () => {
+    const first = summarize({ "W0-01.md": statusFile("W0-01") });
+    writeFileSync(join(first.dir, "W0-01.md"), statusFile("W0-01", { status: "已合并" }));
+    const check = run("node", [script, "--dir", first.dir, "--check"], repoRoot);
+    expect(check.status).toBe(1);
+    expect(check.stderr).toContain("W0-01.md：状态“已合并”不在取值范围内");
   });
 });
