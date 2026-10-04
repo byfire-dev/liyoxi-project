@@ -4,6 +4,6 @@
   "version": "0.0.0",
   "description": "校验 docs/data-model 里的数据库结构草稿：Prisma 校验、生成建表语句、在临时 PostgreSQL 上建表并执行手写约束、比对文档与库结构",
   "devDependencies": {
-    "prisma": "7.10.0"
+    "prisma": "7.9.1"
   }
 }

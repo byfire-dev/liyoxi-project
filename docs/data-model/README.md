@@ -26,7 +26,7 @@
 
 | 文件 | 内容 |
 | --- | --- |
-| [schema.prisma](schema.prisma) | 数据库结构草稿（Prisma 7.10.0），按分组分段 |
+| [schema.prisma](schema.prisma) | 数据库结构草稿（Prisma 7.9.1），按分组分段 |
 | [constraints/](constraints/) | 手写约束：`00-common.sql`（扩展与公共触发器函数）与各分组的 CHECK、部分唯一索引、排他约束、触发器；按文件名顺序执行 |
 | [working/](working/README.md) | 建模过程的工作底稿与裁决记录 |
 
