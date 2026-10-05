@@ -2,6 +2,7 @@
 // 建周期、发放计划是履约的事（W1-11a）；它合并之前，账本与下游的用例用这里造：
 // 行是直接插的（周期经 W0-25 的工厂，发放计划在这里），积分一律经账本函数入账，所以批次、流水、账户缓存是自洽的。
 // 配带种子的库用（useSeededDatabase）：套餐与价目是种子。
+import { createPrismaClient } from "@liyoxi/db";
 import type { GrantSchedule, PrismaClient, SubscriptionTerm } from "@liyoxi/db";
 import { grantSchedule, renewTerm, termDates } from "@liyoxi/shared/period";
 import { calendarDate, endOfDay, startOfDay } from "@liyoxi/shared/time";
@@ -49,6 +50,20 @@ export function createLedgerHarness(
     ...(options.onStep ? { onStep: options.onStep } : {}),
   });
   return { prisma, tx, clock, events, ledger, make: createFactories({ db: prisma, clock }) };
+}
+
+/**
+ * 另开一条独立的连接（连接数上限 1），在它上面再建一套账本：并发用例里一条连接算一方。
+ * 时钟与第一套共用。用完自己 close()。
+ */
+export async function joinLedger(
+  harness: LedgerHarness,
+  databaseUrl: string,
+  options: Pick<LedgerHarnessOptions, "onStep"> = {},
+): Promise<LedgerHarness & { close(): Promise<void> }> {
+  const prisma = createPrismaClient({ connectionString: databaseUrl, max: 1 });
+  const joined = createLedgerHarness(prisma, { ...options, clock: harness.clock });
+  return { ...joined, close: () => prisma.$disconnect() };
 }
 
 export interface TermFixtureInput {
