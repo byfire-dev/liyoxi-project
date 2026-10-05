@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -70,7 +71,16 @@ describe("db-verify-managed.mjs", () => {
       expect(result.status).toBe(0);
       expect(result.stdout).toContain(`- 库：\`${DB}\`（空库）；PostgreSQL 17.`);
       expect(result.stdout).toMatch(/- 实例上可装的扩展：btree_gist [\d.]+、pg_trgm [\d.]+\n/);
-      expect(result.stdout).toContain("- 迁移：跑通，已完成 1 个（20261005000000_init）");
+      // 跟着迁移目录走：以后加了迁移，这里不用改
+      const migrations = readdirSync(join(repoRoot, "packages/db/prisma/migrations"), {
+        withFileTypes: true,
+      })
+        .flatMap((entry) => (entry.isDirectory() ? [entry.name] : []))
+        .sort();
+      expect(migrations).toContain("20261005000000_init");
+      expect(result.stdout).toContain(
+        `- 迁移：跑通，已完成 ${migrations.length} 个（${migrations.join("、")}）`,
+      );
       expect(result.stdout).toMatch(/- 迁移建出的扩展：btree_gist [\d.]+、pg_trgm [\d.]+\n/);
       expect(result.stdout).toContain("| 表 | 166 / 171 | 166 / 171 |");
       expect(result.stdout).toContain("| CHECK 约束 | 1234 / 1284 | 1234 / 1284 |");
