@@ -83,3 +83,5 @@ export {
   formatBizNo,
 } from "./biz-no.js";
 export type { BizNoFormatOptions, BizNoIssuer, BizNoIssuerOptions, BizNoPrefix } from "./biz-no.js";
+// W0-07b 服务装配：六类注册接口、端口、收集与装配
+export * from "./assembly/index.js";

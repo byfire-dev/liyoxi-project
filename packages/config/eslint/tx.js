@@ -15,14 +15,21 @@ export const txEntryFiles = [
     "!packages/services/src/testing/**",
     "!packages/db/**",
   ],
-  // 第二组（复审后补，只加行）：上面划出去的 testing/ 与 packages/db/ 两处，本意只为用例与夹具，
-  // 这两个目录里其余的源码照样受管。组内同样要同时满足：第一个模式圈范围，后两个取反划掉用例与夹具。
-  [
-    "packages/{db,services/src/testing}/**/*.{ts,tsx,js,jsx,mjs,cjs}",
-    "!**/*.test.{ts,tsx,js,jsx,mjs,cjs}",
-    "!**/__fixtures__/**",
-  ],
 ];
+
+// 以下是复审后补的（只加行）：上面划出去的 testing/ 与 packages/db/ 两处，本意只为用例与夹具，
+// 这两个目录里其余的源码照样受管。不并进 txEntryFiles，另给两组，由根上的装配各接一块：
+// prisma.js 拿 txEntryFiles 当“事务入口规则管得到的文件”用，并进去会把 packages/db 的工厂也圈进“不得 new PrismaClient”。
+// 组内同样要同时满足：第一个模式圈范围，后两个取反划掉用例与夹具。
+const sourcesOf = (dir) => [
+  `${dir}/**/*.{ts,tsx,js,jsx,mjs,cjs}`,
+  "!**/*.test.{ts,tsx,js,jsx,mjs,cjs}",
+  "!**/__fixtures__/**",
+];
+/** packages/db 里除用例与夹具之外的源码：只带事务入口的条目（工厂在这里，new PrismaClient 是它的本分） */
+export const txEntryDbFiles = [sourcesOf("packages/db")];
+/** 测试支架里除用例与夹具之外的源码：装配时用拼好“不得 new PrismaClient”条目的那一份规则，免得把它盖掉 */
+export const txEntryTestingFiles = [sourcesOf("packages/services/src/testing")];
 
 const message =
   "开事务只有 kernel 的 tx.run 一个入口：用例函数调 tx.run，往下传 tx；要局部回滚用 savepoint（01 第 5 节调用规则 2）。";
