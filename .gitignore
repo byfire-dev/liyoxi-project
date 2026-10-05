@@ -24,3 +24,6 @@ coverage/
 
 # TypeScript 增量构建信息
 *.tsbuildinfo
+
+# 状态汇总：pnpm status:summary 现生成，只供本地看，不入库（docs/plan/status/README.md 第 5 节）
+docs/plan/status/SUMMARY.md
