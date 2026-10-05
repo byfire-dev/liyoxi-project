@@ -179,6 +179,7 @@
 | `pnpm contract:check` | 契约生成物与源码无差异：重新生成后 `git diff --exit-code`，不一致即非 0 退出 |
 | `pnpm check:rename` | 换名检查：出现参考工程的旧名或旧的小程序目录即失败。口径见 [脚本](infra/ci/check-rename.mjs) 开头的注释 |
 | `node infra/ci/check-release-age.mjs`（加 `--since <git 引用>` 只查新增的版本） | 锁文件里每个版本都发布满 7 天。用法见 [脚本](infra/ci/check-release-age.mjs) 开头的注释 |
+| `pnpm wxpay:vectors` | 微信支付驱动的跨实现核对：在一次性容器里用官方 Go SDK 对同一批输入签名、验签、解密、解析通知，产出 `cross-check.json`。要本机 Docker 与外网，不进 CI。见 [README](packages/services/src/providers/wechat-pay/README.md) |
 | `pnpm design:generate` | 由 `design/tokens.json` 与图标源重新生成样式变量、后台主题、图标数据，并出一页预览（不入库）。来源、生成物与子路径见 [README](packages/shared/scripts/README.md) |
 | `pnpm design:check` | 生成物无差异：重新生成后 `git diff --exit-code`，且生成物目录下没有未跟踪的文件。生成物不手改 |
 | `pnpm lint:colors` | 页面不写色值：三个前端的 `src` 里出现十六进制、颜色函数（`rgb()`、`hsl()`、`oklch()`、`color-mix()` 等）或 Sass 的颜色运算（`darken()`、`mix()` 等）即失败。口径与白名单见 [脚本](infra/ci/check-colors.mjs) 开头的注释；页面里颜色从哪取见 [README](packages/shared/scripts/README.md)“页面里怎么取颜色” |

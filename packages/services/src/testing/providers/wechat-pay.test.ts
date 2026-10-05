@@ -1,7 +1,11 @@
+import { createDecipheriv, createVerify } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 
+import { PROVIDER_METHODS } from "../../providers/types.js";
+import type { WechatPayTradeState } from "../../providers/types.js";
 import { createFakeWechatPay } from "./wechat-pay.js";
-import type { FakeWechatPayDelivery } from "./wechat-pay.js";
+import type { FakeWechatPayDelivery, FakeWechatPayWire } from "./wechat-pay.js";
 
 // 假微信支付的用例（W0-19 任务书 第 7 节第 7 条）：能编排回调的延迟、重复、乱序、失败与查单结果；
 // 同一商户单号重复预下单返回同一结果。
@@ -459,5 +463,499 @@ describe("关单、退款、账单", () => {
     ]);
     expect(fourth.value.text.split("\n")).toHaveLength(2);
     expect(fourth.value.text).toContain("FK-0002");
+  });
+});
+
+// ---------- X-04 扩的部分（X-04 任务书 第 7 节第 7 条） ----------
+// 真实结构的通知在这里只用 node:crypto 照官方文档的规则核对；拿真实驱动去验签解密的用例在
+// providers/wechat-pay/fake.property.test.ts（本目录不能引驱动的实现文件）。
+
+/** 照官方文档的规则验一次投递的签名：时间戳、随机串、请求体各占一行 */
+function signatureValid(
+  delivery: Pick<FakeWechatPayDelivery, "headers" | "rawBody">,
+  wire: FakeWechatPayWire,
+) {
+  const { headers, rawBody } = delivery;
+  const signed = `${headers["Wechatpay-Timestamp"]}\n${headers["Wechatpay-Nonce"]}\n${rawBody}\n`;
+  const signature = Buffer.from(headers["Wechatpay-Signature"] ?? "", "base64");
+  return createVerify("RSA-SHA256").update(signed).verify(wire.publicKeyPem, signature);
+}
+
+interface WireBody {
+  id: string;
+  create_time: string;
+  resource_type: string;
+  event_type: string;
+  summary: string;
+  resource: {
+    original_type: string;
+    algorithm: string;
+    ciphertext: string;
+    associated_data: string;
+    nonce: string;
+  };
+}
+
+/** 照官方文档的规则解一次投递的资源：AEAD_AES_256_GCM，密文末 16 字节是认证标签 */
+function openResource(rawBody: string, wire: FakeWechatPayWire): Record<string, unknown> {
+  const { resource } = JSON.parse(rawBody) as WireBody;
+  const bytes = Buffer.from(resource.ciphertext, "base64");
+  const decipher = createDecipheriv(
+    "aes-256-gcm",
+    Buffer.from(wire.apiV3Key),
+    Buffer.from(resource.nonce),
+  );
+  decipher.setAuthTag(bytes.subarray(bytes.length - 16));
+  decipher.setAAD(Buffer.from(resource.associated_data));
+  const plaintext = Buffer.concat([
+    decipher.update(bytes.subarray(0, bytes.length - 16)),
+    decipher.final(),
+  ]);
+  return JSON.parse(plaintext.toString("utf8")) as Record<string, unknown>;
+}
+
+/** 切到真实结构的假微信支付，加一个把每次投递都留下来的处理器 */
+function wireSetup() {
+  const clock = manualClock();
+  const pay = createFakeWechatPay({ clock });
+  const wire = pay.useWireFormat();
+  const deliveries: FakeWechatPayDelivery[] = [];
+  pay.onNotification((delivery) => void deliveries.push(delivery));
+  return { clock, pay, wire, deliveries };
+}
+
+describe("真实结构的通知（X-04）", () => {
+  it("缺省不生效：没切过时 wire 是 null，通知还是替身自己的格式", async () => {
+    const { pay } = setup();
+    expect(pay.wire).toBeNull();
+    await pay.createJsapiOrder(ORDER);
+    const encoded = pay.encode(pay.pay("FK-0001"));
+    expect(Object.keys(encoded.headers)).toContain("wechatpay-signature");
+    expect(JSON.parse(encoded.rawBody)).toMatchObject({ kind: "transaction" });
+  });
+
+  it("切换后给出验签解密要用的材料：公钥 ID、公钥、32 个字节的 APIv3 密钥、商户号、AppID", () => {
+    const { pay, wire } = wireSetup();
+    expect(pay.wire).toEqual(wire);
+    expect(wire.serial.startsWith("PUB_KEY_ID_")).toBe(true);
+    expect(wire.publicKeyPem).toContain("BEGIN PUBLIC KEY");
+    expect(Buffer.byteLength(wire.apiV3Key)).toBe(32);
+    expect(Object.keys(wire).sort()).toEqual([
+      "apiV3Key",
+      "appid",
+      "mchid",
+      "publicKeyPem",
+      "serial",
+    ]);
+    expect(() => createFakeWechatPay().useWireFormat({ apiV3Key: "short" })).toThrow("32 个字节");
+    const custom = createFakeWechatPay().useWireFormat({
+      serial: "PUB_KEY_ID_9",
+      mchid: "1",
+      appid: "wx9",
+    });
+    expect(custom).toMatchObject({ serial: "PUB_KEY_ID_9", mchid: "1", appid: "wx9" });
+  });
+
+  it("支付成功通知：真实结构的请求头、签名、外层报文与密文", async () => {
+    const { pay, wire, deliveries, clock } = wireSetup();
+    await pay.createJsapiOrder(ORDER);
+    const notification = pay.pay("FK-0001");
+    await pay.deliverDue();
+    const delivery = deliveries[0]!;
+    expect(delivery.headers).toMatchObject({
+      "Wechatpay-Timestamp": String(clock.now().getTime() / 1000),
+      "Wechatpay-Serial": wire.serial,
+      "Wechatpay-Signature-Type": "WECHATPAY2-SHA256-RSA2048",
+    });
+    expect(Object.keys(delivery.headers).sort()).toEqual([
+      "Wechatpay-Nonce",
+      "Wechatpay-Serial",
+      "Wechatpay-Signature",
+      "Wechatpay-Signature-Type",
+      "Wechatpay-Timestamp",
+    ]);
+    expect(signatureValid(delivery, wire)).toBe(true);
+    expect(signatureValid({ ...delivery, rawBody: `${delivery.rawBody} ` }, wire)).toBe(false);
+
+    const body = JSON.parse(delivery.rawBody) as WireBody;
+    expect(body).toMatchObject({
+      id: notification.id,
+      create_time: "2026-10-04T10:00:00+08:00",
+      resource_type: "encrypt-resource",
+      event_type: "TRANSACTION.SUCCESS",
+      resource: {
+        original_type: "transaction",
+        algorithm: "AEAD_AES_256_GCM",
+        associated_data: "transaction",
+      },
+    });
+    expect(Object.keys(body).sort()).toEqual([
+      "create_time",
+      "event_type",
+      "id",
+      "resource",
+      "resource_type",
+      "summary",
+    ]);
+    // 请求体里只有密文：单号、openid、回传数据都看不到
+    for (const plain of ["FK-0001", "openid-1", "payment:0001"])
+      expect(delivery.rawBody).not.toContain(plain);
+    expect(openResource(delivery.rawBody, wire)).toEqual({
+      mchid: wire.mchid,
+      appid: wire.appid,
+      out_trade_no: "FK-0001",
+      transaction_id: "fake-txn-000002",
+      trade_type: "JSAPI",
+      trade_state: "SUCCESS",
+      trade_state_desc: "支付成功",
+      bank_type: "OTHERS",
+      attach: "payment:0001",
+      success_time: "2026-10-04T10:00:00+08:00",
+      payer: { openid: "openid-1" },
+      amount: { total: 19900, payer_total: 19900, currency: "CNY", payer_currency: "CNY" },
+    });
+  });
+
+  it("退款通知：成功、异常、关闭三种事件类型；处理中的没有通知", async () => {
+    const { pay, wire, deliveries } = wireSetup();
+    await pay.createJsapiOrder(ORDER);
+    pay.pay("FK-0001");
+    await pay.createRefund({
+      outTradeNo: "FK-0001",
+      outRefundNo: "TK-0001",
+      refundFen: 100,
+      totalFen: 19900,
+    });
+    pay.completeRefund("TK-0001", { status: "ABNORMAL" });
+    pay.completeRefund("TK-0001", { status: "CLOSED" });
+    pay.completeRefund("TK-0001");
+    await pay.deliverDue();
+    const bodies = deliveries.map((delivery) => JSON.parse(delivery.rawBody) as WireBody);
+    expect(bodies.map((body) => body.event_type)).toEqual([
+      "TRANSACTION.SUCCESS",
+      "REFUND.ABNORMAL",
+      "REFUND.CLOSED",
+      "REFUND.SUCCESS",
+    ]);
+    expect(bodies[3]?.resource).toMatchObject({
+      original_type: "refund",
+      associated_data: "refund",
+    });
+    expect(openResource(deliveries[3]!.rawBody, wire)).toEqual({
+      mchid: wire.mchid,
+      out_trade_no: "FK-0001",
+      transaction_id: "fake-txn-000002",
+      out_refund_no: "TK-0001",
+      refund_id: "fake-refund-000004",
+      refund_status: "SUCCESS",
+      success_time: "2026-10-04T10:00:00+08:00",
+      user_received_account: "支付用户零钱",
+      amount: { total: 19900, refund: 100, payer_total: 19900, payer_refund: 100 },
+    });
+    expect(openResource(deliveries[1]!.rawBody, wire)).not.toHaveProperty("success_time");
+    for (const delivery of deliveries) expect(signatureValid(delivery, wire)).toBe(true);
+
+    const processing = pay.completeRefund("TK-0001", { status: "PROCESSING" });
+    expect(() => pay.encode(processing)).toThrow("没有处理中");
+  });
+
+  it("同一通知重复 N 次：通知 id 与请求体不变，每次投递重新取随机串并重新签名", async () => {
+    const { pay, wire, deliveries, clock } = wireSetup();
+    await pay.createJsapiOrder(ORDER);
+    const notification = pay.pay("FK-0001", { copies: 4 });
+    await pay.deliverDue();
+    clock.advance(60_000);
+    deliveries.push({ ...pay.encode(notification), attempt: 9 });
+    expect(deliveries).toHaveLength(5);
+    expect(new Set(deliveries.map((delivery) => delivery.rawBody)).size).toBe(1);
+    expect(
+      new Set(deliveries.map((delivery) => (JSON.parse(delivery.rawBody) as WireBody).id)),
+    ).toEqual(new Set([notification.id]));
+    expect(
+      new Set(deliveries.map((delivery) => delivery.headers["Wechatpay-Signature"])).size,
+    ).toBe(5);
+    expect(new Set(deliveries.map((delivery) => delivery.headers["Wechatpay-Nonce"])).size).toBe(5);
+    expect(deliveries[4]?.headers["Wechatpay-Timestamp"]).toBe(
+      String(clock.now().getTime() / 1000),
+    );
+    for (const delivery of deliveries) expect(signatureValid(delivery, wire)).toBe(true);
+  });
+
+  it("替身自己的验签解密照旧能用；篡改、换序列号、探测签名都不过", async () => {
+    const { pay, deliveries, clock } = wireSetup();
+    await pay.createJsapiOrder(ORDER);
+    const notification = pay.pay("FK-0001");
+    await pay.deliverDue();
+    const delivery = deliveries[0]!;
+    expect(await pay.verifyAndDecryptNotification(delivery)).toEqual({
+      ok: true,
+      value: {
+        kind: "transaction",
+        id: notification.id,
+        transaction: {
+          outTradeNo: "FK-0001",
+          tradeState: "SUCCESS",
+          transactionId: "fake-txn-000002",
+          amountFen: 19900,
+          payerOpenid: "openid-1",
+          attach: "payment:0001",
+          successAt: clock.now(),
+        },
+      },
+    });
+    const lowered = Object.fromEntries(
+      Object.entries(delivery.headers).map(([k, v]) => [k.toLowerCase(), v]),
+    );
+    expect(await pay.verifyAndDecryptNotification({ ...delivery, headers: lowered })).toMatchObject(
+      { ok: true },
+    );
+    const tampered = [
+      { ...delivery, rawBody: delivery.rawBody.replace("TRANSACTION.SUCCESS", "REFUND.SUCCESS") },
+      { ...delivery, headers: { ...delivery.headers, "Wechatpay-Serial": "PUB_KEY_ID_OTHER" } },
+      { ...delivery, headers: { ...delivery.headers, "Wechatpay-Timestamp": "1" } },
+      pay.encode(notification, { probe: true }),
+    ];
+    for (const input of tampered) {
+      expect(await pay.verifyAndDecryptNotification(input)).toEqual({
+        ok: false,
+        reason: "rejected",
+        message: "验签失败",
+      });
+    }
+    const probe = pay.encode(notification, { probe: true });
+    expect(probe.headers["Wechatpay-Signature"]?.startsWith("WECHATPAY/SIGNTEST/")).toBe(true);
+  });
+
+  it("换一把 APIv3 密钥的替身发来的通知：验签过了也解不开", async () => {
+    const { pay, deliveries } = wireSetup();
+    await pay.createJsapiOrder(ORDER);
+    pay.pay("FK-0001");
+    await pay.deliverDue();
+    const delivery = deliveries[0]!;
+    const body = JSON.parse(delivery.rawBody) as WireBody;
+    body.resource.associated_data = "refund";
+    const other = createFakeWechatPay().useWireFormat({ apiV3Key: "x".repeat(32) });
+    expect(() => openResource(delivery.rawBody, other)).toThrow();
+    expect(() => openResource(JSON.stringify(body), pay.wire!)).toThrow();
+  });
+
+  it("乱序与延迟在真实结构下照常编排：退款通知早于支付通知、关单后到达成功通知、延迟回调", async () => {
+    const { pay, deliveries, clock } = wireSetup();
+    const kinds = () =>
+      deliveries.map((delivery) => (JSON.parse(delivery.rawBody) as WireBody).event_type);
+    await pay.createJsapiOrder(ORDER);
+    pay.pay("FK-0001");
+    await pay.createRefund({
+      outTradeNo: "FK-0001",
+      outRefundNo: "TK-0001",
+      refundFen: 100,
+      totalFen: 19900,
+    });
+    pay.completeRefund("TK-0001");
+    pay.reorder();
+    await pay.deliverDue();
+    expect(kinds()).toEqual(["REFUND.SUCCESS", "TRANSACTION.SUCCESS"]);
+
+    // 关单之后到达成功通知：迟到的通知与当前状态对不上
+    await pay.createJsapiOrder({ ...ORDER, outTradeNo: "FK-0002" });
+    expect(await pay.closeOrder({ outTradeNo: "FK-0002" })).toEqual({
+      ok: true,
+      value: { outcome: "closed" },
+    });
+    pay.enqueue(
+      {
+        kind: "transaction",
+        id: "late-notify",
+        transaction: {
+          outTradeNo: "FK-0002",
+          tradeState: "SUCCESS",
+          transactionId: "fake-txn-late",
+          amountFen: 19900,
+          payerOpenid: "openid-1",
+          successAt: clock.now(),
+        },
+      },
+      { delayMs: 30_000 },
+    );
+    expect(await pay.deliverDue()).toBe(0);
+    clock.advance(30_000);
+    expect(await pay.deliverDue()).toBe(1);
+    expect(kinds().at(-1)).toBe("TRANSACTION.SUCCESS");
+    expect(pay.orders.get("FK-0002")?.tradeState).toBe("CLOSED");
+  });
+
+  it("处理器应答失败：重投的是同一个请求体，签名是新的", async () => {
+    const { pay, clock } = wireSetup();
+    const seen: FakeWechatPayDelivery[] = [];
+    pay.onNotification((delivery) => {
+      seen.push(delivery);
+      return delivery.attempt >= 2;
+    });
+    await pay.createJsapiOrder(ORDER);
+    pay.pay("FK-0001");
+    await pay.deliverDue();
+    clock.advance(pay.retryDelayMs);
+    await pay.deliverDue();
+    expect(seen.map((delivery) => delivery.attempt)).toEqual([1, 2]);
+    expect(seen[1]?.rawBody).toBe(seen[0]?.rawBody);
+    expect(seen[1]?.headers["Wechatpay-Signature"]).not.toBe(
+      seen[0]?.headers["Wechatpay-Signature"],
+    );
+  });
+});
+
+describe("补充的编排（X-04）", () => {
+  it("成功但应答超时：预下单已经生效，调用方拿到 unavailable；同号重试拿到同一个结果", async () => {
+    const { pay } = setup();
+    pay.loseResponseNext("createJsapiOrder");
+    expect(await pay.createJsapiOrder(ORDER)).toEqual({
+      ok: false,
+      reason: "unavailable",
+      message: "替身注入：外部侧已处理，应答超时",
+    });
+    expect(pay.orders.get("FK-0001")).toMatchObject({
+      prepayId: "fake-prepay-000001",
+      tradeState: "NOTPAY",
+    });
+    expect(await pay.createJsapiOrder(ORDER)).toEqual({
+      ok: true,
+      value: { prepayId: "fake-prepay-000001" },
+    });
+    expect(pay.orders.size).toBe(1);
+  });
+
+  it("成功但应答超时：退款已受理、关单已生效；可以连着丢几次", async () => {
+    const { pay } = setup();
+    await pay.createJsapiOrder(ORDER);
+    pay.pay("FK-0001");
+    const refund = {
+      outTradeNo: "FK-0001",
+      outRefundNo: "TK-0001",
+      refundFen: 100,
+      totalFen: 19900,
+    };
+    pay.loseResponseNext("createRefund", { times: 2 });
+    expect(await pay.createRefund(refund)).toMatchObject({ ok: false, reason: "unavailable" });
+    expect(await pay.createRefund(refund)).toMatchObject({ ok: false, reason: "unavailable" });
+    expect(pay.refunds.get("TK-0001")).toMatchObject({ status: "PROCESSING", refundFen: 100 });
+    expect(await pay.createRefund(refund)).toMatchObject({
+      ok: true,
+      value: { status: "PROCESSING" },
+    });
+    expect(pay.refunds.size).toBe(1);
+
+    await pay.createJsapiOrder({ ...ORDER, outTradeNo: "FK-0002" });
+    pay.loseResponseNext("closeOrder");
+    expect(await pay.closeOrder({ outTradeNo: "FK-0002" })).toMatchObject({
+      ok: false,
+      reason: "unavailable",
+    });
+    expect(pay.orders.get("FK-0002")?.tradeState).toBe("CLOSED");
+    expect(await pay.closeOrder({ outTradeNo: "FK-0002" })).toEqual({
+      ok: true,
+      value: { outcome: "closed" },
+    });
+  });
+
+  it("成功但应答超时与 5xx 不同：5xx（failNext）外部侧没有处理", async () => {
+    const { pay } = setup();
+    for (const method of PROVIDER_METHODS.wechatPay) {
+      pay.failNext(method, { reason: "unavailable", message: "HTTP 503" });
+    }
+    expect(await pay.createJsapiOrder(ORDER)).toEqual({
+      ok: false,
+      reason: "unavailable",
+      message: "HTTP 503",
+    });
+    expect(pay.orders.size).toBe(0);
+    expect(await pay.queryByOutTradeNo({ outTradeNo: "FK-0001" })).toMatchObject({
+      reason: "unavailable",
+    });
+    expect(await pay.closeOrder({ outTradeNo: "FK-0001" })).toMatchObject({
+      reason: "unavailable",
+    });
+    expect(
+      await pay.createRefund({
+        outTradeNo: "FK-0001",
+        outRefundNo: "TK-1",
+        refundFen: 1,
+        totalFen: 1,
+      }),
+    ).toMatchObject({ reason: "unavailable" });
+    expect(await pay.fetchTradeBill({ billDate: "2026-10-04" })).toMatchObject({
+      reason: "unavailable",
+    });
+    expect(pay.refunds.size).toBe(0);
+  });
+
+  it("退款异常后转成功：先到异常通知，之后到成功通知，退款单最终是成功", async () => {
+    const { pay, wire, deliveries } = wireSetup();
+    await pay.createJsapiOrder(ORDER);
+    pay.pay("FK-0001");
+    await pay.deliverDue();
+    await pay.createRefund({
+      outTradeNo: "FK-0001",
+      outRefundNo: "TK-0001",
+      refundFen: 19900,
+      totalFen: 19900,
+    });
+    const abnormal = pay.completeRefund("TK-0001", { status: "ABNORMAL" });
+    await pay.deliverDue();
+    expect(pay.refunds.get("TK-0001")?.status).toBe("ABNORMAL");
+    const success = pay.completeRefund("TK-0001");
+    await pay.deliverDue();
+    expect(pay.refunds.get("TK-0001")?.status).toBe("SUCCESS");
+    expect(abnormal.id).not.toBe(success.id);
+    const events = deliveries.map(
+      (delivery) => (JSON.parse(delivery.rawBody) as WireBody).event_type,
+    );
+    expect(events).toEqual(["TRANSACTION.SUCCESS", "REFUND.ABNORMAL", "REFUND.SUCCESS"]);
+    expect(openResource(deliveries[2]!.rawBody, wire)).toMatchObject({
+      out_refund_no: "TK-0001",
+      refund_status: "SUCCESS",
+    });
+  });
+
+  it("关单返回订单不存在：没有的单号是这样；也可以给已有的订单注入", async () => {
+    const { pay } = setup();
+    expect(await pay.closeOrder({ outTradeNo: "FK-none" })).toEqual({
+      ok: false,
+      reason: "rejected",
+      message: "订单不存在",
+    });
+    await pay.createJsapiOrder(ORDER);
+    pay.failNext("closeOrder", { reason: "rejected", message: "订单不存在" });
+    expect(await pay.closeOrder({ outTradeNo: "FK-0001" })).toEqual({
+      ok: false,
+      reason: "rejected",
+      message: "订单不存在",
+    });
+    expect(pay.orders.get("FK-0001")?.tradeState).toBe("NOTPAY");
+  });
+
+  it("查单返回各状态：七种交易状态都能指定", async () => {
+    const { pay } = setup();
+    await pay.createJsapiOrder(ORDER);
+    const states: WechatPayTradeState[] = [
+      "SUCCESS",
+      "REFUND",
+      "NOTPAY",
+      "CLOSED",
+      "REVOKED",
+      "USERPAYING",
+      "PAYERROR",
+    ];
+    for (const tradeState of states) {
+      pay.setQueryResult("FK-0001", { outTradeNo: "FK-0001", tradeState });
+      expect(await pay.queryByOutTradeNo({ outTradeNo: "FK-0001" })).toEqual({
+        ok: true,
+        value: { outTradeNo: "FK-0001", tradeState },
+      });
+    }
+    pay.setQueryResult("FK-0001", null);
+    expect(await pay.queryByOutTradeNo({ outTradeNo: "FK-0001" })).toMatchObject({
+      ok: true,
+      value: { tradeState: "NOTPAY" },
+    });
   });
 });

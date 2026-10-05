@@ -1,0 +1,75 @@
+{
+  "说明": [
+    "微信支付官方文档里给全了输入与输出的示例，原样收为向量（X-04 任务书 第 11 节第 1 项 ①）。vectors.test.ts 逐条核对。",
+    "请求签名与调起支付签名的示例是文档用一把公开的测试商户私钥（apiclient_test_key.pem）算出来的。私钥不入库：这里只收由它导出的公钥 merchantTestPublicKeyPem，用来验文档给的签名值；“本实现用这把测试私钥签出的结果与文档逐字节相等”由 pnpm wxpay:vectors 现场从文档取私钥核对，结果记在 cross-check.json。",
+    "没有收的两处：Query 参数那一份（4012365337）的签名值与文档自己给的签名串对不上（实测）；回调解密那一份（4012071382）的密文是省略号，没有给全。"
+  ],
+  "merchantTestPublicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAptpm+qvIDCh/9wjU26SQ\nCK26ogYkBhDrYxnAaw2JbbBsp1oDbHKk+1r381NeBUG2HEFAuU+Fr72u5ot3yKdz\noF/FajAzQNKnm569/D3upKoi8mYBaST15Uig8j8qoUW1U217LL0jEHlSnHV3lcaD\nTXqDpTRR4Bfz9IqOgJgFZ8/oTfEomSrjrLYef81Eyxr7ZIMQXEKKEK7V4UXKS0+/\nfDsiG/cXidhzt8UbTL9vqXqxM2+IDImyO+FAc/tkBG55LmzxPto1Nq0WbnZzRM/w\nTzrd0I/8NlevxtFbphg4evlHjFNI7+GrqR87ViEwuAJJ9Je5QQjct5YJfFRWiZ5C\nMQIDAQAB\n-----END PUBLIC KEY-----\n",
+  "requestSign": [
+    {
+      "name": "带请求体：JSAPI 下单",
+      "source": "请求参数里带 Body 参数，如何计算签名，https://pay.weixin.qq.com/doc/v3/merchant/4012365336（文档更新时间 2025.02.18，取于 2026-10-05）",
+      "method": "POST",
+      "pathWithQuery": "/v3/pay/transactions/jsapi",
+      "timestamp": "1554208460",
+      "nonce": "593BEC0C930BF1AFEB40B4A08C8FB242",
+      "body": "{\"appid\":\"wxd678efh567hg6787\",\"mchid\":\"1900007291\",\"description\":\"Image形象店-深圳腾大-QQ公仔\",\"out_trade_no\":\"1217752501201407033233368018\",\"notify_url\":\"https://www.weixin.qq.com/wxpay/pay.php\",\"amount\":{\"total\":100,\"currency\":\"CNY\"},\"payer\":{\"openid\":\"oUpF8uMuAJO_M2pxb1Q9zNjWeS6o\"}}",
+      "message": "POST\n/v3/pay/transactions/jsapi\n1554208460\n593BEC0C930BF1AFEB40B4A08C8FB242\n{\"appid\":\"wxd678efh567hg6787\",\"mchid\":\"1900007291\",\"description\":\"Image形象店-深圳腾大-QQ公仔\",\"out_trade_no\":\"1217752501201407033233368018\",\"notify_url\":\"https://www.weixin.qq.com/wxpay/pay.php\",\"amount\":{\"total\":100,\"currency\":\"CNY\"},\"payer\":{\"openid\":\"oUpF8uMuAJO_M2pxb1Q9zNjWeS6o\"}}\n",
+      "signature": "jnks4dlrPw3ZX+ozVvSK39oa0t7OMBsg83BHAwd8BRdUFiVaQNTLTvci+wURgP1OQBbKYhFGvt7iqYpDSTQkp7Uq1sltaQKyncCyrA1g88m5bsKERQfPyT0ahSwKTYJ1CAn9QiJuSJRq1QsQs07eehbU/k9BCS51jTyc1Jpsi2H77HF9f/BnjXAOP3/sPObg6V5Ee4EzwLox684hhuMuIwHo7D8KFk3LIHOKDcNI4It1aCXydFWNpNK+SG86VUDe5kwoDpw4Ulqfu9z8OFDGbDs9TCxEv8iqQzbpxOlEVoOe2kalSYM5kApQb3nZcxdUtoE0liJGW3RGUNE0t4v01A==",
+      "mchid": "1900007291",
+      "serialNo": "408B07E79B8269FEC3D5D3E6AB8ED163A6A380DB",
+      "authorization": "WECHATPAY2-SHA256-RSA2048 mchid=\"1900007291\",nonce_str=\"593BEC0C930BF1AFEB40B4A08C8FB242\",signature=\"jnks4dlrPw3ZX+ozVvSK39oa0t7OMBsg83BHAwd8BRdUFiVaQNTLTvci+wURgP1OQBbKYhFGvt7iqYpDSTQkp7Uq1sltaQKyncCyrA1g88m5bsKERQfPyT0ahSwKTYJ1CAn9QiJuSJRq1QsQs07eehbU/k9BCS51jTyc1Jpsi2H77HF9f/BnjXAOP3/sPObg6V5Ee4EzwLox684hhuMuIwHo7D8KFk3LIHOKDcNI4It1aCXydFWNpNK+SG86VUDe5kwoDpw4Ulqfu9z8OFDGbDs9TCxEv8iqQzbpxOlEVoOe2kalSYM5kApQb3nZcxdUtoE0liJGW3RGUNE0t4v01A==\",timestamp=\"1554208460\",serial_no=\"408B07E79B8269FEC3D5D3E6AB8ED163A6A380DB\""
+    },
+    {
+      "name": "没有请求体：按商户退款单号查询退款",
+      "source": "请求参数里带 Path 参数，如何计算签名，https://pay.weixin.qq.com/doc/v3/merchant/4012365334（文档更新时间 2025.02.18，取于 2026-10-05）",
+      "method": "GET",
+      "pathWithQuery": "/v3/refund/domestic/refunds/123123123123",
+      "timestamp": "1554208460",
+      "nonce": "593BEC0C930BF1AFEB40B4A08C8FB242",
+      "body": "",
+      "message": "GET\n/v3/refund/domestic/refunds/123123123123\n1554208460\n593BEC0C930BF1AFEB40B4A08C8FB242\n\n",
+      "signature": "Lc9VXxmeonkdV8Xk9tmigQFLhl0vRWTerdmoRu01aAnYwIrD/5nsSwE1WlmZGLRlAFTNQ3QsMa0+VRDlJp1Wp5p0nO8EK68b5sJBbjouxaFciIfq1zfDWWz+jqhcMoKXI1A6dPm1AW7D4d30WsMTNzp6g23OXakIsh9LO3lUmwvTuE0BY8ncf6tNGk4wKmvXwERd/ZpoQY3MAVKz+Nakwc+2XBmzT66KcUehU5kr4IvGa/lEU5RZb/q00zP9VLdBhC/jQSX3X1UcJLCtEc4gTmib4tnmAT+bHF/e17ZAuxDNcx6rqT8gNEXqaJGG+1OflMSTU2tpyG65G4dMKdFcoA=="
+    }
+  ],
+  "miniProgramPaySign": {
+    "source": "小程序调起支付签名，https://pay.weixin.qq.com/doc/v3/merchant/4012365341（文档更新时间 2025.03.26，取于 2026-10-05）",
+    "appId": "wx2421b1c4370ec43b",
+    "timeStamp": "1554208460",
+    "nonceStr": "593BEC0C930BF1AFEB40B4A08C8FB242",
+    "prepayId": "wx201410272009395522657a690389285100",
+    "message": "wx2421b1c4370ec43b\n1554208460\n593BEC0C930BF1AFEB40B4A08C8FB242\nprepay_id=wx201410272009395522657a690389285100\n",
+    "signature": "mI35pfNEQV6777ke/1T+LJLQDNTm7yeoUJH+j/adPGhmCCi0PbgkvYQTRcXH0uibcLVtvFLdGLpmoYO9FV6lBBsTAjuhh5YOvQi0e2g3e0yytitiNET9FEuqM0pjnKfRW4K6LIZDdbWJv9KhZUx3DrJa5TL7OJ7VdADVivxVySIlPVKjGwuCXzuXSJes0UcILgWQUMyha5/3nYofuHtS7r+KYyMuxD+oJ9VM1Qdxk4UIG59CP5Y3wtYIFybyF3bdu1caHTRRX+DLyMXyYA/IrTmiW01c4RPjpHBX5Dk1sZyY1zVsWNsvMHr2e1NTWtBxKJ+qk5N61J7caYoepHFaxw=="
+  },
+  "responseVerify": [
+    {
+      "name": "平台证书验签文档的应答示例",
+      "source": "如何使用平台证书验签名，https://pay.weixin.qq.com/doc/v3/merchant/4013053420（文档更新时间 2024.11.29，取于 2026-10-05）",
+      "expect": "pass",
+      "serial": "4DF076AC5A7D968D4A8B0B9C599A74CB4CF8EE8A",
+      "timestamp": "1722850421",
+      "nonce": "d824f2e086d3c1df967785d13fcd22ef",
+      "body": "{\"code_url\":\"weixin://wxpay/bizpayurl?pr=JyC91EIz1\"}",
+      "message": "1722850421\nd824f2e086d3c1df967785d13fcd22ef\n{\"code_url\":\"weixin://wxpay/bizpayurl?pr=JyC91EIz1\"}\n",
+      "signature": "mfI1CPqvBrgcXfgXMFjdNIhBf27ACE2YyeWsWV9ZI7T7RU0vHvbQpu9Z32ogzc+k8ZC5n3kz7h70eWKjgqNdKQF0eRp8mVKlmfzMLBVHbssB9jEZEDXThOX1XFqX7s7ymia1hoHQxQagPGzkdWxtlZPZ4ZPvr1RiqkgAu6Is8MZgXXrRoBKqjmSdrP1N7uxzJ/cjfSiis9FiLjuADoqmQ1P7p2N876YPAol7Rn0+GswwAwxldbdLrmVSjfytfSBJFqTMHn4itojgxSWWN1byuckQt8hSTEv/Lg97QoeGniYP17T80pJeQyL3b+295FPHSO2AtvCgyIbKMZ0BALilAA==",
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwXNI6sdlknHBnK8Fu2U6\nCwor9qY747jP8KAfeBMeveEt1TqaHkLfaSD07trZLhGpfs8/AHqjhgSMO1O10YQW\nOrrJ4hjIWPKqxbgrYMkBQc+mwdiWp4W3ByCqxBRagCveCXRWCmuJYovl9H/bsDI0\niGbpVtEOghJtfciisYSgxcLufUDTRkvwxjIBK1pCRjk33jJ5YTBWTHMRtMAOcFLN\nF6hdEYdX8SPsgHHeLZ5Lv2T/686w1xtgCHef/sd4uSfWmyzsalQdHG/e4IyYmrhx\n+O3VBoNDzE3nx23bFeV/RVNCG7cV6VhmYokJNHa/erIPkEmEFID6A5wQOXuxUkmJ\nWwIDAQAB\n-----END PUBLIC KEY-----\n"
+    },
+    {
+      "name": "微信支付公钥验签文档的应答示例",
+      "source": "如何使用微信支付公钥验签，https://pay.weixin.qq.com/doc/v3/merchant/4013053249（文档更新时间 2024.11.20，取于 2026-10-05）",
+      "expect": "message-only",
+      "note": "这份文档与上一份用的是同一条应答与同一个签名值，但给出的公钥不同；实测用它给出的公钥验不过这个签名（文档自己也注明示例不可直接使用）。所以只用它核对验签串的构造与公钥 ID 的写法，不用它核对验签结果。",
+      "serial": "PUB_KEY_ID_0000000000000024101100397200000006",
+      "timestamp": "1722850421",
+      "nonce": "d824f2e086d3c1df967785d13fcd22ef",
+      "body": "{\"code_url\":\"weixin://wxpay/bizpayurl?pr=JyC91EIz1\"}",
+      "message": "1722850421\nd824f2e086d3c1df967785d13fcd22ef\n{\"code_url\":\"weixin://wxpay/bizpayurl?pr=JyC91EIz1\"}\n",
+      "signature": "mfI1CPqvBrgcXfgXMFjdNIhBf27ACE2YyeWsWV9ZI7T7RU0vHvbQpu9Z32ogzc+k8ZC5n3kz7h70eWKjgqNdKQF0eRp8mVKlmfzMLBVHbssB9jEZEDXThOX1XFqX7s7ymia1hoHQxQagPGzkdWxtlZPZ4ZPvr1RiqkgAu6Is8MZgXXrRoBKqjmSdrP1N7uxzJ/cjfSiis9FiLjuADoqmQ1P7p2N876YPAol7Rn0+GswwAwxldbdLrmVSjfytfSBJFqTMHn4itojgxSWWN1byuckQt8hSTEv/Lg97QoeGniYP17T80pJeQyL3b+295FPHSO2AtvCgyIbKMZ0BALilAA==",
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4zej1cqugGQtVSY2Ah8RMCKcr2UpZ8Npo+5Ja9xpFPYkWHaF1Gjrn3d5kcwAFuHHcfdc3yxDYx6+9grvJnCA2zQzWjzVRa3BJ5LTMj6yqvhEmtvjO9D1xbFTA2m3kyjxlaIar/RYHZSslT4VmjIatW9KJCDKkwpM6x/RIWL8wwfFwgz2q3Zcrff1y72nB8p8P12ndH7GSLoY6d2Tv0OB2+We2Kyy2+QzfGXOmLp7UK/pFQjJjzhSf9jxaWJXYKIBxpGlddbRZj9PqvFPTiep8rvfKGNZF9Q6QaMYTpTp/uKQ3YvpDlyeQlYe4rRFauH3mOE6j56QlYQWivknDX9VrwIDAQAB\n-----END PUBLIC KEY-----\n"
+    }
+  ],
+  "probeSignature": {
+    "source": "支付成功回调通知，https://pay.weixin.qq.com/doc/v3/merchant/4012791902（文档更新时间 2024.12.27，取于 2026-10-05）",
+    "value": "WECHATPAY/SIGNTEST/c0k+ZP6cSbveFpn0U5Bhq1Evz0A0rmmhGyuFXGqAtrlspDr3wrmaeauXJT6YYD4OmnDi767TImhRdV9hdmU0T5ZVfkOB/zka3mYthkxJ9V6UMoI4QLGogSG1mnYjZGa6zGy1+8WInqosp0+6eBJuul55xwf3oEIpNMxAl4NL0QHr5nLfB0b0PZQSU9rZneOtDjdNtDCGEtcwV6H1eTdLpFrw2wCtiWJDw6tQwR1IfGVtdE4FKJQvYmOT7udgR6XfLdvzwbJsifpxvuG9q23OQF1i4PndT7AP8ykhKUEZayTrYGWdobrljFh2nu9Ng7divjg=="
+  }
+}

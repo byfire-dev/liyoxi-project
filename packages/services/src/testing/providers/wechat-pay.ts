@@ -8,9 +8,28 @@
 //             这条通知隔 retryDelayMs 重投，最多投 maxAttempts 次
 //   查单结果  setQueryResult(单号, 结果)：之后查这个单号都返回它
 // 预下单幂等于商户单号、退款幂等于退款单号：同号、同样的入参重复调用返回同一个结果，只生效一次。
-// 通知的请求头与请求体是替身自己的格式（签名是摘要，不是真实的验签）；真实结构的通知由 X-04 扩。
+// 通知的请求头与请求体缺省是替身自己的格式（签名是摘要，不是真实的验签）。
+//
+// X-04 扩的两样（缺省都不生效，原有的行为不变）：
+//   真实结构  useWireFormat()：之后发出的通知是微信支付 APIv3 的真实结构：四个请求头、RSA-SHA256 签名、
+//             资源用 AEAD_AES_256_GCM 加密。密钥是替身现场生成的测试密钥；返回的材料（公钥、公钥 ID、
+//             APIv3 密钥）交给被测的真实驱动去验签解密。同一条通知重复投递时通知 id 与请求体不变，
+//             每次投递重新取时间戳、随机串并重新签名（官方文档 4013053420 第 2.1 节）。
+//             encode(通知, { probe: true }) 造一条签名探测流量。
+//   应答超时  loseResponseNext(方法)：外部侧已经处理（改动照常生效），但应答丢了，调用方拿到 unavailable。
+// 本文件不引真实驱动：签名与加密是照官方文档另写的一份，好让替身与驱动互相印证。
 
-import { createHash } from "node:crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createPublicKey,
+  createSign,
+  createVerify,
+  generateKeyPairSync,
+  randomBytes,
+} from "node:crypto";
+import type { KeyObject } from "node:crypto";
 
 import { failed, ok } from "../../providers/types.js";
 import type {
@@ -75,6 +94,26 @@ export interface FakeDeliveryRecord {
   acknowledged: boolean;
 }
 
+/** 真实结构的材料：被测的驱动拿它配验签身份与 APIv3 密钥。都是测试值 */
+export interface FakeWechatPayWire {
+  /** 替身扮演的微信支付公钥 ID */
+  serial: string;
+  publicKeyPem: string;
+  apiV3Key: string;
+  mchid: string;
+  appid: string;
+}
+
+export interface FakeWechatPayWireOptions {
+  serial?: string;
+  /** 32 个字节 */
+  apiV3Key?: string;
+  mchid?: string;
+  appid?: string;
+  /** 签通知用的密钥对；不给现场生成一对。大量造替身的用例可以共用一对，省掉生成密钥的时间 */
+  keyPair?: { privateKey: KeyObject; publicKeyPem: string };
+}
+
 export interface FakeWechatPay extends WechatPayProvider, FakeControl<Method> {
   readonly orders: Map<string, FakeWechatPayOrder>;
   readonly refunds: Map<string, WechatPayRefund>;
@@ -103,8 +142,72 @@ export interface FakeWechatPay extends WechatPayProvider, FakeControl<Method> {
   setQueryResult(outTradeNo: string, result: WechatPayTransaction | ProviderFailure | null): void;
   /** 把到点的通知按队列顺序投给处理器，返回投了几次 */
   deliverDue(): Promise<number>;
-  /** 把一条通知编成回调请求（请求头带替身的签名）。造被篡改的回调时用 */
-  encode(notification: WechatPayNotification): { headers: Record<string, string>; rawBody: string };
+  /** 把一条通知编成回调请求（请求头带替身的签名）。造被篡改的回调时用。probe：造一条签名探测流量 */
+  encode(
+    notification: WechatPayNotification,
+    options?: { probe?: boolean },
+  ): { headers: Record<string, string>; rawBody: string };
+  /** 切到真实结构：之后发出的通知带真实的请求头、签名与密文。返回验签解密要用的材料 */
+  useWireFormat(options?: FakeWechatPayWireOptions): FakeWechatPayWire;
+  /** 真实结构的材料；没切过是 null */
+  readonly wire: FakeWechatPayWire | null;
+  /** 让某个方法接下来的调用“成功但应答超时”：改动照常生效，调用方拿到 unavailable。缺省一次 */
+  loseResponseNext(method: Method, options?: { times?: number }): void;
+}
+
+const SIGNATURE_TYPE = "WECHATPAY2-SHA256-RSA2048";
+const PROBE_PREFIX = "WECHATPAY/SIGNTEST/";
+
+/** 时刻 → RFC 3339，写成北京时间（微信的时间字段只到秒） */
+function rfc3339(at: Date): string {
+  return `${new Date(at.getTime() + 8 * 3600 * 1000).toISOString().slice(0, 19)}+08:00`;
+}
+
+/** AEAD_AES_256_GCM 加密：密文后面跟 16 字节的认证标签，整体 base64 */
+function seal(key: string, plaintext: string, nonce: string, associatedData: string): string {
+  const cipher = createCipheriv("aes-256-gcm", Buffer.from(key), Buffer.from(nonce));
+  cipher.setAAD(Buffer.from(associatedData));
+  const body = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  return Buffer.concat([body, cipher.getAuthTag()]).toString("base64");
+}
+
+/** 上面的逆运算；解不开抛错 */
+function open(key: string, ciphertext: string, nonce: string, associatedData: string): string {
+  const bytes = Buffer.from(ciphertext, "base64");
+  const decipher = createDecipheriv("aes-256-gcm", Buffer.from(key), Buffer.from(nonce));
+  decipher.setAuthTag(bytes.subarray(bytes.length - 16));
+  decipher.setAAD(Buffer.from(associatedData));
+  const head = decipher.update(bytes.subarray(0, bytes.length - 16));
+  return Buffer.concat([head, decipher.final()]).toString("utf8");
+}
+
+/** 真实结构里解密后的资源 → 通知。字段照官方文档 4012791902（支付）、4012791906（退款） */
+function fromWire(
+  id: string,
+  eventType: string,
+  r: Record<string, unknown>,
+): WechatPayNotification {
+  const amount = (r.amount ?? {}) as { total?: number; refund?: number };
+  if (eventType.startsWith("REFUND.")) {
+    const refund = {
+      outRefundNo: r.out_refund_no,
+      outTradeNo: r.out_trade_no,
+      refundId: r.refund_id,
+      status: r.refund_status,
+      refundFen: amount.refund,
+    };
+    return { kind: "refund", id, refund: refund as WechatPayRefund };
+  }
+  const transaction = {
+    outTradeNo: r.out_trade_no,
+    tradeState: r.trade_state,
+    transactionId: r.transaction_id,
+    amountFen: amount.total,
+    payerOpenid: (r.payer as { openid?: string } | undefined)?.openid,
+    attach: r.attach,
+    successAt: typeof r.success_time === "string" ? new Date(r.success_time) : undefined,
+  };
+  return { kind: "transaction", id, transaction: transaction as WechatPayTransaction };
 }
 
 const SERIAL = "FAKE_PUB_KEY_ID";
@@ -152,18 +255,130 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
   let handler: FakeNotificationHandler | null = null;
   let seq = 0;
   const next = (prefix: string) => `${prefix}-${String((seq += 1)).padStart(6, "0")}`;
+  let wire: (FakeWechatPayWire & { privateKey: KeyObject; publicKey: KeyObject }) | null = null;
+  /** 真实结构的请求体，按通知对象记：同一条通知重复投递、重投时请求体不变 */
+  const wireBodies = new WeakMap<WechatPayNotification, string>();
+  const lostResponses = new Map<Method, number>();
 
-  function encode(notification: WechatPayNotification) {
-    const rawBody = JSON.stringify(notification);
+  /** 每个方法的入口：在底座的记录、失败、延迟之外，再套上“成功但应答超时” */
+  function run<T>(
+    method: Method,
+    input: unknown,
+    action: () => ProviderResult<T>,
+  ): Promise<ProviderResult<T>> {
+    return core.run(method, input, () => {
+      const result = action();
+      const left = lostResponses.get(method) ?? 0;
+      if (left === 0) return result;
+      lostResponses.set(method, left - 1);
+      return failed("unavailable", "替身注入：外部侧已处理，应答超时");
+    });
+  }
+
+  /** 真实结构的请求体：外层照官方文档 4012791902，资源加密 */
+  function wireBody(material: FakeWechatPayWire, notification: WechatPayNotification): string {
+    const cached = wireBodies.get(notification);
+    if (cached !== undefined) return cached;
+    let eventType = "TRANSACTION.SUCCESS";
+    let resource: Record<string, unknown>;
+    if (notification.kind === "transaction") {
+      const { transaction } = notification;
+      resource = {
+        mchid: material.mchid,
+        appid: material.appid,
+        out_trade_no: transaction.outTradeNo,
+        transaction_id: transaction.transactionId,
+        trade_type: "JSAPI",
+        trade_state: transaction.tradeState,
+        trade_state_desc: "支付成功",
+        bank_type: "OTHERS",
+        attach: transaction.attach,
+        success_time: transaction.successAt && rfc3339(transaction.successAt),
+        payer: { openid: transaction.payerOpenid },
+        amount: {
+          total: transaction.amountFen,
+          payer_total: transaction.amountFen,
+          currency: "CNY",
+          payer_currency: "CNY",
+        },
+      };
+    } else {
+      const { refund } = notification;
+      if (refund.status === "PROCESSING") {
+        throw new Error("假微信支付：真实的退款通知只有成功、异常、关闭三种，没有处理中");
+      }
+      eventType = `REFUND.${refund.status}`;
+      const order = orders.get(refund.outTradeNo);
+      const total = order?.amountFen ?? refund.refundFen;
+      resource = {
+        mchid: material.mchid,
+        out_trade_no: refund.outTradeNo,
+        transaction_id: order?.transactionId ?? "fake-txn-unknown",
+        out_refund_no: refund.outRefundNo,
+        refund_id: refund.refundId,
+        refund_status: refund.status,
+        success_time: refund.status === "SUCCESS" ? rfc3339(clock.now()) : undefined,
+        user_received_account: "支付用户零钱",
+        amount: {
+          total,
+          refund: refund.refundFen,
+          payer_total: total,
+          payer_refund: refund.refundFen,
+        },
+      };
+    }
+    const originalType = notification.kind;
+    const nonce = randomBytes(6).toString("hex");
+    const body = JSON.stringify({
+      id: notification.id,
+      create_time: rfc3339(clock.now()),
+      resource_type: "encrypt-resource",
+      event_type: eventType,
+      summary: notification.kind === "transaction" ? "支付成功" : "退款通知",
+      resource: {
+        original_type: originalType,
+        algorithm: "AEAD_AES_256_GCM",
+        ciphertext: seal(material.apiV3Key, JSON.stringify(resource), nonce, originalType),
+        associated_data: originalType,
+        nonce,
+      },
+    });
+    wireBodies.set(notification, body);
+    return body;
+  }
+
+  function encode(
+    notification: WechatPayNotification,
+    options: { probe?: boolean } = {},
+  ): { headers: Record<string, string>; rawBody: string } {
     const timestamp = String(Math.floor(clock.now().getTime() / 1000));
+    if (wire) {
+      const rawBody = wireBody(wire, notification);
+      const nonce = randomBytes(16).toString("hex");
+      const signature = createSign("RSA-SHA256")
+        .update(`${timestamp}\n${nonce}\n${rawBody}\n`)
+        .sign(wire.privateKey, "base64");
+      return {
+        rawBody,
+        headers: {
+          "Wechatpay-Timestamp": timestamp,
+          "Wechatpay-Nonce": nonce,
+          "Wechatpay-Serial": wire.serial,
+          "Wechatpay-Signature": options.probe ? `${PROBE_PREFIX}${signature}` : signature,
+          "Wechatpay-Signature-Type": SIGNATURE_TYPE,
+        },
+      };
+    }
+    const rawBody = JSON.stringify(notification);
     const nonce = notification.id;
+    const signature = signatureOf(timestamp, nonce, rawBody);
     return {
       rawBody,
       headers: {
         "wechatpay-timestamp": timestamp,
         "wechatpay-nonce": nonce,
         "wechatpay-serial": SERIAL,
-        "wechatpay-signature": signatureOf(timestamp, nonce, rawBody),
+        "wechatpay-signature": options.probe ? `${PROBE_PREFIX}${signature}` : signature,
       },
     };
   }
@@ -189,6 +404,39 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
     enqueue,
     onNotification(nextHandler) {
       handler = nextHandler;
+    },
+
+    get wire() {
+      if (!wire) return null;
+      const { serial, publicKeyPem, apiV3Key, mchid, appid } = wire;
+      return { serial, publicKeyPem, apiV3Key, mchid, appid };
+    },
+
+    useWireFormat(options = {}) {
+      const keyPair =
+        options.keyPair ??
+        (() => {
+          const generated = generateKeyPairSync("rsa", { modulusLength: 2048 });
+          const publicKeyPem = generated.publicKey.export({ type: "spki", format: "pem" });
+          return { privateKey: generated.privateKey, publicKeyPem: publicKeyPem.toString() };
+        })();
+      // 缺省的 APIv3 密钥是现场拼出来的假值：32 个字节
+      const apiV3Key = options.apiV3Key ?? "lyx-fake-wechatpay-".padEnd(32, "0");
+      if (Buffer.byteLength(apiV3Key) !== 32) throw new Error("假微信支付：APIv3 密钥要 32 个字节");
+      wire = {
+        serial: options.serial ?? "PUB_KEY_ID_0000000000000000000000000000000000",
+        publicKeyPem: keyPair.publicKeyPem,
+        apiV3Key,
+        mchid: options.mchid ?? "1900000109",
+        appid: options.appid ?? "wx0000000000000000",
+        privateKey: keyPair.privateKey,
+        publicKey: createPublicKey(keyPair.publicKeyPem),
+      };
+      return fake.wire as FakeWechatPayWire;
+    },
+
+    loseResponseNext(method, options = {}) {
+      lostResponses.set(method, (lostResponses.get(method) ?? 0) + (options.times ?? 1));
     },
 
     pay(outTradeNo, plan) {
@@ -264,7 +512,7 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
     },
 
     createJsapiOrder: (input) =>
-      core.run("createJsapiOrder", input, () => {
+      run("createJsapiOrder", input, () => {
         if (!Number.isInteger(input.amountFen) || input.amountFen <= 0) {
           return failed("rejected", "金额要是正的整数分");
         }
@@ -291,10 +539,32 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
       }),
 
     verifyAndDecryptNotification: (input) =>
-      core.run("verifyAndDecryptNotification", input, (): ProviderResult<WechatPayNotification> => {
+      run("verifyAndDecryptNotification", input, (): ProviderResult<WechatPayNotification> => {
         const headers = Object.fromEntries(
           Object.entries(input.headers).map(([name, value]) => [name.toLowerCase(), value]),
         );
+        if (wire) {
+          // 真实结构：照微信的规则验签、解密。只管通与不通；逐种失败的判别在真实驱动里
+          const signed = `${headers["wechatpay-timestamp"]}\n${headers["wechatpay-nonce"]}\n${input.rawBody}\n`;
+          const signature = Buffer.from(headers["wechatpay-signature"] ?? "", "base64");
+          const verified =
+            headers["wechatpay-serial"] === wire.serial &&
+            createVerify("RSA-SHA256").update(signed).verify(wire.publicKey, signature);
+          if (!verified) return failed("rejected", "验签失败");
+          try {
+            const outer = JSON.parse(input.rawBody) as {
+              id: string;
+              event_type: string;
+              resource: { ciphertext: string; nonce: string; associated_data: string };
+            };
+            const { ciphertext, nonce, associated_data: associatedData } = outer.resource;
+            const plaintext = open(wire.apiV3Key, ciphertext, nonce, associatedData);
+            const resource = JSON.parse(plaintext) as Record<string, unknown>;
+            return ok(fromWire(outer.id, outer.event_type, resource));
+          } catch {
+            return failed("rejected", "解密失败");
+          }
+        }
         const expected = signatureOf(
           headers["wechatpay-timestamp"] ?? "",
           headers["wechatpay-nonce"] ?? "",
@@ -307,7 +577,7 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
       }),
 
     queryByOutTradeNo: (input) =>
-      core.run("queryByOutTradeNo", input, (): ProviderResult<WechatPayTransaction> => {
+      run("queryByOutTradeNo", input, (): ProviderResult<WechatPayTransaction> => {
         const preset = queryResults.get(input.outTradeNo);
         if (preset !== undefined) return "ok" in preset ? preset : ok({ ...preset });
         const order = orders.get(input.outTradeNo);
@@ -315,7 +585,7 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
       }),
 
     closeOrder: (input) =>
-      core.run("closeOrder", input, (): ProviderResult<{ outcome: "closed" | "paid" }> => {
+      run("closeOrder", input, (): ProviderResult<{ outcome: "closed" | "paid" }> => {
         const order = orders.get(input.outTradeNo);
         if (!order) return failed("rejected", "订单不存在");
         if (order.tradeState === "SUCCESS" || order.tradeState === "REFUND") {
@@ -326,7 +596,7 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
       }),
 
     createRefund: (input) =>
-      core.run("createRefund", input, () => {
+      run("createRefund", input, () => {
         const existing = refunds.get(input.outRefundNo);
         if (existing) {
           if (existing.outTradeNo !== input.outTradeNo || existing.refundFen !== input.refundFen) {
@@ -362,7 +632,7 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
       }),
 
     fetchTradeBill: (input) =>
-      core.run("fetchTradeBill", input, () => {
+      run("fetchTradeBill", input, () => {
         const lines = [...orders.values()]
           .filter((order) => order.successAt && beijingDate(order.successAt) === input.billDate)
           .map((order) =>
