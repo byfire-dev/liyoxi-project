@@ -36,11 +36,11 @@ it("……", async () => {
 
 - 名字：`lyx_test_<包>_<会话标识>_<worker 编号>`；同一个文件要第二个库时写 `useTestDatabase("services", { label: "b" })`，名字末尾多一段 `_b`。模板库是 `lyx_test_tpl_<会话标识>`。
 - 会话标识：环境变量 `LYX_TEST_SESSION`（1–12 位小写字母与数字）；没设就取本检出根路径的短哈希，所以每个 worktree 天然各用各的。worker 编号取 Vitest 给的 `VITEST_POOL_ID`（1 到并行数）。
-- 生命周期：每轮测试开始，globalSetup 重建模板库并 `prisma migrate deploy`，建完关掉它的连接入口；测试文件第一次取连接时从模板库拷一份（约 0.2 秒）；文件里的用例全过，收尾时删库；有用例失败，库改名为 `<库名>_k<时间戳>` 留下，名字打印在输出里，看完用 `pnpm test:db:prune` 清掉。
+- 生命周期：每轮测试开始，globalSetup 重建模板库并 `prisma migrate deploy`，建完关掉它的连接入口；测试文件第一次取连接时从模板库拷一份（约 0.2 秒）；文件里的用例全过，收尾时删库；有失败，库改名为 `<库名>_k<时间戳>` 留下，名字打印在输出里，看完用 `pnpm test:db:prune` 清掉。用例失败、钩子（`beforeAll`、`afterAll`、`beforeEach`、`afterEach`）失败都算失败：收尾挂在 `aroundAll` 上，把这一组用例连同它的钩子整个包在里面，跑完看结果。
 - 守卫：建库、删库、重置、连接四个入口都先过 `assertTestDatabaseName`，名字不是 `lyx_test_` 开头即抛错，一句 SQL 都不发。装配测试用的服务容器之前，用 `assertTestDatabaseUrl(连接串)` 给连接串把关。
 - 重置 = 删库重建，不清表。重置之前取的 Prisma 客户端作废，要重新取。
 - 角色：`useTestDatabase("services", { role: "某个角色" })` 让连接连上之后切到那个角色。缺省不切，用 `DATABASE_URL` 的账号。W0-06a 的授权迁移合并后，缺省值改为应用角色 `lyx_app`（两个包里后合并的一方改，任务书 第 11 节第 8 项）。
-- 同一个会话标识同一时刻只许一轮测试：globalSetup 用一把咨询锁占着，第二轮会报“会话标识 … 已经有一轮测试在跑”。同一个检出里要同时跑两轮，各给一个 `LYX_TEST_SESSION`。
+- 同一个会话标识同一时刻只许一轮测试：globalSetup 用一把咨询锁占着，第二轮会报“会话标识 … 已经有一轮测试在跑”。同一个检出里要同时跑两轮，各给一个 `LYX_TEST_SESSION`。清理命令判断“会话在不在跑”只看 `pg_locks`，不去抢这把锁。
 - 连库的时限：删库要等数据库做一次检查点，实例上别的会话正在大批建表时会慢到十几秒。收尾钩子的时限已放到 120 秒；自己的用例里连库的那几条也建议写明 `{ timeout: … }`，不要用缺省的 5 秒。
 
 ### 清理：`pnpm test:db:prune`
@@ -73,7 +73,8 @@ it("……", async () => {
 ```
 
 - “清空”只用 `SCAN` 加 `UNLINK`，不用 `FLUSHDB`、`FLUSHALL`：共享的那份 Redis 上还有别的会话、别的 worker 与本地开发的键。前缀同样有守卫（`assertTestRedisPrefix`）。
-- 首次取连接时先清掉这个前缀下上一轮的残留；测试文件跑完，自动清空并断开。
+- 首次取连接时先清掉这个前缀下上一轮的残留；测试文件跑完，自动断开并清空。收尾返回时，发出去的连接都已经真的断开（状态是 `end`）。
+- 自己另建的连接（`new Redis(...)`）收尾时用 `await disconnectTestRedis(client)`，不要 `client.disconnect()` 完就当它断了：ioredis 的 `disconnect()` 只是发起断开，状态要等对端把连接关掉才变，机器忙的时候晚到几十毫秒是常事。断言连接状态之前先等它。
 - BullMQ 不认 ioredis 的 `keyPrefix`，要用它自己的 `prefix` 选项：写 `` `${redis.prefix}bull` ``，连接用 `await redis.raw()`（不带前缀的连接）。
 - 连接串取环境变量 `REDIS_URL`。
 
@@ -104,18 +105,36 @@ clock.set(new Date("2026-03-01T00:00:00+08:00")); // 直接拨到某个时刻，
 
 | 命令 | 做什么 |
 | --- | --- |
-| `pnpm test` | 全量测试。`packages/db`、`packages/services` 两个项目挂了 globalSetup，要本地的 PostgreSQL 在运行并给出 `DATABASE_URL`；连 Redis 的用例另要 `REDIS_URL`（取值见 `CLAUDE.md` 第 9 节） |
+| `pnpm test` | 全量测试。`packages/db`、`packages/services` 两个项目挂了 globalSetup：只跑其中不连库的用例，也要本地的 PostgreSQL 在运行并给出 `DATABASE_URL`；连 Redis 的用例另要 `REDIS_URL`（取值见 `CLAUDE.md` 第 9 节） |
 | `pnpm test --maxWorkers=4` | 指定并行数。参数直接跟在后面，**不要写 `--`**：`pnpm test -- --maxWorkers=4` 里 `--` 之后的参数会被 Vitest 忽略（2026-10-05 实测，pnpm 10.34.5、Vitest 4.1.11） |
-| `pnpm test:isolation` | 两个会话同时跑全量测试（各 4 个 worker），都要绿，且两边用的库名与 Redis 前缀没有交集。CI 的 `verify` 里有这一步。日志与用量记录放在系统临时目录，位置打印在输出里 |
+| `pnpm test:isolation` | 两个会话同时跑全量测试，都要绿，且两边用的库名与 Redis 前缀没有交集。本地出验收证据用它 |
+| `pnpm test:isolation --scope connected` | 同上，但只跑连 PostgreSQL、Redis 的测试项目。CI 的 `verify` 里的那一步是这一条 |
 | `pnpm test:db:prune` | 清理测试库，见第 2 节 |
 
-`pnpm test:isolation` 怎么知道两边用了什么：环境变量 `LYX_TEST_USAGE_FILE` 给了文件路径时，支架每建一个库、每发一个 Redis 前缀往里追加一行 JSON。平时不设这个变量，什么都不记。
+### `pnpm test:isolation` 的参数
+
+```sh
+pnpm test:isolation                      # 两个会话各跑一遍全量测试
+pnpm test:isolation --scope connected    # 只跑连库的测试项目（CI 用）
+pnpm test:isolation --workers 4          # 每个会话 4 个 worker，不按核数定
+pnpm test:isolation --keep               # 通过了也留着日志与用量记录
+pnpm test:isolation --dry-run            # 只打印要跑什么，不跑
+```
+
+- 怎么知道两边用了什么：环境变量 `LYX_TEST_USAGE_FILE` 给了文件路径时，支架每建一个库、每发一个 Redis 前缀往里追加一行 JSON。平时不设这个变量，什么都不记。
+- 核对的内容：两份记录都有库、有 Redis 前缀、有一条“4 个 worker 同时在场、4 个互不相同的库”的记录（`parallel.test.ts` 嵌套跑一轮确定的 4 个 worker 写的，不随 `--workers` 变）；两边的库名、Redis 前缀没有交集。
+- 每个会话几个 worker：缺省按本机的核数定，两个会话合起来不超过可用核数，每个会话最多 4 个、至少 1 个（10 核各 4 个，4 核各 2 个，2 核各 1 个）。worker 开得比核数多，别的用例会被挤到超时：CI 的执行机只有 2 核，第一次各开 4 个时，`infra` 里一条 60 秒时限的用例跑了 65 秒。要照任务书的字面“各 4 个”跑，就在 8 核以上的机器上跑，或者显式给 `--workers 4`。
+- `--scope connected` 跑哪些项目：挂了 globalSetup 的项目都算，问的是 Vitest 解析出来的配置，不在脚本里列名字。现在是 `packages/db`、`packages/services`。隔离出问题只可能出在连库、连 Redis 的用例上，纯计算的用例跑两遍证明不了什么。
+- CI 为什么只跑 connected：时长预算（开发计划 第 5.5 节，PR 必过检查合计 ≤15 分钟）。执行机 2 核，“测试”一步约 3 分钟；两个会话各跑一遍全量，各 1 个 worker 估 3 到 4 分钟（第一次各开 4 个，5 分钟还红了），以后不管加的是什么用例，这一步都跟着多付两份。只跑连库的项目估一分半上下（2026-10-05 在钉成 2 核的容器里量的，换算办法见 `docs/plan/status/W0-05b.md` 偏差 12）。`infra` 里两份连库的用例（`db-catalog-diff`、`db-verify-managed`）不在 connected 里：它们不走本支架，库名带进程号，自己建、自己删；不带 `--scope` 的全量里有它们。
+- connected 这一步的开销跟着连库的用例涨：服务包的连库用例多起来之后，它也会接近“测试”一步的时长。到时候的办法是计划 第 5.5 节写的那两个：按受影响的包跑，或挪到“合并后”一栏。
+- 日志与用量记录放在系统临时目录：通过即删；没过的留着，位置打印在输出里。
 
 ## 7. 给一个新的包挂上
 
-1. 包的 `vitest.config.ts` 里加 `globalSetup: ["@liyoxi/services/testing/global-setup"]`（`packages/db`、`packages/services` 写的是相对路径）。几个项目都挂了它时，同一轮里模板库只建一次。
+1. 包的 `vitest.config.ts` 里加 `globalSetup: ["@liyoxi/services/testing/global-setup"]`（`packages/db`、`packages/services` 写的是相对路径）。几个项目都挂了它时，同一轮里模板库只建一次。**只连 Redis、不连库的包也要挂。**
 2. 测试文件里 `useTestDatabase("<包>")`。包名只能取 `db`、`services`、`api`、`worker`：要加新的，改 `packages/db/src/testing/database.ts` 的 `TEST_PACKAGES`。
-3. 没挂 globalSetup 就用 `useTestDatabase`，建库时会报“模板库 … 不存在”。
+3. 没挂 globalSetup 就用 `useTestDatabase` 或 `useTestRedis`，文件一加载就报“本包的 vitest.config.ts 没有挂测试支架的 globalSetup”。
+4. 挂上之后不用再改别处：`pnpm test:isolation --scope connected`（CI 的那一步）按“挂没挂 globalSetup”认项目，新的包自动进来。CI 的步骤、`infra/ci/test/workflows.test.ts` 的命令清单都不用动。
 
 ## 8. 共享实例上的规矩
 
@@ -129,6 +148,7 @@ clock.set(new Date("2026-03-01T00:00:00+08:00")); // 直接拨到某个时刻，
 
 - 嵌套跑的一轮（`packages/db/src/testing/__fixtures__/`）不挂 globalSetup，用外层那一轮的模板库；不要单独拿它当入口跑。
 - “4 个 worker 同时在场”是在嵌套的一轮里验证的（确定的 4 个 worker、4 个文件），不随外层的并行数变；外层那一轮用了哪些库记在用量记录里。
+- 失败留库看的是这一组用例与钩子的结果。测试文件自己另挂的 `aroundAll` 失败时，支架收尾那一刻还看不到，库会被当成全过删掉。
 - 每个连库的测试文件多付一次建库与删库。实例忙的时候删库可以慢到十几秒（等检查点）；连库的文件多了之后要不要改成“worker 的库留着、用前重置”，到时候再看。
 - 进程中断工具的子进程用 Vitest 带的 Vite 加载场景模块，起一个要零点几秒。
 - Redis 故障注入只转发不加密的 `redis://` 连接。
