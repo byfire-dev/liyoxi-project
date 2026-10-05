@@ -79,6 +79,7 @@ L 与甲类包的任务书，不论由哪个拆包 PR 交付，都要业主过�
 | 19 | W0-10 | ① 路由元数据的 `x-permission`、`x-capability` 只取契约登记的键（`PermissionKey`、`CapabilityKey`），另许 `assert-in-handler` 与不设；`x-step-up: skip` 的 8 条与处理器内判定的规则登记在路由一侧。② 约定 C10 里对着路由查的几条：路径里的每个资源段都在资源登记里、参数名与登记一致、别名在登记过的别名之内 | W0-09b 第 5 节；`packages/contract/src/resources/define.ts` 开头的注释 |
 | 20 | W0-18 | 07 第 7 节补登的 7 个参数键的类型、范围、默认值定义（同第 6 行，键已在契约的参数键清单里） | W0-09b 第 5 节、第 11 节第 12 项 |
 | 21 | W0-21 | ① 通知场景播种：键、受众、显示名取契约的 `NOTIFY_SCENES`；通道绑定的播种值（订阅槽位、短信模板与策略、节点、发送时段、合并窗口、转交付经理的开关）按 13 分组 第 2.1 节写。② 角色的权限点开关（`staff_role.actions`）由权限点的默认授予得出：`roles` 一种写成 `{ on, leadOnly }`，其余四种不进角色配置或另行处理；默认模块等级矩阵契约里没有。③ 07 第 7 节补登的 2 个开关键随开关一起播种 | W0-09b 第 5 节 |
+| 25 | W0-24、W0-25 | W0-24：把 config 的五条 SQL 断言登记成不变量（`packages/services/src/config/invariants.ts` 的 `configSeedAssertions`；“现在”取注入的时钟）。W0-25：“带种子的干净库”调 `runSeed`，不另抄数据 | W0-21 第 5 节、第 10 节第 10 项 |
 
 ### 5.2 接收方在 M1 及以后
 
@@ -96,6 +97,8 @@ L 与甲类包的任务书，不论由哪个拆包 PR 交付，都要业主过�
 | 22 | W1-02 | 后台的模块键、模块等级换成引契约：`apps/admin/src/lib/menu-types.ts` 的 `AdminModuleKey`、`ModuleLevel` 改为取 `@liyoxi/contract/authz`（W0-28 状态文件“往后移交”点名交给 W0-09b、W0-10 的那一件；菜单角标键随 a02 域，契约里还没有） | W0-09b 第 5 节 |
 | 23 | G2-C | ① 通知注册表登记的场景键与契约的 `NOTIFY_SCENES` 一一对应（启动自检或用例）。② 埋点接收接口对端上 10 个事件的属性校验结构，与契约 `ClientEventProps` 的类型同形（用例断言） | W0-09b 第 5 节；`packages/contract/src/analytics/events.ts` 开头的注释 |
 | 24 | 各域第一个后端 PR | 本域里标了带 `details` 的领域错误码，各登记 `details` 的结构；默认文案不合适的同 PR 改（文案不在对账之内） | W0-09b 第 5 节、第 11 节第 3 项 |
+| 26 | W1-01b；服务器与发布的包（G2-D 环境包） | W1-01b：登记 `staff.I8`（`packages/services/src/staff/invariants.ts`）。发布流程：`migrate deploy` 之后跑播种；命令行入口 `pnpm db:seed` 靠 `tsx` 直接跑源码，生产镜像里没有它时由构建产物里的入口调 `runSeed` | W0-21 第 5 节、第 10 节第 1 项 |
+| 27 | G2-C；M2 的初始化脚本 | 订阅槽位的字段定义、短信模板的变量定义、模板编号与签名：种子里是空数组与 `unconfigured`，模板选定、报备通过后写 | W0-21 第 10 节第 7 项 |
 
 ## 6. 任务书加的前置（计划依赖列没有）
 

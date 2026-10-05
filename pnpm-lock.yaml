@@ -7,6 +7,7 @@ settings:
 overrides:
   prisma@7.9.1>mysql2: 3.24.4
   '@prisma/config@7.9.1>deepmerge-ts': 8.0.2
+  '@nutui/nutui-react-taro@3.0.20>codesandbox': '-'
 
 importers:
 
@@ -251,6 +252,9 @@ importers:
       fast-check:
         specifier: 4.10.2
         version: 4.10.2
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
 
   packages/shared:
     dependencies:

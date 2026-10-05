@@ -159,3 +159,67 @@ const orderNo = await bizNo.next(tx, "LYX"); // LYX2026010500001
 - 预发环境（`APP_ENV=stg`）的单号最前面加 `T`；`biz_sequence.prefix` 存不带 `T` 的前缀。
 - 取号与业务写同事务：回滚不留空号。取号的行锁持有到提交，同前缀同日的取号因此串行，取号放在事务里靠后的位置。`biz_sequence` 不参与锁排序。
 - `JF`、`SQ` 由订购单号派生，`RZ` 由数据库序列生成，都不经这里。只要拼格式用 `formatBizNo`。
+
+## 11. 三段式用例（W0-20）
+
+依据：[约定](../../../../docs/api/00-conventions.md) 第 7 节 C51；[01 分组](../../../../docs/data-model/01-kernel-flow.md) 第 2.1 节的状态机；D7 第 3.1 节。文件：`three-phase/three-phase.ts`；幂等行的占用、抢占、写回、释放在 `idempotency.ts` 末尾。事务外必须调外部服务的用例都这样写：
+
+```ts
+const threePhase = createThreePhaseRunner({ tx, clock }); // 装配时建一次
+
+// 用例函数：不在事务里调
+const result = await threePhase.run(
+  {
+    claim: (handle, { resumed }) => getOrCreateAttempt(handle, input), // 事务一：记业务意图
+    external: (attempt) => prepay(providers.wechatPay, attempt.outTradeNo), // 事务外：调外部
+    settle: (handle, outcome, attempt) => saveResult(handle, attempt, outcome), // 末个事务：落结果
+    compensate: (handle, attempt, { error, phase }) => closeAttempt(handle, attempt), // 业务失败时
+  },
+  { idem }, // 与 tx.run 的 idem 是同一个上下文，一个上下文只给一次
+);
+```
+
+| 情形 | 结果 |
+| --- | --- |
+| 第一次 | 事务一：占用（`in_progress`，`locked_until` = 注入的时钟 + 30 秒）与 `claim` 一起提交 → 事务外 `external` → 末个事务：占用改 `done`、`settle`、存结果 |
+| 同键、请求哈希不同 | `IDEMPOTENCY_KEY_REUSED`，不占用、不外呼（占用过期了也一样） |
+| 同键、已完成 | 重放存下的结果，三段都不执行；`idem.replayed` 为真，脱敏与 `replayed: true` 同第 9 节 |
+| 同键、占用未过期 | `IDEMPOTENCY_IN_PROGRESS`（可重试；端上 1 秒后重试、至多 5 次是请求层的事） |
+| 同键、占用已过期 | 条件更新抢占，同时到的只有一个抢到；`claim` 再执行一遍（`resumed` 为真），然后照常外呼、落结果 |
+| 用例在 `external`、`settle` 里抛 `AppError`（业务失败） | 另开事务删掉占用、执行 `compensate`，错误原样抛出；同一个键可以直接重试 |
+| 其余的错误（进程中断、程序错误、事务机制报的 `BUSY` 与超时） | 什么都不收拾，原样抛出；占用留到过期，由重复请求续做 |
+| `claim` 抛错 | 事务一回滚，意图与占用都不留 |
+| 幂等为 `none`、`natural`，或不给 `idem` | 同一条流水，不读写幂等记录：没有占用、续做与重放 |
+
+写用例时要守的几条：
+
+- 写成可续做。`external` 用业务侧稳定的外部幂等号（商户单号、退款单号），工具不替用例生成；`claim` 写成“取得或新建”；需要先查再呼的，在 `external` 里自己查。
+- “外部明确没办成”才抛 `AppError`；不知道对方办没办成（超时、连接断开）要么原样抛出等续做，要么确认外部侧同号幂等之后再包成业务失败。
+- `external` 自己的超时要明显短于 30 秒。占用过期被别的请求接手之后，原来那一方就写不回、也补偿不了：接手的一方已写完时它拿到同一份结果，还没写完时它得到 `IDEMPOTENCY_IN_PROGRESS`。
+- 三种形态（约定 C51）只是用法不同。先调外部：不写 `claim`。先落库：`claim` 落本地行，`compensate` 删行或标失败。多事务：`claim` 落的技术状态在业务失败时不回滚，要标记写在 `compensate` 里。
+- `threePhase.run` 在事务里调即抛 `KernelViolation`；`claim`、`settle`、`compensate` 里不许调 Provider。
+- 外呼前钩子：进程装配与测试装配把 `guardProviderCall` 交给 Provider 工厂，`createProviders({ …, beforeCall: guardProviderCall })`、`createFakeProviders({ beforeCall: guardProviderCall })`。在事务里调任何 Provider 方法，`local`、`test` 下抛错且请求发不出去，`stg`、`prod` 上报后照常调（第 4 节）。
+- 同键的另一个占用还没提交时，后到者等它；等多久由连接自己的 `lock_timeout` 管，超时按第 2 节的表处理。
+
+样例用例在 `@liyoxi/services/testing` 的 `samplePrepay`（探针表 `lyx_sample_prepay` 上的“预下单尝试”，外部是假微信支付）：三种形态各一条，只给测试用。用例在 `three-phase/`：外呼前、中、后中断三份，形态、并发抢占、事务内外呼各一份，另有一份性质测试（连库，缺省 40 轮，`LYX_FC_RUNS`、`LYX_FC_SEED` 可改）。
+
+## 12. 乐观锁（W0-20）
+
+依据：[约定](../../../../docs/api/00-conventions.md) 第 7 节 C52、C53；[06](../../../../docs/06-data-model.md) 第 3.3 节。文件：`optimistic-lock/lock-version.ts`。内容编辑先过版本关，再改内容：
+
+```ts
+return tx.run(async (handle) => {
+  const lockVersion = await bumpLockVersion(handle, {
+    table: "point_pack",
+    id: input.id,
+    expected: input.lockVersion, // 读详情时拿到的版本
+  });
+  await handle.pointPack.update({ where: { id: input.id }, data: { priceFen: input.priceFen } });
+  return { id: input.id, lockVersion };
+});
+```
+
+- 版本关是一条带版本条件的更新：相符则版本加 1 并拿住这一行，返回新版本；不相符抛 `VERSION_CONFLICT`，`details` 是 `{ lockVersion: 最新值 }`；行不存在抛 `NOT_FOUND`。两个事务拿同一个版本来改，只过得去一个。
+- 可指定的三样：`column`（锁列，缺省 `lock_version`；`delivery_plan` 的第二把锁写 `draft_lock_version`）、`key`（主键列与类型，缺省 `{ column: "id", type: "uuid" }`；自然主键写 `type: "text"`）、`field`（`details` 里的字段名，缺省由列名转小驼峰；比对父剧目版本时写 `dramaLockVersion`）。
+- 只管内容编辑。状态迁移用行锁加状态守卫（`flow.transition()`），不走这里；`param_value` 的逐项修订号比的是“每个键最新一行”，由领域自己写。
+- 表名、列名只写代码里的常量（会再过一遍小写蛇形的校验）；请求里的版本先由路由的 Zod 结构把关，传进来不是非负整数即抛 `TypeError`。

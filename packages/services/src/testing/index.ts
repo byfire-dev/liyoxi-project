@@ -12,3 +12,18 @@ export * from "./redis.js";
 
 // W0-07b：测试装配（真实模块的登记之外追加样例登记）
 export * from "./assembly.js";
+// W0-20：三段式的样例用例（探针表上的“预下单尝试”），只在测试里挂
+export * from "./three-phase-samples.js";
+
+// W0-15：出站事件的样例事件、样例订阅者，与测试装配之上的 events
+export * from "./events.js";
+// W0-17：五个端口的样例实现（记下收到的调用）
+export * from "./ports.js";
+
+// W0-17：工作日历的样例数据
+export * from "./calendar.js";
+
+// W0-17：定时器的样例 kind、带样例的名字来源与样例登记
+export * from "./timers.js";
+// W0-16：状态迁移的样例守卫、活动流默认描述、固定日历的工作分钟实现，与测试装配之上的 flow
+export * from "./flow.js";

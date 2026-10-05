@@ -110,3 +110,16 @@ export type { PublishedSiteConfig, SiteConfig, SiteConfigKey } from "./site-conf
 export type { ConfigDb, ConfigProblem, ConfigProblemKind, ConfigReport } from "./types.js";
 export { compareVersions, matchesVersionRange, parseVersion } from "./version.js";
 export type { Version } from "./version.js";
+// W0-21 种子与五条配置类不变量的 SQL 断言
+export { seed } from "./seed.js";
+export { configSeedAssertions } from "./invariants.js";
+export {
+  CHECKLIST_TEMPLATE_SEEDS,
+  DICT_ITEM_SEEDS,
+  DICT_TYPE_SEEDS,
+  HOME_RECOMMEND_CONFIG_SEED,
+  MALL_CONFIG_SEED,
+  SITE_CONFIG_SEEDS,
+  SYSTEM_DICT_ITEMS,
+} from "./seed-data.js";
+export type { ChecklistTemplateSeed, DictItemSeed, DictTypeSeed } from "./seed-data.js";

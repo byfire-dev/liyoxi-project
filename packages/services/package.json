@@ -21,7 +21,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --passWithNoTests",
-    "build": "echo '源码包：exports 直接指向 src，没有构建'"
+    "build": "echo '源码包：exports 直接指向 src，没有构建'",
+    "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1141.0",
@@ -34,6 +35,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "fast-check": "4.10.2"
+    "fast-check": "4.10.2",
+    "tsx": "4.23.15"
   }
 }
