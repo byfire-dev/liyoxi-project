@@ -240,6 +240,7 @@
 | `pnpm status-tone:check` | 状态字典键与契约枚举同名：状态色调字典（`packages/shared/src/design/status-tone`）里写了“表.列”的条目，那一列在契约里绑定了枚举，取值都在枚举的取值之内，一处不符即非 0 退出。只读文件，不连库。字典加条目、契约改枚举取值之后跑它。口径见 [脚本](packages/shared/scripts/status-tone-check.ts) 开头的注释 |
 | `pnpm --filter @liyoxi/admin dev`（看样：浏览器开 `http://localhost:5183/dev/showcase`） | 后台的开发服务器（端口 5183，带样例页与夹具，不用起 api）。陈列页（看样页）把构件、设计变量、状态取色、图标照规范的章节逐组摆出来；它的截图随 `pnpm admin:e2e` 出在 `apps/admin/dist/e2e-shots/showcase-*.png`。见 [README](apps/admin/README.md)“陈列页” |
 | `pnpm weapp:shots -- --sheet colors`（可给多次） | 只出小程序陈列里某张基础样张的图 `apps/weapp/shots/dist/png/gallery__sheet-<样张名>.png`（颜色、文字、间距圆角、状态取色表）。不带参数时每张各出一张。看样怎么看见 [看样清单](docs/plan/sample-review/W0-29.md) |
+| `pnpm --filter @liyoxi/services exec vitest run src/ops/`（任务进程里的那一份：`pnpm --filter @liyoxi/worker exec vitest run test/ops-jobs.test.ts`） | 只跑不变量与清理框架的用例：带种子的库上 full 0 违规、人为造一条违规能发现并去重、三种自愈策略、上报端口、清理的限量与出错隔离；真实装配里的三个周期任务（`invariant.full`、`invariant.quick`、`ops.retention`）经任务进程跑。除一份外都连库，要本地的 PostgreSQL 与 `DATABASE_URL`，任务进程的那一份另要 `REDIS_URL`。检查项与清理项怎么登记、手工跑一次（`runInvariants`）怎么调，见 [README](packages/services/src/ops/invariants/README.md) |
 
 本地连接参数：配置只经 `loadEnv`（`packages/services/src/kernel/env.ts`）读环境变量，会话与测试不建、不读 `.env`，在命令前或 shell 里给出。取值出处是 [local.yml](infra/compose/local.yml)，账号与口令是固定的开发值，只对本机这套容器有效；CI 的服务容器用同一组值。
 
