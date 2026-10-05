@@ -69,41 +69,53 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 
 ## 5. 移交表
 
+加行的规矩（2026-10-06 起）：**新加的行不再编号，首列写“—”**，加在所属小节的表尾；引用时写“接收方是某某的一行”，不写行号。原因：几个会话并行往表尾加行，编号总是相撞（第 61、62、63 号都各出现过两次）。已有编号的行（第 1–66 行）编号不变，照旧可以按行号引用。记录见 [changes/plan-handoff-rows-unnumbered.md](../changes/plan-handoff-rows-unnumbered.md)。
+
 随 W0-04 交付的任务书把一些事项交给了后面的包，接收方的清单行或任务书里没写。默认（W0-04 定）：
 
 - 接收方补全任务书前先查本表，把自己那几行写进任务书的“目标”与“验收”。
-- 办结后在本包状态文件“偏差”一节写一句“移交表第 N 行已办”。本表不回改。
-- 之后的任务书再往后移交事项，同 PR 往本表加行。
+- 办结后在本包状态文件“偏差”一节写一句“移交表第 N 行已办”；没有编号的行写“移交表里接收方是某某的一行已办”。各包不回改本表；台账 PR 整理时在行尾括注办到哪了，不删行。
+- 之后的任务书再往后移交事项，同 PR 往本表加行（不编号，见上）。
 - W0-30 核对 M0 各行都已办结。M1 以后的行由 W0-31 与各拆包 PR 写进对应的任务书。
 
 ### 5.1 接收方在 M0
 
 | # | 接收方 | 事项 | 出处（任务书） |
 | --- | --- | --- | --- |
-| 1 | W0-22、W0-23（两个进程的装配） | 启动时调四个自检：`security` 的加密、解密、盲索引；审计 `target_type` 对照库里的表名单；聚合类型都是库里存在的表名；`machine`、`state_field` 的表与列在库里存在。开工时已在 main 上的就接；没到的由两包中后合并的一方接，W0-30 兜底 | W0-14 第 2 节第 12 条、第 11 节第 3 项；W0-15 第 11 节第 7 项；W0-16 第 11 节第 7 项；W0-23 第 7 节第 11 条 |
-| 2 | W0-22、W0-23 | 客户端工厂的连接参数（连接串、连接数上限、三个会话超时）在装配时传；真实构建脚本接替占位 | W0-05 第 10 节第 5 步；W0-07 第 5 节；W0-02 第 11 节第 8 项 |
-| 3 | W0-22 | 测试装配导出“已挂载的 operationId 清单”，供已落地判定读（之前为空集）；`/health` 读 worker 租约 | W0-10 第 11 节第 3 项；W0-23 第 5 节 |
-| 4 | 单独的 `gate-change` PR，W0-07b 合并后、W0-22 开工前 | 放开一个装配文件引 `@liyoxi/db`（W0-02 先全禁） | W0-02 第 11 节第 5 项 |
-| 5 | W0-24 | 调度已登记的不变量与清理项：`events.I8`、`flow.I12`、`sla.N8`、timers 的 90 天清理。两处在开工时 `register.ts` 机制未到而只导出函数的，由本包登记：幂等记录的过期清理、审计的两条检查 | W0-13 第 11 节第 8 项；W0-14 第 11 节第 5 项；W0-15、W0-16 第 10 节第 6 步；W0-17 第 10 节第 9 步 |
-| 6 | W0-18 | 参数的类型、范围、默认值定义（W0-09a 只登记键名与分组） | W0-09a 第 11 节第 3 项 |
-| 7 | W0-09b | contract `exports` 里接口侧注册表的子路径 | W0-08 第 11 节第 8 项 |
-| 8 | W0-27a | 定 `pricing`、`period`、`alloc` 子路径对小程序是否开放；经 Taro 构建验证 shared 的子路径可引。已写进 W0-27a 第 11 节第 9 项 | W0-11 第 11 节第 4、8 项 |
-| 9 | W0-30 | ① `flow` 的“工作分钟”端口接上真实实现：读工作日历（sla）与工作时段（config 读侧），三张表迁移能写出 `elapsed_work_min`，带测试。② `packages/shared` 里的字符串字面量联合类型改为引用 contract 的常量。③ “状态字典键与契约枚举同名”的检查只查有枚举对应的条目。④ 核对 PR 必过检查合计 ≤15 分钟。⑤ 留桩、变更、外部验证三张汇总的脚本，随四个计数的报表。⑥ 核对本表 M0 各行已办结。⑦ 任务书“需要业主做的事”的“合并后”写上：业主或调度会话在合并提交上打 `m0-done`。⑧ 定第 ⑤ 项那三张汇总入不入库：状态汇总已改为不入库，这三张若入库会有同样的冲突或过期 | W0-16 第 11 节第 5 项；W0-11 第 11 节第 2 项；W0-26 第 11 节第 5 项；W0-03 第 11 节第 9 项；[docs/plan/README.md](../README.md) 第 1、3.4 节；[changes/plan-status-summary-not-committed.md](../changes/plan-status-summary-not-committed.md) |
-| 19 | W0-10 | ① 路由元数据的 `x-permission`、`x-capability` 只取契约登记的键（`PermissionKey`、`CapabilityKey`），另许 `assert-in-handler` 与不设；`x-step-up: skip` 的 8 条与处理器内判定的规则登记在路由一侧。② 约定 C10 里对着路由查的几条：路径里的每个资源段都在资源登记里、参数名与登记一致、别名在登记过的别名之内 | W0-09b 第 5 节；`packages/contract/src/resources/define.ts` 开头的注释 |
-| 20 | W0-18 | 07 第 7 节补登的 7 个参数键的类型、范围、默认值定义（同第 6 行，键已在契约的参数键清单里） | W0-09b 第 5 节、第 11 节第 12 项 |
-| 21 | W0-21 | ① 通知场景播种：键、受众、显示名取契约的 `NOTIFY_SCENES`；通道绑定的播种值（订阅槽位、短信模板与策略、节点、发送时段、合并窗口、转交付经理的开关）按 13 分组 第 2.1 节写。② 角色的权限点开关（`staff_role.actions`）由权限点的默认授予得出：`roles` 一种写成 `{ on, leadOnly }`，其余四种不进角色配置或另行处理；默认模块等级矩阵契约里没有。③ 07 第 7 节补登的 2 个开关键随开关一起播种 | W0-09b 第 5 节 |
-| 25 | W0-24、W0-25 | W0-24：把 config 的五条 SQL 断言登记成不变量（`packages/services/src/config/invariants.ts` 的 `configSeedAssertions`；“现在”取注入的时钟）。W0-25：“带种子的干净库”调 `runSeed`，不另抄数据 | W0-21 第 5 节、第 10 节第 10 项 |
-| 29 | W0-22、W0-22b | ① 装配顺序里给后台的会话、防跨站、权限与再验证三件中间件，和商家端鉴权链的中间件留位置；`admin.login`、`admin.global`、`m.sign` 等档位与客户端 IP 解析由 W0-22b 交，M1 的两条鉴权链只挂不改顺序。② 路由目录、处理器登记与接口测试支架的写法写进 `apps/api/README.md`，M1 的接口包照它放文件。③ 探针循环 M2 才有，`/health` 在那之前的整体状态码要有定论：W1-22、W2-26 的冒烟现在只看 worker 一项与版本号 | W1-01a、W1-04、W1-16a、W1-22、W2-26 的任务书 |
-| 30 | W0-23 | 循环与队列消费者的登记要让域包“加一个文件、汇总处加一行”：W1-10 的 `billing_advance`、W1-16a 的 `flow_reevaluate_sweep`、W1-07 的 `promote` 消费者照这个写法挂；`--check` 与命令行入口的位置写进 README（W1-22 用） | W1-07、W1-10、W1-16a、W1-22 的任务书 |
-| 31 | W0-25 | 工厂函数要能造员工、主体与门店、交付工单；一条命令得到带种子的干净库。W1-01a 的范围隔离用例、W1-02 的真实接口冒烟、W1-10 与 W1-11a 的账本用例、W1-19 与 W1-20 的造数都要用 | W1-01a、W1-02、W1-10、W1-11a、W1-19 的任务书 |
-| 32 | W0-30 | 端到端运行器与 `demo:m0` 的位置定下来，W1-21 沿用（没有交运行器时 W1-21 在 `apps/api/test/e2e/` 自建）；四个计数的报表、三张汇总脚本与全量不变量的命令，W1-21 直接用 | W1-21 的任务书 |
-| 59 | 调度会话另派的 kernel 小修补（不是工作包；W1-10 开工前合并） | 数据库错误出在 `COMMIT` 那一刻时（延迟约束、提交时才报的序列化失败），`packages/services/src/kernel/tx.ts` 的 `sqlStateOf` 读不到 SQLSTATE（只认 `error.meta.driverAdapterError.cause.originalCode`），`tx.run` 的重试与错误映射、`isRetryableDbError` 落空。修好并带“错误出在提交时”的用例。W1-10 的依赖里写了“开工另等”它，W1-11a 经 W1-10 的第一个 PR 带上 | W0-07 第二轮审计的备注；W1-10 的任务书 第 3 节 |
+| 1 | W0-22、W0-23（两个进程的装配） | 启动时调四个自检：`security` 的加密、解密、盲索引；审计 `target_type` 对照库里的表名单；聚合类型都是库里存在的表名；`machine`、`state_field` 的表与列在库里存在。开工时已在 main 上的就接；没到的由两包中后合并的一方接，W0-30 兜底 | W0-14 第 2 节第 12 条、第 11 节第 3 项；W0-15 第 11 节第 7 项；W0-16 第 11 节第 7 项；W0-23 第 7 节第 11 条（已办结：聚合类型一项 W0-23 接了，#50；其余三项由 KF-1 接齐，api 与 worker 共用 `packages/services/src/ops/startup.ts` 的清单，#54） |
+| 2 | W0-22、W0-23 | 客户端工厂的连接参数（连接串、连接数上限、三个会话超时）在装配时传；真实构建脚本接替占位 | W0-05 第 10 节第 5 步；W0-07 第 5 节；W0-02 第 11 节第 8 项（已办结：W0-22、W0-23，#50） |
+| 3 | W0-22 | 测试装配导出“已挂载的 operationId 清单”，供已落地判定读（之前为空集）；`/health` 读 worker 租约 | W0-10 第 11 节第 3 项；W0-23 第 5 节（已办结：W0-22，#50） |
+| 4 | 单独的 `gate-change` PR，W0-07b 合并后、W0-22 开工前 | 放开一个装配文件引 `@liyoxi/db`（W0-02 先全禁） | W0-02 第 11 节第 5 项（不用办：组合根放在 `packages/services/src/assembly.ts`，api 与 worker 不引 `@liyoxi/db`，W0-07b 状态文件偏差 3） |
+| 5 | W0-24 | 调度已登记的不变量与清理项：`events.I8`、`flow.I12`、`sla.N8`、timers 的 90 天清理。两处在开工时 `register.ts` 机制未到而只导出函数的，由本包登记：幂等记录的过期清理、审计的两条检查 | W0-13 第 11 节第 8 项；W0-14 第 11 节第 5 项；W0-15、W0-16 第 10 节第 6 步；W0-17 第 10 节第 9 步（已办结：W0-24，#54） |
+| 6 | W0-18 | 参数的类型、范围、默认值定义（W0-09a 只登记键名与分组） | W0-09a 第 11 节第 3 项（已办结：W0-18，#43） |
+| 7 | W0-09b | contract `exports` 里接口侧注册表的子路径 | W0-08 第 11 节第 8 项（已办结：W0-09b，#38） |
+| 8 | W0-27a | 定 `pricing`、`period`、`alloc` 子路径对小程序是否开放；经 Taro 构建验证 shared 的子路径可引。已写进 W0-27a 第 11 节第 9 项 | W0-11 第 11 节第 4、8 项（已办结：W0-27a，#50） |
+| 9 | W0-30 | ① `flow` 的“工作分钟”端口接上真实实现：读工作日历（sla）与工作时段（config 读侧），三张表迁移能写出 `elapsed_work_min`，带测试。② `packages/shared` 里的字符串字面量联合类型改为引用 contract 的常量。③ “状态字典键与契约枚举同名”的检查只查有枚举对应的条目。④ 核对 PR 必过检查合计 ≤15 分钟。⑤ 留桩、变更、外部验证三张汇总的脚本，随四个计数的报表。⑥ 核对本表 M0 各行已办结。⑦ 任务书“需要业主做的事”的“合并后”写上：业主或调度会话在合并提交上打 `m0-done`。⑧ 定第 ⑤ 项那三张汇总入不入库：状态汇总已改为不入库，这三张若入库会有同样的冲突或过期 | W0-16 第 11 节第 5 项；W0-11 第 11 节第 2 项；W0-26 第 11 节第 5 项；W0-03 第 11 节第 9 项；[docs/plan/README.md](../README.md) 第 1、3.4 节；[changes/plan-status-summary-not-committed.md](../changes/plan-status-summary-not-committed.md)（已办结：①③ 由 W0-30a 办，#51；其余 W0-30，#55。⑦ 说的 `m0-done` 标签还没打） |
+| 19 | W0-10 | ① 路由元数据的 `x-permission`、`x-capability` 只取契约登记的键（`PermissionKey`、`CapabilityKey`），另许 `assert-in-handler` 与不设；`x-step-up: skip` 的 8 条与处理器内判定的规则登记在路由一侧。② 约定 C10 里对着路由查的几条：路径里的每个资源段都在资源登记里、参数名与登记一致、别名在登记过的别名之内 | W0-09b 第 5 节；`packages/contract/src/resources/define.ts` 开头的注释（已办结：W0-10，#42） |
+| 20 | W0-18 | 07 第 7 节补登的 7 个参数键的类型、范围、默认值定义（同第 6 行，键已在契约的参数键清单里） | W0-09b 第 5 节、第 11 节第 12 项（已办结：W0-18，#43） |
+| 21 | W0-21 | ① 通知场景播种：键、受众、显示名取契约的 `NOTIFY_SCENES`；通道绑定的播种值（订阅槽位、短信模板与策略、节点、发送时段、合并窗口、转交付经理的开关）按 13 分组 第 2.1 节写。② 角色的权限点开关（`staff_role.actions`）由权限点的默认授予得出：`roles` 一种写成 `{ on, leadOnly }`，其余四种不进角色配置或另行处理；默认模块等级矩阵契约里没有。③ 07 第 7 节补登的 2 个开关键随开关一起播种 | W0-09b 第 5 节（已办结：W0-21，#47） |
+| 25 | W0-24、W0-25 | W0-24：把 config 的五条 SQL 断言登记成不变量（`packages/services/src/config/invariants.ts` 的 `configSeedAssertions`；“现在”取注入的时钟）。W0-25：“带种子的干净库”调 `runSeed`，不另抄数据 | W0-21 第 5 节、第 10 节第 10 项（已办结：W0-24，#54；W0-25，#50） |
+| 29 | W0-22、W0-22b | ① 装配顺序里给后台的会话、防跨站、权限与再验证三件中间件，和商家端鉴权链的中间件留位置；`admin.login`、`admin.global`、`m.sign` 等档位与客户端 IP 解析由 W0-22b 交，M1 的两条鉴权链只挂不改顺序。② 路由目录、处理器登记与接口测试支架的写法写进 `apps/api/README.md`，M1 的接口包照它放文件。③ 探针循环 M2 才有，`/health` 在那之前的整体状态码要有定论：W1-22、W2-26 的冒烟现在只看 worker 一项与版本号 | W1-01a、W1-04、W1-16a、W1-22、W2-26 的任务书（①② 已办结：W0-22、W0-22b，#50、#51。③ 现状：没有探针记录即 `degraded`，整体回 503，冒烟只看 worker 一项） |
+| 30 | W0-23 | 循环与队列消费者的登记要让域包“加一个文件、汇总处加一行”：W1-10 的 `billing_advance`、W1-16a 的 `flow_reevaluate_sweep`、W1-07 的 `promote` 消费者照这个写法挂；`--check` 与命令行入口的位置写进 README（W1-22 用） | W1-07、W1-10、W1-16a、W1-22 的任务书（循环一项已办结：一个循环一个文件，清单 `apps/worker/src/domain-loops.ts` 里加一行，W1-10 的第一个 PR 加的，#57；入口与 `--check` 的位置在 `apps/worker/README.md`，W0-23，#50。队列消费者仍写在 `apps/worker/src/runtime.ts` 里，没有单独的登记处） |
+| 31 | W0-25 | 工厂函数要能造员工、主体与门店、交付工单；一条命令得到带种子的干净库。W1-01a 的范围隔离用例、W1-02 的真实接口冒烟、W1-10 与 W1-11a 的账本用例、W1-19 与 W1-20 的造数都要用 | W1-01a、W1-02、W1-10、W1-11a、W1-19 的任务书（已办结：W0-25，#50） |
+| 32 | W0-30 | 端到端运行器与 `demo:m0` 的位置定下来，W1-21 沿用（没有交运行器时 W1-21 在 `apps/api/test/e2e/` 自建）；四个计数的报表、三张汇总脚本与全量不变量的命令，W1-21 直接用 | W1-21 的任务书（已办结：W0-30，#55；接口级的运行器没有交，W1-21 自建） |
+| 59 | 调度会话另派的 kernel 小修补（不是工作包；W1-10 开工前合并） | 数据库错误出在 `COMMIT` 那一刻时（延迟约束、提交时才报的序列化失败），`packages/services/src/kernel/tx.ts` 的 `sqlStateOf` 读不到 SQLSTATE（只认 `error.meta.driverAdapterError.cause.originalCode`），`tx.run` 的重试与错误映射、`isRetryableDbError` 落空。修好并带“错误出在提交时”的用例。W1-10 的依赖里写了“开工另等”它，W1-11a 经 W1-10 的第一个 PR 带上 | W0-07 第二轮审计的备注；W1-10 的任务书 第 3 节（已办结：KF-1，#54。W1-10 任务书“开工另等”的就是它） |
+| — | W0-22 | 已挂载的 operationId 清单写到 `apps/api/dist/mounted-operations.json`（JSON 字符串数组，探活用登记键如 `hooks.healthz.get`），CI 里要在“待落地数只减不增”一步之前生成；接口层测试放在 `apps/api` 下的 `*.test.ts`，以字符串字面量引用 operationId；两条内网探活的留桩文件在“留桩内容”一行用反引号写登记键；根路径探活 3 条落地后在 `infra/ci/landed-baseline.txt` 末尾加一行 610 | W0-10 的状态文件“往后移交”（已办结：W0-22，#50。只有降基线没做，见第 5.2 节里接收方是“调度会话（门禁改动，单独 PR）”的一行） |
+| — | W0-22b | 接手 `apps/api/src/routing/pipeline.ts`，定成装配顺序的唯一定义；限流中间件的名字用 `rateLimit`；429 的 `Retry-After` | W0-22 的状态文件“往后移交”（已办结：W0-22b，#51） |
+| — | W0-23 | 任务进程与 api 用同一套基础设施装配；构建照 `apps/api/scripts/build.mjs` 的做法（不装 tsup）；第 1 行没到的自检往启动自检的清单里加 | W0-22 的状态文件“往后移交”（已办结：W0-23，#50，构建用 esbuild，装配在 `packages/services/src/ops/worker.ts`，没有照字面用 `createRuntime`；自检由 KF-1 接齐，#54） |
+| — | W0-14、W0-15、W0-16 | 各自的启动自检函数合并后，在启动自检的清单里加一项 | W0-22 的状态文件“往后移交”（已办结：KF-1 接齐，清单在 `packages/services/src/ops/startup.ts`，#54） |
+| — | W0-20 | 定 Provider 装配的落点，把十二个 Provider 与外呼前钩子接进进程运行时 | W0-22 的状态文件偏差 4 与“往后移交”（已办结：KF-1，#54） |
+| — | W0-27a | 往 `infra/ci/pages/sources/` 加小程序的数据源，不用改脚本 | W0-28 的状态文件“往后移交”（已办结：W0-27a，#50，`infra/ci/pages/sources/weapp.mjs`） |
+| — | W0-29 | 看样页另建；三种骨架与两个构件看样确认后冻结；看样时请业主定 W0-28 偏差第 6、16、17、19、21、24、25、26 条 | W0-28 的状态文件“往后移交”（看样页与清单已交：W0-29，#51。结论等业主：`docs/plan/sample-review/W0-29.md` 第 4.2 节） |
+| — | W0-30 | 合流时核对看样清单各项有没有结论，没有的在合流的 PR 描述里列出，不替业主填 | W0-29 的状态文件“往后移交”（已办结：W0-30，#55；71 项都没有结论，列在 `docs/plan/m0-exit.md` 第 3 节） |
+| — | W0-22、W0-23（进程装配） | `createFlow` 不用为工作分钟另做什么，装配结果里已有实现 | W0-30a 的状态文件“往后移交”（只是知会，不用办） |
+| — | 调度会话另派的小修补 | 测试工厂 `createFactories` 的缺省三件套换成 W0-14 的真实现。可以顺手做的：工厂的假单号改调 W0-13 的 `formatBizNo` | W0-25 的状态文件偏差 2、3 与“往后要做的”（前一件已办结：KF-1，#54，缺省是 `testSealer`；假单号没改，不影响用） |
 
 ### 5.2 接收方在 M1 及以后
 
 | # | 接收方 | 事项 | 出处（任务书） |
 | --- | --- | --- | --- |
-| 10 | W1-01a、W1-04 | `auth_event` 的写入、清理与登录锁定告警 | W0-14 第 5 节 |
+| 10 | W1-01a、W1-04 | `auth_event` 的写入、清理与登录锁定告警 | W0-14 第 5 节（W1-01a 一侧已办结：写函数、清理项与锁定告警在 `packages/services/src/audit/auth-event.ts`，第二个 PR，#54；W1-04 的商家侧照旧） |
 | 11 | W1-02 | 后台权限数据的真实来源接替夹具；7 个基础页 | W0-28 第 11 节第 1、5 项 |
 | 12 | W1-04、G2-C | 小程序请求层的可注入调用函数接上真实接口：引导与会话；订阅结果与埋点接收 | W0-27a 第 5 节 |
 | 13 | W1-10 | 提出“只有一个取整函数”的全仓 lint 规则 | W0-11 第 11 节第 9 项 |
@@ -114,14 +126,14 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 | 18 | G5-B | 法务条款定稿后用真文本复测授权书渲染 | X-03 第 11 节第 4 项 |
 | 22 | W1-02 | 后台的模块键、模块等级换成引契约：`apps/admin/src/lib/menu-types.ts` 的 `AdminModuleKey`、`ModuleLevel` 改为取 `@liyoxi/contract/authz`（W0-28 状态文件“往后移交”点名交给 W0-09b、W0-10 的那一件；菜单角标键随 a02 域，契约里还没有） | W0-09b 第 5 节 |
 | 23 | G2-C | ① 通知注册表登记的场景键与契约的 `NOTIFY_SCENES` 一一对应（启动自检或用例）。② 埋点接收接口对端上 10 个事件的属性校验结构，与契约 `ClientEventProps` 的类型同形（用例断言） | W0-09b 第 5 节；`packages/contract/src/analytics/events.ts` 开头的注释 |
-| 24 | 各域第一个后端 PR | 本域里标了带 `details` 的领域错误码，各登记 `details` 的结构；默认文案不合适的同 PR 改（文案不在对账之内） | W0-09b 第 5 节、第 11 节第 3 项 |
-| 26 | W1-01b；服务器与发布的包（G2-D 环境包） | W1-01b：登记 `staff.I8`（`packages/services/src/staff/invariants.ts`）。发布流程：`migrate deploy` 之后跑播种；命令行入口 `pnpm db:seed` 靠 `tsx` 直接跑源码，生产镜像里没有它时由构建产物里的入口调 `runSeed` | W0-21 第 5 节、第 10 节第 1 项 |
+| 24 | 各域第一个后端 PR | 本域里标了带 `details` 的领域错误码，各登记 `details` 的结构；默认文案不合适的同 PR 改（文案不在对账之内） | W0-09b 第 5 节、第 11 节第 3 项（W1-03、W1-06 的第一个 PR 各登记了本域的两个码，#54、#56；其余各域照旧） |
+| 26 | W1-01b；服务器与发布的包（G2-D 环境包） | W1-01b：登记 `staff.I8`（`packages/services/src/staff/invariants.ts`）。发布流程：`migrate deploy` 之后跑播种；命令行入口 `pnpm db:seed` 靠 `tsx` 直接跑源码，生产镜像里没有它时由构建产物里的入口调 `runSeed` | W0-21 第 5 节、第 10 节第 1 项（`staff.I8` 已由 W0-24 登记在 `packages/services/src/staff/register.ts`，#54：W1-01b 不再登记，再登记会装配重名。发布流程的一半照旧） |
 | 27 | G2-C；M2 的初始化脚本 | 订阅槽位的字段定义、短信模板的变量定义、模板编号与签名：种子里是空数组与 `unconfigured`，模板选定、报备通过后写 | W0-21 第 10 节第 7 项 |
-| 28 | W1-01a、W1-13 | 原想请 W0-21 顺手做的两件，W0-21 合并时都没有带，改由用到的包自己做。① 8 个角色各一个默认组（`staff_group`，03 分组 第 2.2 节；新增员工与引导命令都要用）：W1-01a 的第二个 PR 在 `packages/services/src/staff/seed.ts` 里追加。② “新增字典项、没有才插”的函数：config 现在只有读侧与种子，W1-13 在 `packages/services/src/config/` 里只增这一个函数，演示种子用它补题材、卖点标签、行业、定制重点的演示项；字典写侧的接口与引用计数仍在 M2（交 W1-23 写进 G2-A 任务书的那一行） | W1-01a、W1-13 的任务书；已写进这两份任务书 |
-| 33 | W1-01a | `auth_event` 的写函数与清理项建在 `packages/services/src/audit/auth-event.ts`，三个身份空间共用（W1-04 先开工时自己建同名同签名的文件，后合并的一方并成一份）；演示种子的运行器让各模块加一行；演示员工满足下游的四个要求；`defineAdminHandler`、`signInAsStaff` 给全部后台接口包用；a01 的公共结构 `StaffBrief`、`AdminPage<T>`、`AdminCursorPage<T>` | W1-04、W1-06、W1-07、W1-11b、W1-13、W1-16a、W1-19 的任务书；已写进 W1-01a 的任务书 |
+| 28 | W1-01a、W1-13 | 原想请 W0-21 顺手做的两件，W0-21 合并时都没有带，改由用到的包自己做。① 8 个角色各一个默认组（`staff_group`，03 分组 第 2.2 节；新增员工与引导命令都要用）：W1-01a 的第二个 PR 在 `packages/services/src/staff/seed.ts` 里追加。② “新增字典项、没有才插”的函数：config 现在只有读侧与种子，W1-13 在 `packages/services/src/config/` 里只增这一个函数，演示种子用它补题材、卖点标签、行业、定制重点的演示项；字典写侧的接口与引用计数仍在 M2（交 W1-23 写进 G2-A 任务书的那一行） | W1-01a、W1-13 的任务书；已写进这两份任务书（① 已办结：W1-01a 的第二个 PR，#54；② 照旧） |
+| 33 | W1-01a | `auth_event` 的写函数与清理项建在 `packages/services/src/audit/auth-event.ts`，三个身份空间共用（W1-04 先开工时自己建同名同签名的文件，后合并的一方并成一份）；演示种子的运行器让各模块加一行；演示员工满足下游的四个要求；`defineAdminHandler`、`signInAsStaff` 给全部后台接口包用；a01 的公共结构 `StaffBrief`、`AdminPage<T>`、`AdminCursorPage<T>` | W1-04、W1-06、W1-07、W1-11b、W1-13、W1-16a、W1-19 的任务书；已写进 W1-01a 的任务书（`auth_event` 的写函数与清理项已建：W1-01a 的第二个 PR，#54；其余在第三个 PR） |
 | 34 | W1-01b | `staff.pickNext(tx, pool, scopeKey)` 对选中的员工行加共享锁，调用方（W1-17、W1-08、W1-16a）要在锁任何业务行之前调；`publisher` 池在 M1 可返回空；按 id 批量取员工摘要的只读函数只给上层用 | W1-06、W1-08、W1-17 的任务书；已写进 W1-01b 的任务书 |
 | 35 | W1-02 | `admin:e2e:live` 的起栈脚本与登录态由第一个 PR 交，留造数步骤的登记口；W1-09、W1-19、W1-20 沿用，不改起栈脚本。登记的造数步骤要在同一个进程里跑完：W0-25 的工厂序号（假手机号、假单号）是进程级计数，同一个库分两次进程造数据会撞唯一索引 | W1-09、W1-19、W1-20 的任务书；已写进 W1-02 的任务书 |
-| 36 | W1-03 | 读侧事实端口（`packages/services/src/kernel/ports/merchant-facts.ts`）一次定义全八个键；`tenant.getQuotaUsage` 给 W1-11b 的钱包用；计费账户端口的桩由 W1-11a 删 | W1-04、W1-08、W1-11a、W1-11b 的任务书；已写进 W1-03 的任务书 |
+| 36 | W1-03 | 读侧事实端口（`packages/services/src/kernel/ports/merchant-facts.ts`）一次定义全八个键；`tenant.getQuotaUsage` 给 W1-11b 的钱包用；计费账户端口的桩由 W1-11a 删 | W1-04、W1-08、W1-11a、W1-11b 的任务书；已写进 W1-03 的任务书（W1-03 一侧已办结，#54；桩由 W1-11a 删，照旧） |
 | 37 | W1-04、W1-05 | 第 12 行里“小程序端引导与会话的接线”由 W1-04 改归 W1-05（甲类后端包不混前端改动）：冷启动与恢复动作的接线、重新同意弹层在 W1-05 的第二个 PR。W1-04 交的店员防回归框架与黄金文件给全部商家端接口包用；W1-05 的文案规则表允许页面包只增，截图喂固定数据的做法写进 `apps/weapp/README.md`，“我的”页留钱包入口 | W1-04、W1-05、W1-12、W1-18、W1-20 的任务书 |
 | 38 | W1-06 | `approval.submit`、`approve` 能在没有请求上下文的地方调用（演示种子）；kind 登记里的 `handlerOf` 可选；`admin.dictItem.list` 提前到 M1，随第二个 PR | W1-11b、W1-14、W1-09、W1-12、W1-19、W1-20 的任务书；已写进 W1-06 的任务书 |
 | 39 | W1-07 | 演示种子运行器里入六份协议占位 PDF 并调 docs 的占位种子；`putSystemFile` 支持海报、许可扫描件、权属证明；分类登记表后面的包只增放开（如 W1-14 的 `evidence`）；引导数据里上传上限的常量换成取登记表；a01 的公共结构 `SignedUrl` | W1-03、W1-04、W1-13、W1-14 的任务书；已写进 W1-07 的任务书 |
@@ -148,11 +160,28 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 | 61 | 第一个要写带数据范围的原生查询的包（数据报表、导出的明细查询；由那一里程碑的拆包 PR 写进任务书） | `authz` 只给了 Prisma 条件形态的六个范围谓词，没有做原生 SQL 用的范围片段（D4 第 7.3 节的 `scopeSql`）。用到门店、主体归属的原生查询须收 `DataScope` 并拼这个片段：加在 `packages/services/src/authz/scope.ts`，与谓词同处、同一套条件，不在各模块自己拼 | W1-01a 第一个 PR 的状态文件“偏差”第 5 条；`authz/README.md` 第 6 节 |
 | 62 | W1-04、W1-04b | W1-03 交的两个装配入口 `createDocs({ tx, clock })`、`createTenant({ tx, clock, flow, assembly })` 还没接进进程运行时（`packages/services/src/runtime.ts` 里现在没有 `events`、`flow`）：谁先用到谁接，W1-04b 挂 tenant 的三条路由前要有。`apps/api/src/routes/agreements.ts` 的 `docsOf(runtime)` 是临时的取法，接进运行时后换掉。把 `common/error-details.ts`、`errors/common.ts` 里 `PendingConsent` 的占位换成 `PendingConsentSchema`（已在 `routes/m01-account/agreement.schemas.ts`）。契约入口给出单条路由与结构的做法：各接口文档目录的 `index.ts` 里 `export *` 自己的资源文件，契约 `src/index.ts` 每份文档一行（m01、m02 已加） | W1-03 的状态文件偏差 2、3 |
 | 63 | W1-08；W1-23（写进 G2-C 的任务书） | W1-08：`tenant.setStoreQualification` 通过时两个主体的信用代码撞唯一索引 `uq_entity_uscc_bidx_verified` 会让事务中止，要接它就包在 `savepoint` 里并用 `isUniqueViolation` 认；认证字段的三件套由调用方做好传入。G2-C：`notices.announce` 的深链现在写的是 `agreement.version`，深链路由表进契约时登记它（或改成表里的键）；`site_notice.announced` 的订阅与首页公告条的读取 | W1-03 的状态文件偏差 9；`packages/services/src/tenant/README.md` 第 2 节 |
-| 62 | W1-08（第一个登记真实审批类型的包）；W1-06 的第二个 PR | 进程装配里建 approval：`createApproval({ assembly, clock, flow, events, bizNo })`，排在 `createFlow` 之后，api 与 worker 都要建（worker 不建，`approval.I1` 查不到登记的领域表）。W1-06 的第一个 PR 只交了入口，没有接进 `packages/services/src/runtime.ts`（那时 events、flow 也还没接进去）。领域用例调 `approval.submit`、`approve`、`reject`、`withdraw` 要排在锁自己的行之前（员工行 20 → 审批单 30 → 领域行） | W1-06 第一个 PR 的状态文件“偏差”第 2、3 条；`approval/README.md` 第 2、4 节 |
-| 63 | 调度会话（kernel 的小修补，或并进 G2-A） | `lockRows` 只有 `FOR UPDATE`、`FOR SHARE` 两种强度，`flow.transition` 也按 `FOR UPDATE` 锁对象行；03 分组 第 2.12 节写审批单用 `FOR NO KEY UPDATE`（领域表插行时的外键检查要取 `FOR KEY SHARE`）。现在照 `FOR UPDATE` 锁，结果对，只是别的事务往领域表插行要等决定的事务结束。要照文档就给 `lockRows` 加一种强度并让 flow 按表选。另：x01 第 2.3 节“其余本文定的取法”里补 `approval.executed:{approvalRequestId}`（`approval.recordExecuted` 用的去重键） | W1-06 第一个 PR 的状态文件“偏差”第 4、6 条 |
-| 61 | W1-10 的第二个 PR；W1-11a；G4-A（由 W1-23 写进任务书） | 第二个 PR：冻结（`hold`）走账户锁的那一条（验收 4）、“清零与冻结落在同一时刻”（验收 8）在第一个 PR 里用加购入账代替，冻结落地后各补一条；自检与写入顺序里冻结单、分摊的那一半；契约里冻结一族的文案码参数是照 m07 第 4.5 节先写的，用到时核一遍。W1-11a：建计费账户的端口实现调 `ledger.ensureAccount`；建好生效周期后调 `ledger.grant(tx, { grantScheduleId, ctx })` 发首月（它连 `next_due_at` 一起算），建预约周期后调 `ledger.refreshNextDue`；api 进程的运行时里还没有账本，要用时照任务进程的写法 `createLedger({ clock, events })` 建一次。G4-A：`billing.points.expired` 的去重键照 x01 第 2.3 节是按周期的，周期延长复活后再次到期会被当成已发过，做延长时改成带止日（同 PR 改 x01）；`advance` 现在只在“上一期到期”时接续预约周期，退款提前生效由 `revokeTerm` 自己做 | W1-10 |
+| 64 | W1-08（第一个登记真实审批类型的包）；W1-06 的第二个 PR | 进程装配里建 approval：`createApproval({ assembly, clock, flow, events, bizNo })`，排在 `createFlow` 之后，api 与 worker 都要建（worker 不建，`approval.I1` 查不到登记的领域表）。W1-06 的第一个 PR 只交了入口，没有接进 `packages/services/src/runtime.ts`（那时 events、flow 也还没接进去）。领域用例调 `approval.submit`、`approve`、`reject`、`withdraw` 要排在锁自己的行之前（员工行 20 → 审批单 30 → 领域行） | W1-06 第一个 PR 的状态文件“偏差”第 2、3 条；`approval/README.md` 第 2、4 节 |
+| 65 | 调度会话（kernel 的小修补，或并进 G2-A） | `lockRows` 只有 `FOR UPDATE`、`FOR SHARE` 两种强度，`flow.transition` 也按 `FOR UPDATE` 锁对象行；03 分组 第 2.12 节写审批单用 `FOR NO KEY UPDATE`（领域表插行时的外键检查要取 `FOR KEY SHARE`）。现在照 `FOR UPDATE` 锁，结果对，只是别的事务往领域表插行要等决定的事务结束。要照文档就给 `lockRows` 加一种强度并让 flow 按表选。另：x01 第 2.3 节“其余本文定的取法”里补 `approval.executed:{approvalRequestId}`（`approval.recordExecuted` 用的去重键） | W1-06 第一个 PR 的状态文件“偏差”第 4、6 条 |
+| 66 | W1-10 的第二个 PR；W1-11a；G4-A（由 W1-23 写进任务书） | 第二个 PR：冻结（`hold`）走账户锁的那一条（验收 4）、“清零与冻结落在同一时刻”（验收 8）在第一个 PR 里用加购入账代替，冻结落地后各补一条；自检与写入顺序里冻结单、分摊的那一半；契约里冻结一族的文案码参数是照 m07 第 4.5 节先写的，用到时核一遍。W1-11a：建计费账户的端口实现调 `ledger.ensureAccount`；建好生效周期后调 `ledger.grant(tx, { grantScheduleId, ctx })` 发首月（它连 `next_due_at` 一起算），建预约周期后调 `ledger.refreshNextDue`；api 进程的运行时里还没有账本，要用时照任务进程的写法 `createLedger({ clock, events })` 建一次。G4-A：`billing.points.expired` 的去重键照 x01 第 2.3 节是按周期的，周期延长复活后再次到期会被当成已发过，做延长时改成带止日（同 PR 改 x01）；`advance` 现在只在“上一期到期”时接续预约周期，退款提前生效由 `revokeTerm` 自己做 | W1-10 |
+| — | 各域第一个后端 PR | 补结构时把资源文件里的 `merchantMeta(...)` 等换成 `merchantRoute(...)` 并补 `request`、`responses`，其余字段不动；`packages/contract/src/contract.test.ts` 里钉的两个条数与“paths 为空”跟着改；改接口同 PR 改 `routemap.json` 与分组文档 | W0-10 的状态文件“往后移交”；做法已写进 M1 各任务书与第 7.3 节 |
+| — | 各合流包（W1-21 起） | 已落地数、待落地数取 `node infra/ci/landed.mjs --report`；里程碑退出用 `--require` 核对；合流包把基线降到当时的待落地数 | W0-10 的状态文件“往后移交”（W0-30 的一半已办，#55；基线没降，见接收方是“调度会话（门禁改动，单独 PR）”的一行） |
+| — | 调度会话（门禁改动，单独 PR） | 待落地基线从 613 降到 610（合流包以后还要再降）：先让已挂载清单在全新检出里拿得到（入库成生成物并加对账，或换 `infra/ci/test/routes-gates.test.ts` 里对真仓库比基线那一例的取数），再在基线末尾加一行。W1-21 降基线之前要有 | W0-22 的状态文件偏差 13 与“往后移交”；W0-30 的状态文件偏差 7 与“往后移交”；`docs/plan/m0-exit.md` 第 6 节第 1 项 |
+| — | 调度会话 | ① `test` 任务分片时，“四个计数”一步跟到跑 `apps/api` 用例的那一片、排在它之后。② 第 1、30 行没办结的部分定谁接。③ W0-30 合并后打 `m0-done` | W0-30 的状态文件“往后移交”（① 已办结：#53 分片时在 `test` 任务里加了“导出已挂载清单”一步，排在待落地数与四个计数之前。② 已办结：见第 1、30 行的括注。③ 没打，留给业主：业主清单第 4.3.1 节） |
+| — | W1-21 | 四个计数：`pnpm counts:report --require M1`，CI 里另加一步，不改 M0 那一步。三张汇总：`pnpm plan:summaries`。全量不变量：`runInvariants`（`@liyoxi/services`）。演示命令的写法照 `packages/services/scripts/demo-m0.ts`；接口级的端到端运行器在 `apps/api/test/e2e/` 自建，任务进程一侧“中继 → 派发 → 消费 → 扫描”怎么推照 `runM0Chain`。定时器到没到点按数据库时间判，端到端脚本里要“到点”的定时器不能靠拨业务时钟 | W0-30 的状态文件偏差 2、3 与“往后移交”（接第 32 行） |
+| — | M1 里要加留桩的各包 | 留桩文件的键与状态取值由 CI 核对（`node infra/ci/plan-summaries.mjs --check`）：照 `docs/plan/templates/stub.md` 写，“回补里程碑”以里程碑号开头 | W0-30 的状态文件“往后移交” |
+| — | 调度会话（没有指定接收的包） | 契约补 `follow_up.intent` 的枚举：要先让 `enums:check` 认组合条件里的取值清单（改已有的检查脚本，按门禁改动处理），补上后把状态字典那三条说明里的“契约未绑定枚举：”去掉 | W0-30a 的状态文件“往后移交” |
+| — | 各域第一个接口包 | 处理器写在 `apps/api/src/routes/<域>.ts`，在 `routes/index.ts` 加一行；接口层测试用 `useTestApi()`；回调的处理器自己接住错误、按 Provider 的协议应答 | W0-22 的状态文件“往后移交”；写法在 `apps/api/README.md` 第 2 节 |
+| — | M1 的鉴权链（商家、后台、下载页）、授权、回调验签各包 | 中间件写成 `RouteMiddlewareFactory`，在 `apps/api/src/routing/pipeline.ts` 的 `ROUTE_MIDDLEWARES` 末尾加一行（鉴权写 `groups`）；工厂只返回处理函数，名字就是槽位，不改 `PIPELINE_ORDER`。鉴权链把身份上下文放进 `c.var.identity`、会话行的 id 放进 `c.var.sessionId`；客户端 IP 取 `c.var.clientIp`。它们没到之前，声明了登录、权限点、验签的路由挂不上去 | W0-22、W0-22b 的状态文件“往后移交”（工厂的形态以 W0-22b 的为准，`apps/api/README.md` 第 3.1 节；W0-22 写的 `{ name, handler }` 形态已作废） |
+| — | 登录的包（商家端会话在 W1-04） | `m.session.phoneLogin` 的“每 openid 5 次 / 小时”在处理器里数：那条路由是公开的，中间件里拿不到 openid | W0-22b 的状态文件偏差 5 与“往后移交”；W1-04 的任务书 第 10 节已有这一项 |
+| — | 各域的接口包 | 要单独限流的接口：把 operationId 写进契约的档位登记 `packages/contract/src/routes/rate-limits.ts`；新档位同 PR 改约定 C68 的表与额度表。三段式的路由登记在 `routes/three-phase.ts` | W0-22b 的状态文件偏差 2 与“往后移交”；第 7.5 节 |
+| — | 环境包（G2-D；由 W1-23 写进任务书） | 限流额度、可信代理的跳数与网段接成部署配置；预发实测负载均衡怎么写 `X-Forwarded-For` 之后照实填网段 | W0-22b 的状态文件偏差 6 与“往后移交” |
+| — | M1 第一个写接口的包 | `required` 的路由，请求头带 `Content-Type: application/json` 而请求体为空时回 400：把空请求体按 `null` 算 | W0-22 的状态文件“往后移交”（已办结：W0-22b 办了，#51，它的状态文件偏差 10） |
+| — | W1-02 | `apps/admin/src/lib/menu-types.ts` 的 `NavBadgeKey` 改为引 `@liyoxi/contract/authz`（与第 22 行的模块键一起）；样例页自带的 `paths`（`src/dev/sample-api.ts`）不再需要时删掉。再验证弹层接到请求客户端的 `stepUp`；登录成功后调 `resetLoginLatch()`，登录页按 `redirect` 回跳；用户菜单；403、404 换成真实页面。`Can`、`useCan`、`useModuleLevel`；表单字段的构件给错误块加 `role="alert"`、有字数上限的字段显示计数 | W0-10、W0-28 的状态文件“往后移交”；已写进 W1-02 的任务书 第 2 节 |
+| — | G7-B（由 M6 交 M7 的拆包 PR 写进任务书） | 菜单角标的轮询接上 `AppShell` 的 `badges` 属性（现在不传，角标不显示）；D7 第 5.4 节“页面用到的接口的权限不高于进入页面所需的权限”的 CI 测试 | W0-28 的状态文件“往后移交” |
+| — | 第一个用到日期范围选择器的后台页面包（由那一里程碑的拆包 PR 写进任务书） | 在真实浏览器（有头的 Chrome，最好再加一种）里核日期范围选择器的键盘：Tab 走得进、走得出，Esc 关浮层；走不出去走构件 PR | W0-28 的状态文件偏差 25 与“往后移交”；`apps/admin/README.md` |
+| — | G2-0 的构件包（由 W1-23 写进任务书） | W0-28 没做的构件：胶囊单选与原因单选、单选卡、月份切换、只读值、中性款提示条、橙色强调信息块、驳回弹窗、步骤进度、三列日志行、并排比对表、变更前后；主从页的可点行选中样式。列脱敏声明 `mask` 与 `validateSearch` 已在第 54 行 | W0-28 的状态文件偏差 23 与“往后移交” |
 
-第 28–60 行是 W0-31 加的（第 59、60 行是合并前接到 main 时补的）。接收方在 M1 的各行（第 28、33–51 行）已写进接收方的任务书，这里留作出处；第 12 行里交给 W1-04 的那一半改归 W1-05（第 37 行）。main 上先有的第 26 行：W1-01b 登记 `staff.I8` 已写进 W1-01b 的任务书；发布流程在 `migrate deploy` 之后播种，已写进 W2-25（节点步骤 `seed`）与 W2-26（发布顺序）的任务书。第 27 行交给 W1-23 写进 G2-C 的任务书。
+第 28–60 行是 W0-31 加的（第 59、60 行是合并前接到 main 时补的）。第 61–66 行是 W1-01a、W1-03、W1-06、W1-10 各自的 PR 加的；第 64、65、66 行原来分别与第 62、63、61 行重号，2026-10-06 的台账 PR 改成现在的号，按行号引用它们的两份状态文件（W1-06、W1-10）跟着改了。两张表里首列写“—”的各行，是同一个台账 PR 照各状态文件的“往后移交”补的（W0-10、W0-22、W0-22b、W0-25、W0-28、W0-29、W0-30、W0-30a）；行尾的括注是那一天对着 main 核过的办结情况。接收方在 M1 的各行（第 28、33–51 行）已写进接收方的任务书，这里留作出处；第 12 行里交给 W1-04 的那一半改归 W1-05（第 37 行）。main 上先有的第 26 行：W1-01b 登记 `staff.I8` 原已写进 W1-01b 的任务书，W0-24 先登记了（#54），任务书那两处已行内改成“不再登记”；发布流程在 `migrate deploy` 之后播种，已写进 W2-25（节点步骤 `seed`）与 W2-26（发布顺序）的任务书。第 27 行交给 W1-23 写进 G2-C 的任务书。
 
 ## 6. 任务书加的前置（计划依赖列没有）
 
@@ -225,7 +254,7 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 - 留桩一项一个文件，登记在 [stubs/](../stubs/README.md)。“留桩内容”一行不要用反引号写接口的 operationId：`infra/ci/landed.mjs` 会把那条接口判成未落地。
 - “M1 内的端口桩”（计划 第 7.3 节留桩清单同名一行）：定义方登记，实现方合并时把那个文件改成“已回补”，W1-21 核对。
 - 任务书里写明的预拆、清单外留桩、两条接口的归属提前，W0-31 都记过变更；各包不用再记，也不用再往计划里加行。实际做法与任务书不同（另拆、改归属、新留桩）才照 [changes/README.md](../changes/README.md) 记一条。
-- 任务书末尾“往后移交”的各行已进第 5 节，不用再加；做的时候发现新的才加行。
+- 任务书末尾“往后移交”的各行已进第 5 节，不用再加；做的时候发现新的才加行，新行不编号、首列写“—”（第 5 节开头）。
 - 开工时发现任务书引用的上游交付物与 main 上的实际不一样（函数名、目录、命令）：以实际为准照做，在状态文件“偏差”记一句，不停下来。
 
 ### 7.5 两条鉴权链给接口包的约定
