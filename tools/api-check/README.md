@@ -42,5 +42,5 @@ python3 tools/api-check/gen_registries.py && python3 tools/api-check/gen_permiss
 
 ## 说明
 
-- 这里核对的是**文档**的自洽，不是代码。正式工程开工后，契约以 `packages/contract`（Zod schema 与生成的 OpenAPI）为准，本目录随之废弃。
+- 这里核对的是**文档**的自洽，不是代码。正式工程开工后，契约以 `packages/contract`（Zod schema 与生成的 OpenAPI）为准，本目录保留并改造（开发计划 第 4.2 节 Q3）：`check.py` 已进 CI（`node infra/ci/api-check.mjs`，“表.列”一项连跑完迁移的 `lyx_migrate_check`，未核对按失败算；通过后重新生成三份登记文档并 `git diff --exit-code`），保证路线图、结构化清单、分组文档与登记文档一致；契约与路线图一致由 `pnpm contract:docs-check` 保证。
 - 改了接口文档后，要同步改该文档的结构化清单（`working/frag/`）与路线图（`working/routemap.json`），再跑本目录的脚本；两者的格式见 [working/API-WRITER-GUIDE.md](../../docs/api/working/API-WRITER-GUIDE.md) 第 4 节。

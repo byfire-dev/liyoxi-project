@@ -165,6 +165,35 @@ jobs:
       # （registry-errors.md、registry-permissions.md）、working 底稿及各依据文档逐字段对账。只读文件，不连库，约 2 秒
       - name: 接口侧注册表对账
         run: pnpm api-registries:check
+      # 路由元数据接管（W0-10）：以下五步都只读，合计几秒。第三、四步读前面“空库跑全部迁移”一步建的 lyx_migrate_check。
+      # 路由元数据对账：契约的路由清单 ↔ docs/api/working/routemap.json 逐字段 0 差异；公开、可选、验签路由 ↔ 黄金文件
+      #（packages/contract/golden/）；x-step-up: skip ↔ 约定 C86 的登记表；路径里的资源段 ↔ 资源登记
+      - name: 路由元数据对账
+        run: pnpm contract:docs-check
+      # 路线图、各文档的结构化清单、分组文档三方自洽（tools/api-check/check.py）。“文档引用的表.列”一项未核对按失败算
+      - name: api-check
+        run: node infra/ci/api-check.mjs
+      # natural 幂等的路由不登记幂等键，靠库里的唯一约束去重：契约里写的每个约束名在迁移后的库里都找得到（约定 C47）
+      - name: natural 幂等的约束名核对
+        run: node infra/ci/natural-constraints.mjs
+      # “已落地”= 挂了真实处理器 + 有接口层测试引用 + 不在留桩清单。待落地数高于基线（infra/ci/landed-baseline.txt 的
+      # 最后一行）即失败；顺带出按里程碑分组的待落地清单，下面上传
+      - name: 待落地数只减不增
+        run: node infra/ci/landed.mjs --check --report --out packages/contract/dist/pending-routes.md
+      # 计划 第 8.2 节的表由路由清单生成：V1.0 的接口都有里程碑，表与清单无差异，行与列的合计相符。
+      # 顺带出业主评审用的归属汇总（文档 × 里程碑 × operationId），下面上传
+      - name: 里程碑归属与计划 第 8.2 节的表
+        run: node infra/ci/plan-routes.mjs --check --summary packages/contract/dist/route-milestones.md
+      # 业主评审里程碑归属时看 route-milestones.md（W0-10 任务书 第 8 节）；pending-routes.md 是里程碑退出时核对用的清单
+      - name: 上传里程碑归属汇总与待落地清单
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: route-milestones
+          path: |
+            packages/contract/dist/route-milestones.md
+            packages/contract/dist/pending-routes.md
+          if-no-files-found: error
+          retention-days: 30
       # 重新生成样式变量、后台主题、图标数据，与入库的生成物比对；顺带写出预览页（不入库），下一步上传
       - name: 设计生成物无差异
         run: pnpm design:check

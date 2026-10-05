@@ -10,12 +10,21 @@
 //   3. 提交前探一句 SELECT 1：数据库错误被接住又没回滚到保存点时，PostgreSQL 会把 COMMIT 悄悄当成 ROLLBACK，
 //      Prisma 照样报成功。探这一句让它在这里报错，不让用例以为写进去了。
 //   4. 事务内不调外部服务：run 用 AsyncLocalStorage 标记“在事务中”，Provider 的入口调 assertNotInTransaction。
+//   5. 幂等（W0-13）：run 的选项里给了 required 的幂等上下文，就在同一个事务里先登记幂等行、提交前写回结果；
+//      同键重放不执行 fn。不给，或给的是 natural、none 的上下文，行为与原来一样。细则见 idempotency.ts。
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { PrismaClient } from "@liyoxi/db";
 
 import type { AppEnv } from "./env.js";
 import { AppError } from "./errors.js";
+import {
+  claimIdempotency,
+  enterIdempotency,
+  settleIdempotency,
+  storeIdempotentResult,
+} from "./idempotency.js";
+import type { IdempotencyContext } from "./idempotency.js";
 
 declare const TX_BRAND: unique symbol;
 type Branded = { readonly [TX_BRAND]: true };
@@ -37,9 +46,13 @@ export const TX_TIMEOUT_MAX_MS = 60_000;
 export const TX_RETRIES = 1;
 
 export type KernelViolationKind =
-  "nested_transaction" | "external_call_in_transaction" | "lock_order";
+  | "nested_transaction"
+  | "external_call_in_transaction"
+  | "lock_order"
+  | "idempotency_context_reused"
+  | "idempotency_unused";
 
-/** 违反内核的规矩：嵌套开事务、事务内调外部服务、不按顺序加锁 */
+/** 违反内核的规矩：嵌套开事务、事务内调外部服务、不按顺序加锁、幂等上下文用了两次或没用 */
 export class KernelViolation extends Error {
   readonly kind: KernelViolationKind;
 
@@ -136,6 +149,11 @@ export interface TxRunOptions {
   timeoutMs?: number;
   /** 等连接的上限，毫秒；缺省 TX_MAX_WAIT_MS */
   maxWaitMs?: number;
+  /**
+   * 幂等上下文（W0-13）：路由层按路由元数据建好交进来，一个上下文只给一次 run。
+   * required：同事务登记幂等行；同键重放不执行 fn，返回存下的结果，上下文的 replayed 为真。natural、none：只记“用过”。
+   */
+  idem?: IdempotencyContext;
 }
 
 export interface TxRunner {
@@ -169,16 +187,37 @@ export function createTxRunner({ prisma, appEnv, report }: TxRunnerOptions): TxR
           `事务超时要在 1 到 ${TX_TIMEOUT_MAX_MS} 毫秒之间，等连接的上限要大于 0`,
         );
       }
+      const { idem } = options;
+      if (idem && !enterIdempotency(idem)) {
+        throw new KernelViolation(
+          "idempotency_context_reused",
+          "一个幂等上下文只给一次 tx.run：第二个事务会读到第一个事务存下的结果。多事务的用例走三段式",
+        );
+      }
+      const keyed = idem?.mode === "required" ? idem : undefined;
       for (let attempt = 0; ; attempt += 1) {
         try {
-          return await prisma.$transaction(
+          let replayed = false;
+          const value = await prisma.$transaction(
             async (client) => {
               const state: TxState = { open: true, savepoints: 0, held: [], violate };
               states.set(client, state);
               try {
                 // 品牌只在这里贴：先收窄成带品牌的事务客户端，再当成去掉 $transaction 的句柄给出去
                 const handle: Tx = client as TxClient & Branded;
-                const result = await scope.run(state, () => fn(handle));
+                const result = await scope.run(state, async () => {
+                  if (!keyed) return fn(handle);
+                  const stored = await claimIdempotency(client, keyed).catch((error: unknown) => {
+                    // 等同键的另一个事务超过 3 秒：直接报 BUSY，不进下面的重试（重试会把等待拉长到 3 秒的倍数）
+                    if (sqlStateOf(error) !== "55P03") throw error;
+                    throw new AppError("BUSY", { cause: error });
+                  });
+                  replayed = stored !== undefined;
+                  if (stored) return stored.result as Awaited<ReturnType<typeof fn>>;
+                  const fresh = await fn(handle);
+                  await storeIdempotentResult(client, keyed, fresh);
+                  return fresh;
+                });
                 await client.$queryRawUnsafe("SELECT 1");
                 return result;
               } finally {
@@ -187,6 +226,8 @@ export function createTxRunner({ prisma, appEnv, report }: TxRunnerOptions): TxR
             },
             { timeout, maxWait },
           );
+          if (idem) settleIdempotency(idem, replayed);
+          return value;
         } catch (error) {
           const kind = classify(error);
           if (kind === undefined) throw error;

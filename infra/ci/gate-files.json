@@ -128,6 +128,11 @@
       "pattern": "packages/services/src/kernel/lock-order.ts",
       "kind": "append",
       "note": "加锁顺序常量与锁序断言（06 第 5 节）：新增一张表是只增；改、删已有的行（次序号、表名、断言）是放松"
+    },
+    {
+      "pattern": "packages/contract/golden/**",
+      "kind": "frozen",
+      "note": "公开、可选、验签路由的黄金文件（约定 C2）：新增一条须评审；与契约的路由清单一致由 pnpm contract:docs-check 核对"
     }
   ]
 }

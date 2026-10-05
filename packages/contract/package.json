@@ -60,7 +60,8 @@
     "registry:generate": "tsx scripts/registry-map.ts",
     "registry:check": "tsx scripts/registry-check.ts",
     "enums:check": "tsx scripts/enums-check.ts",
-    "api-registries:check": "tsx scripts/api-registries-check.ts"
+    "api-registries:check": "tsx scripts/api-registries-check.ts",
+    "docs-check": "tsx scripts/docs-check.ts"
   },
   "dependencies": {
     "@hono/zod-openapi": "1.6.3",
