@@ -118,3 +118,6 @@ export type {
   SqlAssertion,
   SqlReader,
 } from "./seed.js";
+
+// W0-23 队列封装：连接、入队、消费者工厂、Redis 可用性探测
+export * from "./queue/index.js";
