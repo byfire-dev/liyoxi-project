@@ -31,6 +31,11 @@
 | `plan-routes.mjs` | 计划 第 8.2 节的表由路由清单生成（W0-10）：V1.0 的接口都有里程碑，表与清单无差异；另出业主评审用的归属汇总 | CI（`--check --summary`）；改了归属后本地跑 `--write` |
 | `natural-constraints.mjs` | natural 幂等的约束名核对（W0-10）：契约里写的每个约束名在迁移后的库里都找得到 | CI；只读 `lyx_migrate_check` |
 | `api-check.mjs` | api-check 进 CI（W0-10）：跑 `tools/api-check/check.py`，“表.列”一项未核对按失败算；通过后用两个生成脚本重新生成三份登记文档（`docs/api/registry-*.md`），`git diff --exit-code` | CI；只读 `lyx_migrate_check` |
+| `db-snapshot.mjs`、`db-structure-lib.mjs` | 结构快照（W0-06b）：空库上跑完全部迁移，把表、列、约束、索引、触发器、函数六类读成 `packages/db/snapshot/structure.txt`（生成物，不含分区子表）；每个 PR 重新生成后与入库的比。`db-structure-lib.mjs` 是下面几个脚本共用的部分（建临时库跑迁移、规范化、快照读写、逐条比、分区断言的规则），自己不是命令（第 8 节） | `pnpm db:snapshot`、`pnpm db:snapshot:check`；CI |
+| `db-constraints.mjs` | 约束清单比对（W0-06b）：拿一个跑完迁移的库与快照逐条比，数量与快照、06 第 1 节三处对得上。只读，能对已经部署的库跑 | `pnpm db:constraints:check`；CI |
+| `db-partition-assert.mjs` | 分区断言（W0-06b）：兜底分区在且为空，当月与未来 3 个月的分区在，子表上的触发器齐全。只读 | `pnpm db:partitions:assert`；CI |
+| `migration-lint.mjs` | 迁移规范检查（W0-06b；D7 第 8.3 节第 5 条）：四类语句要带 `-- lyx:allow <理由>`；已经合并的迁移不能改。不连库 | `pnpm db:migration-lint`；CI |
+| `draft-freeze.mjs`、`draft-freeze.sha256` | 草稿冻结守卫（W0-06b）：`docs/data-model/schema.prisma` 与 `constraints/` 的 sha256 等于登记值。登记值按 `frozen` 登记，改它走单独的 `gate-change` PR。不连库 | `pnpm db:draft-freeze:check`；CI |
 
 工作流在 `.github/workflows/`：`ci.yml`（每个 PR 与推到 main）、`nightly.yml`（每晚，Node 26，失败只告警）。
 
@@ -40,8 +45,8 @@
 
 | 任务 | 内容 | 备注 |
 | --- | --- | --- |
-| `verify` | 静态检查：lint、格式、换名、页面不写色值 → 生成数据库客户端 → 类型、类型解析不靠提升 → 依赖方向与五层 → `prisma validate` → `contract:check`、登记表对账、状态机迁移表对照、接口侧注册表对账、路由元数据对账、设计生成物无差异（上传预览页）→ `.env.example` 核对、状态文件核对 | 不挂服务容器：这里的步骤都不连库 |
-| `test` | 生成数据库客户端 → 首版迁移的等价性证明（由底稿建参照库、空库跑全部迁移、系统目录比对、再跑一遍、上传报告）→ 枚举与库 CHECK 一致 → 起 MinIO、MinIO 驱动的用例 → 测试（`pnpm test --project '!infra'`：infra 以外的全部测试项目）→ api-check、natural 幂等的约束名核对、待落地数只减不增、里程碑归属与计划 第 8.2 节的表（上传两份清单） | 挂 PostgreSQL 17 与 Redis 7.4；MinIO 用 compose 文件起 |
+| `verify` | 静态检查：lint、格式、换名、页面不写色值 → 生成数据库客户端 → 类型、类型解析不靠提升 → 依赖方向与五层 → `prisma validate`、迁移规范、草稿冻结守卫 → `contract:check`、登记表对账、状态机迁移表对照、接口侧注册表对账、路由元数据对账、设计生成物无差异（上传预览页）→ `.env.example` 核对、状态文件核对 | 不挂服务容器：这里的步骤都不连库 |
+| `test` | 生成数据库客户端 → 首版迁移的等价性证明（由底稿建参照库、空库跑全部迁移、系统目录比对、再跑一遍、上传报告）→ 结构防漂移连库的四步（结构快照无差异、约束清单比对、分区断言、schema-check 比迁移后的库）→ 枚举与库 CHECK 一致 → 起 MinIO、MinIO 驱动的用例 → 测试（`pnpm test --project '!infra'`：infra 以外的全部测试项目）→ api-check、natural 幂等的约束名核对、待落地数只减不增、里程碑归属与计划 第 8.2 节的表（上传两份清单） | 挂 PostgreSQL 17 与 Redis 7.4；MinIO 用 compose 文件起 |
 | `test-infra` | 建迁移库 → 测试（`pnpm test --project infra`：本目录 `test/` 下的用例） | 挂 PostgreSQL 17：连库的几份用例自己建临时库，约束名核对的用例只读迁移库 |
 | `test-isolation` | 生成数据库客户端 → 建迁移库 → 起 MinIO → `test:isolation` | 挂 PostgreSQL 17 与 Redis 7.4；MinIO 同上 |
 | `web` | 构建 → 后台与下载页的单测、构建、页面清单 → 后台冒烟（按受影响范围跑；浏览器有缓存）→ 上传截图 | 不挂服务容器 |
@@ -70,6 +75,7 @@
 - 接口侧注册表（W0-09b）在 `verify` 里有一步，排在“状态机迁移表对照”之后。“接口侧注册表对账”（`pnpm api-registries:check`）：拿契约里的领域错误码、权限点、能力点、资源登记、通知场景、订阅点位、埋点事件与登记文档、`docs/api/working/` 的底稿逐字段比；只读文件，不连库，约 2 秒。检查脚本在 `packages/contract/scripts/`，理由同 W0-09a 那一条。数量不写在脚本与反例里：取登记文档各节标题里写的数，同表格行数、契约条数三方比。场景键、埋点事件名两种写法另并进 W0-09a 的 `pnpm enums:check`，同库里的 CHECK 正则逐字比。
 - `verify` 的“类型”之后有一步“类型解析不靠提升”（`pnpm check:type-hoist`）。它不看类型检查这一次过没过，看的是结果会不会随 pnpm 提升了哪一份而变，所以两步都要。来历、口径与失败了怎么办见第 7 节。每晚任务没有加这一步：它查的是结果会不会随安装变，与 Node 版本无关。它的用例（`test/type-hoist.test.ts`）只摆小树，不对本仓库再跑一遍。
 - 路由元数据接管（W0-10）的六步分在两个任务里，五步检查加一步上传，都只读，合计几秒。“路由元数据对账”（`pnpm contract:docs-check`，脚本在 `packages/contract/scripts/`，理由同 W0-09a 那一条）在 `verify`，排在“接口侧注册表对账”之后：不连库。其余五步在 `test` 的“测试”之后：“api-check”；“natural 幂等的约束名核对”；“待落地数只减不增”；“里程碑归属与计划 第 8.2 节的表”；“上传里程碑归属汇总与待落地清单”（产物 `route-milestones`，两份 Markdown，写在 `packages/contract/dist/`，不入库）。前两步读前面“空库跑全部迁移”建的 `lyx_migrate_check`：任务书原定给 api-check 另建一个 `lyx_api_check`，为省时长改成共用，两个库的内容相同。后两步不连库，放在 `test` 是因为“待落地数只减不增”要排在“测试”之后（已挂载处理器的清单 `apps/api/dist/mounted-operations.json` 由 `apps/api` 的测试装配导出，W0-22 接上），它出的清单又与“里程碑归属”那一步的由同一步上传。约束名核对的用例（`test/routes-gates.test.ts`）只读迁移库，所以 `test-infra` 在“测试”之前也建一份。口径见第 7 节。
+- 结构防漂移（W0-06b）的六步分在两个任务里。连库的四步在 `test`，排在“上传系统目录比对报告”之后、“枚举与库 CHECK 一致”之前。“结构快照无差异”（`pnpm db:snapshot:check`）：另建一个临时库跑完全部迁移，重新生成快照后 `git diff --exit-code`，再查快照目录下没有未跟踪的文件。“约束清单比对”（`pnpm db:constraints:check`）与“分区断言”（`pnpm db:partitions:assert`）：读前面建的 `lyx_migrate_check`，只读。“分组文档字段表与迁移后的库一致（schema-check）”（`python3 tools/schema-check/check.py --existing lyx_migrate_check`）：只读；这个工具只认 `PG*` 环境变量，在步骤里写明。不连库的两步在 `verify`，排在 `prisma validate` 之后：“迁移规范”（`pnpm db:migration-lint --base "$BASE"`）与“草稿冻结守卫”（`pnpm db:draft-freeze:check`）；基线 PR 取目标分支，推到 main 取推之前的提交，写法同“新增依赖发布时长”一步。六步本机合计十几秒，大头是快照那一步里的建库跑迁移。口径、怎么跟、已知的限度见第 8 节。
 
 ## 3. 怎么加一步检查
 
@@ -113,6 +119,7 @@ export default {
 - `docs-check-wrong-permission`、`docs-check-golden-missing`（W0-10）在仓库外的副本里跑真的根脚本（`pnpm contract:docs-check`），条件同 `contract-check-stale-generated`；不连库。副本用 W0-09b 那一例的 `contractCopy`，另带对账读的文档（清单取自对账脚本导出的 `SOURCE_PATHS`）。改哪条路由、删黄金文件的哪一条都不写死。前一例另导出 `ciCommand`（取 `ci.yml` 里以某条命令开头的那一步，不论它在哪个任务）与 `docsCheckCopy`，本包其余几例引它。
 - `landed-above-baseline`、`plan-routes-stale-table`（W0-10）不连库：各把一份输入（路由清单加一条、计划文档改一个数）另存到仓库外，用脚本的参数换路径，判定用的其余输入是仓库里真的那几份。待落地数、基线、表里的数都是现读的，不写死。
 - `natural-constraints-wrong-name`、`api-check-unverified`、`api-check-stale-registry`（W0-10）要本地那套 PostgreSQL 与连接参数，第一、三例另要 `lyx_migrate_check` 已跑过迁移；都只读，不建库。后两例要 `python3` 与 `psql` 在 PATH 上；第三例在仓库外建一个临时 git 仓库，拷进校验工具与它读的 `docs/api`、`docs/data-model`，改路线图里一条摘要后跑副本里的包装脚本。
+- 名字以 `db-snapshot-`、`db-constraints-`、`db-partitions-` 开头的七例与 `schema-check-doc-column-type`（W0-06b）要本地那套 PostgreSQL 与连接参数，后一例另要 `python3` 与 `psql`。它们共用两个库（`selftest/lib/db-structure.mjs`）：头一个用到的反例建“基准库”（空库上跑完全部迁移），再拷一个“改过的库”，把几处一次改完，之后各例只认自己那一处的报错；两个库以 `lyx_selftest_struct_` 开头、带进程号，门禁自测退出时删掉。要动手脚的索引、列、触发器、月份都从库里现挑，不点名：加表、改索引的包不用改这些反例。`migration-lint-unmarked-drop-column`、`draft-freeze-one-byte` 不连库。
 
 ## 5. 门禁改动分类
 
@@ -170,6 +177,7 @@ node infra/ci/classify-gate-changes.mjs --base origin/main --labels gate-change
 | --- | --- | --- |
 | `packages/contract/generated/**` | `pnpm contract:check` | `pnpm contract:generate` |
 | `packages/shared/src/design/generated/**` | `pnpm design:check` | `pnpm design:generate` |
+| `packages/db/snapshot/**` | `pnpm db:snapshot:check` | `pnpm db:snapshot` |
 
 怎么判：名下的文件内容有变、新增文件，都算只增，逐个文件列进 PR 顶部的清单（如“重新生成的生成物，内容有变：加 3 行、删 1 行（与源码一致由 `pnpm design:check` 把关）”），CI 打 `gate-touch`。删除已有的生成物算放松。改这类条目（换检查命令、拿掉 `check`、加 `except`）与改别的条目一样，是放松。
 
@@ -266,3 +274,60 @@ main 上 `apps/admin` 的类型检查偶尔红 4 条（`src/app/feedback.ts` 两
 - 改一条接口的里程碑归属：改 `packages/contract/src/routes/milestones.ts` 里那一行，跑 `pnpm contract:generate` 与 `node infra/ci/plan-routes.mjs --write`，并在 `docs/plan/changes/` 记一条（计划 第 5.7 节）。
 - 登记文档与契约的关系：三份登记文档仍由 `tools/api-check` 的两个脚本从路线图与结构化清单生成，没有改成由契约反向生成（W0-10 任务书不许改那两个脚本的逻辑，而文档里“用到的接口”“来源”几栏契约里也没有）。漂移靠三道检查合围：契约 ↔ 路线图（`contract:docs-check`）、契约 ↔ 登记文档（`api-registries:check`）、路线图与清单 → 登记文档重新生成无差异（`api-check.mjs`）。
 - 这几个脚本里不写条数：数取自路由清单、路线图与计划文档自己。条数钉在契约自测里（`packages/contract/src/routes/routes.test.ts`、`src/contract.test.ts`），各域补结构、加接口时改那两处。
+
+## 8. 结构防漂移（W0-06b）
+
+依据：计划 第 5.7 节“表结构与约束”行、第 6.3 节退出 ②④；ADR-045（Prisma 对手写的 CHECK、部分索引、触发器、函数、分区不建也不查，漂移靠结构快照把关）。
+
+### 8.1 六道检查各管什么
+
+| 检查 | 证明什么 | 库 |
+| --- | --- | --- |
+| `pnpm db:snapshot:check` | 入库的快照 = 迁移在空库上建出来的结构（六类逐字节） | 自建 `lyx_snapshot_check_<进程号>`，用完删 |
+| `pnpm db:constraints:check [--db <库>]` | 这个库 = 快照，逐条指到对象；数量：库 = 快照“计数”一节 = 06 第 1 节 | 默认 `lyx_migrate_check`，只读 |
+| `pnpm db:partitions:assert [--db <库>]` | 分区子表（不在快照里）：兜底分区在且为空；当月与未来 3 个月的分区在、上下界对；子表上父表的行级触发器与拦 TRUNCATE 的触发器都在且启用 | 默认 `lyx_migrate_check`，只读 |
+| `pnpm db:migration-lint [--base <引用>]` | 四类语句带了理由；已经合并的迁移没被改；新迁移的目录名排在最后 | 不连库 |
+| `pnpm db:draft-freeze:check` | 草稿 `schema.prisma` 与 `constraints/` 没被动过 | 不连库 |
+| `python3 tools/schema-check/check.py` | 分组文档的字段表 = 迁移后的库（列名、类型、可空） | 默认自建；`--existing <库>` 只读 |
+
+- 快照的规范化只做一件事：分区子表连同它名下的列、约束、索引、触发器不进快照（名字随建库的月份变）。认子表靠系统目录，不靠名字。
+- 比的口径沿用 `db-lib.mjs` 那条查询：触发器连启停一起比，外键连它名下内部触发器的启停一起比，函数比函数体，表连行级安全的两个开关一起比。授权不进快照（`pnpm db:verify-grants`）；序列、扩展等六类之外的对象不进快照。
+- 快照只认 PostgreSQL 17 的输出：本地与 CI 都是 17，别的版本开头就停（退出码 2）。
+
+### 8.2 核对一个已经部署的库
+
+W0-06a 的 `pnpm db:verify-grants` 只看角色与授权。只增表的触发器被停用、被删掉，触发器函数被换成空函数，表上开了行级安全，这些归这里：
+
+```sh
+DATABASE_URL=<那台服务器上的任意一个库> pnpm db:constraints:check --db <库名>
+DATABASE_URL=<同上> pnpm db:partitions:assert --db <库名>
+```
+
+- 两条都只读系统目录（分区断言另数一下各子表有没有行），不建、不改、不删，不打印连接串；所以不限库名。主机与账号取 `DATABASE_URL`（或 `PG*`），库名取 `--db`。要用表的属主或只读角色跑。
+- 仓库要检出到与那个库同一版迁移的提交：快照是“这个提交的迁移建出来的样子”。
+- 已经部署的库上分区会越建越多，不算差异；少了当月或未来 3 个月的，是建分区的周期任务没跑（G2-C）。
+- 这两条还没有接进任何发布流程（环境初始化与发布归 G2-D）；现在是手工跑的命令。
+
+### 8.3 加表、加索引、改约束时怎么跟
+
+结构变更包（一个 PR）里要一起改的，照这张单子：
+
+1. 写新迁移（做法见 ADR-045 第 1 节）；四类语句前写 `-- lyx:allow <理由>`，`pnpm db:migration-lint` 的输出末尾会把新迁移里带标记的语句列出来，抄进 PR 描述“门禁改动”一节。已经合并的迁移不改。
+2. `pnpm db:snapshot` 重出快照，把 `packages/db/snapshot/structure.txt` 的变化一起提交（门禁改动分类按 `generated` 判只增）。评审看快照的差异：多了、少了、变了哪几行，一目了然；出现没打算动的行（比如少了一个手写的部分索引），就是迁移草稿里夹带了不该有的语句。
+3. 数量不用改任何脚本：快照的“计数”一节是生成的；另把 06 第 1 节“规模”一条里的那几个数行内改掉（`pnpm db:constraints:check` 拿它与快照对）。
+4. 同一个 PR 改分组文档的字段表（`python3 tools/schema-check/check.py` 核对），授权的期望与下限清单（`packages/db/README.md` 第 9 节）。
+5. 不改草稿：`docs/data-model/schema.prisma` 与 `constraints/` 已冻结。
+
+本包之前写死的数量还有几处，第一个改结构的包会撞上，要先用一个单独的 `gate-change` PR 处理（任务书 第 11 节第 9 项说的“届时”）：
+
+- `db-lib.mjs` 的 `EXPECTED_COUNTS`（首版迁移的数量，七项）被两处用着。`db-verify-managed.mjs` 拿它核对“空库上跑完全部迁移”的数量：改成读快照的“计数”一节（`db-structure-lib.mjs` 的 `readSnapshot().counts` 与它同形），`test/db-verify-managed.test.ts` 里两行写死的数跟着改。`db-catalog-diff.mjs` 拿它核对首版迁移：见下一条。
+- `pnpm db:catalog-diff` 是首版迁移的等价性证明。它的第 1 段拿草稿的 `schema.prisma` 与 `packages/db` 的逐字节比，模型一改就红；第 3 段的数量同上。草稿冻结、首版迁移不能改之后，“首版迁移与草稿等价”是一个不会再变的事实：届时把 CI 里那几步撤下，或固定成“草稿（`check.py --from-draft`）对只跑首版迁移的库”。
+- `packages/db` 里不是门禁文件的几处随结构变更包自己改：`scripts/build-init-migration.mjs` 现在拿 `prisma/schema.prisma` 重拼首版迁移（模型一改就对不上，要改成读冻结的草稿）；`src/grants.test.ts` 里的几个数。
+
+### 8.4 已知的限度
+
+- CI 里“由底稿建参照库（schema-check）”那一步的命令没有变（`check.py --keep`），而 `check.py` 的缺省流程从本包起是“跑全部迁移”：那一步现在建出来的 `lyx_schema_check` 是迁移后的库，不再是由草稿建的；它后面的“系统目录比对”因此比的是“迁移对迁移”，第 2 段恒为 0 差异。首版等价性现在靠三样合起来保证：草稿冻结守卫、`packages/db` 的用例里重拼首版迁移的逐字节比对（`migration:build --check`）、已经合并的迁移不能改。改那一步是放松类改动，本包没有动，留给第 8.3 节说的 `gate-change` PR 一并处理。
+- 快照不逐行判（`generated` 口径）：单独改快照过不了 `db:snapshot:check`；改了生成脚本的输出再重出快照，检查是绿的，要连同脚本的差异一起看（第 5.1 节的限度同样适用）。
+- 迁移规范检查按文本认语句：动态拼出来再 `EXECUTE` 的、先建函数再调它来删东西的，查不出；“带不带默认值”按迁移自己的文本推。迁移是甲类，靠评审。
+- 06 第 1 节的数量是从正文那一条里按句式读出来的：句式被改写、读不出数时检查报错（不当成通过），把 `db-structure-lib.mjs` 的 `readDocCounts` 一起改（改已有的检查脚本，走 `gate-change` PR）。
+- 本地那个长期留着的 `lyx_migrate_check` 过了月初会少一个月的分区，`pnpm db:partitions:assert` 会红：删掉重建（`packages/db/README.md` 第 3 节）。
