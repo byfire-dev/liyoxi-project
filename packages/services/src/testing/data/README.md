@@ -118,7 +118,7 @@ const user = await make.merchantUser({ phone: "13800135678" }); // 明文手机�
 createFactories({ db, clock, seal: mySealer }); // FactorySealer：phone、uscc、text 三个方法
 ```
 
-缺省是测试专用的假三件套 `fakeSealer`：密文是 `fake-v0:` 开头的可逆编码（`openFakeSealed(enc)` 解回列名与明文），盲索引是 32 字节的散列（同值同索引，唯一索引照样管用），脱敏串调 `@liyoxi/shared/mask`。它没有密钥，不能拿去验加密本身。W0-14（真的三件套）合并后缺省换成真的；在那之前要真密文的用例照 [seal.ts](seal.ts) 开头的写法自己注入。
+缺省是 `testSealer`：`security` 模块的真实现（`sealPhone`、`sealUscc`、`encryptField`）配一把测试密钥环 `TEST_KEYRING`（固定字节现造，不读任何文件，不是任何环境在用的密钥）。密文是 `v1:test:…` 的真密文，盲索引是真的 HMAC：被测代码拿 `TEST_KEYRING` 解密、按盲索引等值查找都对得上。断言密文里是什么用 `openSealed(列, 密文)`（列要与写入时相同）；要换一把密钥环就注入 `sealerOf(自己的密钥环)`。三个类型 `SensitiveColumn`、`SealedField`、`SealedPhone` 就是 `security` 的那三个。
 
 ### 加一个工厂
 
@@ -180,7 +180,7 @@ harness.assertNoCalls(); // 一次外呼都没有
 | `tick()` | 放行到点的延迟应答（先拨时钟） |
 | `reset()` | 清空时间线与十二个替身的调用记录、没用掉的失败与延迟。替身里别的状态（发出去的短信、存进去的对象）不动 |
 
-- 事务里外呼即抛 `KernelViolation`（硬性规则 9），这次调用不记、替身也不执行。`createFakeProviders` 的外呼前钩子缺省空转，直接用它查不出这种错；支架缺省接上了 `assertNotInTransaction`。
+- 事务里外呼即抛 `KernelViolation`（硬性规则 9），这次调用不记、替身也不执行。支架在记时间线之前查这一条；直接用 `createFakeProviders()` 也查得出（它的外呼前钩子从 KF-1 起缺省是 `guardProviderCall`）。
 - 纯内存，很轻：每条用例建一个新的，替身里的状态就不会串到下一条。
 - 清调用记录用 `harness.reset()`；只调某个替身的 `resetCalls()`，时间线不会跟着清。
 
@@ -190,7 +190,7 @@ harness.assertNoCalls(); // 一次外呼都没有
 | --- | --- |
 | `seeded.ts`、`seeded-db.ts` | `useSeededDatabase`；`createSeededDatabase`、`ensureSeededTemplate`（后一个文件不带 Vitest，命令行用） |
 | `factories/` | 工厂：`index.ts` 是入口，`types.ts` 是对外的形状与工厂清单，其余按领域一组一个文件 |
-| `seal.ts` | 三件套的注入点与假实现 |
+| `seal.ts` | 三件套的注入点、测试密钥环与缺省实现（`security` 的真三件套） |
 | `snapshot.ts` | 表快照比较器 |
 | `provider-harness.ts` | 假 Provider 支架 |
 | `packages/db/src/testing/derived.ts` | 派生模板库（带种子的模板库靠它）、不靠模板的迁移库 |

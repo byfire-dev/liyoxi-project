@@ -68,7 +68,16 @@ async function hasWritten(handle: Tx): Promise<boolean> {
 }
 
 describe("没人实现：走空实现", () => {
-  const assembly = assembleForTest({ entry: "api" });
+  // 违规上报端口从 W0-24 起由 ops 实现：这一组看的是“没人实现”，真实模块的端口实现不带
+  const assembly = assembleForTest({ entry: "api", omitReal: ["portImplementations"] });
+
+  it("真实模块的装配里：违规上报端口由 ops 实现", () => {
+    const real = assembleForTest({ entry: "api" });
+    expect(real.portImplementations.find((item) => item.port === invariantsPort)?.module).toBe(
+      "ops",
+    );
+    expect(real.port(invariantsPort)).not.toBe(noopInvariants);
+  });
 
   it("真实模块的装配里五个端口都已声明，三个单实现的端口拿到的就是空实现", () => {
     expect(assembly.ports.map((item) => item.port.name)).toEqual(

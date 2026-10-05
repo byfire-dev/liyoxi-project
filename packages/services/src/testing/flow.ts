@@ -2,7 +2,7 @@
 // 只给测试用。真实的守卫、描述由各域登记；真实的工作分钟由 sla 登记（W0-30a），测试装配缺省带着它。
 // 名字带 lyxtest 前缀，不进契约的正式目录。
 import type { PrismaClient } from "@liyoxi/db";
-import { chainOf } from "@liyoxi/shared/machines";
+import { ADMIN_FORCE_EVENT, chainOf } from "@liyoxi/shared/machines";
 import type { Chain } from "@liyoxi/shared/machines";
 import { dayOfWeek } from "@liyoxi/shared/time";
 import { workingMinutesBetween } from "@liyoxi/shared/workcal";
@@ -43,10 +43,15 @@ export const SAMPLE_FLOW_EVENTS: readonly TestEventDefinition[] = [
 export const sampleGuard: Guard = (_tx, facts) =>
   Promise.resolve((facts.args as { deny?: boolean } | undefined)?.deny !== true);
 
-/** 给一条链上写了守卫的行都登记样例守卫 */
+/**
+ * 给一条链上写了守卫的行都登记样例守卫。人工纠偏（admin.force）的行不登记：它不走 transition()，
+ * 状态机的登记里出现它的键，createFlow 会当成“不是这条链上的行”拒掉（交付工单、客服工单的链上有这种行）。
+ */
 export function sampleGuards(chain: Chain): Record<string, Guard> {
   return Object.fromEntries(
-    chain.rows.filter((row) => row.guard).map((row) => [rowKey(row.ref, row.event), sampleGuard]),
+    chain.rows
+      .filter((row) => row.guard && row.event !== ADMIN_FORCE_EVENT)
+      .map((row) => [rowKey(row.ref, row.event), sampleGuard]),
   );
 }
 
@@ -139,7 +144,12 @@ export function createSampleFlow(
   const assembly = assembleForTest({
     entry: "api",
     extra: [sampleFlowRegistration(options)],
-    ...(options.workMinutes === undefined ? {} : { withoutRealPorts: [workMinutesPort] }),
+    // 状态机的登记整个换成样例的：各域陆续登记自己的状态机（W1-03 起 tenant 的三张表），
+    // flow 的用例看的是样例守卫与“没有登记”时的行为，不随各域的登记变
+    withoutRealPorts: [
+      machinePort,
+      ...(options.workMinutes === undefined ? [] : [workMinutesPort]),
+    ],
   });
   const tx = createTxRunner({ prisma, appEnv: "test" });
   const clock = createClock();

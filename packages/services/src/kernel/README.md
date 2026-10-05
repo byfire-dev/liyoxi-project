@@ -6,7 +6,7 @@
 
 | 文件 | 内容 |
 | --- | --- |
-| `tx.ts` | `createTxRunner`（`run`）、事务句柄 `Tx`、`savepoint`、`assertNotInTransaction`、`isInTransaction`、`sqlStateOf`、`isRetryableDbError`、`KernelViolation` |
+| `tx.ts` | `createTxRunner`（`run`）、事务句柄 `Tx`、`savepoint`、`assertNotInTransaction`、`isInTransaction`、`sqlStateOf`、`dbErrorCause`、`isRetryableDbError`、`KernelViolation` |
 | `errors.ts` | `AppError`：服务层的业务错误，只带契约里的错误符号名 |
 | `lock-order.ts` | 加锁顺序常量 `LOCK_ORDER`（照 06 第 5 节逐行写）、锁序断言 `assertLockOrder`。门禁文件 |
 | `lock.ts` | 加锁函数 `lockRows` |
@@ -44,6 +44,8 @@ export async function submitOrder(input: Input) {
 | 语句超时 `57014` | 不重试 | `AppError("UPSTREAM_TIMEOUT")` |
 | 事务已被中止 `25P02` | 不重试 | 普通 `Error`，是代码缺陷：接数据库错误要用保存点 |
 | 其余（业务错误、唯一约束冲突等） | 不重试 | 原样抛出 |
+
+错误出在提交那一刻（延迟到提交时检查的约束、可串行化事务提交时才判出的序列化失败、提交时的死锁）也按上表办。这时 Prisma 抛出来的是驱动适配器的 `DriverAdapterError` 本身，不是包过一层的 Prisma 错误（没有 `code`、`meta`）：读 SQLSTATE 一律用 `sqlStateOf(error)`，读数据库的原始报错用 `dbErrorCause(error)?.originalMessage`，不要自己去翻 `error.meta`。两种形状由 `tx.commit.concurrency.test.ts` 连真库钉住。
 
 ## 3. 保存点
 
@@ -140,7 +142,7 @@ assertIdempotencyUsed(idem, { appEnv: env.APP_ENV, report });
 - 请求哈希：`sha256` 算在 `[方法（大写）, 路径参数, 请求体, storeId]` 规范化之后的 JSON 上。规范化 = 对象的键排序、去掉值为 `undefined` 的键、数组顺序不变。
 - 等锁的 3 秒只对登记那一句设（`SET LOCAL`），之后恢复连接原来的 `lock_timeout`。
 - 行过了 `expires_at` 而还没被清理删掉时，仍按有效的记录重放。
-- 过期清理：`purgeExpiredIdempotencyRecords(tx, limit)` 只删 `expires_at` 已过的行，单轮缺省至多 1,000 行，返回删了几行。登记给 `ops.retention`（每小时）是 W0-24 的事。
+- 过期清理：`purgeExpiredIdempotencyRecords(tx, limit)` 只删 `expires_at` 已过的行，单轮缺省至多 1,000 行，返回删了几行。已登记成清理项 `kernel.idempotency_record`（`register.ts`），由 `ops.retention` 每小时调一轮（W0-24）。
 - `natural` 的路由自己按约束名处理：`isUniqueViolation(error, ["uq_…"])` 认出“撞的是我声明的那个唯一约束”。唯一冲突会让事务中止，那一句要包在 `savepoint` 里。
 
 ## 10. 业务单号（W0-13）
@@ -198,7 +200,7 @@ const result = await threePhase.run(
 - `external` 自己的超时要明显短于 30 秒。占用过期被别的请求接手之后，原来那一方就写不回、也补偿不了：接手的一方已写完时它拿到同一份结果，还没写完时它得到 `IDEMPOTENCY_IN_PROGRESS`。
 - 三种形态（约定 C51）只是用法不同。先调外部：不写 `claim`。先落库：`claim` 落本地行，`compensate` 删行或标失败。多事务：`claim` 落的技术状态在业务失败时不回滚，要标记写在 `compensate` 里。
 - `threePhase.run` 在事务里调即抛 `KernelViolation`；`claim`、`settle`、`compensate` 里不许调 Provider。
-- 外呼前钩子：进程装配与测试装配把 `guardProviderCall` 交给 Provider 工厂，`createProviders({ …, beforeCall: guardProviderCall })`、`createFakeProviders({ beforeCall: guardProviderCall })`。在事务里调任何 Provider 方法，`local`、`test` 下抛错且请求发不出去，`stg`、`prod` 上报后照常调（第 4 节）。
+- 外呼前钩子：进程装配走 `assembleProviders(…)`（`assembly/providers.ts`，里面就是 `createProviders({ …, beforeCall: guardProviderCall })`），替身 `createFakeProviders()` 缺省带着它，都不用自己接。在事务里调任何 Provider 方法，`local`、`test` 下抛错且请求发不出去，`stg`、`prod` 上报后照常调（第 4 节）。
 - 同键的另一个占用还没提交时，后到者等它；等多久由连接自己的 `lock_timeout` 管，超时按第 2 节的表处理。
 
 样例用例在 `@liyoxi/services/testing` 的 `samplePrepay`（探针表 `lyx_sample_prepay` 上的“预下单尝试”，外部是假微信支付）：三种形态各一条，只给测试用。用例在 `three-phase/`：外呼前、中、后中断三份，形态、并发抢占、事务内外呼各一份，另有一份性质测试（连库，缺省 40 轮，`LYX_FC_RUNS`、`LYX_FC_SEED` 可改）。

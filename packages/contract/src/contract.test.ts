@@ -122,7 +122,7 @@ describe("验收 2：通用错误码与登记表对账", () => {
 
   it("带 details 的码：纯常量一侧与 Zod 一侧的符号、类型一致", () => {
     const flagged = COMMON_ERROR_SYMBOLS.filter((symbol) => COMMON_ERRORS[symbol].hasDetails);
-    expect(flagged.sort()).toEqual(["CONSENT_REQUIRED", "REMINDED_TODAY"]);
+    expect(flagged.sort()).toEqual(["CONSENT_REQUIRED", "REMINDED_TODAY", "VERSION_CONFLICT"]);
     expect(Object.keys(COMMON_ERROR_DETAILS).sort()).toEqual(flagged);
     type Inferred = {
       [K in keyof typeof COMMON_ERROR_DETAILS]: z.infer<(typeof COMMON_ERROR_DETAILS)[K]>;
@@ -134,6 +134,13 @@ describe("验收 2：通用错误码与登记表对账", () => {
         nextAvailableDate: "2026-10-05",
       }).success,
     ).toBe(true);
+    // 约定 C52：details 带库里的最新版本，键是请求里的版本字段名（例外的列用各自的字段名）
+    for (const details of [{ lockVersion: 3 }, { draftLockVersion: 0 }]) {
+      expect(COMMON_ERROR_DETAILS.VERSION_CONFLICT.parse(details)).toEqual(details);
+    }
+    for (const bad of [{ lockVersion: "3" }, { lockVersion: -1 }, { lockVersion: 1.5 }]) {
+      expect(COMMON_ERROR_DETAILS.VERSION_CONFLICT.safeParse(bad).success).toBe(false);
+    }
     const consent = { pendingConsents: [{ agreementKey: "user", name: "《用户协议》" }] };
     expect(COMMON_ERROR_DETAILS.CONSENT_REQUIRED.parse(consent)).toEqual(consent);
   });
@@ -331,21 +338,59 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
   //     加具名结构时再改组件清单（现在只有 DictRef、ErrorBody、SentryEnvelope）。
   // 这是预期替换，不算“删改已有黄金条目”。替换时把断言换成新的现状（条数、组件名），不要整条删掉。
   // 路由清单本身的条数、与路线图的对账在 src/routes/routes.test.ts 与 pnpm contract:docs-check。
-  it("路由都已登记、都还只有元数据：三份文档 paths 为空，但都有通用结构与错误体", async () => {
-    expect(allRoutes).toEqual([]);
-    expect(allMetaOnlyRoutes).toHaveLength(664);
+  it("路由都已登记：带结构的 8 条在商家端文档里，其余还只有元数据；三份文档都有通用结构与错误体", async () => {
+    // W1-03：m01 的协议 5 条、m02 的建主体、门店列表、记住当前门店各 1 条
+    expect(allRoutes.map((route) => route.operationId).sort()).toEqual([
+      "m.agreement.list",
+      "m.agreementConsent.create",
+      "m.agreementConsent.list",
+      "m.agreementConsent.summary",
+      "m.agreementVersion.get",
+      "m.entity.create",
+      "m.me.currentStore.replace",
+      "m.store.list",
+    ]);
+    expect(allMetaOnlyRoutes).toHaveLength(656);
     expect(allRegistryOnly).toHaveLength(5);
-    for (const name of ["merchant", "admin", "portal"]) {
+    const common = ["DictRef", "ErrorBody", "SentryEnvelope"];
+    /** 各文档的 paths 条数与具名结构 */
+    const expected: Record<string, { paths: number; schemas: string[] }> = {
+      merchant: {
+        paths: 7,
+        schemas: [
+          "AgreementConsentReceipt",
+          "AgreementConsentSummary",
+          "AgreementCurrent",
+          "AgreementVersionBrief",
+          "AgreementVersionDetail",
+          "ConsentInput",
+          "ConsentRecord",
+          "ConsentRecordForClerk",
+          "DeviceInfo",
+          "EntityBrief",
+          "EntityQuotaCard",
+          "MemberPreview",
+          "MembershipResult",
+          "PendingConsent",
+          "SignedAgreementItem",
+          "SignedAgreementItemForClerk",
+          "StoreCard",
+          "StoreCardForClerk",
+          ...common,
+        ],
+      },
+      admin: { paths: 0, schemas: common },
+      portal: { paths: 0, schemas: common },
+    };
+    for (const [name, want] of Object.entries(expected)) {
       const doc = JSON.parse(
         readFileSync(join(GENERATED_DIR, `${name}.openapi.json`), "utf8"),
       ) as Node;
       expect(doc.openapi).toBe("3.1.0");
-      expect(doc.paths).toEqual({});
-      expect(Object.keys((doc.components as { schemas: Node }).schemas)).toEqual([
-        "DictRef",
-        "ErrorBody",
-        "SentryEnvelope",
-      ]);
+      expect(Object.keys(doc.paths as Node), name).toHaveLength(want.paths);
+      expect(Object.keys((doc.components as { schemas: Node }).schemas).sort(), name).toEqual(
+        [...want.schemas].sort(),
+      );
     }
   });
 

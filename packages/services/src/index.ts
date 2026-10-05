@@ -90,3 +90,37 @@ export type {
   RateLimiterOptions,
   RateLimitStore,
 } from "./rate-limit.js";
+// W0-24 不变量与清理：一次运行的用例函数（发布后、演练、后台的手工触发调它）；定时的那三个任务登记在 ops 的 register.ts
+export { runInvariants } from "./ops/index.js";
+export type {
+  InvariantRunDeps,
+  InvariantRunResult,
+  InvariantTrigger,
+  RunInvariantsInput,
+} from "./ops/index.js";
+// W1-03 协议与同意、主体与门店：两个装配入口（进程启动时各建一次；用法见 docs/README.md、tenant/README.md），
+// 公告的最小实现，以及接口层与别的域要用的类型
+export { createDocs } from "./docs/index.js";
+export type {
+  AgreementListQuery,
+  AssertConsentsInput,
+  AssertConsentsResult,
+  ConsentSigner,
+  Docs,
+  DocsDeps,
+  SignedAgreementViewer,
+} from "./docs/index.js";
+export { billingAccountPort, createTenant } from "./tenant/index.js";
+export type {
+  ActiveMembership,
+  BillingAccountOpener,
+  QuotaUsage,
+  StoreMembership,
+  Tenant,
+  TenantDeps,
+} from "./tenant/index.js";
+export { createNotices } from "./config/index.js";
+export type { Notices, NoticesDeps } from "./config/index.js";
+// W1-03 演示种子：协议的占位版本（运行器 demo-seed.ts 由 W1-01a 起头，W1-07 在里面加这一步）
+export { seedPlaceholderAgreementVersions } from "./docs/index.js";
+export type { PlaceholderFile, PlaceholderSeedInput } from "./docs/index.js";
