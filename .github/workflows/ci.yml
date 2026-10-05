@@ -85,6 +85,10 @@ jobs:
         run: pnpm db:generate
       - name: 类型
         run: pnpm typecheck
+      # 小程序用 React 18、后台用 React 19，各装各的 @types/react：类型解析不许经 pnpm 的提升目录落到各工程装得不一样的包上，
+      # 那里放哪一份不保证。上一步这一次是绿的也要查（infra/ci/README.md 第 7 节）
+      - name: 类型解析不靠提升
+        run: pnpm check:type-hoist
       - name: 依赖方向与五层
         run: pnpm depcheck
       # 以下几步是首版迁移的等价性证明（W0-05），排在“测试”之前：packages/db 的用例要连迁移库 lyx_migrate_check
