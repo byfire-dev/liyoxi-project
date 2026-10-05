@@ -309,7 +309,7 @@ flowchart LR
 | 镜像 | — | `liyoxi/server`（api、worker、迁移、CLI 同一镜像不同命令）、`liyoxi/gateway`（nginx + 后台与下载页静态产物）、`liyoxi/mediatool`（D5 的隔离容器）、`liyoxi/weapp-uploader`（小程序上传）|
 | 目录 | `/opt/liyo` | `/opt/liyoxi`（compose 文件、节点步骤脚本、`static/` 静态资源目录；不放代码、不放明文密钥）；密钥在内存盘 `/run/liyoxi/secrets/` |
 | 数据库 / 角色 | 库 `liyo`、用户 `liyo` | 库 `liyoxi`；角色 `lyx_migrator`（DDL，只在发布流程里用）、`lyx_app`（DML；对审计类表只有 INSERT / SELECT）、`lyx_archiver`（分区归档，D4）、`lyx_readonly`（备份与排障） |
-| 测试 schema | `test_services`、`test_api` | `test_<包名>`，`resetDatabase` 只认 `test_*`（沿用） |
+| 测试 schema | `test_services`、`test_api` | `test_<包名>`，`resetDatabase` 只认 `test_*`（沿用）。**勘误（W0-05b）**：已改为按库隔离，库名 `lyx_test_<包>_<会话标识>_<worker 编号>`，守卫只认 `lyx_test_` 前缀，见第 10.1 节末的勘误注 |
 | Compose 项目与本地端口 | `liyo`；5432 / 6379 / 3000 | `liyoxi`；PostgreSQL 5442、Redis 6389、API 3100、后台 5183、下载页 5184（同一台开发机可同时跑两个项目） |
 | COS 桶 | `liyo-prod-<appid>`（公有读） | `lyx-{env}-{secure,asset,media,pub}-<appid>`（D5 §3.1）；另加异地备份桶 `lyx-{env}-backup-<appid>`（7.8） |
 | 日志主题 / 错误监控项目 | — | `lyx-{env}-app`、`lyx-{env}-gateway`；`lyx-api`、`lyx-worker`、`lyx-admin`、`lyx-weapp`、`lyx-portal` |
@@ -2125,6 +2125,8 @@ interface InvariantCheck {
 | 7 部署脚本 | `orchestrate.mjs`、`node-step.sh`（含 `--rollback` 的顺序与拒绝条件）| 真 bash + 桩命令（沿用参考工程给部署脚本写测试的做法【调研 ref-ops §2.2】）| 每个 PR |
 
 支撑设施（沿用参考工程并补三样）：`resetDatabase` 只允许 `test_*` schema；假微信、假短信、假存储、假队列、假时钟随 `@liyoxi/services/testing` 导出。新增：**假微信支付**（可编排回调的延迟、重复、乱序、失败与查单结果）；**事务内禁调外部服务的断言**（2.3 第 5 条）；**表快照比较器**（把若干张表的内容规整成可比较的结构，幂等与回放测试用）。
+
+**勘误（W0-05b，随测试支架）**：测试库的隔离单位由 schema 改为库，守卫前缀由 `test_*` 改为 `lyx_test_`。依据：[开发计划](../../08-development-plan.md) 第 5.4 节“服务层连真库”行，原因三条：底稿里有写死 `search_path = public` 的函数；扩展是库级的；只增表不许 TRUNCATE、应用角色没有删除权。上表第 2 行的“独立 schema `test_services`，每个用例前清库”、上一段的“`resetDatabase` 只允许 `test_*` schema”、第 2.5 节“测试 schema”一行、第 13 节第 17 项的“`test_*` schema”不再适用，以下为准：迁移建一个模板库，每个会话、每个 Vitest worker 从它拷出自己的库 `lyx_test_<包>_<会话标识>_<worker 编号>`；重置 = 删库重建；建库、删库、重置、连接都先过库名守卫，只认 `lyx_test_` 前缀。本文其余内容未改。落地的写法见 `packages/services/src/testing/README.md`。
 
 覆盖率门槛只设在要紧的地方：`packages/shared` 行与分支 ≥95%；`services` 的 `billing`、`payment`、`order` 分支 ≥90%；其余不设门槛（避免为数字写测试）。
 
