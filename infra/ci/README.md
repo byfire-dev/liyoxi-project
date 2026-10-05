@@ -100,7 +100,7 @@ export default {
 - `machines-check-missing-row`（W0-12）同样在仓库外的副本里跑真的根脚本（`pnpm machines:check`），条件同 `contract-check-stale-generated`；不连库。删哪一行迁移是现挑的（第一份迁移表里第一条单占一行、`ref` 只出现一次的），迁移表随各域的包改动时不用改这个反例。
 - `api-registries-check-wrong-error-code`、`api-registries-check-missing-permission`（W0-09b）在仓库外的副本里跑真的根脚本（`pnpm api-registries:check`），条件同 `contract-check-stale-generated`；不连库。副本里要带对账读的那些文档：清单取自对账脚本导出的 `SOURCE_PATHS` 与 `FRAG_DIR`，脚本以后多读一份文档不用改反例。改哪个码、删哪个权限点也不写死，各取所在文件里登记的第一个。后一例引前一例导出的两个函数（造副本、取 CI 里那一步的命令）。
 - `type-hoist-paths-overridden` 在仓库外摆一棵照 pnpm 装出来的小树（`selftest/lib/type-hoist-tree.mjs`，手工摆的目录与链接，不真的安装），再跑 `check-type-hoist.mjs`：要本仓库的依赖已安装（检查脚本用根上的 `typescript`）。
-- `docs-check-wrong-permission`、`docs-check-golden-missing`（W0-10）在仓库外的副本里跑真的根脚本（`pnpm contract:docs-check`），条件同 `contract-check-stale-generated`；不连库。副本用 W0-09b 那一例的 `contractCopy`，另带对账读的文档（清单取自对账脚本导出的 `SOURCE_PATHS`）。改哪条路由、删黄金文件的哪一条都不写死。前一例另导出 `ciCommand`（取 `verify` 里以某条命令开头的那一步）与 `docsCheckCopy`，下面四例引它。
+- `docs-check-wrong-permission`、`docs-check-golden-missing`（W0-10）在仓库外的副本里跑真的根脚本（`pnpm contract:docs-check`），条件同 `contract-check-stale-generated`；不连库。副本用 W0-09b 那一例的 `contractCopy`，另带对账读的文档（清单取自对账脚本导出的 `SOURCE_PATHS`）。改哪条路由、删黄金文件的哪一条都不写死。前一例另导出 `ciCommand`（取 `verify` 里以某条命令开头的那一步）与 `docsCheckCopy`，本包其余几例引它。
 - `landed-above-baseline`、`plan-routes-stale-table`（W0-10）不连库：各把一份输入（路由清单加一条、计划文档改一个数）另存到仓库外，用脚本的参数换路径，判定用的其余输入是仓库里真的那几份。待落地数、基线、表里的数都是现读的，不写死。
 - `natural-constraints-wrong-name`、`api-check-unverified`、`api-check-stale-registry`（W0-10）要本地那套 PostgreSQL 与连接参数，第一、三例另要 `lyx_migrate_check` 已跑过迁移；都只读，不建库。后两例要 `python3` 与 `psql` 在 PATH 上；第三例在仓库外建一个临时 git 仓库，拷进校验工具与它读的 `docs/api`、`docs/data-model`，改路线图里一条摘要后跑副本里的包装脚本。
 
