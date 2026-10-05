@@ -616,7 +616,7 @@ M2、M3、M4 并行时的共享面，M1 退出后最先处理：
 
 ### 8.2 20 份接口文档
 
-V1.0 条数取 routemap.json。各里程碑的分配是 W0-10 之前的估算；W0-10 给每条 operationId 写入 `milestone` 后，本表由脚本生成并替换，退出条件按生成的清单核对。行与列的合计都对得上 613。
+V1.0 条数与各里程碑的分配取契约的路由清单（`packages/contract/generated/routes.json`）；每条 operationId 归哪个里程碑写在 `packages/contract/src/routes/milestones.ts`（W0-10 写入，逐条定下来的条数与此前的估算逐格相同）。本表是生成物，不手改：`node infra/ci/plan-routes.mjs --write` 重写，CI 用 `--check` 核对无差异；退出条件按 `node infra/ci/landed.mjs --report` 的待落地清单核对。行与列的合计都对得上 613。
 
 | 文档 | V1.0 | M0 | M1 | M2 | M3 | M4 | M5 | M6 | M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

@@ -27,6 +27,10 @@
 | `apps/admin/scripts/check-build.mjs`（不在本目录） | 后台与下载页的构建产物检查：文件名带内容哈希、写入了构建号、是生产构建、不含夹具的标记 | 两个应用各自的 `build` 脚本，即 `pnpm admin:build`、`pnpm portal:build`；CI |
 | `apps/admin/scripts/e2e-affected.mjs`（不在本目录） | 后台冒烟的受影响范围判断：PR 改到后台或它依赖的部分才跑，推到 main 一律跑 | CI 的“后台冒烟要不要跑”一步 |
 | `check-type-hoist.mjs` | 类型解析不靠提升：写 JSX 的工程解析类型时，不许经 pnpm 的私有提升目录落到各工程装得不一样的包上；工程自己声明的类型包在程序里只许出现自己装的那一份（第 7 节） | `pnpm check:type-hoist`；CI |
+| `landed.mjs`、`landed-baseline.txt` | 已落地判定与待落地清单（W0-10）：一条 V1.0 接口“已落地”= 挂了真实处理器 + 有接口层测试引用它的 operationId + 不在留桩清单；待落地数高于基线即失败（第 7 节） | CI（`--check --report`）；里程碑退出时加 `--require` |
+| `plan-routes.mjs` | 计划 第 8.2 节的表由路由清单生成（W0-10）：V1.0 的接口都有里程碑，表与清单无差异；另出业主评审用的归属汇总 | CI（`--check --summary`）；改了归属后本地跑 `--write` |
+| `natural-constraints.mjs` | natural 幂等的约束名核对（W0-10）：契约里写的每个约束名在迁移后的库里都找得到 | CI；只读 `lyx_migrate_check` |
+| `api-check.mjs` | api-check 进 CI（W0-10）：跑 `tools/api-check/check.py`，“表.列”一项未核对按失败算；通过后用两个生成脚本重新生成三份登记文档（`docs/api/registry-*.md`），`git diff --exit-code` | CI；只读 `lyx_migrate_check` |
 
 工作流在 `.github/workflows/`：`ci.yml`（每个 PR 与推到 main）、`nightly.yml`（每晚，Node 26，失败只告警）。
 
@@ -55,6 +59,7 @@
 - 状态机迁移表（W0-12）在 `verify` 里加了一步，排在“枚举与库 CHECK 一致”之后：“状态机迁移表对照”（`pnpm machines:check`）。拿 `packages/shared/src/machines` 的 25 张迁移表与数据模型分组文档的状态机表逐行对照（当前状态、事件码、新状态、有无守卫），并核对状态机与状态列的清单与契约登记、01 分组 第 3.2 节、`catalogue.json` 一致；只读文件，不连库，本机约 1 秒。脚本在 `packages/shared/scripts/machines-check.ts`，不在本目录，理由同 W0-09a 那一条；口径写在脚本开头的注释与 [packages/shared/src/machines/README.md](../../packages/shared/src/machines/README.md) 第 4 节。脚本与迁移表都没有登记成门禁文件（照 W0-09a 两个对账脚本的先例）：对照被削弱由门禁自测的反例拦，改迁移表的 PR 靠这一步保证分组文档同步改了。覆盖检查（`pnpm machines:coverage`）现在只出报告，不在 `verify` 里，M1 起才进门禁（计划 第 5.5 节）。
 - 接口侧注册表（W0-09b）在 `verify` 里加了一步，排在“枚举与库 CHECK 一致”之后。“接口侧注册表对账”（`pnpm api-registries:check`）：拿契约里的领域错误码、权限点、能力点、资源登记、通知场景、订阅点位、埋点事件与登记文档、`docs/api/working/` 的底稿逐字段比；只读文件，不连库，约 2 秒。检查脚本在 `packages/contract/scripts/`，理由同 W0-09a 那一条。数量不写在脚本与反例里：取登记文档各节标题里写的数，同表格行数、契约条数三方比。场景键、埋点事件名两种写法另并进 W0-09a 的 `pnpm enums:check`，同库里的 CHECK 正则逐字比。
 - “类型”之后有一步“类型解析不靠提升”（`pnpm check:type-hoist`）。它不看类型检查这一次过没过，看的是结果会不会随 pnpm 提升了哪一份而变，所以两步都要。来历、口径与失败了怎么办见第 7 节。每晚任务没有加这一步：它查的是结果会不会随安装变，与 Node 版本无关。它的用例（`test/type-hoist.test.ts`）只摆小树，不对本仓库再跑一遍。
+- 路由元数据接管（W0-10）在 `verify` 里加了六步，排在“接口侧注册表对账”之后，五步检查加一步上传，都只读，合计几秒：“路由元数据对账”（`pnpm contract:docs-check`，脚本在 `packages/contract/scripts/`，理由同 W0-09a 那一条）；“api-check”；“natural 幂等的约束名核对”；“待落地数只减不增”；“里程碑归属与计划 第 8.2 节的表”；“上传里程碑归属汇总与待落地清单”（产物 `route-milestones`，两份 Markdown，写在 `packages/contract/dist/`，不入库）。第二、三步读前面“空库跑全部迁移”建的 `lyx_migrate_check`：任务书原定给 api-check 另建一个 `lyx_api_check`，为省时长改成共用，两个库的内容相同。口径见第 7 节。
 
 ## 3. 怎么加一步检查
 
@@ -95,6 +100,9 @@ export default {
 - `machines-check-missing-row`（W0-12）同样在仓库外的副本里跑真的根脚本（`pnpm machines:check`），条件同 `contract-check-stale-generated`；不连库。删哪一行迁移是现挑的（第一份迁移表里第一条单占一行、`ref` 只出现一次的），迁移表随各域的包改动时不用改这个反例。
 - `api-registries-check-wrong-error-code`、`api-registries-check-missing-permission`（W0-09b）在仓库外的副本里跑真的根脚本（`pnpm api-registries:check`），条件同 `contract-check-stale-generated`；不连库。副本里要带对账读的那些文档：清单取自对账脚本导出的 `SOURCE_PATHS` 与 `FRAG_DIR`，脚本以后多读一份文档不用改反例。改哪个码、删哪个权限点也不写死，各取所在文件里登记的第一个。后一例引前一例导出的两个函数（造副本、取 CI 里那一步的命令）。
 - `type-hoist-paths-overridden` 在仓库外摆一棵照 pnpm 装出来的小树（`selftest/lib/type-hoist-tree.mjs`，手工摆的目录与链接，不真的安装），再跑 `check-type-hoist.mjs`：要本仓库的依赖已安装（检查脚本用根上的 `typescript`）。
+- `docs-check-wrong-permission`、`docs-check-golden-missing`（W0-10）在仓库外的副本里跑真的根脚本（`pnpm contract:docs-check`），条件同 `contract-check-stale-generated`；不连库。副本用 W0-09b 那一例的 `contractCopy`，另带对账读的文档（清单取自对账脚本导出的 `SOURCE_PATHS`）。改哪条路由、删黄金文件的哪一条都不写死。前一例另导出 `ciCommand`（取 `verify` 里以某条命令开头的那一步）与 `docsCheckCopy`，下面四例引它。
+- `landed-above-baseline`、`plan-routes-stale-table`（W0-10）不连库：各把一份输入（路由清单加一条、计划文档改一个数）另存到仓库外，用脚本的参数换路径，判定用的其余输入是仓库里真的那几份。待落地数、基线、表里的数都是现读的，不写死。
+- `natural-constraints-wrong-name`、`api-check-unverified`、`api-check-stale-registry`（W0-10）要本地那套 PostgreSQL 与连接参数，第一、三例另要 `lyx_migrate_check` 已跑过迁移；都只读，不建库。后两例要 `python3` 与 `psql` 在 PATH 上；第三例在仓库外建一个临时 git 仓库，拷进校验工具与它读的 `docs/api`、`docs/data-model`，改路线图里一条摘要后跑副本里的包装脚本。
 
 ## 5. 门禁改动分类
 
@@ -233,3 +241,18 @@ main 上 `apps/admin` 的类型检查偶尔红 4 条（`src/app/feedback.ts` 两
 - 根上的 `tsconfig.json`、`infra/tsconfig.json` 与 `fixtures/` 下的最小工程不是工作区包，不查。
 - 只看类型解析。一个包运行时不声明就引 `react`（不是类型）时，构建工具同样会落到提升目录里的那一份 `react` 上；现在的依赖里没有这样的包，这道检查也看不到。
 - 工作区清单（`pnpm-workspace.yaml` 的 `packages`）只认“目录/\*”与不带通配符的目录两种写法，别的写法报错退出。
+## 7. 路由元数据接管带来的检查（W0-10）
+契约的路由清单 `packages/contract/generated/routes.json` 是生成物（`pnpm contract:generate` 写，`pnpm contract:check` 把关）：一条路由一行，带所属文档、版本、归属的里程碑，还没有 Zod 结构的路由也在内。本目录的三个脚本只读它，不引契约的代码。
+| 检查 | 命令 | 读什么 | 失败是什么意思 |
+| --- | --- | --- | --- |
+| 路由元数据对账 | `pnpm contract:docs-check` | 契约的路由 ↔ `docs/api/working/routemap.json`；黄金文件 `packages/contract/golden/open-routes.json`；约定 C86 的登记表；资源登记 | 改接口没有同 PR 改路线图；新出现了没评审过的公开、可选、验签路由；`x-step-up: skip` 与登记表不一致；路径里的资源段、参数名与资源登记不符 |
+| api-check | `node infra/ci/api-check.mjs` | 路线图、`working/frag/`、分组文档；“表.列”连 `lyx_migrate_check`；三份登记文档 | 三者不自洽；“表.列”一项没核对成；改了路线图、结构化清单或生成脚本却没有重新生成并提交登记文档 |
+| 约束名核对 | `node infra/ci/natural-constraints.mjs` | `routes.json` 里 natural 路由的 `idempotentBy`；`lyx_migrate_check` 的唯一约束与唯一索引 | 承担去重的约束改了名或被删 |
+| 待落地数只减不增 | `node infra/ci/landed.mjs --check` | `routes.json`；已挂载清单；接口层测试；留桩清单；基线 | 待落地数高于基线 |
+| 计划 第 8.2 节的表 | `node infra/ci/plan-routes.mjs --check` | `routes.json`；`docs/08-development-plan.md` | 有 V1.0 接口没有里程碑，或改了归属没有重写那张表 |
+- “已落地”的三个条件各从哪读：处理器取 `apps/api/dist/mounted-operations.json`（JSON 字符串数组，探活用登记键；由 `apps/api` 的测试装配导出，W0-22 接上，移交表第 3 行；文件不存在按空集算）；测试取 `apps/api` 下 `*.test.ts` 里以字符串字面量出现的 operationId；留桩取 `docs/plan/stubs/` 里状态为“留桩中”的文件“留桩内容”一行反引号括起的 operationId。
+- 基线 `landed-baseline.txt` 一行一个数，脚本读最后一行。往下降是在末尾加一行（只增），不改、不删已有的行；后一行大于前一行脚本直接判不合规。谁来降：各里程碑的合流包必降；别的包落地了接口，`--check` 的输出会提示可以降到多少，降不降随意。里程碑退出条件“`milestone` 为本里程碑的 operationId 未落地数 = 0”用 `--require M0,M1` 这样的写法核对。
+- 黄金文件按 `frozen` 登记：与清单不一致时，是该改路由还是该改黄金文件，由评审定；要改黄金文件走单独的 `gate-change` PR，用 `pnpm --filter @liyoxi/contract exec tsx scripts/docs-check.ts --write-golden` 重写。
+- 改一条接口的里程碑归属：改 `packages/contract/src/routes/milestones.ts` 里那一行，跑 `pnpm contract:generate` 与 `node infra/ci/plan-routes.mjs --write`，并在 `docs/plan/changes/` 记一条（计划 第 5.7 节）。
+- 登记文档与契约的关系：三份登记文档仍由 `tools/api-check` 的两个脚本从路线图与结构化清单生成，没有改成由契约反向生成（W0-10 任务书不许改那两个脚本的逻辑，而文档里“用到的接口”“来源”几栏契约里也没有）。漂移靠三道检查合围：契约 ↔ 路线图（`contract:docs-check`）、契约 ↔ 登记文档（`api-registries:check`）、路线图与清单 → 登记文档重新生成无差异（`api-check.mjs`）。
+- 这几个脚本里不写条数：数取自路由清单、路线图与计划文档自己。条数钉在契约自测里（`packages/contract/src/routes/routes.test.ts`、`src/contract.test.ts`），各域补结构、加接口时改那两处。
