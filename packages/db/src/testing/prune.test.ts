@@ -11,7 +11,10 @@ import {
   pruneTestDatabases,
   resolveTestSession,
   resolveTestWorker,
+  runningTestSessions,
   templateDatabaseName,
+  TEST_SESSION_LOCK_SQL,
+  testSessionLockKey,
 } from "./database.js";
 import { useTestDatabase } from "./worker.js";
 
@@ -113,6 +116,62 @@ describe("pnpm test:db:prune", () => {
       expect(result.status, result.output).toBe(2);
       expect(result.output).toContain("test:db:prune：");
     }
+  });
+});
+
+describe("runningTestSessions：只看会话锁，不去抢", () => {
+  const lock = (client: pg.Client, session: string) =>
+    client
+      .query<{ locked: boolean }>(`select ${TEST_SESSION_LOCK_SQL} as locked`, [
+        testSessionLockKey(session),
+      ])
+      .then((result) => result.rows[0]?.locked);
+
+  it("锁被占着的会话算在跑，放掉之后不算；别的会话不受牵连", async () => {
+    await admin(async (holder) => {
+      expect(await lock(holder, mine)).toBe(true);
+      expect([...(await runningTestSessions([mine, other, mine]))]).toEqual([mine]);
+      await holder.query("select pg_advisory_unlock_all()");
+      expect([...(await runningTestSessions([mine, other]))]).toEqual([]);
+    });
+    expect([...(await runningTestSessions([]))]).toEqual([]);
+  });
+
+  it("查的当口另一轮测试启动：它照样抢得到锁（查的人不加锁、不放锁）", async () => {
+    await admin(async (starter) => {
+      const original = pg.Client.prototype.query as (...all: unknown[]) => Promise<unknown>;
+      const statements: string[] = [];
+      const attempts: Array<boolean | undefined> = [];
+      // 查的人每发一句 SQL 之前，“另一轮测试”先抢一次锁、抢到就放：查的人要是正占着锁，这一次就抢不到
+      const query = vi.spyOn(pg.Client.prototype, "query").mockImplementation(async function (
+        this: pg.Client,
+        ...args: unknown[]
+      ) {
+        if (this !== starter) {
+          const first = args[0];
+          statements.push(
+            typeof first === "string" ? first : String((first as { text?: unknown }).text),
+          );
+          const result = (await original.call(
+            starter,
+            `select ${TEST_SESSION_LOCK_SQL} as locked`,
+            [testSessionLockKey(other)],
+          )) as { rows: Array<{ locked: boolean }> };
+          attempts.push(result.rows[0]?.locked);
+          await original.call(starter, "select pg_advisory_unlock_all()");
+        }
+        return original.apply(this, args);
+      } as never);
+      try {
+        expect([...(await runningTestSessions([other]))]).toEqual([]);
+      } finally {
+        query.mockRestore();
+      }
+      expect(attempts).toEqual([true]);
+      expect(statements).toHaveLength(1);
+      expect(statements[0]).toContain("pg_locks");
+      expect(statements.join("\n")).not.toMatch(/advisory_(xact_)?lock|advisory_unlock/);
+    });
   });
 });
 
