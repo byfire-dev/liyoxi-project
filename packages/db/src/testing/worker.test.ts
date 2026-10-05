@@ -118,6 +118,21 @@ describe("useTestDatabase：钩子里失败也算失败", () => {
   );
 });
 
+describe("useTestDatabase：本项目要挂 globalSetup", () => {
+  it(
+    "嵌套跑一轮、不给它 globalSetup 的并行数：文件一加载就报错，库没建",
+    { timeout: 120_000 },
+    async () => {
+      const result = runNestedVitest("hooks-pass", { maxWorkers: 1, attached: false });
+      expect(result.status, result.output).toBe(1);
+      expect(result.output).toContain("本包的 vitest.config.ts 没有挂测试支架的 globalSetup");
+      expect(result.output).toMatch(/Test Files\s+1 failed \(1\)/);
+      const left = (await listTestDatabases({ session })).filter((name) => name.includes("_hook"));
+      expect(left).toEqual([]);
+    },
+  );
+});
+
 describe("TestDatabaseHandle", () => {
   it("没取过连接的收尾什么都不做，库没建过", async () => {
     const handle = new TestDatabaseHandle(testDatabaseName("db", { label: "never" }));
