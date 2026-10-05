@@ -214,6 +214,7 @@
 | `node infra/ci/natural-constraints.mjs` | natural 幂等的约束名核对：契约里写的每个约束名在迁移库 `lyx_migrate_check` 里都找得到；只读 |
 | `node infra/ci/api-check.mjs` | CI 里跑 `tools/api-check/check.py` 的写法：“表.列”一项连 `lyx_migrate_check`，未核对按失败算；通过后重新生成三份登记文档（`docs/api/registry-*.md`）并 `git diff --exit-code` |
 | `pnpm --filter @liyoxi/services exec vitest run src/kernel/assembly/ src/assembly.test.ts` | 只跑服务装配的用例：两个样例模块在 api、worker 两个入口都能收集到，重名与缺实现启动失败，按环境过滤（`envs`），组合根的入口清单与模块目录对账。用例不碰库，命令照样要带 `DATABASE_URL`（services 的全局准备要它）。模块怎么登记、端口怎么用见 [README](packages/services/src/kernel/assembly/README.md) |
+| `pnpm --filter @liyoxi/services exec vitest run src/security/ src/audit/` | 只跑敏感字段与审计的用例：字段加密与密钥轮换、盲索引在真库里等值查、三件套与启动自检；`audit.record` 的同事务、只追加、规范化、每日校验，性质测试（固定种子、每个性质 200 轮，每轮真写一行）。连真库。密钥用现造的假密钥，不读文件。用法、密钥文件的格式、种子与轮次的改法见 [security](packages/services/src/security/README.md)、[audit](packages/services/src/audit/README.md) 两份 README |
 
 本地连接参数：配置只经 `loadEnv`（`packages/services/src/kernel/env.ts`）读环境变量，会话与测试不建、不读 `.env`，在命令前或 shell 里给出。取值出处是 [local.yml](infra/compose/local.yml)，账号与口令是固定的开发值，只对本机这套容器有效；CI 的服务容器用同一组值。
 
