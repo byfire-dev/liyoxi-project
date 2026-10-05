@@ -12,3 +12,6 @@ export type {
   WorkMinutesInput,
 } from "./due.js";
 export { findCalendarGaps, registration } from "./register.js";
+// W0-21 种子：工作日历
+export { calendarDaysOf, HOLIDAY_ARRANGEMENTS, seed, seededCalendarYears } from "./seed.js";
+export type { CalendarDayKind, CalendarDaySeed, HolidayArrangement } from "./seed.js";
