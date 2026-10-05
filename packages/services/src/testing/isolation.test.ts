@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { availableParallelism, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,7 +10,8 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 120_000 });
 
 // pnpm test:isolation 的核对部分（isolation.mjs --check）：两份用量记录有交集、缺东西，都要判不通过。
-// 整条命令（真的起两个会话跑全量测试）在 CI 的 test:isolation 一步里跑，这里不嵌套着再跑一遍。
+// 另验它怎么定范围与并行数（--dry-run：只打印要跑什么，不跑）。
+// 整条命令（真的起两个会话跑测试）在 CI 的 test:isolation 一步里跑（带 --scope connected），这里不嵌套着再跑一遍。
 
 const SCRIPT = fileURLToPath(new URL("./isolation.mjs", import.meta.url));
 const dir = mkdtempSync(join(tmpdir(), "lyx-isolation-check-"));
@@ -121,9 +122,64 @@ describe("test:isolation 核对两份用量记录", () => {
     const bad = check(a, broken);
     expect(bad.status, bad.output).toBe(1);
     expect(bad.output).toContain("第 1 行不是 JSON");
-    for (const args of [["--check", a], ["--bogus"]]) {
+    for (const args of [
+      ["--check", a],
+      ["--bogus"],
+      ["--scope"],
+      ["--scope", "some"],
+      ["--workers"],
+      ["--workers", "0"],
+      ["--workers", "four"],
+    ]) {
       const result = spawnSync(process.execPath, [SCRIPT, ...args], { encoding: "utf8" });
-      expect(result.status).toBe(2);
+      expect(result.status, args.join(" ")).toBe(2);
     }
+  });
+});
+
+describe("test:isolation 的范围与并行数", () => {
+  const dryRun = (...args: string[]) => {
+    const result = spawnSync(process.execPath, [SCRIPT, ...args, "--dry-run"], {
+      encoding: "utf8",
+    });
+    return { status: result.status, output: `${result.stdout}\n${result.stderr}` };
+  };
+  const commandOf = (output: string) => /每个会话的命令：pnpm test (.+)/.exec(output)?.[1] ?? "";
+
+  it("缺省跑全量；每个会话的 worker 数按核数定：合起来不超过可用核数，最多 4 个、至少 1 个", () => {
+    const result = dryRun();
+    expect(result.status, result.output).toBe(0);
+    const match = /同时跑全量测试，各 (\d+) 个 worker（本机可用 (\d+) 核）/.exec(result.output);
+    const [workers, cores] = [Number(match?.[1]), Number(match?.[2])];
+    expect(cores).toBe(availableParallelism());
+    expect(workers).toBeGreaterThanOrEqual(1);
+    expect(workers).toBeLessThanOrEqual(4);
+    // 不挤：两个会话合起来不超过核数（核数不到 2 时各 1 个是下限）
+    expect(workers === 1 || workers * 2 <= cores).toBe(true);
+    // 也不浪费：再多一个就超了，或者已经到 4 个的上限
+    expect(workers === 4 || (workers + 1) * 2 > cores).toBe(true);
+    // 不带 --project：全部项目都跑
+    expect(commandOf(result.output)).toBe(`--maxWorkers=${workers}`);
+  });
+
+  it("--workers 显式指定；比核数多时提醒一句", () => {
+    const result = dryRun("--workers", "3");
+    expect(result.status, result.output).toBe(0);
+    expect(commandOf(result.output)).toBe("--maxWorkers=3");
+    const crowded = dryRun("--workers", "99");
+    expect(crowded.output).toContain("两个会话合起来 198 个 worker");
+  });
+
+  it("--scope connected：只跑挂了 globalSetup 的项目，不连库的项目不在里面", () => {
+    const result = dryRun("--scope", "connected", "--workers", "2");
+    expect(result.status, result.output).toBe(0);
+    expect(result.output).toContain("同时跑连库的测试项目（挂了 globalSetup 的：");
+    const command = commandOf(result.output);
+    expect(command.startsWith("--maxWorkers=2 --project ")).toBe(true);
+    const projects = [...command.matchAll(/--project (\S+)/g)].map((match) => match[1]);
+    // 连库、连 Redis 的用例现在在这两个项目里；以后挂上 globalSetup 的包自动进来
+    expect(projects).toContain("db");
+    expect(projects).toContain("services");
+    for (const pure of ["infra", "shared", "contract"]) expect(projects).not.toContain(pure);
   });
 });
