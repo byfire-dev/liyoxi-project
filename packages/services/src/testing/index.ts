@@ -27,3 +27,5 @@ export * from "./calendar.js";
 export * from "./timers.js";
 // W0-16：状态迁移的样例守卫、活动流默认描述、固定日历的工作分钟实现，与测试装配之上的 flow
 export * from "./flow.js";
+// W0-23：任务进程的样例订阅者、定时器处理器、周期任务（带业务副作用，用例据此断言恰好一次）
+export * from "./worker.js";
