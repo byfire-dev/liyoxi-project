@@ -12,3 +12,5 @@ export * from "./redis.js";
 
 // W0-07b：测试装配（真实模块的登记之外追加样例登记）
 export * from "./assembly.js";
+// W0-20：三段式的样例用例（探针表上的“预下单尝试”），只在测试里挂
+export * from "./three-phase-samples.js";
