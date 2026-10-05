@@ -30,7 +30,12 @@
     "lint:colors": "node infra/ci/check-colors.mjs",
     "mediatool:verify": "node infra/docker/mediatool/verify/run.mjs verify",
     "mediatool:bench": "node infra/docker/mediatool/verify/run.mjs bench",
-    "wxpay:vectors": "vitest run --config packages/services/src/providers/wechat-pay/__fixtures__/vectors.vitest.config.ts"
+    "wxpay:vectors": "vitest run --config packages/services/src/providers/wechat-pay/__fixtures__/vectors.vitest.config.ts",
+    "db:generate": "pnpm --filter @liyoxi/db generate",
+    "db:validate": "pnpm --filter @liyoxi/db validate",
+    "db:deploy": "pnpm --filter @liyoxi/db migrate:deploy",
+    "db:catalog-diff": "node infra/ci/db-catalog-diff.mjs",
+    "db:verify-managed": "node infra/ci/db-verify-managed.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",
