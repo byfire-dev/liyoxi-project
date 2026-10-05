@@ -16,3 +16,6 @@ export * from "./analytics/events.js";
 export * from "./common/index.js";
 export * from "./routes/index.js";
 export * from "./openapi.js";
+// W0-18：config 各 jsonb 列的结构（开关规则、清单条目、站点配置、字典项扩展属性）
+export * from "./config/schemas.js";
+export * from "./config/dict-ext.js";
