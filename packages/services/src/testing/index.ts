@@ -17,3 +17,5 @@ export * from "./three-phase-samples.js";
 
 // W0-15：出站事件的样例事件、样例订阅者，与测试装配之上的 events
 export * from "./events.js";
+// W0-17：五个端口的样例实现（记下收到的调用）
+export * from "./ports.js";

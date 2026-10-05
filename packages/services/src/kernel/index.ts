@@ -102,3 +102,6 @@ export { bumpLockVersion, lockVersionField } from "./optimistic-lock/index.js";
 export type { LockVersionTarget } from "./optimistic-lock/index.js";
 // W0-14 两份密钥文件的内容类型（loadEnv 读出来的形状；密钥环在 security）
 export type { BidxKeysConfig, DataKeysConfig } from "./env.js";
+// W0-17 五个端口：告警、不变量上报、埋点直记、通知场景解析、提醒查询；kernel 的登记（声明这五个端口）
+export * from "./ports/index.js";
+export { registration } from "./register.js";
