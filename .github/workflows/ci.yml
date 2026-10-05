@@ -138,7 +138,7 @@ jobs:
       # 现在是 packages/db、packages/services），都要绿，且两边用的库名与 Redis 前缀没有交集。只跑这些项目是为了时长预算：
       # 不带 --scope 是两个会话各跑一遍全量：执行机只有 2 核，要 5 分钟以上，放不进时长预算（计划 第 5.5 节）
       - name: test:isolation
-        run: pnpm test:isolation --scope connected
+        run: pnpm test:isolation
       # 契约生成物与源码无差异（W0-08）：重新生成后 git diff --exit-code。排在“测试”之后：
       # 契约自测要拿提交的生成物与现生成的逐字节比对，得赶在这一步把文件重新写出来之前跑
       - name: contract:check
