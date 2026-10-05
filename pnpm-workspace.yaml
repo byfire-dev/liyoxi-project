@@ -22,3 +22,12 @@ trustPolicy: no-downgrade
 # 可信级别的豁免，逐个写到精确版本，原因登记在 02 第 5.5 节
 trustPolicyExclude:
   - "semver@6.3.1"
+
+# 依赖审计（高危阻断）的处理：上游把有高危通告的传递依赖钉在精确版本上、自己又没有放出修复版时，
+# 在这里把它覆盖到已修复的版本，逐个写到精确版本并写明通告、是谁钉的、什么时候删。
+# 加、改这里是放松类门禁改动，走单独的 gate-change PR。
+overrides:
+  # GHSA-3f6p-5ww8-9rcr。prisma 与 @prisma/config 的 7.9.x 钉在 mysql2@3.15.3；Prisma 放出带修复的版本并升级后删掉
+  mysql2: 3.24.4
+  # GHSA-ggr8-5vv4-36mx。同上，钉在 deepmerge-ts@7.1.5
+  deepmerge-ts: 8.0.2
