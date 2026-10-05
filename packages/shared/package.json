@@ -67,6 +67,10 @@
     "./mask": {
       "types": "./src/mask/index.ts",
       "default": "./src/mask/index.ts"
+    },
+    "./machines": {
+      "types": "./src/machines/index.ts",
+      "default": "./src/machines/index.ts"
     }
   },
   "scripts": {
