@@ -200,6 +200,8 @@
 | `pnpm db:partitions:assert`（加 `--db <库>` 换一个库） | 分区断言：兜底分区在且为空，当月与未来 3 个月的分区在，子表上的触发器齐全。只读。本地长期留着的 `lyx_migrate_check` 过了月初会红，删掉重建 |
 | `pnpm db:migration-lint`（加 `--base <git 引用>`，默认 `origin/main`） | 迁移规范检查：`DROP`、`RENAME`、`ALTER … TYPE`、不带默认值的 `SET NOT NULL` 要带一行 `-- lyx:allow <理由>`；已经合并的迁移不能改。不连库。两种不用标记的情形见 [脚本](infra/ci/migration-lint.mjs) 开头的注释 |
 | `pnpm db:draft-freeze:check` | 草稿冻结守卫：`docs/data-model/schema.prisma` 与 `constraints/` 的 sha256 等于登记值（`infra/ci/draft-freeze.sha256`）。不连库 |
+| `pnpm --filter @liyoxi/worker build`，然后 `node apps/worker/dist/index.js`（加 `--check` 只做装配与自检） | 构建并起任务进程：谁持有数据库租约谁跑四个循环与两个队列的消费。`--check` 通过即以 0 退出，要 `DATABASE_URL` 指向跑过迁移的库（本地用 `lyx_migrate_check`）。用例 `pnpm --filter @liyoxi/worker test`，要本地的 PostgreSQL 与 Redis。见 [README](apps/worker/README.md) |
+| `REDIS_COMPAT_URL=<连接串> pnpm redis:compat` | 托管 Redis 与队列库的兼容脚本（验证项 V1）：七项逐项给结论并出一份 JSON 报告，连接串只从这个环境变量读、不落盘不打印。参数见 [脚本](apps/worker/src/cli/redis-compat.ts) 开头的注释；业主怎么跑见 [v01-managed-redis.md](docs/plan/external-verification/v01-managed-redis.md) |
 | `pnpm admin:build`、`pnpm portal:build` | 后台、下载页的生产构建（产物在各自的 `dist/app`），随后查产物：文件名带内容哈希、写入了构建号、不含夹具。见 [README](apps/admin/README.md) |
 | `pnpm admin:e2e` | 后台 Playwright 冒烟：先出一份带样例页的构建，起它的预览，走一条用例，出外壳与三种骨架的截图（`apps/admin/dist/e2e-shots`）。浏览器怎么备见 [README](apps/admin/README.md) |
 | `pnpm --filter @liyoxi/admin test`、`pnpm --filter @liyoxi/portal test` | 后台、下载页的单测。根上的 `pnpm test` 不含这两个应用：它们的单测与构建共用各自的 `vite.config.ts` |
