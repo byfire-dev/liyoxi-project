@@ -37,3 +37,6 @@ import type {} from "./global-setup.js";
 export * from "./data/index.js";
 // W1-01a：后台登录的支架——假密钥、测试库上的凭据用例、接口测试的登录态 signInAsStaff
 export * from "./staff.js";
+
+// W0-30：M0 的样例链路（写用例 → 状态迁移 → 审计与出站事件 → 订阅者 → 定时器 → 全量不变量），用例与 pnpm demo:m0 共用
+export * from "./m0-chain.js";
