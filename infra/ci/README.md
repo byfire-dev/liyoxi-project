@@ -54,7 +54,7 @@
 - 每晚任务（`nightly.yml` 的 `node26`）跟着补了四步，都是新增的整步。“类型”之前一步：生成数据库客户端（`pnpm db:generate`）。“类型”与“测试”之间三步：起 PostgreSQL 与 Redis；把连接参数（`APP_ENV`、`DATABASE_URL`、`REDIS_URL`，取值与 `verify` 的相同）写进 `$GITHUB_ENV`，后面的“测试”读得到；空库 `lyx_migrate_check` 上跑全部迁移。它不挂服务容器：往已有的任务里加 `services`、`env` 算放松类改动（第 5 节），所以库用 compose 文件起，与 `verify` 的“起 MinIO”同一种写法，镜像、端口、账号取 `infra/compose/local.yml`。`verify` 里的 `prisma validate`、由底稿建参照库、系统目录比对它不跑：那是首版迁移的等价性证明，`pnpm test` 用不到参照库 `lyx_schema_check`。执行机上要有 Docker（带 compose）与 `psql`，与 `verify` 相同。往每晚任务加一步时，在 `test/workflows.test.ts`“nightly.yml”一组的命令清单里同一位置加一行（只增）。
 - 状态机迁移表（W0-12）在 `verify` 里加了一步，排在“枚举与库 CHECK 一致”之后：“状态机迁移表对照”（`pnpm machines:check`）。拿 `packages/shared/src/machines` 的 25 张迁移表与数据模型分组文档的状态机表逐行对照（当前状态、事件码、新状态、有无守卫），并核对状态机与状态列的清单与契约登记、01 分组 第 3.2 节、`catalogue.json` 一致；只读文件，不连库，本机约 1 秒。脚本在 `packages/shared/scripts/machines-check.ts`，不在本目录，理由同 W0-09a 那一条；口径写在脚本开头的注释与 [packages/shared/src/machines/README.md](../../packages/shared/src/machines/README.md) 第 4 节。脚本与迁移表都没有登记成门禁文件（照 W0-09a 两个对账脚本的先例）：对照被削弱由门禁自测的反例拦，改迁移表的 PR 靠这一步保证分组文档同步改了。覆盖检查（`pnpm machines:coverage`）现在只出报告，不在 `verify` 里，M1 起才进门禁（计划 第 5.5 节）。
 - 接口侧注册表（W0-09b）在 `verify` 里加了一步，排在“枚举与库 CHECK 一致”之后。“接口侧注册表对账”（`pnpm api-registries:check`）：拿契约里的领域错误码、权限点、能力点、资源登记、通知场景、订阅点位、埋点事件与登记文档、`docs/api/working/` 的底稿逐字段比；只读文件，不连库，约 2 秒。检查脚本在 `packages/contract/scripts/`，理由同 W0-09a 那一条。数量不写在脚本与反例里：取登记文档各节标题里写的数，同表格行数、契约条数三方比。场景键、埋点事件名两种写法另并进 W0-09a 的 `pnpm enums:check`，同库里的 CHECK 正则逐字比。
-- “类型”之后有一步“类型解析不靠提升”（`pnpm check:type-hoist`）。它不看类型检查这一次过没过，看的是结果会不会随 pnpm 提升了哪一份而变，所以两步都要。来历、口径与失败了怎么办见第 7 节。每晚任务没有加这一步：`pnpm test` 里它的用例（`test/type-hoist.test.ts`）会对本仓库跑一遍同样的检查。
+- “类型”之后有一步“类型解析不靠提升”（`pnpm check:type-hoist`）。它不看类型检查这一次过没过，看的是结果会不会随 pnpm 提升了哪一份而变，所以两步都要。来历、口径与失败了怎么办见第 7 节。每晚任务没有加这一步：它查的是结果会不会随安装变，与 Node 版本无关。它的用例（`test/type-hoist.test.ts`）只摆小树，不对本仓库再跑一遍。
 
 ## 3. 怎么加一步检查
 
@@ -223,7 +223,7 @@ main 上 `apps/admin` 的类型检查偶尔红 4 条（`src/app/feedback.ts` 两
 失败了怎么办：输出里写明是哪个工程、哪个包、哪几个工程各装的哪一份。多半是工程自己写了 `paths`、顶掉了预设里的四行，抄上即可；新出现的包（不是 React）在两个工程里装得不一样、又有人不声明就引它，同样在工程的 `paths` 里把它钉到自己装的那一份。要看是谁引进来的：`pnpm --dir <工程> exec tsc --noEmit -p tsconfig.json --explainFiles`。
 
 - 反例 `type-hoist-paths-overridden`：应用继承真的预设、自己写了一条 `paths`，提升的恰好是它自己的那个大版本（这时 tsc 是绿的），检查必须失败。
-- 用例 `test/type-hoist.test.ts`：对每一份写 JSX 的预设（从预设目录现取）摆一棵“提升的是另一个大版本”的树，必须通过，预设里的四行被删时这里红；另有 `paths` 被顶掉、钉错地方、只有一个工程直接装（不判）、不写 JSX 的工程、用法错误几组，并对本仓库跑一遍。
+- 用例 `test/type-hoist.test.ts`：对每一份写 JSX 的预设（从预设目录现取）摆一棵“提升的是另一个大版本”的树，必须通过，预设里的四行被删时这里红；另有 `paths` 被顶掉、钉错地方、只有一个工程直接装（不判）、不写 JSX 的工程、用法错误几组。对本仓库跑检查是 CI 里单独的那一步，用例不重复跑。
 - 这个脚本用了根上装的 `typescript`（`pnpm typecheck` 用的同一个），是本目录里唯一引了包的检查脚本：解析的口径只有 tsc 自己说了算，不另写一套。
 
 限度：
