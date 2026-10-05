@@ -27,3 +27,6 @@ export * from "./events/index.js";
 // 同一份文档后到的包不用再动这里，在文档目录的 index.ts 里加自己的资源文件即可
 export * from "./routes/m01-account/index.js";
 export * from "./routes/m02-tenant/index.js";
+// W1-06：a01、a03 两份接口文档的结构（审批摘要、审批段错误码的 details）。别的文档补结构时在末尾各加一行
+export * from "./routes/a01-system/index.js";
+export * from "./routes/a03-merchant/index.js";
