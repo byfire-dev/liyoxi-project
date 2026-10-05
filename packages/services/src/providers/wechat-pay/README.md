@@ -1,6 +1,6 @@
 # wechat-pay：微信支付的真实驱动
 
-依据：[03](../../../../../docs/03-key-designs.md) 第 1.4 节；[04](../../../../../docs/04-adr.md) ADR-016、ADR-018、ADR-039；[h01](../../../../../docs/api/h01-hooks.md) 第 2.1、3.1、3.2 节；X-04 任务书。结论与交接事项见 `docs/adr/` 下 X-04 的那一条。
+依据：[03](../../../../../docs/03-key-designs.md) 第 1.4 节；[04](../../../../../docs/04-adr.md) ADR-016、ADR-018、ADR-039；[h01](../../../../../docs/api/h01-hooks.md) 第 2.1、3.1、3.2 节；X-04 任务书。结论与交接事项见 [ADR-044](../../../../../docs/adr/0044-微信支付驱动维持自研薄封装-经官方示例与官方SDK核对一致.md)。
 
 本驱动**还没有接进** `providers/index.ts` 的选择分支，也没有任何用例调用它：接入归 G4-A。只用 `node:crypto` 与内置 `fetch`，没有第三方依赖。
 
@@ -34,7 +34,7 @@ const wechatPay = createWechatPay(settings, { now, logger, beforeCall });
   - APIv3 密钥：新的放 `apiV3Key`（版本 `apiV3KeyId`），旧的放 `previousApiV3Key`。回调先试当前、再试上一把，结果里的 `kid` 是实际解开的那把。
   - 平台证书转公钥：证书放 `platformCertificates`（序列号加证书 PEM）。序列号大小写不计，验签身份表照证书自己的序列号（大写）登记。证书的有效期不查，到期前由配置换下。
   - 换一把微信支付公钥：要两把并存时，另一把也放进 `platformCertificates`（公钥 ID 加公钥 PEM；这个字段名叫平台证书，验签身份表两种都认）。请求头 `Wechatpay-Serial` 里带的公钥 ID 只有 `publicKeyId` 一个；应答与回调各按自己 `Wechatpay-Serial` 写的那一把验。微信支付换公钥的流程、是否允许两把并存，本包查的官方文档里没有写，用到时先向微信支付核对。
-- 本目录不读环境变量。变量名、`*_FILE` 的读取、并进 `loadEnv` 都归 G4-A；建议的名字在 ADR 第 5 节。
+- 本目录不读环境变量。变量名、`*_FILE` 的读取、并进 `loadEnv` 都归 G4-A；建议的名字在 ADR-044 第 5 节。
 - 驱动的类型是 `WechatPayDriver`，比接口 `WechatPayProvider` 多 `signMiniProgramPay`、`queryRefund`、`applyTradeBill`、`downloadBill`、`verifyNotification`、`reopenResource`。要给领域模块用，先按“只增”提进 `providers/types.ts`。
 - 发请求的方法入口自己调一次 `beforeCall`。工厂的 `withBeforeCall` 也会给接口清单里的方法包一层：二选一。
 - 回调框架用 `verifyNotification`（判别结果：`signature_invalid` 带 `probe` 标记、`timestamp_skewed`、`key_not_found`、`decrypt_failed`、`payload_invalid`），不要用只分通与不通的 `verifyAndDecryptNotification`：后者归一后的结果不带商户号与 AppID。输入必须是原始请求体字节。
