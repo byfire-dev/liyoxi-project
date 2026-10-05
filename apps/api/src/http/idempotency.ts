@@ -19,11 +19,18 @@ export const IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
 export const IDEMPOTENT_REPLAYED_HEADER = "Idempotent-Replayed";
 export const STORE_ID_HEADER = "X-Store-Id";
 
+/**
+ * 算请求哈希用的请求体。没带 JSON 的内容类型、或带了而请求体是空的，都按 null 算：
+ * 小程序的 wx.request 缺省带 Content-Type: application/json，“请求体无”的写接口不该因此被拒，
+ * 带不带这个请求头的同键请求也互为重放。
+ */
 async function jsonBody(c: Context<ApiEnv>): Promise<unknown> {
   if (!/\bjson\b/i.test(c.req.header("content-type") ?? "")) return null;
+  // Hono 把读出来的请求体缓存在请求上：后面的校验器不会再读一遍流
+  const text = await c.req.text();
+  if (text.trim() === "") return null;
   try {
-    // Hono 把解析结果缓存在请求上：后面的校验器不会再读一遍流
-    return await c.req.json();
+    return JSON.parse(text) as unknown;
   } catch {
     throw new ValidationFailure([{ path: "", message: "请求体不是合法的 JSON" }]);
   }
@@ -34,34 +41,31 @@ export const idempotency: RouteMiddlewareFactory = (route, runtime) => {
   const scope = route.operationId;
   const redact = route["x-redact-on-replay"] ?? [];
   const merchant = routeGroupOf(route) === "m";
-  return {
-    name: "idempotency",
-    handler: async (c, next) => {
-      const idem = createIdempotencyContext({
-        mode,
-        scope,
-        redact,
-        actor: c.get("identity")?.actor ?? null,
-        key: c.req.header(IDEMPOTENCY_KEY_HEADER) ?? null,
-        ...(mode === "required"
-          ? {
-              request: {
-                method: c.req.method,
-                pathParams: c.req.param(),
-                body: await jsonBody(c),
-                // 商家端另计入门店上下文：同一个键在不同门店下视为不同请求（A121）
-                storeId: merchant ? (c.req.header(STORE_ID_HEADER) ?? null) : null,
-              },
-            }
-          : {}),
-      });
-      c.set("idem", idem);
-      await next();
-      if (idem.replayed) c.res.headers.set(IDEMPOTENT_REPLAYED_HEADER, "true");
-      if (c.res.status < 400) {
-        assertIdempotencyUsed(idem, { appEnv: runtime.env.APP_ENV, report: runtime.report });
-      }
-    },
+  return async (c, next) => {
+    const idem = createIdempotencyContext({
+      mode,
+      scope,
+      redact,
+      actor: c.get("identity")?.actor ?? null,
+      key: c.req.header(IDEMPOTENCY_KEY_HEADER) ?? null,
+      ...(mode === "required"
+        ? {
+            request: {
+              method: c.req.method,
+              pathParams: c.req.param(),
+              body: await jsonBody(c),
+              // 商家端另计入门店上下文：同一个键在不同门店下视为不同请求（A121）
+              storeId: merchant ? (c.req.header(STORE_ID_HEADER) ?? null) : null,
+            },
+          }
+        : {}),
+    });
+    c.set("idem", idem);
+    await next();
+    if (idem.replayed) c.res.headers.set(IDEMPOTENT_REPLAYED_HEADER, "true");
+    if (c.res.status < 400) {
+      assertIdempotencyUsed(idem, { appEnv: runtime.env.APP_ENV, report: runtime.report });
+    }
   };
 };
 

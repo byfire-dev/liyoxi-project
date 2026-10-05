@@ -107,8 +107,41 @@ export const rateLimitedRoute = merchantRoute({
   responses: okResponse(z.null()),
 });
 
+/** 另挂一个专用档位：与所在组的缺省档位同时生效 */
+export const signedTierRoute = merchantRoute({
+  method: "get",
+  path: "/m/lyxtest-things/signed",
+  operationId: "m.lyxtestThing.signed",
+  "x-auth": "public",
+  "x-clerk-view": "same",
+  "x-rate-limit": "m.sign",
+  responses: okResponse(z.null()),
+});
+
+/** 写了一个没登记的档位 */
+export const unknownTierRoute = merchantRoute({
+  method: "get",
+  path: "/m/lyxtest-things/unknown-tier",
+  operationId: "m.lyxtestThing.unknownTier",
+  "x-auth": "public",
+  "x-clerk-view": "same",
+  "x-rate-limit": "m.lyxtest_nope",
+  responses: okResponse(z.null()),
+});
+
+/** 商家端：required 的写路由，没有请求体（接口文档里“请求体无”的写接口） */
+export const thingTouchRoute = merchantRoute({
+  method: "post",
+  path: "/m/lyxtest-things/{thingId}/touch",
+  operationId: "m.lyxtestThing.touch",
+  "x-clerk-view": "same",
+  "x-idempotent": "required",
+  request: { params: ThingParams },
+  responses: { ...okResponse(z.object({ id: IdSchema, serial: z.int() })), ...errorResponses(400) },
+});
+
 /** 处理器被执行了几次：用例据此断言“重放不再执行” */
-export const executions = { update: 0 };
+export const executions = { update: 0, touch: 0 };
 
 export const thingUpdateHandler = defineHandler(thingUpdateRoute, async (c) => {
   const { thingId } = c.req.valid("param");
@@ -161,6 +194,32 @@ export const hookReceiveHandler = defineHandler(hookReceiveRoute, (c) => c.text(
 export const capabilityHandler = defineHandler(capabilityRoute, (c) => ok(c, null));
 
 export const rateLimitedHandler = defineHandler(rateLimitedRoute, (c) => ok(c, null));
+
+export const signedTierHandler = defineHandler(signedTierRoute, (c) => ok(c, null));
+
+export const unknownTierHandler = defineHandler(unknownTierRoute, (c) => ok(c, null));
+
+export const thingTouchHandler = defineHandler(thingTouchRoute, async (c) => {
+  const { thingId } = c.req.valid("param");
+  const { runtime } = c.var;
+  const touched = await runtime.tx.run(
+    async (tx) => {
+      executions.touch += 1;
+      await tx.outboxEvent.create({
+        data: {
+          id: uuidv7(),
+          eventType: "lyxtest.thing_touched",
+          payload: { v: 1, thingId },
+          actorType: "system",
+          occurredAt: runtime.clock.now(),
+        },
+      });
+      return { id: thingId, serial: executions.touch };
+    },
+    { idem: idemOf(c) },
+  );
+  return ok(c, touched);
+});
 
 /** 四组各一条加几条辅助的：配上 fakeAuth 与 signature 的顶替件就挂得上 */
 export const SAMPLE_HANDLERS = [

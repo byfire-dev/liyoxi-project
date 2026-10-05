@@ -61,7 +61,8 @@
     "redis:compat": "pnpm --filter @liyoxi/worker redis:compat",
     "test:db:seeded": "pnpm --filter @liyoxi/services seeded-db",
     "weapp:build": "pnpm --filter @liyoxi/weapp build",
-    "weapp:shots": "pnpm --filter @liyoxi/weapp shots"
+    "weapp:shots": "pnpm --filter @liyoxi/weapp shots",
+    "status-tone:check": "pnpm --filter @liyoxi/shared status-tone:check"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",
