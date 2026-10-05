@@ -15,6 +15,13 @@ export const txEntryFiles = [
     "!packages/services/src/testing/**",
     "!packages/db/**",
   ],
+  // 第二组（复审后补，只加行）：上面划出去的 testing/ 与 packages/db/ 两处，本意只为用例与夹具，
+  // 这两个目录里其余的源码照样受管。组内同样要同时满足：第一个模式圈范围，后两个取反划掉用例与夹具。
+  [
+    "packages/{db,services/src/testing}/**/*.{ts,tsx,js,jsx,mjs,cjs}",
+    "!**/*.test.{ts,tsx,js,jsx,mjs,cjs}",
+    "!**/__fixtures__/**",
+  ],
 ];
 
 const message =
@@ -24,6 +31,13 @@ const message =
 export const txEntryRestrictedSyntax = [
   { selector: "MemberExpression[property.name='$transaction']", message },
   { selector: "MemberExpression[property.value='$transaction']", message },
+  // 以下三条是复审后补的（只加行）：不经成员访问、字面上照样出现 $transaction 的写法。
+  // 解构：const { $transaction } = prisma、const { $transaction: begin } = prisma
+  { selector: "ObjectPattern > Property[key.name='$transaction']", message },
+  // 字符串当键：const KEY = "$transaction"; prisma[KEY]。方括号里直接写的已由上一条报，类型位置上的不算
+  { selector: ":not(MemberExpression, TSLiteralType) > Literal[value='$transaction']", message },
+  // 模板字面量当键：prisma[`$transaction`]
+  { selector: "TemplateElement[value.cooked='$transaction']", message },
 ];
 
 export const txEntryRules = {
