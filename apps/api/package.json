@@ -17,6 +17,7 @@
     "@liyoxi/shared": "workspace:*",
     "@prisma/adapter-pg": "7.9.1",
     "@prisma/client": "7.9.1",
+    "bullmq": "6.3.9",
     "hono": "4.13.9",
     "ioredis": "6.0.0",
     "pino": "10.3.1",
