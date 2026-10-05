@@ -41,3 +41,6 @@ export const A03_MERCHANT = defineRouteDoc("a03-merchant", [
   storeAssets,
   stores,
 ]);
+
+// 本文档带 details 的领域错误码的结构（W1-06 起；各包补结构时在这里各加自己的文件）
+export * from "./error-details.js";

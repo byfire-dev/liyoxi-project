@@ -124,3 +124,26 @@ export type { Notices, NoticesDeps } from "./config/index.js";
 // W1-03 演示种子：协议的占位版本（运行器 demo-seed.ts 由 W1-01a 起头，W1-07 在里面加这一步）
 export { seedPlaceholderAgreementVersions } from "./docs/index.js";
 export type { PlaceholderFile, PlaceholderSeedInput } from "./docs/index.js";
+// W1-06 审批执行器框架：进程启动时建一次（createFlow 之后），四个写函数与 recordExecuted 都收事务句柄；
+// 各域在自己的 register.ts 里按 kind 登记处理器（approvalKindPort）。用法见 approval/README.md
+export {
+  approvalKindPort,
+  ApprovalError,
+  createApproval,
+  defineApprovalKind,
+} from "./approval/index.js";
+export type {
+  Approval,
+  ApprovalDecision,
+  ApprovalKindRegistration,
+  ApprovalOptions,
+  ApprovalRow,
+  ApprovalSubmission,
+  ApproveInput,
+  DecisionResult,
+  RecordExecutedInput,
+  RejectInput,
+  SubmitInput,
+  SubmitResult,
+  WithdrawInput,
+} from "./approval/index.js";

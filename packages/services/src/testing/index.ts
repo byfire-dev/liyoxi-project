@@ -40,3 +40,5 @@ export * from "./staff.js";
 
 // W0-30：M0 的样例链路（写用例 → 状态迁移 → 审计与出站事件 → 订阅者 → 定时器 → 全量不变量），用例与 pnpm demo:m0 共用
 export * from "./m0-chain.js";
+// W1-06：审批的样例类型（探针表上的假领域行）、样例领域用例，与照库里的员工行建员工上下文的办法
+export * from "./approval.js";

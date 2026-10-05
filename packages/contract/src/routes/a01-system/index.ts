@@ -61,3 +61,6 @@ export const A01_SYSTEM = defineRouteDoc("a01-system", [
   timers,
   webhookEvents,
 ]);
+
+// 本文档的结构：api 的处理器与别的域从契约入口取（W1-06 起；各包补结构时在这里各加自己的文件）
+export * from "./approvals.schemas.js";
