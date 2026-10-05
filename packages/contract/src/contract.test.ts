@@ -25,6 +25,7 @@ import {
   HTTP_STATUSES,
   READ_IDEMPOTENT_REASON,
   adminRoute,
+  allMetaOnlyRoutes,
   allRegistryOnly,
   allRoutes,
   defineRouteRegistry,
@@ -189,6 +190,8 @@ describe("验收 3：样例路由进三份文档", () => {
       "merchant.openapi.json",
       "portal.d.ts",
       "portal.openapi.json",
+      // 路由清单（W0-10）：回调与探活在清单里，但清单不是接口文档，上面的泄漏检查不看它
+      "routes.json",
     ]);
   });
 
@@ -323,13 +326,15 @@ describe("验收 3：样例路由进三份文档", () => {
 });
 
 describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
-  // 下面这一条钉的是 M0 骨架的现状，不是长期的黄金条目，后面的包要按新的现状替换它：
-  //   - W0-10 登记第一批路由时，改 allRoutes、allRegistryOnly 与“paths 为空”三处；
-  //   - 各域第一个后端 PR 加具名结构时，改组件清单（现在只有 DictRef、ErrorBody、SentryEnvelope）。
-  // 这两处是预期替换，不算“删改已有黄金条目”。替换时把断言换成新的现状（条数、组件名），不要整条删掉。
-  it("登记表里没有真实路由：三份文档 paths 为空，但都有通用结构与错误体", async () => {
+  // 下面这一条钉的是现状，不是长期的黄金条目，后面的包要按新的现状替换它：
+  //   - 各域第一个后端 PR 把路由从“只有元数据”换成带结构的：改两个条数与“paths 为空”，
+  //     加具名结构时再改组件清单（现在只有 DictRef、ErrorBody、SentryEnvelope）。
+  // 这是预期替换，不算“删改已有黄金条目”。替换时把断言换成新的现状（条数、组件名），不要整条删掉。
+  // 路由清单本身的条数、与路线图的对账在 src/routes/routes.test.ts 与 pnpm contract:docs-check。
+  it("路由都已登记、都还只有元数据：三份文档 paths 为空，但都有通用结构与错误体", async () => {
     expect(allRoutes).toEqual([]);
-    expect(allRegistryOnly).toEqual([]);
+    expect(allMetaOnlyRoutes).toHaveLength(664);
+    expect(allRegistryOnly).toHaveLength(5);
     for (const name of ["merchant", "admin", "portal"]) {
       const doc = JSON.parse(
         readFileSync(join(GENERATED_DIR, `${name}.openapi.json`), "utf8"),

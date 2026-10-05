@@ -3,6 +3,8 @@
  *
  *   generated/merchant.openapi.json、admin.openapi.json、portal.openapi.json
  *   generated/merchant.d.ts、admin.d.ts、portal.d.ts
+ *   generated/routes.json（W0-10）：路由清单，一条路由一行，带所属文档、版本、归属的里程碑；
+ *     还没有 Zod 结构的路由（只有元数据）也在内，它们不进上面三份文档。infra/ci 下不引依赖的脚本读它
  *
  * 用法（在仓库根目录）：
  *   pnpm contract:generate   重新生成，写进 packages/contract/generated
@@ -25,11 +27,15 @@ import openapiTS, { COMMENT_HEADER, astToString } from "openapi-typescript";
 import {
   OPENAPI_DOCUMENT_NAMES,
   OPEN_ENUM_KEY,
+  ROUTE_PLACEMENTS,
   allRoutes,
   buildOpenApiDocuments,
+  routeCatalog,
+  routeCatalogProblems,
   stringifyOpenApiDocument,
   type AnyContractRoute,
   type OpenApiDocument,
+  type RouteCatalogEntry,
 } from "../src/index.js";
 
 /** 本包 generated/ 的绝对路径 */
@@ -64,9 +70,18 @@ export async function renderTypes(doc: OpenApiDocument): Promise<string> {
   return `${COMMENT_HEADER}${types}`;
 }
 
+/** 路由清单的文件名 */
+export const ROUTES_FILE = "routes.json";
+
+/** 路由清单的写法：一条路由一行（差异好读），键的先后照 RouteCatalogEntry 的声明，结尾换行 */
+export function stringifyRouteCatalog(catalog: readonly RouteCatalogEntry[]): string {
+  return `[\n${catalog.map((entry) => JSON.stringify(entry)).join(",\n")}\n]\n`;
+}
+
 /** 在内存里生成全部文件：文件名 → 内容。文件名按码位排序 */
 export async function renderGenerated(
   routes: readonly AnyContractRoute[] = allRoutes,
+  catalog: readonly RouteCatalogEntry[] = routeCatalog,
 ): Promise<Map<string, string>> {
   const docs = buildOpenApiDocuments(routes);
   const files = new Map<string, string>();
@@ -74,6 +89,7 @@ export async function renderGenerated(
     files.set(`${name}.d.ts`, await renderTypes(docs[name]));
     files.set(`${name}.openapi.json`, stringifyOpenApiDocument(docs[name]));
   }
+  files.set(ROUTES_FILE, stringifyRouteCatalog(catalog));
   return files;
 }
 
@@ -100,8 +116,18 @@ async function main(argv: readonly string[]): Promise<void> {
       process.exit(2);
     }
   }
+  // 清单有问题（漏写归属、权限点不在注册表里……）就不写文件：pnpm contract:check 在这里失败
+  const problems = routeCatalogProblems(routeCatalog, ROUTE_PLACEMENTS);
+  if (problems.length > 0) {
+    console.error(`路由清单有 ${problems.length} 处问题，没有生成：\n- ${problems.join("\n- ")}`);
+    process.exit(1);
+  }
   const written = await generate({ outDir });
-  console.log(`契约生成物已写入 ${outDir}（登记的路由 ${allRoutes.length} 条）：`);
+  const withSchema = routeCatalog.filter((entry) => entry.hasSchema).length;
+  console.log(
+    `契约生成物已写入 ${outDir}（路由清单 ${routeCatalog.length} 条：有结构、进 OpenAPI 的 ${withSchema} 条，` +
+      `只有元数据、跳过的 ${routeCatalog.length - withSchema} 条）：`,
+  );
   for (const name of written) console.log(`  ${name}`);
 }
 
