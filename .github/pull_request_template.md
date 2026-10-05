@@ -96,4 +96,4 @@
 - [ ] 没有跳过钩子；没有用 `prisma migrate dev` 的自动产物
 - [ ] 验收每一条都有“命令 + 判据 + 证据链接”
 - [ ] 留桩、偏差、默认项、回写文档四节已如实填写
-- [ ] 不自行合并；等复审（`agent-reviewed`），合并由调度会话代业主做（`docs/plan/README.md` 第 3.5 节）
+- [ ] 不自行合并；等复审（`agent-reviewed`），合并由调度会话做（`docs/plan/README.md` 第 3.5 节）
