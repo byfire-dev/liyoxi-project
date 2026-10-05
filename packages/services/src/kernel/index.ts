@@ -100,3 +100,5 @@ export type {
 // W0-20 乐观锁：内容编辑的版本关
 export { bumpLockVersion, lockVersionField } from "./optimistic-lock/index.js";
 export type { LockVersionTarget } from "./optimistic-lock/index.js";
+// W0-14 两份密钥文件的内容类型（loadEnv 读出来的形状；密钥环在 security）
+export type { BidxKeysConfig, DataKeysConfig } from "./env.js";
