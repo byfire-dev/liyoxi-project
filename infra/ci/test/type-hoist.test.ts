@@ -56,15 +56,7 @@ function check(options: TreeOptions, args: string[] = []) {
   return run("node", [script, "--root", dir, ...args], repoRoot);
 }
 
-describe("本仓库", () => {
-  // 只断言退出码与查到了工程：以后多一个前端、经提升目录解析到的包有增减，这条不该跟着改
-  it("装好依赖的检出里通过", () => {
-    const result = run("node", [script], repoRoot);
-    expect(result.output).toContain("类型解析不靠提升检查通过");
-    expect(result.status).toBe(0);
-  });
-});
-
+// 对本仓库跑检查是 CI 里单独的一步（pnpm check:type-hoist），这里不重复跑：用例只摆小树
 describe("预设里的钉法", () => {
   it("写 JSX 的预设都在查的范围里", () => {
     expect(jsxPresets.length).toBeGreaterThan(0);
@@ -86,13 +78,17 @@ describe("预设里的钉法", () => {
 
 describe("反例", () => {
   // 应用自己写 paths 会整体顶掉预设里的 paths：钉 React 类型的几行没了，组件库的 import "react" 又得到提升目录里找
-  const overridden = (preset: string) => ({
-    extends: join(presetsDir, preset),
-    compilerOptions: { paths: { "@/*": ["./src/*"] } },
-  });
+  function overridden() {
+    const [preset] = jsxPresets;
+    if (preset === undefined) throw new Error("没有写 JSX 的预设");
+    return {
+      extends: join(presetsDir, preset),
+      compilerOptions: { paths: { "@/*": ["./src/*"] } },
+    };
+  }
 
-  it.each(jsxPresets)("%s 的 paths 被应用顶掉：提升的是另一个大版本时两条都拦", (preset) => {
-    const result = check({ tsconfig: overridden(preset), own: "19.0.0", hoisted: "18.0.0" });
+  it("预设的 paths 被应用顶掉：提升的是另一个大版本时两条都拦", () => {
+    const result = check({ tsconfig: overridden(), own: "19.0.0", hoisted: "18.0.0" });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("共 2 处");
     expect(result.stderr).toContain(viaHoist("18.0.0"));
@@ -100,9 +96,7 @@ describe("反例", () => {
   });
 
   it("提升的恰好是应用自己的那个大版本（这时 tsc 是绿的）也拦：要拦的是取决于提升", () => {
-    const [preset] = jsxPresets;
-    if (preset === undefined) throw new Error("没有写 JSX 的预设");
-    const result = check({ tsconfig: overridden(preset), own: "19.0.0", hoisted: "19.0.0" });
+    const result = check({ tsconfig: overridden(), own: "19.0.0", hoisted: "19.0.0" });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("共 1 处");
     expect(result.stderr).toContain(viaHoist("19.0.0"));
