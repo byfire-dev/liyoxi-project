@@ -25,3 +25,5 @@ export * from "./calendar.js";
 
 // W0-17：定时器的样例 kind、带样例的名字来源与样例登记
 export * from "./timers.js";
+// W0-16：状态迁移的样例守卫、活动流默认描述、固定日历的工作分钟实现，与测试装配之上的 flow
+export * from "./flow.js";
