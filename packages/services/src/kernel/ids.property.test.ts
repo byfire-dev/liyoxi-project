@@ -11,6 +11,8 @@ const runs = {
   numRuns: Number(process.env.LYX_FC_RUNS ?? 200),
   seed: Number(process.env.LYX_FC_SEED ?? 20261005),
 };
+// 这一组是纯计算，平时不到 1 秒；机器很忙时（几个会话并排跑整套）到过 6 秒多，超过缺省的 5 秒上限。显式给足
+const SLOW = 60_000;
 
 /** 8-4-4-4-12 的小写十六进制；第三段首位是版本 7，第四段首位是变体 10xx（8、9、a、b） */
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -30,40 +32,52 @@ afterEach(() => {
 });
 
 describe("uuidv7：性质", () => {
-  it("版本位是 7、变体位是 10；时间戳取自系统时钟", () => {
-    fc.assert(
-      fc.property(fc.integer({ min: 1, max: 500 }), (size) => {
-        const before = Date.now();
-        const ids = batch(size);
-        const after = Date.now();
-        // 同一毫秒发得太多会借后面的毫秒，上界留一秒的余量。不逐个走 expect：几万个值，慢
-        const bad = ids.filter((id) => {
-          const at = timestampOf(id);
-          return !UUID_V7.test(id) || at < before || at > after + 1_000;
-        });
-        expect(bad).toEqual([]);
-      }),
-      runs,
-    );
-  });
+  it(
+    "版本位是 7、变体位是 10；时间戳取自系统时钟",
+    () => {
+      fc.assert(
+        fc.property(fc.integer({ min: 1, max: 500 }), (size) => {
+          const before = Date.now();
+          const ids = batch(size);
+          const after = Date.now();
+          // 同一毫秒发得太多会借后面的毫秒，上界留一秒的余量。不逐个走 expect：几万个值，慢
+          const bad = ids.filter((id) => {
+            const at = timestampOf(id);
+            return !UUID_V7.test(id) || at < before || at > after + 1_000;
+          });
+          expect(bad).toEqual([]);
+        }),
+        runs,
+      );
+    },
+    SLOW,
+  );
 
-  it("同一进程连续生成的值按字典序严格递增（跨批次也是）", () => {
-    let previous = uuidv7();
-    fc.assert(
-      fc.property(fc.integer({ min: 1, max: 3_000 }), (size) => {
-        const ids = [previous, ...batch(size)];
-        expectStrictlyIncreasing(ids);
-        previous = ids.at(-1) as string;
-      }),
-      runs,
-    );
-  });
+  it(
+    "同一进程连续生成的值按字典序严格递增（跨批次也是）",
+    () => {
+      let previous = uuidv7();
+      fc.assert(
+        fc.property(fc.integer({ min: 1, max: 3_000 }), (size) => {
+          const ids = [previous, ...batch(size)];
+          expectStrictlyIncreasing(ids);
+          previous = ids.at(-1) as string;
+        }),
+        runs,
+      );
+    },
+    SLOW,
+  );
 
-  it("10 万个不重复，且整体严格递增", () => {
-    const ids = batch(100_000);
-    expect(new Set(ids).size).toBe(100_000);
-    expectStrictlyIncreasing(ids);
-  });
+  it(
+    "10 万个不重复，且整体严格递增",
+    () => {
+      const ids = batch(100_000);
+      expect(new Set(ids).size).toBe(100_000);
+      expectStrictlyIncreasing(ids);
+    },
+    SLOW,
+  );
 });
 
 describe("uuidv7：固定用例", () => {

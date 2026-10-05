@@ -109,6 +109,31 @@ describe("外呼断言：事务内不调外部服务", () => {
     expect(await later).toBe(false);
   });
 
+  // 复审的变异：断言不看“事务是否已结束”，上一例照样绿（它只问了 isInTransaction）。断言本身也要放行
+  it("事务里起的调用链在事务结束之后调外部：断言放行", async () => {
+    const committed = gate();
+    const sent: string[] = [];
+    let later: Promise<void> | undefined;
+    await tx.run(async (handle) => {
+      await put(handle, "EL");
+      later = committed.opened.then(() => callWechat(sent));
+    });
+    committed.open();
+    await later;
+    expect(sent).toEqual(["createOrder"]);
+  });
+
+  // 复审的变异：只剩 test 抛错、local 不抛，原有用例照样绿（它们都用 test）
+  it("local 与 test 一样：违规即抛错", async () => {
+    const sent: string[] = [];
+    const local = createTxRunner({ prisma, appEnv: "local", report: () => {} });
+    await expect(local.run(() => callWechat(sent))).rejects.toMatchObject({
+      name: "KernelViolation",
+      kind: "external_call_in_transaction",
+    });
+    expect(sent).toEqual([]);
+  });
+
   it("stg、prod：不抛错，记 error 并上报，调用照常进行", async () => {
     const reported: KernelViolation[] = [];
     const sent: string[] = [];

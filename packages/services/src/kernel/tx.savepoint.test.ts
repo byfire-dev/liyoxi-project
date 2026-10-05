@@ -146,4 +146,25 @@ describe("savepoint：保存点内失败只回滚保存点（V4）", () => {
     expect(saved).not.toHaveProperty("XB");
     expect(saved).not.toHaveProperty("XC");
   });
+
+  it("对照：事务客户端上 Prisma 自带的 $transaction 也是保存点式的嵌套事务（内核不用它，理由见 ADR-046）", async () => {
+    // 绕开内核直接用 Prisma，只为钉住“7.9.1 里这条路也可用”这个事实：升级 Prisma 之后它变了，回到 ADR 重新评估。
+    // 语句日志里它发的是 SAVEPOINT prisma_sp_N（复审与修订时各核对过一遍，日志进不了用例）。
+    const insert = (client: Pick<PrismaClient, "bizSequence">, prefix: string): Promise<unknown> =>
+      client.bizSequence.create({ data: { prefix, bizDate: BIZ_DATE, nextVal: 1 } });
+    await prisma.$transaction(async (client) => {
+      await insert(client, "PA");
+      await client
+        .$transaction(async (inner) => {
+          await insert(inner, "PB");
+          throw new FulfilFailed("内层失败");
+        })
+        .catch(() => {});
+      await client.$transaction((inner) => insert(inner, "PC"));
+      await insert(client, "PD");
+    });
+    const saved = await rows(prisma);
+    expect(saved).toMatchObject({ PA: 1, PC: 1, PD: 1 });
+    expect(saved).not.toHaveProperty("PB");
+  });
 });
