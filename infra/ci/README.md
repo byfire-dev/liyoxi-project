@@ -36,6 +36,8 @@
 | `db-partition-assert.mjs` | 分区断言（W0-06b）：兜底分区在且为空，当月与未来 3 个月的分区在，子表上的触发器齐全。只读 | `pnpm db:partitions:assert`；CI |
 | `migration-lint.mjs` | 迁移规范检查（W0-06b；D7 第 8.3 节第 5 条）：四类语句要带 `-- lyx:allow <理由>`；已经合并的迁移不能改。不连库 | `pnpm db:migration-lint`；CI |
 | `draft-freeze.mjs`、`draft-freeze.sha256` | 草稿冻结守卫（W0-06b）：`docs/data-model/schema.prisma` 与 `constraints/` 的 sha256 等于登记值。登记值按 `frozen` 登记，改它走单独的 `gate-change` PR。不连库 | `pnpm db:draft-freeze:check`；CI |
+| `check-mp-size.mjs` | 小程序体积门禁（W0-27a）：主包 ≤1,500KB、各分包 ≤800KB；分包取产物里 `app.json` 的声明，主包是总量减各分包；打印各包体积 | `pnpm weapp:build` 的最后一步；CI 的“小程序体积门禁”一步 |
+| `apps/weapp/scripts/shots-affected.mjs`（不在本目录） | 小程序截图的受影响范围判断：PR 改到小程序或页面上看得见的设计变量才跑，推到 main 一律跑。截图是页面证据，不是门禁 | CI 的“小程序截图要不要跑”一步 |
 
 工作流在 `.github/workflows/`：`ci.yml`（每个 PR 与推到 main）、`nightly.yml`（每晚，Node 26，失败只告警）。
 
@@ -51,6 +53,7 @@
 | `test-isolation` | 生成数据库客户端 → 建迁移库 → 起 MinIO → `test:isolation` | 挂 PostgreSQL 17 与 Redis 7.4；MinIO 同上 |
 | `web` | 生成数据库客户端 → 构建 → 后台与下载页的单测、构建、页面清单 → 后台冒烟（按受影响范围跑；浏览器有缓存）→ 上传截图 | 不挂服务容器 |
 | `gates` | 密钥扫描、依赖审计、新增依赖发布时长 → 建迁移库 → 生成数据库客户端、构建任务进程 → `gates:selftest` | 挂 PostgreSQL 17 |
+| `web` | 构建 → 后台与下载页的单测、构建、页面清单 → 后台冒烟（按受影响范围跑；浏览器有缓存）→ 上传截图 → 小程序单测、小程序体积门禁（量“构建”一步出的包）→ 小程序截图（按受影响范围跑）→ 上传截图 | 不挂服务容器 |
 | `gate-classify` | 门禁改动分类；把清单写进 PR 描述顶部两个标记之间；有只增项就打 `gate-touch` | 只在 PR 上跑；只有它能写 PR |
 | `required` | 依赖上面全部任务；任何一个没成功（失败、被取消、被跳过）即失败；出时长统计 | 业主在 main 的保护规则里只把它设为必过 |
 

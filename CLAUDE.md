@@ -230,6 +230,10 @@
 | `pnpm --filter @liyoxi/api build` | api 的构建：出 `apps/api/dist/server.js` 与 `check-env.js`（`@liyoxi/*` 内联，第三方包运行时解析），构建完核对产物引到的第三方包都已在 `apps/api/package.json` 里声明。起它：`node apps/api/dist/server.js --port 3000`（要连接参数）。见 [README](apps/api/README.md) 第 5 节 |
 | `pnpm exec vitest run --project api` | 只跑 `apps/api` 的用例（也在 `pnpm test` 里）：接口层、幂等、声明即挂载、探活、构建产物起得来；顺带写出已挂载清单 `apps/api/dist/mounted-operations.json`（`node infra/ci/landed.mjs` 读它）。要连接参数。接口测试支架的用法见 [README](apps/api/README.md) 第 2 节与 `apps/api/src/testing/index.ts` 开头的注释 |
 | `pnpm test:db:seeded`（加 `--name <库名>` 换一个 `lyx_test_` 开头的名字） | 一条命令得到带种子的干净库：建一个测试库（已存在即删掉重建），跑全部迁移与 `pnpm db:seed` 的种子，核对六条断言，打印库名。要本地的 PostgreSQL 与 `DATABASE_URL`；演示、手工排查用，用完 `pnpm test:db:prune`。测试文件里要带种子的库写 `useSeededDatabase("<包>")`，造数据用 `createFactories`，都从 `@liyoxi/services/testing` 引：见 [README](packages/services/src/testing/data/README.md) |
+| `pnpm weapp:build` | 出小程序包 `apps/weapp/dist/`，由模板生成 `project.config.json`（不入库），再过体积门禁；超限即失败。AppID、接口基址等经环境变量给，都有缺省，不读 `.env`。见 [README](apps/weapp/README.md) |
+| `node infra/ci/check-mp-size.mjs apps/weapp/dist` | 小程序体积门禁：主包 ≤1,500KB、各分包 ≤800KB，打印各包体积。口径见 [脚本](infra/ci/check-mp-size.mjs) 开头的注释 |
+| `pnpm --filter @liyoxi/weapp test` | 小程序的用例：请求层、四个端上封装、页面清单，在 Node 里跑。根上的 `pnpm test` 不含它。只跑一个文件时后面加路径，如 `src/lib/request.test.ts` |
+| `pnpm weapp:shots`（只出一页加 `-- --page pages/home/index`） | 小程序页面截图：出一份 H5 构建，用 Chromium 按 375 宽给已建的页各截一张，产物在 `apps/weapp/shots/dist/png/`。本机没装 Playwright 自带的浏览器时前面加 `LYX_E2E_CHANNEL=chrome`。H5 是近似，与真机的差异见 [README](apps/weapp/README.md) 末节 |
 
 本地连接参数：配置只经 `loadEnv`（`packages/services/src/kernel/env.ts`）读环境变量，会话与测试不建、不读 `.env`，在命令前或 shell 里给出。取值出处是 [local.yml](infra/compose/local.yml)，账号与口令是固定的开发值，只对本机这套容器有效；CI 的服务容器用同一组值。
 
