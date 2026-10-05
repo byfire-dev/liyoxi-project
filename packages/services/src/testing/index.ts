@@ -14,3 +14,6 @@ export * from "./redis.js";
 export * from "./assembly.js";
 // W0-20：三段式的样例用例（探针表上的“预下单尝试”），只在测试里挂
 export * from "./three-phase-samples.js";
+
+// W0-15：出站事件的样例事件、样例订阅者，与测试装配之上的 events
+export * from "./events.js";
