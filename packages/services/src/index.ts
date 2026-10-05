@@ -1,4 +1,3 @@
-
 // W0-07b 服务装配：组合根。api、worker 启动时各调一次 assembleServices
 export { assembleServices } from "./assembly.js";
 export type { AssembleServicesOptions } from "./assembly.js";
@@ -34,3 +33,6 @@ export { createSla } from "./sla/index.js";
 export type { Sla, SlaDeps } from "./sla/index.js";
 export { setPortLogger } from "./kernel/index.js";
 export type { PortLogger } from "./kernel/index.js";
+// W0-16 状态迁移：api、worker 启动时各调一次 createFlow（createEvents 之后），拿到 transition；另有状态列的启动自检
+export { assertStateColumns, createFlow, FlowError } from "./flow/index.js";
+export type { Flow, FlowOptions, TransitionInput, TransitionResult } from "./flow/index.js";
