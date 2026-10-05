@@ -51,14 +51,17 @@ afterAll(() => {
   temp.cleanup();
 });
 
-/** 在基准库上改一处后的差异，按类别给出；事务回滚，基准库不变 */
-function problemsAfter(mutation: string): Record<string, string[]> {
-  const mutated = lib.parseCatalog(
-    lib.sqlOrThrow(BASE, `begin;\n${mutation};\n${lib.CATALOG_SQL}\nrollback;`),
-  );
+/** 在基准库上开事务、跑一段语句、读系统目录、回滚；基准库不变 */
+const catalogAfter = (sql: string): Catalog =>
+  lib.parseCatalog(lib.sqlOrThrow(BASE, `begin;\n${sql};\n${lib.CATALOG_SQL}\nrollback;`));
+
+/** 改一处后的差异，按类别给出。setup 是两边都先做的（比如两边都先有同一个视图），差异里不该出现它 */
+function problemsAfter(mutation: string, setup?: string): Record<string, string[]> {
+  const before = setup ? catalogAfter(setup) : base;
+  const mutated = catalogAfter(setup ? `${setup};\n${mutation}` : mutation);
   const problems: Record<string, string[]> = {};
   for (const [id] of lib.CATEGORIES) {
-    const found = lib.diffRows(base[id] ?? [], mutated[id] ?? []);
+    const found = lib.diffRows(before[id] ?? [], mutated[id] ?? []);
     if (found.length > 0) problems[id] = found;
   }
   return problems;
@@ -81,8 +84,8 @@ describe("逐项反向试验：改一处，查得出，且指到改的那一处"
     expect(problemsAfter("select 1 where false")).toEqual({});
   });
 
-  // [说明, 改动, 各类别应当报出的差异（逐条全等；写数字的只核对条数）]
-  const cases: Array<[string, string, Record<string, string[] | number>]> = [
+  // [说明, 改动, 各类别应当报出的差异（逐条全等；写数字的只核对条数）, 两边都先做的（可以不写）]
+  const cases: Array<[string, string, Record<string, string[] | number>, string?]> = [
     [
       "删一条 CHECK",
       "ALTER TABLE idempotency_record DROP CONSTRAINT ck_idempotency_record_state",
@@ -113,11 +116,12 @@ describe("逐项反向试验：改一处，查得出，且指到改的那一处"
       { constraints: [`outbox_delivery.fk_outbox_delivery_outbox_event_id${GONE}`] },
     ],
     [
-      "外键的删除动作改了",
+      "外键的删除动作改了：定义不同，它名下执行删除动作的内部触发器也跟着换了",
       "ALTER TABLE outbox_delivery DROP CONSTRAINT fk_outbox_delivery_outbox_event_id, ADD CONSTRAINT fk_outbox_delivery_outbox_event_id FOREIGN KEY (outbox_event_id) REFERENCES outbox_event(id) ON DELETE CASCADE ON UPDATE CASCADE",
       {
         constraints: [
           'outbox_delivery.fk_outbox_delivery_outbox_event_id 的 definition 不同：参照库 "FOREIGN KEY (outbox_event_id) REFERENCES outbox_event(id) ON UPDATE CASCADE ON DELETE RESTRICT"；迁移库 "FOREIGN KEY (outbox_event_id) REFERENCES outbox_event(id) ON UPDATE CASCADE ON DELETE CASCADE"',
+          'outbox_delivery.fk_outbox_delivery_outbox_event_id 的 internal_triggers 不同：参照库 ["\\"RI_FKey_cascade_upd\\" O","\\"RI_FKey_check_ins\\" O","\\"RI_FKey_check_upd\\" O","\\"RI_FKey_restrict_del\\" O"]；迁移库 ["\\"RI_FKey_cascade_del\\" O","\\"RI_FKey_cascade_upd\\" O","\\"RI_FKey_check_ins\\" O","\\"RI_FKey_check_upd\\" O"]',
         ],
       },
     ],
@@ -248,9 +252,9 @@ describe("逐项反向试验：改一处，查得出，且指到改的那一处"
     ],
     ["多一个模式", "CREATE SCHEMA lyx_extra", { others: [`模式 lyx_extra${EXTRA}`] }],
     [
-      "多一个视图",
+      "多一个视图：视图与它的列各多一项",
       "CREATE VIEW lyx_extra AS SELECT prefix FROM biz_sequence",
-      { others: [`关系 lyx_extra${EXTRA}`] },
+      { others: [`关系 lyx_extra${EXTRA}`], columns: [`lyx_extra.prefix${EXTRA}`] },
     ],
     // 以下五种对象首版迁移不建：比的是“哪一边都没有多出来的”
     [
@@ -278,10 +282,90 @@ describe("逐项反向试验：改一处，查得出，且指到改的那一处"
       "COMMENT ON COLUMN biz_sequence.next_val IS '多出来的注释'",
       { others: [`注释 column next_val of table biz_sequence${EXTRA}`] },
     ],
+    // 以下十一种是第一轮复审试出来、当时查不出的：改动落在声明要比的类别里，报的却是 0 差异
+    [
+      "视图上多一个 INSTEAD OF 触发器（视图两边都有）",
+      "CREATE TRIGGER lyx_extra_trg INSTEAD OF INSERT ON lyx_extra FOR EACH ROW EXECUTE FUNCTION lyx_forbid_mutation()",
+      { triggers: [`lyx_extra.lyx_extra_trg${EXTRA}`] },
+      "CREATE VIEW lyx_extra AS SELECT prefix FROM biz_sequence",
+    ],
+    [
+      "停用一条外键的内部触发器：外键的定义没变，但插入时不再校验",
+      `DO $$ DECLARE trg text; BEGIN
+         SELECT t.tgname INTO STRICT trg FROM pg_trigger t JOIN pg_constraint k ON k.oid = t.tgconstraint
+          WHERE k.conname = 'fk_outbox_delivery_outbox_event_id' AND t.tgfoid = '"RI_FKey_check_ins"'::regproc;
+         EXECUTE format('ALTER TABLE outbox_delivery DISABLE TRIGGER %I', trg);
+       END $$`,
+      {
+        constraints: [
+          'outbox_delivery.fk_outbox_delivery_outbox_event_id 的 internal_triggers 不同：参照库 ["\\"RI_FKey_cascade_upd\\" O","\\"RI_FKey_check_ins\\" O","\\"RI_FKey_check_upd\\" O","\\"RI_FKey_restrict_del\\" O"]；迁移库 ["\\"RI_FKey_cascade_upd\\" O","\\"RI_FKey_check_ins\\" D","\\"RI_FKey_check_upd\\" O","\\"RI_FKey_restrict_del\\" O"]',
+        ],
+      },
+    ],
+    [
+      "物化视图上多一个索引（物化视图两边都有）",
+      "CREATE INDEX lyx_extra_ix ON lyx_extra (prefix)",
+      { indexes: [`lyx_extra_ix${EXTRA}`] },
+      "CREATE MATERIALIZED VIEW lyx_extra AS SELECT prefix FROM biz_sequence",
+    ],
+    [
+      "外部表多一列（外部表两边都有）",
+      "ALTER FOREIGN TABLE lyx_extra ADD COLUMN b text",
+      { columns: [`lyx_extra.b${EXTRA}`] },
+      "CREATE FOREIGN DATA WRAPPER lyx_extra; CREATE SERVER lyx_extra FOREIGN DATA WRAPPER lyx_extra; CREATE FOREIGN TABLE lyx_extra (a integer) SERVER lyx_extra",
+    ],
+    [
+      "列的压缩方式改了",
+      "ALTER TABLE biz_sequence ALTER COLUMN prefix SET COMPRESSION pglz",
+      { columns: ['biz_sequence.prefix 的 compression 不同：参照库 ""；迁移库 "p"'] },
+    ],
+    [
+      "列上多一个选项 n_distinct",
+      "ALTER TABLE biz_sequence ALTER COLUMN prefix SET (n_distinct = 5)",
+      { columns: ['biz_sequence.prefix 的 options 不同：参照库 null；迁移库 ["n_distinct=5"]'] },
+    ],
+    [
+      "域上多一条 CHECK（域两边都有）",
+      "ALTER DOMAIN lyx_extra ADD CONSTRAINT lyx_extra_positive CHECK (VALUE > 0)",
+      {
+        others: [
+          '类型 lyx_extra 的 checks 不同：参照库 null；迁移库 ["lyx_extra_positive CHECK ((VALUE > 0))"]',
+        ],
+      },
+      "CREATE DOMAIN lyx_extra AS integer",
+    ],
+    [
+      "同名同参的聚合，定义不同（聚合两边都有）",
+      "DROP AGGREGATE lyx_extra(integer); CREATE AGGREGATE lyx_extra(integer) (SFUNC = int4mul, STYPE = integer)",
+      { functions: 1 },
+      "CREATE AGGREGATE lyx_extra(integer) (SFUNC = int4pl, STYPE = integer)",
+    ],
+    [
+      "多一个独立的复合类型：类型与它的两个属性各多一项",
+      "CREATE TYPE lyx_extra AS (a integer, b text)",
+      {
+        others: [`类型 lyx_extra${EXTRA}`],
+        columns: [`lyx_extra.a${EXTRA}`, `lyx_extra.b${EXTRA}`],
+      },
+    ],
+    [
+      "序列改成 UNLOGGED",
+      "ALTER SEQUENCE audit_no_seq SET UNLOGGED",
+      { others: ['序列 audit_no_seq 的 persistence 不同：参照库 "p"；迁移库 "u"'] },
+    ],
+    [
+      "表的 TOAST 选项",
+      "ALTER TABLE biz_sequence SET (toast.autovacuum_enabled = false)",
+      {
+        tables: [
+          'biz_sequence 的 toast_options 不同：参照库 null；迁移库 ["autovacuum_enabled=false"]',
+        ],
+      },
+    ],
   ];
 
-  it.each(cases)("%s", (_label, mutation, expected) => {
-    const found = problemsAfter(mutation);
+  it.each(cases)("%s", (_label, mutation, expected, setup) => {
+    const found = problemsAfter(mutation, setup);
     expect(Object.keys(found).sort()).toEqual(Object.keys(expected).sort());
     for (const [id, want] of Object.entries(expected)) {
       if (typeof want === "number") expect(found[id]).toHaveLength(want);
