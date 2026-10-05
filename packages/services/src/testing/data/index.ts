@@ -3,3 +3,4 @@ export * from "./factories/index.js";
 export * from "./seal.js";
 export * from "./seeded.js";
 export * from "./snapshot.js";
+export * from "./provider-harness.js";
