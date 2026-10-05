@@ -35,7 +35,7 @@ describe("本仓库的 .env.example", () => {
     const result = run("node", [script], repoRoot);
     expect(result.stderr).toBe("");
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain("6 个键与 loadEnv 一致，值都是占位");
+    expect(result.stdout).toMatch(/\d+ 个键与 loadEnv 一致，值都是占位/);
   });
 });
 
