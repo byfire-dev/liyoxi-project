@@ -16,6 +16,7 @@ export {
   assertNotInTransaction,
   createTxRunner,
   isInTransaction,
+  isRetryableDbError,
   KernelViolation,
   savepoint,
   sqlStateOf,

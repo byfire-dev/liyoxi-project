@@ -6,6 +6,8 @@ import { barrier, bump, gate, openClient, put, rows } from "./__fixtures__/db.js
 import { AppError } from "./errors.js";
 import {
   createTxRunner,
+  isRetryableDbError,
+  savepoint,
   sqlStateOf,
   TX_MAX_WAIT_MS,
   TX_RETRIES,
@@ -159,6 +161,77 @@ describe("tx.run：死锁与锁等待超时有限重试", () => {
     expect(states).toEqual(["55P03"]);
     expect(calls).toBe(2);
     expect(await rows(prisma)).toMatchObject({ LR: 3 });
+  });
+
+  // 复审的变异：去掉重试前的退避，上面几例照样绿。把“两遍之间至少隔了退避的下限”钉在这里
+  it("重试前有退避：失败的那一遍与重试的那一遍之间至少隔 20 毫秒", async () => {
+    await put(prisma, "BO");
+    const held = await holdRow("BO");
+    const failedAt: number[] = [];
+    const startedAt: number[] = [];
+    try {
+      await tx
+        .run(async (handle) => {
+          startedAt.push(performance.now());
+          await bump(handle, "BO").catch((error: unknown) => {
+            failedAt.push(performance.now());
+            throw error;
+          });
+        })
+        .catch(() => {});
+    } finally {
+      await held.release();
+    }
+    expect(startedAt).toHaveLength(2);
+    // 退避是 20–80 毫秒的随机数，另加回滚与重新开事务的时间；下限让出 2 毫秒给计时器的取整
+    expect((startedAt[1] as number) - (failedAt[0] as number)).toBeGreaterThanOrEqual(18);
+  });
+
+  it("isRetryableDbError：只认死锁、序列化失败、锁等待超时三种 SQLSTATE", () => {
+    const dbError = (code: string): unknown => ({
+      meta: { driverAdapterError: { cause: { originalCode: code } } },
+    });
+    expect(["40P01", "40001", "55P03"].map((code) => isRetryableDbError(dbError(code)))).toEqual([
+      true,
+      true,
+      true,
+    ]);
+    const others = [dbError("57014"), dbError("23505"), dbError("25P02"), { code: "P2028" }];
+    expect(others.map(isRetryableDbError)).toEqual([false, false, false, false]);
+    expect(
+      [new AppError("BUSY"), new Error("业务失败"), undefined].map(isRetryableDbError),
+    ).toEqual([false, false, false]);
+  });
+
+  // 复审实测：保存点里出了可重试的错误，调用方当业务失败接住，事务照常提交、不重试。内核不兜（埋点直记要的是写入失败不带累业务事务），
+  // 给判别函数，由调用方决定放不放过去
+  it("保存点里的锁等待超时：照 isRetryableDbError 放过去的由 run 整个重试；接住的，事务照常提交、不重试", async () => {
+    await put(prisma, "SP");
+    const held = await holdRow("SP");
+    let calls = 0;
+    try {
+      const error: unknown = await tx
+        .run(async (handle) => {
+          calls += 1;
+          await savepoint(handle, () => bump(handle, "SP")).catch((caught: unknown) => {
+            if (isRetryableDbError(caught)) throw caught;
+          });
+        })
+        .catch((caught: unknown) => caught);
+      expect(error).toMatchObject({ name: "AppError", error: "BUSY" });
+      expect(calls).toBe(1 + TX_RETRIES);
+
+      calls = 0;
+      await tx.run(async (handle) => {
+        calls += 1;
+        await put(handle, "SQ");
+        await savepoint(handle, () => bump(handle, "SP")).catch(() => {});
+      });
+      expect(calls).toBe(1);
+    } finally {
+      await held.release();
+    }
+    expect(await rows(prisma)).toMatchObject({ SP: 2, SQ: 1 });
   });
 
   it("序列化失败（40001）：重试一次后成功", async () => {

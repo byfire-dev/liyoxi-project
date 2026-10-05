@@ -18,8 +18,10 @@ import {
   scriptRules,
   serverFiles,
   serverRules,
+  txEntryDbFiles,
   txEntryFiles,
   txEntryRules,
+  txEntryTestingFiles,
   weappFiles,
   weappGlobals,
   weappRules,
@@ -97,6 +99,17 @@ export default defineConfig(
     // 同上，管事务入口规则不管的 kernel 与 testing
     files: prismaCtorOnlyFiles,
     rules: prismaCtorOnlyRules,
+  },
+  {
+    // 事务入口规则划出去的两处里，除用例与夹具之外的源码照样不得出现 $transaction（W0-07 复审后补）。
+    // packages/db 只带事务入口的条目：工厂在这里，new PrismaClient 是它的本分
+    files: txEntryDbFiles,
+    rules: txEntryRules,
+  },
+  {
+    // 测试支架：排在上一条 W0-07b 的配置之后，会整条盖掉它，所以用拼好两组条目的那一份
+    files: txEntryTestingFiles,
+    rules: prismaCtorWithTxRules,
   },
   prettier,
 );

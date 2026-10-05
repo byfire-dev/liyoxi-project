@@ -2,7 +2,8 @@
 // 依据：01 第 5 节调用规则 2、3，第 7.1 节；ADR-005、ADR-012；D7 第 2.3 节第 4、5 条，第 8.3 节。
 //
 //   1. 全仓只有这里调 prisma.$transaction（lint 规则拦别处）。改库的服务函数第一个参数写 tx: Tx；
-//      Tx 带品牌，普通 Prisma 客户端传不进去。只有用例函数调 run；run 里再 run 即抛错。
+//      Tx 带品牌，普通 Prisma 客户端传不进去；类型上去掉了 $transaction（Prisma 自带的嵌套事务不让用）。
+//      只有用例函数调 run；run 里再 run 即抛错。
 //   2. 死锁（40P01）、序列化失败（40001）、锁等待超时（55P03）各重试 TX_RETRIES 次，耗尽报 BUSY；
 //      事务超时（Prisma P2028）不重试，报 BUSY；语句超时（57014）不重试，报 UPSTREAM_TIMEOUT。
 //      重试是把用例函数体整个再跑一遍：函数体里不得有事务外的副作用（发请求、改内存里的共享状态、入队）。
@@ -26,10 +27,16 @@ import {
 import type { IdempotencyContext } from "./idempotency.js";
 
 declare const TX_BRAND: unique symbol;
+type Branded = { readonly [TX_BRAND]: true };
 /** 借自参考工程 identity.service.ts 的写法：从 $transaction 的回调参数取事务客户端的类型 */
 type TxClient = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
-/** 事务句柄。只有 run 给得出来；品牌只在类型上，运行时就是 Prisma 的事务客户端 */
-export type Tx = TxClient & { readonly [TX_BRAND]: true };
+/**
+ * 事务句柄。只有 run 给得出来；品牌只在类型上，运行时就是 Prisma 的事务客户端。
+ * 类型上去掉了 $transaction：Prisma 7.9.1 的事务客户端自带它（类型上公开；运行时发 SAVEPOINT prisma_sp_N，是保存点式的嵌套事务）。
+ * 用了它，内核不知道有这层保存点（锁序记录不跟着退），“开事务只有一个入口”也落空。局部回滚一律走 savepoint。
+ * 运行时对象上它还在：硬转成 any 去调拦不住，靠类型、lint 与复审。
+ */
+export type Tx = Omit<TxClient, "$transaction"> & Branded;
 
 /** D7 第 8.3 节：事务超时 10 秒、等连接 3 秒；批处理声明自己的上限，至多 60 秒（只许在 worker 用） */
 export const TX_TIMEOUT_MS = 10_000;
@@ -59,6 +66,8 @@ export class KernelViolation extends Error {
 export interface HeldLock {
   readonly table: string;
   readonly key: string;
+  /** 锁的强度，lockRows 记下。自己写加锁 SQL、只调了 assertLockOrder 的不知道强度，不填：按排他算 */
+  mode?: "update" | "share";
 }
 
 /** 一个事务的运行时状态：挂在句柄上，也放在 AsyncLocalStorage 里 */
@@ -111,10 +120,17 @@ export function sqlStateOf(error: unknown): string | undefined {
 
 const RETRYABLE = new Set(["40P01", "40001", "55P03"]);
 
+/**
+ * 是不是 run 会整个重试的数据库错误：死锁、序列化失败、锁等待超时。
+ * 保存点里接错误的地方用它把这几种放过去：接住了它们，事务会照常提交、不重试，“请重试”就成了“业务失败”。
+ */
+export const isRetryableDbError = (error: unknown): boolean =>
+  RETRYABLE.has(sqlStateOf(error) ?? "");
+
 /** 归类一条从事务里出来的错误：重试、映射成哪个错误码，或原样抛出 */
 function classify(error: unknown): "retry" | "BUSY" | "UPSTREAM_TIMEOUT" | "aborted" | undefined {
   const state = sqlStateOf(error);
-  if (state !== undefined && RETRYABLE.has(state)) return "retry";
+  if (isRetryableDbError(error)) return "retry";
   if (state === "57014") return "UPSTREAM_TIMEOUT";
   if (state === "25P02") return "aborted";
   return (error as { code?: unknown })?.code === "P2028" ? "BUSY" : undefined;
@@ -187,8 +203,10 @@ export function createTxRunner({ prisma, appEnv, report }: TxRunnerOptions): TxR
               const state: TxState = { open: true, savepoints: 0, held: [], violate };
               states.set(client, state);
               try {
+                // 品牌只在这里贴：先收窄成带品牌的事务客户端，再当成去掉 $transaction 的句柄给出去
+                const handle: Tx = client as TxClient & Branded;
                 const result = await scope.run(state, async () => {
-                  if (!keyed) return fn(client as Tx);
+                  if (!keyed) return fn(handle);
                   const stored = await claimIdempotency(client, keyed).catch((error: unknown) => {
                     // 等同键的另一个事务超过 3 秒：直接报 BUSY，不进下面的重试（重试会把等待拉长到 3 秒的倍数）
                     if (sqlStateOf(error) !== "55P03") throw error;
@@ -196,7 +214,7 @@ export function createTxRunner({ prisma, appEnv, report }: TxRunnerOptions): TxR
                   });
                   replayed = stored !== undefined;
                   if (stored) return stored.result as Awaited<ReturnType<typeof fn>>;
-                  const fresh = await fn(client as Tx);
+                  const fresh = await fn(handle);
                   await storeIdempotentResult(client, keyed, fresh);
                   return fresh;
                 });
@@ -233,7 +251,8 @@ export function createTxRunner({ prisma, appEnv, report }: TxRunnerOptions): TxR
 /**
  * 保存点：fn 抛错时只回滚 fn 里的写入，错误照样抛给调用方；之前的写入、已持有的行锁都还在，事务可以接着用。
  * 发的是原生 SAVEPOINT、ROLLBACK TO SAVEPOINT、RELEASE SAVEPOINT，走事务的同一条连接（V4 的结论见 ADR）。
- * 调用方接住错误时只接业务错误：死锁、锁等待超时这类要让它继续往外抛，由 run 整个重试。
+ * 调用方接住错误时只接业务错误：死锁、锁等待超时这类要让它继续往外抛，由 run 整个重试
+ * （拿不准接住的是什么，先问 isRetryableDbError，是就接着抛）。
  * 同一个事务里的语句要一句一句发：保存点期间不要并发地用同一个 tx。
  */
 export async function savepoint<T>(tx: Tx, fn: () => Promise<T>): Promise<T> {
