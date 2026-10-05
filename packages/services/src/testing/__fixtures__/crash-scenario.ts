@@ -15,12 +15,17 @@ export interface CrashScenarioPayload {
 export default async function writeThenCommit(payload: CrashScenarioPayload): Promise<void> {
   const prisma = createPrismaClient({ connectionString: payload.databaseUrl, max: 1 });
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.authEvent.create({
-        data: { id: randomUUID(), createdAt: new Date(), space: "staff", event: "logout" },
-      });
-      await crashPoint("written");
-    });
+    // 时限给足：Prisma 缺省等 2 秒拿连接、事务开到 5 秒就自己回滚。机器忙的时候父进程来得晚，
+    // 事务要一直开着等到被杀，不能自己先回滚了
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.authEvent.create({
+          data: { id: randomUUID(), createdAt: new Date(), space: "staff", event: "logout" },
+        });
+        await crashPoint("written");
+      },
+      { maxWait: 60_000, timeout: 120_000 },
+    );
     await crashPoint("committed");
   } finally {
     await prisma.$disconnect();
