@@ -1,4 +1,4 @@
-// @liyoxi/contract/authz：后台模块键、权限点与商家端能力点，纯常量子路径。
+// @liyoxi/contract/authz：后台模块键、菜单角标键、权限点与商家端能力点，纯常量子路径。
 // 本入口可达的文件不得 import zod、@hono/zod-openapi、hono。
 // 权限点一个小节一个文件（permissions/），汇总是自动收集的，不手抄。
 // 对账：pnpm api-registries:check（与 docs/api/registry-permissions.md 第 1、2 节 0 差异）。
@@ -27,6 +27,7 @@ export type {
 } from "./define.js";
 export * from "./modules.js";
 export * from "./capabilities.js";
+export * from "./nav-badges.js";
 export { PERMISSION_GROUPS } from "./permissions/index.js";
 
 /** 逐个文件取键再并起来 */
