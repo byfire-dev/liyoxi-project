@@ -30,3 +30,5 @@ export * from "./routes/m02-tenant/index.js";
 // W1-06：a01、a03 两份接口文档的结构（审批摘要、审批段错误码的 details）。别的文档补结构时在末尾各加一行
 export * from "./routes/a01-system/index.js";
 export * from "./routes/a03-merchant/index.js";
+// W1-10：billing 的 jsonb 结构（账本操作的展示文案码与参数）
+export * from "./billing/index.js";
