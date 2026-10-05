@@ -41,6 +41,8 @@
 | `apps/weapp/scripts/shots-affected.mjs`（不在本目录） | 小程序截图的受影响范围判断：PR 改到小程序或页面上看得见的设计变量才跑，推到 main 一律跑。截图是页面证据，不是门禁 | CI 的“小程序截图要不要跑”一步 |
 | `check-copy.mjs`、`copy-rules.json` | 文案约束扫描（W1-05；规范 第 11 节）：规则表里的词不出现在它管的页面源码（字符串、模板字符串、JSX 文本；注释不扫）、页面标题与错误码的默认文案里，登记的说法里的不算。第一版只有“登录相关文案不出现‘微信’”一条。规则表是门禁文件（`append`）：加规则是只增，删改规则、往 `phrases` 里加一行是放松。取文本用的是根上装的 `typescript`（同 `check-type-hoist.mjs`） | `pnpm lint:copy`；CI |
 | `infra/stack/up.mjs`、`smoke.mjs`（不在本目录） | 本地整套环境（W1-22）：构建三个镜像、起停、冒烟。不是门禁；用法见 [infra/stack/README.md](../stack/README.md) | `pnpm stack:build`、`stack:up`、`stack:smoke`、`stack:down`；`stack-smoke.yml`；用例 `test/stack.test.ts`（`docker` 桩掉，在 `test-infra` 里） |
+| `plan-summaries.mjs`、`plan-ledger-lib.mjs` | 台账三张汇总（W0-30）：读 `docs/plan/stubs/`、`changes/`、`external-verification/` 下的单项文件，核对合不合规（模板里的键、状态取值、回补里程碑），各生成一份 `SUMMARY.md`（不入库，要看时现生成）。后一份是单项文件的读法，与四个计数共用，自己不是命令 | CI 用 `--check` 只核对单项文件；`pnpm plan:summaries` 在本地现生成（第 6 节） |
+| `four-counts.mjs` | 四个计数的报表（W0-30；计划 第 5.7、10.2 节）：已落地接口数、待落地数（取 `landed.mjs --report`）、留桩数、未实现页面数（取页面清单），另出 x01 归属的未落地清单（取 x01 归属表，按名字在源码与用例里出现与否判）；`--require <里程碑>` 时那几个里程碑有一样没清零即失败 | `pnpm counts:report`；CI 的“四个计数”一步（`--require M0`）；`pnpm demo:m0` 的末尾 |
 
 工作流在 `.github/workflows/`：`ci.yml`（每个 PR 与推到 main）、`nightly.yml`（每晚，Node 26，失败只告警）。
 
@@ -88,6 +90,7 @@
 - 状态字典（W0-30a）在 `verify` 的末尾有一步：“状态字典键与契约枚举同名”（`pnpm status-tone:check`）。状态色调字典（`packages/shared/src/design/status-tone`）里写了“表.列”的条目，那一列要在契约里绑定了枚举，取值都在枚举的取值之内；没写“表.列”的条目（无枚举对应）不查，字典没收的枚举取值不算差异。库里确有这一列而契约还没有绑定枚举的（取值写在组合条件的 CHECK 里，`enums:check` 认不了），条目的说明以“契约未绑定枚举：”开头，检查只列出；契约补上之后检查会要求把这句去掉。只读文件，不连库，约 1 秒。脚本在 `packages/shared/scripts/status-tone-check.ts`，理由同 W0-09a 那一条；它不在本目录的条目之内，在 `gate-files.json` 里单独登记（`new-file`：改它算放松）。字典本身没有登记成门禁文件。
 - 测试隔离的全量分四片并行。`pnpm test:isolation --scope connected` 是两个会话各跑一遍全部连库的测试项目，2 核的执行机上已经超过任务的 10 分钟时限（#52 上被掐掉），还随用例一起涨。范围不缩、不挪出必过检查，只是并行：`test-isolation`、`test-isolation-2`、`-3`、`-4` 各跑一片（`node infra/ci/isolation-shard.mjs --shard 1/4` 至 `4/4`）。`isolation-shard.mjs` 取的范围与 `--scope connected` 相同（挂了 globalSetup 的测试项目的全部用例文件，问 Vitest），用 Vitest 配置里的分片器分成互不重叠的四片，合起来就是不分片的那一遍；每一片里照旧是两个会话同时跑、各记一份用量记录，核对交给原来的脚本（`packages/services/src/testing/isolation.mjs --check`，没有动）。那道核对要两边都有库、有 Redis 前缀、有“4 个 worker 同时在场”的记录，后一条只有 `parallel.test.ts` 写：所以每一片另带 `parallel.test.ts` 与 `redis-isolation.test.ts` 两份支架自己的用例（本来就在这一片里的不重复），每一片都按完整口径核对，代价是这两个文件在别的片里各多跑一遍。跑完另对一遍两个会话实际跑的文件数，对不上即失败。范围、分法、另带的两份由 `test/isolation-shard.test.ts` 实跑名单核对；片号与分母由 `test/workflows.test.ts` 钉住。要加一片：照 `test-isolation-2` 加一个任务、`needs` 加一行，各片的分母一起改。本地要跑整遍仍用 `pnpm test:isolation --scope connected`。
 - 文案约束（W1-05）在 `verify` 里有一步，排在“页面不写色值”之后：“文案约束”（`pnpm lint:copy`）。只读文件，不连库，约半秒。规则表 `copy-rules.json` 一条规则是“一个词 + 它管的范围”：`paths` 是页面源码的目录或文件（还没建的页面可以先登记，建了自动扫；路径对不上小程序页面清单的路由按写错了算），`errors` 是默认文案也归它管的错误码（登记的码在契约里找不到按失败算）。页面包加规则：照规则表开头的“说明”，往 `rules` 末尾加一条多行的对象，同 PR 加一个反例（引 `selftest/lib/copy.mjs`）。限度：只扫登记的路径，页面从别的目录引来的组件要把路径登记进规则；拼出来的词、服务端下发的文案、样式文件里的 `content` 查不到；后台与下载页还没有规则。
+- M0 合流（W0-30）加的两步都只读文件，各不到一秒。“台账单项文件核对”（`node infra/ci/plan-summaries.mjs --check`）在 `verify`：不连库。“四个计数”（`node infra/ci/four-counts.mjs --require M0`）在 `test` 的末尾：它读 `apps/api` 的用例写出的已挂载清单（不入库），要与“测试”在同一个任务里、排在它之后；`test` 以后分片时，这一步跟着跑 `apps/api` 用例的那一片。M0 的演示 `pnpm demo:m0` 不在必过里（要建库、跑全部迁移），在每晚任务的末尾；同一条链路的用例在“测试”里。
 
 ## 3. 怎么加一步检查
 
@@ -135,6 +138,7 @@ export default {
 - `worker-check-missing-aggregate-table`、`redis-compat-missing-url`（W0-23）跑的是任务进程的构建产物：要先 `pnpm --filter @liyoxi/worker build`（CI 里 `gates` 在门禁自测之前有“生成数据库客户端”“构建任务进程”两步）。前一例另要本地那套 PostgreSQL 与 `DATABASE_URL`，连的是实例自带的维护库 `postgres`，只读它的系统目录。产物不在、库连不上时这两例会红。
 - `status-tone-check-unknown-value`（W0-30a）在仓库外的副本里跑真的根脚本（`pnpm status-tone:check`），条件同 `contract-check-stale-generated`；不连库。改哪个条目的取值是现挑的（按文件名排序第一份字典里第一条有枚举对应的条目），字典随各域的包改动时不用改这个反例。
 - `copy-login-wechat-page`、`copy-error-message-word`（W1-05）不连库：在仓库外摆一棵树（真的小程序页面清单与契约的错误码定义，见 `selftest/lib/copy.mjs`），照根脚本 `lint:copy` 的原文跑，规则表用仓库里真的那一份。要本仓库的依赖已安装（检查脚本用根上的 `typescript`）。后一例改哪条规则、哪个错误码是现取的，规则表加行不用改它。
+- `plan-summaries-bad-stub-status`、`four-counts-milestone-stub-left`（W0-30）不连库，命令取自 `ci.yml` 里的那一步。前一例在仓库外摆一棵最小的 `docs/plan`，把一份留桩的状态改成表外的值。后一例把留桩目录换成仓库外的一份（真的那几份原样拷过去，再加一份“应在已退出的里程碑回补”的）；已挂载清单在全新检出里没有，按“要求的里程碑的接口都挂上了”另写一份，要求哪个里程碑取自 CI 那一步的 `--require`，不写死。
 
 ## 5. 门禁改动分类
 
@@ -220,6 +224,7 @@ node infra/ci/classify-gate-changes.mjs --base origin/main --labels gate-change
 - 状态汇总 `docs/plan/status/SUMMARY.md` 不入库（在 `.gitignore` 里）。要看时跑 `pnpm status:summary` 现生成；它是当前检出里那些状态文件的快照，换了分支、拉了 main 就重新跑。带不带 `--check`，状态文件不合规都一样失败。
 - 改了自己的状态文件（包括开 PR 后填 PR 编号），不用再生成、提交汇总。各 PR 只改自己的状态文件，互不冲突。
 - 规则见 [docs/plan/status/README.md](../../docs/plan/status/README.md) 第 5 节。
+- 留桩、计划变更、外部验证三张汇总照同一个办法（W0-30）：不入库，`pnpm plan:summaries` 现生成到各目录的 `SUMMARY.md`；CI 的“台账单项文件核对”一步跑 `node infra/ci/plan-summaries.mjs --check`，只查单项文件合不合规，不写文件。键与取值以 `docs/plan/templates/` 的三份模板为准；加键、改状态取值要同时改模板与 `plan-ledger-lib.mjs`（改已有的检查脚本，按门禁改动处理）。
 
 ## 7. 类型解析不靠提升（两个 React 大版本）
 
