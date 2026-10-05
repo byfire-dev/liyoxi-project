@@ -134,6 +134,10 @@ jobs:
         run: pnpm exec vitest run packages/services/src/providers/storage/minio.test.ts
       - name: 测试
         run: pnpm test
+      # 测试隔离（W0-05b；计划 第 6.3 节退出条件 ⑧）：两个会话同时跑全量测试，各 4 个 Vitest worker，都要绿，
+      # 且两边用的库名与 Redis 前缀没有交集。与“测试”一样排在 contract:check 之前
+      - name: test:isolation
+        run: pnpm test:isolation
       # 契约生成物与源码无差异（W0-08）：重新生成后 git diff --exit-code。排在“测试”之后：
       # 契约自测要拿提交的生成物与现生成的逐字节比对，得赶在这一步把文件重新写出来之前跑
       - name: contract:check
