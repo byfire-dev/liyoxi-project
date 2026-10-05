@@ -29,6 +29,18 @@
       "types": "./src/config/params.ts",
       "default": "./src/config/params.ts"
     },
+    "./authz": {
+      "types": "./src/authz/index.ts",
+      "default": "./src/authz/index.ts"
+    },
+    "./notify": {
+      "types": "./src/notify/index.ts",
+      "default": "./src/notify/index.ts"
+    },
+    "./analytics/events": {
+      "types": "./src/analytics/events.ts",
+      "default": "./src/analytics/events.ts"
+    },
     "./types/merchant": {
       "types": "./generated/merchant.d.ts"
     },
@@ -47,7 +59,8 @@
     "check": "pnpm generate && git diff --exit-code -- generated",
     "registry:generate": "tsx scripts/registry-map.ts",
     "registry:check": "tsx scripts/registry-check.ts",
-    "enums:check": "tsx scripts/enums-check.ts"
+    "enums:check": "tsx scripts/enums-check.ts",
+    "api-registries:check": "tsx scripts/api-registries-check.ts"
   },
   "dependencies": {
     "@hono/zod-openapi": "1.6.3",

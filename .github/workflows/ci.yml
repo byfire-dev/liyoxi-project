@@ -157,6 +157,10 @@ jobs:
       # 状态机与状态列的清单与契约登记、01 分组 第 3.2 节、catalogue.json 一致。只读文件，不连库
       - name: 状态机迁移表对照
         run: pnpm machines:check
+      # 接口侧注册表（W0-09b）：领域错误码、权限点、能力点、资源登记、通知场景、订阅点位、埋点事件，与登记文档
+      # （registry-errors.md、registry-permissions.md）、working 底稿及各依据文档逐字段对账。只读文件，不连库，约 2 秒
+      - name: 接口侧注册表对账
+        run: pnpm api-registries:check
       # 重新生成样式变量、后台主题、图标数据，与入库的生成物比对；顺带写出预览页（不入库），下一步上传
       - name: 设计生成物无差异
         run: pnpm design:check
