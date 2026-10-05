@@ -104,6 +104,8 @@ export interface TransitionDeps {
   readonly workMinutes: WorkMinutes;
   /** 状态机表各有哪些列；runtime 里按进程缓存 */
   readonly columns: (tx: Tx) => Promise<ReadonlyMap<string, ReadonlySet<string>>>;
+  /** 各事务里经 created 新建的行（“表:id”）：同一事务里它们之后的迁移也不加锁 */
+  readonly fresh: WeakMap<Tx, Set<string>>;
 }
 
 function refuse(reason: FlowRefusal, message: string): never {
@@ -151,8 +153,10 @@ export async function transition<const N extends string>(
   }
 
   // 1. 加锁：对象行 FOR UPDATE，过锁序断言；调用方已经锁过的再锁一遍是幂等的。
-  //    新建的行是本事务刚插入的，别的事务看不见：不加锁，也不进锁序
-  const present = created || (await lockRows(tx, machine, [id], "update")).length > 0;
+  //    新建的行是本事务刚插入的，别的事务看不见：不加锁，也不进锁序；同一事务里它之后的迁移同理
+  const rowId = `${machine}:${id}`;
+  const mine = created || deps.fresh.get(tx)?.has(rowId) === true;
+  const present = mine || (await lockRows(tx, machine, [id], "update")).length > 0;
   const current = present ? await selectState(tx, machine, stateField, id) : undefined;
   if (current === undefined) throw new AppError("NOT_FOUND");
 
@@ -236,9 +240,12 @@ export async function transition<const N extends string>(
   const previous = await selectLastTransition(tx, machine, id, stateField);
   if (created && previous !== undefined)
     refuse("created", `${name} 的这个对象已经有状态历史，不是新建`);
+  if (created) deps.fresh.set(tx, (deps.fresh.get(tx) ?? new Set<string>()).add(rowId));
   const elapsedMs = previous === undefined ? null : now.getTime() - previous.occurredAt.getTime();
   let elapsedWorkMin: number | null = null;
-  if (timed && previous !== undefined) {
+  if (timed && elapsedMs !== null && elapsedMs <= 0)
+    elapsedWorkMin = 0; // 时钟回拨：记 0，不去问端口
+  else if (timed && previous !== undefined) {
     elapsedWorkMin = await deps.workMinutes.between(tx, {
       machine,
       from: previous.occurredAt,

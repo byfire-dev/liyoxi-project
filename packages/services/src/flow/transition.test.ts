@@ -531,6 +531,54 @@ describe("transition：锁序（验收 8）", () => {
   );
 });
 
+describe("transition：新建的行不进锁序", () => {
+  it(
+    "先锁了次序靠后的表，再新建次序靠前的对象并接着迁移它：都不撞锁序断言",
+    async () => {
+      const entityId = await insertEntity(prisma);
+      const staffId = await sample.tx.run(async (tx) => {
+        await lockRows(tx, "entity", [entityId]);
+        const id = await insertStaff(tx, "pending");
+        const base = { machine: "staff", stateField: "status", id, emit: changed } as const;
+        await sample.flow.transition(tx, ctx, {
+          ...base,
+          event: "staff.create",
+          created: true,
+          audit: opsAudit(id),
+        });
+        await sample.flow.transition(tx, ctx, {
+          ...base,
+          event: "staff.enable",
+          audit: opsAudit(id),
+        });
+        return id;
+      });
+      const history = await historyOf(prisma, staffId);
+      expect(history.map((row) => [row.fromState, row.toState, row.elapsedSeconds])).toEqual([
+        [null, "pending", null],
+        ["pending", "active", 0],
+      ]);
+      // 事务提交之后它就是普通的行：照常加锁，照常过锁序断言
+      const error = await sample.tx
+        .run(async (tx) => {
+          await lockRows(tx, "entity", [entityId]);
+          await sample.flow.transition(tx, ctx, {
+            machine: "staff",
+            stateField: "status",
+            id: staffId,
+            event: "staff.disable",
+            emit: changed,
+            audit: opsAudit(staffId),
+            set: companionsFor("staff.status", "disabled", sample.clock.now()),
+          });
+        })
+        .catch((reason: unknown) => reason);
+      expect(error).toMatchObject({ kind: "lock_order" });
+    },
+    SLOW,
+  );
+});
+
 describe("createFlow：状态机的登记对照迁移表校验", () => {
   it("键不是登记的链、守卫的键不是链上的行、随迁列写了状态列：一次报全", () => {
     const build = (): unknown =>

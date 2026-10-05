@@ -37,6 +37,14 @@ export function createFlow(options: FlowOptions): Flow {
       catalog = undefined;
       throw error;
     }));
-  const deps = { clock: options.clock, events: options.events, bindings, workMinutes, columns };
+  const fresh = new WeakMap<Tx, Set<string>>();
+  const deps = {
+    clock: options.clock,
+    events: options.events,
+    bindings,
+    workMinutes,
+    columns,
+    fresh,
+  };
   return { transition: (tx, ctx, input) => transition(tx, deps, ctx, input) };
 }

@@ -97,6 +97,42 @@ describe("transition：工作分钟（验收 9）", () => {
   );
 
   it(
+    "时钟回拨（上一行的时刻比现在晚）：两个停留时长都记 0，不去问端口",
+    async () => {
+      const calls: number[] = [];
+      const counting = createSampleFlow(prisma, {
+        workMinutes: {
+          between: (tx, span) => {
+            calls.push(span.to.getTime() - span.from.getTime());
+            return fixedWorkMinutes.between(tx, span);
+          },
+        },
+      });
+      const { id, staffId } = await insertApproval(prisma);
+      const ctx = staffContext(staffId);
+      counting.clock.advance(3_600_000);
+      await counting.tx.run((tx) =>
+        counting.flow.transition(tx, ctx, approval(id, { event: "submit", created: true })),
+      );
+      counting.clock.set(new Date(counting.clock.now().getTime() - 60_000));
+      await counting.tx.run((tx) =>
+        counting.flow.transition(
+          tx,
+          ctx,
+          approval(id, { event: "withdraw", set: { decided_at: counting.clock.now() } }),
+        ),
+      );
+      const history = await historyOf(prisma, id);
+      expect(history.map((row) => [row.elapsedSeconds, row.elapsedWorkMin])).toEqual([
+        [null, null],
+        [0, 0],
+      ]);
+      expect(calls).toEqual([]);
+    },
+    SLOW,
+  );
+
+  it(
     "其余的表该列为空，端口注没注册都一样",
     async () => {
       for (const sample of [bare, timed]) {
@@ -137,6 +173,7 @@ describe("transition：工作分钟（验收 9）", () => {
       await broken.tx.run((tx) =>
         broken.flow.transition(tx, ctx, approval(id, { event: "submit", created: true })),
       );
+      broken.clock.advance(60_000);
       const before = await tally(prisma);
       const error = await broken.tx
         .run((tx) =>
