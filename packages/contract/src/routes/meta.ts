@@ -1,5 +1,6 @@
 // 路由元数据的取值与类型（约定 C1、C2、C14、C47、C55、C75）。
 // 键名直接用约定里的写法（x-auth、x-idempotent……），声明什么，OpenAPI 里就是什么。
+import type { Milestone } from "../registry/define.js";
 
 /** 四组接口都挂在这个前缀下；探活在根路径，不在其内（约定 C1） */
 export const API_PREFIX = "/api/v1";
@@ -94,3 +95,13 @@ export const ROUTE_META_EXTENSION_KEYS = [
   "x-rate-limit",
   "x-step-up",
 ] as const satisfies readonly (keyof RouteMeta)[];
+
+/** 路由的版本：V1.1 的只登记，V1.0 不落地（07 第 1 节） */
+export const ROUTE_VERSIONS = ["V1.0", "V1.1"] as const;
+export type RouteVersion = (typeof ROUTE_VERSIONS)[number];
+
+/**
+ * 一条路由的归属：V1.0 的写里程碑（计划 第 5.7 节“实现进度”行；取值与 x01 条目的归属同一套，
+ * 在 registry/define.ts 的 MILESTONES），V1.1 的写 V1.1（只登记）。数据在 milestones.ts
+ */
+export type RoutePlacement = Milestone | "V1.1";

@@ -58,7 +58,7 @@ type WriteDecl = { method: WriteMethod } & (
   | { "x-idempotent": "none"; "x-idempotent-reason": string }
 );
 
-type MethodDecl = ReadDecl | WriteDecl;
+export type MethodDecl = ReadDecl | WriteDecl;
 type AuthOf<G extends RouteGroup> = (typeof GROUP_AUTH)[G]["allowed"][number];
 
 /** 商家端：x-auth 缺省 member；x-clerk-view 必填；x-capability 不写即不设能力点 */
@@ -125,7 +125,11 @@ export function routeGroupOf(route: Pick<RouteMeta, "operationId">): RouteGroup 
   return route.operationId.slice(0, route.operationId.indexOf(".")) as RouteGroup;
 }
 
-function metaWithDefaults(group: RouteGroup, def: AnyRouteDef): Record<string, unknown> {
+/** 取出元数据并补缺省值。“只有元数据”的登记形态（meta-only.ts）也用它，两种形态的缺省值是同一套 */
+export function metaWithDefaults(
+  group: RouteGroup,
+  def: { operationId: string; method: RouteMethod },
+): Record<string, unknown> {
   const source = def as unknown as Record<string, unknown>;
   const meta: Record<string, unknown> = { operationId: def.operationId };
   for (const key of ROUTE_META_EXTENSION_KEYS) {
