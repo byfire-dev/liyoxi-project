@@ -103,6 +103,12 @@ pnpm --filter @liyoxi/worker exec vitest run test/billing-advance.test.ts
 
 都连库（带种子的库），要本地的 PostgreSQL 与 `DATABASE_URL`；任务进程的那一份另要 Redis（`CLAUDE.md` 第 9 节）。
 
+甲类的用例：`ledger/account-lock.concurrency.test.ts`（等锁 3 秒）、`ledger/advance.concurrency.test.ts`（两个扫描并行、跨零点等锁）、`ledger/fault.test.ts`（逐步故障注入）、`ledger/advance.property.test.ts`（性质测试：任取开通日、周期、预约周期、加购与推进的时刻，余额等于按周期起止算出的参考值，多推进多少次结果都一样，七条不变量 0 违规）。性质测试连库，缺省 10 轮、固定种子，要多跑：
+
+```sh
+LYX_FC_RUNS=200 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run src/billing/ledger/advance.property.test.ts
+```
+
 ## 7. 已知的限度
 
 - `billing.points.expired` 的去重键照 x01 写成按周期的：周期被延长复活后再次到期（M4）会被当成已发过。做延长的包（G4-A）要把它改成带止日的。
