@@ -1,0 +1,57 @@
+{
+  "说明": [
+    "黄金文件：x-auth 为 public、optional、signed 的全部路由（约定 C2）。这三种不带登录门槛，新增一条须评审。",
+    "一行一条：方法、路径、operationId（探活是登记键）；只靠网络隔离的内网探活行尾标“（仅内网）”。",
+    "pnpm contract:docs-check 拿它与契约的路由清单比，多一条、少一条、改一个字都失败。",
+    "本文件是门禁文件（frozen）：只在单独的 gate-change PR 里改，用 tsx scripts/docs-check.ts --write-golden 重写。"
+  ],
+  "public": [
+    "GET /health hooks.health.get",
+    "GET /healthz hooks.healthz.get",
+    "GET /internal/health/finance hooks.internalHealth.finance.get（仅内网）",
+    "GET /internal/health/flow hooks.internalHealth.flow.get（仅内网）",
+    "GET /m/agreement-versions/{agreementVersionId} m.agreementVersion.get",
+    "GET /m/agreements m.agreement.list",
+    "GET /m/dict-items m.dictItem.list",
+    "GET /m/invitations/lookup m.invitation.lookup",
+    "GET /m/mall-config m.mallConfig.get",
+    "GET /portal/license-verifications portal.licenseVerification.get",
+    "GET /portal/portal-tickets/{portalTicketId} portal.portalTicket.get",
+    "GET /readyz hooks.readyz.get",
+    "POST /admin/auth/activate admin.auth.activate",
+    "POST /admin/auth/confirm-totp admin.auth.confirmTotp",
+    "POST /admin/auth/enroll-totp admin.auth.enrollTotp",
+    "POST /admin/auth/login admin.auth.login",
+    "POST /admin/auth/set-password admin.auth.setPassword",
+    "POST /admin/auth/verify-mfa admin.auth.verifyMfa",
+    "POST /m/sessions m.session.create",
+    "POST /m/sessions/phone-login m.session.phoneLogin",
+    "POST /portal/portal-tickets portal.portalTicket.create",
+    "POST /portal/portal-tickets/{portalTicketId}/exchange portal.portalTicket.exchange"
+  ],
+  "optional": [
+    "GET /m/bootstrap m.bootstrap.get",
+    "GET /m/dramas m.drama.list",
+    "GET /m/dramas/search m.drama.search",
+    "GET /m/dramas/{dramaId} m.drama.get",
+    "GET /m/dramas/{dramaId}/trial-episodes m.drama.trialEpisode.list",
+    "GET /m/home m.home.get",
+    "GET /m/playables/{playableId} m.playable.get",
+    "POST /admin/client-errors admin.clientError.create",
+    "POST /m/analytics-events m.analyticsEvent.batchCreate",
+    "POST /m/client-errors m.clientError.create",
+    "POST /portal/client-errors portal.clientError.create"
+  ],
+  "signed": [
+    "GET /hooks/wechat/messages hooks.wechat.message.verify",
+    "GET /hooks/wecom/events hooks.wecom.event.verify",
+    "POST /hooks/asr/media-jobs/{mediaJobId} hooks.asr.mediaJob.wake",
+    "POST /hooks/ci/media-jobs/{mediaJobId} hooks.ci.mediaJob.wake",
+    "POST /hooks/esign/events hooks.esign.event.receive",
+    "POST /hooks/sms/status-reports hooks.sms.statusReport.receive",
+    "POST /hooks/wechat/messages hooks.wechat.message.receive",
+    "POST /hooks/wechatpay/refunds hooks.wechatpay.refund.notify",
+    "POST /hooks/wechatpay/transactions hooks.wechatpay.transaction.notify",
+    "POST /hooks/wecom/events hooks.wecom.event.receive"
+  ]
+}
