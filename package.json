@@ -48,7 +48,8 @@
     "machines:coverage": "pnpm --filter @liyoxi/shared machines:coverage",
     "db:verify-grants": "node infra/ci/db-verify-grants.mjs",
     "postdb:verify-managed": "node infra/ci/db-verify-grants.mjs",
-    "api-registries:check": "pnpm --filter @liyoxi/contract api-registries:check"
+    "api-registries:check": "pnpm --filter @liyoxi/contract api-registries:check",
+    "check:type-hoist": "node infra/ci/check-type-hoist.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",

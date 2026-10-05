@@ -6,6 +6,15 @@
     "lib": ["ES2022", "DOM"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    // React 的类型钉到用预设的工程自己装的那一份。组件库的类型写 import "react" 而自己不声明 @types/react 时，
+    // 不钉的话 tsc 会到 pnpm 的提升目录里去找，那里放的是哪个大版本不保证（后台用 19，小程序用 18）。
+    // 工程自己再写 paths 会整体顶掉这四行，要一并抄上（pnpm check:type-hoist 会拦）。见 infra/ci/README.md 第 7 节
+    "paths": {
+      "react": ["${configDir}/node_modules/@types/react"],
+      "react/*": ["${configDir}/node_modules/@types/react/*"],
+      "react-dom": ["${configDir}/node_modules/@types/react-dom"],
+      "react-dom/*": ["${configDir}/node_modules/@types/react-dom/*"]
+    },
     "jsx": "react-jsx",
     "noUnusedLocals": true,
     "noUnusedParameters": true,

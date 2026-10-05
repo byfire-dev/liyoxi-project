@@ -354,6 +354,8 @@ describe("ci.yml", () => {
       // W0-05：数据库客户端不入库，类型检查之前先生成
       "pnpm db:generate",
       "pnpm typecheck",
+      // 两个 React 大版本并存：类型解析不经 pnpm 的提升目录落到各工程装得不一样的包上
+      "pnpm check:type-hoist",
       "pnpm depcheck",
       // W0-05：首版迁移的等价性证明，排在“测试”之前（上传比对报告那一步没有 run）
       "pnpm db:validate",

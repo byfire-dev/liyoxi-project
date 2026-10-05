@@ -26,6 +26,7 @@
 | `pages/generate.mjs`、`pages/sources/` | 页面清单：由后台菜单登记表与下载页页面清单生成 `docs/plan/pages.md`。一个端一个数据源文件，自动收集；小程序的由 W0-27a 往 `sources/` 里加 | `node infra/ci/pages/generate.mjs`；CI 用 `--check` 核对无差异 |
 | `apps/admin/scripts/check-build.mjs`（不在本目录） | 后台与下载页的构建产物检查：文件名带内容哈希、写入了构建号、是生产构建、不含夹具的标记 | 两个应用各自的 `build` 脚本，即 `pnpm admin:build`、`pnpm portal:build`；CI |
 | `apps/admin/scripts/e2e-affected.mjs`（不在本目录） | 后台冒烟的受影响范围判断：PR 改到后台或它依赖的部分才跑，推到 main 一律跑 | CI 的“后台冒烟要不要跑”一步 |
+| `check-type-hoist.mjs` | 类型解析不靠提升：写 JSX 的工程解析类型时，不许经 pnpm 的私有提升目录落到各工程装得不一样的包上；工程自己声明的类型包在程序里只许出现自己装的那一份（第 7 节） | `pnpm check:type-hoist`；CI |
 
 工作流在 `.github/workflows/`：`ci.yml`（每个 PR 与推到 main）、`nightly.yml`（每晚，Node 26，失败只告警）。
 
@@ -53,6 +54,7 @@
 - 每晚任务（`nightly.yml` 的 `node26`）跟着补了四步，都是新增的整步。“类型”之前一步：生成数据库客户端（`pnpm db:generate`）。“类型”与“测试”之间三步：起 PostgreSQL 与 Redis；把连接参数（`APP_ENV`、`DATABASE_URL`、`REDIS_URL`，取值与 `verify` 的相同）写进 `$GITHUB_ENV`，后面的“测试”读得到；空库 `lyx_migrate_check` 上跑全部迁移。它不挂服务容器：往已有的任务里加 `services`、`env` 算放松类改动（第 5 节），所以库用 compose 文件起，与 `verify` 的“起 MinIO”同一种写法，镜像、端口、账号取 `infra/compose/local.yml`。`verify` 里的 `prisma validate`、由底稿建参照库、系统目录比对它不跑：那是首版迁移的等价性证明，`pnpm test` 用不到参照库 `lyx_schema_check`。执行机上要有 Docker（带 compose）与 `psql`，与 `verify` 相同。往每晚任务加一步时，在 `test/workflows.test.ts`“nightly.yml”一组的命令清单里同一位置加一行（只增）。
 - 状态机迁移表（W0-12）在 `verify` 里加了一步，排在“枚举与库 CHECK 一致”之后：“状态机迁移表对照”（`pnpm machines:check`）。拿 `packages/shared/src/machines` 的 25 张迁移表与数据模型分组文档的状态机表逐行对照（当前状态、事件码、新状态、有无守卫），并核对状态机与状态列的清单与契约登记、01 分组 第 3.2 节、`catalogue.json` 一致；只读文件，不连库，本机约 1 秒。脚本在 `packages/shared/scripts/machines-check.ts`，不在本目录，理由同 W0-09a 那一条；口径写在脚本开头的注释与 [packages/shared/src/machines/README.md](../../packages/shared/src/machines/README.md) 第 4 节。脚本与迁移表都没有登记成门禁文件（照 W0-09a 两个对账脚本的先例）：对照被削弱由门禁自测的反例拦，改迁移表的 PR 靠这一步保证分组文档同步改了。覆盖检查（`pnpm machines:coverage`）现在只出报告，不在 `verify` 里，M1 起才进门禁（计划 第 5.5 节）。
 - 接口侧注册表（W0-09b）在 `verify` 里加了一步，排在“枚举与库 CHECK 一致”之后。“接口侧注册表对账”（`pnpm api-registries:check`）：拿契约里的领域错误码、权限点、能力点、资源登记、通知场景、订阅点位、埋点事件与登记文档、`docs/api/working/` 的底稿逐字段比；只读文件，不连库，约 2 秒。检查脚本在 `packages/contract/scripts/`，理由同 W0-09a 那一条。数量不写在脚本与反例里：取登记文档各节标题里写的数，同表格行数、契约条数三方比。场景键、埋点事件名两种写法另并进 W0-09a 的 `pnpm enums:check`，同库里的 CHECK 正则逐字比。
+- “类型”之后有一步“类型解析不靠提升”（`pnpm check:type-hoist`）。它不看类型检查这一次过没过，看的是结果会不会随 pnpm 提升了哪一份而变，所以两步都要。来历、口径与失败了怎么办见第 7 节。每晚任务没有加这一步：它查的是结果会不会随安装变，与 Node 版本无关。它的用例（`test/type-hoist.test.ts`）只摆小树，不对本仓库再跑一遍。
 
 ## 3. 怎么加一步检查
 
@@ -92,6 +94,7 @@ export default {
 - `registry-check-missing-subscriber`、`enums-check-extra-value`（W0-09a）同样在仓库外的副本里跑真的根脚本（`pnpm registry:check`、`pnpm enums:check`），条件同上一条。后一例另要本地那套 PostgreSQL 在运行、`lyx_migrate_check` 已跑过迁移（[packages/db/README.md](../../packages/db/README.md) 第 3 节），并给出 `DATABASE_URL` 或 `PG*` 环境变量；它只读那个库，不建库。连不上时这一例会红。
 - `machines-check-missing-row`（W0-12）同样在仓库外的副本里跑真的根脚本（`pnpm machines:check`），条件同 `contract-check-stale-generated`；不连库。删哪一行迁移是现挑的（第一份迁移表里第一条单占一行、`ref` 只出现一次的），迁移表随各域的包改动时不用改这个反例。
 - `api-registries-check-wrong-error-code`、`api-registries-check-missing-permission`（W0-09b）在仓库外的副本里跑真的根脚本（`pnpm api-registries:check`），条件同 `contract-check-stale-generated`；不连库。副本里要带对账读的那些文档：清单取自对账脚本导出的 `SOURCE_PATHS` 与 `FRAG_DIR`，脚本以后多读一份文档不用改反例。改哪个码、删哪个权限点也不写死，各取所在文件里登记的第一个。后一例引前一例导出的两个函数（造副本、取 CI 里那一步的命令）。
+- `type-hoist-paths-overridden` 在仓库外摆一棵照 pnpm 装出来的小树（`selftest/lib/type-hoist-tree.mjs`，手工摆的目录与链接，不真的安装），再跑 `check-type-hoist.mjs`：要本仓库的依赖已安装（检查脚本用根上的 `typescript`）。
 
 ## 5. 门禁改动分类
 
@@ -176,3 +179,57 @@ node infra/ci/classify-gate-changes.mjs --base origin/main --labels gate-change
 - 状态汇总 `docs/plan/status/SUMMARY.md` 不入库（在 `.gitignore` 里）。要看时跑 `pnpm status:summary` 现生成；它是当前检出里那些状态文件的快照，换了分支、拉了 main 就重新跑。带不带 `--check`，状态文件不合规都一样失败。
 - 改了自己的状态文件（包括开 PR 后填 PR 编号），不用再生成、提交汇总。各 PR 只改自己的状态文件，互不冲突。
 - 规则见 [docs/plan/status/README.md](../../docs/plan/status/README.md) 第 5 节。
+
+## 7. 类型解析不靠提升（两个 React 大版本）
+
+小程序用 React 18，后台与下载页用 React 19（`CLAUDE.md` 第 5 节），所以 `@types/react`、`@types/react-dom` 在仓库里各装了两份。
+
+`CLAUDE.md` 第 5 节那句“各自安装，不提升”说的是根上的 `node_modules`：那里没有 `react`，照旧成立。本节说的“提升”是另一处，pnpm 缺省在 `node_modules/.pnpm/node_modules` 下放的那一份（私有提升目录），供没把依赖声明全的包兜底用。
+
+### 7.1 出过什么事
+
+main 上 `apps/admin` 的类型检查偶尔红 4 条（`src/app/feedback.ts` 两条、`src/components/QueryTablePage.tsx` 两条），都是“React 19 的 `ReactNode` 不能赋给 `@types/react@18.3.31` 的 `ReactNode`”；删掉 `node_modules` 重装又通过。PR #34 的第三轮复审撞到一次，不放探针时几十遍全新安装只见一次。
+
+根因是三件事叠在一起：
+
+1. antd 一族（`antd`、`@rc-component/*`、`@ant-design/*`）与 `@tanstack/react-query`、`@tanstack/react-router` 的类型里写 `import "react"`，自己只把 `react` 声明成 peer，没有声明 `@types/react`。pnpm 给它们逐包接上的是 `react` 本体，本体不带类型。后台的程序里这样的包有四十多个。
+2. tsc 在包自己的 `node_modules` 里找不到类型，就顺着目录往上找，走到 `node_modules/.pnpm/node_modules/@types/react`。这是 pnpm 的私有提升目录：虚拟仓库里的包各提升一份到这里，同名的只放一份。
+3. 放哪一份是先到先得。各项目的直接依赖并成一层，按 pnpm 收集项目的先后取第一个（pnpm 10.34.5 的 `getHoistedDependencies`）；这个先后是各项目读本地配置谁先读完谁排前面，不保证。绝大多数时候排在前面的是 `apps/admin`，提升 19.3.0，类型检查通过。`apps/weapp` 排到前面时提升的是 18.3.31：后台自己的源码用它自己装的 19，antd 的类型却解析到 18，两份 `ReactNode` 不相容（19 多一个 `bigint`）。
+
+复现：在检出里放两个只有一行注释的 `apps/admin/.npmrc`、`apps/portal/.npmrc`（只改变读配置的先后），删掉 `node_modules` 全新安装，提升的就是 18.3.31。
+
+### 7.2 修法
+
+`packages/config/tsconfig/` 下两份 React 预设（`web-react19.json`、`taro-react18.json`）加了 `compilerOptions.paths`，把 `react`、`react/*`、`react-dom`、`react-dom/*` 钉到 `${configDir}/node_modules/@types/…`，也就是用预设的工程自己装的那一份。`paths` 对程序里每个文件的导入都生效，第三方包类型里的 `import "react"` 也在内，于是不再往提升目录走；钉到的目录不存在时（`fixtures/` 下的最小工程没装 React）照原来的办法解析。
+
+- 只影响 tsc。Vite、Vitest、dependency-cruiser 不读 tsconfig 的 `paths`；Playwright 加载用例文件时会读，但钉到的位置只有类型声明，它落回原来的解析（实测用例文件里 `import "react"` 拿到的是运行时的 19）。运行时的 `react` 由 pnpm 按各包声明的 peer 逐包接好，本来就不靠提升。
+- **工程自己写 `paths` 时要把这四行抄上。** tsconfig 的 `paths` 不合并：应用在自己的 `tsconfig.json` 里写一条别名（比如 `"@/*": ["./src/*"]`），预设里的四行就整体被顶掉，隐患原样回来。忘了的话下面的检查会拦。构建工具也读 tsconfig 的 `paths` 时（比如装了 `vite-tsconfig-paths`，或打开 Vite 的 `resolve.tsconfigPaths`），要确认它没有把运行时的 `react` 解析到类型包上。
+- 没有在 pnpm 一侧修，因为那边的办法都属“放松”类门禁改动（第 5 节），试过并用分类脚本判过：
+
+| 办法 | 结果 |
+| --- | --- |
+| `.npmrc` 里用 `hoist-pattern` 把两个 React 类型包排除出提升 | `.npmrc` 按 `frozen` 登记，判放松。单用它也不行：antd 的类型找不到 `react`，属性退成 `any`，后台的类型检查红 25 条，还是得钉 `paths` |
+| `pnpm-workspace.yaml` 里用 `packageExtensions` 给缺声明的包补 `@types/react` 的 peer | 判放松 3 项：`pnpm-workspace.yaml` 按 `frozen` 登记；锁文件头部多一行校验值；被补的包在锁文件里已有的条目跟着变。四十多个包要逐个列，antd 升级后还要跟着改 |
+
+### 7.3 检查
+
+`pnpm check:type-hoist`（`check-type-hoist.mjs`），`verify` 里排在“类型”之后。对工作区里每个写 JSX 的工程（展开后的 tsconfig 里有 `jsx` 选项的），照它的 tsconfig 建一遍程序：只读文件、解析导入，不做类型检查。然后查两条：
+
+1. 经私有提升目录解析到的包，工作区各工程自己装的（`<工程>/node_modules/<包名>`）必须是同一份。不是同一份即失败，这一次提升的恰好是对的那一份也算：要拦的是“取决于提升”，不是“这一次错了”。所以它在每一次安装上的结论都一样，不像类型检查那样时过时不过。main 上没修之前，类型检查是绿的那些安装里它同样报 4 处。
+2. 工程自己声明的类型包（`package.json` 里 `@types/` 开头的依赖），程序里只许出现它自己装的那一份。`paths` 钉错了地方、别的工程的那一份混进来时由这一条拦。
+
+各工程装得一致的包、没有哪个工程直接装的包，经提升目录解析不算问题（现在有 `zod`、`punycode`、`@rc-component/trigger` 三个），检查通过时会列出来。
+
+失败了怎么办：输出里写明是哪个工程、哪个包、哪几个工程各装的哪一份。多半是工程自己写了 `paths`、顶掉了预设里的四行，抄上即可；新出现的包（不是 React）在两个工程里装得不一样、又有人不声明就引它，同样在工程的 `paths` 里把它钉到自己装的那一份。要看是谁引进来的：`pnpm --dir <工程> exec tsc --noEmit -p tsconfig.json --explainFiles`。
+
+- 反例 `type-hoist-paths-overridden`：应用继承真的预设、自己写了一条 `paths`，提升的恰好是它自己的那个大版本（这时 tsc 是绿的），检查必须失败。
+- 用例 `test/type-hoist.test.ts`：对每一份写 JSX 的预设（从预设目录现取）摆一棵“提升的是另一个大版本”的树，必须通过，预设里的四行被删时这里红；另有 `paths` 被顶掉、钉错地方、只有一个工程直接装（不判）、不写 JSX 的工程、用法错误几组。对本仓库跑检查是 CI 里单独的那一步，用例不重复跑。
+- 这个脚本用了根上装的 `typescript`（`pnpm typecheck` 用的同一个），是本目录里唯一引了包的检查脚本：解析的口径只有 tsc 自己说了算，不另写一套。
+
+限度：
+
+- 第 1 条只认“各工程直接装得不一样”的包，这正是出事的那一种：pnpm 把各项目直接声明的依赖排在最前、并成一层，同名的按项目的先后取第一个。没有哪个工程直接声明、只作为传递依赖装了几份的包，经提升目录解析到也不判：它们提升哪一份由 pnpm 按依赖的深度与名字排序定，不随项目的次序变（依赖图里同一个包在不同工程下深浅差很多时理论上仍可能变，没有遇到过）。判了会误伤：锁文件里多出一份不相干的传递依赖（比如第二个版本的 `zod`，Playwright 的类型经提升目录引它），就会让后台的这道检查红，而后台没法把一个自己没装的包钉到“自己那一份”上。
+- 只查写 JSX 的工程。两个 React 大版本是仓库里唯一有意装两份的；服务端各包每个都要多建一遍程序，耗时跟着代码量涨，CI 里不查。要全查：`node infra/ci/check-type-hoist.mjs --all`（现在 9 个工程都通过）。
+- 根上的 `tsconfig.json`、`infra/tsconfig.json` 与 `fixtures/` 下的最小工程不是工作区包，不查。
+- 只看类型解析。一个包运行时不声明就引 `react`（不是类型）时，构建工具同样会落到提升目录里的那一份 `react` 上；现在的依赖里没有这样的包，这道检查也看不到。
+- 工作区清单（`pnpm-workspace.yaml` 的 `packages`）只认“目录/\*”与不带通配符的目录两种写法，别的写法报错退出。

@@ -103,6 +103,12 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 
 通用构件与页面骨架看样确认后冻结；页面包要改构件，走单独的构件 PR（计划 第 9.3 节）。
 
+## React 的类型
+
+仓库里装着两份 `@types/react`（小程序用 18，这里与下载页用 19）。antd 与 `@tanstack/*` 的类型里写 `import "react"`，自己却不声明 `@types/react`，不管的话 tsc 会到 pnpm 的提升目录里去找，那里放的是哪一份不保证，类型检查就时过时不过。预设 `packages/config/tsconfig/web-react19.json` 用 `compilerOptions.paths` 把 `react`、`react-dom` 的类型钉到了本应用自己装的那一份。
+
+要在本目录的 `tsconfig.json` 里写 `paths`（比如加别名）时，把预设里那四行一并抄上：tsconfig 的 `paths` 不合并，自己一写就把预设里的整体顶掉了。忘了的话 `pnpm check:type-hoist` 会红。来历与口径见 [infra/ci/README.md](../../infra/ci/README.md) 第 7 节。
+
 ## 已知的限度
 
 - 路由树是手写装配的（`src/routes/tree.ts`），没有用 `@tanstack/router-plugin` 的文件路由生成：装上它会把锁文件里已有依赖的解析版本带着变，属“放松”类门禁改动，要走单独的依赖 PR。目录约定已照文件路由来，换过去时只动装配（[状态文件](../../docs/plan/status/W0-28.md)“偏差”）。
