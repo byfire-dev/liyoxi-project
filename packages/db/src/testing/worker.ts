@@ -3,10 +3,13 @@
 // 用法：测试文件顶层写一行
 //   const db = useTestDatabase("services");
 // 用例里 `const prisma = await db.prisma()`。首次取连接时才建库；文件跑完，用例全过就删库，
-// 有用例失败就把库改名留下并打印库名（看完用 pnpm test:db:prune 清掉）。
+// 有失败就把库改名留下并打印库名（看完用 pnpm test:db:prune 清掉）。
+// 用例失败、钩子（beforeAll、afterAll、beforeEach、afterEach）失败都算失败。
 // 改名是因为同一个 worker 编号马上会被下一个测试文件用到，不改名留不住。
 
-import { afterAll, beforeEach } from "vitest";
+import { aroundAll } from "vitest";
+import type { RunnerTask } from "vitest";
+import { getCurrentSuite } from "vitest/suite";
 
 import { createPrismaClient } from "../index.js";
 import type { PrismaClient } from "../index.js";
@@ -110,26 +113,36 @@ export class TestDatabaseHandle implements TestDatabase {
     } catch {
       kept = this.name;
     }
-    console.warn(`有用例失败，测试库留着没删：${kept}（看完用 pnpm test:db:prune 清掉）`);
+    console.warn(`有用例或钩子失败，测试库留着没删：${kept}（看完用 pnpm test:db:prune 清掉）`);
     return kept;
   }
 }
 
+/** 这一组里有没有失败：哪条用例失败，或者哪一层的钩子失败（钩子失败记在它所在的那一组上） */
+function hasFailure(task: RunnerTask): boolean {
+  if (task.result?.state === "fail") return true;
+  return task.type === "suite" && task.tasks.some(hasFailure);
+}
+
 /**
- * 给当前测试文件一个库。在文件顶层（或 describe 里）调用：它登记两个钩子，
- * 一个记下有没有用例失败，一个在这一组用例跑完后收尾。
+ * 给当前测试文件一个库。在文件顶层（或 describe 里）调用：它登记一个 aroundAll，
+ * 把这一组用例连同它的 beforeAll、afterAll 整个包在里面，跑完之后看结果再收尾。
+ * 不用 afterAll 收尾：别的 afterAll 先抛了错，排在后面的就不执行了；beforeAll 失败时用例一条不跑，
+ * 靠用例上的 onTestFailed 也记不到。
  * @param pkg 库名里的包：db、services、api、worker
  */
 export function useTestDatabase(pkg: TestPackage, options: TestDatabaseOptions = {}): TestDatabase {
   const handle = new TestDatabaseHandle(testDatabaseName(pkg, { label: options.label }), options);
-  let failed = false;
-  beforeEach(({ onTestFailed }) => {
-    onTestFailed(() => {
-      failed = true;
-    });
-  });
-  afterAll(async () => {
-    await handle.dispose({ failed });
+  // 这一组的任务对象：文件顶层登记时取到的是文件，describe 里登记时是那个 describe
+  const collector = getCurrentSuite();
+  // 回调只写一个参数：Vitest 会解析回调的参数表，第二个参数不是解构写法就报错
+  aroundAll(async (runSuite) => {
+    try {
+      await runSuite();
+    } finally {
+      const suite = collector.suite ?? collector.file;
+      await handle.dispose({ failed: suite === undefined || hasFailure(suite) });
+    }
   }, DISPOSE_TIMEOUT_MS);
   return handle;
 }

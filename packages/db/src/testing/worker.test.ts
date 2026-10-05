@@ -48,7 +48,7 @@ describe("useTestDatabase", () => {
     expect(result.status, result.output).toBe(1);
     expect(result.output).toMatch(/Test Files\s+1 failed \| 1 passed \(2\)/);
     const kept = new RegExp(
-      `有用例失败，测试库留着没删：(lyx_test_db_${session}_\\d+_hookfail_k[a-z0-9]+)`,
+      `有用例或钩子失败，测试库留着没删：(lyx_test_db_${session}_\\d+_hookfail_k[a-z0-9]+)`,
     ).exec(result.output)?.[1];
     expect(kept, result.output).toBeDefined();
     if (!kept) return;
@@ -68,6 +68,54 @@ describe("useTestDatabase", () => {
       await dropTestDatabase(kept);
     }
   });
+});
+
+describe("useTestDatabase：钩子里失败也算失败", () => {
+  it(
+    "嵌套跑一轮：beforeAll 失败、别的 afterAll 失败、里层 describe 的 beforeAll 失败，库都留着",
+    { timeout: 120_000 },
+    async () => {
+      const result = runNestedVitest("suite-", { maxWorkers: 3 });
+      expect(result.status, result.output).toBe(1);
+      expect(result.output).toMatch(/Test Files\s+3 failed \(3\)/);
+      const kept = [
+        ...result.output.matchAll(
+          new RegExp(`测试库留着没删：(lyx_test_db_${session}_\\d+_(s[a-z]+)_k[a-z0-9]+)`, "g"),
+        ),
+      ].map((match) => ({ name: match[1] ?? "", label: match[2] ?? "" }));
+      try {
+        expect(kept.map((entry) => entry.label).sort(), result.output).toEqual([
+          "safter",
+          "sbefore",
+          "snested",
+        ]);
+        // 原名都腾出来了，留下的只有改了名的三个
+        const left = (await listTestDatabases({ session })).filter((name) =>
+          /_s(before|after|nested)(_|$)/.test(name),
+        );
+        expect(left.sort()).toEqual(kept.map((entry) => entry.name).sort());
+        // 留下的库里，失败之前写的数据还在
+        const outcomes: string[] = [];
+        for (const { name } of kept) {
+          const client = await connectTestDatabase(name);
+          try {
+            const rows = (
+              await client.query<{ outcome: string }>("select outcome from lyx_hooks_probe")
+            ).rows;
+            outcomes.push(...rows.map((row) => row.outcome));
+          } finally {
+            await client.end();
+          }
+        }
+        expect(outcomes.sort()).toEqual(["after-all", "before-all", "nested"]);
+      } finally {
+        const leftovers = (await listTestDatabases({ session })).filter((name) =>
+          /_s(before|after|nested)(_|$)/.test(name),
+        );
+        for (const name of leftovers) await dropTestDatabase(name);
+      }
+    },
+  );
 });
 
 describe("TestDatabaseHandle", () => {
