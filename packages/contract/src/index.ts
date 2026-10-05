@@ -21,3 +21,5 @@ export * from "./config/schemas.js";
 export * from "./config/dict-ext.js";
 // W0-14：审计日志的登记值与 jsonb 结构
 export * from "./audit/index.js";
+// W0-15 出站事件的载荷结构：按事件名取 schema
+export * from "./events/index.js";
