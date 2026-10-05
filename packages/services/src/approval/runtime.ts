@@ -111,6 +111,7 @@ export function createApproval(options: ApprovalOptions): Approval {
     events: options.events,
     bizNo: options.bizNo,
     kinds,
+    fresh: new WeakMap(),
   };
   return {
     kinds,

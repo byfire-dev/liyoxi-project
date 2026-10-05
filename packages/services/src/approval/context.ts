@@ -20,6 +20,8 @@ export interface ApprovalDeps {
   readonly bizNo: Pick<BizNoIssuer, "next">;
   /** 已校验过的登记，键是 kind */
   readonly kinds: ReadonlyMap<string, ApprovalKindRegistration>;
+  /** 各事务里刚提交的审批单：同一事务里对它的决定不再加锁（别的事务看不见它） */
+  readonly fresh: WeakMap<Tx, Set<string>>;
 }
 
 /** 四个写函数都收的两样：领域用例自己的审计内容（给了即以它为准，本模块不再补第二行）、请求元信息 */

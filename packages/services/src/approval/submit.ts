@@ -124,6 +124,7 @@ export async function submit<I>(
     if (raced !== null) throw raced;
     if (!(await insertPending(tx, row))) throw new AppError("BUSY");
   }
+  deps.fresh.set(tx, (deps.fresh.get(tx) ?? new Set<string>()).add(row.id));
 
   await deps.flow.transition(tx, ctx, {
     machine: "approval_request",

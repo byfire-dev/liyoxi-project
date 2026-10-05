@@ -110,7 +110,7 @@ await tx.run((handle) => approval.withdraw(handle, ctx, { approvalId, staff, not
 - 撤回：提交人本人；发起人已不是启用状态时由能决定这一张的员工代撤；对象失效时归属模块以系统身份调。其余 403 `APPROVAL_WITHDRAW_FORBIDDEN`。
 - 系统决定（免审批、同信用代码自动驳回、系统代撤）：`ctx.actor.type` 是 `system` 即是，不查第 2、3 步，`decided_by_staff_id` 为空、`is_decided_by_system = true`。
 - 同对象已有在途单：`submit` 抛 409 `APPROVAL_ALREADY_PENDING`，`details` 指向在审的那一张。并发的两个提交，后到的等前一个提交后同样得到它。
-- 调 `approve`、`reject`、`withdraw` 之前不要锁次序更大的行（门店、订购单、领域行）：它们要先锁员工行（20），锁序断言会拦。员工提交时的 `submit` 同理。
+- 加锁次序：员工行（20，共享锁）→ 审批单（30）→ 领域行（处理器自己锁）。员工操作要锁员工行，所以调 `approve`、`reject`、`withdraw` 之前不要锁次序更大的行（门店、订购单、领域行），锁序断言会拦；员工提交时的 `submit` 同理。系统动作与商家撤回不锁员工行：归属模块可以先 `lockRows(tx, "approval_request", [id])`、再锁自己的行，最后才调进来。本事务里刚 `submit` 的那一张不再加锁，提交后同一事务里的免审批通过不受这条限制。
 
 ## 5. 有执行步的类型
 

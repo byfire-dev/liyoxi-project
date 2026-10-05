@@ -326,6 +326,43 @@ describe("加锁顺序（验收 6）：员工行 20 → 审批单 30 → 领域�
   );
 });
 
+describe("系统动作与锁序", () => {
+  it(
+    "提交后同一事务里免审批通过：中间锁了次序更大的行也不违规；归属模块先锁审批单再锁自己的行，最后以系统身份撤回",
+    T,
+    async () => {
+      const { sample, input } = world;
+      const requester = await world.person({ role: "cs" });
+      const merchant = await world.merchant();
+      const system = sampleSystemContext("cancel.auto_execute");
+      const auto = await sample.tx.run(async (tx) => {
+        const submitted = await sample.approval.submit(tx, requester.identity, {
+          ...input.orderCancel(merchant),
+          input: { domainId: uuidv7() },
+        });
+        await lockRows(tx, "store", [merchant.storeId], "update");
+        return sample.approval.approve(tx, system, { approvalId: submitted.approvalId });
+      });
+      expect(await sample.trace(auto.approvalId)).toMatchObject({
+        status: "approved",
+        transitions: 2,
+        audits: 2,
+        events: ["approval.submitted", "approval.approved"],
+      });
+
+      const pending = await sample.submit(merchant.identity, input.channelAccount(merchant));
+      await sample.tx.run(async (tx) => {
+        await lockRows(tx, "approval_request", [pending.approvalId], "update");
+        await lockRows(tx, "store", [merchant.storeId], "update");
+        return sample.approval.withdraw(tx, sampleSystemContext("launch.void"), {
+          approvalId: pending.approvalId,
+        });
+      });
+      expect((await sample.trace(pending.approvalId)).status).toBe("withdrawn");
+    },
+  );
+});
+
 describe("登记的校验", () => {
   it("键不是审批类型、大类、执行步、去重键、单号前缀、表名写错：createApproval 时一次列全", () => {
     const base = SAMPLE_APPROVAL_KINDS.points_adjust as ApprovalKindRegistration;

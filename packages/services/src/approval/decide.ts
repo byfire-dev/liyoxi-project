@@ -90,7 +90,12 @@ interface Locked {
   readonly staffRows: ReadonlyMap<string, StaffFacts>;
 }
 
-/** 20 → 30：先锁员工行，再锁审批单，锁住之后重读。发起员工的 id 提交后不变，可以先不加锁读出来 */
+/**
+ * 20 → 30：先锁员工行，再锁审批单，锁住之后重读。发起员工的 id 提交后不变，可以先不加锁读出来。
+ * 员工行只在员工操作时锁（撤回另锁发起员工：代撤要看他是否还在职）；系统动作、商家撤回不锁员工行，
+ * 所以归属模块可以先锁审批单、再锁自己的行，最后才以系统身份调进来。
+ * 本事务里刚提交的那一张不用锁（别的事务看不见它）：提交后同一事务里的免审批通过因此不受锁序限制。
+ */
 async function lockForDecision(
   tx: Tx,
   deps: ApprovalDeps,
@@ -99,13 +104,19 @@ async function lockForDecision(
   withRequester: boolean,
 ): Promise<Locked> {
   const first = await loadApproval(tx, deps, approvalId);
-  const staffIds = [
-    ...(operator.type === "staff" ? [operator.staff.staff.id] : []),
-    ...(withRequester && first.row.requesterStaffId !== null ? [first.row.requesterStaffId] : []),
-  ];
+  const staffIds: string[] = [];
+  if (operator.type === "staff") {
+    staffIds.push(operator.staff.staff.id);
+    const requester = first.row.requesterStaffId;
+    if (withRequester && requester !== null && requester !== operator.staff.staff.id) {
+      staffIds.push(requester);
+    }
+  }
   if (staffIds.length > 0) await lockRows(tx, "staff", staffIds, "share");
   const staffRows = await staffFactsOf(tx, staffIds);
-  await lockRows(tx, "approval_request", [approvalId], "update");
+  if (deps.fresh.get(tx)?.has(approvalId) !== true) {
+    await lockRows(tx, "approval_request", [approvalId], "update");
+  }
   const row = await findApproval(tx, approvalId);
   if (row === null) throw new AppError("NOT_FOUND");
   return { row, kind: first.kind, staffRows };
