@@ -12,6 +12,10 @@
     "./testing": {
       "types": "./src/testing/index.ts",
       "default": "./src/testing/index.ts"
+    },
+    "./testing/global-setup": {
+      "types": "./src/testing/global-setup.ts",
+      "default": "./src/testing/global-setup.ts"
     }
   },
   "scripts": {
@@ -26,6 +30,7 @@
     "@liyoxi/contract": "workspace:*",
     "@liyoxi/db": "workspace:*",
     "@liyoxi/shared": "workspace:*",
+    "ioredis": "6.0.0",
     "zod": "4.6.5"
   },
   "devDependencies": {
