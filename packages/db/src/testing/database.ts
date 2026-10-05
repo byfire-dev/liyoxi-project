@@ -299,21 +299,29 @@ export async function listTestDatabases(options: ListTestDatabasesOptions = {}):
 export const TEST_SESSION_LOCK_SQL = "pg_try_advisory_lock(hashtextextended($1, 0))";
 export const testSessionLockKey = (session: string): string => `lyx_test_session:${session}`;
 
-/** 这些会话里哪几个正有一轮测试在跑（会话锁被占着） */
+/**
+ * 这些会话里哪几个正有一轮测试在跑（会话锁被占着）。
+ * 只看 pg_locks，不去抢那把锁：抢一下再放的话，恰好这时启动的一轮测试会拿不到锁，报“已经有一轮测试在跑”。
+ * 咨询锁是按库分的：globalSetup 在维护库 postgres 上占锁，这里的管理连接连的也是它。
+ * 单个 bigint 键的咨询锁在 pg_locks 里是 classid = 键的高 32 位、objid = 低 32 位、objsubid = 1。
+ */
 export async function runningTestSessions(sessions: readonly string[]): Promise<Set<string>> {
-  const running = new Set<string>();
-  await withAdmin(async (admin) => {
-    for (const session of new Set(sessions)) {
-      const key = testSessionLockKey(session);
-      const result = await admin.query<{ locked: boolean }>(
-        `select ${TEST_SESSION_LOCK_SQL} as locked`,
-        [key],
-      );
-      if (result.rows[0]?.locked !== true) running.add(session);
-      else await admin.query("select pg_advisory_unlock(hashtextextended($1, 0))", [key]);
-    }
+  const unique = [...new Set(sessions)];
+  if (unique.length === 0) return new Set();
+  const held = await withAdmin(async (admin) => {
+    const result = await admin.query<{ session: string }>(
+      `select s.session
+         from unnest($1::text[], $2::text[]) as s(session, key)
+        where exists (
+          select 1 from pg_locks l
+           where l.locktype = 'advisory' and l.granted and l.objsubid = 1
+             and l.database = (select oid from pg_database where datname = current_database())
+             and ((l.classid::bigint << 32) | l.objid::bigint) = hashtextextended(s.key, 0))`,
+      [unique, unique.map((session) => testSessionLockKey(session))],
+    );
+    return result.rows.map((row) => row.session);
   });
-  return running;
+  return new Set(held);
 }
 
 /** 清理的范围：一个会话的，或实例上全部 lyx_test_ 开头的 */
