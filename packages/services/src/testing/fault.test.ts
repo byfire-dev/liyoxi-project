@@ -11,7 +11,12 @@ import {
   deliverRepeatedly,
   runUntilCrash,
 } from "./fault/index.js";
-import { createFakeProviders, useTestDatabase, useTestRedis } from "./index.js";
+import {
+  createFakeProviders,
+  disconnectTestRedis,
+  useTestDatabase,
+  useTestRedis,
+} from "./index.js";
 
 // 连库、连 Redis、起子进程的用例：实例忙的时候（别的会话同时在跑）会慢，时限放宽，不用缺省的 5 秒
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 120_000 });
@@ -286,7 +291,7 @@ describe("Redis 不可用", () => {
         await through.set("outage:probe", "恢复之后");
         expect(await direct.get("outage:probe")).toBe("恢复之后");
       } finally {
-        through.disconnect();
+        await disconnectTestRedis(through);
         await outage.close();
       }
     },

@@ -80,6 +80,37 @@ export async function flushTestRedis(redis: Redis, prefix: string): Promise<numb
   return removed;
 }
 
+/** 等一条连接断开的时限。平时几毫秒；ioredis 自己到 2 秒还没关掉就强行关，这里再留些余量 */
+const DISCONNECT_TIMEOUT_MS = 10_000;
+
+/**
+ * 断开一条连接，等它真的断开（状态到 end）再返回。
+ * ioredis 的 disconnect() 只是发起断开：状态要等对端把连接关掉才变成 end，机器忙的时候晚到几十毫秒是常事。
+ * 自己另建的连接（BullMQ 的、订阅用的）收尾时也用它，不要 disconnect() 完就当它断了。
+ */
+export async function disconnectTestRedis(client: Redis): Promise<void> {
+  if (client.status === "end") return;
+  if (client.status === "reconnecting") {
+    // 正等着重连：socket 早就关了，之后不会再有 end 事件。disconnect() 取消重连，连接不会再起来
+    client.disconnect();
+    return;
+  }
+  await new Promise<void>((resolve, reject) => {
+    const onEnd = (): void => {
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      client.off("end", onEnd);
+      reject(
+        new Error(`Redis 连接 ${DISCONNECT_TIMEOUT_MS} 毫秒内没有断开，状态停在 ${client.status}`),
+      );
+    }, DISCONNECT_TIMEOUT_MS);
+    client.once("end", onEnd);
+    client.disconnect();
+  });
+}
+
 export interface TestRedis {
   /** 本 worker 的键前缀 */
   readonly prefix: string;
@@ -131,19 +162,22 @@ export class TestRedisHandle implements TestRedis {
     return flushTestRedis(this.#admin as Redis, this.prefix);
   }
 
-  /** 收尾：清空本前缀，断开发出去的全部连接 */
+  /**
+   * 收尾：断开发出去的全部连接，清空本前缀。返回时这些连接都已经真的断开（状态是 end）。
+   * 先断开、后清空：断干净了，就不会再有命令往这个前缀下写。
+   */
   async dispose(): Promise<void> {
     if (!this.#ready) return;
     await this.#ready.catch(() => {});
-    for (const client of this.#clients.splice(0)) client.disconnect();
+    const clients = this.#clients.splice(0);
     const admin = this.#admin;
     this.#admin = undefined;
     this.#ready = undefined;
-    if (!admin) return;
     try {
-      await flushTestRedis(admin, this.prefix);
+      await Promise.all(clients.map((client) => disconnectTestRedis(client)));
+      if (admin) await flushTestRedis(admin, this.prefix);
     } finally {
-      admin.disconnect();
+      if (admin) await disconnectTestRedis(admin);
     }
   }
 }

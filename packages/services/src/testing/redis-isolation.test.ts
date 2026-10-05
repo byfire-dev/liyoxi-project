@@ -1,9 +1,14 @@
+import { connect, createServer } from "node:net";
+import type { AddressInfo, Socket } from "node:net";
+
 import { resolveTestSession, resolveTestWorker } from "@liyoxi/db/testing";
 import { Redis } from "ioredis";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
+import { createRedisOutage } from "./fault/index.js";
 import {
   assertTestRedisPrefix,
+  disconnectTestRedis,
   flushTestRedis,
   TestRedisHandle,
   TestRedisPrefixError,
@@ -35,7 +40,7 @@ afterEach(() => {
 afterAll(async () => {
   await b.dispose();
   await direct.del(OUTSIDE);
-  direct.disconnect();
+  await disconnectTestRedis(direct);
 });
 
 describe("Redis 按键前缀隔离", () => {
@@ -111,6 +116,104 @@ describe("Redis 按键前缀隔离", () => {
       expect(await client.get("stale")).toBeNull();
     } finally {
       await handle.dispose();
+    }
+  });
+});
+
+/**
+ * 一个只做转发的口，对端关得慢：客户端发起断开之后，它拖 delayMs 毫秒才把连接关掉。
+ * 慢机器上 Redis 一侧的回应晚到就是这个样子：CI 第一次跑 test:isolation 时，收尾返回了，连接还是 ready。
+ */
+async function slowClosingProxy(delayMs: number) {
+  const target = new URL(process.env.REDIS_URL ?? "");
+  const sockets = new Set<Socket>();
+  const server = createServer({ allowHalfOpen: true }, (downstream) => {
+    const upstream = connect(Number(target.port || "6379"), target.hostname);
+    for (const socket of [downstream, upstream]) {
+      sockets.add(socket);
+      socket.on("error", () => {});
+      socket.on("close", () => sockets.delete(socket));
+    }
+    downstream.pipe(upstream, { end: false });
+    upstream.pipe(downstream, { end: false });
+    downstream.on("end", () => {
+      setTimeout(() => {
+        upstream.destroy();
+        downstream.end();
+      }, delayMs);
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const url = new URL(target.toString());
+  url.hostname = "127.0.0.1";
+  url.port = String((server.address() as AddressInfo).port);
+  return {
+    url: url.toString(),
+    close: () =>
+      new Promise<void>((resolve) => {
+        server.close(() => resolve());
+        for (const socket of sockets) socket.destroy();
+      }),
+  };
+}
+
+describe("断开连接", () => {
+  it("收尾等连接真的断开才返回：对端关得慢也一样", async () => {
+    const proxy = await slowClosingProxy(300);
+    vi.stubEnv("REDIS_URL", proxy.url);
+    try {
+      const handle = new TestRedisHandle(
+        testRedisPrefix({ worker: String(6000 + Number(worker)) }),
+      );
+      const [client, raw] = [await handle.client(), await handle.raw()];
+      await client.set("slow", "1");
+      expect(await raw.get(`${handle.prefix}slow`)).toBe("1");
+      await handle.dispose();
+      expect([client.status, raw.status]).toEqual(["end", "end"]);
+      expect(await countOf(handle.prefix)).toBe(0);
+    } finally {
+      vi.unstubAllEnvs();
+      await proxy.close();
+    }
+  });
+
+  it("disconnectTestRedis：连着的、正在连的、还没连的、已经断开的，返回时都是 end", async () => {
+    const url = process.env.REDIS_URL ?? "";
+    const ready = new Redis(url);
+    expect(await ready.ping()).toBe("PONG");
+    const connecting = new Redis(url);
+    const waiting = new Redis(url, { lazyConnect: true });
+    expect([ready.status, connecting.status, waiting.status]).toEqual([
+      "ready",
+      "connecting",
+      "wait",
+    ]);
+    await Promise.all([ready, connecting, waiting].map((client) => disconnectTestRedis(client)));
+    expect([ready.status, connecting.status, waiting.status]).toEqual(["end", "end", "end"]);
+    // 已经断开的再断一次：什么都不做
+    await disconnectTestRedis(ready);
+    expect(ready.status).toBe("end");
+  });
+
+  it("disconnectTestRedis：正等着重连的连接不再重连，不会卡住", async () => {
+    const outage = await createRedisOutage();
+    const client = new Redis(outage.url, { retryStrategy: () => 50 });
+    client.on("error", () => {});
+    try {
+      expect(await client.ping()).toBe("PONG");
+      await outage.down();
+      await vi.waitFor(() => expect(client.status).toBe("reconnecting"), {
+        timeout: 15_000,
+        interval: 10,
+      });
+      await disconnectTestRedis(client);
+      // 转发口恢复之后，重连的定时器（50 毫秒）早该到点：它已经被取消，连接没有再起来
+      await outage.up();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      expect(client.status).toBe("reconnecting");
+    } finally {
+      client.disconnect();
+      await outage.close();
     }
   });
 });
