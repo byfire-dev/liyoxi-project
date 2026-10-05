@@ -100,12 +100,12 @@ const prisma = createPrismaClient({
 
 ## 6. 系统目录比对
 
-证明“首版迁移建出来的库”与“由底稿建的参照库”结构相同（任务书 第 7 节第 2、4、5 条）。CI 的 `verify` 里每次都跑，报告是产物 `db-catalog-diff`。
+证明“首版迁移建出来的库”与“由底稿建的参照库”结构相同（任务书 第 7 节第 2、4、5 条）。CI 的 `test` 任务里每次都跑，报告是产物 `db-catalog-diff`；W0-06b 之后 CI 那一步建的参照库已是迁移后的库，那里比的是“迁移对迁移”（[说明](../../infra/ci/README.md) 第 8.4 节）。要拿底稿来比，照下面带 `--from-draft` 建参照库。
 
 ```sh
-# 参照库 lyx_schema_check：由底稿建。校验工具有自己的锁文件，先按它装一次
+# 参照库 lyx_schema_check：由底稿建，要加 --from-draft（W0-06b 起不加它是“空库上跑全部迁移”）。校验工具有自己的锁文件，先按它装一次
 (cd tools/schema-check && npm ci --ignore-scripts)
-PGHOST=localhost PGPORT=5442 PGUSER=liyoxi PGPASSWORD=lyx-local-dev python3 tools/schema-check/check.py --keep
+PGHOST=localhost PGPORT=5442 PGUSER=liyoxi PGPASSWORD=lyx-local-dev python3 tools/schema-check/check.py --from-draft --keep
 # 迁移库 lyx_migrate_check：见第 3 节
 pnpm db:catalog-diff
 ```
@@ -204,7 +204,7 @@ PGPASSWORD=lyx-local-dev psql -X -h localhost -p 5442 -U liyoxi -d postgres -c "
   - 放开一张表（多给一种权限、多许一列）：先开单独的 `gate-change` PR 把那一行改大（改已有的行，门禁改动分类判“放松”，要业主同意）；它不动迁移，各项检查照样通过。合并之后，工作包 PR 再改迁移与期望。只删掉那一行而期望里它还是受限的，算漏登记，不通过；彻底放开之后那一行可以再用门禁 PR 删掉。
   - 同一张表登记两次即不通过：加一行更宽的盖不掉原来那一行。
 - 已知的限度。`pnpm db:verify-grants` 只看角色与授权，下面这些它查不出，报告里的“通过”不含这些：
-  - 结构一类，由别的检查管：只增表的触发器被停用、被删掉，触发器函数被换成空函数；表上开了行级安全（加不加策略）。迁移一侧由系统目录比对拦（第 6 节，CI 里“参照库对新迁移出的库”）；已经部署的库上要等 W0-06b 的结构快照，在那之前没有东西拦。
+  - 结构一类，由别的检查管：只增表的触发器被停用、被删掉，触发器函数被换成空函数；表上开了行级安全（加不加策略）。迁移一侧由结构快照与约束清单比对拦（`pnpm db:snapshot:check`、`pnpm db:constraints:check`，W0-06b）；已经部署的库用 `pnpm db:constraints:check --db <库名>` 核对（只读，做法见 [说明](../../infra/ci/README.md) 第 8.2 节；还没有接进发布流程，现在是手工跑）。
   - 角色有没有被设过口令：不是超级用户的账号读不到（托管库上的管理账号通常不是）。可登录是查的。
   - 扩展带进来的视图不看（免得平台装在 `public` 里的统计视图误报）；别的模式里的函数、类型不看；别的库不看（成员关系是整个实例的，库的 `CONNECT` 只看当前这个库）。
   - 只列出、不判不通过的两种（第 7 节“请人过目”）：要人看过才算数。
