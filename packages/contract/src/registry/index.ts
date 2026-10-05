@@ -56,6 +56,8 @@ export type {
   TimerDef,
 } from "./define.js";
 export * from "./formats.js";
+// 状态机与状态列的取值清单（W0-12）：不属于 x01，不进 MODULE_REGISTRIES 与归属表
+export * from "./machines.js";
 
 /** 各模块的登记，按模块名排序 */
 export const MODULE_REGISTRIES = [

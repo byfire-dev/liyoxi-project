@@ -47,8 +47,8 @@ const repoRoot = resolve(registryDir, "../../../..");
 const readJson = (path: string) =>
   JSON.parse(readFileSync(join(repoRoot, path), "utf8")) as unknown;
 
-/** 不是模块登记的：声明形态、写法、入口 */
-const NOT_MODULE_FILES = new Set(["define.ts", "formats.ts", "index.ts"]);
+/** 不是模块登记的：声明形态、写法、入口；machines.ts 是状态机与状态列的取值清单（W0-12），不属于 x01 */
+const NOT_MODULE_FILES = new Set(["define.ts", "formats.ts", "index.ts", "machines.ts"]);
 const moduleFiles = readdirSync(registryDir)
   .filter(
     (name) => name.endsWith(".ts") && !name.endsWith(".test.ts") && !NOT_MODULE_FILES.has(name),
@@ -284,7 +284,7 @@ describe("纯常量子路径 ./registry 不带 Zod（验收 8）", () => {
     });
     const scan = importsReachableFrom(join(registryDir, "index.ts"));
     expect(scan.files.map((file) => file.slice(registryDir.length + 1)).sort()).toEqual(
-      ["define.ts", "formats.ts", "index.ts", ...moduleFiles.map((name) => `${name}.ts`)].sort(),
+      [...NOT_MODULE_FILES, ...moduleFiles.map((name) => `${name}.ts`)].sort(),
     );
     expect(scan.packages).toEqual([]);
     expect(scan.unresolved).toEqual([]);
