@@ -7,7 +7,7 @@
 // 用例失败、钩子（beforeAll、afterAll、beforeEach、afterEach）失败都算失败。
 // 改名是因为同一个 worker 编号马上会被下一个测试文件用到，不改名留不住。
 
-import { aroundAll } from "vitest";
+import { aroundAll, inject } from "vitest";
 import type { RunnerTask } from "vitest";
 import { getCurrentSuite } from "vitest/suite";
 
@@ -118,6 +118,19 @@ export class TestDatabaseHandle implements TestDatabase {
   }
 }
 
+/**
+ * 本项目挂了测试支架的 globalSetup 没有：没挂即抛错。useTestDatabase、useTestRedis 一上来先过它。
+ * 认的是 globalSetup 给出的并行数（按项目给，没挂的项目取不到）。为什么非挂不可：
+ * 模板库由它建；pnpm test:isolation --scope connected（CI 的那一步）按“挂没挂 globalSetup”认哪些项目连库、连 Redis，
+ * 用了支架却没挂的项目会被漏在外面。只连 Redis、不连库的项目同样要挂。
+ */
+export function assertTestScaffoldAttached(): void {
+  if ((inject("lyxTestMaxWorkers") as number | undefined) !== undefined) return;
+  throw new Error(
+    '本包的 vitest.config.ts 没有挂测试支架的 globalSetup：在 test 里加一行 globalSetup: ["@liyoxi/services/testing/global-setup"]（packages/services/src/testing/README.md 第 7 节）',
+  );
+}
+
 /** 这一组里有没有失败：哪条用例失败，或者哪一层的钩子失败（钩子失败记在它所在的那一组上） */
 function hasFailure(task: RunnerTask): boolean {
   if (task.result?.state === "fail") return true;
@@ -132,6 +145,7 @@ function hasFailure(task: RunnerTask): boolean {
  * @param pkg 库名里的包：db、services、api、worker
  */
 export function useTestDatabase(pkg: TestPackage, options: TestDatabaseOptions = {}): TestDatabase {
+  assertTestScaffoldAttached();
   const handle = new TestDatabaseHandle(testDatabaseName(pkg, { label: options.label }), options);
   // 这一组的任务对象：文件顶层登记时取到的是文件，describe 里登记时是那个 describe
   const collector = getCurrentSuite();

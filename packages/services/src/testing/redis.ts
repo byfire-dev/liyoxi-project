@@ -9,7 +9,12 @@
 // 连接串取环境变量 REDIS_URL（CLAUDE.md 第 9 节），不读 .env。
 // BullMQ 不认 ioredis 的 keyPrefix，要用它自己的 prefix 选项：写 `${redis.prefix}bull`，连接用 redis.raw()。
 
-import { recordTestUsage, resolveTestSession, resolveTestWorker } from "@liyoxi/db/testing";
+import {
+  assertTestScaffoldAttached,
+  recordTestUsage,
+  resolveTestSession,
+  resolveTestWorker,
+} from "@liyoxi/db/testing";
 import { Redis } from "ioredis";
 import type { RedisOptions } from "ioredis";
 import { afterAll } from "vitest";
@@ -182,8 +187,12 @@ export class TestRedisHandle implements TestRedis {
   }
 }
 
-/** 给当前测试文件本 worker 的 Redis 前缀。在文件顶层（或 describe 里）调用：它登记一个 afterAll 来清空并断开 */
+/**
+ * 给当前测试文件本 worker 的 Redis 前缀。在文件顶层（或 describe 里）调用：它登记一个 afterAll 来清空并断开。
+ * 本包的 vitest.config.ts 要挂测试支架的 globalSetup，只连 Redis、不连库的包也一样（没挂即抛错）。
+ */
 export function useTestRedis(): TestRedis {
+  assertTestScaffoldAttached();
   const handle = new TestRedisHandle(testRedisPrefix());
   afterAll(() => handle.dispose(), 60_000);
   return handle;

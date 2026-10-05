@@ -17,10 +17,13 @@ export interface NestedRun {
   output: string;
 }
 
-/** @param filter 文件名里的一段，只跑对得上的夹具 */
+/**
+ * @param filter 文件名里的一段，只跑对得上的夹具
+ * @param options.attached 给 false 时不给嵌套的一轮提供并行数，等于“没挂 globalSetup”
+ */
 export function runNestedVitest(
   filter: string,
-  options: { maxWorkers: number; env?: Record<string, string> },
+  options: { maxWorkers: number; env?: Record<string, string>; attached?: boolean },
 ): NestedRun {
   const result = spawnSync(
     process.execPath,
@@ -28,7 +31,13 @@ export function runNestedVitest(
     {
       cwd: PACKAGE_DIR,
       encoding: "utf8",
-      env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: undefined, ...options.env },
+      env: {
+        ...process.env,
+        NO_COLOR: "1",
+        FORCE_COLOR: undefined,
+        LYX_TEST_NESTED_WORKERS: options.attached === false ? "" : String(options.maxWorkers),
+        ...options.env,
+      },
       timeout: 150_000,
     },
   );
