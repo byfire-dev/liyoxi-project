@@ -45,7 +45,9 @@
     "test:isolation": "node packages/services/src/testing/isolation.mjs",
     "test:db:prune": "node packages/db/src/testing/prune.mjs",
     "machines:check": "pnpm --filter @liyoxi/shared machines:check",
-    "machines:coverage": "pnpm --filter @liyoxi/shared machines:coverage"
+    "machines:coverage": "pnpm --filter @liyoxi/shared machines:coverage",
+    "db:verify-grants": "node infra/ci/db-verify-grants.mjs",
+    "postdb:verify-managed": "node infra/ci/db-verify-grants.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",
