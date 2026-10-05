@@ -59,6 +59,8 @@ export interface TermFixtureInput {
   readonly planCode?: string;
   /** 给了即建一个预约周期，接在它后面（它得是这个主体链尾的那一期）；不给即从现在起生效的一期，并发首月 */
   readonly after?: SubscriptionTerm;
+  /** 首月发放记在谁名下；不给即系统动作 */
+  readonly ctx?: IdentityContext;
 }
 
 export interface TermFixture {
@@ -140,8 +142,14 @@ export async function openTerm(
         where: { entityId },
         data: { subStatus: "active", currentSubscriptionTermId: term.id, updatedAt: now },
       });
-      // 首月当场发放（推进会发现它已到应发时刻），顺带算好 next_due_at
-      await harness.ledger.advance(tx, entityId);
+      // 首月当场发放（履约也是这样调），顺带算好 next_due_at
+      const first = await tx.grantSchedule.findFirstOrThrow({
+        where: { subscriptionTermId: term.id, monthNo: 0 },
+      });
+      await harness.ledger.grant(tx, {
+        grantScheduleId: first.id,
+        ...(input.ctx ? { ctx: input.ctx } : {}),
+      });
     } else {
       await harness.ledger.refreshNextDue(tx, entityId);
     }

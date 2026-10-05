@@ -7,7 +7,7 @@
 import type { PAY_CHANNEL, EnumValue } from "@liyoxi/contract/enums";
 
 import type { IdentityContext, Tx } from "../../kernel/index.js";
-import { advanceAccount, grantDue, refreshNextDue, systemContext } from "./advance.js";
+import { advanceAccount, refreshNextDue } from "./advance.js";
 import type { AdvanceSummary } from "./advance.js";
 import { acquireAccount, ensureAccount } from "./context.js";
 import type { AcquireOptions, LedgerClock } from "./context.js";
@@ -72,7 +72,7 @@ export interface Ledger {
   lockAccount(tx: Tx, entityId: string): Promise<LedgerClock>;
   /** 推进到现在。wait: "skip" 而账户被别的事务占着时返回 null（每分钟扫描用） */
   advance(tx: Tx, entityId: string, options?: AcquireOptions): Promise<AdvanceSummary | null>;
-  /** 月度发放。到点的发放 advance 会自己做；履约建好周期后发首月调它 */
+  /** 月度发放。到点的发放 advance 会自己做；履约建好周期后发首月调它（可把这一笔记在入账的操作人名下） */
   grant(tx: Tx, input: GrantInput): Promise<GrantResult>;
   /** 加购入账：新建一个长期有效的加购批次。套餐已过期也照常入账（处于停用） */
   purchase(tx: Tx, input: PurchaseInput): Promise<PurchaseResult>;
@@ -112,41 +112,27 @@ export function createLedger(deps: LedgerDeps): Ledger {
           grantScheduleId: input.grantScheduleId,
         });
       }
-      const { clock, account } = await enter(tx, found.entityId);
-      // 锁内重读：进入时的推进多半已经把它发了
+      const opKey = `grant:grant_schedule:${found.id}`;
+      const clock = (await acquireAccount(tx, deps.clock, found.entityId)) as LedgerClock;
+      const replayed = (await findOperation(tx, opKey)) !== null;
+      // 发放本身由推进来做（它按逻辑时间的先后发，这一行之前到点的也一并补上）；这一行记在调用方给的操作人名下
+      await advanceAccount(tx, deps, clock, await loadAccount(tx, found.entityId), {
+        ...(input.ctx ? { grantAs: { grantScheduleId: found.id, ctx: input.ctx } } : {}),
+      });
+      const operation = await findOperation(tx, opKey);
       const schedule = await tx.grantSchedule.findUniqueOrThrow({ where: { id: found.id } });
-      const existing = await findOperation(tx, `grant:grant_schedule:${schedule.id}`);
-      if (existing !== null) {
-        return {
-          operationId: existing.id,
-          pointLotId: schedule.pointLotId as string,
-          points: schedule.points,
-          replayed: true,
-        };
-      }
-      if (
-        schedule.status !== "pending" ||
-        schedule.subscriptionTermId !== account.currentSubscriptionTermId ||
-        schedule.dueAt > clock.now
-      ) {
+      if (operation === null || schedule.pointLotId === null) {
         throw new LedgerError("guard", "只能发放当前生效周期里已到应发时刻的待发放计划", {
           grantScheduleId: schedule.id,
           status: schedule.status,
           dueAt: schedule.dueAt.toISOString(),
         });
       }
-      const term = await tx.subscriptionTerm.findUniqueOrThrow({
-        where: { id: schedule.subscriptionTermId },
-      });
-      const ctx = input.ctx ?? systemContext(account.entityId);
-      const granted = await grantDue(tx, deps, clock, account, term, schedule, ctx);
-      await refreshNextDue(tx, clock, account);
-      await selfCheck(tx, clock, granted.written);
       return {
-        operationId: granted.operationId,
-        pointLotId: granted.pointLotId,
-        points: granted.points,
-        replayed: false,
+        operationId: operation.id,
+        pointLotId: schedule.pointLotId,
+        points: schedule.points,
+        replayed,
       };
     },
 

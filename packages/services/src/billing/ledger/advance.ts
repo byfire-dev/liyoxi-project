@@ -35,12 +35,6 @@ export interface AdvanceSummary {
   readonly suspended: boolean;
 }
 
-export interface GrantOutcome {
-  readonly operationId: string;
-  readonly pointLotId: string;
-  readonly points: number;
-}
-
 export const systemContext = (entityId: string): IdentityContext =>
   createIdentityContext({ actor: { type: "system", job: ADVANCE_JOB }, entityId });
 
@@ -72,7 +66,7 @@ async function grantTitle(
 
 /**
  * 发放一行发放计划：新建套餐批次（到期 = 周期止点，成本 = 该月分摊的套餐款），计划改成已发放。
- * 逻辑时间是应发时刻。调用方保证：这一行待发放、所属周期是当前生效周期、应发时刻已到。
+ * 逻辑时间是应发时刻。只由推进调：它保证这一行待发放、所属周期是当前生效周期、应发时刻已到。
  */
 export async function grantDue(
   tx: Tx,
@@ -82,7 +76,7 @@ export async function grantDue(
   term: SubscriptionTerm,
   schedule: GrantSchedule,
   ctx: IdentityContext = systemContext(account.entityId),
-): Promise<GrantOutcome & { written: WrittenOperation }> {
+): Promise<WrittenOperation> {
   const written = await writeOperation(tx, deps, clock, account, {
     opKey: `grant:grant_schedule:${schedule.id}`,
     opType: "grant",
@@ -138,12 +132,7 @@ export async function grantDue(
     storeId: null,
   });
   await reached(deps, "event.emit");
-  return {
-    operationId: written.id,
-    pointLotId: written.lotIds[0] as string,
-    points: schedule.points,
-    written,
-  };
+  return written;
 }
 
 const subscriptionEvent = (
@@ -338,12 +327,18 @@ export async function refreshNextDue(
   return next;
 }
 
+export interface AdvanceOptions {
+  /** 这一行发放计划若在这次推进里发放，记在这个操作人名下（履约发首月）；其余都是系统动作 */
+  readonly grantAs?: { readonly grantScheduleId: string; readonly ctx: IdentityContext };
+}
+
 /** 推进到账本时钟为止。调用方已持有账户锁；account 是刚读出的账户状态，会被改成推进之后的值 */
 export async function advanceAccount(
   tx: Tx,
   deps: LedgerDeps,
   clock: LedgerClock,
   account: AccountState,
+  options: AdvanceOptions = {},
 ): Promise<AdvanceSummary> {
   const done = { granted: 0, expired: 0, rolledOver: 0, suspended: false };
   let last: WrittenOperation | undefined;
@@ -363,7 +358,8 @@ export async function advanceAccount(
       orderBy: { monthNo: "asc" },
     });
     if (due) {
-      last = (await grantDue(tx, deps, clock, account, term, due)).written;
+      const ctx = options.grantAs?.grantScheduleId === due.id ? options.grantAs.ctx : undefined;
+      last = await grantDue(tx, deps, clock, account, term, due, ctx);
       done.granted += 1;
       continue;
     }
