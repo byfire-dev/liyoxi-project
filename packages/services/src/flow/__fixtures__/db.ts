@@ -76,9 +76,9 @@ export async function insertApproval(db: Db): Promise<{ id: string; staffId: str
   const id = uuidv7();
   await db.$executeRawUnsafe(
     `INSERT INTO approval_request (id, kind, category, subject_type, subject_id, status, summary_snapshot,
-       submit_actor_type, submit_actor_id, submit_client, requester_staff_id, submitted_at, created_at, updated_at)
+       submit_actor_type, submit_actor_id, submit_client, requester_staff_id, dedupe_key, submitted_at, created_at, updated_at)
      VALUES ($1::uuid, 'finance_config_change', 'approval', 'finance_config_revision', $2::uuid, 'pending',
-       '{"title":"样例审批"}'::jsonb, 'staff', $3::uuid, 'admin', $3::uuid, $4::timestamptz, $4::timestamptz, $4::timestamptz)`,
+       '{"title":"样例审批"}'::jsonb, 'staff', $3::uuid, 'admin', $3::uuid, 'lyxtest:' || $1, $4::timestamptz, $4::timestamptz, $4::timestamptz)`,
     id,
     uuidv7(),
     staffId,
