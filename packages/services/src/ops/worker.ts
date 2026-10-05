@@ -4,6 +4,8 @@
 import { createPrismaClient } from "@liyoxi/db";
 import type { PrismaClient } from "@liyoxi/db";
 
+import { advanceDueAccounts, createLedger } from "../billing/index.js";
+import type { AdvanceSweepOptions, AdvanceSweepResult } from "../billing/index.js";
 import { consumeDelivery, createEvents, dispatchDue, EXPAND_BATCH_SIZE } from "../events/index.js";
 import type {
   ConsumeOutcome,
@@ -97,6 +99,8 @@ export interface WorkerServices {
   runTimer(ref: TimerRef): Promise<RunTimerOutcome>;
   /** 周期任务补登记的一轮 */
   ensureRecurring(): Promise<EnsureRecurringResult>;
+  /** 账务推进的一轮（循环 billing_advance，W1-10）：next_due_at 已到的主体逐个 advance，被占着的跳过 */
+  advanceBilling(options?: AdvanceSweepOptions): Promise<AdvanceSweepResult>;
 }
 
 const silent: ProviderLogger = { info: () => {}, warn: () => {}, error: () => {} };
@@ -123,6 +127,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   // ops 的周期任务与违规上报端口要连接、时钟与装配结果（W0-24）
   bindOps({ db: prisma, tx, clock, assembly });
   const delivery = { tx, subscribers: events.subscribers, channel, alerts };
+  // 账本（W1-10）：每分钟扫描用它推进到点的主体
+  const ledger = createLedger({ clock, events });
   const timing = { tx, assembly, registry: timers.registry, clock, alerts, channel };
   return {
     assembly,
@@ -144,5 +150,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     scan: (scanOptions) => scanDue(timing, scanOptions),
     runTimer: (ref) => runTimer(timing, ref),
     ensureRecurring: () => tx.run((handle) => timers.ensureRecurring(handle, clock.now())),
+    advanceBilling: (sweepOptions) =>
+      advanceDueAccounts({ db: prisma, tx, clock, ledger, alerts }, sweepOptions),
   };
 }
