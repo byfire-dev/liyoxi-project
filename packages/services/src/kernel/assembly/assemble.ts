@@ -228,11 +228,13 @@ function checkStatic(all: Everything, log: IssueLog): void {
     const at = [item.module];
     const add = (reason: string): void => log.add("invariant", item.code, at, reason);
     if (!INVARIANT_CODE.test(item.code)) add("编号的写法不对：<命名空间>.<编号>");
-    if (!INVARIANT_SEVERITIES.includes(item.severity)) add("severity 只能是 P1、P2");
+    if (!INVARIANT_SEVERITIES.includes(item.severity)) {
+      add(`severity 只能是 ${INVARIANT_SEVERITIES.join("、")}`);
+    }
     const modes: readonly string[] = Array.isArray(item.modes) ? item.modes : ["?"];
     const allowed: readonly string[] = INVARIANT_MODES;
     if (modes.some((mode) => !allowed.includes(mode)) || new Set(modes).size !== modes.length) {
-      add("modes 只能取 quick、full，且不重复");
+      add(`modes 只能取 ${allowed.join("、")}，且不重复`);
     }
     if (item.every !== undefined && !INVARIANT_EVERY.includes(item.every)) {
       add("every 只能是 hour、week");

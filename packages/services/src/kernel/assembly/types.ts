@@ -6,6 +6,10 @@
 // 后面的包要给某一类加字段（节奏、模式、租期、关键类……）：在这里只增可选字段，不改已有字段。
 // 处理函数拿到的对象（DeliveredEvent、FiredTimer、各个 Context）同理：只增字段。
 // 名字在不在契约的登记里、关键类与契约一不一致，不在这里管：由 events（W0-15）、timers（W0-17）在装配后对照。
+// 落库的取值（不变量的级别与模式、定时器的结果）只从契约的枚举来，不在这里另写一份。
+import { INVARIANT_RUN_MODE, INVARIANT_VIOLATION_SEVERITY } from "@liyoxi/contract/enums";
+import type { EnumValue, TIMER_STATUS } from "@liyoxi/contract/enums";
+
 import type { AppEnv } from "../env.js";
 import type { Tx } from "../tx.js";
 
@@ -54,8 +58,10 @@ export interface FiredTimer {
   readonly payload: Readonly<Record<string, unknown>> | null;
 }
 
-/** 处理结果：fired 已执行；skipped 条件已不成立而跳过 */
-export const TIMER_OUTCOMES = ["fired", "skipped"] as const;
+/** 处理结果：fired 已执行；skipped 条件已不成立而跳过。是契约 timer.status 取值里处理器能给出的两个 */
+export const TIMER_OUTCOMES = ["fired", "skipped"] as const satisfies readonly EnumValue<
+  typeof TIMER_STATUS
+>[];
 export type TimerOutcome = (typeof TIMER_OUTCOMES)[number];
 
 export interface TimerHandlerRegistration extends EnvScoped {
@@ -137,11 +143,12 @@ export function implementKeyed<T>(
 
 // ---------- ⑤ 不变量 ----------
 
-export const INVARIANT_SEVERITIES = ["P1", "P2"] as const;
-export type InvariantSeverity = (typeof INVARIANT_SEVERITIES)[number];
-/** quick：只查最近有变动的主体；full：全量（D7 第 9.6 节） */
-export const INVARIANT_MODES = ["quick", "full"] as const;
-export type InvariantMode = (typeof INVARIANT_MODES)[number];
+/** 级别：契约的 invariant_violation.severity */
+export const INVARIANT_SEVERITIES = INVARIANT_VIOLATION_SEVERITY.values;
+export type InvariantSeverity = EnumValue<typeof INVARIANT_VIOLATION_SEVERITY>;
+/** quick：只查最近有变动的主体；full：全量（D7 第 9.6 节）。契约的 invariant_run.mode */
+export const INVARIANT_MODES = INVARIANT_RUN_MODE.values;
+export type InvariantMode = EnumValue<typeof INVARIANT_RUN_MODE>;
 /** hour：只在每小时第一次 quick 运行里执行；week：只在周一的 full 运行里执行（15 分组 第 2.4 节） */
 export const INVARIANT_EVERY = ["hour", "week"] as const;
 export type InvariantEvery = (typeof INVARIANT_EVERY)[number];
