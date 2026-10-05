@@ -123,6 +123,21 @@ describe("Tx 是带品牌的类型", () => {
     expect(() => txState(prisma as unknown as Tx)).toThrow(TypeError);
   });
 
+  it("句柄的类型上没有 $transaction：Prisma 的事务客户端自带它（保存点式的嵌套事务），内核不让用", async () => {
+    // Prisma 自己的事务客户端类型上是有的：下面这一行编译得过
+    type OnPrisma = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0]["$transaction"];
+    const onPrisma: OnPrisma | undefined = undefined;
+    expect(onPrisma).toBeUndefined();
+    // @ts-expect-error Tx 去掉了 $transaction：成员访问编译不过
+    const member = (handle: Tx): unknown => handle.$transaction;
+    // @ts-expect-error 解构也编译不过
+    const destructured = ({ $transaction }: Tx): unknown => $transaction;
+    // 运行时对象上它还在（品牌与去掉的成员都只在类型上）：硬转去调拦不住，说明第 8 节写明了
+    const atRuntime = await tx.run(async (handle) => typeof member(handle));
+    expect(atRuntime).toBe("function");
+    expect(destructured).toBeTypeOf("function");
+  });
+
   it("事务结束之后句柄作废", async () => {
     let leaked: Tx | undefined;
     await tx.run(async (handle) => {

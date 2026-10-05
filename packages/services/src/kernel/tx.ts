@@ -2,7 +2,8 @@
 // 依据：01 第 5 节调用规则 2、3，第 7.1 节；ADR-005、ADR-012；D7 第 2.3 节第 4、5 条，第 8.3 节。
 //
 //   1. 全仓只有这里调 prisma.$transaction（lint 规则拦别处）。改库的服务函数第一个参数写 tx: Tx；
-//      Tx 带品牌，普通 Prisma 客户端传不进去。只有用例函数调 run；run 里再 run 即抛错。
+//      Tx 带品牌，普通 Prisma 客户端传不进去；类型上去掉了 $transaction（Prisma 自带的嵌套事务不让用）。
+//      只有用例函数调 run；run 里再 run 即抛错。
 //   2. 死锁（40P01）、序列化失败（40001）、锁等待超时（55P03）各重试 TX_RETRIES 次，耗尽报 BUSY；
 //      事务超时（Prisma P2028）不重试，报 BUSY；语句超时（57014）不重试，报 UPSTREAM_TIMEOUT。
 //      重试是把用例函数体整个再跑一遍：函数体里不得有事务外的副作用（发请求、改内存里的共享状态、入队）。
@@ -17,10 +18,16 @@ import type { AppEnv } from "./env.js";
 import { AppError } from "./errors.js";
 
 declare const TX_BRAND: unique symbol;
+type Branded = { readonly [TX_BRAND]: true };
 /** 借自参考工程 identity.service.ts 的写法：从 $transaction 的回调参数取事务客户端的类型 */
 type TxClient = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
-/** 事务句柄。只有 run 给得出来；品牌只在类型上，运行时就是 Prisma 的事务客户端 */
-export type Tx = TxClient & { readonly [TX_BRAND]: true };
+/**
+ * 事务句柄。只有 run 给得出来；品牌只在类型上，运行时就是 Prisma 的事务客户端。
+ * 类型上去掉了 $transaction：Prisma 7.9.1 的事务客户端自带它（类型上公开；运行时发 SAVEPOINT prisma_sp_N，是保存点式的嵌套事务）。
+ * 用了它，内核不知道有这层保存点（锁序记录不跟着退），“开事务只有一个入口”也落空。局部回滚一律走 savepoint。
+ * 运行时对象上它还在：硬转成 any 去调拦不住，靠类型、lint 与复审。
+ */
+export type Tx = Omit<TxClient, "$transaction"> & Branded;
 
 /** D7 第 8.3 节：事务超时 10 秒、等连接 3 秒；批处理声明自己的上限，至多 60 秒（只许在 worker 用） */
 export const TX_TIMEOUT_MS = 10_000;
@@ -160,7 +167,9 @@ export function createTxRunner({ prisma, appEnv, report }: TxRunnerOptions): TxR
               const state: TxState = { open: true, savepoints: 0, held: [], violate };
               states.set(client, state);
               try {
-                const result = await scope.run(state, () => fn(client as Tx));
+                // 品牌只在这里贴：先收窄成带品牌的事务客户端，再当成去掉 $transaction 的句柄给出去
+                const handle: Tx = client as TxClient & Branded;
+                const result = await scope.run(state, () => fn(handle));
                 await client.$queryRawUnsafe("SELECT 1");
                 return result;
               } finally {
