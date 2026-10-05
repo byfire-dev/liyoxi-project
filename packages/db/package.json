@@ -16,6 +16,10 @@
     "./testing/global-setup": {
       "types": "./src/testing/global-setup.ts",
       "default": "./src/testing/global-setup.ts"
+    },
+    "./testing/standalone": {
+      "types": "./src/testing/standalone.ts",
+      "default": "./src/testing/standalone.ts"
     }
   },
   "scripts": {

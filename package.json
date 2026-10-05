@@ -57,7 +57,11 @@
     "db:constraints:check": "node infra/ci/db-constraints.mjs",
     "db:partitions:assert": "node infra/ci/db-partition-assert.mjs",
     "db:migration-lint": "node infra/ci/migration-lint.mjs",
-    "db:draft-freeze:check": "node infra/ci/draft-freeze.mjs"
+    "db:draft-freeze:check": "node infra/ci/draft-freeze.mjs",
+    "redis:compat": "pnpm --filter @liyoxi/worker redis:compat",
+    "test:db:seeded": "pnpm --filter @liyoxi/services seeded-db",
+    "weapp:build": "pnpm --filter @liyoxi/weapp build",
+    "weapp:shots": "pnpm --filter @liyoxi/weapp shots"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",

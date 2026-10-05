@@ -21,6 +21,9 @@ import {
   testDatabaseUrl,
 } from "./database.js";
 import type { TestConnectionOptions, TestPackage } from "./database.js";
+// 只为类型：inject("lyxTestMaxWorkers") 的键是 global-setup.ts 里对 Vitest 的类型扩充。别的包（apps/api、apps/worker）
+// 经 @liyoxi/services/testing 引到本文件时，它们的类型检查里没有 global-setup.ts，不带这一行就认不得那个键（W0-22）
+import type {} from "./global-setup.js";
 
 /**
  * 收尾钩子的时限。删库平时不到一秒，但它要等数据库做一次检查点：
@@ -33,6 +36,11 @@ export interface TestDatabaseOptions extends TestConnectionOptions {
   label?: string;
   /** Prisma 客户端的连接数上限，缺省 4 */
   max?: number;
+  /**
+   * 从哪个模板库拷：给一个函数，建库与每次重置之前调它拿模板库名（W0-25）。
+   * 缺省是本会话的模板库（只跑了迁移）；带种子的库用它指到派生模板库（derived.ts）
+   */
+  template?: () => Promise<string>;
 }
 
 export interface TestDatabase {
@@ -65,9 +73,14 @@ export class TestDatabaseHandle implements TestDatabase {
     return this.#created !== undefined;
   }
 
+  /** 删掉重建：从选项指的模板库拷，没指就用本会话的模板库 */
+  async #rebuild(): Promise<void> {
+    await resetTestDatabase(this.name, { template: await this.#options.template?.() });
+  }
+
   #ensure(): Promise<void> {
     // 同名的库还在，说明上一轮没收尾（进程被杀）：删掉重建
-    this.#created ??= resetTestDatabase(this.name);
+    this.#created ??= this.#rebuild();
     return this.#created;
   }
 
@@ -90,7 +103,7 @@ export class TestDatabaseHandle implements TestDatabase {
 
   async reset(): Promise<void> {
     await this.#disconnect();
-    this.#created = resetTestDatabase(this.name);
+    this.#created = this.#rebuild();
     await this.#created;
   }
 

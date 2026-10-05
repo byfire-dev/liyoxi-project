@@ -3,3 +3,5 @@
 
 export * from "./database.js";
 export * from "./worker.js";
+// W0-25：派生模板库（带种子的库靠它）、不靠模板的迁移库
+export * from "./derived.js";

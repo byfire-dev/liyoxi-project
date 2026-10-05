@@ -1,3 +1,21 @@
 {
-  "extends": "../../packages/config/tsconfig/taro-react18.json"
+  "extends": "../../packages/config/tsconfig/taro-react18.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    // 这里写了 paths，预设里钉 React 类型的四行就被整体顶掉，照抄在下面（pnpm check:type-hoist 会拦；见 infra/ci/README.md 第 7 节）。
+    // vite 是同一回事：@tarojs/taro 的类型（types/compile/config/h5.d.ts）写 import "vite" 而自己不声明它，不钉的话 tsc 会到
+    // pnpm 的提升目录里去找，那里放的是小程序的 4 还是后台、下载页的 8 不保证。钉到小程序自己装的 4，也就是 Taro 实际用的那一份。
+    // paths 对程序里每个文件都生效：单测用的 vitest（根上装的，跑在 vite 8 上）的类型里 import "vite" 也落到这一份上，
+    // 只有 4 里没有的子路径 vite/module-runner 照旧走 vitest 自己的依赖（不经提升目录）。只影响 tsc，构建与单测不读这里的 paths。
+    "paths": {
+      "@/*": ["./src/*"],
+      "react": ["${configDir}/node_modules/@types/react"],
+      "react/*": ["${configDir}/node_modules/@types/react/*"],
+      "react-dom": ["${configDir}/node_modules/@types/react-dom"],
+      "react-dom/*": ["${configDir}/node_modules/@types/react-dom/*"],
+      "vite": ["${configDir}/node_modules/vite"]
+    },
+    "types": ["@tarojs/taro", "node"]
+  },
+  "include": ["./src", "./types", "./config", "./vitest.config.ts"]
 }

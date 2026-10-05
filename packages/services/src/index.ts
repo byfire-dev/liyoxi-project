@@ -39,3 +39,44 @@ export type { Flow, FlowOptions, TransitionInput, TransitionResult } from "./flo
 // W0-21 播种：运行器与六条配置类不变量的 SQL 断言（用法见 seed.ts 开头的注释）
 export { checkSeedAssertions, runSeed, SEED_MODULES, seedAssertions } from "./seed.js";
 export type { SeedDeps, SeedReport } from "./seed.js";
+// W0-23 任务进程：环境与时钟、队列封装、租约、worker 的服务装配，以及队列任务带的两种引用
+export { bullPrefix, createQueueChannel, EnvError, loadEnv, systemClock } from "./kernel/index.js";
+export type { AppEnv, Clock, Env, LogLevel, QueueChannel, QueueConsumer } from "./kernel/index.js";
+export {
+  buildWorkerServices,
+  connectWorkerDatabase,
+  createWorkerLease,
+  LEASE_RENEW_MS,
+} from "./ops/index.js";
+export type { WorkerLease, WorkerServices, WorkerServicesOptions } from "./ops/index.js";
+export type { DeliveryRef } from "./events/index.js";
+export type { TimerRef } from "./timers/index.js";
+
+// W0-22 进程运行时：api 与 worker 启动时各建一次；日志的唯一构造；启动自检
+export { createRuntime, DB_POOLS, runStartupChecks, StartupCheckError } from "./runtime.js";
+export type { DbPoolSettings, Runtime, RuntimeOptions, StartupCheck } from "./runtime.js";
+export { createLogger, LOG_CODE_CONTAINERS, LOG_REDACT_KEYS } from "./logger.js";
+export type { Logger, LoggerOptions } from "./logger.js";
+// W0-22 接口层要用的内核件：业务错误、身份上下文、幂等上下文、主键（环境 loadEnv、EnvError 与 Clock 等类型在上面 W0-23 的块里已导出）
+export {
+  AppError,
+  assertIdempotencyUsed,
+  createIdempotencyContext,
+  createIdentityContext,
+  isAppError,
+  isUuid,
+  KernelViolation,
+  uuidv7,
+} from "./kernel/index.js";
+export type {
+  Actor,
+  ErrorSymbol,
+  IdempotencyContext,
+  IdentityContext,
+  IdentityContextInput,
+  Tx,
+  TxRunner,
+  TxRunOptions,
+} from "./kernel/index.js";
+// W0-22 探活的响应结构（h01 第 2.5 节）
+export type { FinanceHealth, FlowHealth, Health, HealthSummary } from "./ops/index.js";

@@ -200,6 +200,8 @@
 | `pnpm db:partitions:assert`（加 `--db <库>` 换一个库） | 分区断言：兜底分区在且为空，当月与未来 3 个月的分区在，子表上的触发器齐全。只读。本地长期留着的 `lyx_migrate_check` 过了月初会红，删掉重建 |
 | `pnpm db:migration-lint`（加 `--base <git 引用>`，默认 `origin/main`） | 迁移规范检查：`DROP`、`RENAME`、`ALTER … TYPE`、不带默认值的 `SET NOT NULL` 要带一行 `-- lyx:allow <理由>`；已经合并的迁移不能改。不连库。两种不用标记的情形见 [脚本](infra/ci/migration-lint.mjs) 开头的注释 |
 | `pnpm db:draft-freeze:check` | 草稿冻结守卫：`docs/data-model/schema.prisma` 与 `constraints/` 的 sha256 等于登记值（`infra/ci/draft-freeze.sha256`）。不连库 |
+| `pnpm --filter @liyoxi/worker build`，然后 `node apps/worker/dist/index.js`（加 `--check` 只做装配与自检） | 构建并起任务进程：谁持有数据库租约谁跑四个循环与两个队列的消费。`--check` 通过即以 0 退出，要 `DATABASE_URL` 指向跑过迁移的库（本地用 `lyx_migrate_check`）。用例 `pnpm --filter @liyoxi/worker test`，要本地的 PostgreSQL 与 Redis。见 [README](apps/worker/README.md) |
+| `REDIS_COMPAT_URL=<连接串> pnpm redis:compat` | 托管 Redis 与队列库的兼容脚本（验证项 V1）：七项逐项给结论并出一份 JSON 报告，连接串只从这个环境变量读、不落盘不打印。参数见 [脚本](apps/worker/src/cli/redis-compat.ts) 开头的注释；业主怎么跑见 [v01-managed-redis.md](docs/plan/external-verification/v01-managed-redis.md) |
 | `pnpm admin:build`、`pnpm portal:build` | 后台、下载页的生产构建（产物在各自的 `dist/app`），随后查产物：文件名带内容哈希、写入了构建号、不含夹具。见 [README](apps/admin/README.md) |
 | `pnpm admin:e2e` | 后台 Playwright 冒烟：先出一份带样例页的构建，起它的预览，走一条用例，出外壳与三种骨架的截图（`apps/admin/dist/e2e-shots`）。浏览器怎么备见 [README](apps/admin/README.md) |
 | `pnpm --filter @liyoxi/admin test`、`pnpm --filter @liyoxi/portal test` | 后台、下载页的单测。根上的 `pnpm test` 不含这两个应用：它们的单测与构建共用各自的 `vite.config.ts` |
@@ -225,6 +227,15 @@
 | `pnpm --filter @liyoxi/services exec vitest run src/timers/ src/sla/ src/kernel/ports/` | 只跑定时器、时限与五个端口的用例：`arm` 的状态机表与并发登记、改期与按前缀取消、周期任务补登记与栅格时刻的性质测试、登记对照契约、跨节假日的时限与时限快照、端口没人实现时走空实现。除 `schedule`、`registry` 两份外都要本地的 PostgreSQL 与 `DATABASE_URL`。用法见 [timers](packages/services/src/timers/README.md)、[sla](packages/services/src/sla/README.md)、[ports](packages/services/src/kernel/ports/README.md) 三份 README |
 | `pnpm --filter @liyoxi/services exec vitest run src/flow/` | 只跑 flow（状态迁移）的用例：迁移表逐行驱动、同事务、非法迁移被拒、锁序、审计恰一行、事件的三个迁移键、工作分钟端口、`flow.I12` 与状态列自检，两条连接同迁一个对象的并发测试，随机事件序列的性质测试（固定种子、200 轮）。连真库。用法、状态机怎么登记、种子与轮次的改法见 [README](packages/services/src/flow/README.md) |
 | `pnpm db:seed` | 播种：对 `DATABASE_URL` 指的、跑完迁移的库，把缺的初始行插进去（8 个角色、通知场景与通道绑定、开关、字典、清单模板、协议清单、订阅槽位、短信模板、价目初始行、估值口径、工作日历、站点配置初始版），再跑六条配置类不变量的断言，有违规即非 0 退出。没有才插、已有的行不改，可以反复跑；测试库不带种子。用法见 [脚本](packages/services/scripts/seed.ts) 与 [运行器](packages/services/src/seed.ts) 开头的注释 |
+| `pnpm --filter @liyoxi/api build` | api 的构建：出 `apps/api/dist/server.js` 与 `check-env.js`（`@liyoxi/*` 内联，第三方包运行时解析），构建完核对产物引到的第三方包都已在 `apps/api/package.json` 里声明。起它：`node apps/api/dist/server.js --port 3000`（要连接参数）。见 [README](apps/api/README.md) 第 5 节 |
+| `pnpm exec vitest run --project api` | 只跑 `apps/api` 的用例（也在 `pnpm test` 里）：接口层、幂等、声明即挂载、探活、构建产物起得来；顺带写出已挂载清单 `apps/api/dist/mounted-operations.json`（`node infra/ci/landed.mjs` 读它）。要连接参数。接口测试支架的用法见 [README](apps/api/README.md) 第 2 节与 `apps/api/src/testing/index.ts` 开头的注释 |
+| `pnpm test:db:seeded`（加 `--name <库名>` 换一个 `lyx_test_` 开头的名字） | 一条命令得到带种子的干净库：建一个测试库（已存在即删掉重建），跑全部迁移与 `pnpm db:seed` 的种子，核对六条断言，打印库名。要本地的 PostgreSQL 与 `DATABASE_URL`；演示、手工排查用，用完 `pnpm test:db:prune`。测试文件里要带种子的库写 `useSeededDatabase("<包>")`，造数据用 `createFactories`，都从 `@liyoxi/services/testing` 引：见 [README](packages/services/src/testing/data/README.md) |
+| `pnpm weapp:build` | 出小程序包 `apps/weapp/dist/`，由模板生成 `project.config.json`（不入库），再过体积门禁；超限即失败。AppID、接口基址等经环境变量给，都有缺省，不读 `.env`。见 [README](apps/weapp/README.md) |
+| `node infra/ci/check-mp-size.mjs apps/weapp/dist` | 小程序体积门禁：主包 ≤1,500KB、各分包 ≤800KB，打印各包体积。口径见 [脚本](infra/ci/check-mp-size.mjs) 开头的注释 |
+| `pnpm --filter @liyoxi/weapp test` | 小程序的用例：请求层、四个端上封装、页面清单，在 Node 里跑。根上的 `pnpm test` 不含它。只跑一个文件时后面加路径，如 `src/lib/request.test.ts` |
+| `pnpm weapp:shots`（只出一页加 `-- --page pages/home/index`） | 小程序页面截图：出一份 H5 构建，用 Chromium 按 375 宽给已建的页各截一张，产物在 `apps/weapp/shots/dist/png/`。本机没装 Playwright 自带的浏览器时前面加 `LYX_E2E_CHANNEL=chrome`。H5 是近似，与真机的差异见 [README](apps/weapp/README.md) 末节 |
+| `pnpm weapp:shots -- --component Button`（可给多次） | 只出某个组件的预览图 `apps/weapp/shots/dist/png/gallery__<组件名>.png`（整页）。不带参数时，页面之外另给组件陈列的目录页与每个组件各出一张。组件名是 `apps/weapp/src/components/` 下的目录名。见 [README](apps/weapp/README.md)“通用组件” |
+| `WEAPP_GALLERY=1 pnpm weapp:build` | 出带组件陈列分包（`sub/gallery`，开发用）的小程序包，看样时用；同样过体积门禁。不给这个变量时，生产的小程序包不带陈列分包（H5 截图构建与开发构建一律带） |
 
 本地连接参数：配置只经 `loadEnv`（`packages/services/src/kernel/env.ts`）读环境变量，会话与测试不建、不读 `.env`，在命令前或 shell 里给出。取值出处是 [local.yml](infra/compose/local.yml)，账号与口令是固定的开发值，只对本机这套容器有效；CI 的服务容器用同一组值。
 
