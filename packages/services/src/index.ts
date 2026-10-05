@@ -39,3 +39,15 @@ export type { Flow, FlowOptions, TransitionInput, TransitionResult } from "./flo
 // W0-21 播种：运行器与六条配置类不变量的 SQL 断言（用法见 seed.ts 开头的注释）
 export { checkSeedAssertions, runSeed, SEED_MODULES, seedAssertions } from "./seed.js";
 export type { SeedDeps, SeedReport } from "./seed.js";
+// W0-23 任务进程：环境与时钟、队列封装、租约、worker 的服务装配，以及队列任务带的两种引用
+export { bullPrefix, createQueueChannel, EnvError, loadEnv, systemClock } from "./kernel/index.js";
+export type { AppEnv, Clock, Env, LogLevel, QueueChannel, QueueConsumer } from "./kernel/index.js";
+export {
+  buildWorkerServices,
+  connectWorkerDatabase,
+  createWorkerLease,
+  LEASE_RENEW_MS,
+} from "./ops/index.js";
+export type { WorkerLease, WorkerServices, WorkerServicesOptions } from "./ops/index.js";
+export type { DeliveryRef } from "./events/index.js";
+export type { TimerRef } from "./timers/index.js";
