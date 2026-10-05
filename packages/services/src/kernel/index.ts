@@ -84,3 +84,15 @@ export {
 export type { BizNoFormatOptions, BizNoIssuer, BizNoIssuerOptions, BizNoPrefix } from "./biz-no.js";
 // W0-07b 服务装配：六类注册接口、端口、收集与装配
 export * from "./assembly/index.js";
+
+// W0-20 三段式用例：占用、外呼、落结果的统一流水；外呼前钩子（接到 Provider 工厂的 beforeCall）
+export { IDEMPOTENCY_LEASE_MS } from "./idempotency.js";
+export { createThreePhaseRunner, guardProviderCall } from "./three-phase/index.js";
+export type {
+  ThreePhaseClaim,
+  ThreePhaseFailure,
+  ThreePhaseRunner,
+  ThreePhaseRunnerOptions,
+  ThreePhaseRunOptions,
+  ThreePhaseUseCase,
+} from "./three-phase/index.js";
