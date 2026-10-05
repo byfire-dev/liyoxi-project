@@ -410,6 +410,11 @@ describe("ci.yml", () => {
       "node infra/ci/natural-constraints.mjs",
       "node infra/ci/landed.mjs --check --report --out packages/contract/dist/pending-routes.md",
       "node infra/ci/plan-routes.mjs --check --summary packages/contract/dist/route-milestones.md",
+      // W0-23：只构建任务进程这一个包（“构建”在 web，产物过不来），下面两步跑它的产物
+      "pnpm --filter @liyoxi/worker build",
+      // W0-23：任务进程的产物自检；兼容脚本在 CI 的 Redis 上跑通
+      "node apps/worker/dist/index.js --check",
+      "pnpm redis:compat --jobs 500 --idle-minutes 0.05",
     ],
     // infra 项目的用例：连库的几份自己建临时库，不用生成的客户端；W0-10 约束名核对的用例只读迁移库，所以先建一份
     "test-infra": [INSTALL, MIGRATE, "pnpm test --project infra"],
@@ -424,6 +429,8 @@ describe("ci.yml", () => {
     // 构建；W0-28：后台与下载页的单测、构建、页面清单；后台冒烟按受影响范围跑（它后面上传截图的一步没有 run）
     web: [
       INSTALL,
+      // W0-23：“构建”连任务进程一起构建，打包要读生成的数据库客户端
+      DB_GENERATE,
       "pnpm -r --if-present build",
       "pnpm --filter @liyoxi/admin --filter @liyoxi/portal test",
       "pnpm admin:build && pnpm portal:build",
@@ -441,6 +448,9 @@ describe("ci.yml", () => {
       'node infra/ci/check-release-age.mjs --since "$SINCE" --registry https://registry.npmjs.org/',
       // 门禁自测里“枚举与库 CHECK 一致”的反例要读迁移库
       MIGRATE,
+      // W0-23：门禁自测里任务进程的两例跑的是构建产物
+      DB_GENERATE,
+      "pnpm --filter @liyoxi/worker build",
       "pnpm gates:selftest",
     ],
   };

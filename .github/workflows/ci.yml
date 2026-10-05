@@ -274,6 +274,22 @@ jobs:
             packages/contract/dist/pending-routes.md
           if-no-files-found: error
           retention-days: 30
+      # 下面两步（W0-23）跑的是任务进程的构建产物。“构建”一步在 web 任务，产物过不来：这里只构建任务进程这一个包
+      #（esbuild 把工作区的源码包连同生成的数据库客户端打进去，本任务开头已生成）
+      - name: 构建任务进程（产物自检用）
+        run: pnpm --filter @liyoxi/worker build
+      # 任务进程的产物能启动（W0-23）：--check 只做装配与自检——登记与契约对得上、契约登记的聚合类型都是库里存在的表，
+      # 不连 Redis、不抢租约。产物是前面“构建”一步出的；读的是“空库跑全部迁移”一步建的 lyx_migrate_check，只读
+      - name: worker 产物自检
+        env:
+          DATABASE_URL: postgresql://liyoxi:lyx-local-dev@localhost:5442/lyx_migrate_check
+        run: node apps/worker/dist/index.js --check
+      # 托管 Redis 与队列库的兼容脚本（W0-23；验证项 V1）在本任务的 Redis 上跑通：脚本本身没坏，七项里自动的几项都过。
+      # 条数与空闲时长缩到最小；主从切换、写满两项在这里记“需人工”。有“不通过”即非 0 退出
+      - name: redis:compat
+        env:
+          REDIS_COMPAT_URL: redis://localhost:6389/0
+        run: pnpm redis:compat --jobs 500 --idle-minutes 0.05
 
   # infra 项目的用例：infra/ci 的检查脚本，真 git、真子进程。连库的几份自己建临时库；约束名核对的用例
   #（test/routes-gates.test.ts，W0-10）只读跑过迁移的 lyx_migrate_check，所以这里也建一份
@@ -402,6 +418,10 @@ jobs:
           cache: pnpm
       - name: 冻结安装
         run: pnpm install --frozen-lockfile
+      # 数据库客户端是生成物，不入库（W0-05）。下一步“构建”连任务进程一起构建（W0-23），它的打包要把客户端打进产物：
+      # 先生成。这一步不连库
+      - name: 生成数据库客户端（构建用）
+        run: pnpm db:generate
       - name: 构建
         run: pnpm -r --if-present build
       # W0-28：后台与下载页。根上的 pnpm test 不含这两个应用；它们的单测与构建各自共用一份 vite.config.ts
@@ -504,6 +524,12 @@ jobs:
           PGPASSWORD: lyx-local-dev
           DATABASE_URL: postgresql://liyoxi:lyx-local-dev@localhost:5442/lyx_migrate_check
         run: psql -X -w -d postgres -c "CREATE DATABASE lyx_migrate_check" && pnpm db:deploy
+      # 门禁自测里任务进程的两例（W0-23：worker 产物自检、兼容脚本）跑的是构建产物，产物不在即红：
+      # 先生成数据库客户端，再只构建任务进程这一个包
+      - name: 生成数据库客户端（门禁自测用）
+        run: pnpm db:generate
+      - name: 构建任务进程（门禁自测用）
+        run: pnpm --filter @liyoxi/worker build
       - name: gates:selftest
         run: pnpm gates:selftest
 
