@@ -238,6 +238,8 @@
 | `WEAPP_GALLERY=1 pnpm weapp:build` | 出带组件陈列分包（`sub/gallery`，开发用）的小程序包，看样时用；同样过体积门禁。不给这个变量时，生产的小程序包不带陈列分包（H5 截图构建与开发构建一律带） |
 | `pnpm exec vitest run --project api test/rate-limit.test.ts test/pipeline.test.ts` | 只跑限流与装配顺序的用例：超限 429 带 `Retry-After`、停掉 Redis 后降级（用故障注入的转发口，不动共享的 Redis）、路由级中间件的先后只在 `apps/api/src/routing/pipeline.ts` 一处定义。要连接参数（含 `REDIS_URL`）。加一件中间件、加档位与调额度的做法见 [README](apps/api/README.md) 第 3.1、3.2 节 |
 | `pnpm status-tone:check` | 状态字典键与契约枚举同名：状态色调字典（`packages/shared/src/design/status-tone`）里写了“表.列”的条目，那一列在契约里绑定了枚举，取值都在枚举的取值之内，一处不符即非 0 退出。只读文件，不连库。字典加条目、契约改枚举取值之后跑它。口径见 [脚本](packages/shared/scripts/status-tone-check.ts) 开头的注释 |
+| `pnpm --filter @liyoxi/admin dev`（看样：浏览器开 `http://localhost:5183/dev/showcase`） | 后台的开发服务器（端口 5183，带样例页与夹具，不用起 api）。陈列页（看样页）把构件、设计变量、状态取色、图标照规范的章节逐组摆出来；它的截图随 `pnpm admin:e2e` 出在 `apps/admin/dist/e2e-shots/showcase-*.png`。见 [README](apps/admin/README.md)“陈列页” |
+| `pnpm weapp:shots -- --sheet colors`（可给多次） | 只出小程序陈列里某张基础样张的图 `apps/weapp/shots/dist/png/gallery__sheet-<样张名>.png`（颜色、文字、间距圆角、状态取色表）。不带参数时每张各出一张。看样怎么看见 [看样清单](docs/plan/sample-review/W0-29.md) |
 
 本地连接参数：配置只经 `loadEnv`（`packages/services/src/kernel/env.ts`）读环境变量，会话与测试不建、不读 `.env`，在命令前或 shell 里给出。取值出处是 [local.yml](infra/compose/local.yml)，账号与口令是固定的开发值，只对本机这套容器有效；CI 的服务容器用同一组值。
 
