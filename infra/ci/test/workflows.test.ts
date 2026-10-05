@@ -392,6 +392,8 @@ describe("ci.yml", () => {
       "node infra/ci/status-summary.mjs --check",
       // W0-30a：状态字典键与契约枚举同名
       "pnpm status-tone:check",
+      // W0-30：台账单项文件核对（留桩、计划变更、外部验证）；三张汇总不入库
+      "node infra/ci/plan-summaries.mjs --check",
     ],
     // 各包的用例：infra 以外的测试项目
     test: [
@@ -427,6 +429,8 @@ describe("ci.yml", () => {
       // W0-23：任务进程的产物自检；兼容脚本在 CI 的 Redis 上跑通
       "node apps/worker/dist/index.js --check",
       "pnpm redis:compat --jobs 500 --idle-minutes 0.05",
+      // W0-30：四个计数，排在“测试”之后（读 apps/api 的用例写出的已挂载清单）；M0 的四样退回去即失败
+      "node infra/ci/four-counts.mjs --require M0",
     ],
     // “测试”的第二、三片：各自生成客户端、建迁移库、起 MinIO
     "test-2": [INSTALL, DB_GENERATE, MIGRATE, MINIO_UP, "pnpm test --project '!infra' --shard=2/3"],

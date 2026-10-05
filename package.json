@@ -67,7 +67,9 @@
     "stack:build": "node infra/stack/up.mjs build",
     "stack:up": "node infra/stack/up.mjs up",
     "stack:smoke": "node infra/stack/smoke.mjs",
-    "stack:down": "node infra/stack/up.mjs down"
+    "stack:down": "node infra/stack/up.mjs down",
+    "plan:summaries": "node infra/ci/plan-summaries.mjs",
+    "counts:report": "node infra/ci/four-counts.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",
