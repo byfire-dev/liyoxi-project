@@ -42,52 +42,58 @@ function sendHeld(attempt: Attempt, answer?: () => never) {
   return { reached: reached.opened, release: release.open, settled };
 }
 
+/** 同一个键同时发 PARALLEL 个请求；断言只有一个真的执行，其余处理中或拿到同一份结果。返回重放了几个 */
+async function race(attempt: Attempt, label: string): Promise<number> {
+  const contexts = Array.from({ length: PARALLEL }, () => h.request(attempt));
+  const outcomes = await Promise.allSettled(
+    contexts.map((idem) => h.send("multi_tx", attempt, idem)),
+  );
+  const results: SamplePrepayResult[] = [];
+  for (const outcome of outcomes) {
+    if (outcome.status === "fulfilled") {
+      results.push(outcome.value.result);
+    } else {
+      expect(outcome.reason, label).toMatchObject({
+        name: "AppError",
+        error: "IDEMPOTENCY_IN_PROGRESS",
+      });
+    }
+  }
+  // 只有一个真的执行；别的成功的都是重放
+  expect(
+    contexts.filter((idem) => idem.replayed),
+    label,
+  ).toHaveLength(results.length - 1);
+  expect(results.length, label).toBeGreaterThanOrEqual(1);
+  // 逐个比内容：重放的结果从 jsonb 读回来，键的次序与首次返回的不一定相同
+  for (const result of results) expect(result, label).toEqual(results[0]);
+  expect(h.calls(attempt.no), label).toBe(1);
+  expect(await h.row(attempt.no), label).toMatchObject({ status: "prepaid", settled: 1 });
+  expect(await h.idemRow(attempt), label).toMatchObject({ state: "done", result: results[0] });
+  return results.length - 1;
+}
+
 describe("三段式：并发抢占（验收 5）", () => {
   it(
     `占用过期后 ${PARALLEL} 个并发的重复请求，${ROUNDS} 轮：只有一个续做，外呼一次，结果一份`,
     async () => {
-      const tally = { resumed: 0, replayed: 0, inProgress: 0 };
       for (let round = 0; round < ROUNDS; round += 1) {
-        const label = `第 ${round + 1} 轮`;
         const attempt = attemptOf(`race-${round}`);
         h.interrupter.arm("before");
         await expect(h.send("multi_tx", attempt)).rejects.toBeInstanceOf(CallInterruptedError);
         h.clock.advance(IDEMPOTENCY_LEASE_MS);
-
-        const contexts = Array.from({ length: PARALLEL }, () => h.request(attempt));
-        const outcomes = await Promise.allSettled(
-          contexts.map((idem) => h.send("multi_tx", attempt, idem)),
-        );
-        const results: SamplePrepayResult[] = [];
-        for (const outcome of outcomes) {
-          if (outcome.status === "fulfilled") {
-            results.push(outcome.value.result);
-          } else {
-            expect(outcome.reason, label).toMatchObject({
-              name: "AppError",
-              error: "IDEMPOTENCY_IN_PROGRESS",
-            });
-            tally.inProgress += 1;
-          }
-        }
-        // 只有一个续做；别的成功的都是重放，拿到同一份结果
-        const fresh = outcomes.filter(
-          (outcome) => outcome.status === "fulfilled" && !outcome.value.idem.replayed,
-        );
-        expect(fresh, label).toHaveLength(1);
-        // 逐个比内容：重放的结果从 jsonb 读回来，键的次序与首次返回的不一定相同
-        for (const result of results) expect(result, label).toEqual(results[0]);
-        expect(h.calls(attempt.no), label).toBe(1);
-        expect(await h.row(attempt.no), label).toMatchObject({ status: "prepaid", settled: 1 });
-        expect(await h.idemRow(attempt), label).toMatchObject({
-          state: "done",
-          result: results[0],
-        });
-        tally.resumed += 1;
-        tally.replayed += results.length - 1;
+        await race(attempt, `第 ${round + 1} 轮`);
       }
-      expect(tally.resumed).toBe(ROUNDS);
-      expect(tally.replayed + tally.inProgress).toBe(ROUNDS * (PARALLEL - 1));
+    },
+    SLOW,
+  );
+
+  it(
+    `同一个键的 ${PARALLEL} 个首次请求同时到，${ROUNDS} 轮：只有一个占用并做完，外呼一次，结果一份`,
+    async () => {
+      for (let round = 0; round < ROUNDS; round += 1) {
+        await race(attemptOf(`first-${round}`), `第 ${round + 1} 轮`);
+      }
     },
     SLOW,
   );
