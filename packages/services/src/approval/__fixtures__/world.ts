@@ -1,6 +1,7 @@
 // approval 连库用例的共用部分（W1-06）：只给本目录的测试用。
 // 一个测试文件一个带种子的库（角色、字典、清单模板都是种子里的）；探针表在 beforeAll 里用属主身份建。
 // 员工、商家用测试数据工厂造；员工上下文照库里的员工行、角色行建（sampleStaffContext）。
+import { createPrismaClient } from "@liyoxi/db";
 import type { PrismaClient } from "@liyoxi/db";
 import { beforeAll } from "vitest";
 
@@ -173,6 +174,23 @@ export function useApprovalWorld(options: { max?: number } = {}): World {
   }, SLOW);
 
   return world;
+}
+
+/** 另开一个连到本文件测试库的客户端：一个客户端就是一条独立的连接。用完自己 $disconnect() */
+export async function openClient(db: TestDatabase): Promise<PrismaClient> {
+  return createPrismaClient({ connectionString: await db.url(), max: 1 });
+}
+
+/** 栅栏：n 方都到了才一起放行 */
+export function barrier(n: number): () => Promise<void> {
+  let arrived = 0;
+  let open!: () => void;
+  const opened = new Promise<void>((resolve) => (open = resolve));
+  return () => {
+    arrived += 1;
+    if (arrived >= n) open();
+    return opened;
+  };
 }
 
 /** 调一下，拿到它抛的业务错误的符号名与 details；没抛、抛的不是 AppError 都让用例失败 */
