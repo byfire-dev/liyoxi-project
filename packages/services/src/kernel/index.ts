@@ -72,3 +72,13 @@ export {
   purgeExpiredIdempotencyRecords,
 } from "./idempotency-tools.js";
 export type { IdempotencyGuardOptions } from "./idempotency-tools.js";
+
+// W0-13 业务单号：前缀表、格式规则、事务内取号
+export {
+  BIZ_NO_MIN_DIGITS,
+  BIZ_NO_PREFIXES,
+  BIZ_NO_STAGING_MARK,
+  createBizNoIssuer,
+  formatBizNo,
+} from "./biz-no.js";
+export type { BizNoFormatOptions, BizNoIssuer, BizNoIssuerOptions, BizNoPrefix } from "./biz-no.js";
