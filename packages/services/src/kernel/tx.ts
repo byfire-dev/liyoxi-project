@@ -107,10 +107,17 @@ export function sqlStateOf(error: unknown): string | undefined {
 
 const RETRYABLE = new Set(["40P01", "40001", "55P03"]);
 
+/**
+ * 是不是 run 会整个重试的数据库错误：死锁、序列化失败、锁等待超时。
+ * 保存点里接错误的地方用它把这几种放过去：接住了它们，事务会照常提交、不重试，“请重试”就成了“业务失败”。
+ */
+export const isRetryableDbError = (error: unknown): boolean =>
+  RETRYABLE.has(sqlStateOf(error) ?? "");
+
 /** 归类一条从事务里出来的错误：重试、映射成哪个错误码，或原样抛出 */
 function classify(error: unknown): "retry" | "BUSY" | "UPSTREAM_TIMEOUT" | "aborted" | undefined {
   const state = sqlStateOf(error);
-  if (state !== undefined && RETRYABLE.has(state)) return "retry";
+  if (isRetryableDbError(error)) return "retry";
   if (state === "57014") return "UPSTREAM_TIMEOUT";
   if (state === "25P02") return "aborted";
   return (error as { code?: unknown })?.code === "P2028" ? "BUSY" : undefined;
@@ -203,7 +210,8 @@ export function createTxRunner({ prisma, appEnv, report }: TxRunnerOptions): TxR
 /**
  * 保存点：fn 抛错时只回滚 fn 里的写入，错误照样抛给调用方；之前的写入、已持有的行锁都还在，事务可以接着用。
  * 发的是原生 SAVEPOINT、ROLLBACK TO SAVEPOINT、RELEASE SAVEPOINT，走事务的同一条连接（V4 的结论见 ADR）。
- * 调用方接住错误时只接业务错误：死锁、锁等待超时这类要让它继续往外抛，由 run 整个重试。
+ * 调用方接住错误时只接业务错误：死锁、锁等待超时这类要让它继续往外抛，由 run 整个重试
+ * （拿不准接住的是什么，先问 isRetryableDbError，是就接着抛）。
  * 同一个事务里的语句要一句一句发：保存点期间不要并发地用同一个 tx。
  */
 export async function savepoint<T>(tx: Tx, fn: () => Promise<T>): Promise<T> {
