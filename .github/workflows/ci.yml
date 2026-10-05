@@ -85,6 +85,16 @@ jobs:
       # 只校验 schema.prisma，不连库（W0-05）
       - name: prisma validate
         run: pnpm db:validate
+      # 结构防漂移（W0-06b）里不连库的两步。其余四步要连库，在 test 任务的“上传系统目录比对报告”之后
+      # 四类语句（DROP、RENAME、ALTER … TYPE、不带默认值的 SET NOT NULL）要带 “-- lyx:allow <理由>”；已经合并的迁移不能改。
+      # 不连库。基线：PR 取目标分支，推到 main 取推之前的提交
+      - name: 迁移规范
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+        run: pnpm db:migration-lint --base "$BASE"
+      # 草稿 docs/data-model/schema.prisma 与 constraints/ 已冻结：sha256 与登记值不同即失败。不连库
+      - name: 草稿冻结守卫
+        run: pnpm db:draft-freeze:check
       # 契约生成物与源码无差异（W0-08）：重新生成后 git diff --exit-code。契约自测另有一条拿提交的生成物与
       # 现生成的逐字节比对，它在 test 任务里跑，那边的检出没有被这一步重新写过
       - name: contract:check
@@ -214,6 +224,14 @@ jobs:
       # 分区子表不进快照，单独断言：兜底分区在且为空，当月与未来 3 个月的分区都在。读的也是 lyx_migrate_check
       - name: 分区断言
         run: pnpm db:partitions:assert
+      # 15 份分组文档的字段表与 lyx_migrate_check 逐列比（列名、类型、可空），只读。schema-check 只认 PG* 环境变量
+      - name: 分组文档字段表与迁移后的库一致（schema-check）
+        env:
+          PGHOST: localhost
+          PGPORT: "5442"
+          PGUSER: liyoxi
+          PGPASSWORD: lyx-local-dev
+        run: python3 tools/schema-check/check.py --existing lyx_migrate_check
       # 枚举与库 CHECK 一致（W0-09a）：库里每条“列取值集合”形态的 CHECK ↔ 契约枚举，取值集合相等。只读，
       # 读的是前面“空库跑全部迁移”一步建的 lyx_migrate_check；主机与账号取 DATABASE_URL
       - name: 枚举与库 CHECK 一致

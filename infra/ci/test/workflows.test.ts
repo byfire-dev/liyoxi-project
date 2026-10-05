@@ -366,6 +366,9 @@ describe("ci.yml", () => {
       "pnpm check:type-hoist",
       "pnpm depcheck",
       "pnpm db:validate",
+      // W0-06b：迁移规范、草稿冻结守卫（不连库；结构防漂移其余四步在 test）
+      'pnpm db:migration-lint --base "$BASE"',
+      "pnpm db:draft-freeze:check",
       "pnpm contract:check",
       // W0-09a：登记表对账（x01 名称登记与归属表）
       "pnpm registry:check",
@@ -394,6 +397,8 @@ describe("ci.yml", () => {
       "pnpm db:snapshot:check",
       "pnpm db:constraints:check",
       "pnpm db:partitions:assert",
+      // W0-06b：分组文档字段表与迁移后的库一致（读迁移库）
+      "python3 tools/schema-check/check.py --existing lyx_migrate_check",
       // W0-09a：枚举与库 CHECK 一致，读上面建的迁移库
       "pnpm enums:check",
       MINIO_UP,
