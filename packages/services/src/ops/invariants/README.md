@@ -123,6 +123,7 @@ unbind();
 | audit | `audit.I2`、`audit.I3` | — |
 | config | `config.N8`、`N9`、`N16`、`N17`、`N19`、`N20` | — |
 | staff | `staff.I8` | — |
+| billing | `billing.I1`、`I2`、`I3`、`I6`、`I7`、`I8`、`I16`（W1-10；关系数量的四条是 P1） | — |
 
 都是 P2、只在 full 里跑、不自愈。这张表是写本文时的样子，以装配结果为准（`assembly.invariants`、`assembly.cleanups`）。
 

@@ -1,6 +1,8 @@
 // 进程内循环（W0-23）：按间隔一轮一轮地跑，上一轮没完不起下一轮。依据：x01 第 4.3 节；D7 第 7.6 节。
 // 循环只依赖 PostgreSQL，Redis 不可用时照跑。它自己不判断“是不是主”：由租约那边 start、stop。
 // lastBeat 是最近一次有进展的时刻（本机单调时钟）：一轮跑完算，处理完一行也算（循环体调 beat）。看门狗只读它。
+import type { LoopId } from "@liyoxi/contract/registry";
+import type { WorkerServices } from "@liyoxi/services";
 
 export interface LoopOptions {
   /** 循环名，取契约的登记 */
@@ -77,4 +79,14 @@ export function createLoop(options: LoopOptions): Loop {
     },
     tick,
   };
+}
+
+/**
+ * 各域加的循环（M1 起）：一个循环一个文件（src/loops/），在 domain-loops.ts 的清单里加一行。
+ * 名字取契约的登记；一轮只调 services 上的一个用例函数，这里不写业务。
+ */
+export interface DomainLoopDef {
+  readonly name: LoopId;
+  readonly intervalMs: number;
+  run(services: WorkerServices, beat: () => void): Promise<unknown>;
 }

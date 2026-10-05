@@ -16,6 +16,7 @@ import type {
   WorkerServices,
 } from "@liyoxi/services";
 
+import { DOMAIN_LOOPS } from "./domain-loops.js";
 import { createLeaseKeeper } from "./lease.js";
 import type { LeaseKeeper, LeaseTiming } from "./lease.js";
 import type { Logger } from "./log.js";
@@ -49,6 +50,8 @@ export interface WorkerRuntimeOptions {
   readonly logger: Logger;
   /** 下面几项只有用例会给 */
   readonly intervals?: Partial<Record<WorkerLoop, number>>;
+  /** 各域循环的节奏，按循环名 */
+  readonly domainIntervals?: Readonly<Record<string, number>>;
   readonly timing?: Partial<LeaseTiming>;
   readonly monotonic?: () => number;
   readonly exit?: (code: number) => void;
@@ -56,6 +59,8 @@ export interface WorkerRuntimeOptions {
 
 export interface WorkerRuntime {
   readonly loops: Readonly<Record<WorkerLoop, Loop>>;
+  /** 各域的循环（domain-loops.ts 的清单），按循环名 */
+  readonly domainLoops: Readonly<Record<string, Loop>>;
   readonly consumers: Readonly<Record<WorkerQueue, QueueConsumer>>;
   /** 有租约时才有 */
   readonly keeper: LeaseKeeper | undefined;
@@ -95,7 +100,19 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
       async (ref) => void (await services.runTimer(ref)),
     ),
   };
-  const all = Object.values(loops);
+  const domainLoops: Record<string, Loop> = Object.fromEntries(
+    DOMAIN_LOOPS.map((def) => [
+      def.name,
+      createLoop({
+        name: def.name,
+        intervalMs: options.domainIntervals?.[def.name] ?? def.intervalMs,
+        run: (beat) => def.run(services, beat),
+        onError,
+        monotonic,
+      }),
+    ]),
+  );
+  const all = [...Object.values(loops), ...Object.values(domainLoops)];
   const queues = Object.values(consumers);
 
   let active = false;
@@ -125,6 +142,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
 
   return {
     loops,
+    domainLoops,
     consumers,
     keeper,
     get active() {

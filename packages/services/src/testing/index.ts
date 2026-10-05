@@ -42,3 +42,6 @@ export * from "./staff.js";
 export * from "./m0-chain.js";
 // W1-06：审批的样例类型（探针表上的假领域行）、样例领域用例，与照库里的员工行建员工上下文的办法
 export * from "./approval.js";
+
+// W1-10：账本用例的夹具——一步建好账本、造周期与发放计划、加购入账、账本现状的可比快照
+export * from "./billing.js";

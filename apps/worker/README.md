@@ -17,6 +17,7 @@
 | `src/cli/redis-compat.ts` | 托管 Redis 与队列库的兼容脚本（验证项 V1） |
 | `src/cli/seed.ts`、`seed-command.ts` | 播种的镜像内入口（W1-22）：与 `pnpm db:seed` 做同一件事、同一组退出码，只是不靠 `tsx`，server 镜像里跑得了 |
 | `scripts/build.mjs` | 构建：esbuild 把工作区的包与第三方依赖打成 `dist/index.js`、`dist/redis-compat.js`、`dist/seed.js`，只留 `bullmq`、`ioredis` 在外 |
+| `src/domain-loops.ts`、`src/loops/` | 各域的进程内循环（M1 起）：一个循环一个文件，清单里加一行；`runtime.ts` 把它们与 M0 的四个循环一起起停、一起交给看门狗（W1-10） |
 
 ## 2. 怎么跑
 
@@ -35,6 +36,7 @@ node apps/worker/dist/seed.js            # 播种：库要先跑完迁移；可�
 | 出站派发 `outbox_dispatch` | 每秒 | 定时器执行 `timer_run` | 4 |
 | 定时器扫描 `timer_scan` | 每 20 秒 | | |
 | 周期补登记 `ensure_recurring` | 每 60 秒 | | |
+| 账务推进 `billing_advance`（W1-10） | 每 60 秒 | | |
 
 - 一主一热备：谁持有 `worker_lease` 那一行谁干活。每 10 秒续约（专用连接）；持有者 30 秒没续约可被接任。
 - 看门狗每秒看一眼，只读本地变量：续约超过 20 秒没成功即降级（停循环、消费者不再领新任务）；自己晚到 10 秒以上、或某个循环连续两个周期没有进展（不少于 60 秒）即退出进程，由外面拉起。
@@ -61,6 +63,7 @@ pnpm --filter @liyoxi/worker exec vitest run test/fault/redis-flush.test.ts   # 
 | `test/lease.test.ts` | 抢租约、接任、自行降级、让出；看门狗的三条规则 |
 | `test/recurring.test.ts` | 补登记循环；只在预发登记的任务在生产配置下不存在 |
 | `test/seed-cli.test.ts` | 播种命令：退出码、可重复跑、不打印连接串 |
+| `test/billing-advance.test.ts` | 账务推进循环：到点的主体逐个推进，被占着的跳过，一个主体出错不影响别的 |
 
 ## 4. 兼容脚本
 
