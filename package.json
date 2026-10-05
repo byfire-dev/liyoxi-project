@@ -71,7 +71,9 @@
     "demo:m0": "pnpm --filter @liyoxi/services demo:m0",
     "plan:summaries": "node infra/ci/plan-summaries.mjs",
     "counts:report": "node infra/ci/four-counts.mjs",
-    "test:fault": "vitest run concurrency.test property.test /fault/ /fault- /fault.test idempotency lease.test"
+    "test:fault": "vitest run concurrency.test property.test /fault/ /fault- /fault.test idempotency lease.test",
+    "staff:bootstrap": "pnpm --filter @liyoxi/worker staff:bootstrap",
+    "db:seed:demo": "pnpm --filter @liyoxi/services seed:demo"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",
