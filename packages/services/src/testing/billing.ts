@@ -1,4 +1,4 @@
-// 账本用例的夹具（W1-10）：一步建好账本，造周期与发放计划。只给测试用，经 @liyoxi/services/testing 给出。
+// 账本用例的夹具（W1-10）：一步建好账本，造周期与发放计划，加购入账，账本现状的可比快照。只给测试用。
 // 建周期、发放计划是履约的事（W1-11a）；它合并之前，账本与下游的用例用这里造：
 // 行是直接插的（周期经 W0-25 的工厂，发放计划在这里），积分一律经账本函数入账，所以批次、流水、账户缓存是自洽的。
 // 配带种子的库用（useSeededDatabase）：套餐与价目是种子。
@@ -6,19 +6,23 @@ import { createPrismaClient } from "@liyoxi/db";
 import type { GrantSchedule, PrismaClient, SubscriptionTerm } from "@liyoxi/db";
 import { grantSchedule, renewTerm, termDates } from "@liyoxi/shared/period";
 import { calendarDate, endOfDay, startOfDay } from "@liyoxi/shared/time";
+import type { LocalDate } from "@liyoxi/shared/time";
 
-import { createEvents } from "../../events/index.js";
-import type { Events } from "../../events/index.js";
-import { createIdentityContext, createTxRunner, uuidv7 } from "../../kernel/index.js";
-import type { IdentityContext, Tx, TxRunner } from "../../kernel/index.js";
-import { assembleForTest } from "../../testing/assembly.js";
-import { createClock } from "../../testing/clock.js";
-import type { AdjustableClock } from "../../testing/clock.js";
-import { createFactories } from "../../testing/data/factories/index.js";
-import type { Factories } from "../../testing/data/factories/index.js";
-import { fromDateColumn, toDateColumn } from "../ledger/context.js";
-import { createLedger } from "../ledger/index.js";
-import type { Ledger, LedgerDeps, PurchaseResult } from "../ledger/index.js";
+import { createLedger } from "../billing/index.js";
+import type { Ledger, LedgerDeps, PurchaseResult } from "../billing/index.js";
+import { createEvents } from "../events/index.js";
+import type { Events } from "../events/index.js";
+import { createIdentityContext, createTxRunner, uuidv7 } from "../kernel/index.js";
+import type { IdentityContext, Tx, TxRunner } from "../kernel/index.js";
+import { assembleForTest } from "./assembly.js";
+import { createClock } from "./clock.js";
+import type { AdjustableClock } from "./clock.js";
+import { createFactories } from "./data/factories/index.js";
+import type { Factories } from "./data/factories/index.js";
+
+/** 库里的 date 列与“哪一天”互转：Prisma 把 date 读成 UTC 零点的 Date */
+const toDateColumn = (date: LocalDate): Date => new Date(`${date}T00:00:00.000Z`);
+const fromDateColumn = (value: Date): LocalDate => value.toISOString().slice(0, 10);
 
 export interface LedgerHarness {
   readonly prisma: PrismaClient;

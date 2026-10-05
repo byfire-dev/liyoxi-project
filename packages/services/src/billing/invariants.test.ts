@@ -3,14 +3,19 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { uuidv7 } from "../kernel/index.js";
 import type { InvariantViolation } from "../kernel/index.js";
-import { runInvariants } from "../ops/index.js";
-import { assembleForTest, connectTestDatabase, useSeededDatabase } from "../testing/index.js";
+import {
+  assembleForTest,
+  connectTestDatabase,
+  createLedgerHarness,
+  openTerm,
+  topUp,
+  useSeededDatabase,
+} from "../testing/index.js";
 import { billingInvariants } from "./invariants.js";
-import { createLedgerHarness, openTerm, topUp } from "./testing/index.js";
-import type { LedgerHarness } from "./testing/index.js";
+import type { LedgerHarness } from "../testing/index.js";
 
 // 验收 10（不变量的一半）：账户与批次的七条——各造一条违规都能查出；空库加种子、正常记账之后全量 0 违规；
-// 经 ops 的框架跑一遍也是 0 违规。I4、I5 随冻结一族。
+// I4、I5 随冻结一族。经 ops 的框架跑全量的用例在 ops/invariants（billing 是 L2，不引 L4 的 ops）。
 // 每条违规造在各自的主体上，按主体缩小范围来断言：同一个库里别的主体不受影响。
 
 const SLOW = 180_000;
@@ -81,7 +86,7 @@ describe("billing 的不变量：账户与批次的七条（验收 10）", () =>
   });
 
   it(
-    "空库加种子 0 违规；发放、加购、清零、接续、过期之后仍是 0 违规；经 ops 的框架跑也是",
+    "空库加种子 0 违规；发放、加购、清零、接续、过期之后仍是 0 违规；装配结果里收得到这七条",
     async () => {
       expect(await runAll()).toEqual(CLEAN);
 
@@ -96,16 +101,11 @@ describe("billing 的不变量：账户与批次的七条（验收 10）", () =>
       }
       expect(await runAll()).toEqual(CLEAN);
 
-      const result = await runInvariants(
-        { tx: h.tx, assembly: assembleForTest({ entry: "worker" }), clock: h.clock },
-        { mode: "full", trigger: "manual", modules: ["billing"] },
+      // 装配结果里收得到这七条（ops 的 invariant.full 按它调度；框架本身的用例在 ops/invariants）
+      const registered = assembleForTest({ entry: "worker" }).invariants.map((check) => check.code);
+      expect(registered).toEqual(
+        expect.arrayContaining(billingInvariants.map((check) => check.code)),
       );
-      expect(result).toMatchObject({
-        status: "succeeded",
-        checksRun: billingInvariants.length,
-        violationsFound: 0,
-        errors: [],
-      });
     },
     SLOW,
   );

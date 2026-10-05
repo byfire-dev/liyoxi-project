@@ -1,15 +1,17 @@
 import type { PrismaClient } from "@liyoxi/db";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { assertSnapshotsEqual, snapshotTables, useSeededDatabase } from "../../testing/index.js";
 import {
+  assertSnapshotsEqual,
   createLedgerHarness,
   dumpLedger,
   openTerm,
   ownerContext,
+  snapshotTables,
   topUp,
-} from "../testing/index.js";
-import type { LedgerHarness } from "../testing/index.js";
+  useSeededDatabase,
+} from "../../testing/index.js";
+import type { LedgerHarness } from "../../testing/index.js";
 import { LedgerError } from "./index.js";
 
 // 账户与批次的单连接用例：账本时钟、月度发放与加购入账的重放、写入时自检。并发的那几条在 *.concurrency.test.ts。

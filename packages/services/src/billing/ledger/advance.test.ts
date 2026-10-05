@@ -1,15 +1,15 @@
 import type { PrismaClient } from "@liyoxi/db";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { useSeededDatabase } from "../../testing/index.js";
 import {
   createLedgerHarness,
   dumpLedger,
   openTerm,
   ownerContext,
   topUp,
-} from "../testing/index.js";
-import type { LedgerHarness } from "../testing/index.js";
+  useSeededDatabase,
+} from "../../testing/index.js";
+import type { LedgerHarness } from "../../testing/index.js";
 
 // 验收 7：advance。到点发放、清零（冻结不动）、预约周期接续并发首月、过期后写 addon_suspend；
 // 先清零后发放；停 60 天后一次追赶的结果与逐日推进相同。

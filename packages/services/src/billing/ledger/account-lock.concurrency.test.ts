@@ -2,9 +2,14 @@ import type { PrismaClient } from "@liyoxi/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { isAppError } from "../../kernel/index.js";
-import { useSeededDatabase } from "../../testing/index.js";
-import { createLedgerHarness, joinLedger, openTerm, ownerContext } from "../testing/index.js";
-import type { LedgerHarness } from "../testing/index.js";
+import {
+  createLedgerHarness,
+  joinLedger,
+  openTerm,
+  ownerContext,
+  useSeededDatabase,
+} from "../../testing/index.js";
+import type { LedgerHarness } from "../../testing/index.js";
 import { ACCOUNT_LOCK_WAIT_MS, LedgerError } from "./index.js";
 
 // 验收 4（甲类的并发测试）：等锁 3 秒。账户锁被另一条连接占着：加购入账在 3 到 4 秒之间得到 ACCOUNT_BUSY，

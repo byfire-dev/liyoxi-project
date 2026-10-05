@@ -1,9 +1,6 @@
 import type { PrismaClient } from "@liyoxi/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { useSeededDatabase } from "../../testing/index.js";
-import { billingInvariants } from "../invariants.js";
-import { advanceDueAccounts } from "../sweep.js";
 import {
   createLedgerHarness,
   dumpLedger,
@@ -11,8 +8,11 @@ import {
   openTerm,
   ownerContext,
   topUp,
-} from "../testing/index.js";
-import type { LedgerHarness } from "../testing/index.js";
+  useSeededDatabase,
+} from "../../testing/index.js";
+import { billingInvariants } from "../invariants.js";
+import { advanceDueAccounts } from "../sweep.js";
+import type { LedgerHarness } from "../../testing/index.js";
 
 // 验收 8（甲类的并发测试）：推进的并发。
 //   ① 两个扫描并行：每个周期每月恰发放一次、清零一次，无死锁；期间有加购入账穿插。
