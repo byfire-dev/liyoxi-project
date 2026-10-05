@@ -376,6 +376,12 @@ describe("ci.yml", () => {
       "pnpm machines:check",
       // W0-09b：接口侧注册表对账（错误码、权限点、能力点、资源、场景、点位、埋点事件）
       "pnpm api-registries:check",
+      // W0-10：路由元数据对账、api-check、约束名核对、待落地数只减不增、计划 第 8.2 节的表（它的下一步上传两份清单，没有 run）
+      "pnpm contract:docs-check",
+      "node infra/ci/api-check.mjs",
+      "node infra/ci/natural-constraints.mjs",
+      "node infra/ci/landed.mjs --check --report --out packages/contract/dist/pending-routes.md",
+      "node infra/ci/plan-routes.mjs --check --summary packages/contract/dist/route-milestones.md",
       // W0-26：设计生成物无差异（它的下一步上传预览页，没有 run）
       "pnpm design:check",
       "pnpm -r --if-present build",
