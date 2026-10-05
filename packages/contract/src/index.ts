@@ -19,3 +19,5 @@ export * from "./openapi.js";
 // W0-18：config 各 jsonb 列的结构（开关规则、清单条目、站点配置、字典项扩展属性）
 export * from "./config/schemas.js";
 export * from "./config/dict-ext.js";
+// W0-14：审计日志的登记值与 jsonb 结构
+export * from "./audit/index.js";
