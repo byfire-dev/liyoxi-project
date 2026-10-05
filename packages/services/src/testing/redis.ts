@@ -1,0 +1,156 @@
+// Redis 的测试隔离（W0-05b）：按键前缀隔离，不按库号。库号只有 16 个，会话数乘 worker 数不够分。
+//
+// 前缀：lyx:test:<会话标识>:<worker 编号>:，落在 D7 第 2.5 节的 lyx:{env}: 之下（env 取 test）。
+// 一个 worker 一个前缀，前缀之间互不包含：清空一个，碰不到另一个。
+// “清空”只清自己前缀下的键：SCAN 加 UNLINK，不用 FLUSHDB、FLUSHALL——共享的那份 Redis 上还有别的会话、
+// 别的 worker 与本地开发的键。前缀同样有守卫：不是 lyx:test:<会话>:<worker>: 这个形状的，一条命令都不发。
+//
+// 用法：测试文件顶层写 `const redis = useTestRedis();`，用例里 `const client = await redis.client()`。
+// 连接串取环境变量 REDIS_URL（CLAUDE.md 第 9 节），不读 .env。
+// BullMQ 不认 ioredis 的 keyPrefix，要用它自己的 prefix 选项：写 `${redis.prefix}bull`，连接用 redis.raw()。
+
+import { recordTestUsage, resolveTestSession, resolveTestWorker } from "@liyoxi/db/testing";
+import { Redis } from "ioredis";
+import type { RedisOptions } from "ioredis";
+import { afterAll } from "vitest";
+
+/** 测试键的总前缀 */
+export const TEST_REDIS_PREFIX = "lyx:test:";
+
+const OWN_PREFIX = /^lyx:test:[a-z0-9]{1,12}:[0-9]{1,4}:$/;
+
+/** 前缀没过守卫 */
+export class TestRedisPrefixError extends Error {
+  constructor(prefix: unknown) {
+    super(
+      `测试支架只清 ${TEST_REDIS_PREFIX}<会话标识>:<worker 编号>: 之下的键，拒绝：${JSON.stringify(prefix)}`,
+    );
+    this.name = "TestRedisPrefixError";
+  }
+}
+
+/** 前缀守卫：清空之前先过它 */
+export function assertTestRedisPrefix(prefix: unknown): asserts prefix is string {
+  if (typeof prefix !== "string" || !OWN_PREFIX.test(prefix))
+    throw new TestRedisPrefixError(prefix);
+}
+
+export interface TestRedisPrefixParts {
+  session?: string;
+  worker?: string;
+}
+
+/** 本 worker 的键前缀：lyx:test:<会话标识>:<worker 编号>: */
+export function testRedisPrefix(parts: TestRedisPrefixParts = {}): string {
+  const session = parts.session ?? resolveTestSession();
+  const worker = parts.worker ?? resolveTestWorker();
+  const prefix = `${TEST_REDIS_PREFIX}${session}:${worker}:`;
+  assertTestRedisPrefix(prefix);
+  return prefix;
+}
+
+function redisUrl(): string {
+  const url = process.env.REDIS_URL;
+  if (!url) {
+    throw new Error(
+      "REDIS_URL 未设置：要连本地的 Redis（pnpm infra:up；取值见 CLAUDE.md 第 9 节）",
+    );
+  }
+  return url;
+}
+
+/**
+ * 清空一个前缀下的全部键，返回删了几个。只用 SCAN 与 UNLINK。
+ * @param redis 不带 keyPrefix 的连接（带了的话 UNLINK 会再套一层前缀，删不到）
+ */
+export async function flushTestRedis(redis: Redis, prefix: string): Promise<number> {
+  assertTestRedisPrefix(prefix);
+  if (redis.options.keyPrefix) {
+    throw new Error("flushTestRedis 要一条不带 keyPrefix 的连接");
+  }
+  let cursor = "0";
+  let removed = 0;
+  do {
+    const [next, keys] = await redis.scan(cursor, "MATCH", `${prefix}*`, "COUNT", 500);
+    cursor = next;
+    // 再核一遍：只删确实以本前缀开头的
+    const own = keys.filter((key) => key.startsWith(prefix));
+    if (own.length > 0) removed += await redis.unlink(...own);
+  } while (cursor !== "0");
+  return removed;
+}
+
+export interface TestRedis {
+  /** 本 worker 的键前缀 */
+  readonly prefix: string;
+  /** 带前缀的连接：键自动套上本 worker 的前缀。首次调用时先清掉这个前缀下上一轮的残留 */
+  client(options?: RedisOptions): Promise<Redis>;
+  /** 不带前缀的连接：给 BullMQ 这类自己管前缀的库用，键名自己拼上 prefix */
+  raw(options?: RedisOptions): Promise<Redis>;
+  /** 清空本前缀下的键，返回删了几个。别的前缀、不带测试前缀的键都不动 */
+  flush(): Promise<number>;
+}
+
+/** 一个前缀从用到收尾。useTestRedis 把它挂到 Vitest 的钩子上；单独用时自己调 dispose */
+export class TestRedisHandle implements TestRedis {
+  readonly prefix: string;
+  #admin: Redis | undefined;
+  #ready: Promise<void> | undefined;
+  readonly #clients: Redis[] = [];
+
+  constructor(prefix: string) {
+    assertTestRedisPrefix(prefix);
+    this.prefix = prefix;
+  }
+
+  #prepare(): Promise<void> {
+    this.#ready ??= (async () => {
+      this.#admin = new Redis(redisUrl());
+      await flushTestRedis(this.#admin, this.prefix);
+      recordTestUsage("redis", this.prefix);
+    })();
+    return this.#ready;
+  }
+
+  async client(options: RedisOptions = {}): Promise<Redis> {
+    await this.#prepare();
+    const client = new Redis(redisUrl(), { ...options, keyPrefix: this.prefix });
+    this.#clients.push(client);
+    return client;
+  }
+
+  async raw(options: RedisOptions = {}): Promise<Redis> {
+    await this.#prepare();
+    const client = new Redis(redisUrl(), { ...options, keyPrefix: undefined });
+    this.#clients.push(client);
+    return client;
+  }
+
+  async flush(): Promise<number> {
+    await this.#prepare();
+    return flushTestRedis(this.#admin as Redis, this.prefix);
+  }
+
+  /** 收尾：清空本前缀，断开发出去的全部连接 */
+  async dispose(): Promise<void> {
+    if (!this.#ready) return;
+    await this.#ready.catch(() => {});
+    for (const client of this.#clients.splice(0)) client.disconnect();
+    const admin = this.#admin;
+    this.#admin = undefined;
+    this.#ready = undefined;
+    if (!admin) return;
+    try {
+      await flushTestRedis(admin, this.prefix);
+    } finally {
+      admin.disconnect();
+    }
+  }
+}
+
+/** 给当前测试文件本 worker 的 Redis 前缀。在文件顶层（或 describe 里）调用：它登记一个 afterAll 来清空并断开 */
+export function useTestRedis(): TestRedis {
+  const handle = new TestRedisHandle(testRedisPrefix());
+  afterAll(() => handle.dispose(), 60_000);
+  return handle;
+}
