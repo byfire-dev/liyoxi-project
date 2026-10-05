@@ -58,7 +58,8 @@
     "db:partitions:assert": "node infra/ci/db-partition-assert.mjs",
     "db:migration-lint": "node infra/ci/migration-lint.mjs",
     "db:draft-freeze:check": "node infra/ci/draft-freeze.mjs",
-    "redis:compat": "pnpm --filter @liyoxi/worker redis:compat"
+    "redis:compat": "pnpm --filter @liyoxi/worker redis:compat",
+    "test:db:seeded": "pnpm --filter @liyoxi/services seeded-db"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",
