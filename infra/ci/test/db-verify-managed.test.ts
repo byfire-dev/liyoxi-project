@@ -23,6 +23,10 @@ if (!base)
 const DB = `lyx_test_infra_managed_${process.pid}`;
 const urlOf = (db: string) => Object.assign(new URL(base), { pathname: `/${db}` }).toString();
 const password = new URL(base).password;
+if (password.length < 3)
+  throw new Error(
+    "DATABASE_URL 要带口令（不少于 3 个字符）：这份用例靠它核对输出里没有口令。本地的取值见 CLAUDE.md 第 9 节",
+  );
 
 function verify(databaseUrl: string | undefined) {
   const { DATABASE_URL: _dropped, PGHOST: _host, ...rest } = process.env;
@@ -94,6 +98,8 @@ describe("db-verify-managed.mjs", () => {
       expect(result.stdout).toContain("- 迁移：没跑通。迁移工具的输出（连接信息已抹掉）：");
       expect(result.stdout).toContain("audit_no_seq");
       expect(result.stdout).toContain("结论：不通过。迁移没跑通");
+      // 只抹连接信息：数据库报错里括号中的错误码留着，读得出是哪一种错
+      expect(result.stdout).toContain("SqlState(E42P07)");
       const { hostname, port, username } = new URL(base);
       const output = result.stdout + result.stderr;
       for (const secret of [hostname, `:${port}`, username, password, "postgresql:"]) {

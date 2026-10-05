@@ -12,7 +12,7 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { countReport, pgEnv, psql, readCatalog } from "./db-lib.mjs";
+import { CATALOG_SQL, countReport, parseCatalog, pgEnv, psql } from "./db-lib.mjs";
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 const EXTENSIONS = ["btree_gist", "pg_trgm"];
@@ -33,17 +33,17 @@ if (!/^lyx_[a-z0-9_]{1,58}$/.test(db))
   stop(2, "DATABASE_URL 指的库名要以 lyx_ 开头：只在专门的空库上验证");
 
 /**
- * 抹掉连接信息：连接串本身、“主机:端口”、主机、口令、账号（先抹长的），
- * 以及 psql 报错里括号中的解析地址与 “port <端口>”
+ * 抹掉连接信息：连接串本身、“主机:端口”、主机、口令、账号（先抹长的；口令不论长短都抹，其余不足 3 个字符的不抹，
+ * 免得把正文抹花），以及 psql 报错里括号中的解析地址（带点或冒号的才算，SqlState(…) 这类留着）与 “port <端口>”
  */
 function redact(text) {
   const hostPort = `${env.PGHOST}:${env.PGPORT}`;
   const secrets = [process.env.DATABASE_URL, hostPort, env.PGPASSWORD, env.PGHOST, env.PGUSER]
-    .filter((value) => value && value.length >= 3)
+    .filter((value) => value && (value === env.PGPASSWORD || value.length >= 3))
     .sort((a, b) => b.length - a.length);
   return secrets
     .reduce((out, value) => out.replaceAll(value, "‹已隐去›"), text)
-    .replace(/\([0-9a-fA-F:.]{3,}\)/g, "(‹已隐去›)")
+    .replace(/\((?=[^)]*[.:])[0-9a-fA-F:.]{3,}\)/g, "(‹已隐去›)")
     .replace(/\bport \d+/g, "port ‹已隐去›");
 }
 
@@ -96,7 +96,8 @@ if (deploy.status !== 0 || applied.length === 0) {
   );
   console.log(`- 迁移建出的扩展：${installed.join("、") || "一个都没有"}`);
   if (installed.length !== EXTENSIONS.length) problems.push("两个扩展没有都建出来");
-  const counts = countReport([["这个库", readCatalog(db, env)]]);
+  // 读系统目录也走 query：迁移之后连接断了时，报错同样先抹掉连接信息
+  const counts = countReport([["这个库", parseCatalog(query(CATALOG_SQL).join("\n"))]]);
   console.log(`\n## 数量两组口径\n\n${counts.lines.join("\n")}`);
   problems.push(...counts.problems);
 }
