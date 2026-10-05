@@ -46,3 +46,5 @@ export {
 export type { AllScope, DataScope, DataScopeSnapshot, StaffScope } from "./data-scope.js";
 export { byEntity, byStore, entityScope, managedStore, storeScope, taskScope } from "./scope.js";
 export type { StaffCol, TaskScopeSpec } from "./scope.js";
+// W1-04 商家侧授权：能力点判定、门店与主体的数据范围（./merchant）
+export * from "./merchant/index.js";
