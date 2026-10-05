@@ -117,6 +117,12 @@
       "pattern": "apps/admin/scripts/*.mjs",
       "kind": "new-file",
       "note": "后台与下载页的构建产物检查、后台冒烟的受影响范围判断"
+    },
+    {
+      "pattern": "docs/plan/x01-map.md",
+      "except": ["docs/plan/x01-map.md"],
+      "kind": "append",
+      "note": "x01 条目归属表（生成物，只由 pnpm registry:generate 写）：算门禁路径、不逐行判；与登记数据一致由 pnpm registry:check 与契约自测核对。它是单个文件，generated 口径只认“目录/**”，用不了"
     }
   ]
 }
