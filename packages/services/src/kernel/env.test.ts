@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -220,8 +220,10 @@ describe("成组变量成对校验", () => {
   };
   const base = { APP_ENV: "local", DATABASE_URL, REDIS_URL };
 
-  it("第一版没有成组变量", () => {
-    expect(ENV_GROUPS).toEqual([]);
+  it("登记的组：两份密钥文件（W0-14）", () => {
+    expect(ENV_GROUPS).toEqual([
+      { name: "字段加密与盲索引密钥", keys: ["DATA_KEYS_FILE", "BIDX_KEYS_FILE"] },
+    ]);
   });
 
   it("全不配：通过", () => {
@@ -264,6 +266,116 @@ describe("键名清单", () => {
       "DATABASE_URL_FILE",
       "REDIS_URL",
       "REDIS_URL_FILE",
+      "DATA_KEYS_FILE",
+      "BIDX_KEYS_FILE",
     ]);
+  });
+});
+
+// W0-14 验收第 10 条：密钥只认文件。密钥是现造的固定字节，不是任何环境在用的密钥
+describe("字段加密与盲索引的密钥文件", () => {
+  const base = { APP_ENV: "local", DATABASE_URL, REDIS_URL };
+  const key = (fill: number) => Buffer.alloc(32, fill).toString("base64");
+  const dataKeys = { current: "k2", keys: { k1: key(1), k2: key(2) } };
+  const bidxKeys = { phone: key(3), uscc: Buffer.alloc(32, 4).toString("base64url") };
+  const dataFile = fileWith("data-keys.json", JSON.stringify(dataKeys));
+  const bidxFile = fileWith("bidx-keys.json", `${JSON.stringify(bidxKeys)}\n`);
+
+  it("两份文件都合法：通过，内容原样给出；都不配：通过，Env 里没有这两项", () => {
+    const env = loadEnv({ ...base, DATA_KEYS_FILE: dataFile, BIDX_KEYS_FILE: bidxFile });
+    expect(env.DATA_KEYS).toEqual(dataKeys);
+    expect(env.BIDX_KEYS).toEqual(bidxKeys);
+    expect(Object.keys(loadEnv(base))).toEqual([
+      "APP_ENV",
+      "LOG_LEVEL",
+      "DATABASE_URL",
+      "REDIS_URL",
+    ]);
+  });
+
+  it.each(["local", "test", "prod"])("%s 下给明文变量 DATA_KEYS、BIDX_KEYS 即失败", (appEnv) => {
+    const source = {
+      APP_ENV: appEnv,
+      DATABASE_URL_FILE: fileWith(`keys-${appEnv}-pg`, DATABASE_URL),
+      REDIS_URL_FILE: fileWith(`keys-${appEnv}-redis`, REDIS_URL),
+      DATA_KEYS: JSON.stringify(dataKeys),
+      BIDX_KEYS: JSON.stringify(bidxKeys),
+    };
+    const error = failure(source);
+    expect(error.issues).toEqual([
+      { key: "DATA_KEYS", reason: "密钥只认 DATA_KEYS_FILE（值是文件路径），任何环境都不接受明文" },
+      { key: "BIDX_KEYS", reason: "密钥只认 BIDX_KEYS_FILE（值是文件路径），任何环境都不接受明文" },
+    ]);
+    // 文件也给了，明文变量照样不收
+    const both = failure({ ...source, DATA_KEYS_FILE: dataFile, BIDX_KEYS_FILE: bidxFile });
+    expect(keysOf(both)).toEqual(["DATA_KEYS", "BIDX_KEYS"]);
+  });
+
+  it("只配一份：成组校验报出缺的那一项", () => {
+    expect(keysOf(failure({ ...base, DATA_KEYS_FILE: dataFile }))).toEqual(["BIDX_KEYS_FILE"]);
+    expect(keysOf(failure({ ...base, BIDX_KEYS_FILE: bidxFile }))).toEqual(["DATA_KEYS_FILE"]);
+  });
+
+  const KEY_MARK = Buffer.alloc(31, 9).toString("base64");
+  const bad: Array<[string, string, string, string]> = [
+    ["DATA_KEYS_FILE", "不是 JSON", `{ current: ${KEY_MARK}`, "文件内容不是合法的 JSON"],
+    [
+      "DATA_KEYS_FILE",
+      "形状不对",
+      JSON.stringify({ keys: dataKeys.keys }),
+      "文件内容要是 { current, keys }",
+    ],
+    [
+      "DATA_KEYS_FILE",
+      "kid 带冒号",
+      JSON.stringify({ current: "a:b", keys: { "a:b": key(1) } }),
+      "kid 只能用字母、数字、下划线、连字符",
+    ],
+    [
+      "DATA_KEYS_FILE",
+      "密钥只有 31 字节",
+      JSON.stringify({ current: "k1", keys: { k1: KEY_MARK } }),
+      "每把密钥要是 base64 写的 32 字节",
+    ],
+    [
+      "DATA_KEYS_FILE",
+      "current 不在 keys 里",
+      JSON.stringify({ current: "k9", keys: dataKeys.keys }),
+      "current 指的 kid 不在 keys 里",
+    ],
+    ["BIDX_KEYS_FILE", "空对象", "{}", "文件内容要是“用途 → 密钥”的映射，至少一项"],
+    ["BIDX_KEYS_FILE", "用途写法不对", JSON.stringify({ Phone: key(3) }), "用途只能是小写字母开头"],
+    [
+      "BIDX_KEYS_FILE",
+      "密钥不是 base64",
+      JSON.stringify({ phone: "x".repeat(40) }),
+      "每把密钥要是",
+    ],
+  ];
+
+  it.each(bad)("%s %s：失败，报错不带文件内容", (fileKey, label, content, reason) => {
+    const source = { ...base, DATA_KEYS_FILE: dataFile, BIDX_KEYS_FILE: bidxFile };
+    const error = failure({
+      ...source,
+      [fileKey]: fileWith(`bad-${fileKey}-${label}.json`, content),
+    });
+    expect(keysOf(error)).toEqual([fileKey]);
+    expect(error.issues[0]?.reason).toContain(reason);
+    for (const mark of [KEY_MARK, key(1), key(3), temp]) expect(error.message).not.toContain(mark);
+  });
+
+  it("文件不存在：只报键名", () => {
+    const error = failure({
+      ...base,
+      DATA_KEYS_FILE: join(temp, "no-keys"),
+      BIDX_KEYS_FILE: bidxFile,
+    });
+    expect(error.issues).toEqual([{ key: "DATA_KEYS_FILE", reason: "所指的文件读不了" }]);
+  });
+
+  it(".env.example 里两项只有占位路径", () => {
+    const example = readFileSync(new URL("../../../../.env.example", import.meta.url), "utf8");
+    const lines = example.split("\n").filter((line) => /^(DATA|BIDX)_KEYS/.test(line));
+    expect(lines).toEqual(["DATA_KEYS_FILE=<文件路径>", "BIDX_KEYS_FILE=<文件路径>"]);
   });
 });

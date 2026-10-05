@@ -56,3 +56,14 @@ export function permissionByKey(key: string): PermissionDef<PermissionKey> | und
 export const STEP_UP_PERMISSION_KEYS: readonly PermissionKey[] = PERMISSIONS.filter(
   (item) => item.stepUp === true,
 ).map((item) => item.key);
+
+// W0-21 角色的代码默认配置：模块等级矩阵、数据范围，以及由默认授予算出的权限点开关
+export { defaultRoleActions, STAFF_ROLE_DEFAULTS, staffRoleDefault } from "./role-defaults.js";
+export type {
+  RoleActions,
+  RoleActionSwitch,
+  RoleAvailableFrom,
+  RoleDataScope,
+  RoleModuleLevels,
+  StaffRoleDefault,
+} from "./role-defaults.js";

@@ -160,7 +160,7 @@
 
 | 命令 | 做什么 |
 | --- | --- |
-| `python3 tools/schema-check/check.py`（加 `--keep` 保留校验库） | 校验数据模型草稿自洽。见 [README](tools/schema-check/README.md) |
+| `python3 tools/schema-check/check.py`（加 `--keep` 保留校验库） | 分组文档的字段表与跑完全部迁移的库逐列比：自建临时库 `lyx_schema_check`（共用实例上用 `--db` 换个名字），`--existing <库>` 只读地比一个已有的库，`--from-draft` 是由冻结的草稿建库的旧流程。见 [README](tools/schema-check/README.md) |
 | `python3 tools/api-check/check.py` | 核对接口文档自洽。见 [README](tools/api-check/README.md) |
 | `python3 tools/api-check/gen_registries.py`、`gen_permissions.py` | 重新生成接口索引、错误码与权限点登记表 |
 | `pnpm install --frozen-lockfile` | 按锁文件安装，顺带装上提交钩子。pnpm 的版本由 `packageManager` 锁定，会自动切过去 |
@@ -192,8 +192,14 @@
 | `pnpm db:generate` | 生成数据库客户端到 `packages/db/dist/generated/`（不入库）。`pnpm typecheck`、`pnpm test`、构建之前要先有它，`pnpm install` 不会顺带生成；不连库。见 [README](packages/db/README.md) 第 2、3 节 |
 | `pnpm db:validate` | `prisma validate`：校验 `packages/db/prisma/schema.prisma`。不连库 |
 | `pnpm db:deploy` | `prisma migrate deploy`：对 `DATABASE_URL` 指的库跑全部待执行的迁移，可重复跑。`pnpm test` 里 `packages/db` 的用例要连迁移库 `lyx_migrate_check`，没建就失败、不跳过：怎么建、报错怎么看见 [README](packages/db/README.md) 第 3 节 |
-| `pnpm db:catalog-diff` | 系统目录比对：由底稿建的参照库 `lyx_schema_check` 与迁移库 `lyx_migrate_check` 的表、列、约束定义、索引定义、触发器、函数体逐项 0 差异，数量两组口径对得上；出报告。两个库怎么建、参数与口径见 [README](packages/db/README.md) 第 6 节。它的用例（`infra/ci/test/db-*.test.ts`）与 `gates:selftest` 里它的反例也要连本地的 PostgreSQL，各建各的临时库，用完删掉 |
+| `pnpm db:catalog-diff` | 系统目录比对：由底稿建的参照库 `lyx_schema_check` 与迁移库 `lyx_migrate_check` 的表、列、约束定义、索引定义、触发器、函数体逐项 0 差异，数量两组口径对得上；出报告。两个库怎么建、参数与口径见 [README](packages/db/README.md) 第 6 节。它的用例（`infra/ci/test/db-*.test.ts`）与 `gates:selftest` 里它的反例也要连本地的 PostgreSQL，各建各的临时库，用完删掉。W0-06b 起 `check.py` 缺省建的是迁移后的库：参照库要由底稿建时加 `--from-draft`，CI 里那一步的现状见 [README](infra/ci/README.md) 第 8.4 节 |
 | `pnpm db:verify-managed` | 托管库验证：对 `DATABASE_URL` 指的、`lyx_` 开头的空库报告两个扩展可建、迁移跑通、计数表；不打印连接串。业主在托管库到位时跑；本地演练的做法见 [README](packages/db/README.md) 第 7 节 |
+| `pnpm db:snapshot` | 重出结构快照 `packages/db/snapshot/structure.txt`：自建临时库跑完全部迁移，读表、列、约束、索引、触发器、函数六类（不含分区子表），用完删库。改了结构（写了新迁移）先跑它再提交；生成物不手改。口径见 [README](infra/ci/README.md) 第 8 节 |
+| `pnpm db:snapshot:check` | 结构快照无差异：重新生成后 `git diff --exit-code`，且快照目录下没有未跟踪的文件 |
+| `pnpm db:constraints:check`（加 `--db <库>` 换一个库） | 约束清单比对：拿跑完迁移的库（默认 `lyx_migrate_check`）与快照逐条比，数量与快照、06 第 1 节三处对得上。只读；核对已经部署的库的做法见 [README](infra/ci/README.md) 第 8.2 节 |
+| `pnpm db:partitions:assert`（加 `--db <库>` 换一个库） | 分区断言：兜底分区在且为空，当月与未来 3 个月的分区在，子表上的触发器齐全。只读。本地长期留着的 `lyx_migrate_check` 过了月初会红，删掉重建 |
+| `pnpm db:migration-lint`（加 `--base <git 引用>`，默认 `origin/main`） | 迁移规范检查：`DROP`、`RENAME`、`ALTER … TYPE`、不带默认值的 `SET NOT NULL` 要带一行 `-- lyx:allow <理由>`；已经合并的迁移不能改。不连库。两种不用标记的情形见 [脚本](infra/ci/migration-lint.mjs) 开头的注释 |
+| `pnpm db:draft-freeze:check` | 草稿冻结守卫：`docs/data-model/schema.prisma` 与 `constraints/` 的 sha256 等于登记值（`infra/ci/draft-freeze.sha256`）。不连库 |
 | `pnpm admin:build`、`pnpm portal:build` | 后台、下载页的生产构建（产物在各自的 `dist/app`），随后查产物：文件名带内容哈希、写入了构建号、不含夹具。见 [README](apps/admin/README.md) |
 | `pnpm admin:e2e` | 后台 Playwright 冒烟：先出一份带样例页的构建，起它的预览，走一条用例，出外壳与三种骨架的截图（`apps/admin/dist/e2e-shots`）。浏览器怎么备见 [README](apps/admin/README.md) |
 | `pnpm --filter @liyoxi/admin test`、`pnpm --filter @liyoxi/portal test` | 后台、下载页的单测。根上的 `pnpm test` 不含这两个应用：它们的单测与构建共用各自的 `vite.config.ts` |
@@ -214,6 +220,11 @@
 | `node infra/ci/natural-constraints.mjs` | natural 幂等的约束名核对：契约里写的每个约束名在迁移库 `lyx_migrate_check` 里都找得到；只读 |
 | `node infra/ci/api-check.mjs` | CI 里跑 `tools/api-check/check.py` 的写法：“表.列”一项连 `lyx_migrate_check`，未核对按失败算；通过后重新生成三份登记文档（`docs/api/registry-*.md`）并 `git diff --exit-code` |
 | `pnpm --filter @liyoxi/services exec vitest run src/kernel/assembly/ src/assembly.test.ts` | 只跑服务装配的用例：两个样例模块在 api、worker 两个入口都能收集到，重名与缺实现启动失败，按环境过滤（`envs`），组合根的入口清单与模块目录对账。用例不碰库，命令照样要带 `DATABASE_URL`（services 的全局准备要它）。模块怎么登记、端口怎么用见 [README](packages/services/src/kernel/assembly/README.md) |
+| `pnpm --filter @liyoxi/services exec vitest run src/security/ src/audit/` | 只跑敏感字段与审计的用例：字段加密与密钥轮换、盲索引在真库里等值查、三件套与启动自检；`audit.record` 的同事务、只追加、规范化、每日校验，性质测试（固定种子、每个性质 200 轮，每轮真写一行）。连真库。密钥用现造的假密钥，不读文件。用法、密钥文件的格式、种子与轮次的改法见 [security](packages/services/src/security/README.md)、[audit](packages/services/src/audit/README.md) 两份 README |
+| `pnpm --filter @liyoxi/services exec vitest run src/events/` | 只跑 events（出站事件）的用例：emit 的去重、同事务、信封与载荷校验，事件行只许写一次，按订阅者展开，展开双跑的并发测试，订阅者登记对照契约，`events.I8`，聚合类型自检。都连库，要本地的 PostgreSQL 与 `DATABASE_URL`。怎么发事件、订阅者怎么登记见 [README](packages/services/src/events/README.md) |
+| `pnpm --filter @liyoxi/services exec vitest run src/timers/ src/sla/ src/kernel/ports/` | 只跑定时器、时限与五个端口的用例：`arm` 的状态机表与并发登记、改期与按前缀取消、周期任务补登记与栅格时刻的性质测试、登记对照契约、跨节假日的时限与时限快照、端口没人实现时走空实现。除 `schedule`、`registry` 两份外都要本地的 PostgreSQL 与 `DATABASE_URL`。用法见 [timers](packages/services/src/timers/README.md)、[sla](packages/services/src/sla/README.md)、[ports](packages/services/src/kernel/ports/README.md) 三份 README |
+| `pnpm --filter @liyoxi/services exec vitest run src/flow/` | 只跑 flow（状态迁移）的用例：迁移表逐行驱动、同事务、非法迁移被拒、锁序、审计恰一行、事件的三个迁移键、工作分钟端口、`flow.I12` 与状态列自检，两条连接同迁一个对象的并发测试，随机事件序列的性质测试（固定种子、200 轮）。连真库。用法、状态机怎么登记、种子与轮次的改法见 [README](packages/services/src/flow/README.md) |
+| `pnpm db:seed` | 播种：对 `DATABASE_URL` 指的、跑完迁移的库，把缺的初始行插进去（8 个角色、通知场景与通道绑定、开关、字典、清单模板、协议清单、订阅槽位、短信模板、价目初始行、估值口径、工作日历、站点配置初始版），再跑六条配置类不变量的断言，有违规即非 0 退出。没有才插、已有的行不改，可以反复跑；测试库不带种子。用法见 [脚本](packages/services/scripts/seed.ts) 与 [运行器](packages/services/src/seed.ts) 开头的注释 |
 
 本地连接参数：配置只经 `loadEnv`（`packages/services/src/kernel/env.ts`）读环境变量，会话与测试不建、不读 `.env`，在命令前或 shell 里给出。取值出处是 [local.yml](infra/compose/local.yml)，账号与口令是固定的开发值，只对本机这套容器有效；CI 的服务容器用同一组值。
 
@@ -250,7 +261,7 @@ export REDIS_URL=redis://localhost:6389/0
 | 接口、页面、x01 条目的里程碑归属 | `docs/plan/changes/` 记一条 |
 | 默认做法 | 先改文档里的默认，再改代码 |
 
-默认（W0-04 定）：接管之前（W0-05、W0-10 合并前），改 `docs/data-model/` 或 `docs/api/` 后跑第 9 节的两个校验工具。
+默认（W0-04 定；数据模型一侧已接管，W0-06b 改）：改 `docs/data-model/` 的分组文档后跑 `python3 tools/schema-check/check.py`，它比的是迁移后的库；草稿 `schema.prisma` 与 `constraints/` 已冻结，不改。改表结构照 [infra/ci/README.md](infra/ci/README.md) 第 8.3 节的单子：新迁移、`pnpm db:snapshot` 重出快照、06 第 1 节的数量、分组文档、授权的期望。`docs/api/` 在 W0-10 合并前，改后仍跑 `python3 tools/api-check/check.py`。
 
 ## 11. 待确认事项与文档有错
 

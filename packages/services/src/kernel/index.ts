@@ -84,3 +84,36 @@ export {
 export type { BizNoFormatOptions, BizNoIssuer, BizNoIssuerOptions, BizNoPrefix } from "./biz-no.js";
 // W0-07b 服务装配：六类注册接口、端口、收集与装配
 export * from "./assembly/index.js";
+
+// W0-20 三段式用例：占用、外呼、落结果的统一流水；外呼前钩子（接到 Provider 工厂的 beforeCall）
+export { IDEMPOTENCY_LEASE_MS } from "./idempotency.js";
+export { createThreePhaseRunner, guardProviderCall } from "./three-phase/index.js";
+export type {
+  ThreePhaseClaim,
+  ThreePhaseFailure,
+  ThreePhaseRunner,
+  ThreePhaseRunnerOptions,
+  ThreePhaseRunOptions,
+  ThreePhaseUseCase,
+} from "./three-phase/index.js";
+
+// W0-20 乐观锁：内容编辑的版本关
+export { bumpLockVersion, lockVersionField } from "./optimistic-lock/index.js";
+export type { LockVersionTarget } from "./optimistic-lock/index.js";
+// W0-14 两份密钥文件的内容类型（loadEnv 读出来的形状；密钥环在 security）
+export type { BidxKeysConfig, DataKeysConfig } from "./env.js";
+// W0-17 五个端口：告警、不变量上报、埋点直记、通知场景解析、提醒查询；kernel 的登记（声明这五个端口）
+export * from "./ports/index.js";
+export { registration } from "./register.js";
+
+// W0-21 种子与 SQL 断言的共用形态
+export { defineSeed, insertMissing, runSqlAssertion } from "./seed.js";
+export type {
+  AssertionViolation,
+  InsertMissingOptions,
+  ModuleSeed,
+  SeedContext,
+  SeedTableResult,
+  SqlAssertion,
+  SqlReader,
+} from "./seed.js";
