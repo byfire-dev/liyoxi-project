@@ -71,6 +71,10 @@
     "./machines": {
       "types": "./src/machines/index.ts",
       "default": "./src/machines/index.ts"
+    },
+    "./params": {
+      "types": "./src/params/index.ts",
+      "default": "./src/params/index.ts"
     }
   },
   "scripts": {
