@@ -193,12 +193,12 @@ erDiagram
 
 | 触发 | 可能的变化 | 触发者 |
 | --- | --- | --- |
-| 确认订购 `order.submit` | 新建为 `pending_start` | 商家（老板） |
+| 确认订购 `order.submit` | — → `pending_start`（新建） | 商家（老板） |
 | 开工 `order.start`（定时器，关键类） | `pending_start` → `producing` | 系统 |
-| 工单步骤迁移（delivery 的 `transition()` 的副作用） | 在 `producing`、`to_launch`、`live`、`ended` 之间变化 | 员工、商家、系统 |
-| 取消申请提交 | 任意未关闭状态 → `after_sale` | 客服、系统 |
-| 取消申请驳回、撤回、作废 | `after_sale` → 重新推导出的原状态 | 财务、申请人 |
-| 取消申请执行 | `after_sale` → `cancelled`、`refunded` 或剩余订单项的阶段 | 财务、系统 |
+| 工单步骤迁移（`order.rederive`；delivery 的 `transition()` 的副作用） | `producing`、`to_launch`、`live`、`ended` → `producing`、`to_launch`、`live`、`ended`（在这四个之间变化） | 员工、商家、系统 |
+| 取消申请提交（`order.rederive`） | 任意未关闭状态（`pending_start`、`producing`、`to_launch`、`live`、`ended`）→ `after_sale` | 客服、系统 |
+| 取消申请驳回、撤回、作废（`order.rederive`） | `after_sale` → 重新推导出的原状态（`pending_start`、`producing`、`to_launch`、`live`、`ended`） | 财务、申请人 |
+| 取消申请执行（`order.rederive`） | `after_sale` → `cancelled`、`refunded` 或剩余订单项的阶段（`pending_start`、`producing`、`to_launch`、`live`、`ended`） | 财务、系统 |
 
 守卫：开工要求 `status = pending_start`、`open_cancel_request_id` 为空、门店闸门为 `full`（d3:604）。
 
@@ -352,10 +352,10 @@ stateDiagram-v2
 | `pending_start` | `order.start` | `producing` | 订购单待开工、无在途取消、门店闸门 `full`；`billing.capture` 成功 | 系统（定时器） |
 | `pending_start` | `cancel.execute`（`mode = release`） | `cancelled` | 取消申请已通过且重新校验一致 | 财务、系统 |
 | `producing`、`to_launch` | 工单 `ticket.terminate`（取消申请执行） | `refunded` 或 `terminated` | 同上；按账本实际退回是否大于 0 区分 | 财务 |
-| `producing` | 工单进入 `awaiting_launch` | `to_launch` | 成片包推送的守卫（delivery） | 交付经理 |
-| `to_launch` | 工单进入 `in_service` | `live` | 至少一条上线任务核验通过 | 发布专员 |
-| `live` | 撤销核验通过 | `to_launch` | 撤销时限内、主管权限（d3 第 12.7 节） | 交付主管 |
-| `to_launch`、`live` | 工单 `archived` | `ended` 或 `refunded` | 下架核查全部通过；平台原因终止过且实际退回大于 0 时为 `refunded` | 发布专员、系统 |
+| `producing` | 工单进入 `awaiting_launch`（`package.pushed`） | `to_launch` | 成片包推送的守卫（delivery） | 交付经理 |
+| `to_launch` | 工单进入 `in_service`（`launch.changed`） | `live` | 至少一条上线任务核验通过 | 发布专员 |
+| `live` | 撤销核验通过（`launch.verify_revoked`） | `to_launch` | 撤销时限内、主管权限（d3 第 12.7 节） | 交付主管 |
+| `to_launch`、`live` | 工单 `archived`（`takedown.all_checked`） | `ended` 或 `refunded` | 下架核查全部通过；平台原因终止过且实际退回大于 0 时为 `refunded` | 发布专员、系统 |
 
 已上线的订单项被平台原因终止时留在 `live`（`usage_end_source = early_end`，止日改为终止日），归档时再定为 `ended` 或 `refunded`（d3:2179）。
 
@@ -801,7 +801,7 @@ stateDiagram-v2
 | — | `ad.submit` | `pending_assign` | 套餐生效；门店闸门为 `full` 或 `parallel`；类型在 V1.0 开放范围；时长在该类型可选值内；宣传重点至少 1 项；协议版本为现行版本；带幂等键；账本冻结成功 | 商家（老板） |
 | `pending_assign` | `ad.assign` | `producing` | 门店闸门为 `full`（资质已通过）；剪辑师启用中（事务开头对员工行 `FOR SHARE`）；`billing.capture` 成功；无在途取消 | 交付经理或主管（`delivery.ad.assign`） |
 | `pending_assign`、`producing` | `ad.return` | `returned` | 必填原因；无在途取消 | 剪辑师、交付经理 |
-| `returned` | `ad.resubmit` | `returned_from` 的值 | 不重复冻结；时限从补充时刻重计，首版定时器用新序号登记；无在途取消 | 商家 |
+| `returned` | `ad.resubmit` | `returned_from` 的值（`pending_assign` 或 `producing`） | 不重复冻结；时限从补充时刻重计，首版定时器用新序号登记；无在途取消 | 商家 |
 | `producing`、`revising` | `ad.push_version` | `pending_confirm` | 文件已确认上传；竖屏 9:16、1080×1920；时长与类型相符；查看方式已确定（`ad_version.preview_channels` 由系统按开关写入、至少 1 项；补 `wecom` 时已登记企业微信发送；接口裁决 A97）；无在途取消 | 剪辑师（本人任务） |
 | `pending_confirm` | `ad.confirm` | `confirmed` | 请求里的版本号 = `latest_version_no`；`viewedVia` ∈ 该版本的 `preview_channels`，不是小程序内播放的须勾选已查看（d3:1532-1543）；无在途取消 | 商家（老板） |
 | `pending_confirm`、`confirmed` | `ad.request_revision` | `revising` | 意见非空；超出免费次数时须商家本人提交并回传接受的金额，套餐须生效（d3:1297-1326）；无在途取消 | 商家（老板）；交付经理代录（仅免费次数内） |

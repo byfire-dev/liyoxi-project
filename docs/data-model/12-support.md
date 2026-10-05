@@ -156,8 +156,8 @@ stateDiagram-v2
 | `awaiting_confirm`、`resolved` | `reopen` 重新打开 | `processing` | 必填说明；已解决的距 `resolved_at` 不超过参数 `service.reopen_window_days` 天（默认 7，0 即关闭此入口） | 商家用户 | `reopened_count + 1`；新的 `response_due_at` 与 `sla_snapshot.response`；清空 `auto_resolve_at`、`resolved_at`、`resolved_via`；从已解决重开时重新链接图片引用 |
 | `pending`、`processing` | `withdraw` 撤回 | `closed` | 必选撤回原因（字典 `ticket_withdraw_reason` 内且启用） | 商家用户 | `closed_at`；`close_reason = 'withdrawn'`；`withdraw_reason_code`；清空 `response_due_at`；释放图片引用 |
 | `pending`、`processing`、`awaiting_confirm` | `close` 关闭 | `closed` | 必选原因并填说明；权限点 `service.ticket.close` | 负责人 | `closed_at`；`close_reason`；`close_note`；清空 `response_due_at`、`auto_resolve_at`；释放图片引用 |
-| 未结状态，且 `owner_staff_id` 为空 | `assign` 分配 | 不变（from = to） | 目标员工启用中；必选原因（字典 `ticket_transfer_reason`） | 客服、主管 | `owner_staff_id`。时限不变 |
-| 未结状态，且 `owner_staff_id` 非空 | `transfer` 转派 | 不变（from = to） | 目标员工启用中，且不是当前负责人；必选转派原因（字典 `ticket_transfer_reason`，选人后按目标岗位带出默认值） | 客服、主管 | `owner_staff_id`。时限不变 |
+| 未结状态（`pending`、`processing`、`awaiting_confirm`），且 `owner_staff_id` 为空 | `assign` 分配 | 不变（from = to） | 目标员工启用中；必选原因（字典 `ticket_transfer_reason`） | 客服、主管 | `owner_staff_id`。时限不变 |
+| 未结状态（`pending`、`processing`、`awaiting_confirm`），且 `owner_staff_id` 非空 | `transfer` 转派 | 不变（from = to） | 目标员工启用中，且不是当前负责人；必选转派原因（字典 `ticket_transfer_reason`，选人后按目标岗位带出默认值） | 客服、主管 | `owner_staff_id`。时限不变 |
 | `pending`、`processing` | `escalate` 响应超时 | 不变（from = to） | `response_due_at` 非空且与定时器登记时一致 | 定时器 `service.first_response_due` | `escalated_at` |
 | `closed` | `admin.force` 人工纠偏 | `processing` | 权限点 `flow.admin.transition`、第二因子、原因不少于 10 字；状态历史 `is_forced = true` | 超级管理员 | 清空 `closed_at`、`close_reason`、`withdraw_reason_code`、`close_note`；重新链接图片引用 |
 

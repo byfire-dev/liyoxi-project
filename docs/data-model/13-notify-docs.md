@@ -937,15 +937,15 @@ erDiagram
 
 | 当前状态 | 事件 | 新状态 | 守卫 | 触发者 |
 | --- | --- | --- | --- | --- |
-| — | 建信（订单项在制作中且账号被选定） | `pending_effective` | 订单项阶段为制作中、已上线或已结束；该“订单项 × 账号”没有未作废的信；同事务插入 `initial` 版次。事实里已有起始日的直接建为 `effective` | 对齐函数（系统） |
+| — | 建信（`license_letter.create`；订单项在制作中且账号被选定） | `pending_effective`；事实里已有起始日时为 `effective` | 订单项阶段为制作中、已上线或已结束；该“订单项 × 账号”没有未作废的信；同事务插入 `initial` 版次。事实里已有起始日的直接建为 `effective` | 对齐函数（系统） |
 | `pending_effective` | 止日变化 | `pending_effective` | `period_end` 与事实不同；出 `period_changed` 版次；不写状态历史 | 对齐函数 |
-| `pending_effective` | 使用期起始日写入（首次上线核验通过） | `effective` | 事实里 `usageStartDate` 非空；出 `go_live` 版次 | 对齐函数 |
+| `pending_effective` | 使用期起始日写入（`license_letter.go_live`；首次上线核验通过） | `effective` | 事实里 `usageStartDate` 非空；出 `go_live` 版次 | 对齐函数 |
 | `effective` | 止日变化（版权续期顺延，或提前结束） | `effective` | 同上；出 `period_changed` 版次；不写状态历史 | 对齐函数 |
-| `effective` | 起始日被清空（撤销核验通过） | `pending_effective` | 事实里 `usageStartDate` 变回空；出 `period_changed` 版次 | 对齐函数 |
-| `pending_effective`、`effective` | 账号被移出选定集合 | `voided`（`account_removed`） | 方案确认时账号集合变化 | 对齐函数 |
-| `pending_effective`、`effective` | 订单项取消、退回或违约终止 | `voided`（`cancelled` / `terminated`） | 订单项阶段为已取消或已终止 | 对齐函数 |
-| `pending_effective`、`effective` | 人工作废并重出 | `voided`（`manual`） | 权限点；原因必填；写审计。同一事务随即执行对齐函数：账号仍在选定集合内时为同一“订单项 × 账号”建新信（编号追加序号、新验真码、`initial` 版次）。人工作废不能让该组合从此没有授权书 | 员工 |
-| `effective` | 使用期结束 | 不变 | 派生为“已失效”，不改库 | — |
+| `effective` | 起始日被清空（`license_letter.revoke_live`；撤销核验通过） | `pending_effective` | 事实里 `usageStartDate` 变回空；出 `period_changed` 版次 | 对齐函数 |
+| `pending_effective`、`effective` | 账号被移出选定集合（`license_letter.void`） | `voided`（`account_removed`） | 方案确认时账号集合变化 | 对齐函数 |
+| `pending_effective`、`effective` | 订单项取消、退回或违约终止（`license_letter.void`） | `voided`（`cancelled` / `terminated`） | 订单项阶段为已取消或已终止 | 对齐函数 |
+| `pending_effective`、`effective` | 人工作废并重出（`license_letter.void`） | `voided`（`manual`） | 权限点；原因必填；写审计。同一事务随即执行对齐函数：账号仍在选定集合内时为同一“订单项 × 账号”建新信（编号追加序号、新验真码、`initial` 版次）。人工作废不能让该组合从此没有授权书 | 员工 |
+| `effective` | 使用期结束 | 不变 | 派生为“已失效”，不改库，不写状态历史 | — |
 | `voided` | 任何 | 不变 | 终态；同一组合需要时另建新信 | — |
 
 所有路径都执行同一个收敛函数：锁订单项行（经 delivery 注册的事实端口 `delivery.getLicenseFacts`）→ 锁该订单项名下未作废的信件 → 按当前事实对齐。事件乱序、重复、丢失后重放，终态都相同（d6:1256-1298）。调用方：docs 的事件订阅者、成片交付守卫 `docs.ensureLetters`、每日不变量自愈、后台“更正并重出”与“作废并重出”。

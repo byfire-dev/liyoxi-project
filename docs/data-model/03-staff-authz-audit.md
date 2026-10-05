@@ -214,12 +214,12 @@ erDiagram
 
 | 当前状态 | 事件 | 新状态 | 守卫 | 触发者 |
 | --- | --- | --- | --- | --- |
-| — | 命令行引导 | `active`（待激活） | 库里没有启用的超级管理员 | 系统（CLI `staff:bootstrap`） |
-| — | 新增（立即启用） | `active`（待激活） | `sys.staff.manage`；手机号未占用 | 超级管理员 |
-| — | 新增（暂不启用） | `pending` | 同上 | 超级管理员 |
-| `pending` | 启用 | `active`（待激活） | `sys.staff.manage` | 超级管理员 |
-| `active` | 禁用 | `disabled` | 不是本人；在办事项已指定同角色的启用员工接收；不是最后一位启用的超级管理员 | 超级管理员 |
-| `disabled` | 启用 | `active`（待激活） | `sys.staff.manage` | 超级管理员 |
+| — | 命令行引导（`staff.bootstrap`） | `active`（待激活） | 库里没有启用的超级管理员 | 系统（CLI `staff:bootstrap`） |
+| — | 新增（立即启用，`staff.create`） | `active`（待激活） | `sys.staff.manage`；手机号未占用 | 超级管理员 |
+| — | 新增（暂不启用，`staff.create`） | `pending` | 同上 | 超级管理员 |
+| `pending` | 启用（`staff.enable`） | `active`（待激活） | `sys.staff.manage` | 超级管理员 |
+| `active` | 禁用（`staff.disable`） | `disabled` | 不是本人；在办事项已指定同角色的启用员工接收；不是最后一位启用的超级管理员 | 超级管理员 |
+| `disabled` | 启用（`staff.enable`） | `active`（待激活） | `sys.staff.manage` | 超级管理员 |
 
 “待激活”不是状态值，是 `status = 'active'` 且 `password_hash` 为空。桶锁定不改 `status`，只写 `locked_until_*` 与 `auth_event`。禁用事务同时写 `disabled_*`、把企业微信状态置 `unbound`（保留 `wecom_userid`）、吊销全部会话、移出分配池、写改派记录与审计（d4:1072、1096-1107）；重新启用时清空 `disabled_*`、清空口令并下发新的激活码，TOTP 保留，两个失败桶清零（d4:1130）。
 
@@ -805,7 +805,7 @@ CHECK 只加在由类型化代码写入的列上：`stream`、`actor_type`、`cl
 | `pending` | `approve` | `approved` | 决定权限点且对象在数据范围内；审批人 ≠ 发起人；二次确认回显；标了 step-up 的类型须再验证；清单版本有效；`kind.revalidate`；`lock_version` 一致 | 员工；免审批时为系统 |
 | `pending` | `reject` | `rejected` | 权限同上（不要求 step-up：接口约定用路由级元数据 `x-step-up: skip` 按 operationId 登记各驳回接口，A127）；说明必填；审核类由员工驳回时原因至少 1 项（字典 `reject_reason` 对应场景的编码），其余类型原因可选（字典另有积分调整、对公复核、取消与退款驳回 `cancel_refund` 三类场景，后者为接口阶段补，A156） | 员工；系统（如同信用代码的另一张已通过） |
 | `pending` | `withdraw` | `withdrawn` | 提交人本人；或发起人已不是启用状态时由有审批权的人代为撤回；或对象失效 | 商家用户、员工、系统 |
-| 终态 | 任何 | 不变 | 返回 `409 APPROVAL_NOT_PENDING` | — |
+| 终态（`approved`、`rejected`、`withdrawn`） | 任何 | 不变 | 返回 `409 APPROVAL_NOT_PENDING` | — |
 
 没有执行步的类型在 `approve` 的同一事务里生效（处理器 `kind.onApproved`）。有执行步的四类（`order_cancel`、`ad_cancel`、`qualification_cancel`、`plan_refund`）在提交时即建领域行（`cancel_request`、`refund_request`），领域行的 `status` 按 M54 走 `pending_approval` → `pending_execution` → `executing`（只有现金退款）→ `done`，或以 `not_executed` 关闭（`close_reason` 为 `rejected`、`withdrawn`、`voided`）；审批单停在 `approved`。审批通过后、执行前作废，只记领域行 `not_executed` + `voided`，审批单保持 `approved`（M54，回复 09 分组的确认请求）。执行时限（`exec_due_at` 与 `sla_snapshot`）由审批通过的事务写在领域行上，执行时限的 `sla.breach` 定时器主体是本审批单（M71）。
 
