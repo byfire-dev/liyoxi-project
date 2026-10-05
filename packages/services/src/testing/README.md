@@ -18,6 +18,7 @@
 | `isolation.mjs` | `pnpm test:isolation` |
 | `global-setup.ts` | 转导出上面那个 globalSetup，给本包与应用层挂 |
 | `assembly.ts` | `assembleForTest`：测试装配（W0-07b） |
+| `data/` | 测试数据支撑（W0-25）：带种子的干净库 `useSeededDatabase`、造数据的工厂 `createFactories`、表快照比较器、假 Provider 支架。说明在 [data/README.md](data/README.md) |
 
 ## 2. 测试库
 
