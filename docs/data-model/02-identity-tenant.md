@@ -623,8 +623,8 @@ erDiagram
 | `pending` | `qualification.approve` | `verified` | 通过守卫 | 员工 |
 | `pending` | `qualification.reject` | `rejected` | 原因至少 1 项、说明必填 | 员工 |
 | `rejected` | `qualification.submit` | `pending` | 非终局；被驳回的证照已补齐 | 商家用户（老板） |
-| `pending` | `qualification.withdraw` | 提交前的值 | 主体被关闭或放弃 | 系统 |
-| `verified` | `qualification.change_submit` / `change_approve` / `change_reject` | `verified` | 变更重审不改结论；照常写一行状态历史 | 商家用户、员工 |
+| `pending` | `qualification.withdraw` | 提交前的值（`unsubmitted` 或 `rejected`） | 主体被关闭或放弃 | 系统 |
+| `verified` | `qualification.change_submit` / `qualification.change_approve` / `qualification.change_reject` | `verified` | 变更重审不改结论；照常写一行状态历史 | 商家用户、员工 |
 | `verified` | `qualification.change_withdraw` | `verified` | 主体被关闭或放弃时撤回在审的 `change` 轮次；from = to，照常写一行状态历史 | 系统 |
 
 **不变量**（每日校验）

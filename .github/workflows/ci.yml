@@ -153,6 +153,10 @@ jobs:
       # 读的是前面“空库跑全部迁移”一步建的 lyx_migrate_check；主机与账号取本任务的 DATABASE_URL
       - name: 枚举与库 CHECK 一致
         run: pnpm enums:check
+      # 状态机迁移表对照（W0-12）：packages/shared 的 25 张迁移表 ↔ 数据模型分组文档的状态机表，逐行 0 差异；
+      # 状态机与状态列的清单与契约登记、01 分组 第 3.2 节、catalogue.json 一致。只读文件，不连库
+      - name: 状态机迁移表对照
+        run: pnpm machines:check
       # 重新生成样式变量、后台主题、图标数据，与入库的生成物比对；顺带写出预览页（不入库），下一步上传
       - name: 设计生成物无差异
         run: pnpm design:check

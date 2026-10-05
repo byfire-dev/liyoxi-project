@@ -159,22 +159,22 @@ erDiagram
 
 | 当前状态 | 事件 | 新状态 | 守卫 | 触发者 |
 | --- | --- | --- | --- | --- |
-| — | 创建（微信） | `pending_payment` | 仅老板；主体已认证或审核中；购买策略允许该渠道与金额；报价金额与入参一致；无其他未完成套餐类付款单；加购须套餐生效中；主体没有处于退款处理中的周期（报价函数返回 `PLAN_REFUND_IN_PROGRESS`，d1:864、1129） | 商家 |
-| — | 创建（对公）或后台线下代建 | `pending_payment`（`awaiting_proof`） | 同上；代建须合同号且 `controls.admin_create_order` 开启 | 商家 / 员工 |
-| `pending_payment` | 收款入账 `applyPayment` | `paid` | 交易已成功；渠道实收 = 应付；付款人、回传数据与本库一致 | 系统（回调、查单、对账、内联与任务进程） |
-| `pending_payment` / `pending_confirmation` | 收到金额或付款人不符的款 | `cancelled` | 系统动作；`cancel_reason` 取 `amount_mismatch` / `payer_mismatch`；该笔保留为未入账收款并开差异单 | 系统 |
-| `pending_payment`（微信） | 超时或老板取消 | `cancelled` | 名下尝试都已 `closed`（以关单结果为准，不是到点即取消） | 系统 / 商家 |
-| `pending_payment`（`awaiting_proof` / `proof_rejected`） | 上传凭证 | `pending_confirmation`（`proof_submitted`） | 文件已确认存在、类型合规；未过期；该单没有待确认的凭证 | 商家 / 员工代传 |
-| `pending_confirmation`（`proof_submitted`） | 重新上传凭证（财务尚未处理） | 不变 | 旧凭证 `pending` → `superseded`，新凭证 `pending`；按新凭证重算 `due_at`、重设 `sla.breach` 定时器；状态与子状态都不变，只写审计 | 商家 / 员工代传 |
-| `pending_confirmation`（`confirm_review`） | 重新上传凭证 | — | 拒绝：复核期间不允许替换凭证，须先由复核人退回 | — |
-| `pending_confirmation`（`proof_submitted`） | 财务驳回凭证 | `pending_payment`（`proof_rejected`） | 原因 + 说明；`expires_at` 顺延一个对公有效期（升级单不延长）（M68） | 财务 |
-| `pending_confirmation`（`proof_submitted`） | 财务确认到账（不需复核） | `paid` | 权限 + 再次验证身份；回显付款单号与到账金额；到账金额 = 应付；银行流水号规范化后唯一；确认人不是开单员工 | 财务 |
-| `pending_confirmation`（`proof_submitted`） | 财务确认到账（金额 ≥ 复核阈值，启用二人复核时） | `pending_confirmation`（`confirm_review`） | 同上；建 `transfer_confirm` 审批单（`dedupe_key = transfer_confirm:{凭证 id}`），只暂存确认内容 | 财务 |
-| `pending_confirmation`（`confirm_review`） | 复核通过 / 退回 | `paid` /（`proof_submitted`） | 审批人不是发起人（审批单保证） | 财务（第二人） |
-| `pending_payment` / `pending_confirmation`（对公，不在 `confirm_review`） | 差异单 `bank_unmatched` 的“关联到付款单并确认”（`link_order`） | `paid` | 同主体、金额相等；孤儿收款关联到本单后 `applyPayment`；本单 `pending` 的凭证同事务置 `accepted`（结论人 = 处理差异的财务，交易的 `transfer_proof_id` 指向它），取消其 `sla.breach` 定时器 | 财务 |
-| `pending_payment`（`awaiting_proof` / `proof_rejected`） | 到期或老板取消 | `cancelled` | 没有待确认的凭证；凭证待财务确认期间不可取消、不自动关闭 | 系统 / 商家 |
-| `cancelled` | 差异单“补单” | `paid` | 唯一入口；存在该单未入账的成功收款；实时查单仍为成功且金额相等；回显 + 再次验证身份 + 说明 | 财务 |
-| `paid` | 入账收款的退款成功且累计退款 ≥ 实付 | `refunded` | 由 `refund_txn` 成功驱动；只算入账收款（`paid_payment_txn_id`）上的退款，未入账收款的退回不动本单 | 系统 |
+| — | 创建（微信，`billing_order.create`） | `pending_payment` | 仅老板；主体已认证或审核中；购买策略允许该渠道与金额；报价金额与入参一致；无其他未完成套餐类付款单；加购须套餐生效中；主体没有处于退款处理中的周期（报价函数返回 `PLAN_REFUND_IN_PROGRESS`，d1:864、1129） | 商家 |
+| — | 创建（对公）或后台线下代建（`billing_order.create`） | `pending_payment`（`awaiting_proof`） | 同上；代建须合同号且 `controls.admin_create_order` 开启 | 商家 / 员工 |
+| `pending_payment` | 收款入账 `applyPayment`（`billing_order.apply_payment`） | `paid` | 交易已成功；渠道实收 = 应付；付款人、回传数据与本库一致 | 系统（回调、查单、对账、内联与任务进程） |
+| `pending_payment` / `pending_confirmation` | 收到金额或付款人不符的款（`billing_order.cancel_mismatch`） | `cancelled` | 系统动作；`cancel_reason` 取 `amount_mismatch` / `payer_mismatch`；该笔保留为未入账收款并开差异单 | 系统 |
+| `pending_payment`（微信） | 超时或老板取消（`billing_order.cancel`） | `cancelled` | 名下尝试都已 `closed`（以关单结果为准，不是到点即取消） | 系统 / 商家 |
+| `pending_payment`（`awaiting_proof` / `proof_rejected`） | 上传凭证（`billing_order.submit_proof`） | `pending_confirmation`（`proof_submitted`） | 文件已确认存在、类型合规；未过期；该单没有待确认的凭证 | 商家 / 员工代传 |
+| `pending_confirmation`（`proof_submitted`） | 重新上传凭证（财务尚未处理） | 不变 | 旧凭证 `pending` → `superseded`，新凭证 `pending`；按新凭证重算 `due_at`、重设 `sla.breach` 定时器；状态与子状态都不变，只写审计，不写状态历史 | 商家 / 员工代传 |
+| `pending_confirmation`（`confirm_review`） | 重新上传凭证 | — | 拒绝：复核期间不允许替换凭证，须先由复核人退回；不迁移，不写状态历史 | — |
+| `pending_confirmation`（`proof_submitted`） | 财务驳回凭证（`billing_order.reject_proof`） | `pending_payment`（`proof_rejected`） | 原因 + 说明；`expires_at` 顺延一个对公有效期（升级单不延长）（M68） | 财务 |
+| `pending_confirmation`（`proof_submitted`） | 财务确认到账（不需复核，`billing_order.confirm_transfer`） | `paid` | 权限 + 再次验证身份；回显付款单号与到账金额；到账金额 = 应付；银行流水号规范化后唯一；确认人不是开单员工 | 财务 |
+| `pending_confirmation`（`proof_submitted`） | 财务确认到账（金额 ≥ 复核阈值，启用二人复核时） | `pending_confirmation`（`confirm_review`） | 同上；建 `transfer_confirm` 审批单（`dedupe_key = transfer_confirm:{凭证 id}`），只暂存确认内容；只改子状态，不写状态历史 | 财务 |
+| `pending_confirmation`（`confirm_review`） | 复核通过（`billing_order.approve_review`）/ 退回（只改子状态，不写状态历史） | `paid` /（`proof_submitted`） | 审批人不是发起人（审批单保证） | 财务（第二人） |
+| `pending_payment` / `pending_confirmation`（对公，不在 `confirm_review`） | 差异单 `bank_unmatched` 的“关联到付款单并确认”（`link_order`；`billing_order.link_receipt`） | `paid` | 同主体、金额相等；孤儿收款关联到本单后 `applyPayment`；本单 `pending` 的凭证同事务置 `accepted`（结论人 = 处理差异的财务，交易的 `transfer_proof_id` 指向它），取消其 `sla.breach` 定时器 | 财务 |
+| `pending_payment`（`awaiting_proof` / `proof_rejected`） | 到期或老板取消（`billing_order.cancel`） | `cancelled` | 没有待确认的凭证；凭证待财务确认期间不可取消、不自动关闭 | 系统 / 商家 |
+| `cancelled` | 差异单“补单”（`billing_order.restore`） | `paid` | 唯一入口；存在该单未入账的成功收款；实时查单仍为成功且金额相等；回显 + 再次验证身份 + 说明 | 财务 |
+| `paid` | 入账收款的退款成功且累计退款 ≥ 实付（`billing_order.refund`） | `refunded` | 由 `refund_txn` 成功驱动；只算入账收款（`paid_payment_txn_id`）上的退款，未入账收款的退回不动本单 | 系统 |
 
 商家创建付款单的事务里先由 `biz_sequence` 取得 `order_no`，再随 `ref { type: 'billing_order', id, no }` 调 `agreements.assertConsents`（场景 `plan_purchase` / `topup`），同意记录的 `biz_no` 即本单号（13 分组；`ck_agreement_consent_biz_no` 要求 `FK` 前缀）。后台线下代建的付款单凭合同号，不调。
 
@@ -520,16 +520,16 @@ stateDiagram-v2
 
 | 当前状态 | 事件 | 新状态 | 守卫 | 副作用（同事务） | 触发者 |
 | --- | --- | --- | --- | --- | --- |
-| — | 发起（同事务建审批单） | `pending_approval` | 权限；该笔收款无在途申请（部分唯一索引）；数额由服务端核算；属于 V1.0 支持的组合且规则核算通过：套餐规则调用 `previewPlanRefund(termId)`，窗口按此刻（即 `created_at`）判断，只判断这一次（d1:1130；M99）；`window`、`qualification_failed` 还要求周期没有升级过（M98）；差异转入：对应的未入账收款或履约受阻仍存在 | 套餐规则：`suspendTermForRefund`，不通过则整体回滚；入账收款的退款：该付款单 `pending` 的开票申请置 `held_by_refund_request_id`；差异转入：差异单 → `resolving` | 客服 / 处理差异的财务 |
-| `pending_approval` | 审批通过（审批事务内回调） | `pending_execution` | 复核会变坏的事实：套餐规则重新调用 `previewPlanRefund` 只看“未使用”（窗口不再复核）、可退余额仍足够、差异转入的收款仍未入账；结果写 `recheck_log.approve` | 写 `exec_due_at`、`sla_snapshot`，登记执行时限的 `sla.breach` 定时器（主体为审批单，M71）；入账收款的退款：该付款单 `issued` 的开票申请 → `red_pending` | 财务 |
-| `pending_approval` | 审批驳回 | `not_executed`（`rejected`） | 驳回说明在审批单 | 套餐规则：`resumeTermFromRefund`；清除开票申请的暂停标记；差异单回到 `open`；写 `closed_at` | 财务 |
-| `pending_approval` | 申请人撤回 | `not_executed`（`withdrawn`） | 申请人本人；申请人已停用或对象已失效时，由 `finance.refund.approve` 持有人代撤（接口裁决 A15） | 同驳回 | 申请人 |
-| `pending_execution` | 执行（微信原路） | `executing` | 权限 + 再次验证身份；入账收款的退款现算发票守卫（最新开票申请为 `issued` / `red_pending` 时拒绝，`RED_INVOICE_REQUIRED`）；金额 ≤ 实收 − 已退 − 在途；名下没有未到终态的退款交易 | 套餐规则：`revokeTerm`（重新执行时按幂等键直接返回），首次成功写 `entitlement_revoked_at`；`revokeTerm` 拒绝则整体回滚，申请单留在待执行、由财务作废。建 `refund_txn(created)`，写 `executed_*`；取消执行时限的定时器 | 财务 |
-| `pending_execution` | 执行（线下登记） | `done` | 同上 | 同上；建 `refund_txn(offline, succeeded)`；其余同“退款交易成功” | 财务 |
-| `pending_execution` | 退款回调晚到（申请已回到待执行时收到渠道“退款成功”） | `done` | 回调验签通过；对应退款交易存在 | 照常记成功：累加已退金额，同“退款交易成功”（接口裁决 A102） | 系统（回调） |
-| `pending_execution` | 作废 | `not_executed`（`voided`） | `entitlement_revoked_at` 为空；名下没有成功或未到终态的退款交易；说明必填 | 套餐规则：`resumeTermFromRefund`；同驳回的恢复动作；`red_pending` 的开票申请恢复为 `issued`（已回填红票的保持 `red_issued`）；写 `voided_by_staff_id`、`close_note`、`closed_at`；取消执行时限的定时器；审批单保持 `approved` | 财务 |
-| `executing` | 退款交易成功 | `done` | — | 收款交易累加 `refunded_fen`。入账收款：付款单累加已退，累计 ≥ 实付则 → `refunded`，`pending` 的开票申请自动驳回（`reject_kind = order_refunded`）。未入账收款：不动付款单。差异单 → `resolved`。写 `done_at`、`closed_at` | 系统（回调、查询） |
-| `executing` | 退款交易到达失败终态（`closed` / `not_accepted` / `abandoned`） | `pending_execution` | — | 写 `exec_error`；权益可能已回收，不可作废；执行时限不重新计时（失败由 `exec_error` 与退款告警跟进） | 系统 |
+| — | 发起（`refund.submit`；同事务建审批单） | `pending_approval` | 权限；该笔收款无在途申请（部分唯一索引）；数额由服务端核算；属于 V1.0 支持的组合且规则核算通过：套餐规则调用 `previewPlanRefund(termId)`，窗口按此刻（即 `created_at`）判断，只判断这一次（d1:1130；M99）；`window`、`qualification_failed` 还要求周期没有升级过（M98）；差异转入：对应的未入账收款或履约受阻仍存在 | 套餐规则：`suspendTermForRefund`，不通过则整体回滚；入账收款的退款：该付款单 `pending` 的开票申请置 `held_by_refund_request_id`；差异转入：差异单 → `resolving` | 客服 / 处理差异的财务 |
+| `pending_approval` | 审批通过（`approval.approved`；审批事务内回调） | `pending_execution` | 复核会变坏的事实：套餐规则重新调用 `previewPlanRefund` 只看“未使用”（窗口不再复核）、可退余额仍足够、差异转入的收款仍未入账；结果写 `recheck_log.approve` | 写 `exec_due_at`、`sla_snapshot`，登记执行时限的 `sla.breach` 定时器（主体为审批单，M71）；入账收款的退款：该付款单 `issued` 的开票申请 → `red_pending` | 财务 |
+| `pending_approval` | 审批驳回（`approval.rejected`） | `not_executed`（`rejected`） | 驳回说明在审批单 | 套餐规则：`resumeTermFromRefund`；清除开票申请的暂停标记；差异单回到 `open`；写 `closed_at` | 财务 |
+| `pending_approval` | 申请人撤回（`approval.withdrawn`） | `not_executed`（`withdrawn`） | 申请人本人；申请人已停用或对象已失效时，由 `finance.refund.approve` 持有人代撤（接口裁决 A15） | 同驳回 | 申请人 |
+| `pending_execution` | 执行（微信原路，`refund.execute`） | `executing` | 权限 + 再次验证身份；入账收款的退款现算发票守卫（最新开票申请为 `issued` / `red_pending` 时拒绝，`RED_INVOICE_REQUIRED`）；金额 ≤ 实收 − 已退 − 在途；名下没有未到终态的退款交易 | 套餐规则：`revokeTerm`（重新执行时按幂等键直接返回），首次成功写 `entitlement_revoked_at`；`revokeTerm` 拒绝则整体回滚，申请单留在待执行、由财务作废。建 `refund_txn(created)`，写 `executed_*`；取消执行时限的定时器 | 财务 |
+| `pending_execution` | 执行（线下登记，`refund.record_offline`） | `done` | 同上 | 同上；建 `refund_txn(offline, succeeded)`；其余同“退款交易成功” | 财务 |
+| `pending_execution` | 退款回调晚到（`refund.complete`；申请已回到待执行时收到渠道“退款成功”） | `done` | 回调验签通过；对应退款交易存在 | 照常记成功：累加已退金额，同“退款交易成功”（接口裁决 A102） | 系统（回调） |
+| `pending_execution` | 作废（`refund.void`） | `not_executed`（`voided`） | `entitlement_revoked_at` 为空；名下没有成功或未到终态的退款交易；说明必填 | 套餐规则：`resumeTermFromRefund`；同驳回的恢复动作；`red_pending` 的开票申请恢复为 `issued`（已回填红票的保持 `red_issued`）；写 `voided_by_staff_id`、`close_note`、`closed_at`；取消执行时限的定时器；审批单保持 `approved` | 财务 |
+| `executing` | 退款交易成功（`refund.complete`） | `done` | — | 收款交易累加 `refunded_fen`。入账收款：付款单累加已退，累计 ≥ 实付则 → `refunded`，`pending` 的开票申请自动驳回（`reject_kind = order_refunded`）。未入账收款：不动付款单。差异单 → `resolved`。写 `done_at`、`closed_at` | 系统（回调、查询） |
+| `executing` | 退款交易到达失败终态（`refund.fail`；`closed` / `not_accepted` / `abandoned`） | `pending_execution` | — | 写 `exec_error`；权益可能已回收，不可作废；执行时限不重新计时（失败由 `exec_error` 与退款告警跟进） | 系统 |
 
 ```mermaid
 stateDiagram-v2
@@ -757,15 +757,15 @@ stateDiagram-v2
 
 | 当前状态 | 事件 | 新状态 | 守卫与写入 | 触发者 |
 | --- | --- | --- | --- | --- |
-| — | 开单 | `open` | `dedupe_key` 唯一：重跑对账、重复入账不会重复开单 | 系统 / 财务（登记异常到账） |
-| — | 对账自愈留痕 | `auto_healed` | 回调丢失后由查单或对账补记并入账成功 | 系统 |
-| `open` | 转退款 | `resolving` | 生成退款申请（申请人 = 处理差异的财务），之后走审批与执行；同时写 `resolution = refund`、`resolution_note`、`resolved_by_staff_id`（转退款的财务） | 财务 |
-| `resolving` | 退款申请完成（`done`） | `resolved` | 退款交易成功；写 `resolved_at`，处理人、说明沿用转退款时的值 | 系统 |
-| `resolving` | 退款申请未执行即关闭（驳回、撤回、作废） | `open` | 同事务清空 `resolution`、`resolution_note`、`resolved_by_staff_id`、`refund_request_id`，重新进入待办；原值留在 `audit_log` | 系统 |
-| `open` | 重试履约（仅 `fulfillment_blocked`） | `resolved`（`retried`） | `fulfill()` 返回 `done`，付款单的履约子状态同事务改为 `done`（见 `billing_order`）；仍受阻时差异单保持 `open` | 财务 |
-| `open` | 补单、重建付款单、关联到付款单并确认、线下退回、补记渠道退款、数据更正、核销 | `resolved` | 按类型只允许固定的几种处理（下表）；核销仅超级管理员 | 财务 |
-| `open` | `bill_only`（已关联到现有付款单）由入账函数重新归类 | `auto_healed` | 入账成功，或已按付款单当前状态另开了对应类型的新差异单（d2:1107）；不需要处理人 | 系统 |
-| `open` | 后续账单出现该行 | `auto_healed` | 仅 `platform_only` | 系统 |
+| — | 开单（`payment_exception.open`） | `open` | `dedupe_key` 唯一：重跑对账、重复入账不会重复开单 | 系统 / 财务（登记异常到账） |
+| — | 对账自愈留痕（`payment_exception.record_healed`） | `auto_healed` | 回调丢失后由查单或对账补记并入账成功 | 系统 |
+| `open` | 转退款（`payment_exception.request_refund`） | `resolving` | 生成退款申请（申请人 = 处理差异的财务），之后走审批与执行；同时写 `resolution = refund`、`resolution_note`、`resolved_by_staff_id`（转退款的财务） | 财务 |
+| `resolving` | 退款申请完成（`payment_exception.complete_refund`；申请 `done`） | `resolved` | 退款交易成功；写 `resolved_at`，处理人、说明沿用转退款时的值 | 系统 |
+| `resolving` | 退款申请未执行即关闭（`payment_exception.reopen`；驳回、撤回、作废） | `open` | 同事务清空 `resolution`、`resolution_note`、`resolved_by_staff_id`、`refund_request_id`，重新进入待办；原值留在 `audit_log` | 系统 |
+| `open` | 重试履约（`payment_exception.retry_fulfill`；仅 `fulfillment_blocked`） | `resolved`（`retried`） | `fulfill()` 返回 `done`，付款单的履约子状态同事务改为 `done`（见 `billing_order`）；仍受阻时差异单保持 `open` | 财务 |
+| `open` | 补单、重建付款单、关联到付款单并确认、线下退回、补记渠道退款、数据更正、核销（`payment_exception.resolve`） | `resolved` | 按类型只允许固定的几种处理（下表）；核销仅超级管理员 | 财务 |
+| `open` | `bill_only`（已关联到现有付款单）由入账函数重新归类（`payment_exception.reclassify`） | `auto_healed` | 入账成功，或已按付款单当前状态另开了对应类型的新差异单（d2:1107）；不需要处理人 | 系统 |
+| `open` | 后续账单出现该行（`payment_exception.auto_heal`） | `auto_healed` | 仅 `platform_only` | 系统 |
 
 每种类型的可选处理（d2:1101-1118；M66）：
 
@@ -1107,14 +1107,14 @@ stateDiagram-v2
 
 | 当前状态 | 事件 | 新状态 | 守卫 | 触发者 |
 | --- | --- | --- | --- | --- |
-| — | 老板申请 | `pending` | 付款单已支付且履约完成；已退金额为 0；无在途退款申请（`ix_refund_request_open_billing_order`）；无有效开票申请；主体认证已通过；专票、电子、纸质各自的必填项齐全；配置了申请时限时未超期。算出 `due_at` 并登记 `sla.breach` | 商家（老板） |
-| `pending` | 财务开具（电子） | `issued` | 先锁付款单行再现查：仍为已支付、已退为 0、无在途退款申请；发票号码按介质校验且未被使用；文件已上传 | 财务 |
-| `pending` | 财务开具并寄出（纸质） | `issued` | 同上，另填快递公司与运单号 | 财务 |
-| `pending` | 财务驳回 | `rejected` | `reject_kind = manual`；原因（字典）+ 说明；商家可重新申请（新申请单） | 财务 |
-| `pending` | 付款单退款成功 | `rejected` | 系统动作：`reject_kind = order_refunded`，不填字典原因与驳回人（M55） | 系统 |
-| `issued` | 入账收款的退款申请审批通过；或“补记渠道退款”使付款单全额退款 | `red_pending` | — | 系统 |
-| `red_pending` | 财务回填红字发票 | `red_issued` | 红字发票号码 + 文件 | 财务 |
-| `red_pending` | 该退款申请未执行即关闭（驳回、撤回、作废） | `issued` | 红票尚未回填 | 系统 |
+| — | 老板申请（`invoice.request`） | `pending` | 付款单已支付且履约完成；已退金额为 0；无在途退款申请（`ix_refund_request_open_billing_order`）；无有效开票申请；主体认证已通过；专票、电子、纸质各自的必填项齐全；配置了申请时限时未超期。算出 `due_at` 并登记 `sla.breach` | 商家（老板） |
+| `pending` | 财务开具（电子，`invoice.issue`） | `issued` | 先锁付款单行再现查：仍为已支付、已退为 0、无在途退款申请；发票号码按介质校验且未被使用；文件已上传 | 财务 |
+| `pending` | 财务开具并寄出（纸质，`invoice.issue`） | `issued` | 同上，另填快递公司与运单号 | 财务 |
+| `pending` | 财务驳回（`invoice.reject`） | `rejected` | `reject_kind = manual`；原因（字典）+ 说明；商家可重新申请（新申请单） | 财务 |
+| `pending` | 付款单退款成功（`invoice.reject_refunded`） | `rejected` | 系统动作：`reject_kind = order_refunded`，不填字典原因与驳回人（M55） | 系统 |
+| `issued` | 入账收款的退款申请审批通过；或“补记渠道退款”使付款单全额退款（`invoice.request_red`） | `red_pending` | — | 系统 |
+| `red_pending` | 财务回填红字发票（`invoice.issue_red`） | `red_issued` | 红字发票号码 + 文件 | 财务 |
+| `red_pending` | 该退款申请未执行即关闭（`invoice.cancel_red`；驳回、撤回、作废） | `issued` | 红票尚未回填 | 系统 |
 
 ```mermaid
 stateDiagram-v2

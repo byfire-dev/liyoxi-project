@@ -186,9 +186,9 @@ stateDiagram-v2
 | 15 | `in_service` | `usage.ended` | `takedown` | 今天已过使用期止日，或下架任务全部已由商家确认 | 定时器；系统求值 |
 | 15b | `awaiting_launch`、`launch_verify` | `usage.ended` | `takedown` | 今天已过使用期止日（从未上线） | 定时器；系统求值 |
 | 16 | `takedown` | `takedown.all_checked` | `archived` | 未作废的下架任务至少 1 条且全部已核查 | 系统求值 |
-| 17 | 步骤 1～9 | `ticket.hold(reason, ref)` | 不变 | — | 系统 |
-| 18 | 暂停中 | `ticket.resume(reason, ref)` | 不变 | 该原因存在 | 系统 |
-| 19 | 步骤 1～9 | `ticket.terminate` | `terminated` | 只能由取消执行事务调用；暂停中同样可用 | 系统 |
+| 17 | 步骤 1～9（`assigning`、`plan_confirm`、`ad_prep`、`sample_making`、`sample_confirm`、`batch_compose`、`delivering`、`awaiting_launch`、`launch_verify`） | `ticket.hold(reason, ref)` | 不变 | — | 系统 |
+| 18 | 暂停中（只会在步骤 1～9：`assigning`、`plan_confirm`、`ad_prep`、`sample_making`、`sample_confirm`、`batch_compose`、`delivering`、`awaiting_launch`、`launch_verify`） | `ticket.resume(reason, ref)` | 不变 | 该原因存在 | 系统 |
+| 19 | 步骤 1～9（`assigning`、`plan_confirm`、`ad_prep`、`sample_making`、`sample_confirm`、`batch_compose`、`delivering`、`awaiting_launch`、`launch_verify`） | `ticket.terminate` | `terminated` | 只能由取消执行事务调用；暂停中同样可用 | 系统 |
 | 20 | `in_service`、`takedown` | `ticket.terminate` | `takedown` | 同上（已上线、平台原因） | 系统 |
 | 21 | `in_service` | `launch.verify_revoked` | `launch_verify` | 撤销后没有任何已上线的任务，也没有已确认或已核查的下架任务 | 系统 |
 | 22 | 更正白名单内的步骤对 | `admin.force` | 指定步骤 | 目标在白名单内；更正后结构性不变量仍成立 | 超级管理员 |

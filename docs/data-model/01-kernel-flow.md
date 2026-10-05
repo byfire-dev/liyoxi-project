@@ -588,7 +588,7 @@ erDiagram
 
 相对草案改掉的取值见 2.6 的改动表。清单与 `catalogue.json` 里 `state_machine = true` 的表保持一致，增减状态机或改状态列名时，登记表与各分组文档同改，库不用改。
 
-事件名（`status_transition.event`）由各分组在自己的状态机里定义，同样登记在 `packages/contract`，库只要求非空。已登记的补充：`store` 的 `qualification_status` 链除 d9 5.2 的八个 `qualification.*` 外，另有 `change` 轮次撤回 `qualification.change_withdraw`（from = to，04 分组 2.4）；`service_ticket` 的 from = to 事件 `assign`、`transfer`、`escalate`（12 分组 2.1，载荷见 12 分组 4.3）。
+事件名（`status_transition.event`）由各分组在自己的状态机里定义，登记在 `packages/shared` 的迁移表（`@liyoxi/shared/machines`），库只要求非空。已登记的补充：`store` 的 `qualification_status` 链除 d9 5.2 的八个 `qualification.*` 外，另有 `change` 轮次撤回 `qualification.change_withdraw`（from = to，04 分组 2.4）；`service_ticket` 的 from = to 事件 `assign`、`transfer`、`escalate`（12 分组 2.1，载荷见 12 分组 4.3）。
 
 ### 3.3 `timer.subject_type` 与 `kind`（已知取值）
 

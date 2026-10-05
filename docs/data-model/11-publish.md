@@ -131,7 +131,7 @@ stateDiagram-v2
 | `pending_verify` | `account.verify_reject` | `abnormal` | 原因（字典）与说明必填 | 发布专员 | 审批单 → `rejected`（原因与说明同时写在审批单上）；提交行写 `compare_result`；本行写异常三列，`abnormal_source = verify`；发 `account.abnormal` |
 | `abnormal` | `account.resubmit` | `pending_verify` | 重新上传主页截图；账号名称与账号 ID 不可改（d3:2040；改账号 ID 等于换账号，走解绑后重新绑定），账号类型可重选（画板 admin/Accounts 的退回说明“请修改账号类型”） | 商家（老板） | 新一轮提交行（`round_no + 1`，`kind = resubmit`，快照记当轮的值）与核验审批单；清空异常三列；写 `submitted_at`；发 `account.submitted` |
 | `available` | `account.mark_abnormal` | `abnormal` | 原因与说明必填 | 发布专员（`publish.account.mark_abnormal`） | 写异常三列，`abnormal_source = manual`。新订购与新方案不可选，不影响在办订单（d3:2041）；发 `account.abnormal` |
-| 任意未解绑状态 | `account.unbind` | `unbound` | 不存在引用该账号且阶段为待开工、制作中、待上线、上线中的订单项；不存在该账号上未核查的下架任务（d3:2042） | 商家（老板） | 写 `unbound_at`；在途核验审批单置 `withdrawn`；发 `account.unbound` |
+| 任意未解绑状态（`pending_verify`、`available`、`abnormal`） | `account.unbind` | `unbound` | 不存在引用该账号且阶段为待开工、制作中、待上线、上线中的订单项；不存在该账号上未核查的下架任务（d3:2042） | 商家（老板） | 写 `unbound_at`；在途核验审批单置 `withdrawn`；发 `account.unbound` |
 
 事件名取自 d3 的出站事件目录（d3:2730）并补齐，以 `packages/shared` 的状态迁移表为准。巡检异常不自动改账号状态（d3:1909）。
 

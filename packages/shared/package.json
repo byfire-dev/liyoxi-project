@@ -67,13 +67,19 @@
     "./mask": {
       "types": "./src/mask/index.ts",
       "default": "./src/mask/index.ts"
+    },
+    "./machines": {
+      "types": "./src/machines/index.ts",
+      "default": "./src/machines/index.ts"
     }
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "build": "echo '源码包：exports 直接指向 src，没有构建'",
-    "design:generate": "tsx scripts/generate.ts"
+    "design:generate": "tsx scripts/generate.ts",
+    "machines:check": "tsx scripts/machines-check.ts",
+    "machines:coverage": "tsx scripts/machines-coverage.ts"
   },
   "dependencies": {
     "@liyoxi/contract": "workspace:*"
