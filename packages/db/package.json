@@ -8,6 +8,14 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./testing": {
+      "types": "./src/testing/index.ts",
+      "default": "./src/testing/index.ts"
+    },
+    "./testing/global-setup": {
+      "types": "./src/testing/global-setup.ts",
+      "default": "./src/testing/global-setup.ts"
     }
   },
   "scripts": {
@@ -21,9 +29,11 @@
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.9.1",
-    "@prisma/client": "7.9.1"
+    "@prisma/client": "7.9.1",
+    "pg": "8.23.0"
   },
   "devDependencies": {
+    "@types/pg": "8.23.1",
     "prisma": "7.9.1"
   }
 }

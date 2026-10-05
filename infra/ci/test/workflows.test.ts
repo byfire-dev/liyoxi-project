@@ -364,6 +364,8 @@ describe("ci.yml", () => {
       "docker compose -f infra/compose/local.yml up -d --wait minio",
       "pnpm exec vitest run packages/services/src/providers/storage/minio.test.ts",
       "pnpm test",
+      // W0-05b：两个会话同时跑连库的测试项目（挂了 globalSetup 的），核对库名与 Redis 前缀没有交集
+      "pnpm test:isolation --scope connected",
       "pnpm contract:check",
       // W0-09a：登记表对账（x01 名称登记与归属表）、枚举与库 CHECK 一致
       "pnpm registry:check",

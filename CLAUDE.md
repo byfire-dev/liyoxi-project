@@ -147,8 +147,8 @@
 | 服务包另须（模块完整） | 本模块的事件、订阅者、定时器处理器、周期任务、不变量已登记；x01 第 5 节归本模块的迁移已实现；全量不变量 0 违规；通知场景解析、提醒端口、直记埋点已接（实现未到的用空实现并登记留桩）；D7 第 9.4 节里本模块的告警规则已登记并有触发测试；真机清单条目已补 |
 | 接口包 | 被 CI 判为“已落地”：真实处理器 + 至少一条接口层测试引用该 operationId + 不在留桩清单。商家端接口包另须店员防回归通过 |
 | 页面包 | 硬性规则 24；无画板页附截图；本页的订阅点位、隐私授权、埋点按登记表挂上；`docs/plan/pages.md` 里本页标为已实现 |
-| 测试库 | 隔离单位是“库”：每个会话、每个 Vitest worker 一个 `lyx_test_<包>_<n>`；守卫只认 `lyx_test_` 前缀；重置 = 删库重建 |
-| Redis 与 Compose | Redis 按会话分库号或键前缀，“清空”只清自己的。Compose 只起一份共享实例，多个 worktree 共用（用法由 W0-05b 补进本文） |
+| 测试库 | 隔离单位是“库”：每个会话、每个 Vitest worker 一个 `lyx_test_<包>_<n>`；守卫只认 `lyx_test_` 前缀；重置 = 删库重建。用法（W0-05b）：测试文件顶层写 `const db = useTestDatabase("<包>")`（从 `@liyoxi/services/testing` 引），包的 `vitest.config.ts` 挂 `globalSetup`；`<n>` 是“会话标识_worker 编号”，会话标识取 `LYX_TEST_SESSION`，没设就取检出根路径的短哈希，所以每个 worktree 各用各的；库从本会话的模板库 `lyx_test_tpl_<会话标识>` 拷出，模板库每轮测试开始时重建并跑全部迁移；用例全过即删库，有失败（用例或钩子）就把库改名留下并打印库名，看完用 `pnpm test:db:prune` 清掉。同一个检出里要同时跑两轮测试，各给一个不同的 `LYX_TEST_SESSION`。挂了 `globalSetup` 的项目（现在是 `packages/db`、`packages/services`）每轮开始时先建模板库：只跑其中不连库的用例，也要本地的 PostgreSQL 在运行并给出 `DATABASE_URL`。用了 `useTestDatabase` 或 `useTestRedis` 的包必须挂 `globalSetup`（没挂即报错）：CI 的 `test:isolation` 一步按它认哪些项目要跑。详见 [README](packages/services/src/testing/README.md) |
+| Redis 与 Compose | Redis 按键前缀隔离（库号只有 16 个，不够分）：每个会话、每个 worker 一个 `lyx:test:<会话标识>:<worker 编号>:`，测试文件顶层写 `const redis = useTestRedis()`；“清空”只清自己前缀下的键（SCAN 加 UNLINK），不用 FLUSHDB、FLUSHALL。Compose 只起一份共享实例，多个 worktree 共用：在哪个 worktree 里 `pnpm infra:up` 都是同一套容器，已经起着就不用再起，不要另起一套（会抢端口）；别的会话在跑测试时不要 `pnpm infra:down`；不直接删别人的库、清别人的键，连库的用例不往 `liyoxi`、`lyx_schema_check`、`lyx_migrate_check` 里写数据 |
 | 门禁自测 | 每加一道门禁，同包加一个反例进 `gates:selftest` |
 | 时长 | PR 必过检查合计 ≤15 分钟 |
 | 小程序 | CI 只构建；主包 ≤1,500KB、分包 ≤800KB；页面证据用截图命令的产物；真机手验按演示点批量做，由业主执行 |
@@ -173,6 +173,9 @@
 | `pnpm format:check`（`pnpm format` 改写） | Prettier 格式检查。不碰 `docs/`、`design/`、`tools/` 与全部 `*.md` |
 | `pnpm typecheck` | 类型检查：根、`infra`、五份 tsconfig 预设的最小工程（见 [README](infra/ci/fixtures/README.md)）、各工作区包 |
 | `pnpm test` | Vitest。项目：`packages/*`、`apps/api`、`apps/worker`、`infra` |
+| `pnpm test --maxWorkers=4` | 指定并行数跑测试。参数直接跟在后面，不要写成 `pnpm test -- --maxWorkers=4`：`--` 之后的参数会被 Vitest 忽略。跑测试的前提（带不带参数都一样）：`packages/db`、`packages/services` 两个项目挂了 globalSetup，只跑其中不连库的用例，也要本地的 PostgreSQL 在运行并给出 `DATABASE_URL`；连 Redis 的用例另要 `REDIS_URL` |
+| `pnpm test:isolation`（加 `--scope connected` 只跑连库的测试项目，CI 的那一步用它；加 `--workers <n>` 指定每个会话的 worker 数） | 测试隔离：两个会话同时跑全量测试，都要绿，且两边用的 `lyx_test_` 库名与 Redis 前缀没有交集。每个会话的 Vitest worker 数缺省按本机核数定：两个会话合起来不超过可用核数，各最多 4 个、至少 1 个。要本地依赖在运行并给出连接参数。日志通过即删，没过的留在系统临时目录并打印位置。见 [README](packages/services/src/testing/README.md) 第 6 节 |
+| `pnpm test:db:prune`（加 `--dry-run` 只列不删；加 `--all` 清实例上全部测试库） | 清理测试库：删本会话留下的 `lyx_test_` 开头的库（失败的用例留下的、被中断的一轮没收尾的）。别的库一个不动；正有一轮测试在跑的会话的库不删。见 [README](packages/services/src/testing/README.md) 第 2 节 |
 | `pnpm --filter @liyoxi/shared test` | 只跑 `packages/shared` 的用例：PRD 2.9 七例、锚定日、工作日、金额格式化，性质测试（固定种子、每个性质 200 轮），导出自测与静态扫描，另在两个进程时区下重跑一遍。种子与轮次的改法见 [vitest.config.ts](packages/shared/vitest.config.ts) 开头的注释 |
 | `pnpm depcheck` | 依赖方向与分层检查：先核对分层登记（`node infra/ci/check-layers.mjs`，可单独跑），再对全仓跑 dependency-cruiser。规则见 [.dependency-cruiser.cjs](.dependency-cruiser.cjs) 开头的注释；模块的层与同层白名单在 [layers.json](infra/ci/layers.json)；反例夹具见 [README](infra/ci/fixtures/layers/README.md) |
 | `pnpm contract:generate` | 由 `packages/contract/src` 重新生成三份 OpenAPI 与类型，写进 `packages/contract/generated/`。改了契约源码先跑它再提交。用法见 [脚本](packages/contract/scripts/generate.ts) 开头的注释 |
