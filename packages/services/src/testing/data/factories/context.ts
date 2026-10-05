@@ -9,8 +9,8 @@ import { uuidv7 } from "../../../kernel/index.js";
 import type { Clock } from "../../../kernel/index.js";
 import type { FactorySealer } from "../seal.js";
 
-/** 工厂往哪插：Prisma 客户端，或 tx.run 给的事务句柄 */
-export type FactoryDb = Prisma.TransactionClient;
+/** 工厂往哪插：Prisma 客户端，或 tx.run 给的事务句柄（句柄的类型上没有 $transaction，工厂也用不到它） */
+export type FactoryDb = Omit<Prisma.TransactionClient, "$transaction">;
 
 export interface FactoryContext {
   readonly db: FactoryDb;
