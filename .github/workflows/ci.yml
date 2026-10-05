@@ -204,6 +204,16 @@ jobs:
           path: packages/db/dist/catalog-diff/
           if-no-files-found: warn
           retention-days: 30
+      # 以下是结构防漂移（W0-06b），接管之后每个 PR 都跑。结构快照：另建一个空库跑完全部迁移，重新生成
+      # packages/db/snapshot/structure.txt 后 git diff --exit-code。Prisma 对手写的 CHECK、部分索引、触发器不建也不查，少一个靠它看
+      - name: 结构快照无差异
+        run: pnpm db:snapshot:check
+      # 拿前面 pnpm db:deploy 建出来的 lyx_migrate_check 与快照逐条比（只读），数量与快照、06 第 1 节三处对得上
+      - name: 约束清单比对
+        run: pnpm db:constraints:check
+      # 分区子表不进快照，单独断言：兜底分区在且为空，当月与未来 3 个月的分区都在。读的也是 lyx_migrate_check
+      - name: 分区断言
+        run: pnpm db:partitions:assert
       # 枚举与库 CHECK 一致（W0-09a）：库里每条“列取值集合”形态的 CHECK ↔ 契约枚举，取值集合相等。只读，
       # 读的是前面“空库跑全部迁移”一步建的 lyx_migrate_check；主机与账号取 DATABASE_URL
       - name: 枚举与库 CHECK 一致

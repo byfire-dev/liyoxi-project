@@ -133,6 +133,12 @@
       "pattern": "packages/contract/golden/**",
       "kind": "frozen",
       "note": "公开、可选、验签路由的黄金文件（约定 C2）：新增一条须评审；与契约的路由清单一致由 pnpm contract:docs-check 核对"
+    },
+    {
+      "pattern": "packages/db/snapshot/**",
+      "kind": "generated",
+      "check": "pnpm db:snapshot:check",
+      "note": "结构快照（表、列、约束、索引、触发器、函数；不含分区子表）：只由 pnpm db:snapshot 在空库上跑完全部迁移后写出；与迁移一致由 db:snapshot:check 核对"
     }
   ]
 }

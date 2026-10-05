@@ -390,6 +390,10 @@ describe("ci.yml", () => {
       MIGRATE,
       "pnpm db:catalog-diff",
       "pnpm db:deploy && pnpm db:catalog-diff",
+      // W0-06b：结构防漂移。结构快照无差异、约束清单比对、分区断言
+      "pnpm db:snapshot:check",
+      "pnpm db:constraints:check",
+      "pnpm db:partitions:assert",
       // W0-09a：枚举与库 CHECK 一致，读上面建的迁移库
       "pnpm enums:check",
       MINIO_UP,
