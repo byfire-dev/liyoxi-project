@@ -248,6 +248,10 @@
 | `pnpm lint:copy` | 文案约束：规范 第 11 节的词不出现在规则管的页面源码、页面标题与错误码的默认文案里（第一版只有“登录相关文案不出现‘微信’”一条）；命中时指出文件、行与规则。只读文件，不连库。规则表 [copy-rules.json](infra/ci/copy-rules.json)，页面包加规则照它开头的“说明”；口径见 [脚本](infra/ci/check-copy.mjs) 开头的注释 |
 | `pnpm --filter @liyoxi/services exec vitest run src/authz/` | 只跑 authz（后台判定与数据范围）的用例：8 角色 × 13 模块与每个权限点的表驱动、性质测试（固定种子、每个性质 200 轮）、范围谓词；连库的一份要本地的 PostgreSQL 与 `DATABASE_URL`。`authorize`、`assertConfirm`、`scopeOf` 与范围谓词怎么用，轮次与种子怎么改，见 [README](packages/services/src/authz/README.md) |
 | `pnpm --filter @liyoxi/services exec vitest run src/docs/ src/tenant/` | 只跑 docs（协议的当前版本、同意记录、待同意与指纹、已签署协议、占位版本）与 tenant（建主体、成员关系解析、门店列表与额度、资质结论的三个写函数）的用例。连库的走带种子的测试库，要本地的 PostgreSQL 与 `DATABASE_URL`。两个模块各有一个装配入口 `createDocs`、`createTenant`，用法见 [docs](packages/services/src/docs/README.md)、[tenant](packages/services/src/tenant/README.md) 的 README；商家读侧的事实端口见 [kernel/ports](packages/services/src/kernel/ports/README.md) |
+| `pnpm demo:m0`（加 `--keep` 跑完不删演示库） | M0 的演示：建一个 `lyx_test_demo_m0_<进程号>` 库，跑全部迁移与种子，把样例链路走一遍并逐步打印（带幂等键的写用例 → 同键重放 → 状态历史、审计、出站事件 → 订阅者 → 定时器 → 全量不变量），末尾打印四个计数；跑完删掉自己建的库与 Redis 键，可反复跑。要本地的 PostgreSQL 与 Redis 在运行并给出连接参数。同一条链路的用例是 `packages/services/src/testing/m0-chain.db.test.ts`。见 [README](packages/services/src/testing/README.md) 第 12 节 |
+| `pnpm test:fault` | 故障注入套件：各包的并发、性质与故障注入用例一条命令跑完（按文件名圈：`*.concurrency.test.ts`、`*.property.test.ts`、名字是 `fault` 的目录与文件、幂等与租约的用例；它们也都在 `pnpm test` 里）。前提同 `pnpm test`。造什么、看什么的清单在 [docs/plan/m0-exit.md](docs/plan/m0-exit.md) 第 4 节 |
+| `pnpm plan:summaries` | 现生成台账三张汇总：`docs/plan/stubs/`、`changes/`、`external-verification/` 下各一份 `SUMMARY.md`（不入库，被 git 忽略，不用提交）。单项文件不合规时报错并指出是哪个文件的哪一项；CI 的“台账单项文件核对”只做这道核对（`node infra/ci/plan-summaries.mjs --check`，不写文件）。口径见 [脚本](infra/ci/plan-summaries.mjs) 开头的注释 |
+| `pnpm counts:report`（加 `--require M0,M1` 核对里程碑清零；加 `--detail` 逐条列 x01 的未落地清单） | 四个计数：已落地接口数、待落地数、留桩数、未实现页面数，按里程碑分列，另出 x01 归属的未落地清单。已落地数要先有已挂载清单（`pnpm exec vitest run --project api` 写出），没有时报表里会注明。口径见 [脚本](infra/ci/four-counts.mjs) 开头的注释 |
 
 本地连接参数：配置只经 `loadEnv`（`packages/services/src/kernel/env.ts`）读环境变量，会话与测试不建、不读 `.env`，在命令前或 shell 里给出。取值出处是 [local.yml](infra/compose/local.yml)，账号与口令是固定的开发值，只对本机这套容器有效；CI 的服务容器用同一组值。
 
@@ -261,7 +265,6 @@ export REDIS_URL=redis://localhost:6389/0
 
 | 命令 | 由谁提供 | 做什么 |
 | --- | --- | --- |
-| `pnpm demo:m0` | W0-30 | 一条命令重放 M0 样例用例 |
 | `pnpm demo:mN` | 各里程碑的合流包 | 重放该里程碑演示 |
 | `contract:compat` | M2 起 | 契约对在役小程序版本兼容 |
 | 小程序截图命令（可能是 `pnpm weapp:shots`） | W0-27a | 出页面截图；办法由该包定 |

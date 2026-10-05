@@ -67,7 +67,11 @@
     "stack:build": "node infra/stack/up.mjs build",
     "stack:up": "node infra/stack/up.mjs up",
     "stack:smoke": "node infra/stack/smoke.mjs",
-    "stack:down": "node infra/stack/up.mjs down"
+    "stack:down": "node infra/stack/up.mjs down",
+    "demo:m0": "pnpm --filter @liyoxi/services demo:m0",
+    "plan:summaries": "node infra/ci/plan-summaries.mjs",
+    "counts:report": "node infra/ci/four-counts.mjs",
+    "test:fault": "vitest run concurrency.test property.test /fault/ /fault- /fault.test idempotency lease.test"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",
