@@ -20,6 +20,7 @@ import pg from "pg";
 import type { TestProject } from "vitest/node";
 
 import {
+  assertTestDatabaseName,
   recordTestUsage,
   resolveTestSession,
   templateDatabaseName,
@@ -57,8 +58,8 @@ function prismaCli(): string {
   return join(dirname(manifest), bin.prisma);
 }
 
-/** 对一个库跑 prisma migrate deploy（CLAUDE.md 第 6 节规则 21：只走 migrate deploy） */
-function migrateDeploy(databaseUrl: string): Promise<void> {
+/** 对一个库跑 prisma migrate deploy（CLAUDE.md 第 6 节规则 21：只走 migrate deploy）。derived.ts 也用它 */
+export function migrateDeploy(databaseUrl: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [prismaCli(), "migrate", "deploy"], {
       cwd: PACKAGE_DIR,
@@ -125,7 +126,18 @@ async function release(): Promise<void> {
   const { admin } = state;
   if (!admin) return;
   try {
-    if (state.locked) await admin.query(`DROP DATABASE IF EXISTS "${state.template}" WITH (FORCE)`);
+    if (state.locked) {
+      // 派生模板库（derived.ts，如带种子的那一个）的名字都是“模板库名_标签”：先删它们，再删模板库
+      const derived = await admin.query<{ datname: string }>(
+        "select datname from pg_database where starts_with(datname, $1)",
+        [`${state.template}_`],
+      );
+      for (const { datname } of derived.rows) {
+        assertTestDatabaseName(datname);
+        await admin.query(`DROP DATABASE IF EXISTS "${datname}" WITH (FORCE)`);
+      }
+      await admin.query(`DROP DATABASE IF EXISTS "${state.template}" WITH (FORCE)`);
+    }
   } finally {
     // 连接一断，咨询锁自动释放
     await admin.end();
