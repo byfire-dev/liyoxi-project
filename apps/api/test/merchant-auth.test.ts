@@ -279,6 +279,30 @@ describe("会话三条与当前账号", () => {
   );
 
   it(
+    "微信能力取运行时上的 providers.wechat：登录的两次外呼落在它身上，不回 503 WECHAT_UNAVAILABLE",
+    TIMEOUT,
+    async () => {
+      // 支架没有另给微信能力：假微信经 createRuntime 的 providers 进运行时，装配点（merchant/services.ts）从那里取
+      expect(api.runtime.providers.wechat).toBe(api.wechat);
+      const before = {
+        session: api.wechat.callsOf("code2Session").length,
+        phone: api.wechat.callsOf("getPhoneNumber").length,
+      };
+      const login = await call("/m/sessions/phone-login", {
+        method: "POST",
+        json: {
+          ...presetLoginCodes(api, { openid: "oLyxApi_runtime", phone: "13600000903" }),
+          consents: await currentUserConsents(api),
+        },
+        peer: "198.19.201.1",
+      });
+      expect([login.status, login.body.error]).toEqual([200, undefined]);
+      expect(api.wechat.callsOf("code2Session")).toHaveLength(before.session + 1);
+      expect(api.wechat.callsOf("getPhoneNumber")).toHaveLength(before.phone + 1);
+    },
+  );
+
+  it(
     "静默登录：没绑定过的微信 needPhone；绑定过的发会话；code 无效 400；退出后令牌失效、不能再静默登录",
     TIMEOUT,
     async () => {

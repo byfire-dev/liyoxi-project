@@ -113,7 +113,7 @@ node apps/api/dist/server.js --port 3000 --trusted-proxy-hops 1 --trusted-proxy-
 
 - 这几件都排在限流与幂等上下文之前：401、403、426、428 不落幂等行，“同意后用同一个键重放”沿用原来的键。
 - 处理器里取当前会话用 `merchantSessionOf(c)`；`member` 路由上 `c.var.identity` 带角色、主体与门店，`c.var.membership` 是成员关系（`storeMode` 为 `archived` 即收尾上下文）；要数据范围用 `@liyoxi/services` 的 `storeScopeOf(c.var.identity)`、`entityScopeOf(…)`。
-- 商家端各域的服务从 `merchantServicesOf(c.var.runtime)` 取（`src/merchant/services.ts`：`identity`、`tenant`、`docs`），一个运行时建一次。微信能力取运行时上的 `providers.wechat`，没有即两条登录回 503 `WECHAT_UNAVAILABLE`；密钥环在第一次登录时才从环境变量里的密钥文件造。
+- 商家端各域的服务从 `merchantServicesOf(c.var.runtime)` 取（`src/merchant/services.ts`：`identity`、`tenant`、`docs`），一个运行时建一次。微信能力取运行时上的 `providers.wechat`（local、test 是本地的假微信，用例经 `createRuntime` 的 `providers` 换成替身；真实驱动到位之前 stg、prod 是未配置的那一个，两条登录回 503 `WECHAT_UNAVAILABLE`），出站事件也用运行时上的那一个；密钥环在第一次登录时才从环境变量里的密钥文件造。
 - 手机号登录的“每 openid 5 次 / 小时”不在限流中间件里：用例在换出 openid 之后回调处理器，处理器调 `runtime.rateLimiter.hit`（`src/routes/sessions.ts`）。第 6 节末条“由各自的域按数据库计数”对这一条不再成立。
 - 用例里的登录态：`src/testing/merchant.ts` 的 `seedUserAgreements`（一个测试库一次）与 `signInAsMerchant(api)`，走真实的手机号登录（假微信在 `api.wechat`）。`fakeAuth` 仍可用：它顶替鉴权时，生产链里要真实会话的四件（版本门槛、成员关系、协议同意、能力点）一并拿掉，成员关系补一个空转的占位。
 

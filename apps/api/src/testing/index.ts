@@ -78,7 +78,7 @@ export interface TestApi {
   readonly logs: Record<string, unknown>[];
   /** 这个应用缺省的来源 IP */
   readonly peer: string;
-  /** 假微信：商家端登录走它（预置 code 对应的会话与手机号；带“事务内不外呼”的钩子） */
+  /** 假微信，就是运行时上的 providers.wechat：商家端登录走它（预置 code 对应的会话与手机号；带“事务内不外呼”的钩子） */
   readonly wechat: FakeWechat;
   request(path: string, init?: TestRequestInit): Promise<Response>;
 }
@@ -123,6 +123,8 @@ export function useTestApi(): TestApiHandle {
       };
       const clock = createClock();
       const logs: Record<string, unknown>[] = [];
+      // 十二个 Provider 换成 W0-25 的替身支架（带“事务内不外呼”的钩子）：商家端登录取的就是运行时上的这个假微信
+      const { providers } = createProviderHarness({ clock });
       const runtime = createRuntime({
         entry: "api",
         env,
@@ -132,6 +134,7 @@ export function useTestApi(): TestApiHandle {
         healthCacheMs: 0,
         // 机器忙的时候 Redis 的一条命令也可能慢过 200 毫秒：放宽，免得用例里把慢当成断
         rateLimitCommandTimeoutMs: 5_000,
+        providers,
         logger: createLogger({
           svc: "api",
           env: env.APP_ENV,
@@ -141,13 +144,8 @@ export function useTestApi(): TestApiHandle {
         }),
       });
       runtimes.push(runtime);
-      // 商家端的登录：假微信与测试密钥环（要在建应用之前给，鉴权链的中间件建应用时就取服务）
-      const { wechat } = createProviderHarness({ clock }).providers;
-      provideMerchantDeps(runtime, {
-        keyring: TEST_API_KEYRING,
-        wechat,
-        appid: TEST_WEAPP_APPID,
-      });
+      // 商家端的登录：测试密钥环与 appid（要在建应用之前给，鉴权链的中间件建应用时就取服务）
+      provideMerchantDeps(runtime, { keyring: TEST_API_KEYRING, appid: TEST_WEAPP_APPID });
       const api = createApp({
         runtime,
         handlers: options.handlers ?? HANDLERS,
@@ -161,7 +159,7 @@ export function useTestApi(): TestApiHandle {
         clock,
         logs,
         peer: ownPeer,
-        wechat,
+        wechat: providers.wechat,
         async request(path, init = {}) {
           const { json, headers = {}, peer = ownPeer, ...rest } = init;
           return api.app.request(

@@ -60,5 +60,5 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 - openid 的 HMAC 快照借 `uscc` 那把盲索引密钥、输入加 `OPENID:` 前缀分域：密钥环里没有 openid 专用的用途。它只是同意记录里的证据快照与限流键，不用于查找。
 - `MeUser.actions` 里的“换绑手机号”要装配处给 `smsConfigured`，现在不给（短信驱动随 G2-D）。
 - 会话的过期清理（吊销或过期满 30 天的行）没有登记，随清理框架（W0-24）合并后由 M2 的包接。
-- `auth_event` 的写函数在 `audit/auth-event.ts`：现在是本包先建的最小实现，W1-01a 合并后以它的那份为准。
+- `auth_event` 的写函数在 `audit/auth-event.ts`，是 W1-01a 交的那一份（本包开工时先建的最小实现签名相同，接到 main 时让位）。
 - 区号只能从 `getPhoneNumber` 交回的原串里看（`phone.ts`）：Provider 的接口只交 `phone`，没有区号一项。带 `+区号`、`00区号` 而不是 86 的回 `PHONE_REGION_UNSUPPORTED`；真实驱动（G2-D）要把区号交出来，不能把区号不带加号地拼在号码前面（`+1` 的号码去掉符号与大陆号同形）。
