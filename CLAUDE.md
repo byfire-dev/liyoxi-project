@@ -203,8 +203,8 @@
 | `pnpm enums:check`（加 `-- --db <库名>` 换一个库） | 枚举与库 CHECK 一致：库里每条“列取值集合”形态的 CHECK 都有契约枚举（`packages/contract/src/enums/`）对应，取值集合相等；另核对名字写法的 CHECK 正则。只读；要 `DATABASE_URL`（或 `PG*`）与跑过迁移的 `lyx_migrate_check`（怎么建见 [README](packages/db/README.md) 第 3 节）。口径见 [脚本](packages/contract/scripts/enums-check.ts) 开头的注释 |
 | `pnpm machines:check` | 状态机迁移表对照：`packages/shared/src/machines` 的 25 张迁移表与数据模型分组文档的状态机表逐行 0 差异（当前状态、事件码、新状态、有无守卫），状态机与状态列的清单与契约登记、01 分组、`catalogue.json` 一致。只读文件，不连库。改迁移要同一个 PR 改分组文档的那一行；怎么写、对照的口径见 [README](packages/shared/src/machines/README.md) |
 | `pnpm machines:coverage`（加 `-- --strict` 时有未引用的行即失败） | 状态机覆盖检查的骨架：迁移表的每一行有没有被接口或 x01 的归属表引用。现在只出报告，不进 CI，M1 起才是门禁。见同一份 [README](packages/shared/src/machines/README.md) 第 5 节 |
-| `pnpm db:verify-grants` | 角色与授权的核对：对 `DATABASE_URL` 指的、`lyx_` 开头、跑完全部迁移的库，核对两个角色、授权是否生效、分区表能否写入与查询；只读系统目录，不打印连接串。`pnpm db:verify-managed` 成功后会自动接着跑它（后置钩子 `postdb:verify-managed`）。见 [README](packages/db/README.md) 第 7、9 节 |
-| `pnpm --filter @liyoxi/db exec vitest run src/grants.test.ts` | 权限测试（也在 `pnpm test` 里）：自建自删一个库，跑两遍迁移，以应用角色、只读角色、属主三种身份逐张表去试。要 `DATABASE_URL` 的账号能建库、能切换角色。加表、加自增列要同时改迁移里的授权与这份用例里的清单，见 [README](packages/db/README.md) 第 9 节 |
+| `pnpm db:verify-grants` | 角色与授权的核对：对 `DATABASE_URL` 指的、`lyx_` 开头、跑完全部迁移的库，核对两个角色、授权是否生效、分区表能否写入与查询；逐表与期望比，只读系统目录，不打印连接串。`pnpm db:verify-managed` 成功后会自动接着跑它（后置钩子 `postdb:verify-managed`，要经 pnpm 跑才有）。见 [README](packages/db/README.md) 第 7、9 节 |
+| `pnpm --filter @liyoxi/db exec vitest run src/grants.test.ts` | 权限测试（也在 `pnpm test` 里）：自建自删一个库，跑两遍迁移，以应用角色、只读角色、属主三种身份逐张表去试。要 `DATABASE_URL` 的账号能建库、能切换角色。加表要同时改迁移里的授权与期望的授权 `packages/db/src/grants.expected.json`（核对脚本也读它），见 [README](packages/db/README.md) 第 9 节 |
 
 本地连接参数：配置只经 `loadEnv`（`packages/services/src/kernel/env.ts`）读环境变量，会话与测试不建、不读 `.env`，在命令前或 shell 里给出。取值出处是 [local.yml](infra/compose/local.yml)，账号与口令是固定的开发值，只对本机这套容器有效；CI 的服务容器用同一组值。
 
