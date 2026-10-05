@@ -105,3 +105,15 @@ export type { BidxKeysConfig, DataKeysConfig } from "./env.js";
 // W0-17 五个端口：告警、不变量上报、埋点直记、通知场景解析、提醒查询；kernel 的登记（声明这五个端口）
 export * from "./ports/index.js";
 export { registration } from "./register.js";
+
+// W0-21 种子与 SQL 断言的共用形态
+export { defineSeed, insertMissing, runSqlAssertion } from "./seed.js";
+export type {
+  AssertionViolation,
+  InsertMissingOptions,
+  ModuleSeed,
+  SeedContext,
+  SeedTableResult,
+  SqlAssertion,
+  SqlReader,
+} from "./seed.js";
