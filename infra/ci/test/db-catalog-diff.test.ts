@@ -239,15 +239,44 @@ describe("逐项反向试验：改一处，查得出，且指到改的那一处"
       { others: ["序列 audit_no_seq 的 cycle 不同：参照库 true；迁移库 false"] },
     ],
     [
-      "少一个扩展（连带用它的索引）",
+      "少一个扩展（连带用它的索引与扩展自带的注释）",
       "DROP EXTENSION pg_trgm CASCADE",
-      { others: [`扩展 pg_trgm${GONE}`], indexes: [`ix_store_asset_search${GONE}`] },
+      {
+        others: [`扩展 pg_trgm${GONE}`, `注释 extension pg_trgm${GONE}`],
+        indexes: [`ix_store_asset_search${GONE}`],
+      },
     ],
     ["多一个模式", "CREATE SCHEMA lyx_extra", { others: [`模式 lyx_extra${EXTRA}`] }],
     [
       "多一个视图",
       "CREATE VIEW lyx_extra AS SELECT prefix FROM biz_sequence",
       { others: [`关系 lyx_extra${EXTRA}`] },
+    ],
+    // 以下五种对象首版迁移不建：比的是“哪一边都没有多出来的”
+    [
+      "多一条行级安全策略（表上没开行级安全，表这一类看不出）",
+      "CREATE POLICY lyx_extra ON biz_sequence USING (true)",
+      { others: [`策略 biz_sequence.lyx_extra${EXTRA}`] },
+    ],
+    [
+      "多一条规则",
+      "CREATE RULE lyx_extra AS ON DELETE TO biz_sequence DO INSTEAD NOTHING",
+      { others: [`规则 biz_sequence.lyx_extra${EXTRA}`] },
+    ],
+    [
+      "多一个统计对象",
+      "CREATE STATISTICS lyx_extra ON prefix, next_val FROM biz_sequence",
+      { others: [`统计对象 public.lyx_extra${EXTRA}`] },
+    ],
+    [
+      "多一个事件触发器（连同它的函数）",
+      "CREATE FUNCTION lyx_extra() RETURNS event_trigger LANGUAGE plpgsql AS $$ BEGIN END $$; CREATE EVENT TRIGGER lyx_extra ON sql_drop EXECUTE FUNCTION lyx_extra()",
+      { functions: [`lyx_extra()${EXTRA}`], others: [`事件触发器 lyx_extra${EXTRA}`] },
+    ],
+    [
+      "多一条注释",
+      "COMMENT ON COLUMN biz_sequence.next_val IS '多出来的注释'",
+      { others: [`注释 column next_val of table biz_sequence${EXTRA}`] },
     ],
   ];
 

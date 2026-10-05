@@ -77,7 +77,7 @@ export const CATEGORIES = [
   ["indexes", "索引定义"],
   ["triggers", "触发器"],
   ["functions", "函数体"],
-  ["others", "附：序列、扩展、视图、自定义类型、模式"],
+  ["others", "附：序列、扩展、视图、自定义类型、模式、策略、规则、统计对象、事件触发器、注释"],
 ];
 
 // 一条语句把系统目录读成一个 JSON 文档。口径：
@@ -87,7 +87,9 @@ export const CATEGORIES = [
 //   - 触发器不看内部触发器（外键自带的，名字里有对象编号；外键本身在约束里比）。
 //   - 函数不看扩展带进来的（btree_gist、pg_trgm 的函数落在 public 里；扩展按名字与版本在最后一类里比）。
 //   - 序列连当前值一起比（state：last_value 与 is_called）：迁移里有 ALTER SEQUENCE … RESTART。
-//   - 不比的：属主与授权（迁移里不建角色、不写 GRANT，归 W0-06a）、注释、统计信息、物理存储参数以外的存储细节。
+//   - 最后一类里的策略、规则、统计对象、事件触发器、注释，首版迁移一样都不建（注释只有两个扩展自带的那两条）：
+//     比的是“两边都没有多出来的”。注释不看系统对象与扩展成员的；16384 是用户对象编号的起点。
+//   - 不比的：属主与授权（迁移里不建角色、不写 GRANT，归 W0-06a）、统计信息、列的存储方式与统计目标。
 export const CATALOG_SQL = `
 set search_path to public;
 with rel as (
@@ -165,6 +167,29 @@ select json_build_object(
     union all
     select json_build_object('key', '模式 ' || n.nspname, 'def', json_build_object('exists', true))
       from pg_namespace n where n.oid in (select oid from usr)
+    union all
+    select json_build_object('key', '策略 ' || p.polrelid::regclass::text || '.' || p.polname, 'def', json_build_object(
+        'command', p.polcmd, 'permissive', p.polpermissive, 'roles', p.polroles::regrole[]::text[],
+        'using', pg_get_expr(p.polqual, p.polrelid), 'check', pg_get_expr(p.polwithcheck, p.polrelid)))
+      from pg_policy p
+    union all
+    select json_build_object('key', '规则 ' || w.ev_class::regclass::text || '.' || w.rulename, 'def', json_build_object(
+        'definition', pg_get_ruledef(w.oid), 'enabled', w.ev_enabled))
+      from pg_rewrite w join pg_class c on c.oid = w.ev_class
+     where c.relnamespace in (select oid from usr) and w.rulename <> '_RETURN'
+    union all
+    select json_build_object('key', '统计对象 ' || s.stxnamespace::regnamespace::text || '.' || s.stxname, 'def',
+        json_build_object('definition', pg_get_statisticsobjdef(s.oid)))
+      from pg_statistic_ext s where s.stxnamespace in (select oid from usr)
+    union all
+    select json_build_object('key', '事件触发器 ' || e.evtname, 'def', json_build_object(
+        'event', e.evtevent, 'function', e.evtfoid::regproc::text, 'enabled', e.evtenabled, 'tags', e.evttags))
+      from pg_event_trigger e
+    union all
+    select json_build_object('key', '注释 ' || pg_describe_object(d.classoid, d.objoid, d.objsubid), 'def',
+        json_build_object('text', d.description))
+      from pg_description d where d.objoid >= 16384
+       and not exists (select 1 from ext where classid = d.classoid and objid = d.objoid)
   ) x)
 );`;
 
