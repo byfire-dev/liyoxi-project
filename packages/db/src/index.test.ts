@@ -3,24 +3,14 @@ import { readdirSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createPrismaClient } from "./index.js";
+import type { PrismaClient } from "./index.js";
+import { useTestDatabase } from "./testing/index.js";
 
-// 客户端工厂的用例（W0-05 任务书 第 7 节第 7 条）。连的是迁移库 lyx_migrate_check，只读不写。
-// 主机与账号取环境变量 DATABASE_URL（本地的写法见 CLAUDE.md 第 9 节），库名换成迁移库。
-// 连不上、或迁移库没建：整个文件失败，不跳过。先 pnpm infra:up，再照本包 README.md 的“本地准备”建迁移库。
+// 客户端工厂的用例（W0-05 任务书 第 7 节第 7 条）。连的是本 worker 自己的测试库：
+// 由 W0-05b 的支架从本会话的模板库拷出来（模板库在每轮测试开始时建好并跑完全部迁移），跑完即删。
+// 主机与账号取环境变量 DATABASE_URL（本地的写法见 CLAUDE.md 第 9 节）。连不上：整轮失败，不跳过。
 
-const MIGRATE_DB = "lyx_migrate_check";
-
-function migrateDbUrl(): string {
-  const base = process.env.DATABASE_URL;
-  if (!base) {
-    throw new Error(
-      "DATABASE_URL 未设置：本包的用例要连本地的 PostgreSQL（取值见 CLAUDE.md 第 9 节，准备步骤见 packages/db/README.md）",
-    );
-  }
-  const url = new URL(base);
-  url.pathname = `/${MIGRATE_DB}`;
-  return url.toString();
-}
+const db = useTestDatabase("db");
 
 // api 主池的三个超时（D7 第 8.3 节）：这里只用来验证工厂把它们下发到了会话上
 const TIMEOUTS = {
@@ -33,19 +23,13 @@ const SETTINGS_SQL = `select current_setting('statement_timeout') as statement,
   current_setting('idle_in_transaction_session_timeout') as idle`;
 type Settings = Array<{ statement: string; lock: string; idle: string }>;
 
-const connectionString = migrateDbUrl();
-const prisma = createPrismaClient({ connectionString, max: 2, ...TIMEOUTS });
+let connectionString: string;
+let prisma: PrismaClient;
 
 beforeAll(async () => {
-  try {
-    await prisma.$queryRaw`select 1 from _prisma_migrations limit 1`;
-  } catch (error) {
-    throw new Error(
-      `迁移库 ${MIGRATE_DB} 连不上，或还没跑过迁移。先 pnpm infra:up，再照 packages/db/README.md 的“本地准备”建库并跑 pnpm db:deploy。原始报错：${String(error)}`,
-      { cause: error },
-    );
-  }
-});
+  connectionString = await db.url();
+  prisma = createPrismaClient({ connectionString, max: 2, ...TIMEOUTS });
+}, 120_000);
 
 afterAll(async () => {
   await prisma.$disconnect();
@@ -57,7 +41,7 @@ describe("createPrismaClient", () => {
     expect(typeof (await prisma.analyticsEvent.count())).toBe("number");
   });
 
-  it("交互式事务里 $queryRaw 可用；迁移库上每个迁移恰一行且已完成", async () => {
+  it("交互式事务里 $queryRaw 可用；测试库上每个迁移恰一行且已完成", async () => {
     const rows = await prisma.$transaction(
       (tx) =>
         tx.$queryRaw<Array<{ name: string; done: boolean }>>`
