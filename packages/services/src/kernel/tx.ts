@@ -53,6 +53,8 @@ export class KernelViolation extends Error {
 export interface HeldLock {
   readonly table: string;
   readonly key: string;
+  /** 锁的强度，lockRows 记下。自己写加锁 SQL、只调了 assertLockOrder 的不知道强度，不填：按排他算 */
+  mode?: "update" | "share";
 }
 
 /** 一个事务的运行时状态：挂在句柄上，也放在 AsyncLocalStorage 里 */
