@@ -203,3 +203,115 @@ export async function storeIdempotentResult(
     UPDATE idempotency_record SET result = ${text}::jsonb, updated_at = now()
     WHERE scope = ${ctx.scope} AND actor_key = ${ctx.actorKey} AND key = ${ctx.key}`;
 }
+
+// ---------- 三段式的占用、抢占、写回、释放（W0-20） ----------
+// 只由 three-phase/ 的工具在它自己开的事务里调，ctx 是 required。依据：约定 C51；01 分组 第 2.1 节的状态机；D7 第 3.1 节。
+// locked_until 取注入的应用时钟（任务书 第 10 节第 4 项），由调用方算好传进来；它同时是这次占用的凭据：
+// 写回、释放都带着它，占用过期后被别的请求接手了，原来那一方就改不动这一行。
+
+/** 三段式占用多久（约定 C51）。常量，不做成参数 */
+export const IDEMPOTENCY_LEASE_MS = 30_000;
+
+/** 占用的结果：occupied 这次插进去了；done 早已完成，带存下的结果；in_progress 别的请求占着，带它的到期时间 */
+export type IdempotencyOccupation =
+  | { state: "occupied" }
+  | { state: "done"; result: unknown }
+  | { state: "in_progress"; lockedUntil: Date };
+
+/** 读同键的那一行。哈希不同抛 IDEMPOTENCY_KEY_REUSED；行不在返回 undefined */
+async function readOccupation(
+  tx: Sql,
+  ctx: IdempotencyContext,
+): Promise<Exclude<IdempotencyOccupation, { state: "occupied" }> | undefined> {
+  const [row] = await tx.$queryRaw<(StoredRow & { lockedUntil: Date | null })[]>`
+    SELECT request_hash AS "requestHash", state, result::text AS result, locked_until AS "lockedUntil"
+    FROM idempotency_record
+    WHERE scope = ${ctx.scope} AND actor_key = ${ctx.actorKey} AND key = ${ctx.key}`;
+  if (!row) return undefined;
+  if (row.requestHash !== ctx.requestHash) throw new AppError("IDEMPOTENCY_KEY_REUSED");
+  if (row.state !== "done") {
+    return { state: "in_progress", lockedUntil: row.lockedUntil ?? new Date(0) };
+  }
+  // 与 claimIdempotency 的重放同一个写法：登记了脱敏路径的路由，重放的结果另带 replayed: true
+  const result: unknown = row.result === null ? undefined : JSON.parse(row.result);
+  const marked = ctx.redact.length > 0 && isRecord(result);
+  return { state: "done", result: marked ? { ...result, replayed: true } : result };
+}
+
+/**
+ * 占用（三段式第 ① 步）：插一条 in_progress 行，随这个事务连同业务意图一起提交。
+ * 已有同键记录时不改它，照实返回：哈希不同抛 IDEMPOTENCY_KEY_REUSED；过期没有、抢不抢由调用方定。
+ * 同键的另一个占用还没提交时，这一句会等它（受连接自己的 lock_timeout 管）。
+ */
+export async function occupyIdempotency(
+  tx: Sql,
+  ctx: IdempotencyContext,
+  lockedUntil: Date,
+): Promise<IdempotencyOccupation> {
+  const inserted = await tx.$executeRaw`
+    INSERT INTO idempotency_record (scope, actor_key, key, request_hash, state, locked_until, expires_at)
+    VALUES (${ctx.scope}, ${ctx.actorKey}, ${ctx.key}, ${ctx.requestHash}, 'in_progress',
+            ${lockedUntil}::timestamptz,
+            now() + make_interval(hours => ${IDEMPOTENCY_RETENTION_HOURS}::int))
+    ON CONFLICT (scope, actor_key, key) DO NOTHING`;
+  if (inserted === 1) return { state: "occupied" };
+  const found = await readOccupation(tx, ctx);
+  // 冲突的那一行刚好被删掉（过期清理，或对方失败后释放）：让端上用同一个键再来一次
+  if (!found) throw new AppError("BUSY");
+  return found;
+}
+
+/**
+ * 抢占：占用已过期（locked_until <= now）才改得动，改成新的到期时间。条件更新：
+ * 同时到的几个请求里只有一个改到，其余的等它提交后发现条件不再成立，返回 false。
+ */
+export async function takeOverIdempotency(
+  tx: Sql,
+  ctx: IdempotencyContext,
+  now: Date,
+  lockedUntil: Date,
+): Promise<boolean> {
+  const updated = await tx.$executeRaw`
+    UPDATE idempotency_record SET locked_until = ${lockedUntil}::timestamptz, updated_at = now()
+    WHERE scope = ${ctx.scope} AND actor_key = ${ctx.actorKey} AND key = ${ctx.key}
+      AND state = 'in_progress' AND locked_until <= ${now}::timestamptz`;
+  return updated === 1;
+}
+
+/**
+ * 写回（三段式第 ③ 步，末个事务里最先调）：把自己的占用改成 done，拿住这一行；之后写业务结果，
+ * 提交前用 storeIdempotentResult 存结果。改到了返回 undefined。
+ * 没改到，说明占用过期后被别的请求接手了：它已经写完，返回它存下的结果（业务结果不再写）；
+ * 它还占着，抛 IDEMPOTENCY_IN_PROGRESS；行不在了（它失败后释放了），抛 BUSY。
+ */
+export async function completeIdempotency(
+  tx: Sql,
+  ctx: IdempotencyContext,
+  lockedUntil: Date,
+): Promise<{ result: unknown } | undefined> {
+  const updated = await tx.$executeRaw`
+    UPDATE idempotency_record SET state = 'done', locked_until = NULL, updated_at = now()
+    WHERE scope = ${ctx.scope} AND actor_key = ${ctx.actorKey} AND key = ${ctx.key}
+      AND state = 'in_progress' AND locked_until = ${lockedUntil}::timestamptz`;
+  if (updated === 1) return undefined;
+  const found = await readOccupation(tx, ctx);
+  if (!found) throw new AppError("BUSY");
+  if (found.state !== "done") throw new AppError("IDEMPOTENCY_IN_PROGRESS");
+  return { result: found.result };
+}
+
+/**
+ * 释放：业务失败时删掉自己的占用（只持久化成功：同一个键可以直接重试）。
+ * 返回删了没有；false 表示占用已经不是自己的，补偿留给接手的那一方。
+ */
+export async function releaseIdempotency(
+  tx: Sql,
+  ctx: IdempotencyContext,
+  lockedUntil: Date,
+): Promise<boolean> {
+  const deleted = await tx.$executeRaw`
+    DELETE FROM idempotency_record
+    WHERE scope = ${ctx.scope} AND actor_key = ${ctx.actorKey} AND key = ${ctx.key}
+      AND state = 'in_progress' AND locked_until = ${lockedUntil}::timestamptz`;
+  return deleted === 1;
+}
