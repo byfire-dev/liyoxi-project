@@ -90,3 +90,11 @@ export type {
   RateLimiterOptions,
   RateLimitStore,
 } from "./rate-limit.js";
+// W0-24 不变量与清理：一次运行的用例函数（发布后、演练、后台的手工触发调它）；定时的那三个任务登记在 ops 的 register.ts
+export { runInvariants } from "./ops/index.js";
+export type {
+  InvariantRunDeps,
+  InvariantRunResult,
+  InvariantTrigger,
+  RunInvariantsInput,
+} from "./ops/index.js";
