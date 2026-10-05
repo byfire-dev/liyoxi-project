@@ -49,7 +49,8 @@
     "db:verify-grants": "node infra/ci/db-verify-grants.mjs",
     "postdb:verify-managed": "node infra/ci/db-verify-grants.mjs",
     "api-registries:check": "pnpm --filter @liyoxi/contract api-registries:check",
-    "check:type-hoist": "node infra/ci/check-type-hoist.mjs"
+    "check:type-hoist": "node infra/ci/check-type-hoist.mjs",
+    "contract:docs-check": "pnpm --filter @liyoxi/contract docs-check"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",

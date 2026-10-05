@@ -208,6 +208,11 @@
 | `pnpm api-registries:check` | 接口侧注册表对账：契约里的领域错误码、权限点、能力点、后台模块键、资源登记、通知场景、订阅点位、埋点事件，以及 07 第 7 节补登的参数键与开关键，与登记文档（`docs/api/registry-errors.md`、`registry-permissions.md`）、`docs/api/working/` 的底稿及各依据文档逐字段对账，一处不符即非 0 退出。只读文件，不连库。对谁比、不比什么，见 [脚本](packages/contract/scripts/api-registries-check.ts) 开头的注释 |
 | `pnpm check:type-hoist`（直接跑脚本时加 `--all` 查全部工程） | 类型解析不靠提升：写 JSX 的工程解析类型时，不许经 pnpm 的提升目录落到各工程装得不一样的包上（React 的类型由两份预设钉到工程自己装的那一份）。应用自己写 `paths` 时要把预设里钉 React 类型的四行抄上，否则这里红。来历与口径见 [README](infra/ci/README.md) 第 7 节 |
 | `pnpm --filter @liyoxi/services exec vitest run src/kernel/` | 只跑 kernel（事务单元）的用例：开事务与嵌套、保存点、死锁与锁等待超时的并发测试、外呼断言、时钟、UUID v7 的性质测试、加锁顺序、操作人。连库的几份要本地的 PostgreSQL 与 `DATABASE_URL`。`tx.run`、`savepoint`、`lockRows` 怎么用，性质测试的轮次与种子怎么改，见 [README](packages/services/src/kernel/README.md) |
+| `pnpm contract:docs-check` | 路由元数据对账：契约的路由清单（`packages/contract/src/routes`，一份接口文档一个目录）与 `docs/api/working/routemap.json` 逐字段 0 差异；公开、可选、验签路由与黄金文件一致；`x-step-up: skip` 与约定 C86 的登记表一致；路径里的资源段与资源登记一致。只读文件，不连库。改接口要同一个 PR 改契约、路线图与分组文档。口径见 [脚本](packages/contract/scripts/docs-check.ts) 开头的注释与 [README](infra/ci/README.md) 第 7 节 |
+| `node infra/ci/landed.mjs --report`（`--check` 与基线比；`--require M0,M1` 核对里程碑清零） | 已落地判定与待落地清单：按里程碑分组列出还没落地的 V1.0 接口与各缺什么；待落地数高于基线 `infra/ci/landed-baseline.txt` 即失败。见 [README](infra/ci/README.md) 第 7 节 |
+| `node infra/ci/plan-routes.mjs --check`（`--write` 重写；`--summary <文件>` 出逐条的归属汇总） | 计划 第 8.2 节的表由路由清单生成：V1.0 的接口都有里程碑，表与清单无差异。归属写在 `packages/contract/src/routes/milestones.ts`，改了先跑 `pnpm contract:generate` 再跑 `--write` |
+| `node infra/ci/natural-constraints.mjs` | natural 幂等的约束名核对：契约里写的每个约束名在迁移库 `lyx_migrate_check` 里都找得到；只读 |
+| `node infra/ci/api-check.mjs` | CI 里跑 `tools/api-check/check.py` 的写法：“表.列”一项连 `lyx_migrate_check`，未核对按失败算；通过后重新生成三份登记文档（`docs/api/registry-*.md`）并 `git diff --exit-code` |
 
 本地连接参数：配置只经 `loadEnv`（`packages/services/src/kernel/env.ts`）读环境变量，会话与测试不建、不读 `.env`，在命令前或 shell 里给出。取值出处是 [local.yml](infra/compose/local.yml)，账号与口令是固定的开发值，只对本机这套容器有效；CI 的服务容器用同一组值。
 
@@ -221,7 +226,6 @@ export REDIS_URL=redis://localhost:6389/0
 
 | 命令 | 由谁提供 | 做什么 |
 | --- | --- | --- |
-| `contract:docs-check` | W0-10 | 路由元数据与 routemap.json 逐字段对账 |
 | `pnpm demo:m0` | W0-30 | 一条命令重放 M0 样例用例 |
 | `pnpm demo:mN` | 各里程碑的合流包 | 重放该里程碑演示 |
 | `contract:compat` | M2 起 | 契约对在役小程序版本兼容 |
