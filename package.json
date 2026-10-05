@@ -68,6 +68,7 @@
     "stack:up": "node infra/stack/up.mjs up",
     "stack:smoke": "node infra/stack/smoke.mjs",
     "stack:down": "node infra/stack/up.mjs down",
+    "demo:m0": "pnpm --filter @liyoxi/services demo:m0",
     "plan:summaries": "node infra/ci/plan-summaries.mjs",
     "counts:report": "node infra/ci/four-counts.mjs"
   },
