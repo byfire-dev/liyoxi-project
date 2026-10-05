@@ -19,3 +19,6 @@ export * from "./three-phase-samples.js";
 export * from "./events.js";
 // W0-17：五个端口的样例实现（记下收到的调用）
 export * from "./ports.js";
+
+// W0-17：工作日历的样例数据
+export * from "./calendar.js";
