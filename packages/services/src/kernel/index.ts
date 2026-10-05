@@ -49,3 +49,26 @@ export type {
   StaffActor,
   SystemActor,
 } from "./actor.js";
+
+// W0-13 幂等：键的格式与请求哈希、幂等上下文（交给 tx.run 的 idem 选项）、结果脱敏、防漏用、过期清理、唯一冲突识别
+export {
+  canonicalJson,
+  IDEMPOTENCY_KEY_PATTERN,
+  isIdempotencyKey,
+  requestHash,
+} from "./request-hash.js";
+export type { RequestHashInput } from "./request-hash.js";
+export {
+  createIdempotencyContext,
+  IDEMPOTENCY_LOCK_WAIT_MS,
+  IDEMPOTENCY_RETENTION_HOURS,
+  redactForReplay,
+} from "./idempotency.js";
+export type { IdempotencyContext, IdempotencyContextInput } from "./idempotency.js";
+export {
+  assertIdempotencyUsed,
+  IDEMPOTENCY_PURGE_LIMIT,
+  isUniqueViolation,
+  purgeExpiredIdempotencyRecords,
+} from "./idempotency-tools.js";
+export type { IdempotencyGuardOptions } from "./idempotency-tools.js";
