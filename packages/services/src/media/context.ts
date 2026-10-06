@@ -81,6 +81,11 @@ export interface ReadSignInput {
   readonly disposition?: "inline" | "attachment";
   readonly audience?: "staff" | "merchant";
 }
+/** 交付下载的技术签名口；调用域先判业务授权，并从可信领域事实生成附件名。 */
+export interface DeliveryDownloadSignInput {
+  readonly fileId: string;
+  readonly fileName: string;
+}
 export interface SystemFileInput extends FileOwnerScope {
   readonly category: UploadCategory;
   readonly fileName: string;
