@@ -65,7 +65,7 @@ export function QueueSample() {
   const list = useQuery({
     queryKey: ["samples", "reviews", "list", listQuery],
     queryFn: async () => {
-      const { data, error } = await client.GET("/admin/samples/reviews", {
+      const { data, error } = await client.GET("/api/v1/admin/samples/reviews", {
         params: { query: listQuery },
       });
       if (!data) throw new SampleApiError(error);
@@ -76,7 +76,7 @@ export function QueueSample() {
   // 页签计数：用带类型的查询钩子取（路径、参数、响应都按 paths 推出）
   const summary = sampleQuery(services).useQuery(
     "get",
-    "/admin/samples/reviews/summary",
+    "/api/v1/admin/samples/reviews/summary",
     {},
     QUEUE_QUERY,
   );
@@ -91,7 +91,8 @@ export function QueueSample() {
   const decide =
     (
       path:
-        "/admin/samples/reviews/{reviewId}/approve" | "/admin/samples/reviews/{reviewId}/reject",
+        | "/api/v1/admin/samples/reviews/{reviewId}/approve"
+        | "/api/v1/admin/samples/reviews/{reviewId}/reject",
     ) =>
     async ({
       item,
@@ -132,7 +133,7 @@ export function QueueSample() {
         onQueueChanged={() => {
           void queryClient.invalidateQueries({ queryKey: ["samples", "reviews"] });
           void queryClient.invalidateQueries({
-            queryKey: ["get", "/admin/samples/reviews/summary"],
+            queryKey: ["get", "/api/v1/admin/samples/reviews/summary"],
           });
         }}
         notifySuccess={showSuccessNotice}
@@ -195,14 +196,14 @@ export function QueueSample() {
             key: "reject",
             label: "驳回",
             kind: "reject",
-            run: decide("/admin/samples/reviews/{reviewId}/reject"),
+            run: decide("/api/v1/admin/samples/reviews/{reviewId}/reject"),
           },
           {
             key: "approve",
             label: "审核通过",
             kind: "primary",
             needsChecklist: true,
-            run: decide("/admin/samples/reviews/{reviewId}/approve"),
+            run: decide("/api/v1/admin/samples/reviews/{reviewId}/approve"),
           },
         ]}
       />

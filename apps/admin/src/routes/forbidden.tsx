@@ -1,4 +1,4 @@
-// 403 占位页：没有访问权限的整页说明（规范 第 12 节“无权限”）。真实页面在 W1-02。
+// 没有访问权限：说明当前权限范围，并给出返回入口（规范 第 12 节）。
 import { Button } from "antd";
 import { createRoute, useRouter } from "@tanstack/react-router";
 

@@ -70,3 +70,16 @@ jobs:
       # 末尾打印四个计数；跑完删掉自己建的库。同一条链路的用例已在上面的“测试”里，这里跑的是业主用的那条命令
       - name: 演示（demo:m0）
         run: pnpm demo:m0
+      # W1-02①：每晚完整验证后台登录；前面的 PostgreSQL/Redis 和连接参数复用。
+      - name: 装后台真实接口验收用的浏览器
+        run: pnpm --filter @liyoxi/admin exec playwright install --with-deps chromium
+      - name: 后台登录真实接口验收
+        run: pnpm admin:e2e:live
+      - name: 上传后台登录截图
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: admin-live-shots
+          path: apps/admin/dist/e2e-shots/
+          if-no-files-found: warn
+          retention-days: 30

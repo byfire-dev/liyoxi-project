@@ -14,6 +14,7 @@ import { rootRoute } from "../routes/__root";
 
 import { DEV_FIXTURE_MARK } from "./mark";
 import { SampleApiError, sampleClient } from "./sample-api";
+import { StepUpSample } from "./StepUpSample";
 import type { SampleStore } from "./sample-data";
 
 // 不直接 import 路由对象：路由文件反过来动态引入本页，直接引会成环
@@ -119,7 +120,7 @@ export function TableSample() {
   const list = useQuery({
     queryKey: ["samples", "stores", "list", listQuery],
     queryFn: async () => {
-      const { data, error } = await client.GET("/admin/samples/stores", {
+      const { data, error } = await client.GET("/api/v1/admin/samples/stores", {
         params: { query: listQuery },
       });
       if (!data) throw new SampleApiError(error);
@@ -132,7 +133,7 @@ export function TableSample() {
   const summary = useQuery({
     queryKey: ["samples", "stores", "summary", summaryQuery],
     queryFn: async () => {
-      const { data, error } = await client.GET("/admin/samples/stores/summary", {
+      const { data, error } = await client.GET("/api/v1/admin/samples/stores/summary", {
         params: { query: summaryQuery },
       });
       if (!data) throw new SampleApiError(error);
@@ -152,6 +153,7 @@ export function TableSample() {
     <div data-fixture={DEV_FIXTURE_MARK} style={{ display: "contents" }}>
       <PageHeader
         title="商家列表"
+        extra={<StepUpSample services={services} />}
         subtitle="样例页：筛选表格骨架，数据是夹具。商家以门店为单位；同一经营主体名下的门店共用套餐与积分。"
       />
       <QueryTablePage<SampleStore>

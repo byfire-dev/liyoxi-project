@@ -780,6 +780,13 @@ jobs:
       - name: 后台冒烟
         if: steps.admin-e2e.outputs.run == 'true'
         run: pnpm admin:e2e
+      # W1-02①：样例冒烟之后再对实际 API 构建产物走登录，受影响范围沿用上一步。
+      - name: 后台真实接口验收的本地依赖
+        if: steps.admin-e2e.outputs.run == 'true'
+        run: docker compose -f infra/compose/local.yml up -d --wait postgres redis
+      - name: 后台登录真实接口验收
+        if: steps.admin-e2e.outputs.run == 'true'
+        run: pnpm admin:e2e:live
       # 截图都是 1440 × 900：01–04 是外壳与三种骨架，05–12 是几个状态；用例失败时另有现场。
       # 业主合并前在运行页面的 Artifacts 里下载来看
       - name: 上传后台冒烟截图

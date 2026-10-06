@@ -1,6 +1,8 @@
 // 权限只影响“显示什么”：菜单、路由守卫、按钮（D7 第 5.4 节）。接口每次请求即时鉴权，前端不做防线。
 // 数据来自 GET /admin/auth/me（admin.auth.me.get）。M0 没有登录与这条接口：权限数据经一个可替换的来源读取，
 // 本包只给夹具实现（src/dev/，只进开发与测试构建），真实来源由 W1-02 接上（任务书 第 11 节第 1 项）。
+import { createContext, useContext, type ReactNode } from "react";
+
 import type { AdminModuleKey, ModuleLevel } from "./menu-types";
 
 export interface AccessSnapshot {
@@ -47,4 +49,33 @@ export function canAction(access: AccessSnapshot | null, action: string): boolea
 export function isReleased(access: AccessSnapshot | null, release: string | null): boolean {
   if (release === null) return true;
   return access?.releases[release] === true;
+}
+
+/** 页面与外壳共享当前权限；请求端仍以服务端鉴权为准。 */
+export const AccessContext = createContext<AccessSnapshot | null>(null);
+export function useModuleLevel(module: AdminModuleKey): ModuleLevel {
+  return moduleLevelOf(useContext(AccessContext), module);
+}
+export function useCan(action: string): boolean {
+  return canAction(useContext(AccessContext), action);
+}
+export function Can({
+  action,
+  module,
+  need = "v",
+  fallback = null,
+  children,
+}: {
+  action?: string;
+  module?: AdminModuleKey;
+  need?: Exclude<ModuleLevel, "n">;
+  fallback?: ReactNode;
+  children: ReactNode;
+}): ReactNode {
+  const access = useContext(AccessContext);
+  return access &&
+    (!action || canAction(access, action)) &&
+    (!module || hasModuleLevel(access, module, need))
+    ? children
+    : fallback;
 }
