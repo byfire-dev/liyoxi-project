@@ -10,7 +10,13 @@ export async function assignDeliveryManager(
   tx: Tx,
   deps: ProfileDeps,
   ctx: IdentityContext,
-  input: { storeId: string; staffId: string; scope?: DataScope },
+  input: {
+    storeId: string;
+    staffId: string;
+    scope?: DataScope;
+    allowArchived?: boolean;
+    note?: string;
+  },
 ) {
   if (ctx.actor.type !== "system" && !input.scope) throw new AppError("PERMISSION_DENIED");
   const visible = await tx.store.findFirst({
@@ -27,11 +33,25 @@ export async function assignDeliveryManager(
   if (input.scope && !scopeCovers(input.scope, input.staffId)) refuse("out_of_scope");
   await lockRows(tx, "store", [input.storeId]);
   const store = await tx.store.findUniqueOrThrow({ where: { id: input.storeId } });
-  if (store.deliveryManagerId) throw new AppError("STORE_MANAGER_ASSIGNED");
-  if (store.lifecycle !== "active") throw new AppError("PRECONDITION_CHANGED");
-  await deps.tenant.setDeliveryManager(tx, ctx, input);
+  if (store.deliveryManagerId)
+    throw new AppError("STORE_MANAGER_ASSIGNED", {
+      details: { deliveryManagerId: store.deliveryManagerId },
+    });
+  if (store.lifecycle !== "active" && !(input.allowArchived && store.lifecycle === "archived"))
+    throw new AppError("PRECONDITION_CHANGED");
   const assignment = { ...input, entityId: store.entityId, ctx };
-  await deps.assembly.port(orderManagerPort)(tx, assignment);
-  await deps.assembly.port(deliveryManagerPort)(tx, assignment);
-  return { storeId: store.id, staffId: staff.id, assignedAt: deps.clock.now().toISOString() };
+  const dramaOrderCount = (await deps.assembly.port(orderManagerPort)(tx, assignment)) ?? 0;
+  const deliveryTicketCount = (await deps.assembly.port(deliveryManagerPort)(tx, assignment)) ?? 0;
+  const synced = { dramaOrderCount, deliveryTicketCount };
+  await deps.tenant.setDeliveryManager(tx, ctx, {
+    ...input,
+    auditMeta: { synced },
+    note: input.note,
+  });
+  return {
+    synced,
+    storeId: store.id,
+    staffId: staff.id,
+    assignedAt: deps.clock.now().toISOString(),
+  };
 }

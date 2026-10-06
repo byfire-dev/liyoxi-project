@@ -88,7 +88,12 @@ export interface Tenant {
   setDeliveryManager(
     tx: Tx,
     ctx: IdentityContext,
-    input: { storeId: string; staffId: string | null },
+    input: {
+      storeId: string;
+      staffId: string | null;
+      auditMeta?: { synced: { dramaOrderCount: number; deliveryTicketCount: number } };
+      note?: string;
+    },
   ): Promise<{ storeId: string; previousStaffId: string | null; staffId: string | null }>;
   /** 账号的有效成员关系概要（GET /m/me 的 memberships；W1-04）：没有即空数组 */
   membershipBriefs(db: TenantReader, merchantUserId: string): Promise<MembershipBrief[]>;

@@ -1,5 +1,5 @@
 import { z } from "../../zod.js";
-import { DictRefSchema, IdSchema, InstantSchema, openEnum } from "../../common/index.js";
+import { DictRefSchema, IdSchema, InstantSchema, openEnum, orNull } from "../../common/index.js";
 import { QUALIFICATION_STATUS, STORE_PROFILE_MEDIA_MEDIA_GROUP } from "../../enums/index.js";
 
 export const StepStateSchema = openEnum(["not_started", "in_progress", "completed"]);
@@ -45,7 +45,7 @@ export const MediaFileViewSchema = z
     fileId: IdSchema,
     kind: openEnum(["image", "video", "audio", "document"]),
     url: z.string().nullable(),
-    expiresAt: InstantSchema.nullable(),
+    expiresAt: orNull(InstantSchema),
     coverUrl: z.string().nullable(),
     durationMs: z.int().nullable(),
     displayWidth: z.int().nullable(),
@@ -55,10 +55,10 @@ export const MediaFileViewSchema = z
   .openapi("MediaFileView");
 export const AddressViewSchema = z
   .object({
-    province: DictRefSchema.nullable(),
-    city: DictRefSchema.nullable(),
-    district: DictRefSchema.nullable(),
-    zone: DictRefSchema.nullable(),
+    province: orNull(DictRefSchema),
+    city: orNull(DictRefSchema),
+    district: orNull(DictRefSchema),
+    zone: orNull(DictRefSchema),
     detail: z.string().nullable(),
     poiName: z.string().nullable(),
     latitude: z.number().nullable(),
@@ -85,10 +85,10 @@ export const BusinessHourSlotSchema = z
   .refine((slot) => slot.start !== slot.end, "营业时段的起止不能相同");
 const basic = {
   brandName: z.string().nullable(),
-  logo: MediaFileViewSchema.nullable(),
+  logo: orNull(MediaFileViewSchema),
   storeName: z.string().nullable(),
-  industry: DictRefSchema.nullable(),
-  category: DictRefSchema.nullable(),
+  industry: orNull(DictRefSchema),
+  category: orNull(DictRefSchema),
   address: AddressViewSchema,
   businessHours: z.array(BusinessHourSlotSchema),
   storeTel: z.string().nullable(),
@@ -96,7 +96,7 @@ const basic = {
   brandIntro: z.string().nullable(),
   reviewFieldsLocked: z.boolean(),
   reviewRequiredOnChange: z.boolean(),
-  lastEditedAt: InstantSchema.nullable(),
+  lastEditedAt: orNull(InstantSchema),
   completeness: CompletenessSchema,
 };
 export const StoreProfileBasicOwnerSchema = z.object({
@@ -115,11 +115,11 @@ export const StoreProfileBasicPatchSchema = z
     lockVersion: z.int().min(0),
     confirmReview: z.boolean().optional(),
     brandName: z.string().min(2).max(30).nullable().optional(),
-    logoFileId: IdSchema.nullable().optional(),
+    logoFileId: orNull(IdSchema).optional(),
     storeName: z.string().min(2).max(30).nullable().optional(),
     industryCode: z.string().nullable().optional(),
     categoryCode: z.string().nullable().optional(),
-    address: AddressInputSchema.nullable().optional(),
+    address: orNull(AddressInputSchema).optional(),
     businessHours: z.array(BusinessHourSlotSchema).max(4).optional(),
     storeTel: z
       .string()
@@ -179,7 +179,7 @@ export const ServiceItemSchema = z.object({
   name: z.string(),
   priceFen: z.int(),
   originalPriceFen: z.int().nullable(),
-  image: MediaFileViewSchema.nullable(),
+  image: orNull(MediaFileViewSchema),
   intro: z.string().nullable(),
 });
 const service = {
@@ -211,7 +211,7 @@ export const ServiceItemInputSchema = z
     name: z.string().min(1).max(30),
     priceFen: z.int().positive(),
     originalPriceFen: z.int().nullable().optional(),
-    imageFileId: IdSchema.nullable().optional(),
+    imageFileId: orNull(IdSchema).optional(),
     intro: z.string().max(20).nullable().optional(),
   })
   .refine(
@@ -263,8 +263,8 @@ const overview = {
     qualificationStatus: openEnum(QUALIFICATION_STATUS.values),
     isChangeInReview: z.boolean(),
     isFinalRejected: z.boolean(),
-    industry: DictRefSchema.nullable(),
-    category: DictRefSchema.nullable(),
+    industry: orNull(DictRefSchema),
+    category: orNull(DictRefSchema),
   }),
   completeness: CompletenessSchema,
   assets: z.object({
@@ -289,15 +289,15 @@ export const StoreProfileOverviewOwnerSchema = z.object({
       docTypes: z.array(
         z.object({
           docType: openEnum(["business_license", "branch_license", "industry_permit"]),
-          permitType: DictRefSchema.nullable(),
+          permitType: orNull(DictRefSchema),
         }),
       ),
     }),
   }),
   qualification: qualification.extend({
-    submittedAt: InstantSchema.nullable(),
-    dueAt: InstantSchema.nullable(),
-    lastDecidedAt: InstantSchema.nullable(),
+    submittedAt: orNull(InstantSchema),
+    dueAt: orNull(InstantSchema),
+    lastDecidedAt: orNull(InstantSchema),
   }),
   members: members.extend({ pendingInvitationCount: z.int() }),
   ads: z.object({

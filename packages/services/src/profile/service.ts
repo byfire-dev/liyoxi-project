@@ -12,6 +12,7 @@ import { storeScope } from "../authz/index.js";
 import type { StaffContext } from "../authz/index.js";
 import { AppError, createThreePhaseRunner } from "../kernel/index.js";
 import type { IdentityContext, Tx } from "../kernel/index.js";
+import { createAdminProfile } from "./admin.js";
 import { assignDeliveryManager } from "./assign-manager.js";
 import type { ProfileDeps, ProfileViewer, WriteOptions } from "./context.js";
 import { createDoc, docPrecheck, updateDoc } from "./documents.js";
@@ -96,6 +97,7 @@ export function createProfile(deps: ProfileDeps) {
     return round;
   }
   return {
+    admin: createAdminProfile(deps),
     get: (viewer: ProfileViewer) => deps.tx.run((tx) => overview(tx, deps, viewer)),
     basic: (viewer: ProfileViewer) => read(viewer, basicView),
     media: (viewer: ProfileViewer) => read(viewer, mediaView),

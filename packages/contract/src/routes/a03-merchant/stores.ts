@@ -1,8 +1,18 @@
 // 后台：商家、资质审核与素材复核 · stores（docs/api/a03-merchant.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { adminMeta } from "../meta-only.js";
+import { adminRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  ManagerAssignResultSchema,
+  StoreHeaderSchema,
+  AdminStoreListSchema,
+  ManagerAssignBodySchema,
+  StoreIdParamsSchema,
+  StoreListQuerySchema,
+} from "./stores.schemas.js";
 
-export const adminStoreList = adminMeta({
+export const adminStoreList = adminRoute({
   method: "get",
   path: "/admin/stores",
   operationId: "admin.store.list",
@@ -10,6 +20,8 @@ export const adminStoreList = adminMeta({
     "商家（门店）列表：关键字、区域、行业、审核状态、来源、交付经理、套餐版本、到期；排序与分页；也用于门店远程搜索下拉",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { query: StoreListQuerySchema },
+  responses: { ...okResponse(AdminStoreListSchema), ...errorResponses(400, 401, 403, 404, 409) },
 });
 
 export const adminStoreSummary = adminMeta({
@@ -21,13 +33,15 @@ export const adminStoreSummary = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminStoreGet = adminMeta({
+export const adminStoreGet = adminRoute({
   method: "get",
   path: "/admin/stores/{storeId}",
   operationId: "admin.store.get",
   summary: "商家详情页头：门店、主体、标签、联系人（脱敏）、交付经理、5 张 KPI 卡",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: StoreIdParamsSchema },
+  responses: { ...okResponse(StoreHeaderSchema), ...errorResponses(400, 401, 403, 404, 409) },
 });
 
 export const adminStoreActivityList = adminMeta({
@@ -66,7 +80,7 @@ export const adminStoreQualificationGet = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminStoreAssignDeliveryManager = adminMeta({
+export const adminStoreAssignDeliveryManager = adminRoute({
   method: "post",
   path: "/admin/stores/{storeId}/assign-delivery-manager",
   operationId: "admin.store.assignDeliveryManager",
@@ -74,6 +88,14 @@ export const adminStoreAssignDeliveryManager = adminMeta({
     "首次指派交付经理（门店还没有交付经理时）：写门店交付经理，同步未结订购单，同事务分配本门店的待分配工单",
   "x-permission": "merchant.manager.assign",
   "x-idempotent": "required",
+  request: {
+    params: StoreIdParamsSchema,
+    body: { content: { "application/json": { schema: ManagerAssignBodySchema } }, required: true },
+  },
+  responses: {
+    ...okResponse(ManagerAssignResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409),
+  },
 });
 
 export const adminStoreReassignDeliveryManager = adminMeta({

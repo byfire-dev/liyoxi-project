@@ -122,3 +122,97 @@ describe("首次指派交付经理", () => {
     ).toBe(0);
   });
 });
+
+describe("后台指派兼容返回与事务", () => {
+  it("既有默认仍拒归档店", async () => {
+    const { store, user } = await h.owner(),
+      staff = await h.make.staff();
+    await h.prisma.store.update({
+      where: { id: store.id },
+      data: {
+        lifecycle: "archived",
+        archivedAt: h.clock.now(),
+        archiveReason: "by_owner",
+        archiveActorType: "merchant",
+        archiveActorId: user.id,
+        archiveClient: "weapp",
+      },
+    });
+    await expect(
+      h.tx.run((tx) =>
+        h.profile.assignDeliveryManager(tx, ctx, { storeId: store.id, staffId: staff.id }),
+      ),
+    ).rejects.toMatchObject({ error: "PRECONDITION_CHANGED" });
+  });
+  it("实际端口数量与响应审计一致，端口失败连同步写一起回滚", async () => {
+    const counter = harness(h.prisma, [
+      defineRegistration("lyxtest_profile_counts", {
+        portImplementations: [
+          implement(orderManagerPort, async (tx, input) => {
+            await tx.storeProfile.create({
+              data: {
+                storeId: input.storeId,
+                entityId: input.entityId,
+                brandName: "同步探针",
+                createdAt: h.clock.now(),
+                updatedAt: h.clock.now(),
+              },
+            });
+            return 3;
+          }),
+          implement(deliveryManagerPort, async () => 2),
+        ],
+      }),
+    ]);
+    const { store } = await counter.owner(),
+      staff = await h.make.staff();
+    const result = await counter.tx.run((tx) =>
+      counter.profile.assignDeliveryManager(tx, ctx, { storeId: store.id, staffId: staff.id }),
+    );
+    expect(result.synced).toEqual({ dramaOrderCount: 3, deliveryTicketCount: 2 });
+    expect(
+      (
+        await h.prisma.auditLog.findFirstOrThrow({
+          where: { storeId: store.id, category: "manager_assign" },
+        })
+      ).meta,
+    ).toMatchObject({ synced: result.synced });
+    const fail = harness(h.prisma, [
+      defineRegistration("lyxtest_profile_rollback", {
+        portImplementations: [
+          implement(orderManagerPort, async (tx, input) => {
+            await tx.storeProfile.create({
+              data: {
+                storeId: input.storeId,
+                entityId: input.entityId,
+                createdAt: h.clock.now(),
+                updatedAt: h.clock.now(),
+              },
+            });
+            return 1;
+          }),
+          implement(deliveryManagerPort, async () => {
+            throw new Error("第二同步失败");
+          }),
+        ],
+      }),
+    ]);
+    const next = await fail.owner();
+    await expect(
+      fail.tx.run((tx) =>
+        fail.profile.assignDeliveryManager(tx, ctx, { storeId: next.store.id, staffId: staff.id }),
+      ),
+    ).rejects.toThrow("第二同步失败");
+    expect(
+      await h.prisma.storeProfile.findUnique({ where: { storeId: next.store.id } }),
+    ).toBeNull();
+    expect(
+      (await h.prisma.store.findUniqueOrThrow({ where: { id: next.store.id } })).deliveryManagerId,
+    ).toBeNull();
+    expect(
+      await h.prisma.auditLog.count({
+        where: { storeId: next.store.id, category: "manager_assign" },
+      }),
+    ).toBe(0);
+  });
+});
