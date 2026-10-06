@@ -1,3 +1,5 @@
+import { createOrderService } from "./order/index.js";
+import type { OrderService } from "./order/index.js";
 import { bindPublish } from "./publish/index.js";
 // 进程运行时（W0-22）：api 与 worker 启动时各建一次。环境 → 日志 → 数据库与 Redis 连接 → 事务入口、业务单号、
 // 配置读侧、健康检查 → 服务装配。应用层只经 @liyoxi/services 的入口拿到它，不引 @liyoxi/db（硬性规则 5）。
@@ -131,6 +133,7 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly order: OrderService;
   readonly billing: BillingPurchase;
   readonly content: Content;
   readonly media: Media;
@@ -277,6 +280,19 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     keyring: () => (billingKeys ??= loadKeyring(env)),
     sla: createSla({ clock, assembly }),
   });
+  const order = createOrderService({
+    tx,
+    clock,
+    assembly,
+    config,
+    events,
+    timers,
+    bizNo,
+    media,
+    ledger,
+    content,
+    docs: createDocs({ tx, clock }),
+  });
   let staffAuth: StaffAuth | undefined;
 
   // 连库一项加移交表第 1 行的四个自检：security 的加解密与盲索引、审计 target_type 对表名单、聚合类型对表名单、
@@ -307,6 +323,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   }
 
   return {
+    order,
     billing,
     content,
     media,

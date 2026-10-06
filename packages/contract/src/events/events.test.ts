@@ -21,7 +21,8 @@ describe("事件载荷 schema（W0-15）", () => {
     expect(eventPayloadSchema("calendar.imported")).toBe(
       EVENT_PAYLOAD_SCHEMAS["calendar.imported"],
     );
-    expect(eventPayloadSchema("order.submitted")).toBeUndefined();
+    expect(eventPayloadSchema("order.submitted")).toBe(EVENT_PAYLOAD_SCHEMAS["order.submitted"]);
+    expect(eventPayloadSchema("order.started")).toBeUndefined();
     expect(eventPayloadSchema("toString")).toBeUndefined();
   });
 
