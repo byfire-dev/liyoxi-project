@@ -7,6 +7,7 @@ import { useState } from "react";
 import { PageHeader } from "../../../components/PageHeader";
 import { QueryTablePage, type QueryColumn } from "../../../components/QueryTablePage";
 import { StatusTag } from "../../../components/StatusTag";
+import { useCan, useModuleLevel } from "../../../lib/permissions";
 import { LIST_QUERY, DICT_QUERY } from "../../../lib/query";
 import { writeTableSearch, withFilter } from "../../../lib/table-search";
 import { createOrdersApi, type OrderCard } from "./api";
@@ -36,8 +37,11 @@ export function OrderStatus({ row }: { row: Pick<OrderCard, "status" | "subStatu
 export function OrdersPage() {
   const { services } = useRouteContext({ from: "__root__" }),
     navigate = route.useNavigate();
+  const fullStaff = useModuleLevel("system") !== "n",
+    canAssign = useCan("merchant.manager.assign"),
+    canPickManagers = fullStaff || canAssign;
   const search = orderSearch(route.useSearch()),
-    api = createOrdersApi(services),
+    api = createOrdersApi(services, fullStaff ? undefined : "delivery_manager"),
     query = orderQuery(search),
     filters = orderFilters(search);
   const list = useQuery({
@@ -51,8 +55,9 @@ export function OrdersPage() {
     ...LIST_QUERY,
   });
   const managers = useQuery({
-    queryKey: [...ORDERS_KEY, "managers"],
+    queryKey: [...ORDERS_KEY, "managers", fullStaff ? "full" : "pool"],
     queryFn: api.managers,
+    enabled: canPickManagers,
     ...DICT_QUERY,
   });
   const [filterError, setFilterError] = useState<string>();
@@ -173,16 +178,21 @@ export function OrdersPage() {
               : (statusToneByEnum("drama_order.status", tab)?.admin?.label ?? tab),
           count: summary.data?.tabs[tab],
         }))}
-        filters={[
-          {
-            key: "deliveryManagerId",
-            placeholder: "全部交付经理",
-            options: [
-              { value: "none", label: "未分配" },
-              ...(managers.data?.items.map((m) => ({ value: m.staffId, label: m.name })) ?? []),
-            ],
-          },
-        ]}
+        filters={
+          canPickManagers
+            ? [
+                {
+                  key: "deliveryManagerId",
+                  placeholder: "全部交付经理",
+                  options: [
+                    { value: "none", label: "未分配" },
+                    ...(managers.data?.items.map((m) => ({ value: m.staffId, label: m.name })) ??
+                      []),
+                  ],
+                },
+              ]
+            : []
+        }
         toolbar={
           <div className="lyx-order-filters">
             <Input

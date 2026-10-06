@@ -9,7 +9,7 @@ import { FormField } from "../../../components/FormField";
 import { PageHeader } from "../../../components/PageHeader";
 import { QueryTablePage, type QueryColumn } from "../../../components/QueryTablePage";
 import { StatusTag } from "../../../components/StatusTag";
-import { useCan } from "../../../lib/permissions";
+import { useCan, useModuleLevel } from "../../../lib/permissions";
 import { DICT_QUERY, QUEUE_QUERY } from "../../../lib/query";
 import { withFilter, writeTableSearch } from "../../../lib/table-search";
 import { models, platforms } from "../../order/orders/model";
@@ -44,16 +44,18 @@ function TicketStep({ row }: { row: TicketCard }) {
 function Assignment({
   row,
   api,
+  fullStaff,
   onClose,
   onSuccess,
 }: {
   row: TicketCard;
   api: TicketsApi;
+  fullStaff: boolean;
   onClose(): void;
   onSuccess(): void;
 }) {
   const candidates = useQuery({
-    queryKey: [...TICKETS_KEY, "managers"],
+    queryKey: [...TICKETS_KEY, "managers", fullStaff ? "full" : "pool"],
     queryFn: api.managers,
     ...DICT_QUERY,
   });
@@ -172,14 +174,16 @@ function Assignment({
   );
 }
 export function TicketsPage() {
+  const fullStaff = useModuleLevel("system") !== "n",
+    canAssign = useCan("merchant.manager.assign"),
+    canPickManagers = fullStaff || canAssign;
   const { services } = useRouteContext({ from: "__root__" }),
     navigate = route.useNavigate(),
     search = ticketSearch(route.useSearch()),
-    api = createTicketsApi(services),
+    api = createTicketsApi(services, fullStaff ? undefined : "delivery_manager"),
     query = ticketQuery(search),
     filters = ticketFilters(search);
-  const canAssign = useCan("merchant.manager.assign"),
-    [assigning, setAssigning] = useState<TicketCard>();
+  const [assigning, setAssigning] = useState<TicketCard>();
   const list = useQuery({
     queryKey: [...TICKETS_KEY, "list", query],
     queryFn: () => api.list(query),
@@ -191,8 +195,9 @@ export function TicketsPage() {
     ...QUEUE_QUERY,
   });
   const managers = useQuery({
-    queryKey: [...TICKETS_KEY, "managers"],
+    queryKey: [...TICKETS_KEY, "managers", fullStaff ? "full" : "pool"],
     queryFn: api.managers,
+    enabled: canPickManagers,
     ...DICT_QUERY,
   });
   const change = (next: typeof search) =>
@@ -303,14 +308,19 @@ export function TicketsPage() {
           count: summary.data?.tabs[tab],
         }))}
         filters={[
-          {
-            key: "deliveryManagerId",
-            placeholder: "全部交付经理",
-            options: [
-              { value: "none", label: "未分配" },
-              ...(managers.data?.items.map((s) => ({ value: s.staffId, label: s.name })) ?? []),
-            ],
-          },
+          ...(canPickManagers
+            ? [
+                {
+                  key: "deliveryManagerId",
+                  placeholder: "全部交付经理",
+                  options: [
+                    { value: "none", label: "未分配" },
+                    ...(managers.data?.items.map((s) => ({ value: s.staffId, label: s.name })) ??
+                      []),
+                  ],
+                },
+              ]
+            : []),
           {
             key: "productionModel",
             placeholder: "全部模型",
@@ -364,6 +374,7 @@ export function TicketsPage() {
           key={assigning.deliveryTicketId}
           row={assigning}
           api={api}
+          fullStaff={fullStaff}
           onClose={() => setAssigning(undefined)}
           onSuccess={refresh}
         />

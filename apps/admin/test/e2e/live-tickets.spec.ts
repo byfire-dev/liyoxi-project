@@ -45,6 +45,11 @@ test("工单池真实指派：同步双点击仅一次，另一交付经理登�
   try {
     const managerPage = await context.newPage(),
       managerErrors = recordErrors(managerPage);
+    let staffReads = 0;
+    managerPage.on("request", (request) => {
+      if (request.method() === "GET" && new URL(request.url()).pathname === "/api/v1/admin/staff")
+        staffReads++;
+    });
     await managerPage.goto(`/login?redirect=${encodeURIComponent("/delivery/tickets?q=订单演练")}`);
     await managerPage.getByLabel("手机号", { exact: true }).fill(fixture.manager.phone);
     await managerPage.getByLabel("密码", { exact: true }).fill(fixture.manager.password);
@@ -62,6 +67,7 @@ test("工单池真实指派：同步双点击仅一次，另一交付经理登�
       managerPage.getByRole("table").getByRole("button", { name: "分配", exact: true }),
     ).toHaveCount(0);
     await noHorizontalScroll(managerPage, "交付经理本人工单池");
+    expect(staffReads).toBe(0);
     expect(managerErrors).toEqual([]);
   } finally {
     await context.close();

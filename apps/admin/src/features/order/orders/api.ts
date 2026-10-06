@@ -7,7 +7,10 @@ async function unwrap<T>(result: { data?: { data: T }; response: Response }): Pr
   if (result.data) return result.data.data;
   throw new Error((await readFailure(result.response)).message);
 }
-export function createOrdersApi(services: Pick<AppServices, "api">) {
+export function createOrdersApi(
+  services: Pick<AppServices, "api">,
+  staffPool?: "delivery_manager",
+) {
   const client = services.api.client;
   return {
     list: (query: OrderQuery) =>
@@ -19,7 +22,14 @@ export function createOrdersApi(services: Pick<AppServices, "api">) {
     managers: () =>
       client
         .GET("/api/v1/admin/staff", {
-          params: { query: { roleKey: "delivery_manager", status: "active", pageSize: 100 } },
+          params: {
+            query: {
+              roleKey: "delivery_manager",
+              status: "active",
+              pageSize: 100,
+              pool: staffPool,
+            },
+          },
         })
         .then(unwrap),
   };

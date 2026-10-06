@@ -22,7 +22,10 @@ async function unwrap<T>(result: { data?: { data: T }; response: Response }): Pr
   const error = await readFailure(result.response);
   throw new TicketFailure(error.message, error.body?.error);
 }
-export function createTicketsApi(services: Pick<AppServices, "api">) {
+export function createTicketsApi(
+  services: Pick<AppServices, "api">,
+  staffPool?: "delivery_manager",
+) {
   const client = services.api.client;
   return {
     list: (query: TicketQuery) =>
@@ -32,7 +35,14 @@ export function createTicketsApi(services: Pick<AppServices, "api">) {
     managers: () =>
       client
         .GET("/api/v1/admin/staff", {
-          params: { query: { roleKey: "delivery_manager", status: "active", pageSize: 100 } },
+          params: {
+            query: {
+              roleKey: "delivery_manager",
+              status: "active",
+              pageSize: 100,
+              pool: staffPool,
+            },
+          },
         })
         .then(unwrap),
     assign: (id: string, body: AssignBody, key: string) =>
