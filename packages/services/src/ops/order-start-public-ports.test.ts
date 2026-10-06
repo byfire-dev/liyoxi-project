@@ -13,8 +13,8 @@ import {
   createFactories,
   useSeededDatabase,
 } from "../testing/index.js";
-import { assignDeliveryManager } from "./index.js";
-import type { AssignDeliveryManagerDeps } from "./index.js";
+import { assignDeliveryManager } from "../profile/index.js";
+import type { AssignDeliveryManagerDeps } from "../profile/index.js";
 
 const db = useSeededDatabase("services"),
   clock = createClock();
