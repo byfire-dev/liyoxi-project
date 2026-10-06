@@ -32,41 +32,7 @@
   color: var(--lyx-color-text-secondary);
   background: var(--lyx-color-bg-subtle);
 }
-.lyx-review-compare {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  font-size: 13px;
-}
-.lyx-review-compare th,
-.lyx-review-compare td {
-  text-align: left;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--lyx-color-border-light);
-  overflow-wrap: anywhere;
-}
-.lyx-review-compare th:first-child {
-  width: 88px;
-}
-.lyx-review-compare th:last-child {
-  width: 76px;
-}
-.lyx-review-compare th {
-  background: var(--lyx-color-bg-subtle);
-  color: var(--lyx-color-text-secondary);
-}
 .lyx-review-note {
   font-size: 12px;
   color: var(--lyx-color-text-secondary);
-}
-.lyx-review-reject {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding-top: 8px;
-}
-.lyx-review-reject__footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
 }
