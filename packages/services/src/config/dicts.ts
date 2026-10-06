@@ -45,6 +45,11 @@ export interface DictListOptions {
 }
 
 export interface Dicts {
+  /** 后台下拉：复用同一缓存；默认仅启用项，完整展示列与类型版本一并给出。 */
+  listForAdmin(
+    typeKeys: readonly string[],
+    options?: { parentCode?: string; scene?: string; includeDisabled?: boolean },
+  ): Promise<{ items: AdminDictItem[]; types: Array<{ typeKey: string; versionNo: number }> }>;
   /** 各类型的数据版本号（引导接口的 versions.dict 由它得出） */
   versions(): Promise<Record<string, number>>;
   /** 后台视图。类型不存在即抛 NOT_FOUND */
@@ -63,6 +68,14 @@ export interface DictsOptions {
 
 interface TypeState extends DictTypeItems {
   byCode: ReadonlyMap<string, DictItemView>;
+  adminByCode: ReadonlyMap<string, AdminDictItem>;
+}
+export interface AdminDictItem extends Omit<DictItemView, "isSelectable"> {
+  dictItemId: string;
+  typeKey: string;
+  refCount: null;
+  updatedAt: string;
+  lockVersion: number;
 }
 type DictState = ReadonlyMap<string, TypeState>;
 
@@ -103,6 +116,7 @@ export function createDicts(options: DictsOptions): Dicts {
   async function load() {
     const [types, rows] = await Promise.all([db.dictType.findMany(), db.dictItem.findMany()]);
     const byType = new Map<string, DictItemView[]>();
+    const adminItems = new Map<string, AdminDictItem>();
     for (const row of rows) {
       const ext = asRecord(row.ext);
       const flag = DICT_SELECTABLE_EXT_FLAG[row.dictTypeKey];
@@ -118,6 +132,21 @@ export function createDicts(options: DictsOptions): Dicts {
         isSelectable: row.isEnabled && (flag === undefined || ext[flag] === true),
       };
       byType.set(row.dictTypeKey, [...(byType.get(row.dictTypeKey) ?? []), item]);
+      adminItems.set(`${row.dictTypeKey}:${row.code}`, {
+        dictItemId: row.id,
+        typeKey: row.dictTypeKey,
+        code: item.code,
+        parentCode: item.parentCode,
+        name: item.name,
+        description: item.description,
+        isEnabled: item.isEnabled,
+        tags: item.tags,
+        ext: item.ext,
+        position: item.position,
+        refCount: null,
+        updatedAt: row.updatedAt.toISOString(),
+        lockVersion: row.lockVersion,
+      });
     }
     const data = new Map<string, TypeState>();
     for (const type of types) {
@@ -130,6 +159,9 @@ export function createDicts(options: DictsOptions): Dicts {
         isMerchantVisible: type.isMerchantVisible,
         items,
         byCode: new Map(items.map((item) => [item.code, item])),
+        adminByCode: new Map(
+          items.map((item) => [item.code, adminItems.get(`${type.typeKey}:${item.code}`)!]),
+        ),
       });
     }
     return { data: data as DictState };
@@ -150,6 +182,32 @@ export function createDicts(options: DictsOptions): Dicts {
     parentCode === undefined ? items : items.filter((item) => item.parentCode === parentCode);
 
   return {
+    async listForAdmin(typeKeys, listOptions = {}) {
+      const data = await state();
+      const types = typeKeys.map((key) => {
+        const type = data.get(key);
+        if (type === undefined) throw new AppError("NOT_FOUND", { message: "字典类型不存在" });
+        return type;
+      });
+      if (
+        listOptions.parentCode !== undefined &&
+        (types.length !== 1 || types[0]?.structure !== "tree")
+      )
+        throw new AppError("VALIDATION_FAILED", { message: "parentCode 只能与一个树形类型同用" });
+      return {
+        items: types.flatMap((type) =>
+          under(type.items, listOptions.parentCode)
+            .filter(
+              (item) =>
+                (listOptions.includeDisabled === true || item.isEnabled) &&
+                (listOptions.scene === undefined ||
+                  (type.typeKey === "reject_reason" && item.ext["scene"] === listOptions.scene)),
+            )
+            .map((item) => type.adminByCode.get(item.code)!),
+        ),
+        types: types.map((type) => ({ typeKey: type.typeKey, versionNo: type.versionNo })),
+      };
+    },
     async versions() {
       const types = await state();
       return Object.fromEntries([...types.values()].map((type) => [type.typeKey, type.versionNo]));

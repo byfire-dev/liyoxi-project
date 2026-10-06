@@ -69,6 +69,8 @@ export * from "./auth.schemas.js";
 export * from "./error-details.js";
 export * from "./sessions.js";
 export * from "./structures.js";
+export * from "./approvals.js";
+export * from "./dict-items.js";
 export * from "./staff.js";
 export * from "./roles.js";
 

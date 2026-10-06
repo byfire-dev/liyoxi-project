@@ -4,12 +4,18 @@ import { merchantFileHandlers } from "./files.js";
 import { adminFileHandlers } from "./admin/files.js";
 import type { HandlerEntry } from "../routing/define.js";
 
+import { adminApprovalHandlers } from "./admin/approvals.js";
 import { adminAuthHandlers } from "./admin/auth.js";
 import { adminStaffHandlers } from "./admin/staff.js";
 import { adminRoleHandlers } from "./admin/roles.js";
 import { agreementHandlers } from "./agreements.js";
 import { merchantViewHandlers } from "./merchant-views.js";
 import { sessionHandlers } from "./sessions.js";
+import { agreementConsentHandlers } from "./agreement-consents.js";
+import { entityHandlers } from "./entities.js";
+import { storeHandlers } from "./stores.js";
+import { meHandlers } from "./me.js";
+import { dictItemHandlers } from "./dict-items.js";
 
 export const HANDLERS: readonly HandlerEntry[] = [
   // W1-03：协议清单与版本正文（两条公开路由）
@@ -21,6 +27,12 @@ export const HANDLERS: readonly HandlerEntry[] = [
   // W1-01a：后台登录、激活、再验证、当前员工、退出（九条）
   ...adminAuthHandlers,
   ...merchantViewHandlers,
+  ...adminApprovalHandlers,
   ...adminStaffHandlers,
   ...adminRoleHandlers,
+  ...agreementConsentHandlers,
+  ...entityHandlers,
+  ...storeHandlers,
+  ...meHandlers,
+  ...dictItemHandlers,
 ];

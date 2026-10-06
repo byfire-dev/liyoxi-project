@@ -7,6 +7,7 @@
 //   await identity.pendingConsents(principal);         // 协议同意中间件
 import type {
   Bootstrap,
+  AgreementConsentReceipt,
   MeOverview,
   MeView,
   PendingConsent,
@@ -19,7 +20,7 @@ import { compareVersions, parseVersion } from "../config/index.js";
 import type { Config, FlagContext } from "../config/index.js";
 import type { ConsentSigner } from "../docs/index.js";
 import { AppError } from "../kernel/index.js";
-import type { Tx } from "../kernel/index.js";
+import type { IdempotencyContext, Tx } from "../kernel/index.js";
 import { bootstrap } from "./bootstrap.js";
 import type { BootstrapInput } from "./bootstrap.js";
 import { overview } from "./overview.js";
@@ -33,6 +34,8 @@ import { buildMeView } from "./me.js";
 import { checkSession } from "./sessions.js";
 import type { SessionCheck } from "./sessions.js";
 import type { RequestMeta, SessionPrincipal } from "./types.js";
+import { reconsent } from "./reconsent.js";
+import type { ReconsentBody } from "./reconsent.js";
 
 export interface IdentityDeps extends Omit<LoginDeps, "me" | "config"> {
   /** 配置读侧：参数 auth.dormant_days、开关 client.min_version */
@@ -53,6 +56,13 @@ export interface Identity {
   ): Promise<PhoneLoginResult>;
   /** m.session.current.delete */
   logout(principal: SessionPrincipal, meta: RequestMeta): Promise<void>;
+  /** m.agreementConsent.create：同意记录与完整指纹同一事务提交 */
+  reconsent(
+    principal: SessionPrincipal,
+    meta: RequestMeta,
+    input: ReconsentBody,
+    options?: { idem?: IdempotencyContext },
+  ): Promise<AgreementConsentReceipt>;
   /** m.me.get：只读、现算 */
   me(merchantUserId: string): Promise<MeView>;
 
@@ -86,10 +96,12 @@ export function createIdentity(deps: IdentityDeps): Identity {
   const login: LoginDeps = { ...deps, me: meDeps };
   const gate = createConsentGate({ tx: deps.tx, clock: deps.clock, docs: deps.docs });
 
-  return {
+  const identity: Identity = {
     silentLogin: (meta, input) => silentLogin(login, meta, input),
     phoneLogin: (meta, input, options) => phoneLogin(login, meta, input, options),
     logout: (principal, meta) => deps.tx.run((tx) => logoutIn(tx, now(), principal, meta)),
+    reconsent: (principal, meta, input, options) =>
+      reconsent({ ...deps, signerOf: identity.consentSignerOf }, principal, meta, input, options),
     me: (merchantUserId) => deps.tx.run((tx) => buildMeView(tx, meDeps, merchantUserId)),
 
     bootstrap: (input) => bootstrap(deps, input),
@@ -132,4 +144,5 @@ export function createIdentity(deps: IdentityDeps): Identity {
       };
     },
   };
+  return identity;
 }

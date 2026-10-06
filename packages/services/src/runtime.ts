@@ -18,6 +18,8 @@ import { createPrismaClient } from "@liyoxi/db";
 import { Redis } from "ioredis";
 
 import { assembleServices } from "./assembly.js";
+import { createApproval } from "./approval/index.js";
+import type { Approval } from "./approval/index.js";
 import { createConfig } from "./config/index.js";
 import type { Config } from "./config/index.js";
 import { createEvents } from "./events/index.js";
@@ -113,6 +115,8 @@ export interface RuntimeOptions {
 
 export interface Runtime {
   readonly media: Media;
+  /** 审批执行器与只读队列：api、worker 各自装配（移交表 64） */
+  readonly approval: Approval;
   readonly entry: AssemblyEntry;
   readonly env: Env;
   readonly version: string;
@@ -222,6 +226,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     channel: mediaChannel,
     videoMaxMb: () => config.params.get("upload.weapp_video_max_mb"),
   });
+  const bizNo = createBizNoIssuer({ clock, appEnv: env.APP_ENV });
+  const approval = createApproval({ assembly, clock, flow, events, bizNo });
   let staffAuth: StaffAuth | undefined;
 
   // 连库一项加移交表第 1 行的四个自检：security 的加解密与盲索引、审计 target_type 对表名单、聚合类型对表名单、
@@ -259,7 +265,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     logger,
     clock,
     tx,
-    bizNo: createBizNoIssuer({ clock, appEnv: env.APP_ENV }),
+    bizNo,
+    approval,
     config,
     health,
     rateLimiter,

@@ -90,6 +90,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/dict-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 数据字典（?typeKey=industry,region,genre,selling_tag,store_selling_point,permit_type,custom_focus,asset_tag,ad_promo_point,ticket_type,ticket_withdraw_reason,plan_tier,point_type&parentCode=&includeDisabled=）；响应 { items: DictTypeItems[] }（有界小集合，C42、A78） */
+        get: operations["m.dictItem.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/entities": {
         parameters: {
             query?: never;
@@ -476,6 +493,14 @@ export interface components {
             code: string;
             name: string;
         };
+        DictTypeItems: {
+            items: components["schemas"]["MerchantDictItemView"][];
+            name: string;
+            /** @enum {string} */
+            structure: "flat" | "tree";
+            typeKey: string;
+            versionNo: number;
+        };
         EntityBrief: {
             /** Format: uuid */
             entityId: string;
@@ -662,6 +687,18 @@ export interface components {
             qualificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
             /** Format: uuid */
             storeId: string;
+        };
+        MerchantDictItemView: {
+            code: string;
+            description: string | null;
+            ext: {
+                [key: string]: unknown;
+            };
+            isSelectable: boolean;
+            name: string;
+            parentCode: string | null;
+            position: number;
+            tags: string[];
         };
         MerchantFileCreateBody: {
             /** @enum {string} */
@@ -1172,6 +1209,47 @@ export interface operations {
             };
             /** @description 内部错误 */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.dictItem.list": {
+        parameters: {
+            query: {
+                typeKey: string;
+                parentCode?: string;
+                includeDisabled?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: components["schemas"]["DictTypeItems"][];
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -541,6 +541,733 @@
         ],
         "type": "object"
       },
+      "ApprovalCounts": {
+        "properties": {
+          "items": {
+            "items": {
+              "properties": {
+                "all": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "approvedThisMonth": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "byStatus": {
+                  "properties": {
+                    "approved": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "pending": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "rejected": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "withdrawn": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "pending",
+                    "approved",
+                    "rejected",
+                    "withdrawn"
+                  ],
+                  "type": "object"
+                },
+                "doneToday": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "enum": [
+                    "qualification",
+                    "channel_account",
+                    "launch_link",
+                    "order_cancel",
+                    "ad_cancel",
+                    "qualification_cancel",
+                    "plan_refund",
+                    "points_adjust",
+                    "subscription_extend",
+                    "finance_config_change",
+                    "account_change",
+                    "transfer_confirm"
+                  ],
+                  "type": "string"
+                },
+                "overdue": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "rejectedThisMonth": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "submitted": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "todo": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "todo",
+                "submitted",
+                "doneToday",
+                "all",
+                "byStatus",
+                "overdue",
+                "approvedThisMonth",
+                "rejectedThisMonth"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "pointsAdjustMonth": {
+            "anyOf": [
+              {
+                "properties": {
+                  "decreasePoints": {
+                    "type": "integer"
+                  },
+                  "increasePoints": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "increasePoints",
+                  "decreasePoints"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total": {
+            "properties": {
+              "overdue": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "todo": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "todo",
+              "overdue"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "pointsAdjustMonth"
+        ],
+        "type": "object"
+      },
+      "ApprovalDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApprovalItem"
+          },
+          {
+            "properties": {
+              "checklist": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "result": {
+                        "items": {
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "note": {
+                              "type": "string"
+                            },
+                            "result": {
+                              "enum": [
+                                "pass",
+                                "fail",
+                                "na"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "result"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "versionNo": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "versionNo",
+                      "result"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "confirmChecks": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "operations": {
+                "properties": {
+                  "approve": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "get": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reject": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "withdraw": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "get",
+                  "approve",
+                  "reject",
+                  "withdraw"
+                ],
+                "type": "object"
+              },
+              "sla": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "amount": {
+                        "type": "number"
+                      },
+                      "calendarVersion": {
+                        "type": "integer"
+                      },
+                      "computedAt": {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      "policy": {
+                        "type": "string"
+                      },
+                      "unit": {
+                        "enum": [
+                          "work_minutes",
+                          "work_days",
+                          "natural_hours",
+                          "natural_days",
+                          "same_day_cutoff"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "policy",
+                      "amount",
+                      "unit",
+                      "calendarVersion",
+                      "computedAt"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "timeline": {
+                "items": {
+                  "properties": {
+                    "actorLabel": {
+                      "type": "string"
+                    },
+                    "actorType": {
+                      "type": "string"
+                    },
+                    "elapsedWorkMin": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "event": {
+                      "type": "string"
+                    },
+                    "fromState": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "note": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "reasonCode": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "toState": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "fromState",
+                    "toState",
+                    "event",
+                    "actorType",
+                    "actorLabel",
+                    "occurredAt",
+                    "reasonCode",
+                    "note",
+                    "elapsedWorkMin"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "checklist",
+              "confirmChecks",
+              "sla",
+              "timeline",
+              "operations"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ApprovalItem": {
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "approve",
+                "reject",
+                "withdraw",
+                "approve-review",
+                "reject-review"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "approvalId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "badges": {
+            "items": {
+              "enum": [
+                "check_mismatch",
+                "final_rejected",
+                "overdue"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "category": {
+            "enum": [
+              "review",
+              "approval"
+            ],
+            "type": "string"
+          },
+          "decidedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decidedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decisionNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deliveryTicketId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "domain": {
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "id"
+            ],
+            "type": "object"
+          },
+          "dueAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entityId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "handler": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isDecidedBySystem": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "qualification",
+              "channel_account",
+              "launch_link",
+              "order_cancel",
+              "ad_cancel",
+              "qualification_cancel",
+              "plan_refund",
+              "points_adjust",
+              "subscription_extend",
+              "finance_config_change",
+              "account_change",
+              "transfer_confirm"
+            ],
+            "type": "string"
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "requestNo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requester": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "roundNo": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "withdrawn"
+            ],
+            "type": "string"
+          },
+          "storeId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subjectId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "subjectType": {
+            "type": "string"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "submitter": {
+            "properties": {
+              "actorId": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "actorType": {
+                "enum": [
+                  "staff",
+                  "merchant",
+                  "system",
+                  "partner"
+                ],
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "actorType",
+              "actorId",
+              "label"
+            ],
+            "type": "object"
+          },
+          "summary": {
+            "additionalProperties": false,
+            "properties": {
+              "amountFen": {
+                "type": "integer"
+              },
+              "domain": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "type": {
+                    "pattern": "^[a-z][a-z0-9_]*$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "id"
+                ],
+                "type": "object"
+              },
+              "lines": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "label": {
+                      "maxLength": 20,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "value": {
+                      "maxLength": 200,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "label",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              "points": {
+                "type": "integer"
+              },
+              "title": {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "title"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "approvalId",
+          "requestNo",
+          "kind",
+          "category",
+          "status",
+          "roundNo",
+          "subjectType",
+          "subjectId",
+          "entityId",
+          "storeId",
+          "deliveryTicketId",
+          "summary",
+          "domain",
+          "badges",
+          "submitter",
+          "requester",
+          "handler",
+          "submittedAt",
+          "dueAt",
+          "decidedBy",
+          "isDecidedBySystem",
+          "decidedAt",
+          "decisionNote",
+          "reasons",
+          "lockVersion",
+          "actions"
+        ],
+        "type": "object"
+      },
       "AuthNext": {
         "properties": {
           "methods": {
@@ -609,6 +1336,128 @@
         "required": [
           "ticket",
           "code"
+        ],
+        "type": "object"
+      },
+      "DictItemList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DictItemView"
+            },
+            "type": "array"
+          },
+          "types": {
+            "items": {
+              "properties": {
+                "typeKey": {
+                  "type": "string"
+                },
+                "versionNo": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "typeKey",
+                "versionNo"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "types"
+        ],
+        "type": "object"
+      },
+      "DictItemView": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dictItemId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "ext": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "isEnabled": {
+            "type": "boolean"
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parentCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "position": {
+            "type": "integer"
+          },
+          "refCount": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "typeKey": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dictItemId",
+          "typeKey",
+          "code",
+          "parentCode",
+          "name",
+          "description",
+          "isEnabled",
+          "tags",
+          "ext",
+          "position",
+          "refCount",
+          "updatedAt",
+          "lockVersion"
         ],
         "type": "object"
       },
@@ -2142,6 +2991,453 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/approvals": {
+      "get": {
+        "operationId": "admin.approval.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "overdue",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "submittedFrom",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "submittedTo",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "default": "todo",
+              "enum": [
+                "todo",
+                "submitted",
+                "done_today",
+                "all"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "enum": [
+                "due",
+                "-submittedAt",
+                "-decidedAt"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/ApprovalItem"
+                          },
+                          "type": "array"
+                        },
+                        "page": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "审批单列表（跨类型、只读）：按 kind 与页签查询；不带 kind 时为“我的待审批”（待本人决定的各类审批）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+        "x-permission": "assert-in-handler"
+      }
+    },
+    "/api/v1/admin/approvals/summary": {
+      "get": {
+        "operationId": "admin.approval.summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "overdue",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "submittedFrom",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "submittedTo",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ApprovalCounts"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          }
+        },
+        "summary": "各 kind 的待办计数、超时数与本月合计（如本月通过的调整积分增减合计）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+        "x-permission": "assert-in-handler"
+      }
+    },
+    "/api/v1/admin/approvals/{approvalId}": {
+      "get": {
+        "operationId": "admin.approval.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approvalId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ApprovalDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "审批单详情（只读）：摘要快照、决定记录与时限、领域行引用（domain.type / domain.id）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+        "x-permission": "assert-in-handler"
+      }
+    },
     "/api/v1/admin/auth/activate": {
       "post": {
         "operationId": "admin.auth.activate",
@@ -2881,6 +4177,144 @@
         "x-idempotent": "none",
         "x-idempotent-reason": "登录与换会话（A18）",
         "x-rate-limit": "admin.login"
+      }
+    },
+    "/api/v1/admin/dict-items": {
+      "get": {
+        "operationId": "admin.dictItem.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "typeKey",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "parentCode",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scene",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeDisabled",
+            "required": false,
+            "schema": {
+              "default": false,
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "withRefCount",
+            "required": false,
+            "schema": {
+              "default": false,
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DictItemList"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "字典项：按类型查询（树形，可带引用计数）；后台各处下拉与原因单选共用",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+        "x-permission": "assert-in-handler"
       }
     },
     "/api/v1/admin/files": {

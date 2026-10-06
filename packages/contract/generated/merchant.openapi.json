@@ -793,6 +793,41 @@
         ],
         "type": "object"
       },
+      "DictTypeItems": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MerchantDictItemView"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "structure": {
+            "enum": [
+              "flat",
+              "tree"
+            ],
+            "type": "string"
+          },
+          "typeKey": {
+            "type": "string"
+          },
+          "versionNo": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "typeKey",
+          "name",
+          "structure",
+          "versionNo",
+          "items"
+        ],
+        "type": "object"
+      },
       "EntityBrief": {
         "additionalProperties": false,
         "properties": {
@@ -1716,6 +1751,55 @@
           "isPrimary",
           "lifecycle",
           "qualificationStatus"
+        ],
+        "type": "object"
+      },
+      "MerchantDictItemView": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ext": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "isSelectable": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parentCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "position": {
+            "type": "integer"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "code",
+          "parentCode",
+          "name",
+          "description",
+          "tags",
+          "ext",
+          "position",
+          "isSelectable"
         ],
         "type": "object"
       },
@@ -3383,6 +3467,105 @@
         },
         "summary": "启动引导：serverTime、minClientVersion、flags、versions（dict/site/agreement）、uploadLimits、download.weappSaveMode、copy、support（在线客服模式）、degraded、notice（停机维护说明）、pendingConsents、subscribePlan、context",
         "x-auth": "optional",
+        "x-clerk-view": "same",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/dict-items": {
+      "get": {
+        "operationId": "m.dictItem.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "typeKey",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z][a-z0-9_]*(?:,[a-z][a-z0-9_]*){0,9}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "parentCode",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeDisabled",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/DictTypeItems"
+                          },
+                          "maxItems": 10,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "items"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          }
+        },
+        "summary": "数据字典（?typeKey=industry,region,genre,selling_tag,store_selling_point,permit_type,custom_focus,asset_tag,ad_promo_point,ticket_type,ticket_withdraw_reason,plan_tier,point_type&parentCode=&includeDisabled=）；响应 { items: DictTypeItems[] }（有界小集合，C42、A78）",
+        "x-auth": "public",
         "x-clerk-view": "same",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
