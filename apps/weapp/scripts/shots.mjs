@@ -56,6 +56,10 @@ const wantedScenes = [];
 const { ACCOUNT_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/account-scenes.ts")).href
 );
+const { BILLING_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/billing-scenes.ts")).href
+);
+const SCENES = [...ACCOUNT_SCENES, ...BILLING_SCENES];
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--no-build") build = false;
@@ -73,7 +77,7 @@ for (let index = 0; index < args.length; index += 1) {
     wantedSheets.push(name);
   } else if (args[index] === "--scene") {
     const name = args[(index += 1)];
-    if (!ACCOUNT_SCENES.some((item) => item.name === name)) fail(`未知账户场景 ${name}`);
+    if (!SCENES.some((item) => item.name === name)) fail(`未知离线场景 ${name}`);
     wantedScenes.push(name);
   } else fail(`不认识的参数 ${args[index]}`);
 }
@@ -108,19 +112,24 @@ const all =
   wantedScenes.length === 0;
 /** 要出的图：url 是 # 后面的部分，file 是不带扩展名的文件名，fullPage 为真截整页 */
 const targets = [
-  ...(all ? ACCOUNT_SCENES : ACCOUNT_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
-    (item) => ({
-      label: item.name,
-      url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
-      file: `account__${item.name}`,
-      scene: item.name,
-      fullPage: false,
-    }),
-  ),
+  ...(all ? SCENES : SCENES.filter((item) => wantedScenes.includes(item.name))).map((item) => ({
+    label: item.name,
+    url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
+    file: `${BILLING_SCENES.some((v) => v.name === item.name) ? "billing" : "account"}__${item.name}`,
+    scene: item.name,
+    fullPage: false,
+  })),
   ...(all
     ? builtRoutes.filter(
         (route) =>
-          !["pages/login/index", "pages/agreement/index", "pages/mine/index"].includes(route),
+          ![
+            "pages/login/index",
+            "pages/agreement/index",
+            "pages/mine/index",
+            "sub/billing/wallet/index",
+            "sub/billing/plan-pick/index",
+            "sub/order/result/index",
+          ].includes(route),
       )
     : wanted
   ).map((route) => ({
@@ -199,7 +208,15 @@ async function shoot(target) {
   try {
     if (target.scene) {
       await page.addInitScript((scene) => {
-        globalThis.__LYX_ACCOUNT_SHOT__ = scene;
+        if (
+          scene.startsWith("wallet-") ||
+          scene.startsWith("plan-") ||
+          scene.startsWith("bank-") ||
+          scene.startsWith("payment-")
+        ) {
+          globalThis.__LYX_ACCOUNT_SHOT__ = "mine-owner";
+          globalThis.__LYX_BILLING_SHOT__ = scene;
+        } else globalThis.__LYX_ACCOUNT_SHOT__ = scene;
       }, target.scene);
       await page.route("**/*", (route) => {
         if (new URL(route.request().url()).origin === origin) return route.continue();
@@ -214,7 +231,23 @@ async function shoot(target) {
     const taroPage = page.locator(".taro_page").first();
     await taroPage.waitFor({ state: "visible", timeout: 15_000 });
     if (target.scene) {
-      await page.locator("#account-ready").waitFor({ state: "visible", timeout: 15_000 });
+      await page
+        .locator(target.file.startsWith("billing__") ? "#billing-ready" : "#account-ready")
+        .waitFor({ state: "visible", timeout: 15_000 });
+      if (target.scene.startsWith("bank-")) {
+        await page.locator(".lyx-button").filter({ hasText: "对公转账" }).click();
+        await page.locator(".lyx-button").filter({ hasText: "确认付款" }).click();
+        await page.getByText("选择转账凭证", { exact: true }).waitFor({ state: "visible" });
+        if (target.scene === "bank-selected") {
+          await page.getByText("选择转账凭证", { exact: true }).click();
+          await page
+            .locator(".billing-receipt .lyx-button")
+            .filter({ hasText: "提交转账凭证" })
+            .waitFor({ state: "visible" });
+          await page.waitForTimeout(300);
+        }
+        await page.waitForTimeout(500);
+      }
       if (target.scene.startsWith("login")) {
         await page.locator("input").fill("13800138000");
         if (target.scene === "login-checked")

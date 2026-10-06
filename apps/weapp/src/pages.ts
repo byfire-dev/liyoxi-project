@@ -93,6 +93,7 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
   // sub/order（8 页）
   page("sub/order/checkout/index", "sub/order", "确认订购", "Checkout", "M09", "M1", "W1-18"),
   page("sub/order/result/index", "sub/order", "结果页", "PayResult", "M11", "M1", "W1-12", {
+    implemented: true,
     note: "订购成功与付款成功共用，?type=order|payment",
   }),
   page("sub/order/orders/index", "sub/order", "订单列表", "Orders", "M20", "M1", "W1-18"),
@@ -139,10 +140,12 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     "W1-12",
     {
       note: "一页两态",
+      implemented: true,
     },
   ),
   page("sub/billing/plan-pick/index", "sub/billing", "套餐选择", "PlanPick", "M44", "M1", "W1-12", {
     note: "含 M10 对公转账弹层与付款结果",
+    implemented: true,
   }),
   page("sub/billing/topup/index", "sub/billing", "积分充值", "TopUp", "M45", "M4", "G4-C"),
   page("sub/billing/ledger/index", "sub/billing", "积分流水", "Ledger", "M46", "M4", "G4-C"),

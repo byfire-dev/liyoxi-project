@@ -1,6 +1,9 @@
 .billing-wallet {
   min-height: 100vh;
   background: $lyx-color-bg-page;
+  &__nowrap {
+    white-space: nowrap;
+  }
   &__plan {
     font-size: 26px;
     font-weight: 600;
