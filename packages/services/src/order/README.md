@@ -19,12 +19,12 @@ W1-15a 交 `m.order.quote`、`m.order.create`；a 的 #91 已合主干；W1-15b 
 5. 首次 HoldResult.now 的复制为 Tf。再次核对不可变标题用到的 P/R/T（即使变化抵消为相同 S 也拒绝），并在公共 currentVersions 的真实 Tv 晚检协议版本；标准 stale 整笔回滚。Tc/Tf/Tv 不保证相等，既不回填证据也不预锁账户。
 6. 以 Tf 插完整订单/项/账号行，fresh `created:true` 初始迁移的专用 Flow 仅把时钟适配为该真实 Tf，仍依赖实际 assembly/events；普通后继迁移继续用 runtime.clock。逐项与整单产生历史/审计，清理本次选剧单，full 闸门 arm 真正 scheduled 的 order.start，最后发唯一 order.submitted。parallel 不 arm，子状态 qualification_reviewing。
 
-本包只 freeze，不 capture、不建 placement/工单。首响应提交后签海报；幂等持久结果及重放 `items[].posterUrl` 为 null，重放不再签发。
+提交入口只 freeze，不 capture、不建 placement/工单。首响应提交后签海报；幂等持久结果及重放 `items[].posterUrl` 为 null，重放不再签发。真正扣减与工单交给下述异步开工入口。
 
 ## 移交
 
 - `profile.order_manager_sync` 已实现：调用方先持 store130，本端口再按 UUID 顺序锁未结 orders160，按明确 input.staffId 改写、返回实际 count。同值返回 0，结束/取消/已退单不改；不读取旧门店经理来猜目标。
-- order.start 的契约 kind 已存在，arm 不要求业务 handler。本包真实登记 scheduled；W1-17b 必须登记 critical / rearmAfterSkip、实现开工与补偿扫描，不能把 a 的登记当作处理器已落地。
+- `order.start` 已登记真实 critical / rearmAfterSkip 处理器；下单、资质决定与补偿扫描仅 arm，处理器在每张单自己的事务内开工。
 - 待办/售后/授权书/履约字段为已登记留桩。order.submitted 是 analytics 目录的 outbox 来源，M7 的 analytics.fromOutbox 尚未实现；不重复直记 order_submit 或声称已有 analytics 行。通知 orderForNotify 公共读端口尚为空。
 - b 复用完整 DTO 和 read.ts，补常规列表/详情与阶段读侧。a 的 pointsEvents 验收覆盖实际冻结流水，后续 capture 的套餐/加购消费分拆及真实工单/方案内容由 W1-17 履约读侧补齐。
 
@@ -49,3 +49,15 @@ W1-15a 交 `m.order.quote`、`m.order.create`；a 的 #91 已合主干；W1-15b 
 b 的完整 AdminOrderDetail 声明参考素材、售后、授权书、工单/方案后继字段；参考素材/售后/授权书为登记过的空数组或0，工单/方案为null。openCancelRequest 卡片只读已存在的真实行，actions 在未有取消实现前为空。read.ts 的 detail 参数仅需 membership 的 storeId/entityId，后台在已完成实际 DataScope 归属判断后复用；未替换履约时间轴，W1-17 可普通同步后续接线。
 
 b 目标验收：`cart.test.ts`（两独立真连接49→50/51、P/S、自然重复、C50、跨店与店员）、`read.test.ts`（八状态、三组稳定分页、北京日期、最新驳回阈值、真实计数与零资金写）；API `order-read.test.ts` 覆盖12处理器及商城三事实、clerk全回放保留原黄金，admin矩阵只增本包3条。
+
+## 原子开工与触发点（W1-17b）
+
+`startOrder(tx,deps,id)` 先预读待开工/full/无在途取消，再把两池候选和现有经理按 UUID 升序取员工共享锁，锁后重验并调用真实分配口。先锁门店及指派可能同步的未结父单、项、工单，首次经理指派在账户锁之前完成。M1 的池仍按工号最小启用员工选人，城市和轮询由 G2-A 回补；池空时经理为空，工单进入 assigning。
+
+整张单逐项调用真实 `ledger.capture`，只允许 held 冻结单，任一项失败整单回滚并告警一次。真实 capturedAt 来自账本账户锁后的写入；以首次捕获时点创建局部 Flow，订单项 captured_at/phase 和父单 started_at/status 在对应迁移的同一 UPDATE 写下。随后调同事务 `createTickets` 创建每项一工单和一份方案初稿，发携真实工单 ID 的唯一 `order.started`。资金、经理同步、工单、历史、审计和事件一起提交；等待期间订阅已过期仍开工。已非待开工的重试只返回 skipped。
+
+两个 critical 订阅者分别处理资质决定与套餐生效。资质决定按当前门店事实逐单登记 `max(now,submittedAt+delay)`，重复不推迟既有 scheduled/dispatched 行；驳回仅改 qualification_rejected。套餐生效只给同主体启用且缺经理的门店指派、同步未结单，既有经理不动，池空不写。每 5 分钟的 tx 补偿只为 full/待开工/无取消且缺 scheduled/dispatched 的单补登记或复活 failed/skipped，每命中报 P3；不在补偿事务内直接扣减。
+
+组合根绑定 `OrderStartBinding` 的真实公开依赖，关闭时解除本作用域；未绑定明确 INTERNAL。通知取数仍调 `orderForNotify` 空端口；正式 x01 的 `order.started` 下游为 docs/notify，授权书 M5、通知 M2；未登记的直记埋点不自造，M7 接收方再按正式事件目录接线。
+
+`start.concurrency.test.ts` 用 3 条 max=1 的独立连接、实际 backend PID 和事务栅栏重复 20 轮：真实 skipped → 补偿同键复活后，重复定时器执行与资质订阅者并发，整单每项仅扣减/建工单/迁移一次。`start.fault.test.ts` 由子进程真实 capture 后停在断点，父进程发 SIGKILL；父连接在断点上看不到未提交写，连接死后整笔回滚，同条消息重试只扣减一次。既有 a 的状态推导与读侧验收不重复改写。

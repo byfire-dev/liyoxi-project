@@ -1,16 +1,15 @@
 import type { PrismaClient } from "@liyoxi/db";
-import { assembleForTest, TEST_KEYRING } from "../../testing/index.js";
+import { assembleForTest } from "../../testing/index.js";
 import { alertsPort, defineRegistration, implement, uuidv7 } from "../../kernel/index.js";
 import type { AlertInput } from "../../kernel/index.js";
 import { createFlow } from "../../flow/index.js";
 import { createTenant } from "../../tenant/index.js";
-import { createApproval } from "../../approval/index.js";
-import { createProfile } from "../../profile/index.js";
+import { assignDeliveryManager } from "../../profile/index.js";
 import { bindDelivery } from "../../delivery/index.js";
 import { createSla } from "../../sla/index.js";
 import { createMedia } from "../../media/index.js";
 import { createTimers } from "../../timers/index.js";
-import { staffBriefs } from "../../staff/index.js";
+import { recommendedStaff } from "../../staff/index.js";
 import { bindOrder } from "../binding.js";
 import { bindOrderStart } from "../start-binding.js";
 import type { OrderStartBinding } from "../start-binding.js";
@@ -43,33 +42,17 @@ export function startHarness(prisma: PrismaClient, options: Parameters<typeof ha
       sla: createSla({ clock: h.clock, assembly }),
     },
     tenant = createTenant(core),
-    media = createMedia({ ...core, storage: h.fake.storage }),
-    profile = createProfile({
-      ...core,
-      tenant,
-      media,
-      approval: createApproval({ ...core, bizNo: h.deps.bizNo }),
-      keyring: () => TEST_KEYRING,
-      wechat: h.fake.wechat,
-      currentOpenid: async () => "lyxtest_start_openid",
-    });
+    media = createMedia({ ...core, storage: h.fake.storage });
   const deps: OrderStartBinding = {
     ...core,
+    media,
     ledger: h.ledger,
     timers: createTimers({ assembly }),
-    // 开工测试在 companion 公开 reader 实际合入前注入等价窄 reader；不依赖其未合源码。
-    recommendStaff: async (tx, pool) => {
-      const row = await tx.staff.findFirst({
-        where: { status: "active", assignmentPoolMembers: { some: { pool } } },
-        orderBy: [{ staffNo: "asc" }, { id: "asc" }],
-        select: { id: true },
-      });
-      return row ? (await staffBriefs(tx, [row.id]))[0]! : null;
-    },
-    assignManager: (tx, ctx, input) => profile.assignDeliveryManager(tx, ctx, input),
+    recommendStaff: recommendedStaff,
+    assignManager: (tx, ctx, input) => assignDeliveryManager(tx, { ...core, tenant }, ctx, input),
   };
   const clearOrder = bindOrder(core),
-    clearDelivery = bindDelivery(core),
+    clearDelivery = bindDelivery({ ...core, media }),
     clearStart = bindOrderStart(deps);
   async function pending(
     input: { count?: number; gate?: "full" | "parallel"; managerId?: string } = {},

@@ -123,7 +123,15 @@ describe("两个真实已登记订阅者", { timeout: 120000 }, () => {
     const event: DeliveredEvent = {
       id: uuidv7(),
       type: "billing.subscription.activated",
-      payload: { v: 1, entityId: p.b.entity.id, termId: p.b.term!.id },
+      payload: {
+        v: 1,
+        entityId: p.b.entity.id,
+        termId: p.b.term!.id,
+        planId: p.b.term!.planId,
+        startsAt: p.b.term!.startsAt.toISOString(),
+        endsAt: p.b.term!.endsAt.toISOString(),
+        sourceBillingOrderId: uuidv7(),
+      },
     };
     await deliver("order.onSubscriptionActivated", event);
     for (const storeId of [p.b.store.id, second.id])
@@ -149,5 +157,26 @@ describe("两个真实已登记订阅者", { timeout: 120000 }, () => {
     expect(
       await h.prisma.store.findMany({ where: { entityId: p.b.entity.id }, orderBy: { id: "asc" } }),
     ).toEqual(stores);
+  });
+  it("套餐生效但池空：经理、订单、审计与事件都不写，留给开工再次分配", async () => {
+    await h.prisma.assignmentPoolMember.deleteMany();
+    const p = await h.pending(),
+      before = await snapshot(p.b.entity.id),
+      store = await h.prisma.store.findUniqueOrThrow({ where: { id: p.b.store.id } });
+    await deliver("order.onSubscriptionActivated", {
+      id: uuidv7(),
+      type: "billing.subscription.activated",
+      payload: {
+        v: 1,
+        entityId: p.b.entity.id,
+        termId: p.b.term!.id,
+        planId: p.b.term!.planId,
+        startsAt: p.b.term!.startsAt.toISOString(),
+        endsAt: p.b.term!.endsAt.toISOString(),
+        sourceBillingOrderId: uuidv7(),
+      },
+    });
+    expect(await snapshot(p.b.entity.id)).toEqual(before);
+    expect(await h.prisma.store.findUnique({ where: { id: store.id } })).toEqual(store);
   });
 });

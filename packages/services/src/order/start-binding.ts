@@ -1,23 +1,17 @@
 import type { StaffBrief } from "@liyoxi/contract";
 import type { Ledger } from "../billing/index.js";
 import type { Events } from "../events/index.js";
-import type { Assembly, Clock, IdentityContext, Tx, TxRunner } from "../kernel/index.js";
+import type { IdentityContext, Tx } from "../kernel/index.js";
 import { AppError } from "../kernel/index.js";
-import type { Sla } from "../sla/index.js";
+import type { DeliveryCoreDeps } from "../delivery/index.js";
 import type { AssignmentPool } from "../staff/index.js";
 import type { Timers } from "../timers/index.js";
-import type { Flow } from "../flow/index.js";
 
 /** 仅由组合根接真实公开函数；与 a 的推导绑定分开，旧调用方不需要开工依赖。 */
-export interface OrderStartBinding {
-  readonly tx: TxRunner;
-  readonly clock: Clock;
-  readonly assembly: Assembly;
-  readonly flow: Flow;
+export interface OrderStartBinding extends DeliveryCoreDeps {
   readonly events: Events;
   readonly timers: Timers;
   readonly ledger: Pick<Ledger, "capture">;
-  readonly sla: Sla;
   readonly recommendStaff: (tx: Tx, pool: AssignmentPool) => Promise<StaffBrief | null>;
   readonly assignManager: (
     tx: Tx,
