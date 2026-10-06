@@ -33,3 +33,5 @@ export {
 export { registration } from "./register.js";
 // W1-04：给 identity 的两个只读函数的类型
 export type { ReferralHit } from "./briefs.js";
+export { findVerifiedEntityByUsccBidx } from "./uscc.js";
+export { clearDraftStoreName } from "./qualification.js";

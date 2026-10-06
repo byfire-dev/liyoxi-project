@@ -153,6 +153,61 @@ export const CLERK_SAMPLES: readonly Sample[] = [
   playClerkFile("m.file.refreshCredentials", "refresh-credentials"),
   playClerkFile("m.file.complete", "complete"),
   playClerkFile("m.file.cancel", "cancel"),
+  get("m.storeProfile.get", "/m/store-profile"),
+  get("m.storeProfile.basic.get", "/m/store-profile/basic"),
+  get("m.storeProfile.media.get", "/m/store-profile/media"),
+  {
+    operationId: "m.storeProfile.service.get",
+    play: async (api, ctx) => {
+      await api.runtime.tx.run(async (tx) => {
+        const store = await tx.store.findUniqueOrThrow({ where: { id: ctx.storeId } });
+        const now = api.clock.now();
+        await tx.storeProfile.create({
+          data: { storeId: store.id, entityId: store.entityId, createdAt: now, updatedAt: now },
+        });
+        await tx.storeServiceItem.create({
+          data: {
+            id: uuidv7(),
+            entityId: store.entityId,
+            storeId: store.id,
+            position: 1,
+            name: "公开服务",
+            priceFen: 1000,
+            originalPriceFen: 1500,
+            createdAt: now,
+            updatedAt: now,
+          },
+        });
+      });
+      const response = await api.request("/api/v1/m/store-profile/service", {
+        headers: ctx.clerk.withStore(ctx.storeId),
+      });
+      expect(
+        ((await response.clone().json()) as { data: { serviceItems: unknown[] } }).data
+          .serviceItems,
+      ).toMatchObject([{ priceFen: 1000, originalPriceFen: 1500 }]);
+      return response;
+    },
+  },
+  get("m.storeProfile.qualification.get", "/m/store-profile/qualification"),
+  ...[
+    ["m.storeProfile.basic.update", "PATCH", "/m/store-profile/basic"],
+    ["m.storeProfile.media.update", "PATCH", "/m/store-profile/media"],
+    ["m.storeProfile.service.update", "PATCH", "/m/store-profile/service"],
+    ["m.storeProfile.qualification.update", "PATCH", "/m/store-profile/qualification"],
+    ["m.storeProfile.contact.update", "PATCH", "/m/store-profile/contact"],
+    ["m.storeProfile.qualification.submit", "POST", "/m/store-profile/qualification/submit"],
+    ["m.qualificationDoc.create", "POST", "/m/qualification-docs"],
+    ["m.qualificationDoc.update", "PATCH", `/m/qualification-docs/${uuidv7()}`],
+  ].map(([operationId, method, path]): Sample => ({
+    operationId: operationId!,
+    play: (api, ctx) =>
+      api.request(`/api/v1${path}`, {
+        method,
+        json: {},
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      }),
+  })),
   ...mallClerkSamples,
   // 退出会吊销当前凭据，放到这一份样例的最后。其它样例不得靠退出后的身份。
   {

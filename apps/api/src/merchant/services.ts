@@ -9,8 +9,15 @@
 //   密钥环   登录要算手机号的盲索引与密文。用到时才从环境变量里的密钥文件造（security.loadKeyring）：
 //            只校验会话的请求用不到它，没配密钥的进程照样起得来、验得了会话。
 // 用例与本地的演示装配经 provideMerchantDeps 换成测试密钥环与 appid（要在第一次取服务之前给）。
-import { createFlow, createIdentity, createTenant, security } from "@liyoxi/services";
-import type { Docs, Identity, Runtime, Tenant, WechatProvider } from "@liyoxi/services";
+import {
+  createFlow,
+  createIdentity,
+  createTenant,
+  createProfile,
+  currentSessionOpenid,
+  security,
+} from "@liyoxi/services";
+import type { Docs, Identity, Runtime, Tenant, Profile, WechatProvider } from "@liyoxi/services";
 
 import { docsOf } from "./docs.js";
 
@@ -18,6 +25,7 @@ export interface MerchantServices {
   readonly docs: Docs;
   readonly tenant: Tenant;
   readonly identity: Identity;
+  readonly profile: Profile;
 }
 
 export interface MerchantDeps {
@@ -66,7 +74,19 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
     wechat: deps.wechat ?? runtime.providers.wechat,
     appid: deps.appid ?? PLACEHOLDER_WEAPP_APPID,
   });
-  const services: MerchantServices = { docs, tenant, identity };
+  const profile = createProfile({
+    tx,
+    clock,
+    assembly,
+    tenant,
+    approval: runtime.approval,
+    events,
+    media: runtime.media,
+    keyring: () => (keyring ??= security.loadKeyring(runtime.env)),
+    wechat: runtime.providers.wechat,
+    currentOpenid: (principal) => tx.run((handle) => currentSessionOpenid(handle, principal)),
+  });
+  const services: MerchantServices = { docs, tenant, identity, profile };
   built.set(runtime, services);
   return services;
 }

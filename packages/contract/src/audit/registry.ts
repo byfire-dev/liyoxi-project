@@ -143,6 +143,10 @@ export const AUDIT_TARGET_TYPES = [
   "alert_event",
   "invariant_violation",
   "invariant_run",
+  // 04：档案及资质实际审计对象（W1-08）
+  "store_profile",
+  "qualification_submission",
+  "qualification_doc",
 ] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 

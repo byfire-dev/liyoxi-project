@@ -13,6 +13,7 @@ import { payloads as sla } from "./sla.js";
 import { payloads as staff } from "./staff.js";
 import { payloads as tenant } from "./tenant.js";
 import { payloads as approval } from "./approval.js";
+import { payloads as profile } from "./profile.js";
 
 /** 已交 schema 的事件：事件名 → 载荷 schema。键必须是事件目录里的名字 */
 export const EVENT_PAYLOAD_SCHEMAS = {
@@ -25,6 +26,7 @@ export const EVENT_PAYLOAD_SCHEMAS = {
   ...approval,
   ...billing,
   ...identity,
+  ...profile,
 } as const satisfies Partial<Record<EventName, z.ZodType>>;
 
 /** 已交 schema 的事件名 */

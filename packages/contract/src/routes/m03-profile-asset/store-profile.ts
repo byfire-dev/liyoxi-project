@@ -1,8 +1,31 @@
 // 商家端：门店档案、资质与素材 · store-profile（docs/api/m03-profile-asset.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { merchantMeta } from "../meta-only.js";
+import { merchantRoute } from "../builders.js";
+import { errorResponses, okResponse } from "../../common/index.js";
+import {
+  StoreProfileOverviewSchema,
+  StoreProfileBasicSchema,
+  StoreProfileBasicOwnerSchema,
+  StoreProfileBasicPatchSchema,
+  StoreProfileMediaSchema,
+  StoreProfileMediaOwnerSchema,
+  StoreProfileMediaPatchSchema,
+  StoreProfileServiceSchema,
+  StoreProfileServiceOwnerSchema,
+  StoreProfileServicePatchSchema,
+} from "./profile.schemas.js";
+import { z } from "../../zod.js";
+import {
+  QualificationViewSchema,
+  QualificationViewOwnerSchema,
+  QualificationDraftPatchSchema,
+  ContactPatchSchema,
+  ContactViewSchema,
+  QualificationSubmitBodySchema,
+} from "./qualification.schemas.js";
 
-export const mStoreProfileGet = merchantMeta({
+export const mStoreProfileGet = merchantRoute({
   method: "get",
   path: "/m/store-profile",
   operationId: "m.storeProfile.get",
@@ -11,9 +34,13 @@ export const mStoreProfileGet = merchantMeta({
   "x-capability": "store.profile.read",
   "x-clerk-view": "trimmed",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  responses: {
+    ...okResponse(StoreProfileOverviewSchema),
+    ...errorResponses(400, 401, 403, 409, 503),
+  },
 });
 
-export const mStoreProfileBasicGet = merchantMeta({
+export const mStoreProfileBasicGet = merchantRoute({
   method: "get",
   path: "/m/store-profile/basic",
   operationId: "m.storeProfile.basic.get",
@@ -22,9 +49,10 @@ export const mStoreProfileBasicGet = merchantMeta({
   "x-capability": "store.profile.read",
   "x-clerk-view": "trimmed",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  responses: { ...okResponse(StoreProfileBasicSchema), ...errorResponses(400, 401, 403, 409, 503) },
 });
 
-export const mStoreProfileBasicUpdate = merchantMeta({
+export const mStoreProfileBasicUpdate = merchantRoute({
   method: "patch",
   path: "/m/store-profile/basic",
   operationId: "m.storeProfile.basic.update",
@@ -33,9 +61,21 @@ export const mStoreProfileBasicUpdate = merchantMeta({
   "x-capability": "store.profile.edit",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  "x-three-phase": true,
+  request: {
+    body: {
+      content: { "application/json": { schema: StoreProfileBasicPatchSchema } },
+      required: true,
+    },
+  },
+  "x-redact-on-replay": ["logo.url", "logo.expiresAt", "logo.coverUrl"],
+  responses: {
+    ...okResponse(StoreProfileBasicOwnerSchema.extend({ replayed: z.boolean() })),
+    ...errorResponses(400, 401, 403, 409, 503),
+  },
 });
 
-export const mStoreProfileContactUpdate = merchantMeta({
+export const mStoreProfileContactUpdate = merchantRoute({
   method: "patch",
   path: "/m/store-profile/contact",
   operationId: "m.storeProfile.contact.update",
@@ -44,6 +84,11 @@ export const mStoreProfileContactUpdate = merchantMeta({
   "x-capability": "store.qualification.edit",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  "x-three-phase": true,
+  request: {
+    body: { content: { "application/json": { schema: ContactPatchSchema } }, required: true },
+  },
+  responses: { ...okResponse(ContactViewSchema), ...errorResponses(400, 401, 403, 409, 503) },
 });
 
 export const mStoreProfileContactSmsCodeCreate = merchantMeta({
@@ -59,7 +104,7 @@ export const mStoreProfileContactSmsCodeCreate = merchantMeta({
     "三段式（C51 先落库、提交后直发，A84）：先占用幂等记录，事务插入 sms_verification 并提交，事务外 notify.sendDirect，发送失败删行并释放占用",
 });
 
-export const mStoreProfileMediaGet = merchantMeta({
+export const mStoreProfileMediaGet = merchantRoute({
   method: "get",
   path: "/m/store-profile/media",
   operationId: "m.storeProfile.media.get",
@@ -68,9 +113,10 @@ export const mStoreProfileMediaGet = merchantMeta({
   "x-capability": "store.profile.read",
   "x-clerk-view": "trimmed",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  responses: { ...okResponse(StoreProfileMediaSchema), ...errorResponses(400, 401, 403, 409, 503) },
 });
 
-export const mStoreProfileMediaUpdate = merchantMeta({
+export const mStoreProfileMediaUpdate = merchantRoute({
   method: "patch",
   path: "/m/store-profile/media",
   operationId: "m.storeProfile.media.update",
@@ -78,9 +124,33 @@ export const mStoreProfileMediaUpdate = merchantMeta({
   "x-capability": "store.profile.edit",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    body: {
+      content: { "application/json": { schema: StoreProfileMediaPatchSchema } },
+      required: true,
+    },
+  },
+  "x-redact-on-replay": [
+    "groups.door[].file.url",
+    "groups.door[].file.expiresAt",
+    "groups.door[].file.coverUrl",
+    "groups.interior[].file.url",
+    "groups.interior[].file.expiresAt",
+    "groups.interior[].file.coverUrl",
+    "groups.product[].file.url",
+    "groups.product[].file.expiresAt",
+    "groups.product[].file.coverUrl",
+    "groups.promo[].file.url",
+    "groups.promo[].file.expiresAt",
+    "groups.promo[].file.coverUrl",
+  ],
+  responses: {
+    ...okResponse(StoreProfileMediaOwnerSchema.extend({ replayed: z.boolean() })),
+    ...errorResponses(400, 401, 403, 409, 503),
+  },
 });
 
-export const mStoreProfileQualificationGet = merchantMeta({
+export const mStoreProfileQualificationGet = merchantRoute({
   method: "get",
   path: "/m/store-profile/qualification",
   operationId: "m.storeProfile.qualification.get",
@@ -89,9 +159,10 @@ export const mStoreProfileQualificationGet = merchantMeta({
   "x-capability": "store.profile.read",
   "x-clerk-view": "trimmed",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  responses: { ...okResponse(QualificationViewSchema), ...errorResponses(400, 401, 403, 409, 503) },
 });
 
-export const mStoreProfileQualificationUpdate = merchantMeta({
+export const mStoreProfileQualificationUpdate = merchantRoute({
   method: "patch",
   path: "/m/store-profile/qualification",
   operationId: "m.storeProfile.qualification.update",
@@ -100,6 +171,16 @@ export const mStoreProfileQualificationUpdate = merchantMeta({
   "x-capability": "store.qualification.edit",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    body: {
+      content: { "application/json": { schema: QualificationDraftPatchSchema } },
+      required: true,
+    },
+  },
+  responses: {
+    ...okResponse(QualificationViewOwnerSchema),
+    ...errorResponses(400, 401, 403, 409, 503),
+  },
 });
 
 export const mStoreProfileQualificationDiscard = merchantMeta({
@@ -112,7 +193,7 @@ export const mStoreProfileQualificationDiscard = merchantMeta({
   "x-idempotent": "required",
 });
 
-export const mStoreProfileQualificationSubmit = merchantMeta({
+export const mStoreProfileQualificationSubmit = merchantRoute({
   method: "post",
   path: "/m/store-profile/qualification/submit",
   operationId: "m.storeProfile.qualification.submit",
@@ -121,9 +202,19 @@ export const mStoreProfileQualificationSubmit = merchantMeta({
   "x-capability": "store.qualification.edit",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    body: {
+      content: { "application/json": { schema: QualificationSubmitBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    ...okResponse(QualificationViewOwnerSchema),
+    ...errorResponses(400, 401, 403, 409, 503),
+  },
 });
 
-export const mStoreProfileServiceGet = merchantMeta({
+export const mStoreProfileServiceGet = merchantRoute({
   method: "get",
   path: "/m/store-profile/service",
   operationId: "m.storeProfile.service.get",
@@ -132,9 +223,13 @@ export const mStoreProfileServiceGet = merchantMeta({
   "x-capability": "store.profile.read",
   "x-clerk-view": "trimmed",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  responses: {
+    ...okResponse(StoreProfileServiceSchema),
+    ...errorResponses(400, 401, 403, 409, 503),
+  },
 });
 
-export const mStoreProfileServiceUpdate = merchantMeta({
+export const mStoreProfileServiceUpdate = merchantRoute({
   method: "patch",
   path: "/m/store-profile/service",
   operationId: "m.storeProfile.service.update",
@@ -142,4 +237,20 @@ export const mStoreProfileServiceUpdate = merchantMeta({
   "x-capability": "store.profile.edit",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  "x-three-phase": true,
+  request: {
+    body: {
+      content: { "application/json": { schema: StoreProfileServicePatchSchema } },
+      required: true,
+    },
+  },
+  "x-redact-on-replay": [
+    "serviceItems[].image.url",
+    "serviceItems[].image.expiresAt",
+    "serviceItems[].image.coverUrl",
+  ],
+  responses: {
+    ...okResponse(StoreProfileServiceOwnerSchema.extend({ replayed: z.boolean() })),
+    ...errorResponses(400, 401, 403, 409, 503),
+  },
 });
