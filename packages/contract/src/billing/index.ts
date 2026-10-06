@@ -3,6 +3,14 @@ export { LEDGER_TITLE_ARGS, LEDGER_TITLE_CODES, parseLedgerTitleArgs } from "./l
 export type { LedgerTitleArgs, LedgerTitleCode } from "./ledger.js";
 export { BILLING_PARAM_VALUES } from "./params.js";
 export type { BillingParams } from "./params.js";
+// W1-10 第二个 PR：冻结单的计价与规则快照
+export {
+  AdPricingSnapshotSchema,
+  AdRevisionPricingSnapshotSchema,
+  DramaPricingSnapshotSchema,
+  PricingSnapshotSchema,
+} from "./pricing-snapshot.js";
+export type { DramaPricingSnapshot, PricingSnapshot } from "./pricing-snapshot.js";
 // W1-11a：付款单内容快照、履约结果、订阅事件细节
 export {
   billingOrderContentSchema,

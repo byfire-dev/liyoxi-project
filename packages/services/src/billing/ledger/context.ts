@@ -3,8 +3,8 @@
 //   1. 账户锁是全事务最后一把锁，一个事务只锁一个主体的。等锁至多 3 秒：只对拿锁那一句设 lock_timeout，
 //      等不到抛 ACCOUNT_BUSY（503，可重试），不进 tx.run 的重试（它只重试数据库错误）。
 //   2. 账本时钟 = 拿到锁之后取的注入时钟，与该主体上一次操作的时刻取较大者；同一事务再次进入用同一个值。
-//   3. 每次进入都真的发一句 FOR UPDATE（已持有时立刻返回）：锁若随保存点回滚丢了，这里会重新拿，
-//      时钟再与库里的 last_op_at 比一次，不会倒退。
+//   3. 每次进入都真的发一句 FOR UPDATE（已持有时立刻返回）：锁若随保存点回滚丢了，这里会重新拿——
+//      同样至多等 3 秒、等不到抛 ACCOUNT_BUSY；时钟再与库里的 last_op_at 比一次，不会倒退。
 import { calendarDate } from "@liyoxi/shared/time";
 import type { LocalDate } from "@liyoxi/shared/time";
 
@@ -43,22 +43,40 @@ export async function ensureAccount(tx: Tx, clock: Clock, entityId: string): Pro
   });
 }
 
-/** 只对拿账户锁这一句把 lock_timeout 设成 3 秒，之后恢复连接原来的值 */
+/** 只对拿账户锁这一句限时 3 秒；lock_timeout 按每把锁计时，statement_timeout 限制排队后的总耗时 */
 async function lockWithin(tx: Tx, entityId: string): Promise<string[]> {
-  const wait = `${String(ACCOUNT_LOCK_WAIT_MS)}ms`;
-  const [timeouts] = await tx.$queryRaw<{ before: string; after: string }[]>`
-    SELECT p.before, set_config('lock_timeout', ${wait}, true) AS after
-    FROM (SELECT current_setting('lock_timeout') AS before OFFSET 0) p`;
+  const [timeouts] = await tx.$queryRaw<
+    {
+      lockBefore: string;
+      statementBefore: string;
+      lockMs: number;
+      statementMs: number;
+    }[]
+  >`
+    SELECT current_setting('lock_timeout') AS "lockBefore",
+           current_setting('statement_timeout') AS "statementBefore",
+           setting::int AS "statementMs",
+           (SELECT setting::int FROM pg_settings WHERE name = 'lock_timeout') AS "lockMs"
+      FROM pg_settings WHERE name = 'statement_timeout'`;
+  if (!timeouts) throw new LedgerError("guard", "取不到连接的语句超时设置");
+  // 原有的两种超时更短就沿用，不能为了拿账户锁放宽连接原有的限制。
+  const wait = `${String(Math.min(timeouts.lockMs || ACCOUNT_LOCK_WAIT_MS, ACCOUNT_LOCK_WAIT_MS))}ms`;
+  const deadline = `${String(Math.min(timeouts.statementMs || ACCOUNT_LOCK_WAIT_MS, ACCOUNT_LOCK_WAIT_MS))}ms`;
+  await tx.$queryRaw`
+    SELECT set_config('lock_timeout', ${wait}, true),
+           set_config('statement_timeout', ${deadline}, true)`;
   let locked: string[];
   try {
     locked = await lockRows(tx, "billing_account", [entityId]);
   } catch (error) {
-    if (sqlStateOf(error) === "55P03") throw new AppError("ACCOUNT_BUSY", { cause: error });
+    if (["55P03", "57014"].includes(sqlStateOf(error) ?? "")) {
+      throw new AppError("ACCOUNT_BUSY", { cause: error });
+    }
     throw error;
   }
-  if (timeouts && timeouts.before !== timeouts.after) {
-    await tx.$queryRaw`SELECT set_config('lock_timeout', ${timeouts.before}, true)`;
-  }
+  await tx.$queryRaw`
+    SELECT set_config('lock_timeout', ${timeouts.lockBefore}, true),
+           set_config('statement_timeout', ${timeouts.statementBefore}, true)`;
   return locked;
 }
 
@@ -79,17 +97,20 @@ export async function acquireAccount(
       wanted: entityId,
     });
   }
-  if (options.wait === "skip") {
+  let locked: string[];
+  if (options.wait === "skip" || entered !== undefined) {
+    // 不等的拿法：没人占着（或本事务已经持有）就拿到；别的事务占着则一行都不返回
     assertLockOrder(tx, "billing_account", [entityId]);
-    const free = await tx.$queryRaw<unknown[]>`
-      SELECT 1 FROM billing_account WHERE entity_id = ${entityId}::uuid FOR UPDATE SKIP LOCKED`;
-    if (free.length === 0) return null;
+    const free = await tx.$queryRaw<{ id: string }[]>`
+      SELECT entity_id::text AS id FROM billing_account
+      WHERE entity_id = ${entityId}::uuid FOR UPDATE SKIP LOCKED`;
+    if (free.length === 0 && options.wait === "skip") return null;
+    // 已经进入过而没拿到：锁随保存点回滚丢了，又被别的事务占着（或账户行是在那个保存点里建的）。
+    // 重新拿与第一次一样等至多 3 秒，等不到抛 ACCOUNT_BUSY
+    locked = free.length > 0 ? [entityId] : await lockWithin(tx, entityId);
+  } else {
+    locked = await lockWithin(tx, entityId);
   }
-  // 已经进入过：锁多半还在手里，这一句立刻返回；丢了（保存点回滚）就按连接自己的 lock_timeout 再等
-  const locked =
-    entered === undefined
-      ? await lockWithin(tx, entityId)
-      : await lockRows(tx, "billing_account", [entityId]);
   if (locked.length === 0) {
     // 账户行还没有：补建。刚插入的行别的事务看不见，再锁一遍只为让内核记下这把锁
     await ensureAccount(tx, clock, entityId);

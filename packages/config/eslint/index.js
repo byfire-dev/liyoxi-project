@@ -5,6 +5,7 @@ export { scriptFiles, scriptRules, serverFiles, serverRules } from "./server.js"
 export { weappFiles, weappGlobals, weappRules } from "./weapp.js";
 export { txEntryFiles, txEntryRestrictedSyntax, txEntryRules } from "./tx.js";
 export { txEntryDbFiles, txEntryTestingFiles } from "./tx.js";
+export { roundingFiles, roundingPlugin } from "./rounding.js";
 export {
   prismaCtorOnlyFiles,
   prismaCtorOnlyRules,

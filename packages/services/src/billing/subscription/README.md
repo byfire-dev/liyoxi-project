@@ -65,6 +65,8 @@ pnpm --filter @liyoxi/services exec vitest run src/billing/subscription/ src/bil
 LYX_FC_RUNS=200 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run src/billing/subscription/schedule.property.test.ts
 ```
 
+履约故障注入按 `FULFILL_STEPS` 独立登记的 12 个可达写步骤逐次中断，保留实际步骤集合与登记集合完全相等的断言。冻结单、分摊与转加购不在套餐履约调用链中；它们由 `ledger/fault.test.ts` 的冻结、扣减、释放、退回场景覆盖，并核对全局 `LEDGER_STEPS` 全集。
+
 都连库（带种子的库）。甲类的用例：`fulfill.fault.test.ts`（逐步故障注入、唯一冲突、自检失败、可重试错误、账户锁被占）、`fulfill.concurrency.test.ts`（同一张单四条连接、同主体两张单、与推进交错）、`schedule.property.test.ts`（分摊的性质不连库 200 轮；履约的性质连库，缺省 10 轮、固定种子）。
 
 ## 5. 已知的限度
