@@ -1,0 +1,49 @@
+.catalog-page {
+  min-height: 100vh;
+  background: $lyx-color-bg-page;
+}
+.catalog-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 12px;
+  &--horizontal {
+    display: flex;
+    overflow-x: auto;
+    gap: 12px;
+    .catalog-cards__item {
+      flex: 0 0 112px;
+    }
+  }
+  &__title {
+    margin-top: 8px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  &__meta {
+    margin-top: 4px;
+    font-size: 12px;
+    color: $lyx-color-text-secondary;
+  }
+  &__price {
+    margin-top: 6px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+}
+.catalog-muted {
+  color: $lyx-color-text-secondary;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.catalog-title {
+  font-size: 20px;
+  font-weight: 600;
+}
+.catalog-gap {
+  margin-top: 12px;
+}
+.catalog-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

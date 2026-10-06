@@ -3,6 +3,7 @@ export type { Media } from "./runtime.js";
 export type {
   MediaActor,
   MediaDeps,
+  DeliveryDownloadSignInput,
   RegisterInput,
   LinkInput,
   ReleaseInput,

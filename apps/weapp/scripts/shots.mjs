@@ -68,6 +68,9 @@ const { PROFILE_SCENES } = await import(
 const { BILLING_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/billing-scenes.ts")).href
 );
+const { CATALOG_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/catalog-scenes.ts")).href
+);
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--no-build") build = false;
@@ -86,7 +89,9 @@ for (let index = 0; index < args.length; index += 1) {
   } else if (args[index] === "--scene") {
     const name = args[(index += 1)];
     if (
-      ![...ACCOUNT_SCENES, ...PROFILE_SCENES, ...BILLING_SCENES].some((item) => item.name === name)
+      ![...ACCOUNT_SCENES, ...PROFILE_SCENES, ...BILLING_SCENES, ...CATALOG_SCENES].some(
+        (item) => item.name === name,
+      )
     )
       fail(`未知固定场景 ${name}`);
     wantedScenes.push(name);
@@ -153,12 +158,23 @@ const targets = [
       fullPage: false,
     }),
   ),
+  ...(all ? CATALOG_SCENES : CATALOG_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
+    (item) => ({
+      label: item.name,
+      url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
+      file: `catalog__${item.name}`,
+      scene: item.name,
+      kind: "catalog",
+      fullPage: false,
+    }),
+  ),
   ...(all
     ? builtRoutes.filter(
         (route) =>
           !["pages/login/index", "pages/agreement/index", "pages/mine/index"].includes(route) &&
           !PROFILE_SCENES.some((item) => item.route === route) &&
-          !BILLING_SCENES.some((item) => item.route === route),
+          !BILLING_SCENES.some((item) => item.route === route) &&
+          !CATALOG_SCENES.some((item) => item.route.split("?")[0] === route),
       )
     : wanted
   ).map((route) => ({
@@ -244,6 +260,14 @@ async function shoot(target) {
           globalThis.__LYX_ACCOUNT_SHOT__ = ["profile", "billing"].includes(kind)
             ? "mine-owner"
             : scene;
+          if (kind === "catalog") {
+            globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("clerk")
+              ? "mine-clerk"
+              : scene.endsWith("guest")
+                ? "mine-guest"
+                : "mine-owner";
+            globalThis.__LYX_CATALOG_SHOT__ = scene;
+          }
           if (kind === "profile") globalThis.__LYX_PROFILE_SHOT__ = scene;
           if (kind === "billing") globalThis.__LYX_BILLING_SHOT__ = scene;
         },
@@ -268,9 +292,40 @@ async function shoot(target) {
             ? "#profile-ready"
             : target.kind === "billing"
               ? "#billing-ready"
-              : "#account-ready",
+              : target.kind === "catalog"
+                ? "#catalog-ready"
+                : "#account-ready",
         )
         .waitFor({ state: "visible", timeout: 15_000 });
+      if (target.kind === "catalog") {
+        if (target.scene === "cart-default")
+          await page.locator(".cart-page__row .lyx-checkbox").first().click();
+        if (target.scene === "cart-price-changed") {
+          await page
+            .locator(".cart-page__actions .lyx-button")
+            .filter({ hasText: "确认新价格" })
+            .click();
+          await page.getByText("确认价格", { exact: true }).waitFor({ state: "visible" });
+          await page.waitForTimeout(350);
+        }
+
+        if (target.scene === "mall-end") {
+          await page.getByText("继续向下浏览", { exact: true }).click();
+          await page.getByText("没有更多了", { exact: true }).scrollIntoViewIfNeeded();
+        }
+        if (target.scene === "mall-empty") {
+          await page.getByText("暂无分类", { exact: true }).click();
+          await page.getByText("没有符合条件的短剧", { exact: true }).waitFor({ state: "visible" });
+        }
+        if (target.scene.endsWith("clerk")) {
+          const cartCalls = await page.evaluate(() =>
+            Object.entries(globalThis.__LYX_CATALOG_COUNTS__ ?? {})
+              .filter(([key]) => key.includes("/m/cart-items"))
+              .reduce((sum, [, n]) => sum + n, 0),
+          );
+          if (cartCalls !== 0) throw new Error("店员场景触发了cart请求");
+        }
+      }
       if (target.scene.startsWith("bank-")) {
         await page.locator(".lyx-button").filter({ hasText: "对公转账" }).click();
         await page.locator(".lyx-button").filter({ hasText: "确认付款" }).click();
@@ -376,6 +431,71 @@ async function shoot(target) {
     }
     const file = path.join(outDir, `${target.file}.png`);
     await page.screenshot({ path: file });
+    if (target.kind === "catalog") {
+      if (target.scene === "cart-default") {
+        if (!(await page.locator(".cart-page__total").innerText()).includes("900 积分"))
+          throw new Error("选择合计必须使用服务端S900");
+        await page.locator(".cart-page__row .lyx-checkbox").first().click();
+        if (!(await page.locator(".cart-page__total").innerText()).includes("0 积分"))
+          throw new Error("复选项必须可以取消");
+      }
+      if (target.scene === "cart-price-changed") {
+        const before = await page.evaluate(
+          () => globalThis.__LYX_CATALOG_COUNTS__["GET /m/cart-items"],
+        );
+        await page.locator(".lyx-sheet .lyx-button").filter({ hasText: "确认价格" }).click();
+        await page.getByText("网络暂时中断，请重试", { exact: true }).waitFor({ state: "visible" });
+        await page.locator(".lyx-sheet .lyx-button").filter({ hasText: "确认价格" }).click();
+        await page.getByText("确认新价格", { exact: true }).waitFor({ state: "hidden" });
+        const result = await page.evaluate(() => ({
+          calls: globalThis.__LYX_CATALOG_MUTATIONS__,
+          reads: globalThis.__LYX_CATALOG_COUNTS__["GET /m/cart-items"],
+        }));
+        if (
+          result.calls.length !== 2 ||
+          result.calls[0].key !== result.calls[1].key ||
+          result.calls[1].data.acceptedPricePoints !== 1200 ||
+          result.reads <= before
+        )
+          throw new Error("P/samekey/C50重放GET验收不成立");
+      }
+      if (target.scene === "cart-invalid") {
+        await page
+          .locator(".cart-page__actions .lyx-button")
+          .filter({ hasText: "移出选剧单" })
+          .first()
+          .click();
+        await page.locator(".lyx-sheet .lyx-button").filter({ hasText: "确认移出" }).click();
+        await page.getByText("已下架，请移出选剧单", { exact: true }).waitFor({ state: "hidden" });
+        if ((await page.locator(".cart-page__row").count()) !== 1)
+          throw new Error("真实删除后列表未刷新");
+      }
+      if (target.scene === "detail-owner") {
+        await page.locator(".detail-page .lyx-button").filter({ hasText: "加入选剧单" }).click();
+        await page.getByText("已在选剧单", { exact: true }).waitFor({ state: "visible" });
+        await page.waitForFunction(
+          () => globalThis.__LYX_CATALOG_COUNTS__["GET /m/cart-items"] >= 1,
+        );
+        await page.locator(".detail-page .lyx-button").filter({ hasText: "已在选剧单" }).click();
+        await page.waitForFunction(
+          () => globalThis.__LYX_CATALOG_COUNTS__["GET /m/cart-items"] >= 2,
+        );
+        if (
+          (await page.evaluate(() => globalThis.__LYX_CATALOG_COUNTS__["POST /m/cart-items"])) !== 2
+        )
+          throw new Error("natural重复加入没有真实回放");
+      }
+      if (
+        target.scene === "home-clerk" &&
+        (await page.getByText("上线概览", { exact: true }).count())
+      )
+        throw new Error("店员首页出现owner数据");
+      if (
+        target.scene === "home-guest" &&
+        (await page.getByText("可用积分", { exact: true }).count())
+      )
+        throw new Error("游客首页出现财务数据");
+    }
     if (target.scene === "profile-not-started") {
       if (
         await page.evaluate(() =>
