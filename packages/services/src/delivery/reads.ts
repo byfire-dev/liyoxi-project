@@ -1,5 +1,6 @@
 import { PlanContentSchema } from "@liyoxi/contract";
 import type { Tx } from "../kernel/index.js";
+import { getLaunchReviewSummary } from "../publish/index.js";
 import { iso } from "./repo.js";
 const brief = (r: {
   id: string;
@@ -38,15 +39,28 @@ const brief = (r: {
   liveAt: iso(r.liveAt),
   usageEndedAt: iso(r.usageEndedAt),
 });
+async function launchBrief(tx: Tx, r: Parameters<typeof brief>[0]) {
+  const review = await getLaunchReviewSummary(tx, r.orderItemId);
+  return {
+    ...brief(r),
+    launchState: review.hasVerifying
+      ? ("verifying" as const)
+      : review.hasNeedFix
+        ? ("need_fix" as const)
+        : ("awaiting_links" as const),
+  };
+}
 /** 仅同事务内部聚合使用；HTTP 范围由调用的订单用例判定。 */
 export async function getTicketBriefByOrderItem(tx: Tx, orderItemId: string) {
   const r = await tx.deliveryTicket.findUnique({ where: { orderItemId } });
-  return r ? brief(r) : null;
+  return r ? launchBrief(tx, r) : null;
 }
 export async function getTicketBriefsByOrder(tx: Tx, dramaOrderId: string) {
-  return (
-    await tx.deliveryTicket.findMany({ where: { dramaOrderId }, orderBy: { id: "asc" } })
-  ).map(brief);
+  const rows = await tx.deliveryTicket.findMany({
+    where: { dramaOrderId },
+    orderBy: { id: "asc" },
+  });
+  return Promise.all(rows.map((r) => launchBrief(tx, r)));
 }
 export async function getPlanBriefByOrder(tx: Tx, dramaOrderId: string) {
   const p = await tx.deliveryPlan.findUnique({

@@ -135,6 +135,7 @@ export async function deriveOrder(tx: Tx, deps: OrderBinding, id: string): Promi
       return {
         phase: item.phase,
         ticketStep: ticket?.step,
+        ...(ticket ? { launchState: ticket.launchState } : {}),
         ...(item.phase === "to_launch" && date(item.usageEndDate)! < today
           ? { launchState: "expired_unlaunched" as const }
           : {}),

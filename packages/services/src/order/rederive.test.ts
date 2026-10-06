@@ -194,6 +194,102 @@ describe("真实订单侧端口、同事务物化", { timeout: 60000 }, () => {
     newer();
     expect(boundOrder()).toBe(h.binding);
   });
+  it("真实待上线审核状态经delivery投影：verifying优先、need_fix回补、过期覆盖，已上线不被另一平台退回", async () => {
+    const o = await delivered(),
+      account = await h.prisma.channelAccount.findUniqueOrThrow({ where: { id: o.b.accountId } }),
+      otherAccountId = uuidv7();
+    await h.prisma.channelAccount.create({
+      data: {
+        ...account,
+        id: otherAccountId,
+        platform: "wechat_channels",
+        accountUid: otherAccountId,
+        accountUidNorm: otherAccountId,
+      },
+    });
+    const task = {
+      entityId: o.b.entity.id,
+      storeId: o.b.store.id,
+      orderItemId: o.id,
+      deliveryTicketId: o.deliveryTicketIds[0]!,
+      currentRoundNo: 1,
+      isLive: false,
+      createdAt: h.clock.now(),
+      updatedAt: h.clock.now(),
+    };
+    const returnedId = uuidv7(),
+      verifyingId = uuidv7();
+    await h.prisma.launchTask.create({
+      data: {
+        ...task,
+        id: returnedId,
+        channelAccountId: o.b.accountId,
+        platform: "douyin",
+        reviewStatus: "need_fix",
+      },
+    });
+    const evaluate = () =>
+      h.tx.run((tx) => reevaluate(tx, h.core, o.b.actor.ctx, o.deliveryTicketIds[0]!));
+    const state = () => h.prisma.dramaOrder.findUniqueOrThrow({ where: { id: o.o.id } });
+    await evaluate();
+    expect(await state()).toMatchObject({ status: "to_launch", subStatus: "need_fix" });
+    await h.prisma.launchTask.create({
+      data: {
+        ...task,
+        id: verifyingId,
+        channelAccountId: otherAccountId,
+        platform: "wechat_channels",
+        reviewStatus: "verifying",
+      },
+    });
+    await evaluate();
+    expect(await state()).toMatchObject({ subStatus: "verifying" });
+    await h.prisma.launchTask.update({
+      where: { id: verifyingId },
+      data: { reviewStatus: "void", voidReason: "account_changed" },
+    });
+    await evaluate();
+    expect(await state()).toMatchObject({ subStatus: "need_fix" });
+    const item = await h.prisma.orderItem.findUniqueOrThrow({ where: { id: o.id } });
+    // 北京今天为1月5日：止日当天仍可提交；只有超过止日才覆盖补件状态。
+    await h.prisma.orderItem.update({
+      where: { id: o.id },
+      data: { usageEndDate: new Date("2026-01-05") },
+    });
+    await evaluate();
+    expect(await state()).toMatchObject({ subStatus: "need_fix" });
+    await h.prisma.orderItem.update({
+      where: { id: o.id },
+      data: { usageEndDate: new Date("2026-01-04") },
+    });
+    await evaluate();
+    expect(await state()).toMatchObject({ subStatus: "expired_unlaunched" });
+    await h.prisma.launchTask.update({
+      where: { id: verifyingId },
+      data: { reviewStatus: "verifying", voidReason: null },
+    });
+    await evaluate();
+    expect(await state()).toMatchObject({ subStatus: "expired_unlaunched" });
+    await h.prisma.orderItem.update({
+      where: { id: o.id },
+      data: { usageEndDate: item.usageEndDate },
+    });
+    await h.prisma.launchTask.update({
+      where: { id: verifyingId },
+      data: {
+        reviewStatus: "passed",
+        isLive: true,
+        verifiedEpisodeCount: 1,
+        firstLaunchDate: new Date("2026-01-05"),
+        wentLiveAt: h.clock.now(),
+      },
+    });
+    await evaluate();
+    expect(await state()).toMatchObject({ status: "live", subStatus: "in_service" });
+    const before = { item: await counts(o.id), parent: await counts(o.o.id) };
+    await evaluate();
+    expect({ item: await counts(o.id), parent: await counts(o.o.id) }).toEqual(before);
+  });
   it("读侧来自真实公开工单/方案/阶段，GET聚合不写", async () => {
     const o = await h.orderFixture(),
       before = await counts(o.o.id);

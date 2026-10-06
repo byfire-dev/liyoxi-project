@@ -445,6 +445,18 @@ export type Publish = ReturnType<typeof createPublish>;
 export const countPendingChannelAccountsByStore = (tx: Tx, storeId: string) =>
   tx.channelAccount.count({ where: { storeId, status: "pending_verify" } });
 
+/** 同事务只读审核事实；作废任务不参与当前待上线展示。 */
+export async function getLaunchReviewSummary(tx: Tx, orderItemId: string) {
+  const tasks = await tx.launchTask.findMany({
+    where: { orderItemId, reviewStatus: { not: "void" } },
+    select: { reviewStatus: true },
+  });
+  return {
+    hasVerifying: tasks.some((t) => t.reviewStatus === "verifying"),
+    hasNeedFix: tasks.some((t) => t.reviewStatus === "need_fix"),
+  };
+}
+
 /** 同事务交给 delivery/order 的当前事实；不回写它们的表。 */
 export async function getLaunchFacts(tx: Tx, orderItemId: string) {
   const tasks = await tx.launchTask.findMany({
