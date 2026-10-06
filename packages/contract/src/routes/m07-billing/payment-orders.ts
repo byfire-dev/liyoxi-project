@@ -108,6 +108,7 @@ export const mPaymentOrderTransferProofCreate = merchantRoute({
       content: { "application/json": { schema: TransferProofCreateBodySchema } },
     },
   },
+  "x-redact-on-replay": ["bankAccount.accountNo"],
   method: "post",
   path: "/m/payment-orders/{paymentOrderId}/transfer-proofs",
   operationId: "m.paymentOrder.transferProof.create",

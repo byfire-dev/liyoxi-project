@@ -849,6 +849,8 @@
 - 提交按钮点击时端上顺带请求订阅授权（点位 `transfer_submit`，d6-notify-docs-data.md:860），到账确认、凭证驳回经订阅消息通知。
 - 回单识别只做辅助比对、不阻断（d2:754）；识别值不返回商家端。
 
+**结果脱敏（C50）**：此写接口返回的 `bankAccount.accountNo` 与建单相同，初次响应可按本节返回，幂等结果持久化前置为 null；done 重放账号为 null 并带 `replayed = true`。路由声明 `x-redact-on-replay = [bankAccount.accountNo]`。
+
 ### 3.13 m.paymentOrder.list　付款单列表
 `GET /m/payment-orders`
 

@@ -265,7 +265,22 @@ describe("对公付款真实 API 链", { timeout: 90_000 }, () => {
           uploadKey,
         ),
       ),
-    ).toEqual(uploaded);
+    ).toEqual({
+      ...uploaded,
+      bankAccount: { ...uploaded.bankAccount, accountNo: null },
+      replayed: true,
+    });
+    const snapshots = await db.idempotencyRecord.findMany({
+      where: {
+        actorKey: `merchant:${b.owner.merchantUserId}`,
+        scope: { in: ["m.paymentOrder.create", "m.paymentOrder.transferProof.create"] },
+      },
+    });
+    expect(snapshots).toHaveLength(2);
+    for (const saved of snapshots) {
+      expect(saved.result).toMatchObject({ bankAccount: { accountNo: null } });
+      expect(JSON.stringify(saved.result)).not.toContain("0000000000000000");
+    }
     const pid = uploaded.latestTransferProof!.transferProofId;
     expect(await getProof(pid)).toMatchObject({
       reviewStatus: "pending",
