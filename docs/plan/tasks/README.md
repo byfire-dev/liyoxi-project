@@ -194,6 +194,8 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 
 | — | W1-09、W1-12、W1-19、W1-20 | 真实后台验收复用 `pnpm admin:e2e:live`：造数在 services/testing/admin-live 新增 *.fixture.ts，单进程顺序共享 make/runtime；浏览器只新增 live-*.spec.ts，由项目依赖复用 storageState。不改起栈脚本或配置，不从前端导入服务端。G2-0 接 mask/validateSearch，G2-A 补用户菜单两项与员工操作 | W1-02①；apps/admin/README.md；任务书第 9 节 |
 
+| — | W1-17；W1-16a PR2；G2-A | W1-16a PR1 公共 createTickets/prepareTicketAssignees、reevaluate 与按订单项工单/按订购单方案摘要可复用；开工须同 TX 先 staff20 prepare（同 TX/order 重入无计数变化，main pickNext 无游标/计数写），后 store130/order160/item170/account420，create 只重入预持父锁及 INSERT，传首 capture 返回 Tf 给 at。确认需注册 orderSidePort.applyConfirmedPlan，default INTERNAL；rederive 在新步骤写入后同 TX 调，稳态上线事实也回调且带 launchFacts，不重开事务。方案应用前父锁和选中账号190已持，不能 release210 后首次补锁账号。PR2 补样片/包写侧及相应详情聚合/I7–13/I15；G2-A 补工单三负责人在办来源端口，当前 main 未注册，承接 W1-01b M2 既有留桩 | W1-16a 第 7、9、10 节；10 分组 第 2.1、5 节；W1-01b 第 7、9 节 |
+
 ## 6. 任务书加的前置（计划依赖列没有）
 
 写任务书时查实的三处。已由一条计划小改补进计划 第 7.2 节依赖列与第 12 节（[changes/W0-04-post-kickoff-fixes.md](../changes/W0-04-post-kickoff-fixes.md)）。下表留作出处，“怎么办”一栏照旧有效（默认，W0-04 定）。

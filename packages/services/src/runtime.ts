@@ -1,3 +1,4 @@
+import { bindDelivery } from "./delivery/index.js";
 import { bindPublish } from "./publish/index.js";
 // 进程运行时（W0-22）：api 与 worker 启动时各建一次。环境 → 日志 → 数据库与 Redis 连接 → 事务入口、业务单号、
 // 配置读侧、健康检查 → 服务装配。应用层只经 @liyoxi/services 的入口拿到它，不引 @liyoxi/db（硬性规则 5）。
@@ -247,6 +248,14 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
   const unbindContent = bindContent(assembly);
   const unbindPublish = bindPublish(assembly);
+  const unbindDelivery = bindDelivery({
+    tx,
+    clock,
+    assembly,
+    flow,
+    events,
+    sla: createSla({ clock, assembly }),
+  });
   const content = createContent({ clock, flow, media, assembly });
   const bizNo = createBizNoIssuer({ clock, appEnv: env.APP_ENV });
   const approval = createApproval({ assembly, clock, flow, events, bizNo });
@@ -331,6 +340,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       unbindBilling();
       unbindContent();
       unbindPublish();
+      unbindDelivery();
       unbindOps();
       await mediaChannel.close();
       redis.disconnect();

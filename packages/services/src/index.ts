@@ -235,3 +235,25 @@ export type {
   PublishViewer,
   CreateLaunchTasksInput,
 } from "./publish/index.js";
+
+// W1-16a PR1：工单与方案，以及 W1-17 的同事务接管端口。
+export {
+  createDelivery,
+  bindDelivery,
+  orderSidePort,
+  createTickets,
+  prepareTicketAssignees,
+  reevaluate,
+  reevaluateSweep,
+  getTicketBriefByOrderItem,
+  getTicketBriefsByOrder,
+  getTicketTimeline,
+  getPlanBriefByOrder,
+} from "./delivery/index.js";
+export type {
+  Delivery,
+  DeliveryDeps,
+  DeliveryCoreDeps,
+  DeliveryViewer,
+  OrderSide,
+} from "./delivery/index.js";

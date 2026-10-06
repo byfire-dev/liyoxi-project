@@ -3,4 +3,6 @@
 import type { DomainLoopDef } from "./loop.js";
 import { billingAdvance } from "./loops/billing-advance.js";
 
-export const DOMAIN_LOOPS: readonly DomainLoopDef[] = [billingAdvance];
+import { deliveryReevaluate } from "./loops/delivery-reevaluate.js";
+
+export const DOMAIN_LOOPS: readonly DomainLoopDef[] = [billingAdvance, deliveryReevaluate];

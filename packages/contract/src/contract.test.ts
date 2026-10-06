@@ -381,8 +381,8 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
   //     加具名结构时再改组件清单（现在只有 DictRef、ErrorBody、SentryEnvelope）。
   // 这是预期替换，不算“删改已有黄金条目”。替换时把断言换成新的现状（条数、组件名），不要整条删掉。
   // 路由清单本身的条数、与路线图的对账在 src/routes/routes.test.ts 与 pnpm contract:docs-check。
-  it("路由都已登记：带结构的 92 条在商家端与后台文档里，其余还只有元数据；三份文档都有通用结构与错误体", async () => {
-    // W1-03：协议与主体门店 8 条；W1-04：商家会话与当前账号 6 条；W1-01a：后台登录链路 9 条；W1-01b：员工增查与角色只读 4 条；W1-06：审批与字典读侧 4 条；W1-04b：商家字典 1 条；W1-07：文件 9 条；W1-13：内容读侧4条；W1-08a：商家档案13条；W1-11b：付款13条；W1-08b：后台档案6条；W1-14：发布15条
+  it("路由都已登记：带结构的 102 条在商家端与后台文档里，其余还只有元数据；三份文档都有通用结构与错误体", async () => {
+    // W1-03：协议与主体门店 8 条；W1-04：商家会话与当前账号 6 条；W1-01a：后台登录链路 9 条；W1-01b：员工增查与角色只读 4 条；W1-06：审批与字典读侧 4 条；W1-04b：商家字典 1 条；W1-07：文件 9 条；W1-13：内容读侧4条；W1-08a：商家档案13条；W1-11b：付款13条；W1-08b：后台档案6条；W1-14：发布15条；W1-16a PR1：工单与方案10条
     expect(allRoutes.map((route) => route.operationId).sort()).toEqual([
       "admin.approval.get",
       "admin.approval.list",
@@ -400,6 +400,13 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "admin.channelAccountSubmission.get",
       "admin.channelAccountSubmission.reject",
       "admin.checklistTemplate.list",
+      "admin.deliveryPlan.draft.replace",
+      "admin.deliveryPlan.get",
+      "admin.deliveryPlan.push",
+      "admin.deliveryTicket.assignManager",
+      "admin.deliveryTicket.get",
+      "admin.deliveryTicket.list",
+      "admin.deliveryTicket.summary",
       "admin.dictItem.list",
       "admin.file.complete",
       "admin.file.create",
@@ -434,6 +441,9 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "m.channelAccount.create",
       "m.channelAccount.list",
       "m.channelAccount.submit",
+      "m.deliveryPlan.confirm",
+      "m.deliveryPlan.get",
+      "m.deliveryPlan.requestChange",
       "m.dictItem.list",
       "m.drama.get",
       "m.drama.list",
@@ -477,12 +487,12 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "m.storeProfile.service.update",
       "m.wallet.get",
     ]);
-    expect(allMetaOnlyRoutes).toHaveLength(572);
+    expect(allMetaOnlyRoutes).toHaveLength(562);
     expect(allRegistryOnly).toHaveLength(5);
     /** 各文档的 paths 条数与具名结构 */
     const expected: Record<string, { paths: number; schemas: string[] }> = {
       merchant: {
-        paths: 45,
+        paths: 48,
         schemas: [
           "AddressView",
           "AgreementConsentReceipt",
@@ -503,6 +513,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
           "ConsentRecord",
           "ConsentRecordForClerk",
           "ContactView",
+          "DeliveryPlanDetail",
           "DeviceInfo",
           "DictRef",
           "DictTypeItems",
@@ -549,6 +560,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
           "PendingConsent",
           "PhoneLoginResult",
           "PlanCard",
+          "PlanContentView",
           "PlanQuote",
           "PostPolicy",
           "PurchasePolicy",
@@ -573,13 +585,16 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
         ],
       },
       admin: {
-        paths: 40,
+        paths: 47,
         schemas: [
           "ActivateBody",
           "ActivationIssue",
           "AdminChecklistItemView",
+          "AdminDeliveryPlanDetail",
           "AdminFileCreateBody",
           "AdminFileView",
+          "AdminOrderItemRow",
+          "AdminPlanContentView",
           "AdminQualificationDoc",
           "AdminStoreBrief",
           "ApprovalCounts",
@@ -594,6 +609,8 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
           "ChannelAccountSubmissionDetail",
           "ChecklistTemplateView",
           "ConfirmTotpBody",
+          "DeliveryTicketCard",
+          "DeliveryTicketDetail",
           "DictItemList",
           "DictItemView",
           "DictRef",
@@ -606,6 +623,8 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
           "LoginBody",
           "ManagerAssignResult",
           "PaymentOrderAdminDetail",
+          "PlanContentInput",
+          "PlanItemContentView",
           "PoolMember",
           "PostPolicy",
           "PublishApprovalView",
