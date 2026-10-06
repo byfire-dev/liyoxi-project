@@ -1,3 +1,4 @@
+import { eventPayloadSchema } from "@liyoxi/contract";
 import { EVENTS } from "@liyoxi/contract/registry";
 import type { PrismaClient } from "@liyoxi/db";
 import fc from "fast-check";
@@ -169,6 +170,12 @@ describe("emit：事件与业务写同事务（验收 2）", () => {
 describe("emit：信封与载荷校验（验收 3）", () => {
   const notEmitted = EVENTS.find((event) => event.status === "not_emitted")?.name as string;
   const reserved = EVENTS.find((event) => event.status === "reserved")?.name as string;
+  const noSchema = EVENTS.find(
+    (event) =>
+      event.status === "v1" &&
+      event.aggregates.includes("drama_order") &&
+      eventPayloadSchema(event.name) === undefined,
+  )?.name as string;
   const id = uuidv7();
   const refused: Array<[string, string, EmitInput]> = [
     ["未登记的事件名", "unknown_event", { type: "lyxtest.nope", payload: { v: 1 } }],
@@ -199,7 +206,7 @@ describe("emit：信封与载荷校验（验收 3）", () => {
     [
       "没有 schema 的正式事件",
       "no_schema",
-      { type: "order.submitted", aggregate: { type: "drama_order", id }, payload: { v: 1 } },
+      { type: noSchema, aggregate: { type: "drama_order", id }, payload: { v: 1 } },
     ],
     ["去重键是空串", "dedupe_key", { ...placed(), dedupeKey: " " }],
     ["有门店没有主体", "tenant", { ...placed(), storeId: id }],
@@ -217,6 +224,11 @@ describe("emit：信封与载荷校验（验收 3）", () => {
 
   it("不发、预留的事件名在目录里确实各有一个（上面两条用例不是空跑）", () => {
     expect([notEmitted, reserved].every((name) => typeof name === "string")).toBe(true);
+    expect(EVENTS.find((event) => event.name === noSchema)).toMatchObject({
+      status: "v1",
+      aggregates: ["drama_order"],
+    });
+    expect(eventPayloadSchema(noSchema)).toBeUndefined();
   });
 
   it("system 操作人：actor_id、client 为空；occurred_at 等于拨定的时钟；主键是 UUID v7", async () => {
