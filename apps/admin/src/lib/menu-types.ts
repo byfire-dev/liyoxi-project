@@ -2,24 +2,8 @@
 // 登记文件只许 import type（页面清单脚本 infra/ci/pages/generate.mjs 用 Node 直接读它们，不经打包）。
 import type { IconName } from "@liyoxi/shared/design/icons";
 
-/** 13 个一级模块，与权限矩阵的模块一一对应（D7 第 5.2、5.4 节） */
-export type AdminModuleKey =
-  | "workbench"
-  | "drama"
-  | "billing"
-  | "merchant"
-  | "order"
-  | "delivery"
-  | "publish"
-  | "service"
-  | "finance"
-  | "report"
-  | "ops"
-  | "system"
-  | "channel";
-
-/** 模块等级：n 无 / v 查看 / o 本人任务 / e 编辑（D7 第 5.4 节） */
-export type ModuleLevel = "n" | "v" | "o" | "e";
+import type { AdminModuleKey, ModuleLevel, NavBadgeKey } from "@liyoxi/contract/authz";
+export type { AdminModuleKey, ModuleLevel, NavBadgeKey } from "@liyoxi/contract/authz";
 
 /** 归属里程碑；V1.1 的页面只登记，不排里程碑 */
 export type PageMilestone = "M1" | "M2" | "M3" | "M4" | "M5" | "M6" | "M7" | "V1.1";
@@ -46,26 +30,6 @@ export type PageSkeleton =
   | "form"
   | "overlay"
   | "plain";
-
-/** 菜单角标的键，取值照 a02 第 5 节的 NavBadgeKey */
-export type NavBadgeKey =
-  | "merchant.review"
-  | "order.receipts"
-  | "order.renewals"
-  | "delivery.tickets"
-  | "delivery.ad_tasks"
-  | "publish.deliveries"
-  | "publish.verify"
-  | "publish.accounts"
-  | "publish.offline"
-  | "publish.patrol"
-  | "service.tickets"
-  | "finance.refunds"
-  | "finance.credit_adjust"
-  | "finance.invoices"
-  | "finance.reconcile"
-  | "approval.mine"
-  | "system.flow_ops";
 
 export interface AdminPage {
   /** 路由键：<模块>.<页面>，a02 的 AdminRouteKey 里有的照它写 */

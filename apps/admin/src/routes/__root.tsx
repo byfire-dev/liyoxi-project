@@ -3,6 +3,7 @@ import { Alert, Button } from "antd";
 import {
   createRootRouteWithContext,
   Outlet,
+  redirect,
   useMatches,
   useRouter,
   useRouterState,
@@ -20,7 +21,8 @@ import {
   visibleMenu,
   type AdminPage,
 } from "../lib/menu";
-import type { AccessSnapshot } from "../lib/permissions";
+import { AccessContext, type AccessSnapshot } from "../lib/permissions";
+import { StepUpModal, UserMenu } from "../features/auth/pages";
 
 export interface RouterContext {
   services: AppServices;
@@ -45,7 +47,7 @@ export function NotFoundPage() {
 }
 
 function RootLayout() {
-  const { access } = rootRoute.useRouteContext();
+  const { access, services } = rootRoute.useRouteContext();
   const router = useRouter();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const pageKey = useMatches({
@@ -56,6 +58,7 @@ function RootLayout() {
   if (global.blocked) {
     return <FullPageNotice title="暂时无法访问" description={global.blocked.message} />;
   }
+  if (/^\/login(?:\/|$)/.test(pathname)) return <Outlet />;
   if (!access) {
     // 登录页在 W1-02；接上之前，生产构建没有权限数据来源，一律停在这里
     return <FullPageNotice title="请先登录" description="登录后才能使用运营管理后台。" />;
@@ -63,36 +66,43 @@ function RootLayout() {
 
   const page: AdminPage | undefined = pageKey ? findPage(pageKey) : matchPage(pathname)?.page;
   return (
-    <AppShell
-      access={access}
-      menu={visibleMenu(access)}
-      selectedKey={page ? selectedMenuKey(page) : null}
-      crumbs={page ? breadcrumbOf(page) : []}
-      notice={
-        global.serverBuild ? (
-          <Alert
-            banner
-            type="info"
-            title="后台已更新，请刷新页面后继续操作"
-            action={
-              <Button size="small" onClick={() => window.location.reload()}>
-                刷新
-              </Button>
-            }
-          />
-        ) : null
-      }
-      onNavigate={(path) => router.history.push(path)}
-    >
-      <Outlet />
-    </AppShell>
+    <AccessContext.Provider value={access}>
+      <AppShell
+        access={access}
+        userMenu={<UserMenu services={services} access={access} />}
+        menu={visibleMenu(access)}
+        selectedKey={page ? selectedMenuKey(page) : null}
+        crumbs={page ? breadcrumbOf(page) : []}
+        notice={
+          global.serverBuild ? (
+            <Alert
+              banner
+              type="info"
+              title="后台已更新，请刷新页面后继续操作"
+              action={
+                <Button size="small" onClick={() => window.location.reload()}>
+                  刷新
+                </Button>
+              }
+            />
+          ) : null
+        }
+        onNavigate={(path) => router.history.push(path)}
+      >
+        <Outlet />
+      </AppShell>
+      <StepUpModal services={services} />
+    </AccessContext.Provider>
   );
 }
 
 export const rootRoute = createRootRouteWithContext<RouterContext>()({
-  beforeLoad: async ({ context }): Promise<{ access: AccessSnapshot | null }> => ({
-    access: await context.services.loadAccess(),
-  }),
+  beforeLoad: async ({ context, location }): Promise<{ access: AccessSnapshot | null }> => {
+    if (/^\/login(?:\/|$)/.test(location.pathname)) return { access: null };
+    const access = await context.services.loadAccess();
+    if (!access) throw redirect({ href: `/login?redirect=${encodeURIComponent(location.href)}` });
+    return { access };
+  },
   component: RootLayout,
   notFoundComponent: NotFoundPage,
 });

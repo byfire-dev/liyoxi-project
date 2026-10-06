@@ -2,6 +2,7 @@
 // 属“放松”类门禁改动，要等单独的依赖 PR（见 docs/plan/status/W0-28.md 偏差）。
 // 约定照文件路由来：一个画板一个路由文件，放在 src/routes/<模块>/ 下；每个模块一个清单（modules/），
 // 页面包只动自己模块的清单，这个文件不用改。
+import { authRoutes } from "./auth";
 import { rootRoute } from "./__root";
 import { devRoutes } from "./_dev";
 import { forbiddenRoute } from "./forbidden";
@@ -23,6 +24,7 @@ import { indexRoute, splatRoute } from "./registered";
 export const routeTree = rootRoute.addChildren([
   indexRoute,
   forbiddenRoute,
+  ...authRoutes,
   ...workbenchRoutes,
   ...dramaRoutes,
   ...billingRoutes,
