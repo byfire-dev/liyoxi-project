@@ -202,3 +202,4 @@ export { createContent } from "./content/index.js";
 export type { Content, ContentDeps, DramaPrices, DramaPrice } from "./content/index.js";
 export { createMall } from "./workbench/index.js";
 export type { Mall, MallDeps, MallViewer } from "./workbench/index.js";
+export { seedDemoContent } from "./content/index.js";

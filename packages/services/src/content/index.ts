@@ -11,3 +11,5 @@ export type {
 } from "./inputs.js";
 export { bindContent } from "./binding.js";
 export { registration } from "./register.js";
+export { seedDemoContent, DEMO_DRAMAS } from "./demo-seed.js";
+export type { ContentDemoDeps } from "./demo-seed.js";
