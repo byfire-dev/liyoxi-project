@@ -33,6 +33,8 @@ import {
   profileEditRegression,
 } from "../shots/profile-regressions.mjs";
 
+import { deliveryRegression } from "../shots/delivery-regressions.mjs";
+
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const h5Dir = path.join(appRoot, "shots/dist/h5");
 const outDir = path.join(appRoot, "shots/dist/png");
@@ -71,6 +73,9 @@ const { BILLING_SCENES } = await import(
 const { CATALOG_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/catalog-scenes.ts")).href
 );
+const { DELIVERY_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/delivery-scenes.ts")).href
+);
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--no-build") build = false;
@@ -89,9 +94,13 @@ for (let index = 0; index < args.length; index += 1) {
   } else if (args[index] === "--scene") {
     const name = args[(index += 1)];
     if (
-      ![...ACCOUNT_SCENES, ...PROFILE_SCENES, ...BILLING_SCENES, ...CATALOG_SCENES].some(
-        (item) => item.name === name,
-      )
+      ![
+        ...ACCOUNT_SCENES,
+        ...PROFILE_SCENES,
+        ...BILLING_SCENES,
+        ...CATALOG_SCENES,
+        ...DELIVERY_SCENES,
+      ].some((item) => item.name === name)
     )
       fail(`未知固定场景 ${name}`);
     wantedScenes.push(name);
@@ -169,12 +178,24 @@ const targets = [
     }),
   ),
   ...(all
+    ? DELIVERY_SCENES
+    : DELIVERY_SCENES.filter((item) => wantedScenes.includes(item.name))
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
+    file: `delivery__${item.name}`,
+    scene: item.name,
+    kind: "delivery",
+    fullPage: false,
+  })),
+  ...(all
     ? builtRoutes.filter(
         (route) =>
           !["pages/login/index", "pages/agreement/index", "pages/mine/index"].includes(route) &&
           !PROFILE_SCENES.some((item) => item.route === route) &&
           !BILLING_SCENES.some((item) => item.route === route) &&
-          !CATALOG_SCENES.some((item) => item.route.split("?")[0] === route),
+          !CATALOG_SCENES.some((item) => item.route.split("?")[0] === route) &&
+          !DELIVERY_SCENES.some((item) => item.route.split("?")[0] === route),
       )
     : wanted
   ).map((route) => ({
@@ -257,7 +278,7 @@ async function shoot(target) {
     if (target.scene) {
       await page.addInitScript(
         ({ scene, kind }) => {
-          globalThis.__LYX_ACCOUNT_SHOT__ = ["profile", "billing"].includes(kind)
+          globalThis.__LYX_ACCOUNT_SHOT__ = ["profile", "billing", "delivery"].includes(kind)
             ? "mine-owner"
             : scene;
           if (kind === "catalog") {
@@ -270,6 +291,7 @@ async function shoot(target) {
           }
           if (kind === "profile") globalThis.__LYX_PROFILE_SHOT__ = scene;
           if (kind === "billing") globalThis.__LYX_BILLING_SHOT__ = scene;
+          if (kind === "delivery") globalThis.__LYX_DELIVERY_SHOT__ = scene;
         },
         { scene: target.scene, kind: target.kind },
       );
@@ -294,9 +316,71 @@ async function shoot(target) {
               ? "#billing-ready"
               : target.kind === "catalog"
                 ? "#catalog-ready"
-                : "#account-ready",
+                : target.kind === "delivery"
+                  ? "#delivery-ready"
+                  : "#account-ready",
         )
         .waitFor({ state: "visible", timeout: 15_000 });
+      if (target.kind === "delivery") {
+        if (target.scene === "plan-change") {
+          await page.locator(".lyx-button").filter({ hasText: "联系服务经理修改" }).click();
+          await page.locator(".lyx-sheet .lyx-chip").first().click();
+          await page.locator(".lyx-sheet textarea").fill("请调整到月底上线");
+          await page.waitForTimeout(350);
+        }
+        if (target.scene === "sample-viewed") {
+          await page.locator(".lyx-button").filter({ hasText: "保存样片到相册查看" }).click();
+          await page.waitForFunction(
+            () =>
+              !globalThis.document
+                .querySelector(".lyx-checkbox")
+                ?.classList.contains("lyx-checkbox--disabled"),
+          );
+          await page.locator(".lyx-checkbox").click();
+          const calls = await page.evaluate(() => globalThis.__LYX_DELIVERY_CALLS__);
+          if (
+            calls.filter((c) => c.path.endsWith("/sample")).length < 2 ||
+            calls.filter((c) => c.path.endsWith("/download-urls")).length !== 1
+          )
+            throw new Error("保存样片后没有重取查看证据");
+        }
+        await page.waitForTimeout(2100);
+        if (target.scene === "sample-unsaved") {
+          if (
+            !(await page.locator(".lyx-checkbox--disabled").count()) ||
+            !(await page.locator(".lyx-footer-bar .lyx-button--disabled").count())
+          )
+            throw new Error("未保存样片可确认");
+        }
+      }
+      if (target.kind === "delivery") {
+        if (target.scene === "tasks-submit") {
+          await page.locator(".lyx-button").filter({ hasText: "回填上线链接" }).first().click();
+          await page.locator(".lyx-sheet input").nth(0).fill("https://example.test/collection");
+          await page.locator(".lyx-sheet input").nth(1).fill("30");
+          await page.locator(".lyx-sheet input").nth(2).fill("2026-10-07");
+          await page.waitForTimeout(350);
+        }
+        if (target.scene === "downloads-expired") {
+          if ((await page.locator(".lyx-button--disabled").count()) !== 60)
+            throw new Error("过期授权可保存");
+        }
+        if (target.scene === "downloads-default") {
+          for (let n = 0; n < 2; n++) {
+            await page.locator(".lyx-button").filter({ hasText: "存到相册" }).first().click();
+            await page.locator(".lyx-button--loading").waitFor({ state: "hidden" });
+          }
+          const calls = await page.evaluate(() =>
+            globalThis.__LYX_DELIVERY_CALLS__.filter((c) => c.path.endsWith("download-urls")),
+          );
+          if (
+            calls.length !== 2 ||
+            calls.some((c) => c.key || c.data?.kind !== "episode" || c.data?.episodeNo !== 1)
+          )
+            throw new Error("逐集保存没有每次独立签名");
+          await page.waitForTimeout(2100);
+        }
+      }
       if (target.kind === "catalog") {
         if (target.scene === "cart-default")
           await page.locator(".cart-page__row .lyx-checkbox").first().click();
@@ -431,6 +515,7 @@ async function shoot(target) {
     }
     const file = path.join(outDir, `${target.file}.png`);
     await page.screenshot({ path: file });
+    if (target.kind === "delivery") await deliveryRegression(page, target.scene);
     if (target.kind === "catalog") {
       if (target.scene === "cart-default") {
         if (!(await page.locator(".cart-page__total").innerText()).includes("900 积分"))

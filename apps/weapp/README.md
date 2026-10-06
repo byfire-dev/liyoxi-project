@@ -150,3 +150,11 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 十一态夹具在 `shots/catalog-fixtures.ts`，清单在 `shots/catalog-scenes.ts`。运行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene home-owner --scene home-clerk --scene home-guest --scene mall-default --scene mall-end --scene mall-empty --scene detail-owner --scene cart-default --scene cart-invalid --scene cart-price-changed --scene cart-clerk`，产物为 `shots/dist/png/catalog__<场景>.png`。不带场景参数时旧账户八态、建档九态和支付十一态仍保留；每场景独立上下文与既有外发网络、console.error、pageerror 守卫全部生效。
 
 截图同时实际执行分页、复选/取消、删除、价格确认网络重试与自然重复加入；价格确认验证 P=1200、同 key 重试和 C50 重放后的 GET，不把固定离线图当真实 API 证据。H5 选剧单底栏仅在本页私有样式里为仿制标签栏让出 50px；小程序使用原生标签栏。原生导航、胶囊、安全区、下拉刷新与触底手势仍须 E16/E7 在开发者工具和真机上手验。
+
+## W1-20 商家交付五页
+
+方案 `sub/order/plan/index?deliveryPlanId=…`，样片和上线记录带 `orderItemId`，发布任务可带 `orderId`，逐集下载带 `orderItemId`。全部只供当前门店老板；店员直接打开也不发本域业务请求。页面私有 API 工厂消费生成 merchant operations，生产仍经中央 request，不改已有封装。
+
+`shots/delivery-scenes.ts` 登记十五态，产物 `shots/dist/png/delivery__<scene>.png`：plan-pending/revising/confirmed/change、sample-unsaved/viewed/confirmed、tasks-todo/verifying/live/submit、downloads-default/expired、record-default/returned。保存样片场景实际调用签发并重新 GET，再勾选；下载场景连续两次点击分别签发单集，不缓存 URL。默认截图保留原三十九态与全部错误守卫。H5 相册函数明确空转，仅验证界面与请求结构；真正微信 downloadFile → saveVideoToPhotosAlbum → 临时文件清理经可替换私有边界单测，真机效果仍等 V7。
+
+本域同步锁先于订阅请求，确认分别用 plan_confirm、sample_confirm，成片保存 package_download，链接回填 link_submit；隐私拒绝不签发。写意图在所见版本/请求体不变时复用幂等键，C50 重放后重新 GET；下载无业务幂等键，每次独立签发。token、store、contextRev、role 改变或卸载后丢弃旧成功/错误，并停止后续相册操作。

@@ -71,3 +71,20 @@ export function uuid(): string {
   }
   return out;
 }
+
+/** 单次存相册的私有可替换边界；不用业务路径落盘，不保存下载地址。 */
+export interface VideoAlbumBoundary {
+  download(url: string): Promise<{ statusCode: number; tempFilePath: string }>;
+  save(tempFilePath: string): Promise<unknown>;
+  unlink(tempFilePath: string): Promise<unknown>;
+}
+export async function saveVideoUrl(url: string, boundary: VideoAlbumBoundary): Promise<void> {
+  const downloaded = await boundary.download(url);
+  const path = downloaded.tempFilePath;
+  try {
+    if (downloaded.statusCode !== 200 || !path) throw new Error("视频下载失败，请重试");
+    await boundary.save(path);
+  } finally {
+    if (path) await boundary.unlink(path).catch(() => undefined);
+  }
+}

@@ -113,8 +113,12 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     "M1",
     "W1-18",
   ),
-  page("sub/order/plan/index", "sub/order", "方案确认", "Plan", "M22", "M1", "W1-20"),
-  page("sub/order/sample/index", "sub/order", "样片确认", "Sample", "M23", "M1", "W1-20"),
+  page("sub/order/plan/index", "sub/order", "方案确认", "Plan", "M22", "M1", "W1-20", {
+    implemented: true,
+  }),
+  page("sub/order/sample/index", "sub/order", "样片确认", "Sample", "M23", "M1", "W1-20", {
+    implemented: true,
+  }),
   page(
     "sub/order/launch-record/index",
     "sub/order",
@@ -123,12 +127,16 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     "M24",
     "M1",
     "W1-20",
+    { implemented: true },
   ),
   page("sub/order/my-dramas/index", "sub/order", "我的短剧", "MyDramas", "M33", "M5", "G5-A"),
   // sub/publish（4 页）
-  page("sub/publish/tasks/index", "sub/publish", "发布任务", "Publish", "M28", "M1", "W1-20"),
+  page("sub/publish/tasks/index", "sub/publish", "发布任务", "Publish", "M28", "M1", "W1-20", {
+    implemented: true,
+  }),
   page("sub/publish/downloads/index", "sub/publish", "逐集下载", null, null, "M1", "W1-20", {
-    note: "新增页：逐集下载管理与“扫码在电脑上下载”入口",
+    implemented: true,
+    note: "M1 单集存相册替身；队列、扫码与回报 M6 回补",
   }),
   page("sub/publish/accounts/index", "sub/publish", "发布账号", "Accounts", "M26", "M1", "W1-18", {
     note: "含 M27 弹层",
