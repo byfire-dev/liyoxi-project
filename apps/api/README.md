@@ -209,6 +209,8 @@ LYX_UPDATE_GOLDEN=1 pnpm exec vitest run --project api test/admin-matrix.test.ts
 
 m04 第 3.3 节的公共商城配置三个角色同形，既定契约带 `filters.price` 筛选开关与 `filters.priceBands` 标价分档。这两个键与 C57 的 `price` 模式冲突，经调度会话确认单独作为 `gate-change`：仅放行 `m.mallConfig.get` 的这两条完整 `data` 路径，开关必须是布尔值；分档须通过既有 `MallConfigSchema` 的严格数组结构（每项仅 `key`、`label`、`min`、`max`，契约的文字、整数、区间、数量及唯一性约束全部沿用）。放行后继续递归扫描，其它路由、嵌套同名、错误类型或多余键仍拒绝；不改禁用正则、目录标价路径登记机制、既有黄金或 C57 正文。纯扫描回归在 `test/clerk/mall-filter-fields.test.ts`。
 
+m03 第 2.5 节的公开服务视图保留卖点标签 `sellingPoints: DictRef[]`，键名与 C57 的 `points` 模式冲突。独立 `gate-change` 仅放行 `m.storeProfile.service.get` 顶层这一完整路径，并用既有 `DictRefSchema` 的严格数组形式校验（每项仅字符串 `code`、`name`）。仍递归记录与扫描子字段；其它操作、嵌套同名、错误类型、缺项、多余键及同级敏感字段都拒绝。服务标价另按 A86 的目录价完整路径只增登记，本次不登记价格路径、不改原例外或黄金。边界反例追加在既已登记的 `test/clerk/mall-filter-fields.test.ts`，保留其原商城回归。
+
 设置公开的本地 PG/Redis 连接与自己的 `LYX_TEST_SESSION` 后，运行：
 
 ```sh

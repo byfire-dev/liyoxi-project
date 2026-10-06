@@ -1,5 +1,5 @@
 // C57：键名检查与字段路径归一化；动态字典只忽略字典键，仍递归检查值中的对象键。
-import { MallConfigSchema } from "@liyoxi/contract";
+import { DictRefSchema, MallConfigSchema } from "@liyoxi/contract";
 
 const FORBIDDEN = /points|balance|amount|price|contract|invoice|uscc|license|phone/i;
 export const CLERK_DICTIONARY_PATHS = ["flags", "versions.dict", "versions.site", "copy"] as const;
@@ -20,6 +20,17 @@ function isMallFilter(operationId: string, path: string, value: unknown): boolea
   );
 }
 
+const sellingPointRefs = DictRefSchema.strict().array();
+
+/** m03 §2.5 的公开卖点标签，仅顶层既定 DictRef[]；不开放积分或其它同名字段。 */
+function isSellingPoints(operationId: string, path: string, value: unknown): boolean {
+  return (
+    operationId === "m.storeProfile.service.get" &&
+    path === "sellingPoints" &&
+    sellingPointRefs.safeParse(value).success
+  );
+}
+
 export function clerkVisibleKeys(operationId: string, data: unknown): string[] {
   const paths = new Set<string>();
   function walk(value: unknown, parent: string) {
@@ -37,6 +48,7 @@ export function clerkVisibleKeys(operationId: string, data: unknown): string[] {
         !dictionary &&
         !loginDecision &&
         !isMallFilter(operationId, path, child) &&
+        !isSellingPoints(operationId, path, child) &&
         FORBIDDEN.test(key) &&
         !key.endsWith("Mask") &&
         !(CLERK_CATALOG_PRICE_PATHS[operationId] ?? []).includes(path)
