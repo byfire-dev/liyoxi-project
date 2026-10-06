@@ -1,5 +1,6 @@
 import { bindDelivery } from "./delivery/index.js";
-import { createOrderService, bindOrder } from "./order/index.js";
+import { createOrderService, bindOrder, bindOrderStart } from "./order/index.js";
+import { assignDeliveryManager } from "./profile/index.js";
 import type { OrderService } from "./order/index.js";
 import { bindPublish } from "./publish/index.js";
 // 进程运行时（W0-22）：api 与 worker 启动时各建一次。环境 → 日志 → 数据库与 Redis 连接 → 事务入口、业务单号、
@@ -71,7 +72,7 @@ import type { Media } from "./media/index.js";
 import { createRateLimiter } from "./rate-limit.js";
 import type { RateLimiter } from "./rate-limit.js";
 import { loadAuthKeys, loadKeyring } from "./security/index.js";
-import { createStaffAuth } from "./staff/index.js";
+import { createStaffAuth, recommendedStaff } from "./staff/index.js";
 import type { StaffAuth } from "./staff/index.js";
 import { createTimers } from "./timers/index.js";
 import type { Timers } from "./timers/index.js";
@@ -266,6 +267,21 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const approval = createApproval({ assembly, clock, flow, events, bizNo });
   const unbindBilling = bindBillingTimers({ clock, flow, timers });
   const ledger = createLedger({ clock, events });
+  const tenant = createTenant({ tx, clock, flow, assembly });
+  const unbindOrderStart = bindOrderStart({
+    tx,
+    clock,
+    assembly,
+    flow,
+    events,
+    timers,
+    ledger,
+    media,
+    sla: createSla({ clock, assembly }),
+    recommendStaff: recommendedStaff,
+    assignManager: (t, ctx, input) =>
+      assignDeliveryManager(t, { clock, assembly, tenant }, ctx, input),
+  });
   let billingKeys = options.billingKeyring;
   const billing = createBillingPurchase({
     tx,
@@ -287,7 +303,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       fulfillment: createFulfillment({ clock, events }),
     }),
     docs: createDocs({ tx, clock }),
-    tenant: createTenant({ tx, clock, flow, assembly }),
+    tenant,
     keyring: () => (billingKeys ??= loadKeyring(env)),
     sla: createSla({ clock, assembly }),
   });
@@ -356,6 +372,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
+      unbindOrderStart();
       unbindOrder();
       unbindBilling();
       unbindContent();
