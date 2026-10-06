@@ -50,9 +50,19 @@ async function storeView(tx: Tx, store: PlanRow["store"]) {
 async function planItem(tx: Tx, p: PlanRow, row: PlanContent["items"][number]) {
   const item = p.dramaOrder.orderItems.find((i) => i.id === row.orderItemId)!;
   const accounts = await tx.channelAccount.findMany({
-    where: { id: { in: row.accounts.map((a) => a.channelAccountId) } },
+    where: {
+      id: { in: row.accounts.map((a) => a.channelAccountId) },
+      entityId: p.entityId,
+      storeId: p.storeId,
+    },
   });
-  const ads = await tx.ad.findMany({ where: { id: { in: row.placements.map((a) => a.adId) } } });
+  const ads = await tx.ad.findMany({
+    where: {
+      id: { in: row.placements.map((a) => a.adId) },
+      entityId: p.entityId,
+      storeId: p.storeId,
+    },
+  });
   return {
     orderItemId: row.orderItemId,
     dramaTitle: snapshot(item.dramaSnapshot).title ?? "",
@@ -83,9 +93,9 @@ async function planItem(tx: Tx, p: PlanRow, row: PlanContent["items"][number]) {
     expectedDeliveryDate: row.expectedDeliveryDate,
   };
 }
-async function assets(tx: Tx, content: PlanContent) {
+async function assets(tx: Tx, p: PlanRow, content: PlanContent) {
   const rows = await tx.storeAsset.findMany({
-    where: { id: { in: content.referenceAssetIds } },
+    where: { id: { in: content.referenceAssetIds }, entityId: p.entityId, storeId: p.storeId },
     include: { storeAssetTags: true },
   });
   return content.referenceAssetIds.flatMap((id) => {
@@ -96,7 +106,7 @@ async function assets(tx: Tx, content: PlanContent) {
 async function adminContent(tx: Tx, p: PlanRow, content: PlanContent) {
   return {
     focus: await dicts(tx, "custom_focus", content.focusTags),
-    referenceAssets: (await assets(tx, content)).map((r) => ({
+    referenceAssets: (await assets(tx, p, content)).map((r) => ({
       storeAssetId: r.id,
       type: r.type,
       title: r.title,
@@ -175,7 +185,7 @@ export async function merchantPlanView(tx: Tx, p: PlanRow) {
   let view = null;
   if (content) {
     const referenceAssets = await Promise.all(
-      (await assets(tx, content)).map(async (r) => {
+      (await assets(tx, p, content)).map(async (r) => {
         const tags = r.storeAssetTags.filter((t) => t.dimension === "content"),
           confirmed = tags.filter((t) => t.isConfirmed),
           codes = [...new Set((confirmed.length ? confirmed : tags).map((t) => t.tagCode))];

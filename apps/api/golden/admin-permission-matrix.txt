@@ -12,6 +12,13 @@ admin.channelAccountSubmission.approve | publish:edit | publish.account.verify |
 admin.channelAccountSubmission.get | - | - | 11 11 11 11 11 11 11 11
 admin.channelAccountSubmission.reject | publish:edit | publish.account.verify | 11 00 00 00 11 00 00 00
 admin.checklistTemplate.list | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.deliveryPlan.draft.replace | delivery:edit | delivery.plan.edit | 11 00 11 00 00 00 00 00
+admin.deliveryPlan.get | delivery:view | - | 11 11 11 11 11 11 00 00
+admin.deliveryPlan.push | delivery:edit | delivery.plan.push | 11 00 11 00 00 00 00 00
+admin.deliveryTicket.assignManager | delivery:view | merchant.manager.assign | 11 00 01 00 00 00 00 00
+admin.deliveryTicket.get | delivery:view | - | 11 11 11 11 11 11 00 00
+admin.deliveryTicket.list | delivery:view | - | 11 11 11 11 11 11 00 00
+admin.deliveryTicket.summary | delivery:view | - | 11 11 11 11 11 11 00 00
 admin.dictItem.list | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.file.complete | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.file.create | - | assert-in-handler | 11 11 11 11 11 11 11 11

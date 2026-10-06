@@ -83,6 +83,12 @@ async function normalizeDraft(tx: Tx, p: PlanRow, input: PlanContentInput): Prom
   });
   if (focus.length !== input.focusCodes.length)
     throw invalid("content.focusCodes", "定制重点编码不存在或未启用");
+  // 归属是读取边界；账号状态、素材可用性等业务条件仍由推送校验。
+  const references = await tx.storeAsset.findMany({
+    where: { id: { in: input.referenceAssetIds }, entityId: p.entityId, storeId: p.storeId },
+    select: { id: true },
+  });
+  if (references.length !== new Set(input.referenceAssetIds).size) throw new AppError("NOT_FOUND");
   const result: PlanContent = {
     focusTags: input.focusCodes,
     referenceAssetIds: input.referenceAssetIds,
@@ -92,15 +98,20 @@ async function normalizeDraft(tx: Tx, p: PlanRow, input: PlanContentInput): Prom
   };
   for (const row of input.items) {
     const accounts = await tx.channelAccount.findMany({
-      where: { id: { in: row.channelAccountIds } },
+      where: { id: { in: row.channelAccountIds }, entityId: p.entityId, storeId: p.storeId },
     });
-    if (accounts.length !== row.channelAccountIds.length)
-      throw invalid("content.items.channelAccountIds", "账号不存在");
+    if (accounts.length !== row.channelAccountIds.length) throw new AppError("NOT_FOUND");
     if (new Set(accounts.map((a) => a.platform)).size !== accounts.length)
       throw invalid("content.items.channelAccountIds", "同平台至多一个账号");
-    const ads = await tx.ad.findMany({ where: { id: { in: row.placements.map((a) => a.adId) } } });
+    const ads = await tx.ad.findMany({
+      where: {
+        id: { in: row.placements.map((a) => a.adId) },
+        entityId: p.entityId,
+        storeId: p.storeId,
+      },
+    });
     if (ads.length !== new Set(row.placements.map((a) => a.adId)).size)
-      throw invalid("content.items.placements", "广告不存在，无法补齐时长");
+      throw new AppError("NOT_FOUND");
     result.items.push({
       orderItemId: row.orderItemId,
       accounts: row.channelAccountIds.map((id) => ({
