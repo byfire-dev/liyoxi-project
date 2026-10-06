@@ -1,8 +1,191 @@
 // 后台：登录、员工、权限与系统 · staff（docs/api/a01-system.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { adminMeta } from "../meta-only.js";
+import { adminRoute } from "../builders.js";
+import {
+  DictRefSchema,
+  IdSchema,
+  InstantSchema,
+  PageQuerySchema,
+  errorResponses,
+  okResponse,
+  openEnum,
+  orNull,
+} from "../../common/index.js";
+import {
+  ASSIGNMENT_POOL,
+  ASSIGNMENT_HISTORY_SOURCE,
+  ASSIGNMENT_HISTORY_SUBJECT_TYPE,
+  STAFF_ACTIVATION_DELIVERY,
+  STAFF_ACTIVATION_PURPOSE,
+  STAFF_DISABLED_REASON,
+  STAFF_ROLE_DATA_SCOPE,
+  STAFF_ROLE_KEY,
+  STAFF_STATUS,
+  STAFF_WECOM_BIND_STATUS,
+} from "../../enums/index.js";
+import { z } from "../../zod.js";
+import { StaffBriefSchema, adminPage } from "./structures.js";
 
-export const adminStaffList = adminMeta({
+const count = z.int().nonnegative();
+const StaffGroupBriefSchema = z.object({ staffGroupId: IdSchema, name: z.string() });
+export const PoolMemberSchema = z
+  .object({
+    pool: openEnum(ASSIGNMENT_POOL.values),
+    staff: StaffBriefSchema,
+    city: orNull(DictRefSchema),
+    onDuty: z.boolean(),
+    updatedAt: InstantSchema,
+  })
+  .openapi("PoolMember");
+export type PoolMember = z.infer<typeof PoolMemberSchema>;
+export const StaffListItemSchema = StaffBriefSchema.extend({
+  phoneMask: orNull(z.string()),
+  staffGroup: orNull(StaffGroupBriefSchema),
+  dataScope: openEnum(STAFF_ROLE_DATA_SCOPE.values),
+  wecomBindStatus: openEnum(STAFF_WECOM_BIND_STATUS.values),
+  pools: z.array(openEnum(ASSIGNMENT_POOL.values)),
+  lastLoginAt: orNull(InstantSchema),
+  isActivated: z.boolean(),
+  isLocked: z.boolean(),
+  disabledReason: orNull(openEnum(STAFF_DISABLED_REASON.values)),
+  handoverTo: orNull(StaffBriefSchema),
+  openWorkCount: orNull(count),
+  openWorkBySource: orNull(
+    z.array(
+      z.object({
+        source: openEnum(ASSIGNMENT_HISTORY_SOURCE.values),
+        subjectType: openEnum(ASSIGNMENT_HISTORY_SUBJECT_TYPE.values),
+        count,
+      }),
+    ),
+  ),
+  onDuty: orNull(z.boolean()),
+  isRecommended: z.boolean(),
+  isSelf: z.boolean(),
+  actions: z.array(
+    openEnum([
+      "update",
+      "enable",
+      "disable",
+      "handover",
+      "reset-password",
+      "reset-mfa",
+      "reissue-activation-code",
+      "unlock",
+      "invite-wecom",
+      "bind-wecom",
+    ]),
+  ),
+}).openapi("StaffListItem");
+export type StaffListItem = z.infer<typeof StaffListItemSchema>;
+export const StaffDetailSchema = StaffListItemSchema.extend({
+  displayName: orNull(z.string()),
+  servicePhone: orNull(z.string()),
+  wecom: z.object({
+    status: openEnum(STAFF_WECOM_BIND_STATUS.values),
+    userid: orNull(z.string()),
+    boundAt: orNull(InstantSchema),
+    qrFileId: orNull(IdSchema),
+    qrUrl: orNull(z.object({ url: z.url(), expiresAt: InstantSchema })),
+  }),
+  poolMemberships: z.array(PoolMemberSchema),
+  security: z.object({
+    isActivated: z.boolean(),
+    totpEnrolledAt: orNull(InstantSchema),
+    passwordChangedAt: orNull(InstantSchema),
+    recoveryCodesLeft: count,
+    lockedUntilTrusted: orNull(InstantSchema),
+    lockedUntilUntrusted: orNull(InstantSchema),
+    failTrusted: count,
+    failUntrusted: count,
+    lastLoginAt: orNull(InstantSchema),
+    lastLoginIpMask: orNull(z.string()),
+  }),
+  pendingActivation: orNull(
+    z.object({
+      purpose: openEnum(STAFF_ACTIVATION_PURPOSE.values),
+      delivery: openEnum(STAFF_ACTIVATION_DELIVERY.values),
+      expiresAt: InstantSchema,
+      attempts: count,
+    }),
+  ),
+  disabledAt: orNull(InstantSchema),
+  disabledBy: orNull(StaffBriefSchema),
+  createdAt: InstantSchema,
+  createdBy: orNull(StaffBriefSchema),
+  updatedAt: InstantSchema,
+  lockVersion: count,
+}).openapi("StaffDetail");
+export type StaffDetail = z.infer<typeof StaffDetailSchema>;
+export const ActivationIssueSchema = z
+  .object({
+    purpose: openEnum(STAFF_ACTIVATION_PURPOSE.values),
+    delivery: openEnum(STAFF_ACTIVATION_DELIVERY.values),
+    expiresAt: InstantSchema,
+    activationCode: orNull(z.string().regex(/^[A-Z0-9]{8}$/)),
+    replayed: z.boolean(),
+  })
+  .openapi("ActivationIssue");
+export type ActivationIssue = z.infer<typeof ActivationIssueSchema>;
+export const StaffMutationResultSchema = z
+  .object({
+    staff: StaffDetailSchema,
+    activation: orNull(ActivationIssueSchema),
+    replayed: z.boolean(),
+  })
+  .openapi("StaffMutationResult");
+export type StaffMutationResult = z.infer<typeof StaffMutationResultSchema>;
+export const StaffCreateBodySchema = z
+  .object({
+    name: z.string().trim().min(1).max(10),
+    phone: z.string().regex(/^1\d{10}$/),
+    roleKey: z.enum(STAFF_ROLE_KEY.values),
+    isLead: z.boolean().default(false),
+    staffGroupId: IdSchema.optional(),
+    activateNow: z.boolean(),
+    activationDelivery: z.enum(STAFF_ACTIVATION_DELIVERY.values).default("sms"),
+    inviteWecom: z.boolean().default(false),
+    displayName: z.string().max(10).optional(),
+    servicePhone: z
+      .string()
+      .max(20)
+      .regex(/^[\d-]*$/)
+      .optional(),
+  })
+  .openapi("StaffCreateBody");
+export type StaffCreateBody = z.infer<typeof StaffCreateBodySchema>;
+const csvEnum = (values: readonly string[]) =>
+  z.string().regex(new RegExp(`^(?:${values.join("|")})(?:,(?:${values.join("|")}))*$`));
+const queryBool = z.stringbool({ truthy: ["true"], falsy: ["false"] }).openapi({ type: "boolean" });
+export const StaffListQuerySchema = PageQuerySchema.extend({
+  q: z.string().min(1).max(20).optional(),
+  roleKey: csvEnum(STAFF_ROLE_KEY.values).optional(),
+  status: csvEnum(STAFF_STATUS.values).optional(),
+  isLead: queryBool.optional(),
+  staffGroupId: IdSchema.optional(),
+  pool: csvEnum(ASSIGNMENT_POOL.values).optional(),
+  withLoad: queryBool.default(false),
+  recommendPool: z.enum(ASSIGNMENT_POOL.values).optional(),
+  recommendCityCode: z.string().min(1).optional(),
+  sort: z.enum(["staffNo", "-lastLoginAt", "openWorkCount"]).default("staffNo"),
+})
+  .superRefine((query, ctx) => {
+    if (query.withLoad && query.pageSize > 50)
+      ctx.addIssue({ code: "custom", path: ["pageSize"], message: "计算在办量时每页最多 50 条" });
+    if (query.sort === "openWorkCount" && !query.withLoad)
+      ctx.addIssue({ code: "custom", path: ["sort"], message: "在办量排序需要 withLoad" });
+    if (query.recommendPool === "delivery_manager" && query.recommendCityCode === undefined)
+      ctx.addIssue({
+        code: "custom",
+        path: ["recommendCityCode"],
+        message: "交付经理推荐须带城市",
+      });
+  })
+  .openapi("StaffListQuery");
+export type StaffListQuery = z.infer<typeof StaffListQuerySchema>;
+
+export const adminStaffList = adminRoute({
   method: "get",
   path: "/admin/staff",
   operationId: "admin.staff.list",
@@ -10,9 +193,14 @@ export const adminStaffList = adminMeta({
     "员工列表与选人下拉：员工页按姓名、角色、状态筛选；选人模式按池给候选，标出轮询推荐与按来源的在办量",
   "x-permission": "assert-in-handler",
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { query: StaffListQuerySchema },
+  responses: {
+    ...okResponse(adminPage(StaffListItemSchema)),
+    ...errorResponses(400, 401, 403, 429),
+  },
 });
 
-export const adminStaffCreate = adminMeta({
+export const adminStaffCreate = adminRoute({
   method: "post",
   path: "/admin/staff",
   operationId: "admin.staff.create",
@@ -20,15 +208,25 @@ export const adminStaffCreate = adminMeta({
   "x-permission": "sys.staff.manage",
   "x-idempotent": "required",
   "x-idempotent-reason": "结果脱敏（A80）：重放时激活码为 null 并带 replayed: true",
+  "x-redact-on-replay": ["activation.activationCode"],
+  request: {
+    body: { required: true, content: { "application/json": { schema: StaffCreateBodySchema } } },
+  },
+  responses: {
+    ...okResponse(StaffMutationResultSchema),
+    ...errorResponses(400, 401, 403, 409, 429),
+  },
 });
 
-export const adminStaffGet = adminMeta({
+export const adminStaffGet = adminRoute({
   method: "get",
   path: "/admin/staff/{staffId}",
   operationId: "admin.staff.get",
   summary: "员工详情（编辑弹层回显、所在分配池、企业微信绑定状态）",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: z.object({ staffId: IdSchema }) },
+  responses: { ...okResponse(StaffDetailSchema), ...errorResponses(401, 403, 404, 429) },
 });
 
 export const adminStaffUpdate = adminMeta({
