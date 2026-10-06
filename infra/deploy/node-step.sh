@@ -11,6 +11,12 @@
 #   up <标签>          记下“现在跑这个版本”，起（换）六个容器，等到都在跑且健康
 #   status             六个容器的状态与版本、经 gateway 的探活、worker 是否持有租约；有一项不对即非 0
 #   verify-db <标签>   库的核对：库名、两个扩展、应用连库用的是登录账号而不是属主、角色与授权
+#   stage-assets <标签> 不覆盖地预置两个前端的资源；worker-swap <标签> 停旧再换 worker 与 mediatool
+#   api-stop / api-start <标签> 停 api/gateway，再换新并等 readyz 连续三次 200
+#   smoke <标签>      API 探活、两个前端入口、实际版本与 worker；完整资源探测由 W2-26b 交
+#   prune             只清本项目记录过的旧版本，留当前与最近三版；资源至少保留 60 天
+#   facts / preflight 只读版本、发布历史与 P1（告警包未接时明确 unavailable）
+#   image-facts <标签> 只核目标三类本地镜像；record <标签> <base64url JSON> 严格校验后追加记录
 #  下面三个给 systemd 单元用（infra/deploy/systemd/），不经 SSH：
 #   run <服务>         前台起一个服务（docker compose up --no-deps），容器退出即返回
 #   stop <服务>        停一个服务（按 Compose 里的 stop_grace_period 等它收尾）
@@ -37,8 +43,8 @@ RELEASE_ENV="$LYX_NODE_HOME/release.env"
 COMPOSE_FILE="$LYX_SRC/infra/compose/node.yml"
 SUPERVISOR="${LYX_NODE_SUPERVISOR:-systemd}"
 SERVICES="postgres redis mediatool api worker gateway"
-PUBLIC_STEPS="deps pull check-env migrate seed up status verify-db"
-USAGE="用法：node-step.sh deps | pull <标签> | check-env <标签> | migrate <标签> | seed <标签> | up <标签> | status | verify-db <标签>"
+PUBLIC_STEPS="deps pull check-env migrate seed up status verify-db stage-assets worker-swap api-stop api-start smoke prune preflight facts image-facts record"
+USAGE="用法：node-step.sh deps | pull <标签> | check-env <标签> | migrate <标签> | seed <标签> | up <标签> | status | verify-db <标签> | stage-assets <标签> | worker-swap <标签> | api-stop | api-start <标签> | smoke <标签> | prune | facts | preflight | image-facts <标签> | record <标签> <base64url JSON>"
 
 via_ssh=0
 if [ $# -eq 0 ] && [ -n "${SSH_ORIGINAL_COMMAND:-}" ]; then
@@ -60,8 +66,13 @@ need_services() {
   for one in "$@"; do in_list "$one" "$SERVICES" || usage_die "不认识的服务 ${one}。服务有：$SERVICES"; done
 }
 case "$step" in
-  deps | status) [ $# -eq 0 ] || usage_die "$step 不带参数。$USAGE" ;;
-  pull | check-env | migrate | seed | up | verify-db) need_tag "$@" ;;
+  deps | status | api-stop | prune | preflight | facts) [ $# -eq 0 ] || usage_die "$step 不带参数。$USAGE" ;;
+  pull | check-env | migrate | seed | up | verify-db | stage-assets | worker-swap | api-start | smoke | image-facts) need_tag "$@" ;;
+  record)
+    [ $# -eq 2 ] || usage_die "record 后面是标签与 base64url JSON"
+    need_tag "$1"
+    [[ "$2" =~ ^[A-Za-z0-9_-]+$ ]] && [ "${#2}" -le 21846 ] || usage_die "record 编码或长度不合法"
+    ;;
   run | stop)
     need_services "$@"
     [ $# -eq 1 ] || usage_die "$step 只跟一个服务名"
@@ -90,7 +101,7 @@ setting() {
     fi
   done
 }
-current_tag() { [ -r "$RELEASE_ENV" ] && sed -n 's/^LYX_TAG=//p' "$RELEASE_ENV" | head -n 1; }
+current_tag() { if [ -r "$RELEASE_ENV" ]; then sed -n 's/^LYX_TAG=//p' "$RELEASE_ENV" | head -n 1; fi; }
 container() { printf '%s-%s' "$LYX_NODE_PREFIX" "$1"; }
 
 # docker compose 的公共参数，放进 COMPOSE_ARGS：变量替换的来源是 stg.env、节点上的 node.env（有才带）与当前环境
@@ -264,6 +275,9 @@ step_run() {
   LYX_TAG="$tag" exec docker "${COMPOSE_ARGS[@]}" up --no-deps "$1"
 }
 
+# 发布步骤没有独立的命令入口；上面的窄协议校验同时覆盖本地调用与强制 SSH。
+. "$LYX_SRC/infra/deploy/node-release.sh"
+
 case "$step" in
   deps) step_deps ;;
   pull) step_pull "$1" ;;
@@ -273,10 +287,21 @@ case "$step" in
   up) step_up "$1" ;;
   status) step_status ;;
   verify-db) step_verify_db "$1" ;;
+  stage-assets) step_stage_assets "$1" ;;
+  worker-swap) step_worker_swap "$1" ;;
+  api-stop) step_api_stop ;;
+  api-start) step_api_start "$1" ;;
+  smoke) step_smoke "$1" ;;
+  prune) step_prune ;;
+  preflight) step_preflight ;;
+  facts) step_facts ;;
+  image-facts) step_image_facts "$1" ;;
+  record) step_record "$1" "$2" ;;
   run) step_run "$1" ;;
   stop)
     tag="$(current_tag)"
-    compose "${tag:-none}" stop "$1" || die "没停成：$1"
+    case "$1" in api | gateway) timeout=30 ;; *) timeout=60 ;; esac
+    compose "${tag:-none}" stop --timeout "$timeout" "$1" || die "没停成：$1"
     ;;
   wait) wait_healthy 90 "$@" || exit 1 ;;
 esac

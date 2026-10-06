@@ -12,6 +12,7 @@ import { managedStore } from "../authz/index.js";
 import type { DataScope } from "../authz/index.js";
 import { getWalletView } from "../billing/index.js";
 import { paramsAt } from "../config/index.js";
+import { getTicketBriefsByOrder, getPlanBriefByOrder } from "../delivery/index.js";
 import { AppError } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 import { dictRefs } from "./quote.js";
@@ -182,6 +183,8 @@ export async function adminDetail(tx: Tx, scope: DataScope, id: string, at: Date
   const o = await tx.dramaOrder.findFirst({ where: { id, store: managedStore(scope) }, include });
   if (!o) throw new AppError("NOT_FOUND");
   const common = await detail(tx, { membership: { storeId: o.storeId, entityId: o.entityId } }, id),
+    tickets = await getTicketBriefsByOrder(tx, id),
+    plan = await getPlanBriefByOrder(tx, id),
     wallet = await getWalletView(tx, o.entityId, at),
     itemRows = await tx.orderItem.findMany({
       where: { dramaOrderId: id },
@@ -194,7 +197,8 @@ export async function adminDetail(tx: Tx, scope: DataScope, id: string, at: Date
   const allocations = itemRows.flatMap((i) => i.pointHold.pointHoldAllocs),
     items = [];
   for (const row of itemRows) {
-    const old = common.items.find((i) => i.orderItemId === row.id)!;
+    const old = common.items.find((i) => i.orderItemId === row.id)!,
+      ticket = tickets.find((t) => t.orderItemId === row.id);
     items.push(
       AdminOrderItemRowSchema.parse({
         orderItemId: old.orderItemId,
@@ -227,7 +231,14 @@ export async function adminDetail(tx: Tx, scope: DataScope, id: string, at: Date
         ...old.returnPoints,
         cancelReasonCode: old.cancelReasonCode,
         cancelledAt: old.cancelledAt,
-        ticket: null,
+        ticket: ticket
+          ? {
+              deliveryTicketId: ticket.deliveryTicketId,
+              ticketNo: ticket.ticketNo,
+              step: ticket.step,
+              isPaused: ticket.isPaused,
+            }
+          : null,
         pointHold: {
           pointHoldId: row.pointHoldId,
           status: row.pointHold.status,
@@ -264,7 +275,7 @@ export async function adminDetail(tx: Tx, scope: DataScope, id: string, at: Date
       endDate: date(o.subscriptionTerm.endDate),
     },
     items,
-    deliveryPlan: null,
+    deliveryPlan: plan,
     pointsBreakdown: {
       listPriceTotalPoints: itemRows.reduce((n, i) => n + i.listPricePoints, 0),
       discountDeltaPoints: itemRows.reduce((n, i, k) => n + bases[k]! - i.listPricePoints, 0),

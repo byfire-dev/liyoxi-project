@@ -13,6 +13,7 @@ import type {
 import type { Prisma } from "@liyoxi/db";
 import { calendarDate, diffDays } from "@liyoxi/shared/time";
 import { AppError } from "../kernel/index.js";
+import { getTicketBriefByOrderItem } from "../delivery/index.js";
 import type { Tx } from "../kernel/index.js";
 import type { OrderActor, OrderDeps } from "./context.js";
 import { dictRefs } from "./quote.js";
@@ -129,7 +130,7 @@ async function itemHeader(tx: Tx, i: Item, at: Date) {
     genres: await dictRefs(tx, "genre", snapshot.genreCodes),
     episodeCount: i.episodeCount,
     phase: i.phase,
-    ticketStep: null,
+    ticketStep: (await getTicketBriefByOrderItem(tx, i.id))?.step ?? null,
     accounts: i.orderItemAccounts.map((a) => ({
       channelAccountId: a.channelAccountId,
       platform: a.platform,
