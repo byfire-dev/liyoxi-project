@@ -24,12 +24,16 @@ export interface RejectDialogProps {
 /** 受控驳回弹层；请求结构与业务校验留在调用方。 */
 export function RejectDialog(props: RejectDialogProps) {
   const { pending, onCancel } = props;
+  const cancel = () => {
+    if (!pending) onCancel();
+  };
   return (
     <Modal
       open
       title={props.title}
       footer={null}
-      onCancel={onCancel}
+      onCancel={cancel}
+      keyboard={!pending}
       closable={!pending}
       mask={{ closable: !pending }}
       width={540}
@@ -59,7 +63,7 @@ export function RejectDialog(props: RejectDialogProps) {
         {props.children}
         {props.error ? <Alert type="error" title={props.error} /> : null}
         <div className="lyx-review-reject__footer">
-          <Button disabled={pending} onClick={onCancel}>
+          <Button disabled={pending} onClick={cancel}>
             取消
           </Button>
           <Button
