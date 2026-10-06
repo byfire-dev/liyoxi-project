@@ -97,6 +97,95 @@ function jobBody(workflow: string, id: string): string {
   return (shapeOf(workflow).jobs.find((job) => job.id === id)?.lines ?? []).join("\n");
 }
 
+// W2-25b 只允许三个默认关闭的可信发布任务引用明确的加密凭据；构建与其余工作流仍禁止。
+const CREDENTIAL_JOBS: Record<string, { id: string; condition: string; keys: string[] }[]> = {
+  "images.yml": [
+    {
+      id: "publish-images",
+      condition:
+        "vars.STG_IMAGES_PUBLISH_ENABLED == 'true' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')",
+      keys: [
+        "STG_REGISTRY_USERNAME",
+        "STG_REGISTRY_PASSWORD",
+        "STG_COS_SECRET_ID",
+        "STG_COS_SECRET_KEY",
+      ],
+    },
+    {
+      id: "mirror-base",
+      condition:
+        "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && vars.STG_IMAGES_PUBLISH_ENABLED == 'true' && inputs.mirror_base == true",
+      keys: ["STG_REGISTRY_USERNAME", "STG_REGISTRY_PASSWORD"],
+    },
+  ],
+  "deploy-stg.yml": [
+    {
+      id: "deploy-stg",
+      condition:
+        "vars.STG_DEPLOY_ENABLED == 'true' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository",
+      keys: ["STG_SSH_PRIVATE_KEY", "STG_SSH_KNOWN_HOSTS"],
+    },
+  ],
+};
+function unapprovedCredentials(workflow: string, name: string): string {
+  let remaining = workflow;
+  for (const job of CREDENTIAL_JOBS[name] ?? []) {
+    const body = jobBody(workflow, job.id);
+    if (!body.split("\n").includes(`    if: ${job.condition}`)) continue;
+    const checked = body.replace(/\bsecrets\.([\w]+)/g, (reference: string, key: string) =>
+      job.keys.includes(key) ? "" : reference,
+    );
+    remaining = remaining.replace(body, checked);
+  }
+  return remaining;
+}
+
+describe("发布凭据例外的反例", () => {
+  const fixture = (id: string, condition: string, keys: string[]) =>
+    [
+      "jobs:",
+      `  ${id}:`,
+      `    name: ${id}`,
+      `    if: ${condition}`,
+      "    env:",
+      ...keys.map((key) => "      TOKEN_" + key + ": ${{ secrets." + key + " }}"),
+      "",
+    ].join("\n");
+  for (const [name, jobs] of Object.entries(CREDENTIAL_JOBS)) {
+    for (const job of jobs) {
+      it(`${name}/${job.id}：仅完整可信条件下批准的凭据可引用`, () => {
+        const valid = fixture(job.id, job.condition, job.keys);
+        expect(unapprovedCredentials(valid, name)).not.toMatch(/\bsecrets\./);
+        for (const key of ["OTHER_SECRET", `${job.keys[0]}_EXTRA`])
+          expect(unapprovedCredentials(fixture(job.id, job.condition, [key]), name)).toMatch(
+            /\bsecrets\./,
+          );
+        for (const condition of [
+          "true",
+          `${job.condition} || true`,
+          job.condition.replace("== 'true'", "!= 'true'"),
+        ])
+          expect(unapprovedCredentials(fixture(job.id, condition, job.keys), name)).toMatch(
+            /\bsecrets\./,
+          );
+        expect(unapprovedCredentials(fixture("build", job.condition, job.keys), name)).toMatch(
+          /\bsecrets\./,
+        );
+        expect(unapprovedCredentials(valid, "ci.yml")).toMatch(/\bsecrets\./);
+        expect(
+          unapprovedCredentials(
+            valid +
+              "  build:\n    name: build\n    env:\n      LEAK: ${{ secrets." +
+              job.keys[0] +
+              " }}\n",
+            name,
+          ),
+        ).toMatch(/\bsecrets\./);
+      });
+    }
+  }
+});
+
 /**
  * 检查名的问题：工作流的写法认不出；任务的检查名与任务编号不同；同一个工作流里任务编号重复；
  * 必过的那个名字在全部工作流里不是恰好一个。
@@ -307,7 +396,7 @@ describe("全部工作流", () => {
 
   it.each(files)("%s：不放密钥，不给步骤开免死牌，默认权限只读", (name) => {
     const text = read(`.github/workflows/${name}`);
-    expect(text).not.toMatch(/\bsecrets\./);
+    expect(unapprovedCredentials(text, name)).not.toMatch(/\bsecrets\./);
     expect(text).not.toContain("continue-on-error");
     expect(text).not.toContain("pull_request_target");
     expect(text).toMatch(/^permissions:\n {2}contents: read\n/m);
