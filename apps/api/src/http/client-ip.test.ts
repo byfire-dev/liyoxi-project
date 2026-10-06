@@ -1,7 +1,11 @@
 // 客户端 IP 的取法（任务书 W0-22b 第 7 节第 5 条；D4 第 9.5 节）。
+import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 
-import { createClientIpResolver, normalizeIp } from "./client-ip.js";
+import type { ApiBindings, ApiEnv } from "../context.js";
+
+import { clientIp, createClientIpResolver, normalizeIp } from "./client-ip.js";
+import type { TrustedProxySettings } from "./client-ip.js";
 
 describe("客户端 IP", () => {
   const oneHop = createClientIpResolver();
@@ -49,5 +53,63 @@ describe("客户端 IP", () => {
     expect(
       createClientIpResolver({ hops: 1, cidrs: ["192.0.2.10"] })("192.0.2.10", "5.5.5.5"),
     ).toBe("5.5.5.5");
+  });
+});
+
+describe("请求协议与客户端 IP 共用可信代理边界", () => {
+  async function protocolOf(
+    url: string,
+    bindings: ApiBindings,
+    forwarded?: string,
+    settings: TrustedProxySettings = { hops: 1, cidrs: ["10.0.0.0/8"] },
+  ) {
+    const app = new Hono<ApiEnv>();
+    app.use("*", clientIp(settings));
+    app.get("/", (c) => c.json({ protocol: c.var.requestProtocol }));
+    const response = await app.request(
+      url,
+      {
+        headers: forwarded === undefined ? {} : { "x-forwarded-proto": forwarded },
+      },
+      bindings,
+    );
+    return (await response.json()) as { protocol: string };
+  }
+
+  it("实际连接优先：直连 TLS 是 https，HTTP 的 absolute-form URL 不能伪装 TLS；无套接字时取 URL", async () => {
+    expect(
+      await protocolOf("http://localhost/", {
+        incoming: { socket: { remoteAddress: "203.0.113.7", encrypted: true } },
+      }),
+    ).toEqual({ protocol: "https" });
+    expect(
+      await protocolOf("https://localhost/", {
+        incoming: { socket: { remoteAddress: "203.0.113.7" } },
+      }),
+    ).toEqual({ protocol: "http" });
+    expect(await protocolOf("https://localhost/", {}, "http")).toEqual({ protocol: "https" });
+  });
+
+  it("仅可信对端的单值 http/https 能改变协议，IPv4 映射地址沿用原可信网段判断", async () => {
+    const trusted = { incoming: { socket: { remoteAddress: "::ffff:10.0.0.8" } } };
+    expect(await protocolOf("http://localhost/", trusted, "https")).toEqual({ protocol: "https" });
+    expect(await protocolOf("http://localhost/", trusted, "http")).toEqual({ protocol: "http" });
+    expect(
+      await protocolOf(
+        "http://localhost/",
+        { incoming: { socket: { remoteAddress: "203.0.113.7" } } },
+        "https",
+      ),
+    ).toEqual({ protocol: "http" });
+  });
+
+  it("跳数0、多个协议与非法协议都不采纳转发头", async () => {
+    const trusted = { incoming: { socket: { remoteAddress: "10.0.0.8" } } };
+    expect(
+      await protocolOf("http://localhost/", trusted, "https", { hops: 0, cidrs: ["10.0.0.0/8"] }),
+    ).toEqual({ protocol: "http" });
+    for (const value of ["https, http", "HTTPS", "ftp", ""]) {
+      expect(await protocolOf("http://localhost/", trusted, value)).toEqual({ protocol: "http" });
+    }
   });
 });

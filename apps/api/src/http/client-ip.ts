@@ -8,6 +8,7 @@
 // 客户端自己伪造的 X-Forwarded-For 只会出现在左侧，从右取不受影响。跳数与可信网段是部署配置：
 // 现在走 server.ts 的命令行参数（--trusted-proxy-hops、--trusted-proxy-cidrs），缺省 1 跳、回环与私有网段
 //（预发先行阶段是“宿主机 nginx 一跳”，01 第 10 节）。负载均衡的回源网段要在预发实测后改成实际值。
+// 请求协议共用这个信任边界：只有可信代理的单值 http/https X-Forwarded-Proto 可覆盖实际连接协议。
 import { BlockList, isIP } from "node:net";
 
 import type { MiddlewareHandler } from "hono";
@@ -50,10 +51,8 @@ export type ClientIpResolver = (
   forwardedFor: string | null | undefined,
 ) => string | null;
 
-/** 按给定的跳数与可信网段建取法。配置不合法即抛错（进程起不来） */
-export function createClientIpResolver(
-  settings: TrustedProxySettings = DEFAULT_TRUSTED_PROXY,
-): ClientIpResolver {
+/** 客户端 IP 与请求协议共用的对端信任策略。配置不合法即抛错（进程起不来） */
+function createProxyPolicy(settings: TrustedProxySettings) {
   const { hops, cidrs } = settings;
   if (!Number.isInteger(hops) || hops < 0 || hops > 8) {
     throw new RangeError("可信代理的跳数要是 0 到 8 之间的整数");
@@ -71,10 +70,14 @@ export function createClientIpResolver(
     trusted.addSubnet(ip, bits, family(ip));
   }
 
-  return (peer, forwardedFor) => {
+  const trusts = (peer: string | null | undefined): boolean => {
+    const from = normalizeIp(peer);
+    return from !== null && hops > 0 && trusted.check(from, family(from));
+  };
+  const resolve: ClientIpResolver = (peer, forwardedFor) => {
     const from = normalizeIp(peer);
     if (from === null) return null;
-    if (hops === 0 || !trusted.check(from, family(from))) return from;
+    if (!trusts(from)) return from;
     const chain = (forwardedFor ?? "")
       .split(",")
       .map((part) => part.trim())
@@ -83,15 +86,40 @@ export function createClientIpResolver(
     // 那一格写的不是 IP（代理不该这样写）：退到对端，不拿一段随便的文字当来源
     return normalizeIp(chain[chain.length - hops]) ?? from;
   };
+  return { resolve, trusts };
 }
 
-/** 全局中间件：把客户端 IP 放进上下文。拿不到对端地址（用例里的 app.request()）时是 null */
-export function clientIp(settings?: TrustedProxySettings): MiddlewareHandler<ApiEnv> {
-  const resolve = createClientIpResolver(settings);
+/** 按给定的跳数与可信网段建 IP 取法；对外签名沿用 W0-22b */
+export function createClientIpResolver(
+  settings: TrustedProxySettings = DEFAULT_TRUSTED_PROXY,
+): ClientIpResolver {
+  return createProxyPolicy(settings).resolve;
+}
+
+/** 全局中间件：放入客户端 IP 与实际请求协议。拿不到对端地址时 IP 为 null、协议取请求 URL */
+export function clientIp(
+  settings: TrustedProxySettings = DEFAULT_TRUSTED_PROXY,
+): MiddlewareHandler<ApiEnv> {
+  const { resolve, trusts } = createProxyPolicy(settings);
   return async (c, next) => {
     // @hono/node-server 把 Node 的请求对象放在 c.env.incoming；别的运行方式下没有
-    const peer = c.env?.incoming?.socket?.remoteAddress;
+    const socket = c.env?.incoming?.socket;
+    const peer = socket?.remoteAddress;
     c.set("clientIp", resolve(peer, c.req.header("x-forwarded-for")));
+    // 有真实连接时优先看 TLS：HTTP 的 absolute-form 请求 URL 不能把未加密连接伪装成 HTTPS。
+    const direct =
+      socket === undefined
+        ? new URL(c.req.url).protocol === "https:"
+          ? "https"
+          : "http"
+        : socket.encrypted === true
+          ? "https"
+          : "http";
+    const forwarded = c.req.header("x-forwarded-proto");
+    c.set(
+      "requestProtocol",
+      trusts(peer) && (forwarded === "http" || forwarded === "https") ? forwarded : direct,
+    );
     await next();
   };
 }
