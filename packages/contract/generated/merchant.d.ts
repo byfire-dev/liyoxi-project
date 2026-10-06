@@ -107,6 +107,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/dramas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 商城列表：?q=（关键词）、genreCodes（题材）、industryCodes（适配行业）、集数、积分价区间、排序、分页（20/页）；老板另返回按当前套餐算的实扣积分 */
+        get: operations["m.drama.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/dramas/{dramaId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 短剧详情：基础信息、积分价与实扣、当前可用积分与即将清零（老板）、简介与角色、适配推荐、定制与植入说明、许可与可使用至、订购须知 */
+        get: operations["m.drama.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/entities": {
         parameters: {
             query?: never;
@@ -203,6 +237,40 @@ export interface paths {
         put?: never;
         /** 续签分块上传的临时密钥（30 分钟有效） */
         post: operations["m.file.refreshCredentials"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 首页聚合：城市、Banner、公告条、上线概览与清零提醒（老板）、为您推荐、推荐/新剧两栏各 4 部、选剧单数 */
+        get: operations["m.home.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/mall-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 商城配置：题材分类、筛选项、排序项、热门搜索词 */
+        get: operations["m.mallConfig.get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -501,6 +569,330 @@ export interface components {
             typeKey: string;
             versionNo: number;
         };
+        DramaCard: {
+            /** @enum {string|null} */
+            badge: "new" | "hot" | null;
+            discountedPoints: number | null;
+            /** Format: uuid */
+            dramaId: string;
+            genres: components["schemas"]["DictRef"][];
+            /** @enum {string|null} */
+            heatTier: "S" | "A" | "B" | "C" | null;
+            listPricePoints: number | null;
+            posterUrl: {
+                /** Format: date-time */
+                expiresAt: string;
+                /** Format: uri */
+                url: string;
+            } | null;
+            title: string;
+            totalEpisodes: number;
+            /** Format: date */
+            usableUntilDate: string | null;
+        };
+        DramaCardForClerk: {
+            /** @enum {string|null} */
+            badge: "new" | "hot" | null;
+            /** Format: uuid */
+            dramaId: string;
+            genres: components["schemas"]["DictRef"][];
+            /** @enum {string|null} */
+            heatTier: "S" | "A" | "B" | "C" | null;
+            listPricePoints: number | null;
+            posterUrl: {
+                /** Format: date-time */
+                expiresAt: string;
+                /** Format: uri */
+                url: string;
+            } | null;
+            title: string;
+            totalEpisodes: number;
+            /** Format: date */
+            usableUntilDate: string | null;
+        };
+        DramaDetailClerk: {
+            adUnitPoints: number;
+            allowedPlacements: ("opening" | "ending")[];
+            /** @enum {string|null} */
+            badge: "new" | "hot" | null;
+            castNames: string | null;
+            /** @enum {string|null} */
+            dramaClass: "class_1" | "class_2" | "class_3" | null;
+            /** Format: uuid */
+            dramaId: string;
+            episodeDurationSec: number | null;
+            genres: components["schemas"]["DictRef"][];
+            /** @enum {string|null} */
+            heatTier: "S" | "A" | "B" | "C" | null;
+            industries: components["schemas"]["DictRef"][];
+            listPricePoints: number | null;
+            orderability: {
+                orderable: boolean;
+                /** @enum {string|null} */
+                reason: "not_listed" | "stopped" | null;
+            };
+            permits: {
+                /** @enum {string} */
+                kind: "license_no" | "approval_no" | "program_no";
+                number: string;
+                /** @enum {string} */
+                platform: "all" | "douyin" | "wechat_channels";
+            }[];
+            placementDurations: {
+                durationSecOptions: number[];
+                /** @enum {string} */
+                slot: "opening" | "ending";
+            }[];
+            platforms: ("douyin" | "wechat_channels")[];
+            posterUrl: {
+                /** Format: date-time */
+                expiresAt: string;
+                /** Format: uri */
+                url: string;
+            } | null;
+            producerName: string | null;
+            roles: {
+                actor: string | null;
+                desc: string;
+                name: string;
+            }[];
+            sellingTags: {
+                code: string;
+                description: string | null;
+                name: string;
+            }[];
+            synopsis: string | null;
+            targetAudience: string | null;
+            title: string;
+            topModelSurchargeBp: number;
+            totalEpisodes: number;
+            trailer: {
+                durationMs: number;
+                /** Format: uuid */
+                playableId: string;
+                posterUrl: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: uri */
+                    url: string;
+                } | null;
+            } | null;
+            /** Format: date */
+            usableUntilDate: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            viewerRole: "clerk";
+        };
+        DramaDetailGuest: {
+            adUnitPoints: number;
+            allowedPlacements: ("opening" | "ending")[];
+            /** @enum {string|null} */
+            badge: "new" | "hot" | null;
+            castNames: string | null;
+            /** @enum {string|null} */
+            dramaClass: "class_1" | "class_2" | "class_3" | null;
+            /** Format: uuid */
+            dramaId: string;
+            episodeDurationSec: number | null;
+            genres: components["schemas"]["DictRef"][];
+            /** @enum {string|null} */
+            heatTier: "S" | "A" | "B" | "C" | null;
+            industries: components["schemas"]["DictRef"][];
+            listPricePoints: number | null;
+            orderability: {
+                orderable: boolean;
+                /** @enum {string|null} */
+                reason: "not_listed" | "stopped" | null;
+            };
+            permits: {
+                /** @enum {string} */
+                kind: "license_no" | "approval_no" | "program_no";
+                number: string;
+                /** @enum {string} */
+                platform: "all" | "douyin" | "wechat_channels";
+            }[];
+            placementDurations: {
+                durationSecOptions: number[];
+                /** @enum {string} */
+                slot: "opening" | "ending";
+            }[];
+            platforms: ("douyin" | "wechat_channels")[];
+            posterUrl: {
+                /** Format: date-time */
+                expiresAt: string;
+                /** Format: uri */
+                url: string;
+            } | null;
+            producerName: string | null;
+            roles: {
+                actor: string | null;
+                desc: string;
+                name: string;
+            }[];
+            sellingTags: {
+                code: string;
+                description: string | null;
+                name: string;
+            }[];
+            synopsis: string | null;
+            targetAudience: string | null;
+            title: string;
+            topModelSurchargeBp: number;
+            totalEpisodes: number;
+            trailer: {
+                durationMs: number;
+                /** Format: uuid */
+                playableId: string;
+                posterUrl: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: uri */
+                    url: string;
+                } | null;
+            } | null;
+            /** Format: date */
+            usableUntilDate: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            viewerRole: "guest";
+        };
+        DramaDetailOwner: {
+            adUnitPoints: number;
+            allowedPlacements: ("opening" | "ending")[];
+            /** @enum {string|null} */
+            badge: "new" | "hot" | null;
+            castNames: string | null;
+            discountedPoints: number | null;
+            /** @enum {string|null} */
+            dramaClass: "class_1" | "class_2" | "class_3" | null;
+            /** Format: uuid */
+            dramaId: string;
+            episodeDurationSec: number | null;
+            genres: components["schemas"]["DictRef"][];
+            /** @enum {string|null} */
+            heatTier: "S" | "A" | "B" | "C" | null;
+            industries: components["schemas"]["DictRef"][];
+            listPricePoints: number | null;
+            orderability: {
+                orderable: boolean;
+                /** @enum {string|null} */
+                reason: "not_listed" | "stopped" | null;
+            };
+            owner: {
+                adDiscountedPoints: number | null;
+                /** Format: uuid */
+                cartItemId: string | null;
+                discountBp: number | null;
+                expiringPlanPoints: number;
+                planName: string | null;
+                /** Format: date-time */
+                planPointsExpireAt: string | null;
+                /** @enum {string|null} */
+                productionModel: "standard" | "advanced" | "top" | null;
+                spendablePoints: number;
+                /** Format: date */
+                termEndDate: string | null;
+            } | null;
+            permits: {
+                /** @enum {string} */
+                kind: "license_no" | "approval_no" | "program_no";
+                number: string;
+                /** @enum {string} */
+                platform: "all" | "douyin" | "wechat_channels";
+            }[];
+            placementDurations: {
+                durationSecOptions: number[];
+                /** @enum {string} */
+                slot: "opening" | "ending";
+            }[];
+            platforms: ("douyin" | "wechat_channels")[];
+            posterUrl: {
+                /** Format: date-time */
+                expiresAt: string;
+                /** Format: uri */
+                url: string;
+            } | null;
+            producerName: string | null;
+            roles: {
+                actor: string | null;
+                desc: string;
+                name: string;
+            }[];
+            sellingTags: {
+                code: string;
+                description: string | null;
+                name: string;
+            }[];
+            synopsis: string | null;
+            targetAudience: string | null;
+            title: string;
+            topModelSurchargeBp: number;
+            totalEpisodes: number;
+            trailer: {
+                durationMs: number;
+                /** Format: uuid */
+                playableId: string;
+                posterUrl: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: uri */
+                    url: string;
+                } | null;
+            } | null;
+            /** Format: date */
+            usableUntilDate: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            viewerRole: "owner";
+        };
+        DramaPageClerk: {
+            hasMore: boolean;
+            items: components["schemas"]["DramaCardForClerk"][];
+            nextCursor: string | null;
+            viewerPlan: {
+                discountBp: number;
+                planName: string;
+            } | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            viewerRole: "clerk";
+        };
+        DramaPageGuest: {
+            hasMore: boolean;
+            items: components["schemas"]["DramaCardForClerk"][];
+            nextCursor: string | null;
+            viewerPlan: {
+                discountBp: number;
+                planName: string;
+            } | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            viewerRole: "guest";
+        };
+        DramaPageOwner: {
+            hasMore: boolean;
+            items: components["schemas"]["DramaCard"][];
+            nextCursor: string | null;
+            viewerPlan: {
+                discountBp: number;
+                planName: string;
+            } | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            viewerRole: "owner";
+        };
         EntityBrief: {
             /** Format: uuid */
             entityId: string;
@@ -585,10 +977,592 @@ export interface components {
             storedAt: string | null;
             uploadExpiresAt: string | null;
         };
+        HomeClerk: {
+            banners: ({
+                /** Format: uuid */
+                homeBannerId: string;
+                imageUrl: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: uri */
+                    url: string;
+                };
+                /** @enum {string} */
+                jumpKind: "drama";
+                jumpTarget: {
+                    /** Format: uuid */
+                    dramaId: string;
+                };
+                title: string;
+            } | {
+                /** Format: uuid */
+                homeBannerId: string;
+                imageUrl: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: uri */
+                    url: string;
+                };
+                /** @enum {string} */
+                jumpKind: "mall";
+                jumpTarget: {
+                    categoryKey: string;
+                };
+                title: string;
+            } | {
+                /** Format: uuid */
+                homeBannerId: string;
+                imageUrl: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: uri */
+                    url: string;
+                };
+                /** @enum {string} */
+                jumpKind: "page";
+                jumpTarget: {
+                    params: {
+                        /** Format: uuid */
+                        orderId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "order.detail";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        orderItemId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "delivery.sample";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        deliveryPlanId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "delivery.plan";
+                } | {
+                    params: {
+                        /** Format: date */
+                        date?: string;
+                        /** Format: uuid */
+                        launchTaskId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "publish.task";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        storeId: string;
+                        /** Format: uuid */
+                        takedownTaskId: string;
+                    };
+                    /** @enum {string} */
+                    route: "offline.task";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        serviceTicketId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "ticket.detail";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        channelAccountId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "account.detail";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        storeAssetDemandId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "asset.demand";
+                } | {
+                    params: Record<string, never>;
+                    /** @enum {string} */
+                    route: "wallet.home";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "cart.list";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        adId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "ad.detail";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "profile.review";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "store.members";
+                };
+                title: string;
+            } | {
+                /** Format: uuid */
+                homeBannerId: string;
+                imageUrl: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: uri */
+                    url: string;
+                };
+                /** @enum {string} */
+                jumpKind: "none";
+                jumpTarget: null;
+                title: string;
+            })[];
+            city: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            viewerRole: "clerk";
+        };
+        HomeGuest: {
+            banners: ({
+                /** Format: uuid */
+                homeBannerId: string;
+                imageUrl: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: uri */
+                    url: string;
+                };
+                /** @enum {string} */
+                jumpKind: "drama";
+                jumpTarget: {
+                    /** Format: uuid */
+                    dramaId: string;
+                };
+                title: string;
+            } | {
+                /** Format: uuid */
+                homeBannerId: string;
+                imageUrl: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: uri */
+                    url: string;
+                };
+                /** @enum {string} */
+                jumpKind: "mall";
+                jumpTarget: {
+                    categoryKey: string;
+                };
+                title: string;
+            } | {
+                /** Format: uuid */
+                homeBannerId: string;
+                imageUrl: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: uri */
+                    url: string;
+                };
+                /** @enum {string} */
+                jumpKind: "page";
+                jumpTarget: {
+                    params: {
+                        /** Format: uuid */
+                        orderId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "order.detail";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        orderItemId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "delivery.sample";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        deliveryPlanId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "delivery.plan";
+                } | {
+                    params: {
+                        /** Format: date */
+                        date?: string;
+                        /** Format: uuid */
+                        launchTaskId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "publish.task";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        storeId: string;
+                        /** Format: uuid */
+                        takedownTaskId: string;
+                    };
+                    /** @enum {string} */
+                    route: "offline.task";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        serviceTicketId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "ticket.detail";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        channelAccountId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "account.detail";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        storeAssetDemandId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "asset.demand";
+                } | {
+                    params: Record<string, never>;
+                    /** @enum {string} */
+                    route: "wallet.home";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "cart.list";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        adId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "ad.detail";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "profile.review";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "store.members";
+                };
+                title: string;
+            } | {
+                /** Format: uuid */
+                homeBannerId: string;
+                imageUrl: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: uri */
+                    url: string;
+                };
+                /** @enum {string} */
+                jumpKind: "none";
+                jumpTarget: null;
+                title: string;
+            })[];
+            city: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            /** @enum {string} */
+            defaultTab: "hot" | "new";
+            hot: components["schemas"]["DramaCardForClerk"][];
+            new: components["schemas"]["DramaCardForClerk"][];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            viewerRole: "guest";
+        };
+        HomeOwner: {
+            banners: ({
+                /** Format: uuid */
+                homeBannerId: string;
+                imageUrl: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: uri */
+                    url: string;
+                };
+                /** @enum {string} */
+                jumpKind: "drama";
+                jumpTarget: {
+                    /** Format: uuid */
+                    dramaId: string;
+                };
+                title: string;
+            } | {
+                /** Format: uuid */
+                homeBannerId: string;
+                imageUrl: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: uri */
+                    url: string;
+                };
+                /** @enum {string} */
+                jumpKind: "mall";
+                jumpTarget: {
+                    categoryKey: string;
+                };
+                title: string;
+            } | {
+                /** Format: uuid */
+                homeBannerId: string;
+                imageUrl: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: uri */
+                    url: string;
+                };
+                /** @enum {string} */
+                jumpKind: "page";
+                jumpTarget: {
+                    params: {
+                        /** Format: uuid */
+                        orderId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "order.detail";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        orderItemId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "delivery.sample";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        deliveryPlanId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "delivery.plan";
+                } | {
+                    params: {
+                        /** Format: date */
+                        date?: string;
+                        /** Format: uuid */
+                        launchTaskId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "publish.task";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        storeId: string;
+                        /** Format: uuid */
+                        takedownTaskId: string;
+                    };
+                    /** @enum {string} */
+                    route: "offline.task";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        serviceTicketId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "ticket.detail";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        channelAccountId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "account.detail";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        storeAssetDemandId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "asset.demand";
+                } | {
+                    params: Record<string, never>;
+                    /** @enum {string} */
+                    route: "wallet.home";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "cart.list";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        adId: string;
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "ad.detail";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "profile.review";
+                } | {
+                    params: {
+                        /** Format: uuid */
+                        storeId: string;
+                    };
+                    /** @enum {string} */
+                    route: "store.members";
+                };
+                title: string;
+            } | {
+                /** Format: uuid */
+                homeBannerId: string;
+                imageUrl: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: uri */
+                    url: string;
+                };
+                /** @enum {string} */
+                jumpKind: "none";
+                jumpTarget: null;
+                title: string;
+            })[];
+            cartCount: number;
+            city: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            /** @enum {string} */
+            defaultTab: "hot" | "new";
+            hot: components["schemas"]["DramaCard"][];
+            launchOverview: {
+                expiringPlanPoints: number;
+                liveEpisodeCount: number;
+                liveItemCount: number;
+                planName: string | null;
+                /** Format: date-time */
+                planPointsExpireAt: string | null;
+                spendablePoints: number;
+                /** Format: date */
+                termEndDate: string | null;
+            } | null;
+            new: components["schemas"]["DramaCard"][];
+            noticeBar: null;
+            recommend: {
+                items: components["schemas"]["DramaCard"][];
+                matchBy: {
+                    category: components["schemas"]["DictRef"] & (Record<string, never> | null);
+                    industry: components["schemas"]["DictRef"];
+                } | null;
+            } | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            viewerRole: "owner";
+        };
         MaintenanceNotice: {
             body: string;
             expectedEndAt: string | null;
             title: string;
+        };
+        MallConfigView: {
+            categories: {
+                genres: components["schemas"]["DictRef"][];
+                key: string;
+                name: string;
+            }[];
+            /** @enum {string} */
+            defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+            filters: {
+                episodeBands: {
+                    key: string;
+                    label: string;
+                    max: number | null;
+                    min: number | null;
+                }[];
+                episodes: boolean;
+                genre: boolean;
+                industry: boolean;
+                price: boolean;
+                priceBands: {
+                    key: string;
+                    label: string;
+                    max: number | null;
+                    min: number | null;
+                }[];
+            };
+            genres: components["schemas"]["DictRef"][];
+            hotWords: string[];
+            industries: components["schemas"]["DictRef"][];
+            revNo: number;
+            sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
         };
         MeOverview: {
             currentStore: components["schemas"]["OverviewStore"];
@@ -1259,6 +2233,88 @@ export interface operations {
             };
         };
     };
+    "m.drama.list": {
+        parameters: {
+            query?: {
+                q?: string;
+                category?: string;
+                genreCodes?: string;
+                industryCodes?: string;
+                episodeBand?: string;
+                priceBand?: string;
+                sort?: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["DramaPageOwner"] | components["schemas"]["DramaPageClerk"] | components["schemas"]["DramaPageGuest"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.drama.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dramaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["DramaDetailOwner"] | components["schemas"]["DramaDetailClerk"] | components["schemas"]["DramaDetailGuest"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "m.entity.create": {
         parameters: {
             query?: never;
@@ -1710,6 +2766,78 @@ export interface operations {
             };
             /** @description 外部能力不可用、系统繁忙或停机维护 */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.home.get": {
+        parameters: {
+            query?: {
+                cityCode?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["HomeOwner"] | components["schemas"]["HomeClerk"] | components["schemas"]["HomeGuest"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.mallConfig.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["MallConfigView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 内部错误 */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };
