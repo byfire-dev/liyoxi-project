@@ -83,10 +83,11 @@ describe("方案版本、校验和回放", { timeout: 60000 }, () => {
       h.delivery.push(a.ctx, a.staff, o.deliveryPlanId, { draftLockVersion: 1 }),
     ).rejects.toMatchObject({ error: "STATE_NOT_ALLOWED" });
   });
-  it("W1-17 未实现时生产默认 INTERNAL，确认、历史和决定全部回滚", async () => {
+  it("真实订单端口未绑定运行时时 INTERNAL，确认、历史和决定全部回滚", async () => {
     const production = harness(h.prisma, false);
     try {
-      const o = await production.order(true),
+      // 工单由已有的隔离测试装配建立；确认才调用未绑定的真实订单端口。
+      const o = await h.order(true),
         a = await production.staff();
       await production.delivery.replaceDraft(a.ctx, a.staff, o.deliveryPlanId, {
         draftLockVersion: 0,
