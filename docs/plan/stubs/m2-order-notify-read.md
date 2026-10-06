@@ -4,7 +4,7 @@
 | --- | --- |
 | 状态 | 留桩中 |
 | 留桩内容 | orderForNotify 通知读端口 |
-| 骨架里的做法 | submit.ts 调 notifyReadOf.read，公共未登记实现返回 null，不声称已解析真实场景 |
+| 骨架里的做法 | submit.ts 与 W1-17b start.ts 调 notifyReadOf.read，公共未登记实现返回 null，不声称已解析真实场景 |
 | 登记的工作包 | W1-15a |
 | 回补里程碑 | M2 |
 | 回补的工作包 | G2-C |

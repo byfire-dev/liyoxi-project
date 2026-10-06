@@ -1,0 +1,39 @@
+.lyx-account-details {
+  display: grid;
+  gap: 20px;
+}
+.lyx-account-comparison {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.7fr) minmax(360px, 1.3fr);
+  gap: 20px;
+}
+.lyx-account-comparison > section {
+  min-width: 0;
+}
+.lyx-account-images {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 12px;
+}
+.lyx-account-images img {
+  display: block;
+  width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  background: var(--lyx-color-bg-page);
+  border: 1px solid var(--lyx-color-border-light);
+  border-radius: 6px;
+}
+.lyx-account-compare-input {
+  display: grid;
+  gap: 6px;
+}
+.lyx-account-compare-input .ant-select {
+  width: 100%;
+}
+.lyx-account-comparison .lyx-review-compare th:last-child {
+  width: 45%;
+}
+.lyx-account-comparison .lyx-review-compare td {
+  overflow-wrap: anywhere;
+}

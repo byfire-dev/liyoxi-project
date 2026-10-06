@@ -262,9 +262,10 @@ export type {
 export {
   createOrderService,
   bindOrder,
+  bindOrderStart,
   countOpenOrdersByEntity,
   countBlockingStoreOrders,
   countCartBadge,
   countOrderItemsByPhase,
 } from "./order/index.js";
-export type { OrderActor, OrderDeps, OrderService } from "./order/index.js";
+export type { OrderActor, OrderDeps, OrderService, OrderStartBinding } from "./order/index.js";

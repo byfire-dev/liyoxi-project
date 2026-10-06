@@ -15,6 +15,9 @@ import { rederive, isDerivationChecked } from "./rederive.js";
 import { DERIVED_INVARIANT_CODES, findDerivedViolations } from "./derived-invariants.js";
 import { findOrderViolations, ORDER_INVARIANT_CODES } from "./invariants.js";
 import { orderMerchantFacts } from "./counts.js";
+import { handleOrderStart, isStartChecked } from "./start.js";
+import { handleQualificationDecided, handleSubscriptionActivated } from "./subscribers.js";
+import { runPendingStartSweep } from "./sweep.js";
 export const syncOrderManager: SyncStoreManager = async (tx, input) => {
   const rows = await tx.dramaOrder.findMany({
     where: {
@@ -42,6 +45,33 @@ export const syncOrderManager: SyncStoreManager = async (tx, input) => {
   ).count;
 };
 export const registration = defineRegistration("order", {
+  timerHandlers: [
+    { kind: "order.start", critical: true, rearmAfterSkip: true, handle: handleOrderStart },
+  ],
+  subscribers: [
+    {
+      name: "order.onQualificationDecided",
+      critical: true,
+      events: ["store.qualification.approved", "store.qualification.rejected"],
+      handle: handleQualificationDecided,
+    },
+    {
+      name: "order.onSubscriptionActivated",
+      critical: true,
+      events: ["billing.subscription.activated"],
+      handle: handleSubscriptionActivated,
+    },
+  ],
+  recurringJobs: [
+    {
+      kind: "order.pending_start_sweep",
+      schedule: { every: "minutes", minutes: 5 },
+      mode: "tx",
+      missSeverity: "P2",
+      catchUp: true,
+      run: runPendingStartSweep,
+    },
+  ],
   portImplementations: [
     implement(orderSidePort, {
       applyConfirmedPlan: (tx, input) => applyConfirmedPlan(tx, boundOrder(), input),
@@ -50,17 +80,25 @@ export const registration = defineRegistration("order", {
     implementMerchantFacts("order", orderMerchantFacts),
     implement(orderManagerPort, syncOrderManager),
     implementKeyed(machinePort, chainKey("drama_order", "status"), {
-      companions: ["sub_status", "status_changed_at", "closed_at"],
-      activity: () => ({ category: "flow", action: "order.order.submit", summary: "确认订购短剧" }),
+      companions: ["sub_status", "status_changed_at", "closed_at", "started_at"],
+      guards: {
+        [rowKey("09:197", "order.start")]: async (_tx, facts) => isStartChecked(facts.args),
+      },
+      activity: (facts) => ({
+        category: "flow",
+        action: `order.order.${facts.event === "order.start" ? "start" : "submit"}`,
+        summary: facts.event === "order.start" ? "开始交付短剧" : "确认订购短剧",
+      }),
     }),
     implementKeyed(machinePort, chainKey("order_item", "phase"), {
-      companions: ["phase_changed_at", "usage_start_date", "live_episode_count"],
-      activity: () => ({
+      companions: ["phase_changed_at", "usage_start_date", "live_episode_count", "captured_at"],
+      activity: (facts) => ({
         category: "flow",
-        action: "order.item.submit",
-        summary: "冻结订单项积分",
+        action: `order.item.${facts.event === "order.start" ? "start" : "submit"}`,
+        summary: facts.event === "order.start" ? "扣减订单项积分并开工" : "冻结订单项积分",
       }),
       guards: {
+        [rowKey("09:352", "order.start")]: async (_tx, facts) => isStartChecked(facts.args),
         [rowKey("09:355", "package.pushed")]: async (_tx, facts) => isDerivationChecked(facts.args),
         [rowKey("09:356", "launch.changed")]: async (_tx, facts) => isDerivationChecked(facts.args),
         [rowKey("09:351", "order.submit")]: async (tx, facts) => {
