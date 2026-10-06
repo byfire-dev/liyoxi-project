@@ -1,6 +1,6 @@
 # payment：唯一付款入账入口
 
-W1-11a 第二段。依据：03 第 1.3 节；08 分组第 2.1、2.2、2.6 节；h01 第 2.6 节；ADR-0046。接在已合并的账本与履约实现上，不创建付款单、不确认银行到账、不接微信。
+W1-11a 第二段。依据：03 第 1.3 节；08 分组第 2.1、2.2、2.6 节；h01 第 2.6 节；ADR-0046。接在已合并的账本与履约实现上。第 1–5 节为 W1-11a 入账入口，第 6 节为 W1-11b 创建与财务确认主链；微信仍归 M4。
 
 ## 1. 入口与依赖
 
@@ -48,3 +48,21 @@ LYX_FC_RUNS=200 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run sr
 ## 5. 留桩
 
 只接受 `bank_transfer`；微信与孤儿交易抛 `INTERNAL`，补单选项尚未实现，登记 [M4 留桩](../../../../../docs/plan/stubs/m4-billing-payment-channels.md)。升级与加购仍由第一段的内容留桩返回受阻。四类差异只开不处理，M4 接重试履约、退款与恢复流程。本包没有路由、实际银行操作、微信 Provider 或新迁移。
+
+## 6. 购买与对公凭证主链（W1-11b）
+
+`Runtime.billing` 由 `createBillingPurchase` 构造，显式注入事务、时钟、账本、原入账、协议、主体、media、SLA、配置与密钥读取器。`getPurchasePolicy`、`listPlans`、`quotePlanPurchase` 与 `wallet` 只读；策略由 shared 的有序首匹配纯函数给出，参数与财务版本按同一注入时刻读。钱包复用账本读侧及 tenant 额度。
+
+`createOrder` 在实体、已有付款单锁后拿账户，重算报价、对比金额、写两份协议同意与 FK 单号，捕获生效收款账户版本、登记 TTL。新内容快照可带创建时 `planName`；旧快照缺项才回查当前名称，不参与履约计价。商家 DTO 只在本次响应解密账号并禁止缓存；幂等最终 JSON 快照按契约脱敏，重放 `bankAccount.accountNo=null`。
+
+`submitProof` 只接受当前老板、同归属 stored/pay_receipt 文件，按 files 端口永久 link。替换将旧凭证置 superseded，不多写一次主状态迁移；`due_at` 和 SLA 快照真实计算。`getAdminOrder` 与 `getProof` 按资源范围查询，超范围 404；`listProofs` 与 `proofSummary` 是 global 处理队列，同过滤条件计数，详情不签发文件 URL。
+
+`confirmProof` 检查权限、再验证、锁版本、到账金额与单号回显、银行流水核对，按付款单 290 → 本事务创建并锁实际交易 300 → 凭证 310，再次核对全部前置后调原 `applyPayment`，履约最后拿账户 420。失败回滚整个交易，不另写四个已付列。流水 NFKC、去空白和连字符、转大写；同银行碰撞拒绝，不同银行必须回显完整冲突单号。`rejectProof` 写驳回理由及说明、顺延有效期并重登记；大额二人复核阈值达到则本期拒绝。
+
+`bindBillingTimers({clock,flow,timers})` 返回幂等解绑函数，乱序关闭不恢复已关实例；无绑定明确失败。上传/替换不取消 TTL，到点有 pending 凭证则 skipped；驳回按新有效期登记；原入账付清后取消本单任务。worker 等全部循环与在途消费者关停 settle 后通过 `closeBillingTimers` 解绑，保留关闭失败传播，重复停止只清理一次。
+
+`proposeFinanceConfig(tx,deps,ctx,input,staff)` 使用正常提议权限与双人审批；银行账号只写密文列，payload 只含脱敏串。银行批准后 24 小时生效，其余即时。`seedPlaceholderFinanceConfig` 注入 25 小时前时钟、使用两名真实 active 财务；重复零新增，已有配置不覆盖，停用员工明确失败。占位账号全零、户名标明勿转账，真实值待 E13。
+
+新增每日 full/P1、不自愈项：`payment.I12` 核对审批与生效时刻，`I14` 核对待确认单与恰一张 pending 凭证双向一致，`I15` 核对 accepted 与恰一笔 succeeded 收款双向一致。账本原不变量测试完整保留，新项在 `payment/purchase-invariants.test.ts`。
+
+目标用例：`apps/api/test/billing.test.ts`、`apps/worker/test/transfer-ttl.test.ts`、`billing/demo-seed.test.ts`、`payment/purchase-invariants.test.ts`、`shared/purchase-policy/policy.test.ts`。八项既定留桩见 W1-11b 状态文件；本包不改表结构、既有入账函数签名或层白名单。

@@ -901,17 +901,17 @@ export interface components {
             /** Format: date-time */
             cancelledAt: string | null;
             /** @enum {string} */
-            channel: "wechat_jsapi" | "bank_transfer";
+            channel: "wechat_jsapi" | "bank_transfer" | (string & {});
             channels: {
                 /** @enum {string} */
-                code: "wechat_jsapi" | "bank_transfer";
+                code: "wechat_jsapi" | "bank_transfer" | (string & {});
                 hintKey: string | null;
                 isEnabled: boolean;
                 isRecommended: boolean;
             }[];
             content: {
                 /** @enum {string} */
-                kind: "plan" | "upgrade" | "topup";
+                kind: "plan" | "upgrade" | "topup" | (string & {});
                 months: number | null;
                 /** Format: uuid */
                 planId: string | null;
@@ -936,7 +936,7 @@ export interface components {
                     [key: string]: number;
                 };
                 /** @enum {string} */
-                code: "plan_monthly" | "plan_cycle" | "plan_upgrade" | "topup";
+                code: "plan_monthly" | "plan_cycle" | "plan_upgrade" | "topup" | (string & {});
                 text: string;
             } | null;
             fulfillment: {
@@ -953,10 +953,10 @@ export interface components {
                 } | null;
             } | null;
             /** @enum {string} */
-            fulfillmentStatus: "none" | "done" | "blocked";
+            fulfillmentStatus: "none" | "done" | "blocked" | (string & {});
             invoiceItemName: string | null;
             /** @enum {string} */
-            invoiceState: "eligible" | "applying" | "invoiced" | "expired" | "not_eligible";
+            invoiceState: "eligible" | "applying" | "invoiced" | "expired" | "not_eligible" | (string & {});
             isConfirmingResult: boolean;
             isProcessingReceipt: boolean;
             latestTransferProof: {
@@ -965,7 +965,7 @@ export interface components {
                 rejectNote: string | null;
                 rejectReason: components["schemas"]["DictRef"] & (Record<string, never> | null);
                 /** @enum {string} */
-                reviewStatus: "pending" | "accepted" | "rejected" | "superseded";
+                reviewStatus: "pending" | "accepted" | "rejected" | "superseded" | (string & {});
                 /** Format: date-time */
                 reviewedAt: string | null;
                 /** Format: uuid */
@@ -984,12 +984,12 @@ export interface components {
             /** Format: date-time */
             refundedAt: string | null;
             /** @enum {string} */
-            status: "pending_payment" | "pending_confirmation" | "paid" | "cancelled" | "refunded";
+            status: "pending_payment" | "pending_confirmation" | "paid" | "cancelled" | "refunded" | (string & {});
             title: string;
             /** @enum {string|null} */
-            transferState: "awaiting_proof" | "proof_submitted" | "proof_rejected" | "confirm_review" | null;
+            transferState: "awaiting_proof" | "proof_submitted" | "proof_rejected" | "confirm_review" | (string & {}) | null;
             /** @enum {string} */
-            type: "plan_new" | "plan_renew" | "plan_upgrade" | "topup";
+            type: "plan_new" | "plan_renew" | "plan_upgrade" | "topup" | (string & {});
         };
         PendingConsent: {
             agreementKey: string;
@@ -1028,14 +1028,14 @@ export interface components {
             /** Format: uuid */
             planRevisionId: string;
             /** @enum {string} */
-            productionModel: "standard" | "advanced" | "top";
+            productionModel: "standard" | "advanced" | "top" | (string & {});
             rank: number;
             /** @enum {string} */
-            schedulePriority: "standard" | "priority" | "rush";
+            schedulePriority: "standard" | "priority" | "rush" | (string & {});
         };
         PlanQuote: {
             /** @enum {string} */
-            action: "subscribe" | "renew" | "downgrade" | "renew_upgrade" | "upgrade";
+            action: "subscribe" | "renew" | "downgrade" | "renew_upgrade" | "upgrade" | (string & {});
             benefits: {
                 discountBp: number;
                 hasMonthlyReport: boolean;
@@ -1043,16 +1043,16 @@ export interface components {
                 maxStores: number;
                 monthlyPoints: number;
                 /** @enum {string} */
-                productionModel: "standard" | "advanced" | "top";
+                productionModel: "standard" | "advanced" | "top" | (string & {});
                 /** @enum {string} */
-                schedulePriority: "standard" | "priority" | "rush";
+                schedulePriority: "standard" | "priority" | "rush" | (string & {});
             };
             downgradeImpact: {
                 membersToRemove: number;
                 storesToRemove: number;
             } | null;
             /** @enum {string} */
-            effectiveMode: "immediate" | "next_term";
+            effectiveMode: "immediate" | "next_term" | (string & {});
             /** Format: date */
             firstGrantDate: string | null;
             formula: {
@@ -1060,7 +1060,7 @@ export interface components {
                     [key: string]: number;
                 };
                 /** @enum {string} */
-                code: "plan_monthly" | "plan_cycle" | "plan_upgrade" | "topup";
+                code: "plan_monthly" | "plan_cycle" | "plan_upgrade" | "topup" | (string & {});
                 text: string;
             };
             fromPlanName: string | null;
@@ -1072,7 +1072,7 @@ export interface components {
                 startDate: string;
             } | null;
             /** @enum {string} */
-            orderType: "plan_new" | "plan_renew" | "plan_upgrade";
+            orderType: "plan_new" | "plan_renew" | "plan_upgrade" | (string & {});
             payFen: number;
             /** Format: uuid */
             planId: string;
@@ -1111,7 +1111,7 @@ export interface components {
         PurchasePolicy: {
             channels: {
                 /** @enum {string} */
-                code: "wechat_jsapi" | "bank_transfer";
+                code: "wechat_jsapi" | "bank_transfer" | (string & {});
                 hintKey: string | null;
                 isEnabled: boolean;
                 isRecommended: boolean;
@@ -1125,7 +1125,7 @@ export interface components {
             isPriceShown: boolean;
             isPurchasePromptAllowed: boolean;
             /** @enum {string} */
-            mode: "in_app" | "offline_contract" | "hidden";
+            mode: "in_app" | "offline_contract" | "hidden" | (string & {});
         };
         /** @description Sentry envelope 原文，≤200KB */
         SentryEnvelope: string;
@@ -1260,9 +1260,9 @@ export interface components {
                     maxStores: number;
                     monthlyPoints: number;
                     /** @enum {string} */
-                    productionModel: "standard" | "advanced" | "top";
+                    productionModel: "standard" | "advanced" | "top" | (string & {});
                     /** @enum {string} */
-                    schedulePriority: "standard" | "priority" | "rush";
+                    schedulePriority: "standard" | "priority" | "rush" | (string & {});
                 } | null;
                 /** Format: date */
                 endDate: string | null;
@@ -1288,16 +1288,16 @@ export interface components {
                 /** Format: date */
                 startDate: string | null;
                 /** @enum {string} */
-                status: "none" | "active" | "expired";
+                status: "none" | "active" | "expired" | (string & {});
             };
             topUp: {
                 /** @enum {string|null} */
-                blockReason: "no_active_plan" | "refund_in_progress" | "not_offered" | null;
+                blockReason: "no_active_plan" | "refund_in_progress" | "not_offered" | (string & {}) | null;
                 canTopUp: boolean;
             };
             usage: {
                 /** @enum {string} */
-                limitReason: "plan" | "inactive";
+                limitReason: "plan" | "inactive" | (string & {});
                 memberLimit: number | null;
                 seatsUsed: number;
                 storeLimit: number;

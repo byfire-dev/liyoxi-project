@@ -152,6 +152,37 @@ export const CLERK_SAMPLES: readonly Sample[] = [
   playClerkFile("m.file.refreshCredentials", "refresh-credentials"),
   playClerkFile("m.file.complete", "complete"),
   playClerkFile("m.file.cancel", "cancel"),
+  get("m.wallet.get", "/m/wallet"),
+  get("m.purchasePolicy.get", "/m/purchase-policy"),
+  get("m.plan.list", "/m/plans"),
+  get("m.paymentOrder.get", `/m/payment-orders/${uuidv7()}`),
+  ...[
+    { operationId: "m.plan.quote", path: "/m/plans/quote", json: { planId: uuidv7(), months: 1 } },
+    {
+      operationId: "m.paymentOrder.create",
+      path: "/m/payment-orders",
+      json: {
+        planId: uuidv7(),
+        months: 1,
+        channel: "bank_transfer",
+        expectAmountFen: 1,
+        agreementVersionIds: [uuidv7(), uuidv7()],
+      },
+    },
+    {
+      operationId: "m.paymentOrder.transferProof.create",
+      path: `/m/payment-orders/${uuidv7()}/transfer-proofs`,
+      json: { fileId: uuidv7() },
+    },
+  ].map(({ operationId, path, json }): Sample => ({
+    operationId,
+    play: async (api, ctx) =>
+      api.request(`/api/v1${path}`, {
+        method: "POST",
+        json,
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      }),
+  })),
   // 退出会吊销当前凭据，放到这一份样例的最后。其它样例不得靠退出后的身份。
   {
     operationId: "m.session.current.delete",

@@ -127,6 +127,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
   const queues = Object.values(consumers);
 
   let active = false;
+  let stopping: Promise<void> | undefined;
   const promote = (): void => {
     active = true;
     for (const one of all) one.start();
@@ -163,13 +164,28 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
       if (keeper === undefined) promote();
       else keeper.start();
     },
-    async stop() {
-      keeper?.stop();
-      active = false;
-      await Promise.all(all.map((one) => one.stop()));
-      await Promise.all(queues.map((one) => one.close(SHUTDOWN_WAIT_MS)));
-      // 让出放在最后：在途任务收完了，接任的实例不会与本实例同时干活
-      await lease?.release().catch((error: unknown) => logger.warn({ err: error }, "让出租约失败"));
+    stop() {
+      return (stopping ??= (async () => {
+        keeper?.stop();
+        active = false;
+        try {
+          // 一个关闭失败不能提前解绑：循环与全部消费者都收完后才清理绑定。
+          const loopResults = await Promise.allSettled(all.map((one) => one.stop()));
+          const queueResults = await Promise.allSettled(
+            queues.map((one) => one.close(SHUTDOWN_WAIT_MS)),
+          );
+          // 让出放在最后：在途任务收完了，接任的实例不会与本实例同时干活
+          await lease
+            ?.release()
+            .catch((error: unknown) => logger.warn({ err: error }, "让出租约失败"));
+          const failed = [...loopResults, ...queueResults].find(
+            (result) => result.status === "rejected",
+          );
+          if (failed?.status === "rejected") throw failed.reason;
+        } finally {
+          services.closeBillingTimers?.();
+        }
+      })());
     },
   };
 }

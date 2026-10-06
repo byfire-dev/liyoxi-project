@@ -76,6 +76,7 @@ async function contentView(tx: Tx, o: BillingOrder) {
   const content = o.contentSnapshot as {
     kind: "plan" | "topup" | "upgrade";
     planId?: string;
+    planName?: string;
     months?: number;
     monthlyPoints?: number;
     points?: number;
@@ -89,7 +90,7 @@ async function contentView(tx: Tx, o: BillingOrder) {
   return {
     kind: content.kind,
     planId: content.planId ?? null,
-    planName: plan?.name ?? null,
+    planName: content.planName ?? plan?.name ?? null,
     months: content.months ?? null,
     pointPackId: content.packId ?? null,
     points: content.kind === "topup" ? (content.points ?? null) : null,

@@ -4,6 +4,7 @@ import type {
   TransferProofConfirmBody,
   TransferProofRejectBody,
 } from "@liyoxi/contract";
+import type { BillingOrder } from "@liyoxi/db";
 import type { IdentityContext, Tx } from "../../kernel/index.js";
 import { AppError, lockRows, uuidv7, isUniqueViolation } from "../../kernel/index.js";
 import { assertPermission } from "../../authz/index.js";
@@ -405,14 +406,23 @@ async function audit(
     },
   );
 }
-async function serialConflicts(tx: Tx, serial: string) {
+async function serialConflicts(tx: Tx, serial: string, excludeId?: string) {
   return tx.paymentTxn.findMany({
-    where: { channel: "bank_transfer", channelTxnNo: serial },
+    where: {
+      channel: "bank_transfer",
+      channelTxnNo: serial,
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
     include: { billingOrder: { select: { orderNo: true } } },
   });
 }
-async function checkSerial(tx: Tx, serial: string, input: TransferProofConfirmBody) {
-  const conflicts = await serialConflicts(tx, serial);
+async function checkSerial(
+  tx: Tx,
+  serial: string,
+  input: TransferProofConfirmBody,
+  excludeId?: string,
+) {
+  const conflicts = await serialConflicts(tx, serial, excludeId);
   if (!serial)
     throw new AppError("VALIDATION_FAILED", {
       details: { fieldErrors: [{ path: "bankSerialNo", message: "请填写有效银行流水号" }] },
@@ -440,6 +450,30 @@ async function checkSerial(tx: Tx, serial: string, input: TransferProofConfirmBo
     if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new AppError("CONFIRM_MISMATCH");
   } else if (input.confirm.conflictOrderNos?.length) throw new AppError("CONFIRM_MISMATCH");
 }
+async function assertConfirmation(
+  tx: Tx,
+  deps: BillingPurchaseDeps,
+  ctx: IdentityContext,
+  staff: StaffContext,
+  order: BillingOrder,
+  input: TransferProofConfirmBody,
+) {
+  assertPermission(staff, "finance.receipt.confirm", deps.clock.now());
+  if (ctx.actor.type !== "staff" || ctx.actor.id !== staff.staff.id)
+    throw new AppError("PERMISSION_DENIED");
+  if (input.confirm.orderNo !== order.orderNo) throw new AppError("CONFIRM_MISMATCH");
+  if (input.confirm.receivedAmountFen !== order.amountFen)
+    throw new AppError("TRANSFER_AMOUNT_MISMATCH", { details: { amountFen: order.amountFen } });
+  if (!input.confirmChecks.includes("bank_statement_checked"))
+    throw new AppError("VALIDATION_FAILED");
+  if (order.createdByStaffId === staff.staff.id) throw new AppError("CONFIRMER_IS_ORDER_CREATOR");
+  const finance = await financeConfigAt(tx, deps.clock.now());
+  if (
+    finance.controls.receiptSecondReviewFen !== null &&
+    order.amountFen >= finance.controls.receiptSecondReviewFen
+  )
+    throw new AppError("STATE_NOT_ALLOWED");
+}
 export async function confirmProof(
   tx: Tx,
   deps: BillingPurchaseDeps,
@@ -462,20 +496,7 @@ export async function confirmProof(
     order.transferState !== "proof_submitted"
   )
     throw new AppError("STATE_NOT_ALLOWED");
-  if (ctx.actor.type !== "staff" || ctx.actor.id !== staff.staff.id)
-    throw new AppError("PERMISSION_DENIED");
-  if (input.confirm.orderNo !== order.orderNo) throw new AppError("CONFIRM_MISMATCH");
-  if (input.confirm.receivedAmountFen !== order.amountFen)
-    throw new AppError("TRANSFER_AMOUNT_MISMATCH", { details: { amountFen: order.amountFen } });
-  if (!input.confirmChecks.includes("bank_statement_checked"))
-    throw new AppError("VALIDATION_FAILED");
-  if (order.createdByStaffId === staff.staff.id) throw new AppError("CONFIRMER_IS_ORDER_CREATOR");
-  const finance = await financeConfigAt(tx, now);
-  if (
-    finance.controls.receiptSecondReviewFen !== null &&
-    order.amountFen >= finance.controls.receiptSecondReviewFen
-  )
-    throw new AppError("STATE_NOT_ALLOWED");
+  await assertConfirmation(tx, deps, ctx, staff, order, input);
   const serial = normalizeBankSerial(input.bankSerialNo);
   await checkSerial(tx, serial, input);
   const latest = await tx.paymentTxn.aggregate({
@@ -522,7 +543,15 @@ export async function confirmProof(
     order.channel !== "bank_transfer"
   )
     throw new AppError("STATE_NOT_ALLOWED");
-  assertPermission(staff, "finance.receipt.confirm", deps.clock.now());
+  await assertConfirmation(
+    tx,
+    deps,
+    ctx,
+    staff,
+    await orderInScope(tx, staff.scope, order.id),
+    input,
+  );
+  await checkSerial(tx, serial, input, txnId);
   await tx.transferProof.update({
     where: { id },
     data: {

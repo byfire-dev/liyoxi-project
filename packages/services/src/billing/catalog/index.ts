@@ -165,6 +165,7 @@ export async function quotePlan(
       v: 1,
       kind: "plan" as const,
       planId: plan.id,
+      planName: plan.name,
       planRevisionId: revision.id,
       months,
       cyclePriceFen: payFen,

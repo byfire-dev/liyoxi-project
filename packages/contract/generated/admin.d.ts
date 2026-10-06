@@ -760,12 +760,12 @@ export interface components {
             /** Format: date-time */
             cancelledAt: string | null;
             /** @enum {string} */
-            channel: "wechat_jsapi" | "bank_transfer";
+            channel: "wechat_jsapi" | "bank_transfer" | (string & {});
             clientPlatform: string | null;
             clientVersion: string | null;
             content: {
                 /** @enum {string} */
-                kind: "plan" | "upgrade" | "topup";
+                kind: "plan" | "upgrade" | "topup" | (string & {});
                 months: number | null;
                 /** Format: uuid */
                 planId: string | null;
@@ -805,7 +805,7 @@ export interface components {
                     [key: string]: number;
                 };
                 /** @enum {string} */
-                code: "plan_monthly" | "plan_cycle" | "plan_upgrade" | "topup";
+                code: "plan_monthly" | "plan_cycle" | "plan_upgrade" | "topup" | (string & {});
                 text: string;
             } | null;
             /** Format: date-time */
@@ -818,7 +818,7 @@ export interface components {
                 points: number | null;
                 reasonCode: string | null;
                 /** @enum {string} */
-                status: "done" | "blocked";
+                status: "done" | "blocked" | (string & {});
                 term: {
                     /** Format: date */
                     endDate: string;
@@ -830,7 +830,7 @@ export interface components {
                 termId: string | null;
             } | null;
             /** @enum {string} */
-            fulfillmentStatus: "none" | "done" | "blocked";
+            fulfillmentStatus: "none" | "done" | "blocked" | (string & {});
             hasOpenException: boolean;
             invoice: {
                 latest: null;
@@ -861,7 +861,7 @@ export interface components {
             paymentTxns: {
                 attemptNo: number;
                 /** @enum {string} */
-                channel: "wechat_jsapi" | "bank_transfer";
+                channel: "wechat_jsapi" | "bank_transfer" | (string & {});
                 channelAmountFen: number | null;
                 /** Format: date-time */
                 channelSuccessAt: string | null;
@@ -874,11 +874,11 @@ export interface components {
                 /** Format: uuid */
                 paymentTransactionId: string;
                 /** @enum {string} */
-                reconState: "pending" | "matched" | "diff" | "resolved";
+                reconState: "pending" | "matched" | "diff" | "resolved" | (string & {});
                 refundedFen: number;
                 reviewedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
                 /** @enum {string} */
-                status: "created" | "prepaid" | "succeeded" | "closed";
+                status: "created" | "prepaid" | "succeeded" | "closed" | (string & {});
             }[];
             /** Format: uuid */
             pendingTransferProofId: string | null;
@@ -903,9 +903,9 @@ export interface components {
             /** Format: date-time */
             refundedAt: string | null;
             /** @enum {string} */
-            source: "weapp" | "admin";
+            source: "weapp" | "admin" | (string & {});
             /** @enum {string} */
-            status: "pending_payment" | "pending_confirmation" | "paid" | "cancelled" | "refunded";
+            status: "pending_payment" | "pending_confirmation" | "paid" | "cancelled" | "refunded" | (string & {});
             statusNote: string | null;
             store: {
                 name: string | null;
@@ -915,7 +915,7 @@ export interface components {
             title: string;
             transferProofs: {
                 /** @enum {string} */
-                reviewStatus: "pending" | "accepted" | "rejected" | "superseded";
+                reviewStatus: "pending" | "accepted" | "rejected" | "superseded" | (string & {});
                 /** Format: date-time */
                 reviewedAt: string | null;
                 /** Format: uuid */
@@ -926,13 +926,13 @@ export interface components {
                 uploadedBy: {
                     name: string | null;
                     /** @enum {string} */
-                    type: "merchant" | "staff";
+                    type: "merchant" | "staff" | (string & {});
                 };
             }[];
             /** @enum {string|null} */
-            transferState: "awaiting_proof" | "proof_submitted" | "proof_rejected" | "confirm_review" | null;
+            transferState: "awaiting_proof" | "proof_submitted" | "proof_rejected" | "confirm_review" | (string & {}) | null;
             /** @enum {string} */
-            type: "plan_new" | "plan_renew" | "plan_upgrade" | "topup";
+            type: "plan_new" | "plan_renew" | "plan_upgrade" | "topup" | (string & {});
         };
         PoolMember: {
             city: components["schemas"]["DictRef"] | null;
@@ -1214,7 +1214,7 @@ export interface components {
             fileId: string;
             fileMime: string;
             firstConfirm: null;
-            hints: ("uploaded_today" | "uploaded_earlier" | "remark_missing_order_no" | "payer_name_mismatch" | "amount_mismatch" | "upgrade_quote_expiring" | "in_review")[];
+            hints: ("uploaded_today" | "uploaded_earlier" | "remark_missing_order_no" | "payer_name_mismatch" | "amount_mismatch" | "upgrade_quote_expiring" | "in_review" | (string & {}))[];
             isOverdue: boolean;
             lockVersion: number;
             ocr: {
@@ -1231,17 +1231,17 @@ export interface components {
                 expiresAt: string;
                 formulaText: string | null;
                 /** @enum {string} */
-                status: "pending_payment" | "pending_confirmation" | "paid" | "cancelled" | "refunded";
+                status: "pending_payment" | "pending_confirmation" | "paid" | "cancelled" | "refunded" | (string & {});
                 title: string;
                 /** @enum {string|null} */
-                transferState: "awaiting_proof" | "proof_submitted" | "proof_rejected" | "confirm_review" | null;
+                transferState: "awaiting_proof" | "proof_submitted" | "proof_rejected" | "confirm_review" | (string & {}) | null;
             };
             orderNo: string;
             /** @enum {string} */
-            orderType: "plan_new" | "plan_renew" | "plan_upgrade" | "topup";
+            orderType: "plan_new" | "plan_renew" | "plan_upgrade" | "topup" | (string & {});
             otherUploads: {
                 /** @enum {string} */
-                reviewStatus: "pending" | "accepted" | "rejected" | "superseded";
+                reviewStatus: "pending" | "accepted" | "rejected" | "superseded" | (string & {});
                 /** Format: uuid */
                 transferProofId: string;
                 uploadNo: number;
@@ -1254,7 +1254,7 @@ export interface components {
             rejectReason: components["schemas"]["DictRef"] & (Record<string, never> | null);
             review: null;
             /** @enum {string} */
-            reviewStatus: "pending" | "accepted" | "rejected" | "superseded";
+            reviewStatus: "pending" | "accepted" | "rejected" | "superseded" | (string & {});
             /** Format: date-time */
             reviewedAt: string | null;
             reviewedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
@@ -1267,7 +1267,7 @@ export interface components {
             uploadedBy: {
                 name: string | null;
                 /** @enum {string} */
-                type: "merchant" | "staff";
+                type: "merchant" | "staff" | (string & {});
             };
         };
         VerifyMfaBody: {
@@ -2835,15 +2835,15 @@ export interface operations {
                                     storeCount: number;
                                     verificationStatus: string;
                                 };
-                                hints: ("uploaded_today" | "uploaded_earlier" | "remark_missing_order_no" | "payer_name_mismatch" | "amount_mismatch" | "upgrade_quote_expiring" | "in_review")[];
+                                hints: ("uploaded_today" | "uploaded_earlier" | "remark_missing_order_no" | "payer_name_mismatch" | "amount_mismatch" | "upgrade_quote_expiring" | "in_review" | (string & {}))[];
                                 isOverdue: boolean;
                                 orderNo: string;
                                 /** @enum {string} */
-                                orderType: "plan_new" | "plan_renew" | "plan_upgrade" | "topup";
+                                orderType: "plan_new" | "plan_renew" | "plan_upgrade" | "topup" | (string & {});
                                 /** Format: uuid */
                                 paymentOrderId: string;
                                 /** @enum {string} */
-                                reviewStatus: "pending" | "accepted" | "rejected" | "superseded";
+                                reviewStatus: "pending" | "accepted" | "rejected" | "superseded" | (string & {});
                                 /** Format: date-time */
                                 reviewedAt: string | null;
                                 reviewedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
@@ -2855,7 +2855,7 @@ export interface operations {
                                 uploadedBy: {
                                     name: string | null;
                                     /** @enum {string} */
-                                    type: "merchant" | "staff";
+                                    type: "merchant" | "staff" | (string & {});
                                 };
                             }[];
                             page: number;
@@ -3127,7 +3127,7 @@ export interface operations {
                         code: 0;
                         data: components["schemas"]["TransferProofDetail"] & {
                             /** @enum {string} */
-                            outcome: "paid" | "review_pending";
+                            outcome: "paid" | "review_pending" | (string & {});
                         };
                         /** @enum {string} */
                         message: "ok";

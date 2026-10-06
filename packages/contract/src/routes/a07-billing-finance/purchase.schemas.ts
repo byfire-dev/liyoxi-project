@@ -1,5 +1,11 @@
 import { z } from "../../zod.js";
-import { IdSchema, InstantSchema, DictRefSchema, PageQuerySchema } from "../../common/index.js";
+import {
+  IdSchema,
+  InstantSchema,
+  DictRefSchema,
+  PageQuerySchema,
+  openEnum,
+} from "../../common/index.js";
 import { adminPage, StaffBriefSchema } from "../a01-system/structures.js";
 import {
   BillingFormulaSchema,
@@ -17,7 +23,7 @@ const Entity = z.object({
   verificationStatus: z.string(),
   managerStaff: StaffBriefSchema.nullable(),
 });
-const UploadedBy = z.object({ type: z.enum(["merchant", "staff"]), name: z.string().nullable() });
+const UploadedBy = z.object({ type: openEnum(["merchant", "staff"]), name: z.string().nullable() });
 export const TransferProofParamsSchema = z.object({ transferProofId: IdSchema });
 export const TransferProofListQuerySchema = PageQuerySchema.extend({
   tab: z.enum(["pending", "processed_today"]).default("pending"),
@@ -42,7 +48,7 @@ export const TransferProofQueueItemSchema = z.object({
   dueAt: nullableTime,
   isOverdue: z.boolean(),
   hints: z.array(
-    z.enum([
+    openEnum([
       "uploaded_today",
       "uploaded_earlier",
       "remark_missing_order_no",
@@ -52,7 +58,7 @@ export const TransferProofQueueItemSchema = z.object({
       "in_review",
     ]),
   ),
-  reviewStatus: z.enum(["pending", "accepted", "rejected", "superseded"]),
+  reviewStatus: openEnum(["pending", "accepted", "rejected", "superseded"]),
   reviewedAt: nullableTime,
   reviewedBy: StaffBriefSchema.nullable(),
 });
@@ -115,7 +121,7 @@ export const TransferProofConfirmBodySchema = z.object({
     .refine((v) => v.includes("bank_statement_checked"), "请核对银行流水"),
 });
 export const TransferProofConfirmResultSchema = TransferProofDetailSchema.extend({
-  outcome: z.enum(["paid", "review_pending"]),
+  outcome: openEnum(["paid", "review_pending"]),
 });
 export const TransferProofRejectBodySchema = z.object({
   lockVersion: z.int().nonnegative(),
@@ -126,7 +132,7 @@ const PaymentTxnView = z.object({
   paymentTransactionId: IdSchema,
   attemptNo: z.int().positive(),
   channel: PaymentOrderDetailSchema.shape.channel,
-  status: z.enum(["created", "prepaid", "succeeded", "closed"]),
+  status: openEnum(["created", "prepaid", "succeeded", "closed"]),
   outTradeNo: z.string(),
   channelTxnNo: z.string().nullable(),
   channelAmountFen: z.int().nullable(),
@@ -134,7 +140,7 @@ const PaymentTxnView = z.object({
   channelSuccessAt: nullableTime,
   isApplied: z.boolean(),
   refundedFen: z.int(),
-  reconState: z.enum(["pending", "matched", "diff", "resolved"]),
+  reconState: openEnum(["pending", "matched", "diff", "resolved"]),
   payerName: z.string().nullable(),
   confirmedBy: StaffBriefSchema.nullable(),
   reviewedBy: StaffBriefSchema.nullable(),
@@ -158,7 +164,7 @@ export const PaymentOrderAdminDetailSchema = z
     fulfillmentStatus: PaymentOrderDetailSchema.shape.fulfillmentStatus,
     statusNote: z.string().nullable(),
     hasOpenException: z.boolean(),
-    source: z.enum(["weapp", "admin"]),
+    source: openEnum(["weapp", "admin"]),
     pendingTransferProofId: IdSchema.nullable(),
     actions: z.array(z.string()),
     formula: BillingFormulaSchema.nullable(),
@@ -173,7 +179,7 @@ export const PaymentOrderAdminDetailSchema = z
     fulfillment: FulfillmentViewSchema.partial({ effectiveAt: true })
       .extend({
         effectiveAt: nullableTime,
-        status: z.enum(["done", "blocked"]),
+        status: openEnum(["done", "blocked"]),
         termId: IdSchema.nullable(),
         lotIds: z.array(IdSchema),
         reasonCode: z.string().nullable(),

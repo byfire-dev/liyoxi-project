@@ -3,14 +3,16 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   seedPlaceholderFinanceConfig,
+  proposeFinanceConfig,
   createIdentityContext,
   createNotices,
   runSeed,
   security,
   uuidv7,
 } from "@liyoxi/services";
-import { createFactories, signInAsStaff } from "@liyoxi/services/testing";
+import { createFactories, signInAsStaff, sampleStaffContext } from "@liyoxi/services/testing";
 import type { FakeStorage, SignedInStaff } from "@liyoxi/services/testing";
+import { planOrderContentSchema } from "@liyoxi/contract";
 import type { PaymentOrderDetail, PlanQuote } from "@liyoxi/contract";
 import { useTestApi } from "../src/testing/index.js";
 import type { TestApi } from "../src/testing/index.js";
@@ -121,6 +123,40 @@ const getProof = async (id: string, staff = finance) =>
   );
 async function awaitableRequest(id: string, staff: SignedInStaff) {
   return api.request(`/api/v1/admin/transfer-proofs/${id}`, { headers: staff.headers });
+}
+async function approveConfig(
+  configKey: "bank_account" | "purchase_policy" | "controls",
+  payload: unknown,
+) {
+  const proposer = await signInAsStaff(db, { roleKey: "finance", now: api.clock.now() });
+  const approver = await signInAsStaff(db, {
+    roleKey: "finance",
+    isLead: true,
+    now: api.clock.now(),
+  });
+  const identity = (id: string) =>
+    createIdentityContext({ actor: { type: "staff", id, client: "admin" } });
+  const proposal = await api.runtime.tx.run(async (tx) =>
+    proposeFinanceConfig(
+      tx,
+      {
+        approval: api.runtime.approval,
+        clock: api.clock,
+        keyring: security.loadKeyring(api.runtime.env),
+      },
+      identity(proposer.staff.id),
+      { configKey, payload, changeNote: "定向接口测试" },
+      await sampleStaffContext(db, proposer.staff.id, { stepUpAt: api.clock.now() }),
+    ),
+  );
+  await api.runtime.tx.run(async (tx) =>
+    api.runtime.approval.approve(tx, identity(approver.staff.id), {
+      approvalId: proposal.approvalId,
+      lockVersion: 0,
+      staff: await sampleStaffContext(db, approver.staff.id, { stepUpAt: api.clock.now() }),
+    }),
+  );
+  return proposal.financeConfigRevisionId;
 }
 beforeAll(async () => {
   api = await h.start();
@@ -507,5 +543,233 @@ describe("对公付款真实 API 链", { timeout: 90_000 }, () => {
       [`/m/payment-orders/${o.paymentOrderId}/transfer-proofs`, { fileId: uuidv7() }],
     ] as const)
       await error(await post(path, json, clerk.withStore(b.storeId)), 403, "ROLE_FORBIDDEN");
+  });
+  it("策略首匹配控制列表/报价/建单，未生效收款账户不可选", async () => {
+    const b = await buyer(),
+      q = await quote(b);
+    await approveConfig("purchase_policy", {
+      rules: [{ when: { entityIds: [b.entityId] }, then: { mode: "offline_contract" } }],
+    });
+    expect(
+      await data(await api.request("/api/v1/m/plans", { headers: b.owner.withStore(b.storeId) })),
+    ).toEqual({ items: [] });
+    expect(
+      await data(
+        await api.request("/api/v1/m/purchase-policy", { headers: b.owner.withStore(b.storeId) }),
+      ),
+    ).toMatchObject({ mode: "offline_contract", channels: [], isPriceShown: false });
+    await error(
+      await post("/m/plans/quote", { planId: q.planId, months: 1 }, b.owner.withStore(b.storeId)),
+      403,
+      "PURCHASE_NOT_OFFERED",
+    );
+    await error(
+      await post("/m/payment-orders", orderBody(q), b.owner.withStore(b.storeId)),
+      403,
+      "PURCHASE_NOT_OFFERED",
+    );
+    const now = api.clock.now();
+    try {
+      api.clock.set(new Date(now.getTime() - 26 * 3_600_000));
+      expect(
+        await data(
+          await api.request("/api/v1/m/purchase-policy", {
+            headers: b.owner.withStore(b.storeId),
+          }),
+        ),
+      ).toMatchObject({ channels: [{ isEnabled: false }, { isEnabled: false }] });
+    } finally {
+      api.clock.set(now);
+    }
+  });
+  it("真实新账户批准24小时后仅新单采用，已建单仍取原版本；后台资源按本人范围", async () => {
+    const b = await buyer(),
+      o = await order(b),
+      p = await proof(b, o);
+    const manager = await signInAsStaff(db, { roleKey: "delivery_manager" });
+    const other = await signInAsStaff(db, { roleKey: "delivery_manager" });
+    await db.store.update({
+      where: { id: b.storeId },
+      data: { deliveryManagerId: manager.staff.id },
+    });
+    await data(
+      await api.request(`/api/v1/admin/payment-orders/${o.paymentOrderId}`, {
+        headers: manager.headers,
+      }),
+    );
+    await data(await awaitableRequest(p.latestTransferProof!.transferProofId, manager));
+    await error(
+      await api.request(`/api/v1/admin/payment-orders/${o.paymentOrderId}`, {
+        headers: other.headers,
+      }),
+      404,
+      "NOT_FOUND",
+    );
+    await error(
+      await awaitableRequest(p.latestTransferProof!.transferProofId, other),
+      404,
+      "NOT_FOUND",
+    );
+    const original = await db.billingOrder.findUniqueOrThrow({ where: { id: o.paymentOrderId } });
+    const changed = await approveConfig("bank_account", {
+      accountName: "新演示收款户",
+      bankName: "新演示银行",
+      accountNo: "1111111111111111",
+    });
+    expect(
+      (await db.financeConfigRevision.findUniqueOrThrow({ where: { id: changed } })).effectiveAt,
+    ).toEqual(new Date(api.clock.now().getTime() + 86_400_000));
+    const now = api.clock.now();
+    try {
+      api.clock.set(new Date(now.getTime() + 86_400_000));
+      b.owner = await signInAsMerchant(api, { phone: b.owner.phone, openid: b.owner.openid });
+      const old = await data<PaymentOrderDetail>(
+        await api.request(`/api/v1/m/payment-orders/${o.paymentOrderId}`, {
+          headers: b.owner.withStore(b.storeId),
+        }),
+      );
+      expect(old.bankAccount).toMatchObject({
+        accountName: "狸有戏（演示收款户，勿转账）",
+        accountNo: "0000000000000000",
+      });
+      expect(
+        (await db.billingOrder.findUniqueOrThrow({ where: { id: o.paymentOrderId } }))
+          .bankAccountFinanceConfigRevisionId,
+      ).toBe(original.bankAccountFinanceConfigRevisionId);
+      const fresh = await order(await buyer());
+      expect(fresh.bankAccount).toMatchObject({
+        accountName: "新演示收款户",
+        accountNo: "1111111111111111",
+      });
+      expect(
+        (await db.billingOrder.findUniqueOrThrow({ where: { id: fresh.paymentOrderId } }))
+          .bankAccountFinanceConfigRevisionId,
+      ).toBe(changed);
+    } finally {
+      api.clock.set(now);
+    }
+  });
+  it("新快照保持创建时名称，老快照无名称仍兼容读侧", async () => {
+    const b = await buyer(),
+      q = await quote(b),
+      o = await order(b, q);
+    const original = await db.billingOrder.findUniqueOrThrow({ where: { id: o.paymentOrderId } });
+    expect(original.contentSnapshot).toMatchObject({ planName: q.planName });
+    try {
+      await db.plan.update({ where: { id: q.planId }, data: { name: "改名后的套餐" } });
+      const read = () =>
+        api.request(`/api/v1/m/payment-orders/${o.paymentOrderId}`, {
+          headers: b.owner.withStore(b.storeId),
+        });
+      expect(await data(await read())).toMatchObject({ content: { planName: q.planName } });
+      const admin = await data<{ content: { planName: string } }>(
+        await api.request(`/api/v1/admin/payment-orders/${o.paymentOrderId}`, {
+          headers: finance.headers,
+        }),
+      );
+      expect(admin.content.planName).toBe(q.planName);
+      const legacy = planOrderContentSchema.parse(original.contentSnapshot);
+      delete legacy.planName;
+      await db.billingOrder.update({
+        where: { id: original.id },
+        data: { contentSnapshot: legacy },
+      });
+      expect(await data(await read())).toMatchObject({ content: { planName: "改名后的套餐" } });
+    } finally {
+      await db.plan.update({ where: { id: q.planId }, data: { name: q.planName } });
+    }
+  });
+  it("大额复核桩拒绝不留交易；不同银行同流水须精确回显，同银行仍拒绝", async () => {
+    const b = await buyer(),
+      o = await order(b),
+      p = await proof(b, o),
+      id = p.latestTransferProof!.transferProofId;
+    await approveConfig("controls", {
+      adminCreateOrder: false,
+      wechatSingleLimitFen: 0,
+      wechatDailyLimitFen: 0,
+      receiptSecondReviewFen: 1,
+      shippingReport: false,
+    });
+    await error(
+      await post(`/admin/transfer-proofs/${id}/confirm`, confirm(o), finance.headers),
+      409,
+      "STATE_NOT_ALLOWED",
+    );
+    expect(await db.paymentTxn.count({ where: { billingOrderId: o.paymentOrderId } })).toBe(0);
+    expect(await getProof(id)).toMatchObject({ reviewStatus: "pending", lockVersion: 0 });
+    await approveConfig("controls", {
+      adminCreateOrder: false,
+      wechatSingleLimitFen: 0,
+      wechatDailyLimitFen: 0,
+      receiptSecondReviewFen: null,
+      shippingReport: false,
+    });
+    const now = api.clock.now();
+    for (const [code, name] of [
+      ["W111B_A", "测试甲银行"],
+      ["W111B_B", "测试乙银行"],
+    ])
+      await db.dictItem.create({
+        data: {
+          id: uuidv7(),
+          dictTypeKey: "bank",
+          code: code!,
+          name: name!,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
+    const serial = `BANK-${uuidv7()}`;
+    await data(
+      await post(
+        `/admin/transfer-proofs/${id}/confirm`,
+        { ...confirm(o, serial), payerBankCode: "W111B_A" },
+        finance.headers,
+      ),
+    );
+    const b2 = await buyer(),
+      o2 = await order(b2),
+      p2 = await proof(b2, o2),
+      id2 = p2.latestTransferProof!.transferProofId;
+    await error(
+      await post(
+        `/admin/transfer-proofs/${id2}/confirm`,
+        { ...confirm(o2, serial), payerBankCode: "W111B_B" },
+        finance.headers,
+      ),
+      409,
+      "CONFIRM_MISMATCH",
+    );
+    expect(await db.paymentTxn.count({ where: { billingOrderId: o2.paymentOrderId } })).toBe(0);
+    const accepted = await data(
+      await post(
+        `/admin/transfer-proofs/${id2}/confirm`,
+        {
+          ...confirm(o2, serial),
+          payerBankCode: "W111B_B",
+          confirm: { ...confirm(o2).confirm, conflictOrderNos: [o.orderNo] },
+        },
+        finance.headers,
+      ),
+    );
+    expect(accepted).toMatchObject({ outcome: "paid" });
+    const b3 = await buyer(),
+      o3 = await order(b3),
+      p3 = await proof(b3, o3);
+    await error(
+      await post(
+        `/admin/transfer-proofs/${p3.latestTransferProof!.transferProofId}/confirm`,
+        {
+          ...confirm(o3, serial),
+          payerBankCode: "W111B_B",
+          confirm: { ...confirm(o3).confirm, conflictOrderNos: [o.orderNo, o2.orderNo] },
+        },
+        finance.headers,
+      ),
+      409,
+      "BANK_SERIAL_DUPLICATE",
+    );
+    expect(await db.paymentTxn.count({ where: { billingOrderId: o3.paymentOrderId } })).toBe(0);
   });
 });
