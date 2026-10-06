@@ -128,16 +128,36 @@ const CREDENTIAL_JOBS: Record<string, { id: string; condition: string; keys: str
   ],
 };
 function unapprovedCredentials(workflow: string, name: string): string {
-  let remaining = workflow;
+  const approved = new Map<string, string[]>();
   for (const job of CREDENTIAL_JOBS[name] ?? []) {
     const body = jobBody(workflow, job.id);
-    if (!body.split("\n").includes(`    if: ${job.condition}`)) continue;
-    const checked = body.replace(/\bsecrets\.([\w]+)/g, (reference: string, key: string) =>
-      job.keys.includes(key) ? "" : reference,
-    );
-    remaining = remaining.replace(body, checked);
+    const conditions = body.split("\n").filter((line) => /^ {4}if:/.test(line));
+    if (conditions.length !== 1 || conditions[0] !== `    if: ${job.condition}`) continue;
+    // 凭据节点不能经锚点/别名带出任务。无凭据工作流的原有 runner 锚点仍由原检查处理。
+    if (/(?:^|[\s[{,])[&*][\w-]+(?=\s|[,\]}]|$)/m.test(body)) continue;
+    approved.set(job.id, job.keys);
   }
-  return remaining;
+  let inJobs = false;
+  let keys: string[] | undefined;
+  // 只定位原始行，不拿 shapeOf 压缩过的正文替换原文；合法空行不改变任务范围。
+  return workflow
+    .split("\n")
+    .map((line) => {
+      if (line.trim() !== "" && !isComment(line)) {
+        if (indentOf(line) === 0) {
+          inJobs = line === "jobs:";
+          keys = undefined;
+        } else if (inJobs && indentOf(line) === 2) {
+          keys = approved.get(line.match(JOB_KEY)?.[1] ?? "");
+        }
+      }
+      return inJobs && keys
+        ? line.replace(/\bsecrets\.([\w]+)/g, (reference: string, key: string) =>
+            keys!.includes(key) ? "" : reference,
+          )
+        : line;
+    })
+    .join("\n");
 }
 
 describe("发布凭据例外的反例", () => {
@@ -151,6 +171,21 @@ describe("发布凭据例外的反例", () => {
       ...keys.map((key) => "      TOKEN_" + key + ": ${{ secrets." + key + " }}"),
       "",
     ].join("\n");
+  it("批准任务内合法空行仍可引用凭据", () => {
+    const job = CREDENTIAL_JOBS["images.yml"]![0]!;
+    const valid = fixture(job.id, job.condition, job.keys).replace("    env:", "\n    env:");
+    expect(unapprovedCredentials(valid, "images.yml")).not.toMatch(/\bsecrets\./);
+  });
+  it("批准凭据不能经env锚点流入构建任务，原无凭据runner锚点仍可用", () => {
+    const job = CREDENTIAL_JOBS["images.yml"]![0]!;
+    const anchored =
+      fixture(job.id, job.condition, job.keys).replace("    env:", "    env: &credentials") +
+      "  build:\n    name: build\n    env: *credentials\n";
+    expect(unapprovedCredentials(anchored, "images.yml")).toMatch(/\bsecrets\./);
+    const runner =
+      "jobs:\n  build:\n    name: build\n    runs-on: &runner ubuntu-24.04\n  other:\n    name: other\n    runs-on: *runner\n";
+    expect(unapprovedCredentials(runner, "ci.yml")).not.toMatch(/\bsecrets\./);
+  });
   for (const [name, jobs] of Object.entries(CREDENTIAL_JOBS)) {
     for (const job of jobs) {
       it(`${name}/${job.id}：仅完整可信条件下批准的凭据可引用`, () => {
