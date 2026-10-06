@@ -56,6 +56,9 @@ const wantedScenes = [];
 const { ACCOUNT_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/account-scenes.ts")).href
 );
+const { PROFILE_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/profile-scenes.ts")).href
+);
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--no-build") build = false;
@@ -73,7 +76,8 @@ for (let index = 0; index < args.length; index += 1) {
     wantedSheets.push(name);
   } else if (args[index] === "--scene") {
     const name = args[(index += 1)];
-    if (!ACCOUNT_SCENES.some((item) => item.name === name)) fail(`未知账户场景 ${name}`);
+    if (![...ACCOUNT_SCENES, ...PROFILE_SCENES].some((item) => item.name === name))
+      fail(`未知固定场景 ${name}`);
     wantedScenes.push(name);
   } else fail(`不认识的参数 ${args[index]}`);
 }
@@ -114,13 +118,25 @@ const targets = [
       url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
       file: `account__${item.name}`,
       scene: item.name,
+      kind: "account",
+      fullPage: false,
+    }),
+  ),
+  ...(all ? PROFILE_SCENES : PROFILE_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
+    (item) => ({
+      label: item.name,
+      url: `${item.route}?lyxShot=${item.name}`,
+      file: `profile__${item.name}`,
+      scene: item.name,
+      kind: "profile",
       fullPage: false,
     }),
   ),
   ...(all
     ? builtRoutes.filter(
         (route) =>
-          !["pages/login/index", "pages/agreement/index", "pages/mine/index"].includes(route),
+          !["pages/login/index", "pages/agreement/index", "pages/mine/index"].includes(route) &&
+          !PROFILE_SCENES.some((item) => item.route === route),
       )
     : wanted
   ).map((route) => ({
@@ -128,6 +144,9 @@ const targets = [
     url: route,
     file: route.replaceAll("/", "__"),
     fullPage: route === GALLERY_INDEX_ROUTE,
+    ...(PROFILE_SCENES.some((item) => item.route === route)
+      ? { scene: PROFILE_SCENES.find((item) => item.route === route)?.name, kind: "profile" }
+      : {}),
   })),
   ...(all ? componentNames : wantedComponents).map((name) => ({
     label: `组件 ${name}`,
@@ -198,9 +217,13 @@ async function shoot(target) {
   page.on("pageerror", (error) => errors.push(error.message));
   try {
     if (target.scene) {
-      await page.addInitScript((scene) => {
-        globalThis.__LYX_ACCOUNT_SHOT__ = scene;
-      }, target.scene);
+      await page.addInitScript(
+        ({ scene, kind }) => {
+          globalThis.__LYX_ACCOUNT_SHOT__ = kind === "profile" ? "mine-owner" : scene;
+          if (kind === "profile") globalThis.__LYX_PROFILE_SHOT__ = scene;
+        },
+        { scene: target.scene, kind: target.kind },
+      );
       await page.route("**/*", (route) => {
         if (new URL(route.request().url()).origin === origin) return route.continue();
         errors.push(`离线场景外发请求：${route.request().url()}`);
@@ -214,7 +237,9 @@ async function shoot(target) {
     const taroPage = page.locator(".taro_page").first();
     await taroPage.waitFor({ state: "visible", timeout: 15_000 });
     if (target.scene) {
-      await page.locator("#account-ready").waitFor({ state: "visible", timeout: 15_000 });
+      await page
+        .locator(target.kind === "profile" ? "#profile-ready" : "#account-ready")
+        .waitFor({ state: "visible", timeout: 15_000 });
       if (target.scene.startsWith("login")) {
         await page.locator("input").fill("13800138000");
         if (target.scene === "login-checked")
@@ -227,6 +252,68 @@ async function shoot(target) {
         await page.getByText("请确认更新后的协议", { exact: true }).waitFor({ state: "visible" });
       if (target.scene === "store-switch" || target.scene === "reconsent")
         await page.waitForTimeout(400);
+      if (target.kind === "profile") {
+        if (target.scene === "basic-normal") {
+          await page.locator("input").first().fill("邻里咖啡新店");
+          await page.locator(".lyx-button").filter({ hasText: "保存基础信息" }).click();
+          await page.locator(".lyx-button--loading").waitFor({ state: "hidden" });
+          const body = await page.evaluate(
+            () =>
+              globalThis.__LYX_PROFILE_CALLS__.find(
+                (call) => call.path === "/m/store-profile/basic" && call.method === "PATCH",
+              )?.data,
+          );
+          if (
+            body?.brandName !== "邻里咖啡新店" ||
+            body?.draft !== true ||
+            body?.lockVersion !== 1 ||
+            body?.address?.latitude !== null ||
+            body?.address?.longitude !== null ||
+            body?.address?.poiName !== null ||
+            body?.businessHours?.[0]?.start !== "09:00"
+          )
+            throw new Error("基础信息保存未按当前DTO发送");
+          await taroPage.evaluate((node) => {
+            node.scrollTop = 0;
+          });
+        }
+        if (target.scene === "store-normal" || target.scene === "service-normal") {
+          const media = target.scene === "store-normal";
+          await page
+            .locator(".lyx-button")
+            .filter({ hasText: media ? "保存门店环境" : "保存服务与价格" })
+            .click();
+          await page.locator(".lyx-button--loading").waitFor({ state: "hidden" });
+          const body = await page.evaluate(
+            (path) =>
+              globalThis.__LYX_PROFILE_CALLS__.find(
+                (call) => call.path === path && call.method === "PATCH",
+              )?.data,
+            media ? "/m/store-profile/media" : "/m/store-profile/service",
+          );
+          if (
+            body?.draft !== true ||
+            body?.lockVersion !== 1 ||
+            (media
+              ? body?.groups?.interior?.length !== 3
+              : body?.serviceItems?.[0]?.priceFen !== 2800 ||
+                body?.sellingPointCodes?.[0] !== "fresh")
+          )
+            throw new Error("建档保存未按当前DTO发送");
+          await taroPage.evaluate((node) => {
+            node.scrollTop = 0;
+          });
+        }
+        if (target.scene === "cert-missing") {
+          await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
+          await page.locator(".lyx-button").filter({ hasText: "提交资质审核" }).click();
+          const missing = page.getByText("请补充门店必填资料", { exact: true });
+          await missing.waitFor({ state: "visible" });
+          await missing.scrollIntoViewIfNeeded();
+        }
+        if (target.scene === "review-rejected")
+          await page.getByText("证照不清晰", { exact: true }).waitFor({ state: "visible" });
+      }
     }
     if (errors.length > 0) throw new Error(`页面报错：${errors[0]}`);
     if (target.fullPage) {
@@ -240,6 +327,48 @@ async function shoot(target) {
     }
     const file = path.join(outDir, `${target.file}.png`);
     await page.screenshot({ path: file });
+    if (target.scene === "profile-not-started") {
+      if (
+        await page.evaluate(() =>
+          globalThis.__LYX_PROFILE_CALLS__.some((call) => call.path === "/m/entities"),
+        )
+      )
+        throw new Error("打开建档首页不应创建主体");
+      await page.locator(".lyx-button").filter({ hasText: "开始建档" }).click();
+      await page.getByText("建档完成度", { exact: true }).waitFor({ state: "visible" });
+      if (
+        (await page.evaluate(
+          () =>
+            globalThis.__LYX_PROFILE_CALLS__.filter((call) => call.path === "/m/entities").length,
+        )) !== 1
+      )
+        throw new Error("开始建档须只创建一次");
+    }
+    if (target.scene === "cert-normal") {
+      await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
+      await page.locator(".lyx-button").filter({ hasText: "提交资质审核" }).click();
+      await page
+        .getByText("信息确认已更新，请刷新后重新阅读并确认", { exact: true })
+        .waitFor({ state: "visible" });
+      await page.locator(".lyx-text-button").filter({ hasText: "刷新并核对" }).click();
+      await page.getByText("确认版本：2", { exact: true }).waitFor({ state: "visible" });
+      const submit = page.locator(".lyx-button").filter({ hasText: "提交资质审核" });
+      if (!(await submit.getAttribute("class"))?.includes("lyx-button--disabled"))
+        throw new Error("声明更新后须重新勾选");
+      await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
+      await submit.click();
+      await page
+        .getByText("当前资料只读。审核进度与结果请到审核进度页查看", { exact: true })
+        .waitFor({ state: "visible" });
+      const submitted = await page.evaluate(() =>
+        globalThis.__LYX_PROFILE_CALLS__
+          .filter((call) => call.path === "/m/store-profile/qualification/submit")
+          .map((call) => call.data.declarationVersion),
+      );
+      if (JSON.stringify(submitted) !== JSON.stringify(["1", "2"]))
+        throw new Error("提交没有携带本次声明版本");
+    }
+    if (errors.length > 0) throw new Error(`页面报错：${errors[0]}`);
     console.log(`已出图 ${path.relative(appRoot, file)}`);
   } catch (error) {
     failed.push(`${target.label}：${String(error.message)}`);
