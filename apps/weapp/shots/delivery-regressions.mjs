@@ -13,6 +13,8 @@ export async function deliveryNavigationRegression(page, shotPath) {
   expect(await calls(page)).toEqual([
     { path: "/m/order-items/00000000-0000-4000-8000-000000000411/sample", method: "GET" },
   ]);
+  // Taro 的路由进场动画结束后再取实际目标页画面。
+  await page.waitForTimeout(500);
   await page.screenshot({ path: shotPath });
 }
 export async function deliveryRegression(page, scene) {
