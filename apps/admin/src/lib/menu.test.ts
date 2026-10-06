@@ -124,10 +124,24 @@ describe("每一项的字段", () => {
     }
   });
 
-  it("本包合并时没有一页标为已实现；V1.1 的不排工作包", () => {
-    expect(ALL_PAGES.filter((page) => page.implemented)).toEqual([]);
+  it("W1-02 的基础页与用户菜单已实现；V1.1 的不排工作包或标已实现", () => {
+    const baseKeys = [
+      "base.login",
+      "base.mfa",
+      "base.first_password",
+      "base.enroll_totp",
+      "base.step_up",
+      "base.forbidden",
+      "base.not_found",
+      "shell.user_menu",
+    ];
+    for (const key of baseKeys) {
+      expect(findPage(key)?.implemented, key).toBe(true);
+      expect(findPage(key)?.workPackage, key).toBe("W1-02");
+    }
     for (const page of ALL_PAGES) {
       expect(page.workPackage === "—", page.key).toBe(page.milestone === "V1.1");
+      if (page.milestone === "V1.1") expect(page.implemented, page.key).toBe(false);
     }
   });
 
