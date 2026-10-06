@@ -627,6 +627,184 @@
         ],
         "type": "object"
       },
+      "CartAcceptBody": {
+        "properties": {
+          "acceptedPricePoints": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "acceptedPricePoints"
+        ],
+        "type": "object"
+      },
+      "CartCreateBody": {
+        "properties": {
+          "dramaId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dramaId"
+        ],
+        "type": "object"
+      },
+      "CartItem": {
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "addedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "cartItemId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "currentPricePoints": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "discountedPoints": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "drama": {
+            "$ref": "#/components/schemas/DramaCard"
+          },
+          "invalidReason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "not_listed",
+                  "stopped"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "priceAckedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "snapshotPricePoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "valid",
+              "price_changed",
+              "invalid"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "cartItemId",
+          "drama",
+          "state",
+          "invalidReason",
+          "snapshotPricePoints",
+          "currentPricePoints",
+          "discountedPoints",
+          "addedAt",
+          "priceAckedAt",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "CartItemAcceptResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CartItem"
+          },
+          {
+            "properties": {
+              "replayed": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "replayed"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "CartList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CartItem"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "limit": {
+            "enum": [
+              50
+            ],
+            "type": "number"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "properties": {
+                  "discountBp": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "planName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "planName",
+                  "discountBp"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "spendablePoints": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "limit",
+          "plan",
+          "spendablePoints"
+        ],
+        "type": "object"
+      },
       "ChannelAccountAttention": {
         "properties": {
           "abnormalReason": {
@@ -4313,15 +4491,12 @@
             "type": "array"
           },
           "city": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/DictRef"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },
@@ -4999,15 +5174,12 @@
             "type": "array"
           },
           "city": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/DictRef"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },
@@ -5711,15 +5883,12 @@
             "type": "integer"
           },
           "city": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/DictRef"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },
@@ -5809,15 +5978,12 @@
               "matchBy": {
                 "properties": {
                   "category": {
-                    "allOf": [
+                    "anyOf": [
                       {
                         "$ref": "#/components/schemas/DictRef"
                       },
                       {
-                        "type": [
-                          "object",
-                          "null"
-                        ]
+                        "type": "null"
                       }
                     ]
                   },
@@ -7530,6 +7696,228 @@
         ],
         "type": "object"
       },
+      "MerchantOrderItemList": {
+        "properties": {
+          "hasMore": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OrderItemRow"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore"
+        ],
+        "type": "object"
+      },
+      "MerchantOrderList": {
+        "properties": {
+          "hasMore": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OrderCard"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore"
+        ],
+        "type": "object"
+      },
+      "OrderCard": {
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "firstDramaTitle": {
+            "type": "string"
+          },
+          "itemCount": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "liveSummary": {
+            "anyOf": [
+              {
+                "properties": {
+                  "earliestUsageEndDate": {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  "firstLiveOrderItemId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "liveEpisodeCount": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "liveItemCount": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "liveItemCount",
+                  "liveEpisodeCount",
+                  "earliestUsageEndDate",
+                  "firstLiveOrderItemId"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orderId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "pinnedTodo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrderTodo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "platforms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "returnedPoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending_start",
+              "producing",
+              "to_launch",
+              "live",
+              "ended",
+              "cancelled",
+              "after_sale",
+              "refunded"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "subStatus": {
+            "anyOf": [
+              {
+                "enum": [
+                  "qualification_reviewing",
+                  "qualification_rejected",
+                  "starting",
+                  "assigning",
+                  "plan_confirm",
+                  "ad_prep",
+                  "sample_making",
+                  "sample_confirm",
+                  "batch_compose",
+                  "delivering",
+                  "awaiting_links",
+                  "verifying",
+                  "need_fix",
+                  "expired_unlaunched",
+                  "in_service",
+                  "takedown_pending",
+                  "takedown_overdue",
+                  "cancel_reviewing",
+                  "refund_executing",
+                  "cancelled_before_start",
+                  "terminated_no_return"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "tab": {
+            "enum": [
+              "producing",
+              "to_launch",
+              "live",
+              "ended",
+              "after_sale"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "totalChargePoints": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "orderId",
+          "orderNo",
+          "submittedAt",
+          "status",
+          "subStatus",
+          "tab",
+          "itemCount",
+          "totalChargePoints",
+          "actions",
+          "firstDramaTitle",
+          "platforms",
+          "pinnedTodo",
+          "liveSummary",
+          "returnedPoints"
+        ],
+        "type": "object"
+      },
       "OrderCreateBody": {
         "properties": {
           "adIds": {
@@ -8272,6 +8660,204 @@
         ],
         "type": "object"
       },
+      "OrderItemDetail": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "properties": {
+                "accountName": {
+                  "type": "string"
+                },
+                "accountType": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "enterprise",
+                        "personal",
+                        "none"
+                      ],
+                      "type": "string",
+                      "x-open-enum": true
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "accountUid": {
+                  "type": "string"
+                },
+                "channelAccountId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "platform": {
+                  "enum": [
+                    "douyin",
+                    "wechat_channels"
+                  ],
+                  "type": "string",
+                  "x-open-enum": true
+                }
+              },
+              "required": [
+                "channelAccountId",
+                "platform",
+                "accountName",
+                "accountUid",
+                "accountType"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "agreedLaunchDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dramaId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "dramaTitle": {
+            "type": "string"
+          },
+          "episodeCount": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "liveEpisodeCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "orderId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "orderItemId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "phase": {
+            "enum": [
+              "pending_start",
+              "producing",
+              "to_launch",
+              "live",
+              "ended",
+              "cancelled",
+              "refunded",
+              "terminated"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "phaseChangedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "posterUrl": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignedUrl"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remainingDays": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "ticketStep": {
+            "anyOf": [
+              {
+                "enum": [
+                  "assigning",
+                  "plan_confirm",
+                  "ad_prep",
+                  "sample_making",
+                  "sample_confirm",
+                  "batch_compose",
+                  "delivering",
+                  "awaiting_launch",
+                  "launch_verify",
+                  "in_service",
+                  "takedown",
+                  "archived",
+                  "terminated"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usageEndDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "usageEndSource": {
+            "enum": [
+              "license",
+              "early_end",
+              "expired"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "usageStartDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "orderItemId",
+          "dramaId",
+          "dramaTitle",
+          "posterUrl",
+          "genres",
+          "episodeCount",
+          "phase",
+          "ticketStep",
+          "accounts",
+          "agreedLaunchDate",
+          "usageStartDate",
+          "usageEndDate",
+          "liveEpisodeCount",
+          "orderId",
+          "orderNo",
+          "remainingDays",
+          "phaseChangedAt",
+          "usageEndSource"
+        ],
+        "type": "object"
+      },
       "OrderItemInOrder": {
         "properties": {
           "accounts": {
@@ -8612,6 +9198,211 @@
           "cancelReasonCode",
           "cancelledAt",
           "timeline"
+        ],
+        "type": "object"
+      },
+      "OrderItemRow": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "properties": {
+                "accountName": {
+                  "type": "string"
+                },
+                "channelAccountId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "platform": {
+                  "enum": [
+                    "douyin",
+                    "wechat_channels"
+                  ],
+                  "type": "string",
+                  "x-open-enum": true
+                }
+              },
+              "required": [
+                "channelAccountId",
+                "platform",
+                "accountName"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "agreedLaunchDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dramaId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "dramaTitle": {
+            "type": "string"
+          },
+          "episodeCount": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "liveEpisodeCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "orderId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "orderItemId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "pendingTodo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrderTodo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "phase": {
+            "enum": [
+              "pending_start",
+              "producing",
+              "to_launch",
+              "live",
+              "ended",
+              "cancelled",
+              "refunded",
+              "terminated"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "posterUrl": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignedUrl"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remainingDays": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "ticketStep": {
+            "anyOf": [
+              {
+                "enum": [
+                  "assigning",
+                  "plan_confirm",
+                  "ad_prep",
+                  "sample_making",
+                  "sample_confirm",
+                  "batch_compose",
+                  "delivering",
+                  "awaiting_launch",
+                  "launch_verify",
+                  "in_service",
+                  "takedown",
+                  "archived",
+                  "terminated"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usageEndDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "usageStartDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "orderItemId",
+          "dramaId",
+          "dramaTitle",
+          "posterUrl",
+          "genres",
+          "episodeCount",
+          "phase",
+          "ticketStep",
+          "accounts",
+          "agreedLaunchDate",
+          "usageStartDate",
+          "usageEndDate",
+          "liveEpisodeCount",
+          "orderId",
+          "orderNo",
+          "remainingDays",
+          "pendingTodo"
+        ],
+        "type": "object"
+      },
+      "OrderItemSummary": {
+        "properties": {
+          "all": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "delivering": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "ended": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "live": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "to_launch": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "all",
+          "live",
+          "to_launch",
+          "ended",
+          "delivering"
         ],
         "type": "object"
       },
@@ -14804,6 +15595,411 @@
         "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
       }
     },
+    "/api/v1/m/cart-items": {
+      "get": {
+        "operationId": "m.cartItem.list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CartList"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "选剧单（当前门店）：每项 valid / price_changed / invalid、加入时价格快照与当前价、折后实扣、可使用至；合计与可用积分",
+        "x-auth": "member",
+        "x-capability": "cart.*",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      },
+      "post": {
+        "operationId": "m.cartItem.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CartCreateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CartItem"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "加入选剧单 {dramaId}（同店同剧唯一，上限 50 部）",
+        "x-auth": "member",
+        "x-capability": "cart.*",
+        "x-clerk-view": "none",
+        "x-idempotent": "natural",
+        "x-idempotent-by": [
+          "uq_cart_item_store_id_drama_id"
+        ]
+      }
+    },
+    "/api/v1/m/cart-items/{cartItemId}": {
+      "delete": {
+        "operationId": "m.cartItem.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cartItemId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "type": "null"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "移出选剧单",
+        "x-auth": "member",
+        "x-capability": "cart.*",
+        "x-clerk-view": "none",
+        "x-idempotent": "required"
+      }
+    },
+    "/api/v1/m/cart-items/{cartItemId}/accept-price": {
+      "post": {
+        "operationId": "m.cartItem.acceptPrice",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cartItemId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CartAcceptBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CartItemAcceptResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "确认新价格 {acceptedPricePoints}（与当前价比对，不符返回 CART_PRICE_CHANGED；把价格快照更新为当前价，恢复可勾选）",
+        "x-auth": "member",
+        "x-capability": "cart.*",
+        "x-clerk-view": "none",
+        "x-idempotent": "required",
+        "x-redact-on-replay": [
+          "drama.posterUrl"
+        ]
+      }
+    },
     "/api/v1/m/channel-accounts": {
       "get": {
         "operationId": "m.channelAccount.list",
@@ -17668,7 +18864,454 @@
         "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
       }
     },
+    "/api/v1/m/order-items": {
+      "get": {
+        "operationId": "m.orderItem.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "live",
+                "to_launch",
+                "ended"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "orderId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MerchantOrderItemList"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "我的短剧（以订单项为行，?tab=all|live|to_launch|ended）：剧名、剩余天数、发布账号、使用期、订单号、各剧制作阶段与约定上线日",
+        "x-auth": "member",
+        "x-capability": "order.read",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/order-items/summary": {
+      "get": {
+        "operationId": "m.orderItem.summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "orderId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/OrderItemSummary"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "我的短剧的页签计数：上线中 · N 部、待上线 · N 部等，键与列表 tab 取值一致；另带副指标 delivering（制作中 + 待上线，供“我的”页与门店卡）",
+        "x-auth": "member",
+        "x-capability": "order.read",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/order-items/{orderItemId}": {
+      "get": {
+        "operationId": "m.orderItem.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orderItemId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/OrderItemDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "订单项详情：剧目、整部集数、上线状态与已上线集数、使用期起止与剩余天数、发布账号、订单号",
+        "x-auth": "member",
+        "x-capability": "order.read",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
     "/api/v1/m/orders": {
+      "get": {
+        "operationId": "m.order.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "producing",
+                "to_launch",
+                "live",
+                "ended",
+                "after_sale"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "no",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MerchantOrderList"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "我的订单（?tab=all|producing|to_launch|live|ended|after_sale；?no= 按单号查找）：订单号、时间、状态、剧目概要、积分、置顶待办；售后页签含取消与积分退回",
+        "x-auth": "member",
+        "x-capability": "order.read",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      },
       "post": {
         "operationId": "m.order.create",
         "requestBody": {
@@ -17898,6 +19541,103 @@
         "x-clerk-view": "none",
         "x-idempotent": "none",
         "x-idempotent-reason": "试算，不写库、不缓存（A18、A20）"
+      }
+    },
+    "/api/v1/m/orders/{orderId}": {
+      "get": {
+        "operationId": "m.order.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/OrderDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "订单详情：状态与待办、交付时间轴、剧目明细（含已上线集数与使用期）、方案摘要与 deliveryPlanId、积分明细（冻结、扣减、三个实际退回数量）、订单信息、协议与授权书列表",
+        "x-auth": "member",
+        "x-capability": "order.read",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
       }
     },
     "/api/v1/m/payment-orders": {

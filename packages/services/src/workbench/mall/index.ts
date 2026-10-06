@@ -11,6 +11,7 @@ import type { Media } from "../../media/index.js";
 import { getWalletView, getEntitlements, paramsAt } from "../../billing/index.js";
 import type { Entitlements, WalletView } from "../../billing/index.js";
 import { paramsAt as configParamsAt } from "../../config/index.js";
+import { countCartBadge } from "../../order/index.js";
 export interface MallViewer {
   readonly role: "owner" | "clerk" | "guest";
   readonly storeId: string | null;
@@ -327,7 +328,20 @@ export function createMall(deps: MallDeps) {
               }),
               configParamsAt(tx, ["content.placement.open_slots", "ad.duration_options"], at),
             ]);
-            return { row, ability: ability.get(id)!, permits, params };
+            const cartItem =
+              viewer.role === "owner" && viewer.storeId && viewer.entityId
+                ? await tx.cartItem.findFirst({
+                    where: { storeId: viewer.storeId, entityId: viewer.entityId, dramaId: id },
+                    select: { id: true },
+                  })
+                : null;
+            return {
+              row,
+              ability: ability.get(id)!,
+              permits,
+              params,
+              cartItemId: cartItem?.id ?? null,
+            };
           }),
         ]);
       const { row, ability, permits, params } = data,
@@ -366,7 +380,9 @@ export function createMall(deps: MallDeps) {
         adUnitPoints: fin.params.adUnitPoints,
         topModelSurchargeBp: fin.params.topModelSurchargeBp,
         trailer: null,
-        ...(viewer.role === "owner" ? { owner: ownerFields(fin) } : {}),
+        ...(viewer.role === "owner"
+          ? { owner: { ...ownerFields(fin), cartItemId: data.cartItemId } }
+          : {}),
       };
     },
     async home(viewer: MallViewer, cityCode?: string) {
@@ -388,6 +404,18 @@ export function createMall(deps: MallDeps) {
                   select: { cityCode: true, industryCode: true, categoryCode: true },
                 })
               : null,
+            live:
+              viewer.role === "owner" && viewer.storeId && viewer.entityId
+                ? await tx.orderItem.aggregate({
+                    where: { storeId: viewer.storeId, entityId: viewer.entityId, phase: "live" },
+                    _count: true,
+                    _sum: { liveEpisodeCount: true },
+                  })
+                : null,
+            cartCount:
+              viewer.role === "owner" && viewer.storeId
+                ? await countCartBadge(tx, viewer.storeId, at)
+                : 0,
             banners: await tx.homeBanner.findMany({
               where: {
                 isEnabled: true,
@@ -465,8 +493,8 @@ export function createMall(deps: MallDeps) {
         ...result,
         noticeBar: null,
         launchOverview: {
-          liveItemCount: 0,
-          liveEpisodeCount: 0,
+          liveItemCount: data.live?._count ?? 0,
+          liveEpisodeCount: data.live?._sum.liveEpisodeCount ?? 0,
           spendablePoints: owner.spendablePoints,
           planName: owner.planName,
           termEndDate: owner.termEndDate,
@@ -492,7 +520,7 @@ export function createMall(deps: MallDeps) {
             at,
           ),
         },
-        cartCount: 0,
+        cartCount: data.cartCount,
       };
     },
   };

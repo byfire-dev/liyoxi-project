@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, describe, expect, it } from "vitest";
+import { beforeAll, afterAll, beforeEach, afterEach, describe, expect, it } from "vitest";
 import {
   buildWorkerServices,
   createMedia,
@@ -63,7 +63,6 @@ beforeAll(async () => {
     channel,
     pollMs: 0,
   });
-  runtime = createWorkerRuntime({ services, channel, logger: silentLogger });
   const user = await make.merchantUser();
   const entity = await make.entity({ createdByUserId: user.id });
   const store = await make.store({ entityId: entity.id });
@@ -76,6 +75,14 @@ beforeAll(async () => {
     merchant: { standing: "owner", entityId: entity.id, storeId: store.id },
   };
 }, 180_000);
+// pause 不等待已经取得的阻塞队列请求；每例用独立消费者并完整关闭，
+// 避免上一例的消费者在下一例布置过期租约前把新任务执行完。
+beforeEach(() => {
+  runtime = createWorkerRuntime({ services, channel, logger: silentLogger });
+});
+afterEach(async () => {
+  await runtime?.stop();
+});
 afterAll(async () => {
   await runtime?.stop();
   await channel?.close();

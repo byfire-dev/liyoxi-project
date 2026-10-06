@@ -257,5 +257,11 @@ export type {
   DeliveryViewer,
   OrderSide,
 } from "./delivery/index.js";
-export { createOrderService } from "./order/index.js";
+export {
+  createOrderService,
+  countOpenOrdersByEntity,
+  countBlockingStoreOrders,
+  countCartBadge,
+  countOrderItemsByPhase,
+} from "./order/index.js";
 export type { OrderActor, OrderDeps, OrderService } from "./order/index.js";
