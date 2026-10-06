@@ -1,0 +1,16 @@
+.accounts-page {
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  &__actions {
+    display: flex;
+    gap: 12px;
+  }
+}

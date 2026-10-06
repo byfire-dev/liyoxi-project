@@ -26,6 +26,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { chromium } from "@playwright/test";
+import { orderRegression, publishRegression } from "../shots/order-regressions.mjs";
 import {
   profileContactRegression,
   profileAuthorizationRegression,
@@ -71,6 +72,12 @@ const { BILLING_SCENES } = await import(
 const { CATALOG_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/catalog-scenes.ts")).href
 );
+const { ORDER_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/order-scenes.ts")).href
+);
+const { PUBLISH_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/publish-scenes.ts")).href
+);
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--no-build") build = false;
@@ -89,9 +96,14 @@ for (let index = 0; index < args.length; index += 1) {
   } else if (args[index] === "--scene") {
     const name = args[(index += 1)];
     if (
-      ![...ACCOUNT_SCENES, ...PROFILE_SCENES, ...BILLING_SCENES, ...CATALOG_SCENES].some(
-        (item) => item.name === name,
-      )
+      ![
+        ...ACCOUNT_SCENES,
+        ...PROFILE_SCENES,
+        ...BILLING_SCENES,
+        ...CATALOG_SCENES,
+        ...ORDER_SCENES,
+        ...PUBLISH_SCENES,
+      ].some((item) => item.name === name)
     )
       fail(`未知固定场景 ${name}`);
     wantedScenes.push(name);
@@ -168,13 +180,35 @@ const targets = [
       fullPage: false,
     }),
   ),
+  ...(all ? PUBLISH_SCENES : PUBLISH_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
+    (item) => ({
+      label: item.name,
+      url: `${item.route}?lyxShot=${item.name}`,
+      file: `publish__${item.name}`,
+      scene: item.name,
+      kind: "publish",
+      fullPage: false,
+    }),
+  ),
+  ...(all ? ORDER_SCENES : ORDER_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
+    (item) => ({
+      label: item.name,
+      url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
+      file: `order__${item.name}`,
+      scene: item.name,
+      kind: "order",
+      fullPage: false,
+    }),
+  ),
   ...(all
     ? builtRoutes.filter(
         (route) =>
           !["pages/login/index", "pages/agreement/index", "pages/mine/index"].includes(route) &&
           !PROFILE_SCENES.some((item) => item.route === route) &&
           !BILLING_SCENES.some((item) => item.route === route) &&
-          !CATALOG_SCENES.some((item) => item.route.split("?")[0] === route),
+          !CATALOG_SCENES.some((item) => item.route.split("?")[0] === route) &&
+          !ORDER_SCENES.some((item) => item.route.split("?")[0] === route) &&
+          !PUBLISH_SCENES.some((item) => item.route === route),
       )
     : wanted
   ).map((route) => ({
@@ -257,7 +291,9 @@ async function shoot(target) {
     if (target.scene) {
       await page.addInitScript(
         ({ scene, kind }) => {
-          globalThis.__LYX_ACCOUNT_SHOT__ = ["profile", "billing"].includes(kind)
+          globalThis.__LYX_ACCOUNT_SHOT__ = ["profile", "billing", "order", "publish"].includes(
+            kind,
+          )
             ? "mine-owner"
             : scene;
           if (kind === "catalog") {
@@ -268,6 +304,8 @@ async function shoot(target) {
                 : "mine-owner";
             globalThis.__LYX_CATALOG_SHOT__ = scene;
           }
+          if (kind === "order") globalThis.__LYX_ORDER_SHOT__ = scene;
+          if (kind === "publish") globalThis.__LYX_PUBLISH_SHOT__ = scene;
           if (kind === "profile") globalThis.__LYX_PROFILE_SHOT__ = scene;
           if (kind === "billing") globalThis.__LYX_BILLING_SHOT__ = scene;
         },
@@ -292,11 +330,19 @@ async function shoot(target) {
             ? "#profile-ready"
             : target.kind === "billing"
               ? "#billing-ready"
-              : target.kind === "catalog"
-                ? "#catalog-ready"
-                : "#account-ready",
+              : target.kind === "publish"
+                ? "#publish-ready"
+                : target.kind === "order"
+                  ? "#order-ready"
+                  : target.kind === "catalog"
+                    ? "#catalog-ready"
+                    : "#account-ready",
         )
         .waitFor({ state: "visible", timeout: 15_000 });
+      if (target.kind === "publish" && target.scene === "accounts-bind") {
+        await page.locator(".accounts-page .lyx-button").filter({ hasText: "绑定新账号" }).click();
+        await page.locator(".accounts-page__form").waitFor({ state: "visible" });
+      }
       if (target.kind === "catalog") {
         if (target.scene === "cart-default")
           await page.locator(".cart-page__row .lyx-checkbox").first().click();
@@ -431,6 +477,8 @@ async function shoot(target) {
     }
     const file = path.join(outDir, `${target.file}.png`);
     await page.screenshot({ path: file });
+    if (target.kind === "order") await orderRegression(page, target.scene);
+    if (target.kind === "publish") await publishRegression(page, target.scene);
     if (target.kind === "catalog") {
       if (target.scene === "cart-default") {
         if (!(await page.locator(".cart-page__total").innerText()).includes("900 积分"))

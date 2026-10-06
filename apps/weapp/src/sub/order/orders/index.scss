@@ -1,0 +1,35 @@
+.orders-page {
+  &__head,
+  &__row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+  }
+  &__head {
+    color: $lyx-color-text-secondary;
+    font-size: 12px;
+  }
+  &__row {
+    margin: 12px 0;
+  }
+  &__title {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  &__muted {
+    color: $lyx-color-text-secondary;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  &__points {
+    flex-shrink: 0;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+  }
+}

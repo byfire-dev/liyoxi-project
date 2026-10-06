@@ -1,0 +1,16 @@
+.order-detail {
+  &__drama {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  &__title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  &__muted {
+    margin: 6px 0;
+    color: $lyx-color-text-secondary;
+    font-size: 13px;
+  }
+}
