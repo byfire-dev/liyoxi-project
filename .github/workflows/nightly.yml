@@ -52,6 +52,9 @@ jobs:
       # 与 ci.yml 的服务容器是同一组值
       - name: 起 PostgreSQL 与 Redis
         run: docker compose -f infra/compose/local.yml up -d --wait postgres redis
+      # 存储驱动用例与后台原图签发都调用本地 MinIO；必须在测试和真实接口验收之前就绪。
+      - name: 起 MinIO
+        run: docker compose -f infra/compose/local.yml up -d --wait minio
       # 写进 GITHUB_ENV，后面的步骤（含“测试”）都读得到。取值与 ci.yml 的 verify 相同：本地开发的固定值，不是密钥
       - name: 连接参数
         run: printf "%s\n" "APP_ENV=test" "DATABASE_URL=postgresql://liyoxi:lyx-local-dev@localhost:5442/liyoxi" "REDIS_URL=redis://localhost:6389/0" >> "$GITHUB_ENV"
