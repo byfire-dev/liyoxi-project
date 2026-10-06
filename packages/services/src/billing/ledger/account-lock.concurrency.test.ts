@@ -206,9 +206,9 @@ describe("账户锁（验收 4）", () => {
     SLOW,
   );
 
-  it(
-    "连接原有 statement_timeout 更短：只等 1 秒且仍映射 ACCOUNT_BUSY",
-    async () => {
+  it.each(["statement_timeout", "lock_timeout"])(
+    "连接原有 %s 更短：只等 1 秒且仍映射 ACCOUNT_BUSY",
+    async (setting) => {
       const { entity, store } = await h.make.merchant({ verified: true });
       await openTerm(h, { entityId: entity.id });
       const drama = await h.make.drama({ heatTier: "A" });
@@ -223,7 +223,7 @@ describe("账户锁（验收 4）", () => {
       const startedAt = performance.now();
       const outcome = await freshConnection.tx
         .run(async (tx) => {
-          await tx.$queryRaw`SELECT set_config('statement_timeout', '1s', true)`;
+          await tx.$queryRaw`SELECT set_config(${setting}, '1s', true)`;
           return freshConnection.ledger.hold(
             tx,
             dramaHoldInput({

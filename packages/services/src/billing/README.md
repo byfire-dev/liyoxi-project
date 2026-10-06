@@ -33,7 +33,7 @@ await tx.run(async (handle) => {
 
 - 账本函数第一个参数是事务句柄，自己不开事务，不写审计（由调用它的用例写）。
 - 每个操作同一个骨架：拿账户锁 → 账本时钟 → `advance` → 按操作键查，已登记即返回第一次的结果（`replayed: true`）→ 守卫 → 落库 → 自检 → 发事件。
-- **账户锁**：一个事务只锁一个主体的账户，锁第二个即抛 `LedgerError("one_account_per_tx")`。只对拿锁那一句设 `lock_timeout` 与 `statement_timeout`，总等锁至多 3 秒，原语句超时更短则沿用；成功后恢复两项原值。等不到抛 `AppError("ACCOUNT_BUSY")`（503，可重试），不进 `tx.run` 的重试。SQL 超时后事务已中止，直接退出或由调用方回滚保存点，不在失败路径再发恢复 SQL。
+- **账户锁**：一个事务只锁一个主体的账户，锁第二个即抛 `LedgerError("one_account_per_tx")`。只对拿锁那一句设 `lock_timeout` 与 `statement_timeout`，总等锁至多 3 秒，两项原有超时更短则分别沿用；成功后恢复两项原值。等不到抛 `AppError("ACCOUNT_BUSY")`（503，可重试），不进 `tx.run` 的重试。SQL 超时后事务已中止，直接退出或由调用方回滚保存点，不在失败路径再发恢复 SQL。
 - **账本时钟**：拿到锁之后取注入的时钟，与该主体上一次操作的时刻取较大者；同一事务再次进入用同一个值。流水的 `occurred_at`、`biz_date` 用它；到点类操作用逻辑时间（发放 = 应发时刻，清零 = 周期止点、业务日 = 止日）。
 - 没有计费账户行的主体，进入时会补建；正常情况下主体创建时由 tenant 经端口建（端口实现由 W1-11a 登记，调 `ledger.ensureAccount`）。
 - 账本的内部错误是 `LedgerError`（`reason`：`guard`、`op_key_conflict`、`term_chain`、`self_check`、`one_account_per_tx`），都是代码缺陷或数据异常，按 500 处理；业务上的拒绝是 `AppError`。

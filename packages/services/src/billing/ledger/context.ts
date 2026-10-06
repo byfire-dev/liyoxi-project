@@ -45,20 +45,22 @@ export async function ensureAccount(tx: Tx, clock: Clock, entityId: string): Pro
 
 /** 只对拿账户锁这一句限时 3 秒；lock_timeout 按每把锁计时，statement_timeout 限制排队后的总耗时 */
 async function lockWithin(tx: Tx, entityId: string): Promise<string[]> {
-  const wait = `${String(ACCOUNT_LOCK_WAIT_MS)}ms`;
   const [timeouts] = await tx.$queryRaw<
     {
       lockBefore: string;
       statementBefore: string;
+      lockMs: number;
       statementMs: number;
     }[]
   >`
     SELECT current_setting('lock_timeout') AS "lockBefore",
            current_setting('statement_timeout') AS "statementBefore",
-           setting::int AS "statementMs"
+           setting::int AS "statementMs",
+           (SELECT setting::int FROM pg_settings WHERE name = 'lock_timeout') AS "lockMs"
       FROM pg_settings WHERE name = 'statement_timeout'`;
   if (!timeouts) throw new LedgerError("guard", "取不到连接的语句超时设置");
-  // 已设了更短的语句超时就沿用，不能为了拿账户锁放宽连接原有的限制。
+  // 原有的两种超时更短就沿用，不能为了拿账户锁放宽连接原有的限制。
+  const wait = `${String(Math.min(timeouts.lockMs || ACCOUNT_LOCK_WAIT_MS, ACCOUNT_LOCK_WAIT_MS))}ms`;
   const deadline = `${String(Math.min(timeouts.statementMs || ACCOUNT_LOCK_WAIT_MS, ACCOUNT_LOCK_WAIT_MS))}ms`;
   await tx.$queryRaw`
     SELECT set_config('lock_timeout', ${wait}, true),
