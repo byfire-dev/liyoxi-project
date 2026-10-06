@@ -1,7 +1,7 @@
 // 外壳：侧栏菜单、面包屑、用户区、全局提示（规范 第 5.1 节；D7 第 5.3 节）。
 //   - 菜单项来自菜单登记表，已按模块等级与 release 开关过滤（lib/menu.ts 的 visibleMenu）。
 //   - 同一时刻只展开当前所在的分组；详情页保持父列表的菜单项选中（selectedKey 由调用方按登记表算好）。
-//   - 全局搜索与通知入口不显示（规范 第 14 节第 12 项）；用户菜单在 W1-02，这里只显示姓名与角色。
+//   - 全局搜索与通知入口不显示（规范 第 14 节第 12 项）；用户菜单由页面注入；缺省显示姓名与角色。
 // 本构件不认识路由与请求：数据都从属性进来，点菜单时回调 onNavigate。
 import { Menu, type MenuProps } from "antd";
 import { useState, type ReactNode } from "react";
@@ -21,6 +21,8 @@ export interface AppShellProps {
   badges?: Readonly<Record<string, number>>;
   /** 全局提示：内容区上方的一条（如“后台已更新，请刷新”） */
   notice?: ReactNode;
+  /** 用户区内容：页面可注入菜单；未提供时保持姓名与角色的静态显示 */
+  userMenu?: ReactNode;
   onNavigate: (path: string) => void;
   children: ReactNode;
 }
@@ -52,6 +54,7 @@ export function AppShell({
   crumbs,
   badges = {},
   notice,
+  userMenu,
   onNavigate,
   children,
 }: AppShellProps) {
@@ -158,13 +161,17 @@ export function AppShell({
             </ol>
           </nav>
           <div className="lyx-user" data-testid="shell-user">
-            <span className="lyx-user__avatar" aria-hidden="true">
-              {access.staff.name.slice(0, 1)}
-            </span>
-            <span>
-              <div className="lyx-user__name">{access.staff.name}</div>
-              <div className="lyx-user__role">{access.staff.roleName}</div>
-            </span>
+            {userMenu ?? (
+              <>
+                <span className="lyx-user__avatar" aria-hidden="true">
+                  {access.staff.name.slice(0, 1)}
+                </span>
+                <span>
+                  <div className="lyx-user__name">{access.staff.name}</div>
+                  <div className="lyx-user__role">{access.staff.roleName}</div>
+                </span>
+              </>
+            )}
           </div>
         </header>
         {notice ? <div className="lyx-shell__notice">{notice}</div> : null}
