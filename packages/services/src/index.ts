@@ -220,6 +220,7 @@ export { seedDemoContent } from "./content/index.js";
 
 export {
   createPublish,
+  createLaunchTasks,
   getLaunchFacts,
   bindPublish,
   countPendingChannelAccountsByStore,

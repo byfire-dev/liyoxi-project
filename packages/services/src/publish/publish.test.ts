@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
-import { useSeededDatabase } from "../testing/index.js";
-import { notifyReadOf } from "../kernel/index.js";
+import { sampleStaffContext, useSeededDatabase } from "../testing/index.js";
+import { createIdentityContext, notifyReadOf, uuidv7 } from "../kernel/index.js";
+import { decisionGuard } from "./write.js";
 import { harness } from "./__fixtures__/harness.js";
 import type { Harness } from "./__fixtures__/harness.js";
 const db = useSeededDatabase("services");
@@ -154,6 +155,96 @@ describe("publish 账号与上线真实事务", { timeout: 60000 }, () => {
     expect(r.find((x) => x.status === "rejected")).toMatchObject({
       reason: { error: "APPROVAL_NOT_PENDING" },
     });
+  });
+  it("账号角色队列跨店可见；上线范围、本人工单、自审守卫与两人竞争", async () => {
+    const { viewer } = await h.owner(),
+      a = await h.make.staff({ staffRoleKey: "publisher" }),
+      b = await h.make.staff({ staffRoleKey: "publisher" }),
+      aStaff = await sampleStaffContext(h.prisma, a.id),
+      bOwn = await sampleStaffContext(h.prisma, b.id),
+      aCtx = createIdentityContext({ actor: { type: "staff", id: a.id, client: "admin" } }),
+      bCtx = createIdentityContext({ actor: { type: "staff", id: b.id, client: "admin" } }),
+      accountId = await h.account(viewer),
+      accountRound = await h.prisma.channelAccountSubmission.findFirstOrThrow({
+        where: { channelAccountId: accountId },
+      });
+    // 尚未分派任何该门店任务，账号核验仍按角色队列读；普通账号详情仍套门店范围。
+    await h.publish.accountSubmission(bOwn, accountRound.id);
+    await expect(h.publish.accountDetail(bOwn, accountId)).rejects.toMatchObject({
+      error: "NOT_FOUND",
+    });
+    const fixture = await h.tasks(viewer, [accountId]),
+      id = fixture.ids[0]!;
+    await h.prisma.deliveryTicket.update({
+      where: { id: fixture.ticket.id },
+      data: { publisherId: a.id },
+    });
+    await h.publish.submitLaunch(viewer, id, {
+      linkKind: "collection",
+      collectionUrl: "https://example.invalid/guard",
+      reportedEpisodeCount: 3,
+      actualLaunchDate: "2026-01-04",
+    });
+    const round = await h.prisma.launchSubmission.findFirstOrThrow({ where: { launchTaskId: id } }),
+      body = await h.launchBody(round.id, 3),
+      admin = await h.staff();
+    await expect(h.publish.launchSubmission(bOwn, round.id)).rejects.toMatchObject({
+      error: "NOT_FOUND",
+    });
+    const role = await h.prisma.staffRole.findUniqueOrThrow({ where: { key: "publisher" } });
+    try {
+      await h.prisma.staffRole.update({ where: { key: "publisher" }, data: { dataScope: "all" } });
+      const bAll = await sampleStaffContext(h.prisma, b.id);
+      await h.publish.launchSubmission(bAll, round.id);
+      // 全量数据范围不免除 o 级的本人工单守卫，且它先于版本与回显。
+      await expect(
+        h.publish.approveLaunch(bCtx, bAll, round.id, { ...body, lockVersion: -1 }),
+      ).rejects.toMatchObject({ error: "PERMISSION_DENIED" });
+    } finally {
+      await h.prisma.staffRole.update({
+        where: { key: "publisher" },
+        data: { dataScope: role.dataScope },
+      });
+    }
+    // 未来撤销后重开由员工送审；用真实 submit 建不可变的发起人事实，自审失败后整个事务回滚。
+    await expect(
+      h.tx.run(async (tx) => {
+        const submissionId = uuidv7(),
+          self = await h.approval.submit(tx, aCtx, {
+            kind: "launch_link",
+            subjectType: "launch_submission",
+            subjectId: submissionId,
+            entityId: viewer.membership.entityId,
+            storeId: viewer.membership.storeId,
+            deliveryTicketId: fixture.ticket.id,
+            input: { submissionId, roundNo: 1, title: "自审守卫夹具" },
+          });
+        await decisionGuard(tx, aStaff, self.approvalId, { ...body, lockVersion: -1 }, true, id);
+      }),
+    ).rejects.toMatchObject({ error: "APPROVAL_SELF_FORBIDDEN" });
+    await expect(
+      h.publish.approveLaunch(aCtx, aStaff, round.id, { ...body, verifiedEpisodeCount: 4 }),
+    ).rejects.toMatchObject({ error: "LAUNCH_VERIFY_COUNT_OUT_OF_RANGE" });
+    expect(
+      await h.prisma.approvalRequest.findUnique({ where: { id: round.approvalRequestId } }),
+    ).toMatchObject({ status: "pending" });
+    const results = await Promise.allSettled([
+      h.publish.approveLaunch(aCtx, aStaff, round.id, body),
+      h.publish.rejectLaunch(admin.ctx, admin.staff, round.id, {
+        reasonCodes: ["R06"],
+        note: "补证据",
+      }),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(results.find((r) => r.status === "rejected")).toMatchObject({
+      reason: { error: "APPROVAL_NOT_PENDING" },
+    });
+    expect(await h.prisma.statusTransition.count({ where: { subjectId: id } })).toBe(3);
+    expect(
+      await h.prisma.outboxEvent.count({
+        where: { aggregateId: id, eventType: { in: ["launch.verified", "launch.returned"] } },
+      }),
+    ).toBe(1);
   });
   it("两账号粒度、重复建任务、暂停/日期/链接/集数边界与累计核验", async () => {
     const { viewer } = await h.owner(),

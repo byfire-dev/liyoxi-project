@@ -214,6 +214,7 @@ export function harness(prisma: PrismaClient) {
     make,
     assembly,
     media,
+    approval,
     publish,
     owner,
     screenshot,

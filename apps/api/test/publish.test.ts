@@ -2,6 +2,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { ChecklistItemsSchema, COMPARE_FIELDS } from "@liyoxi/contract";
 import { createFactories, signInAsStaff } from "@liyoxi/services/testing";
 import type { SignedInStaff } from "@liyoxi/services/testing";
+import type { FakeStorage } from "@liyoxi/services/testing";
+import type { FileRegistration } from "@liyoxi/contract";
 import { createIdentityContext, runSeed, uuidv7 } from "@liyoxi/services";
 import { HANDLERS } from "../src/routes/index.js";
 import { publishOf } from "../src/routes/publish.js";
@@ -141,6 +143,57 @@ beforeAll(async () => {
   publisher = await signInAsStaff(prisma, { roleKey: "publisher", now: api.clock.now() });
 }, 180000);
 describe("publish 十五条真实 API", { timeout: 60000 }, () => {
+  it("后台 evidence 分类经真实登记/确认/签发；权限与范围保留，secure 逐次留痕", async () => {
+    const post = (path: string, json: unknown, staff = publisher) =>
+      api.request(`/api/v1/admin/${path}`, {
+        method: "POST",
+        json,
+        headers: { ...staff.headers, "Idempotency-Key": uuidv7() },
+        peer: `198.19.114.${++peer}`,
+      });
+    const body = {
+      category: "evidence",
+      storeId,
+      fileName: "verify.png",
+      sizeBytes: "8",
+      clientToken: uuidv7(),
+    };
+    const cs = await signInAsStaff(prisma, { roleKey: "cs", now: api.clock.now() });
+    const denied = await post("files", body, cs);
+    expect(denied.status).toBe(403);
+    expect(await denied.json()).toMatchObject({ error: "PERMISSION_DENIED" });
+    // 发布专员只有负责未结束的工单后才取得门店范围；登记继续走媒体原范围守卫。
+    expect((await post("files", body)).status).toBe(404);
+    const order = await make.dramaOrder({ entityId, storeId }),
+      item = await make.orderItem({ dramaOrderId: order.id });
+    await make.deliveryTicket({ orderItemId: item.id, publisherId: publisher.staff.id });
+    const file = await data<FileRegistration>(await post("files", body));
+    const fake = api.runtime.providers.storage as FakeStorage;
+    fake.put(
+      { bucket: "secure", key: file.key },
+      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      "image/png",
+    );
+    await data(await post(`files/${file.fileId}/complete`, {}));
+    await api.runtime.media.promote({
+      jobId: (
+        await prisma.mediaJob.findUniqueOrThrow({ where: { dedupeKey: `promote:${file.fileId}` } })
+      ).id,
+    });
+    for (let i = 0; i < 2; i++)
+      expect(
+        await data(await post(`files/${file.fileId}/download-urls`, { purpose: "上线核验" })),
+      ).toHaveProperty("url");
+    expect(
+      await prisma.auditLog.count({ where: { targetId: file.fileId, action: "files.url.sign" } }),
+    ).toBe(2);
+    const other = await signInAsStaff(prisma, {
+      roleKey: "delivery_manager",
+      now: api.clock.now(),
+    });
+    const hidden = await post(`files/${file.fileId}/download-urls`, {}, other);
+    expect(hidden.status).toBe(404);
+  });
   it("十五条挂载、店员七条先拒、跨店无关系者不可取当前店", async () => {
     expect(routes.every(([op]) => HANDLERS.some((h) => h.route.operationId === op))).toBe(true);
     for (const [op, method] of routes.filter(([op]) => op.startsWith("m."))) {
