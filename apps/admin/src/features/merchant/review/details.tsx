@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { AppServices } from "../../../app/services";
 import { InfoList } from "../../../components/InfoList";
+import { CompareTable as SharedCompareTable } from "../../../components/CompareTable";
 import { readFailure } from "../../../lib/api-errors";
 import type { Detail, Doc } from "./model";
 
@@ -40,39 +41,28 @@ export function CompareTable({
     ...doc.displayFields,
   ];
   return (
-    <table className="lyx-review-compare" aria-label="证照人工核对">
-      <thead>
-        <tr>
-          <th>字段</th>
-          <th>已提交资料</th>
-          <th>系统比对</th>
-        </tr>
-      </thead>
-      <tbody>
-        {fields.map((field) => {
-          const check = doc.fieldChecks.find((item) => item.field === field.key);
-          return (
-            <tr key={field.key}>
-              <td>{field.label}</td>
-              <td>{field.value || "—"}</td>
-              <td>
-                {check
-                  ? ((
-                      {
-                        pass: "通过",
-                        fail: "异常",
-                        warn: "需留意",
-                        manual: "人工核对",
-                        info: "—",
-                      } as Record<string, string>
-                    )[String(check.result)] ?? "人工核对")
-                  : "人工核对"}
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+    <SharedCompareTable
+      ariaLabel="证照人工核对"
+      rows={fields.map((field) => {
+        const check = doc.fieldChecks.find((item) => item.field === field.key);
+        return {
+          key: field.key,
+          label: field.label,
+          value: field.value || "—",
+          result: check
+            ? ((
+                {
+                  pass: "通过",
+                  fail: "异常",
+                  warn: "需留意",
+                  manual: "人工核对",
+                  info: "—",
+                } as Record<string, string>
+              )[String(check.result)] ?? "人工核对")
+            : "人工核对",
+        };
+      })}
+    />
   );
 }
 function Original({ services, doc }: { services: AppServices; doc: Doc }) {
