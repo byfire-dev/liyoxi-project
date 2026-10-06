@@ -133,8 +133,8 @@ function PlanContent() {
       return;
     }
     const body = {
-      planId: selection.planId,
-      months: selection.months,
+      planId: quote.planId,
+      ...(quote.months === null ? {} : { months: quote.months }),
       channel,
       expectAmountFen: quote.payFen,
       agreementVersionIds: docs.map((v) => v.currentVersion.agreementVersionId),
@@ -151,7 +151,8 @@ function PlanContent() {
       const order = await intent.current.submit();
       if (order && current()) {
         setConfirming(false);
-        setPayment(order);
+        if (order.channel === "bank_transfer") setPayment(order);
+        else void paymentResult(order.paymentOrderId);
       }
     } catch (e) {
       if (!current()) return;
