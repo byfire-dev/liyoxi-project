@@ -628,11 +628,11 @@ export function UserMenu({ services, access }: { services: AppServices; access: 
             const { response } = await services.api.client.DELETE("/api/v1/admin/sessions/current");
             if (!response.ok) throw new Error(await failureText(response));
             services.stepUp.settle(false);
-            services.queryClient.clear();
             authTicket.set(null);
             services.api.resetLoginLatch();
-            router.history.replace("/login");
-            await router.invalidate();
+            // 等登录页提交、原页查询观察者卸载后清缓存，避免已退出的页面重新取数。
+            await router.navigate({ to: "/login", search: { redirect: undefined }, replace: true });
+            services.queryClient.clear();
           }),
       }}
     >
