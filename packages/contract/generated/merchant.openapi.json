@@ -4313,15 +4313,12 @@
             "type": "array"
           },
           "city": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/DictRef"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },
@@ -4999,15 +4996,12 @@
             "type": "array"
           },
           "city": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/DictRef"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },
@@ -5711,15 +5705,12 @@
             "type": "integer"
           },
           "city": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/DictRef"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },
@@ -5809,15 +5800,12 @@
               "matchBy": {
                 "properties": {
                   "category": {
-                    "allOf": [
+                    "anyOf": [
                       {
                         "$ref": "#/components/schemas/DictRef"
                       },
                       {
-                        "type": [
-                          "object",
-                          "null"
-                        ]
+                        "type": "null"
                       }
                     ]
                   },

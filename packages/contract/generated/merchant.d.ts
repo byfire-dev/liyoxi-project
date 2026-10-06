@@ -1738,7 +1738,7 @@ export interface components {
                 jumpTarget: null;
                 title: string;
             })[];
-            city: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            city: components["schemas"]["DictRef"] | null;
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -1912,7 +1912,7 @@ export interface components {
                 jumpTarget: null;
                 title: string;
             })[];
-            city: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            city: components["schemas"]["DictRef"] | null;
             /** @enum {string} */
             defaultTab: "hot" | "new";
             hot: components["schemas"]["DramaCardForClerk"][];
@@ -2091,7 +2091,7 @@ export interface components {
                 title: string;
             })[];
             cartCount: number;
-            city: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            city: components["schemas"]["DictRef"] | null;
             /** @enum {string} */
             defaultTab: "hot" | "new";
             hot: components["schemas"]["DramaCard"][];
@@ -2111,7 +2111,7 @@ export interface components {
             recommend: {
                 items: components["schemas"]["DramaCard"][];
                 matchBy: {
-                    category: components["schemas"]["DictRef"] & (Record<string, never> | null);
+                    category: components["schemas"]["DictRef"] | null;
                     industry: components["schemas"]["DictRef"];
                 } | null;
             } | null;
