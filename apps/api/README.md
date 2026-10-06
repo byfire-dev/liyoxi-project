@@ -207,6 +207,8 @@ LYX_UPDATE_GOLDEN=1 pnpm exec vitest run --project api test/admin-matrix.test.ts
 
 `flags`、`versions.dict`、`versions.site`、`copy` 的字典键按完整路径登记为动态键，但字典值中的对象键照常递归扫描。目录标价例外只能按 operationId 与完整字段路径登记，不允许按字段名称全局放行。既有 m01 的 `needPhone` 与字面 `phone` 模式冲突：经调度会话确认，只放行 `m.session.create` 顶层 `data.needPhone` 的布尔值，字符串、嵌套同名、其它路由与其它含 phone 的布尔键仍拒绝；它表达登录流程状态，不含号码。
 
+m04 第 3.3 节的公共商城配置三个角色同形，既定契约带 `filters.price` 筛选开关与 `filters.priceBands` 标价分档。这两个键与 C57 的 `price` 模式冲突，经调度会话确认单独作为 `gate-change`：仅放行 `m.mallConfig.get` 的这两条完整 `data` 路径，开关必须是布尔值；分档须通过既有 `MallConfigSchema` 的严格数组结构（每项仅 `key`、`label`、`min`、`max`，契约的文字、整数、区间、数量及唯一性约束全部沿用）。放行后继续递归扫描，其它路由、嵌套同名、错误类型或多余键仍拒绝；不改禁用正则、目录标价路径登记机制、既有黄金或 C57 正文。纯扫描回归在 `test/clerk/mall-filter-fields.test.ts`。
+
 设置公开的本地 PG/Redis 连接与自己的 `LYX_TEST_SESSION` 后，运行：
 
 ```sh
