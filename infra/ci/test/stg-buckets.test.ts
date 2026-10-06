@@ -168,6 +168,31 @@ describe("预发四桶命令：真实 Node 与子进程边界", () => {
     if (mode !== "stale") expect(f.calls().some((v) => v.operation.endsWith(".put"))).toBe(false);
   });
 
+  it.each([
+    {
+      ID: "lyx-incoming",
+      Status: "Enabled",
+      Filter: { Prefix: "incoming/", And: { Tag: { Key: "owner", Value: "external" } } },
+      Expiration: { Days: 3 },
+    },
+    {
+      ID: "lyx-final",
+      Status: "Enabled",
+      Filter: { Prefix: "final/" },
+      Transition: [
+        { Days: "60", StorageClass: "STANDARD_IA" },
+        { Days: "180", StorageClass: "ARCHIVE" },
+      ],
+    },
+  ])("受管理 ID $ID 中额外条件或多段沉降也不能被覆盖", (rule) => {
+    const state = initial();
+    state.media!.lifecycle = { Rule: [rule] };
+    const f = fixture(state);
+    expect(f.run(["--apply", "--appid", "1234567890"], true).status).toBe(1);
+    expect(f.calls()).toHaveLength(24);
+    expect(f.calls().some((v) => v.operation.endsWith(".put"))).toBe(false);
+  });
+
   it("offline 不读取不存在的凭据或执行 adapter；非法组合及关闭 apply 在调用前拒绝", () => {
     const f = fixture();
     expect(f.run(["--check", "--offline"]).status).toBe(1);

@@ -34,6 +34,19 @@ function canonical(value, key = "") {
   return value;
 }
 const same = (a, b) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
+function extraFields(value, expected) {
+  if (Array.isArray(value))
+    return (
+      !Array.isArray(expected) ||
+      value.length > expected.length ||
+      value.some((item, index) => extraFields(item, expected[index]))
+    );
+  if (!object(value)) return false;
+  if (!object(expected)) return true;
+  return Object.keys(value).some(
+    (key) => !(key in expected) || extraFields(value[key], expected[key]),
+  );
+}
 
 function privateAcl(value) {
   const grants = value.AccessControlList?.Grant;
@@ -87,7 +100,7 @@ function differences(state, bucket, target) {
   if (
     rules.some((rule) => {
       const expected = target.rules.find((item) => item.ID === rule.ID);
-      return !expected || Object.keys(rule).some((key) => !(key in expected));
+      return !expected || extraFields(canonical(rule), canonical(expected));
     })
   )
     blocked.push("存在声明外生命周期，禁止覆盖");
