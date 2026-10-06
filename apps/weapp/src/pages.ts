@@ -98,12 +98,16 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     implemented: true,
   }),
   // sub/order（8 页）
-  page("sub/order/checkout/index", "sub/order", "确认订购", "Checkout", "M09", "M1", "W1-18"),
+  page("sub/order/checkout/index", "sub/order", "确认订购", "Checkout", "M09", "M1", "W1-18", {
+    implemented: true,
+  }),
   page("sub/order/result/index", "sub/order", "结果页", "PayResult", "M11", "M1", "W1-12", {
     implemented: true,
     note: "订购成功与付款成功共用，?type=order|payment",
   }),
-  page("sub/order/orders/index", "sub/order", "订单列表", "Orders", "M20", "M1", "W1-18"),
+  page("sub/order/orders/index", "sub/order", "订单列表", "Orders", "M20", "M1", "W1-18", {
+    implemented: true,
+  }),
   page(
     "sub/order/order-detail/index",
     "sub/order",
@@ -112,6 +116,7 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     "M21",
     "M1",
     "W1-18",
+    { implemented: true },
   ),
   page("sub/order/plan/index", "sub/order", "方案确认", "Plan", "M22", "M1", "W1-20"),
   page("sub/order/sample/index", "sub/order", "样片确认", "Sample", "M23", "M1", "W1-20"),
@@ -131,6 +136,7 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     note: "新增页：逐集下载管理与“扫码在电脑上下载”入口",
   }),
   page("sub/publish/accounts/index", "sub/publish", "发布账号", "Accounts", "M26", "M1", "W1-18", {
+    implemented: true,
     note: "含 M27 弹层",
   }),
   page("sub/publish/portal-approve/index", "sub/publish", "扫码确认", null, null, "M6", "G6-B", {
