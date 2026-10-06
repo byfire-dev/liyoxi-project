@@ -8,13 +8,19 @@ import { useTestApi } from "../src/testing/index.js";
 import type { TestApi } from "../src/testing/index.js";
 import { merchantServicesOf } from "../src/merchant/services.js";
 import { clerkVisibleKeys } from "./clerk/visible-keys.js";
-type TestCard = { dramaId: string; listPricePoints: number; discountedPoints: number | null };
+type TestCard = {
+  dramaId: string;
+  badge: "new" | "hot" | null;
+  listPricePoints: number;
+  discountedPoints: number | null;
+};
 type TestData = {
   viewerRole: string;
   items: TestCard[];
   hot: TestCard[];
   new: TestCard[];
   nextCursor: string;
+  badge: TestCard["badge"];
   owner: { discountBp: number; spendablePoints: number };
   listPricePoints: number;
   discountedPoints: number;
@@ -189,6 +195,36 @@ it("分类/题材/行业/集数档/价格档、排序配置和游标，不重不
   expect(
     (await get("/m/dramas?sort=price_asc&limit=1&cursor=bad")).body.data.items[0]!.dramaId,
   ).toBe(first.items[0]!.dramaId);
+});
+it("新剧范围内、恰好边界与超出范围仍可订：首页新剧与列表/详情角标一致", async () => {
+  const originalNow = api.clock.now(),
+    db = await testApi.db.prisma(),
+    drama = await db.drama.findUniqueOrThrow({ where: { id: dramaId } }),
+    config = await api.runtime.config.siteConfig.published("home_recommend"),
+    newDays = config!.content.newDays;
+  try {
+    for (const age of [newDays - 1, newDays, newDays + 30]) {
+      api.clock.set(new Date(drama.firstListedAt!.getTime() + age * 86_400_000));
+      const isNew = age < newDays,
+        expectedBadge = isNew ? "new" : "hot",
+        list = await get("/m/dramas"),
+        detail = await get(`/m/dramas/${dramaId}`),
+        home = await get("/m/home");
+      for (const result of [list, detail, home])
+        expect(result.response.status, JSON.stringify(result.body)).toBe(200);
+      expect(list.body.data.items).toHaveLength(3);
+      expect(list.body.data.items.find((row) => row.dramaId === dramaId)!.badge).toBe(
+        expectedBadge,
+      );
+      expect(detail.body.data.badge).toBe(expectedBadge);
+      expect(detail.body.data.orderability).toEqual({ orderable: true, reason: null });
+      expect(home.body.data.hot.find((row) => row.dramaId === dramaId)!.badge).toBe(expectedBadge);
+      expect(home.body.data.new).toHaveLength(isNew ? 3 : 0);
+      if (isNew) expect(home.body.data.new.every((row) => row.badge === "new")).toBe(true);
+    }
+  } finally {
+    api.clock.set(originalNow);
+  }
 });
 it("Banner按生效窗口/顺序取5条；失效对象、未知路由与错误参数不下发", async () => {
   const db = await testApi.db.prisma(),

@@ -130,7 +130,7 @@ export function createMall(deps: MallDeps) {
         heatTier: row.heatTier,
         badge:
           row.firstListedAt &&
-          diffDays(calendarDate(row.firstListedAt), calendarDate(at)) < home.newDays
+          diffDays(calendarDate(at), calendarDate(row.firstListedAt)) < home.newDays
             ? "new"
             : row.heatTier === "S"
               ? "hot"
@@ -436,7 +436,7 @@ export function createMall(deps: MallDeps) {
           data.rows.filter(
             (row) =>
               row.firstListedAt &&
-              diffDays(calendarDate(row.firstListedAt), calendarDate(at)) < home.content.newDays,
+              diffDays(calendarDate(at), calendarDate(row.firstListedAt)) < home.content.newDays,
           ),
           "newest",
           mall.content.weights,
