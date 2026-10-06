@@ -11,7 +11,8 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 | `pnpm --filter @liyoxi/admin dev` | 本地开发，端口 5183。带样例页与夹具；样例接口由开发服务器自己应答，不用起 api。设了 `LYX_API_ORIGIN` 时把 `/api` 转给它 |
 | `pnpm --filter @liyoxi/admin test` | 单测（Vitest，Node 环境）。配置就在 `vite.config.ts` 里，与构建共用一份 |
 | `pnpm admin:build` | 生产构建到 `apps/admin/dist/app`，随后跑 `scripts/check-build.mjs`：文件名带内容哈希、写入了构建号、不含夹具 |
-| `pnpm admin:e2e` | 冒烟：先出一份带样例页的构建（`dist/e2e-app`），起它的预览，Playwright 走一条用例。截图在 `dist/e2e-shots`，失败现场在 `dist/e2e-results` |
+| `pnpm admin:e2e` | 冒烟：带样例页构建（`dist/e2e-app`），验证外壳、陈列页与鉴权样例。截图在 `dist/e2e-shots`，失败现场在 `dist/e2e-results` |
+| `pnpm admin:e2e:live` | 真实 API + 生产后台：独立测试库与假密钥，激活、绑定、恢复码登录与登录态复用；截图在 `dist/e2e-shots`，失败 trace 在 `dist/e2e-live-results` |
 | `node infra/ci/pages/generate.mjs`（加 `--check` 只比对） | 由菜单登记表重新生成 `docs/plan/pages.md` 的后台部分 |
 
 冒烟缺省用 Playwright 自带的 Chromium：第一次跑先 `pnpm --filter @liyoxi/admin exec playwright install chromium`。本机不想下载时用已装的 Chrome：`LYX_E2E_CHANNEL=chrome pnpm admin:e2e`。
@@ -91,7 +92,7 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 
 ## 权限与守卫
 
-权限只影响显示什么，接口每次请求即时鉴权（D7 第 5.4 节）。数据经一个可替换的来源读取（`AppServices.setAccessSource`）：现在只有夹具实现（`src/dev/fixture-access.ts`，只进开发与测试构建），真实来源 `GET /admin/auth/me` 由 W1-02 接上。生产构建在那之前没有权限数据，打开只有“请先登录”。
+权限只影响显示什么，接口每次请求即时鉴权（D7 第 5.4 节）。数据经可替换来源读取（`AppServices.setAccessSource`），默认调用真实 `GET /api/v1/admin/auth/me`；开发与样例构建仍用 `src/dev/fixture-access.ts`。模块等级与权限键引契约，`Can`、`useCan`、`useModuleLevel` 在现有纯函数上只增封装。权限拒绝或开关失效会重取 loader 缓存并使路由重新检查；登录完成清缓存、放开登录跳转闩。生产构建打开登录页，四种 `AuthNext.next` 决定去向；票据只留内存，绑定确认使用接口续期票据，恢复码保存确认后进入后台。
 
 看样时可在浏览器控制台切换夹具：`localStorage["lyx.dev.role"] = "service"` 换成客服的权限；`localStorage["lyx.dev.releases"] = "release.partner"` 打开 V1.1 的菜单。
 
@@ -126,9 +127,15 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 
 - 路由树是手写装配的（`src/routes/tree.ts`），没有用 `@tanstack/router-plugin` 的文件路由生成：装上它会把锁文件里已有依赖的解析版本带着变，属“放松”类门禁改动，要走单独的依赖 PR。目录约定已照文件路由来，换过去时只动装配（[状态文件](../../docs/plan/status/W0-28.md)“偏差”）。
 - 单测不装 DOM 测试库：结构用 `react-dom/server` 渲染后断言，交互留给 Playwright（任务书 第 11 节第 2 项）。
-- 登录、动态口令、再验证弹层、用户菜单、403 与 404 的真实页面在 W1-02；这里的 403、404 是占位。再验证接上之前，收到 `STEP_UP_REQUIRED` 一律按没通过处理。
+- W1-02① 已接登录、激活、动态口令、绑定、再验证、用户菜单、403/404。并发请求共用一个再验证弹层，成功后沿用原幂等键重放；M1 用户菜单仅退出登录。员工页等待 W1-02②，修改密码与动态口令设置等待 M2。
 - 全局搜索与通知入口不显示（规范 第 14 节第 12 项）；V1.1 的 13 个菜单只登记、默认不显示。
 - 表格行高的两档靠 CSS 的 `:has()` 选择器判断一行里有没有双行单元格（Chrome 105、Safari 15.4、Firefox 121 起支持）；更老的浏览器里双行的行会落到 44 那一档，不到 56。复选框、单选框、分段控件的键盘聚焦环同样靠 `:has()`。
 - 衬线字体（页面标题、品牌字）没有带字体文件，按字体栈回落到系统的宋体；antd 控件内部自带的图标（下拉箭头、清除键、排序箭头、关闭“×”等）还是它自己的。两件都在状态文件“偏差”里，等业主定。
 - 还有几样只量了、没有改，同样在状态文件“偏差”里等业主定：antd 弹窗的缺省页脚（见上面“弹窗的页脚”）；antd 按钮点击后的水波动画没有关（规范没写点击的动效）；日期浮层里不属于本月的日期用的是禁用色（antd 的缺省）；上传区里的图标是 16px、线宽 1.8（规范说 16px 及以下用 2；图标集里这个图标就是 1.8，图标集不在本包改）。
-- D7 第 5.4 节的 `Can`、`useCan`、`useModuleLevel`，第 5.3 节 `QueryTablePage` 的列脱敏声明（`mask`）与 `validateSearch` 复用契约里的查询结构，本包没有做：现在页面用 `hasModuleLevel`、`canAction` 的结果决定渲染什么（样例页的写法）。归属见状态文件“往后移交”。
+- `QueryTablePage` 的列脱敏声明（`mask`）与 `validateSearch` 复用契约结构交给 G2-0 独立构件包；页面包保留冻结构件。
+
+## 真实接口浏览器验收
+
+显式提供本地 Compose 的公开测试连接参数（APP_ENV=test、DATABASE_URL、REDIS_URL），执行 `pnpm admin:e2e:live`；不读取 .env。正常 Node24，nightly 沿用仓库 Node26 兼容作业。CI 先安装 Chromium；本机可 `LYX_E2E_CHANNEL=chrome`。脚本为本轮生成严格配对的测试库与 Redis 前缀，seed 与 staff:bootstrap 后启动真实 API 构建产物和生产后台静态文件；/api 转发保留 Host/Origin 及端口。结束或中断后停止本轮子进程、精确清理数据库/Redis 与私有临时文件；失败时保留截图、trace 和 API 脱敏日志（dist/e2e-live-logs）。
+
+后续页面包只在 `packages/services/src/testing/admin-live/` 新增 `<短名>.fixture.ts`，共享一个服务端进程的 `make`/`runtime`；前端调用已合并的 `admin:live:data` CLI，不导入数据库或 services。新增 `test/e2e/live-*.spec.ts`，用 `readLiveContext()` 读取返回的 fixtures；live 项目依赖一次登录准备并自动复用 storageState，无需改起栈脚本或 Playwright 配置。数据与登录态文件不入库。

@@ -6,4 +6,4 @@
 | 原因 | 任务书要求运行实际 API 构建产物并使用独立 Redis 前缀；runtime 已有 redisKeyPrefix 注入选项，server CLI 尚无入口 |
 | 影响的包 | W1-02① 增一个先合并的前置修复；仅 test 环境、限定测试命名空间。省略时保持部署行为，不改接口、归属、包数、环境变量、依赖或门禁 |
 | 类别 | 顺序 |
-| PR | 待调度会话填写 |
+| PR | [#65](https://github.com/byfire-dev/liyoxi-project/pull/65) |
