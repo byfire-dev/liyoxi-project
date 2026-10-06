@@ -4,6 +4,7 @@ import {
   MerchantOrderListQuerySchema,
   MerchantOrderItemQuerySchema,
   AdminOrderListQuerySchema,
+  AdminOrderItemRowSchema,
 } from "@liyoxi/contract";
 import { useSeededDatabase, approvalReadFixture } from "../testing/index.js";
 import { paramsAt } from "../config/index.js";
@@ -331,6 +332,15 @@ describe("真实历史订单读侧", { timeout: 120000 }, () => {
     ).rejects.toMatchObject({ error: "NOT_FOUND" });
     const detail = await h.order.adminGet(own, first.order.id);
     expect(detail.items[0]!.pointHold.status).toBe("held");
+    expect(AdminOrderItemRowSchema.parse(detail.items[0])).toEqual(detail.items[0]);
+    expect(detail.items[0]).toMatchObject({
+      dramaTitle: "历史专名剧",
+      cancelReasonCode: null,
+      cancelledAt: null,
+      accounts: [{ accountUid: a.accountId, status: "available" }],
+    });
+    for (const merchantOnly of ["posterUrl", "ticketStep", "timeline", "returnPoints"])
+      expect(detail.items[0]).not.toHaveProperty(merchantOnly);
     expect(detail.merchant.contactName).not.toBeNull();
     expect(detail.store.storeId).toBe(a.store.id);
     const merchant = await h.order.get(

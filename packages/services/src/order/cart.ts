@@ -1,5 +1,6 @@
 import { CartItemSchema } from "@liyoxi/contract";
 import type { CartItem } from "@liyoxi/contract";
+import type { CartItem as CartRow } from "@liyoxi/db";
 import { quoteDramaItem } from "@liyoxi/shared/pricing";
 import { calendarDate, diffDays } from "@liyoxi/shared/time";
 import { getEntitlements, getWalletView, paramsAt } from "../billing/index.js";
@@ -20,11 +21,22 @@ export async function cartItems(
   newDays: number | null,
   onlyId?: string,
 ) {
-  const { storeId, entityId } = actor.membership,
-    rows = await tx.cartItem.findMany({
-      where: { storeId, entityId, ...(onlyId ? { id: onlyId } : {}) },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    }),
+  const { storeId, entityId } = actor.membership;
+  const rows = await tx.cartItem.findMany({
+    where: { storeId, entityId, ...(onlyId ? { id: onlyId } : {}) },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  });
+  return projectCartItems(tx, deps, actor, at, newDays, rows);
+}
+async function projectCartItems(
+  tx: Tx,
+  deps: OrderDeps,
+  actor: OrderActor,
+  at: Date,
+  newDays: number | null,
+  rows: CartRow[],
+) {
+  const { entityId } = actor.membership,
     ids = rows.map((r) => r.dramaId),
     cards = await deps.content.getDramaCards(tx, ids, at),
     ability = await deps.content.getOrderability(tx, ids, calendarDate(at)),
@@ -117,7 +129,8 @@ export async function addCart(
   const existing = await tx.cartItem.findUnique({
     where: { storeId_dramaId: { storeId, dramaId } },
   });
-  if (existing) return (await cartItems(tx, deps, actor, at, newDays, existing.id)).items[0]!;
+  // 建单可在另一连接删除已读项；以捕获的行投影，不二次查行或重新加入。
+  if (existing) return (await projectCartItems(tx, deps, actor, at, newDays, [existing])).items[0]!;
   const price = await currentPrice(tx, deps, dramaId, at, true);
   if ((await tx.cartItem.count({ where: { storeId } })) >= CART_LIMIT)
     throw new AppError("CART_LIMIT_REACHED", { details: { limit: CART_LIMIT } });
@@ -134,7 +147,7 @@ export async function addCart(
       updatedAt: at,
     },
   });
-  return (await cartItems(tx, deps, actor, at, newDays, made.id)).items[0]!;
+  return (await projectCartItems(tx, deps, actor, at, newDays, [made])).items[0]!;
 }
 export async function removeCart(tx: Tx, actor: OrderActor, id: string) {
   await lockCart(tx, actor.membership.storeId);

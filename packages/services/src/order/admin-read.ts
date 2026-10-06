@@ -1,6 +1,7 @@
 import {
   AdminOrderCardSchema,
   AdminOrderDetailSchema,
+  AdminOrderItemRowSchema,
   AdminOrderSummarySchema,
 } from "@liyoxi/contract";
 import type { AdminOrderFilters, AdminOrderListQuery } from "@liyoxi/contract";
@@ -194,26 +195,47 @@ export async function adminDetail(tx: Tx, scope: DataScope, id: string, at: Date
     items = [];
   for (const row of itemRows) {
     const old = common.items.find((i) => i.orderItemId === row.id)!;
-    items.push({
-      ...old,
-      capturedAt: iso(row.capturedAt),
-      accounts: row.orderItemAccounts.map((a) => ({
-        channelAccountId: a.channelAccountId,
-        platform: a.platform,
-        accountName: a.channelAccount.accountName,
-        accountUid: a.channelAccount.accountUid,
-        status: a.channelAccount.status,
-      })),
-      placements: [],
-      ...old.returnPoints,
-      ticket: null,
-      pointHold: {
-        pointHoldId: row.pointHoldId,
-        status: row.pointHold.status,
-        heldAt: iso(row.pointHold.heldAt),
-        capturedAt: iso(row.pointHold.capturedAt),
-      },
-    });
+    items.push(
+      AdminOrderItemRowSchema.parse({
+        orderItemId: old.orderItemId,
+        itemNo: old.itemNo,
+        dramaId: old.dramaId,
+        dramaTitle: old.dramaTitle,
+        genres: old.genres,
+        episodeCount: old.episodeCount,
+        productionModel: old.productionModel,
+        listPricePoints: old.listPricePoints,
+        discountBp: old.discountBp,
+        surchargeBp: old.surchargeBp,
+        chargePoints: old.chargePoints,
+        phase: old.phase,
+        phaseChangedAt: old.phaseChangedAt,
+        capturedAt: iso(row.capturedAt),
+        agreedLaunchDate: old.agreedLaunchDate,
+        usageStartDate: old.usageStartDate,
+        usageEndDate: old.usageEndDate,
+        usageEndSource: old.usageEndSource,
+        liveEpisodeCount: old.liveEpisodeCount,
+        accounts: row.orderItemAccounts.map((a) => ({
+          channelAccountId: a.channelAccountId,
+          platform: a.platform,
+          accountName: a.channelAccount.accountName,
+          accountUid: a.channelAccount.accountUid,
+          status: a.channelAccount.status,
+        })),
+        placements: [],
+        ...old.returnPoints,
+        cancelReasonCode: old.cancelReasonCode,
+        cancelledAt: old.cancelledAt,
+        ticket: null,
+        pointHold: {
+          pointHoldId: row.pointHoldId,
+          status: row.pointHold.status,
+          heldAt: iso(row.pointHold.heldAt),
+          capturedAt: iso(row.pointHold.capturedAt),
+        },
+      }),
+    );
   }
   const bases = itemRows.map(
     (i) =>

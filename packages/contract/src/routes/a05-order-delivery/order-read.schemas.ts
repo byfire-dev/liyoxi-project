@@ -7,15 +7,12 @@ import {
   orNull,
   openEnum,
 } from "../../common/index.js";
-import {
-  DRAMA_ORDER_STATUS,
-  CHANNEL_ACCOUNT_STATUS,
-  POINT_HOLD_STATUS,
-} from "../../enums/index.js";
+import { DRAMA_ORDER_STATUS } from "../../enums/index.js";
 import { StaffBriefSchema, adminPage } from "../a01-system/structures.js";
 import { SignedUrlSchema } from "../a01-system/files.schemas.js";
 import { AdminStoreBriefSchema } from "./public.schemas.js";
-import { OrderDetailSchema, OrderItemInOrderSchema } from "../m04-mall-order/order.schemas.js";
+import { OrderDetailSchema } from "../m04-mall-order/order.schemas.js";
+import { AdminOrderItemRowSchema } from "./delivery.schemas.js";
 const count = z.int().nonnegative();
 export const AdminOrderFiltersSchema = z
   .object({
@@ -74,45 +71,6 @@ export const AdminOrderCardSchema = OrderDetailSchema.pick({
     ),
   })
   .openapi("AdminOrderCard");
-export const AdminOrderItemRowSchema = OrderItemInOrderSchema.omit({
-  posterUrl: true,
-  ticketStep: true,
-  timeline: true,
-  returnPoints: true,
-})
-  .extend({
-    capturedAt: InstantSchema.nullable(),
-    accounts: z.array(
-      OrderItemInOrderSchema.shape.accounts.element.extend({
-        accountUid: z.string(),
-        status: openEnum(CHANNEL_ACCOUNT_STATUS.values),
-      }),
-    ),
-    placements: z.array(
-      OrderItemInOrderSchema.shape.placements.element.extend({
-        pinnedAt: InstantSchema.nullable(),
-      }),
-    ),
-    refundRequestedPoints: count,
-    returnedPoints: count,
-    convertedPoints: count,
-    forfeitedPoints: count,
-    ticket: orNull(
-      z.object({
-        deliveryTicketId: IdSchema,
-        ticketNo: z.string(),
-        step: z.string(),
-        isPaused: z.boolean(),
-      }),
-    ),
-    pointHold: z.object({
-      pointHoldId: IdSchema,
-      status: openEnum(POINT_HOLD_STATUS.values),
-      heldAt: InstantSchema,
-      capturedAt: InstantSchema.nullable(),
-    }),
-  })
-  .openapi("AdminOrderItemRow");
 export const OrderReferenceFileSchema = z
   .object({
     fileId: IdSchema,

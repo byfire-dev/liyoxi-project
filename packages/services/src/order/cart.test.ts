@@ -1,10 +1,11 @@
 import { createPrismaClient } from "@liyoxi/db";
-import type { PrismaClient } from "@liyoxi/db";
+import type { PrismaClient, Prisma } from "@liyoxi/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { useSeededDatabase, priceDrama } from "../testing/index.js";
 import { createIdempotencyContext, uuidv7 } from "../kernel/index.js";
-import { harness, buyer, drama, version, residual } from "./__fixtures__/harness.js";
+import { harness, buyer, drama, version, residual, body } from "./__fixtures__/harness.js";
 import type { Harness } from "./__fixtures__/harness.js";
+import { createOrderService } from "./service.js";
 import { countCartBadge } from "./index.js";
 const db = useSeededDatabase("services");
 let h: Harness, connections: PrismaClient[], others: Harness[];
@@ -39,6 +40,80 @@ const idem = (
     redact: scope.endsWith("acceptPrice") ? ["drama.posterUrl"] : [],
   });
 describe("选剧单真实事务", { timeout: 120000 }, () => {
+  it("重复加入已读行后另一PID真实建单删项：返回捕获的旧P，不500或重新加入", async () => {
+    const b = await buyer(h),
+      d = await drama(h, 101),
+      added = await h.order.cartCreate(b.actor, d.id),
+      adding = others[0]!,
+      submitting = others[1]!;
+    h.clock.advance(1);
+    const staff = await h.make.staff();
+    await priceDrama(h, { dramaId: d.id, points: 211, staffId: staff.id });
+    const input = await body(submitting, b, [d.id]),
+      pids = await Promise.all(
+        connections.map((p) => p.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() as pid`),
+      );
+    expect(new Set(pids.flat().map((p) => p.pid)).size).toBe(2);
+    let arrived!: () => void, release!: () => void;
+    const seen = new Promise<void>((r) => {
+        arrived = r;
+      }),
+      fence = new Promise<void>((r) => {
+        release = r;
+      }),
+      original = adding.deps.tx,
+      service = createOrderService({
+        ...adding.deps,
+        tx: {
+          ...original,
+          run: (fn, options) =>
+            original.run(
+              (tx) =>
+                fn(
+                  new Proxy(tx, {
+                    get: (target, key) =>
+                      key === "cartItem"
+                        ? new Proxy(target.cartItem, {
+                            get: (delegate, method) =>
+                              method === "findUnique"
+                                ? async (args: Prisma.CartItemFindUniqueArgs) => {
+                                    const row = await delegate.findUnique(args);
+                                    arrived();
+                                    await fence;
+                                    return row;
+                                  }
+                                : Reflect.get(delegate, method, delegate),
+                          })
+                        : Reflect.get(target, key, target),
+                  }),
+                ),
+              options,
+            ),
+        },
+      }),
+      pending = service.cartCreate(b.actor, d.id);
+    await seen;
+    try {
+      const made = await submitting.order.create(b.actor, input);
+      expect(made.totalChargePoints).toBe(190);
+      expect(await h.prisma.cartItem.count({ where: { id: added.cartItemId } })).toBe(0);
+    } finally {
+      release();
+    }
+    const afterSubmit = await residual(h, b.entity.id),
+      duplicate = await pending;
+    expect(duplicate).toMatchObject({
+      cartItemId: added.cartItemId,
+      snapshotPricePoints: 101,
+      currentPricePoints: 211,
+      discountedPoints: 190,
+      state: "price_changed",
+    });
+    expect(duplicate.drama.posterUrl).not.toBeNull();
+    expect(await h.prisma.cartItem.count({ where: { storeId: b.store.id } })).toBe(0);
+    expect(await residual(h, b.entity.id)).toEqual(afterSubmit);
+    expect(afterSubmit).toEqual({ orders: 1, items: 1, holds: 1, consents: 1 });
+  });
   it("保存P而非S；折扣变化重算S不改变state；重复调价保留P；接受的是当前P", async () => {
     const b = await buyer(h),
       d = await drama(h, 101),
