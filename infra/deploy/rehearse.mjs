@@ -799,7 +799,7 @@ await runMain(async () => {
       );
       const index = JSON.parse(
         superSql(
-          "SELECT json_build_object('name',i.indexname,'definition',i.indexdef) FROM pg_indexes i JOIN pg_class c ON c.relname=i.tablename AND c.relnamespace='public'::regnamespace WHERE i.schemaname='public' AND c.relkind='r' AND NOT c.relispartition AND i.indexdef LIKE '% WHERE %' ORDER BY i.indexname LIMIT 1",
+          "SELECT json_build_object('name',i.indexname,'definition',i.indexdef) FROM pg_indexes i JOIN pg_class c ON c.relname=i.tablename AND c.relnamespace='public'::regnamespace JOIN pg_class k ON k.relname=i.indexname AND k.relnamespace=c.relnamespace WHERE NOT EXISTS (SELECT 1 FROM pg_constraint con WHERE con.conindid=k.oid) AND i.schemaname='public' AND c.relkind='r' AND NOT c.relispartition AND i.indexdef LIKE '% WHERE %' ORDER BY i.indexname LIMIT 1",
         ),
       );
       if (!/^[a-z0-9_]+$/.test(index.name) || !index.definition.startsWith("CREATE "))
