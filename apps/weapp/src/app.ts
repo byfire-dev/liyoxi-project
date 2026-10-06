@@ -1,18 +1,18 @@
-import type { PropsWithChildren } from "react";
+import { createElement, Fragment, type PropsWithChildren } from "react";
 
 import { useLaunch } from "@tarojs/taro";
 
-import { startApp } from "@/lib/runtime";
+import { ConsentPopup } from "@/components/ConsentPopup";
+import { launchAccount } from "@/lib/account-runtime";
 
 import "@/styles/nutui";
 import "./app.scss";
 
 function App({ children }: PropsWithChildren) {
   useLaunch((options) => {
-    // 装配请求层与四个端上封装；服务端接口没接上时全部空转，不阻塞进入首页
-    startApp(options);
+    void launchAccount(options);
   });
-  return children;
+  return createElement(Fragment, null, children, createElement(ConsentPopup));
 }
 
 export default App;
