@@ -1,3 +1,4 @@
 export default definePageConfig({
   navigationBarTitleText: "选剧单",
+  enablePullDownRefresh: true,
 });

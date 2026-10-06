@@ -29,8 +29,12 @@ describe("页面清单", () => {
     ).toEqual(["sub/catalog/trailer/index"]);
   });
 
-  it("M1 交付账号三页、付款三页与建档六页；其余三标签页仍占位，V1.1不实现", () => {
+  it("M1 交付账号三页、付款三页与建档六页、商城四页；商城四页已实现，V1.1不实现", () => {
     const built = WEAPP_PAGES.filter(isBuilt);
+    expect(built.filter((page) => page.placeholder)).toHaveLength(0);
+    expect(WEAPP_PAGES.filter((page) => page.milestone === "M1" && !page.implemented)).toHaveLength(
+      9,
+    );
     expect(built.map((page) => page.route)).toEqual([
       "pages/home/index",
       "pages/mall/index",
@@ -38,6 +42,7 @@ describe("页面清单", () => {
       "pages/mine/index",
       "pages/login/index",
       "pages/agreement/index",
+      "sub/catalog/detail/index",
       "sub/order/result/index",
       "sub/billing/wallet/index",
       "sub/billing/plan-pick/index",
@@ -49,9 +54,13 @@ describe("页面清单", () => {
       "sub/profile/review/index",
     ]);
     expect(built.filter((page) => page.implemented).map((page) => page.route)).toEqual([
+      "pages/home/index",
+      "pages/mall/index",
+      "pages/cart/index",
       "pages/mine/index",
       "pages/login/index",
       "pages/agreement/index",
+      "sub/catalog/detail/index",
       "sub/order/result/index",
       "sub/billing/wallet/index",
       "sub/billing/plan-pick/index",
@@ -87,6 +96,7 @@ describe("由清单拼出全局配置", () => {
         "pages/agreement/index",
       ],
       subPackages: [
+        { root: "sub/catalog", pages: ["detail/index"] },
         { root: "sub/order", pages: ["result/index"] },
         { root: "sub/billing", pages: ["wallet/index", "plan-pick/index"] },
         {
@@ -102,7 +112,8 @@ describe("由清单拼出全局配置", () => {
         },
       ],
       preloadRule: {
-        "pages/home/index": { network: "all", packages: ["sub/order"] },
+        "pages/home/index": { network: "all", packages: ["sub/catalog", "sub/order"] },
+        "pages/mall/index": { network: "all", packages: ["sub/catalog"] },
         "pages/cart/index": { network: "all", packages: ["sub/order"] },
         "pages/mine/index": { network: "all", packages: ["sub/billing", "sub/profile"] },
       },

@@ -62,16 +62,21 @@ const page = (
   ...extra,
 });
 
-const TAB = { placeholder: true, tab: true } as const;
-
 export const WEAPP_PAGES: readonly WeappPage[] = [
   // 主包（6 页）
   page("pages/home/index", "main", "首页", "Main", "M02", "M1", "W1-18", {
-    ...TAB,
+    tab: true,
+    implemented: true,
     customNav: true,
   }),
-  page("pages/mall/index", "main", "短剧商城", "Mall", "M04", "M1", "W1-18", TAB),
-  page("pages/cart/index", "main", "选剧单", "Cart", "M08", "M1", "W1-18", TAB),
+  page("pages/mall/index", "main", "短剧商城", "Mall", "M04", "M1", "W1-18", {
+    tab: true,
+    implemented: true,
+  }),
+  page("pages/cart/index", "main", "选剧单", "Cart", "M08", "M1", "W1-18", {
+    tab: true,
+    implemented: true,
+  }),
   page("pages/mine/index", "main", "我的", "Mine", "M32", "M1", "W1-05", {
     tab: true,
     implemented: true,
@@ -89,7 +94,9 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
   page("sub/catalog/trailer/index", "sub/catalog", "预告片模式", "Trailer", "M05", "V1.1", "—", {
     note: "V1.0 不做（规范 第 11 节）",
   }),
-  page("sub/catalog/detail/index", "sub/catalog", "短剧详情", "Detail", "M06", "M1", "W1-18"),
+  page("sub/catalog/detail/index", "sub/catalog", "短剧详情", "Detail", "M06", "M1", "W1-18", {
+    implemented: true,
+  }),
   // sub/order（8 页）
   page("sub/order/checkout/index", "sub/order", "确认订购", "Checkout", "M09", "M1", "W1-18"),
   page("sub/order/result/index", "sub/order", "结果页", "PayResult", "M11", "M1", "W1-12", {
