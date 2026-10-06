@@ -15,6 +15,8 @@
 //   workflow       同 append，且加的每一段从头到尾必须是整个步骤（“- ” 开头）或整个任务，否则算放松
 //   frozen         一动就算放松，新建也算（它的条目是本次差异里新登记的，新建才算只增：分支头的清单里有，
 //                  共同祖先与 --base 那一头的清单里都没有）
+//   clerk-golden   店员字段路径黄金：只许新增 operationId → string[] 条目，旧键值完全不变；两端必须是框架生成的
+//                  canonical JSON 对象（localeCompare 排序键、2 空格、尾换行），拒绝重复键与歧义；文件类型、属性有变算放松
 //   tsconfig       按解析后的键值判（允许注释与行尾逗号），换行、重排不算改动。新增键算只增；删、改已有的键值算放松；
 //                  把严格性开关关掉（新增 "noImplicitAny": false、skipLibCheck 由 false 改 true 之类）算放松；
 //                  新增 exclude、include、files、extends，或往 exclude 里加项，算放松（会改变查哪些文件、继承哪份预设）
@@ -766,6 +768,66 @@ function byFrozen(change, entry) {
   return { touch: [`新建了${note}（它的门禁条目也是这次新增的）`], loosen: [] };
 }
 
+/** 店员黄金只增完整路由条目；规范序列化同时排除 JSON.parse 会静默吞掉的重复键。 */
+function byClerkGolden(change) {
+  const touch = [];
+  const loosen = [];
+  if (change.status !== "M") {
+    return { touch, loosen: [`店员黄金只许在已有普通文件中新增条目（git 状态 ${change.status}）`] };
+  }
+  const [baseMode, headMode] = change.fileModes();
+  if (!/^100(?:644|755)$/.test(baseMode ?? "") || baseMode !== headMode) {
+    return { touch, loosen: ["店员黄金的文件类型或属性有变，判不出"] };
+  }
+  if (change.baseText === change.headText) {
+    return { touch, loosen: ["店员黄金的内容没变而文件属性有变，判不出"] };
+  }
+  const parse = (text, side) => {
+    try {
+      const doc = JSON.parse(text);
+      if (
+        doc === null ||
+        typeof doc !== "object" ||
+        Array.isArray(doc) ||
+        !Object.entries(doc).every(
+          ([key, value]) =>
+            key.length > 0 &&
+            Array.isArray(value) &&
+            value.every((path) => typeof path === "string"),
+        )
+      ) {
+        throw new Error("必须是 operationId → string[] 的完整对象");
+      }
+      const sorted = Object.fromEntries(Object.entries(doc).sort(([a], [b]) => a.localeCompare(b)));
+      if (`${JSON.stringify(sorted, null, 2)}\n` !== text) {
+        throw new Error(
+          "必须使用 canonical JSON（排序键、2 空格、尾换行），不得含重复键或歧义写法",
+        );
+      }
+      return doc;
+    } catch (error) {
+      loosen.push(`${side}店员黄金无效：${error.message}`);
+      return null;
+    }
+  };
+  const base = parse(change.baseText, "基线上的");
+  const head = parse(change.headText, "改后的");
+  if (base === null || head === null) return { touch, loosen };
+  for (const [key, value] of Object.entries(base)) {
+    if (!Object.hasOwn(head, key)) loosen.push(`删掉了店员黄金旧条目 ${key}`);
+    else if (JSON.stringify(value) !== JSON.stringify(head[key])) {
+      loosen.push(`改了店员黄金旧条目 ${key} 的字段路径`);
+    }
+  }
+  for (const key of Object.keys(head)) {
+    if (!Object.hasOwn(base, key)) touch.push(`新增店员黄金条目 ${key}`);
+  }
+  if (touch.length === 0 && loosen.length === 0) {
+    loosen.push("店员黄金没有新增条目，判不出");
+  }
+  return { touch, loosen };
+}
+
 /** new-file：只许新增文件。改已有的文件判不出是不是放松（加一行就能让检查空转），一律按放松算 */
 function byNewFile(change, entry) {
   if (change.status === "A") return { touch: ["新增文件"], loosen: [] };
@@ -816,6 +878,7 @@ const KINDS = {
       ? { touch: ["新增工作流文件"], loosen: [] }
       : byLines(change, { blocks: true }),
   frozen: byFrozen,
+  "clerk-golden": byClerkGolden,
   tsconfig: (change) =>
     change.status === "A" ? { touch: ["新增文件"], loosen: [] } : byTsconfig(change),
   manifest: (change) => byManifest(change, { root: false }),
@@ -911,6 +974,10 @@ for (let index = 0; index + 1 < nameStatus.length; index += 2) {
     headText: git(["show", `${headSha}:${path}`]),
     hunks: status === "A" ? [] : hunksOf(mergeBase, headSha, path),
     registeredInThisDiff,
+    fileModes: () =>
+      [mergeBase, headSha].map(
+        (revision) => git(["ls-tree", "-z", revision, "--", path]).match(/^\d+/)?.[0],
+      ),
   };
   for (const entry of applicable) {
     const verdict = KINDS[entry.kind](change, entry);
