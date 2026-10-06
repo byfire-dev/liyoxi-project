@@ -1,4 +1,4 @@
-import type { BillingOrder, PrismaClient } from "@liyoxi/db";
+import type { BillingOrder, Prisma, PrismaClient } from "@liyoxi/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createIdentityContext, isAppError } from "../../kernel/index.js";
@@ -82,7 +82,10 @@ function applyLike(order: BillingOrder, mark: string) {
     if (result.status === "blocked") {
       await tx.billingOrder.update({
         where: { id: order.id },
-        data: { fulfillmentStatus: "blocked", fulfillmentResult: result },
+        data: {
+          fulfillmentStatus: "blocked",
+          fulfillmentResult: result as Prisma.InputJsonValue,
+        },
       });
     }
     return result;

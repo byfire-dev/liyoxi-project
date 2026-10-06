@@ -47,8 +47,10 @@ const h = (): FulfillHarness => sides[0] as FulfillHarness;
 
 async function expectClean(entityId: string): Promise<void> {
   for (const check of [...billingInvariants, ...subscriptionInvariants]) {
+    const run = check.run;
+    if (run === undefined) throw new Error(`没有登记 ${check.code} 的检查函数`);
     const found = await h().tx.run((tx) =>
-      check.run?.(tx, { entityIds: [entityId] }, { now: h().clock.now() }),
+      run(tx, { entityIds: [entityId] }, { now: h().clock.now() }),
     );
     expect(found, check.code).toEqual([]);
   }

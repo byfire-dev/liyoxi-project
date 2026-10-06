@@ -149,8 +149,10 @@ describe("履约的性质（连库）", () => {
             expect(await dumpLedger(prisma, entity.id)).toEqual(settled);
 
             for (const check of [...billingInvariants, ...subscriptionInvariants]) {
+              const run = check.run;
+              if (run === undefined) throw new Error(`没有登记 ${check.code} 的检查函数`);
               const found = await h.tx.run((tx) =>
-                check.run?.(tx, { entityIds: [entity.id] }, { now: h.clock.now() }),
+                run(tx, { entityIds: [entity.id] }, { now: h.clock.now() }),
               );
               expect(found, check.code).toEqual([]);
             }

@@ -183,7 +183,8 @@ describe("billing 的不变量：订阅一侧的三条（验收 11）", () => {
         data: { valueFen: { increment: 1 } },
       });
       const found = await run("billing.I12", entity.id);
-      const of = (id: string) => found.find((item) => item.subject?.id === id);
+      const of = (id: string) =>
+        found.find((item) => item.subject && "id" in item.subject && item.subject.id === id);
       expect(found).toHaveLength(3);
       expect(of(orphan.id)).toMatchObject({
         subject: { type: "billing_order" },
@@ -199,6 +200,72 @@ describe("billing 的不变量：订阅一侧的三条（验收 11）", () => {
       });
       expect(of(noLot.id)).toMatchObject({ detail: { problem: "lot_count", lots: 0 } });
       expect(of(billingOrderId)).toBeUndefined();
+    },
+    SLOW,
+  );
+  it(
+    "I12：套餐批次成本差一分或月间挪用，计划合计仍等于实付，也必须报违规",
+    async () => {
+      h.clock.set(at("2026-07-05T12:00:00"));
+      const { entity } = await h.make.merchant({ verified: true });
+      const { order, term } = await subscribe(entity.id, { months: 3 });
+      const first = await prisma.grantSchedule.findFirstOrThrow({
+        where: { subscriptionTermId: term.id, monthNo: 0 },
+      });
+      expect(first.pointLotId).not.toBeNull();
+      expect(await run("billing.I12", entity.id)).toEqual([]);
+
+      await prisma.pointLot.update({
+        where: { id: first.pointLotId as string },
+        data: { costBasisFen: { increment: 1 } },
+      });
+      expect(await run("billing.I12", entity.id)).toMatchObject([
+        {
+          subject: { type: "billing_order", id: order.id },
+          detail: {
+            problem: "issued_lot_cost",
+            paidAmountFen: 1_800_000,
+            scheduleValueFen: 1_800_000,
+            settledValueFen: 1_800_001,
+            issuedLotMismatches: 1,
+          },
+        },
+      ]);
+
+      // 两个月的成本相互挪一分：总额仍守恒，每个月也必须对上自己的分摊。
+      await prisma.pointLot.update({
+        where: { id: first.pointLotId as string },
+        data: { costBasisFen: { decrement: 1 } },
+      });
+      h.clock.set(at("2026-08-05T00:01:00"));
+      await h.tx.run((tx) => h.ledger.advance(tx, entity.id));
+      const second = await prisma.grantSchedule.findFirstOrThrow({
+        where: { subscriptionTermId: term.id, monthNo: 1 },
+      });
+      expect(second.pointLotId).not.toBeNull();
+      expect(await run("billing.I12", entity.id)).toEqual([]);
+      await h.tx.run(async (tx) => {
+        await tx.pointLot.update({
+          where: { id: first.pointLotId as string },
+          data: { costBasisFen: { increment: 1 } },
+        });
+        await tx.pointLot.update({
+          where: { id: second.pointLotId as string },
+          data: { costBasisFen: { decrement: 1 } },
+        });
+      });
+      expect(await run("billing.I12", entity.id)).toMatchObject([
+        {
+          subject: { type: "billing_order", id: order.id },
+          detail: {
+            problem: "issued_lot_cost",
+            paidAmountFen: 1_800_000,
+            scheduleValueFen: 1_800_000,
+            settledValueFen: 1_800_000,
+            issuedLotMismatches: 2,
+          },
+        },
+      ]);
     },
     SLOW,
   );

@@ -61,26 +61,43 @@ const i10 = check(
 
 /**
  * billing.I12：钱与权益一一对应。履约完成的套餐付款单恰有一个周期，它的发放计划各行分摊之和 = 实付
- * （升级过的周期各行加过差价，不比这一句）；履约完成的加购付款单恰有一个批次，入账成本 = 实付。
+ * （已发放月份用批次成本核对，且成本须等于该月分摊；升级过的周期随 M4 补）；
+ * 履约完成的加购付款单恰有一个批次，入账成本 = 实付。
  */
 const i12 = check(
   "billing.I12",
   "P1",
   `SELECT 'billing_order' AS subject_type, o.id AS subject_id, o.entity_id,
-          jsonb_build_object('problem', CASE WHEN t.terms <> 1 THEN 'term_count' ELSE 'schedule_value' END,
+          jsonb_build_object('problem', CASE WHEN t.terms <> 1 THEN 'term_count'
+                                           WHEN t.value_fen <> o.paid_amount_fen THEN 'schedule_value'
+                                           ELSE 'issued_lot_cost' END,
                              'terms', t.terms, 'paidAmountFen', o.paid_amount_fen,
-                             'scheduleValueFen', t.value_fen) AS detail
+                             'scheduleValueFen', t.value_fen, 'settledValueFen', t.settled_value_fen,
+                             'issuedLotMismatches', t.issued_lot_mismatches) AS detail
      FROM billing_order o
      CROSS JOIN LATERAL (
        SELECT count(*)::int AS terms,
-              COALESCE(sum((SELECT sum(g.value_fen) FROM grant_schedule g
-                             WHERE g.subscription_term_id = s.id)), 0)::bigint AS value_fen,
+              COALESCE(sum(g.value_fen), 0)::bigint AS value_fen,
+              COALESCE(sum(g.settled_value_fen), 0)::bigint AS settled_value_fen,
+              COALESCE(sum(g.issued_lot_mismatches), 0)::int AS issued_lot_mismatches,
               COALESCE(bool_or(EXISTS (SELECT 1 FROM subscription_event e
                                         WHERE e.subscription_term_id = s.id AND e.type = 'upgraded')), false)
                 AS upgraded
-         FROM subscription_term s WHERE s.source_billing_order_id = o.id) t
+         FROM subscription_term s
+         CROSS JOIN LATERAL (
+           SELECT sum(gs.value_fen) AS value_fen,
+                  sum(CASE WHEN gs.status = 'granted' THEN l.cost_basis_fen
+                           ELSE gs.value_fen END) AS settled_value_fen,
+                  count(*) FILTER (WHERE gs.status = 'granted'
+                                     AND l.cost_basis_fen IS DISTINCT FROM gs.value_fen)::int
+                    AS issued_lot_mismatches
+             FROM grant_schedule gs LEFT JOIN point_lot l ON l.id = gs.point_lot_id
+            WHERE gs.subscription_term_id = s.id) g
+        WHERE s.source_billing_order_id = o.id) t
     WHERE o.fulfillment_status = 'done' AND o.type IN ('plan_new', 'plan_renew')
-      AND (t.terms <> 1 OR (NOT t.upgraded AND t.value_fen <> o.paid_amount_fen))
+      AND (t.terms <> 1 OR (NOT t.upgraded AND (t.value_fen <> o.paid_amount_fen
+                                             OR t.settled_value_fen <> o.paid_amount_fen
+                                             OR t.issued_lot_mismatches > 0)))
     UNION ALL
    SELECT 'billing_order', o.id, o.entity_id,
           jsonb_build_object('problem', CASE WHEN l.lots <> 1 THEN 'lot_count' ELSE 'lot_cost' END,
