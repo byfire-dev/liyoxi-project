@@ -32,3 +32,4 @@ export * from "./routes/a01-system/index.js";
 export * from "./routes/a03-merchant/index.js";
 // W1-10：billing 的 jsonb 结构（账本操作的展示文案码与参数）
 export * from "./billing/index.js";
+export * from "./routes/m08-support-misc/index.js";

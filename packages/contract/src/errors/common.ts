@@ -1,3 +1,5 @@
+import type { PendingConsent } from "../common/pending-consent.types.js";
+
 // 通用错误码 28 个（约定 C27）。符号、数值、HTTP、可重试逐行照抄；默认文案按设计规范第 7 节的文案规则写。
 // 对账基准：docs/api/registry-errors.md 第 1 节，由契约自测逐行核对。
 // AUTH_REQUIRED、SESSION_INVALID 的“可重试”在约定里写“—”，这里取 false（约定 C26 的“为真”清单不含它们）。
@@ -63,11 +65,8 @@ export interface CommonErrorDetails {
    * 列名不是 lock_version 的几处例外，键随请求字段（draftLockVersion、baseRevNo 等）
    */
   VERSION_CONFLICT: Record<string, number>;
-  /** PendingConsent 归 m01（约定 C87），随 m01 的第一个后端 PR 定义；这里只留占位 */
-  CONSENT_REQUIRED: { pendingConsents: PendingConsentPlaceholder[] };
+  /** PendingConsent 归 m01（约定 C87）；与引导共用公共结构 */
+  CONSENT_REQUIRED: { pendingConsents: PendingConsent[] };
   /** nextAvailableDate 是下次可催办的日期，YYYY-MM-DD（约定 C35） */
   REMINDED_TODAY: { scene: string; nextAvailableDate: string };
 }
-
-/** 占位：m01 定义 PendingConsent 之后换成它 */
-export type PendingConsentPlaceholder = Record<string, unknown>;

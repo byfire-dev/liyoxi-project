@@ -31,3 +31,8 @@ export const M08_SUPPORT_MISC = defineRouteDoc("m08-support-misc", [
   siteNotices,
   subscribeResults,
 ]);
+
+export * from "./bootstrap.js";
+export * from "./me.js";
+export * from "./bootstrap.schemas.js";
+export * from "./overview.schemas.js";

@@ -275,6 +275,337 @@
         },
         "type": "object"
       },
+      "Bootstrap": {
+        "properties": {
+          "context": {
+            "anyOf": [
+              {
+                "properties": {
+                  "storeId": {
+                    "anyOf": [
+                      {
+                        "format": "uuid",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "storeId"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "copy": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "degraded": {
+            "items": {
+              "enum": [
+                "flags",
+                "versions",
+                "consents",
+                "subscribe",
+                "copy",
+                "notice",
+                "context"
+              ],
+              "type": "string",
+              "x-open-enum": true
+            },
+            "type": "array"
+          },
+          "download": {
+            "properties": {
+              "weappSaveMode": {
+                "enum": [
+                  "temp",
+                  "user_dir"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              }
+            },
+            "required": [
+              "weappSaveMode"
+            ],
+            "type": "object"
+          },
+          "flags": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "minClientVersion": {
+            "type": "string"
+          },
+          "notice": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MaintenanceNotice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pendingConsents": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PendingConsent"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "serverTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "subscribeCooldownDays": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "subscribeMaxPerAsk": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "subscribePlan": {
+            "anyOf": [
+              {
+                "items": {
+                  "properties": {
+                    "point": {
+                      "enum": [
+                        "profile_submit",
+                        "pay_success",
+                        "transfer_submit",
+                        "order_submit",
+                        "plan_confirm",
+                        "ad_submit",
+                        "ad_confirm",
+                        "sample_confirm",
+                        "package_download",
+                        "link_submit",
+                        "offline_confirm",
+                        "ticket_submit",
+                        "ticket_reply",
+                        "invoice_apply",
+                        "renew_enter",
+                        "member_invite",
+                        "member_join",
+                        "asset_upload",
+                        "notify_settings"
+                      ],
+                      "type": "string",
+                      "x-open-enum": true
+                    },
+                    "slots": {
+                      "items": {
+                        "properties": {
+                          "slotKey": {
+                            "type": "string"
+                          },
+                          "tmplId": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "slotKey",
+                          "tmplId"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "point",
+                    "slots"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "support": {
+            "properties": {
+              "corpId": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "kfUrl": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "mode": {
+                "enum": [
+                  "wecom_kf",
+                  "contact"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              }
+            },
+            "required": [
+              "mode",
+              "corpId",
+              "kfUrl"
+            ],
+            "type": "object"
+          },
+          "uploadLimits": {
+            "properties": {
+              "imageMaxMb": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "weappVideoMaxMb": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "weappVideoMaxMb",
+              "imageMaxMb"
+            ],
+            "type": "object"
+          },
+          "versions": {
+            "properties": {
+              "agreement": {
+                "type": "string"
+              },
+              "dict": {
+                "additionalProperties": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              "site": {
+                "additionalProperties": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "object"
+              }
+            },
+            "required": [
+              "dict",
+              "site",
+              "agreement"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "serverTime",
+          "minClientVersion",
+          "flags",
+          "versions",
+          "uploadLimits",
+          "download",
+          "copy",
+          "support",
+          "notice",
+          "degraded",
+          "pendingConsents",
+          "subscribePlan",
+          "subscribeCooldownDays",
+          "subscribeMaxPerAsk",
+          "context"
+        ],
+        "type": "object"
+      },
+      "ChannelAccountAttention": {
+        "properties": {
+          "abnormalReason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "abnormalSource": {
+            "anyOf": [
+              {
+                "enum": [
+                  "verify",
+                  "manual"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "channelAccountId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "platform": {
+            "enum": [
+              "douyin",
+              "wechat_channels"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "status": {
+            "enum": [
+              "abnormal",
+              "pending_verify"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "channelAccountId",
+          "platform",
+          "status",
+          "abnormalSource",
+          "abnormalReason"
+        ],
+        "type": "object"
+      },
       "ConsentInput": {
         "properties": {
           "agreementKey": {
@@ -661,6 +992,208 @@
         ],
         "type": "object"
       },
+      "MaintenanceNotice": {
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "expectedEndAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "body",
+          "expectedEndAt"
+        ],
+        "type": "object"
+      },
+      "MeOverview": {
+        "properties": {
+          "currentStore": {
+            "$ref": "#/components/schemas/OverviewStore"
+          },
+          "entries": {
+            "properties": {
+              "adPendingConfirmCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "channelAccountAttention": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ChannelAccountAttention"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "channelAccountCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "hasLaunchTasks": {
+                "type": "boolean"
+              },
+              "launchTaskTodoCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "ticketAwaitingConfirmCount": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "adPendingConfirmCount",
+              "launchTaskTodoCount",
+              "hasLaunchTasks",
+              "channelAccountCount",
+              "channelAccountAttention",
+              "ticketAwaitingConfirmCount"
+            ],
+            "type": "object"
+          },
+          "storeStats": {
+            "properties": {
+              "cartCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "deliveringCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "liveCount": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "liveCount",
+              "deliveringCount",
+              "cartCount"
+            ],
+            "type": "object"
+          },
+          "stores": {
+            "properties": {
+              "reviewingStores": {
+                "items": {
+                  "properties": {
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "storeId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "storeId",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "storeLimit": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "visibleCount": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "visibleCount",
+              "storeLimit",
+              "reviewingStores"
+            ],
+            "type": "object"
+          },
+          "subscription": {
+            "$ref": "#/components/schemas/OverviewPlanCard"
+          },
+          "unreadMessageCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "viewerRole": {
+            "enum": [
+              "owner"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "viewerRole",
+          "currentStore",
+          "subscription",
+          "stores",
+          "storeStats",
+          "entries",
+          "unreadMessageCount"
+        ],
+        "type": "object"
+      },
+      "MeOverviewForClerk": {
+        "properties": {
+          "currentStore": {
+            "$ref": "#/components/schemas/OverviewStoreForClerk"
+          },
+          "stores": {
+            "properties": {
+              "visibleCount": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "visibleCount"
+            ],
+            "type": "object"
+          },
+          "unreadMessageCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "viewerRole": {
+            "enum": [
+              "clerk"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "viewerRole",
+          "currentStore",
+          "stores",
+          "unreadMessageCount"
+        ],
+        "type": "object"
+      },
       "MeUser": {
         "properties": {
           "actions": {
@@ -923,6 +1456,309 @@
           "isPrimary",
           "lifecycle",
           "qualificationStatus"
+        ],
+        "type": "object"
+      },
+      "OverviewPlanCard": {
+        "properties": {
+          "addonAvailablePoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "endDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isAddonSuspended": {
+            "type": "boolean"
+          },
+          "isRefundPending": {
+            "type": "boolean"
+          },
+          "planAvailablePoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "planName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "planPointsExpireAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remainingDays": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "spendablePoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "none",
+              "active",
+              "expired"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "status",
+          "isRefundPending",
+          "planName",
+          "endDate",
+          "remainingDays",
+          "spendablePoints",
+          "planAvailablePoints",
+          "addonAvailablePoints",
+          "planPointsExpireAt",
+          "isAddonSuspended"
+        ],
+        "type": "object"
+      },
+      "OverviewStore": {
+        "properties": {
+          "assetCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "city": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "clerkCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "completenessPct": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "lifecycle": {
+            "enum": [
+              "active",
+              "archived"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "qualificationStatus": {
+            "enum": [
+              "unsubmitted",
+              "pending",
+              "verified",
+              "rejected"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "review": {
+            "anyOf": [
+              {
+                "properties": {
+                  "expectedDecisionAt": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "submittedAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "submittedAt",
+                  "expectedDecisionAt"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "enum": [
+              "owner",
+              "clerk"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "storeId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "storeId",
+          "name",
+          "isPrimary",
+          "lifecycle",
+          "qualificationStatus",
+          "city",
+          "category",
+          "role",
+          "assetCount",
+          "clerkCount",
+          "completenessPct",
+          "review"
+        ],
+        "type": "object"
+      },
+      "OverviewStoreForClerk": {
+        "properties": {
+          "assetCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "city": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "clerkCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "lifecycle": {
+            "enum": [
+              "active",
+              "archived"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "qualificationStatus": {
+            "enum": [
+              "unsubmitted",
+              "pending",
+              "verified",
+              "rejected"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "role": {
+            "enum": [
+              "owner",
+              "clerk"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "storeId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "storeId",
+          "name",
+          "isPrimary",
+          "lifecycle",
+          "qualificationStatus",
+          "city",
+          "category",
+          "role",
+          "assetCount",
+          "clerkCount"
         ],
         "type": "object"
       },
@@ -2119,6 +2955,70 @@
         "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
       }
     },
+    "/api/v1/m/bootstrap": {
+      "get": {
+        "operationId": "m.bootstrap.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Bootstrap"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "启动引导：serverTime、minClientVersion、flags、versions（dict/site/agreement）、uploadLimits、download.weappSaveMode、copy、support（在线客服模式）、degraded、notice（停机维护说明）、pendingConsents、subscribePlan、context",
+        "x-auth": "optional",
+        "x-clerk-view": "same",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
     "/api/v1/m/entities": {
       "post": {
         "operationId": "m.entity.create",
@@ -2390,6 +3290,115 @@
         "x-capability": "me.*",
         "x-clerk-view": "same",
         "x-idempotent": "required"
+      }
+    },
+    "/api/v1/m/me/overview": {
+      "get": {
+        "operationId": "m.me.overview.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "discriminator": {
+                        "mapping": {
+                          "clerk": "#/components/schemas/MeOverviewForClerk",
+                          "owner": "#/components/schemas/MeOverview"
+                        },
+                        "propertyName": "viewerRole"
+                      },
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/MeOverview"
+                        },
+                        {
+                          "$ref": "#/components/schemas/MeOverviewForClerk"
+                        }
+                      ]
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "426": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "客户端版本过低"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "需要先同意协议"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "“我的”页聚合：当前门店卡（认证状态、城市品类、角色、档案摘要、审核中提示）、套餐与积分卡（仅老板）、我的门店数与额度、当前门店概览（上线中/交付中/选剧单）、各入口副标题与角标",
+        "x-auth": "member",
+        "x-capability": "me.*",
+        "x-clerk-view": "trimmed",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
       }
     },
     "/api/v1/m/sessions": {

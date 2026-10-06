@@ -5,6 +5,7 @@ import {
   CursorQuerySchema,
   IdSchema,
   InstantSchema,
+  PendingConsentSchema,
   cursorPage,
   openEnum,
   orNull,
@@ -31,18 +32,6 @@ export const ConsentSceneSchema = zodEnum(AGREEMENT_CONSENT_SCENE);
 const VERSION_LABEL = z.string().regex(/^v\d+\.\d+$/, "版本号须形如 v1.1");
 
 // ---------- 2.5 PendingConsent ----------
-
-export const PendingConsentSchema = z
-  .object({
-    agreementKey: z.string(),
-    agreementVersionId: IdSchema,
-    name: z.string(),
-    versionLabel: VERSION_LABEL,
-    effectiveAt: InstantSchema,
-    summary: z.string(),
-  })
-  .openapi("PendingConsent");
-export type PendingConsent = z.infer<typeof PendingConsentSchema>;
 
 // ---------- 2.7 请求结构 ----------
 
