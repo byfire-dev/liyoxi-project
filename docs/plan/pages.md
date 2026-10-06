@@ -13,7 +13,7 @@
 
 | 端 | 登记 | V1.0 应实现 | 已实现 | 未实现 | V1.1 只登记 | 入口隐藏 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 运营管理后台 | 80 | 67 | 11 | 56 | 13 | 2 |
+| 运营管理后台 | 80 | 67 | 15 | 52 | 13 | 2 |
 | 电脑端下载页 | 8 | 7 | 0 | 7 | 1 | 0 |
 | 商家端小程序 | 49 | 48 | 20 | 28 | 1 | 0 |
 
@@ -21,7 +21,7 @@
 
 | 端 | M1 | M2 | M3 | M4 | M5 | M6 | M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 运营管理后台 | 7 | 12 | 6 | 14 | 1 | 4 | 12 |
+| 运营管理后台 | 3 | 12 | 6 | 14 | 1 | 4 | 12 |
 | 电脑端下载页 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
 | 商家端小程序 | 5 | 8 | 5 | 4 | 3 | 1 | 2 |
 
@@ -48,17 +48,17 @@
 | 商家 | 商家列表 | `/merchants` | Merchants | 筛选表格 | 是 | — | M2 | G2-B | 否 |
 | 商家 | 商家详情 | `/merchants/$storeId` | MerchantDetail | 详情页 | 否 | — | M2 | G2-B | 否 |
 | 商家 | 资质审核 | `/merchants/review` | Review | 审核工作台 | 是 | — | M1 | W1-09 | 是 |
-| 订单 | 订购单与付款单 | `/orders` | Orders | 筛选表格 | 是 | — | M1 | W1-19 | 否 |
-| 订单 | 订单详情 | `/orders/$orderNo` | OrderDetail | 详情页 | 否 | — | M1 | W1-19 | 否 |
+| 订单 | 订购单与付款单 | `/orders` | Orders | 筛选表格 | 是 | — | M1 | W1-19 | 是 |
+| 订单 | 订单详情 | `/orders/$orderNo` | OrderDetail | 详情页 | 否 | — | M1 | W1-19 | 是 |
 | 订单 | 对公收款确认 | `/orders/receipts` | Receipts | 审核工作台 | 是 | — | M1 | W1-12 | 是 |
 | 订单 | 套餐到期 | `/orders/renewals` | Renewals | 主从页 | 是 | — | M4 | G4-C | 否 |
-| 交付 | 工单池 | `/delivery/tickets` | Tickets | 筛选表格 | 是 | — | M1 | W1-19 | 否 |
+| 交付 | 工单池 | `/delivery/tickets` | Tickets | 筛选表格 | 是 | — | M1 | W1-19 | 是 |
 | 交付 | 工单详情 | `/delivery/tickets/$ticketNo` | TicketDetail | 详情页 | 否 | — | M1 | W1-19 | 否 |
 | 交付 | 广告制作任务 | `/delivery/ad-tasks` | AdTasks | 审核工作台 | 是 | — | M5 | G5-C | 否 |
 | 发布 | 成片交付 | `/publish/deliveries` | Delivery | 审核工作台 | 是 | — | M1 | W1-20 | 否 |
 | 发布 | 上线日历 | `/publish/calendar` | Calendar | 月历页 | 是 | — | M6 | G6-B | 否 |
 | 发布 | 链接核验 | `/publish/verify` | Verify | 审核工作台 | 是 | — | M1 | W1-20 | 否 |
-| 发布 | 账号核验 | `/publish/accounts` | Accounts | 审核工作台 | 是 | — | M1 | W1-19 | 否 |
+| 发布 | 账号核验 | `/publish/accounts` | Accounts | 审核工作台 | 是 | — | M1 | W1-19 | 是 |
 | 发布 | 逾期跟踪 | `/publish/overdue` | Overdue | 筛选表格 | 是 | — | M6 | G6-B | 否 |
 | 发布 | 作品巡检 | `/publish/patrol` | Patrol | 主从页 | 是 | — | M6 | G6-B | 否 |
 | 发布 | 下架核查 | `/publish/offline` | Offline | 审核工作台 | 是 | — | M6 | G6-B | 否 |
