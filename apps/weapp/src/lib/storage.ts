@@ -12,5 +12,11 @@ export const StorageKey = {
   trackQueue: "lyx.track.queue",
   /** 订阅槽位的冷却：{ [slotKey]: 拒绝时刻的毫秒时间戳 } */
   subscribeCooldown: "lyx.subscribe.cooldown",
+  /** 整份首触来源，先到先得，不保存手机号 */
+  attribution: "lyx.attribution",
+  /** M1 本机替身固定登录码 */
+  localLoginCode: "lyx.localLoginCode",
+  /** 被会话恢复打断的页面与查询参数 */
+  loginReturn: "lyx.loginReturn",
 } as const;
 export type StorageKey = (typeof StorageKey)[keyof typeof StorageKey];

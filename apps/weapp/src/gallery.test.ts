@@ -17,6 +17,10 @@ import {
   galleryEnabled,
 } from "./gallery";
 import { WEAPP_PAGES } from "./pages";
+import { ACCOUNT_SCENES } from "../shots/account-scenes";
+
+// W1-05任务明定的两个业务组件在页面场景看样，通用陈列名单完整保留。
+const businessComponents = { StoreSwitcher: "store-switch", ConsentPopup: "reconsent" } as const;
 
 // 组件陈列的登记：每个组件都有预览（任务书 W0-27b 第 7 节第 1 项）。只读文件，不起小程序运行时。
 // 组件的数量与名单不写在这里：目录里有什么就要求登记什么。
@@ -30,7 +34,15 @@ const names: string[] = GALLERY_ITEMS.map((item) => item.name);
 
 describe("组件陈列的登记", () => {
   it("src/components 下每个目录都登记了，登记的也都有目录；名字不重复", () => {
-    expect([...names].sort()).toEqual(componentDirs);
+    expect([...names, ...Object.keys(businessComponents)].sort()).toEqual(componentDirs);
+    for (const [name, scene] of Object.entries(businessComponents)) {
+      expect(names).not.toContain(name);
+      expect(existsSync(path.join(src, "components", name, "index.tsx")), name).toBe(true);
+      expect(
+        ACCOUNT_SCENES.some((item) => item.name === scene && item.route === "pages/mine/index"),
+        scene,
+      ).toBe(true);
+    }
     expect(new Set(names).size).toBe(names.length);
   });
 

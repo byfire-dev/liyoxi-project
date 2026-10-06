@@ -160,6 +160,22 @@
       "pattern": "apps/api/golden/clerk-visible-keys.snap",
       "kind": "clerk-golden",
       "note": "店员回放字段路径黄金文件（C57）：pnpm clerk:snapshot 生成 canonical JSON；只许新增完整 operationId 条目，旧键与字段路径数组完全不变，pnpm test 回放全部已挂载商家路由并对照"
+    },
+    {
+      "pattern": "apps/api/test/clerk/visible-keys.ts",
+      "kind": "append",
+      "note": "C57 店员响应键扫描与完整路径例外：删改扫描或新增豁免按放松；目录标价路径按完整 operationId 与路径只增"
+    },
+    {
+      "pattern": "apps/api/test/clerk/mall-filter-fields.test.ts",
+      "kind": "new-file",
+      "note": "商城公开筛选字段的精确扫描边界回归：新增文件只增，修改已有回归按放松"
+    },
+    {
+      "pattern": "apps/api/README.md",
+      "except": ["apps/api/README.md"],
+      "kind": "append",
+      "note": "API 门禁的说明文档：只作为门禁路径，不逐行判；扫描与回归按各自条目判"
     }
   ]
 }

@@ -1,6 +1,6 @@
 # apps/weapp：商家端小程序
 
-Taro 4.2.1（Vite 编译器）+ React 18 + NutUI React Taro。依据：[D7](../../docs/appendix/design/d7-platform.md) 第 3、4 节；[约定](../../docs/api/00-conventions.md) C3、C17–C23、C48；[规范](../../design/design-spec.md) 第 4 节。工程与请求层由 W0-27a 交付，之后的页面包只填页面。
+Taro 4.2.1（Vite 编译器）+ React 18 + NutUI React Taro。依据：[D7](../../docs/appendix/design/d7-platform.md) 第 3、4 节；[约定](../../docs/api/00-conventions.md) C3、C17–C23、C48；[规范](../../design/design-spec.md) 第 4 节。工程与请求层由 W0-27a 交付，W1-05②交付登录、协议正文、我的，以及账户启动与恢复接线。
 
 ## 命令
 
@@ -10,7 +10,7 @@ Taro 4.2.1（Vite 编译器）+ React 18 + NutUI React Taro。依据：[D7](../.
 | --- | --- |
 | `pnpm weapp:build` | 出小程序包 `apps/weapp/dist/`，由模板生成 `project.config.json`，再过体积门禁（主包 ≤1,500KB、分包 ≤800KB）。超限即失败 |
 | `pnpm --filter @liyoxi/weapp dev` | 开发：改了就重新构建（不压缩，不过体积门禁） |
-| `pnpm --filter @liyoxi/weapp test` | 请求层、四个端上封装、页面清单的用例（Node 环境）。只跑一个文件：后面加 `src/lib/request.test.ts` |
+| `pnpm --filter @liyoxi/weapp test` | 请求层、四个端上封装、账户编排、页面清单的用例（Node 环境）。只跑一个文件：后面加 `src/lib/request.test.ts` |
 | `pnpm weapp:shots` | 给已建的页各出一张截图到 `apps/weapp/shots/dist/png/`（宽 375）。只出一页：`pnpm weapp:shots -- --page pages/home/index`；本机没装 Playwright 自带的 Chromium 时前面加 `LYX_E2E_CHANNEL=chrome` |
 | `node apps/weapp/scripts/build-tabbar-icons.mjs` | 重新导出标签栏的 8 张图标（改图标或改颜色时才跑，产物入库） |
 | `pnpm weapp:shots -- --component Button` | 只出某个组件的预览图（整页），可给多次。不带参数时，页面之外另出组件陈列的目录页与每个组件各一张 `gallery__<组件名>.png` |
@@ -39,7 +39,7 @@ Taro 4.2.1（Vite 编译器）+ React 18 + NutUI React Taro。依据：[D7](../.
 | `src/lib/` | 请求层与四个端上封装，见下 |
 | `src/stores/` | `session`（令牌与用户概要）、`context`（当前门店）、`bootstrap`（引导数据）；一个 store 一个文件 |
 | `src/components/NavBar/` | 自绘导航栏，只给首页与登录页用；其余页面用原生导航栏 |
-| `src/components/` 其余目录 | 通用组件，一个组件一个目录（W0-27b），见下面“通用组件” |
+| `src/components/` 其余目录 | 通用组件（W0-27b）及任务指定的业务组件 `StoreSwitcher`、`ConsentPopup`，一个组件一个目录 |
 | `src/gallery.ts`、`src/sub/gallery/` | 组件陈列（开发用的分包）：登记、目录页、预览页、各组件的预览 |
 | `src/lib/toast.ts`、`cx.ts`、`percent.ts` | 轻提示；拼类名；进度取整 |
 | `src/styles/_mixins.scss` | 组件共用的 mixin：点击区补足到 44、单行省略 |
@@ -102,21 +102,39 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 
 ### 组件陈列
 
-`src/sub/gallery/` 是开发用的分包：目录页 `sub/gallery/index/index` 列出全部组件，预览页 `sub/gallery/preview/index?name=<组件名>` 看一个组件的各种状态。它不是业务页面，不在页面清单里。生产的小程序包缺省不带它；`WEAPP_GALLERY=1 pnpm weapp:build` 出带它的包，在开发者工具里用编译模式打开目录页。
+`src/sub/gallery/` 是开发用的分包：目录页 `sub/gallery/index/index` 列出全部通用组件，预览页 `sub/gallery/preview/index?name=<组件名>` 看一个组件的各种状态。它不是业务页面，不在页面清单里。生产的小程序包缺省不带它；`WEAPP_GALLERY=1 pnpm weapp:build` 出带它的包，在开发者工具里用编译模式打开目录页。
 
 看样也用它（W0-29）：目录页照规范的章节先后分组，每组标着规范的节号与要对的要点，预览页顶上也有同样一段。除了组件，另有四张基础样张（颜色、文字、间距圆角与描边、状态取色表），预览页用 `?sheet=<样张名>` 打开，登记在 `src/gallery.ts` 的 `GALLERY_SHEETS`，内容在 `src/sub/gallery/sheets/`。分组的节号与要点在 `GALLERY_GROUP_SPEC`。业主怎么在开发者工具与真机上打开、逐项看什么，见[看样清单](../../docs/plan/sample-review/W0-29.md)。
 
-新加组件：建 `src/components/<组件名>/`（`index.tsx`、`index.scss`），在 `src/gallery.ts` 加一行，写 `src/sub/gallery/previews/<组件名>.tsx` 并登记进同目录的 `index.ts`。少了哪一样，`src/gallery.test.ts` 或类型检查会指出来。
+新增通用组件：建 `src/components/<组件名>/`（`index.tsx`、`index.scss`），在 `src/gallery.ts` 加一行，写 `src/sub/gallery/previews/<组件名>.tsx` 并登记进同目录的 `index.ts`。少了哪一样，`src/gallery.test.ts` 或类型检查会指出来。
 
-## 服务端调用还没接上
+## 账户与服务端接线
 
-请求层与四个封装都写成不依赖小程序运行时的模块（接口在 `src/lib/platform.ts`，真实实现在 `platform.taro.ts`），服务端调用经 `src/lib/server.ts` 的 `connectServer({ … })` 接入。本包一个都没接，所以现在全部空转：订阅封装直接执行处理函数，埋点与错误上报不发请求，引导数据用代码里的保守默认值。接口落地的包接上自己那一个：
+请求层与四个封装都写成不依赖小程序运行时的模块（接口在 `src/lib/platform.ts`，真实实现在 `platform.taro.ts`），服务端调用经 `src/lib/server.ts` 的 `connectServer({ … })` 接入。`account-runtime.ts` 接上引导、静默登录、重拉账号、协议同意与版本提示五个调用；11条账户接口都经生成契约类型与中央 `runtime.request` 调用。订阅结果、埋点与错误上报的接收调用仍未接，封装照调并登记留桩。
 
 | 调用 | 接口 | 由谁接 |
 | --- | --- | --- |
-| `fetchBootstrap`、`silentLogin`、`reloadMe`、`askConsent`、`showUpdatePrompt` | `m.bootstrap.get`、`m.session.create`、`m.me.get`、协议同意 | W1-04、W1-05 |
+| `fetchBootstrap`、`silentLogin`、`reloadMe`、`askConsent`、`showUpdatePrompt` | `m.bootstrap.get`、`m.session.create`、`m.me.get`、协议同意 | W1-05②已接（后端 W1-04 / W1-04b） |
 | `reportSubscribeResult`、`sendAnalytics` | `m.subscribeResult.create`、`m.analyticsEvent.batchCreate` | G2-C |
 | `sendClientError` | `m.clientError.create` | 该接口落地的包 |
+
+## 账户流程（W1-05②）
+
+`src/lib/account-controller.ts` 只编排生成 DTO 与可注入端口；`account-runtime.ts` 装配三个既有 store 与五个 server 调用。冷启动首触来源先到先得（空来源同样占位），引导后有令牌取 me，无令牌静默登录，needPhone 保持游客。accessToken 沿 C3 与既有 persistence 落盘，用户概要不落盘；首触来源和本机替身码不保存号码。登录页的 PhoneForm 是 M1 替身：11位号码作为 phoneCode，取不到平台登录码时才用本机固定串；真实凭证组件在 G2-B 替换此表单。
+
+登录成功恢复原页面；非标签页恢复编码后的查询参数，标签页用原生 switchTab。协议版本过期重拉版本并清空表单勾选。me 与五个并发428共用阻断式协议层；同意回执确认没有 pending 即释放等待，由服务端重放时再次校验，后续 me 只刷新概要，刷新失败不挂起原请求。仍有未签协议时保持可见且可操作的阻断层；只可不同意并退出，30秒内不重复弹。正文页可阅读，返回后仍阻断。切店先改本地/清聚合，再重拉、记住选择、埋点和提示；保存失败不回滚、同一意图重试保留幂等键。generation、令牌和 contextRev 丢弃旧账号、旧门店迟到响应。协议生效日复用 shared/format/datetime 的北京时间显示，不截UTC日期。
+
+我的套餐积分卡与统计只按 overview.viewerRole=owner 展示；店员不显示资金、订单与发布入口。不做金额、积分或订购判断。未来入口只在 pages.ts 对应页 implemented=true 时显示，钱包指向 sub/billing/wallet/index。无门店显示账号与未绑定说明。退出登录暂放我的末行，设置页落地后迁移。
+
+登录按钮和首次说明文案键分别为 `login.button`、`login.firstLogin`，没有覆盖时使用任务默认；本包无订阅按钮点位，替身表单不调用隐私能力。埋点 `app_launch` 不带邀请凭证，`store_switch` 只带 fromPage；两者按契约调用，接收口未到时空转。
+
+## 账户八态离线样张
+
+固定 DTO 在 `shots/account-fixtures.ts`，场景清单在 `shots/account-scenes.ts`。截图脚本用路由参数 `lyxShot` 标明场景并在加载前显式注入同名 H5 标记；H5 接线经 connectServer 与可注入调用喂数据。小程序构建不包含此分支，生产仍中央 request。每图独立浏览器上下文；场景外发网络一律失败，严格检查页面异常与 console.error。这些是固定离线界面截图，不能作为真实接口证据。
+
+运行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene login-unchecked --scene login-checked --scene agreement --scene mine-owner --scene mine-clerk --scene mine-guest --scene store-switch --scene reconsent`，产物 `shots/dist/png/account__<场景>.png`。不带参数会自动附上八态；`--scene` 可多次，`--no-build` 只用于源码未变时复用产物。未勾选图实际点击登录触发提示，已勾选图实际切换复选框，门店图实际点开切换层。
+
+两个业务组件按任务位于 components/，在以上业务使用位置看样，不进入冻结通用陈列。gallery.test.ts 精确登记这两个例外，原通用组件的目录、预览与入口覆盖完整保留。
 
 ## 截图与真机的差异
 
