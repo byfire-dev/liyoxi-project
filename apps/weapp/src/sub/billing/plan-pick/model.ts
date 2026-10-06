@@ -143,6 +143,16 @@ export function existingOrder(error: unknown): string | null {
     ? error.details.paymentOrderId
     : null;
 }
+export const agreementStale = (error: unknown) =>
+  error instanceof ApiError && error.error === "AGREEMENT_VERSION_STALE";
+/** 换版后只刷新展示事实；新协议必须由用户再次确认，不能自动建单。 */
+export async function reloadPurchaseConfirmation(
+  api: Pick<PurchaseApi, "agreements" | "quote">,
+  selection: Body<"m.plan.quote">,
+) {
+  const [agreements, quote] = await Promise.all([api.agreements(), api.quote(selection)]);
+  return { agreements, quote };
+}
 export function paymentView(order: Payment): {
   title: string;
   description: string;

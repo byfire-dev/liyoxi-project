@@ -36,13 +36,16 @@ export function ReceiptPicker({
     selecting = useRef(false),
     proofKey = useRef<string | null>(null);
   const stateFile = useRef<string | null>(null);
-  useEffect(
-    () => () => {
-      generation.current++;
+  const mounted = useRef(true);
+  useEffect(() => {
+    const marker = generation;
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      marker.current++;
       job.current?.dispose();
-    },
-    [],
-  );
+    };
+  }, []);
   async function choose() {
     if (running.current || selecting.current) return;
     selecting.current = true;
@@ -50,6 +53,7 @@ export function ReceiptPicker({
       rev = useContextStore.getState().contextRev,
       token = useSessionStore.getState().accessToken;
     const current = () =>
+      mounted.current &&
       own === generation.current &&
       rev === useContextStore.getState().contextRev &&
       token === useSessionStore.getState().accessToken;
@@ -118,7 +122,7 @@ export function ReceiptPicker({
       selecting.current = false;
     }
   }
-  async function submit() {
+  function submit() {
     const fileId = job.current?.snapshot().fileId;
     if (running.current || job.current?.snapshot().status !== "done" || !fileId) return;
     if (stateFile.current !== fileId) {
@@ -128,28 +132,29 @@ export function ReceiptPicker({
     const own = generation.current,
       rev = useContextStore.getState().contextRev,
       token = useSessionStore.getState().accessToken;
+    const current = () =>
+      mounted.current &&
+      own === generation.current &&
+      rev === useContextStore.getState().contextRev &&
+      token === useSessionStore.getState().accessToken;
+    if (!current()) return;
+    const key = proofKey.current!;
     running.current = true;
     setBusy(true);
     setError(null);
-    try {
-      const value = await api.proof(payment.paymentOrderId, fileId, proofKey.current!);
-      if (
-        own === generation.current &&
-        rev === useContextStore.getState().contextRev &&
-        token === useSessionStore.getState().accessToken
-      )
-        onSubmitted(value);
-    } catch (failure) {
-      if (
-        own === generation.current &&
-        rev === useContextStore.getState().contextRev &&
-        token === useSessionStore.getState().accessToken
-      )
-        setError(failure instanceof Error ? failure.message : "提交失败，请重试");
-    } finally {
-      running.current = false;
-      if (own === generation.current) setBusy(false);
-    }
+    // 点击时固定意图；授权可能迟到，回调开始前和请求返回后都验同一上下文。
+    withSubscribe("transfer_submit", async () => {
+      try {
+        if (!current()) return;
+        const value = await api.proof(payment.paymentOrderId, fileId, key);
+        if (current()) onSubmitted(value);
+      } catch (failure) {
+        if (current()) setError(failure instanceof Error ? failure.message : "提交失败，请重试");
+      } finally {
+        running.current = false;
+        if (current()) setBusy(false);
+      }
+    })();
   }
   return (
     <View className="billing-receipt">
@@ -189,12 +194,7 @@ export function ReceiptPicker({
         }}
       />
       {state?.error || error ? <Note>{state?.error ?? error}</Note> : null}
-      <Button
-        block
-        disabled={state?.status !== "done"}
-        loading={busy}
-        onClick={() => void withSubscribe("transfer_submit", submit)()}
-      >
+      <Button block disabled={state?.status !== "done"} loading={busy} onClick={submit}>
         提交转账凭证
       </Button>
     </View>

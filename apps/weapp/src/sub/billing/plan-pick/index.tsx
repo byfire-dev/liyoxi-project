@@ -25,6 +25,8 @@ import { billingCopy, purchaseVisible } from "../wallet/model";
 import { createPurchaseApi } from "./api";
 import {
   changedQuote,
+  agreementStale,
+  reloadPurchaseConfirmation,
   createPurchaseIntent,
   enabledChannels,
   existingOrder,
@@ -147,17 +149,18 @@ function PlanContent() {
   }
   async function confirm() {
     if (!intent.current || intent.current.pending) return;
+    const ownIntent = intent.current;
     setBusy(true);
     setError(null);
     try {
-      const order = await intent.current.submit();
-      if (order && current()) {
+      const order = await ownIntent.submit();
+      if (order && current() && ownIntent === intent.current) {
         setConfirming(false);
         if (order.channel === "bank_transfer") setPayment(order);
         else void paymentResult(order.paymentOrderId);
       }
     } catch (e) {
-      if (!current()) return;
+      if (!current() || ownIntent !== intent.current) return;
       const next = changedQuote(e),
         id = existingOrder(e);
       if (next) {
@@ -170,6 +173,24 @@ function PlanContent() {
         setConfirming(false);
         intent.current = null;
         setError("已有待处理的付款单，请先查看");
+      } else if (agreementStale(e) && selection) {
+        intent.current = null;
+        setConfirming(false);
+        setAgreements([]);
+        setQuote(null);
+        const own = ++quoteGeneration.current;
+        setError("购买协议已更新，正在重新加载，请重新核对后确认");
+        try {
+          const next = await reloadPurchaseConfirmation(api, selection);
+          if (current() && own === quoteGeneration.current) {
+            setAgreements(next.agreements);
+            setQuote(next.quote);
+            setError("购买协议已更新，请查看新版本并重新确认");
+          }
+        } catch (failure) {
+          if (current() && own === quoteGeneration.current)
+            setError(failure instanceof Error ? failure.message : "购买协议暂未加载，请重试");
+        }
       } else setError(e instanceof Error ? e.message : "暂未建单，请重试");
     } finally {
       if (current()) setBusy(false);
@@ -280,7 +301,12 @@ function PlanContent() {
                   ))}
                 </View>
                 {docs.length !== activePolicy.copy.agreementKeys.length || docs.length === 0 ? (
-                  <Note>购买协议暂未加载完整，请重新加载后确认</Note>
+                  <View>
+                    <Note>购买协议暂未加载完整，请重新加载后确认</Note>
+                    <TextButton disabled={busy} onClick={() => setRefresh((v) => v + 1)}>
+                      重新加载购买协议
+                    </TextButton>
+                  </View>
                 ) : null}
                 {enabledChannels(activePolicy).map((channel) => {
                   const hint = channel.hintKey ? billingCopy(channel.hintKey, copy) : "";

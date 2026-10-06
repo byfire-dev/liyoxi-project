@@ -1,5 +1,5 @@
 import { planOrderContentSchema } from "@liyoxi/contract";
-import { seedPlaceholderFinanceConfig } from "../../billing/demo-seed.js";
+import { seedPlaceholderFinanceConfig } from "../../billing/index.js";
 import { createIdentityContext } from "../../kernel/index.js";
 import { loadKeyring } from "../../security/index.js";
 import type { AdminLiveFixture } from "./context.js";

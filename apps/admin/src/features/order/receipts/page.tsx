@@ -3,7 +3,7 @@ import { appDateTimeFormat } from "@liyoxi/shared/format/datetime";
 import { formatMoneyFixed } from "@liyoxi/shared/format/money";
 import { useQuery } from "@tanstack/react-query";
 import { getRouteApi, useRouteContext } from "@tanstack/react-router";
-import { Alert, Button, Drawer, Input, Modal, Radio, Select, Spin, Table } from "antd";
+import { Alert, Button, Drawer, Input, Modal, Pagination, Radio, Select, Spin, Table } from "antd";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { showSuccessNotice } from "../../../app/feedback";
 import { FormField } from "../../../components/FormField";
@@ -26,6 +26,7 @@ import {
   type ReceiptsApi,
 } from "./api";
 import { bankConflicts, createReceiptIntent, receivedFen, type BankConflict } from "./model";
+import { ReceiptPreview, receiptPreviewKind } from "./preview";
 import "./receipts.css";
 const route = getRouteApi("/orders/receipts");
 const ROOT_KEY = ["billing", "receipts"] as const;
@@ -69,6 +70,9 @@ export function ReceiptsPage() {
     navigate = route.useNavigate();
   const api = useMemo(() => createReceiptsApi(services), [services]);
   const tab = search.tab === "processed_today" ? "processed_today" : "pending";
+  const scope = `${tab}:${search.q ?? ""}`;
+  const [paging, setPaging] = useState({ scope, page: 1 });
+  const page = paging.scope === scope ? paging.page : 1;
   const canConfirm = useCan("finance.receipt.confirm"),
     canReject = useCan("finance.receipt.reject");
   const controllers = useRef(new Map<string, Controller>());
@@ -77,8 +81,16 @@ export function ReceiptsPage() {
     else controllers.current.delete(id);
   }, []);
   const list = useQuery({
-    queryKey: [...ROOT_KEY, "list", tab, search.q],
-    queryFn: () => api.list(tab, search.q),
+    queryKey: [...ROOT_KEY, "list", tab, search.q, page],
+    queryFn: async () => {
+      const result = await api.list(tab, search.q, page);
+      const last = Math.max(1, Math.ceil(result.total / result.pageSize));
+      if (page > last)
+        setPaging((current) =>
+          current.scope === scope && current.page === page ? { scope, page: last } : current,
+        );
+      return result;
+    },
     ...QUEUE_QUERY,
   });
   const summary = useQuery({
@@ -89,11 +101,12 @@ export function ReceiptsPage() {
   const refresh = () => {
     void services.queryClient.invalidateQueries({ queryKey: ROOT_KEY });
   };
-  const queue: QueueState<ReceiptRow> = list.isPending
-    ? { status: "loading" }
-    : list.isError
-      ? { status: "error", message: list.error.message }
-      : { status: "success", items: list.data.items };
+  const queue: QueueState<ReceiptRow> =
+    list.isPending || list.isPlaceholderData
+      ? { status: "loading" }
+      : list.isError
+        ? { status: "error", message: list.error.message }
+        : { status: "success", items: list.data.items };
   return (
     <div className="receipts-page">
       <PageHeader
@@ -177,6 +190,18 @@ export function ReceiptsPage() {
         }}
         empty={{ title: tab === "pending" ? "暂无待确认凭证" : "今日暂无已处理凭证" }}
       />
+      {list.data ? (
+        <Pagination
+          className="receipts-pagination"
+          current={page}
+          pageSize={list.data.pageSize}
+          total={list.data.total}
+          showSizeChanger={false}
+          showTotal={(total) => `共 ${total} 笔`}
+          disabled={list.isFetching}
+          onChange={(next) => setPaging({ scope, page: next })}
+        />
+      ) : null}
     </div>
   );
 }
@@ -209,7 +234,12 @@ function ReceiptReview({
     [note, setNote] = useState(""),
     [rejectBusy, setRejectBusy] = useState(false);
   const [orderOpen, setOrderOpen] = useState(false),
-    [image, setImage] = useState<{ url: string; zoom: number; rotate: number } | null>(null),
+    [image, setImage] = useState<{
+      url: string;
+      zoom: number;
+      rotate: number;
+      mime: string;
+    } | null>(null),
     [imageBusy, setImageBusy] = useState(false);
   const mounted = useRef(true),
     running = useRef(false),
@@ -374,13 +404,17 @@ function ReceiptReview({
   }
   async function openImage() {
     if (!detail || imageBusy) return;
+    if (receiptPreviewKind(detail.fileMime) === "unsupported") {
+      setError("该凭证格式暂不支持预览");
+      return;
+    }
     const own = ++imageGeneration.current;
     setImageBusy(true);
     setError(null);
     try {
       const signed = await api.image(detail.fileId);
       if (mounted.current && own === imageGeneration.current)
-        setImage({ url: signed.url, zoom: 1, rotate: 0 });
+        setImage({ url: signed.url, zoom: 1, rotate: 0, mime: detail.fileMime });
     } catch (e) {
       if (mounted.current && own === imageGeneration.current)
         setError(e instanceof Error ? e.message : "凭证地址暂未取得，请重试");
@@ -435,7 +469,7 @@ function ReceiptReview({
       <section>
         <h3 className="lyx-section-title">转账凭证</h3>
         <Button loading={imageBusy} onClick={() => void openImage()}>
-          查看凭证原图
+          查看转账凭证
         </Button>
         <p className="receipts-muted">未配置识别，请以银行账户的真实流水为准</p>
         <Table
@@ -600,7 +634,7 @@ function ReceiptReview({
         ) : null}
       </Drawer>
       <Modal
-        title="转账凭证原图"
+        title="转账凭证"
         open={image !== null}
         onCancel={() => {
           imageGeneration.current++;
@@ -610,19 +644,25 @@ function ReceiptReview({
         footer={
           image ? (
             <>
-              <Button onClick={() => setImage((v) => (v ? { ...v, zoom: v.zoom + 0.25 } : v))}>
-                放大
-              </Button>
-              <Button
-                onClick={() =>
-                  setImage((v) => (v ? { ...v, zoom: Math.max(0.25, v.zoom - 0.25) } : v))
-                }
-              >
-                缩小
-              </Button>
-              <Button onClick={() => setImage((v) => (v ? { ...v, rotate: v.rotate + 90 } : v))}>
-                旋转
-              </Button>
+              {receiptPreviewKind(image.mime) === "image" ? (
+                <>
+                  <Button onClick={() => setImage((v) => (v ? { ...v, zoom: v.zoom + 0.25 } : v))}>
+                    放大
+                  </Button>
+                  <Button
+                    onClick={() =>
+                      setImage((v) => (v ? { ...v, zoom: Math.max(0.25, v.zoom - 0.25) } : v))
+                    }
+                  >
+                    缩小
+                  </Button>
+                  <Button
+                    onClick={() => setImage((v) => (v ? { ...v, rotate: v.rotate + 90 } : v))}
+                  >
+                    旋转
+                  </Button>
+                </>
+              ) : null}
               <Button onClick={() => void openImage()}>重新获取地址</Button>
             </>
           ) : null
@@ -630,14 +670,13 @@ function ReceiptReview({
         destroyOnHidden
       >
         {image ? (
-          <div className="receipts-image">
-            <img
-              src={image.url}
-              alt="银行转账凭证原图"
-              onError={() => setError("凭证地址可能已过期，请重新获取地址")}
-              style={{ transform: `scale(${image.zoom}) rotate(${image.rotate}deg)` }}
-            />
-          </div>
+          <ReceiptPreview
+            mime={image.mime}
+            url={image.url}
+            zoom={image.zoom}
+            rotate={image.rotate}
+            onError={() => setError("凭证地址可能已过期，请重新获取地址")}
+          />
         ) : null}
         {error ? <Alert type="warning" title={error} /> : null}
       </Modal>

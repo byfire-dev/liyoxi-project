@@ -9,6 +9,8 @@ import {
 import { ApiError } from "@/lib/request";
 import {
   changedQuote,
+  agreementStale,
+  reloadPurchaseConfirmation,
   createPurchaseIntent,
   enabledChannels,
   existingOrder,
@@ -24,6 +26,49 @@ const body = {
 };
 const created = () => ({ ...billingPayment("bank-waiting"), replayed: false });
 describe("套餐确认与付款结果", () => {
+  it("协议换版只刷新真实协议与报价，再确认才以新版本新键建单", async () => {
+    const stale = new ApiError({
+      error: "AGREEMENT_VERSION_STALE",
+      message: "stale",
+      status: 409,
+      requestId: "r",
+    });
+    expect(agreementStale(stale)).toBe(true);
+    expect(agreementStale(new Error("stale"))).toBe(false);
+    const versions = billingAgreements.items.map((doc, i) => ({
+      ...doc,
+      currentVersion: doc.currentVersion
+        ? {
+            ...doc.currentVersion,
+            agreementVersionId: `00000000-0000-4000-8000-00000000000${i + 2}`,
+          }
+        : null,
+    }));
+    const create = vi.fn().mockRejectedValueOnce(stale).mockResolvedValue(created());
+    await expect(
+      createPurchaseIntent({ create, detail: vi.fn() }, body, "before-stale").submit(),
+    ).rejects.toBe(stale);
+    const agreements = vi.fn().mockResolvedValue(versions),
+      quote = vi.fn().mockResolvedValue(billingQuote);
+    const refreshed = await reloadPurchaseConfirmation(
+      { agreements, quote },
+      { planId: body.planId, months: body.months },
+    );
+    expect(agreements).toHaveBeenCalledOnce();
+    expect(quote).toHaveBeenCalledWith({ planId: body.planId, months: body.months });
+    expect(create).toHaveBeenCalledOnce();
+    const ids = purchaseAgreements(refreshed.quote.policy, refreshed.agreements).map(
+      (v) => v.currentVersion.agreementVersionId,
+    );
+    expect(ids).not.toEqual(body.agreementVersionIds);
+    await createPurchaseIntent(
+      { create, detail: vi.fn() },
+      { ...body, agreementVersionIds: ids },
+      "after-reconfirm",
+    ).submit();
+    expect(create.mock.calls.map((v) => v[1])).toEqual(["before-stale", "after-reconfirm"]);
+    expect(create.mock.calls[1]![0].agreementVersionIds).toEqual(ids);
+  });
   it("仅渲染服务端启用渠道与当次购买协议，不按端或金额筛选", () => {
     expect(enabledChannels(billingPolicy).map((v) => v.code)).toEqual(["bank_transfer"]);
     expect(

@@ -18,10 +18,10 @@ async function unwrap<T>(result: { data?: { data: T }; response: Response }): Pr
 export function createReceiptsApi(services: Pick<AppServices, "api">) {
   const client = services.api.client;
   return {
-    list: (tab: "pending" | "processed_today", q?: string) =>
+    list: (tab: "pending" | "processed_today", q?: string, page = 1) =>
       client
         .GET("/api/v1/admin/transfer-proofs", {
-          params: { query: { tab, q, page: 1, pageSize: 100 } },
+          params: { query: { tab, q, page, pageSize: 100 } },
         })
         .then(unwrap),
     summary: (q?: string) =>
