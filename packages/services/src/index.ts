@@ -259,6 +259,7 @@ export type {
 } from "./delivery/index.js";
 export {
   createOrderService,
+  bindOrder,
   countOpenOrdersByEntity,
   countBlockingStoreOrders,
   countCartBadge,

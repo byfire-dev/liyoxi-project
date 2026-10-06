@@ -291,7 +291,7 @@ describe("publish 十五条真实 API", { timeout: 60000 }, () => {
       ),
     ).toMatchObject({ replayed: true, screenshots: [{ url: null, expiresAt: null }] });
   });
-  it("上线 list/summary/get/submit 和 get/return/approve 真实主链；订单项回写留给 delivery", async () => {
+  it("上线 list/summary/get/submit 和 get/return/approve 真实主链；审核回写订单项且重放零重复", async () => {
     const account = await prisma.channelAccount.findFirstOrThrow({
         where: { accountUid: "api_account" },
       }),
@@ -352,21 +352,36 @@ describe("publish 十五条真实 API", { timeout: 60000 }, () => {
     round = await prisma.launchSubmission.findFirstOrThrow({
       where: { launchTaskId: id, roundNo: 2 },
     });
-    await data(
-      await request("admin.launchSubmission.approve", {
-        id: round.id,
-        json: {
-          lockVersion: 0,
-          confirm: { roundNo: 2, reportedEpisodeCount: 3 },
-          verifiedEpisodeCount: 3,
-          ...(await checks("launch.verify")),
-        },
-      }),
-    );
+    const approval = {
+      id: round.id,
+      key: uuidv7(),
+      json: {
+        lockVersion: 0,
+        confirm: { roundNo: 2, reportedEpisodeCount: 3 },
+        verifiedEpisodeCount: 3,
+        ...(await checks("launch.verify")),
+      },
+    };
+    await data(await request("admin.launchSubmission.approve", approval));
     expect(await prisma.orderItem.findUnique({ where: { id: item.id } })).toMatchObject({
-      usageStartDate: null,
-      liveEpisodeCount: 0,
+      phase: "live",
+      usageStartDate: new Date("2026-01-04"),
+      liveEpisodeCount: 3,
     });
+    const approvedState = async () =>
+      Promise.all([
+        prisma.orderItem.findUniqueOrThrow({ where: { id: item.id } }),
+        prisma.launchSubmission.findUniqueOrThrow({ where: { id: round.id } }),
+        prisma.statusTransition.count(),
+        prisma.auditLog.count(),
+        prisma.outboxEvent.count(),
+      ]);
+    const approved = await approvedState();
+    expect(await data(await request("admin.launchSubmission.approve", approval))).toMatchObject({
+      result: "passed",
+      roundNo: 2,
+    });
+    expect(await approvedState()).toEqual(approved);
     expect(await data(await request("m.launchTask.summary"))).toMatchObject({ todo: 0, done: 1 });
   });
   it("已登录即可读九个 active 版本；全版本查询需专门权限", async () => {
