@@ -24,15 +24,18 @@ const db = useSeededDatabase("services");
 let prisma: PrismaClient;
 let h: LedgerHarness;
 let other: Awaited<ReturnType<typeof joinLedger>>;
+let freshConnection: Awaited<ReturnType<typeof joinLedger>>;
 
 beforeAll(async () => {
   prisma = await db.prisma();
   h = createLedgerHarness(prisma);
   other = await joinLedger(h, await db.url());
+  freshConnection = await joinLedger(h, await db.url());
 }, SLOW);
 
 afterAll(async () => {
   await other?.close();
+  await freshConnection?.close();
 });
 
 /** 一个可以从外面放行的门 */
@@ -129,18 +132,21 @@ describe("账户锁（验收 4）", () => {
         return { outcome, waitedMs: performance.now() - startedAt };
       };
       // 这个事务先在保存点里进入账本，保存点回滚，账户锁随之释放；等另一条连接占住锁之后再冻结
-      const second = h.tx.run(
-        async (tx) => {
-          await savepoint(tx, async () => {
-            await h.ledger.lockAccount(tx, entity.id);
-            throw new Error("回滚这个保存点");
-          }).catch(() => undefined);
-          lost.open();
-          await locked.opened;
-          return timed(() => h.ledger.hold(tx, reentered));
-        },
-        { timeoutMs: 30_000 },
-      );
+      const second = h.tx
+        .run(
+          async (tx) => {
+            await savepoint(tx, async () => {
+              await h.ledger.lockAccount(tx, entity.id);
+              throw new Error("回滚这个保存点");
+            }).catch(() => undefined);
+            lost.open();
+            await locked.opened;
+            // 超时的 SQL 会中止当前事务；保存点回滚后仍能提交计时结果。
+            return timed(() => savepoint(tx, () => h.ledger.hold(tx, reentered)));
+          },
+          { timeoutMs: 30_000 },
+        )
+        .catch((error: unknown) => ({ outcome: error, waitedMs: -1 }));
       await lost.opened;
       const holder = other.tx.run(
         async (tx) => {
@@ -152,15 +158,19 @@ describe("账户锁（验收 4）", () => {
       );
       await locked.opened;
       // 另一个事务第一次进入：照常等 3 秒
-      const first = await timed(() => h.tx.run((tx) => h.ledger.hold(tx, fresh)));
-      const again = await second.catch((error: unknown) => ({ outcome: error, waitedMs: -1 }));
+      const first = await timed(() =>
+        freshConnection.tx.run((tx) => freshConnection.ledger.hold(tx, fresh)),
+      );
+      const again = await second;
       release.open();
       await holder;
 
-      for (const { outcome, waitedMs } of [first, again]) {
+      for (const [entry, { outcome, waitedMs }] of [first, again].entries()) {
         expect(isAppError(outcome) && outcome.error).toBe("ACCOUNT_BUSY");
         expect(waitedMs).toBeGreaterThanOrEqual(ACCOUNT_LOCK_WAIT_MS - 100);
-        expect(waitedMs).toBeLessThan(ACCOUNT_LOCK_WAIT_MS + 1_000);
+        expect(waitedMs, entry === 0 ? "首次进入" : "保存点回滚后再次进入").toBeLessThan(
+          ACCOUNT_LOCK_WAIT_MS + 1_000,
+        );
       }
       expect(await prisma.pointHold.count({ where: { entityId: entity.id } })).toBe(0);
       for (const input of [fresh, reentered]) {
@@ -174,20 +184,63 @@ describe("账户锁（验收 4）", () => {
   );
 
   it(
-    "3 秒只管拿账户锁这一句：拿到之后连接的 lock_timeout 恢复原值",
+    "3 秒只管拿账户锁这一句：拿到之后连接的 lock_timeout 与 statement_timeout 恢复原值；沿用更短的语句超时",
     async () => {
       const { entity } = await h.make.merchant();
       const setting = (tx: { $queryRaw: PrismaClient["$queryRaw"] }) =>
-        tx.$queryRaw<{ value: string }[]>`SELECT current_setting('lock_timeout') AS value`;
+        tx.$queryRaw<{ lock: string; statement: string }[]>`
+          SELECT current_setting('lock_timeout') AS lock,
+                 current_setting('statement_timeout') AS statement`;
       const [before, after] = await h.tx.run(async (tx) => {
-        await tx.$queryRaw`SELECT set_config('lock_timeout', '7s', true)`;
+        await tx.$queryRaw`
+          SELECT set_config('lock_timeout', '7s', true),
+                 set_config('statement_timeout', '2s', true)`;
         const [was] = await setting(tx);
         await h.ledger.lockAccount(tx, entity.id);
         const [now] = await setting(tx);
-        return [was?.value, now?.value];
+        return [was, now];
       });
-      expect(before).toBe("7s");
-      expect(after).toBe("7s");
+      expect(before).toEqual({ lock: "7s", statement: "2s" });
+      expect(after).toEqual(before);
+    },
+    SLOW,
+  );
+
+  it(
+    "连接原有 statement_timeout 更短：只等 1 秒且仍映射 ACCOUNT_BUSY",
+    async () => {
+      const { entity, store } = await h.make.merchant({ verified: true });
+      await openTerm(h, { entityId: entity.id });
+      const drama = await h.make.drama({ heatTier: "A" });
+      const locked = gate();
+      const release = gate();
+      const holder = other.tx.run(async (tx) => {
+        await other.ledger.lockAccount(tx, entity.id);
+        locked.open();
+        await release.opened;
+      });
+      await locked.opened;
+      const startedAt = performance.now();
+      const outcome = await freshConnection.tx
+        .run(async (tx) => {
+          await tx.$queryRaw`SELECT set_config('statement_timeout', '1s', true)`;
+          return freshConnection.ledger.hold(
+            tx,
+            dramaHoldInput({
+              entityId: entity.id,
+              storeId: store.id,
+              dramaId: drama.id,
+              refId: uuidv7(),
+            }),
+          );
+        })
+        .catch((error: unknown) => error);
+      const waitedMs = performance.now() - startedAt;
+      release.open();
+      await holder;
+      expect(isAppError(outcome) && outcome.error).toBe("ACCOUNT_BUSY");
+      expect(waitedMs).toBeGreaterThanOrEqual(900);
+      expect(waitedMs).toBeLessThan(2_000);
     },
     SLOW,
   );
