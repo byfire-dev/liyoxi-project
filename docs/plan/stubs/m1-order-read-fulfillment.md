@@ -3,9 +3,9 @@
 | 项 | 内容 |
 | --- | --- |
 | 状态 | 已回补 |
-| 留桩内容 | OrderDetail.deliveryPlan / items[].ticketStep 与开工后时间轴 |
-| 骨架里的做法 | W1-17a 经公开 delivery reader 读取真实工单步骤、方案摘要与逐项里程碑；未开工仍为空，方案未推送时摘要字段为空。售后、授权书、广告位与待办仍由各自后续包交付 |
-| 登记的工作包 | W1-15a |
+| 留桩内容 | OrderDetail.deliveryPlan / items[].ticketStep、OrderItemRow/Detail.ticketStep、AdminOrderDetail.deliveryPlan / items[].ticket 与开工后时间轴 |
+| 骨架里的做法 | W1-17a 经公开 delivery reader 读取真实工单步骤、方案摘要与逐项里程碑，商家订单项与后台订单详情复用同一投影；未开工仍为空，方案未推送时摘要字段为空。售后、授权书、广告位与待办仍由各自后续包交付 |
+| 登记的工作包 | W1-15a；b 扩展具体字段范围 |
 | 回补里程碑 | M1 |
 | 回补的工作包 | W1-17 |
 | 依据 | W1-15 第 7、10 节；计划 第 7.3 节留桩清单；m04 第 2.4–2.9、3.15 节；x01 第 3.10、4.1 节 |

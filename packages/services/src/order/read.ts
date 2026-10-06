@@ -20,7 +20,11 @@ const TIMELINE = [
   "usage_ended",
 ] as const;
 // 履约字段经公开只读端口聚合；售后与授权书由后续工作包回补。
-export async function detail(tx: Tx, actor: OrderActor, id: string): Promise<OrderDetail> {
+export async function detail(
+  tx: Tx,
+  actor: { membership: Pick<OrderActor["membership"], "storeId" | "entityId"> },
+  id: string,
+): Promise<OrderDetail> {
   const o = await tx.dramaOrder.findFirst({
     where: { id, storeId: actor.membership.storeId, entityId: actor.membership.entityId },
     include: {

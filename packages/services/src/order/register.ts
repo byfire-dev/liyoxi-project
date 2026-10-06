@@ -1,5 +1,11 @@
 import { chainKey, machinePort, rowKey } from "../flow/index.js";
-import { defineRegistration, implement, implementKeyed, lockRows } from "../kernel/index.js";
+import {
+  defineRegistration,
+  implement,
+  implementKeyed,
+  implementMerchantFacts,
+  lockRows,
+} from "../kernel/index.js";
 import { orderManagerPort } from "../profile/index.js";
 import type { SyncStoreManager } from "../profile/index.js";
 import { orderSidePort } from "../delivery/index.js";
@@ -8,6 +14,7 @@ import { applyConfirmedPlan } from "./plan.js";
 import { rederive, isDerivationChecked } from "./rederive.js";
 import { DERIVED_INVARIANT_CODES, findDerivedViolations } from "./derived-invariants.js";
 import { findOrderViolations, ORDER_INVARIANT_CODES } from "./invariants.js";
+import { orderMerchantFacts } from "./counts.js";
 export const syncOrderManager: SyncStoreManager = async (tx, input) => {
   const rows = await tx.dramaOrder.findMany({
     where: {
@@ -40,6 +47,7 @@ export const registration = defineRegistration("order", {
       applyConfirmedPlan: (tx, input) => applyConfirmedPlan(tx, boundOrder(), input),
       rederive: (tx, input) => rederive(tx, boundOrder(), input),
     }),
+    implementMerchantFacts("order", orderMerchantFacts),
     implement(orderManagerPort, syncOrderManager),
     implementKeyed(machinePort, chainKey("drama_order", "status"), {
       companions: ["sub_status", "status_changed_at", "closed_at"],

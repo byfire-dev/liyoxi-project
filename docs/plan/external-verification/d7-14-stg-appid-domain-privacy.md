@@ -16,3 +16,5 @@
 | 关闭日期 |  |
 
 业主事项的状态见 [业主清单](../owner-checklist.md)。填写规则见 [README](README.md)。
+
+W2-25a 已交付宿主机 nginx 三个预发域名的站点模板与本机演练（`infra/deploy/nginx/`、`infra/bootstrap/README.md` 第 6、7 节）；域名、隐私指引与共用 AppID 后台设置仍待业主执行并回填本文件，不因本机 nginx 核对关闭本项。
