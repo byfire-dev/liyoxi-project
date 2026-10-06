@@ -8,6 +8,24 @@
   ],
   "rules": [
     {
+      "id": "catalog-no-hot",
+      "word": "热播",
+      "paths": ["apps/weapp/src/"],
+      "source": "规范 第14节第7项与第7节：小程序显示推荐"
+    },
+    {
+      "id": "catalog-no-heat",
+      "word": "热度",
+      "paths": ["apps/weapp/src/"],
+      "source": "规范 第14节第7项与第7节：小程序显示选用量"
+    },
+    {
+      "id": "catalog-no-informal-recommend",
+      "word": "为你推荐",
+      "paths": ["apps/weapp/src/"],
+      "source": "规范 第14节第7项与第7节：小程序显示为您推荐"
+    },
+    {
       "id": "login-no-wechat",
       "word": "微信",
       "paths": [
