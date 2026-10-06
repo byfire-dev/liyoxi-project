@@ -1,6 +1,14 @@
 // 商家端：商城、选剧单与订购 · orders（docs/api/m04-mall-order.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { merchantMeta } from "../meta-only.js";
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  OrderCreateBodySchema,
+  OrderCreateResultSchema,
+  OrderQuoteBodySchema,
+  OrderQuoteSchema,
+} from "./order.schemas.js";
 
 export const mOrderList = merchantMeta({
   method: "get",
@@ -13,7 +21,15 @@ export const mOrderList = merchantMeta({
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
 });
 
-export const mOrderCreate = merchantMeta({
+export const mOrderCreate = merchantRoute({
+  request: {
+    body: { required: true, content: { "application/json": { schema: OrderCreateBodySchema } } },
+  },
+  responses: {
+    ...okResponse(OrderCreateResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  "x-redact-on-replay": ["items[].posterUrl"],
   method: "post",
   path: "/m/orders",
   operationId: "m.order.create",
@@ -24,7 +40,11 @@ export const mOrderCreate = merchantMeta({
   "x-idempotent": "required",
 });
 
-export const mOrderQuote = merchantMeta({
+export const mOrderQuote = merchantRoute({
+  request: {
+    body: { required: true, content: { "application/json": { schema: OrderQuoteBodySchema } } },
+  },
+  responses: { ...okResponse(OrderQuoteSchema), ...errorResponses(400, 401, 403, 404, 409, 503) },
   method: "post",
   path: "/m/orders/quote",
   operationId: "m.order.quote",

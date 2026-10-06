@@ -48,3 +48,6 @@ export * from "./billing.js";
 // W1-11a：履约用例的夹具——账本夹具加履约、已支付未履约的套餐付款单
 export * from "./billing-fulfill.js";
 export * from "./billing-payment.js";
+
+// W1-15a：完整订剧前置，供真实 API / clerk 测试复用。
+export * from "./order.fixture.js";

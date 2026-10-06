@@ -128,7 +128,7 @@ flowchart LR
 - **业务时区固定为北京时间（UTC+8，无夏令时）**；库里存 `timestamptz`，“业务日”由 `shared/period.bizDate(t)` 计算，任何代码不得用服务器本地时区。
 - **账本操作的“现在”**：拿到 `billing_account` 行锁**之后**执行 `SELECT clock_timestamp()`，再取 `now = max(clock_timestamp(), 该主体的 last_op_at)`，并在同一事务里把 `last_op_at` 写为 `now`。不使用 `now()` / `CURRENT_TIMESTAMP`（它们是事务开始时间，等锁期间不前进）。同一事务内对同一主体的多次账本调用共用这一个 `now`（7.1）。api 多实例之间不依赖各自时钟；测试用可注入的 `Clock`，注入点就是这一处。
 - 由此得到两条性质（I16 每日校验）：同一主体的流水按 `seq` 排序时 `occurred_at` 不减；报价、选批次、判断过期与写流水用的是同一个时刻。
-- **调用方的义务**：订购、支付等调用方在同一事务里写的时间敏感字段（订购提交时间、协议同意时间、付款单的 `effective_at`）用账本返回的 `now`，不用自己事务开始时取的时间。
+- **调用方的义务**：订购、支付等调用方的财务业务时间（订购提交时间、付款单的 `effective_at`）用账本返回的 `now`，不用事务开始时取的时间。订购按主文档 m04 第 3.15 节先由 Docs 追加协议同意证据（真实 Tc），再第一次 `hold` 取得真实 Tf；证据不回填、不预锁账户。持锁后再调用公共 `currentVersions` 于真实 Tv 晚检，变版返回标准 `AGREEMENT_VERSION_STALE` 并整笔回滚，Tc、Tf、Tv 不保证相等。
 - **周期是左闭右开区间** `[starts_at, ends_at)`。“到期日 24:00”【PRD §2.3-4】实现为“到期日次日 00:00”，即 `ends_at`。展示时，清零类流水显示为“前一日 24:00”，发放类显示为“当日 00:00”【原型 merchant/Ledger】。
 - **每条流水带两个时间**：`occurred_at`（业务生效时刻；到点类操作取逻辑时间，如到期时刻）与 `created_at`（真实写入时刻）；另带 `biz_date`（归属业务日）。清零流水的 `biz_date` = 周期最后一天，同一瞬间的发放流水 `biz_date` = 新周期第一天。报表一律按 `biz_date` 归集。到点类操作的逻辑时间一定晚于该主体上一次操作的时间（上一次操作已把它之前到期的事都推进完了），所以单调性不被破坏。
 
@@ -1437,7 +1437,7 @@ sequenceDiagram
   API->>BL: quoteOrder（门店、剧目、是否顶级模型）
   BL-->>M: 逐部 P、R、T、S，扣减来源预览
   M->>API: POST /m/orders（Idempotency-Key，expect）
-  API->>DB: BEGIN，插入订购单与明细
+  API->>DB: BEGIN，预生成 id/单号，Docs 记真实同意证据 Tc
   API->>BL: 逐部 hold(tx, pricing, expectS)
   BL->>DB: 锁 billing_account，取账本时钟，advance，锁内计价
   alt 报价已变
@@ -1449,7 +1449,7 @@ sequenceDiagram
   else 通过
     BL->>DB: 批次 可用→冻结，写冻结单、分摊、流水
     BL-->>API: holdId、S、计价快照、now
-    API->>DB: 回填明细的快照与提交时间（用 now）、协议同意记录、审计、outbox
+    API->>DB: Tv 晚检协议版本；插订购单/明细（提交时间用 Tf），历史、审计、outbox
     API->>DB: COMMIT
   end
   Note over API,DB: 资质审核通过，开始制作

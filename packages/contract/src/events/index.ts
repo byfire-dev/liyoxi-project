@@ -4,6 +4,7 @@
 // 加一个模块文件，在下面 import 并展开进 EVENT_PAYLOAD_SCHEMAS。没有 schema 的事件 events.emit() 不给发。
 import { payloads as content } from "./content.js";
 import { payloads as delivery } from "./delivery.js";
+import { payloads as order } from "./order.js";
 import { payloads as media } from "./media.js";
 import type { EventName } from "../registry/index.js";
 import type { z } from "../zod.js";
@@ -21,6 +22,7 @@ import { payloads as profile } from "./profile.js";
 export const EVENT_PAYLOAD_SCHEMAS = {
   ...content,
   ...delivery,
+  ...order,
   ...media,
   ...sla,
   ...tenant,
