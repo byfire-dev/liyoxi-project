@@ -327,6 +327,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/delivery-releases/{deliveryReleaseId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 成片包详情（清单、大小、ZIP 缓存状态） */
+        get: operations["admin.deliveryRelease.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/delivery-tickets": {
         parameters: {
             query?: never;
@@ -1849,6 +1866,54 @@ export interface components {
             code: string;
             ticket: string;
         };
+        DeliveryReleaseDetail: components["schemas"]["ReleaseAdminView"] & {
+            actions: string[];
+            activeGrant: {
+                /** Format: uuid */
+                downloadGrantId: string;
+                /** Format: date-time */
+                expiresAt: string;
+            } | null;
+            manifest: components["schemas"]["ReleaseManifestItem"][];
+            orderItem: {
+                agreedLaunchDate: string | null;
+                dramaTitle: string;
+                episodeCount: number;
+                liveEpisodeCount: number;
+                /** Format: uuid */
+                orderId: string;
+                /** Format: uuid */
+                orderItemId: string;
+                orderNo: string;
+                /** Format: date-time */
+                orderedAt: string;
+                /** @enum {string} */
+                phase: "pending_start" | "producing" | "to_launch" | "live" | "ended" | "cancelled" | "refunded" | "terminated";
+                /** @enum {string} */
+                productionModel: "standard" | "advanced" | "top";
+                /** Format: date */
+                usageEndDate: string;
+                /** @enum {string} */
+                usageEndSource: "license" | "early_end" | "expired";
+                usageStartDate: string | null;
+            };
+            publishListText: string | null;
+            store: components["schemas"]["AdminStoreBrief"];
+            ticket: {
+                deliveredAt: string | null;
+                deliveryManager: components["schemas"]["StaffBrief"] | null;
+                /** Format: date-time */
+                deliveryTargetAt: string;
+                /** Format: uuid */
+                deliveryTicketId: string;
+                isPaused: boolean;
+                pauseReasons: ("cancel_review" | "plan_amendment")[];
+                publisher: components["schemas"]["StaffBrief"] | null;
+                /** @enum {string} */
+                step: "assigning" | "plan_confirm" | "ad_prep" | "sample_making" | "sample_confirm" | "batch_compose" | "delivering" | "awaiting_launch" | "launch_verify" | "in_service" | "takedown" | "archived" | "terminated";
+                ticketNo: string;
+            };
+        };
         DeliveryTicketCard: {
             actions: string[];
             agreedLaunchDate: string | null;
@@ -3048,6 +3113,16 @@ export interface components {
             totalBytes: string;
             /** @enum {string} */
             variant: "common" | "douyin" | "wechat_channels";
+        };
+        ReleaseManifestItem: {
+            crc64: string | null;
+            episodeNo: number;
+            /** Format: uuid */
+            fileId: string;
+            name: string;
+            /** Format: uuid */
+            outputId: string;
+            size: string;
         };
         RoleSummary: {
             /** @enum {string} */
@@ -4969,6 +5044,79 @@ export interface operations {
             };
             /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.deliveryRelease.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deliveryReleaseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["DeliveryReleaseDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

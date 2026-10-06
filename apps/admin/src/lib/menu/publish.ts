@@ -61,7 +61,7 @@ const publish: AdminModule = {
       badgeKey: "publish.accounts",
       milestone: "M1",
       workPackage: "W1-19",
-      implemented: false,
+      implemented: true,
       screen: "Accounts",
       kind: "board",
       skeleton: "queue-workbench",
