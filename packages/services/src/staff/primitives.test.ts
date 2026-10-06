@@ -149,7 +149,9 @@ describe("票据", () => {
       JSON.stringify({ ...JSON.parse(Buffer.from(body, "base64url").toString()), s: OTHER }),
     ).toString("base64url");
     expect(readTicket(keys, `${forged}.${mac}`, "mfa", NOW)).toBeNull(); // 改了内容
-    expect(readTicket(keys, `${body}.${mac.slice(0, -2)}AA`, "mfa", NOW)).toBeNull(); // 改了签名
+    const changedMac = Buffer.from(mac, "base64url");
+    changedMac[0] = changedMac[0]! ^ 1;
+    expect(readTicket(keys, `${body}.${changedMac.toString("base64url")}`, "mfa", NOW)).toBeNull(); // 改了签名
     expect(
       readTicket(keys, `${body}.${keys.sign("device", body).toString("base64url")}`, "mfa", NOW),
     ).toBeNull();
