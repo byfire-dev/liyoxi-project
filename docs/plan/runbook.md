@@ -136,7 +136,7 @@ E18 没到位时告警只落库（开发计划 第 4.1 节）。上线首月哪�
 | 5.3 | 从异地逻辑备份恢复：取离线私钥、解密、导入空实例 | 待填 | 待填 | `prisma migrate status` 与不变量校验 | 待填 |
 | 5.4 | 按时间点恢复后的单号流水处理 | 待填（D2 第 9.5 节的手册） | 待填 | 待填 | 待填 |
 | 5.5 | Redis 清空后的自愈 | 预发：认准容器名 `lyx-redis`（同机留着参考工程已停的 Redis 容器，不要碰）。清空用容器里的 `redis-cli`，口令在只挂给它的 `/run/secrets/redis-auth.conf`；清空后不用重启，队列、限流、缓存由 worker 与 api 按 PostgreSQL 重建（D7 第 7.3 节）。连数据卷一起重来：`systemctl stop lyx-redis` → `docker rm lyx-redis` → `docker volume rm lyx-node-redisdata` → `systemctl start lyx-redis` | 待填（演练时量） | `node-step.sh status` 通过；自愈的判据见外部验证 `d6-09-redis-flush-self-heal.md` | 已填（预发的操作；自愈本身未演练） |
-| 5.6 | 发布回滚 | 经任务书第 8 节授权后：`node infra/deploy/orchestrate.mjs --node <发布用户>@<节点> --rollback --summary rollback.json`；目标缺省上一成功版，可指定 `--tag`。先 api/gateway 后 worker，不迁移、不补种、不重新预置资源；目标镜像须已在本地。跨过任一“回滚不安全”记录即拒绝，只有 `--force --reason <说明>` 越过并记录 | 待实跑量 | JSON 摘要 exitCode=0、节点 releases.log 有成功记录、smoke 的真实版本与目标一致；完整持续探测/资源核验由 W2-26b 接续 | 已填执行方法；预发未演练 |
+| 5.6 | 发布回滚 | 经任务书第 8 节授权后：`node infra/deploy/orchestrate.mjs --node <发布用户>@<节点> --rollback --summary rollback.json`；目标缺省上一成功版，可指定 `--tag`。先 api/gateway 后 worker，不迁移、不补种、不重新预置资源；目标镜像须已在本地。跨过任一“回滚不安全”记录即拒绝，只有 `--force --reason <说明>` 越过并记录 | 待实跑量 | JSON 摘要 exitCode=0、节点 releases.log 有成功记录、smoke 的真实版本与目标一致；b1用成对 --probe-config / --probe-summary 保存持续探测，全资源与DB核对失败非0 | 已填执行方法；预发未演练 |
 | 5.7 | 节点与桶重建 | 独占机器的节点重建：照 `infra/bootstrap/README.md` 从第 1 步重走，脚本都可以重复执行；当前预发节点还挂着公司官网，按 ADR-041 不重建节点；数据卷 `lyx-node-pgdata` 还在则库不丢，密钥目录还在则不用重新生成。桶：待填（W2-25 的第二步交桶配置脚本）。D7 第 10.6 节第 18 项 | 待填 | 重建后的预发通过冒烟；桶配置无差异 | 待填 |
 
 ## 6. 演练记录
@@ -181,9 +181,9 @@ E18 没到位时告警只落库（开发计划 第 4.1 节）。上线首月哪�
 
 G8 做（开发计划 第 6.11、7.5 节）。M8 的演示含一次回滚演练。
 
-预发的 W2-26a 已交编排入口与假命令目标验收：发布用 `node infra/deploy/orchestrate.mjs --node <发布用户>@<节点> --tag sha-<12位提交号> --summary release.json`，回滚照第 5.6 行。固定顺序为预检、拉镜像、自检、只增资产预置、迁移、补种、worker/mediatool、停起 api/gateway、状态、库核对、版本冒烟、限定清理；JSON 区分线上是否已触碰与运行进程是否已换，节点 records 只追加。缺省 P1 检查为 unavailable（告警包未接），混跑结果为 unavailable（W2-28 未交）；将来明确启用节点 LYX_P1_CHECK 后，查询或结果异常会拒绝。STG_FREEZE=true 停在预检。同版本可重跑；清理保护当前版与最近三版内的成功版本，未知镜像保留，静态资源至少保留 60 天且保护回滚清单。
+预发的 W2-26a 已交编排入口与假命令目标验收：发布用 `node infra/deploy/orchestrate.mjs --node <发布用户>@<节点> --tag sha-<12位提交号> --summary release.json`，回滚照第 5.6 行。固定顺序为预检、拉镜像、自检、只增资产预置、新旧完整资产预核、迁移、补种、worker/mediatool、停起 api/gateway、状态、库核对、版本冒烟、新旧全资源HTTP摘要核对、限定清理；JSON 区分线上是否已触碰与运行进程是否已换，节点 records 只追加。缺省 P1 检查为 unavailable（告警包未接），混跑结果为 unavailable（W2-28 未交）；将来明确启用节点 LYX_P1_CHECK 后，查询或结果异常会拒绝。STG_FREEZE=true 停在预检。同版本可重跑；清理保护当前版与最近三版内的成功版本，未知镜像保留，静态资源至少保留 60 天且保护回滚清单。
 
-本包 b 将提供带连续探测的一次完整发布加回滚 Docker 演练、全部资源冒烟、完整结构核对和工作流；目前没有运行该演练，不填实际记录。预发执行仍须按任务书第 8 节由业主执行或在场逐步授权；本地目标测试不等于预发实跑。
+本包 b1 的本机方法为 pnpm stg:rehearse -- --release：另造两个真实构建号的 server/gateway，在随机project/网段/回环端口与假密钥目录内，初始版幂等发布登记、发布新版、缺省回滚，检查 /health 新→旧以及新旧全部资源。每次编排给 --probe-config <目标JSON> / --probe-summary <报告JSON>，每秒探测 API 两条真健康、匿名商城配置和两个前端入口；编排传真实启动者 PID，使 READY 前失父也退出并保存最终 JSON。全资源按实际镜像清单逐个比sha256。库核对复用原 grants、constraints、partitions；缺一个部分索引必须变红，恢复后再次通过。迁移前持久化 db-release.env 的目标，回滚不改该记录；核库工具与快照使用该迁移版本，应用版本仍是回滚目标，CI 的 dbVerification 分别列出。prune 保留三版运行镜像之外，也保护这份数据库 server 工具镜像。证据保存在单独自有临时目录，清场只删本次project/卷/容器/镜像标签。b2上传与工作流消费者另等W2-25b实际main；本机结果不填成预发实跑记录。预发执行仍须按任务书第 8 节由业主执行或在场逐步授权；本地目标测试不等于预发实跑。
 
 | 演练日 | 执行人 | 环境 | 发布的版本 | 回滚到的版本 | 失败请求数 | 耗时 | 遇到的问题 | 后续动作 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

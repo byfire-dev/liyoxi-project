@@ -10,10 +10,11 @@
 #   seed <标签>        一次性容器播种（应用登录账号）：没有才插；播完跑六条配置类断言，有违规即以 1 退出
 #   up <标签>          记下“现在跑这个版本”，起（换）六个容器，等到都在跑且健康
 #   status             六个容器的状态与版本、经 gateway 的探活、worker 是否持有租约；有一项不对即非 0
-#   verify-db <标签>   库的核对：库名、两个扩展、应用连库用的是登录账号而不是属主、角色与授权
+#   verify-db <标签>   库的核对：库名、两个扩展、应用连库用的是登录账号而不是属主、角色与授权、约束清单和分区
 #   stage-assets <标签> 不覆盖地预置两个前端的资源；worker-swap <标签> 停旧再换 worker 与 mediatool
 #   api-stop / api-start <标签> 停 api/gateway，再换新并等 readyz 连续三次 200
-#   smoke <标签>      API 探活、两个前端入口、实际版本与 worker；完整资源探测由 W2-26b 交
+#   verify-assets <标签> 完整镜像资源与共享目录核对；verify-assets-live <标签> [旧标签] 实际网关全资源核对
+#   smoke <标签>      API 探活、两个前端入口、实际版本与 worker；完整资源由 verify-assets-live 核对
 #   prune             只清本项目记录过的旧版本，留当前与最近三版；资源至少保留 60 天
 #   facts / preflight 只读版本、发布历史与 P1（告警包未接时明确 unavailable）
 #   image-facts <标签> 只核目标三类本地镜像；record <标签> <base64url JSON> 严格校验后追加记录
@@ -40,11 +41,12 @@ SELF="$LYX_SRC/infra/deploy/node-step.sh"
 STG_ENV="$LYX_SRC/infra/compose/env/stg.env"
 NODE_ENV="$LYX_NODE_HOME/node.env"
 RELEASE_ENV="$LYX_NODE_HOME/release.env"
+DB_RELEASE_ENV="$LYX_NODE_HOME/db-release.env"
 COMPOSE_FILE="$LYX_SRC/infra/compose/node.yml"
 SUPERVISOR="${LYX_NODE_SUPERVISOR:-systemd}"
 SERVICES="postgres redis mediatool api worker gateway"
-PUBLIC_STEPS="deps pull check-env migrate seed up status verify-db stage-assets worker-swap api-stop api-start smoke prune preflight facts image-facts record"
-USAGE="用法：node-step.sh deps | pull <标签> | check-env <标签> | migrate <标签> | seed <标签> | up <标签> | status | verify-db <标签> | stage-assets <标签> | worker-swap <标签> | api-stop | api-start <标签> | smoke <标签> | prune | facts | preflight | image-facts <标签> | record <标签> <base64url JSON>"
+PUBLIC_STEPS="deps pull check-env migrate seed up status verify-db stage-assets worker-swap api-stop api-start smoke prune preflight facts image-facts record verify-assets verify-assets-live"
+USAGE="用法：node-step.sh deps | pull <标签> | check-env <标签> | migrate <标签> | seed <标签> | up <标签> | status | verify-db <标签> | stage-assets <标签> | worker-swap <标签> | api-stop | api-start <标签> | smoke <标签> | prune | facts | preflight | image-facts <标签> | record <标签> <base64url JSON> | verify-assets <标签> | verify-assets-live <标签> [旧标签]"
 
 via_ssh=0
 if [ $# -eq 0 ] && [ -n "${SSH_ORIGINAL_COMMAND:-}" ]; then
@@ -67,7 +69,11 @@ need_services() {
 }
 case "$step" in
   deps | status | api-stop | prune | preflight | facts) [ $# -eq 0 ] || usage_die "$step 不带参数。$USAGE" ;;
-  pull | check-env | migrate | seed | up | verify-db | stage-assets | worker-swap | api-start | smoke | image-facts) need_tag "$@" ;;
+  pull | check-env | migrate | seed | up | verify-db | stage-assets | worker-swap | api-start | smoke | image-facts | verify-assets) need_tag "$@" ;;
+  verify-assets-live)
+    [ $# -ge 1 ] && [ $# -le 2 ] || usage_die "verify-assets-live 需要目标与可选旧标签"
+    for tag in "$@"; do need_tag "$tag"; done
+    ;;
   record)
     [ $# -eq 2 ] || usage_die "record 后面是标签与 base64url JSON"
     need_tag "$1"
@@ -102,6 +108,16 @@ setting() {
   done
 }
 current_tag() { if [ -r "$RELEASE_ENV" ]; then sed -n 's/^LYX_TAG=//p' "$RELEASE_ENV" | head -n 1; fi; }
+db_tag() {
+  local line
+  if [ -e "$DB_RELEASE_ENV" ] || [ -L "$DB_RELEASE_ENV" ]; then
+    [ -f "$DB_RELEASE_ENV" ] && [ ! -L "$DB_RELEASE_ENV" ] && [ -r "$DB_RELEASE_ENV" ] || die "读不了库迁移版本"
+    [ "$(wc -c <"$DB_RELEASE_ENV")" -le 141 ] || die "库迁移版本记录过长"
+    line="$(cat "$DB_RELEASE_ENV")" || die "读不了库迁移版本"
+    [[ "$line" =~ ^LYX_DB_TAG=([A-Za-z0-9_][A-Za-z0-9_.-]{0,127})$ ]] || die "库迁移版本记录不合法"
+    printf '%s' "${BASH_REMATCH[1]}"
+  fi
+}
 container() { printf '%s-%s' "$LYX_NODE_PREFIX" "$1"; }
 
 # docker compose 的公共参数，放进 COMPOSE_ARGS：变量替换的来源是 stg.env、节点上的 node.env（有才带）与当前环境
@@ -178,6 +194,10 @@ step_check_env() {
 
 step_migrate() {
   wait_healthy 30 postgres || die "库没在运行：先 node-step.sh deps"
+  # 库结构不随代码回滚；迁移失败也可能已应用一部分，先持久化该版本的工具/期望结构来源。
+  mkdir -p "$LYX_NODE_HOME" || die "创建不了节点记录目录：迁移未执行"
+  (umask 077; printf 'LYX_DB_TAG=%s\n' "$1" >"$DB_RELEASE_ENV.tmp") &&
+    mv -f "$DB_RELEASE_ENV.tmp" "$DB_RELEASE_ENV" || die "写不了库迁移版本：迁移未执行"
   one_off "$1" migrate || die "迁移没成：正在跑的容器没有动"
   say "迁移完成"
 }
@@ -260,8 +280,13 @@ step_status() {
 }
 
 step_verify_db() {
+  local application="$1" runner
+  runner="$(db_tag)" || die "库迁移版本不可用"
+  runner="${runner:-$application}"
+  # 参数仍是待核对的应用版本；核库 runner/快照来自持久化迁移目标，旧节点无记录时才使用该参数。
+  printf 'LYX_DB_VERIFY_APPLICATION=%s\nLYX_DB_VERIFY_RUNNER=%s\n' "$application" "$runner"
   wait_healthy 30 postgres || die "库没在运行：先 node-step.sh deps"
-  one_off "$1" verify-db || die "库的核对没过（见上）"
+  one_off "$runner" verify-db || die "库的核对没过（见上）"
 }
 
 step_run() {
@@ -296,6 +321,8 @@ case "$step" in
   preflight) step_preflight ;;
   facts) step_facts ;;
   image-facts) step_image_facts "$1" ;;
+  verify-assets) step_verify_assets "$1" ;;
+  verify-assets-live) step_verify_assets_live "$@" ;;
   record) step_record "$1" "$2" ;;
   run) step_run "$1" ;;
   stop)

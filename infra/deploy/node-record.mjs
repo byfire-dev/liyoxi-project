@@ -16,6 +16,8 @@ const STEPS = new Set([
   "pull",
   "check-env",
   "stage-assets",
+  "verify-assets",
+  "verify-assets-live",
   "migrate",
   "seed",
   "worker-swap",

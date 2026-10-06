@@ -119,6 +119,10 @@ COPY infra/docker/server/fonts/*.ttf infra/docker/server/fonts/OFL-*.txt fonts/
 # 库的角色与授权核对（只读；预发节点步骤 verify-db 在一次性容器里跑它，W2-25）：脚本按相对路径读期望数据与下限清单，照仓库里的位置放
 COPY infra/ci/db-verify-grants.mjs infra/ci/db-grants-rules.mjs infra/ci/db-lib.mjs infra/ci/grants-floor.txt infra/ci/
 COPY packages/db/src/grants.expected.json packages/db/src/
+# 部署后的结构与分区核对仍按仓库相对路径读快照和文档计数，只携带这一份文档。
+COPY infra/ci/db-constraints.mjs infra/ci/db-partition-assert.mjs infra/ci/db-structure-lib.mjs infra/ci/
+COPY packages/db/snapshot/structure.txt packages/db/snapshot/
+COPY docs/06-data-model.md docs/
 # prisma 放到 PATH 上：docker run --rm -w /app/packages/db <镜像> prisma migrate deploy。
 # /work 是与 mediatool 共享的目录的挂载点：属主与 mediatool 镜像里的一致（1000:1000，基础镜像自带的 node 用户），
 # 命名卷不论先挂到哪一边，沿用到的属主都一样。
