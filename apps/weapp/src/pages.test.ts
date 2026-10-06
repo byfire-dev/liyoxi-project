@@ -29,15 +29,27 @@ describe("页面清单", () => {
     ).toEqual(["sub/catalog/trailer/index"]);
   });
 
-  it("M0 只建四个标签页的占位：进构建，但不算已实现；首页自绘导航", () => {
+  it("M1 交付登录、协议与我的；其余三标签页仍占位，V1.1不实现", () => {
     const built = WEAPP_PAGES.filter(isBuilt);
     expect(built.map((page) => page.route)).toEqual([
       "pages/home/index",
       "pages/mall/index",
       "pages/cart/index",
       "pages/mine/index",
+      "pages/login/index",
+      "pages/agreement/index",
     ]);
-    expect(built.every((page) => page.tab && page.placeholder && !page.implemented)).toBe(true);
+    expect(built.filter((page) => page.implemented).map((page) => page.route)).toEqual([
+      "pages/mine/index",
+      "pages/login/index",
+      "pages/agreement/index",
+    ]);
+    expect(
+      built.filter((page) => page.placeholder).every((page) => page.tab && !page.implemented),
+    ).toBe(true);
+    expect(
+      WEAPP_PAGES.filter((page) => page.milestone === "V1.1").every((page) => !page.implemented),
+    ).toBe(true);
     expect(WEAPP_PAGES.filter((page) => page.customNav).map((page) => page.route)).toEqual([
       "pages/home/index",
       "pages/login/index",
@@ -46,9 +58,16 @@ describe("页面清单", () => {
 });
 
 describe("由清单拼出全局配置", () => {
-  it("现在：只有主包的四页，没有分包，也没有预下载", () => {
+  it("现在：主包六页，没有分包，也没有预下载", () => {
     expect(buildRoutes()).toEqual({
-      pages: ["pages/home/index", "pages/mall/index", "pages/cart/index", "pages/mine/index"],
+      pages: [
+        "pages/home/index",
+        "pages/mall/index",
+        "pages/cart/index",
+        "pages/mine/index",
+        "pages/login/index",
+        "pages/agreement/index",
+      ],
       subPackages: [],
       preloadRule: {},
     });

@@ -1,0 +1,63 @@
+.account-mine {
+  background: $lyx-color-bg-page;
+  padding: 24px 16px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0 12px;
+  }
+  &__identity {
+    flex: 1;
+    min-width: 0;
+  }
+  &__name {
+    font-size: 20px;
+    font-weight: 600;
+  }
+  &__phone {
+    font-size: 12px;
+    color: $lyx-color-text-secondary;
+    margin: 5px 0 8px;
+  }
+  &__tags {
+    display: flex;
+    gap: 6px;
+  }
+  &__points {
+    margin: 20px 0 16px;
+    font-size: 36px;
+    font-weight: 600;
+    > * {
+      font-size: 13px;
+      font-weight: 400;
+      color: $lyx-color-text-on-dark-secondary;
+      margin-top: 6px;
+    }
+  }
+  &__plan-meta {
+    font-size: 12px;
+    color: $lyx-color-text-on-dark-secondary;
+  }
+  &__stats {
+    display: flex;
+    padding: 20px 12px;
+    background: $lyx-color-bg-card;
+    border-radius: 14px;
+    > * {
+      flex: 1;
+      text-align: center;
+      font-size: 12px;
+      color: $lyx-color-text-secondary;
+      > * {
+        font-size: 24px;
+        color: $lyx-color-text-primary;
+        margin-bottom: 8px;
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+.account-consent {
+  &__body {
+    padding: 4px 0 16px;
+  }
+  &__item {
+    padding: 14px 0;
+    border-bottom: 1px solid $lyx-color-divider;
+  }
+  &__version {
+    margin: 8px 0;
+    font-size: 12px;
+    color: $lyx-color-text-secondary;
+  }
+  &__summary {
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  &__actions {
+    display: flex;
+    gap: 12px;
+    > * {
+      flex: 1;
+    }
+  }
+}
