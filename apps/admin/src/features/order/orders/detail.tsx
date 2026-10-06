@@ -1,7 +1,7 @@
 import { statusToneByEnum } from "@liyoxi/shared/design/status-tone";
 import { appDateTimeFormat as date } from "@liyoxi/shared/format/datetime";
 import { useQuery } from "@tanstack/react-query";
-import { getRouteApi, useRouteContext, useRouterState } from "@tanstack/react-router";
+import { getRouteApi, Link, useRouteContext, useRouterState } from "@tanstack/react-router";
 import { Button } from "antd";
 import { DetailPage } from "../../../components/DetailPage";
 import { InfoList } from "../../../components/InfoList";
@@ -52,9 +52,27 @@ function OrderContent({ data }: { data: OrderDetail }) {
                     { label: "应扣积分", value: item.chargePoints.toLocaleString("zh-CN") },
                     {
                       label: "交付工单",
-                      value: item.ticket
-                        ? `${item.ticket.ticketNo} · ${statusToneByEnum("delivery_ticket.step", item.ticket.step)?.admin?.label ?? item.ticket.step}`
-                        : "尚未开工",
+                      value: item.ticket ? (
+                        <Link
+                          className="lyx-link"
+                          to="/delivery/tickets/$ticketNo"
+                          params={{ ticketNo: item.ticket.ticketNo }}
+                          search={{ tab: "plan" }}
+                          state={(previous) => ({
+                            ...previous,
+                            lyxTicket: {
+                              ticketNo: item.ticket!.ticketNo,
+                              ticketId: item.ticket!.deliveryTicketId,
+                            },
+                          })}
+                        >
+                          {item.ticket.ticketNo} ·{" "}
+                          {statusToneByEnum("delivery_ticket.step", item.ticket.step)?.admin
+                            ?.label ?? item.ticket.step}
+                        </Link>
+                      ) : (
+                        "尚未开工"
+                      ),
                     },
                     {
                       label: "上线安排",

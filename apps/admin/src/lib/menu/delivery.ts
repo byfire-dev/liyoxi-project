@@ -31,7 +31,7 @@ const delivery: AdminModule = {
       release: null,
       milestone: "M1",
       workPackage: "W1-19",
-      implemented: false,
+      implemented: true,
       screen: "TicketDetail",
       kind: "board",
       skeleton: "detail",
