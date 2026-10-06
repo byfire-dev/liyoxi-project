@@ -218,7 +218,7 @@ export const ROUTE_PLACEMENTS = {
   "admin.checklistTemplate.discard": "M2",
   "admin.clientError.create": "M2",
   "admin.dictItem.create": "M2",
-  "admin.dictItem.list": "M2",
+  "admin.dictItem.list": "M1",
   "admin.dictItem.update": "M2",
   "admin.dictType.list": "M2",
   "admin.featureFlag.list": "M2",

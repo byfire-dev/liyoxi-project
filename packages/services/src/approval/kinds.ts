@@ -45,6 +45,7 @@ export interface ApprovalRow {
   readonly requesterStaffId: string | null;
   readonly requesterStaffGroupId: string | null;
   readonly submittedAt: Date;
+  readonly dueAt: Date | null;
   readonly decidedByStaffId: string | null;
   readonly isDecidedBySystem: boolean;
   readonly decidedAt: Date | null;

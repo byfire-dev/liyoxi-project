@@ -3,6 +3,7 @@
 // 下层 config 的字典与清单模板在事务里直接读一行，不走它的缓存：守卫要看提交那一刻库里的值。
 import { ApprovalSummarySchema } from "@liyoxi/contract";
 import type { ApprovalKind, ApprovalStatus } from "@liyoxi/contract";
+import type { ApprovalRequest, Prisma } from "@liyoxi/db";
 
 import { entityScope, scopeCovers, storeScope } from "../authz/index.js";
 import type { DataScope } from "../authz/index.js";
@@ -19,6 +20,10 @@ import type {
 export async function findApproval(tx: Tx, id: string): Promise<ApprovalRow | null> {
   const row = await tx.approvalRequest.findUnique({ where: { id } });
   if (row === null) return null;
+  return approvalRow(row);
+}
+
+export function approvalRow(row: ApprovalRequest): ApprovalRow {
   return {
     id: row.id,
     requestNo: row.requestNo,
@@ -39,12 +44,64 @@ export async function findApproval(tx: Tx, id: string): Promise<ApprovalRow | nu
     requesterStaffId: row.requesterStaffId,
     requesterStaffGroupId: row.requesterStaffGroupId,
     submittedAt: row.submittedAt,
+    dueAt: row.dueAt,
     decidedByStaffId: row.decidedByStaffId,
     isDecidedBySystem: row.isDecidedBySystem,
     decidedAt: row.decidedAt,
     dedupeKey: row.dedupeKey,
     lockVersion: row.lockVersion,
   };
+}
+
+/** 读侧的基础过滤；当前处理人与范围留给每个 kind 的读端口判定。 */
+export async function readApprovals(tx: Tx, where: Prisma.ApprovalRequestWhereInput) {
+  return (await tx.approvalRequest.findMany({ where })).map(approvalRow);
+}
+
+/** 只读 staff 展示列：不调用同层 staff 模块，批量取当前姓名、角色与状态。 */
+export async function staffBriefs(tx: Tx, ids: readonly string[]) {
+  const rows = await tx.staff.findMany({
+    where: { id: { in: [...new Set(ids)] } },
+    select: { id: true, staffNo: true, name: true, staffRoleKey: true, isLead: true, status: true },
+  });
+  return new Map(
+    rows.map(({ id, staffRoleKey, ...rest }) => [
+      id,
+      { staffId: id, roleKey: staffRoleKey, ...rest },
+    ]),
+  );
+}
+
+export async function merchantLabels(tx: Tx, ids: readonly string[]) {
+  const rows = await tx.merchantUser.findMany({
+    where: { id: { in: [...new Set(ids)] } },
+    select: { id: true, displayName: true },
+  });
+  return new Map(rows.map((row) => [row.id, `老板 · ${row.displayName ?? "商家"}`]));
+}
+
+export async function reasonLabels(tx: Tx, codes: readonly string[]) {
+  const rows = await tx.dictItem.findMany({
+    where: { dictTypeKey: "reject_reason", code: { in: [...new Set(codes)] } },
+    select: { code: true, name: true },
+  });
+  return new Map(rows.map((row) => [row.code, row.name]));
+}
+
+export function detailFacts(tx: Tx, id: string) {
+  return tx.approvalRequest.findUniqueOrThrow({ where: { id } });
+}
+export function approvalHistory(tx: Tx, id: string) {
+  return tx.statusTransition.findMany({
+    where: { machine: "approval_request", stateField: "status", subjectId: id },
+    orderBy: { seq: "asc" },
+  });
+}
+export function pointsAdjustments(tx: Tx, ids: readonly string[]) {
+  return tx.pointAdjustmentRequest.findMany({
+    where: { approvalRequestId: { in: [...ids] } },
+    select: { direction: true, adjustPoints: true },
+  });
 }
 
 export interface NewApproval {
@@ -149,6 +206,35 @@ export async function inScope(
     return entity !== null;
   }
   return true;
+}
+
+/** 读列表批量套同一套 authz 谓词，避免每张审批单各查一次门店与主体。 */
+export async function approvalScopes(tx: Tx, scope: DataScope, rows: readonly ApprovalRow[]) {
+  const stores = rows.flatMap((row) => (row.storeId === null ? [] : [row.storeId]));
+  const entities = rows.flatMap((row) =>
+    row.storeId === null && row.entityId !== null ? [row.entityId] : [],
+  );
+  const [storeRows, entityRows] = await Promise.all([
+    tx.store.findMany({
+      where: { AND: [{ id: { in: [...new Set(stores)] } }, storeScope(scope)] },
+      select: { id: true },
+    }),
+    tx.entity.findMany({
+      where: { AND: [{ id: { in: [...new Set(entities)] } }, entityScope(scope)] },
+      select: { id: true },
+    }),
+  ]);
+  const storeIds = new Set(storeRows.map((row) => row.id));
+  const entityIds = new Set(entityRows.map((row) => row.id));
+  return (row: ApprovalRow, handlerId: string | null): boolean =>
+    scope.kind === "all" ||
+    (handlerId !== null
+      ? scopeCovers(scope, handlerId)
+      : row.storeId !== null
+        ? storeIds.has(row.storeId)
+        : row.entityId !== null
+          ? entityIds.has(row.entityId)
+          : true);
 }
 
 /** codes 里不是字典 reject_reason 启用项的那些 */
