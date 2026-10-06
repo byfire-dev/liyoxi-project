@@ -12,6 +12,7 @@
  * 退出码：0 成功；1 被拒绝（生产环境）；2 环境变量或密钥不对、连不上库。连接串、口令、密钥不打印。
  * 运行器与规矩见 ../src/demo-seed.ts 开头的注释。
  */
+import { createNotices } from "../src/config/index.js";
 import { DemoSeedRefusedError, runDemoSeed } from "../src/demo-seed.js";
 import { EnvError, loadEnv } from "../src/kernel/index.js";
 import { createRuntime } from "../src/runtime.js";
@@ -46,6 +47,8 @@ async function main(): Promise<number> {
       keyring,
       flow: runtime.flow,
       appEnv: env.APP_ENV,
+      media: runtime.media,
+      notices: createNotices({ clock: runtime.clock, events: runtime.events }),
     });
     for (const table of report.tables) {
       console.log(

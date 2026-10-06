@@ -31,6 +31,7 @@ import {
   assembleProviders,
   createBizNoIssuer,
   createTxRunner,
+  createQueueChannel,
   systemClock,
 } from "./kernel/index.js";
 import type {
@@ -47,6 +48,8 @@ import type { Logger } from "./logger.js";
 import { bindOps, createHealth, createStartupChecks } from "./ops/index.js";
 import type { Health, StartupCheck } from "./ops/index.js";
 import type { Providers } from "./providers/types.js";
+import { createMedia } from "./media/index.js";
+import type { Media } from "./media/index.js";
 import { createRateLimiter } from "./rate-limit.js";
 import type { RateLimiter } from "./rate-limit.js";
 import { loadAuthKeys, loadKeyring } from "./security/index.js";
@@ -111,6 +114,7 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly media: Media;
   /** 审批执行器与只读队列：api、worker 各自装配（移交表 64） */
   readonly approval: Approval;
   readonly entry: AssemblyEntry;
@@ -212,6 +216,16 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const events = createEvents({ assembly, clock, tx });
   const timers = createTimers({ assembly });
   const flow = createFlow({ assembly, clock, events });
+  const mediaChannel = createQueueChannel({ redisUrl: env.REDIS_URL, prefix: `${keyPrefix}bull` });
+  const media = createMedia({
+    tx,
+    clock,
+    assembly,
+    events,
+    storage: providers.storage,
+    channel: mediaChannel,
+    videoMaxMb: () => config.params.get("upload.weapp_video_max_mb"),
+  });
   const bizNo = createBizNoIssuer({ clock, appEnv: env.APP_ENV });
   const approval = createApproval({ assembly, clock, flow, events, bizNo });
   let staffAuth: StaffAuth | undefined;
@@ -244,6 +258,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   }
 
   return {
+    media,
     entry,
     env,
     version,
@@ -263,6 +278,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     startupChecks,
     async close() {
       unbindOps();
+      await mediaChannel.close();
       redis.disconnect();
       await prisma.$disconnect();
     },

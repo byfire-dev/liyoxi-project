@@ -3,6 +3,8 @@
 // 先到的包新建本文件，后到的只往对象末尾加自己的码（docs/plan/tasks/README.md 第 7.3 节）。
 import type { DomainErrorSymbol } from "../../errors/index.js";
 import { z } from "../../zod.js";
+import { openEnum } from "../../common/index.js";
+import { FILE_OBJECT_STATUS } from "../../enums/index.js";
 
 /** 口令规则的编码。same_as_current 只在本人修改密码时出现（3.9，M2） */
 export const PASSWORD_POLICY_RULES = [
@@ -17,6 +19,7 @@ export type PasswordPolicyRule = (typeof PASSWORD_POLICY_RULES)[number];
 export const A01_ERROR_DETAILS = {
   /** 未满足的规则，至少一条 */
   PASSWORD_POLICY_VIOLATED: z.object({ rules: z.array(z.enum(PASSWORD_POLICY_RULES)).min(1) }),
+  FILE_NOT_AVAILABLE: z.object({ status: openEnum(FILE_OBJECT_STATUS.values) }),
 } satisfies Partial<Record<DomainErrorSymbol, z.ZodType>>;
 
 export type PasswordPolicyViolatedDetails = z.infer<
