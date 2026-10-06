@@ -125,3 +125,5 @@ export { CONFIG_SQL_INVARIANTS, registration } from "./register.js";
 // W1-03：规则变更公告的最小实现（只有“建”；撤回与读取随 G2-B）
 export { createNotices } from "./notices.js";
 export type { AnnouncedNotice, NoticeAnnouncement, Notices, NoticesDeps } from "./notices.js";
+
+export { insertDictItemsMissing } from "./insert-dict-items.js";

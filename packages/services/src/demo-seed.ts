@@ -7,6 +7,8 @@
 //   前面的步骤要交给后面用的东西放进 state（如演示员工的 id：staff.demoStaffId(state.staff, "content_ops")）；
 //   要别的依赖（配置、存储……）就往 DemoSeedDeps 里加字段，入口脚本从进程运行时取来给上。
 // 本文件是包级文件，不属于任何一层：只引各模块的 index.ts。
+import { seedDemoContent } from "./content/index.js";
+import type { Content } from "./content/index.js";
 import { AGREEMENT_SEEDS, seedPlaceholderAgreementVersions } from "./docs/index.js";
 import { seedPlaceholderFiles } from "./media/index.js";
 import type { Media } from "./media/index.js";
@@ -28,6 +30,7 @@ export interface DemoSeedDeps {
   readonly flow: Pick<Flow, "transition">;
   readonly appEnv: AppEnv;
   readonly media?: Media;
+  readonly content?: Content;
   readonly notices?: Pick<Notices, "announce">;
   readonly billing?: { readonly assembly: Assembly; readonly bizNo: BizNoIssuer };
 }
@@ -120,7 +123,26 @@ export const DEMO_SEED_STEPS: readonly DemoSeedStep[] = [
       );
     },
   },
-  // content 的 3 部演示剧：W1-13
+  {
+    name: "content",
+    async run(deps, state) {
+      if (!deps.content || !deps.media) return [];
+      const staffId =
+        state.staff.find((row) => row.key === "content_ops")?.staffId ??
+        state.staff.find((row) => row.roleKey === "super_admin")?.staffId;
+      if (!staffId) throw new Error("短剧演示种子缺内容运营或管理员");
+      return seedDemoContent(
+        {
+          tx: deps.tx,
+          clock: deps.clock,
+          content: deps.content,
+          media: deps.media,
+          appEnv: deps.appEnv,
+        },
+        staffId,
+      );
+    },
+  },
   // 演示参数（order.start_delay_minutes = 0）：W1-21
 ];
 

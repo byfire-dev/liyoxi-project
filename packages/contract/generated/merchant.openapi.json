@@ -828,6 +828,1542 @@
         ],
         "type": "object"
       },
+      "DramaCard": {
+        "properties": {
+          "badge": {
+            "enum": [
+              "new",
+              "hot",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "discountedPoints": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "dramaId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "heatTier": {
+            "enum": [
+              "S",
+              "A",
+              "B",
+              "C",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "listPricePoints": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "posterUrl": {
+            "properties": {
+              "expiresAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "url": {
+                "format": "uri",
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "expiresAt"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "totalEpisodes": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "usableUntilDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "dramaId",
+          "title",
+          "posterUrl",
+          "genres",
+          "totalEpisodes",
+          "heatTier",
+          "badge",
+          "listPricePoints",
+          "usableUntilDate",
+          "discountedPoints"
+        ],
+        "type": "object"
+      },
+      "DramaCardForClerk": {
+        "properties": {
+          "badge": {
+            "enum": [
+              "new",
+              "hot",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dramaId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "heatTier": {
+            "enum": [
+              "S",
+              "A",
+              "B",
+              "C",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "listPricePoints": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "posterUrl": {
+            "properties": {
+              "expiresAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "url": {
+                "format": "uri",
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "expiresAt"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "totalEpisodes": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "usableUntilDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "dramaId",
+          "title",
+          "posterUrl",
+          "genres",
+          "totalEpisodes",
+          "heatTier",
+          "badge",
+          "listPricePoints",
+          "usableUntilDate"
+        ],
+        "type": "object"
+      },
+      "DramaDetailClerk": {
+        "properties": {
+          "adUnitPoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "allowedPlacements": {
+            "items": {
+              "enum": [
+                "opening",
+                "ending"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "badge": {
+            "enum": [
+              "new",
+              "hot",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "castNames": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dramaClass": {
+            "enum": [
+              "class_1",
+              "class_2",
+              "class_3",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dramaId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "episodeDurationSec": {
+            "exclusiveMinimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "heatTier": {
+            "enum": [
+              "S",
+              "A",
+              "B",
+              "C",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "industries": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "listPricePoints": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "orderability": {
+            "properties": {
+              "orderable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "enum": [
+                  "not_listed",
+                  "stopped",
+                  null
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "orderable",
+              "reason"
+            ],
+            "type": "object"
+          },
+          "permits": {
+            "items": {
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "license_no",
+                    "approval_no",
+                    "program_no"
+                  ],
+                  "type": "string"
+                },
+                "number": {
+                  "type": "string"
+                },
+                "platform": {
+                  "enum": [
+                    "all",
+                    "douyin",
+                    "wechat_channels"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "platform",
+                "kind",
+                "number"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "placementDurations": {
+            "items": {
+              "properties": {
+                "durationSecOptions": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "slot": {
+                  "enum": [
+                    "opening",
+                    "ending"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "slot",
+                "durationSecOptions"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "platforms": {
+            "items": {
+              "enum": [
+                "douyin",
+                "wechat_channels"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "posterUrl": {
+            "properties": {
+              "expiresAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "url": {
+                "format": "uri",
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "expiresAt"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "producerName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "roles": {
+            "items": {
+              "properties": {
+                "actor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "desc": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "actor",
+                "desc"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "sellingTags": {
+            "items": {
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "name",
+                "description"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "synopsis": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "targetAudience": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "topModelSurchargeBp": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "totalEpisodes": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "trailer": {
+            "properties": {
+              "durationMs": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "playableId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "posterUrl": {
+                "properties": {
+                  "expiresAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "url": {
+                    "format": "uri",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url",
+                  "expiresAt"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "playableId",
+              "posterUrl",
+              "durationMs"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "usableUntilDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "viewerRole": {
+            "enum": [
+              "clerk"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "dramaId",
+          "title",
+          "posterUrl",
+          "genres",
+          "totalEpisodes",
+          "heatTier",
+          "badge",
+          "listPricePoints",
+          "usableUntilDate",
+          "orderability",
+          "episodeDurationSec",
+          "producerName",
+          "castNames",
+          "synopsis",
+          "roles",
+          "industries",
+          "targetAudience",
+          "sellingTags",
+          "dramaClass",
+          "allowedPlacements",
+          "placementDurations",
+          "platforms",
+          "permits",
+          "adUnitPoints",
+          "topModelSurchargeBp",
+          "trailer",
+          "viewerRole"
+        ],
+        "type": "object"
+      },
+      "DramaDetailGuest": {
+        "properties": {
+          "adUnitPoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "allowedPlacements": {
+            "items": {
+              "enum": [
+                "opening",
+                "ending"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "badge": {
+            "enum": [
+              "new",
+              "hot",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "castNames": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dramaClass": {
+            "enum": [
+              "class_1",
+              "class_2",
+              "class_3",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dramaId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "episodeDurationSec": {
+            "exclusiveMinimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "heatTier": {
+            "enum": [
+              "S",
+              "A",
+              "B",
+              "C",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "industries": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "listPricePoints": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "orderability": {
+            "properties": {
+              "orderable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "enum": [
+                  "not_listed",
+                  "stopped",
+                  null
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "orderable",
+              "reason"
+            ],
+            "type": "object"
+          },
+          "permits": {
+            "items": {
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "license_no",
+                    "approval_no",
+                    "program_no"
+                  ],
+                  "type": "string"
+                },
+                "number": {
+                  "type": "string"
+                },
+                "platform": {
+                  "enum": [
+                    "all",
+                    "douyin",
+                    "wechat_channels"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "platform",
+                "kind",
+                "number"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "placementDurations": {
+            "items": {
+              "properties": {
+                "durationSecOptions": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "slot": {
+                  "enum": [
+                    "opening",
+                    "ending"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "slot",
+                "durationSecOptions"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "platforms": {
+            "items": {
+              "enum": [
+                "douyin",
+                "wechat_channels"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "posterUrl": {
+            "properties": {
+              "expiresAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "url": {
+                "format": "uri",
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "expiresAt"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "producerName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "roles": {
+            "items": {
+              "properties": {
+                "actor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "desc": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "actor",
+                "desc"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "sellingTags": {
+            "items": {
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "name",
+                "description"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "synopsis": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "targetAudience": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "topModelSurchargeBp": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "totalEpisodes": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "trailer": {
+            "properties": {
+              "durationMs": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "playableId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "posterUrl": {
+                "properties": {
+                  "expiresAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "url": {
+                    "format": "uri",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url",
+                  "expiresAt"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "playableId",
+              "posterUrl",
+              "durationMs"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "usableUntilDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "viewerRole": {
+            "enum": [
+              "guest"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "dramaId",
+          "title",
+          "posterUrl",
+          "genres",
+          "totalEpisodes",
+          "heatTier",
+          "badge",
+          "listPricePoints",
+          "usableUntilDate",
+          "orderability",
+          "episodeDurationSec",
+          "producerName",
+          "castNames",
+          "synopsis",
+          "roles",
+          "industries",
+          "targetAudience",
+          "sellingTags",
+          "dramaClass",
+          "allowedPlacements",
+          "placementDurations",
+          "platforms",
+          "permits",
+          "adUnitPoints",
+          "topModelSurchargeBp",
+          "trailer",
+          "viewerRole"
+        ],
+        "type": "object"
+      },
+      "DramaDetailOwner": {
+        "properties": {
+          "adUnitPoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "allowedPlacements": {
+            "items": {
+              "enum": [
+                "opening",
+                "ending"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "badge": {
+            "enum": [
+              "new",
+              "hot",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "castNames": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "discountedPoints": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "dramaClass": {
+            "enum": [
+              "class_1",
+              "class_2",
+              "class_3",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dramaId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "episodeDurationSec": {
+            "exclusiveMinimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "heatTier": {
+            "enum": [
+              "S",
+              "A",
+              "B",
+              "C",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "industries": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "listPricePoints": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "orderability": {
+            "properties": {
+              "orderable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "enum": [
+                  "not_listed",
+                  "stopped",
+                  null
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "orderable",
+              "reason"
+            ],
+            "type": "object"
+          },
+          "owner": {
+            "properties": {
+              "adDiscountedPoints": {
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "cartItemId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "discountBp": {
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "expiringPlanPoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "planName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "planPointsExpireAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "productionModel": {
+                "enum": [
+                  "standard",
+                  "advanced",
+                  "top",
+                  null
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "spendablePoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "termEndDate": {
+                "format": "date",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "planName",
+              "productionModel",
+              "discountBp",
+              "adDiscountedPoints",
+              "spendablePoints",
+              "expiringPlanPoints",
+              "planPointsExpireAt",
+              "termEndDate",
+              "cartItemId"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "permits": {
+            "items": {
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "license_no",
+                    "approval_no",
+                    "program_no"
+                  ],
+                  "type": "string"
+                },
+                "number": {
+                  "type": "string"
+                },
+                "platform": {
+                  "enum": [
+                    "all",
+                    "douyin",
+                    "wechat_channels"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "platform",
+                "kind",
+                "number"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "placementDurations": {
+            "items": {
+              "properties": {
+                "durationSecOptions": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "slot": {
+                  "enum": [
+                    "opening",
+                    "ending"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "slot",
+                "durationSecOptions"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "platforms": {
+            "items": {
+              "enum": [
+                "douyin",
+                "wechat_channels"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "posterUrl": {
+            "properties": {
+              "expiresAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "url": {
+                "format": "uri",
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "expiresAt"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "producerName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "roles": {
+            "items": {
+              "properties": {
+                "actor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "desc": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "actor",
+                "desc"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "sellingTags": {
+            "items": {
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "name",
+                "description"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "synopsis": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "targetAudience": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "topModelSurchargeBp": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "totalEpisodes": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "trailer": {
+            "properties": {
+              "durationMs": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "playableId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "posterUrl": {
+                "properties": {
+                  "expiresAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "url": {
+                    "format": "uri",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url",
+                  "expiresAt"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "playableId",
+              "posterUrl",
+              "durationMs"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "usableUntilDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "viewerRole": {
+            "enum": [
+              "owner"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "dramaId",
+          "title",
+          "posterUrl",
+          "genres",
+          "totalEpisodes",
+          "heatTier",
+          "badge",
+          "listPricePoints",
+          "usableUntilDate",
+          "orderability",
+          "episodeDurationSec",
+          "producerName",
+          "castNames",
+          "synopsis",
+          "roles",
+          "industries",
+          "targetAudience",
+          "sellingTags",
+          "dramaClass",
+          "allowedPlacements",
+          "placementDurations",
+          "platforms",
+          "permits",
+          "adUnitPoints",
+          "topModelSurchargeBp",
+          "trailer",
+          "viewerRole",
+          "discountedPoints",
+          "owner"
+        ],
+        "type": "object"
+      },
+      "DramaPageClerk": {
+        "properties": {
+          "hasMore": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DramaCardForClerk"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "viewerPlan": {
+            "properties": {
+              "discountBp": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "planName": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "planName",
+              "discountBp"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "viewerRole": {
+            "enum": [
+              "clerk"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "viewerPlan",
+          "nextCursor",
+          "hasMore",
+          "viewerRole",
+          "items"
+        ],
+        "type": "object"
+      },
+      "DramaPageGuest": {
+        "properties": {
+          "hasMore": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DramaCardForClerk"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "viewerPlan": {
+            "properties": {
+              "discountBp": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "planName": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "planName",
+              "discountBp"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "viewerRole": {
+            "enum": [
+              "guest"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "viewerPlan",
+          "nextCursor",
+          "hasMore",
+          "viewerRole",
+          "items"
+        ],
+        "type": "object"
+      },
+      "DramaPageOwner": {
+        "properties": {
+          "hasMore": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DramaCard"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "viewerPlan": {
+            "properties": {
+              "discountBp": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "planName": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "planName",
+              "discountBp"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "viewerRole": {
+            "enum": [
+              "owner"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "viewerPlan",
+          "nextCursor",
+          "hasMore",
+          "viewerRole",
+          "items"
+        ],
+        "type": "object"
+      },
       "EntityBrief": {
         "additionalProperties": false,
         "properties": {
@@ -1287,6 +2823,2218 @@
         ],
         "type": "object"
       },
+      "HomeClerk": {
+        "properties": {
+          "banners": {
+            "items": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "homeBannerId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "imageUrl": {
+                      "properties": {
+                        "expiresAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "url": {
+                          "format": "uri",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    },
+                    "jumpKind": {
+                      "enum": [
+                        "drama"
+                      ],
+                      "type": "string"
+                    },
+                    "jumpTarget": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "dramaId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "dramaId"
+                      ],
+                      "type": "object"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jumpKind",
+                    "jumpTarget",
+                    "homeBannerId",
+                    "title",
+                    "imageUrl"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "homeBannerId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "imageUrl": {
+                      "properties": {
+                        "expiresAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "url": {
+                          "format": "uri",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    },
+                    "jumpKind": {
+                      "enum": [
+                        "mall"
+                      ],
+                      "type": "string"
+                    },
+                    "jumpTarget": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "categoryKey": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "categoryKey"
+                      ],
+                      "type": "object"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jumpKind",
+                    "jumpTarget",
+                    "homeBannerId",
+                    "title",
+                    "imageUrl"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "homeBannerId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "imageUrl": {
+                      "properties": {
+                        "expiresAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "url": {
+                          "format": "uri",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    },
+                    "jumpKind": {
+                      "enum": [
+                        "page"
+                      ],
+                      "type": "string"
+                    },
+                    "jumpTarget": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "orderId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orderId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "order.detail"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "orderItemId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orderItemId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "delivery.sample"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "deliveryPlanId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "deliveryPlanId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "delivery.plan"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "date": {
+                                  "format": "date",
+                                  "type": "string"
+                                },
+                                "launchTaskId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "launchTaskId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "publish.task"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "takedownTaskId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "takedownTaskId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "offline.task"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "serviceTicketId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "serviceTicketId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "ticket.detail"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "channelAccountId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "channelAccountId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "account.detail"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "storeAssetDemandId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "storeAssetDemandId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "asset.demand"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {},
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "wallet.home"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "cart.list"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "adId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "adId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "ad.detail"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "profile.review"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "store.members"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jumpKind",
+                    "jumpTarget",
+                    "homeBannerId",
+                    "title",
+                    "imageUrl"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "homeBannerId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "imageUrl": {
+                      "properties": {
+                        "expiresAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "url": {
+                          "format": "uri",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    },
+                    "jumpKind": {
+                      "enum": [
+                        "none"
+                      ],
+                      "type": "string"
+                    },
+                    "jumpTarget": {
+                      "type": "null"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jumpKind",
+                    "jumpTarget",
+                    "homeBannerId",
+                    "title",
+                    "imageUrl"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "maxItems": 5,
+            "type": "array"
+          },
+          "city": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "viewerRole": {
+            "enum": [
+              "clerk"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "city",
+          "banners",
+          "viewerRole"
+        ],
+        "type": "object"
+      },
+      "HomeGuest": {
+        "properties": {
+          "banners": {
+            "items": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "homeBannerId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "imageUrl": {
+                      "properties": {
+                        "expiresAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "url": {
+                          "format": "uri",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    },
+                    "jumpKind": {
+                      "enum": [
+                        "drama"
+                      ],
+                      "type": "string"
+                    },
+                    "jumpTarget": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "dramaId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "dramaId"
+                      ],
+                      "type": "object"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jumpKind",
+                    "jumpTarget",
+                    "homeBannerId",
+                    "title",
+                    "imageUrl"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "homeBannerId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "imageUrl": {
+                      "properties": {
+                        "expiresAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "url": {
+                          "format": "uri",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    },
+                    "jumpKind": {
+                      "enum": [
+                        "mall"
+                      ],
+                      "type": "string"
+                    },
+                    "jumpTarget": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "categoryKey": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "categoryKey"
+                      ],
+                      "type": "object"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jumpKind",
+                    "jumpTarget",
+                    "homeBannerId",
+                    "title",
+                    "imageUrl"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "homeBannerId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "imageUrl": {
+                      "properties": {
+                        "expiresAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "url": {
+                          "format": "uri",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    },
+                    "jumpKind": {
+                      "enum": [
+                        "page"
+                      ],
+                      "type": "string"
+                    },
+                    "jumpTarget": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "orderId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orderId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "order.detail"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "orderItemId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orderItemId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "delivery.sample"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "deliveryPlanId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "deliveryPlanId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "delivery.plan"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "date": {
+                                  "format": "date",
+                                  "type": "string"
+                                },
+                                "launchTaskId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "launchTaskId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "publish.task"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "takedownTaskId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "takedownTaskId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "offline.task"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "serviceTicketId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "serviceTicketId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "ticket.detail"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "channelAccountId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "channelAccountId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "account.detail"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "storeAssetDemandId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "storeAssetDemandId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "asset.demand"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {},
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "wallet.home"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "cart.list"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "adId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "adId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "ad.detail"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "profile.review"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "store.members"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jumpKind",
+                    "jumpTarget",
+                    "homeBannerId",
+                    "title",
+                    "imageUrl"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "homeBannerId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "imageUrl": {
+                      "properties": {
+                        "expiresAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "url": {
+                          "format": "uri",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    },
+                    "jumpKind": {
+                      "enum": [
+                        "none"
+                      ],
+                      "type": "string"
+                    },
+                    "jumpTarget": {
+                      "type": "null"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jumpKind",
+                    "jumpTarget",
+                    "homeBannerId",
+                    "title",
+                    "imageUrl"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "maxItems": 5,
+            "type": "array"
+          },
+          "city": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "defaultTab": {
+            "enum": [
+              "hot",
+              "new"
+            ],
+            "type": "string"
+          },
+          "hot": {
+            "items": {
+              "$ref": "#/components/schemas/DramaCardForClerk"
+            },
+            "type": "array"
+          },
+          "new": {
+            "items": {
+              "$ref": "#/components/schemas/DramaCardForClerk"
+            },
+            "type": "array"
+          },
+          "viewerRole": {
+            "enum": [
+              "guest"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "city",
+          "banners",
+          "hot",
+          "new",
+          "defaultTab",
+          "viewerRole"
+        ],
+        "type": "object"
+      },
+      "HomeOwner": {
+        "properties": {
+          "banners": {
+            "items": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "homeBannerId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "imageUrl": {
+                      "properties": {
+                        "expiresAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "url": {
+                          "format": "uri",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    },
+                    "jumpKind": {
+                      "enum": [
+                        "drama"
+                      ],
+                      "type": "string"
+                    },
+                    "jumpTarget": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "dramaId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "dramaId"
+                      ],
+                      "type": "object"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jumpKind",
+                    "jumpTarget",
+                    "homeBannerId",
+                    "title",
+                    "imageUrl"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "homeBannerId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "imageUrl": {
+                      "properties": {
+                        "expiresAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "url": {
+                          "format": "uri",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    },
+                    "jumpKind": {
+                      "enum": [
+                        "mall"
+                      ],
+                      "type": "string"
+                    },
+                    "jumpTarget": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "categoryKey": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "categoryKey"
+                      ],
+                      "type": "object"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jumpKind",
+                    "jumpTarget",
+                    "homeBannerId",
+                    "title",
+                    "imageUrl"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "homeBannerId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "imageUrl": {
+                      "properties": {
+                        "expiresAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "url": {
+                          "format": "uri",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    },
+                    "jumpKind": {
+                      "enum": [
+                        "page"
+                      ],
+                      "type": "string"
+                    },
+                    "jumpTarget": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "orderId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orderId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "order.detail"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "orderItemId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orderItemId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "delivery.sample"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "deliveryPlanId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "deliveryPlanId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "delivery.plan"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "date": {
+                                  "format": "date",
+                                  "type": "string"
+                                },
+                                "launchTaskId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "launchTaskId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "publish.task"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "takedownTaskId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "takedownTaskId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "offline.task"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "serviceTicketId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "serviceTicketId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "ticket.detail"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "channelAccountId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "channelAccountId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "account.detail"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "storeAssetDemandId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "storeAssetDemandId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "asset.demand"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {},
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "wallet.home"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "cart.list"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "adId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "adId",
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "ad.detail"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "profile.review"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "params": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "storeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "storeId"
+                              ],
+                              "type": "object"
+                            },
+                            "route": {
+                              "enum": [
+                                "store.members"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "route",
+                            "params"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jumpKind",
+                    "jumpTarget",
+                    "homeBannerId",
+                    "title",
+                    "imageUrl"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "homeBannerId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "imageUrl": {
+                      "properties": {
+                        "expiresAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "url": {
+                          "format": "uri",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "expiresAt"
+                      ],
+                      "type": "object"
+                    },
+                    "jumpKind": {
+                      "enum": [
+                        "none"
+                      ],
+                      "type": "string"
+                    },
+                    "jumpTarget": {
+                      "type": "null"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jumpKind",
+                    "jumpTarget",
+                    "homeBannerId",
+                    "title",
+                    "imageUrl"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "maxItems": 5,
+            "type": "array"
+          },
+          "cartCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "city": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "defaultTab": {
+            "enum": [
+              "hot",
+              "new"
+            ],
+            "type": "string"
+          },
+          "hot": {
+            "items": {
+              "$ref": "#/components/schemas/DramaCard"
+            },
+            "type": "array"
+          },
+          "launchOverview": {
+            "properties": {
+              "expiringPlanPoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "liveEpisodeCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "liveItemCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "planName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "planPointsExpireAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "spendablePoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "termEndDate": {
+                "format": "date",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "liveItemCount",
+              "liveEpisodeCount",
+              "spendablePoints",
+              "planName",
+              "termEndDate",
+              "expiringPlanPoints",
+              "planPointsExpireAt"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "new": {
+            "items": {
+              "$ref": "#/components/schemas/DramaCard"
+            },
+            "type": "array"
+          },
+          "noticeBar": {
+            "type": "null"
+          },
+          "recommend": {
+            "properties": {
+              "items": {
+                "items": {
+                  "$ref": "#/components/schemas/DramaCard"
+                },
+                "type": "array"
+              },
+              "matchBy": {
+                "properties": {
+                  "category": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DictRef"
+                      },
+                      {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      }
+                    ]
+                  },
+                  "industry": {
+                    "$ref": "#/components/schemas/DictRef"
+                  }
+                },
+                "required": [
+                  "industry",
+                  "category"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "matchBy",
+              "items"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "viewerRole": {
+            "enum": [
+              "owner"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "city",
+          "banners",
+          "hot",
+          "new",
+          "defaultTab",
+          "viewerRole",
+          "noticeBar",
+          "launchOverview",
+          "recommend",
+          "cartCount"
+        ],
+        "type": "object"
+      },
       "MaintenanceNotice": {
         "properties": {
           "body": {
@@ -1311,6 +5059,193 @@
           "title",
           "body",
           "expectedEndAt"
+        ],
+        "type": "object"
+      },
+      "MallConfigView": {
+        "properties": {
+          "categories": {
+            "items": {
+              "properties": {
+                "genres": {
+                  "items": {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  "type": "array"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "name",
+                "genres"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "defaultSort": {
+            "enum": [
+              "composite",
+              "heat",
+              "price_asc",
+              "price_desc",
+              "newest"
+            ],
+            "type": "string"
+          },
+          "filters": {
+            "additionalProperties": false,
+            "properties": {
+              "episodeBands": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "key": {
+                      "pattern": "^[a-z][a-z0-9_]{0,23}$",
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "max": {
+                      "minimum": 0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "min": {
+                      "minimum": 0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "label",
+                    "min",
+                    "max"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 6,
+                "type": "array"
+              },
+              "episodes": {
+                "type": "boolean"
+              },
+              "genre": {
+                "type": "boolean"
+              },
+              "industry": {
+                "type": "boolean"
+              },
+              "price": {
+                "type": "boolean"
+              },
+              "priceBands": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "key": {
+                      "pattern": "^[a-z][a-z0-9_]{0,23}$",
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "max": {
+                      "minimum": 0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "min": {
+                      "minimum": 0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "label",
+                    "min",
+                    "max"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 6,
+                "type": "array"
+              }
+            },
+            "required": [
+              "genre",
+              "industry",
+              "episodes",
+              "price",
+              "episodeBands",
+              "priceBands"
+            ],
+            "type": "object"
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "hotWords": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "type": "array"
+          },
+          "industries": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "revNo": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "sorts": {
+            "items": {
+              "enum": [
+                "composite",
+                "heat",
+                "price_asc",
+                "price_desc",
+                "newest"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "revNo",
+          "categories",
+          "hotWords",
+          "filters",
+          "sorts",
+          "defaultSort",
+          "genres",
+          "industries"
         ],
         "type": "object"
       },
@@ -4927,6 +8862,249 @@
         "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
       }
     },
+    "/api/v1/m/dramas": {
+      "get": {
+        "operationId": "m.drama.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "genreCodes",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "industryCodes",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "episodeBand",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "priceBand",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "enum": [
+                "composite",
+                "heat",
+                "price_asc",
+                "price_desc",
+                "newest"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 2048,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "discriminator": {
+                        "mapping": {
+                          "clerk": "#/components/schemas/DramaPageClerk",
+                          "guest": "#/components/schemas/DramaPageGuest",
+                          "owner": "#/components/schemas/DramaPageOwner"
+                        },
+                        "propertyName": "viewerRole"
+                      },
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/DramaPageOwner"
+                        },
+                        {
+                          "$ref": "#/components/schemas/DramaPageClerk"
+                        },
+                        {
+                          "$ref": "#/components/schemas/DramaPageGuest"
+                        }
+                      ]
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          }
+        },
+        "summary": "商城列表：?q=（关键词）、genreCodes（题材）、industryCodes（适配行业）、集数、积分价区间、排序、分页（20/页）；老板另返回按当前套餐算的实扣积分",
+        "x-auth": "optional",
+        "x-capability": "catalog.read",
+        "x-clerk-view": "trimmed",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/dramas/{dramaId}": {
+      "get": {
+        "operationId": "m.drama.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dramaId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "discriminator": {
+                        "mapping": {
+                          "clerk": "#/components/schemas/DramaDetailClerk",
+                          "guest": "#/components/schemas/DramaDetailGuest",
+                          "owner": "#/components/schemas/DramaDetailOwner"
+                        },
+                        "propertyName": "viewerRole"
+                      },
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/DramaDetailOwner"
+                        },
+                        {
+                          "$ref": "#/components/schemas/DramaDetailClerk"
+                        },
+                        {
+                          "$ref": "#/components/schemas/DramaDetailGuest"
+                        }
+                      ]
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "短剧详情：基础信息、积分价与实扣、当前可用积分与即将清零（老板）、简介与角色、适配推荐、定制与植入说明、许可与可使用至、订购须知",
+        "x-auth": "optional",
+        "x-capability": "catalog.read",
+        "x-clerk-view": "trimmed",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
     "/api/v1/m/entities": {
       "post": {
         "operationId": "m.entity.create",
@@ -5581,6 +9759,142 @@
         "x-clerk-view": "same",
         "x-idempotent": "none",
         "x-idempotent-reason": "签发上传凭证，结果不进幂等记录（C47、C59）"
+      }
+    },
+    "/api/v1/m/home": {
+      "get": {
+        "operationId": "m.home.get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cityCode",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "discriminator": {
+                        "mapping": {
+                          "clerk": "#/components/schemas/HomeClerk",
+                          "guest": "#/components/schemas/HomeGuest",
+                          "owner": "#/components/schemas/HomeOwner"
+                        },
+                        "propertyName": "viewerRole"
+                      },
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/HomeOwner"
+                        },
+                        {
+                          "$ref": "#/components/schemas/HomeClerk"
+                        },
+                        {
+                          "$ref": "#/components/schemas/HomeGuest"
+                        }
+                      ]
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          }
+        },
+        "summary": "首页聚合：城市、Banner、公告条、上线概览与清零提醒（老板）、为您推荐、推荐/新剧两栏各 4 部、选剧单数",
+        "x-auth": "optional",
+        "x-clerk-view": "trimmed",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/mall-config": {
+      "get": {
+        "operationId": "m.mallConfig.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MallConfigView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "商城配置：题材分类、筛选项、排序项、热门搜索词",
+        "x-auth": "public",
+        "x-clerk-view": "same",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
       }
     },
     "/api/v1/m/me": {

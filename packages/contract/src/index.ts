@@ -37,3 +37,4 @@ export * from "./routes/m03-profile-asset/error-details.js";
 
 export * from "./routes/m07-billing/index.js";
 export * from "./routes/a07-billing-finance/index.js";
+export * from "./routes/m04-mall-order/index.js";
