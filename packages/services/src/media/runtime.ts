@@ -1,6 +1,6 @@
 import { UPLOAD_CATEGORIES } from "@liyoxi/shared/uploads";
 import { fileCategoryGuardPort, fileRefTypePort } from "./ports.js";
-import type { MediaDeps } from "./context.js";
+import type { DeliveryDownloadSignInput, MediaDeps } from "./context.js";
 import { register, complete, refresh, cancel } from "./upload.js";
 import { getAdmin, getMerchant, createSigner, downloadUrls } from "./read.js";
 import { link, release } from "./refs.js";
@@ -60,6 +60,13 @@ export function createMedia(options: MediaDeps) {
       ...args: Parameters<typeof putSystemFile> extends [unknown, ...infer A] ? A : never
     ) => putSystemFile(deps, ...args),
     signRead: async (input: Parameters<typeof signRead>[0]) => (await signRead(input)).signed,
+    signDeliveryDownload: async (input: DeliveryDownloadSignInput) =>
+      (
+        await signRead(
+          { fileId: input.fileId, audience: "merchant", disposition: "attachment" },
+          { kind: "delivery-download", fileName: input.fileName },
+        )
+      ).signed,
     assertReadableByStaff: readableByStaff,
     downloadUrls: (
       ...args: Parameters<typeof downloadUrls> extends [unknown, unknown, ...infer A] ? A : never

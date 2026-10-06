@@ -27,9 +27,13 @@ export async function getAdmin(deps: BoundMediaDeps, actor: MediaActor, fileId: 
     return adminView(tx, actor, file);
   });
 }
+type DeliveryDownloadIntent = {
+  readonly kind: "delivery-download";
+  readonly fileName: string;
+};
 export function createSigner(deps: BoundMediaDeps) {
   const windows = new Map<string, Promise<{ url: string; expiresAt: string }>>();
-  return async (input: ReadSignInput) => {
+  return async (input: ReadSignInput, intent?: DeliveryDownloadIntent) => {
     const file = await deps.tx.run(async (tx) => {
       const found = await tx.fileObject.findUnique({ where: { id: input.fileId } });
       if (!found) throw new AppError("FILE_NOT_AVAILABLE");
@@ -37,10 +41,18 @@ export function createSigner(deps: BoundMediaDeps) {
       return found;
     });
     const now = deps.clock.now();
-    const expiresAt = readUrlExpiry(categoryOf(file), file.ext, now, input.audience);
+    const expiresAt = intent
+      ? new Date(now.getTime() + 900_000)
+      : readUrlExpiry(categoryOf(file), file.ext, now, input.audience);
     const urlTtlSec = Math.ceil((expiresAt.getTime() - now.getTime()) / 1000);
+    const disposition = intent ? "attachment" : (input.disposition ?? "inline");
+    const downloadName = intent
+      ? intent.fileName
+      : disposition === "attachment" && file.originalName
+        ? file.originalName
+        : undefined;
     const stable = file.bucket !== "secure" && ["jpg", "jpeg", "png"].includes(file.ext);
-    const key = `${file.id}:${input.disposition ?? "inline"}:${expiresAt.getTime()}`;
+    const key = `${file.id}:${disposition}:${encodeURIComponent(downloadName ?? "")}:${expiresAt.getTime()}`;
     for (const old of windows.keys())
       if (Number(old.split(":").at(-1)) <= now.getTime()) windows.delete(old);
     let result = stable ? windows.get(key) : undefined;
@@ -51,10 +63,8 @@ export function createSigner(deps: BoundMediaDeps) {
             bucket: UPLOAD_CATEGORIES[categoryOf(file)].bucket,
             key: file.objectKey,
             expiresSec: urlTtlSec,
-            disposition: input.disposition ?? "inline",
-            ...(input.disposition === "attachment" && file.originalName
-              ? { downloadName: file.originalName }
-              : {}),
+            disposition,
+            ...(downloadName === undefined ? {} : { downloadName }),
           }),
         );
         return { url: signed.url, expiresAt: expiresAt.toISOString() };
