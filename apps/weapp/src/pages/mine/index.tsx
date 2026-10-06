@@ -95,7 +95,7 @@ export default function Mine() {
                 extra={
                   accountPageImplemented("sub/billing/wallet/index") ? (
                     <TextButton arrow onClick={() => navigate("sub/billing/wallet/index")}>
-                      积分明细
+                      查看钱包
                     </TextButton>
                   ) : undefined
                 }

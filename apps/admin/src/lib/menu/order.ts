@@ -46,7 +46,7 @@ const order: AdminModule = {
       badgeKey: "order.receipts",
       milestone: "M1",
       workPackage: "W1-12",
-      implemented: false,
+      implemented: true,
       screen: "Receipts",
       kind: "board",
       skeleton: "queue-workbench",
