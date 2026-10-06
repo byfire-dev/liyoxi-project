@@ -196,3 +196,23 @@ LYX_UPDATE_GOLDEN=1 pnpm exec vitest run --project api test/admin-matrix.test.ts
 - 密钥没配（本地默认）：进程起得来，`/api/v1/admin/auth/*` 与要会话的后台接口回 500；启动自检在 `local`、`test` 下只记一条告警，`stg`、`prod` 下不过。
 - 后台来源 IP 白名单（槽位 `surface`、`IP_NOT_ALLOWED`）默认不启用，没有做。
 - 再验证失败不单独计数，穷举靠 `admin.login` 档按会话的限流。
+
+## 9. 商家读侧与店员回放（W1-04②）
+
+引导七块独立取数，失败的块用 m08 第 3.1 节默认并列入 `degraded`；匿名个人块为 `null`。无权的门店头不贡献主体白名单上下文；“我的”门店与额度由 tenant 取，其它业务只经事实端口，未登记的键保留默认。`docsOf` 的装配移至 `src/merchant/docs.ts`，`routes/agreements.ts` 仍重导出，避免装配与响应裁剪成环。
+
+所有商家处理器在回包时调用 `respondByRole(c, { owner, clerk, guest }, rawResult)`，角色由请求观察者决定；未提供该角色结构即 `ROLE_FORBIDDEN`。服务用例的 `tx.run(..., { idem })` 保存原始结果，调用裁剪必须在事务闭包外，重放时仍调用。角色结构用 Zod 的默认 strip 对象；嵌套对象也要 strip。
+
+每个新商家接口包交一份真实店员回放样例（造数据、调用一次），在 `test/clerk/samples.ts` 登记 operationId 与 `play`。框架枚举生产 `HANDLERS` 全部 `/m/*`，缺、重复或未挂载样例即失败；`none` 样例断言 `403 ROLE_FORBIDDEN`，`trimmed` 与 `same` 递归检查禁用键并与黄金文件对照。样例中的退出或身份变更需独立会话，不能破坏其它样例。
+
+`flags`、`versions.dict`、`versions.site`、`copy` 的字典键按完整路径登记为动态键，但字典值中的对象键照常递归扫描。目录标价例外只能按 operationId 与完整字段路径登记，不允许按字段名称全局放行。既有 m01 的 `needPhone` 与字面 `phone` 模式冲突：经调度会话确认，只放行 `m.session.create` 顶层 `data.needPhone` 的布尔值，字符串、嵌套同名、其它路由与其它含 phone 的布尔键仍拒绝；它表达登录流程状态，不含号码。
+
+设置公开的本地 PG/Redis 连接与自己的 `LYX_TEST_SESSION` 后，运行：
+
+```sh
+pnpm clerk:snapshot # 命令生成黄金文件，提交前审查字段路径差异
+pnpm exec vitest run --project api apps/api/test/clerk apps/api/test/merchant-views.test.ts
+pnpm gates:selftest --only clerk-visible
+```
+
+根 `pnpm test` 已包含这套回放，更新命令仅在显式设置 `LYX_CLERK_UPDATE=1` 时重写黄金文件。后续包只增自己路由条目，不手改黄金文件；变更的门禁分类由 CI 按 main 的规则判定。

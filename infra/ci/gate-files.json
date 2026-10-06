@@ -154,6 +154,11 @@
       "pattern": "infra/ci/copy-rules.json",
       "kind": "append",
       "note": "文案约束的规则表（规范 第 11 节）：加规则是只增；删改已有规则、往 phrases 里加一行（带 allow 键，按关键字判）是放松"
+    },
+    {
+      "pattern": "apps/api/golden/clerk-visible-keys.snap",
+      "kind": "frozen",
+      "note": "店员回放字段路径黄金文件（C57）：首次由 pnpm clerk:snapshot 生成；后续变更须评审，pnpm test 回放全部已挂载商家路由并对照"
     }
   ]
 }
