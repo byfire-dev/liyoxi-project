@@ -55,7 +55,7 @@ export const orderHandlers = [
 
 商家与后台的鉴权链分别见第 7、8 节。
 
-新的声明（开关、再验证等）由交付它的包往规则表里加行。入参校验不在表里：它由 `app.openapi()` 按契约的 `request` 结构自带。
+新的声明（开关、再验证等）由交付它的包往规则表里加行。入参校验不在表里：它由 `app.openapi()` 按契约的 `request` 结构自带。挂载器按同组、同方法的路径段排序，固定段优先于 `{param}`，参数名不影响后续固定段的优先级，避免 `/summary` 被动态 UUID 路径抢先校验；路由内中间件链仍只按 PIPELINE_ORDER。
 
 ### 3.1 装配顺序：只在 `src/routing/pipeline.ts` 一处
 
@@ -224,3 +224,8 @@ pnpm gates:selftest --only clerk-visible
 ### 真实接口浏览器验收的 Redis 隔离
 
 W1-02 的 `admin:e2e:live` 起构建产物时传 `--test-redis-prefix lyx:test:admin_live_<本轮标识>:`，将限流与缓存放在本轮专属键空间。只允许 `APP_ENV=test`，前缀须符合 `lyx:test:[a-z0-9_-]{1,48}:`；其他环境或格式立即拒绝。省略参数时仍使用 runtime 原默认前缀。清理仅删本轮前缀，不运行 FLUSHDB。
+
+
+## 10. 套餐购买与对公付款（W1-11b）
+
+商家七条与后台六条处理器分别在 `src/routes/billing.ts`、`src/routes/admin/billing.ts`；业务交 `Runtime.billing`，最终 JSON DTO 才交事务幂等保存。七条商家接口只允许老板，后台确认/驳回按权限点、再验证、范围和回显校验；队列计数与列表同源。账号明文只在商家本次响应，Cache-Control=no-store，同键重放为 null；后台只给脱敏串，不签凭证 URL。完整服务约定与 M4 留桩见 [付款 README](../../packages/services/src/billing/payment/README.md) 第 6 节。

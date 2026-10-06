@@ -1,8 +1,8 @@
-# 商家档案与首店资质（W1-08a）
+# 商家档案与首店资质（W1-08a、b）
 
-本段交付商家十三条 API 与进程内核心，后台六条仍由 W1-08b 在 a 合并后交。依据任务书第 2、9、10 节，M1 只做首店 `initial`，含非终局驳回后的补传、重新送审。
+a 已合并交付商家十三条 API 与进程内核心；b 补后台六条，总计十九条。依据任务书第 2、9、10 节，M1 只做首店 `initial`，含非终局驳回后的补传、重新送审。
 
-qualification 审批类型在 a 登记既定权限与决定 operationId；六条后台处理器在 b 才挂载，当前仍按未落地接口计。类型没有专用 `handlerOf`，审批队列沿既有门店数据范围回退规则。W1-09 此时只能交小程序六页，后台页面必须等 b 合入 main；审批队列的动作登记不代表决定路由已经可调用。
+qualification 审批类型在 a 登记既定权限与决定 operationId；b 在生产清单挂载六条后台处理器，并用 `handlerOf` 只读取门店真实交付经理；经理为空仍沿既有门店范围回退。W1-09 后台页面必须等 b 实际合入 main 后开工。
 
 `createProfile` 从事务入口、时钟、tenant、approval、media、事件、密钥环与微信能力装配。API 在 `apps/api/src/merchant/services.ts` 最小接线；模块登记由组合根加载，API 和 worker 都能看到 qualification 审批类型、四种文件引用与九项不变量。没有改兄弟 factory 或 runtime 的既有行为。
 
@@ -17,3 +17,15 @@ qualification 审批类型在 a 登记既定权限与决定 operationId；六条
 M2/M3 规定留桩、首页三个聚合与两项 M1 写端口均在 `docs/plan/stubs/`。`profile.I7` 的检查、自愈与资质通过订阅者在 M2；已登记 I1–I6、I8–I10，其中 I6 同事务修正三列并返回 healed。I1 真库反例夹具只在测试会话独立库内暂时移除两索引、强制事务回滚，随后核对索引恢复及正常唯一约束；迁移与共享库不变。
 
 API 的响应沿既有 `respondByRole` 以本请求会员角色裁剪，写路由的店员能力统一拒绝。clerk 样例追加全部十三条，旧黄金不改；A86 的服务现价与原价按现有完整路径登记例外。卖点 `sellingPoints` 与 C57 键扫描词冲突由调度单独 gate-change 收口，本业务包不放松扫描逻辑。
+
+## 后台六条（W1-08b）
+
+`profile.admin` 提供 list/get/qualification/approve/reject/assign；API 薄壳统一声明 merchant:view，写侧另取契约权限点。读侧复用 storeScope，范围外与不存在都为404，GET 不补行、不刷新缓存。列表完整支持 q、regionCode（省市区/功能区）、行业品类、资质多值、交付经理/未分配互斥、主体、生命周期；M1 排序为 registeredAt（缺省倒序），其他筛选/排序明确400。详情 paid 是主体合计；列表仅首店展示 totalPaidFen。
+
+决定按 staff20共享锁（同级UUID排序）→approval30→qualification65→entity100→store130→profile135。后台只补前置守卫的顺序：范围→待审→禁止自审→权限与override追加权限→版本→confirm；实际领域效果复用 a 的 approval 类型，不另写决定逻辑。缺回显交给领域返回 CONFIRM_MISMATCH，故请求 schema 允许缺 confirm/roundNo；M1 override/终局/变更不开放。决定与完整脱敏DTO同事务保存供幂等重放。资质DTO仅含证照 fileId；原图走既有 admin.file.downloadUrls 的5分钟地址与access审计，不在本DTO预签。
+
+跨层后台字段由本域 keyed `adminProfileFactsPort`（profile.admin_facts）提供。实现方用 `implementAdminProfileFacts(source, provider)` 注册 billing/order/delivery/support/staff 各自的严格结构；传入 entityId/storeId/managerId/ownerId/now，只读、无外呼。订单来源拥有上线剧数、使用期汇总与最近约定上线日，交付来源拥有交付工单数与经理工单工作量。未注册键按字段给 none/0/null/空数组，M2 G2-B 回补，见后台聚合留桩。它不复用商家端 merchantFacts，以免放宽角色裁剪。
+
+后台首次指派显式 allowArchived；既有商家/系统调用仍默认拒绝归档。锁目标staff20共享、门店130后校验原经理为空，再调用两个同步端口，最后 tenant 写门店及唯一ops审计。同步端口 Promise<void | number> 兼容旧空实现：void记0，实际实现必须返回本次改写数量；响应 synced 与审计 meta.synced 同值，note只写reason_text。同步端口应按明确 input.staffId 写入，调用时门店行已锁、deliveryManager列尚未更新；不得借旧列替代输入。下游新增锁须高于已持store130，order160/delivery180保持原锁序；任何端口失败整事务回滚。W1-15/W1-16a 回补同时补真实数量。
+
+本域 m03 对 named schema 的可空引用改用 common.orNull，避免生成器把 DictRef、MediaFileView 等组件污染为可空或空对象交集；源 schema 行为不变，非空字典/null与媒体必有字段有真实类型消费者回归。没有改全局生成器、内核、DDL、锁序常量、依赖或 layers。

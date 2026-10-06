@@ -1364,6 +1364,7 @@ stateDiagram-v2
 | `plan` | `planId`、`planRevisionId` | uuid | 套餐与价目修订 |
 | `plan` | `months` | number | 购买月数 |
 | `plan` | `cyclePriceFen`、`payFen` | number | 周期总价、应付 |
+| `plan` | `planName` | string（旧快照可缺项） | 创建时的套餐名称；展示优先快照，旧快照缺项才回查 `plan.name`；不参与履约计价 |
 | `plan` | `monthlyPoints`、`discountBp` | number | 每月发放积分、订购折扣（万分比） |
 | `plan` | `promo` | object 或 null | 首期优惠：`{ claimRevisionId, type, appliedRevisionId }` |
 | `plan`、`upgrade` | `quotedAt` | string（ISO 时间） | 报价时刻 |

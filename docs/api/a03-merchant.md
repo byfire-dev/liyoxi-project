@@ -134,6 +134,8 @@
 | sort | enum `StoreListSort` | 否 | 默认 `-lastOrderAt` | 按最近订购、注册时间、累计实付倒序（C44；服务端追加 `id`） |
 | page、pageSize | integer | 否 | 同 C43 | 页码分页 |
 
+M1（W1-08b）：筛选仅开放 q、regionCode、industryCode、categoryCode、qualificationStatus、deliveryManagerId/isManagerUnassigned、entityId、lifecycle；排序只收 registeredAt 或 -registeredAt，缺省 -registeredAt，追加 id。来源、套餐与到期筛选及其他排序400 VALIDATION_FAILED；跨层字段经 profile.admin_facts 的拥有者键取数，未注册按字段 none/0/null。列表非首店 totalPaidFen 为空，详情 paid 仍为主体合计。完整模式的 -createdAt 与 registeredAt 的命名差异在回补时统一。
+
 **StoreRow**
 
 | 字段 | 类型 | 必有 | 说明 | 来源（表.列 或计算规则） |
@@ -1546,6 +1548,8 @@ usage（名额与额度按 m02-tenant 2.1 的唯一口径，调 `tenant.getQuota
 | overrideReason | string | 条件 | `mode = override` 时必填，10–200 字 | → `approval_request.decision_note`（d9-profile.md:509） |
 | confirm | `{ roundNo: integer }` | 是 | 等于当前轮次号 | 回显（C54） |
 | confirmChecks | array<string> | 否 | 0–10 项 | 核对项 → `approval_request.confirm_checks` |
+
+M1 的 confirm/roundNo 缺失由领域返回 CONFIRM_MISMATCH（409），在范围、待审、追加权限和版本守卫之后检查；DTO 仅回证照fileId，不预签原图。mode=override 在追加权限、版本、回显守卫通过后仍回 STATE_NOT_ALLOWED（recognition_override_not_open）。
 
 **响应**：QualificationSubmissionDetail（审批单 `approved`、轮次已关闭）。
 

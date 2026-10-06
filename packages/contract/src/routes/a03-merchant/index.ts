@@ -44,3 +44,12 @@ export const A03_MERCHANT = defineRouteDoc("a03-merchant", [
 
 // 本文档带 details 的领域错误码的结构（W1-06 起；各包补结构时在这里各加自己的文件）
 export * from "./error-details.js";
+
+export * from "./stores.schemas.js";
+export * from "./qualification.schemas.js";
+export { adminStoreList, adminStoreGet, adminStoreAssignDeliveryManager } from "./stores.js";
+export {
+  adminQualificationSubmissionGet,
+  adminQualificationSubmissionApprove,
+  adminQualificationSubmissionReject,
+} from "./qualification-submissions.js";

@@ -1,8 +1,26 @@
+import { adminRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  TransferProofConfirmBodySchema,
+  TransferProofConfirmResultSchema,
+  TransferProofDetailSchema,
+  TransferProofListQuerySchema,
+  TransferProofPageSchema,
+  TransferProofParamsSchema,
+  TransferProofRejectBodySchema,
+  TransferProofSummaryQuerySchema,
+  TransferProofSummarySchema,
+} from "./purchase.schemas.js";
 // 后台：套餐积分与财务 · transfer-proofs（docs/api/a07-billing-finance.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { adminMeta } from "../meta-only.js";
 
-export const adminTransferProofList = adminMeta({
+export const adminTransferProofList = adminRoute({
+  responses: {
+    ...okResponse(TransferProofPageSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: { query: TransferProofListQuerySchema },
   method: "get",
   path: "/admin/transfer-proofs",
   operationId: "admin.transferProof.list",
@@ -11,7 +29,12 @@ export const adminTransferProofList = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminTransferProofSummary = adminMeta({
+export const adminTransferProofSummary = adminRoute({
+  responses: {
+    ...okResponse(TransferProofSummarySchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: { query: TransferProofSummaryQuerySchema },
   method: "get",
   path: "/admin/transfer-proofs/summary",
   operationId: "admin.transferProof.summary",
@@ -20,7 +43,12 @@ export const adminTransferProofSummary = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminTransferProofGet = adminMeta({
+export const adminTransferProofGet = adminRoute({
+  responses: {
+    ...okResponse(TransferProofDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: { params: TransferProofParamsSchema },
   method: "get",
   path: "/admin/transfer-proofs/{transferProofId}",
   operationId: "admin.transferProof.get",
@@ -38,7 +66,18 @@ export const adminTransferProofApproveReview = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminTransferProofConfirm = adminMeta({
+export const adminTransferProofConfirm = adminRoute({
+  responses: {
+    ...okResponse(TransferProofConfirmResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: {
+    params: TransferProofParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: TransferProofConfirmBodySchema } },
+    },
+  },
   method: "post",
   path: "/admin/transfer-proofs/{transferProofId}/confirm",
   operationId: "admin.transferProof.confirm",
@@ -47,7 +86,18 @@ export const adminTransferProofConfirm = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminTransferProofReject = adminMeta({
+export const adminTransferProofReject = adminRoute({
+  responses: {
+    ...okResponse(TransferProofDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: {
+    params: TransferProofParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: TransferProofRejectBodySchema } },
+    },
+  },
   method: "post",
   path: "/admin/transfer-proofs/{transferProofId}/reject",
   operationId: "admin.transferProof.reject",

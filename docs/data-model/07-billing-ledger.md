@@ -1512,7 +1512,7 @@ billing.I11：估值守恒——每个批次“净确认收入 + 转出 + 剩余
 
 | `kind` | 键 |
 | --- | --- |
-| `plan` | `v`、`planId`、`planRevisionId`、`months`、`cyclePriceFen`、`payFen`、`monthlyPoints`、`discountBp`、`promo`（空，或 `{ claimRevisionId, type, appliedRevisionId }`）、`quotedAt` |
+| `plan` | `v`、`planId`、`planName`（创建时名称，旧快照可缺项）、`planRevisionId`、`months`、`cyclePriceFen`、`payFen`、`monthlyPoints`、`discountBp`、`promo`（空，或 `{ claimRevisionId, type, appliedRevisionId }`）、`quotedAt` |
 | `upgrade` | `v`、`termId`、`fromPlanRevisionId`、`toPlanRevisionId`、`quotedAt`、`quotedOn`、`monthIndex`、`remainingDays`、`baseDays`、`remainingFullMonths`、`feeDeltaPerMonthFen`、`pointsDeltaPerMonth`、`proratedFen`、`payFen`、`topupPoints`、`validUntil` |
 | `topup` | `v`、`packId`、`points`、`payFen` |
 

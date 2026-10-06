@@ -10,7 +10,14 @@ import {
   implementMerchantFacts,
 } from "../kernel/index.js";
 import { machinePort } from "../flow/index.js";
-import { paymentMachineBindings } from "./payment/machines.js";
+import {
+  purchaseMachineBindings,
+  purchaseInvariants,
+  handleTransferTtl,
+} from "./payment/purchase-registration.js";
+import { approvalKindPort } from "../approval/index.js";
+import { fileRefTypePort } from "../media/index.js";
+import { financeConfigApproval } from "./finance-config/index.js";
 import { paymentInvariants } from "./payment/invariants.js";
 import { billingAccountPort } from "../tenant/index.js";
 import { billingInvariants } from "./invariants.js";
@@ -22,10 +29,26 @@ import { dramaPriceAdapter } from "./pricing/drama-price-port.js";
 
 export const registration = defineRegistration("billing", {
   portImplementations: [
+    implementKeyed(approvalKindPort, "finance_config_change", financeConfigApproval),
+    implementKeyed(fileRefTypePort, "transfer_proof", {
+      roles: { main: { categories: ["pay_receipt"], retentionDays: null } },
+      readColumns: async (tx) =>
+        (await tx.transferProof.findMany({ select: { id: true, fileId: true } })).map((p) => ({
+          fileId: p.fileId,
+          refId: p.id,
+          role: "main",
+        })),
+    }),
     implement(DramaPricePort, dramaPriceAdapter),
     implement(billingAccountPort, billingAccountOpener),
     implementMerchantFacts("billing", billingMerchantFacts),
-    ...paymentMachineBindings.map(({ key, binding }) => implementKeyed(machinePort, key, binding)),
+    ...purchaseMachineBindings.map(({ key, binding }) => implementKeyed(machinePort, key, binding)),
   ],
-  invariants: [...billingInvariants, ...subscriptionInvariants, ...paymentInvariants],
+  timerHandlers: [{ kind: "po.transfer_ttl", handle: handleTransferTtl }],
+  invariants: [
+    ...billingInvariants,
+    ...subscriptionInvariants,
+    ...paymentInvariants,
+    ...purchaseInvariants,
+  ],
 });

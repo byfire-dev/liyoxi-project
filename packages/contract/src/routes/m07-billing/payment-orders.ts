@@ -1,3 +1,12 @@
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  PaymentOrderCreateBodySchema,
+  PaymentOrderCreateResultSchema,
+  PaymentOrderDetailSchema,
+  PaymentOrderParamsSchema,
+  TransferProofCreateBodySchema,
+} from "./purchase.schemas.js";
 // 商家端：套餐、积分、付款与发票 · payment-orders（docs/api/m07-billing.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { merchantMeta } from "../meta-only.js";
@@ -13,7 +22,18 @@ export const mPaymentOrderList = merchantMeta({
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
 });
 
-export const mPaymentOrderCreate = merchantMeta({
+export const mPaymentOrderCreate = merchantRoute({
+  responses: {
+    ...okResponse(PaymentOrderCreateResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: PaymentOrderCreateBodySchema } },
+    },
+  },
+  "x-redact-on-replay": ["bankAccount.accountNo"],
   method: "post",
   path: "/m/payment-orders",
   operationId: "m.paymentOrder.create",
@@ -37,7 +57,12 @@ export const mPaymentOrderSummary = merchantMeta({
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
 });
 
-export const mPaymentOrderGet = merchantMeta({
+export const mPaymentOrderGet = merchantRoute({
+  responses: {
+    ...okResponse(PaymentOrderDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: { params: PaymentOrderParamsSchema },
   method: "get",
   path: "/m/payment-orders/{paymentOrderId}",
   operationId: "m.paymentOrder.get",
@@ -71,7 +96,19 @@ export const mPaymentOrderSync = merchantMeta({
     "只查询渠道状态，入账由账本操作键 fulfill:/purchase:billing_order:{id} 去重（A50）；三段式用例",
 });
 
-export const mPaymentOrderTransferProofCreate = merchantMeta({
+export const mPaymentOrderTransferProofCreate = merchantRoute({
+  responses: {
+    ...okResponse(PaymentOrderDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: {
+    params: PaymentOrderParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: TransferProofCreateBodySchema } },
+    },
+  },
+  "x-redact-on-replay": ["bankAccount.accountNo"],
   method: "post",
   path: "/m/payment-orders/{paymentOrderId}/transfer-proofs",
   operationId: "m.paymentOrder.transferProof.create",

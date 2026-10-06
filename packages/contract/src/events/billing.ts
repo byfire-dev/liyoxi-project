@@ -170,7 +170,34 @@ export const paymentExceptionOpenedPayload = z.strictObject({
   transition: z.literal("payment_exception.open"),
 });
 
+export const billingOrderCreatedPayload = z.strictObject({
+  v: z.literal(1),
+  billingOrderId: IdSchema,
+  entityId: IdSchema,
+  storeId: orNull(IdSchema),
+  orderType: zodEnum(BILLING_ORDER_TYPE),
+  channel: zodEnum(PAY_CHANNEL),
+  amountFen: z.int().positive(),
+  ...orderTransition,
+});
+export const transferProofSubmittedPayload = z.strictObject({
+  v: z.literal(1),
+  transferProofId: IdSchema,
+  billingOrderId: IdSchema,
+  entityId: IdSchema,
+  dueAt: orNull(InstantSchema),
+});
+export const transferRejectedPayload = z.strictObject({
+  v: z.literal(1),
+  transferProofId: IdSchema,
+  billingOrderId: IdSchema,
+  entityId: IdSchema,
+  reasonCodes: z.array(z.string()).min(1),
+});
 export const payloads = {
+  "billing_order.created": billingOrderCreatedPayload,
+  "transfer.proof_submitted": transferProofSubmittedPayload,
+  "transfer.rejected": transferRejectedPayload,
   "billing.points.granted": pointsGrantedPayload,
   "billing.points.purchased": pointsPurchasedPayload,
   "billing.points.held": pointsHeldPayload,

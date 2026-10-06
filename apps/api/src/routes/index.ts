@@ -1,5 +1,6 @@
 // 全部处理器的清单（W0-22）。各域的接口包：在本目录下建自己的文件（一条契约路由配一个 defineHandler），
 // 在这里加一行展开。探活不在这里，在 ../probes.ts。
+import { adminProfileHandlers } from "./admin/profile.js";
 import { profileHandlers } from "./profile.js";
 import { mallHandlers } from "./mall.js";
 import { merchantFileHandlers } from "./files.js";
@@ -18,6 +19,8 @@ import { entityHandlers } from "./entities.js";
 import { storeHandlers } from "./stores.js";
 import { meHandlers } from "./me.js";
 import { dictItemHandlers } from "./dict-items.js";
+import { billingHandlers } from "./billing.js";
+import { adminBillingHandlers } from "./admin/billing.js";
 
 export const HANDLERS: readonly HandlerEntry[] = [
   // W1-03：协议清单与版本正文（两条公开路由）
@@ -38,5 +41,8 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...storeHandlers,
   ...meHandlers,
   ...dictItemHandlers,
+  ...billingHandlers,
+  ...adminBillingHandlers,
   ...profileHandlers,
+  ...adminProfileHandlers,
 ];

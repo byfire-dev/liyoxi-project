@@ -328,6 +328,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/payment-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 创建付款单（不传类型，按内容判定套餐或加购；记录《会员服务协议》《积分规则》同意）；对公同时返回收款账户与转账备注（= 付款单号） */
+        post: operations["m.paymentOrder.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/payment-orders/{paymentOrderId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 付款单详情与状态（含“已收到付款，正在处理”）、生效时间或到账积分、对公收款账户 */
+        get: operations["m.paymentOrder.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/payment-orders/{paymentOrderId}/transfer-proofs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 提交或重新上传对公转账凭证 {fileId}（回单截图或照片），财务 1 个工作日内确认 */
+        post: operations["m.paymentOrder.transferProof.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 上架中的套餐版本与权益（月费、每月积分、折扣、制作模型、门店与成员上限、排期）；是否返回价格与购买入口由购买策略决定 */
+        get: operations["m.plan.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/plans/quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 套餐报价（不落库）：{planId, months}→ 动作类型（开通/续费/升级/降级/下期换版本）、应付、新周期、积分发放与补发、补差价、降级须移除的门店与成员数；附购买策略 */
+        post: operations["m.plan.quote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/purchase-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 购买策略（mode、isPriceShown、isPurchasePromptAllowed、channels[]、copy），给没有金额上下文的入口用（如钱包页的续费与加购入口、积分不足引导） */
+        get: operations["m.purchasePolicy.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/qualification-docs": {
         parameters: {
             query?: never;
@@ -553,19 +655,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/wallet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 套餐与积分：当前套餐（版本、状态、有效期、剩余天数、周期、权益）、门店与成员名额（同 m02 2.1）、两类积分余额、冻结数、即将清零数量与时刻、过期态（已清零数量、加购积分停用）、是否退款处理中（主体级）、加购拦截态、积分规则参数 */
+        get: operations["m.wallet.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         AddressView: {
-            city: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            city: components["schemas"]["DictRef"] | null;
             detail: string | null;
-            district: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            district: components["schemas"]["DictRef"] | null;
             latitude: number | null;
             longitude: number | null;
             poiName: string | null;
-            province: components["schemas"]["DictRef"] & (Record<string, never> | null);
-            zone: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            province: components["schemas"]["DictRef"] | null;
+            zone: components["schemas"]["DictRef"] | null;
         };
         AgreementConsentReceipt: {
             consents: {
@@ -739,7 +858,6 @@ export interface components {
             loginPhoneMask: string | null;
             name: string | null;
             phoneMask: string | null;
-            /** Format: date-time */
             phoneVerifiedAt: string | null;
             /** @enum {string|null} */
             phoneVerifyState: "login" | "sms_verified" | "unverified" | (string & {}) | null;
@@ -1821,7 +1939,6 @@ export interface components {
             displayHeight: number | null;
             displayWidth: number | null;
             durationMs: number | null;
-            /** Format: date-time */
             expiresAt: string | null;
             /** Format: uuid */
             fileId: string;
@@ -1830,7 +1947,7 @@ export interface components {
             /** @enum {string} */
             moderationState: "none" | "pending" | "pass" | "review" | "block" | (string & {});
             url: string | null;
-        } | null;
+        };
         MemberPreview: {
             displayName: string | null;
             /** @enum {string} */
@@ -1944,6 +2061,116 @@ export interface components {
             /** Format: uuid */
             storeId: string;
         };
+        PaymentOrderDetail: {
+            actions: string[];
+            activeInvoiceRequest: {
+                /** Format: uuid */
+                invoiceRequestId: string;
+                requestNo: string;
+                status: string;
+            } | null;
+            amountFen: number;
+            bankAccount: {
+                accountName: string;
+                accountNo: string | null;
+                accountNoMask: string;
+                bankName: string;
+                transferRemark: string;
+            } | null;
+            cancelReason: string | null;
+            /** Format: date-time */
+            cancelledAt: string | null;
+            /** @enum {string} */
+            channel: "wechat_jsapi" | "bank_transfer" | (string & {});
+            channels: {
+                /** @enum {string} */
+                code: "wechat_jsapi" | "bank_transfer" | (string & {});
+                hintKey: string | null;
+                isEnabled: boolean;
+                isRecommended: boolean;
+            }[];
+            content: {
+                /** @enum {string} */
+                kind: "plan" | "upgrade" | "topup" | (string & {});
+                months: number | null;
+                /** Format: uuid */
+                planId: string | null;
+                planName: string | null;
+                /** Format: uuid */
+                pointPackId: string | null;
+                points: number | null;
+                upgrade: {
+                    fromPlanName: string;
+                    remainingDays: number;
+                    topupPoints: number;
+                    /** Format: date-time */
+                    validUntil: string;
+                } | null;
+            };
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            formula: {
+                args: {
+                    [key: string]: number;
+                };
+                /** @enum {string} */
+                code: "plan_monthly" | "plan_cycle" | "plan_upgrade" | "topup" | (string & {});
+                text: string;
+            } | null;
+            fulfillment: {
+                /** Format: date-time */
+                effectiveAt: string;
+                isQueuedBehindActive: boolean;
+                points: number | null;
+                term: {
+                    /** Format: date */
+                    endDate: string;
+                    planName: string;
+                    /** Format: date */
+                    startDate: string;
+                } | null;
+            } | null;
+            /** @enum {string} */
+            fulfillmentStatus: "none" | "done" | "blocked" | (string & {});
+            invoiceItemName: string | null;
+            /** @enum {string} */
+            invoiceState: "eligible" | "applying" | "invoiced" | "expired" | "not_eligible" | (string & {});
+            isConfirmingResult: boolean;
+            isProcessingReceipt: boolean;
+            latestTransferProof: {
+                /** Format: date-time */
+                dueAt: string | null;
+                rejectNote: string | null;
+                rejectReason: components["schemas"]["DictRef"] & (Record<string, never> | null);
+                /** @enum {string} */
+                reviewStatus: "pending" | "accepted" | "rejected" | "superseded" | (string & {});
+                /** Format: date-time */
+                reviewedAt: string | null;
+                /** Format: uuid */
+                transferProofId: string;
+                uploadNo: number;
+                /** Format: date-time */
+                uploadedAt: string;
+            } | null;
+            orderNo: string;
+            paidAmountFen: number;
+            /** Format: date-time */
+            paidAt: string | null;
+            /** Format: uuid */
+            paymentOrderId: string;
+            refundedAmountFen: number;
+            /** Format: date-time */
+            refundedAt: string | null;
+            /** @enum {string} */
+            status: "pending_payment" | "pending_confirmation" | "paid" | "cancelled" | "refunded" | (string & {});
+            title: string;
+            /** @enum {string|null} */
+            transferState: "awaiting_proof" | "proof_submitted" | "proof_rejected" | "confirm_review" | (string & {}) | null;
+            /** @enum {string} */
+            type: "plan_new" | "plan_renew" | "plan_upgrade" | "topup" | (string & {});
+        };
         PendingConsent: {
             agreementKey: string;
             /** Format: uuid */
@@ -1962,11 +2189,123 @@ export interface components {
             } | null;
             token: string;
         };
+        PlanCard: {
+            code: string;
+            cyclePrices: {
+                months: number;
+                priceFen: number;
+            }[];
+            discountBp: number;
+            hasMonthlyReport: boolean;
+            isCurrent: boolean;
+            maxMembers: number | null;
+            maxStores: number;
+            monthlyFeeFen: number | null;
+            monthlyPoints: number;
+            name: string;
+            /** Format: uuid */
+            planId: string;
+            /** Format: uuid */
+            planRevisionId: string;
+            /** @enum {string} */
+            productionModel: "standard" | "advanced" | "top" | (string & {});
+            rank: number;
+            /** @enum {string} */
+            schedulePriority: "standard" | "priority" | "rush" | (string & {});
+        };
+        PlanQuote: {
+            /** @enum {string} */
+            action: "subscribe" | "renew" | "downgrade" | "renew_upgrade" | "upgrade" | (string & {});
+            benefits: {
+                discountBp: number;
+                hasMonthlyReport: boolean;
+                maxMembers: number | null;
+                maxStores: number;
+                monthlyPoints: number;
+                /** @enum {string} */
+                productionModel: "standard" | "advanced" | "top" | (string & {});
+                /** @enum {string} */
+                schedulePriority: "standard" | "priority" | "rush" | (string & {});
+            };
+            downgradeImpact: {
+                membersToRemove: number;
+                storesToRemove: number;
+            } | null;
+            /** @enum {string} */
+            effectiveMode: "immediate" | "next_term" | (string & {});
+            /** Format: date */
+            firstGrantDate: string | null;
+            formula: {
+                args: {
+                    [key: string]: number;
+                };
+                /** @enum {string} */
+                code: "plan_monthly" | "plan_cycle" | "plan_upgrade" | "topup" | (string & {});
+                text: string;
+            };
+            fromPlanName: string | null;
+            months: number | null;
+            newTerm: {
+                /** Format: date */
+                endDate: string;
+                /** Format: date */
+                startDate: string;
+            } | null;
+            /** @enum {string} */
+            orderType: "plan_new" | "plan_renew" | "plan_upgrade" | (string & {});
+            payFen: number;
+            /** Format: uuid */
+            planId: string;
+            planName: string;
+            /** Format: uuid */
+            planRevisionId: string;
+            policy: components["schemas"]["PurchasePolicy"];
+            promo: {
+                /** Format: uuid */
+                appliedRevisionId: string;
+                /** @enum {string} */
+                type: "previous_revision";
+            } | null;
+            /** Format: date-time */
+            quotedAt: string;
+            upgrade: {
+                baseDays: number;
+                /** Format: date */
+                currentTermEndDate: string;
+                feeDeltaPerMonthFen: number;
+                monthlyDeltaPoints: number;
+                proratedFen: number;
+                remainingDays: number;
+                remainingFullMonths: number;
+                topupPoints: number;
+            } | null;
+            /** Format: date-time */
+            validUntil: string | null;
+        };
         PostPolicy: {
             fields: {
                 [key: string]: string;
             };
             url: string;
+        };
+        PurchasePolicy: {
+            channels: {
+                /** @enum {string} */
+                code: "wechat_jsapi" | "bank_transfer" | (string & {});
+                hintKey: string | null;
+                isEnabled: boolean;
+                isRecommended: boolean;
+            }[];
+            copy: {
+                agreementKeys: string[];
+                payButtonKey: string;
+                planNounKey: string;
+                pointsNounKey: string;
+            };
+            isPriceShown: boolean;
+            isPurchasePromptAllowed: boolean;
+            /** @enum {string} */
+            mode: "in_app" | "offline_contract" | "hidden" | (string & {});
         };
         QualificationDoc: {
             certNoMask: string | null;
@@ -1990,7 +2329,7 @@ export interface components {
             ocrWarnings: string[];
             /** @enum {string} */
             origin: "uploaded" | "carried" | (string & {});
-            permitType: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            permitType: components["schemas"]["DictRef"] | null;
             principalNameMask: string | null;
             /** @enum {string|null} */
             principalRole: "legal_rep" | "operator" | "branch_head" | (string & {}) | null;
@@ -2002,9 +2341,7 @@ export interface components {
             subjectType: "enterprise" | "individual" | "branch" | "unknown" | (string & {}) | null;
             /** Format: date-time */
             uploadedAt: string;
-            /** Format: date */
             validEndDate: string | null;
-            /** Format: date */
             validStartDate: string | null;
             /** @enum {string|null} */
             verdict: "accepted" | "rejected" | (string & {}) | null;
@@ -2033,7 +2370,6 @@ export interface components {
             changedFields: ("store_name" | "address" | "industry" | "docs" | "entity_license" | (string & {}))[];
             /** @enum {string|null} */
             claimedEntityType: "enterprise" | "individual" | (string & {}) | null;
-            /** Format: date-time */
             closedAt: string | null;
             contactSnapshot: {
                 name: string;
@@ -2041,16 +2377,12 @@ export interface components {
                 /** @enum {string} */
                 phoneVerifyState: "login" | "sms_verified" | "unverified" | (string & {});
             } | null;
-            /** Format: date-time */
             decidedAt: string | null;
             decisionNote: string | null;
-            /** Format: date-time */
             declarationConfirmedAt: string | null;
             declarationVersion: string | null;
             docs: components["schemas"]["QualificationDoc"][];
-            /** Format: date-time */
             dueAt: string | null;
-            /** Format: date-time */
             finalRejectedAt: string | null;
             isDecidedBySystem: boolean;
             isResubmit: boolean;
@@ -2066,11 +2398,10 @@ export interface components {
             qualificationSubmissionId: string;
             rejectReasons: components["schemas"]["DictRef"][];
             roundNo: number | null;
-            /** Format: date-time */
             submittedAt: string | null;
             /** @enum {string|null} */
             systemRejectCode: "duplicate_entity" | (string & {}) | null;
-        } | null;
+        };
         QualificationView: {
             actions: string[];
             contact: components["schemas"]["ContactView"];
@@ -2086,13 +2417,12 @@ export interface components {
                 usccMask: string | null;
                 /** @enum {string} */
                 verificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
-                /** Format: date-time */
                 verifiedAt: string | null;
             };
             isChangeInReview: boolean;
             isFinalRejected: boolean;
-            lastClosedRound: components["schemas"]["QualificationRound"];
-            openRound: components["schemas"]["QualificationRound"];
+            lastClosedRound: components["schemas"]["QualificationRound"] | null;
+            openRound: components["schemas"]["QualificationRound"] | null;
             requiredPermits: {
                 isProvided: boolean;
                 permitType: components["schemas"]["DictRef"];
@@ -2203,13 +2533,12 @@ export interface components {
                 end: string;
                 start: string;
             }[];
-            category: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            category: components["schemas"]["DictRef"] | null;
             completeness: components["schemas"]["Completeness"];
-            industry: components["schemas"]["DictRef"] & (Record<string, never> | null);
-            /** Format: date-time */
+            industry: components["schemas"]["DictRef"] | null;
             lastEditedAt: string | null;
             lockVersion: number;
-            logo: components["schemas"]["MediaFileView"];
+            logo: components["schemas"]["MediaFileView"] | null;
             pendingChange: null;
             reviewFieldsLocked: boolean;
             reviewRequiredOnChange: boolean;
@@ -2226,12 +2555,11 @@ export interface components {
                 end: string;
                 start: string;
             }[];
-            category: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            category: components["schemas"]["DictRef"] | null;
             completeness: components["schemas"]["Completeness"];
-            industry: components["schemas"]["DictRef"] & (Record<string, never> | null);
-            /** Format: date-time */
+            industry: components["schemas"]["DictRef"] | null;
             lastEditedAt: string | null;
-            logo: components["schemas"]["MediaFileView"];
+            logo: components["schemas"]["MediaFileView"] | null;
             reviewFieldsLocked: boolean;
             reviewRequiredOnChange: boolean;
             storeName: string | null;
@@ -2350,13 +2678,10 @@ export interface components {
                 }[];
             };
             qualification: {
-                /** Format: date-time */
                 dueAt: string | null;
-                /** Format: date-time */
                 lastDecidedAt: string | null;
                 /** @enum {string} */
                 status: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
-                /** Format: date-time */
                 submittedAt: string | null;
             };
             steps: {
@@ -2376,7 +2701,7 @@ export interface components {
                     docTypes: {
                         /** @enum {string} */
                         docType: "business_license" | "branch_license" | "industry_permit" | (string & {});
-                        permitType: components["schemas"]["DictRef"] & (Record<string, never> | null);
+                        permitType: components["schemas"]["DictRef"] | null;
                     }[];
                     /** @enum {string} */
                     state: "not_started" | "in_progress" | "completed" | (string & {});
@@ -2390,8 +2715,8 @@ export interface components {
                 };
             };
             store: {
-                category: components["schemas"]["DictRef"] & (Record<string, never> | null);
-                industry: components["schemas"]["DictRef"] & (Record<string, never> | null);
+                category: components["schemas"]["DictRef"] | null;
+                industry: components["schemas"]["DictRef"] | null;
                 isChangeInReview: boolean;
                 isFinalRejected: boolean;
                 isPrimary: boolean;
@@ -2449,8 +2774,8 @@ export interface components {
                 };
             };
             store: {
-                category: components["schemas"]["DictRef"] & (Record<string, never> | null);
-                industry: components["schemas"]["DictRef"] & (Record<string, never> | null);
+                category: components["schemas"]["DictRef"] | null;
+                industry: components["schemas"]["DictRef"] | null;
                 isChangeInReview: boolean;
                 isFinalRejected: boolean;
                 isPrimary: boolean;
@@ -2471,7 +2796,7 @@ export interface components {
             sellingNote: string | null;
             sellingPoints: components["schemas"]["DictRef"][];
             serviceItems: {
-                image: components["schemas"]["MediaFileView"];
+                image: components["schemas"]["MediaFileView"] | null;
                 intro: string | null;
                 name: string;
                 originalPriceFen: number | null;
@@ -2489,7 +2814,7 @@ export interface components {
             sellingNote: string | null;
             sellingPoints: components["schemas"]["DictRef"][];
             serviceItems: {
-                image: components["schemas"]["MediaFileView"];
+                image: components["schemas"]["MediaFileView"] | null;
                 intro: string | null;
                 name: string;
                 originalPriceFen: number | null;
@@ -2518,6 +2843,80 @@ export interface components {
             occurredAt: string;
             /** Format: uuid */
             userNoticeId: string;
+        };
+        Wallet: {
+            points: {
+                addonAvailablePoints: number;
+                heldPoints: number;
+                isAddonSuspended: boolean;
+                lastExpired: {
+                    /** Format: date-time */
+                    expiredAt: string;
+                    expiredPoints: number;
+                } | null;
+                planAvailablePoints: number;
+                planGrantedThisTermPoints: number;
+                /** Format: date-time */
+                planPointsExpireAt: string | null;
+                spendablePoints: number;
+            };
+            rules: {
+                adFreeRevisions: number;
+                adUnitPoints: number;
+                discountedAdUnitPoints: number | null;
+                topModelSurchargeBp: number;
+            };
+            subscription: {
+                benefits: {
+                    discountBp: number;
+                    hasMonthlyReport: boolean;
+                    maxMembers: number | null;
+                    maxStores: number;
+                    monthlyPoints: number;
+                    /** @enum {string} */
+                    productionModel: "standard" | "advanced" | "top" | (string & {});
+                    /** @enum {string} */
+                    schedulePriority: "standard" | "priority" | "rush" | (string & {});
+                } | null;
+                /** Format: date */
+                endDate: string | null;
+                /** Format: date-time */
+                endsAt: string | null;
+                isRefundPending: boolean;
+                months: number | null;
+                plan: {
+                    code: string;
+                    name: string;
+                    /** Format: uuid */
+                    planId: string;
+                } | null;
+                remainingDays: number | null;
+                scheduledTerms: {
+                    /** Format: date */
+                    endDate: string;
+                    months: number;
+                    planName: string;
+                    /** Format: date */
+                    startDate: string;
+                }[];
+                /** Format: date */
+                startDate: string | null;
+                /** @enum {string} */
+                status: "none" | "active" | "expired" | (string & {});
+            };
+            topUp: {
+                /** @enum {string|null} */
+                blockReason: "no_active_plan" | "refund_in_progress" | "not_offered" | (string & {}) | null;
+                canTopUp: boolean;
+            };
+            usage: {
+                /** @enum {string} */
+                limitReason: "plan" | "inactive" | (string & {});
+                memberLimit: number | null;
+                seatsUsed: number;
+                storeLimit: number;
+                storesUsed: number;
+            };
         };
     };
     responses: never;
@@ -3699,6 +4098,531 @@ export interface operations {
             };
         };
     };
+    "m.paymentOrder.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    acknowledgedDowngradeImpact?: {
+                        membersToRemove: number;
+                        storesToRemove: number;
+                    };
+                    agreementVersionIds: string[];
+                    /** @enum {string} */
+                    channel: "wechat_jsapi" | "bank_transfer";
+                    expectAmountFen: number;
+                    /** @enum {string} */
+                    intent?: "upgrade_now" | "renew_next_term";
+                    months?: number;
+                    /** Format: uuid */
+                    planId?: string;
+                    /** Format: uuid */
+                    pointPackId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PaymentOrderDetail"] & {
+                            replayed: boolean;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.paymentOrder.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentOrderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PaymentOrderDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.paymentOrder.transferProof.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentOrderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    fileId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PaymentOrderDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.plan.list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: components["schemas"]["PlanCard"][];
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.plan.quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    intent?: "upgrade_now" | "renew_next_term";
+                    months?: number;
+                    /** Format: uuid */
+                    planId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PlanQuote"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.purchasePolicy.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PurchasePolicy"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "m.qualificationDoc.create": {
         parameters: {
             query?: never;
@@ -4282,7 +5206,6 @@ export interface operations {
                     draft: boolean;
                     industryCode?: string | null;
                     lockVersion: number;
-                    /** Format: uuid */
                     logoFileId?: string | null;
                     storeName?: string | null;
                     storeTel?: string | null;
@@ -4308,13 +5231,12 @@ export interface operations {
                                 end: string;
                                 start: string;
                             }[];
-                            category: components["schemas"]["DictRef"] & (Record<string, never> | null);
+                            category: components["schemas"]["DictRef"] | null;
                             completeness: components["schemas"]["Completeness"];
-                            industry: components["schemas"]["DictRef"] & (Record<string, never> | null);
-                            /** Format: date-time */
+                            industry: components["schemas"]["DictRef"] | null;
                             lastEditedAt: string | null;
                             lockVersion: number;
-                            logo: components["schemas"]["MediaFileView"];
+                            logo: components["schemas"]["MediaFileView"] | null;
                             pendingChange: null;
                             replayed: boolean;
                             reviewFieldsLocked: boolean;
@@ -4783,13 +5705,12 @@ export interface operations {
                                 usccMask: string | null;
                                 /** @enum {string} */
                                 verificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
-                                /** Format: date-time */
                                 verifiedAt: string | null;
                             };
                             isChangeInReview: boolean;
                             isFinalRejected: boolean;
-                            lastClosedRound: components["schemas"]["QualificationRound"];
-                            openRound: components["schemas"]["QualificationRound"];
+                            lastClosedRound: components["schemas"]["QualificationRound"] | null;
+                            openRound: components["schemas"]["QualificationRound"] | null;
                             requiredPermits: {
                                 isProvided: boolean;
                                 permitType: components["schemas"]["DictRef"];
@@ -4893,13 +5814,12 @@ export interface operations {
                                 usccMask: string | null;
                                 /** @enum {string} */
                                 verificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
-                                /** Format: date-time */
                                 verifiedAt: string | null;
                             };
                             isChangeInReview: boolean;
                             isFinalRejected: boolean;
-                            lastClosedRound: components["schemas"]["QualificationRound"];
-                            openRound: components["schemas"]["QualificationRound"];
+                            lastClosedRound: components["schemas"]["QualificationRound"] | null;
+                            openRound: components["schemas"]["QualificationRound"] | null;
                             requiredPermits: {
                                 isProvided: boolean;
                                 permitType: components["schemas"]["DictRef"];
@@ -5049,7 +5969,6 @@ export interface operations {
                     sellingNote?: string | null;
                     sellingPointCodes?: string[];
                     serviceItems?: {
-                        /** Format: uuid */
                         imageFileId?: string | null;
                         intro?: string | null;
                         name: string;
@@ -5080,7 +5999,7 @@ export interface operations {
                             sellingNote: string | null;
                             sellingPoints: components["schemas"]["DictRef"][];
                             serviceItems: {
-                                image: components["schemas"]["MediaFileView"];
+                                image: components["schemas"]["MediaFileView"] | null;
                                 intro: string | null;
                                 name: string;
                                 originalPriceFen: number | null;
@@ -5185,6 +6104,86 @@ export interface operations {
             };
             /** @description 未登录或会话失效 */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.wallet.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["Wallet"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
