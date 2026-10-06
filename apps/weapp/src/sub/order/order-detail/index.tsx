@@ -20,6 +20,7 @@ import { useContextStore } from "@/stores/context";
 import { useSessionStore } from "@/stores/session";
 import { orderApi } from "../private/api";
 import { useOrderResource } from "../private/resource";
+import { deliveryEntry, deliveryItemEntries } from "../components/navigation";
 import "./index.scss";
 const timelineNames: Record<string, string> = {
   submitted: "已订购（积分冻结）",
@@ -46,9 +47,6 @@ const pointNames: Record<string, string> = {
   release: "释放",
   refund: "退回",
 };
-const forthcoming = () => {
-  void Taro.showToast({ title: "即将开放", icon: "none" });
-};
 export default function OrderDetailPage() {
   const rev = useContextStore((s) => s.contextRev),
     token = useSessionStore((s) => s.accessToken);
@@ -64,6 +62,15 @@ function Detail({ id }: { id: string }) {
     id,
   );
   const order = resource.data;
+  const me = useSessionStore((state) => state.me);
+  const owner = viewerRole(me, catalogScope()) === "owner";
+  const navigate = (action: string, itemId?: string) => {
+    if (!order || viewerRole(account.snapshot().me, catalogScope()) !== "owner") return;
+    const url = deliveryEntry(order, action, itemId);
+    if (url) {
+      void Taro.navigateTo({ url });
+    } else void Taro.showToast({ title: "暂无交付内容", icon: "none" });
+  };
   const tone = order ? merchantStatusByEnum("drama_order.status", order.status) : null;
   return (
     <View className="order-detail" id={resource.loading ? undefined : "order-ready"}>
@@ -90,7 +97,7 @@ function Detail({ id }: { id: string }) {
               {order.actions
                 .filter((a) => actionNames[a])
                 .map((a) => (
-                  <TextButton key={a} onClick={forthcoming}>
+                  <TextButton key={a} onClick={() => navigate(a)}>
                     {actionNames[a]}
                   </TextButton>
                 ))}
@@ -148,6 +155,11 @@ function Detail({ id }: { id: string }) {
                         time: t.at ? appDateTimeFormat.dateTime(t.at) : undefined,
                       }))}
                   />
+                  {deliveryItemEntries(item, owner).map((action) => (
+                    <TextButton key={action} onClick={() => navigate(action, item.orderItemId)}>
+                      {actionNames[action]}
+                    </TextButton>
+                  ))}
                 </Card>
               );
             })}
@@ -170,7 +182,7 @@ function Detail({ id }: { id: string }) {
                   ]}
                 />
                 {order.deliveryPlan ? (
-                  <TextButton onClick={forthcoming}>查看交付方案</TextButton>
+                  <TextButton onClick={() => navigate("view-plan")}>查看交付方案</TextButton>
                 ) : null}
               </Card>
             ) : null}

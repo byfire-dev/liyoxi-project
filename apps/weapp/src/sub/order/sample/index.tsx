@@ -15,7 +15,8 @@ import { Sheet } from "@/components/Sheet";
 import { flagOn, useBootstrapStore } from "@/stores/bootstrap";
 import { withPrivacy } from "@/lib/runtime";
 import { saveVideoUrl } from "@/lib/platform.taro";
-import { deliveryApi as api } from "../components/delivery-runtime";
+import { deliveryRequest } from "../components/delivery-runtime";
+import { createSampleApi } from "./api";
 import { saveSample, sampleConfirmation } from "./model";
 import { useDeliveryResource } from "../components/resource";
 import {
@@ -24,6 +25,7 @@ import {
   DeliveryStatus,
   useDeliveryIdentity,
 } from "../components/ui";
+const api = createSampleApi(deliveryRequest);
 export default function SamplePage() {
   const identity = useDeliveryIdentity(),
     id = useRouter().params.orderItemId ?? "";

@@ -12,8 +12,10 @@ import { Note } from "@/components/Note";
 import { PageBody } from "@/components/PageBody";
 import { Sheet } from "@/components/Sheet";
 import { Tabs } from "@/components/Tabs";
-import { TextArea } from "@/components/TextArea";
-import { deliveryApi as api } from "../../order/components/delivery-runtime";
+import { deliveryRequest } from "../../order/components/delivery-runtime";
+import { createTaskReadApi } from "../components/task-read-api";
+import { createTaskWriteApi } from "./api";
+import { createReleaseApi } from "../components/release-api";
 import type { TaskPage } from "../../order/components/delivery-api";
 import { mergeTaskPages, submitBody, type LinkForm } from "./model";
 import { useDeliveryResource } from "../../order/components/resource";
@@ -30,6 +32,11 @@ const emptyForm: LinkForm = {
   episodes: "",
   count: "",
   date: "",
+};
+const api = {
+  ...createTaskReadApi(deliveryRequest),
+  ...createTaskWriteApi(deliveryRequest),
+  ...createReleaseApi(deliveryRequest),
 };
 export default function TasksPage() {
   const identity = useDeliveryIdentity(),
@@ -60,8 +67,9 @@ function TasksContent({
   launchTaskId?: string;
 }) {
   const query = { tab, limit: 20, ...(orderId ? { orderId } : {}) };
-  const r = useDeliveryResource(async () => {
+  const r = useDeliveryResource(async (current) => {
     const orderItemId = launchTaskId ? (await api.task(launchTaskId)).task.orderItemId : undefined;
+    if (!current()) throw new Error("门店上下文已变化");
     const resolved = { ...query, ...(orderItemId ? { orderItemId } : {}) };
     const [page, summary] = await Promise.all([api.tasks(resolved), api.summary()]);
     return { page, summary, query: resolved };
@@ -258,20 +266,71 @@ function TasksContent({
             <Field label="合集链接" required>
               <Input
                 value={form.collection}
+                maxlength={2000}
                 disabled={r.busy}
                 placeholder="请填写 HTTPS 合集链接"
                 onChange={(collection) => setForm((v) => ({ ...v, collection }))}
               />
             </Field>
           ) : (
-            <Field label="逐集链接" required hint="每行填写集号和链接，用空格分隔">
-              <TextArea
-                value={form.episodes}
-                disabled={r.busy}
-                placeholder="1 https://…"
-                onChange={(episodes) => setForm((v) => ({ ...v, episodes }))}
-              />
-            </Field>
+            <View className="delivery-stack">
+              {(form.episodes ? form.episodes.split("\n") : [""]).map((line, index, lines) => {
+                const [number = "", ...urlParts] = line.split(" ");
+                const update = (episodeNo: string, url: string) => {
+                  const next = [...lines];
+                  next[index] = `${episodeNo} ${url}`;
+                  setForm((v) => ({ ...v, episodes: next.join("\n") }));
+                };
+                return (
+                  <View key={index} className="delivery-stack">
+                    <Field label={`第 ${index + 1} 条 · 集号`} required>
+                      <Input
+                        type="number"
+                        value={number}
+                        disabled={r.busy}
+                        onChange={(value) => update(value, urlParts.join(" "))}
+                      />
+                    </Field>
+                    <Field label="本集链接" required>
+                      <Input
+                        value={urlParts.join(" ")}
+                        disabled={r.busy}
+                        maxlength={2000}
+                        placeholder="请填写 HTTPS 单集链接"
+                        onChange={(value) => update(number, value)}
+                      />
+                    </Field>
+                    {lines.length > 1 ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={r.busy}
+                        onClick={() =>
+                          setForm((v) => ({
+                            ...v,
+                            episodes: lines.filter((_, i) => i !== index).join("\n"),
+                          }))
+                        }
+                      >
+                        移除此条
+                      </Button>
+                    ) : null}
+                  </View>
+                );
+              })}
+              <Button
+                variant="outline"
+                disabled={r.busy || form.episodes.split("\n").length >= (selected?.count ?? 1)}
+                onClick={() =>
+                  setForm((v) => ({
+                    ...v,
+                    episodes: `${v.episodes || "1 "}\n${(v.episodes ? v.episodes.split("\n").length : 1) + 1} `,
+                  }))
+                }
+              >
+                添加一集链接
+              </Button>
+            </View>
           )}
           <Field
             label="已发布集数"

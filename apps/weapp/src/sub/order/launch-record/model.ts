@@ -1,7 +1,7 @@
 import type { DeliveryApi } from "../components/delivery-api";
-import { mergeTaskPages } from "../../publish/tasks/model";
+import { mergeTaskPages } from "../../publish/components/merge-task-pages";
 export async function readLaunchRecord(
-  api: DeliveryApi,
+  api: Pick<DeliveryApi, "tasks" | "task">,
   orderItemId: string,
   current: () => boolean,
 ) {

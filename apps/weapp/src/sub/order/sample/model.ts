@@ -5,7 +5,7 @@ export function sampleConfirmation(view: Sample, checked: boolean) {
   return { versionNo: view.versionNo, viewedVia: view.confirmableVia[0]!, hasViewed: true };
 }
 export async function saveSample(
-  api: DeliveryApi,
+  api: Pick<DeliveryApi, "sample" | "sampleUrl">,
   view: NonNullable<Sample>,
   save: (url: string) => Promise<void>,
   current: () => boolean,

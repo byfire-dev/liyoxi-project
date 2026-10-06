@@ -77,5 +77,27 @@ export async function deliveryRegression(page, scene) {
     expect(write.key).toBeTruthy();
     expect(list.filter((c) => c.path.startsWith("/m/launch-tasks?")).length).toBeGreaterThan(1);
     expect(list.filter((c) => c.path.endsWith("/summary")).length).toBeGreaterThan(1);
+    await button(page, "回填上线链接").first().click();
+    await page.locator(".lyx-sheet .lyx-chip").filter({ hasText: "逐集链接" }).click();
+    await page.locator(".lyx-sheet input").nth(0).fill("1");
+    await page.locator(".lyx-sheet input").nth(1).fill("https://example.test/episode/1");
+    await button(page, "添加一集链接").click();
+    await page.locator(".lyx-sheet input").nth(3).fill("https://example.test/episode/2");
+    await page.locator(".lyx-sheet input").nth(4).fill("2");
+    await page.locator(".lyx-sheet input").nth(5).fill("2026-10-07");
+    await button(page, "提交核验").click();
+    await expect(page.locator(".lyx-sheet")).toBeHidden();
+    const writes = (await calls(page)).filter((c) => c.path.endsWith("/submit"));
+    expect(writes).toHaveLength(2);
+    expect(writes[1].key).not.toBe(writes[0].key);
+    expect(writes[1].data).toEqual({
+      linkKind: "episodes",
+      episodeUrls: [
+        { episodeNo: 1, url: "https://example.test/episode/1" },
+        { episodeNo: 2, url: "https://example.test/episode/2" },
+      ],
+      reportedEpisodeCount: 2,
+      actualLaunchDate: "2026-10-07",
+    });
   }
 }

@@ -14,7 +14,8 @@ import { Section } from "@/components/Section";
 import { Sheet } from "@/components/Sheet";
 import { TextArea } from "@/components/TextArea";
 import type { Change } from "../components/delivery-api";
-import { deliveryApi as api } from "../components/delivery-runtime";
+import { deliveryRequest } from "../components/delivery-runtime";
+import { createPlanApi } from "./api";
 import { changeBody, changeKinds } from "./model";
 import { useDeliveryResource } from "../components/resource";
 import {
@@ -23,6 +24,7 @@ import {
   DeliveryStatus,
   useDeliveryIdentity,
 } from "../components/ui";
+const api = createPlanApi(deliveryRequest);
 export default function PlanPage() {
   const identity = useDeliveryIdentity(),
     id = useRouter().params.deliveryPlanId ?? "";

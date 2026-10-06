@@ -8,9 +8,11 @@ import { Note } from "@/components/Note";
 import { PageBody } from "@/components/PageBody";
 import { saveVideoUrl } from "@/lib/platform.taro";
 import { withPrivacy } from "@/lib/runtime";
-import { deliveryApi as api } from "../../order/components/delivery-runtime";
+import { deliveryRequest } from "../../order/components/delivery-runtime";
+import { createReleaseApi } from "../components/release-api";
 import { useDeliveryResource } from "../../order/components/resource";
 import { DeliveryEmpty, DeliveryState, useDeliveryIdentity } from "../../order/components/ui";
+const api = createReleaseApi(deliveryRequest);
 export default function DownloadsPage() {
   const identity = useDeliveryIdentity(),
     id = useRouter().params.orderItemId ?? "";

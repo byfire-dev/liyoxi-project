@@ -9,44 +9,19 @@ export type Task = Data<"m.launchTask.get">;
 export type Submit = Body<"m.launchTask.submit">;
 export type Change = Body<"m.deliveryPlan.requestChange">;
 export type TaskQuery = NonNullable<operations["m.launchTask.list"]["parameters"]["query"]>;
-const id = encodeURIComponent;
+import { createPlanApi } from "../plan/api";
+import { createSampleApi } from "../sample/api";
+import { createTaskReadApi } from "../../publish/components/task-read-api";
+import { createTaskWriteApi } from "../../publish/tasks/api";
+import { createReleaseApi } from "../../publish/components/release-api";
+/** 全接口组合只供独立端口测试；页面按用途取工厂，避免无关写口提升主包。 */
 export function createDeliveryApi(send: RequestLayer["request"]) {
-  const post = <K extends keyof operations>(path: string, data: Body<K>, idempotencyKey: string) =>
-    send<Data<K>>(path, { method: "POST", data, idempotencyKey });
   return {
-    plan: (value: string) => send<Plan>(`/m/delivery-plans/${id(value)}`),
-    confirmPlan: (value: string, versionNo: number, key: string) =>
-      post<"m.deliveryPlan.confirm">(`/m/delivery-plans/${id(value)}/confirm`, { versionNo }, key),
-    changePlan: (value: string, body: Change, key: string) =>
-      post<"m.deliveryPlan.requestChange">(
-        `/m/delivery-plans/${id(value)}/request-change`,
-        body,
-        key,
-      ),
-    sample: (value: string) => send<Sample>(`/m/order-items/${id(value)}/sample`),
-    sampleUrl: (value: string) =>
-      send<Data<"m.sample.downloadUrls">>(`/m/samples/${id(value)}/download-urls`, {
-        method: "POST",
-      }),
-    confirmSample: (value: string, body: Body<"m.sample.confirm">, key: string) =>
-      post<"m.sample.confirm">(`/m/samples/${id(value)}/confirm`, body, key),
-    release: (value: string) => send<Release>(`/m/order-items/${id(value)}/release`),
-    episodeUrl: (value: string, episodeNo: number) =>
-      send<Data<"m.orderItem.downloadUrls">>(`/m/order-items/${id(value)}/download-urls`, {
-        method: "POST",
-        data: { kind: "episode", episodeNo } satisfies Body<"m.orderItem.downloadUrls">,
-      }),
-    tasks: (query: TaskQuery) => {
-      const params = Object.entries(query)
-        .filter(([, v]) => v !== undefined)
-        .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
-        .join("&");
-      return send<TaskPage>(`/m/launch-tasks?${params}`);
-    },
-    summary: () => send<Data<"m.launchTask.summary">>("/m/launch-tasks/summary"),
-    task: (value: string) => send<Task>(`/m/launch-tasks/${id(value)}`),
-    submit: (value: string, body: Submit, key: string) =>
-      post<"m.launchTask.submit">(`/m/launch-tasks/${id(value)}/submit`, body, key),
+    ...createPlanApi(send),
+    ...createSampleApi(send),
+    ...createTaskReadApi(send),
+    ...createTaskWriteApi(send),
+    ...createReleaseApi(send),
   };
 }
 export type DeliveryApi = ReturnType<typeof createDeliveryApi>;

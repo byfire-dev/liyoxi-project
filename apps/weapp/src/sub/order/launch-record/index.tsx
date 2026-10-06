@@ -7,7 +7,8 @@ import { Note } from "@/components/Note";
 import { PageBody } from "@/components/PageBody";
 import { Section } from "@/components/Section";
 import { Timeline } from "@/components/Timeline";
-import { deliveryApi as api } from "../components/delivery-runtime";
+import { deliveryRequest } from "../components/delivery-runtime";
+import { createTaskReadApi } from "../../publish/components/task-read-api";
 import { readLaunchRecord } from "./model";
 import { useDeliveryResource } from "../components/resource";
 import {
@@ -26,6 +27,7 @@ const events: Record<string, string> = {
   withdrawn: "撤回",
   voided: "任务作废",
 };
+const api = createTaskReadApi(deliveryRequest);
 export default function LaunchRecordPage() {
   const identity = useDeliveryIdentity(),
     id = useRouter().params.orderItemId ?? "";

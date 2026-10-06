@@ -8,6 +8,8 @@ import { submitBody, mergeTaskPages } from "../../publish/tasks/model";
 import { readLaunchRecord } from "../launch-record/model";
 import { createDeliveryApi } from "./delivery-api";
 import { plan, sample, tasks, task } from "../../../../shots/delivery-fixtures";
+import { orderDetail } from "../../../../shots/order-fixtures";
+import { deliveryEntry, deliveryItemEntries } from "./navigation";
 describe("交付页面上下文与意图", () => {
   it("同步互斥先于任何异步，并拒绝迟到结果/错误", () => {
     let scope = "token:store:1";
@@ -39,6 +41,41 @@ describe("交付页面上下文与意图", () => {
   });
 });
 describe("已合DTO与页面提交", () => {
+  it("订单入口只用本单真实 id，多剧必须选项且拒绝未知项", () => {
+    expect(deliveryEntry(orderDetail, "view-plan")).toBe(
+      `/sub/order/plan/index?deliveryPlanId=${orderDetail.deliveryPlan!.deliveryPlanId}`,
+    );
+    expect(deliveryEntry(orderDetail, "view-launch")).toBe(
+      `/sub/publish/tasks/index?orderId=${orderDetail.orderId}`,
+    );
+    const second = { ...orderDetail.items[0]!, orderItemId: "second-item" };
+    const multi = { ...orderDetail, items: [...orderDetail.items, second] };
+    expect(deliveryEntry(multi, "view-sample")).toBeNull();
+    expect(deliveryEntry(multi, "view-delivery", "second-item")).toBe(
+      "/sub/publish/downloads/index?orderItemId=second-item",
+    );
+    expect(deliveryEntry(multi, "view-launch-record", "outside-item")).toBeNull();
+    expect(deliveryEntry({ ...orderDetail, deliveryPlan: null }, "view-plan")).toBeNull();
+  });
+  it("只读剧目入口随真实里程碑开放，店员与取消项均不开放", () => {
+    const item = orderDetail.items[0]!;
+    expect(deliveryItemEntries(item, true)).toEqual(["view-sample"]);
+    const delivered = {
+      ...item,
+      timeline: [...item.timeline, { key: "delivered", state: "done", at: null } as const],
+    };
+    expect(deliveryItemEntries(delivered, true)).toEqual([
+      "view-sample",
+      "view-delivery",
+      "view-launch",
+    ]);
+    expect(deliveryItemEntries({ ...delivered, liveEpisodeCount: 1 }, true)).toContain(
+      "view-launch-record",
+    );
+    expect(deliveryItemEntries(delivered, false)).toEqual([]);
+    for (const phase of ["pending_start", "cancelled", "refunded", "terminated"])
+      expect(deliveryItemEntries({ ...delivered, phase }, true)).toEqual([]);
+  });
   const makeApi = () => {
     const send = vi.fn(async () => null) as unknown as RequestLayer["request"];
     return { api: createDeliveryApi(send), send: vi.mocked(send) };
