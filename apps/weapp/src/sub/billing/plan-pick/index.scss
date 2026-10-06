@@ -1,0 +1,33 @@
+.billing-plan {
+  min-height: 100vh;
+  background: $lyx-color-bg-page;
+  &__stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  &__cycles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  &__muted,
+  &__agreements {
+    font-size: 12px;
+    line-height: 1.6;
+    color: $lyx-color-text-secondary;
+  }
+  &__muted {
+    margin-top: 6px;
+  }
+  &__agreement {
+    display: inline-block;
+  }
+}
+.billing-receipt {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}

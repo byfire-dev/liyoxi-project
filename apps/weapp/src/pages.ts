@@ -93,6 +93,7 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
   // sub/order（8 页）
   page("sub/order/checkout/index", "sub/order", "确认订购", "Checkout", "M09", "M1", "W1-18"),
   page("sub/order/result/index", "sub/order", "结果页", "PayResult", "M11", "M1", "W1-12", {
+    implemented: true,
     note: "订购成功与付款成功共用，?type=order|payment",
   }),
   page("sub/order/orders/index", "sub/order", "订单列表", "Orders", "M20", "M1", "W1-18"),
@@ -139,19 +140,27 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     "W1-12",
     {
       note: "一页两态",
+      implemented: true,
     },
   ),
   page("sub/billing/plan-pick/index", "sub/billing", "套餐选择", "PlanPick", "M44", "M1", "W1-12", {
     note: "含 M10 对公转账弹层与付款结果",
+    implemented: true,
   }),
   page("sub/billing/topup/index", "sub/billing", "积分充值", "TopUp", "M45", "M4", "G4-C"),
   page("sub/billing/ledger/index", "sub/billing", "积分流水", "Ledger", "M46", "M4", "G4-C"),
   page("sub/billing/invoices/index", "sub/billing", "发票", "Invoices", "M35", "M4", "G4-C"),
   page("sub/billing/contracts/index", "sub/billing", "合同", "Contracts", "M34", "M4", "G4-C"),
   // sub/profile（9 页）
-  page("sub/profile/profile/index", "sub/profile", "建档首页", "Profile", "M12", "M1", "W1-09"),
-  page("sub/profile/basic/index", "sub/profile", "基础信息", "ProfileBasic", "M13", "M1", "W1-09"),
-  page("sub/profile/store/index", "sub/profile", "门店环境", "ProfileStore", "M14", "M1", "W1-09"),
+  page("sub/profile/profile/index", "sub/profile", "建档首页", "Profile", "M12", "M1", "W1-09", {
+    implemented: true,
+  }),
+  page("sub/profile/basic/index", "sub/profile", "基础信息", "ProfileBasic", "M13", "M1", "W1-09", {
+    implemented: true,
+  }),
+  page("sub/profile/store/index", "sub/profile", "门店环境", "ProfileStore", "M14", "M1", "W1-09", {
+    implemented: true,
+  }),
   page(
     "sub/profile/service/index",
     "sub/profile",
@@ -160,8 +169,11 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     "M15",
     "M1",
     "W1-09",
+    { implemented: true },
   ),
-  page("sub/profile/cert/index", "sub/profile", "证照", "ProfileCert", "M16", "M1", "W1-09"),
+  page("sub/profile/cert/index", "sub/profile", "证照", "ProfileCert", "M16", "M1", "W1-09", {
+    implemented: true,
+  }),
   page(
     "sub/profile/review/index",
     "sub/profile",
@@ -170,6 +182,7 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     "M17",
     "M1",
     "W1-09",
+    { implemented: true },
   ),
   page("sub/profile/stores/index", "sub/profile", "门店管理", "Stores", "M48", "M2", "G2-B"),
   page("sub/profile/store-add/index", "sub/profile", "新增门店", "StoreAdd", "M49", "M2", "G2-B"),

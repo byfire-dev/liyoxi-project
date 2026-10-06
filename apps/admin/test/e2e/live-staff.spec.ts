@@ -30,7 +30,7 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
   await expect(page.getByRole("heading", { name: "员工账号", exact: true })).toBeVisible();
   const table = page.getByRole("table");
   await expect(table.getByRole("columnheader")).toHaveCount(8);
-  await expect(table.getByRole("row")).toHaveCount(12);
+  await expect(table.getByRole("row")).toHaveCount(14);
   await expect(table.getByText("演练交付", { exact: true })).toBeVisible();
   await expect(table.getByText("演练渠道", { exact: true })).toBeVisible();
   await expect(table.getByText("已禁用", { exact: true })).toBeVisible();
@@ -58,10 +58,10 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
   await expect(page).toHaveURL(/pageSize=10/);
   await page.getByRole("button", { name: "下一页", exact: true }).click();
   await expect(page).toHaveURL(/page=2/);
-  await expect(table.getByRole("row")).toHaveCount(2);
+  await expect(table.getByRole("row")).toHaveCount(4);
   await page.reload();
   await expect(page.getByLabel("第 2 页", { exact: true })).toBeVisible();
-  await expect(table.getByRole("row")).toHaveCount(2);
+  await expect(table.getByRole("row")).toHaveCount(4);
   await page.getByRole("button", { name: "上一页", exact: true }).click();
   await noHorizontalScroll(page, "员工分页");
 

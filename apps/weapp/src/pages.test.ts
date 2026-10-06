@@ -29,7 +29,7 @@ describe("页面清单", () => {
     ).toEqual(["sub/catalog/trailer/index"]);
   });
 
-  it("M1 交付登录、协议与我的；其余三标签页仍占位，V1.1不实现", () => {
+  it("M1 交付账号三页、付款三页与建档六页；其余三标签页仍占位，V1.1不实现", () => {
     const built = WEAPP_PAGES.filter(isBuilt);
     expect(built.map((page) => page.route)).toEqual([
       "pages/home/index",
@@ -38,11 +38,29 @@ describe("页面清单", () => {
       "pages/mine/index",
       "pages/login/index",
       "pages/agreement/index",
+      "sub/order/result/index",
+      "sub/billing/wallet/index",
+      "sub/billing/plan-pick/index",
+      "sub/profile/profile/index",
+      "sub/profile/basic/index",
+      "sub/profile/store/index",
+      "sub/profile/service/index",
+      "sub/profile/cert/index",
+      "sub/profile/review/index",
     ]);
     expect(built.filter((page) => page.implemented).map((page) => page.route)).toEqual([
       "pages/mine/index",
       "pages/login/index",
       "pages/agreement/index",
+      "sub/order/result/index",
+      "sub/billing/wallet/index",
+      "sub/billing/plan-pick/index",
+      "sub/profile/profile/index",
+      "sub/profile/basic/index",
+      "sub/profile/store/index",
+      "sub/profile/service/index",
+      "sub/profile/cert/index",
+      "sub/profile/review/index",
     ]);
     expect(
       built.filter((page) => page.placeholder).every((page) => page.tab && !page.implemented),
@@ -58,7 +76,7 @@ describe("页面清单", () => {
 });
 
 describe("由清单拼出全局配置", () => {
-  it("现在：主包六页，没有分包，也没有预下载", () => {
+  it("现在：主包六页、付款三页与建档分包六页，预下载只指向已交付分包", () => {
     expect(buildRoutes()).toEqual({
       pages: [
         "pages/home/index",
@@ -68,8 +86,26 @@ describe("由清单拼出全局配置", () => {
         "pages/login/index",
         "pages/agreement/index",
       ],
-      subPackages: [],
-      preloadRule: {},
+      subPackages: [
+        { root: "sub/order", pages: ["result/index"] },
+        { root: "sub/billing", pages: ["wallet/index", "plan-pick/index"] },
+        {
+          root: "sub/profile",
+          pages: [
+            "profile/index",
+            "basic/index",
+            "store/index",
+            "service/index",
+            "cert/index",
+            "review/index",
+          ],
+        },
+      ],
+      preloadRule: {
+        "pages/home/index": { network: "all", packages: ["sub/order"] },
+        "pages/cart/index": { network: "all", packages: ["sub/order"] },
+        "pages/mine/index": { network: "all", packages: ["sub/billing", "sub/profile"] },
+      },
     });
   });
 
@@ -84,11 +120,24 @@ describe("由清单拼出全局配置", () => {
     const routes = buildRoutes(pages);
     expect(routes.subPackages).toEqual([
       { root: "sub/catalog", pages: ["detail/index"] },
-      { root: "sub/order", pages: ["checkout/index", "orders/index"] },
+      { root: "sub/order", pages: ["checkout/index", "result/index", "orders/index"] },
+      { root: "sub/billing", pages: ["wallet/index", "plan-pick/index"] },
+      {
+        root: "sub/profile",
+        pages: [
+          "profile/index",
+          "basic/index",
+          "store/index",
+          "service/index",
+          "cert/index",
+          "review/index",
+        ],
+      },
     ]);
     expect(routes.preloadRule).toEqual({
       "pages/home/index": { network: "all", packages: ["sub/catalog", "sub/order"] },
       "pages/mall/index": { network: "all", packages: ["sub/catalog"] },
+      "pages/mine/index": { network: "all", packages: ["sub/billing", "sub/profile"] },
       "pages/cart/index": { network: "all", packages: ["sub/order"] },
     });
   });
