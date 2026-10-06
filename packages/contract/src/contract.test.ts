@@ -65,12 +65,12 @@ const allowsNull = (schema: unknown) =>
   isNode(schema) && Array.isArray(schema.type) && schema.type.includes("null");
 
 it("商家字典查询收 1–10 个类型及字面布尔；结构只给商家字段", () => {
-  expect(contract.DictItemListQuerySchema.parse({ typeKey: "industry,region" })).toEqual({
+  expect(contract.MerchantDictItemListQuerySchema.parse({ typeKey: "industry,region" })).toEqual({
     typeKey: ["industry", "region"],
     includeDisabled: false,
   });
   expect(
-    contract.DictItemListQuerySchema.parse({ typeKey: "industry", includeDisabled: "true" })
+    contract.MerchantDictItemListQuerySchema.parse({ typeKey: "industry", includeDisabled: "true" })
       .includeDisabled,
   ).toBe(true);
   for (const query of [
@@ -79,7 +79,7 @@ it("商家字典查询收 1–10 个类型及字面布尔；结构只给商家�
     { typeKey: "industry", includeDisabled: "1" },
     { typeKey: "industry", includeDisabled: true },
   ])
-    expect(contract.DictItemListQuerySchema.safeParse(query).success).toBe(false);
+    expect(contract.MerchantDictItemListQuerySchema.safeParse(query).success).toBe(false);
   expect(
     contract.MerchantDictItemViewSchema.parse({
       code: "C01",

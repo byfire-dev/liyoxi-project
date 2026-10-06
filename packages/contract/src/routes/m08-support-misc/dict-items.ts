@@ -2,7 +2,7 @@
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { errorResponses, okResponse } from "../../common/index.js";
 import { merchantRoute } from "../builders.js";
-import { DictItemListQuerySchema, DictItemListResultSchema } from "./dict-items.schemas.js";
+import { MerchantDictItemListQuerySchema, DictItemListResultSchema } from "./dict-items.schemas.js";
 
 export const mDictItemList = merchantRoute({
   method: "get",
@@ -13,6 +13,6 @@ export const mDictItemList = merchantRoute({
   "x-auth": "public",
   "x-clerk-view": "same",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
-  request: { query: DictItemListQuerySchema },
+  request: { query: MerchantDictItemListQuerySchema },
   responses: { ...okResponse(DictItemListResultSchema), ...errorResponses(400) },
 });

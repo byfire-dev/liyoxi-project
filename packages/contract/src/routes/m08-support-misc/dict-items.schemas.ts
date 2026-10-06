@@ -1,7 +1,7 @@
 // m08 2.3、3.2：小程序可见的有界字典集合，与后台字典结构分开。
 import { z } from "../../zod.js";
 
-export const DictItemListQuerySchema = z.object({
+export const MerchantDictItemListQuerySchema = z.object({
   typeKey: z
     .string()
     .regex(/^[a-z][a-z0-9_]*(?:,[a-z][a-z0-9_]*){0,9}$/)
