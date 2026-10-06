@@ -40,6 +40,7 @@ import { mainlandMobileOf } from "./phone.js";
 import { openSession, revokeIdentitySessions } from "./sessions.js";
 import { deviceSummary } from "./types.js";
 import type { RequestMeta } from "./types.js";
+import { recordUserConsents } from "./user-consents.js";
 
 export interface LoginDeps {
   readonly tx: TxRunner;
@@ -501,33 +502,31 @@ export async function phoneLogin(
 
       // 5. 同意：每份协议一行；用户级协议没齐即 428（整个事务回滚，账号也不建）
       const operatorName = membership?.displayName ?? account.displayName;
-      const consent = await deps.docs.assertConsents(tx, ctx, {
-        scene,
-        consents: input.consents,
-        method: "checkbox",
-        signer: {
-          merchantUserId: account.id,
-          phoneEnc: account.phoneEnc,
-          phoneMask: account.phoneMask,
-          operatorNameMask: operatorName ? maskName(operatorName) : null,
-          role: membership?.role ?? null,
-          appid: deps.appid,
-          openidHmac: openidSnapshot,
+      const consent = await recordUserConsents(
+        tx,
+        deps.docs,
+        now,
+        ctx,
+        {
+          scene,
+          consents: input.consents,
+          method: "checkbox",
+          signer: {
+            merchantUserId: account.id,
+            phoneEnc: account.phoneEnc,
+            phoneMask: account.phoneMask,
+            operatorNameMask: operatorName ? maskName(operatorName) : null,
+            role: membership?.role ?? null,
+            appid: deps.appid,
+            openidHmac: openidSnapshot,
+          },
+          device: {
+            ...input.device,
+            ...(meta.clientVersion === null ? {} : { appVersion: meta.clientVersion }),
+          },
         },
-        device: {
-          ...input.device,
-          ...(meta.clientVersion === null ? {} : { appVersion: meta.clientVersion }),
-        },
-      });
-      if (!consent.complete) {
-        throw new AppError("CONSENT_REQUIRED", {
-          details: { pendingConsents: consent.pendingConsents },
-        });
-      }
-      await tx.merchantUser.update({
-        where: { id: account.id },
-        data: { consentStamp: consent.stamp, lastActiveAt: now, updatedAt: now },
-      });
+        { requireComplete: true, touchActive: true },
+      );
 
       // 新建的账号：— → active 的迁移（守卫“协议已同意”此刻已满足），发 merchant_user.registered
       if (isNew) {

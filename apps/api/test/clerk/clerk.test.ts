@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { createIdentityContext } from "@liyoxi/services";
+import { createIdentityContext, uuidv7 } from "@liyoxi/services";
 import { createFactories } from "@liyoxi/services/testing";
 import { expect, it } from "vitest";
 import { HANDLERS } from "../../src/routes/index.js";
@@ -33,6 +33,37 @@ it(
     );
     const clerk = await signInAsMerchant(api);
     const make = createFactories({ db: await testApi.db.prisma(), clock: api.clock });
+    const db = await testApi.db.prisma();
+    const seedDictionary = async () => {
+      const now = { createdAt: api.clock.now(), updatedAt: api.clock.now() };
+      await db.dictType.create({
+        data: {
+          ...now,
+          typeKey: "ticket_type",
+          name: "工单类型",
+          structure: "flat",
+          maxDepth: 1,
+          disablePolicy: "free",
+          isMerchantVisible: true,
+        },
+      });
+      await db.dictItem.create({
+        data: {
+          ...now,
+          id: uuidv7(),
+          dictTypeKey: "ticket_type",
+          code: "K01",
+          name: "售后",
+          ext: {
+            isAfterSales: true,
+            defaultPriority: "mid",
+            notifyLead: false,
+            transferable: true,
+          },
+        },
+      });
+      await api.runtime.config.cache.bump("dict");
+    };
     const member = await make.entityMember({
       entityId: created.entityId,
       merchantUserId: clerk.merchantUserId,
@@ -44,6 +75,8 @@ it(
     });
     const actual: Record<string, string[]> = {};
     for (const sample of CLERK_SAMPLES) {
+      // 只在新样例前造字典；既有引导样例的输入与黄金条目保持原样。
+      if (sample.operationId === "m.dictItem.list") await seedDictionary();
       const response = await sample.play(api, {
         clerk,
         storeId: created.storeId,
@@ -56,8 +89,14 @@ it(
         expect(body.error).toBe("ROLE_FORBIDDEN");
         continue;
       }
-      expect(response.status, `${sample.operationId} ${JSON.stringify(body)}`).toBe(200);
-      actual[sample.operationId] = clerkVisibleKeys(sample.operationId, body.data);
+      expect(response.status, `${sample.operationId} ${JSON.stringify(body)}`).toBe(
+        sample.expectedStatus ?? 200,
+      );
+      if (sample.expectedStatus === 409) expect(body.error).toBe("ALREADY_IN_ENTITY");
+      actual[sample.operationId] = clerkVisibleKeys(
+        sample.operationId,
+        response.status >= 400 ? body : body.data,
+      );
     }
     const rendered = `${JSON.stringify(Object.fromEntries(Object.entries(actual).sort(([a], [b]) => a.localeCompare(b))), null, 2)}\n`;
     if (process.env.LYX_CLERK_UPDATE === "1") writeFileSync(golden, rendered);
