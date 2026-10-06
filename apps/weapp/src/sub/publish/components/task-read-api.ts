@@ -1,9 +1,9 @@
 import type { Data } from "@/lib/account-api";
 import type { RequestLayer } from "@/lib/request";
-import type { TaskQuery } from "../../order/components/delivery-api";
+import type { operations } from "@liyoxi/contract/types/merchant";
 export function createTaskReadApi(send: RequestLayer["request"]) {
   return {
-    tasks: (query: TaskQuery) => {
+    tasks: (query: NonNullable<operations["m.launchTask.list"]["parameters"]["query"]>) => {
       const params = Object.entries(query)
         .filter(([, v]) => v !== undefined)
         .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)

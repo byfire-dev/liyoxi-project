@@ -26,7 +26,10 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { chromium } from "@playwright/test";
-import { deliveryRegression } from "../shots/delivery-regressions.mjs";
+import {
+  deliveryRegression,
+  deliveryNavigationRegression,
+} from "../shots/delivery-regressions.mjs";
 import { orderRegression, publishRegression } from "../shots/order-regressions.mjs";
 import {
   profileContactRegression,
@@ -563,6 +566,11 @@ async function shoot(target) {
     await page.screenshot({ path: file });
     if (target.kind === "delivery") await deliveryRegression(page, target.scene);
     if (target.kind === "order") await orderRegression(page, target.scene);
+    if (target.kind === "order" && target.scene === "order-detail-producing")
+      await deliveryNavigationRegression(
+        page,
+        path.join(outDir, "delivery__order-entry-sample.png"),
+      );
     if (target.kind === "publish") await publishRegression(page, target.scene);
     if (target.kind === "catalog") {
       if (target.scene === "cart-default") {

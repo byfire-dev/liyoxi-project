@@ -165,6 +165,6 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 
 本域十二态：`LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene checkout-default --scene checkout-points --scene checkout-qualification --scene checkout-quote-changed --scene orders-default --scene orders-empty --scene order-detail-default --scene order-detail-producing --scene order-success --scene accounts-default --scene accounts-rejected --scene accounts-bind`。夹具在 `shots/order-fixtures.ts`、`shots/publish-fixtures.ts`，场景清单分别为 `order-scenes.ts`、`publish-scenes.ts`。同域交互核对请求体、重试 key、报价变化、新版 expect、C50 后 GET、订单游标及切页签、账号绑定/核验重提；每场景保留独立上下文、外发网络、console.error 与 pageerror 守卫。旧账户8、建档9、支付11、商城11态及其断言全部保留。
 
-主页截图由 `withPrivacy` 包选图，正式环境只用公共 `prepareTaroFile/createTaroUpload`，分类 `channel_screenshot`；最多3张，图片上限取公共 `UPLOAD_LIMITS.imageMaxMb`（5MB），通道由登记接口的 mode 决定。H5 截图的入库文件ID是显式离线替身，不是真实上传证据。订单方案、样片、发布任务和上线记录按 DTO 数据/actions 显示，后继页尚未合入时提示“即将开放”；广告、参考素材、视频、解绑、授权书及取消入口均不出。原支付结果状态保持。
+主页截图由 `withPrivacy` 包选图，正式环境只用公共 `prepareTaroFile/createTaroUpload`，分类 `channel_screenshot`；最多3张，图片上限取公共 `UPLOAD_LIMITS.imageMaxMb`（5MB），通道由登记接口的 mode 决定。H5 截图的入库文件ID是显式离线替身，不是真实上传证据。订单交付入口由 W1-20 接通：方案取实际方案ID，剧目卡按本项阶段与时间线进入样片、成片、发布任务和上线记录；目标页写按钮仍按实时 GET 的 actions。广告、参考素材、视频、解绑、授权书及取消入口均不出。原支付结果状态保持。
 
 H5 仍缺少原生导航栏、胶囊与真实安全区；下拉/触底、订阅授权、隐私授权和微信文件直传须在 E16/E7 到位后手验。本域离线图不能当作真实接口或微信授权/上传证据。

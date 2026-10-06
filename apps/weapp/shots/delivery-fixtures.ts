@@ -341,7 +341,7 @@ export function offlineDeliveryRequest(scene: string): RequestLayer["request"] {
       return { ...p, replayed: true };
     }
     if (path.startsWith("/m/delivery-plans/")) return structuredClone(p);
-    if (path.endsWith("/sample")) return structuredClone(s);
+    if (path.endsWith("/sample")) return scene === "sample-empty" ? null : structuredClone(s);
     if (path.includes("/samples/") && path.endsWith("/download-urls")) {
       s.confirmableVia = ["album"];
       s.viewEvidence.albumSavedAt = now;

@@ -12,6 +12,7 @@ import { Note } from "@/components/Note";
 import { PageBody } from "@/components/PageBody";
 import { Sheet } from "@/components/Sheet";
 import { Tabs } from "@/components/Tabs";
+import { TextArea } from "@/components/TextArea";
 import { deliveryRequest } from "../../order/components/delivery-runtime";
 import { createTaskReadApi } from "../components/task-read-api";
 import { createTaskWriteApi } from "./api";
@@ -273,64 +274,14 @@ function TasksContent({
               />
             </Field>
           ) : (
-            <View className="delivery-stack">
-              {(form.episodes ? form.episodes.split("\n") : [""]).map((line, index, lines) => {
-                const [number = "", ...urlParts] = line.split(" ");
-                const update = (episodeNo: string, url: string) => {
-                  const next = [...lines];
-                  next[index] = `${episodeNo} ${url}`;
-                  setForm((v) => ({ ...v, episodes: next.join("\n") }));
-                };
-                return (
-                  <View key={index} className="delivery-stack">
-                    <Field label={`第 ${index + 1} 条 · 集号`} required>
-                      <Input
-                        type="number"
-                        value={number}
-                        disabled={r.busy}
-                        onChange={(value) => update(value, urlParts.join(" "))}
-                      />
-                    </Field>
-                    <Field label="本集链接" required>
-                      <Input
-                        value={urlParts.join(" ")}
-                        disabled={r.busy}
-                        maxlength={2000}
-                        placeholder="请填写 HTTPS 单集链接"
-                        onChange={(value) => update(number, value)}
-                      />
-                    </Field>
-                    {lines.length > 1 ? (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={r.busy}
-                        onClick={() =>
-                          setForm((v) => ({
-                            ...v,
-                            episodes: lines.filter((_, i) => i !== index).join("\n"),
-                          }))
-                        }
-                      >
-                        移除此条
-                      </Button>
-                    ) : null}
-                  </View>
-                );
-              })}
-              <Button
-                variant="outline"
-                disabled={r.busy || form.episodes.split("\n").length >= (selected?.count ?? 1)}
-                onClick={() =>
-                  setForm((v) => ({
-                    ...v,
-                    episodes: `${v.episodes || "1 "}\n${(v.episodes ? v.episodes.split("\n").length : 1) + 1} `,
-                  }))
-                }
-              >
-                添加一集链接
-              </Button>
-            </View>
+            <Field label="逐集链接" required hint="每行填写集号和链接，用空格分隔">
+              <TextArea
+                value={form.episodes}
+                disabled={r.busy}
+                placeholder="1 https://…"
+                onChange={(episodes) => setForm((v) => ({ ...v, episodes }))}
+              />
+            </Field>
           )}
           <Field
             label="已发布集数"

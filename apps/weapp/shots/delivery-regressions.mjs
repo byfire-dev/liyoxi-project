@@ -1,6 +1,20 @@
 import { expect } from "@playwright/test";
 const button = (page, label) => page.locator(".lyx-button").filter({ hasText: label });
 const calls = (page) => page.evaluate(() => globalThis.__LYX_DELIVERY_CALLS__);
+export async function deliveryNavigationRegression(page, shotPath) {
+  await page.evaluate(() => {
+    globalThis.__LYX_DELIVERY_SHOT__ = "sample-empty";
+  });
+  await page.locator(".order-detail .lyx-text-button").filter({ hasText: "查看样片" }).click();
+  await expect(page).toHaveURL(
+    /sub\/order\/sample\/index\?orderItemId=00000000-0000-4000-8000-000000000411/,
+  );
+  await expect(page.getByText("暂未推送样片，请等待服务经理", { exact: true })).toBeVisible();
+  expect(await calls(page)).toEqual([
+    { path: "/m/order-items/00000000-0000-4000-8000-000000000411/sample", method: "GET" },
+  ]);
+  await page.screenshot({ path: shotPath });
+}
 export async function deliveryRegression(page, scene) {
   if (scene === "plan-pending") {
     await button(page, "确认方案").click();
@@ -65,7 +79,7 @@ export async function deliveryRegression(page, scene) {
   }
   if (scene === "tasks-submit") {
     await button(page, "提交核验").click();
-    await expect(page.locator(".lyx-sheet")).toBeHidden();
+    await expect(page.locator(".lyx-sheet"), "collection submit").toBeHidden();
     const list = await calls(page),
       write = list.find((c) => c.path.endsWith("/submit"));
     expect(write.data).toEqual({
@@ -79,14 +93,13 @@ export async function deliveryRegression(page, scene) {
     expect(list.filter((c) => c.path.endsWith("/summary")).length).toBeGreaterThan(1);
     await button(page, "回填上线链接").first().click();
     await page.locator(".lyx-sheet .lyx-chip").filter({ hasText: "逐集链接" }).click();
-    await page.locator(".lyx-sheet input").nth(0).fill("1");
-    await page.locator(".lyx-sheet input").nth(1).fill("https://example.test/episode/1");
-    await button(page, "添加一集链接").click();
-    await page.locator(".lyx-sheet input").nth(3).fill("https://example.test/episode/2");
-    await page.locator(".lyx-sheet input").nth(4).fill("2");
-    await page.locator(".lyx-sheet input").nth(5).fill("2026-10-07");
+    await page
+      .locator(".lyx-sheet textarea")
+      .fill("1 https://example.test/episode/1\n2 https://example.test/episode/2");
+    await page.locator(".lyx-sheet input").nth(0).fill("2");
+    await page.locator(".lyx-sheet input").nth(1).fill("2026-10-07");
     await button(page, "提交核验").click();
-    await expect(page.locator(".lyx-sheet")).toBeHidden();
+    await expect(page.locator(".lyx-sheet"), "episode submit").toBeHidden();
     const writes = (await calls(page)).filter((c) => c.path.endsWith("/submit"));
     expect(writes).toHaveLength(2);
     expect(writes[1].key).not.toBe(writes[0].key);
