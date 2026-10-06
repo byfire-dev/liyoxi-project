@@ -16,7 +16,7 @@ const system: AdminModule = {
       release: null,
       milestone: "M1",
       workPackage: "W1-02",
-      implemented: false,
+      implemented: true,
       screen: "SysStaff",
       kind: "board",
       skeleton: "query-table",
