@@ -51,7 +51,9 @@ const fixture: AdminLiveFixture = async ({ make, runtime }) => {
     );
     const actor = {
       ctx: createIdentityContext({
-        actor: { type: "merchant", id: merchant.user.id, client: "weapp" },
+        actor: { type: "merchant", id: merchant.user.id, client: "weapp", role: "owner" },
+        entityId: merchant.entity.id,
+        storeId: merchant.store.id,
       }),
       membership: {
         memberId: merchant.owner.id,

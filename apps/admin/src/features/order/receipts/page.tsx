@@ -33,10 +33,35 @@ interface Controller {
   confirm(checked: readonly string[]): Promise<QueueActionResult>;
   reject(): Promise<QueueActionResult>;
 }
+function receiptStatus(value: unknown) {
+  // 凭证没有独立色调组；按既有付款/审核语义取中央字典，页面只定叫法。
+  if (value === "pending")
+    return {
+      label: "待确认到账",
+      side: statusToneByEnum("billing_order.status", "pending_confirmation")?.admin,
+    };
+  if (value === "accepted")
+    return { label: "已确认到账", side: statusToneByEnum("billing_order.status", "paid")?.admin };
+  if (value === "rejected")
+    return {
+      label: "已驳回凭证",
+      side: statusToneByEnum("approval_request.status", "rejected")?.admin,
+    };
+  if (value === "superseded")
+    return {
+      label: "已被新凭证替换",
+      side: statusToneByEnum("billing_order.status", "cancelled")?.admin,
+    };
+  return { label: "未知状态", side: undefined };
+}
 function status(value: unknown) {
-  if (typeof value !== "string") return "未知状态";
-  const entry = statusToneByEnum("transfer_proof.review_status", value)?.admin;
-  return entry ? <StatusTag tone={entry.tone}>{entry.label}</StatusTag> : value;
+  const { label, side } = receiptStatus(value);
+  return side ? <StatusTag tone={side.tone}>{label}</StatusTag> : label;
+}
+function paymentStatus(value: unknown) {
+  return typeof value === "string"
+    ? (statusToneByEnum("billing_order.status", value)?.admin?.label ?? "未知状态")
+    : "未知状态";
 }
 export function ReceiptsPage() {
   const { services } = useRouteContext({ from: "__root__" }),
@@ -143,13 +168,13 @@ export function ReceiptsPage() {
           },
         ]}
         readOnlyHint={!canConfirm && !canReject ? "当前账号仅可查看" : undefined}
-        settled={(item) =>
-          item.reviewStatus === "accepted"
-            ? { tone: "success", message: "已确认到账" }
-            : item.reviewStatus === "rejected"
-              ? { tone: "danger", message: "已驳回凭证" }
-              : undefined
-        }
+        settled={(item) => {
+          if (item.reviewStatus !== "accepted" && item.reviewStatus !== "rejected") return;
+          const { side, label } = receiptStatus(item.reviewStatus);
+          return side?.tone === "success" || side?.tone === "danger"
+            ? { tone: side.tone, message: label }
+            : undefined;
+        }}
         empty={{ title: tab === "pending" ? "暂无待确认凭证" : "今日暂无已处理凭证" }}
       />
     </div>
@@ -565,9 +590,7 @@ function ReceiptReview({
               { label: "已付金额", value: formatMoneyFixed(order.data.paidAmountFen) },
               {
                 label: "状态",
-                value:
-                  order.data.statusNote ??
-                  (typeof order.data.status === "string" ? order.data.status : "未知状态"),
+                value: order.data.statusNote ?? paymentStatus(order.data.status),
               },
               { label: "报价说明", value: order.data.formula?.text ?? "—" },
               { label: "收款账户", value: order.data.bankAccount?.accountNoMask ?? "—" },

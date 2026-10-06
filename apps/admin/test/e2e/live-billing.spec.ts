@@ -57,7 +57,7 @@ test("对公到账真API：金额初始空、勾选+流水+金额确认，队列
   );
   await page
     .getByRole("dialog", { name: "付款单详情", exact: true })
-    .getByRole("button", { name: "Close", exact: true })
+    .getByRole("button", { name: "关闭", exact: true })
     .click();
   await page.getByRole("checkbox", { name: "已在银行账户中查到该笔到账流水" }).check();
   await page

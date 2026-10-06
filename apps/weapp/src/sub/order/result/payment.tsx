@@ -127,7 +127,7 @@ function PaymentContent({ id }: { id: string }) {
           </Card>
         ) : null}
         {view.canUpload ? (
-          <Card title="重新提交凭证">
+          <Card title={order.transferState === "proof_rejected" ? "重新提交凭证" : "提交转账凭证"}>
             <DescList
               items={[
                 { label: "收款户名", value: order.bankAccount?.accountName ?? "—" },

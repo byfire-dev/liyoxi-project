@@ -1,4 +1,4 @@
-import type { Data } from "../account-api";
+import type { Body, Data } from "../account-api";
 import type { RequestLayer } from "../request";
 export interface ReceiptFile {
   path: string;
@@ -54,7 +54,7 @@ export function createReceiptUpload(file: ReceiptFile, deps: ReceiptUploadDeps) 
           data: {
             category: "pay_receipt",
             files: [{ fileName: file.name, sizeBytes: String(file.size), clientToken }],
-          },
+          } satisfies Body<"m.file.create">,
         });
         registration = result.items[0] ?? null;
       }

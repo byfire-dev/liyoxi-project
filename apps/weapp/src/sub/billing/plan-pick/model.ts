@@ -3,6 +3,18 @@ import { ApiError } from "@/lib/request";
 import type { PurchaseApi } from "./api";
 export type Quote = Data<"m.plan.quote">;
 export type Payment = Data<"m.paymentOrder.get">;
+const models: Readonly<Record<string, string>> = {
+  standard: "标准模型",
+  advanced: "高级模型",
+  top: "顶级模型",
+};
+const priorities: Readonly<Record<string, string>> = {
+  standard: "标准排期",
+  priority: "优先排期",
+  rush: "加急排期",
+};
+export const planBenefitLabels = (benefits: Quote["benefits"]) =>
+  `${models[benefits.productionModel] ?? benefits.productionModel} · ${priorities[benefits.schedulePriority] ?? benefits.schedulePriority}`;
 export const enabledChannels = (policy: Quote["policy"]) =>
   policy.channels.filter((v) => v.isEnabled);
 export function purchaseAgreements(policy: Quote["policy"], items: readonly Agreement[]) {

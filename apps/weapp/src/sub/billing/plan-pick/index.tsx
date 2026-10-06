@@ -29,6 +29,7 @@ import {
   enabledChannels,
   existingOrder,
   purchaseAgreements,
+  planBenefitLabels,
   type Payment,
   type Quote,
 } from "./model";
@@ -115,6 +116,7 @@ function PlanContent() {
     };
   }, [selection, policy, current]);
   const activePolicy = quote?.policy ?? policy;
+  const noun = activePolicy ? billingCopy(activePolicy.copy.planNounKey, copy) : "";
   const docs = activePolicy ? purchaseAgreements(activePolicy, agreements) : [];
   const eligible = activePolicy && purchaseVisible(activePolicy) && quote?.action === "subscribe";
   function open(channel: string) {
@@ -219,7 +221,7 @@ function PlanContent() {
                       }}
                     >
                       <View className="billing-plan__muted">
-                        {plan.maxStores} 家门店 ·{" "}
+                        {planBenefitLabels(plan)} · {plan.maxStores} 家门店 ·{" "}
                         {plan.maxMembers === null ? "不限成员数" : `${plan.maxMembers} 位成员`} ·{" "}
                         {plan.hasMonthlyReport ? "含月度报告" : "不含月度报告"}
                       </View>
@@ -280,6 +282,10 @@ function PlanContent() {
                 {docs.length !== activePolicy.copy.agreementKeys.length || docs.length === 0 ? (
                   <Note>购买协议暂未加载完整，请重新加载后确认</Note>
                 ) : null}
+                {enabledChannels(activePolicy).map((channel) => {
+                  const hint = channel.hintKey ? billingCopy(channel.hintKey, copy) : "";
+                  return hint ? <Note key={channel.code}>{hint}</Note> : null;
+                })}
                 {eligible ? (
                   <FooterBar>
                     {enabledChannels(activePolicy).map((channel) => (
@@ -306,7 +312,7 @@ function PlanContent() {
       </PageBody>
       <Sheet
         visible={confirming}
-        title="确认开通套餐"
+        title={`确认开通${noun}`}
         description="请核对版本、周期与付款金额"
         closeOnOverlayClick={!busy}
         onClose={() => {

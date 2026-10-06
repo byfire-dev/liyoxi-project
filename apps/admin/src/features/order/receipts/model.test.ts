@@ -52,6 +52,7 @@ describe("到账确认意图", () => {
       body: {
         error: "BANK_SERIAL_DUPLICATE" as const,
         code: 0,
+        retryable: false,
         message: "duplicate",
         requestId: "r",
         details: {

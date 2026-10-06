@@ -175,6 +175,9 @@ export function ReceiptPicker({
             : []
         }
         onAdd={() => void choose()}
+        onPreview={() => {
+          if (file) void Taro.previewImage({ urls: [file.path], current: file.path });
+        }}
         onRetry={() => void job.current?.retry()}
         onRemove={() => {
           generation.current++;

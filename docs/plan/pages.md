@@ -13,17 +13,17 @@
 
 | 端 | 登记 | V1.0 应实现 | 已实现 | 未实现 | V1.1 只登记 | 入口隐藏 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 运营管理后台 | 80 | 67 | 9 | 58 | 13 | 2 |
+| 运营管理后台 | 80 | 67 | 10 | 57 | 13 | 2 |
 | 电脑端下载页 | 8 | 7 | 0 | 7 | 1 | 0 |
-| 商家端小程序 | 49 | 48 | 3 | 45 | 1 | 0 |
+| 商家端小程序 | 49 | 48 | 6 | 42 | 1 | 0 |
 
 应实现未实现页面数，按里程碑：
 
 | 端 | M1 | M2 | M3 | M4 | M5 | M6 | M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 运营管理后台 | 9 | 12 | 6 | 14 | 1 | 4 | 12 |
+| 运营管理后台 | 8 | 12 | 6 | 14 | 1 | 4 | 12 |
 | 电脑端下载页 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
-| 商家端小程序 | 22 | 8 | 5 | 4 | 3 | 1 | 2 |
+| 商家端小程序 | 19 | 8 | 5 | 4 | 3 | 1 | 2 |
 
 “入口隐藏”的页面照做、外壳不给入口（规范 第 14 节第 12 项），计入应实现，不算留桩。
 
@@ -50,7 +50,7 @@
 | 商家 | 资质审核 | `/merchants/review` | Review | 审核工作台 | 是 | — | M1 | W1-09 | 否 |
 | 订单 | 订购单与付款单 | `/orders` | Orders | 筛选表格 | 是 | — | M1 | W1-19 | 否 |
 | 订单 | 订单详情 | `/orders/$orderNo` | OrderDetail | 详情页 | 否 | — | M1 | W1-19 | 否 |
-| 订单 | 对公收款确认 | `/orders/receipts` | Receipts | 审核工作台 | 是 | — | M1 | W1-12 | 否 |
+| 订单 | 对公收款确认 | `/orders/receipts` | Receipts | 审核工作台 | 是 | — | M1 | W1-12 | 是 |
 | 订单 | 套餐到期 | `/orders/renewals` | Renewals | 主从页 | 是 | — | M4 | G4-C | 否 |
 | 交付 | 工单池 | `/delivery/tickets` | Tickets | 筛选表格 | 是 | — | M1 | W1-19 | 否 |
 | 交付 | 工单详情 | `/delivery/tickets/$ticketNo` | TicketDetail | 详情页 | 否 | — | M1 | W1-19 | 否 |
@@ -167,7 +167,7 @@
 | `sub/catalog` | 预告片模式 | `sub/catalog/trailer/index` | Trailer | M05 | — | V1.0 不做 | 否 | V1.0 不做（规范 第 11 节） |
 | `sub/catalog` | 短剧详情 | `sub/catalog/detail/index` | Detail | M06 | W1-18 | M1 | 否 |  |
 | `sub/order` | 确认订购 | `sub/order/checkout/index` | Checkout | M09 | W1-18 | M1 | 否 |  |
-| `sub/order` | 结果页 | `sub/order/result/index` | PayResult | M11 | W1-12 | M1 | 否 | 订购成功与付款成功共用，?type=order\|payment |
+| `sub/order` | 结果页 | `sub/order/result/index` | PayResult | M11 | W1-12 | M1 | 是 | 订购成功与付款成功共用，?type=order\|payment |
 | `sub/order` | 订单列表 | `sub/order/orders/index` | Orders | M20 | W1-18 | M1 | 否 |  |
 | `sub/order` | 订单详情 | `sub/order/order-detail/index` | OrderDetail | M21 | W1-18 | M1 | 否 |  |
 | `sub/order` | 方案确认 | `sub/order/plan/index` | Plan | M22 | W1-20 | M1 | 否 |  |
@@ -178,8 +178,8 @@
 | `sub/publish` | 逐集下载 | `sub/publish/downloads/index` | — | — | W1-20 | M1 | 否 | 新增页：逐集下载管理与“扫码在电脑上下载”入口 |
 | `sub/publish` | 发布账号 | `sub/publish/accounts/index` | Accounts | M26 | W1-18 | M1 | 否 | 含 M27 弹层 |
 | `sub/publish` | 扫码确认 | `sub/publish/portal-approve/index` | — | — | G6-B | M6 | 否 | 新增页：下载页扫码后的确认页 |
-| `sub/billing` | 钱包 | `sub/billing/wallet/index` | Wallet、WalletExpired | M43 | W1-12 | M1 | 否 | 一页两态 |
-| `sub/billing` | 套餐选择 | `sub/billing/plan-pick/index` | PlanPick | M44 | W1-12 | M1 | 否 | 含 M10 对公转账弹层与付款结果 |
+| `sub/billing` | 钱包 | `sub/billing/wallet/index` | Wallet、WalletExpired | M43 | W1-12 | M1 | 是 | 一页两态 |
+| `sub/billing` | 套餐选择 | `sub/billing/plan-pick/index` | PlanPick | M44 | W1-12 | M1 | 是 | 含 M10 对公转账弹层与付款结果 |
 | `sub/billing` | 积分充值 | `sub/billing/topup/index` | TopUp | M45 | G4-C | M4 | 否 |  |
 | `sub/billing` | 积分流水 | `sub/billing/ledger/index` | Ledger | M46 | G4-C | M4 | 否 |  |
 | `sub/billing` | 发票 | `sub/billing/invoices/index` | Invoices | M35 | G4-C | M4 | 否 |  |

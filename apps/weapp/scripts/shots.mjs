@@ -7,7 +7,7 @@
 //   --page <路由>      只出这一页，可给多次。路由照页面清单的写法，如 pages/home/index
 //   --component <名字> 只出这个组件的预览，可给多次。名字是 src/components/ 下的目录名，如 Button
 //   --sheet <名字>     只出这张基础样张，可给多次。名字照 src/gallery.ts 的 GALLERY_SHEETS，如 colors
-//   --scene <名字>     只出账户固定离线场景，可多次；场景见 shots/account-scenes.ts
+//   --scene <名字>     只出固定离线场景，可多次；场景见 shots/account-scenes.ts、billing-scenes.ts
 //   --no-build         不重新构建，直接用上一次的 H5 产物
 // 组件预览的图（W0-27b）：文件名 gallery__<组件名>.png，截整页（预览比一屏长），其余的页只截一屏。
 // 基础样张的图（W0-29）：文件名 gallery__sheet-<样张名>.png，同样截整页；陈列的目录页也截整页（看样要看全各组的节号与要点）。

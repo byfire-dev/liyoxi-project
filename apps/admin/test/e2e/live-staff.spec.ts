@@ -30,7 +30,7 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
   await expect(page.getByRole("heading", { name: "员工账号", exact: true })).toBeVisible();
   const table = page.getByRole("table");
   await expect(table.getByRole("columnheader")).toHaveCount(8);
-  await expect(table.getByRole("row")).toHaveCount(12);
+  await expect(table.getByRole("row")).toHaveCount(14);
   await expect(table.getByText("演练交付", { exact: true })).toBeVisible();
   await expect(table.getByText("演练渠道", { exact: true })).toBeVisible();
   await expect(table.getByText("已禁用", { exact: true })).toBeVisible();

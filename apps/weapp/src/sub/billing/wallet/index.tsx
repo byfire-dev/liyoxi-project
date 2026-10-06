@@ -165,7 +165,7 @@ function WalletContent() {
                 套餐已到期，套餐积分已清零；加购积分已停用，开通后恢复可用。已订购短剧继续交付。
               </Note>
             ) : wallet.subscription.status === "none" ? (
-              <Note>暂未开通套餐，可用积分为服务端显示的余额。</Note>
+              <Note>暂未开通套餐，开通后可使用套餐权益。</Note>
             ) : null}
             {wallet.subscription.isRefundPending ? (
               <Note>
