@@ -1,6 +1,6 @@
 # W1-19 制作表单的服务端操作提示
 
-| 项 | 说明 |
+| 项 | 内容 |
 | --- | --- |
 | 改了什么 | 独立修复交付详情与方案 GET 的既有 actions：新增 sample-create、episode-register、inspect-episodes、inspect-package、draft-replace 五个表单入口。 |
 | 原因 | W1-19 PR2 实作发现已落地的五个写操作缺少 GET 操作提示；前端需按服务端事实显示入口，不能自己推断状态与权限。 |
