@@ -764,6 +764,20 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
 
   it("生成的类型与 Zod 结构同形", () => {
     expectTypeOf<MerchantComponents["schemas"]["DictRef"]>().toEqualTypeOf<DictRef>();
+    // 三种首页城市和推荐品类保留具名 DictRef | null，供页面直接消费生成类型。
+    expectTypeOf<
+      MerchantComponents["schemas"]["HomeOwner"]["city"]
+    >().toEqualTypeOf<DictRef | null>();
+    expectTypeOf<
+      MerchantComponents["schemas"]["HomeClerk"]["city"]
+    >().toEqualTypeOf<DictRef | null>();
+    expectTypeOf<
+      MerchantComponents["schemas"]["HomeGuest"]["city"]
+    >().toEqualTypeOf<DictRef | null>();
+    type HomeMatch = NonNullable<
+      NonNullable<MerchantComponents["schemas"]["HomeOwner"]["recommend"]>["matchBy"]
+    >;
+    expectTypeOf<HomeMatch["category"]>().toEqualTypeOf<DictRef | null>();
     expectTypeOf<AdminComponents["schemas"]["DictRef"]>().toEqualTypeOf<DictRef>();
     expectTypeOf<PortalComponents["schemas"]["ErrorBody"]>().toEqualTypeOf<ErrorBody>();
     expectTypeOf<SubpathErrorSymbol>().toEqualTypeOf<CommonErrorSymbol>();
