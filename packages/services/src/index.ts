@@ -184,6 +184,15 @@ export type { MerchantViewerRole, MerchantViewSchemas } from "./authz/index.js";
 
 // W1-11a 付款侧：对公确认在自己的事务里调用唯一入账入口；履约依赖由组合根装配。
 export { createPayment, createFulfillment } from "./billing/index.js";
+export {
+  createBillingPurchase,
+  bindBillingTimers,
+  handleTransferTtl,
+  proposeFinanceConfig,
+  financeConfigAt,
+  purchaseInvariants,
+} from "./billing/index.js";
+export type { BillingPurchase, BillingPurchaseDeps, PurchaseActor } from "./billing/index.js";
 export type {
   Payment,
   PaymentDeps,
@@ -197,3 +206,4 @@ export type {
 export * as media from "./media/index.js";
 export { createMedia } from "./media/index.js";
 export type { Media, MediaActor, MediaDeps, PromoteRef } from "./media/index.js";
+export { seedPlaceholderFinanceConfig, PLACEHOLDER_FINANCE } from "./billing/index.js";

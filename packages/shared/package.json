@@ -79,6 +79,10 @@
     "./params": {
       "types": "./src/params/index.ts",
       "default": "./src/params/index.ts"
+    },
+    "./purchase-policy": {
+      "types": "./src/purchase-policy/index.ts",
+      "default": "./src/purchase-policy/index.ts"
     }
   },
   "scripts": {

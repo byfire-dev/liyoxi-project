@@ -34,3 +34,6 @@ export * from "./routes/a03-merchant/index.js";
 export * from "./billing/index.js";
 export * from "./routes/m08-support-misc/index.js";
 export * from "./routes/m03-profile-asset/error-details.js";
+
+export * from "./routes/m07-billing/index.js";
+export * from "./routes/a07-billing-finance/index.js";
