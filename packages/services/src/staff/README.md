@@ -19,6 +19,8 @@
 | `seed.ts` | 8 个角色（W0-21）与各自的默认组 |
 | `me.ts` | 已登录的员工 → 判权用的上下文 `staffContextOf`、当前员工 `buildStaffMe`、员工摘要 `staffBriefOf` |
 | `demo-seed.ts` | 7 位演示员工（只进本地、测试与预发） |
+| `management.ts` | W1-01b 员工增查与角色只读；显式挑展示列，完整查询按 DataScope |
+| `assignment.ts` | `pickNext` 的 M1 分配最小实现与按 id 批量取展示摘要的 `staffBriefs` |
 
 ## 2. 装配与用法
 
@@ -154,3 +156,11 @@ APP_ENV=local DATABASE_URL=… REDIS_URL=… DATA_KEYS_FILE=… BIDX_KEYS_FILE=�
 - 每位员工一个事务，经 `flow.transition` 写状态历史、ops 审计（操作人是系统任务 `cli.db.seed.demo`）、`staff.created`；`staff.status`“新增（立即启用）”一行的守卫除了员工，另认这个系统任务。
 - 发布专员的数据范围：角色的代码默认是“本人”，演示里要他看得到全部门店的核验队列，所以新建这位员工时把库里发布专员那一行角色的 `data_scope` 改成 `all`（代码默认配置不动；之后在后台改回去的，再跑不覆盖）。
 - 别的模块的演示种子按键取人：`staff.demoStaffId(state.staff, "content_ops")`。
+
+## 9. 员工最小集（W1-01b）
+
+`createStaffManagement({ tx, clock, flow, config, keyring: () => keyring })` 提供 `create(ctx, identity, body, { idem })`、`list(ctx, query)`、`get(ctx, staffId)`、`roles(ctx)`。新增由调用方传入当前员工上下文与身份，内核事务同时写员工、状态历史、脱敏审计、`staff.created` 和激活码。M1 无论请求的下发方式都返回 `manual` 激活码一次；路由以 `activation.activationCode` 脱敏保存幂等结果，重放嵌套与外层的 `replayed` 一致。未开放渠道角色仅可暂不启用。
+
+完整列表、详情和角色成员按当前 DataScope 过滤；`system < v` 的选人列表按每个所带池的读权查启用成员，展示安全列且 `phoneMask=null`，以便跨角色指派。`actions=[]`，`withLoad=true` 的在办量为 0 与空来源数组，二维码链接为 `null`。
+
+上层在自己的事务里调用 `staff.pickNext(tx, pool, scopeKey)`，必须在锁任何业务行之前调用。M1 只选该池工号最小的启用成员，取员工共享锁后再次核对启用状态；城市、当班与游标留到 G2-A。没有候选返回 `null`。`staff.staffBriefs(tx, ids)` 批量返回六个展示列，重复与不存在的 id 不多返行。两项留桩见 `docs/plan/stubs/m2-staff-assignment-pool.md` 与 `m2-staff-activation-sms.md`；既有 `staff.I8` 登记保持一份。
