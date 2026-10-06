@@ -2,7 +2,7 @@
 
 各域的“申请—审批”共用的做法（W1-06）：审批单的状态、状态历史、审计、事件由本模块写，领域的效果由该类型登记的处理器在同一个事务里做。依据：[03 分组](../../../../docs/data-model/03-staff-authz-audit.md) 第 2.12、3.2、4 节；[约定](../../../../docs/api/00-conventions.md) C67、C86、C53；[a03](../../../../docs/api/a03-merchant.md) 第 1.1 节“审批决定的守卫顺序”“留痕”；[x01](../../../../docs/api/x01-events-jobs.md) 第 3.3 节；D4 第 7.6 节。
 
-第一个 PR 交写侧。读侧三条接口（`admin.approval.list`、`summary`、`get`）、`countTodo`、`decisionView` 随第二个 PR。
+第一个 PR 交写侧，第二个 PR 交读侧三条接口（`admin.approval.list`、`summary`、`get`）、`countTodo`、`decisionView`，以及后台原因下拉 `admin.dictItem.list`。
 
 ## 1. 这里有什么
 
@@ -16,6 +16,7 @@
 | `machine.ts` | 审批单状态机在 flow 上的登记：守卫、处理器的挂点、随迁列 |
 | `invariants.ts`、`register.ts` | `approval.I1`、`I2`、`I4` 的查询与登记；端口的声明 |
 | `repo.ts` | 本模块读写库的语句 |
+| `read.ts` | 可读类型与数据范围、当前动作、列表、计数与详情；GET 不写库 |
 | `errors.ts` | `ApprovalError`：内部错误 |
 
 ## 2. 装配
@@ -131,6 +132,14 @@ await approval.recordExecuted(handle, ctx, { approvalId, domain: { type: "cancel
 | `approval.I4` | 驳回原因都在字典 `reject_reason` 里；清单编码与版本号指向存在的清单模板版本 |
 
 P2、只在 full 运行里查，各至多报 500 条。`approval.I3`、`I5` 随决定时限在 M2。
+
+### 审批读侧
+
+`approval.list(tx, staff, query)`、`summary(tx, staff, filter)`、`get(tx, staff, id)` 都只读。先按登记的 `viewModules` 筛可读类型，再套 authz 的本人、本组或全部范围；发起人自读只越过范围，账号核验的角色队列凭 `publish.account.verify` 可跨范围。列表显式传不可读类型回 403，计数忽略，详情回 404。
+
+`handlerOf` 有当前处理人时用处理人套范围，其他类型用门店、主体；展示的员工姓名、角色与状态是仓储批量查询的当前值，没有调用同层 staff。`badges` 从登记的读函数取得，另加 `overdue`：待审且超过 `dueAt`，或没有时限时超过 `approval.escalate_workdays` 个工作日。后一项只读 sla 的日历和工时，调用 shared 的纯计算，不触发日历缺失告警写入。
+
+`todo` 必须是当前能决定的待审单，发起人不算；`submitted` 看发起员工；`done_today` 按北京时间决定日；`all` 看全部可读单。列表和计数的 todo 均调用同一个 `countTodo`。上层可调用 `approval.countTodo(tx, staff, filter)` 做菜单角标，或 `decisionView(tx, staff, id)` 返回与详情同源的决定面板。领域类型须在摘要里给 `domain`；a 写侧允许缺省，历史缺省摘要读回时使用对象引用。
 
 ## 7. 测试里怎么用
 

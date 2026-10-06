@@ -4,6 +4,57 @@
  */
 
 export interface paths {
+    "/api/v1/admin/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 审批单列表（跨类型、只读）：按 kind 与页签查询；不带 kind 时为“我的待审批”（待本人决定的各类审批） */
+        get: operations["admin.approval.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/approvals/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 各 kind 的待办计数、超时数与本月合计（如本月通过的调整积分增减合计） */
+        get: operations["admin.approval.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/approvals/{approvalId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 审批单详情（只读）：摘要快照、决定记录与时限、领域行引用（domain.type / domain.id） */
+        get: operations["admin.approval.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/auth/activate": {
         parameters: {
             query?: never;
@@ -140,6 +191,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/dict-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 字典项：按类型查询（树形，可带引用计数）；后台各处下拉与原因单选共用 */
+        get: operations["admin.dictItem.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/roles": {
         parameters: {
             query?: never;
@@ -227,6 +295,129 @@ export interface components {
             purpose: "activate" | "reset_password" | (string & {});
             replayed: boolean;
         };
+        ApprovalCounts: {
+            items: {
+                all: number;
+                approvedThisMonth: number;
+                byStatus: {
+                    approved: number;
+                    pending: number;
+                    rejected: number;
+                    withdrawn: number;
+                };
+                doneToday: number;
+                /** @enum {string} */
+                kind: "qualification" | "channel_account" | "launch_link" | "order_cancel" | "ad_cancel" | "qualification_cancel" | "plan_refund" | "points_adjust" | "subscription_extend" | "finance_config_change" | "account_change" | "transfer_confirm";
+                overdue: number;
+                rejectedThisMonth: number;
+                submitted: number;
+                todo: number;
+            }[];
+            pointsAdjustMonth: {
+                decreasePoints: number;
+                increasePoints: number;
+            } | null;
+            total: {
+                overdue: number;
+                todo: number;
+            };
+        };
+        ApprovalDetail: components["schemas"]["ApprovalItem"] & {
+            checklist: {
+                code: string;
+                result: {
+                    key: string;
+                    note?: string;
+                    /** @enum {string} */
+                    result: "pass" | "fail" | "na";
+                }[];
+                versionNo: number;
+            } | null;
+            confirmChecks: string[];
+            operations: {
+                approve: string | null;
+                get: string | null;
+                reject: string | null;
+                withdraw: string | null;
+            };
+            sla: {
+                amount: number;
+                calendarVersion: number;
+                /** Format: date-time */
+                computedAt: string;
+                policy: string;
+                /** @enum {string} */
+                unit: "work_minutes" | "work_days" | "natural_hours" | "natural_days" | "same_day_cutoff";
+            } | null;
+            timeline: {
+                actorLabel: string;
+                actorType: string;
+                elapsedWorkMin: number | null;
+                event: string;
+                fromState: string | null;
+                note: string | null;
+                /** Format: date-time */
+                occurredAt: string;
+                reasonCode: string | null;
+                toState: string;
+            }[];
+        };
+        ApprovalItem: {
+            actions: ("approve" | "reject" | "withdraw" | "approve-review" | "reject-review")[];
+            /** Format: uuid */
+            approvalId: string;
+            badges: ("check_mismatch" | "final_rejected" | "overdue")[];
+            /** @enum {string} */
+            category: "review" | "approval";
+            decidedAt: string | null;
+            decidedBy: components["schemas"]["StaffBrief"] | null;
+            decisionNote: string | null;
+            deliveryTicketId: string | null;
+            domain: {
+                /** Format: uuid */
+                id: string;
+                type: string;
+            };
+            dueAt: string | null;
+            entityId: string | null;
+            handler: components["schemas"]["StaffBrief"] | null;
+            isDecidedBySystem: boolean;
+            /** @enum {string} */
+            kind: "qualification" | "channel_account" | "launch_link" | "order_cancel" | "ad_cancel" | "qualification_cancel" | "plan_refund" | "points_adjust" | "subscription_extend" | "finance_config_change" | "account_change" | "transfer_confirm";
+            lockVersion: number;
+            reasons: components["schemas"]["DictRef"][];
+            requestNo: string | null;
+            requester: components["schemas"]["StaffBrief"] | null;
+            roundNo: number;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected" | "withdrawn";
+            storeId: string | null;
+            /** Format: uuid */
+            subjectId: string;
+            subjectType: string;
+            /** Format: date-time */
+            submittedAt: string;
+            submitter: {
+                actorId: string | null;
+                /** @enum {string} */
+                actorType: "staff" | "merchant" | "system" | "partner";
+                label: string;
+            };
+            summary: {
+                amountFen?: number;
+                domain?: {
+                    /** Format: uuid */
+                    id: string;
+                    type: string;
+                };
+                lines?: {
+                    label: string;
+                    value: string;
+                }[];
+                points?: number;
+                title: string;
+            };
+        };
         AuthNext: {
             methods: ("totp" | "recovery")[];
             /** @enum {string} */
@@ -237,6 +428,32 @@ export interface components {
         ConfirmTotpBody: {
             code: string;
             ticket: string;
+        };
+        DictItemList: {
+            items: components["schemas"]["DictItemView"][];
+            types: {
+                typeKey: string;
+                versionNo: number;
+            }[];
+        };
+        DictItemView: {
+            code: string;
+            description: string | null;
+            /** Format: uuid */
+            dictItemId: string;
+            ext: {
+                [key: string]: unknown;
+            };
+            isEnabled: boolean;
+            lockVersion: number;
+            name: string;
+            parentCode: string | null;
+            position: number;
+            refCount: number | null;
+            tags: string[];
+            typeKey: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         DictRef: {
             code: string;
@@ -506,6 +723,184 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "admin.approval.list": {
+        parameters: {
+            query?: {
+                kind?: string;
+                storeId?: string;
+                entityId?: string;
+                q?: string;
+                overdue?: "true" | "false";
+                submittedFrom?: string;
+                submittedTo?: string;
+                page?: number;
+                pageSize?: number;
+                tab?: "todo" | "submitted" | "done_today" | "all";
+                status?: string;
+                sort?: "due" | "-submittedAt" | "-decidedAt";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: components["schemas"]["ApprovalItem"][];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.approval.summary": {
+        parameters: {
+            query?: {
+                kind?: string;
+                storeId?: string;
+                entityId?: string;
+                q?: string;
+                overdue?: "true" | "false";
+                submittedFrom?: string;
+                submittedTo?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["ApprovalCounts"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.approval.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approvalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["ApprovalDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.auth.activate": {
         parameters: {
             query?: never;
@@ -1021,6 +1416,74 @@ export interface operations {
             };
             /** @description 限流 */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.dictItem.list": {
+        parameters: {
+            query: {
+                typeKey: string;
+                parentCode?: string;
+                scene?: string;
+                includeDisabled?: "true" | "false";
+                withRefCount?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["DictItemList"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
