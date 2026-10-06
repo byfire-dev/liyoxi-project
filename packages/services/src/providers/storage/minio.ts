@@ -7,6 +7,7 @@
 // 调用时返回 unavailable。
 // AWS SDK 只在本文件引入（任务书 第 11 节第 2 项）。
 
+import { createHash } from "node:crypto";
 import {
   CopyObjectCommand,
   CreateBucketCommand,
@@ -14,6 +15,7 @@ import {
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
+  PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
@@ -206,6 +208,73 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
       });
     },
 
+    async readPrefix({ bucket, key, bytes, ifMatchEtag }) {
+      if (!Number.isInteger(bytes) || bytes < 1 || bytes > 4096)
+        return failed("rejected", "文件头读取只允许 1–4096 字节");
+      return run("读取文件头", async () => {
+        const result = await client.send(
+          new GetObjectCommand({
+            Bucket: nameOf(bucket),
+            Key: key,
+            Range: `bytes=0-${bytes - 1}`,
+            IfMatch: ifMatchEtag,
+          }),
+        );
+        const body = await result.Body?.transformToByteArray();
+        return body === undefined || body.byteLength > bytes
+          ? failed("rejected", "文件头返回不合格")
+          : ok(body);
+      });
+    },
+
+    async putObject({
+      bucket,
+      key,
+      body,
+      contentType,
+      contentDisposition,
+      ifAbsent,
+      contentIdentity,
+    }) {
+      return run("写入系统文件", async () => {
+        const sha256 = createHash("sha256").update(body).digest("hex");
+        try {
+          const result = await client.send(
+            new PutObjectCommand({
+              Bucket: nameOf(bucket),
+              Key: key,
+              Body: body,
+              ContentType: contentType,
+              ContentDisposition: contentDisposition,
+              IfNoneMatch: ifAbsent ? "*" : undefined,
+              Metadata: {
+                sha256,
+                ...(contentIdentity ? { "content-identity": contentIdentity } : {}),
+              },
+            }),
+          );
+          return result.ETag
+            ? ok({ etag: result.ETag, size: body.byteLength })
+            : failed("rejected", "系统文件写入未返回 etag");
+        } catch (error) {
+          if (!ifAbsent || ![409, 412].includes(httpStatusOf(error) ?? 0)) throw error;
+          const existing = await client.send(
+            new HeadObjectCommand({ Bucket: nameOf(bucket), Key: key }),
+          );
+          // 原子条件写保住旧对象；只有同一完整字节与归属指纹才采纳崩溃前的已写对象。
+          if (
+            !contentIdentity ||
+            existing.Metadata?.sha256 !== sha256 ||
+            existing.Metadata["content-identity"] !== contentIdentity ||
+            existing.ContentLength !== body.byteLength ||
+            !existing.ETag
+          )
+            return failed("rejected", "正式区键已有不同内容或归属的系统文件");
+          return ok({ etag: existing.ETag, size: existing.ContentLength });
+        }
+      });
+    },
+
     async copy({ src, dst, ifMatchEtag, contentType, contentDisposition }) {
       return run("条件复制", async () => {
         const copied = await client.send(
@@ -223,12 +292,12 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
       });
     },
 
-    async presignGet({ bucket, key, expiresSec, downloadName }) {
+    async presignGet({ bucket, key, expiresSec, downloadName, disposition: requestedDisposition }) {
       return run("签发读地址", async () => {
         const disposition =
           downloadName === undefined
-            ? undefined
-            : `attachment; filename*=UTF-8''${encodeURIComponent(downloadName)}`;
+            ? requestedDisposition
+            : `${requestedDisposition ?? "attachment"}; filename*=UTF-8''${encodeURIComponent(downloadName)}`;
         const url = await getSignedUrl(
           client,
           new GetObjectCommand({

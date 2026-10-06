@@ -67,13 +67,15 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
     presignPost: { ...SAMPLE_REF, mime: "video/mp4", maxBytes: 20 * 1024 * 1024, expiresSec: 600 },
     issueSts: { bucket: "media", keyPrefix: "incoming/sample/", durationSec: 900 },
     head: SAMPLE_REF,
+    readPrefix: { ...SAMPLE_REF, bytes: 4096 },
+    putObject: { ...SAMPLE_REF, body: new Uint8Array([1, 2, 3]), contentType: "application/pdf" },
     copy: {
       src: SAMPLE_REF,
       dst: { bucket: "media", key: "files/sample/video.mp4" },
       ifMatchEtag: '"sample-etag"',
       contentType: "video/mp4",
     },
-    presignGet: { ...SAMPLE_REF, expiresSec: 900 },
+    presignGet: { ...SAMPLE_REF, expiresSec: 900, disposition: "inline" },
     delete: SAMPLE_REF,
   },
   media: {

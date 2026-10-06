@@ -19,6 +19,8 @@ export type {
 } from "./reminders.js";
 export { noopTrack, trackOf, trackPort } from "./track.js";
 export type { Track, TrackEvent } from "./track.js";
+export { fileRefTypePort } from "./files.js";
+export type { ExpectedFileRef, FileRefType } from "./files.js";
 // W1-03：商家读侧的事实端口（按来源模块分键；没人登记的键取默认值）
 export {
   defaultMerchantFacts,

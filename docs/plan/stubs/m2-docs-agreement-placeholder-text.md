@@ -3,8 +3,8 @@
 | 项 | 内容 |
 | --- | --- |
 | 状态 | 留桩中 |
-| 留桩内容 | 六份协议的版本是占位文本，不是法务审定的正文（外部事项 E8）；没有登记文件引用（协议版本的两个文件应经 media 的 files.link 登记） |
-| 骨架里的做法 | `packages/services/src/docs/demo-seed.ts` 的 `seedPlaceholderAgreementVersions` 各写一个带“占位”字样的版本，只进本地、测试与预发（`APP_ENV=prod` 拒绝）；由演示种子的运行器调，占位 PDF 的入库与接线在 W1-07 |
+| 留桩内容 | 六份协议的版本是占位文本，不是法务审定的正文（外部事项 E8） |
+| 骨架里的做法 | `packages/services/src/docs/demo-seed.ts` 的 `seedPlaceholderAgreementVersions` 各写一个带“占位”字样的版本，只进本地、测试与预发（`APP_ENV=prod` 拒绝）；由演示种子的运行器调，W1-07 已把六份占位 PDF 入库并在同事务接六个版本的 source/pdf 引用；正式文本仍待法务 |
 | 登记的工作包 | W1-03 |
 | 回补里程碑 | M2，G2-B |
 | 回补的工作包 | 待 W1-23 拆包后填；正式正文等 E8 |

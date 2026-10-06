@@ -15,3 +15,5 @@ export const M03_PROFILE_ASSET = defineRouteDoc("m03-profile-asset", [
   storeAssets,
   storeProfile,
 ]);
+
+export * from "./error-details.js";
