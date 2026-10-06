@@ -17,7 +17,7 @@ const delivery: AdminModule = {
       badgeKey: "delivery.tickets",
       milestone: "M1",
       workPackage: "W1-19",
-      implemented: false,
+      implemented: true,
       screen: "Tickets",
       kind: "board",
       skeleton: "query-table",
