@@ -138,7 +138,7 @@ function invariant(code: string, sql: string): InvariantRegistration {
     heal: "none",
     run: async (tx, scope, ctx) => {
       const rows = await tx.$queryRawUnsafe<
-        { id: string; entity_id: string | null; problem: string }[]
+        { id: string; entity_id: string | null; problem: string; subject_type?: string }[]
       >(
         `SELECT * FROM (${sql}) t WHERE ($1::uuid[] IS NULL OR entity_id=ANY($1::uuid[])) AND $2::timestamptz IS NOT NULL ORDER BY id LIMIT 500`,
         scope.entityIds?.length ? [...scope.entityIds] : null,
@@ -146,12 +146,7 @@ function invariant(code: string, sql: string): InvariantRegistration {
       );
       return rows.map((r) => ({
         subject: {
-          type:
-            code === "payment.I12"
-              ? "finance_config_revision"
-              : code === "payment.I14"
-                ? "billing_order"
-                : "transfer_proof",
+          type: r.subject_type ?? (code === "payment.I14" ? "billing_order" : "transfer_proof"),
           id: r.id,
         },
         ...(r.entity_id ? { entityId: r.entity_id } : {}),
@@ -163,7 +158,31 @@ function invariant(code: string, sql: string): InvariantRegistration {
 export const purchaseInvariants = [
   invariant(
     "payment.I12",
-    `SELECT f.id::text,NULL::uuid entity_id,'approval_or_effective' problem FROM finance_config_revision f JOIN approval_request a ON a.id=f.approval_request_id WHERE (f.effective_at IS NOT NULL) IS DISTINCT FROM (a.status='approved') OR (a.status='approved' AND (a.decided_by_staff_id IS NULL OR a.requester_staff_id IS NOT DISTINCT FROM a.decided_by_staff_id OR f.effective_at IS DISTINCT FROM a.decided_at+CASE WHEN f.config_key='bank_account' THEN interval '24 hours' ELSE interval '0 hours' END))`,
+    `SELECT f.id::text,NULL::uuid entity_id,'approval_or_effective' problem,
+       'finance_config_revision'::text subject_type
+     FROM finance_config_revision f JOIN approval_request a ON a.id=f.approval_request_id
+     WHERE (f.effective_at IS NOT NULL) IS DISTINCT FROM (a.status='approved')
+       OR (a.status='approved' AND (a.decided_by_staff_id IS NULL
+         OR a.requester_staff_id IS NOT DISTINCT FROM a.decided_by_staff_id
+         OR f.effective_at IS DISTINCT FROM a.decided_at+CASE WHEN f.config_key='bank_account'
+           THEN interval '24 hours' ELSE interval '0 hours' END))
+     UNION ALL
+     SELECT o.id::text,o.entity_id,'captured_bank_account_version' problem,
+       'billing_order'::text subject_type
+     FROM billing_order o
+     LEFT JOIN finance_config_revision f ON f.id=o.bank_account_finance_config_revision_id
+     LEFT JOIN approval_request a ON a.id=f.approval_request_id
+     LEFT JOIN LATERAL (
+       SELECT r.id FROM finance_config_revision r JOIN approval_request p ON p.id=r.approval_request_id
+       WHERE r.config_key='bank_account' AND p.status='approved'
+         AND p.decided_at<=o.created_at AND r.effective_at<=o.created_at
+       ORDER BY r.effective_at DESC,r.id DESC LIMIT 1
+     ) latest ON true
+     WHERE o.channel='bank_transfer' AND (
+       f.id IS NULL OR f.config_key<>'bank_account' OR a.status IS DISTINCT FROM 'approved'
+       OR a.decided_at IS NULL OR a.decided_at>o.created_at
+       OR f.effective_at IS NULL OR f.effective_at>o.created_at
+       OR latest.id IS DISTINCT FROM o.bank_account_finance_config_revision_id)`,
   ),
   invariant(
     "payment.I14",

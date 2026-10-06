@@ -57,12 +57,12 @@ LYX_FC_RUNS=200 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run sr
 
 `submitProof` 只接受当前老板、同归属 stored/pay_receipt 文件，按 files 端口永久 link。替换将旧凭证置 superseded，不多写一次主状态迁移；`due_at` 和 SLA 快照真实计算。`getAdminOrder` 与 `getProof` 按资源范围查询，超范围 404；`listProofs` 与 `proofSummary` 是 global 处理队列，同过滤条件计数，详情不签发文件 URL。
 
-`confirmProof` 检查权限、再验证、锁版本、到账金额与单号回显、银行流水核对，按付款单 290 → 本事务创建并锁实际交易 300 → 凭证 310，再次核对全部前置后调原 `applyPayment`，履约最后拿账户 420。失败回滚整个交易，不另写四个已付列。流水 NFKC、去空白和连字符、转大写；同银行碰撞拒绝，不同银行必须回显完整冲突单号。`rejectProof` 写驳回理由及说明、顺延有效期并重登记；大额二人复核阈值达到则本期拒绝。
+`confirmProof` 检查权限、再验证、锁版本、到账金额与单号回显、银行流水核对，按付款单 290 → 流水事务咨询锁 → 本事务创建并锁实际交易 300 → 凭证 310，再次核对全部前置后调原 `applyPayment`，履约最后拿账户 420。咨询锁用参数绑定的 `pg_advisory_xact_lock(hashtextextended(key,0))`，独有命名空间 `lyx:billing:transfer-confirm:<channel>:<规范化流水>`，不按付款行或主体分锁；首次冲突查询前取得，提交/回滚自动释放，不占行锁 rank。失败回滚整个交易，不另写四个已付列。流水 NFKC、去空白和连字符、转大写；同银行碰撞拒绝，不同银行必须回显完整冲突单号，后到事务在前单提交后查询真实冲突。`rejectProof` 写驳回理由及说明、顺延有效期并重登记；大额二人复核阈值达到则本期拒绝。
 
 `bindBillingTimers({clock,flow,timers})` 返回幂等解绑函数，乱序关闭不恢复已关实例；无绑定明确失败。上传/替换不取消 TTL，到点有 pending 凭证则 skipped；驳回按新有效期登记；原入账付清后取消本单任务。worker 等全部循环与在途消费者关停 settle 后通过 `closeBillingTimers` 解绑，保留关闭失败传播，重复停止只清理一次。
 
 `proposeFinanceConfig(tx,deps,ctx,input,staff)` 使用正常提议权限与双人审批；银行账号只写密文列，payload 只含脱敏串。银行批准后 24 小时生效，其余即时。`seedPlaceholderFinanceConfig` 注入 25 小时前时钟、使用两名真实 active 财务；重复零新增，已有配置不覆盖，停用员工明确失败。占位账号全零、户名标明勿转账，真实值待 E13。
 
-新增每日 full/P1、不自愈项：`payment.I12` 核对审批与生效时刻，`I14` 核对待确认单与恰一张 pending 凭证双向一致，`I15` 核对 accepted 与恰一笔 succeeded 收款双向一致。账本原不变量测试完整保留，新项在 `payment/purchase-invariants.test.ts`。
+新增每日 full/P1、不自愈项：`payment.I12` 保留配置审批与生效时刻检查，并核对对公单捕获的版本是该单创建时已经批准、生效的最新 bank_account（与 financeConfigAt 同按 effective_at、id 倒序），历史正确版本不因后来配置生效而违规。配置错误仍报 finance_config_revision，订单错误报 billing_order 和归属 entityId。`I14` 核对待确认单与恰一张 pending 凭证双向一致，`I15` 核对 accepted 与恰一笔 succeeded 收款双向一致。账本原不变量测试完整保留，新项在 `payment/purchase-invariants.test.ts`。
 
 目标用例：`apps/api/test/billing.test.ts`、`apps/worker/test/transfer-ttl.test.ts`、`billing/demo-seed.test.ts`、`payment/purchase-invariants.test.ts`、`shared/purchase-policy/policy.test.ts`。八项既定留桩见 W1-11b 状态文件；本包不改表结构、既有入账函数签名或层白名单。

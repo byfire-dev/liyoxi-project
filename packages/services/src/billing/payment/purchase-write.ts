@@ -498,6 +498,9 @@ export async function confirmProof(
     throw new AppError("STATE_NOT_ALLOWED");
   await assertConfirmation(tx, deps, ctx, staff, order, input);
   const serial = normalizeBankSerial(input.bankSerialNo);
+  // 290 → 流水咨询锁 → 300 → 310 → 420。所有主体/付款行共享同一渠道与规范化流水键；
+  // 首次冲突查询前取得，直到事务提交/回滚才释放，不用复合唯一索引替代冲突回显。
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`lyx:billing:transfer-confirm:bank_transfer:${serial}`}, 0))`;
   await checkSerial(tx, serial, input);
   const latest = await tx.paymentTxn.aggregate({
       where: { billingOrderId: order.id },

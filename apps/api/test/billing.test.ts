@@ -1,6 +1,6 @@
 // W1-11b："m.wallet.get", "m.purchasePolicy.get", "m.plan.list", "m.plan.quote", "m.paymentOrder.create", "m.paymentOrder.get", "m.paymentOrder.transferProof.create",
 // "admin.paymentOrder.get", "admin.transferProof.list", "admin.transferProof.summary", "admin.transferProof.get", "admin.transferProof.confirm", "admin.transferProof.reject"。
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import {
   seedPlaceholderFinanceConfig,
   proposeFinanceConfig,
@@ -10,6 +10,7 @@ import {
   security,
   uuidv7,
 } from "@liyoxi/services";
+import type { Tx, TxRunOptions } from "@liyoxi/services";
 import { createFactories, signInAsStaff, sampleStaffContext } from "@liyoxi/services/testing";
 import type { FakeStorage, SignedInStaff } from "@liyoxi/services/testing";
 import { planOrderContentSchema } from "@liyoxi/contract";
@@ -786,5 +787,124 @@ describe("对公付款真实 API 链", { timeout: 90_000 }, () => {
       "BANK_SERIAL_DUPLICATE",
     );
     expect(await db.paymentTxn.count({ where: { billingOrderId: o3.paymentOrderId } })).toBe(0);
+  });
+  it.each([false, true])("同规范化流水跨订单并发串行化（同付款行=%s）", async (sameBank) => {
+    const a = await buyer(),
+      b = await buyer(),
+      oa = await order(a),
+      ob = await order(b),
+      pa = await proof(a, oa),
+      pb = await proof(b, ob),
+      bank = sameBank ? "RACE_SAME" : "RACE_DIFFERENT";
+    await db.dictItem.create({
+      data: {
+        id: uuidv7(),
+        dictTypeKey: "bank",
+        code: bank,
+        name: bank,
+        createdAt: api.clock.now(),
+        updatedAt: api.clock.now(),
+      },
+    });
+    const serial = `RACE${uuidv7().replaceAll("-", "").toUpperCase()}`;
+    let arrivals = 0,
+      release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const original = api.runtime.tx.run.bind(api.runtime.tx);
+    const spy = vi
+      .spyOn(api.runtime.tx, "run")
+      .mockImplementation(<T>(fn: (tx: Tx) => Promise<T>, options?: TxRunOptions) =>
+        original(async (tx) => {
+          const delegate = tx.paymentTxn,
+            find = delegate.findMany.bind(delegate);
+          delegate.findMany = (async (args: Parameters<typeof find>[0]) => {
+            const rows = await find(args);
+            if (args?.where?.channel === "bank_transfer" && args.where.channelTxnNo === serial) {
+              arrivals++;
+              if (arrivals === 1) {
+                expect(rows).toHaveLength(0);
+                await held;
+              }
+            }
+            return rows;
+          }) as typeof delegate.findMany;
+          try {
+            return await fn(tx);
+          } finally {
+            delegate.findMany = find;
+          }
+        }, options),
+      );
+    const first = post(
+      `/admin/transfer-proofs/${pa.latestTransferProof!.transferProofId}/confirm`,
+      {
+        ...confirm(oa, serial),
+        ...(sameBank ? { payerBankCode: bank } : {}),
+      },
+      finance.headers,
+    );
+    let second: Promise<Response> | undefined;
+    let secondResult: Response | undefined;
+    try {
+      await vi.waitFor(() => expect(arrivals).toBe(1), { timeout: 2_000 });
+      second = post(
+        `/admin/transfer-proofs/${pb.latestTransferProof!.transferProofId}/confirm`,
+        {
+          ...confirm(ob, serial.toLowerCase().replace("race", "ＲＡＣＥ-")),
+          payerBankCode: bank,
+        },
+        finance.headers,
+      ).then((result) => (secondResult = result));
+      await vi.waitFor(
+        async () => {
+          expect(
+            secondResult,
+            secondResult ? await secondResult.clone().text() : undefined,
+          ).toBeUndefined();
+          const waiters = await db.$queryRaw<{ pid: number }[]>`
+          SELECT pid FROM pg_locks WHERE locktype='advisory' AND NOT granted
+            AND database=(SELECT oid FROM pg_database WHERE datname=current_database())`;
+          expect(waiters.length).toBeGreaterThan(0);
+        },
+        { timeout: 2_000, interval: 20 },
+      );
+      expect(arrivals).toBe(1); // 第二事务尚未执行第一次冲突查询。
+      release();
+      await data(await first);
+      await error(await second, 409, sameBank ? "BANK_SERIAL_DUPLICATE" : "CONFIRM_MISMATCH");
+      expect(arrivals).toBe(3); // 首单两次查询，后单等提交后查询到真实冲突。
+      const receipts = await db.paymentTxn.findMany({
+        where: { channel: "bank_transfer", channelTxnNo: serial },
+      });
+      expect(receipts).toHaveLength(1);
+      expect(receipts[0]!.appliedAt).not.toBeNull();
+      expect(receipts[0]!.billingOrderId).toBe(oa.paymentOrderId);
+      expect(await getProof(pb.latestTransferProof!.transferProofId)).toMatchObject({
+        reviewStatus: "pending",
+        lockVersion: 0,
+      });
+    } finally {
+      release();
+      await Promise.allSettled([first, ...(second ? [second] : [])]);
+      spy.mockRestore();
+    }
+    if (!sameBank) {
+      await data(
+        await post(
+          `/admin/transfer-proofs/${pb.latestTransferProof!.transferProofId}/confirm`,
+          {
+            ...confirm(ob, serial),
+            payerBankCode: bank,
+            confirm: { ...confirm(ob).confirm, conflictOrderNos: [oa.orderNo] },
+          },
+          finance.headers,
+        ),
+      );
+      expect(
+        await db.paymentTxn.count({ where: { channelTxnNo: serial, appliedAt: { not: null } } }),
+      ).toBe(2);
+    }
   });
 });

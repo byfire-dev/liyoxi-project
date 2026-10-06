@@ -127,7 +127,9 @@ describe("占位受控财务配置正常双人审批", () => {
       });
       expect(
         await t.tx.run((tx) => purchaseInvariants[0]!.run!(tx, {}, { now: t.clock.now() })),
-      ).toMatchObject([{ subject: { id: proposal.financeConfigRevisionId } }]);
+      ).toMatchObject([
+        { subject: { type: "finance_config_revision", id: proposal.financeConfigRevisionId } },
+      ]);
     },
     slow,
   );
