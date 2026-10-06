@@ -19,6 +19,8 @@ import { entityHandlers } from "./entities.js";
 import { storeHandlers } from "./stores.js";
 import { meHandlers } from "./me.js";
 import { dictItemHandlers } from "./dict-items.js";
+import { billingHandlers } from "./billing.js";
+import { adminBillingHandlers } from "./admin/billing.js";
 
 export const HANDLERS: readonly HandlerEntry[] = [
   // W1-03：协议清单与版本正文（两条公开路由）
@@ -39,6 +41,8 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...storeHandlers,
   ...meHandlers,
   ...dictItemHandlers,
+  ...billingHandlers,
+  ...adminBillingHandlers,
   ...profileHandlers,
   ...publishHandlers,
 ];

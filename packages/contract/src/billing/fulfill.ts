@@ -29,6 +29,8 @@ export const planOrderContentSchema = z.strictObject({
   v: z.literal(1),
   kind: z.literal("plan"),
   planId: IdSchema,
+  /** W1-11b：创建时名称；旧快照缺项兼容回查，不参与履约计价。 */
+  planName: z.string().optional(),
   planRevisionId: IdSchema,
   months,
   /** 周期总价 */

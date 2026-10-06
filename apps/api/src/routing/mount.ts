@@ -98,6 +98,29 @@ function chainOf(
   return { chain, failed };
 }
 
+/** Hono 按挂载先后匹配：同方法的固定段必须先于参数段，不能让 summary 被当作 UUID。 */
+function routeOrder(a: AnyContractRoute, b: AnyContractRoute): number {
+  const compare = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
+  const group = compare(routeGroupOf(a), routeGroupOf(b));
+  if (group) return group;
+  const method = compare(a.method, b.method);
+  if (method) return method;
+  const left = a.path.split("/"),
+    right = b.path.split("/");
+  for (let i = 0; i < Math.min(left.length, right.length); i++) {
+    const x = left[i]!,
+      y = right[i]!;
+    const paramX = /^\{[^{}]+\}$/.test(x),
+      paramY = /^\{[^{}]+\}$/.test(y);
+    if (paramX !== paramY) return paramX ? 1 : -1;
+    const segment = paramX ? 0 : compare(x, y);
+    if (segment) return segment;
+  }
+  return (
+    left.length - right.length || compare(a.path, b.path) || compare(a.operationId, b.operationId)
+  );
+}
+
 export function mountRoutes(
   groups: Readonly<Record<RouteGroup, OpenAPIHono<ApiEnv>>>,
   entries: readonly HandlerEntry[],
@@ -140,17 +163,19 @@ export function mountRoutes(
   }
   if (issues.length > 0) throw new MountError(issues);
 
-  return plans.map(({ entry, chain }) => {
-    const { route, handler } = entry;
-    const group = routeGroupOf(route);
-    const withChain = { ...route, middleware: chain.map((item) => item.handler) };
-    groups[group].openapi(withChain as never, handler as never);
-    return {
-      operationId: route.operationId,
-      group,
-      method: route.method.toUpperCase(),
-      path: route.path,
-      middlewares: chain.map((item) => item.slot),
-    };
-  });
+  return plans
+    .sort((a, b) => routeOrder(a.entry.route, b.entry.route))
+    .map(({ entry, chain }) => {
+      const { route, handler } = entry;
+      const group = routeGroupOf(route);
+      const withChain = { ...route, middleware: chain.map((item) => item.handler) };
+      groups[group].openapi(withChain as never, handler as never);
+      return {
+        operationId: route.operationId,
+        group,
+        method: route.method.toUpperCase(),
+        path: route.path,
+        middlewares: chain.map((item) => item.slot),
+      };
+    });
 }
