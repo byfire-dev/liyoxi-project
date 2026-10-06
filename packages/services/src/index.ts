@@ -147,3 +147,26 @@ export type {
   SubmitResult,
   WithdrawInput,
 } from "./approval/index.js";
+// W1-04 identity 与商家侧授权：装配入口 createIdentity（api 启动时建一次，用法见 identity/README.md）、
+// 商家鉴权链要用的类型、能力点判定与门店、主体的数据范围；微信能力的接口类型给装配处用
+export { createIdentity } from "./identity/index.js";
+export type {
+  Identity,
+  IdentityDeps,
+  PhoneLoginInput,
+  PhoneLoginOptions,
+  RequestMeta,
+  SessionCheck,
+  SessionPrincipal,
+  SessionRejection,
+  SilentLoginInput,
+} from "./identity/index.js";
+export {
+  assertCapability,
+  entityScopeOf,
+  hasCapability,
+  standingOf,
+  storeScopeOf,
+} from "./authz/index.js";
+export type { EntityScope, MerchantStanding, StoreMode, StoreScope } from "./authz/index.js";
+export type { WechatProvider } from "./providers/types.js";

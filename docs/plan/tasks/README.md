@@ -69,7 +69,7 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 
 ## 5. 移交表
 
-加行的规矩（2026-10-06 起）：**新加的行不再编号，首列写“—”**，加在所属小节的表尾；引用时写“接收方是某某的一行”，不写行号。原因：几个会话并行往表尾加行，编号总是相撞（第 61、62、63 号都各出现过两次）。已有编号的行（第 1–66 行）编号不变，照旧可以按行号引用。记录见 [changes/plan-handoff-rows-unnumbered.md](../changes/plan-handoff-rows-unnumbered.md)。
+加行的规矩（2026-10-06 起）：**新加的行不再编号，首列写“—”**，加在所属小节的表尾；引用时写“接收方是某某的一行”，不写行号。原因：几个会话并行往表尾加行，编号总是相撞（第 61、62、63 号都各出现过两次）。已有编号的行（第 1–68 行）编号不变，照旧可以按行号引用。记录见 [changes/plan-handoff-rows-unnumbered.md](../changes/plan-handoff-rows-unnumbered.md)。
 
 随 W0-04 交付的任务书把一些事项交给了后面的包，接收方的清单行或任务书里没写。默认（W0-04 定）：
 
@@ -163,6 +163,8 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 | 64 | W1-08（第一个登记真实审批类型的包）；W1-06 的第二个 PR | 进程装配里建 approval：`createApproval({ assembly, clock, flow, events, bizNo })`，排在 `createFlow` 之后，api 与 worker 都要建（worker 不建，`approval.I1` 查不到登记的领域表）。W1-06 的第一个 PR 只交了入口，没有接进 `packages/services/src/runtime.ts`（那时 events、flow 也还没接进去）。领域用例调 `approval.submit`、`approve`、`reject`、`withdraw` 要排在锁自己的行之前（员工行 20 → 审批单 30 → 领域行） | W1-06 第一个 PR 的状态文件“偏差”第 2、3 条；`approval/README.md` 第 2、4 节 |
 | 65 | 调度会话（kernel 的小修补，或并进 G2-A） | `lockRows` 只有 `FOR UPDATE`、`FOR SHARE` 两种强度，`flow.transition` 也按 `FOR UPDATE` 锁对象行；03 分组 第 2.12 节写审批单用 `FOR NO KEY UPDATE`（领域表插行时的外键检查要取 `FOR KEY SHARE`）。现在照 `FOR UPDATE` 锁，结果对，只是别的事务往领域表插行要等决定的事务结束。要照文档就给 `lockRows` 加一种强度并让 flow 按表选。另：x01 第 2.3 节“其余本文定的取法”里补 `approval.executed:{approvalRequestId}`（`approval.recordExecuted` 用的去重键） | W1-06 第一个 PR 的状态文件“偏差”第 4、6 条 |
 | 66 | W1-10 的第二个 PR；W1-11a；G4-A（由 W1-23 写进任务书） | 第二个 PR：冻结（`hold`）走账户锁的那一条（验收 4）、“清零与冻结落在同一时刻”（验收 8）在第一个 PR 里用加购入账代替，冻结落地后各补一条；自检与写入顺序里冻结单、分摊的那一半；契约里冻结一族的文案码参数是照 m07 第 4.5 节先写的，用到时核一遍。W1-11a：建计费账户的端口实现调 `ledger.ensureAccount`；建好生效周期后调 `ledger.grant(tx, { grantScheduleId, ctx })` 发首月（它连 `next_due_at` 一起算），建预约周期后调 `ledger.refreshNextDue`；api 进程的运行时里还没有账本，要用时照任务进程的写法 `createLedger({ clock, events })` 建一次。G4-A：`billing.points.expired` 的去重键照 x01 第 2.3 节是按周期的，周期延长复活后再次到期会被当成已发过，做延长时改成带止日（同 PR 改 x01）；`advance` 现在只在“上一期到期”时接续预约周期，退款提前生效由 `revokeTerm` 自己做 | W1-10 |
+| 67 | W1-04 的第二个 PR；W1-04b | 第 62 行后半没办：`PendingConsent` 的结构要先挪进 `common/` 再换掉两处占位（`common/` 直接引 `routes/m01-account/` 会成环）。W1-04b：处理器取会话用 `merchantSessionOf(c)`、取服务用 `merchantServicesOf(runtime)`（`apps/api/src/merchant/services.ts`；`docsOf` 仍在）；重新同意的同意人快照取 `identity.consentSignerOf(tx, principal)`（还没有用例）；商家端接口用例的登录态用 `apps/api/src/testing/merchant.ts` 的 `signInAsMerchant` | W1-04 的状态文件偏差 4、11 |
+| 68 | 调度会话（合并内核小修补、W1-01a 的第二个 PR 时）；W1-23（写进 G2-B、G2-D 的任务书） | 调度会话的几件接到 main 时已办：`merchant/services.ts` 取 `runtime.providers.wechat` 与运行时上的 `events`，接口用例的假微信经 `createRuntime` 的 `providers` 给；`audit/auth-event.ts` 只留 W1-01a 的那一份。G2-D：AppID 的配置来源接到 `createIdentity` 的 `appid`、替掉占位值，`smsConfigured` 接短信驱动的状态；微信驱动的 `getPhoneNumber` 要把区号交出来（Provider 的接口现在只交 `phone`，`identity/phone.ts` 只能看原串里的国际前缀：区号不是 86 的号码不能不带加号地拼成一串数字交回来，`+1` 的号码去掉符号与大陆号同形）。G2-B：休眠检查的两支、订阅者 `identity.onWechatBound`、会话过期清理的登记、openid 的 HMAC 要不要专用的密钥用途 | W1-04 的状态文件偏差 1、4–6、13、14 |
 | — | 各域第一个后端 PR | 补结构时把资源文件里的 `merchantMeta(...)` 等换成 `merchantRoute(...)` 并补 `request`、`responses`，其余字段不动；`packages/contract/src/contract.test.ts` 里钉的两个条数与“paths 为空”跟着改；改接口同 PR 改 `routemap.json` 与分组文档 | W0-10 的状态文件“往后移交”；做法已写进 M1 各任务书与第 7.3 节 |
 | — | 各合流包（W1-21 起） | 已落地数、待落地数取 `node infra/ci/landed.mjs --report`；里程碑退出用 `--require` 核对；合流包把基线降到当时的待落地数 | W0-10 的状态文件“往后移交”（W0-30 的一半已办，#55；基线没降，见接收方是“调度会话（门禁改动，单独 PR）”的一行） |
 | — | 调度会话（门禁改动，单独 PR） | 待落地基线从 613 降到 610（合流包以后还要再降）：先让已挂载清单在全新检出里拿得到（入库成生成物并加对账，或换 `infra/ci/test/routes-gates.test.ts` 里对真仓库比基线那一例的取数），再在基线末尾加一行。W1-21 降基线之前要有 | W0-22 的状态文件偏差 13 与“往后移交”；W0-30 的状态文件偏差 7 与“往后移交”；`docs/plan/m0-exit.md` 第 6 节第 1 项 |
@@ -181,7 +183,7 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 | — | 第一个用到日期范围选择器的后台页面包（由那一里程碑的拆包 PR 写进任务书） | 在真实浏览器（有头的 Chrome，最好再加一种）里核日期范围选择器的键盘：Tab 走得进、走得出，Esc 关浮层；走不出去走构件 PR | W0-28 的状态文件偏差 25 与“往后移交”；`apps/admin/README.md` |
 | — | G2-0 的构件包（由 W1-23 写进任务书） | W0-28 没做的构件：胶囊单选与原因单选、单选卡、月份切换、只读值、中性款提示条、橙色强调信息块、驳回弹窗、步骤进度、三列日志行、并排比对表、变更前后；主从页的可点行选中样式。列脱敏声明 `mask` 与 `validateSearch` 已在第 54 行 | W0-28 的状态文件偏差 23 与“往后移交” |
 
-第 28–60 行是 W0-31 加的（第 59、60 行是合并前接到 main 时补的）。第 61–66 行是 W1-01a、W1-03、W1-06、W1-10 各自的 PR 加的；第 64、65、66 行原来分别与第 62、63、61 行重号，2026-10-06 的台账 PR 改成现在的号，按行号引用它们的两份状态文件（W1-06、W1-10）跟着改了。两张表里首列写“—”的各行，是同一个台账 PR 照各状态文件的“往后移交”补的（W0-10、W0-22、W0-22b、W0-25、W0-28、W0-29、W0-30、W0-30a）；行尾的括注是那一天对着 main 核过的办结情况。接收方在 M1 的各行（第 28、33–51 行）已写进接收方的任务书，这里留作出处；第 12 行里交给 W1-04 的那一半改归 W1-05（第 37 行）。main 上先有的第 26 行：W1-01b 登记 `staff.I8` 原已写进 W1-01b 的任务书，W0-24 先登记了（#54），任务书那两处已行内改成“不再登记”；发布流程在 `migrate deploy` 之后播种，已写进 W2-25（节点步骤 `seed`）与 W2-26（发布顺序）的任务书。第 27 行交给 W1-23 写进 G2-C 的任务书。
+第 28–60 行是 W0-31 加的（第 59、60 行是合并前接到 main 时补的）。第 67、68 行随商家鉴权 PR #58 合入 main，本台账 PR 同步时保留。第 61–66 行是 W1-01a、W1-03、W1-06、W1-10 各自的 PR 加的；第 64、65、66 行原来分别与第 62、63、61 行重号，2026-10-06 的台账 PR 改成现在的号，按行号引用它们的两份状态文件（W1-06、W1-10）跟着改了。两张表里首列写“—”的各行，是同一个台账 PR 照各状态文件的“往后移交”补的（W0-10、W0-22、W0-22b、W0-25、W0-28、W0-29、W0-30、W0-30a）；行尾的括注是那一天对着 main 核过的办结情况。接收方在 M1 的各行（第 28、33–51 行）已写进接收方的任务书，这里留作出处；第 12 行里交给 W1-04 的那一半改归 W1-05（第 37 行）。main 上先有的第 26 行：W1-01b 登记 `staff.I8` 原已写进 W1-01b 的任务书，W0-24 先登记了（#54），任务书那两处已行内改成“不再登记”；发布流程在 `migrate deploy` 之后播种，已写进 W2-25（节点步骤 `seed`）与 W2-26（发布顺序）的任务书。第 27 行交给 W1-23 写进 G2-C 的任务书。
 
 ## 6. 任务书加的前置（计划依赖列没有）
 
