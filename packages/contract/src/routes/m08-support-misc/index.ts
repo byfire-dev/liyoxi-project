@@ -36,3 +36,5 @@ export * from "./bootstrap.js";
 export * from "./me.js";
 export * from "./bootstrap.schemas.js";
 export * from "./overview.schemas.js";
+export * from "./dict-items.js";
+export * from "./dict-items.schemas.js";
