@@ -2695,7 +2695,7 @@ consume(eventId, subscriber, seq)：              -- events 队列的处理器�
 
 约定：
 
-1. 订阅者是普通函数，注册在 `packages/services/events/subscribers.ts`，注册时声明 `critical: boolean`；一个事件类型的订阅者通常 1～4 个。所有订阅者共用一条 `events` 队列；只有通知发送有自己的队列（通知模块按渠道限速）。
+1. 订阅者是普通函数，注册在 `packages/services/events/subscribers.ts`，注册时声明 `critical: boolean`；一个事件类型的订阅者通常 1～4 个。所有订阅者共用一条 `events` 队列；只有通知发送有自己的队列（通知模块按渠道限速）。**勘误（W0-15，随 2026-10-06 的台账 PR）**：没有集中的注册文件。处理器由各模块在自己的 `packages/services/src/<模块>/register.ts` 里登记（`subscribers` 一项）；名字、所属模块、是否关键类登记在契约的 `packages/contract/src/registry/`；`packages/services/src/events/subscribers.ts` 只是装配后按事件名索引的订阅者表。
 2. 订阅者不依赖事件到达顺序：处理前回库读对象当前状态，以状态和版本号为准（授权书用 `ensureLetters` 按状态收敛，§6.4）；需要顺序的展示（时间线）用 `occurred_at` 排序。
 3. 订阅者内的写操作同样走 `transition()`、带幂等键，重复事件不产生第二次效果。
 4. **扇出类订阅者只登记、不逐个处理**：一个事件要影响多个对象时（资质通过 → 多张订购单开工；版权续期 → 多个订单项重排），订阅者在自己的事务里只为每个对象登记一条定时器（`order.start`、`usage.resync`），每个对象随后在各自的事务里处理。这样一个对象出错（如某张订购单 `HOLD_NOT_ACTIVE`）不会让同批其他对象一起回滚、一起重试失败。
