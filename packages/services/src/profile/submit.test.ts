@@ -93,6 +93,67 @@ describe("资质提交十项校验", { timeout: 60000 }, () => {
     ).toBe(1);
     expect(await h.prisma.statusTransition.count({ where: { subjectId: approval.id } })).toBe(1);
   });
+  it("草稿取消确认后，本次提交的合法确认即可进入在审并写本次时间", async () => {
+    const { viewer } = await h.owner(),
+      ready = await complete(h, viewer);
+    const round = await h.prisma.qualificationSubmission.findUniqueOrThrow({
+      where: { id: ready.submissionId },
+    });
+    const draft = await h.profile.updateQualification(viewer, {
+      lockVersion: round.lockVersion,
+      declarationConfirmed: false,
+    });
+    expect(draft.openRound!.declarationConfirmedAt).toBeNull();
+    expect((await h.profile.get(viewer)).completeness.steps[3]!.missing).toEqual([
+      { item: "declaration", permitType: null },
+    ]);
+    h.clock.advance(60_000);
+    await submit(h, viewer, ready.submissionId);
+    const submitted = await h.prisma.qualificationSubmission.findUniqueOrThrow({
+      where: { id: ready.submissionId },
+    });
+    expect(submitted.declarationConfirmedAt).toEqual(h.clock.now());
+    expect(submitted.declarationVersion).toBe("1");
+    expect(submitted.submittedAt).toEqual(h.clock.now());
+    expect(
+      await h.prisma.storeProfile.findUniqueOrThrow({
+        where: { storeId: viewer.membership.storeId },
+      }),
+    ).toMatchObject({ completenessPct: 100, requiredFilled: 15, requiredTotal: 15 });
+  });
+  it.each([
+    [false, "1"],
+    [true, "old"],
+  ] as const)(
+    "草稿取消确认，本次 %s/%s 拒绝且不提交",
+    async (declarationConfirmed, declarationVersion) => {
+      const { viewer } = await h.owner(),
+        ready = await complete(h, viewer);
+      const round = await h.prisma.qualificationSubmission.findUniqueOrThrow({
+        where: { id: ready.submissionId },
+      });
+      await h.profile.updateQualification(viewer, {
+        lockVersion: round.lockVersion,
+        declarationConfirmed: false,
+      });
+      await expect(
+        h.profile.submit(viewer, {
+          qualificationSubmissionId: ready.submissionId,
+          declarationConfirmed,
+          declarationVersion,
+        }),
+      ).rejects.toMatchObject({ error: "DECLARATION_REQUIRED" });
+      expect(
+        await h.prisma.qualificationSubmission.findUniqueOrThrow({
+          where: { id: ready.submissionId },
+        }),
+      ).toMatchObject({
+        submittedAt: null,
+        declarationConfirmedAt: null,
+        declarationVersion: null,
+      });
+    },
+  );
   it("当前行业关闭、证照未手填、声明版本、已认证重复代码依次拒绝且仍草稿", async () => {
     const { viewer } = await h.owner(),
       ready = await complete(h, viewer);

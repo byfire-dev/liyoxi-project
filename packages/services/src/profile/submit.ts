@@ -33,7 +33,10 @@ export async function submitQualification(
   if (round.closedAt || round.submittedAt || s.open?.id !== round.id)
     throw new AppError("STATE_NOT_ALLOWED");
   const missing = s.completeness.steps.flatMap((step) =>
-    step.missing.map((item) => ({ step: step.step, ...item })),
+    // 草稿勾选只用于回显；提交确认独立按第 6 项的本次请求校验并在提交 UPDATE 写入。
+    step.missing
+      .filter((item) => !(step.step === 4 && item.item === "declaration"))
+      .map((item) => ({ step: step.step, ...item })),
   );
   if (missing.length) throw new AppError("STORE_PROFILE_INCOMPLETE", { details: { missing } });
   await validateBasics(

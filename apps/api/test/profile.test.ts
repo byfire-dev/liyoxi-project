@@ -241,8 +241,6 @@ describe("商家档案十三条生产接口", () => {
       await request("m.storeProfile.qualification.update", {
         lockVersion: null,
         claimedEntityType: "enterprise",
-        declarationConfirmed: true,
-        declarationVersion: "1",
       }),
     );
     const license = await file("kyc_license");
@@ -282,7 +280,11 @@ describe("商家档案十三条生产接口", () => {
     );
     const qview = await data<QualificationView>(await request("m.storeProfile.qualification.get"));
     expect(qview).toMatchObject({
-      openRound: { docs: [{ certNoMask: expect.stringContaining("****") }] },
+      openRound: {
+        declarationConfirmedAt: null,
+        declarationVersion: null,
+        docs: [{ certNoMask: expect.stringContaining("****") }],
+      },
     });
     expect(JSON.stringify(qview)).not.toContain(fields.uscc);
     expect(JSON.stringify(qview)).not.toContain(fields.principal);

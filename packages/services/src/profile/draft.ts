@@ -153,7 +153,7 @@ export async function saveDraft(
     lockVersion: { increment: 1 },
     updatedAt: now,
   };
-  await tx.qualificationSubmission.update({ where: { id: round.id }, data });
+  const saved = await tx.qualificationSubmission.update({ where: { id: round.id }, data });
   await ensureProfile(tx, viewer.membership.storeId, now);
   await linkCarried(tx, deps, viewer, carried);
   await refreshCompleteness(tx, viewer.membership.storeId, now);
@@ -165,14 +165,16 @@ export async function saveDraft(
     entityId: round.entityId,
     storeId: round.storeId,
     summary: "保存资质草稿",
-    fields: Object.keys(data).filter((key) => key !== "lockVersion" && key !== "updatedAt"),
+    fields: ["claimedEntityType", "declarationConfirmedAt", "declarationVersion"],
     before: {
       claimedEntityType: round.claimedEntityType,
+      declarationConfirmedAt: round.declarationConfirmedAt,
       declarationVersion: round.declarationVersion,
     },
     after: {
-      claimedEntityType: input.claimedEntityType ?? round.claimedEntityType,
-      declarationVersion: input.declarationVersion ?? null,
+      claimedEntityType: saved.claimedEntityType,
+      declarationConfirmedAt: saved.declarationConfirmedAt,
+      declarationVersion: saved.declarationVersion,
     },
   });
 }
