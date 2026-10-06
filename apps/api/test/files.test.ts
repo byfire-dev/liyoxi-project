@@ -251,6 +251,16 @@ describe("文件九接口生产处理器与鉴权", { timeout: 60_000 }, () => {
       ),
     );
     expect(await prisma.auditLog.count()).toBe(before + 2);
+    const access = await prisma.auditLog.findMany({
+      where: { targetId: receipt.fileId, action: "files.url.sign" },
+    });
+    expect(access).toHaveLength(2);
+    for (const row of access)
+      expect(row.meta).toEqual({
+        fileCategory: "pay_receipt",
+        urlTtlSec: 300,
+        purpose: "财务核对",
+      });
     await prisma.fileObject.update({
       where: { id: receipt.fileId },
       data: { moderationState: "block" },

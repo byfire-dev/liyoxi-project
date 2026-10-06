@@ -615,6 +615,55 @@ describe("W1-07 文件生命周期", { timeout: 60_000 }, () => {
     await media.downloadUrls(staff, { fileId: secure.fileId }, meta);
     await media.downloadUrls(staff, { fileId: secure.fileId }, meta);
     expect(await prisma.auditLog.count()).toBe(before + 2);
+    expect(
+      (await prisma.auditLog.findMany({ where: { targetId: secure.fileId } })).map(
+        (row) => row.meta,
+      ),
+    ).toEqual([
+      { fileCategory: "drama_license_doc", urlTtlSec: 300, purpose: null },
+      { fileCategory: "drama_license_doc", urlTtlSec: 300, purpose: null },
+    ]);
+    // 其余留痕分类使用本次签发秒数，不能把所有审计硬编码成 secure 的 300 秒。
+    for (const [category, bucket, ext, expected] of [
+      ["legal_doc", "secure", "pdf", 1800],
+      ["sample_video", "media", "mp4", 3600],
+      ["final_episode", "media", "mp4", 1800],
+    ] as const) {
+      const file = await make.fileObject({
+        category,
+        bucket,
+        ext,
+        ...(category === "legal_doc"
+          ? {}
+          : {
+              scopeType: "store",
+              entityId: actor.merchant!.entityId,
+              storeId: actor.merchant!.storeId,
+            }),
+      });
+      if (category === "legal_doc") {
+        const version = await make.agreementVersion({
+          status: "draft",
+          sourceFileId: file.id,
+          pdfFileId: file.id,
+        });
+        await tx.run((handle) =>
+          media.link(handle, {
+            fileId: file.id,
+            refType: "agreement_version",
+            refId: version.id,
+            role: "pdf",
+            entityId: null,
+            storeId: null,
+          }),
+        );
+      }
+      const signed = await media.downloadUrls(staff, { fileId: file.id, purpose: "核对" }, meta);
+      expect((Date.parse(signed.expiresAt) - clock.now().getTime()) / 1000).toBe(expected);
+      expect(
+        (await prisma.auditLog.findFirstOrThrow({ where: { targetId: file.id } })).meta,
+      ).toEqual({ fileCategory: category, urlTtlSec: expected, purpose: "核对" });
+    }
   });
   it("按键端口冲突在构造阶段失败", () => {
     const duplicate = defineRegistration("lyxtest_media_duplicate", {

@@ -59,7 +59,7 @@ export function createMedia(options: MediaDeps) {
     putSystemFile: (
       ...args: Parameters<typeof putSystemFile> extends [unknown, ...infer A] ? A : never
     ) => putSystemFile(deps, ...args),
-    signRead,
+    signRead: async (input: Parameters<typeof signRead>[0]) => (await signRead(input)).signed,
     assertReadableByStaff: readableByStaff,
     downloadUrls: (
       ...args: Parameters<typeof downloadUrls> extends [unknown, unknown, ...infer A] ? A : never

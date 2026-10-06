@@ -38,6 +38,7 @@ export function createSigner(deps: BoundMediaDeps) {
     });
     const now = deps.clock.now();
     const expiresAt = readUrlExpiry(categoryOf(file), file.ext, now, input.audience);
+    const urlTtlSec = Math.ceil((expiresAt.getTime() - now.getTime()) / 1000);
     const stable = file.bucket !== "secure" && ["jpg", "jpeg", "png"].includes(file.ext);
     const key = `${file.id}:${input.disposition ?? "inline"}:${expiresAt.getTime()}`;
     for (const old of windows.keys())
@@ -49,7 +50,7 @@ export function createSigner(deps: BoundMediaDeps) {
           await deps.storage.presignGet({
             bucket: UPLOAD_CATEGORIES[categoryOf(file)].bucket,
             key: file.objectKey,
-            expiresSec: Math.ceil((expiresAt.getTime() - now.getTime()) / 1000),
+            expiresSec: urlTtlSec,
             disposition: input.disposition ?? "inline",
             ...(input.disposition === "attachment" && file.originalName
               ? { downloadName: file.originalName }
@@ -63,7 +64,7 @@ export function createSigner(deps: BoundMediaDeps) {
         void result.catch(() => windows.delete(key));
       }
     }
-    return result;
+    return { signed: await result, urlTtlSec };
   };
 }
 export async function downloadUrls(
@@ -80,7 +81,7 @@ export async function downloadUrls(
     requireStored(file);
     return file;
   }, options);
-  const signed = await signRead(input);
+  const { signed, urlTtlSec } = await signRead(input);
   if (file.bucket === "secure" || ["sample_video", "final_episode"].includes(file.category)) {
     await deps.tx.run(async (tx) => {
       const current = await readableByStaff(tx, actor.staff!, input.fileId);
@@ -94,7 +95,7 @@ export async function downloadUrls(
         ...(file.entityId === null
           ? { entityId: null, storeId: null }
           : { entityId: file.entityId, storeId: file.storeId }),
-        meta: { purpose: input.purpose ?? null },
+        meta: { fileCategory: file.category, urlTtlSec, purpose: input.purpose ?? null },
       });
     });
   }
