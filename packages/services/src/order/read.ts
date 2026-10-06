@@ -19,7 +19,11 @@ const TIMELINE = [
   "usage_ended",
 ] as const;
 // a 只创建待开工单：后续履约、售后、授权书字段明确留桩；b 在此基础上扩充读取。
-export async function detail(tx: Tx, actor: OrderActor, id: string): Promise<OrderDetail> {
+export async function detail(
+  tx: Tx,
+  actor: { membership: Pick<OrderActor["membership"], "storeId" | "entityId"> },
+  id: string,
+): Promise<OrderDetail> {
   const o = await tx.dramaOrder.findFirst({
     where: { id, storeId: actor.membership.storeId, entityId: actor.membership.entityId },
     include: {
