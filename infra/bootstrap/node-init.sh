@@ -98,10 +98,16 @@ docker_version="$(docker version --format '{{.Server.Version}}' 2>/dev/null)" ||
 compose_version="$(docker compose version --short 2>/dev/null)" || stop "没有 docker compose 这个子命令：要装 Compose v2"
 echo "  Docker ${docker_version}，Compose $compose_version"
 
-running="$(docker ps --format '{{.Names}} {{.Label "com.docker.compose.project"}}' 2>/dev/null)"
+running="$(docker ps --format '{{.Names}} {{.Label "com.docker.compose.project"}}' 2>/dev/null)" || stop "无法核对正在运行的 Docker 容器"
 ref_containers="$(printf '%s\n' "$running" | awk -v ref="$REF_NAME" '$2 == ref || $1 ~ ("^" ref "[-_]") { print $1 }' | tr '\n' ' ')"
 [ -z "${ref_containers// /}" ] || stop "参考工程的容器在跑：${ref_containers}。它应该是停着的（ADR-041 第 5.1 节）：先弄清是谁起的，本脚本不处置它"
-ref_processes="$(pgrep -fl "$REF_NAME" 2>/dev/null | grep -v "${REF_NAME}xi" | grep -v 'node-init' | head -n 5)"
+processes="$(pgrep -fl "$REF_NAME" 2>/dev/null)"
+process_status=$?
+case "$process_status" in
+  0 | 1) ;;
+  *) stop "无法核对参考工程的进程（pgrep 退出码 ${process_status}）" ;;
+esac
+ref_processes="$(printf '%s\n' "$processes" | grep -v "${REF_NAME}xi" | grep -v 'node-init' | head -n 5)"
 [ -z "$ref_processes" ] || stop "参考工程的进程在跑（命令行里带 ${REF_NAME}）：
 $ref_processes
 它应该已经停用（ADR-041 第 5.1 节）：先弄清是谁起的，本脚本不处置它"
@@ -109,9 +115,10 @@ echo "  参考工程没有在跑的容器与进程"
 
 is_cidr "$SUBNET" || stop "stg.env 的 LYX_NODE_SUBNET 不是 IPv4 网段"
 case "$PORT" in "" | *[!0-9]*) stop "stg.env 的 LYX_GATEWAY_PORT 不是端口号" ;; esac
-holder="$(ss -ltnH 2>/dev/null | awk -v port=":$PORT" '$4 ~ (port "$") { print $4 }' | head -n 1)"
+listeners="$(ss -ltnH 2>/dev/null)" || stop "无法核对监听端口（ss）"
+holder="$(printf '%s\n' "$listeners" | awk -v port=":$PORT" '$4 ~ (port "$") { print $4 }' | head -n 1)"
 if [ -n "$holder" ]; then
-  ours="$(docker ps --filter "name=^${LYX_NODE_PREFIX}-gateway$" --format '{{.Ports}}' 2>/dev/null)"
+  ours="$(docker ps --filter "name=^${LYX_NODE_PREFIX}-gateway$" --format '{{.Ports}}' 2>/dev/null)" || stop "无法核对 gateway 的端口归属"
   case "$ours" in
     *":$PORT->"*) echo "  端口 $PORT 由我们自己的 gateway 占着" ;;
     *) stop "端口 $PORT 被别的进程占着（${holder}）。gateway 要占回环地址的这个端口：先弄清是谁（ss -ltnp），或在 stg.env 里换一个端口" ;;
@@ -120,16 +127,21 @@ else
   echo "  端口 $PORT 空闲"
 fi
 
-networks="$(docker network ls --format '{{.Name}}' 2>/dev/null | while read -r name; do
-  docker network inspect -f '{{.Name}} {{range .IPAM.Config}}{{.Subnet}} {{end}}' "$name" 2>/dev/null
-done)"
+network_names="$(docker network ls --format '{{.Name}}' 2>/dev/null)" || stop "无法列出 Docker 网络"
+networks=""
+while read -r name; do
+  [ -n "$name" ] || continue
+  network="$(docker network inspect -f '{{.Name}} {{range .IPAM.Config}}{{.Subnet}} {{end}}' "$name" 2>/dev/null)" || stop "无法核对 Docker 网络 $name"
+  networks="${networks}${network}"$'\n'
+done <<<"$network_names"
+addresses="$(ip -4 -o addr show 2>/dev/null)" || stop "无法核对本机网卡网段（ip）"
 clash="$(printf '%s\n' "$networks" | while read -r name subnets; do
   [ "$name" = "${LYX_NODE_PREFIX}-node" ] && continue
   for one in $subnets; do
     if is_cidr "$one" && overlaps "$SUBNET" "$one"; then echo "Docker 网络 ${name}（${one}）"; fi
   done
 done
-ip -4 -o addr show 2>/dev/null | awk '$2 !~ /^(lo|docker|br-|veth)/ { print $2, $4 }' | while read -r dev addr; do
+printf '%s\n' "$addresses" | awk '$2 !~ /^(lo|docker|br-|veth)/ { print $2, $4 }' | while read -r dev addr; do
   if is_cidr "$addr" && overlaps "$SUBNET" "$addr"; then echo "网卡 ${dev}（${addr}）"; fi
 done)"
 [ -z "$clash" ] || stop "网段 $SUBNET 与已有的相撞：$(printf '%s' "$clash" | tr '\n' ' ')。在 stg.env 里把 LYX_NODE_SUBNET 与 LYX_TRUSTED_PROXY_CIDRS 换成不相撞的一段"

@@ -844,6 +844,43 @@ describe("node-init.sh（任务书 第 7 节第 6 条；系统命令全部桩掉
     expect(result.output).toContain("由我们自己的 gateway 占着");
   });
 
+  it.each<[string, Rule[], string]>([
+    [
+      "容器盘点失败",
+      [{ match: "^docker ps --format", status: 1 }],
+      "无法核对正在运行的 Docker 容器",
+    ],
+    ["pgrep 工具缺失", [{ match: "^pgrep ", status: 127 }], "无法核对参考工程的进程"],
+    ["pgrep 执行失败", [{ match: "^pgrep ", status: 2 }], "无法核对参考工程的进程"],
+    ["ss 工具缺失", [{ match: "^ss -ltnH$", status: 127 }], "无法核对监听端口"],
+    ["ss 执行失败", [{ match: "^ss -ltnH$", status: 1 }], "无法核对监听端口"],
+    [
+      "gateway 端口归属盘点失败",
+      [
+        { match: "^ss -ltnH$", stdout: "LISTEN 0 511 127.0.0.1:8080 0.0.0.0:*\n" },
+        { match: "^docker ps --filter", status: 1 },
+      ],
+      "无法核对 gateway 的端口归属",
+    ],
+    ["网络列表失败", [{ match: "^docker network ls", status: 1 }], "无法列出 Docker 网络"],
+    [
+      "逐项网络盘点失败",
+      [{ match: "^docker network inspect", status: 1 }],
+      "无法核对 Docker 网络 bridge",
+    ],
+    ["ip 工具缺失", [{ match: "^ip -4 -o addr show$", status: 127 }], "无法核对本机网卡网段"],
+    ["ip 执行失败", [{ match: "^ip -4 -o addr show$", status: 1 }], "无法核对本机网卡网段"],
+  ])("%s：核对状态未知时停止，执行模式也没有任何写入", (_name, extra, reason) => {
+    const { base, env, rules } = setup();
+    const result = sh(NODE_INIT, [], { env, fakes: FAKES, rules: [...extra, ...rules] });
+    expect(result.status).toBe(1);
+    expect(result.output).toContain(reason);
+    expect(result.output).toContain("什么都没有改");
+    expect(result.output).not.toContain("会做什么");
+    expect(changed(result.lines)).toEqual([]);
+    expect(readdirSync(base).toSorted()).toEqual(["deploy.pub"]);
+  });
+
   it("不是 root 又不带 --dry-run、公钥文件写法不对：以 2 退出", () => {
     const { base, env, rules } = setup();
     const notRoot = sh(NODE_INIT, [], {
