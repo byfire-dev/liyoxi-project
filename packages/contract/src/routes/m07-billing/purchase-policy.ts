@@ -1,8 +1,14 @@
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import { PurchasePolicySchema } from "./purchase.schemas.js";
 // 商家端：套餐、积分、付款与发票 · purchase-policy（docs/api/m07-billing.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
 
-export const mPurchasePolicyGet = merchantMeta({
+export const mPurchasePolicyGet = merchantRoute({
+  responses: {
+    ...okResponse(PurchasePolicySchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
   method: "get",
   path: "/m/purchase-policy",
   operationId: "m.purchasePolicy.get",

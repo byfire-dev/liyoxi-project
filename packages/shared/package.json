@@ -87,6 +87,10 @@
     "./catalog": {
       "types": "./src/catalog/index.ts",
       "default": "./src/catalog/index.ts"
+    },
+    "./purchase-policy": {
+      "types": "./src/purchase-policy/index.ts",
+      "default": "./src/purchase-policy/index.ts"
     }
   },
   "scripts": {

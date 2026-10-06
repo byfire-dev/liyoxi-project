@@ -1,8 +1,11 @@
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import { PlanListSchema, PlanQuoteBodySchema, PlanQuoteSchema } from "./purchase.schemas.js";
 // 商家端：套餐、积分、付款与发票 · plans（docs/api/m07-billing.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
 
-export const mPlanList = merchantMeta({
+export const mPlanList = merchantRoute({
+  responses: { ...okResponse(PlanListSchema), ...errorResponses(400, 401, 403, 404, 409, 503) },
   method: "get",
   path: "/m/plans",
   operationId: "m.plan.list",
@@ -13,7 +16,11 @@ export const mPlanList = merchantMeta({
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
 });
 
-export const mPlanQuote = merchantMeta({
+export const mPlanQuote = merchantRoute({
+  responses: { ...okResponse(PlanQuoteSchema), ...errorResponses(400, 401, 403, 404, 409, 503) },
+  request: {
+    body: { required: true, content: { "application/json": { schema: PlanQuoteBodySchema } } },
+  },
   method: "post",
   path: "/m/plans/quote",
   operationId: "m.plan.quote",

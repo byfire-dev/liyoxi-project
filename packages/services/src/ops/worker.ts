@@ -7,7 +7,8 @@ import type { PrismaClient } from "@liyoxi/db";
 import { bindContent } from "../content/index.js";
 import { createMedia } from "../media/index.js";
 import type { PromoteRef } from "../media/index.js";
-import { advanceDueAccounts, createLedger } from "../billing/index.js";
+import { advanceDueAccounts, createLedger, bindBillingTimers } from "../billing/index.js";
+import { createFlow } from "../flow/index.js";
 import type { AdvanceSweepOptions, AdvanceSweepResult } from "../billing/index.js";
 import { consumeDelivery, createEvents, dispatchDue, EXPAND_BATCH_SIZE } from "../events/index.js";
 import type {
@@ -80,6 +81,7 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  readonly closeBillingTimers?: () => void;
   promoteFile(ref: PromoteRef): Promise<void>;
   scanPromote(): Promise<number>;
   readonly assembly: Assembly;
@@ -120,6 +122,11 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const tx = createTxRunner({ prisma, appEnv: options.appEnv, report: options.report });
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
+  const closeBillingTimers = bindBillingTimers({
+    clock,
+    flow: createFlow({ assembly, clock, events }),
+    timers,
+  });
   const logger = options.logger ?? silent;
   const providers = options.providers ?? assembleProviders({ appEnv: options.appEnv, logger });
   const media = createMedia({ tx, clock, assembly, events, storage: providers.storage, channel });
@@ -140,6 +147,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const laggards = new Map<string, number>();
   const timing = { tx, assembly, registry: timers.registry, clock, alerts, channel };
   return {
+    closeBillingTimers,
     promoteFile: (ref) => media.promote(ref),
     scanPromote: () => media.scanPromote(),
     assembly,
