@@ -1,5 +1,5 @@
 import { useUploadBusy } from "@/lib/upload/taro";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { View } from "@tarojs/components";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -7,21 +7,23 @@ import { Checkbox } from "@/components/Checkbox";
 import { Note } from "@/components/Note";
 import { Timeline } from "@/components/Timeline";
 import { StatusTag, merchantStatusByEnum } from "@/components/StatusTag";
-import { withSubscribe } from "@/lib/runtime";
+import { withProfileSubscribe } from "../private/subscription";
 import { appDateTimeFormat as fmtMerchant } from "@liyoxi/shared/format/datetime";
 import { Frame, Feedback, navigate, useAction, useResource } from "../private/ui";
-import { profileRuntime } from "../private/runtime";
+import { profileContext, profileRuntime } from "../private/runtime";
 export default function Review() {
   const uploading = useUploadBusy();
   const resource = useResource((api) => api.qualification());
   const action = useAction("qualification_resubmit");
+  const pendingAuthorization = useRef<string | null>(null);
+  const [authorizingContext, setAuthorizingContext] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
   const data = resource.data;
   const owner = data?.viewerRole === "owner" ? data : null;
   const round = owner?.openRound ?? owner?.lastClosedRound;
   const tag =
     data && merchantStatusByEnum("store.qualification_status", data.storeQualificationStatus);
-  const declarationKey = `${owner?.declaration.currentVersion ?? ""}|${owner?.openRound?.qualificationSubmissionId ?? ""}`;
+  const declarationKey = `${profileContext()}|${owner?.declaration.currentVersion ?? ""}|${owner?.openRound?.qualificationSubmissionId ?? ""}`;
   const [confirmedKey, setConfirmedKey] = useState(declarationKey);
   if (confirmedKey !== declarationKey) {
     setConfirmedKey(declarationKey);
@@ -152,22 +154,36 @@ export default function Review() {
               <Button
                 block
                 disabled={!agreed || uploading}
-                loading={action.busy}
-                onClick={withSubscribe("profile_submit", () => {
+                loading={action.busy || authorizingContext === profileContext()}
+                onClick={() => {
+                  const context = profileContext();
+                  if (pendingAuthorization.current === context || !action.isCurrent(context))
+                    return;
+                  pendingAuthorization.current = context;
+                  setAuthorizingContext(context);
                   const body = {
                     qualificationSubmissionId: owner.openRound!.qualificationSubmissionId,
                     declarationConfirmed: agreed,
                     declarationVersion: owner.declaration.currentVersion,
                   };
-                  void action
-                    .run(body, (key) => profileRuntime().then(({ api }) => api.submit(body, key)))
-                    .then(async (value) => {
-                      if (value) {
+                  withProfileSubscribe("profile_submit", async () => {
+                    try {
+                      if (!action.isCurrent(context)) return;
+                      const value = await action.run(body, (key) =>
+                        profileRuntime().then(({ api }) => api.submit(body, key)),
+                      );
+                      if (value && action.isCurrent(context)) {
                         setAgreed(false);
                         await resource.load();
                       }
-                    });
-                })}
+                    } finally {
+                      if (pendingAuthorization.current === context) {
+                        pendingAuthorization.current = null;
+                        if (action.isCurrent(context)) setAuthorizingContext(null);
+                      }
+                    }
+                  })();
+                }}
               >
                 重新提交审核
               </Button>

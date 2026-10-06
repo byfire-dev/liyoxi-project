@@ -1,5 +1,5 @@
 import { useUploadBusy } from "@/lib/upload/taro";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { View } from "@tarojs/components";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -7,11 +7,11 @@ import { Checkbox } from "@/components/Checkbox";
 import { FooterBar } from "@/components/FooterBar";
 import { Note } from "@/components/Note";
 import { StepBar } from "@/components/StepBar";
-import { withSubscribe } from "@/lib/runtime";
+import { withProfileSubscribe } from "../private/subscription";
 import { Certificate } from "../private/certificates";
 import { Frame, Feedback, TextField, STEP_NAMES, useAction, useResource } from "../private/ui";
 import { useDraft } from "../private/draft";
-import { profileRuntime } from "../private/runtime";
+import { profileContext, profileRuntime } from "../private/runtime";
 export default function Cert() {
   const uploading = useUploadBusy();
   const resource = useResource(async (api) => ({
@@ -20,6 +20,8 @@ export default function Cert() {
   }));
   const action = useAction("qualification_save", 4);
   const submit = useAction("qualification_submit");
+  const pendingAuthorization = useRef<string | null>(null);
+  const [authorizingContext, setAuthorizingContext] = useState<string | null>(null);
   const data = resource.data?.qualification;
   const owner = data?.viewerRole === "owner" ? data : null;
   const round = owner?.openRound;
@@ -43,7 +45,7 @@ export default function Cert() {
     setContact((old) => ({ ...old, phoneSource }));
   const setPhone = (phone: string) => setContact((old) => ({ ...old, phone }));
   const [agreed, setAgreed] = useState(false);
-  const declarationKey = `${owner?.declaration.currentVersion ?? ""}|${round?.qualificationSubmissionId ?? ""}`;
+  const declarationKey = `${profileContext()}|${owner?.declaration.currentVersion ?? ""}|${round?.qualificationSubmissionId ?? ""}`;
   const [confirmedKey, setConfirmedKey] = useState(declarationKey);
   if (confirmedKey !== declarationKey) {
     setConfirmedKey(declarationKey);
@@ -247,23 +249,37 @@ export default function Cert() {
             <FooterBar>
               <Button
                 block
-                loading={submit.busy}
+                loading={submit.busy || authorizingContext === profileContext()}
                 disabled={!agreed || uploading}
-                onClick={withSubscribe("profile_submit", () => {
+                onClick={() => {
+                  const context = profileContext();
+                  if (pendingAuthorization.current === context || !submit.isCurrent(context))
+                    return;
+                  pendingAuthorization.current = context;
+                  setAuthorizingContext(context);
                   const body = {
                     qualificationSubmissionId: round.qualificationSubmissionId,
                     declarationConfirmed: agreed,
                     declarationVersion: owner.declaration.currentVersion,
                   };
-                  void submit
-                    .run(body, (key) => profileRuntime().then(({ api }) => api.submit(body, key)))
-                    .then(async (value) => {
-                      if (value) {
+                  withProfileSubscribe("profile_submit", async () => {
+                    try {
+                      if (!submit.isCurrent(context)) return;
+                      const value = await submit.run(body, (key) =>
+                        profileRuntime().then(({ api }) => api.submit(body, key)),
+                      );
+                      if (value && submit.isCurrent(context)) {
                         setAgreed(false);
                         await load();
                       }
-                    });
-                })}
+                    } finally {
+                      if (pendingAuthorization.current === context) {
+                        pendingAuthorization.current = null;
+                        if (submit.isCurrent(context)) setAuthorizingContext(null);
+                      }
+                    }
+                  })();
+                }}
               >
                 提交资质审核
               </Button>

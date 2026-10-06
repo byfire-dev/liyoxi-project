@@ -98,7 +98,7 @@ export function useAction(action: string, step?: 1 | 2 | 3 | 4) {
     body: unknown,
     call: (key: string) => Promise<T>,
   ): Promise<T | undefined> => {
-    if (locked.current) return undefined;
+    if (!live.current || locked.current) return undefined;
     locked.current = true;
     const context = profileContext();
     setError(null);
@@ -119,7 +119,13 @@ export function useAction(action: string, step?: 1 | 2 | 3 | 4) {
       if (live.current) setBusy(false);
     }
   };
-  return { run, busy, error, setError };
+  return {
+    run,
+    busy,
+    error,
+    setError,
+    isCurrent: (context: string) => live.current && context === profileContext(),
+  };
 }
 export function Frame({
   loading,

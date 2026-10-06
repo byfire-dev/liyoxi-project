@@ -28,6 +28,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromium } from "@playwright/test";
 import {
   profileContactRegression,
+  profileAuthorizationRegression,
   profileContextRegression,
   profileEditRegression,
 } from "../shots/profile-regressions.mjs";
@@ -351,6 +352,7 @@ async function shoot(target) {
     }
     if (target.scene === "cert-normal") {
       await profileContactRegression(page);
+      await profileAuthorizationRegression(page);
       await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
       await page.locator(".lyx-button").filter({ hasText: "提交资质审核" }).click();
       await page

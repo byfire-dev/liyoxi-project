@@ -15,6 +15,9 @@ export function profileRuntime() {
       if (scene) {
         const { offlineProfile } = await import("../../../../shots/profile-fixtures");
         const fixture = offlineProfile(scene);
+        const { profileAuthorizationProbe } =
+          await import("../../../../shots/profile-authorization");
+        const authorization = profileAuthorizationProbe();
         (globalThis as { __LYX_PROFILE_CALLS__?: typeof fixture.calls }).__LYX_PROFILE_CALLS__ =
           fixture.calls;
         const reloadMe = async () => {
@@ -26,15 +29,22 @@ export function profileRuntime() {
         (
           globalThis as {
             __LYX_PROFILE_CONTROL__?: typeof fixture.control & {
+              authorization: typeof authorization;
               switchStore(): void;
               logout(): void;
             };
           }
         ).__LYX_PROFILE_CONTROL__ = {
           ...fixture.control,
+          authorization,
           switchStore() {
             fixture.control.replaceStore();
-            useContextStore.getState().switchStore("00000000-0000-4000-8000-000000000099");
+            const current = useContextStore.getState();
+            current.switchStore(
+              current.currentStoreId === "00000000-0000-4000-8000-000000000099"
+                ? "00000000-0000-4000-8000-000000000098"
+                : "00000000-0000-4000-8000-000000000099",
+            );
           },
           logout() {
             useSessionStore.getState().clear();

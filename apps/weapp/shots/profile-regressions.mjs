@@ -99,6 +99,50 @@ export async function profileContactRegression(page) {
   expect(writes.map((call) => call.data.lockVersion)).toEqual([1, 2]);
   expect(writes[1].data.phone).toBe("13700130000");
 }
+export async function profileAuthorizationRegression(page) {
+  const start = async () => {
+    await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
+    await page.evaluate(() => globalThis.__LYX_PROFILE_CONTROL__.authorization.defer());
+    await button(page, "提交资质审核").dblclick();
+    await expect
+      .poll(() => page.evaluate(() => globalThis.__LYX_PROFILE_CONTROL__.authorization.asks()))
+      .toBe(1);
+  };
+  const settle = async () => {
+    const before = await page.evaluate(() => ({
+      calls: globalThis.__LYX_PROFILE_CALLS__.length,
+      url: globalThis.location.href,
+    }));
+    await page.evaluate(() => globalThis.__LYX_PROFILE_CONTROL__.authorization.settle());
+    expect(await page.evaluate(() => globalThis.__LYX_PROFILE_CALLS__.length)).toBe(before.calls);
+    expect(page.url()).toBe(before.url);
+    expect(
+      await page.evaluate(() =>
+        globalThis.__LYX_PROFILE_CALLS__.filter((call) =>
+          call.path.endsWith("/qualification/submit"),
+        ),
+      ),
+    ).toEqual([]);
+  };
+  await start();
+  await page.evaluate(() => globalThis.__LYX_PROFILE_CONTROL__.authorization.leave());
+  await expect(page).toHaveURL(/sub\/profile\/review\/index/);
+  await expect(page.locator("#profile-ready").getByText("审核进度", { exact: true })).toBeVisible();
+  await expect(page.locator("#profile-ready")).toBeVisible();
+  await settle();
+  await page.evaluate(() => globalThis.__LYX_PROFILE_CONTROL__.authorization.enter());
+  await expect(page).toHaveURL(/sub\/profile\/cert\/index/);
+  await expect(field(page, "联系人姓名")).toHaveValue("刷新仍保留的联系人");
+  await start();
+  await page.evaluate(() => globalThis.__LYX_PROFILE_CONTROL__.switchStore());
+  await expect(field(page, "联系人姓名")).toHaveValue("新门店联系人");
+  await expect(page.locator("#profile-ready")).toBeVisible();
+  await settle();
+  await expect(button(page, "提交资质审核")).not.toHaveClass(/lyx-button--loading/);
+  await expect(page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" })).not.toHaveClass(
+    /lyx-checkbox--checked/,
+  );
+}
 export async function profileContextRegression(page, kind) {
   await page.evaluate(() => globalThis.__LYX_PROFILE_CONTROL__.switchStore());
   await expect(page.locator("#profile-ready")).toBeVisible();
