@@ -326,6 +326,7 @@ case "$1" in
      n=$(cat "$LYX_FAKE_COUNT" 2>/dev/null || printf 0); n=$((n+1)); printf '%s' "$n" >"$LYX_FAKE_COUNT"
      if [ "\${LYX_FAKE_READY:-}" = flaps ] && [ "$n" = 2 ]; then printf 503; elif [ "\${LYX_FAKE_READY:-}" = fail ]; then printf 503; else printf 200; fi ;;
    *'/health') printf '{"version":"%s","worker":"ok"}' "\${LYX_FAKE_VERSION:-sha-222222222222}" ;;
+   *'http://127.0.0.1:8080/') printf '<meta name="lyx-build" content="%s">' "\${LYX_FAKE_PAGE_VERSION:-sha-222222222222}" ;;
   esac ;;
  run)
   while [ "$#" -gt 0 ] && [ "$1" != /helper/node-record.mjs ]; do shift; done
@@ -495,6 +496,17 @@ describe("真实 bash 节点发布步骤，Docker/systemd 替身", () => {
     expect(f.run("image-facts", [VERSION], { LYX_FAKE_MISSING: "1" }).status).toBe(1);
     expect(f.run("smoke", [VERSION]).status).toBe(0);
     expect(f.run("smoke", [VERSION], { LYX_FAKE_VERSION: OLD }).status).toBe(1);
+    expect(f.run("smoke", [VERSION], { LYX_FAKE_PAGE_VERSION: OLD }).status).toBe(1);
+    const successful = f.run("smoke", [VERSION]);
+    expect(
+      successful.calls
+        .filter(
+          (line) =>
+            line.includes("stg.liyoxi.timavia.com") &&
+            (line.endsWith("/healthz") || line.endsWith("/readyz")),
+        )
+        .every((line) => line.includes("Host: api.")),
+    ).toBe(true);
   });
   it("record 在当前旧镜像里执行真实 Node 校验，仅挂固定记录文件；首次拒绝仍可用目标本地镜像", () => {
     const f = fixture();

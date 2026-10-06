@@ -188,20 +188,24 @@ step_api_start() {
 
 step_smoke() {
   local tag="$1" host key path body version
-  for key in LYX_API_HOST LYX_ADMIN_HOST LYX_PORTAL_HOST; do
-    host="$(setting "$key")"
-    [ -n "$host" ] || die "冒烟缺少域名：$key"
-    for path in /healthz /readyz; do
-      docker exec "$(container gateway)" curl -fsS -o /dev/null -m 5 -H "Host: $host" "http://127.0.0.1:8080$path" || die "冒烟失败：$key$path"
-    done
-  done
   host="$(setting LYX_API_HOST)"
+  [ -n "$host" ] || die "冒烟缺少域名：LYX_API_HOST"
+  for path in /healthz /readyz; do
+    docker exec "$(container gateway)" curl -fsS -o /dev/null -m 5 -H "Host: $host" "http://127.0.0.1:8080$path" || die "冒烟失败：LYX_API_HOST$path"
+  done
   body="$(docker exec "$(container gateway)" curl -sS -m 5 -H "Host: $host" http://127.0.0.1:8080/health)" || die "版本冒烟请求失败"
   version="$(printf '%s' "$body" | sed -n 's/.*"version"[ ]*:[ ]*"\([A-Za-z0-9_.-]*\)".*/\1/p')"
   [ "$version" = "$tag" ] || die "版本冒烟不符：应该是 $tag"
   printf '%s' "$body" | grep -Eq '"worker" *: *"ok"' || die "冒烟：worker 没有持有租约"
+  # 实际网关仅 API 暴露探活；前端同名路径会 SPA 回落，故核入口与真实构建号。
+  for key in LYX_ADMIN_HOST LYX_PORTAL_HOST; do
+    host="$(setting "$key")"
+    [ -n "$host" ] || die "冒烟缺少域名：$key"
+    body="$(docker exec "$(container gateway)" curl -fsS -m 5 -H "Host: $host" http://127.0.0.1:8080/)" || die "前端入口冒烟请求失败：$key"
+    printf '%s' "$body" | grep -Fq "<meta name=\"lyx-build\" content=\"$tag\"" || die "前端入口构建号不符：$key"
+  done
   # 入口页与完整资源清单的连续探测由 W2-26b 接续；此处不假称全量资源验收。
-  say "三个域名探活、构建版本与 worker 冒烟通过：$tag"
+  say "API 探活、两个前端入口、构建版本与 worker 冒烟通过：$tag"
 }
 
 step_prune() {
