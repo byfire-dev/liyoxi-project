@@ -276,6 +276,125 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/delivery-plans/{deliveryPlanId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 交付方案：当前草稿、已推送版本、商家修改请求 */
+        get: operations["admin.deliveryPlan.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/delivery-plans/{deliveryPlanId}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 保存方案草稿：植入形式与广告位、定制重点、发布账号、约定上线日、上线方式（带 draftLockVersion） */
+        put: operations["admin.deliveryPlan.draft.replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/delivery-plans/{deliveryPlanId}/push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 推送方案给商家确认（生成方案版本；从已确认修订时须在变更窗口内） */
+        post: operations["admin.deliveryPlan.push"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/delivery-tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 交付工单列表：状态页签、关键字、交付经理（含未分配）、制作模型、平台、仅看超时；默认按紧急程度排序；也用于各队列视图 */
+        get: operations["admin.deliveryTicket.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/delivery-tickets/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 工单池页头统计与状态页签计数（处理中、超时或逾期、今日截止） */
+        get: operations["admin.deliveryTicket.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/delivery-tickets/{deliveryTicketId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 工单详情聚合：11 步进度、方案、广告、样片与质检、成片与发布、侧栏商家 / 订购单 / 负责人 / 时效 */
+        get: operations["admin.deliveryTicket.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/delivery-tickets/{deliveryTicketId}/assign-manager": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 分配交付经理（单选，显示在办量与轮询推荐，说明 ≤100 字）；进入方案确认并通知 */
+        post: operations["admin.deliveryTicket.assignManager"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/dict-items": {
         parameters: {
             query?: never;
@@ -762,6 +881,57 @@ export interface components {
             /** @enum {string} */
             result: "pass" | "fail" | "na";
         };
+        AdminDeliveryPlanDetail: {
+            actions: string[];
+            changeRequests: {
+                /** Format: uuid */
+                changeRequestId: string;
+                /** Format: date-time */
+                createdAt: string;
+                createdByName: string | null;
+                kinds: ("launch_date" | "account" | "customization" | "placement" | "ad" | "other")[];
+                note: string;
+                onVersionNo: number;
+                resolvedByVersionNo: number | null;
+            }[];
+            confirmedAt: string | null;
+            confirmedVersionNo: number | null;
+            currentVersionNo: number;
+            /** Format: uuid */
+            deliveryPlanId: string;
+            draft: components["schemas"]["AdminPlanContentView"];
+            draftLockVersion: number;
+            isOrderInAfterSale: boolean;
+            itemWindows: {
+                canChangeAccounts: boolean;
+                canChangeContent: boolean;
+                canReschedule: boolean;
+                /** Format: uuid */
+                orderItemId: string;
+                /** @enum {string} */
+                step: "assigning" | "plan_confirm" | "ad_prep" | "sample_making" | "sample_confirm" | "batch_compose" | "delivering" | "awaiting_launch" | "launch_verify" | "in_service" | "takedown" | "archived" | "terminated";
+            }[];
+            lockVersion: number;
+            /** Format: uuid */
+            orderId: string;
+            orderNo: string;
+            pushedAt: string | null;
+            staffDueAt: string | null;
+            /** @enum {string} */
+            status: "drafting" | "pending_confirm" | "revising" | "confirmed";
+            store: components["schemas"]["AdminStoreBrief"];
+            versions: {
+                changeSummary: string | null;
+                content: components["schemas"]["AdminPlanContentView"];
+                decideActorType: string | null;
+                decidedAt: string | null;
+                decision: ("confirmed" | "change_requested" | "superseded") | null;
+                /** Format: date-time */
+                pushedAt: string;
+                pushedBy: components["schemas"]["StaffBrief"];
+                versionNo: number;
+            }[];
+        };
         AdminFileCreateBody: {
             /** @enum {string} */
             category: "kyc_license" | "kyc_permit" | "pay_receipt" | "invoice" | "legal_doc" | "seal_image" | "consent_digest" | "drama_license_doc" | "evidence" | "export" | "profile_image" | "profile_video" | "profile_promo" | "store_asset" | "channel_screenshot" | "ticket_attachment" | "video_cover" | "drama_master" | "trailer_src" | "ad_video" | "sample_video" | "sample_wm" | "final_episode" | "package_zip" | "publish_list" | "trailer_out" | "poster" | "banner" | "pay_bill" | "wecom_qr" | "account_proof" | "portrait_auth";
@@ -960,22 +1130,10 @@ export interface components {
             };
         };
         AdminOrderItemRow: {
-            accounts: {
-                accountName: string;
-                accountUid: string;
-                /** Format: uuid */
-                channelAccountId: string;
-                /** @enum {string} */
-                platform: "douyin" | "wechat_channels" | (string & {});
-                /** @enum {string} */
-                status: "pending_verify" | "available" | "abnormal" | "unbound" | (string & {});
-            }[];
-            /** Format: date */
+            accounts: components["schemas"]["ChannelAccountBrief"][];
             agreedLaunchDate: string | null;
-            cancelReasonCode: ("merchant_request" | "store_closed" | "platform_fault" | "qualification_final" | (string & {})) | null;
-            /** Format: date-time */
+            cancelReasonCode: string | null;
             cancelledAt: string | null;
-            /** Format: date-time */
             capturedAt: string | null;
             chargePoints: number;
             convertedPoints: number;
@@ -992,7 +1150,7 @@ export interface components {
             /** Format: uuid */
             orderItemId: string;
             /** @enum {string} */
-            phase: "pending_start" | "producing" | "to_launch" | "live" | "ended" | "cancelled" | "refunded" | "terminated" | (string & {});
+            phase: "pending_start" | "producing" | "to_launch" | "live" | "ended" | "cancelled" | "refunded" | "terminated";
             /** Format: date-time */
             phaseChangedAt: string;
             placements: {
@@ -1001,23 +1159,20 @@ export interface components {
                 adNo: string;
                 boundVersionNo: number | null;
                 durationSec: number;
-                /** Format: date-time */
                 pinnedAt: string | null;
                 /** @enum {string} */
                 slot: "opening" | "ending";
             }[];
             pointHold: {
-                /** Format: date-time */
                 capturedAt: string | null;
                 /** Format: date-time */
                 heldAt: string;
                 /** Format: uuid */
                 pointHoldId: string;
-                /** @enum {string} */
-                status: "held" | "captured" | "released" | "refunded_partial" | "refunded_full" | (string & {});
+                status: string;
             };
             /** @enum {string} */
-            productionModel: "standard" | "advanced" | "top" | (string & {});
+            productionModel: "standard" | "advanced" | "top";
             refundRequestedPoints: number;
             returnedPoints: number;
             surchargeBp: number;
@@ -1025,14 +1180,14 @@ export interface components {
                 /** Format: uuid */
                 deliveryTicketId: string;
                 isPaused: boolean;
-                step: string;
+                /** @enum {string} */
+                step: "assigning" | "plan_confirm" | "ad_prep" | "sample_making" | "sample_confirm" | "batch_compose" | "delivering" | "awaiting_launch" | "launch_verify" | "in_service" | "takedown" | "archived" | "terminated";
                 ticketNo: string;
             } | null;
             /** Format: date */
             usageEndDate: string;
             /** @enum {string} */
-            usageEndSource: "license" | "early_end" | "expired" | (string & {});
-            /** Format: date */
+            usageEndSource: "license" | "early_end" | "expired";
             usageStartDate: string | null;
         };
         AdminOrderList: {
@@ -1040,6 +1195,19 @@ export interface components {
             page: number;
             pageSize: number;
             total: number;
+        };
+        AdminPlanContentView: {
+            focus: components["schemas"]["DictRef"][];
+            items: components["schemas"]["PlanItemContentView"][];
+            /** @enum {string} */
+            launchMode: "merchant_self";
+            note: string | null;
+            referenceAssets: {
+                /** Format: uuid */
+                storeAssetId: string;
+                title: string | null;
+                type: string;
+            }[];
         };
         AdminQualificationDoc: {
             certNoMask: string | null;
@@ -1465,6 +1633,344 @@ export interface components {
         ConfirmTotpBody: {
             code: string;
             ticket: string;
+        };
+        DeliveryTicketCard: {
+            actions: string[];
+            agreedLaunchDate: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            deliveredAt: string | null;
+            deliveryManager: components["schemas"]["StaffBrief"] | null;
+            /** Format: date-time */
+            deliveryTargetAt: string;
+            /** Format: uuid */
+            deliveryTicketId: string;
+            dramaTitle: string;
+            editor: components["schemas"]["StaffBrief"] | null;
+            episodeCount: number;
+            isPaused: boolean;
+            isStuck: boolean;
+            order: {
+                /** Format: uuid */
+                orderId: string;
+                orderNo: string;
+            };
+            /** Format: uuid */
+            orderItemId: string;
+            pauseReasons: ("cancel_review" | "plan_amendment")[];
+            platforms: ("douyin" | "wechat_channels")[];
+            /** @enum {string} */
+            productionModel: "standard" | "advanced" | "top";
+            publisher: components["schemas"]["StaffBrief"] | null;
+            /** @enum {string} */
+            schedulePriority: "standard" | "priority" | "rush";
+            /** @enum {string} */
+            step: "assigning" | "plan_confirm" | "ad_prep" | "sample_making" | "sample_confirm" | "batch_compose" | "delivering" | "awaiting_launch" | "launch_verify" | "in_service" | "takedown" | "archived" | "terminated";
+            stepDueAt: string | null;
+            /** Format: date-time */
+            stepEnteredAt: string;
+            store: components["schemas"]["AdminStoreBrief"];
+            ticketNo: string;
+            /** @enum {string} */
+            urgency: "normal" | "due_today" | "overdue";
+            /** Format: date */
+            usageEndDate: string;
+            /** @enum {string} */
+            waitingOn: "staff" | "merchant" | "none";
+        };
+        DeliveryTicketDetail: components["schemas"]["DeliveryTicketCard"] & {
+            ads: {
+                /** Format: uuid */
+                adId: string;
+                adNo: string;
+                boundVersionNo: number | null;
+                confirmedAt: string | null;
+                confirmedVersionNo: number | null;
+                copy: string | null;
+                dueAt: string | null;
+                durationSec: number;
+                freeRevisionsLeft: number;
+                inUseItemCount: number;
+                sameOrderItemCount: number;
+                sameOrderTickets: {
+                    /** Format: uuid */
+                    deliveryTicketId: string;
+                    dramaTitle: string;
+                    ticketNo: string;
+                }[];
+                /** @enum {string} */
+                slot: "opening" | "ending";
+                status: string;
+                type: string;
+            }[];
+            currentSample: {
+                actions: string[];
+                adSlots: {
+                    endMs: number;
+                    label: string;
+                    /** @enum {string} */
+                    slot: "opening" | "ending";
+                    startMs: number;
+                }[];
+                adsUsed: {
+                    /** Format: uuid */
+                    adId: string;
+                    adNo: string;
+                    isCurrentConfirmed: boolean;
+                    /** @enum {string} */
+                    slot: "opening" | "ending";
+                    versionNo: number;
+                }[];
+                confirmDueRemindAt: string | null;
+                decision: {
+                    decideClient: string;
+                    /** Format: date-time */
+                    decidedAt: string;
+                    decidedByName: string | null;
+                    feedbackImages: components["schemas"]["ImageRef"][] | null;
+                    feedbackKind: string | null;
+                    feedbackNote: string | null;
+                    feedbackTimeMs: number | null;
+                    onBehalfBy: components["schemas"]["StaffBrief"] | null;
+                    viewedVia: string | null;
+                } | null;
+                /** Format: uuid */
+                deliveryTicketId: string;
+                durationMs: number | null;
+                /** Format: uuid */
+                fileId: string;
+                firstViewedAt: string | null;
+                offlineSentAt: string | null;
+                offlineSentBy: components["schemas"]["StaffBrief"] | null;
+                preview: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    posterUrl: components["schemas"]["SignedUrl"] | null;
+                    url: string;
+                } | null;
+                previewChannels: string[];
+                production: {
+                    aigcState: string;
+                    gate: ("pass" | "reject") | null;
+                    pipelineState: string;
+                    softWarnCount: number;
+                } | null;
+                pushedAt: string | null;
+                pushedBy: components["schemas"]["StaffBrief"] | null;
+                qc: {
+                    /** @enum {string} */
+                    checklistCode: "qc.sample" | "qc.episode" | "qc.package";
+                    checklistVersionNo: number;
+                    /** Format: date-time */
+                    inspectedAt: string;
+                    inspectedBy: components["schemas"]["StaffBrief"];
+                    items: {
+                        key: string;
+                        label: string;
+                        merchantVisible: boolean;
+                        note: string | null;
+                        /** @enum {string} */
+                        result: "pass" | "fail" | "na";
+                    }[];
+                    /** Format: uuid */
+                    qcRecordId: string;
+                    rejectReason: string | null;
+                    /** Format: uuid */
+                    targetId: string;
+                    /** @enum {string} */
+                    targetType: "sample" | "episode_output" | "delivery_ticket";
+                    /** @enum {string} */
+                    verdict: "pass" | "fail";
+                } | null;
+                /** Format: uuid */
+                sampleId: string;
+                status: string;
+                /** Format: date-time */
+                uploadedAt: string;
+                uploadedBy: components["schemas"]["StaffBrief"];
+                versionNo: number;
+                viewedAckAt: string | null;
+                watermark: {
+                    fileId: string | null;
+                    /** Format: uuid */
+                    playableAssetId: string;
+                    state: string;
+                } | null;
+            } | null;
+            currentSampleVersionNo: number | null;
+            episodeProgress: {
+                currentPassedCount: number;
+                packageQc: {
+                    /** @enum {string} */
+                    checklistCode: "qc.sample" | "qc.episode" | "qc.package";
+                    checklistVersionNo: number;
+                    /** Format: date-time */
+                    inspectedAt: string;
+                    inspectedBy: components["schemas"]["StaffBrief"];
+                    items: {
+                        key: string;
+                        label: string;
+                        merchantVisible: boolean;
+                        note: string | null;
+                        /** @enum {string} */
+                        result: "pass" | "fail" | "na";
+                    }[];
+                    /** Format: uuid */
+                    qcRecordId: string;
+                    rejectReason: string | null;
+                    /** Format: uuid */
+                    targetId: string;
+                    /** @enum {string} */
+                    targetType: "sample" | "episode_output" | "delivery_ticket";
+                    /** @enum {string} */
+                    verdict: "pass" | "fail";
+                } | null;
+                rejectedCount: number;
+                totalEpisodes: number;
+                uploadedCount: number;
+            };
+            launch: {
+                liveCount: number;
+                needFixCount: number;
+                pendingCount: number;
+                taskCount: number;
+                tasks: {
+                    accountName: string;
+                    /** Format: uuid */
+                    channelAccountId: string;
+                    currentLaunchSubmissionId: string | null;
+                    currentRoundNo: number;
+                    isLive: boolean;
+                    /** Format: uuid */
+                    launchTaskId: string;
+                    /** @enum {string} */
+                    platform: "douyin" | "wechat_channels";
+                    reviewStatus: string;
+                }[];
+                verifyingCount: number;
+            };
+            lockVersion: number;
+            merchant: {
+                category: components["schemas"]["DictRef"] | null;
+                contactName: string | null;
+                contactPhoneMask: string | null;
+                industry: components["schemas"]["DictRef"] | null;
+                isWecomAdded: boolean;
+                province: components["schemas"]["DictRef"] | null;
+                store: components["schemas"]["AdminStoreBrief"];
+            };
+            milestones: {
+                adsReadyAt: string | null;
+                archivedAt: string | null;
+                assignedAt: string | null;
+                composedAt: string | null;
+                deliveredAt: string | null;
+                linksSubmittedAt: string | null;
+                liveAt: string | null;
+                planConfirmedAt: string | null;
+                sampleConfirmedAt: string | null;
+                sampleFirstPushedAt: string | null;
+                terminatedAt: string | null;
+                usageEndedAt: string | null;
+            };
+            openReissue: {
+                /** Format: uuid */
+                deliveryReissueId: string;
+                status: string;
+            } | null;
+            openUploadBatches: {
+                createdBy: components["schemas"]["StaffBrief"];
+                expectedCount: number;
+                /** Format: date-time */
+                expiresAt: string;
+                scope: string;
+                state: string;
+                /** Format: uuid */
+                uploadBatchId: string;
+            }[];
+            order?: {
+                itemCount: number;
+                /** Format: uuid */
+                orderId: string;
+                orderNo: string;
+                siblings: {
+                    /** Format: uuid */
+                    deliveryTicketId: string;
+                    dramaTitle: string;
+                    /** @enum {string} */
+                    step: "assigning" | "plan_confirm" | "ad_prep" | "sample_making" | "sample_confirm" | "batch_compose" | "delivering" | "awaiting_launch" | "launch_verify" | "in_service" | "takedown" | "archived" | "terminated";
+                    ticketNo: string;
+                }[];
+                status: string;
+                /** Format: date-time */
+                submittedAt: string;
+                totalChargePoints: number;
+            };
+            orderItem: components["schemas"]["AdminOrderItemRow"];
+            pauseRemainingMin: number | null;
+            pausedAt: string | null;
+            pauses: {
+                actorType: string;
+                /** Format: date-time */
+                createdAt: string;
+                reason: string;
+                /** Format: uuid */
+                refId: string;
+                refType: string;
+            }[];
+            plan: {
+                confirmedAt: string | null;
+                confirmedVersionNo: number | null;
+                currentVersionNo: number;
+                /** Format: uuid */
+                deliveryPlanId: string;
+                item: components["schemas"]["PlanItemContentView"] | null;
+                pushedAt: string | null;
+                pushedBy: components["schemas"]["StaffBrief"] | null;
+                /** @enum {string} */
+                status: "drafting" | "pending_confirm" | "revising" | "confirmed";
+            } | null;
+            publishList: {
+                isComplete: boolean;
+                /** Format: uuid */
+                publishListId: string;
+                savedAt: string | null;
+            } | null;
+            release: {
+                /** Format: uuid */
+                deliveryReleaseId: string;
+                episodeCount: number;
+                grantExpiresAt: string | null;
+                kind: string;
+                /** Format: date-time */
+                pushedAt: string;
+                releaseNo: string;
+                savedEpisodeCount: number;
+                totalBytes: string;
+            } | null;
+            remindScenes: ("confirm_plan" | "confirm_sample" | "golive")[];
+            sampleRoundNo: number;
+            samples: {
+                pushedAt: string | null;
+                /** Format: uuid */
+                sampleId: string;
+                status: string;
+                /** Format: date-time */
+                uploadedAt: string;
+                versionNo: number;
+            }[];
+            stages: {
+                completedAt: string | null;
+                dueAt: string | null;
+                /** Format: date-time */
+                enteredAt: string;
+                exitEvent: string | null;
+                isBreached: boolean;
+                pausedMinutes: number;
+                /** @enum {string} */
+                step: "assigning" | "plan_confirm" | "ad_prep" | "sample_making" | "sample_confirm" | "batch_compose" | "delivering" | "awaiting_launch" | "launch_verify" | "in_service" | "takedown" | "archived" | "terminated";
+                visitNo: number;
+            }[];
         };
         DictItemList: {
             items: components["schemas"]["DictItemView"][];
@@ -1949,6 +2455,48 @@ export interface components {
             transferState: "awaiting_proof" | "proof_submitted" | "proof_rejected" | "confirm_review" | (string & {}) | null;
             /** @enum {string} */
             type: "plan_new" | "plan_renew" | "plan_upgrade" | "topup" | (string & {});
+        };
+        PlanContentInput: {
+            focusCodes: string[];
+            items: {
+                agreedLaunchDate?: string | null;
+                channelAccountIds: string[];
+                expectedDeliveryDate?: string | null;
+                /** Format: uuid */
+                orderItemId: string;
+                placements: {
+                    /** Format: uuid */
+                    adId: string;
+                    /** @enum {string} */
+                    slot: "opening" | "ending";
+                }[];
+            }[];
+            /** @enum {string} */
+            launchMode: "merchant_self";
+            note?: string | null;
+            referenceAssetIds: string[];
+        };
+        PlanItemContentView: {
+            accounts: components["schemas"]["ChannelAccountBrief"][];
+            agreedLaunchDate: string | null;
+            allowedPlacements: ("opening" | "ending")[];
+            currentAgreedLaunchDate: string | null;
+            dramaTitle: string;
+            episodeCount: number;
+            expectedDeliveryDate: string | null;
+            /** Format: uuid */
+            orderItemId: string;
+            placements: {
+                /** Format: uuid */
+                adId: string;
+                adNo: string;
+                adStatus: string;
+                confirmedVersionNo: number | null;
+                copy: string | null;
+                durationSec: number;
+                /** @enum {string} */
+                slot: "opening" | "ending";
+            }[];
         };
         PoolMember: {
             city: components["schemas"]["DictRef"] | null;
@@ -3707,6 +4255,670 @@ export interface operations {
             };
             /** @description 外部能力不可用、系统繁忙或停机维护 */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.deliveryPlan.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deliveryPlanId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminDeliveryPlanDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.deliveryPlan.draft.replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deliveryPlanId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    content: components["schemas"]["PlanContentInput"];
+                    draftLockVersion: number;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminDeliveryPlanDetail"] & {
+                            replayed: boolean;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.deliveryPlan.push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deliveryPlanId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    changeSummary?: string;
+                    draftLockVersion: number;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminDeliveryPlanDetail"] & {
+                            replayed: boolean;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.deliveryTicket.list": {
+        parameters: {
+            query?: {
+                q?: string;
+                deliveryManagerId?: string | "none";
+                editorId?: string;
+                publisherId?: string;
+                productionModel?: "standard" | "advanced" | "top";
+                platform?: "douyin" | "wechat_channels";
+                overdueOnly?: "true" | "false";
+                storeId?: string;
+                entityId?: string;
+                orderId?: string;
+                agreedLaunchFrom?: string;
+                agreedLaunchTo?: string;
+                isPaused?: "true" | "false";
+                pausedBefore?: string;
+                isStuck?: "true" | "false";
+                todo?: "plan_push" | "sample_qc" | "staff_assign";
+                page?: number;
+                pageSize?: number;
+                tab?: "processing" | "assigning" | "plan_confirm" | "ad_prep" | "sample_making" | "sample_confirm" | "batch_compose" | "delivering" | "awaiting_launch" | "launch_verify" | "in_service" | "takedown" | "closed" | "delivered_today" | "all";
+                sort?: "urgency" | "-createdAt" | "stepDueAt" | "agreedLaunchDate";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: components["schemas"]["DeliveryTicketCard"][];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.deliveryTicket.summary": {
+        parameters: {
+            query?: {
+                q?: string;
+                deliveryManagerId?: string | "none";
+                editorId?: string;
+                publisherId?: string;
+                productionModel?: "standard" | "advanced" | "top";
+                platform?: "douyin" | "wechat_channels";
+                overdueOnly?: "true" | "false";
+                storeId?: string;
+                entityId?: string;
+                orderId?: string;
+                agreedLaunchFrom?: string;
+                agreedLaunchTo?: string;
+                isPaused?: "true" | "false";
+                pausedBefore?: string;
+                isStuck?: "true" | "false";
+                todo?: "plan_push" | "sample_qc" | "staff_assign";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            header: {
+                                dueToday: number;
+                                overdue: number;
+                                processing: number;
+                            };
+                            tabs: {
+                                ad_prep?: number;
+                                all?: number;
+                                assigning?: number;
+                                awaiting_launch?: number;
+                                batch_compose?: number;
+                                closed?: number;
+                                delivered_today?: number;
+                                delivering?: number;
+                                in_service?: number;
+                                launch_verify?: number;
+                                plan_confirm?: number;
+                                processing?: number;
+                                sample_confirm?: number;
+                                sample_making?: number;
+                                takedown?: number;
+                            };
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.deliveryTicket.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deliveryTicketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["DeliveryTicketDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.deliveryTicket.assignManager": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deliveryTicketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note?: string;
+                    /** Format: uuid */
+                    staffId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["DeliveryTicketDetail"] & {
+                            replayed: boolean;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };
