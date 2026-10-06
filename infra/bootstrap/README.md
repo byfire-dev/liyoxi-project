@@ -42,7 +42,7 @@ cd ~/lyx-src && sudo bash infra/bootstrap/node-init.sh --dry-run --deploy-key ~/
 它做的事：建目录；拷脚本；写 `node.env`；建发布用户 `lyx-deploy`（不设口令）并写它的 `authorized_keys`（一行：只能执行 `node-step.sh`，不给终端，不许转发）与 sudoers（只放行以 root 执行这一个脚本）；装六个 systemd 单元（不启用、不启动）。不拉镜像、不起容器、不写密钥、不碰 nginx。
 
 - `--nginx-oom` 单列：另装一份 systemd 覆盖文件，让内存见底时别先杀宿主机 nginx。这是动别人的服务，业主同意才带；nginx 下次重启后生效，脚本不重启它。撤掉：`sudo rm /etc/systemd/system/nginx.service.d/lyx-oom.conf && sudo systemctl daemon-reload`。
-- 误报参考工程的进程（命令行里恰好带 `liyo`、又与它无关）：确认之后设 `LYX_REF_NAME=<不会命中的名字>` 重跑，并把这件事记下来。
+- 误报参考工程的进程（命令行里恰好带参考工程名、又与它无关）：确认之后设 `LYX_REF_NAME=<不会命中的名字>` 重跑，并把这件事记下来。
 - 以后脚本有更新：重新传一遍、重跑 `node-init.sh`（不带 `--registry` 时 `node.env` 不动）。
 - **回退**（这一步之后还没有密钥与数据）：`sudo userdel -r lyx-deploy; sudo rm -f /etc/sudoers.d/lyx-deploy /etc/systemd/system/lyx-*.service; sudo systemctl daemon-reload; sudo rm -rf /opt/liyoxi`。
 

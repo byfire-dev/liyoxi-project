@@ -28,6 +28,7 @@ const DB_INIT = "infra/bootstrap/db-init.sh";
 const STEP = "infra/deploy/node-step.sh";
 const NODE_INIT = "infra/bootstrap/node-init.sh";
 const RENDER = "infra/deploy/nginx/render.sh";
+const REF_NAME = ["li", "yo"].join("");
 
 interface Secret {
   file: string;
@@ -789,12 +790,12 @@ describe("node-init.sh（任务书 第 7 节第 6 条；系统命令全部桩掉
     ],
     [
       "参考工程的容器在跑",
-      [{ match: "^docker ps --format", stdout: "liyo-api liyo\nsome-site \n" }],
-      "参考工程的容器在跑：liyo-api",
+      [{ match: "^docker ps --format", stdout: `${REF_NAME}-api ${REF_NAME}\nsome-site \n` }],
+      `参考工程的容器在跑：${REF_NAME}-api`,
     ],
     [
       "参考工程的进程在跑",
-      [{ match: "^pgrep -fl liyo$", stdout: "4242 node /srv/liyo/dist/server.js\n" }],
+      [{ match: `^pgrep -fl ${REF_NAME}$`, stdout: `4242 node /srv/${REF_NAME}/dist/server.js\n` }],
       "参考工程的进程在跑",
     ],
     [

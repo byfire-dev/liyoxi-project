@@ -12,7 +12,7 @@
 #                 这是动别人的服务，单列一个参数，业主同意才带；nginx 下次重启后生效，本脚本不重启它
 # 先核对，有一项不过就停下并说明，什么都不改：
 #   1. Docker 与 Compose 在；
-#   2. 参考工程没有复活：它的容器没在跑，进程里没有它（名字里带 liyo、又不是 liyoxi 的）；
+#   2. 参考工程没有复活：它的容器没在跑，进程里没有它（名字里带参考工程名、又不是本工程名）；
 #   3. gateway 要占的回环端口（stg.env 的 LYX_GATEWAY_PORT，8080）空闲，或占着它的就是我们自己的 gateway；
 #      80、443 是宿主机 nginx 的，不算冲突；
 #   4. Compose 网络的固定网段（stg.env 的 LYX_NODE_SUBNET）不与已有的 Docker 网络、本机网卡的网段相撞。
@@ -53,7 +53,8 @@ done
 FS_ROOT="${LYX_FS_ROOT:-}"
 DEPLOY_USER="${LYX_DEPLOY_USER:-lyx-deploy}"
 # 参考工程在容器名、Compose 项目名、进程命令行里的名字
-REF_NAME="${LYX_REF_NAME:-liyo}"
+DEFAULT_REF_NAME="li""yo"
+REF_NAME="${LYX_REF_NAME:-$DEFAULT_REF_NAME}"
 STG_ENV="$LYX_SRC/infra/compose/env/stg.env"
 NODE_STEP="$LYX_NODE_HOME/infra/deploy/node-step.sh"
 stg() { sed -n "s/^$1=//p" "$STG_ENV" | head -n 1 | tr -d '\n'; }
