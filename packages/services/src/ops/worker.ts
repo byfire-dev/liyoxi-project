@@ -7,7 +7,10 @@ import type { PrismaClient } from "@liyoxi/db";
 import { bindDelivery, reevaluateSweep } from "../delivery/index.js";
 import { createSla } from "../sla/index.js";
 import { bindContent } from "../content/index.js";
-import { bindOrder } from "../order/index.js";
+import { bindOrder, bindOrderStart } from "../order/index.js";
+import { assignDeliveryManager } from "../profile/index.js";
+import { recommendedStaff } from "../staff/index.js";
+import { createTenant } from "../tenant/index.js";
 import { bindPublish } from "../publish/index.js";
 import { createMedia } from "../media/index.js";
 import type { PromoteRef } from "../media/index.js";
@@ -131,7 +134,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const flow = createFlow({ assembly, clock, events });
-  const closeOrder = bindOrder({ assembly, clock, flow });
+  const closeDerive = bindOrder({ assembly, clock, flow });
   const closeBillingTimers = bindBillingTimers({
     clock,
     flow,
@@ -164,11 +167,23 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const delivery = { tx, subscribers: events.subscribers, channel, alerts };
   // 账本（W1-10）：每分钟扫描用它推进到点的主体
   const ledger = createLedger({ clock, events });
+  const tenant = createTenant({ tx, clock, flow, assembly });
+  const closeStart = bindOrderStart({
+    ...deliveryCore,
+    timers,
+    ledger,
+    recommendStaff: recommendedStaff,
+    assignManager: (t, ctx, input) =>
+      assignDeliveryManager(t, { clock, assembly, tenant }, ctx, input),
+  });
   // 扫描里出错过的主体（进程内的记忆）：下一轮排到正常的主体后面，不占着名额饿死别人
   const laggards = new Map<string, number>();
   const timing = { tx, assembly, registry: timers.registry, clock, alerts, channel };
   return {
-    closeOrder,
+    closeOrder: () => {
+      closeStart();
+      closeDerive();
+    },
     closeBillingTimers,
     closePublish,
     closeDelivery,
