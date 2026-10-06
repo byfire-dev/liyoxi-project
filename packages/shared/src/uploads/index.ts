@@ -40,7 +40,7 @@ export const UPLOAD_CATEGORIES = {
   seal_image: category("secure", "platform", ["png"]),
   consent_digest: category("secure", "platform", ["txt"]),
   drama_license_doc: category("secure", "platform", [...image, "pdf"], { system: true }),
-  evidence: category("secure", "store", image),
+  evidence: category("secure", "store", image, { admin: true }),
   export: category("secure", "platform", ["xlsx", "csv"], { minKeepDays: 0 }),
   profile_image: category("asset", "store", image, { merchant: true, crossStore: true }),
   profile_video: category("asset", "store", video, { merchant: true, crossStore: true }),

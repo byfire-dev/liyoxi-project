@@ -1,3 +1,4 @@
+import { publishHandlers } from "./publish.js";
 // 全部处理器的清单（W0-22）。各域的接口包：在本目录下建自己的文件（一条契约路由配一个 defineHandler），
 // 在这里加一行展开。探活不在这里，在 ../probes.ts。
 import { adminProfileHandlers } from "./admin/profile.js";
@@ -44,5 +45,6 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...billingHandlers,
   ...adminBillingHandlers,
   ...profileHandlers,
+  ...publishHandlers,
   ...adminProfileHandlers,
 ];

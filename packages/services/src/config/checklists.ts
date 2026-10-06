@@ -91,3 +91,21 @@ export function createChecklists(options: ChecklistsOptions): Checklists {
     },
   };
 }
+
+/** W1-14 清单表单与管理列表的只读原始投影；不改变 active/version 的缓存语义。 */
+export function listChecklistTemplates(
+  db: ConfigDb,
+  query: { code?: readonly string[]; status?: readonly string[]; allVersions?: boolean } = {},
+) {
+  return db.checklistTemplate.findMany({
+    where: {
+      ...(query.code ? { code: { in: [...query.code] } } : {}),
+      status: {
+        in: [
+          ...(query.status ?? (query.allVersions ? ["draft", "active", "retired"] : ["active"])),
+        ],
+      },
+    },
+    orderBy: [{ code: "asc" }, { versionNo: "desc" }],
+  });
+}

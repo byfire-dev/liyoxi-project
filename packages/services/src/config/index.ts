@@ -94,7 +94,7 @@ export type {
   Loaded,
   VersionStore,
 } from "./cache.js";
-export { createChecklists } from "./checklists.js";
+export { createChecklists, listChecklistTemplates } from "./checklists.js";
 export type { ChecklistCode, Checklists, ChecklistTemplateView } from "./checklists.js";
 export { createDicts } from "./dicts.js";
 export type { DictItemView, DictListOptions, Dicts, DictTypeItems } from "./dicts.js";
