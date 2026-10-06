@@ -239,6 +239,7 @@ export type {
 // W1-16a PR1：工单与方案，以及 W1-17 的同事务接管端口。
 export {
   createDelivery,
+  createDeliveryDownloads,
   bindDelivery,
   orderSidePort,
   createTickets,
@@ -250,6 +251,7 @@ export {
   getTicketTimeline,
   getPlanBriefByOrder,
 } from "./delivery/index.js";
+export type { DeliveryDownloads, DeliveryDownloadDeps } from "./delivery/index.js";
 export type {
   Delivery,
   DeliveryDeps,

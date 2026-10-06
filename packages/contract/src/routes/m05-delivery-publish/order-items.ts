@@ -12,7 +12,7 @@ export const mOrderItemDownloadGrantCreate = merchantMeta({
   "x-idempotent": "required",
 });
 
-export const mOrderItemDownloadUrls = merchantMeta({
+export const mOrderItemDownloadUrls = merchantRoute({
   method: "post",
   path: "/m/order-items/{orderItemId}/download-urls",
   operationId: "m.orderItem.downloadUrls",
@@ -22,6 +22,18 @@ export const mOrderItemDownloadUrls = merchantMeta({
   "x-clerk-view": "none",
   "x-idempotent": "none",
   "x-idempotent-reason": "签发短时地址，结果不进幂等记录，避免回放过期地址（A18、A19）",
+  "x-rate-limit": "m.sign",
+  request: {
+    params: OrderItemDownloadParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: EpisodeDownloadBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(EpisodeDownloadUrlSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429, 500),
+  },
 });
 
 export const mOrderItemPublishListGet = merchantMeta({
@@ -34,7 +46,7 @@ export const mOrderItemPublishListGet = merchantMeta({
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
 });
 
-export const mOrderItemReleaseGet = merchantMeta({
+export const mOrderItemReleaseGet = merchantRoute({
   method: "get",
   path: "/m/order-items/{orderItemId}/release",
   operationId: "m.orderItem.release.get",
@@ -42,6 +54,8 @@ export const mOrderItemReleaseGet = merchantMeta({
   "x-capability": "delivery.download",
   "x-clerk-view": "none",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  request: { params: OrderItemDownloadParamSchema },
+  responses: { ...okResponse(ReleaseViewSchema), ...errorResponses(400, 401, 403, 404, 500) },
 });
 
 export const mOrderItemSampleGet = merchantRoute({
@@ -61,3 +75,9 @@ import { merchantRoute } from "../builders.js";
 import { okResponse, errorResponses, IdSchema } from "../../common/index.js";
 import { z } from "../../zod.js";
 import { SampleViewSchema } from "./sample.schemas.js";
+import {
+  OrderItemDownloadParamSchema,
+  EpisodeDownloadBodySchema,
+  EpisodeDownloadUrlSchema,
+  ReleaseViewSchema,
+} from "./download.schemas.js";
