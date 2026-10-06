@@ -143,7 +143,7 @@ describe("文件九接口生产处理器与鉴权", { timeout: 60_000 }, () => {
       ),
     ).toMatchObject({ status: "expired" });
   });
-  it("后台 poster 登记/确认/get、不开放生产分类与矩阵404、不写GET审计", async () => {
+  it("后台 poster 登记/确认/get、未开放分类与生产上下文拒绝/矩阵404、不写GET审计", async () => {
     const request = {
       category: "poster",
       fileName: "cover.png",
@@ -154,10 +154,37 @@ describe("文件九接口生产处理器与鉴权", { timeout: 60_000 }, () => {
     const file = await data<FileRegistration>(await post("/admin/files", request, admin.headers));
     fake.put({ bucket: "asset", key: file.key }, png, "text/html");
     await error(
-      await post("/admin/files", { ...request, category: "final_episode" }, admin.headers),
+      await post("/admin/files", { ...request, category: "ad_video" }, admin.headers),
       400,
       "FILE_CATEGORY_NOT_ALLOWED",
     );
+    const counts = () =>
+      Promise.all([
+        prisma.fileObject.count(),
+        prisma.productionRecord.count(),
+        prisma.fileRef.count(),
+        prisma.mediaJob.count(),
+        prisma.outboxEvent.count(),
+        prisma.statusTransition.count(),
+      ]);
+    const rejectedBefore = await counts();
+    for (const category of ["sample_video", "final_episode"])
+      await error(
+        await post(
+          "/admin/files",
+          {
+            ...request,
+            category,
+            storeId,
+            fileName: "missing-context.mp4",
+            clientToken: uuidv7(),
+          },
+          admin.headers,
+        ),
+        400,
+        "VALIDATION_FAILED",
+      );
+    expect(await counts()).toEqual(rejectedBefore);
     await error(await post("/admin/files", request, editor.headers), 403, "PERMISSION_DENIED");
     const confirmKey = uuidv7();
     const confirmed = await data<AdminFileView>(

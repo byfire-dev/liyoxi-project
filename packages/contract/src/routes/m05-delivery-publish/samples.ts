@@ -2,7 +2,7 @@
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { merchantMeta } from "../meta-only.js";
 
-export const mSampleConfirm = merchantMeta({
+export const mSampleConfirm = merchantRoute({
   method: "post",
   path: "/m/samples/{sampleId}/confirm",
   operationId: "m.sample.confirm",
@@ -10,6 +10,19 @@ export const mSampleConfirm = merchantMeta({
   "x-capability": "delivery.confirm_sample",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    params: SampleParamSchema,
+    body: { required: true, content: { "application/json": { schema: SampleConfirmBodySchema } } },
+  },
+  responses: {
+    ...okResponse(SampleWriteResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
+  "x-redact-on-replay": [
+    "playable",
+    "decision.feedbackImages[].url",
+    "decision.feedbackImages[].expiresAt",
+  ],
 });
 
 export const mSampleDownloadUrls = merchantMeta({
@@ -33,3 +46,8 @@ export const mSampleRequestChange = merchantMeta({
   "x-clerk-view": "none",
   "x-idempotent": "required",
 });
+
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import { SampleParamSchema } from "../a05-order-delivery/production.schemas.js";
+import { SampleConfirmBodySchema, SampleWriteResultSchema } from "./sample.schemas.js";

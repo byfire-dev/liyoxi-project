@@ -6,3 +6,5 @@ import * as ads from "./ads.js";
 import * as playables from "./playables.js";
 
 export const M06_AD = defineRouteDoc("m06-ad", [ads, playables]);
+
+export * from "./playable.schemas.js";
