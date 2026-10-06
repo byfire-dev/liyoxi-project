@@ -2,6 +2,7 @@ import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { sampleStaffContext, useSeededDatabase } from "../testing/index.js";
 import { createIdentityContext, notifyReadOf, uuidv7 } from "../kernel/index.js";
 import { decisionGuard } from "./write.js";
+import { getLaunchFacts } from "./service.js";
 import { harness } from "./__fixtures__/harness.js";
 import type { Harness } from "./__fixtures__/harness.js";
 const db = useSeededDatabase("services");
@@ -366,8 +367,8 @@ describe("publish 账号与上线真实事务", { timeout: 60000 }, () => {
 it("部分上线参数假、暂停核验仍可退回；游标稳定且绑定筛选", { timeout: 60000 }, async () => {
   const { viewer } = await h.owner(),
     admin = await h.staff(),
-    accountId = await h.account(viewer),
-    fixture = await h.tasks(viewer, [accountId]),
+    accountIds = [await h.account(viewer), await h.account(viewer, "wechat_channels")],
+    fixture = await h.tasks(viewer, accountIds),
     id = fixture.ids[0]!;
   h.clock.advance(1000);
   await h.prisma.paramValue.create({
@@ -419,6 +420,67 @@ it("部分上线参数假、暂停核验仍可退回；游标稳定且绑定筛�
     completedAt: null,
     verifiedEpisodeCount: 1,
   });
+  const facts = () => h.tx.run((tx) => getLaunchFacts(tx, fixture.item.id));
+  expect(await facts()).toMatchObject({
+    hasLive: false,
+    liveEpisodeCount: 1,
+    firstLaunchDate: null,
+  });
+  expect(h.changes.at(-1)).toMatchObject({
+    hasLive: false,
+    liveEpisodeCount: 1,
+    firstLaunchDate: null,
+  });
+  // 补充核验累计集数，未满集仍不触发部分上线。
+  await h.publish.submitLaunch(viewer, id, { ...body, reportedEpisodeCount: 2 });
+  round = await h.prisma.launchSubmission.findFirstOrThrow({
+    where: { launchTaskId: id, roundNo: 3 },
+  });
+  await h.publish.approveLaunch(admin.ctx, admin.staff, round.id, await h.launchBody(round.id, 2));
+  expect(await facts()).toMatchObject({
+    hasLive: false,
+    liveEpisodeCount: 2,
+    firstLaunchDate: null,
+  });
+  // 多账号取最大值，不能求和；首日只取已上线任务。
+  const otherId = fixture.ids[1]!;
+  await h.publish.submitLaunch(viewer, otherId, {
+    ...body,
+    reportedEpisodeCount: 3,
+    actualLaunchDate: "2026-01-03",
+  });
+  const otherRound = await h.prisma.launchSubmission.findFirstOrThrow({
+    where: { launchTaskId: otherId, roundNo: 1 },
+  });
+  await h.publish.approveLaunch(
+    admin.ctx,
+    admin.staff,
+    otherRound.id,
+    await h.launchBody(otherRound.id, 3),
+  );
+  expect(await facts()).toMatchObject({
+    hasLive: true,
+    liveEpisodeCount: 3,
+    firstLaunchDate: "2026-01-03",
+  });
+  // 后续里程碑才实现作废；此处直接写入符合 CHECK 的归档行，验证读侧排除。
+  await h.prisma.launchTask.update({
+    where: { id: otherId },
+    data: {
+      reviewStatus: "void",
+      voidReason: "account_changed",
+      isLive: false,
+      wentLiveAt: null,
+      completedAt: null,
+    },
+  });
+  const withoutVoid = await facts();
+  expect(withoutVoid).toMatchObject({
+    hasLive: false,
+    liveEpisodeCount: 2,
+    firstLaunchDate: null,
+  });
+  expect(withoutVoid.accounts.map((account) => account.channelAccountId)).toEqual([accountIds[0]]);
   await expect(
     h.publish.submitLaunch(viewer, id, {
       ...body,

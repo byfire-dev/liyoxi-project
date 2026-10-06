@@ -453,10 +453,7 @@ export async function getLaunchFacts(tx: Tx, orderItemId: string) {
   return {
     hasLive: tasks.some((t) => t.isLive),
     hasVerifying: tasks.some((t) => t.reviewStatus === "verifying"),
-    liveEpisodeCount: Math.max(
-      0,
-      ...tasks.filter((t) => t.isLive).map((t) => t.verifiedEpisodeCount),
-    ),
+    liveEpisodeCount: Math.max(0, ...tasks.map((t) => t.verifiedEpisodeCount)),
     firstLaunchDate:
       tasks
         .filter((t) => t.isLive && t.firstLaunchDate)
