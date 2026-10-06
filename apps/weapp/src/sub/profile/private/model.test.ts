@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { ApiError } from "../../../lib/request";
+import { ApiError, type RequestLayer } from "../../../lib/request";
 import { createIntent, errorInfo, generationGuard, parseFen } from "./model";
 import { createProfileApi } from "./api";
+import { basic, media, service } from "../../../../shots/profile-fixtures";
 describe("建档请求与意图边界", () => {
   it("失败重试同键、改变输入换键，同步重复触发只一次", async () => {
     let count = 0;
@@ -138,6 +139,62 @@ describe("建档请求与意图边界", () => {
     expect(parseFen("")).toBeNull();
     expect(() => parseFen("1.111")).toThrow();
     expect(() => parseFen("999999999999999999999")).toThrow();
+  });
+  it.each([
+    ["saveBasic", "/m/store-profile/basic", basic],
+    ["saveMedia", "/m/store-profile/media", media],
+    ["saveService", "/m/store-profile/service", service],
+  ] as const)("%s 重放只GET恢复签名视图，没有额外PATCH", async (method, path, view) => {
+    const calls: { path: string; method: string; key?: string }[] = [];
+    const api = createProfileApi(
+      async <T>(p: string, options?: Parameters<RequestLayer["request"]>[1]) => {
+        calls.push({ path: p, method: options?.method ?? "GET", key: options?.idempotencyKey });
+        return (options?.method === "PATCH" ? { replayed: true } : structuredClone(view)) as T;
+      },
+    );
+    expect(await api[method]({ draft: true, lockVersion: 1, groups: {} }, "same-intent")).toEqual(
+      view,
+    );
+    expect(calls).toEqual([
+      { path, method: "PATCH", key: "same-intent" },
+      { path, method: "GET", key: undefined },
+    ]);
+  });
+  it("恢复GET失败后相同保存意图保持原PATCH键", async () => {
+    const keys: string[] = [];
+    let reads = 0;
+    const api = createProfileApi(
+      async <T>(_path: string, options?: Parameters<RequestLayer["request"]>[1]) => {
+        if (options?.method === "PATCH") {
+          keys.push(options.idempotencyKey!);
+          return { replayed: true } as T;
+        }
+        if (++reads === 1) throw new Error("读视图断网");
+        return structuredClone(basic) as T;
+      },
+    );
+    let count = 0;
+    const intent = createIntent(() => `intent-${++count}`),
+      body = { draft: true, lockVersion: 1 };
+    await expect(intent.run(body, (key) => api.saveBasic(body, key))).rejects.toThrow("读视图断网");
+    expect(await intent.run(body, (key) => api.saveBasic(body, key))).toEqual(basic);
+    expect(keys).toEqual(["intent-1", "intent-1"]);
+  });
+  it("重放PATCH期间切店不再为新上下文发恢复GET", async () => {
+    let context = "a";
+    const calls: string[] = [];
+    const api = createProfileApi(
+      async <T>(path: string) => {
+        calls.push(path);
+        context = "b";
+        return { replayed: true } as T;
+      },
+      () => context,
+    );
+    await expect(api.saveBasic({ draft: true, lockVersion: 1 }, "old-intent")).rejects.toThrow(
+      "门店或登录状态已变化",
+    );
+    expect(calls).toEqual(["/m/store-profile/basic"]);
   });
   it("媒体、服务、主体、联系人与手填证照分别使用真实资源路径与当前锁；不丢null或补原号", async () => {
     const calls: { path: string; options: unknown }[] = [];

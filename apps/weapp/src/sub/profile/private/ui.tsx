@@ -104,7 +104,7 @@ export function useAction(action: string, step?: 1 | 2 | 3 | 4) {
     setError(null);
     setBusy(true);
     try {
-      const result = await guard.current.run(() => intent.current.run(body, call));
+      const result = await guard.current.run(() => intent.current.run({ context, body }, call));
       if (result !== undefined && step)
         track("profile_step_save", {
           step,

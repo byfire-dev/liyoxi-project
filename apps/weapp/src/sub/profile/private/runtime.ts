@@ -23,10 +23,27 @@ export function profileRuntime() {
           useContextStore.getState().switchStore(me.memberships[0]?.stores[0]?.storeId ?? null);
         };
         await reloadMe();
-        return { api: createProfileApi(fixture.call), reloadMe };
+        (
+          globalThis as {
+            __LYX_PROFILE_CONTROL__?: typeof fixture.control & {
+              switchStore(): void;
+              logout(): void;
+            };
+          }
+        ).__LYX_PROFILE_CONTROL__ = {
+          ...fixture.control,
+          switchStore() {
+            fixture.control.replaceStore();
+            useContextStore.getState().switchStore("00000000-0000-4000-8000-000000000099");
+          },
+          logout() {
+            useSessionStore.getState().clear();
+          },
+        };
+        return { api: createProfileApi(fixture.call, profileContext), reloadMe };
       }
     }
-    return { api: createProfileApi(request), reloadMe: () => account.reloadMe() };
+    return { api: createProfileApi(request, profileContext), reloadMe: () => account.reloadMe() };
   })();
   return ready;
 }

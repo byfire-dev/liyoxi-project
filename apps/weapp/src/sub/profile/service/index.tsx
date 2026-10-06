@@ -1,6 +1,5 @@
 import { useUploadBusy } from "@/lib/upload/taro";
 import { formatMoney } from "@liyoxi/shared/format/money";
-import { useState } from "react";
 import { Image, View } from "@tarojs/components";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -13,6 +12,7 @@ import type { Body, DictItems } from "../private/api";
 import { Frame, Feedback, TextField, STEP_NAMES, useAction, useResource } from "../private/ui";
 import { FileGrid, type MediaFile } from "../private/uploads";
 import { parseFen, yuan } from "../private/model";
+import { useDraft } from "../private/draft";
 import { profileRuntime } from "../private/runtime";
 type Item = NonNullable<Body<"m.storeProfile.service.update">["serviceItems"]>[number] & {
   image?: MediaFile | null;
@@ -26,22 +26,10 @@ export default function Service() {
   }));
   const action = useAction("profile_service", 3);
   const data = resource.data?.service;
-  const [items, setItems] = useState<Item[]>([]);
-  const [form, setForm] = useState({ promo: "", groupBuy: "", note: "", points: [] as string[] });
-  const [edit, setEdit] = useState<number | null>(null);
-  const [draft, setDraft] = useState({
-    name: "",
-    price: "",
-    original: "",
-    intro: "",
-    image: [] as MediaFile[],
-  });
-  const [itemError, setItemError] = useState<string | null>(null);
-  const [source, setSource] = useState(data);
-  if (data && source !== data) {
-    setSource(data);
-    setItems(
-      data.serviceItems.map((item) => ({
+  const [items, setItems, acceptItems] = useDraft(
+    data,
+    (value): Item[] =>
+      value.serviceItems.map((item) => ({
         serviceItemId: item.serviceItemId,
         name: item.name,
         priceFen: item.priceFen,
@@ -50,14 +38,22 @@ export default function Service() {
         imageFileId: item.image?.fileId ?? null,
         image: item.image,
       })),
-    );
-    setForm({
-      promo: data.promoText ?? "",
-      groupBuy: data.groupBuyText ?? "",
-      note: data.sellingNote ?? "",
-      points: data.sellingPoints.map((p) => p.code),
-    });
-  }
+    [],
+  );
+  const [form, setForm, acceptForm] = useDraft(
+    data,
+    (value) => ({
+      promo: value.promoText ?? "",
+      groupBuy: value.groupBuyText ?? "",
+      note: value.sellingNote ?? "",
+      points: value.sellingPoints.map((p) => p.code),
+    }),
+    { promo: "", groupBuy: "", note: "", points: [] as string[] },
+  );
+  const [edit, setEdit] = useDraft(data, (): number | null => null, null);
+  const emptyItem = { name: "", price: "", original: "", intro: "", image: [] as MediaFile[] };
+  const [draft, setDraft] = useDraft(data, () => emptyItem, emptyItem);
+  const [itemError, setItemError] = useDraft(data, (): string | null => null, null);
   const readonly = data?.viewerRole !== "owner";
   const candidates: DictItems = (resource.data?.dicts[0]?.items ?? []).filter((item) => {
     const categories = item.ext.categoryCodes;
@@ -202,7 +198,11 @@ export default function Service() {
                   return value;
                 })
                 .then((value) => {
-                  if (value) resource.setData((old) => (old ? { ...old, service: value } : old));
+                  if (value) {
+                    acceptItems(value);
+                    acceptForm(value);
+                    resource.setData((old) => (old ? { ...old, service: value } : old));
+                  }
                 });
             }}
           >
@@ -211,7 +211,7 @@ export default function Service() {
         </FooterBar>
       ) : null}
       <Sheet
-        visible={edit !== null}
+        visible={edit !== null && !readonly}
         title={edit !== null && edit < items.length ? "编辑主推服务" : "添加主推服务"}
         onClose={() => setEdit(null)}
         footer={

@@ -8,6 +8,7 @@ import type {
   Overview,
   Doc,
   Data,
+  Body,
 } from "../src/sub/profile/private/api";
 import { makeMe } from "./account-fixtures";
 const ID = "00000000-0000-4000-8000-000000000001";
@@ -346,6 +347,29 @@ export function offlineProfile(scene: string) {
     q.openRound = null;
     q.actions = [];
   }
+  const conflicts = new Set<string>(),
+    replays = new Set<string>();
+  const control = {
+    conflict: (path: string) => conflicts.add(path),
+    replay: (path: string) => replays.add(path),
+    replaceStore() {
+      Object.assign(b, structuredClone(basic), {
+        brandName: "新门店品牌",
+        storeName: "新门店",
+        lockVersion: 11,
+      });
+      Object.assign(m, structuredClone(media), { lockVersion: 11 });
+      m.groups.door = [{ ...m.groups.door[0]!, file: file(21) }];
+      Object.assign(s, structuredClone(service), { lockVersion: 11 });
+      s.serviceItems[0]!.name = "新门店服务";
+      Object.assign(q, structuredClone(qualification));
+      q.contact.name = "新门店联系人";
+      q.contact.lockVersion = 11;
+    },
+    lockBasic() {
+      b.reviewFieldsLocked = true;
+    },
+  };
   const call: RequestLayer["request"] = async <T>(
     path: string,
     options?: Parameters<RequestLayer["request"]>[1],
@@ -358,6 +382,18 @@ export function offlineProfile(scene: string) {
     });
     let response: unknown;
     const body = options?.data as Record<string, unknown> | undefined;
+    if (body && conflicts.delete(path)) {
+      if (path === "/m/store-profile/basic" && b.viewerRole === "owner") b.lockVersion++;
+      if (path === "/m/store-profile/media" && m.viewerRole === "owner") m.lockVersion++;
+      if (path === "/m/store-profile/service" && s.viewerRole === "owner") s.lockVersion++;
+      if (path === "/m/store-profile/contact") q.contact.lockVersion++;
+      throw new ApiError({
+        error: "VERSION_CONFLICT",
+        message: "版本冲突",
+        status: 409,
+        requestId: "offline",
+      });
+    }
     if (path.startsWith("/m/dict-items?")) {
       const types = new URL(`http://offline${path}`).searchParams.get("typeKey")!.split(",");
       response = { items: dicts.items.filter((item) => types.includes(item.typeKey)) };
@@ -378,16 +414,55 @@ export function offlineProfile(scene: string) {
     } else if (path === "/m/store-profile") response = o;
     else if (path === "/m/store-profile/basic") {
       if (body) {
-        b.brandName = body.brandName as string | null;
-        b.storeName = body.storeName as string | null;
+        b.brandName = typeof body.brandName === "string" ? body.brandName.trim() : null;
+        if ("storeName" in body) b.storeName = body.storeName as string | null;
         if (b.viewerRole === "owner") b.lockVersion++;
       }
       response = b;
     } else if (path === "/m/store-profile/media") {
-      if (body && m.viewerRole === "owner") m.lockVersion++;
+      if (body && m.viewerRole === "owner") {
+        m.lockVersion++;
+        const update = body as Body<"m.storeProfile.media.update">;
+        for (const group of ["door", "interior", "product", "promo"] as const) {
+          const files = update.groups?.[group];
+          if (files)
+            m.groups[group] = files.map(({ fileId }, i) => ({
+              mediaItemId: fileId,
+              mediaKind: "image",
+              position: i + 1,
+              isCopied: false,
+              file: { ...file(11), fileId },
+            }));
+        }
+      }
       response = m;
     } else if (path === "/m/store-profile/service") {
-      if (body && s.viewerRole === "owner") s.lockVersion++;
+      if (body && s.viewerRole === "owner") {
+        s.lockVersion++;
+        const update = body as Body<"m.storeProfile.service.update">;
+        if (update.serviceItems)
+          s.serviceItems = update.serviceItems.map((item, i) => ({
+            serviceItemId: item.serviceItemId ?? file(50 + i).fileId,
+            position: i + 1,
+            name: item.name,
+            priceFen: item.priceFen,
+            originalPriceFen: item.originalPriceFen ?? null,
+            intro: item.intro ?? null,
+            image: item.imageFileId ? { ...file(15), fileId: item.imageFileId } : null,
+          }));
+        s.promoText = update.promoText ?? null;
+        s.groupBuyText = update.groupBuyText ?? null;
+        s.sellingNote = update.sellingNote ?? null;
+        if (update.sellingPointCodes)
+          s.sellingPoints = update.sellingPointCodes.map((code) =>
+            ref(
+              code,
+              dicts.items
+                .find((d) => d.typeKey === "store_selling_point")!
+                .items.find((d) => d.code === code)?.name ?? code,
+            ),
+          );
+      }
       response = s;
     } else if (path === "/m/store-profile/contact") {
       q.contact.name = body!.name as string;
@@ -434,11 +509,27 @@ export function offlineProfile(scene: string) {
       }
       response = q;
     } else throw new Error(`建档离线场景未登记调用：${path}`);
+    if (body && replays.delete(path)) {
+      // 本域三条重放按真实协议去掉签名字段，GET 仍给当前完整视图。
+      const redact = (value: unknown): unknown => {
+        if (Array.isArray(value)) return value.map(redact);
+        if (value && typeof value === "object")
+          return Object.fromEntries(
+            Object.entries(value).map(([key, child]) => [
+              key,
+              ["url", "expiresAt", "coverUrl"].includes(key) ? null : redact(child),
+            ]),
+          );
+        return value;
+      };
+      return { ...(redact(response) as object), replayed: true } as T;
+    }
     return structuredClone(response) as T;
   };
   return {
     call,
     calls,
+    control,
     me: () => {
       const me = makeMe();
       if (!created) me.memberships = [];

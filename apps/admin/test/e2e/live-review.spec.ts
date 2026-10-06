@@ -13,6 +13,13 @@ interface Fixture {
     incomplete: boolean;
   }[];
 }
+function fixtureImage(url: URL, fileId: string) {
+  return (
+    (url.origin === "http://127.0.0.1:9100" &&
+      url.pathname === `/lyx-local-secure/test/${fileId}.jpg`) ||
+    (url.origin === "https://fake-storage.invalid" && url.pathname === `/secure/test/${fileId}.jpg`)
+  );
+}
 async function shot(page: Page, name: string) {
   await noHorizontalScroll(page, name);
   mkdirSync("dist/e2e-shots", { recursive: true });
@@ -25,6 +32,27 @@ test("真实首店校验与资质审核：通过自动选下一条、驳回必�
     .qualification;
   const [first, second, incomplete] = fixture.submissions;
   if (!first || !second || !incomplete) throw new Error("资质演练数据缺失");
+  if (!first.fileId) throw new Error("资质演练原图缺失");
+  for (const originAndBucket of [
+    "http://127.0.0.1:9100/lyx-local-secure",
+    "https://fake-storage.invalid/secure",
+  ]) {
+    expect(
+      fixtureImage(new URL(`${originAndBucket}/test/${first.fileId}.jpg?token=fake`), first.fileId),
+    ).toBe(true);
+    expect(
+      fixtureImage(new URL(`${originAndBucket}/test/${second.fileId}.jpg`), first.fileId),
+    ).toBe(false);
+  }
+  expect(
+    fixtureImage(new URL(`https://other.invalid/secure/test/${first.fileId}.jpg`), first.fileId),
+  ).toBe(false);
+  expect(
+    fixtureImage(
+      new URL(`https://fake-storage.invalid/other/test/${first.fileId}.jpg`),
+      first.fileId,
+    ),
+  ).toBe(false);
   const submit = async (item: Fixture["submissions"][number], version: string) =>
     page.request.post("/api/v1/m/store-profile/qualification/submit", {
       headers: {
@@ -48,12 +76,14 @@ test("真实首店校验与资质审核：通过自动选下一条、驳回必�
   expect(await stale.json()).toMatchObject({ error: "DECLARATION_REQUIRED" });
   expect((await submit(second, "1")).status()).toBe(200);
   const errors = recordErrors(page);
-  // fake Provider的签发地址按公开Compose配置重写；仅本fixture对象回演练图，/api全部走真实进程。
-  await page.route(`http://127.0.0.1:9100/lyx-local-secure/test/${first.fileId}.jpg?*`, (route) =>
-    route.fulfill({
-      contentType: "image/svg+xml",
-      body: '<svg xmlns="http://www.w3.org/2000/svg" width="220" height="260"><rect width="220" height="260" fill="white"/><text x="24" y="70" font-size="22">演练营业执照</text><text x="24" y="115" font-size="14">仅用于本地接口验收</text></svg>',
-    }),
+  // 仅已登记的 fake / 公开 Compose 地址与本 fixture 对象回演练图，/api 全部走真实进程。
+  await page.route(
+    (url) => fixtureImage(url, first.fileId!),
+    (route) =>
+      route.fulfill({
+        contentType: "image/svg+xml",
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="220" height="260"><rect width="220" height="260" fill="white"/><text x="24" y="70" font-size="22">演练营业执照</text><text x="24" y="115" font-size="14">仅用于本地接口验收</text></svg>',
+      }),
   );
   let signatures = 0;
   page.on("request", (request) => {

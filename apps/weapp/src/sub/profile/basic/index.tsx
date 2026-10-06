@@ -7,7 +7,7 @@ import { Note } from "@/components/Note";
 import { TextButton } from "@/components/TextButton";
 import { StepBar } from "@/components/StepBar";
 import { FooterBar } from "@/components/FooterBar";
-import type { Body, DictItems } from "../private/api";
+import type { Basic as BasicView, Body, DictItems } from "../private/api";
 import {
   Frame,
   Feedback,
@@ -20,12 +20,26 @@ import {
 import { FileGrid } from "../private/uploads";
 import { profileRuntime } from "../private/runtime";
 import { parseFen, yuan } from "../private/model";
+import { useDraft } from "../private/draft";
+const basicForm = (data: BasicView) => ({
+  brand: data.brandName ?? "",
+  name: data.storeName ?? "",
+  industry: data.industry?.code ?? null,
+  category: data.category?.code ?? null,
+  province: data.address.province?.code ?? null,
+  city: data.address.city?.code ?? null,
+  district: data.address.district?.code ?? null,
+  detail: data.address.detail ?? "",
+  tel: data.storeTel ?? "",
+  spend: yuan(data.avgSpendFen),
+  intro: data.brandIntro ?? "",
+});
 export default function Basic() {
   const uploading = useUploadBusy();
   const resource = useResource((api) => api.basic());
   const action = useAction("profile_basic", 1);
   const data = resource.data;
-  const [form, setForm] = useState({
+  const [form, setForm, acceptForm] = useDraft(data, basicForm, {
     brand: "",
     name: "",
     industry: null as string | null,
@@ -38,32 +52,21 @@ export default function Basic() {
     spend: "",
     intro: "",
   });
-  const [hours, setHours] = useState<{ start: string; end: string }[]>([{ start: "", end: "" }]);
-  const [logo, setLogo] = useState<NonNullable<NonNullable<typeof data>["logo"]>[]>([]);
+  const [hours, setHours, acceptHours] = useDraft(
+    data,
+    (value) => (value.businessHours.length ? value.businessHours : [{ start: "", end: "" }]),
+    [{ start: "", end: "" }],
+  );
+  const [logo, setLogo, acceptLogo] = useDraft(
+    data,
+    (value) => (value.logo ? [value.logo] : []),
+    [],
+  );
   const [dictError, setDictError] = useState<string | null>(null);
   const [dicts, setDicts] = useState<{ industry: DictItems; region: DictItems }>({
     industry: [],
     region: [],
   });
-  const [source, setSource] = useState(data);
-  if (data && source !== data) {
-    setSource(data);
-    setForm({
-      brand: data.brandName ?? "",
-      name: data.storeName ?? "",
-      industry: data.industry?.code ?? null,
-      category: data.category?.code ?? null,
-      province: data.address.province?.code ?? null,
-      city: data.address.city?.code ?? null,
-      district: data.address.district?.code ?? null,
-      detail: data.address.detail ?? "",
-      tel: data.storeTel ?? "",
-      spend: yuan(data.avgSpendFen),
-      intro: data.brandIntro ?? "",
-    });
-    setLogo(data.logo ? [data.logo] : []);
-    setHours(data.businessHours.length ? data.businessHours : [{ start: "", end: "" }]);
-  }
   useEffect(() => {
     let current = true;
     void profileRuntime()
@@ -125,7 +128,12 @@ export default function Basic() {
         return result;
       },
     );
-    if (value) resource.setData(value);
+    if (value) {
+      acceptForm(value);
+      acceptHours(value);
+      acceptLogo(value);
+      resource.setData(value);
+    }
   };
   return (
     <Frame

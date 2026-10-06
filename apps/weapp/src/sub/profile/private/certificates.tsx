@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { View } from "@tarojs/components";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -9,6 +8,7 @@ import type { Doc, DictItems } from "./api";
 import { FileGrid, type MediaFile } from "./uploads";
 import { TextField, useAction, Feedback } from "./ui";
 import { profileRuntime } from "./runtime";
+import { useDraft } from "./draft";
 
 const LICENSE_FIELDS = [
   { key: "name", label: "主体名称" },
@@ -39,8 +39,8 @@ export function Certificate({
   reload(): Promise<void>;
 }) {
   const action = useAction("qualification_doc", 4);
-  const [edit, setEdit] = useState(false);
-  const [fields, setFields] = useState<Record<string, string>>({});
+  const [edit, setEdit] = useDraft(doc, () => false, false);
+  const [fields, setFields] = useDraft(doc, (): Record<string, string> => ({}), {});
   const definition = permits.find((item) => item.code === permitType)?.ext.fields;
   const definitions =
     docType !== "industry_permit"

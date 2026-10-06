@@ -26,6 +26,11 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { chromium } from "@playwright/test";
+import {
+  profileContactRegression,
+  profileContextRegression,
+  profileEditRegression,
+} from "../shots/profile-regressions.mjs";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const h5Dir = path.join(appRoot, "shots/dist/h5");
@@ -345,6 +350,7 @@ async function shoot(target) {
         throw new Error("开始建档须只创建一次");
     }
     if (target.scene === "cert-normal") {
+      await profileContactRegression(page);
       await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
       await page.locator(".lyx-button").filter({ hasText: "提交资质审核" }).click();
       await page
@@ -367,7 +373,10 @@ async function shoot(target) {
       );
       if (JSON.stringify(submitted) !== JSON.stringify(["1", "2"]))
         throw new Error("提交没有携带本次声明版本");
+      await profileContextRegression(page, "cert");
     }
+    if (["basic-normal", "store-normal", "service-normal"].includes(target.scene))
+      await profileEditRegression(page, target.scene);
     if (errors.length > 0) throw new Error(`页面报错：${errors[0]}`);
     console.log(`已出图 ${path.relative(appRoot, file)}`);
   } catch (error) {

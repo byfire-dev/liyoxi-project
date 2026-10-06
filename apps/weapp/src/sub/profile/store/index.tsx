@@ -8,29 +8,33 @@ import { Note } from "@/components/Note";
 import { StepBar } from "@/components/StepBar";
 import { FileGrid, type MediaFile } from "../private/uploads";
 import { Frame, Feedback, STEP_NAMES, useAction, useResource } from "../private/ui";
+import { useDraft } from "../private/draft";
+import type { Media } from "../private/api";
 import { profileRuntime } from "../private/runtime";
 export default function Store() {
   const uploading = useUploadBusy();
   const resource = useResource((api) => api.media());
   const action = useAction("profile_media", 2);
   const data = resource.data;
-  const [groups, setGroups] = useState<{
-    door: MediaFile[];
-    interior: MediaFile[];
-    product: MediaFile[];
-    promo: MediaFile[];
-  }>({ door: [], interior: [], product: [], promo: [] });
+  const [groups, setGroups, acceptGroups] = useDraft<
+    Media,
+    {
+      door: MediaFile[];
+      interior: MediaFile[];
+      product: MediaFile[];
+      promo: MediaFile[];
+    }
+  >(
+    data,
+    (value) => ({
+      door: value.groups.door.flatMap((item) => (item.file ? [item.file] : [])),
+      interior: value.groups.interior.flatMap((item) => (item.file ? [item.file] : [])),
+      product: value.groups.product.flatMap((item) => (item.file ? [item.file] : [])),
+      promo: value.groups.promo.flatMap((item) => (item.file ? [item.file] : [])),
+    }),
+    { door: [], interior: [], product: [], promo: [] },
+  );
   const [video, setVideo] = useState(false);
-  const [source, setSource] = useState(data);
-  if (data && source !== data) {
-    setSource(data);
-    setGroups({
-      door: data.groups.door.flatMap((item) => (item.file ? [item.file] : [])),
-      interior: data.groups.interior.flatMap((item) => (item.file ? [item.file] : [])),
-      product: data.groups.product.flatMap((item) => (item.file ? [item.file] : [])),
-      promo: data.groups.promo.flatMap((item) => (item.file ? [item.file] : [])),
-    });
-  }
   const readonly = data?.viewerRole !== "owner";
   return (
     <Frame
@@ -107,7 +111,10 @@ export default function Store() {
                   return value;
                 })
                 .then((value) => {
-                  if (value) resource.setData(value);
+                  if (value) {
+                    acceptGroups(value);
+                    resource.setData(value);
+                  }
                 });
             }}
           >

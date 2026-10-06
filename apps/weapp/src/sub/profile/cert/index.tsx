@@ -10,7 +10,8 @@ import { StepBar } from "@/components/StepBar";
 import { withSubscribe } from "@/lib/runtime";
 import { Certificate } from "../private/certificates";
 import { Frame, Feedback, TextField, STEP_NAMES, useAction, useResource } from "../private/ui";
-import { profileRuntime, profileContext } from "../private/runtime";
+import { useDraft } from "../private/draft";
+import { profileRuntime } from "../private/runtime";
 export default function Cert() {
   const uploading = useUploadBusy();
   const resource = useResource(async (api) => ({
@@ -27,18 +28,21 @@ export default function Cert() {
     !owner.isFinalRejected &&
     owner.storeQualificationStatus !== "verified" &&
     round?.phase !== "in_review";
-  const [name, setName] = useState("");
-  const [phoneSource, setPhoneSource] = useState<"login" | "input">("login");
-  const [phone, setPhone] = useState("");
+  const [contact, setContact, acceptContact] = useDraft(
+    owner?.contact,
+    (value) => ({
+      name: value.name ?? "",
+      phoneSource: "login" as "login" | "input",
+      phone: "",
+    }),
+    { name: "", phoneSource: "login" as "login" | "input", phone: "" },
+  );
+  const { name, phoneSource, phone } = contact;
+  const setName = (name: string) => setContact((old) => ({ ...old, name }));
+  const setPhoneSource = (phoneSource: "login" | "input") =>
+    setContact((old) => ({ ...old, phoneSource }));
+  const setPhone = (phone: string) => setContact((old) => ({ ...old, phone }));
   const [agreed, setAgreed] = useState(false);
-  const contactKey = `${profileContext()}|${owner?.contact.lockVersion ?? ""}`;
-  const [contactSource, setContactSource] = useState(contactKey);
-  if (owner && contactSource !== contactKey) {
-    setContactSource(contactKey);
-    setName(owner.contact.name ?? "");
-    setPhoneSource("login");
-    setPhone("");
-  }
   const declarationKey = `${owner?.declaration.currentVersion ?? ""}|${round?.qualificationSubmissionId ?? ""}`;
   const [confirmedKey, setConfirmedKey] = useState(declarationKey);
   if (confirmedKey !== declarationKey) {
@@ -214,7 +218,15 @@ export default function Cert() {
                         profileRuntime().then(({ api }) => api.saveContact(body, key)),
                       )
                       .then(async (value) => {
-                        if (value) await load();
+                        if (value) {
+                          acceptContact(value);
+                          resource.setData((old) =>
+                            old && old.qualification.viewerRole === "owner"
+                              ? { ...old, qualification: { ...old.qualification, contact: value } }
+                              : old,
+                          );
+                          await load();
+                        }
                       });
                   }}
                 >

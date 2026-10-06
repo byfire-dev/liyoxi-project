@@ -18,13 +18,24 @@ export type Qualification = Data<"m.storeProfile.qualification.get">;
 export type OwnerQualification = Extract<Qualification, { viewerRole: "owner" }>;
 export type Doc = NonNullable<OwnerQualification["openRound"]>["docs"][number];
 export type DictItems = Data<"m.dictItem.list">["items"][number]["items"];
-export function createProfileApi(call: RequestLayer["request"]) {
+export function createProfileApi(call: RequestLayer["request"], context: () => string = () => "") {
   const write = <K extends keyof operations>(
     path: string,
     data: Body<K>,
     key: string,
     method: "POST" | "PATCH" = "PATCH",
   ) => call<Data<K>>(path, { method, data, idempotencyKey: key });
+  const saveView = async <T>(path: string, data: unknown, key: string): Promise<T> => {
+    const current = context();
+    const result = await call<T & { replayed: boolean }>(path, {
+      method: "PATCH",
+      data,
+      idempotencyKey: key,
+    });
+    if (!result.replayed) return result;
+    if (current !== context()) throw new Error("门店或登录状态已变化，请重新进入");
+    return call<T>(path);
+  };
   return {
     overview: () => call<Overview>("/m/store-profile"),
     basic: () => call<Basic>("/m/store-profile/basic"),
@@ -33,11 +44,11 @@ export function createProfileApi(call: RequestLayer["request"]) {
     qualification: () => call<Qualification>("/m/store-profile/qualification"),
     create: (key: string) => write<"m.entity.create">("/m/entities", {}, key, "POST"),
     saveBasic: (body: Body<"m.storeProfile.basic.update">, key: string) =>
-      write<"m.storeProfile.basic.update">("/m/store-profile/basic", body, key),
+      saveView<Basic>("/m/store-profile/basic", body, key),
     saveMedia: (body: Body<"m.storeProfile.media.update">, key: string) =>
-      write<"m.storeProfile.media.update">("/m/store-profile/media", body, key),
+      saveView<Media>("/m/store-profile/media", body, key),
     saveService: (body: Body<"m.storeProfile.service.update">, key: string) =>
-      write<"m.storeProfile.service.update">("/m/store-profile/service", body, key),
+      saveView<Service>("/m/store-profile/service", body, key),
     saveQualification: (body: Body<"m.storeProfile.qualification.update">, key: string) =>
       write<"m.storeProfile.qualification.update">("/m/store-profile/qualification", body, key),
     saveContact: (body: Body<"m.storeProfile.contact.update">, key: string) =>
