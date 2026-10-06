@@ -1,4 +1,4 @@
-import { IdSchema, DateSchema, InstantSchema, DictRefSchema } from "../../common/index.js";
+import { IdSchema, DateSchema, InstantSchema, DictRefSchema, orNull } from "../../common/index.js";
 import { MallConfigSchema, MALL_SORTS } from "../../config/schemas.js";
 import { z } from "../../zod.js";
 import { BannerJumpSchema } from "./banner.schemas.js";
@@ -143,7 +143,7 @@ const banner = z.discriminatedUnion("jumpKind", [
   BannerJumpSchema.options[2].extend(bannerFields),
   BannerJumpSchema.options[3].extend(bannerFields),
 ]);
-const commonHome = { city: DictRefSchema.nullable(), banners: z.array(banner).max(5) };
+const commonHome = { city: orNull(DictRefSchema), banners: z.array(banner).max(5) };
 const guestHome = {
   ...commonHome,
   hot: z.array(DramaCardForClerkSchema),
@@ -176,9 +176,7 @@ export const HomeOwnerSchema = z
       .nullable(),
     recommend: z
       .object({
-        matchBy: z
-          .object({ industry: DictRefSchema, category: DictRefSchema.nullable() })
-          .nullable(),
+        matchBy: z.object({ industry: DictRefSchema, category: orNull(DictRefSchema) }).nullable(),
         items: z.array(DramaCardSchema),
       })
       .nullable(),
