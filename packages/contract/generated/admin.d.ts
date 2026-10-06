@@ -140,6 +140,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 上传登记（证照代传、发票文件、转账回单、Banner 图、协议正文、样片、广告版本、预告片、核查截图、巡检截图等），返回 fileId 与直传凭证 */
+        post: operations["admin.file.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/files/{fileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查询文件入库与体检状态（前端轮询） */
+        get: operations["admin.file.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/files/{fileId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 上传完成确认，服务端核对对象并入库（触发体检） */
+        post: operations["admin.file.complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/files/{fileId}/download-urls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 签发文件的短时读地址（证照 5 分钟、样片与广告 60 分钟、成片 30 分钟），按分类判权并逐次留痕 */
+        post: operations["admin.file.downloadUrls"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/roles": {
         parameters: {
             query?: never;
@@ -227,6 +295,75 @@ export interface components {
             purpose: "activate" | "reset_password" | (string & {});
             replayed: boolean;
         };
+        AdminFileCreateBody: {
+            /** @enum {string} */
+            category: "kyc_license" | "kyc_permit" | "pay_receipt" | "invoice" | "legal_doc" | "seal_image" | "consent_digest" | "drama_license_doc" | "evidence" | "export" | "profile_image" | "profile_video" | "profile_promo" | "store_asset" | "channel_screenshot" | "ticket_attachment" | "video_cover" | "drama_master" | "trailer_src" | "ad_video" | "sample_video" | "sample_wm" | "final_episode" | "package_zip" | "publish_list" | "trailer_out" | "poster" | "banner" | "pay_bill" | "wecom_qr" | "account_proof" | "portrait_auth";
+            clientToken: string;
+            /** Format: uuid */
+            entityId?: string;
+            fileName: string;
+            mime?: string;
+            onBehalfStore?: boolean;
+            production?: {
+                /** Format: uuid */
+                adId?: string;
+                aiUsage: {
+                    tools: {
+                        name: string;
+                        usedFor: string;
+                        version: string;
+                    }[];
+                    used: boolean;
+                };
+                /** Format: uuid */
+                dramaEpisodeMasterId?: string;
+                episodeNo?: number;
+                /** @enum {string} */
+                kind: "sample" | "final" | "ad";
+                /** Format: uuid */
+                orderItemId?: string;
+            };
+            sizeBytes: string;
+            /** Format: uuid */
+            storeId?: string;
+        };
+        AdminFileView: {
+            actions: ("restore" | "erase" | "cancel" | (string & {}))[];
+            /** @enum {string} */
+            category: "kyc_license" | "kyc_permit" | "pay_receipt" | "invoice" | "legal_doc" | "seal_image" | "consent_digest" | "drama_license_doc" | "evidence" | "export" | "profile_image" | "profile_video" | "profile_promo" | "store_asset" | "channel_screenshot" | "ticket_attachment" | "video_cover" | "drama_master" | "trailer_src" | "ad_video" | "sample_video" | "sample_wm" | "final_episode" | "package_zip" | "publish_list" | "trailer_out" | "poster" | "banner" | "pay_bill" | "wecom_qr" | "account_proof" | "portrait_auth" | (string & {});
+            check: null;
+            declaredSizeBytes: string;
+            deletedAt: string | null;
+            entityId: string | null;
+            erasedAt: string | null;
+            ext: string;
+            /** Format: uuid */
+            fileId: string;
+            liveRefCount: number;
+            mime: string | null;
+            /** @enum {string} */
+            moderationState: "none" | "pending" | "pass" | "review" | "block" | (string & {});
+            onBehalfStoreId: string | null;
+            originalName: string | null;
+            production: null;
+            purgeAfter: string | null;
+            rejectReason: ("size_mismatch" | "bad_magic" | "changed_after_confirm" | "copy_verify_failed" | "stamp_failed" | (string & {})) | null;
+            restorableUntil: string | null;
+            /** @enum {string} */
+            scopeType: "platform" | "entity" | "store" | (string & {});
+            sizeBytes: string | null;
+            /** @enum {string} */
+            status: "pending" | "promoting" | "stored" | "rejected" | "expired" | "deleting" | "deleted" | (string & {});
+            storeId: string | null;
+            storedAt: string | null;
+            uploader: {
+                actorId: string | null;
+                /** @enum {string} */
+                actorType: "merchant" | "staff" | "system" | (string & {});
+                client: ("weapp" | "portal" | "admin" | (string & {})) | null;
+                label: string;
+            };
+        };
         AuthNext: {
             methods: ("totp" | "recovery")[];
             /** @enum {string} */
@@ -257,6 +394,35 @@ export interface components {
             requestId: string;
             retryable: boolean;
         };
+        FileDownloadUrlsBody: {
+            /**
+             * @default inline
+             * @enum {string}
+             */
+            disposition: "inline" | "attachment";
+            purpose?: string;
+        };
+        FileRegistration: {
+            bucket: string;
+            chunkParallel: number | null;
+            chunkSize: number | null;
+            clientToken: string;
+            credentialsLeft: number;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            fileId: string;
+            key: string;
+            /** @enum {string} */
+            mode: "post" | "multipart" | (string & {});
+            post: components["schemas"]["PostPolicy"] | null;
+            region: string;
+            /** @enum {string} */
+            status: "pending" | "promoting" | "stored" | "rejected" | "expired" | "deleting" | "deleted" | (string & {});
+            sts: components["schemas"]["StsCredential"] | null;
+            /** Format: date-time */
+            uploadExpiresAt: string;
+        };
         LoginBody: {
             password: string;
             phone: string;
@@ -269,6 +435,12 @@ export interface components {
             staff: components["schemas"]["StaffBrief"];
             /** Format: date-time */
             updatedAt: string;
+        };
+        PostPolicy: {
+            fields: {
+                [key: string]: string;
+            };
+            url: string;
         };
         RoleSummary: {
             /** @enum {string} */
@@ -294,6 +466,11 @@ export interface components {
         SetPasswordBody: {
             newPassword: string;
             ticket: string;
+        };
+        SignedUrl: {
+            /** Format: date-time */
+            expiresAt: string;
+            url: string;
         };
         StaffBrief: {
             isLead: boolean;
@@ -479,6 +656,15 @@ export interface components {
         StepUpResult: {
             /** Format: date-time */
             stepUpValidUntil: string;
+        };
+        StsCredential: {
+            /** Format: date-time */
+            expiredTime: string;
+            sessionToken: string;
+            /** Format: date-time */
+            startTime: string;
+            tmpSecretId: string;
+            tmpSecretKey: string;
         };
         TotpConfirmResult: {
             me: components["schemas"]["StaffMe"];
@@ -1021,6 +1207,340 @@ export interface operations {
             };
             /** @description 限流 */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.file.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminFileCreateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["FileRegistration"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.file.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminFileView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.file.complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminFileView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.file.downloadUrls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["FileDownloadUrlsBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["SignedUrl"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

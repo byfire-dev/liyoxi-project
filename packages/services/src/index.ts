@@ -193,3 +193,7 @@ export type {
   Fulfillment,
   FulfillDeps,
 } from "./billing/index.js";
+
+export * as media from "./media/index.js";
+export { createMedia } from "./media/index.js";
+export type { Media, MediaActor, MediaDeps, PromoteRef } from "./media/index.js";

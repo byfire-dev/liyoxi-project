@@ -71,3 +71,6 @@ export * from "./sessions.js";
 export * from "./structures.js";
 export * from "./staff.js";
 export * from "./roles.js";
+
+export * from "./files.js";
+export * from "./files.schemas.js";

@@ -992,6 +992,266 @@
         ],
         "type": "object"
       },
+      "FileRegistration": {
+        "properties": {
+          "bucket": {
+            "type": "string"
+          },
+          "chunkParallel": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chunkSize": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "clientToken": {
+            "type": "string"
+          },
+          "credentialsLeft": {
+            "maximum": 30,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "post",
+              "multipart"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "post": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PostPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "region": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "promoting",
+              "stored",
+              "rejected",
+              "expired",
+              "deleting",
+              "deleted"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "sts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StsCredential"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "uploadExpiresAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fileId",
+          "clientToken",
+          "status",
+          "mode",
+          "bucket",
+          "region",
+          "key",
+          "post",
+          "sts",
+          "chunkSize",
+          "chunkParallel",
+          "expiresAt",
+          "uploadExpiresAt",
+          "credentialsLeft"
+        ],
+        "type": "object"
+      },
+      "FileRegistrationList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FileRegistration"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "FileStatusView": {
+        "properties": {
+          "category": {
+            "enum": [
+              "profile_image",
+              "profile_video",
+              "profile_promo",
+              "kyc_license",
+              "kyc_permit",
+              "store_asset",
+              "portrait_auth",
+              "channel_screenshot",
+              "ticket_attachment",
+              "pay_receipt"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "declaredSizeBytes": {
+            "pattern": "^[0-9]+$",
+            "type": "string"
+          },
+          "fileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "mime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "moderationState": {
+            "enum": [
+              "none",
+              "pending",
+              "pass",
+              "review",
+              "block"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "rejectReason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "size_mismatch",
+                  "bad_magic",
+                  "changed_after_confirm",
+                  "copy_verify_failed",
+                  "stamp_failed"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sizeBytes": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "promoting",
+              "stored",
+              "rejected",
+              "expired",
+              "deleting",
+              "deleted"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "storedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "uploadExpiresAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "fileId",
+          "category",
+          "status",
+          "rejectReason",
+          "declaredSizeBytes",
+          "sizeBytes",
+          "mime",
+          "moderationState",
+          "storedAt",
+          "uploadExpiresAt",
+          "createdAt"
+        ],
+        "type": "object"
+      },
       "MaintenanceNotice": {
         "properties": {
           "body": {
@@ -1459,6 +1719,67 @@
         ],
         "type": "object"
       },
+      "MerchantFileCreateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "enum": [
+              "profile_image",
+              "profile_video",
+              "profile_promo",
+              "kyc_license",
+              "kyc_permit",
+              "store_asset",
+              "portrait_auth",
+              "channel_screenshot",
+              "ticket_attachment",
+              "pay_receipt"
+            ],
+            "type": "string"
+          },
+          "files": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "clientToken": {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                "fileName": {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "sizeBytes": {
+                  "pattern": "^[1-9][0-9]*$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "fileName",
+                "sizeBytes",
+                "clientToken"
+              ],
+              "type": "object"
+            },
+            "maxItems": 9,
+            "minItems": 1,
+            "type": "array"
+          },
+          "licenseKind": {
+            "enum": [
+              "business_license",
+              "branch_license"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "files"
+        ],
+        "type": "object"
+      },
       "OverviewPlanCard": {
         "properties": {
           "addonAvailablePoints": {
@@ -1833,6 +2154,25 @@
           "me",
           "isNewUser",
           "switchedFrom"
+        ],
+        "type": "object"
+      },
+      "PostPolicy": {
+        "properties": {
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "url": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "fields"
         ],
         "type": "object"
       },
@@ -2320,6 +2660,35 @@
           "clerkCount",
           "todoCount",
           "actions"
+        ],
+        "type": "object"
+      },
+      "StsCredential": {
+        "properties": {
+          "expiredTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "sessionToken": {
+            "type": "string"
+          },
+          "startTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "tmpSecretId": {
+            "type": "string"
+          },
+          "tmpSecretKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tmpSecretId",
+          "tmpSecretKey",
+          "sessionToken",
+          "startTime",
+          "expiredTime"
         ],
         "type": "object"
       },
@@ -3102,6 +3471,577 @@
         "x-auth": "user",
         "x-clerk-view": "same",
         "x-idempotent": "required"
+      }
+    },
+    "/api/v1/m/files": {
+      "post": {
+        "operationId": "m.file.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantFileCreateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FileRegistrationList"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "上传登记（一次 1–9 个文件）：{category, licenseKind?, files[]: {fileName, sizeBytes, clientToken}} → items[]: FileRegistration（fileId、通道 post | multipart、写入区 bucket/region/key、post 表单或 sts 临时密钥、chunkSize、expiresAt、credentialsLeft）",
+        "x-auth": "member",
+        "x-capability": "assert-in-handler",
+        "x-clerk-view": "same",
+        "x-idempotent": "natural",
+        "x-idempotent-by": [
+          "uq_file_object_client_token_store",
+          "uq_file_object_client_token_noscope"
+        ]
+      }
+    },
+    "/api/v1/m/files/{fileId}": {
+      "get": {
+        "operationId": "m.file.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FileStatusView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "查询文件入库状态",
+        "x-auth": "member",
+        "x-clerk-view": "same",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/files/{fileId}/cancel": {
+      "post": {
+        "operationId": "m.file.cancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FileStatusView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "取消上传（未入库的登记作废）",
+        "x-auth": "member",
+        "x-clerk-view": "same",
+        "x-idempotent": "required"
+      }
+    },
+    "/api/v1/m/files/{fileId}/complete": {
+      "post": {
+        "operationId": "m.file.complete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FileStatusView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "上传确认（小文件最多等 3 秒入库），业务提交时再引用 fileId",
+        "x-auth": "member",
+        "x-clerk-view": "same",
+        "x-idempotent": "required",
+        "x-three-phase": true
+      }
+    },
+    "/api/v1/m/files/{fileId}/refresh-credentials": {
+      "post": {
+        "operationId": "m.file.refreshCredentials",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FileRegistration"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "续签分块上传的临时密钥（30 分钟有效）",
+        "x-auth": "member",
+        "x-clerk-view": "same",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "签发上传凭证，结果不进幂等记录（C47、C59）"
       }
     },
     "/api/v1/m/me": {

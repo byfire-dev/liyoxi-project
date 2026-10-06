@@ -29,6 +29,7 @@ import {
   assembleProviders,
   createBizNoIssuer,
   createTxRunner,
+  createQueueChannel,
   systemClock,
 } from "./kernel/index.js";
 import type {
@@ -45,6 +46,8 @@ import type { Logger } from "./logger.js";
 import { bindOps, createHealth, createStartupChecks } from "./ops/index.js";
 import type { Health, StartupCheck } from "./ops/index.js";
 import type { Providers } from "./providers/types.js";
+import { createMedia } from "./media/index.js";
+import type { Media } from "./media/index.js";
 import { createRateLimiter } from "./rate-limit.js";
 import type { RateLimiter } from "./rate-limit.js";
 import { loadAuthKeys, loadKeyring } from "./security/index.js";
@@ -109,6 +112,7 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly media: Media;
   readonly entry: AssemblyEntry;
   readonly env: Env;
   readonly version: string;
@@ -208,6 +212,16 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const events = createEvents({ assembly, clock, tx });
   const timers = createTimers({ assembly });
   const flow = createFlow({ assembly, clock, events });
+  const mediaChannel = createQueueChannel({ redisUrl: env.REDIS_URL, prefix: `${keyPrefix}bull` });
+  const media = createMedia({
+    tx,
+    clock,
+    assembly,
+    events,
+    storage: providers.storage,
+    channel: mediaChannel,
+    videoMaxMb: () => config.params.get("upload.weapp_video_max_mb"),
+  });
   let staffAuth: StaffAuth | undefined;
 
   // 连库一项加移交表第 1 行的四个自检：security 的加解密与盲索引、审计 target_type 对表名单、聚合类型对表名单、
@@ -238,6 +252,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   }
 
   return {
+    media,
     entry,
     env,
     version,
@@ -256,6 +271,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     startupChecks,
     async close() {
       unbindOps();
+      await mediaChannel.close();
       redis.disconnect();
       await prisma.$disconnect();
     },

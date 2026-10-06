@@ -315,6 +315,7 @@ describe("导出自测：按包名逐个 import exports 里的每个子路径", 
         "./pricing",
         "./time",
         "./workcal",
+        "./uploads",
       ]),
     );
   });

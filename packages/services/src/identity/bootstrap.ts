@@ -1,3 +1,4 @@
+import { UPLOAD_LIMITS } from "@liyoxi/shared/uploads";
 // m08 3.1：七块独立取数；失败只降级对应块。此读侧不更新协议指纹与最后门店。
 import { BOOTSTRAP_BLOCKS, FLAGS, MaintenanceNoticeSchema } from "@liyoxi/contract";
 import type { Bootstrap } from "@liyoxi/contract";
@@ -38,7 +39,10 @@ export function bootstrapDefaults(loggedIn: boolean): Blocks {
       flags: Object.fromEntries(
         FLAGS.filter((f) => f.exposedTo === "client").map((f) => [f.key, f.defaultValue]),
       ),
-      uploadLimits: { weappVideoMaxMb: 100, imageMaxMb: 5 },
+      uploadLimits: {
+        weappVideoMaxMb: UPLOAD_LIMITS.weappVideoDefaultMaxMb,
+        imageMaxMb: UPLOAD_LIMITS.imageMaxMb,
+      },
       download: { weappSaveMode: "temp" },
       support: { mode: "contact", corpId: null, kfUrl: null },
       subscribeCooldownDays: 7,
@@ -135,7 +139,7 @@ export function bootstrap(deps: IdentityReadDeps, input: BootstrapInput): Promis
       return {
         flags,
         minClientVersion,
-        uploadLimits: { weappVideoMaxMb, imageMaxMb: 5 },
+        uploadLimits: { weappVideoMaxMb, imageMaxMb: UPLOAD_LIMITS.imageMaxMb },
         download: { weappSaveMode },
         support: { mode: "contact", corpId: null, kfUrl: null },
         subscribeCooldownDays: 7,

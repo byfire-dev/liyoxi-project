@@ -4,6 +4,8 @@
 import { createPrismaClient } from "@liyoxi/db";
 import type { PrismaClient } from "@liyoxi/db";
 
+import { createMedia } from "../media/index.js";
+import type { PromoteRef } from "../media/index.js";
 import { advanceDueAccounts, createLedger } from "../billing/index.js";
 import type { AdvanceSweepOptions, AdvanceSweepResult } from "../billing/index.js";
 import { consumeDelivery, createEvents, dispatchDue, EXPAND_BATCH_SIZE } from "../events/index.js";
@@ -77,6 +79,8 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  promoteFile(ref: PromoteRef): Promise<void>;
+  scanPromote(): Promise<number>;
   readonly assembly: Assembly;
   readonly events: Events;
   readonly timers: Timers;
@@ -117,6 +121,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const logger = options.logger ?? silent;
   const providers = options.providers ?? assembleProviders({ appEnv: options.appEnv, logger });
+  const media = createMedia({ tx, clock, assembly, events, storage: providers.storage, channel });
   const startupChecks = createStartupChecks({
     db: prisma,
     appEnv: options.appEnv,
@@ -133,6 +138,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const laggards = new Map<string, number>();
   const timing = { tx, assembly, registry: timers.registry, clock, alerts, channel };
   return {
+    promoteFile: (ref) => media.promote(ref),
+    scanPromote: () => media.scanPromote(),
     assembly,
     events,
     timers,

@@ -1,6 +1,15 @@
 // 后台：登录、员工、权限与系统 · files（docs/api/a01-system.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { adminMeta } from "../meta-only.js";
+import { adminRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import { FileIdParamsSchema, FileRegistrationSchema } from "../m08-support-misc/files.schemas.js";
+import {
+  AdminFileViewSchema,
+  AdminFileCreateBodySchema,
+  FileDownloadUrlsBodySchema,
+  SignedUrlSchema,
+} from "./files.schemas.js";
 
 export const adminFileList = adminMeta({
   method: "get",
@@ -11,10 +20,20 @@ export const adminFileList = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminFileCreate = adminMeta({
+export const adminFileCreate = adminRoute({
   method: "post",
   path: "/admin/files",
   operationId: "admin.file.create",
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: AdminFileCreateBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(FileRegistrationSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
   summary:
     "上传登记（证照代传、发票文件、转账回单、Banner 图、协议正文、样片、广告版本、预告片、核查截图、巡检截图等），返回 fileId 与直传凭证",
   "x-permission": "assert-in-handler",
@@ -22,29 +41,45 @@ export const adminFileCreate = adminMeta({
   "x-idempotent-by": ["uq_file_object_client_token_store", "uq_file_object_client_token_noscope"],
 });
 
-export const adminFileGet = adminMeta({
+export const adminFileGet = adminRoute({
   method: "get",
   path: "/admin/files/{fileId}",
   operationId: "admin.file.get",
+  request: { params: FileIdParamsSchema },
+  responses: {
+    ...okResponse(AdminFileViewSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
   summary: "查询文件入库与体检状态（前端轮询）",
   "x-permission": "assert-in-handler",
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminFileComplete = adminMeta({
+export const adminFileComplete = adminRoute({
   method: "post",
   path: "/admin/files/{fileId}/complete",
   operationId: "admin.file.complete",
+  request: { params: FileIdParamsSchema },
+  responses: {
+    ...okResponse(AdminFileViewSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  "x-three-phase": true,
   summary: "上传完成确认，服务端核对对象并入库（触发体检）",
   "x-permission": "assert-in-handler",
   "x-idempotent": "required",
   "x-idempotent-reason": "状态迁移（C59）；多事务的三段式用例",
 });
 
-export const adminFileDownloadUrls = adminMeta({
+export const adminFileDownloadUrls = adminRoute({
   method: "post",
   path: "/admin/files/{fileId}/download-urls",
   operationId: "admin.file.downloadUrls",
+  request: {
+    params: FileIdParamsSchema,
+    body: { content: { "application/json": { schema: FileDownloadUrlsBodySchema } } },
+  },
+  responses: { ...okResponse(SignedUrlSchema), ...errorResponses(400, 401, 403, 404, 409, 503) },
   summary:
     "签发文件的短时读地址（证照 5 分钟、样片与广告 60 分钟、成片 30 分钟），按分类判权并逐次留痕",
   "x-permission": "assert-in-handler",

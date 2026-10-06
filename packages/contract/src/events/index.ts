@@ -2,6 +2,7 @@
 // 事件名、聚合、状态登记在 ./registry（纯常量）；这里只放载荷的 schema，按事件名取。
 // 一个模块一个文件，各导出一个 payloads；各域发事件之前先在这里交 schema（计划 第 5.3 节“契约先行”）：
 // 加一个模块文件，在下面 import 并展开进 EVENT_PAYLOAD_SCHEMAS。没有 schema 的事件 events.emit() 不给发。
+import { payloads as media } from "./media.js";
 import type { EventName } from "../registry/index.js";
 import type { z } from "../zod.js";
 import { payloads as config } from "./config.js";
@@ -14,6 +15,7 @@ import { payloads as approval } from "./approval.js";
 
 /** 已交 schema 的事件：事件名 → 载荷 schema。键必须是事件目录里的名字 */
 export const EVENT_PAYLOAD_SCHEMAS = {
+  ...media,
   ...sla,
   ...tenant,
   ...config,

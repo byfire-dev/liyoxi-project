@@ -241,6 +241,20 @@ export interface StorageProvider extends ProviderBase {
   }): Promise<ProviderResult<StsCredential>>;
   /** 读对象头。对象不存在不算失败：返回 exists 为 false */
   head(input: ObjectRef): Promise<ProviderResult<ObjectHead>>;
+  /** 有界读取文件头；confirm 只需前 4KB，可绑定对象 etag。 */
+  readPrefix(
+    input: ObjectRef & { bytes: number; ifMatchEtag?: string },
+  ): Promise<ProviderResult<Uint8Array>>;
+  /** 系统文件写入正式区；只供服务端种子与系统生成文件，禁止端侧使用。 */
+  putObject(
+    input: ObjectRef & {
+      body: Uint8Array;
+      contentType: string;
+      contentDisposition?: string;
+      ifAbsent?: boolean;
+      contentIdentity?: string;
+    },
+  ): Promise<ProviderResult<{ etag: string; size: number }>>;
   /** 复制入库：源对象的 etag 与 ifMatchEtag 相同才复制，并改写内容类型；不同返回 rejected */
   copy(input: {
     src: ObjectRef;
@@ -256,6 +270,8 @@ export interface StorageProvider extends ProviderBase {
     expiresSec: number;
     /** 给了就按附件下载，并用这个文件名 */
     downloadName?: string;
+    /** 显式覆盖响应的 Content-Disposition；不传保持旧行为。 */
+    disposition?: "inline" | "attachment";
   }): Promise<ProviderResult<{ url: string; expiresAt: Date }>>;
   /** 删除。对象本来就不存在也算成功 */
   delete(input: ObjectRef): Promise<ProviderResult<void>>;
@@ -518,7 +534,16 @@ export const PROVIDER_METHODS = {
     "fetchTradeBill",
   ],
   sms: ["sendActivationCode", "sendSubscribeFallback", "sendOncallAlert"],
-  storage: ["presignPost", "issueSts", "head", "copy", "presignGet", "delete"],
+  storage: [
+    "presignPost",
+    "issueSts",
+    "head",
+    "readPrefix",
+    "putObject",
+    "copy",
+    "presignGet",
+    "delete",
+  ],
   media: ["probe", "transcode", "pack", "audit"],
   ocr: ["recognizeBusinessLicense", "extractLicenseFields"],
   asr: ["transcribe"],
