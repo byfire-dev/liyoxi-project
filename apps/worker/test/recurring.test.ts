@@ -36,7 +36,7 @@ describe("循环与队列的登记", () => {
     for (const name of Object.keys(LOOP_INTERVALS_MS)) expect(loops).toContain(name);
     const queues = new Set<string>(QUEUES.map((queue) => queue.id));
     for (const name of Object.keys(QUEUE_CONCURRENCY)) expect(queues).toContain(name);
-    expect(QUEUE_CONCURRENCY).toEqual({ outbox_delivery: 4, timer_run: 4 });
+    expect(QUEUE_CONCURRENCY).toEqual({ outbox_delivery: 4, timer_run: 4, promote: 2 });
   });
 });
 

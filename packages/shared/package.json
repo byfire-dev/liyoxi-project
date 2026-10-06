@@ -5,6 +5,10 @@
   "description": "纯函数：计价与取整、周期日期、状态机表、工作日、格式化",
   "type": "module",
   "exports": {
+    "./uploads": {
+      "types": "./src/uploads/index.ts",
+      "default": "./src/uploads/index.ts"
+    },
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"

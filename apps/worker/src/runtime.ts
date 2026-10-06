@@ -36,6 +36,7 @@ export type WorkerLoop = keyof typeof LOOP_INTERVALS_MS;
 export const QUEUE_CONCURRENCY = {
   outbox_delivery: 4,
   timer_run: 4,
+  promote: 2,
 } as const satisfies Partial<Record<QueueId, number>>;
 export type WorkerQueue = keyof typeof QUEUE_CONCURRENCY;
 
@@ -94,6 +95,9 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
       QUEUE_CONCURRENCY.outbox_delivery,
       async (ref) => void (await services.consume(ref)),
     ),
+    promote: channel.consume<{ jobId: string }>("promote", QUEUE_CONCURRENCY.promote, (ref) =>
+      services.promoteFile(ref),
+    ),
     timer_run: channel.consume<TimerRef>(
       "timer_run",
       QUEUE_CONCURRENCY.timer_run,
@@ -112,7 +116,14 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
       }),
     ]),
   );
-  const all = [...Object.values(loops), ...Object.values(domainLoops)];
+  const promoteRecovery = createLoop({
+    name: "promote.recovery",
+    intervalMs: options.domainIntervals?.["promote.recovery"] ?? 30_000,
+    run: () => services.scanPromote(),
+    onError,
+    monotonic,
+  });
+  const all = [...Object.values(loops), ...Object.values(domainLoops), promoteRecovery];
   const queues = Object.values(consumers);
 
   let active = false;

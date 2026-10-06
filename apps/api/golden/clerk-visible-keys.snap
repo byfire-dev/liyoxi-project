@@ -123,6 +123,73 @@
     "requestId",
     "retryable"
   ],
+  "m.file.cancel": [
+    "category",
+    "createdAt",
+    "declaredSizeBytes",
+    "fileId",
+    "mime",
+    "moderationState",
+    "rejectReason",
+    "sizeBytes",
+    "status",
+    "storedAt",
+    "uploadExpiresAt"
+  ],
+  "m.file.complete": [
+    "category",
+    "createdAt",
+    "declaredSizeBytes",
+    "fileId",
+    "mime",
+    "moderationState",
+    "rejectReason",
+    "sizeBytes",
+    "status",
+    "storedAt",
+    "uploadExpiresAt"
+  ],
+  "m.file.create": [
+    "code",
+    "error",
+    "message",
+    "requestId",
+    "retryable"
+  ],
+  "m.file.get": [
+    "category",
+    "createdAt",
+    "declaredSizeBytes",
+    "fileId",
+    "mime",
+    "moderationState",
+    "rejectReason",
+    "sizeBytes",
+    "status",
+    "storedAt",
+    "uploadExpiresAt"
+  ],
+  "m.file.refreshCredentials": [
+    "bucket",
+    "chunkParallel",
+    "chunkSize",
+    "clientToken",
+    "credentialsLeft",
+    "expiresAt",
+    "fileId",
+    "key",
+    "mode",
+    "post",
+    "post.fields",
+    "post.fields.Content-Type",
+    "post.fields.key",
+    "post.fields.policy",
+    "post.url",
+    "region",
+    "status",
+    "sts",
+    "uploadExpiresAt"
+  ],
   "m.me.currentStore.replace": [
     "storeId"
   ],

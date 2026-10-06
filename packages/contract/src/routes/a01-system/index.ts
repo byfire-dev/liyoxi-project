@@ -73,3 +73,6 @@ export * from "./approvals.js";
 export * from "./dict-items.js";
 export * from "./staff.js";
 export * from "./roles.js";
+
+export * from "./files.js";
+export * from "./files.schemas.js";

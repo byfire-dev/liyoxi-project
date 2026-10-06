@@ -24,6 +24,7 @@ export interface FakeStoredObject {
   mime: string;
   etag: string;
   contentDisposition?: string;
+  contentIdentity?: string;
 }
 
 export type FakeFetchResult =
@@ -59,7 +60,15 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
     string,
     { bucket: StorageBucket; key: string; mime: string; maxBytes: number; expiresAt: Date }
   >();
-  const reads = new Map<string, { ref: ObjectRef; expiresAt: Date; downloadName?: string }>();
+  const reads = new Map<
+    string,
+    {
+      ref: ObjectRef;
+      expiresAt: Date;
+      downloadName?: string;
+      disposition?: "inline" | "attachment";
+    }
+  >();
   let seq = 0;
   const nextToken = (prefix: string) => `${prefix}-${(seq += 1)}`;
   const expiry = (seconds: number) => new Date(clock.now().getTime() + seconds * 1000);
@@ -95,8 +104,8 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
       if (!stored) return { status: 404 };
       const contentDisposition =
         grant.downloadName === undefined
-          ? stored.contentDisposition
-          : `attachment; filename*=UTF-8''${encodeURIComponent(grant.downloadName)}`;
+          ? (grant.disposition ?? stored.contentDisposition)
+          : `${grant.disposition ?? "attachment"}; filename*=UTF-8''${encodeURIComponent(grant.downloadName)}`;
       return {
         status: 200,
         body: new Uint8Array(stored.body),
@@ -145,6 +154,37 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
         });
       }),
 
+    readPrefix: (input) =>
+      core.run("readPrefix", input, () => {
+        if (!Number.isInteger(input.bytes) || input.bytes < 1 || input.bytes > 4096)
+          return failed("rejected", "文件头读取只允许 1–4096 字节");
+        const stored = objects.get(slot(input));
+        if (!stored || (input.ifMatchEtag !== undefined && stored.etag !== input.ifMatchEtag))
+          return failed("rejected", "源对象不存在或 etag 对不上");
+        return ok(stored.body.slice(0, input.bytes));
+      }),
+    putObject: (input) =>
+      core.run("putObject", input, () => {
+        const existing = objects.get(slot(input));
+        if (input.ifAbsent && existing) {
+          if (
+            !input.contentIdentity ||
+            existing.contentIdentity !== input.contentIdentity ||
+            createHash("sha256").update(existing.body).digest("hex") !==
+              createHash("sha256").update(input.body).digest("hex")
+          )
+            return failed("rejected", "正式区键已有不同内容或归属的系统文件");
+          return ok({ etag: existing.etag, size: existing.body.byteLength });
+        }
+        const etag = put(input, input.body, input.contentType);
+        const stored = objects.get(slot(input));
+        if (stored) {
+          stored.contentDisposition = input.contentDisposition;
+          stored.contentIdentity = input.contentIdentity;
+        }
+        return ok({ etag, size: input.body.byteLength });
+      }),
+
     copy: (input) =>
       core.run("copy", input, () => {
         const source = objects.get(slot(input.src));
@@ -167,6 +207,7 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
           ref: { bucket: input.bucket, key: input.key },
           expiresAt,
           downloadName: input.downloadName,
+          disposition: input.disposition,
         });
         const path = input.key.split("/").map(encodeURIComponent).join("/");
         return ok({ url: `${ORIGIN}/${input.bucket}/${path}?token=${token}`, expiresAt });
