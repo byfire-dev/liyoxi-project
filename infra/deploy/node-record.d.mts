@@ -6,6 +6,8 @@ export type ReleaseStep =
   | "pull"
   | "check-env"
   | "stage-assets"
+  | "verify-assets"
+  | "verify-assets-live"
   | "migrate"
   | "seed"
   | "worker-swap"

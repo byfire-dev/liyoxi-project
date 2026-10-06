@@ -19,6 +19,7 @@ export interface Options {
 export interface Summary extends ReleaseRecord {
   error: string;
   recordError: string;
+  dbVerification: { applicationVersion: string; runnerVersion: string } | null;
   exitCode: number;
 }
 export const RELEASE_STEPS: ReleaseStep[];
@@ -40,4 +41,4 @@ export function orchestrate(
   channel: Channel,
   seams?: { clock?: () => number; runId?: string },
 ): Summary;
-export function main(args: string[], env?: NodeJS.ProcessEnv): number;
+export function main(args: string[], env?: NodeJS.ProcessEnv): Promise<number>;
