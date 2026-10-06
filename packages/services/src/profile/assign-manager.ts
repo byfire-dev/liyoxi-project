@@ -1,14 +1,21 @@
 import { scopeCovers, storeScope } from "../authz/index.js";
 import type { DataScope } from "../authz/index.js";
 import { AppError, lockRows } from "../kernel/index.js";
-import type { IdentityContext, Tx } from "../kernel/index.js";
-import type { ProfileDeps } from "./context.js";
+import type { Assembly, Clock, IdentityContext, Tx } from "../kernel/index.js";
+import type { Tenant } from "../tenant/index.js";
 import { deliveryManagerPort, orderManagerPort } from "./ports.js";
+
+/** 同事务首次指派的最小装配；调用方不需要完整建档用例或外部服务。 */
+export interface AssignDeliveryManagerDeps {
+  readonly assembly: Pick<Assembly, "port">;
+  readonly clock: Clock;
+  readonly tenant: Pick<Tenant, "setDeliveryManager">;
+}
 
 /** 同事务首次指派；系统显式调用不套员工集合，员工入口必须传本请求的 DataScope。 */
 export async function assignDeliveryManager(
   tx: Tx,
-  deps: ProfileDeps,
+  deps: AssignDeliveryManagerDeps,
   ctx: IdentityContext,
   input: {
     storeId: string;
