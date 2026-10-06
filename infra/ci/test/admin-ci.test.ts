@@ -234,6 +234,53 @@ describe("构建产物检查", () => {
 });
 
 describe("页面清单", () => {
+  // M0 的零进度是当时状态；页面包必须能更新进度，并保持汇总、明细、里程碑计数一致。
+  function expectAdminProgress(pages: string): void {
+    const summaries = pages
+      .slice(0, pages.indexOf("## 2. 运营管理后台"))
+      .split("\n")
+      .filter((line) => line.startsWith("| 运营管理后台 |"))
+      .map((line) =>
+        line
+          .split("|")
+          .slice(2, -1)
+          .map((cell) => Number(cell.trim())),
+      );
+    const detail = pages
+      .slice(pages.indexOf("## 2. 运营管理后台"), pages.indexOf("## 3. 电脑端下载页"))
+      .split("\n")
+      .filter((line) => line.startsWith("| "))
+      .map((line) =>
+        line
+          .split("|")
+          .slice(1, -1)
+          .map((cell) => cell.trim()),
+      )
+      .map((cells) => ({
+        cells,
+        milestone: cells.findIndex((cell) => /^(M[1-7]|V1\.1)$/.test(cell)),
+      }))
+      .filter((row) => row.milestone !== -1)
+      .map(({ cells, milestone }) => ({
+        milestone: cells[milestone],
+        implemented: cells[milestone + 2],
+        hidden: cells.includes("入口隐藏"),
+      }));
+    expect(detail).toHaveLength(80);
+    for (const page of detail) expect(page.implemented).toMatch(/^(是|否)$/);
+    const v10 = detail.filter((page) => page.milestone !== "V1.1");
+    const implemented = v10.filter((page) => page.implemented === "是").length;
+    expect(v10).toHaveLength(67);
+    expect(detail.filter((page) => page.hidden)).toHaveLength(2);
+    expect(summaries).toEqual([
+      [80, 67, implemented, 67 - implemented, 13, 2],
+      ["M1", "M2", "M3", "M4", "M5", "M6", "M7"].map(
+        (milestone) =>
+          v10.filter((page) => page.milestone === milestone && page.implemented === "否").length,
+      ),
+    ]);
+  }
+
   it("入库的 pages.md 与登记一致；重新生成到别处的内容与入库的逐字相同", () => {
     const temp = makeTempDir("lyx-pages-");
     cleanups.push(temp.cleanup);
@@ -247,7 +294,7 @@ describe("页面清单", () => {
     const pages = read("docs/plan/pages.md");
     expect(pages).toContain("### 2.1 画板页（56）");
     expect(pages).toContain("### 2.2 无画板业务页（16）");
-    expect(pages).toContain("| 运营管理后台 | 80 | 67 | 0 | 67 | 13 | 2 |");
+    expectAdminProgress(pages);
     const portal = pages.slice(pages.indexOf("## 3. 电脑端下载页"));
     const m6 = portal.split("\n").filter((line) => line.includes("| M6 | G6-B |"));
     expect(m6.map((line) => line.split("|")[1]?.trim())).toEqual([
@@ -262,6 +309,43 @@ describe("页面清单", () => {
     // 通知面板、全局搜索标“入口隐藏”
     expect(pages).toMatch(/\| 通知面板 \| — \| 弹层或抽屉 \| 入口隐藏 \|/);
     expect(pages).toMatch(/\| 全局搜索 \| — \| 弹层或抽屉 \| 入口隐藏 \|/);
+  });
+
+  it("明细与两张汇总同步更新一页 M1 进度：可以通过（全部完成时也能运行）", () => {
+    let pages = read("docs/plan/pages.md");
+    const row = /(\| M1 \| [WG][\w-]+ \| )(是|否)/;
+    const delta = pages.match(row)![2] === "是" ? -1 : 1;
+    pages = pages.replace(row, `$1${delta === 1 ? "是" : "否"}`);
+    const summaries = pages.split("\n").filter((line) => line.startsWith("| 运营管理后台 |"));
+    for (const table of [0, 1]) {
+      const line = summaries[table]!;
+      const cells = line.split("|");
+      for (const [column, cellDelta] of table === 0
+        ? [
+            [4, delta],
+            [5, -delta],
+          ]
+        : [[2, -delta]]) {
+        cells[column!] = ` ${Number(cells[column!]!.trim()) + cellDelta!} `;
+      }
+      pages = pages.replace(line, cells.join("|"));
+    }
+    expectAdminProgress(pages);
+  });
+
+  it("只改汇总的已实现、未实现或里程碑计数，明细没跟上：不能通过", () => {
+    const pages = read("docs/plan/pages.md");
+    const summaries = pages.split("\n").filter((line) => line.startsWith("| 运营管理后台 |"));
+    for (const [table, column] of [
+      [0, 4],
+      [0, 5],
+      [1, 2],
+    ] as const) {
+      const line = summaries[table]!;
+      const cells = line.split("|");
+      cells[column] = ` ${Number(cells[column]!.trim()) + 1} `;
+      expect(() => expectAdminProgress(pages.replace(line, cells.join("|")))).toThrow();
+    }
   });
 
   it("文件不在、内容被改：--check 失败并指出第一处差异；不认识的参数是用法错误", () => {
