@@ -2,6 +2,7 @@
 // 在这里加一行展开。探活不在这里，在 ../probes.ts。
 import type { HandlerEntry } from "../routing/define.js";
 
+import { adminApprovalHandlers } from "./admin/approvals.js";
 import { adminAuthHandlers } from "./admin/auth.js";
 import { adminStaffHandlers } from "./admin/staff.js";
 import { adminRoleHandlers } from "./admin/roles.js";
@@ -17,6 +18,7 @@ export const HANDLERS: readonly HandlerEntry[] = [
   // W1-01a：后台登录、激活、再验证、当前员工、退出（九条）
   ...adminAuthHandlers,
   ...merchantViewHandlers,
+  ...adminApprovalHandlers,
   ...adminStaffHandlers,
   ...adminRoleHandlers,
 ];

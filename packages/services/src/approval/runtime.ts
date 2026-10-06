@@ -19,6 +19,8 @@ import { approvalKindPort } from "./kinds.js";
 import type { ApprovalKindRegistration, ApprovalNumberPrefix } from "./kinds.js";
 import { submit } from "./submit.js";
 import type { SubmitInput, SubmitResult } from "./submit.js";
+import { createApprovalReads } from "./read.js";
+import type { ApprovalReads } from "./read.js";
 
 export interface ApprovalOptions {
   /** 装配结果：各模块登记的审批类型从这里取 */
@@ -31,7 +33,7 @@ export interface ApprovalOptions {
   readonly bizNo: Pick<BizNoIssuer, "next">;
 }
 
-export interface Approval {
+export interface Approval extends ApprovalReads {
   /** 已登记的审批类型，键是 kind */
   readonly kinds: ReadonlyMap<string, ApprovalKindRegistration>;
   /** 提交：建一张待审的审批单。同对象已有在途单 → 409 APPROVAL_ALREADY_PENDING */
@@ -114,6 +116,7 @@ export function createApproval(options: ApprovalOptions): Approval {
     fresh: new WeakMap(),
   };
   return {
+    ...createApprovalReads({ kinds, clock: options.clock }),
     kinds,
     submit: (tx, ctx, input) => submit(tx, deps, ctx, input),
     approve: (tx, ctx, input) => approve(tx, deps, ctx, input),

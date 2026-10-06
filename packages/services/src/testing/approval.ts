@@ -9,7 +9,7 @@
 //   channel_account      商家提交的审核，角色队列（不套数据范围）
 //   order_cancel         有执行步：通过后停在 approved，执行是另一个事务
 import type { ApprovalKind } from "@liyoxi/contract";
-import type { PrismaClient } from "@liyoxi/db";
+import type { Prisma, PrismaClient } from "@liyoxi/db";
 
 import { approvalKindPort, createApproval, defineApprovalKind } from "../approval/index.js";
 import type {
@@ -448,5 +448,20 @@ export function createSampleApproval(
         domain: domain[0] ?? null,
       };
     },
+  };
+}
+
+/** 审批读侧的夹具：直接造合法行，只供 GET 接口的测试准备数据，不进生产装配。 */
+export function approvalReadFixture(prisma: PrismaClient, clock: { now(): Date }) {
+  return async (
+    data: Omit<
+      Prisma.ApprovalRequestUncheckedCreateInput,
+      "id" | "createdAt" | "updatedAt" | "submittedAt"
+    > & { submittedAt?: Date },
+  ) => {
+    const now = clock.now();
+    return prisma.approvalRequest.create({
+      data: { id: uuidv7(), createdAt: now, updatedAt: now, submittedAt: now, ...data },
+    });
   };
 }
