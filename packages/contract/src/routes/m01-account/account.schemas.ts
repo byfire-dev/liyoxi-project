@@ -1,5 +1,6 @@
+import { PendingConsentSchema } from "../../common/pending-consent.js";
 // 商家端：账号与登录 · 当前账号与登录的结构（docs/api/m01-account.md 第 2.1–2.4、2.6–2.8、3.1–3.4 节；W1-04）。
-// PendingConsent、ConsentInput、DeviceInfo 引 agreement.schemas.ts 的，EntityBrief 引 m02 的（约定 C87），不另写一份。
+// PendingConsent 引 common；ConsentInput、DeviceInfo 引 agreement.schemas.ts 的，EntityBrief 引 m02 的（约定 C87），不另写一份。
 // 老板与店员同一结构（clerkView = same）：手机号只出脱敏串（约定 C40、C57 放行 Mask 结尾的键）。
 import { IdSchema, InstantSchema, openEnum, orNull } from "../../common/index.js";
 import {
@@ -11,7 +12,7 @@ import {
 import { z } from "../../zod.js";
 import { EntityBriefSchema } from "../m02-tenant/tenant.schemas.js";
 
-import { ConsentInputSchema, DeviceInfoSchema, PendingConsentSchema } from "./agreement.schemas.js";
+import { ConsentInputSchema, DeviceInfoSchema } from "./agreement.schemas.js";
 
 // ---------- 2.2 MeUser ----------
 

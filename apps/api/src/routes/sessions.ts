@@ -2,6 +2,10 @@
 // 两条登录是公开路由（不解析凭据）；退出与当前账号要会话，由鉴权中间件给。
 // 含令牌或个人数据的响应带 Cache-Control: no-store（约定 C18）。
 import {
+  MeViewSchema,
+  NoDataSchema,
+  PhoneLoginResultSchema,
+  SilentLoginResultSchema,
   mMeGet,
   mSessionCreate,
   mSessionCurrentDelete,
@@ -11,7 +15,8 @@ import type { RequestMeta, Runtime } from "@liyoxi/services";
 import type { Context } from "hono";
 
 import type { ApiEnv } from "../context.js";
-import { ok, RateLimited } from "../http/errors.js";
+import { respondByRole } from "../http/respond-by-role.js";
+import { RateLimited } from "../http/errors.js";
 import { merchantSessionOf } from "../http/merchant-auth.js";
 import { PHONE_LOGIN_OPENID_QUOTA } from "../http/rate-limit-quotas.js";
 import { CLIENT_VERSION_HEADER } from "../http/version-gate.js";
@@ -58,7 +63,15 @@ export const sessionHandlers = [
     const { identity } = merchantServicesOf(c.var.runtime);
     const result = await identity.silentLogin(metaOf(c), c.req.valid("json"));
     c.header("Cache-Control", "no-store");
-    return ok(c, result);
+    return respondByRole(
+      c,
+      {
+        owner: SilentLoginResultSchema,
+        clerk: SilentLoginResultSchema,
+        guest: SilentLoginResultSchema,
+      },
+      result,
+    );
   }),
   // m.session.phoneLogin：首次登录建账号、记协议同意与来源
   defineHandler(mSessionPhoneLogin, async (c) => {
@@ -68,19 +81,27 @@ export const sessionHandlers = [
       onOpenid: (openidKey) => hitOpenidQuota(runtime, openidKey),
     });
     c.header("Cache-Control", "no-store");
-    return ok(c, result);
+    return respondByRole(
+      c,
+      {
+        owner: PhoneLoginResultSchema,
+        clerk: PhoneLoginResultSchema,
+        guest: PhoneLoginResultSchema,
+      },
+      result,
+    );
   }),
   // m.session.current.delete：会话已失效时到不了这里（鉴权中间件回 401，端上按已退出处理）
   defineHandler(mSessionCurrentDelete, async (c) => {
     const { identity } = merchantServicesOf(c.var.runtime);
     await identity.logout(merchantSessionOf(c), metaOf(c));
-    return ok(c, null);
+    return respondByRole(c, { owner: NoDataSchema, clerk: NoDataSchema }, null);
   }),
   // m.me.get：在协议同意的白名单里，有待同意协议时照常返回
   defineHandler(mMeGet, async (c) => {
     const { identity } = merchantServicesOf(c.var.runtime);
     const me = await identity.me(merchantSessionOf(c).merchantUserId);
     c.header("Cache-Control", "no-store");
-    return ok(c, me);
+    return respondByRole(c, { owner: MeViewSchema, clerk: MeViewSchema }, me);
   }),
 ];

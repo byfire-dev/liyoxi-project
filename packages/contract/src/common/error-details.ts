@@ -5,12 +5,11 @@ import { z } from "../zod.js";
 import type { CommonErrorDetails } from "../errors/index.js";
 import { DateSchema } from "./scalars.js";
 
-/** 占位：PendingConsent 归 m01（约定 C87），随 m01 的第一个后端 PR 定义后替换 */
-export const PendingConsentPlaceholderSchema = z.record(z.string(), z.unknown());
+import { PendingConsentSchema } from "./pending-consent.js";
 
 export const COMMON_ERROR_DETAILS = {
   // 键是请求里的版本字段名（通常 lockVersion），值是库里的最新版本（约定 C52）
   VERSION_CONFLICT: z.record(z.string(), z.number().int().nonnegative()),
-  CONSENT_REQUIRED: z.object({ pendingConsents: z.array(PendingConsentPlaceholderSchema) }),
+  CONSENT_REQUIRED: z.object({ pendingConsents: z.array(PendingConsentSchema) }),
   REMINDED_TODAY: z.object({ scene: z.string(), nextAvailableDate: DateSchema }),
 } satisfies { [K in keyof CommonErrorDetails]: z.ZodType<CommonErrorDetails[K]> };

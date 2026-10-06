@@ -179,3 +179,6 @@ export type { DataScope, StaffContext } from "./authz/index.js";
 export type { AuthNext, SignedIn, StaffAuth, StaffPrincipal } from "./staff/index.js";
 export { DEMO_SEED_STEPS, DemoSeedRefusedError, runDemoSeed } from "./demo-seed.js";
 export type { DemoSeedDeps, DemoSeedReport, DemoSeedState, DemoSeedStep } from "./demo-seed.js";
+
+export { cropMerchantView } from "./authz/index.js";
+export type { MerchantViewerRole, MerchantViewSchemas } from "./authz/index.js";

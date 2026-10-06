@@ -5,3 +5,4 @@ export * from "./open-enum.js";
 export * from "./pagination.js";
 export * from "./scalars.js";
 export * from "./structures.js";
+export * from "./pending-consent.js";

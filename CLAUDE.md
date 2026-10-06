@@ -172,6 +172,7 @@
 | `pnpm lint`（`pnpm lint:fix` 自动修） | ESLint。规则片段在 `packages/config/eslint/`，装配在根 `eslint.config.js` |
 | `pnpm format:check`（`pnpm format` 改写） | Prettier 格式检查。不碰 `docs/`、`design/`、`tools/` 与全部 `*.md` |
 | `pnpm typecheck` | 类型检查：根、`infra`、五份 tsconfig 预设的最小工程（见 [README](infra/ci/fixtures/README.md)）、各工作区包 |
+| `pnpm clerk:snapshot` | 真实店员回放重写字段路径黄金文件；正常 `pnpm test` 对照黄金并检查缺样例与禁用字段。需要本地 PG/Redis 与独立会话，见 `apps/api/README.md` 第 9 节 |
 | `pnpm test` | Vitest。项目：`packages/*`、`apps/api`、`apps/worker`、`infra` |
 | `pnpm test --maxWorkers=4` | 指定并行数跑测试。参数直接跟在后面，不要写成 `pnpm test -- --maxWorkers=4`：`--` 之后的参数会被 Vitest 忽略。跑测试的前提（带不带参数都一样）：`packages/db`、`packages/services` 两个项目挂了 globalSetup，只跑其中不连库的用例，也要本地的 PostgreSQL 在运行并给出 `DATABASE_URL`；连 Redis 的用例另要 `REDIS_URL` |
 | `pnpm test:isolation`（加 `--scope connected` 只跑连库的测试项目，CI 的那一步用它；加 `--workers <n>` 指定每个会话的 worker 数） | 测试隔离：两个会话同时跑全量测试，都要绿，且两边用的 `lyx_test_` 库名与 Redis 前缀没有交集。每个会话的 Vitest worker 数缺省按本机核数定：两个会话合起来不超过可用核数，各最多 4 个、至少 1 个。要本地依赖在运行并给出连接参数。日志通过即删，没过的留在系统临时目录并打印位置。见 [README](packages/services/src/testing/README.md) 第 6 节 |

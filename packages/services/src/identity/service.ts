@@ -5,7 +5,14 @@
 //   await identity.phoneLogin(meta, input);            // 用例：外呼在前，自己开事务
 //   await identity.authenticate(token, { ip });        // 鉴权中间件每请求调一次
 //   await identity.pendingConsents(principal);         // 协议同意中间件
-import type { MeView, PendingConsent, PhoneLoginResult, SilentLoginResult } from "@liyoxi/contract";
+import type {
+  Bootstrap,
+  MeOverview,
+  MeView,
+  PendingConsent,
+  PhoneLoginResult,
+  SilentLoginResult,
+} from "@liyoxi/contract";
 import { maskName } from "@liyoxi/shared/mask";
 
 import { compareVersions, parseVersion } from "../config/index.js";
@@ -13,6 +20,10 @@ import type { Config, FlagContext } from "../config/index.js";
 import type { ConsentSigner } from "../docs/index.js";
 import { AppError } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
+import { bootstrap } from "./bootstrap.js";
+import type { BootstrapInput } from "./bootstrap.js";
+import { overview } from "./overview.js";
+import type { StoreMembership } from "../tenant/index.js";
 import { createConsentGate } from "./consent-gate.js";
 import type { ConsentGate } from "./consent-gate.js";
 import { openidHmac, phoneLogin, silentLogin } from "./login.js";
@@ -25,7 +36,7 @@ import type { RequestMeta, SessionPrincipal } from "./types.js";
 
 export interface IdentityDeps extends Omit<LoginDeps, "me" | "config"> {
   /** 配置读侧：参数 auth.dormant_days、开关 client.min_version */
-  readonly config: Pick<Config, "params" | "flags">;
+  readonly config: Pick<Config, "params" | "flags" | "dicts" | "siteConfig">;
   /** 短信通道配没配（决定 MeUser.actions 里有没有换绑手机号）；不给即没配 */
   readonly smsConfigured?: () => boolean;
 }
@@ -44,6 +55,9 @@ export interface Identity {
   logout(principal: SessionPrincipal, meta: RequestMeta): Promise<void>;
   /** m.me.get：只读、现算 */
   me(merchantUserId: string): Promise<MeView>;
+
+  bootstrap(input: BootstrapInput): Promise<Bootstrap>;
+  overview(input: { merchantUserId: string; membership: StoreMembership }): Promise<MeOverview>;
 
   // ---------- 商家鉴权链（中间件调） ----------
   /** 每请求校验会话令牌：按主键点查、不缓存；通过时按“同一天只写一次”续写 */
@@ -77,6 +91,9 @@ export function createIdentity(deps: IdentityDeps): Identity {
     phoneLogin: (meta, input, options) => phoneLogin(login, meta, input, options),
     logout: (principal, meta) => deps.tx.run((tx) => logoutIn(tx, now(), principal, meta)),
     me: (merchantUserId) => deps.tx.run((tx) => buildMeView(tx, meDeps, merchantUserId)),
+
+    bootstrap: (input) => bootstrap(deps, input),
+    overview: (input) => overview(deps, input),
 
     authenticate: (token, meta) => deps.tx.run((tx) => checkSession(tx, now(), token, meta)),
     pendingConsents: (principal) => gate.pending(principal),

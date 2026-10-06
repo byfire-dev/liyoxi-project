@@ -37,3 +37,6 @@ export {
   PHONE_UNIQUE_INDEX,
 } from "./invariants.js";
 export { registration } from "./register.js";
+
+export { assembleBootstrap, bootstrapDefaults } from "./bootstrap.js";
+export type { BootstrapInput, BootstrapLoaders } from "./bootstrap.js";

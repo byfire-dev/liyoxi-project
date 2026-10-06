@@ -73,6 +73,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/bootstrap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 启动引导：serverTime、minClientVersion、flags、versions（dict/site/agreement）、uploadLimits、download.weappSaveMode、copy、support（在线客服模式）、degraded、notice（停机维护说明）、pendingConsents、subscribePlan、context */
+        get: operations["m.bootstrap.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/entities": {
         parameters: {
             query?: never;
@@ -117,6 +134,23 @@ export interface paths {
         get?: never;
         /** 记住当前门店（写 entity_member.last_store_id，供下次启动恢复） */
         put: operations["m.me.currentStore.replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/me/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** “我的”页聚合：当前门店卡（认证状态、城市品类、角色、档案摘要、审核中提示）、套餐与积分卡（仅老板）、我的门店数与额度、当前门店概览（上线中/交付中/选剧单）、各入口副标题与角标 */
+        get: operations["m.me.overview.get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -259,6 +293,66 @@ export interface components {
             inviteCode?: string;
             scene?: number;
         };
+        Bootstrap: {
+            context: {
+                storeId: string | null;
+            } | null;
+            copy: {
+                [key: string]: string;
+            };
+            degraded: ("flags" | "versions" | "consents" | "subscribe" | "copy" | "notice" | "context" | (string & {}))[];
+            download: {
+                /** @enum {string} */
+                weappSaveMode: "temp" | "user_dir" | (string & {});
+            };
+            flags: {
+                [key: string]: unknown;
+            };
+            minClientVersion: string;
+            notice: components["schemas"]["MaintenanceNotice"] | null;
+            pendingConsents: components["schemas"]["PendingConsent"][] | null;
+            /** Format: date-time */
+            serverTime: string;
+            subscribeCooldownDays: number;
+            subscribeMaxPerAsk: number;
+            subscribePlan: {
+                /** @enum {string} */
+                point: "profile_submit" | "pay_success" | "transfer_submit" | "order_submit" | "plan_confirm" | "ad_submit" | "ad_confirm" | "sample_confirm" | "package_download" | "link_submit" | "offline_confirm" | "ticket_submit" | "ticket_reply" | "invoice_apply" | "renew_enter" | "member_invite" | "member_join" | "asset_upload" | "notify_settings" | (string & {});
+                slots: {
+                    slotKey: string;
+                    tmplId: string;
+                }[];
+            }[] | null;
+            support: {
+                corpId: string | null;
+                kfUrl: string | null;
+                /** @enum {string} */
+                mode: "wecom_kf" | "contact" | (string & {});
+            };
+            uploadLimits: {
+                imageMaxMb: number;
+                weappVideoMaxMb: number;
+            };
+            versions: {
+                agreement: string;
+                dict: {
+                    [key: string]: number;
+                };
+                site: {
+                    [key: string]: number;
+                };
+            };
+        };
+        ChannelAccountAttention: {
+            abnormalReason: components["schemas"]["DictRef"] | null;
+            abnormalSource: ("verify" | "manual" | (string & {})) | null;
+            /** Format: uuid */
+            channelAccountId: string;
+            /** @enum {string} */
+            platform: "douyin" | "wechat_channels" | (string & {});
+            /** @enum {string} */
+            status: "abnormal" | "pending_verify" | (string & {});
+        };
         ConsentInput: {
             agreementKey: string;
             /** Format: uuid */
@@ -339,6 +433,55 @@ export interface components {
             requestId: string;
             retryable: boolean;
         };
+        MaintenanceNotice: {
+            body: string;
+            expectedEndAt: string | null;
+            title: string;
+        };
+        MeOverview: {
+            currentStore: components["schemas"]["OverviewStore"];
+            entries: {
+                adPendingConfirmCount: number;
+                channelAccountAttention: components["schemas"]["ChannelAccountAttention"] | null;
+                channelAccountCount: number;
+                hasLaunchTasks: boolean;
+                launchTaskTodoCount: number;
+                ticketAwaitingConfirmCount: number;
+            };
+            storeStats: {
+                cartCount: number;
+                deliveringCount: number;
+                liveCount: number;
+            };
+            stores: {
+                reviewingStores: {
+                    name: string | null;
+                    /** Format: uuid */
+                    storeId: string;
+                }[];
+                storeLimit: number;
+                visibleCount: number;
+            };
+            subscription: components["schemas"]["OverviewPlanCard"];
+            unreadMessageCount: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            viewerRole: "owner";
+        };
+        MeOverviewForClerk: {
+            currentStore: components["schemas"]["OverviewStoreForClerk"];
+            stores: {
+                visibleCount: number;
+            };
+            unreadMessageCount: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            viewerRole: "clerk";
+        };
         MeUser: {
             actions: ("update" | "change-phone" | "deletion")[];
             displayName: string | null;
@@ -390,6 +533,57 @@ export interface components {
             name: string | null;
             /** @enum {string} */
             qualificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
+            /** Format: uuid */
+            storeId: string;
+        };
+        OverviewPlanCard: {
+            addonAvailablePoints: number;
+            endDate: string | null;
+            isAddonSuspended: boolean;
+            isRefundPending: boolean;
+            planAvailablePoints: number;
+            planName: string | null;
+            planPointsExpireAt: string | null;
+            remainingDays: number | null;
+            spendablePoints: number;
+            /** @enum {string} */
+            status: "none" | "active" | "expired" | (string & {});
+        };
+        OverviewStore: {
+            assetCount: number;
+            category: components["schemas"]["DictRef"] | null;
+            city: components["schemas"]["DictRef"] | null;
+            clerkCount: number;
+            completenessPct: number;
+            isPrimary: boolean;
+            /** @enum {string} */
+            lifecycle: "active" | "archived" | (string & {});
+            name: string | null;
+            /** @enum {string} */
+            qualificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
+            review: {
+                expectedDecisionAt: string | null;
+                /** Format: date-time */
+                submittedAt: string;
+            } | null;
+            /** @enum {string} */
+            role: "owner" | "clerk" | (string & {});
+            /** Format: uuid */
+            storeId: string;
+        };
+        OverviewStoreForClerk: {
+            assetCount: number;
+            category: components["schemas"]["DictRef"] | null;
+            city: components["schemas"]["DictRef"] | null;
+            clerkCount: number;
+            isPrimary: boolean;
+            /** @enum {string} */
+            lifecycle: "active" | "archived" | (string & {});
+            name: string | null;
+            /** @enum {string} */
+            qualificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
+            /** @enum {string} */
+            role: "owner" | "clerk" | (string & {});
             /** Format: uuid */
             storeId: string;
         };
@@ -790,6 +984,50 @@ export interface operations {
             };
         };
     };
+    "m.bootstrap.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["Bootstrap"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "m.entity.create": {
         parameters: {
             query?: never;
@@ -963,6 +1201,77 @@ export interface operations {
             };
             /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.me.overview.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["MeOverview"] | components["schemas"]["MeOverviewForClerk"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 客户端版本过低 */
+            426: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 需要先同意协议 */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

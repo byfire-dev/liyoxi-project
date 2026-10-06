@@ -4,6 +4,7 @@ import type { HandlerEntry } from "../routing/define.js";
 
 import { adminAuthHandlers } from "./admin/auth.js";
 import { agreementHandlers } from "./agreements.js";
+import { merchantViewHandlers } from "./merchant-views.js";
 import { sessionHandlers } from "./sessions.js";
 
 export const HANDLERS: readonly HandlerEntry[] = [
@@ -13,4 +14,5 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...sessionHandlers,
   // W1-01a：后台登录、激活、再验证、当前员工、退出（九条）
   ...adminAuthHandlers,
+  ...merchantViewHandlers,
 ];
