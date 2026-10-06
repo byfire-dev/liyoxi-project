@@ -122,7 +122,7 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 
 `src/lib/account-controller.ts` 只编排生成 DTO 与可注入端口；`account-runtime.ts` 装配三个既有 store 与五个 server 调用。冷启动首触来源先到先得（空来源同样占位），引导后有令牌取 me，无令牌静默登录，needPhone 保持游客。accessToken 沿 C3 与既有 persistence 落盘，用户概要不落盘；首触来源和本机替身码不保存号码。登录页的 PhoneForm 是 M1 替身：11位号码作为 phoneCode，取不到平台登录码时才用本机固定串；真实凭证组件在 G2-B 替换此表单。
 
-登录成功恢复原页面；非标签页恢复编码后的查询参数，标签页用原生 switchTab。协议版本过期重拉版本并清空表单勾选。me 与五个并发428共用阻断式协议层，同意回执与 me 都确认没有 pending 后才让请求层重放；只可不同意并退出，30秒内不重复弹。正文页可阅读，返回后仍阻断。切店先改本地/清聚合，再重拉、记住选择、埋点和提示；保存失败不回滚、同一意图重试保留幂等键。generation、令牌和 contextRev 丢弃旧账号、旧门店迟到响应。
+登录成功恢复原页面；非标签页恢复编码后的查询参数，标签页用原生 switchTab。协议版本过期重拉版本并清空表单勾选。me 与五个并发428共用阻断式协议层；同意回执确认没有 pending 即释放等待，由服务端重放时再次校验，后续 me 只刷新概要，刷新失败不挂起原请求。仍有未签协议时保持可见且可操作的阻断层；只可不同意并退出，30秒内不重复弹。正文页可阅读，返回后仍阻断。切店先改本地/清聚合，再重拉、记住选择、埋点和提示；保存失败不回滚、同一意图重试保留幂等键。generation、令牌和 contextRev 丢弃旧账号、旧门店迟到响应。协议生效日复用 shared/format/datetime 的北京时间显示，不截UTC日期。
 
 我的套餐积分卡与统计只按 overview.viewerRole=owner 展示；店员不显示资金、订单与发布入口。不做金额、积分或订购判断。未来入口只在 pages.ts 对应页 implemented=true 时显示，钱包指向 sub/billing/wallet/index。无门店显示账号与未绑定说明。退出登录暂放我的末行，设置页落地后迁移。
 
