@@ -397,6 +397,8 @@ describe("真实 bash 节点发布步骤，Docker/systemd 替身", () => {
   it("首次 facts 无 release.env 成功；P1 未接为 unavailable，实际查询错误关闭", () => {
     const f = fixture();
     expect(f.run("facts").stdout).toBe("LYX_CURRENT=\n");
+    writeFileSync(join(f.home, "releases.log"), JSON.stringify(record()));
+    expect(f.run("facts").status).toBe(1);
     expect(f.run("preflight").stdout).toContain('"p1":"unavailable"');
     const checked = f.run("preflight", [], {
       LYX_P1_CHECK: "enabled",
@@ -605,6 +607,9 @@ describe("发布记录的真实文件追加", () => {
     expect(() => recordMain(["append", VERSION, "a".repeat(21847)], path)).toThrow();
     writeFileSync(path, "not json\n");
     expect(() => recordMain(["keep", VERSION], path)).toThrow();
+    writeFileSync(path, JSON.stringify(valid));
+    expect(() => recordMain(["append", VERSION, encoded], path)).toThrow("完整行尾");
+    expect(readFileSync(path, "utf8")).toBe(JSON.stringify(valid));
   });
   it("保留集有当前版，最多最近三个成功且去重；失败版本不挤掉成功版本", () => {
     const failed: ReleaseRecord = {

@@ -133,7 +133,9 @@ export function validateRecord(record) {
 
 export function readRecords(path) {
   if (!existsSync(path)) return [];
-  return readFileSync(path, "utf8")
+  const contents = readFileSync(path, "utf8");
+  if (contents && !contents.endsWith("\n")) fail("历史记录缺少完整行尾，拒绝追加或清理");
+  return contents
     .split("\n")
     .filter(Boolean)
     .map((line) => {

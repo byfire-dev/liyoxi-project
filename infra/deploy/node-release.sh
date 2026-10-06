@@ -25,6 +25,11 @@ step_facts() {
   printf 'LYX_CURRENT=%s\n' "$tag"
   if [ -f "$LYX_NODE_HOME/releases.log" ]; then
     [ -r "$LYX_NODE_HOME/releases.log" ] || die "读不了 releases.log"
+    if [ -s "$LYX_NODE_HOME/releases.log" ]; then
+      local last
+      last="$(tail -c 1 "$LYX_NODE_HOME/releases.log" | od -An -tu1 | tr -d '[:space:]')" || die "核对发布记录行尾失败"
+      [ "$last" = 10 ] || die "发布历史缺少完整行尾，拒绝使用截断记录"
+    fi
     while IFS= read -r row || [ -n "$row" ]; do
       [ -z "$row" ] || printf 'LYX_RECORD=%s\n' "$row"
     done <"$LYX_NODE_HOME/releases.log"
