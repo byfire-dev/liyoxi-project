@@ -255,4 +255,6 @@ GitHub Actions 的公开 vars 与 encrypted secrets 由业主事后设置。缺�
 
 PR 四镜像只 build，以 `sha-<12HEAD>` 绑定同一源码，小程序原 1500/800KB 预算不变。成功构建产物在 GitHub 保留七天；发布 job 从自己的 run 取产物，校验源码/公开构建配置/制品哈希后推四镜像，并记录远端摘要。`mirror_base` 只手动、main 且推送开关已启用才转存 PG17/Redis7 的固定多架构清单，不用单平台 pull/tag/push。部署只消费同仓 main 成功 push 的同 run 摘要，受限节点预拉后比对三个常驻应用镜像摘要，再调用 actual W2-26a 编排；小程序上传步骤仍留 W2-26b2。没有借用未合 #107。
 
+`images.json` 四个镜像各记录 `registryDigest`、`amd64ManifestDigest`、`amd64ConfigDigest`。发布工具按摘要固定查询原始 index/manifest、校验字节 SHA256，且只接受唯一 linux/amd64 平台与其 config；节点实际 a 的 `.Id` 必须匹配同一镜像这三个明确事实之一，兼容 classic 的 config ID 与 containerd 的 index ID。缺字段、坏摘要、未知镜像或重复节点行均在编排前停止，不能只按 tag 放行。输出形状与原字节依据 [Docker Buildx 文档](https://docs.docker.com/reference/cli/docker/buildx/imagetools/inspect/)及[官方 raw 输出实现](https://github.com/docker/buildx/blob/master/util/imagetools/printers.go)，本机仅用真实 Node 与 fake Docker/SSH 核验，无 registry 推送或节点部署。
+
 本机证据仅证明脚本/真实 SDK 请求格式与四镜像能构建。真实 registry/CAM 权限、COS 四桶创建和配置、CDN 授权、SSH 登录/节点发布与微信上传仍未办；本包未启用任何真实开关，没有服务器交付成功结论。

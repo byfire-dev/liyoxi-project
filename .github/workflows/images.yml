@@ -139,9 +139,9 @@ jobs:
             target="$REGISTRY/$NAMESPACE/$image:$TAG"
             docker tag "liyoxi/$image:$TAG" "$target"
             docker push "$target"
-            docker buildx imagetools inspect "$target" --format '{{.Manifest.Digest}}' > "$RUNNER_TEMP/images-release/$image.digest"
+            node infra/ci/stg-image-facts.mjs "$target" > "$RUNNER_TEMP/images-release/$image.fact.json"
           done
-          node --input-type=module -e 'import fs from "node:fs"; const base=process.env.RUNNER_TEMP; const s=JSON.parse(fs.readFileSync(base+"/images-out/source.json")); if(s.source!==process.env.GITHUB_SHA||s.tag!==process.env.TAG)throw Error("源码不符"); const images=Object.fromEntries(["server","gateway","mediatool","weapp-uploader"].map(n=>{const d=fs.readFileSync(base+"/images-release/"+n+".digest","utf8").trim(); if(!/^sha256:[a-f0-9]{64}$/.test(d))throw Error("摘要无效");return[n,d];}));fs.writeFileSync(base+"/images-release/images.json",JSON.stringify({...s,images}));'
+          node --input-type=module -e 'import fs from "node:fs";import {validateRelease} from "./infra/ci/stg-image-facts.mjs";const base=process.env.RUNNER_TEMP;const s=JSON.parse(fs.readFileSync(base+"/images-out/source.json"));if(s.source!==process.env.GITHUB_SHA||s.tag!==process.env.TAG)throw Error("源码不符");const images=Object.fromEntries(["server","gateway","mediatool","weapp-uploader"].map(n=>[n,JSON.parse(fs.readFileSync(base+"/images-release/"+n+".fact.json","utf8"))]));fs.writeFileSync(base+"/images-release/images.json",JSON.stringify(validateRelease({...s,images},process.env.GITHUB_SHA)));'
       - name: 装独立工具的固定 Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
