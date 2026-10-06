@@ -38,3 +38,6 @@ export * from "./routes/m07-billing/index.js";
 export * from "./routes/a07-billing-finance/index.js";
 export * from "./routes/m03-profile-asset/index.js";
 export * from "./routes/m04-mall-order/index.js";
+
+export * from "./routes/m05-delivery-publish/index.js";
+export * from "./routes/a06-publish/index.js";

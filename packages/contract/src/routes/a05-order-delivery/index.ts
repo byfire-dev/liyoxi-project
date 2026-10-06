@@ -30,4 +30,5 @@ export const A05_ORDER_DELIVERY = defineRouteDoc("a05-order-delivery", [
   samples,
 ]);
 
+export * from "./public.schemas.js";
 export * from "./error-details.js";

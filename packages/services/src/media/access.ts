@@ -125,6 +125,8 @@ export function canReadCategory(
     case "profile_video":
     case "profile_promo":
       return level("merchant");
+    case "evidence":
+      return level("publish");
     case "channel_screenshot":
       return level("publish");
     case "sample_video":

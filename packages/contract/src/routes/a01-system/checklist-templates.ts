@@ -2,7 +2,7 @@
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { adminMeta } from "../meta-only.js";
 
-export const adminChecklistTemplateList = adminMeta({
+export const adminChecklistTemplateList = adminRoute({
   method: "get",
   path: "/admin/checklist-templates",
   operationId: "admin.checklistTemplate.list",
@@ -10,6 +10,11 @@ export const adminChecklistTemplateList = adminMeta({
     "清单模板：质检、交付前检查、链接核验、账号核验、巡检、下架核查（按编码取当前启用版本或全部版本）",
   "x-permission": "assert-in-handler",
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { query: ChecklistTemplateListQuerySchema },
+  responses: {
+    ...okResponse(ChecklistTemplateListSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
 export const adminChecklistTemplateCreate = adminMeta({
@@ -38,3 +43,10 @@ export const adminChecklistTemplateDiscard = adminMeta({
   "x-permission": "flow.checklist.manage",
   "x-idempotent": "required",
 });
+
+import { adminRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  ChecklistTemplateListQuerySchema,
+  ChecklistTemplateListSchema,
+} from "./checklist.schemas.js";
