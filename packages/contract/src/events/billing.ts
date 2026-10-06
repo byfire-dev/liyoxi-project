@@ -3,7 +3,15 @@
 // 这里交的是账本内核发的九个：七个 billing.points.*，两个由 advance 发的 billing.subscription.*。
 // 其余 billing 事件（开通、续费预约、升级、退款、付款单等）由发它们的包来交。
 import { IdSchema, InstantSchema, orNull, PointsSchema } from "../common/scalars.js";
-import { BILLING_ORDER_TYPE, POINT_HOLD_PURPOSE } from "../enums/index.js";
+import {
+  BILLING_ORDER_TYPE,
+  BILLING_ORDER_STATUS,
+  PAY_CHANNEL,
+  BILLING_ORDER_CANCEL_REASON,
+  PAYMENT_EXCEPTION_KIND,
+  PAYMENT_EXCEPTION_STATUS,
+  POINT_HOLD_PURPOSE,
+} from "../enums/index.js";
 import { zodEnum } from "../enums/zod.js";
 import { z } from "../zod.js";
 
@@ -120,6 +128,48 @@ export const orderFulfilledPayload = z.strictObject({
   termId: orNull(IdSchema),
 });
 
+const orderTransition = {
+  fromState: orNull(zodEnum(BILLING_ORDER_STATUS)),
+  toState: zodEnum(BILLING_ORDER_STATUS),
+  transition: z.string(),
+};
+export const billingOrderPaidPayload = z.strictObject({
+  v: z.literal(1),
+  billingOrderId: IdSchema,
+  entityId: IdSchema,
+  storeId: orNull(IdSchema),
+  orderType: zodEnum(BILLING_ORDER_TYPE),
+  channel: zodEnum(PAY_CHANNEL),
+  amountFen: z.int().positive(),
+  paidPaymentTxnId: IdSchema,
+  placedByUserId: orNull(IdSchema),
+  ...orderTransition,
+});
+export const billingOrderCancelledPayload = z.strictObject({
+  v: z.literal(1),
+  billingOrderId: IdSchema,
+  entityId: IdSchema,
+  cancelReason: zodEnum(BILLING_ORDER_CANCEL_REASON),
+  ...orderTransition,
+});
+export const billingOrderFulfillmentBlockedPayload = z.strictObject({
+  v: z.literal(1),
+  billingOrderId: IdSchema,
+  entityId: IdSchema,
+  paymentExceptionId: IdSchema,
+});
+export const paymentExceptionOpenedPayload = z.strictObject({
+  v: z.literal(1),
+  paymentExceptionId: IdSchema,
+  kind: zodEnum(PAYMENT_EXCEPTION_KIND),
+  billingOrderId: orNull(IdSchema),
+  paymentTxnId: orNull(IdSchema),
+  amountFen: z.int().nonnegative(),
+  fromState: orNull(zodEnum(PAYMENT_EXCEPTION_STATUS)),
+  toState: zodEnum(PAYMENT_EXCEPTION_STATUS),
+  transition: z.literal("payment_exception.open"),
+});
+
 export const payloads = {
   "billing.points.granted": pointsGrantedPayload,
   "billing.points.purchased": pointsPurchasedPayload,
@@ -133,4 +183,8 @@ export const payloads = {
   "billing.subscription.activated": subscriptionActivatedPayload,
   "billing.subscription.renewal_scheduled": subscriptionRenewalScheduledPayload,
   "billing.order_fulfilled": orderFulfilledPayload,
+  "billing_order.paid": billingOrderPaidPayload,
+  "billing_order.cancelled": billingOrderCancelledPayload,
+  "billing_order.fulfillment_blocked": billingOrderFulfillmentBlockedPayload,
+  "payment_exception.opened": paymentExceptionOpenedPayload,
 } as const;
