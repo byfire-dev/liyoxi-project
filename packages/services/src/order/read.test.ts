@@ -5,10 +5,10 @@ import {
   MerchantOrderItemQuerySchema,
   AdminOrderListQuerySchema,
 } from "@liyoxi/contract";
-import { useSeededDatabase } from "../testing/index.js";
+import { useSeededDatabase, approvalReadFixture } from "../testing/index.js";
+import { paramsAt } from "../config/index.js";
 import { uuidv7 } from "../kernel/index.js";
 import { scopeOf, SYSTEM_SCOPE } from "../authz/index.js";
-import { createMall } from "../workbench/mall/index.js";
 import { harness, buyer, drama, version, body } from "./__fixtures__/harness.js";
 import type { Harness } from "./__fixtures__/harness.js";
 import { countOpenOrdersByEntity, countBlockingStoreOrders, orderMerchantFacts } from "./index.js";
@@ -343,15 +343,71 @@ describe("真实历史订单读侧", { timeout: 120000 }, () => {
     });
     expect(await immutable(a)).toEqual(before);
   });
-  it("真实订单get/adminGet积分时间线一致；事实与商城回补非零且跨门店不泄漏", async () => {
+  it("资质驳回超期只取门店最近一次决定，严格越过阈值且false不过滤", async () => {
+    const old = await buyer(h),
+      edge = await buyer(h),
+      decider = await h.make.staff({ staffRoleKey: "cs" }),
+      now = h.clock.now(),
+      days = await h.tx.run(async (tx) =>
+        Number(
+          (await paramsAt(tx, ["order.rejected_stale_days"], now))["order.rejected_stale_days"],
+        ),
+      ),
+      cutoff = new Date(now.getTime() - days * 86400000),
+      readApproval = approvalReadFixture(h.prisma, h.clock);
+    for (const b of [old, edge]) {
+      const row = await historic(b, "pending_start", "pending_start");
+      await h.prisma.dramaOrder.update({
+        where: { id: row.order.id },
+        data: { subStatus: "qualification_rejected" },
+      });
+    }
+    const reject = (b: Buyer, decidedAt: Date, roundNo: number) =>
+      readApproval({
+        kind: "qualification",
+        category: "review",
+        subjectType: "store",
+        subjectId: b.store.id,
+        entityId: b.entity.id,
+        storeId: b.store.id,
+        status: "rejected",
+        roundNo,
+        summarySnapshot: { title: "资质驳回历史" },
+        submitActorType: "merchant",
+        submitActorId: b.user.id,
+        submitClient: "weapp",
+        submittedAt: new Date(decidedAt.getTime() - 1),
+        decidedAt,
+        decidedByStaffId: decider.id,
+        decisionNote: "只读筛选历史",
+        reasonCodes: ["incomplete"],
+        dedupeKey: `qualification:${b.store.id}`,
+      });
+    await reject(old, new Date(cutoff.getTime() - 1), 1);
+    await reject(edge, cutoff, 1);
+    const q = (b: Buyer, flag: string) => aq({ entityId: b.entity.id, isRejectedStale: flag });
+    expect((await h.order.adminList(SYSTEM_SCOPE, q(old, "true"))).total).toBe(1);
+    expect((await h.order.adminSummary(SYSTEM_SCOPE, q(old, "true"))).tabs.pending_start).toBe(1);
+    expect((await h.order.adminList(SYSTEM_SCOPE, q(edge, "true"))).total).toBe(0);
+    const before = await immutable(old);
+    await reject(old, now, 2);
+    const afterFixture = await immutable(old);
+    expect(afterFixture).toEqual(before);
+    expect((await h.order.adminList(SYSTEM_SCOPE, q(old, "true"))).total).toBe(0);
+    expect((await h.order.adminSummary(SYSTEM_SCOPE, q(old, "true"))).tabs.all).toBe(0);
+    expect((await h.order.adminList(SYSTEM_SCOPE, q(old, "false"))).total).toBe(1);
+    expect(await immutable(old)).toEqual(afterFixture);
+  });
+  it("真实订单get/adminGet积分时间线一致；事实非零且跨门店不泄漏", async () => {
     const b = await buyer(h),
       d = await drama(h),
       created = await h.order.create(b.actor, await body(h, b, [d.id])),
       extra = await historic(b, "live", "live", { liveEpisodes: 2 }),
       cartDrama = await drama(h),
-      cart = await h.order.cartCreate(b.actor, cartDrama.id),
+      added = await h.order.cartCreate(b.actor, cartDrama.id),
       other = await buyer(h),
       before = await immutable(b);
+    expect(added.cartItemId).toBeTruthy();
     const merchant = await h.order.get(b.actor, created.orderId),
       admin = await h.order.adminGet(SYSTEM_SCOPE, created.orderId);
     expect(admin.pointsEvents).toEqual(merchant.pointsEvents);
@@ -390,27 +446,6 @@ describe("真实历史订单读侧", { timeout: 120000 }, () => {
         }),
       ),
     ).rejects.toThrow("不属于主体");
-    const mall = createMall(h.deps),
-      viewer = { role: "owner" as const, storeId: b.store.id, entityId: b.entity.id },
-      home = await mall.home(viewer),
-      detail = await mall.detail(viewer, cartDrama.id);
-    expect(home).toMatchObject({
-      cartCount: 1,
-      launchOverview: { liveItemCount: 1, liveEpisodeCount: 2 },
-    });
-    expect(detail.owner?.cartItemId).toBe(cart.cartItemId);
-    expect(
-      (
-        await mall.detail(
-          { role: "owner", storeId: other.store.id, entityId: other.entity.id },
-          cartDrama.id,
-        )
-      ).owner?.cartItemId,
-    ).toBeNull();
-    for (const role of ["clerk", "guest"] as const) {
-      expect(await mall.home({ ...viewer, role })).not.toHaveProperty("cartCount");
-      expect(await mall.detail({ ...viewer, role }, cartDrama.id)).not.toHaveProperty("owner");
-    }
     expect((await h.order.itemGet(b.actor, extra.item.id)).liveEpisodeCount).toBe(2);
     expect(await immutable(b)).toEqual(before);
   });

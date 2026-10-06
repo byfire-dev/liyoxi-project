@@ -90,6 +90,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/cart-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 选剧单（当前门店）：每项 valid / price_changed / invalid、加入时价格快照与当前价、折后实扣、可使用至；合计与可用积分 */
+        get: operations["m.cartItem.list"];
+        put?: never;
+        /** 加入选剧单 {dramaId}（同店同剧唯一，上限 50 部） */
+        post: operations["m.cartItem.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/cart-items/{cartItemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** 移出选剧单 */
+        delete: operations["m.cartItem.delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/cart-items/{cartItemId}/accept-price": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 确认新价格 {acceptedPricePoints}（与当前价比对，不符返回 CART_PRICE_CHANGED；把价格快照更新为当前价，恢复可勾选） */
+        post: operations["m.cartItem.acceptPrice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/channel-accounts": {
         parameters: {
             query?: never;
@@ -431,6 +483,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/order-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 我的短剧（以订单项为行，?tab=all|live|to_launch|ended）：剧名、剩余天数、发布账号、使用期、订单号、各剧制作阶段与约定上线日 */
+        get: operations["m.orderItem.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/order-items/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 我的短剧的页签计数：上线中 · N 部、待上线 · N 部等，键与列表 tab 取值一致；另带副指标 delivering（制作中 + 待上线，供“我的”页与门店卡） */
+        get: operations["m.orderItem.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/order-items/{orderItemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 订单项详情：剧目、整部集数、上线状态与已上线集数、使用期起止与剩余天数、发布账号、订单号 */
+        get: operations["m.orderItem.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/orders": {
         parameters: {
             query?: never;
@@ -438,7 +541,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** 我的订单（?tab=all|producing|to_launch|live|ended|after_sale；?no= 按单号查找）：订单号、时间、状态、剧目概要、积分、置顶待办；售后页签含取消与积分退回 */
+        get: operations["m.order.list"];
         put?: never;
         /** 确认订购：{dramaIds, channelAccountIds, focusCodes, referenceStoreAssetIds?, note?, isTopModel?, adIds?, expectedLaunchDate?, agreementVersionId, expect}；逐部冻结积分，建订购单与订单项，记协议同意 */
         post: operations["m.order.create"];
@@ -459,6 +563,23 @@ export interface paths {
         put?: never;
         /** 订购报价（纯计算不落库）：逐部积分价、折扣、顶级模型加扣、实扣、合计、扣减来源（各批次套餐积分 / 加购积分）、订购后剩余、可选账号、可用广告、最早可指定上线日、主体与门店联系人 */
         post: operations["m.order.quote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/orders/{orderId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 订单详情：状态与待办、交付时间轴、剧目明细（含已上线集数与使用期）、方案摘要与 deliveryPlanId、积分明细（冻结、扣减、三个实际退回数量）、订单信息、协议与授权书列表 */
+        get: operations["m.order.get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -935,6 +1056,42 @@ export interface components {
                     [key: string]: number;
                 };
             };
+        };
+        CartAcceptBody: {
+            acceptedPricePoints: number;
+        };
+        CartCreateBody: {
+            /** Format: uuid */
+            dramaId: string;
+        };
+        CartItem: {
+            actions: string[];
+            /** Format: date-time */
+            addedAt: string;
+            /** Format: uuid */
+            cartItemId: string;
+            currentPricePoints: number | null;
+            discountedPoints: number | null;
+            drama: components["schemas"]["DramaCard"];
+            invalidReason: ("not_listed" | "stopped" | (string & {})) | null;
+            /** Format: date-time */
+            priceAckedAt: string | null;
+            snapshotPricePoints: number;
+            /** @enum {string} */
+            state: "valid" | "price_changed" | "invalid" | (string & {});
+        };
+        CartItemAcceptResult: components["schemas"]["CartItem"] & {
+            replayed: boolean;
+        };
+        CartList: {
+            items: components["schemas"]["CartItem"][];
+            /** @enum {number} */
+            limit: 50;
+            plan: {
+                discountBp: number;
+                planName: string;
+            } | null;
+            spendablePoints: number;
         };
         ChannelAccountAttention: {
             abnormalReason: components["schemas"]["DictRef"] | null;
@@ -2332,6 +2489,43 @@ export interface components {
             /** @enum {string} */
             licenseKind?: "business_license" | "branch_license";
         };
+        MerchantOrderItemList: {
+            hasMore: boolean;
+            items: components["schemas"]["OrderItemRow"][];
+            nextCursor: string | null;
+        };
+        MerchantOrderList: {
+            hasMore: boolean;
+            items: components["schemas"]["OrderCard"][];
+            nextCursor: string | null;
+        };
+        OrderCard: {
+            actions: string[];
+            firstDramaTitle: string;
+            itemCount: number;
+            liveSummary: {
+                /** Format: date */
+                earliestUsageEndDate: string;
+                /** Format: uuid */
+                firstLiveOrderItemId: string;
+                liveEpisodeCount: number;
+                liveItemCount: number;
+            } | null;
+            /** Format: uuid */
+            orderId: string;
+            orderNo: string;
+            pinnedTodo: components["schemas"]["OrderTodo"] | null;
+            platforms: string[];
+            returnedPoints: number;
+            /** @enum {string} */
+            status: "pending_start" | "producing" | "to_launch" | "live" | "ended" | "cancelled" | "after_sale" | "refunded" | (string & {});
+            subStatus: ("qualification_reviewing" | "qualification_rejected" | "starting" | "assigning" | "plan_confirm" | "ad_prep" | "sample_making" | "sample_confirm" | "batch_compose" | "delivering" | "awaiting_links" | "verifying" | "need_fix" | "expired_unlaunched" | "in_service" | "takedown_pending" | "takedown_overdue" | "cancel_reviewing" | "refund_executing" | "cancelled_before_start" | "terminated_no_return" | (string & {})) | null;
+            /** Format: date-time */
+            submittedAt: string;
+            /** @enum {string} */
+            tab: "producing" | "to_launch" | "live" | "ended" | "after_sale" | (string & {});
+            totalChargePoints: number;
+        };
         OrderCreateBody: {
             adIds?: string[];
             /** Format: uuid */
@@ -2477,6 +2671,43 @@ export interface components {
             tab: "producing" | "to_launch" | "live" | "ended" | "after_sale" | (string & {});
             totalChargePoints: number;
         };
+        OrderItemDetail: {
+            accounts: {
+                accountName: string;
+                accountType: ("enterprise" | "personal" | "none" | (string & {})) | null;
+                accountUid: string;
+                /** Format: uuid */
+                channelAccountId: string;
+                /** @enum {string} */
+                platform: "douyin" | "wechat_channels" | (string & {});
+            }[];
+            /** Format: date */
+            agreedLaunchDate: string | null;
+            /** Format: uuid */
+            dramaId: string;
+            dramaTitle: string;
+            episodeCount: number;
+            genres: components["schemas"]["DictRef"][];
+            liveEpisodeCount: number;
+            /** Format: uuid */
+            orderId: string;
+            /** Format: uuid */
+            orderItemId: string;
+            orderNo: string;
+            /** @enum {string} */
+            phase: "pending_start" | "producing" | "to_launch" | "live" | "ended" | "cancelled" | "refunded" | "terminated" | (string & {});
+            /** Format: date-time */
+            phaseChangedAt: string;
+            posterUrl: components["schemas"]["SignedUrl"] | null;
+            remainingDays: number | null;
+            ticketStep: ("assigning" | "plan_confirm" | "ad_prep" | "sample_making" | "sample_confirm" | "batch_compose" | "delivering" | "awaiting_launch" | "launch_verify" | "in_service" | "takedown" | "archived" | "terminated" | (string & {})) | null;
+            /** Format: date */
+            usageEndDate: string;
+            /** @enum {string} */
+            usageEndSource: "license" | "early_end" | "expired" | (string & {});
+            /** Format: date */
+            usageStartDate: string | null;
+        };
         OrderItemInOrder: {
             accounts: {
                 accountName: string;
@@ -2539,6 +2770,45 @@ export interface components {
             usageEndSource: "license" | "early_end" | "expired" | (string & {});
             /** Format: date */
             usageStartDate: string | null;
+        };
+        OrderItemRow: {
+            accounts: {
+                accountName: string;
+                /** Format: uuid */
+                channelAccountId: string;
+                /** @enum {string} */
+                platform: "douyin" | "wechat_channels" | (string & {});
+            }[];
+            /** Format: date */
+            agreedLaunchDate: string | null;
+            /** Format: uuid */
+            dramaId: string;
+            dramaTitle: string;
+            episodeCount: number;
+            genres: components["schemas"]["DictRef"][];
+            liveEpisodeCount: number;
+            /** Format: uuid */
+            orderId: string;
+            /** Format: uuid */
+            orderItemId: string;
+            orderNo: string;
+            pendingTodo: components["schemas"]["OrderTodo"] | null;
+            /** @enum {string} */
+            phase: "pending_start" | "producing" | "to_launch" | "live" | "ended" | "cancelled" | "refunded" | "terminated" | (string & {});
+            posterUrl: components["schemas"]["SignedUrl"] | null;
+            remainingDays: number | null;
+            ticketStep: ("assigning" | "plan_confirm" | "ad_prep" | "sample_making" | "sample_confirm" | "batch_compose" | "delivering" | "awaiting_launch" | "launch_verify" | "in_service" | "takedown" | "archived" | "terminated" | (string & {})) | null;
+            /** Format: date */
+            usageEndDate: string;
+            /** Format: date */
+            usageStartDate: string | null;
+        };
+        OrderItemSummary: {
+            all: number;
+            delivering: number;
+            ended: number;
+            live: number;
+            to_launch: number;
         };
         OrderQuote: {
             ads: {
@@ -3905,6 +4175,284 @@ export interface operations {
             };
             /** @description 内部错误 */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.cartItem.list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["CartList"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.cartItem.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CartCreateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["CartItem"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.cartItem.delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cartItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: null;
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.cartItem.acceptPrice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cartItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CartAcceptBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["CartItemAcceptResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5369,6 +5917,259 @@ export interface operations {
             };
         };
     };
+    "m.orderItem.list": {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+                tab?: "all" | "live" | "to_launch" | "ended";
+                orderId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["MerchantOrderItemList"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.orderItem.summary": {
+        parameters: {
+            query?: {
+                orderId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["OrderItemSummary"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.orderItem.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["OrderItemDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.order.list": {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+                tab?: "all" | "producing" | "to_launch" | "live" | "ended" | "after_sale";
+                no?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["MerchantOrderList"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "m.order.create": {
         parameters: {
             query?: never;
@@ -5528,6 +6329,70 @@ export interface operations {
             };
             /** @description 外部能力不可用、系统繁忙或停机维护 */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.order.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["OrderDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

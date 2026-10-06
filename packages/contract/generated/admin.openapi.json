@@ -581,6 +581,1008 @@
         ],
         "type": "object"
       },
+      "AdminOrderCard": {
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "deliveryManager": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "discountBp": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "firstDramaTitle": {
+            "type": "string"
+          },
+          "firstEpisodeCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "isTopModel": {
+            "type": "boolean"
+          },
+          "itemCount": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "openCancelRequest": {
+            "anyOf": [
+              {
+                "properties": {
+                  "cancelRequestId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "requestNo": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "totalRefundPoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "cancelRequestId",
+                  "requestNo",
+                  "status",
+                  "totalRefundPoints"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orderId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "planCode": {
+            "type": "string"
+          },
+          "planName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platforms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "productionModels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "pending_start",
+              "producing",
+              "to_launch",
+              "live",
+              "ended",
+              "cancelled",
+              "after_sale",
+              "refunded"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "statusChangedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "store": {
+            "$ref": "#/components/schemas/AdminStoreBrief"
+          },
+          "subStatus": {
+            "anyOf": [
+              {
+                "enum": [
+                  "qualification_reviewing",
+                  "qualification_rejected",
+                  "starting",
+                  "assigning",
+                  "plan_confirm",
+                  "ad_prep",
+                  "sample_making",
+                  "sample_confirm",
+                  "batch_compose",
+                  "delivering",
+                  "awaiting_links",
+                  "verifying",
+                  "need_fix",
+                  "expired_unlaunched",
+                  "in_service",
+                  "takedown_pending",
+                  "takedown_overdue",
+                  "cancel_reviewing",
+                  "refund_executing",
+                  "cancelled_before_start",
+                  "terminated_no_return"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "surchargeBp": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "totalChargePoints": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "orderId",
+          "orderNo",
+          "submittedAt",
+          "planCode",
+          "itemCount",
+          "discountBp",
+          "isTopModel",
+          "surchargeBp",
+          "totalChargePoints",
+          "status",
+          "subStatus",
+          "statusChangedAt",
+          "actions",
+          "store",
+          "planName",
+          "firstDramaTitle",
+          "firstEpisodeCount",
+          "platforms",
+          "productionModels",
+          "deliveryManager",
+          "openCancelRequest"
+        ],
+        "type": "object"
+      },
+      "AdminOrderDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AdminOrderCard"
+          },
+          {
+            "properties": {
+              "agreements": {
+                "items": {
+                  "properties": {
+                    "agreementKey": {
+                      "type": "string"
+                    },
+                    "consentedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "method": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "versionLabel": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "agreementKey",
+                    "title",
+                    "versionLabel",
+                    "consentedAt",
+                    "method"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "cancelRequests": {
+                "items": {
+                  "$ref": "#/components/schemas/OrderCancelRequestCard"
+                },
+                "type": "array"
+              },
+              "closedAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "deliveryPlan": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "confirmedAt": {
+                        "format": "date-time",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "confirmedVersionNo": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      },
+                      "currentVersionNo": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      },
+                      "deliveryPlanId": {
+                        "format": "uuid",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      },
+                      "launchMode": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "pushedAt": {
+                        "format": "date-time",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "status": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "deliveryPlanId",
+                      "status",
+                      "currentVersionNo",
+                      "confirmedVersionNo",
+                      "pushedAt",
+                      "confirmedAt",
+                      "launchMode"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "expectedLaunchDate": {
+                "format": "date",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "focus": {
+                "items": {
+                  "$ref": "#/components/schemas/DictRef"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "$ref": "#/components/schemas/AdminOrderItemRow"
+                },
+                "type": "array"
+              },
+              "licenseLetterCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "licenseLetters": {
+                "items": {
+                  "properties": {
+                    "accountName": {
+                      "type": "string"
+                    },
+                    "currentRevision": {
+                      "anyOf": [
+                        {
+                          "properties": {
+                            "fileId": {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "licenseLetterRevisionId": {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            },
+                            "renderStatus": {
+                              "type": "string"
+                            },
+                            "revNo": {
+                              "exclusiveMinimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "licenseLetterRevisionId",
+                            "revNo",
+                            "renderStatus",
+                            "fileId"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "dramaTitle": {
+                      "type": "string"
+                    },
+                    "isExpired": {
+                      "type": "boolean"
+                    },
+                    "letterNo": {
+                      "type": "string"
+                    },
+                    "licenseLetterId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "orderItemId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "periodEnd": {
+                      "format": "date",
+                      "type": "string"
+                    },
+                    "periodStart": {
+                      "format": "date",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "platform": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "licenseLetterId",
+                    "orderItemId",
+                    "dramaTitle",
+                    "letterNo",
+                    "platform",
+                    "accountName",
+                    "status",
+                    "isExpired",
+                    "periodStart",
+                    "periodEnd",
+                    "currentRevision"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "lockVersion": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "merchant": {
+                "properties": {
+                  "addonAvailablePoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "contactName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "contactPhoneMask": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "currentPlanName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "currentTermEndDate": {
+                    "format": "date",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "planAvailablePoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "sourceType": {
+                    "type": "string"
+                  },
+                  "spendablePoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "contactName",
+                  "contactPhoneMask",
+                  "currentPlanName",
+                  "currentTermEndDate",
+                  "spendablePoints",
+                  "planAvailablePoints",
+                  "addonAvailablePoints",
+                  "sourceType"
+                ],
+                "type": "object"
+              },
+              "note": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "pointsBreakdown": {
+                "properties": {
+                  "addonPoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "discountDeltaPoints": {
+                    "type": "integer"
+                  },
+                  "listPriceTotalPoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "planPoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "surchargeDeltaPoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "totalChargePoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "listPriceTotalPoints",
+                  "discountDeltaPoints",
+                  "surchargeDeltaPoints",
+                  "totalChargePoints",
+                  "planPoints",
+                  "addonPoints"
+                ],
+                "type": "object"
+              },
+              "pointsEvents": {
+                "items": {
+                  "properties": {
+                    "addonPoints": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "opType": {
+                      "enum": [
+                        "hold",
+                        "capture",
+                        "release",
+                        "refund"
+                      ],
+                      "type": "string",
+                      "x-open-enum": true
+                    },
+                    "planPoints": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "points": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "opType",
+                    "occurredAt",
+                    "points",
+                    "planPoints",
+                    "addonPoints"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "referenceFiles": {
+                "items": {
+                  "$ref": "#/components/schemas/OrderReferenceFile"
+                },
+                "type": "array"
+              },
+              "startedAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subscriptionTerm": {
+                "properties": {
+                  "endDate": {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  "startDate": {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  "subscriptionTermId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "subscriptionTermId",
+                  "startDate",
+                  "endDate"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "startedAt",
+              "closedAt",
+              "focus",
+              "note",
+              "expectedLaunchDate",
+              "referenceFiles",
+              "subscriptionTerm",
+              "items",
+              "deliveryPlan",
+              "pointsBreakdown",
+              "pointsEvents",
+              "agreements",
+              "licenseLetterCount",
+              "licenseLetters",
+              "merchant",
+              "cancelRequests",
+              "lockVersion"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "AdminOrderItemRow": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "properties": {
+                "accountName": {
+                  "type": "string"
+                },
+                "accountUid": {
+                  "type": "string"
+                },
+                "channelAccountId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "platform": {
+                  "enum": [
+                    "douyin",
+                    "wechat_channels"
+                  ],
+                  "type": "string",
+                  "x-open-enum": true
+                },
+                "status": {
+                  "enum": [
+                    "pending_verify",
+                    "available",
+                    "abnormal",
+                    "unbound"
+                  ],
+                  "type": "string",
+                  "x-open-enum": true
+                }
+              },
+              "required": [
+                "channelAccountId",
+                "platform",
+                "accountName",
+                "accountUid",
+                "status"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "agreedLaunchDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cancelReasonCode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "merchant_request",
+                  "store_closed",
+                  "platform_fault",
+                  "qualification_final"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cancelledAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "capturedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "chargePoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "convertedPoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "discountBp": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "dramaId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "dramaTitle": {
+            "type": "string"
+          },
+          "episodeCount": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "forfeitedPoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "itemNo": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "listPricePoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "liveEpisodeCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "orderItemId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "phase": {
+            "enum": [
+              "pending_start",
+              "producing",
+              "to_launch",
+              "live",
+              "ended",
+              "cancelled",
+              "refunded",
+              "terminated"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "phaseChangedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "placements": {
+            "items": {
+              "properties": {
+                "adId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "adNo": {
+                  "type": "string"
+                },
+                "boundVersionNo": {
+                  "exclusiveMinimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "durationSec": {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "pinnedAt": {
+                  "format": "date-time",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "slot": {
+                  "enum": [
+                    "opening",
+                    "ending"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "slot",
+                "adId",
+                "adNo",
+                "durationSec",
+                "boundVersionNo",
+                "pinnedAt"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "pointHold": {
+            "properties": {
+              "capturedAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "heldAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "pointHoldId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "held",
+                  "captured",
+                  "released",
+                  "refunded_partial",
+                  "refunded_full"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              }
+            },
+            "required": [
+              "pointHoldId",
+              "status",
+              "heldAt",
+              "capturedAt"
+            ],
+            "type": "object"
+          },
+          "productionModel": {
+            "enum": [
+              "standard",
+              "advanced",
+              "top"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "refundRequestedPoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "returnedPoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "surchargeBp": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "ticket": {
+            "anyOf": [
+              {
+                "properties": {
+                  "deliveryTicketId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "isPaused": {
+                    "type": "boolean"
+                  },
+                  "step": {
+                    "type": "string"
+                  },
+                  "ticketNo": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "deliveryTicketId",
+                  "ticketNo",
+                  "step",
+                  "isPaused"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usageEndDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "usageEndSource": {
+            "enum": [
+              "license",
+              "early_end",
+              "expired"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "usageStartDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "orderItemId",
+          "itemNo",
+          "dramaId",
+          "dramaTitle",
+          "genres",
+          "episodeCount",
+          "phase",
+          "phaseChangedAt",
+          "listPricePoints",
+          "discountBp",
+          "surchargeBp",
+          "chargePoints",
+          "productionModel",
+          "accounts",
+          "placements",
+          "agreedLaunchDate",
+          "usageStartDate",
+          "usageEndDate",
+          "usageEndSource",
+          "liveEpisodeCount",
+          "cancelReasonCode",
+          "cancelledAt",
+          "capturedAt",
+          "refundRequestedPoints",
+          "returnedPoints",
+          "convertedPoints",
+          "forfeitedPoints",
+          "ticket",
+          "pointHold"
+        ],
+        "type": "object"
+      },
+      "AdminOrderList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminOrderCard"
+            },
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pageSize": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "type": "object"
+      },
       "AdminQualificationDoc": {
         "properties": {
           "certNoMask": {
@@ -4277,6 +5279,310 @@
           "storeId",
           "deliveryManager",
           "synced"
+        ],
+        "type": "object"
+      },
+      "OrderCancelRequestCard": {
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "approvalDueAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "approvalStatus": {
+            "type": "string"
+          },
+          "cancelRequestId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "closeReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decidedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "execDueAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "executedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isFullReturn": {
+            "type": "boolean"
+          },
+          "isOverdue": {
+            "type": "boolean"
+          },
+          "isSystemSubmitted": {
+            "type": "boolean"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "lineCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reasonCode": {
+            "type": "string"
+          },
+          "requestNo": {
+            "type": "string"
+          },
+          "requester": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "store": {
+            "$ref": "#/components/schemas/AdminStoreBrief"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "target": {
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "no": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "type": {
+                "enum": [
+                  "drama_order",
+                  "ad",
+                  "store"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              }
+            },
+            "required": [
+              "type",
+              "id",
+              "no",
+              "label"
+            ],
+            "type": "object"
+          },
+          "totalBasePoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "totalDeductPoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "totalRefundPoints": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cancelRequestId",
+          "requestNo",
+          "kind",
+          "store",
+          "target",
+          "reasonCode",
+          "lineCount",
+          "totalBasePoints",
+          "totalDeductPoints",
+          "totalRefundPoints",
+          "isFullReturn",
+          "status",
+          "closeReason",
+          "approvalStatus",
+          "submittedAt",
+          "requester",
+          "isSystemSubmitted",
+          "approvalDueAt",
+          "decidedAt",
+          "execDueAt",
+          "executedAt",
+          "isOverdue",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "OrderReferenceFile": {
+        "properties": {
+          "fileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "mediaGroup": {
+            "anyOf": [
+              {
+                "enum": [
+                  "door",
+                  "interior",
+                  "product",
+                  "promo"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "enum": [
+              "store_asset",
+              "profile_media"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "storeAssetId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "thumbnail": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignedUrl"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "type": "string"
+          },
+          "usability": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "fileId",
+          "source",
+          "storeAssetId",
+          "title",
+          "usability",
+          "mediaGroup",
+          "type",
+          "thumbnail"
+        ],
+        "type": "object"
+      },
+      "OrderSummary": {
+        "properties": {
+          "tabs": {
+            "properties": {
+              "after_sale": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "all": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "cancelled": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "ended": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "live": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "pending_start": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "producing": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "refunded": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "to_launch": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "all",
+              "pending_start",
+              "producing",
+              "to_launch",
+              "live",
+              "ended",
+              "cancelled",
+              "after_sale",
+              "refunded"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "tabs"
         ],
         "type": "object"
       },
@@ -11655,6 +12961,486 @@
         "x-auth": "staff",
         "x-idempotent": "required",
         "x-permission": "publish.link.verify"
+      }
+    },
+    "/api/v1/admin/orders": {
+      "get": {
+        "operationId": "admin.order.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "deliveryManagerId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "none"
+                  ],
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "dramaId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "submittedFrom",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "submittedTo",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isRejectedStale",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "pending_start",
+                "producing",
+                "to_launch",
+                "live",
+                "ended",
+                "cancelled",
+                "after_sale",
+                "refunded"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "-submittedAt",
+              "enum": [
+                "-submittedAt",
+                "submittedAt",
+                "-statusChangedAt"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdminOrderList"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "订购单列表：订单号 / 商家 / 剧名、下单时间、交付经理、剧目、状态（8 种）；每页 10",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/orders/summary": {
+      "get": {
+        "operationId": "admin.order.summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "deliveryManagerId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "none"
+                  ],
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "dramaId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "submittedFrom",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "submittedTo",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isRejectedStale",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/OrderSummary"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "订购单状态筛选条计数",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/orders/{orderId}": {
+      "get": {
+        "operationId": "admin.order.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdminOrderDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "订购单详情：进度、剧目明细与工单、定制需求、协议与授权书、积分明细与冻结扣减时间线、商家与负责人",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
       }
     },
     "/api/v1/admin/payment-orders/{paymentOrderId}": {

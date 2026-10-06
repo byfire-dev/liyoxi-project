@@ -1,6 +1,6 @@
-# order：订剧报价与原子建单
+# order：订剧、选剧单与订单读侧
 
-W1-15a 交 `m.order.quote`、`m.order.create`；W1-15b 待 a 合 main 后补选剧单与读侧 12 条。公开入口为 `createOrderService`、`OrderActor`、`OrderDeps`，API 只转交真实商家身份、当前门店和 `idemOf`。
+W1-15a 交 `m.order.quote`、`m.order.create`；a 的 #91 已合主干；W1-15b 交选剧单与读侧 12 条。公开入口为 `createOrderService`、`OrderActor`、`OrderDeps`，API 只转交真实商家身份、当前门店和 `idemOf`。
 
 阅读顺序：`checks.ts` / `accounts.ts` → `quote.ts` → `submit.ts` → `read.ts` → `register.ts` / `invariants.ts`。契约在 contract 的 m04 `order.schemas.ts`，完整 `OrderDetail` 与 C50 首响应/重放从 a 起共用。
 
@@ -26,7 +26,7 @@ W1-15a 交 `m.order.quote`、`m.order.create`；W1-15b 待 a 合 main 后补选�
 - `profile.order_manager_sync` 已实现：调用方先持 store130，本端口再按 UUID 顺序锁未结 orders160，按明确 input.staffId 改写、返回实际 count。同值返回 0，结束/取消/已退单不改；不读取旧门店经理来猜目标。
 - order.start 的契约 kind 已存在，arm 不要求业务 handler。本包真实登记 scheduled；W1-17b 必须登记 critical / rearmAfterSkip、实现开工与补偿扫描，不能把 a 的登记当作处理器已落地。
 - 待办/售后/授权书/履约字段为已登记留桩。order.submitted 是 analytics 目录的 outbox 来源，M7 的 analytics.fromOutbox 尚未实现；不重复直记 order_submit 或声称已有 analytics 行。通知 orderForNotify 公共读端口尚为空。
-- b 复用完整 DTO 和 read.ts，再补常规列表/详情与已开工读侧。a 的 pointsEvents 验收覆盖实际冻结流水，后续 capture 的套餐/加购消费分拆由履约读侧补齐。
+- b 复用完整 DTO 和 read.ts，补常规列表/详情与阶段读侧。a 的 pointsEvents 验收覆盖实际冻结流水，后续 capture 的套餐/加购消费分拆及真实工单/方案内容由 W1-17 履约读侧补齐。
 
 ## 验收
 
@@ -35,3 +35,17 @@ W1-15a 交 `m.order.quote`、`m.order.create`；W1-15b 待 a 合 main 后补选�
 `src/order/quote.property.test.ts`：种子 115、116、117，各 200 轮真实库；三部逐次 HALF_UP、真实 expect 提交、套餐+加购预览与 hold 分摊。
 `src/order/submit.concurrency.test.ts`：5 条独立连接、k=3 的 20 轮 n>k；同键两连接；实际账户锁 3–4 秒 ACCOUNT_BUSY。
 `submit.test.ts` / `guards.test.ts` / `quote.test.ts` / `manager.test.ts` / `invariants.test.ts`：全/并行副作用、整单变价/同S标题变化、真实周期切换、跨零点 Tc/Tf、Tv 协议变化、16 守卫、只读边界、真实同步数及已登记 full 不变量。API 的 order.test 与 clerk 回放验证实际鉴权和 C50。
+
+## 选剧单与读侧（b）
+
+`cart.ts` 对同一店的新增、删除与接受变价持咨询锁50；新增先查自然唯一行，已有项原 P 和加入时间不变，即使已满50或已下架也返回该行。当前 P 来自公开 content/billing 读侧，套餐仅影响逐部 S：只改折扣而 P 不变仍 valid。接受价格必须提交当前 P，失效卡片不可接受；同P不写 priceAckedAt。接受首响应事务后签海报，持久幂等结果与重放海报为空，重放不再次签名。物理删除按门店/主体归属校验，通过 required 幂等使原 key 重放继续返回 null。
+
+`merchant-read.ts` 按当前老板门店和主体查询，商家订单号按完整值匹配。订单按提交时间降序，订单项按上线中、待上线、已结束三组分别以使用期结束日升序、约定上线日升序（空值最后）、提交时间降序排列，UUID升序打破同刻并列。`cursor.ts` 绑定过滤条件与门店/主体；不合法或换条件的游标按 C42 回首屏。真实 SQL keyset 分页不会先取全表再切片。快照标题/标价/折扣/加扣保留订购时事实，当前渠道账号名称/UID/type 只读查询。remainingDays 只在 live 返回 max(0, 使用期结束日减北京今日)，其余阶段为 null。
+
+`admin-read.ts` 与三个 defineAdminHandler 的 order:view、真实 all/group/own DataScope 接线；订单范围仅按负责门店，剪辑/发布任务不会额外扩大范围。页码默认20、上限100，三种排序均以 UUID 打破并列。summary 接同一筛选（不含tab），列表与总数取同一条件。下单日期按北京自然日双端包含；“只看资质驳回超期”取该门店最近一次真实 qualification rejected decidedAt，严格超过实时参数天数，false 不作此限制。详情复用已校验归属的公共账本流水读侧，不写资金、审计、状态历史或派生记录。
+
+`counts.ts` 的公开 `countCartBadge(tx,storeId,at)`、`countOrderItemsByPhase(tx,storeId,orderId?)`、`countOpenOrdersByEntity(tx,entityId)`、`countBlockingStoreOrders(tx,storeId)` 为纯读。前者过滤下架、许可失效与非正价，显式接调用方时刻，空集合返回0；实体未结数排除 ended/cancelled/refunded，门店停用阻挡数只含 pending_start/producing/to_launch/after_sale。当前 tenant 尚无 StoreCloseGuard 注册口，交真实计数供后继接线，不声称停用守卫已落地。`register.ts` 的 order MerchantFacts 返回实际 live/producing+to_launch/cart，待办仍 M7 的0。商城首页三数量与详情 cartItemId 已回补，店员/游客裁剪保持。
+
+b 的完整 AdminOrderDetail 声明参考素材、售后、授权书、工单/方案后继字段；参考素材/售后/授权书为登记过的空数组或0，工单/方案为null。openCancelRequest 卡片只读已存在的真实行，actions 在未有取消实现前为空。read.ts 的 detail 参数仅需 membership 的 storeId/entityId，后台在已完成实际 DataScope 归属判断后复用；未替换履约时间轴，W1-17 可普通同步后续接线。
+
+b 目标验收：`cart.test.ts`（两独立真连接49→50/51、P/S、自然重复、C50、跨店与店员）、`read.test.ts`（八状态、三组稳定分页、北京日期、最新驳回阈值、真实计数与零资金写）；API `order-read.test.ts` 覆盖12处理器及商城三事实、clerk全回放保留原黄金，admin矩阵只增本包3条。

@@ -314,6 +314,64 @@ describe("选剧单与订单读侧12接口", { timeout: 90000 }, () => {
     // 建测试员工/会话会增加身份表；账本与业务审计快照保持不变。
     expect(await noFinancialWrite()).toEqual(before);
   });
+  it("商城三项非零事实接真实接口，门店隔离且店员/游客不返回老板字段", async () => {
+    const prisma = await h.db.prisma(),
+      make = createFactories({ db: prisma, clock: api.clock }),
+      original = await prisma.dramaOrder.findUniqueOrThrow({ where: { id: orderId } }),
+      snapshot = await api.runtime.tx.run((tx) =>
+        api.runtime.content.assertOrderable(tx, fixture.dramaId, ["douyin"]),
+      ),
+      live = await make.dramaOrder({
+        entityId: scope.entityId,
+        storeId: scope.storeId,
+        placedByUserId: owner.merchantUserId,
+        subscriptionTermId: original.subscriptionTermId,
+        status: "live",
+      });
+    await make.orderItem({
+      dramaOrderId: live.id,
+      dramaId: fixture.dramaId,
+      dramaSnapshot: snapshot,
+      phase: "live",
+      liveEpisodeCount: 2,
+    });
+    const cart = CartItemSchema.parse(
+        await data(
+          await request("/m/cart-items", {
+            method: "POST",
+            json: { dramaId: fixture.dramaId },
+          }),
+        ),
+      ),
+      before = await noFinancialWrite();
+    expect(await data(await request("/m/home"))).toMatchObject({
+      cartCount: 1,
+      launchOverview: { liveItemCount: 1, liveEpisodeCount: 2 },
+    });
+    expect(await data(await request(`/m/dramas/${fixture.dramaId}`))).toMatchObject({
+      owner: { cartItemId: cart.cartItemId },
+    });
+    expect(await data(await request("/m/home", {}, owner, otherStoreId))).toMatchObject({
+      cartCount: 0,
+      launchOverview: { liveItemCount: 0, liveEpisodeCount: 0 },
+    });
+    expect(
+      await data(await request(`/m/dramas/${fixture.dramaId}`, {}, owner, otherStoreId)),
+    ).toMatchObject({ owner: { cartItemId: null } });
+    expect(await data(await request("/m/home", {}, clerk))).not.toHaveProperty("cartCount");
+    expect(await data(await request(`/m/dramas/${fixture.dramaId}`, {}, clerk))).not.toHaveProperty(
+      "owner",
+    );
+    expect(
+      await data(await api.request("/api/v1/m/home", { peer: "198.19.217.1" })),
+    ).not.toHaveProperty("cartCount");
+    expect(
+      await data(
+        await api.request(`/api/v1/m/dramas/${fixture.dramaId}`, { peer: "198.19.217.2" }),
+      ),
+    ).not.toHaveProperty("owner");
+    expect(await noFinancialWrite()).toEqual(before);
+  });
   it("九条商家接口真实店员403；已停用老板纯订单读可用而加入403", async () => {
     for (const path of [
       "/m/cart-items",
