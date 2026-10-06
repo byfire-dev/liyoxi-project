@@ -197,3 +197,6 @@ export type {
 export * as media from "./media/index.js";
 export { createMedia } from "./media/index.js";
 export type { Media, MediaActor, MediaDeps, PromoteRef } from "./media/index.js";
+
+export { createContent } from "./content/index.js";
+export type { Content, ContentDeps, DramaPrices, DramaPrice } from "./content/index.js";

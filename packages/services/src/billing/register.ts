@@ -17,8 +17,12 @@ import { billingInvariants } from "./invariants.js";
 import { billingAccountOpener, billingMerchantFacts } from "./ports.js";
 import { subscriptionInvariants } from "./subscription/invariants.js";
 
+import { DramaPricePort } from "../content/index.js";
+import { dramaPriceAdapter } from "./pricing/drama-price-port.js";
+
 export const registration = defineRegistration("billing", {
   portImplementations: [
+    implement(DramaPricePort, dramaPriceAdapter),
     implement(billingAccountPort, billingAccountOpener),
     implementMerchantFacts("billing", billingMerchantFacts),
     ...paymentMachineBindings.map(({ key, binding }) => implementKeyed(machinePort, key, binding)),
