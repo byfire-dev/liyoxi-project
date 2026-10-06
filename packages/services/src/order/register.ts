@@ -8,6 +8,11 @@ import {
 } from "../kernel/index.js";
 import { orderManagerPort } from "../profile/index.js";
 import type { SyncStoreManager } from "../profile/index.js";
+import { orderSidePort } from "../delivery/index.js";
+import { boundOrder } from "./binding.js";
+import { applyConfirmedPlan } from "./plan.js";
+import { rederive, isDerivationChecked } from "./rederive.js";
+import { DERIVED_INVARIANT_CODES, findDerivedViolations } from "./derived-invariants.js";
 import { findOrderViolations, ORDER_INVARIANT_CODES } from "./invariants.js";
 import { orderMerchantFacts } from "./counts.js";
 export const syncOrderManager: SyncStoreManager = async (tx, input) => {
@@ -38,18 +43,26 @@ export const syncOrderManager: SyncStoreManager = async (tx, input) => {
 };
 export const registration = defineRegistration("order", {
   portImplementations: [
+    implement(orderSidePort, {
+      applyConfirmedPlan: (tx, input) => applyConfirmedPlan(tx, boundOrder(), input),
+      rederive: (tx, input) => rederive(tx, boundOrder(), input),
+    }),
     implementMerchantFacts("order", orderMerchantFacts),
     implement(orderManagerPort, syncOrderManager),
     implementKeyed(machinePort, chainKey("drama_order", "status"), {
+      companions: ["sub_status", "status_changed_at", "closed_at"],
       activity: () => ({ category: "flow", action: "order.order.submit", summary: "确认订购短剧" }),
     }),
     implementKeyed(machinePort, chainKey("order_item", "phase"), {
+      companions: ["phase_changed_at", "usage_start_date", "live_episode_count"],
       activity: () => ({
         category: "flow",
         action: "order.item.submit",
         summary: "冻结订单项积分",
       }),
       guards: {
+        [rowKey("09:355", "package.pushed")]: async (_tx, facts) => isDerivationChecked(facts.args),
+        [rowKey("09:356", "launch.changed")]: async (_tx, facts) => isDerivationChecked(facts.args),
         [rowKey("09:351", "order.submit")]: async (tx, facts) => {
           const item = await tx.orderItem.findUnique({
             where: { id: facts.subjectId },
@@ -70,11 +83,26 @@ export const registration = defineRegistration("order", {
       },
     }),
   ],
-  invariants: ORDER_INVARIANT_CODES.map((code) => ({
-    code: `order.${code}`,
-    severity: "P1",
-    modes: ["full"],
-    heal: "none",
-    run: (tx, scope) => findOrderViolations(tx, code, scope),
-  })),
+  invariants: [
+    ...ORDER_INVARIANT_CODES.map((code) => ({
+      code: `order.${code}`,
+      severity: "P1" as const,
+      modes: ["full" as const],
+      heal: "none" as const,
+      run: (
+        tx: Parameters<typeof findOrderViolations>[0],
+        scope: Parameters<typeof findOrderViolations>[2],
+      ) => findOrderViolations(tx, code, scope),
+    })),
+    ...DERIVED_INVARIANT_CODES.map((code) => ({
+      code: `order.${code}`,
+      severity: "P2" as const,
+      modes: ["full" as const],
+      heal: code === "I1" ? ("none" as const) : ("heal_and_alert" as const),
+      run: (
+        tx: Parameters<typeof findDerivedViolations>[0],
+        scope: Parameters<typeof findDerivedViolations>[2],
+      ) => findDerivedViolations(tx, code, scope),
+    })),
+  ],
 });
