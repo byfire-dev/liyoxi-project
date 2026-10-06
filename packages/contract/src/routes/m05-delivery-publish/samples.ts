@@ -25,7 +25,7 @@ export const mSampleConfirm = merchantRoute({
   ],
 });
 
-export const mSampleDownloadUrls = merchantMeta({
+export const mSampleDownloadUrls = merchantRoute({
   method: "post",
   path: "/m/samples/{sampleId}/download-urls",
   operationId: "m.sample.downloadUrls",
@@ -35,6 +35,15 @@ export const mSampleDownloadUrls = merchantMeta({
   "x-clerk-view": "none",
   "x-idempotent": "none",
   "x-idempotent-reason": "签发短时地址，结果不进幂等记录，避免回放过期地址（A18、A19）",
+  "x-rate-limit": "m.sign",
+  request: {
+    params: SampleParamSchema,
+    body: { required: false, content: { "application/json": { schema: z.strictObject({}) } } },
+  },
+  responses: {
+    ...okResponse(DownloadUrlSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429, 500),
+  },
 });
 
 export const mSampleRequestChange = merchantMeta({
@@ -51,3 +60,5 @@ import { merchantRoute } from "../builders.js";
 import { okResponse, errorResponses } from "../../common/index.js";
 import { SampleParamSchema } from "../a05-order-delivery/production.schemas.js";
 import { SampleConfirmBodySchema, SampleWriteResultSchema } from "./sample.schemas.js";
+import { DownloadUrlSchema } from "./download.schemas.js";
+import { z } from "../../zod.js";

@@ -2,14 +2,25 @@
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { adminMeta } from "../meta-only.js";
 
-export const adminDeliveryReleaseGet = adminMeta({
+export const adminDeliveryReleaseGet = adminRoute({
   method: "get",
   path: "/admin/delivery-releases/{deliveryReleaseId}",
   operationId: "admin.deliveryRelease.get",
   summary: "成片包详情（清单、大小、ZIP 缓存状态）",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: DeliveryReleaseParamSchema },
+  responses: {
+    ...okResponse(DeliveryReleaseDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 500),
+  },
 });
+import { adminRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  DeliveryReleaseParamSchema,
+  DeliveryReleaseDetailSchema,
+} from "./delivery-release.schemas.js";
 
 export const adminDeliveryReleasePack = adminMeta({
   method: "post",

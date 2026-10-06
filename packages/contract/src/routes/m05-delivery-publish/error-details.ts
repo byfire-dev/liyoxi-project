@@ -1,6 +1,20 @@
 import { z } from "../../zod.js";
 import { DateSchema, IdSchema } from "../../common/index.js";
 export const M05_ERROR_DETAILS = {
+  DOWNLOAD_GRANT_INVALID: z.strictObject({
+    reason: z.enum(["expired", "superseded", "revoked", "missing"]),
+    expiresAt: z.string().datetime().nullable(),
+    canRegenerate: z.boolean(),
+  }),
+  DOWNLOAD_NOT_AVAILABLE: z.strictObject({
+    reason: z.enum([
+      "not_delivered",
+      "release_closed",
+      "order_item_closed",
+      "usage_ended",
+      "file_unavailable",
+    ]),
+  }),
   SAMPLE_VERSION_STALE: z.object({
     currentSampleId: IdSchema.nullable(),
     currentVersionNo: z.int().nullable(),
