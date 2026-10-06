@@ -8,6 +8,7 @@ import {
 } from "@liyoxi/contract";
 import type { MeOverview } from "@liyoxi/contract";
 import { AppError } from "@liyoxi/services";
+import { ok } from "../http/errors.js";
 import { merchantSessionOf } from "../http/merchant-auth.js";
 import { respondByRole } from "../http/respond-by-role.js";
 import {
@@ -32,11 +33,8 @@ export const merchantViewHandlers = [
       envVersion,
     });
     c.header("Cache-Control", "no-store");
-    return respondByRole(
-      c,
-      { owner: BootstrapSchema, clerk: BootstrapSchema, guest: BootstrapSchema },
-      result,
-    );
+    // 引导各角色共用无 viewerRole 的结构；context 降级后不应再查询角色。
+    return ok(c, BootstrapSchema.parse(result));
   }),
   defineHandler(mMeOverviewGet, async (c) => {
     const membership = c.get("membership");

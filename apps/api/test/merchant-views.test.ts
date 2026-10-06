@@ -7,7 +7,7 @@ import {
   okResponse,
   z,
 } from "@liyoxi/contract";
-import { createIdentityContext, uuidv7 } from "@liyoxi/services";
+import { AppError, createIdentityContext, uuidv7 } from "@liyoxi/services";
 import { createFactories } from "@liyoxi/services/testing";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { idemOf } from "../src/http/idempotency.js";
@@ -108,6 +108,39 @@ describe("引导与我的", () => {
       expect(data.context).toEqual({ storeId });
     } finally {
       spy.mockRestore();
+    }
+  });
+  it("成员查询故障只降级 context，公共引导响应不再查询观察者角色", async () => {
+    const { tenant } = merchantServicesOf(api.runtime);
+    const failure = new Error("成员查询故障");
+    const briefs = vi.spyOn(tenant, "membershipBriefs").mockRejectedValue(failure);
+    const active = vi.spyOn(tenant, "activeMembership").mockRejectedValue(failure);
+    try {
+      const { response, body } = await get("/m/bootstrap", clerk.headers);
+      expect(response.status).toBe(200);
+      const data = BootstrapSchema.parse(body.data);
+      expect(data.context).toBeNull();
+      expect(data.degraded).toEqual(["context"]);
+      expect(data.pendingConsents).toEqual([]);
+      expect(briefs).toHaveBeenCalledOnce();
+      expect(active).not.toHaveBeenCalled();
+    } finally {
+      briefs.mockRestore();
+      active.mockRestore();
+    }
+  });
+  it("全块失败的 INTERNAL 保持 500，不被公共引导裁剪转换为成功", async () => {
+    // 服务层的七块全失败用例钉住 INTERNAL；这里验证真实 HTTP 链保持该失败。
+    const bootstrap = vi
+      .spyOn(merchantServicesOf(api.runtime).identity, "bootstrap")
+      .mockRejectedValueOnce(new AppError("INTERNAL"));
+    try {
+      const { response, body } = await get("/m/bootstrap", clerk.headers);
+      expect(response.status).toBe(500);
+      expect(body).toMatchObject({ error: "INTERNAL" });
+      expect(body).not.toHaveProperty("data");
+    } finally {
+      bootstrap.mockRestore();
     }
   });
   it("引导版本只包含小程序可见字典，使用全协议集合指纹", async () => {

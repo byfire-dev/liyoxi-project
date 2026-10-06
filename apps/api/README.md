@@ -201,7 +201,7 @@ LYX_UPDATE_GOLDEN=1 pnpm exec vitest run --project api test/admin-matrix.test.ts
 
 引导七块独立取数，失败的块用 m08 第 3.1 节默认并列入 `degraded`；匿名个人块为 `null`。无权的门店头不贡献主体白名单上下文；“我的”门店与额度由 tenant 取，其它业务只经事实端口，未登记的键保留默认。`docsOf` 的装配移至 `src/merchant/docs.ts`，`routes/agreements.ts` 仍重导出，避免装配与响应裁剪成环。
 
-所有商家处理器在回包时调用 `respondByRole(c, { owner, clerk, guest }, rawResult)`，角色由请求观察者决定；未提供该角色结构即 `ROLE_FORBIDDEN`。服务用例的 `tx.run(..., { idem })` 保存原始结果，调用裁剪必须在事务闭包外，重放时仍调用。角色结构用 Zod 的默认 strip 对象；嵌套对象也要 strip。
+公共引导的三个角色完全共用无 `viewerRole` 的 `BootstrapSchema`，直接 parse 原始结果并回包；不额外查询观察者角色，避免成员查询失败后把 `context` 的独立降级变成 500。全块失败的 `INTERNAL` 仍回 500。其它商家处理器调用 `respondByRole(c, { owner, clerk, guest }, rawResult)`，角色由请求观察者决定；未提供该角色结构即 `ROLE_FORBIDDEN`。服务用例的 `tx.run(..., { idem })` 保存原始结果，调用裁剪必须在事务闭包外，重放时仍调用。角色结构用 Zod 的默认 strip 对象；嵌套对象也要 strip。
 
 每个新商家接口包交一份真实店员回放样例（造数据、调用一次），在 `test/clerk/samples.ts` 登记 operationId 与 `play`。框架枚举生产 `HANDLERS` 全部 `/m/*`，缺、重复或未挂载样例即失败；`none` 样例断言 `403 ROLE_FORBIDDEN`，`trimmed` 与 `same` 递归检查禁用键并与黄金文件对照。样例中的退出或身份变更需独立会话，不能破坏其它样例。
 
