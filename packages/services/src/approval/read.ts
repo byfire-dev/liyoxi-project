@@ -181,6 +181,7 @@ export function createApprovalReads(deps: ReadDeps): ApprovalReads {
           );
         if (
           row.category === "approval" &&
+          kind.operations.withdraw !== null &&
           (mine(row, ctx) ||
             (permission &&
               scoped &&

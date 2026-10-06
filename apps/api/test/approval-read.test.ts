@@ -406,6 +406,69 @@ describe("admin.approval.list", () => {
     expect((await detail(lead.headers)).actions).toEqual(["approve", "reject", "withdraw"]);
     expect((await detail(lead.headers)).requester?.status).toBe("disabled");
   });
+
+  it.each([
+    { observer: "本人", disabled: false },
+    { observer: "停用发起人的代撤人", disabled: true },
+  ])("无撤回入口：transfer_confirm 的 $observer 不获得 withdraw", SLOW, async ({ disabled }) => {
+    const w = await world({
+      ...SAMPLE_APPROVAL_KINDS,
+      transfer_confirm: {
+        ...SAMPLE_APPROVAL_KINDS.points_adjust!,
+        viewModules: ["finance"],
+        decidePermission: "finance.receipt.confirm",
+        numberPrefix: null,
+        dedupeKey: (submission) => `transfer_confirm:${submission.subjectId}`,
+        operations: {
+          get: "admin.transferProof.get",
+          approve: "admin.transferProof.approveReview",
+          reject: "admin.transferProof.rejectReview",
+          withdraw: null,
+        },
+      },
+    });
+    const requester = await signInAsStaff(w.prisma, { roleKey: "finance" });
+    const observer = disabled ? await signInAsStaff(w.prisma, { roleKey: "finance" }) : requester;
+    const row = await w.insert({
+      kind: "transfer_confirm",
+      category: "approval",
+      subjectType: "transfer_proof",
+      subjectId: uuidv7(),
+      storeId: w.merchant.store.id,
+      entityId: w.merchant.entity.id,
+      status: "pending",
+      summarySnapshot: { title: "对公二人复核" },
+      submitActorType: "staff",
+      submitActorId: requester.staff.id,
+      submitClient: "admin",
+      requesterStaffId: requester.staff.id,
+      requesterStaffGroupId: requester.staff.staffGroupId,
+      dedupeKey: `transfer_confirm:${uuidv7()}`,
+    });
+    if (disabled)
+      await w.prisma.staff.update({
+        where: { id: requester.staff.id },
+        data: { status: "disabled", disabledAt: w.clock.now(), disabledReason: "other" },
+      });
+    const actions = disabled ? ["approve-review", "reject-review"] : [];
+    const list = await dataOf<AdminPage<ApprovalItem>>(
+      await w.request("/api/v1/admin/approvals?kind=transfer_confirm&tab=all", {
+        headers: observer.headers,
+      }),
+    );
+    expect(list.items).toHaveLength(1);
+    expect(list.items[0]!.actions).toEqual(actions);
+    const detail = await dataOf<ApprovalDetail>(
+      await w.request(`/api/v1/admin/approvals/${row.id}`, { headers: observer.headers }),
+    );
+    expect(detail.operations.withdraw).toBeNull();
+    expect(detail.actions).toEqual(actions);
+    const staff = await sampleStaffContext(w.prisma, observer.staff.id);
+    const decision = await w.runtime.tx.run((tx) =>
+      w.runtime.approval.decisionView(tx, staff, row.id),
+    );
+    expect(decision.actions).toEqual(actions);
+  });
 });
 
 describe("admin.dictItem.list", () => {
