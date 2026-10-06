@@ -600,6 +600,43 @@ describe("真实 bash 节点发布步骤，Docker/systemd 替身", () => {
 });
 
 describe("发布记录的真实文件追加", () => {
+  it("prune 的坏历史、枚举错误、缺回滚清单与镜像删除错误均失败关闭", () => {
+    const prepare = () => {
+      const f = fixture();
+      writeFileSync(join(f.home, "release.env"), `LYX_TAG=${VERSION}\n`);
+      writeFileSync(join(f.home, "releases.log"), `${JSON.stringify(record())}\n`);
+      return f;
+    };
+    const badHistory = prepare();
+    writeFileSync(join(badHistory.home, "releases.log"), "not json\n");
+    const rejected = badHistory.run("prune");
+    expect(rejected.status).toBe(1);
+    expect(
+      rejected.calls.some((line) => line.startsWith("image ls") || line.startsWith("image rm")),
+    ).toBe(false);
+    const listing = prepare();
+    const listFailed = listing.run("prune", [], { LYX_FAKE_FAIL: "image ls" });
+    expect(listFailed.status).toBe(1);
+    expect(listFailed.calls.some((line) => line.startsWith("image rm"))).toBe(false);
+    const missing = prepare();
+    mkdirSync(join(missing.home, "static/admin/assets"), { recursive: true });
+    const noManifest = missing.run("prune");
+    expect(noManifest.status).toBe(1);
+    expect(noManifest.stderr).toContain("缺少可回滚版本的资源清单");
+    const deletion = prepare();
+    writeFileSync(
+      join(deletion.home, "releases.log"),
+      [OLD, "sha-333333333333", "sha-444444444444"]
+        .map((tag, index) => JSON.stringify({ ...record(tag), runId: String(index).repeat(32) }))
+        .join("\n") + "\n",
+    );
+    const failedDelete = deletion.run("prune", [], {
+      LYX_FAKE_FAIL: "image rm",
+      LYX_FAKE_IMAGES: `liyoxi/server|${OLD}|fake`,
+    });
+    expect(failedDelete.status).toBe(1);
+    expect(failedDelete.stderr).toContain("旧项目镜像清理失败");
+  });
   it("严格字段/类型/版本一致/字节上限；重复 runId 不改历史；坏历史不放行清理", () => {
     const path = join(temp(), "releases.log");
     const valid = record(VERSION);
