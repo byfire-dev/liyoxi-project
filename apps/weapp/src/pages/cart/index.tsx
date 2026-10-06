@@ -269,7 +269,7 @@ function CartContent() {
                 </View>
               </Card>
             ))}
-            <Note>确认订购即将开放，当前可保存与整理选剧单。</Note>
+
             <FooterBar
               aboveTabBar
               equal={false}
@@ -287,8 +287,19 @@ function CartContent() {
                 <View>{total === null ? "待确认价格" : `${formatInteger(total)} 积分`}</View>
                 <View className="cart-page__muted">已选 {selected.length} 部</View>
               </View>
-              <Button disabled size="sm">
-                订购即将开放
+              <Button
+                disabled={!selected.length || resource.loading || total === null}
+                size="sm"
+                onClick={() => {
+                  const ids = cart.items
+                    .filter((item) => selected.includes(item.cartItemId) && item.state === "valid")
+                    .map((item) => item.drama.dramaId);
+                  void Taro.navigateTo({
+                    url: `/sub/order/checkout/index?dramaIds=${encodeURIComponent(ids.join(","))}`,
+                  });
+                }}
+              >
+                确认订购
               </Button>
             </FooterBar>
           </>

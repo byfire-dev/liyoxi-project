@@ -29,11 +29,11 @@ describe("页面清单", () => {
     ).toEqual(["sub/catalog/trailer/index"]);
   });
 
-  it("M1 交付账号三页、付款三页与建档六页、商城四页；商城四页已实现，V1.1不实现", () => {
+  it("M1 交付账号三页、付款三页与建档六页、商城四页；商城四页与订购四页已实现，V1.1不实现", () => {
     const built = WEAPP_PAGES.filter(isBuilt);
     expect(built.filter((page) => page.placeholder)).toHaveLength(0);
     expect(WEAPP_PAGES.filter((page) => page.milestone === "M1" && !page.implemented)).toHaveLength(
-      9,
+      5,
     );
     expect(built.map((page) => page.route)).toEqual([
       "pages/home/index",
@@ -43,7 +43,11 @@ describe("页面清单", () => {
       "pages/login/index",
       "pages/agreement/index",
       "sub/catalog/detail/index",
+      "sub/order/checkout/index",
       "sub/order/result/index",
+      "sub/order/orders/index",
+      "sub/order/order-detail/index",
+      "sub/publish/accounts/index",
       "sub/billing/wallet/index",
       "sub/billing/plan-pick/index",
       "sub/profile/profile/index",
@@ -61,7 +65,11 @@ describe("页面清单", () => {
       "pages/login/index",
       "pages/agreement/index",
       "sub/catalog/detail/index",
+      "sub/order/checkout/index",
       "sub/order/result/index",
+      "sub/order/orders/index",
+      "sub/order/order-detail/index",
+      "sub/publish/accounts/index",
       "sub/billing/wallet/index",
       "sub/billing/plan-pick/index",
       "sub/profile/profile/index",
@@ -97,7 +105,11 @@ describe("由清单拼出全局配置", () => {
       ],
       subPackages: [
         { root: "sub/catalog", pages: ["detail/index"] },
-        { root: "sub/order", pages: ["result/index"] },
+        {
+          root: "sub/order",
+          pages: ["checkout/index", "result/index", "orders/index", "order-detail/index"],
+        },
+        { root: "sub/publish", pages: ["accounts/index"] },
         { root: "sub/billing", pages: ["wallet/index", "plan-pick/index"] },
         {
           root: "sub/profile",
@@ -122,6 +134,10 @@ describe("由清单拼出全局配置", () => {
 
   it("分包里的页一实现：分包与指向它的预下载跟着出现；没有页的分包不出现", () => {
     const pages = WEAPP_PAGES.map((page) =>
+      ["sub/order/order-detail/index", "sub/publish/accounts/index"].includes(page.route)
+        ? { ...page, implemented: false }
+        : page,
+    ).map((page) =>
       ["sub/catalog/detail/index", "sub/order/checkout/index", "sub/order/orders/index"].includes(
         page.route,
       )

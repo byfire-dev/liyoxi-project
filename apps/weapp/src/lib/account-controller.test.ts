@@ -289,6 +289,8 @@ describe("账户启动与登录", () => {
     });
     expect(accountEntries("owner")).toEqual([
       { route: "sub/profile/profile/index", title: "门店档案", owner: true },
+      { route: "sub/order/orders/index", title: "订单", owner: true },
+      { route: "sub/publish/accounts/index", title: "发布账号", owner: true },
     ]);
     expect(accountEntries("clerk")).toEqual([]);
   });

@@ -200,7 +200,6 @@ function DetailContent({ id }: { id: string }) {
             {error ? <Note>{error}</Note> : null}
             {detail.viewerRole === "owner" ? (
               <>
-                <Note>确认订购即将开放，可先保存到选剧单。</Note>
                 <FooterBar>
                   <Button
                     variant="secondary"
@@ -212,7 +211,16 @@ function DetailContent({ id }: { id: string }) {
                   >
                     {added || detail.owner?.cartItemId ? "已在选剧单" : "加入选剧单"}
                   </Button>
-                  <Button disabled>订购即将开放</Button>
+                  <Button
+                    disabled={!detail.orderability.orderable || busy || resource.loading}
+                    onClick={() => {
+                      void Taro.navigateTo({
+                        url: `/sub/order/checkout/index?dramaIds=${encodeURIComponent(detail.dramaId)}`,
+                      });
+                    }}
+                  >
+                    确认订购
+                  </Button>
                 </FooterBar>
               </>
             ) : detail.viewerRole === "guest" ? (
