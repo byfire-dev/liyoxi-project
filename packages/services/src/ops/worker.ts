@@ -148,7 +148,15 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   bindOps({ db: prisma, tx, clock, assembly });
   bindContent(assembly);
   const closePublish = bindPublish(assembly);
-  const deliveryCore = { tx, clock, assembly, flow, events, sla: createSla({ clock, assembly }) };
+  const deliveryCore = {
+    tx,
+    clock,
+    assembly,
+    flow,
+    events,
+    media,
+    sla: createSla({ clock, assembly }),
+  };
   const closeDelivery = bindDelivery(deliveryCore);
   const delivery = { tx, subscribers: events.subscribers, channel, alerts };
   // 账本（W1-10）：每分钟扫描用它推进到点的主体

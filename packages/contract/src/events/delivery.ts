@@ -18,7 +18,39 @@ const plan = {
   versionNo: z.int().positive(),
   ...transition,
 };
+const sample = {
+  v: z.literal(1),
+  sampleId: IdSchema,
+  deliveryTicketId: IdSchema,
+  dramaOrderId: IdSchema,
+  versionNo: z.int().positive(),
+  ...transition,
+};
 export const payloads = {
+  "sample.uploaded": z.strictObject(sample),
+  "sample.superseded": z.strictObject(sample),
+  "sample.qc_passed": z.strictObject(sample),
+  "sample.qc_failed": z.strictObject(sample),
+  "sample.pushed": z.strictObject(sample),
+  "sample.confirmed": z.strictObject({
+    ...sample,
+    viewedVia: z.enum(["weapp", "album", "portal", "wecom"]),
+  }),
+  "ticket.episode_qc_failed": z.strictObject({
+    v: z.literal(1),
+    deliveryTicketId: IdSchema,
+    orderItemId: IdSchema,
+    episodeNos: z.array(z.int().positive()),
+    qcRecordIds: z.array(IdSchema),
+  }),
+  "package.delivered": z.strictObject({
+    v: z.literal(1),
+    deliveryReleaseId: IdSchema,
+    deliveryTicketId: IdSchema,
+    orderItemId: IdSchema,
+    episodeCount: z.int().positive(),
+    grantExpiresAt: z.string().datetime(),
+  }),
   "ticket.created": z.strictObject({
     ...ticket,
     orderItemId: IdSchema,
