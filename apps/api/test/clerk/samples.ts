@@ -10,6 +10,8 @@ export interface ClerkSampleContext {
 }
 interface Sample {
   operationId: string;
+  /** 只用于接口本身的真实错误场景；旧样例缺省仍为 200。none 仍固定 403。 */
+  expectedStatus?: number;
   play(api: TestApi, context: ClerkSampleContext): Promise<Response>;
 }
 const get = (operationId: string, path: string): Sample => ({
@@ -47,6 +49,38 @@ export const CLERK_SAMPLES: readonly Sample[] = [
         headers: ctx.clerk.headers,
       }),
   },
+  {
+    operationId: "m.agreementConsent.create",
+    play: async (api, ctx) =>
+      api.request("/api/v1/m/agreement-consents", {
+        method: "POST",
+        json: { consents: await currentUserConsents(api) },
+        headers: ctx.clerk.headers,
+      }),
+  },
+  get("m.agreementConsent.list", "/m/agreement-consents"),
+  get("m.agreementConsent.summary", "/m/agreement-consents/summary"),
+  {
+    operationId: "m.entity.create",
+    expectedStatus: 409,
+    play: async (api, ctx) =>
+      api.request("/api/v1/m/entities", {
+        method: "POST",
+        json: {},
+        headers: { ...ctx.clerk.headers, "Idempotency-Key": "clerk-create-entity" },
+      }),
+  },
+  get("m.store.list", "/m/stores"),
+  {
+    operationId: "m.me.currentStore.replace",
+    play: async (api, ctx) =>
+      api.request("/api/v1/m/me/current-store", {
+        method: "PUT",
+        json: { storeId: ctx.storeId },
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": "clerk-current-store" },
+      }),
+  },
+  get("m.dictItem.list", "/m/dict-items?typeKey=ticket_type"),
   // 退出会吊销当前凭据，放到这一份样例的最后。其它样例不得靠退出后的身份。
   {
     operationId: "m.session.current.delete",
