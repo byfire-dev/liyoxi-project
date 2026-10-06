@@ -2143,7 +2143,7 @@ export interface components {
                 /** Format: date-time */
                 dueAt: string | null;
                 rejectNote: string | null;
-                rejectReason: components["schemas"]["DictRef"] & (Record<string, never> | null);
+                rejectReason: components["schemas"]["DictRef"] | null;
                 /** @enum {string} */
                 reviewStatus: "pending" | "accepted" | "rejected" | "superseded" | (string & {});
                 /** Format: date-time */
