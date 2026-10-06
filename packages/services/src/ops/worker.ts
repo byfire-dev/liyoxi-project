@@ -7,6 +7,7 @@ import type { PrismaClient } from "@liyoxi/db";
 import { bindDelivery, reevaluateSweep } from "../delivery/index.js";
 import { createSla } from "../sla/index.js";
 import { bindContent } from "../content/index.js";
+import { bindOrder } from "../order/index.js";
 import { bindPublish } from "../publish/index.js";
 import { createMedia } from "../media/index.js";
 import type { PromoteRef } from "../media/index.js";
@@ -84,6 +85,7 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  readonly closeOrder?: () => void;
   readonly closeBillingTimers?: () => void;
   readonly closePublish?: () => void;
   readonly closeDelivery?: () => void;
@@ -129,6 +131,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const flow = createFlow({ assembly, clock, events });
+  const closeOrder = bindOrder({ assembly, clock, flow });
   const closeBillingTimers = bindBillingTimers({
     clock,
     flow,
@@ -165,6 +168,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const laggards = new Map<string, number>();
   const timing = { tx, assembly, registry: timers.registry, clock, alerts, channel };
   return {
+    closeOrder,
     closeBillingTimers,
     closePublish,
     closeDelivery,

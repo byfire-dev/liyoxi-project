@@ -1,5 +1,5 @@
 import { bindDelivery } from "./delivery/index.js";
-import { createOrderService } from "./order/index.js";
+import { createOrderService, bindOrder } from "./order/index.js";
 import type { OrderService } from "./order/index.js";
 import { bindPublish } from "./publish/index.js";
 // 进程运行时（W0-22）：api 与 worker 启动时各建一次。环境 → 日志 → 数据库与 Redis 连接 → 事务入口、业务单号、
@@ -239,6 +239,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const events = createEvents({ assembly, clock, tx });
   const timers = createTimers({ assembly });
   const flow = createFlow({ assembly, clock, events });
+  const unbindOrder = bindOrder({ assembly, clock, flow });
   const mediaChannel = createQueueChannel({ redisUrl: env.REDIS_URL, prefix: `${keyPrefix}bull` });
   const media = createMedia({
     tx,
@@ -355,6 +356,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
+      unbindOrder();
       unbindBilling();
       unbindContent();
       unbindPublish();

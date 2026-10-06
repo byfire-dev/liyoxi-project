@@ -151,7 +151,10 @@ describe("选剧单与订单读侧12接口", { timeout: 90000 }, () => {
       );
     expect(first).toMatchObject({ state: "valid", snapshotPricePoints: 101, discountedPoints: 91 });
     expect(first.drama.posterUrl).not.toBeNull();
-    const list = CartListSchema.parse(await data(await request("/m/cart-items")));
+    const listResponse = await request("/m/cart-items");
+    expect(listResponse.headers.get("Cache-Control")).toBe("no-store");
+    const list = CartListSchema.parse(await data(listResponse));
+    expect(list.items[0]!.drama.posterUrl).not.toBeNull();
     expect(list.items.map((i) => i.cartItemId)).toContain(first.cartItemId);
     const duplicate = CartItemSchema.parse(
       await data(

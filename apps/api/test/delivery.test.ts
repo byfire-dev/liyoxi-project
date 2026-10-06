@@ -243,7 +243,7 @@ describe("delivery PR1 十个真实 HTTP 入口", { timeout: 60000 }, () => {
     );
     expect((await request("admin.deliveryPlan.get", undefined, limited.headers)).status).toBe(404);
   });
-  it("assign/draft/push/requestChange 真实落库与回放；confirm 生产 W117 默认拒绝且不落确认", async () => {
+  it("assign/draft/push/requestChange/confirm 真实落库与回放，确认回写订单项且不重复写", async () => {
     const key = uuidv7();
     await data(
       await request("admin.deliveryTicket.assignManager", { staffId: managerId }, undefined, key),
@@ -319,12 +319,33 @@ describe("delivery PR1 十个真实 HTTP 入口", { timeout: 60000 }, () => {
       ),
     ).toMatchObject({ replayed: true });
     await data(await request("admin.deliveryPlan.push", { draftLockVersion: 1 }));
-    const response = await request("m.deliveryPlan.confirm", { versionNo: 2 });
-    expect(response.status, await response.clone().text()).toBe(500);
-    expect(await response.json()).toMatchObject({ error: "INTERNAL" });
+    const confirmKey = uuidv7();
+    await data(await request("m.deliveryPlan.confirm", { versionNo: 2 }, undefined, confirmKey));
+    expect(await prisma.deliveryPlan.findUniqueOrThrow({ where: { id: planId } })).toMatchObject({
+      status: "confirmed",
+      confirmedVersionNo: 2,
+    });
+    expect(await prisma.orderItem.findUniqueOrThrow({ where: { id: itemId } })).toMatchObject({
+      agreedLaunchDate: new Date("2026-01-20"),
+    });
     expect(
-      (await prisma.deliveryPlan.findUniqueOrThrow({ where: { id: planId } })).confirmedVersionNo,
-    ).toBeNull();
+      await prisma.orderItemAccount.findMany({ where: { orderItemId: itemId } }),
+    ).toMatchObject([{ channelAccountId: accountId }]);
+    const confirmation = async () =>
+      Promise.all([
+        prisma.deliveryPlan.findUniqueOrThrow({ where: { id: planId } }),
+        prisma.deliveryPlanVersion.findMany({ where: { deliveryPlanId: planId } }),
+        prisma.orderItem.findUniqueOrThrow({ where: { id: itemId } }),
+        prisma.orderItemAccount.findMany({ where: { orderItemId: itemId } }),
+        prisma.statusTransition.count(),
+        prisma.auditLog.count(),
+        prisma.outboxEvent.count(),
+      ]);
+    const confirmed = await confirmation();
+    expect(
+      await data(await request("m.deliveryPlan.confirm", { versionNo: 2 }, undefined, confirmKey)),
+    ).toMatchObject({ replayed: true });
+    expect(await confirmation()).toEqual(confirmed);
     expect(
       await prisma.deliveryPlanChangeRequest.count({ where: { deliveryPlanId: planId } }),
     ).toBe(1);

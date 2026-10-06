@@ -1,4 +1,9 @@
-export { createPublish, countPendingChannelAccountsByStore, getLaunchFacts } from "./service.js";
+export {
+  createPublish,
+  countPendingChannelAccountsByStore,
+  getLaunchFacts,
+  getLaunchReviewSummary,
+} from "./service.js";
 export type { Publish } from "./service.js";
 export type { PublishDeps, PublishViewer, PublishWriteOptions } from "./context.js";
 export { createLaunchTasks } from "./write.js";
