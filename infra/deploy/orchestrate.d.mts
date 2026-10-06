@@ -19,6 +19,7 @@ export interface Options {
 export interface Summary extends ReleaseRecord {
   error: string;
   recordError: string;
+  dbVerification: { applicationVersion: string; runnerVersion: string } | null;
   exitCode: number;
 }
 export const RELEASE_STEPS: ReleaseStep[];

@@ -140,12 +140,20 @@ export function orchestrate(
   };
   let error = "";
   let recordError = "";
+  let dbVerification = null;
   const call = (step, args = []) => {
     record.failedStep = step;
     const before = clock();
     const result = channel(step, args);
     const exitCode = result.status === 0 ? 0 : Math.max(1, Math.min(255, result.status ?? 1));
     record.steps.push({ name: step, durationMs: Math.max(0, clock() - before), exitCode });
+    if (step === "verify-db" && result.stdout.includes("LYX_DB_VERIFY_")) {
+      const applicationVersion = marked(result.stdout, "LYX_DB_VERIFY_APPLICATION=");
+      const runnerVersion = marked(result.stdout, "LYX_DB_VERIFY_RUNNER=");
+      if (applicationVersion !== record.version || !TAG.test(runnerVersion))
+        throw new Error("核库应用/工具来源不合法");
+      dbVerification = { applicationVersion, runnerVersion };
+    }
     if (exitCode)
       throw new Error(
         `停在 ${step}（退出码 ${exitCode}）${result.stderr ? `：${result.stderr.trim()}` : ""}`,
@@ -232,6 +240,7 @@ export function orchestrate(
     ...record,
     error,
     recordError,
+    dbVerification,
     exitCode: record.result === "success" && !recordError ? 0 : 1,
   };
 }
@@ -239,7 +248,15 @@ export function orchestrate(
 async function startProbe(config, output, env) {
   const child = spawn(
     process.execPath,
-    [join(ROOT, "infra/ci/probe-during-deploy.mjs"), "--config", config, "--output", output],
+    [
+      join(ROOT, "infra/ci/probe-during-deploy.mjs"),
+      "--config",
+      config,
+      "--output",
+      output,
+      "--parent-pid",
+      String(process.pid),
+    ],
     { env, stdio: ["ignore", "pipe", "pipe"] },
   );
   let detail = "";

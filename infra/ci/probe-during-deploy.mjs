@@ -228,23 +228,28 @@ export async function main(args) {
       config: { type: "string" },
       output: { type: "string" },
       duration: { type: "string" },
+      "parent-pid": { type: "string" },
     },
   });
   if (!values.config || !values.output) throw new Error("须给 --config 与 --output");
   const durationMs = values.duration === undefined ? undefined : Number(values.duration) * 1000;
   if (durationMs !== undefined && (!Number.isFinite(durationMs) || durationMs <= 0))
     throw new Error("--duration 须为正秒数");
-  const targets = validateTargets(JSON.parse(readFileSync(values.config, "utf8")));
-  if (targets.length > 32) throw new Error("每秒探测至多 32 项");
+  // 由 spawn 方在创建子进程时传原始身份；此时 ppid 可能已经变成接管者。
+  const parent = values["parent-pid"] === undefined ? process.ppid : Number(values["parent-pid"]);
+  if (!Number.isSafeInteger(parent) || parent <= 1) throw new Error("--parent-pid 须为启动者 PID");
   const controller = new AbortController();
   const stop = () => controller.abort();
-  const parent = process.ppid;
-  const parentWatch = setInterval(() => {
+  const checkParent = () => {
     if (process.ppid !== parent) stop();
-  }, 1000);
+  };
+  const parentWatch = setInterval(checkParent, 1000);
   process.once("SIGTERM", stop);
   process.once("SIGINT", stop);
   try {
+    checkParent();
+    const targets = validateTargets(JSON.parse(readFileSync(values.config, "utf8")));
+    if (targets.length > 32) throw new Error("每秒探测至多 32 项");
     await probe({
       targets,
       output: values.output,

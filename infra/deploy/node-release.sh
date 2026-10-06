@@ -209,9 +209,10 @@ step_smoke() {
 }
 
 step_prune() {
-  local tag current keep known rows one repository candidate digest prefix files file rel protected
+  local tag current keep known rows one repository candidate digest prefix files file rel protected db
   current="$(current_tag)"
   [ -n "$current" ] || die "没有当前版本，拒绝清理"
+  db="$(db_tag)" || die "库迁移版本不可用，什么都不清理"
   if [ ! -f "$LYX_NODE_HOME/releases.log" ]; then
     say "尚无成功发布记录，跳过清理，不猜测已有镜像归属"
     return
@@ -226,6 +227,8 @@ step_prune() {
       [ -n "$repository" ] || continue
       [ "$repository" = "${prefix}liyoxi/$one" ] || die "镜像清理列表出现其他项目"
       [[ "$candidate" =~ ^sha-[a-f0-9]{12}$ ]] || continue
+      # 即使多次回滚令它超出三版，也不能删实际保留数据库的唯一工具/快照镜像。
+      if [ "$one" = server ] && [ "$candidate" = "$db" ]; then continue; fi
       if printf '%s\n' "$known" | grep -Fxq "$candidate" && ! printf '%s\n' "$keep" | grep -Fxq "$candidate"; then
         # 按本项目的 tag 删除，不按共享镜像 ID、不强制，不做全局 prune。
         docker image rm "$repository:$candidate" || die "旧项目镜像清理失败：$candidate"

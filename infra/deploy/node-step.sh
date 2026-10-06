@@ -41,6 +41,7 @@ SELF="$LYX_SRC/infra/deploy/node-step.sh"
 STG_ENV="$LYX_SRC/infra/compose/env/stg.env"
 NODE_ENV="$LYX_NODE_HOME/node.env"
 RELEASE_ENV="$LYX_NODE_HOME/release.env"
+DB_RELEASE_ENV="$LYX_NODE_HOME/db-release.env"
 COMPOSE_FILE="$LYX_SRC/infra/compose/node.yml"
 SUPERVISOR="${LYX_NODE_SUPERVISOR:-systemd}"
 SERVICES="postgres redis mediatool api worker gateway"
@@ -107,6 +108,16 @@ setting() {
   done
 }
 current_tag() { if [ -r "$RELEASE_ENV" ]; then sed -n 's/^LYX_TAG=//p' "$RELEASE_ENV" | head -n 1; fi; }
+db_tag() {
+  local line
+  if [ -e "$DB_RELEASE_ENV" ] || [ -L "$DB_RELEASE_ENV" ]; then
+    [ -f "$DB_RELEASE_ENV" ] && [ ! -L "$DB_RELEASE_ENV" ] && [ -r "$DB_RELEASE_ENV" ] || die "读不了库迁移版本"
+    [ "$(wc -c <"$DB_RELEASE_ENV")" -le 141 ] || die "库迁移版本记录过长"
+    line="$(cat "$DB_RELEASE_ENV")" || die "读不了库迁移版本"
+    [[ "$line" =~ ^LYX_DB_TAG=([A-Za-z0-9_][A-Za-z0-9_.-]{0,127})$ ]] || die "库迁移版本记录不合法"
+    printf '%s' "${BASH_REMATCH[1]}"
+  fi
+}
 container() { printf '%s-%s' "$LYX_NODE_PREFIX" "$1"; }
 
 # docker compose 的公共参数，放进 COMPOSE_ARGS：变量替换的来源是 stg.env、节点上的 node.env（有才带）与当前环境
@@ -183,6 +194,10 @@ step_check_env() {
 
 step_migrate() {
   wait_healthy 30 postgres || die "库没在运行：先 node-step.sh deps"
+  # 库结构不随代码回滚；迁移失败也可能已应用一部分，先持久化该版本的工具/期望结构来源。
+  mkdir -p "$LYX_NODE_HOME" || die "创建不了节点记录目录：迁移未执行"
+  (umask 077; printf 'LYX_DB_TAG=%s\n' "$1" >"$DB_RELEASE_ENV.tmp") &&
+    mv -f "$DB_RELEASE_ENV.tmp" "$DB_RELEASE_ENV" || die "写不了库迁移版本：迁移未执行"
   one_off "$1" migrate || die "迁移没成：正在跑的容器没有动"
   say "迁移完成"
 }
@@ -265,8 +280,13 @@ step_status() {
 }
 
 step_verify_db() {
+  local application="$1" runner
+  runner="$(db_tag)" || die "库迁移版本不可用"
+  runner="${runner:-$application}"
+  # 参数仍是待核对的应用版本；核库 runner/快照来自持久化迁移目标，旧节点无记录时才使用该参数。
+  printf 'LYX_DB_VERIFY_APPLICATION=%s\nLYX_DB_VERIFY_RUNNER=%s\n' "$application" "$runner"
   wait_healthy 30 postgres || die "库没在运行：先 node-step.sh deps"
-  one_off "$1" verify-db || die "库的核对没过（见上）"
+  one_off "$runner" verify-db || die "库的核对没过（见上）"
 }
 
 step_run() {
