@@ -12,6 +12,17 @@ const before = JSON.parse(source) as Record<string, string[]>;
 const entries = Object.entries(before);
 const canonical = (value: Record<string, unknown>) =>
   `${JSON.stringify(Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))), null, 2)}\n`;
+const candidates = ["m.aaa.get", "m.file.create", "m.zzz.get"] as const;
+/** 候选可能成为真实路由；始终按输入基线选出未存在的键，不覆盖未来新增黄金。 */
+function unusedOperationId(base: Record<string, unknown>, candidate: string): string {
+  let key = candidate;
+  for (let index = 1; Object.hasOwn(base, key); index += 1) {
+    key = `${candidate}.clerkGate${index}`;
+  }
+  return key;
+}
+const additions = candidates.map((candidate) => unusedOperationId(before, candidate));
+const lastAddition = additions[2]!;
 
 interface Report {
   verdict: string;
@@ -78,30 +89,47 @@ describe("店员黄金新增完整 operationId 条目", () => {
     ).toBe("frozen");
   });
 
-  it.each(["m.aaa.get", "m.file.create", "m.zzz.get"])(
-    "新增 %s 可排在旧条目前、中、后，当前全部旧条目逐项保持",
-    (operationId) => {
-      const next = { ...before, [operationId]: ["fileId", "url"] };
-      for (const [key, value] of entries) expect(next[key]).toEqual(value);
-      const result = classify(canonical(next));
-      expect(result.status, result.output).toBe(0);
-      expect(result.report).toMatchObject({
-        verdict: "touch",
-        touch: [{ file: GOLDEN, what: `新增店员黄金条目 ${operationId}` }],
-        loosen: [],
-        outside: [],
-      });
-    },
-  );
+  it.each(additions)("新增 %s 可排在旧条目前、中、后，当前全部旧条目逐项保持", (operationId) => {
+    expect(Object.hasOwn(before, operationId)).toBe(false);
+    const next = { ...before, [operationId]: ["fileId", "url"] };
+    for (const [key, value] of entries) expect(next[key]).toEqual(value);
+    const result = classify(canonical(next));
+    expect(result.status, result.output).toBe(0);
+    expect(result.report).toMatchObject({
+      verdict: "touch",
+      touch: [{ file: GOLDEN, what: `新增店员黄金条目 ${operationId}` }],
+      loosen: [],
+      outside: [],
+    });
+  });
 
   it("同一次生成可新增多条路由，空响应的字符串数组也可为空", () => {
-    const result = classify(canonical({ ...before, "m.aaa.get": [], "m.zzz.get": ["item"] }));
+    const [first, last] = [additions[0]!, lastAddition];
+    const result = classify(canonical({ ...before, [first]: [], [last]: ["item"] }));
     expect(result.status, result.output).toBe(0);
     expect(result.report?.touch.map((item) => item.what)).toEqual([
-      "新增店员黄金条目 m.aaa.get",
-      "新增店员黄金条目 m.zzz.get",
+      `新增店员黄金条目 ${first}`,
+      `新增店员黄金条目 ${last}`,
     ]);
     expect(result.report?.loosen).toEqual([]);
+  });
+
+  it("基线已有 m.file.create 及其他候选时仍可新增路由，旧条目逐项不变", () => {
+    const base = { ...before };
+    for (const candidate of candidates) {
+      if (!Object.hasOwn(base, candidate)) base[candidate] = ["alreadyVisible"];
+    }
+    const fresh = candidates.map((candidate) => unusedOperationId(base, candidate));
+    for (const key of fresh) expect(Object.hasOwn(base, key)).toBe(false);
+    const next = { ...base, ...Object.fromEntries(fresh.map((key) => [key, ["newVisible"]])) };
+    for (const [key, value] of Object.entries(base)) expect(next[key]).toEqual(value);
+    const result = classify(canonical(next), { base: canonical(base) });
+    expect(result.status, result.output).toBe(0);
+    expect(result.report).toMatchObject({
+      verdict: "touch",
+      touch: fresh.map((key) => ({ file: GOLDEN, what: `新增店员黄金条目 ${key}` })),
+      loosen: [],
+    });
   });
 
   it("不扩展其他 frozen 的判法", () => {
@@ -117,13 +145,13 @@ describe("店员黄金新增完整 operationId 条目", () => {
 describe("旧条目的键和字段路径数组全部冻结", () => {
   it.each(entries)("%s 增加一个旧值路径仍判放松", (key, value) => {
     rejected(
-      canonical({ ...before, [key]: [...value, "extra"], "m.zzz.get": [] }),
+      canonical({ ...before, [key]: [...value, "extra"], [lastAddition]: [] }),
       `旧条目 ${key}`,
     );
   });
 
   it.each(entries)("%s 删除旧 operationId 仍判放松", (key) => {
-    const next: Record<string, string[]> = { ...before, "m.zzz.get": [] };
+    const next: Record<string, string[]> = { ...before, [lastAddition]: [] };
     delete next[key];
     rejected(canonical(next), `删掉了店员黄金旧条目 ${key}`);
   });
