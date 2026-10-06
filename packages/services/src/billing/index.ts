@@ -101,3 +101,17 @@ export type {
   ApplyStep,
   PaymentExceptionKind,
 } from "./payment/index.js";
+export { createBillingPurchase } from "./payment/purchase.js";
+export type { BillingPurchase, BillingPurchaseDeps, PurchaseActor } from "./payment/purchase.js";
+export {
+  bindBillingTimers,
+  handleTransferTtl,
+  purchaseInvariants,
+} from "./payment/purchase-registration.js";
+export {
+  financeConfigAt,
+  proposeFinanceConfig,
+  financeConfigApproval,
+} from "./finance-config/index.js";
+export { seedPlaceholderFinanceConfig, PLACEHOLDER_FINANCE } from "./demo-seed.js";
+export type { BillingSeedDeps } from "./demo-seed.js";

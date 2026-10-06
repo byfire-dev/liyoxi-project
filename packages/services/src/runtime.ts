@@ -20,6 +20,18 @@ import { Redis } from "ioredis";
 import { assembleServices } from "./assembly.js";
 import { createApproval } from "./approval/index.js";
 import type { Approval } from "./approval/index.js";
+import {
+  bindBillingTimers,
+  createBillingPurchase,
+  createLedger,
+  createPayment,
+  createFulfillment,
+} from "./billing/index.js";
+import type { BillingPurchase } from "./billing/index.js";
+import { createDocs } from "./docs/index.js";
+import { createTenant } from "./tenant/index.js";
+import { createSla } from "./sla/index.js";
+import type { Keyring } from "./security/index.js";
 import { createConfig } from "./config/index.js";
 import type { Config } from "./config/index.js";
 import { createEvents } from "./events/index.js";
@@ -92,6 +104,8 @@ export const DB_POOLS: Readonly<Record<AssemblyEntry, DbPoolSettings>> = {
 };
 
 export interface RuntimeOptions {
+  /** 仅测试/演示装配传假密钥；生产仍通过受控配置延迟加载。 */
+  readonly billingKeyring?: Keyring;
   /** 哪个进程 */
   readonly entry: AssemblyEntry;
   /** loadEnv 的结果 */
@@ -116,6 +130,7 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly billing: BillingPurchase;
   readonly content: Content;
   readonly media: Media;
   /** 审批执行器与只读队列：api、worker 各自装配（移交表 64） */
@@ -233,6 +248,33 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const content = createContent({ clock, flow, media, assembly });
   const bizNo = createBizNoIssuer({ clock, appEnv: env.APP_ENV });
   const approval = createApproval({ assembly, clock, flow, events, bizNo });
+  const unbindBilling = bindBillingTimers({ clock, flow, timers });
+  const ledger = createLedger({ clock, events });
+  let billingKeys = options.billingKeyring;
+  const billing = createBillingPurchase({
+    tx,
+    clock,
+    assembly,
+    config,
+    flow,
+    events,
+    timers,
+    bizNo,
+    media,
+    ledger,
+    payment: createPayment({
+      clock,
+      events,
+      flow,
+      timers,
+      bizNo,
+      fulfillment: createFulfillment({ clock, events }),
+    }),
+    docs: createDocs({ tx, clock }),
+    tenant: createTenant({ tx, clock, flow, assembly }),
+    keyring: () => (billingKeys ??= loadKeyring(env)),
+    sla: createSla({ clock, assembly }),
+  });
   let staffAuth: StaffAuth | undefined;
 
   // 连库一项加移交表第 1 行的四个自检：security 的加解密与盲索引、审计 target_type 对表名单、聚合类型对表名单、
@@ -263,6 +305,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   }
 
   return {
+    billing,
     content,
     media,
     entry,
@@ -283,6 +326,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
+      unbindBilling();
       unbindContent();
       unbindOps();
       await mediaChannel.close();

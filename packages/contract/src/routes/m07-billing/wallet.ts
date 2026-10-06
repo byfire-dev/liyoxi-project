@@ -1,8 +1,14 @@
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import { BillingWalletSchema } from "./purchase.schemas.js";
 // 商家端：套餐、积分、付款与发票 · wallet（docs/api/m07-billing.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
 
-export const mWalletGet = merchantMeta({
+export const mWalletGet = merchantRoute({
+  responses: {
+    ...okResponse(BillingWalletSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
   method: "get",
   path: "/m/wallet",
   operationId: "m.wallet.get",

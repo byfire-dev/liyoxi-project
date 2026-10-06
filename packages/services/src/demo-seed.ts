@@ -19,6 +19,8 @@ import type { AppEnv, Clock, SeedTableResult, TxRunner } from "./kernel/index.js
 import type { Keyring } from "./security/index.js";
 import { seedDemoStaff } from "./staff/index.js";
 import type { DemoStaffMember } from "./staff/index.js";
+import { seedPlaceholderFinanceConfig } from "./billing/index.js";
+import type { Assembly, BizNoIssuer } from "./kernel/index.js";
 
 export interface DemoSeedDeps {
   readonly tx: TxRunner;
@@ -30,6 +32,7 @@ export interface DemoSeedDeps {
   readonly media?: Media;
   readonly content?: Content;
   readonly notices?: Pick<Notices, "announce">;
+  readonly billing?: { readonly assembly: Assembly; readonly bizNo: BizNoIssuer };
 }
 
 /** 步骤之间传的东西：前面的步骤写，后面的步骤读 */
@@ -107,7 +110,19 @@ export const DEMO_SEED_STEPS: readonly DemoSeedStep[] = [
       });
     },
   },
-  // billing 的受控财务配置占位：W1-11b
+  {
+    name: "billing",
+    async run(deps, state) {
+      if (!deps.billing) return [];
+      const proposer = state.staff.find((s) => s.key === "finance"),
+        approver = state.staff.find((s) => s.key === "finance_lead");
+      if (!proposer || !approver) throw new Error("演示财务员工步骤尚未完成");
+      return seedPlaceholderFinanceConfig(
+        { ...deps, ...deps.billing },
+        { proposerId: proposer.staffId, approverId: approver.staffId },
+      );
+    },
+  },
   {
     name: "content",
     async run(deps, state) {

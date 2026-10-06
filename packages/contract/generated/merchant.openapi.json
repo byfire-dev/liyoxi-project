@@ -6424,6 +6424,518 @@
         ],
         "type": "object"
       },
+      "PaymentOrderDetail": {
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "activeInvoiceRequest": {
+            "properties": {
+              "invoiceRequestId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "requestNo": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "invoiceRequestId",
+              "requestNo",
+              "status"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "amountFen": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "bankAccount": {
+            "properties": {
+              "accountName": {
+                "type": "string"
+              },
+              "accountNo": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "accountNoMask": {
+                "type": "string"
+              },
+              "bankName": {
+                "type": "string"
+              },
+              "transferRemark": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "accountName",
+              "bankName",
+              "accountNo",
+              "accountNoMask",
+              "transferRemark"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "cancelReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cancelledAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "channel": {
+            "enum": [
+              "wechat_jsapi",
+              "bank_transfer"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "channels": {
+            "items": {
+              "properties": {
+                "code": {
+                  "enum": [
+                    "wechat_jsapi",
+                    "bank_transfer"
+                  ],
+                  "type": "string",
+                  "x-open-enum": true
+                },
+                "hintKey": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "isEnabled": {
+                  "type": "boolean"
+                },
+                "isRecommended": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "isEnabled",
+                "isRecommended",
+                "hintKey"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "content": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "plan",
+                  "upgrade",
+                  "topup"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "months": {
+                "exclusiveMinimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "planId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "planName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "pointPackId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "points": {
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "upgrade": {
+                "properties": {
+                  "fromPlanName": {
+                    "type": "string"
+                  },
+                  "remainingDays": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "topupPoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "validUntil": {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "fromPlanName",
+                  "remainingDays",
+                  "topupPoints",
+                  "validUntil"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "planId",
+              "planName",
+              "months",
+              "pointPackId",
+              "points",
+              "upgrade"
+            ],
+            "type": "object"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "formula": {
+            "properties": {
+              "args": {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              "code": {
+                "enum": [
+                  "plan_monthly",
+                  "plan_cycle",
+                  "plan_upgrade",
+                  "topup"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "args",
+              "text"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "fulfillment": {
+            "properties": {
+              "effectiveAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "isQueuedBehindActive": {
+                "type": "boolean"
+              },
+              "points": {
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "term": {
+                "properties": {
+                  "endDate": {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  "planName": {
+                    "type": "string"
+                  },
+                  "startDate": {
+                    "format": "date",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "planName",
+                  "startDate",
+                  "endDate"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "effectiveAt",
+              "isQueuedBehindActive",
+              "term",
+              "points"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "fulfillmentStatus": {
+            "enum": [
+              "none",
+              "done",
+              "blocked"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "invoiceItemName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "invoiceState": {
+            "enum": [
+              "eligible",
+              "applying",
+              "invoiced",
+              "expired",
+              "not_eligible"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "isConfirmingResult": {
+            "type": "boolean"
+          },
+          "isProcessingReceipt": {
+            "type": "boolean"
+          },
+          "latestTransferProof": {
+            "properties": {
+              "dueAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "rejectNote": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "rejectReason": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  }
+                ]
+              },
+              "reviewStatus": {
+                "enum": [
+                  "pending",
+                  "accepted",
+                  "rejected",
+                  "superseded"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "reviewedAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "transferProofId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "uploadNo": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "uploadedAt": {
+                "format": "date-time",
+                "type": "string"
+              }
+            },
+            "required": [
+              "transferProofId",
+              "uploadNo",
+              "reviewStatus",
+              "uploadedAt",
+              "dueAt",
+              "reviewedAt",
+              "rejectReason",
+              "rejectNote"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "paidAmountFen": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "paidAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "paymentOrderId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "refundedAmountFen": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "refundedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "pending_payment",
+              "pending_confirmation",
+              "paid",
+              "cancelled",
+              "refunded"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "title": {
+            "type": "string"
+          },
+          "transferState": {
+            "enum": [
+              "awaiting_proof",
+              "proof_submitted",
+              "proof_rejected",
+              "confirm_review",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "type": {
+            "enum": [
+              "plan_new",
+              "plan_renew",
+              "plan_upgrade",
+              "topup"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "paymentOrderId",
+          "orderNo",
+          "type",
+          "status",
+          "channel",
+          "transferState",
+          "amountFen",
+          "title",
+          "createdAt",
+          "paidAt",
+          "invoiceItemName",
+          "invoiceState",
+          "activeInvoiceRequest",
+          "actions",
+          "paidAmountFen",
+          "refundedAmountFen",
+          "fulfillmentStatus",
+          "formula",
+          "content",
+          "expiresAt",
+          "isConfirmingResult",
+          "isProcessingReceipt",
+          "cancelledAt",
+          "cancelReason",
+          "refundedAt",
+          "fulfillment",
+          "bankAccount",
+          "latestTransferProof",
+          "channels"
+        ],
+        "type": "object"
+      },
       "PendingConsent": {
         "properties": {
           "agreementKey": {
@@ -6498,6 +7010,419 @@
         ],
         "type": "object"
       },
+      "PlanCard": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "cyclePrices": {
+            "items": {
+              "properties": {
+                "months": {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "priceFen": {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "months",
+                "priceFen"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "discountBp": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "hasMonthlyReport": {
+            "type": "boolean"
+          },
+          "isCurrent": {
+            "type": "boolean"
+          },
+          "maxMembers": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "maxStores": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "monthlyFeeFen": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "monthlyPoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "planId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "planRevisionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "productionModel": {
+            "enum": [
+              "standard",
+              "advanced",
+              "top"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "rank": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "schedulePriority": {
+            "enum": [
+              "standard",
+              "priority",
+              "rush"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "monthlyPoints",
+          "discountBp",
+          "productionModel",
+          "schedulePriority",
+          "maxStores",
+          "maxMembers",
+          "hasMonthlyReport",
+          "planId",
+          "code",
+          "name",
+          "rank",
+          "isCurrent",
+          "planRevisionId",
+          "monthlyFeeFen",
+          "cyclePrices"
+        ],
+        "type": "object"
+      },
+      "PlanQuote": {
+        "properties": {
+          "action": {
+            "enum": [
+              "subscribe",
+              "renew",
+              "downgrade",
+              "renew_upgrade",
+              "upgrade"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "benefits": {
+            "properties": {
+              "discountBp": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "hasMonthlyReport": {
+                "type": "boolean"
+              },
+              "maxMembers": {
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "maxStores": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "monthlyPoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "productionModel": {
+                "enum": [
+                  "standard",
+                  "advanced",
+                  "top"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "schedulePriority": {
+                "enum": [
+                  "standard",
+                  "priority",
+                  "rush"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              }
+            },
+            "required": [
+              "monthlyPoints",
+              "discountBp",
+              "productionModel",
+              "schedulePriority",
+              "maxStores",
+              "maxMembers",
+              "hasMonthlyReport"
+            ],
+            "type": "object"
+          },
+          "downgradeImpact": {
+            "properties": {
+              "membersToRemove": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "storesToRemove": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "storesToRemove",
+              "membersToRemove"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "effectiveMode": {
+            "enum": [
+              "immediate",
+              "next_term"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "firstGrantDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "formula": {
+            "properties": {
+              "args": {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              "code": {
+                "enum": [
+                  "plan_monthly",
+                  "plan_cycle",
+                  "plan_upgrade",
+                  "topup"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "args",
+              "text"
+            ],
+            "type": "object"
+          },
+          "fromPlanName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "months": {
+            "exclusiveMinimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "newTerm": {
+            "properties": {
+              "endDate": {
+                "format": "date",
+                "type": "string"
+              },
+              "startDate": {
+                "format": "date",
+                "type": "string"
+              }
+            },
+            "required": [
+              "startDate",
+              "endDate"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "orderType": {
+            "enum": [
+              "plan_new",
+              "plan_renew",
+              "plan_upgrade"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "payFen": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "planId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "planName": {
+            "type": "string"
+          },
+          "planRevisionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/PurchasePolicy"
+          },
+          "promo": {
+            "properties": {
+              "appliedRevisionId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "previous_revision"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "appliedRevisionId"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "quotedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "upgrade": {
+            "properties": {
+              "baseDays": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "currentTermEndDate": {
+                "format": "date",
+                "type": "string"
+              },
+              "feeDeltaPerMonthFen": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "monthlyDeltaPoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "proratedFen": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "remainingDays": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "remainingFullMonths": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "topupPoints": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "currentTermEndDate",
+              "remainingDays",
+              "baseDays",
+              "remainingFullMonths",
+              "feeDeltaPerMonthFen",
+              "monthlyDeltaPoints",
+              "proratedFen",
+              "topupPoints"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "validUntil": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "orderType",
+          "planId",
+          "planRevisionId",
+          "planName",
+          "fromPlanName",
+          "months",
+          "payFen",
+          "formula",
+          "effectiveMode",
+          "newTerm",
+          "firstGrantDate",
+          "benefits",
+          "upgrade",
+          "downgradeImpact",
+          "promo",
+          "validUntil",
+          "quotedAt",
+          "policy"
+        ],
+        "type": "object"
+      },
       "PostPolicy": {
         "properties": {
           "fields": {
@@ -6514,6 +7439,93 @@
         "required": [
           "url",
           "fields"
+        ],
+        "type": "object"
+      },
+      "PurchasePolicy": {
+        "properties": {
+          "channels": {
+            "items": {
+              "properties": {
+                "code": {
+                  "enum": [
+                    "wechat_jsapi",
+                    "bank_transfer"
+                  ],
+                  "type": "string",
+                  "x-open-enum": true
+                },
+                "hintKey": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "isEnabled": {
+                  "type": "boolean"
+                },
+                "isRecommended": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "isEnabled",
+                "isRecommended",
+                "hintKey"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "copy": {
+            "properties": {
+              "agreementKeys": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "payButtonKey": {
+                "type": "string"
+              },
+              "planNounKey": {
+                "type": "string"
+              },
+              "pointsNounKey": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "planNounKey",
+              "pointsNounKey",
+              "agreementKeys",
+              "payButtonKey"
+            ],
+            "type": "object"
+          },
+          "isPriceShown": {
+            "type": "boolean"
+          },
+          "isPurchasePromptAllowed": {
+            "type": "boolean"
+          },
+          "mode": {
+            "enum": [
+              "in_app",
+              "offline_contract",
+              "hidden"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "mode",
+          "isPriceShown",
+          "isPurchasePromptAllowed",
+          "channels",
+          "copy"
         ],
         "type": "object"
       },
@@ -9270,6 +10282,350 @@
           "message"
         ],
         "type": "object"
+      },
+      "Wallet": {
+        "properties": {
+          "points": {
+            "properties": {
+              "addonAvailablePoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "heldPoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "isAddonSuspended": {
+                "type": "boolean"
+              },
+              "lastExpired": {
+                "properties": {
+                  "expiredAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "expiredPoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "expiredPoints",
+                  "expiredAt"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "planAvailablePoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "planGrantedThisTermPoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "planPointsExpireAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "spendablePoints": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "spendablePoints",
+              "planAvailablePoints",
+              "addonAvailablePoints",
+              "heldPoints",
+              "isAddonSuspended",
+              "planGrantedThisTermPoints",
+              "planPointsExpireAt",
+              "lastExpired"
+            ],
+            "type": "object"
+          },
+          "rules": {
+            "properties": {
+              "adFreeRevisions": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "adUnitPoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "discountedAdUnitPoints": {
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "topModelSurchargeBp": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "adUnitPoints",
+              "discountedAdUnitPoints",
+              "adFreeRevisions",
+              "topModelSurchargeBp"
+            ],
+            "type": "object"
+          },
+          "subscription": {
+            "properties": {
+              "benefits": {
+                "properties": {
+                  "discountBp": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "hasMonthlyReport": {
+                    "type": "boolean"
+                  },
+                  "maxMembers": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "maxStores": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "monthlyPoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "productionModel": {
+                    "enum": [
+                      "standard",
+                      "advanced",
+                      "top"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  },
+                  "schedulePriority": {
+                    "enum": [
+                      "standard",
+                      "priority",
+                      "rush"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  }
+                },
+                "required": [
+                  "monthlyPoints",
+                  "discountBp",
+                  "productionModel",
+                  "schedulePriority",
+                  "maxStores",
+                  "maxMembers",
+                  "hasMonthlyReport"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "endDate": {
+                "format": "date",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "endsAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "isRefundPending": {
+                "type": "boolean"
+              },
+              "months": {
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "plan": {
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "planId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "planId",
+                  "code",
+                  "name"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "remainingDays": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "scheduledTerms": {
+                "items": {
+                  "properties": {
+                    "endDate": {
+                      "format": "date",
+                      "type": "string"
+                    },
+                    "months": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "planName": {
+                      "type": "string"
+                    },
+                    "startDate": {
+                      "format": "date",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "planName",
+                    "months",
+                    "startDate",
+                    "endDate"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "startDate": {
+                "format": "date",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "none",
+                  "active",
+                  "expired"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              }
+            },
+            "required": [
+              "status",
+              "isRefundPending",
+              "plan",
+              "months",
+              "startDate",
+              "endDate",
+              "endsAt",
+              "remainingDays",
+              "benefits",
+              "scheduledTerms"
+            ],
+            "type": "object"
+          },
+          "topUp": {
+            "properties": {
+              "blockReason": {
+                "enum": [
+                  "no_active_plan",
+                  "refund_in_progress",
+                  "not_offered",
+                  null
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "x-open-enum": true
+              },
+              "canTopUp": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "canTopUp",
+              "blockReason"
+            ],
+            "type": "object"
+          },
+          "usage": {
+            "properties": {
+              "limitReason": {
+                "enum": [
+                  "plan",
+                  "inactive"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "memberLimit": {
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "seatsUsed": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "storeLimit": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "storesUsed": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "storesUsed",
+              "storeLimit",
+              "seatsUsed",
+              "memberLimit",
+              "limitReason"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "subscription",
+          "usage",
+          "points",
+          "topUp",
+          "rules"
+        ],
+        "type": "object"
       }
     }
   },
@@ -11364,6 +12720,818 @@
         "x-auth": "member",
         "x-capability": "me.*",
         "x-clerk-view": "trimmed",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/payment-orders": {
+      "post": {
+        "operationId": "m.paymentOrder.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "acknowledgedDowngradeImpact": {
+                    "properties": {
+                      "membersToRemove": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "storesToRemove": {
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "storesToRemove",
+                      "membersToRemove"
+                    ],
+                    "type": "object"
+                  },
+                  "agreementVersionIds": {
+                    "items": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "maxItems": 2,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "channel": {
+                    "enum": [
+                      "wechat_jsapi",
+                      "bank_transfer"
+                    ],
+                    "type": "string"
+                  },
+                  "expectAmountFen": {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  "intent": {
+                    "enum": [
+                      "upgrade_now",
+                      "renew_next_term"
+                    ],
+                    "type": "string"
+                  },
+                  "months": {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  "planId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "pointPackId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "channel",
+                  "expectAmountFen",
+                  "agreementVersionIds"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/PaymentOrderDetail"
+                        },
+                        {
+                          "properties": {
+                            "replayed": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "replayed"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "创建付款单（不传类型，按内容判定套餐或加购；记录《会员服务协议》《积分规则》同意）；对公同时返回收款账户与转账备注（= 付款单号）",
+        "x-auth": "member",
+        "x-capability": "plan.purchase",
+        "x-clerk-view": "none",
+        "x-idempotent": "required",
+        "x-idempotent-reason": "结果脱敏（C50、A80）：bankAccount.accountNo 不进幂等记录，重放为 null 且 replayed = true",
+        "x-redact-on-replay": [
+          "bankAccount.accountNo"
+        ]
+      }
+    },
+    "/api/v1/m/payment-orders/{paymentOrderId}": {
+      "get": {
+        "operationId": "m.paymentOrder.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentOrderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentOrderDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "付款单详情与状态（含“已收到付款，正在处理”）、生效时间或到账积分、对公收款账户",
+        "x-auth": "member",
+        "x-capability": "plan.purchase",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/payment-orders/{paymentOrderId}/transfer-proofs": {
+      "post": {
+        "operationId": "m.paymentOrder.transferProof.create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentOrderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "fileId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "fileId"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentOrderDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "提交或重新上传对公转账凭证 {fileId}（回单截图或照片），财务 1 个工作日内确认",
+        "x-auth": "member",
+        "x-capability": "plan.purchase",
+        "x-clerk-view": "none",
+        "x-idempotent": "required",
+        "x-redact-on-replay": [
+          "bankAccount.accountNo"
+        ]
+      }
+    },
+    "/api/v1/m/plans": {
+      "get": {
+        "operationId": "m.plan.list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/PlanCard"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "items"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "上架中的套餐版本与权益（月费、每月积分、折扣、制作模型、门店与成员上限、排期）；是否返回价格与购买入口由购买策略决定",
+        "x-auth": "member",
+        "x-capability": "plan.purchase",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/plans/quote": {
+      "post": {
+        "operationId": "m.plan.quote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "intent": {
+                    "enum": [
+                      "upgrade_now",
+                      "renew_next_term"
+                    ],
+                    "type": "string"
+                  },
+                  "months": {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  "planId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "planId"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PlanQuote"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "套餐报价（不落库）：{planId, months}→ 动作类型（开通/续费/升级/降级/下期换版本）、应付、新周期、积分发放与补发、补差价、降级须移除的门店与成员数；附购买策略",
+        "x-auth": "member",
+        "x-capability": "plan.purchase",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "试算，不写库、不缓存、不拿账户锁、不 advance（A18、A20、C13）"
+      }
+    },
+    "/api/v1/m/purchase-policy": {
+      "get": {
+        "operationId": "m.purchasePolicy.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PurchasePolicy"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "购买策略（mode、isPriceShown、isPurchasePromptAllowed、channels[]、copy），给没有金额上下文的入口用（如钱包页的续费与加购入口、积分不足引导）",
+        "x-auth": "member",
+        "x-capability": "plan.purchase",
+        "x-clerk-view": "none",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
       }
@@ -14397,6 +16565,111 @@
         "summary": "我可见的门店：审核状态、完整度、提交与预计完成时间、上线中/交付中/素材/店员计数、待办数；主体额度（门店 n/N、成员名额 n/N，店员不含）；含已停用门店并标注",
         "x-auth": "user",
         "x-clerk-view": "trimmed",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/wallet": {
+      "get": {
+        "operationId": "m.wallet.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Wallet"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "套餐与积分：当前套餐（版本、状态、有效期、剩余天数、周期、权益）、门店与成员名额（同 m02 2.1）、两类积分余额、冻结数、即将清零数量与时刻、过期态（已清零数量、加购积分停用）、是否退款处理中（主体级）、加购拦截态、积分规则参数",
+        "x-auth": "member",
+        "x-capability": "wallet.read",
+        "x-clerk-view": "none",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
       }
