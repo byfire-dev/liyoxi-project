@@ -14,6 +14,8 @@ import {
   prismaCtorWithTxFiles,
   prismaCtorWithTxRules,
   repoRules,
+  roundingFiles,
+  roundingPlugin,
   scriptFiles,
   scriptRules,
   serverFiles,
@@ -110,6 +112,11 @@ export default defineConfig(
     // 测试支架：排在上一条 W0-07b 的配置之后，会整条盖掉它，所以用拼好两组条目的那一份
     files: txEntryTestingFiles,
     rules: prismaCtorWithTxRules,
+  },
+  {
+    files: roundingFiles,
+    plugins: { lyx: roundingPlugin },
+    rules: { "lyx/one-rounding-function": "error" },
   },
   prettier,
 );
