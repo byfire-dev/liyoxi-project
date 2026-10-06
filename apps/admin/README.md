@@ -141,3 +141,5 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 后续页面包只在 `packages/services/src/testing/admin-live/` 新增 `<短名>.fixture.ts`，共享一个服务端进程的 `make`/`runtime`；前端调用已合并的 `admin:live:data` CLI，不导入数据库或 services。新增 `test/e2e/live-*.spec.ts`，用 `liveContext()` 读取返回的 fixtures；live 项目依赖一次登录准备并自动复用 storageState，无需改起栈脚本或 Playwright 配置。数据与登录态文件不入库。
 
 员工真实用例 `live-staff.spec.ts` 使用 `staff.fixture.ts`：10 位假员工加 bootstrap 管理员覆盖角色、主管、待激活、待启用、禁用及10条分页；返回的 fixtures 经 `liveContext().fixtures` 读取服务端桥 JSON。三张截图为 `staff-01-list.png`、`staff-02-create.png`、`staff-03-activation.png`。同一事件循环触发两次表单提交，断言只发一个创建请求、真实查询只有一行；关闭后不再显示码，重新打开表单为空。
+
+W1-19 PR1 的真实用例只追加本域登记：`z-order-ticket.fixture.ts` 在原 staff 之后复用“演练交付”员工走激活链，不增加原员工总量或改变角色/状态；工厂准备三种订单快照，真实 `createTickets` 建待分配工单，真实 `publish.bind` 建两条账号核验。管理员进行工单指派，另一独立交付经理会话按本人范围查看；账号五项人工核对后通过/原因驳回，静默30秒刷新保留当前输入。账号图片只对本轮 fileId 在两个既有假 Provider/公开本机存储 origin 的精确路径回演练字节，所有 /api 请求均走真实构建进程。四页及分配/驳回截图为 `orders-01-list`、`orders-02-detail`、`tickets-01-pool`、`tickets-02-assign`、`accounts-01-compare`、`accounts-02-reject`；1440×900 留图、1366×768 核横向溢出，保留旧激活登录、资质/员工/收款全部用例。

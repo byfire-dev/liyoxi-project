@@ -1,0 +1,72 @@
+.lyx-order-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  text-align: inherit;
+}
+.lyx-order-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.lyx-order-filters input {
+  width: 140px;
+}
+.lyx-order-filters .ant-select {
+  min-width: 148px;
+}
+.lyx-order-sections {
+  display: grid;
+  gap: 24px;
+}
+.lyx-order-items {
+  display: grid;
+  gap: 12px;
+}
+.lyx-order-item {
+  padding: 14px 16px;
+  border: 1px solid var(--lyx-color-border-light);
+  border-radius: 10px;
+}
+.lyx-order-item__title {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.lyx-order-agreement {
+  display: grid;
+  gap: 4px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--lyx-color-border-light);
+}
+.lyx-order-agreement span {
+  color: var(--lyx-color-text-secondary);
+  font-size: 12px;
+}
+.lyx-order-progress {
+  padding: 16px 20px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.lyx-order-progress > div {
+  display: grid;
+  gap: 4px;
+}
+.lyx-order-progress span {
+  font-size: 12px;
+}
+.lyx-order-ledger {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--lyx-color-bg-page);
+}
+.lyx-order-ledger p {
+  margin: 0 0 6px;
+  font-size: 12px;
+}

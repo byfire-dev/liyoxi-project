@@ -1,0 +1,27 @@
+.lyx-ticket-toolbar,
+.lyx-ticket-assignment__footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.lyx-ticket-toolbar {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.lyx-ticket-assignment {
+  display: grid;
+  gap: 20px;
+  padding-top: 16px;
+}
+.lyx-ticket-assignment .ant-select {
+  width: 100%;
+}
+.lyx-ticket-assignment__footer {
+  justify-content: flex-end;
+}
+.lyx-ticket-summary {
+  color: var(--lyx-color-text-secondary);
+}
+.lyx-ticket-summary strong {
+  color: var(--lyx-color-text-primary);
+}
