@@ -62,8 +62,8 @@ function Detail({ id }: { id: string }) {
     id,
   );
   const order = resource.data;
-  const me = useSessionStore((state) => state.me);
-  const owner = viewerRole(me, catalogScope()) === "owner";
+  useSessionStore((state) => state.me);
+  const owner = viewerRole(account.snapshot().me, catalogScope()) === "owner";
   const navigate = (action: string, itemId?: string) => {
     if (!order || viewerRole(account.snapshot().me, catalogScope()) !== "owner") return;
     const url = deliveryEntry(order, action, itemId);

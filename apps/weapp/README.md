@@ -153,7 +153,7 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 
 ## W1-20 商家交付五页
 
-方案 `sub/order/plan/index?deliveryPlanId=…`，样片和上线记录带 `orderItemId`，发布任务可带 `orderId`，逐集下载带 `orderItemId`。全部只供当前门店老板；店员直接打开也不发本域业务请求。页面私有 API 工厂消费生成 merchant operations，生产仍经中央 request，不改已有封装。
+方案 `sub/order/plan/index?deliveryPlanId=…`，样片和上线记录带 `orderItemId`，发布任务可带 `orderId` 或待办 `launchTaskId`，逐集下载带 `orderItemId`。全部只供当前门店老板；店员直接打开也不发本域业务请求。页面私有 API 工厂消费生成 merchant operations，生产仍经中央 request，不改已有封装。
 
 `shots/delivery-scenes.ts` 登记十五态，产物 `shots/dist/png/delivery__<scene>.png`：plan-pending/revising/confirmed/change、sample-unsaved/viewed/confirmed、tasks-todo/verifying/live/submit、downloads-default/expired、record-default/returned。保存样片场景实际调用签发并重新 GET，再勾选；下载场景连续两次点击分别签发单集，不缓存 URL。默认截图保留实际主干原五十一态与全部错误守卫。H5 相册函数明确空转，仅验证界面与请求结构；真正微信 downloadFile → saveVideoToPhotosAlbum → 临时文件清理经可替换私有边界单测，真机效果仍等 V7。
 

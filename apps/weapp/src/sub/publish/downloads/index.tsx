@@ -61,7 +61,7 @@ function DownloadsContent({ id }: { id: string }) {
                 。每次存相册均重新签发地址，地址有效期 15 分钟。
               </Note>
             )}
-            <Note>一次保存一集，不排队；保存后请到相册查看。真机保存效果待验证。</Note>
+            <Note>一次保存一集，不排队；保存后请到相册查看。</Note>
             {p.episodes.map((item) => (
               <Card
                 key={item.episodeNo}
