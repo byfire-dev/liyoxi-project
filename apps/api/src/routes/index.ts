@@ -4,6 +4,8 @@ import type { HandlerEntry } from "../routing/define.js";
 
 import { adminApprovalHandlers } from "./admin/approvals.js";
 import { adminAuthHandlers } from "./admin/auth.js";
+import { adminStaffHandlers } from "./admin/staff.js";
+import { adminRoleHandlers } from "./admin/roles.js";
 import { agreementHandlers } from "./agreements.js";
 import { merchantViewHandlers } from "./merchant-views.js";
 import { sessionHandlers } from "./sessions.js";
@@ -17,4 +19,6 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...adminAuthHandlers,
   ...merchantViewHandlers,
   ...adminApprovalHandlers,
+  ...adminStaffHandlers,
+  ...adminRoleHandlers,
 ];

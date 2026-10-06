@@ -8,4 +8,8 @@ admin.approval.summary | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.auth.me.get | - | - | 11 11 11 11 11 11 11 11
 admin.auth.stepUp | - | - | 11 11 11 11 11 11 11 11
 admin.dictItem.list | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.role.list | system:view | - | 11 00 00 00 00 00 00 00
 admin.session.current.delete | - | - | 11 11 11 11 11 11 11 11
+admin.staff.create | system:view | sys.staff.manage | 11 00 00 00 00 00 00 00
+admin.staff.get | system:view | - | 11 00 00 00 00 00 00 00
+admin.staff.list | - | assert-in-handler | 11 11 11 11 11 11 11 11

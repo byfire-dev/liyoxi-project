@@ -19,6 +19,52 @@
         ],
         "type": "object"
       },
+      "ActivationIssue": {
+        "properties": {
+          "activationCode": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Z0-9]{8}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "delivery": {
+            "enum": [
+              "sms",
+              "manual"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "activate",
+              "reset_password"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "replayed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "purpose",
+          "delivery",
+          "expiresAt",
+          "activationCode",
+          "replayed"
+        ],
+        "type": "object"
+      },
       "ApprovalCounts": {
         "properties": {
           "items": {
@@ -1031,6 +1077,143 @@
         ],
         "type": "object"
       },
+      "PoolMember": {
+        "properties": {
+          "city": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "onDuty": {
+            "type": "boolean"
+          },
+          "pool": {
+            "enum": [
+              "delivery_manager",
+              "editor",
+              "publisher",
+              "cs"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "staff": {
+            "$ref": "#/components/schemas/StaffBrief"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pool",
+          "staff",
+          "city",
+          "onDuty",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "RoleSummary": {
+        "properties": {
+          "availableFrom": {
+            "enum": [
+              "v1.0",
+              "v1.1"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "dataScope": {
+            "enum": [
+              "own",
+              "group",
+              "all"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "description": {
+            "type": "string"
+          },
+          "isLocked": {
+            "type": "boolean"
+          },
+          "memberCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/StaffBrief"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "roleKey": {
+            "enum": [
+              "super_admin",
+              "cs",
+              "delivery_manager",
+              "editor",
+              "publisher",
+              "content_ops",
+              "channel_ops",
+              "finance"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "roleKey",
+          "name",
+          "description",
+          "dataScope",
+          "isLocked",
+          "availableFrom",
+          "members",
+          "memberCount",
+          "updatedAt",
+          "updatedBy"
+        ],
+        "type": "object"
+      },
+      "RoleSummaryList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RoleSummary"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "SentryEnvelope": {
         "description": "Sentry envelope 原文，≤200KB",
         "maxLength": 204800,
@@ -1105,6 +1288,619 @@
           "status"
         ],
         "type": "object"
+      },
+      "StaffCreateBody": {
+        "properties": {
+          "activateNow": {
+            "type": "boolean"
+          },
+          "activationDelivery": {
+            "default": "sms",
+            "enum": [
+              "sms",
+              "manual"
+            ],
+            "type": "string"
+          },
+          "displayName": {
+            "maxLength": 10,
+            "type": "string"
+          },
+          "inviteWecom": {
+            "default": false,
+            "type": "boolean"
+          },
+          "isLead": {
+            "default": false,
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 10,
+            "minLength": 1,
+            "type": "string"
+          },
+          "phone": {
+            "pattern": "^1\\d{10}$",
+            "type": "string"
+          },
+          "roleKey": {
+            "enum": [
+              "super_admin",
+              "cs",
+              "delivery_manager",
+              "editor",
+              "publisher",
+              "content_ops",
+              "channel_ops",
+              "finance"
+            ],
+            "type": "string"
+          },
+          "servicePhone": {
+            "maxLength": 20,
+            "pattern": "^[\\d-]*$",
+            "type": "string"
+          },
+          "staffGroupId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "phone",
+          "roleKey",
+          "activateNow"
+        ],
+        "type": "object"
+      },
+      "StaffDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StaffListItem"
+          },
+          {
+            "properties": {
+              "createdAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "createdBy": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "disabledAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "disabledBy": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "displayName": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "lockVersion": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "pendingActivation": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "attempts": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "delivery": {
+                        "enum": [
+                          "sms",
+                          "manual"
+                        ],
+                        "type": "string",
+                        "x-open-enum": true
+                      },
+                      "expiresAt": {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      "purpose": {
+                        "enum": [
+                          "activate",
+                          "reset_password"
+                        ],
+                        "type": "string",
+                        "x-open-enum": true
+                      }
+                    },
+                    "required": [
+                      "purpose",
+                      "delivery",
+                      "expiresAt",
+                      "attempts"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "poolMemberships": {
+                "items": {
+                  "$ref": "#/components/schemas/PoolMember"
+                },
+                "type": "array"
+              },
+              "security": {
+                "properties": {
+                  "failTrusted": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "failUntrusted": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "isActivated": {
+                    "type": "boolean"
+                  },
+                  "lastLoginAt": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "lastLoginIpMask": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "lockedUntilTrusted": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "lockedUntilUntrusted": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "passwordChangedAt": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "recoveryCodesLeft": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "totpEnrolledAt": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "isActivated",
+                  "totpEnrolledAt",
+                  "passwordChangedAt",
+                  "recoveryCodesLeft",
+                  "lockedUntilTrusted",
+                  "lockedUntilUntrusted",
+                  "failTrusted",
+                  "failUntrusted",
+                  "lastLoginAt",
+                  "lastLoginIpMask"
+                ],
+                "type": "object"
+              },
+              "servicePhone": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "updatedAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "wecom": {
+                "properties": {
+                  "boundAt": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "qrFileId": {
+                    "anyOf": [
+                      {
+                        "format": "uuid",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "qrUrl": {
+                    "anyOf": [
+                      {
+                        "properties": {
+                          "expiresAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "url": {
+                            "format": "uri",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "expiresAt"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "none",
+                      "invited",
+                      "bound",
+                      "unbound"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  },
+                  "userid": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "status",
+                  "userid",
+                  "boundAt",
+                  "qrFileId",
+                  "qrUrl"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "displayName",
+              "servicePhone",
+              "wecom",
+              "poolMemberships",
+              "security",
+              "pendingActivation",
+              "disabledAt",
+              "disabledBy",
+              "createdAt",
+              "createdBy",
+              "updatedAt",
+              "lockVersion"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "StaffListItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StaffBrief"
+          },
+          {
+            "properties": {
+              "actions": {
+                "items": {
+                  "enum": [
+                    "update",
+                    "enable",
+                    "disable",
+                    "handover",
+                    "reset-password",
+                    "reset-mfa",
+                    "reissue-activation-code",
+                    "unlock",
+                    "invite-wecom",
+                    "bind-wecom"
+                  ],
+                  "type": "string",
+                  "x-open-enum": true
+                },
+                "type": "array"
+              },
+              "dataScope": {
+                "enum": [
+                  "own",
+                  "group",
+                  "all"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "disabledReason": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "resigned",
+                      "reassigned",
+                      "long_leave",
+                      "other"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "handoverTo": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "isActivated": {
+                "type": "boolean"
+              },
+              "isLocked": {
+                "type": "boolean"
+              },
+              "isRecommended": {
+                "type": "boolean"
+              },
+              "isSelf": {
+                "type": "boolean"
+              },
+              "lastLoginAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "onDuty": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "openWorkBySource": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "properties": {
+                        "count": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "source": {
+                          "enum": [
+                            "store_manager",
+                            "ticket_editor",
+                            "ticket_publisher",
+                            "ad_editor",
+                            "service_ticket_owner",
+                            "follow_up_owner"
+                          ],
+                          "type": "string",
+                          "x-open-enum": true
+                        },
+                        "subjectType": {
+                          "enum": [
+                            "store",
+                            "drama_order",
+                            "delivery_ticket",
+                            "ad",
+                            "service_ticket",
+                            "follow_up"
+                          ],
+                          "type": "string",
+                          "x-open-enum": true
+                        }
+                      },
+                      "required": [
+                        "source",
+                        "subjectType",
+                        "count"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "openWorkCount": {
+                "anyOf": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "phoneMask": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pools": {
+                "items": {
+                  "enum": [
+                    "delivery_manager",
+                    "editor",
+                    "publisher",
+                    "cs"
+                  ],
+                  "type": "string",
+                  "x-open-enum": true
+                },
+                "type": "array"
+              },
+              "staffGroup": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "staffGroupId": {
+                        "format": "uuid",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "staffGroupId",
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "wecomBindStatus": {
+                "enum": [
+                  "none",
+                  "invited",
+                  "bound",
+                  "unbound"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              }
+            },
+            "required": [
+              "phoneMask",
+              "staffGroup",
+              "dataScope",
+              "wecomBindStatus",
+              "pools",
+              "lastLoginAt",
+              "isActivated",
+              "isLocked",
+              "disabledReason",
+              "handoverTo",
+              "openWorkCount",
+              "openWorkBySource",
+              "onDuty",
+              "isRecommended",
+              "isSelf",
+              "actions"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "StaffMe": {
         "properties": {
@@ -1382,6 +2178,32 @@
           "session",
           "flags",
           "serverTime"
+        ],
+        "type": "object"
+      },
+      "StaffMutationResult": {
+        "properties": {
+          "activation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActivationIssue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "replayed": {
+            "type": "boolean"
+          },
+          "staff": {
+            "$ref": "#/components/schemas/StaffDetail"
+          }
+        },
+        "required": [
+          "staff",
+          "activation",
+          "replayed"
         ],
         "type": "object"
       },
@@ -2821,6 +3643,79 @@
         "x-permission": "assert-in-handler"
       }
     },
+    "/api/v1/admin/roles": {
+      "get": {
+        "operationId": "admin.role.list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/RoleSummaryList"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "8 个内置角色：名称、职责、成员数、是否锁定、未保存标记由前端维护",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
     "/api/v1/admin/sessions/current": {
       "delete": {
         "operationId": "admin.session.current.delete",
@@ -2892,6 +3787,439 @@
         "x-auth": "staff",
         "x-idempotent": "none",
         "x-idempotent-reason": "退出登录（A43）；重复退出无副作用，端上把 401 当作已退出"
+      }
+    },
+    "/api/v1/admin/staff": {
+      "get": {
+        "operationId": "admin.staff.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 20,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "roleKey",
+            "required": false,
+            "schema": {
+              "pattern": "^(?:super_admin|cs|delivery_manager|editor|publisher|content_ops|channel_ops|finance)(?:,(?:super_admin|cs|delivery_manager|editor|publisher|content_ops|channel_ops|finance))*$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "pattern": "^(?:pending|active|disabled)(?:,(?:pending|active|disabled))*$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isLead",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "staffGroupId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pool",
+            "required": false,
+            "schema": {
+              "pattern": "^(?:delivery_manager|editor|publisher|cs)(?:,(?:delivery_manager|editor|publisher|cs))*$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "withLoad",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "recommendPool",
+            "required": false,
+            "schema": {
+              "enum": [
+                "delivery_manager",
+                "editor",
+                "publisher",
+                "cs"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "recommendCityCode",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "staffNo",
+              "enum": [
+                "staffNo",
+                "-lastLoginAt",
+                "openWorkCount"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/StaffListItem"
+                          },
+                          "type": "array"
+                        },
+                        "page": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "员工列表与选人下拉：员工页按姓名、角色、状态筛选；选人模式按池给候选，标出轮询推荐与按来源的在办量",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+        "x-permission": "assert-in-handler"
+      },
+      "post": {
+        "operationId": "admin.staff.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffCreateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StaffMutationResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "新增员工（立即启用或暂不启用），生成激活码并经短信下发",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-idempotent-reason": "结果脱敏（A80）：重放时激活码为 null 并带 replayed: true",
+        "x-permission": "sys.staff.manage",
+        "x-redact-on-replay": [
+          "activation.activationCode"
+        ]
+      }
+    },
+    "/api/v1/admin/staff/{staffId}": {
+      "get": {
+        "operationId": "admin.staff.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "staffId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StaffDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "员工详情（编辑弹层回显、所在分配池、企业微信绑定状态）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
       }
     }
   },

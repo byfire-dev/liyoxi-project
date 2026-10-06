@@ -208,6 +208,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 8 个内置角色：名称、职责、成员数、是否锁定、未保存标记由前端维护 */
+        get: operations["admin.role.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/sessions/current": {
         parameters: {
             query?: never;
@@ -225,6 +242,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 员工列表与选人下拉：员工页按姓名、角色、状态筛选；选人模式按池给候选，标出轮询推荐与按来源的在办量 */
+        get: operations["admin.staff.list"];
+        put?: never;
+        /** 新增员工（立即启用或暂不启用），生成激活码并经短信下发 */
+        post: operations["admin.staff.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/staff/{staffId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 员工详情（编辑弹层回显、所在分配池、企业微信绑定状态） */
+        get: operations["admin.staff.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -232,6 +284,16 @@ export interface components {
         ActivateBody: {
             activationCode: string;
             phone: string;
+        };
+        ActivationIssue: {
+            activationCode: string | null;
+            /** @enum {string} */
+            delivery: "sms" | "manual" | (string & {});
+            /** Format: date-time */
+            expiresAt: string;
+            /** @enum {string} */
+            purpose: "activate" | "reset_password" | (string & {});
+            replayed: boolean;
         };
         ApprovalCounts: {
             items: {
@@ -416,6 +478,34 @@ export interface components {
             password: string;
             phone: string;
         };
+        PoolMember: {
+            city: components["schemas"]["DictRef"] | null;
+            onDuty: boolean;
+            /** @enum {string} */
+            pool: "delivery_manager" | "editor" | "publisher" | "cs" | (string & {});
+            staff: components["schemas"]["StaffBrief"];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        RoleSummary: {
+            /** @enum {string} */
+            availableFrom: "v1.0" | "v1.1" | (string & {});
+            /** @enum {string} */
+            dataScope: "own" | "group" | "all" | (string & {});
+            description: string;
+            isLocked: boolean;
+            memberCount: number;
+            members: components["schemas"]["StaffBrief"][];
+            name: string;
+            /** @enum {string} */
+            roleKey: "super_admin" | "cs" | "delivery_manager" | "editor" | "publisher" | "content_ops" | "channel_ops" | "finance" | (string & {});
+            /** Format: date-time */
+            updatedAt: string;
+            updatedBy: components["schemas"]["StaffBrief"] | null;
+        };
+        RoleSummaryList: {
+            items: components["schemas"]["RoleSummary"][];
+        };
         /** @description Sentry envelope 原文，≤200KB */
         SentryEnvelope: string;
         SetPasswordBody: {
@@ -432,6 +522,103 @@ export interface components {
             staffNo: number;
             /** @enum {string} */
             status: "pending" | "active" | "disabled" | (string & {});
+        };
+        StaffCreateBody: {
+            activateNow: boolean;
+            /**
+             * @default sms
+             * @enum {string}
+             */
+            activationDelivery: "sms" | "manual";
+            displayName?: string;
+            /** @default false */
+            inviteWecom: boolean;
+            /** @default false */
+            isLead: boolean;
+            name: string;
+            phone: string;
+            /** @enum {string} */
+            roleKey: "super_admin" | "cs" | "delivery_manager" | "editor" | "publisher" | "content_ops" | "channel_ops" | "finance";
+            servicePhone?: string;
+            /** Format: uuid */
+            staffGroupId?: string;
+        };
+        StaffDetail: components["schemas"]["StaffListItem"] & {
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: components["schemas"]["StaffBrief"] | null;
+            disabledAt: string | null;
+            disabledBy: components["schemas"]["StaffBrief"] | null;
+            displayName: string | null;
+            lockVersion: number;
+            pendingActivation: {
+                attempts: number;
+                /** @enum {string} */
+                delivery: "sms" | "manual" | (string & {});
+                /** Format: date-time */
+                expiresAt: string;
+                /** @enum {string} */
+                purpose: "activate" | "reset_password" | (string & {});
+            } | null;
+            poolMemberships: components["schemas"]["PoolMember"][];
+            security: {
+                failTrusted: number;
+                failUntrusted: number;
+                isActivated: boolean;
+                lastLoginAt: string | null;
+                lastLoginIpMask: string | null;
+                lockedUntilTrusted: string | null;
+                lockedUntilUntrusted: string | null;
+                passwordChangedAt: string | null;
+                recoveryCodesLeft: number;
+                totpEnrolledAt: string | null;
+            };
+            servicePhone: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+            wecom: {
+                boundAt: string | null;
+                qrFileId: string | null;
+                qrUrl: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: uri */
+                    url: string;
+                } | null;
+                /** @enum {string} */
+                status: "none" | "invited" | "bound" | "unbound" | (string & {});
+                userid: string | null;
+            };
+        };
+        StaffListItem: components["schemas"]["StaffBrief"] & {
+            actions: ("update" | "enable" | "disable" | "handover" | "reset-password" | "reset-mfa" | "reissue-activation-code" | "unlock" | "invite-wecom" | "bind-wecom" | (string & {}))[];
+            /** @enum {string} */
+            dataScope: "own" | "group" | "all" | (string & {});
+            disabledReason: ("resigned" | "reassigned" | "long_leave" | "other" | (string & {})) | null;
+            handoverTo: components["schemas"]["StaffBrief"] | null;
+            isActivated: boolean;
+            isLocked: boolean;
+            isRecommended: boolean;
+            isSelf: boolean;
+            lastLoginAt: string | null;
+            onDuty: boolean | null;
+            openWorkBySource: {
+                count: number;
+                /** @enum {string} */
+                source: "store_manager" | "ticket_editor" | "ticket_publisher" | "ad_editor" | "service_ticket_owner" | "follow_up_owner" | (string & {});
+                /** @enum {string} */
+                subjectType: "store" | "drama_order" | "delivery_ticket" | "ad" | "service_ticket" | "follow_up" | (string & {});
+            }[] | null;
+            openWorkCount: number | null;
+            phoneMask: string | null;
+            pools: ("delivery_manager" | "editor" | "publisher" | "cs" | (string & {}))[];
+            staffGroup: {
+                name: string;
+                /** Format: uuid */
+                staffGroupId: string;
+            } | null;
+            /** @enum {string} */
+            wecomBindStatus: "none" | "invited" | "bound" | "unbound" | (string & {});
         };
         StaffMe: {
             /** @enum {string} */
@@ -495,6 +682,11 @@ export interface components {
             } | null;
             /** @enum {string} */
             wecomBindStatus: "none" | "invited" | "bound" | "unbound" | (string & {});
+        };
+        StaffMutationResult: {
+            activation: components["schemas"]["ActivationIssue"] | null;
+            replayed: boolean;
+            staff: components["schemas"]["StaffDetail"];
         };
         StepUpBody: {
             code: string;
@@ -1301,6 +1493,59 @@ export interface operations {
             };
         };
     };
+    "admin.role.list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["RoleSummaryList"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.session.current.delete": {
         parameters: {
             query?: never;
@@ -1336,6 +1581,225 @@ export interface operations {
             };
             /** @description 已登录但无权 */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                q?: string;
+                roleKey?: string;
+                status?: string;
+                isLead?: boolean;
+                staffGroupId?: string;
+                pool?: string;
+                withLoad?: boolean;
+                recommendPool?: "delivery_manager" | "editor" | "publisher" | "cs";
+                recommendCityCode?: string;
+                sort?: "staffNo" | "-lastLoginAt" | "openWorkCount";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: components["schemas"]["StaffListItem"][];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffCreateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["StaffMutationResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["StaffDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
