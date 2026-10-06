@@ -194,6 +194,8 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 
 | — | W1-09、W1-12、W1-19、W1-20 | 真实后台验收复用 `pnpm admin:e2e:live`：造数在 services/testing/admin-live 新增 *.fixture.ts，单进程顺序共享 make/runtime；浏览器只新增 live-*.spec.ts，由项目依赖复用 storageState。不改起栈脚本或配置，不从前端导入服务端。G2-0 接 mask/validateSearch，G2-A 补用户菜单两项与员工操作 | W1-02①；apps/admin/README.md；任务书第 9 节 |
 
+| — | W1-12、W1-18、W1-19、W1-20 | W1-09 分类上传入口：`lib/upload/taro.ts` 的 prepareTaroFile/createTaroUpload/useUploadBusy，纯编排 queue.ts 与生成 DTO 的 api.ts。pay_receipt 图片/PDF、channel_screenshot 及 licenseKind 复用；非图片/视频精确上限由登记 API 判，post 之外给小文件/代传说明；切店/退出取消、暂停可恢复，原 token/确认意图沿重试。审核 CompareTable/RejectDialog 仍私有，第二调用方先走构件 PR 提升 | W1-09 状态与本包 PR；原第 41 行归属不变 |
+
 ## 6. 任务书加的前置（计划依赖列没有）
 
 写任务书时查实的三处。已由一条计划小改补进计划 第 7.2 节依赖列与第 12 节（[changes/W0-04-post-kickoff-fixes.md](../changes/W0-04-post-kickoff-fixes.md)）。下表留作出处，“怎么办”一栏照旧有效（默认，W0-04 定）。
