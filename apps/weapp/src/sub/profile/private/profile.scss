@@ -1,0 +1,64 @@
+.profile-page {
+  min-height: 100vh;
+  background: $lyx-color-bg-page;
+  color: $lyx-color-text-primary;
+}
+.profile-form,
+.profile-options {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.profile-options {
+  padding: 0 16px 16px;
+}
+.profile-title {
+  font-size: 22px;
+  font-weight: 700;
+}
+.profile-subtitle {
+  font-size: 13px;
+  line-height: 1.6;
+  color: $lyx-color-text-secondary;
+}
+.profile-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.profile-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.profile-photo {
+  width: 76px;
+  height: 76px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.profile-money {
+  font-size: 18px;
+  font-weight: 700;
+  color: $lyx-color-primary-text;
+}
+.profile-counter {
+  font-size: 30px;
+  font-weight: 700;
+}
+.profile-description {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.profile-spaced {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.profile-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

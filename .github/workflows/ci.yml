@@ -784,6 +784,10 @@ jobs:
       - name: 后台真实接口验收的本地依赖
         if: steps.admin-e2e.outputs.run == 'true'
         run: docker compose -f infra/compose/local.yml up -d --wait postgres redis
+      # 原图签发走实际 API 的本地存储驱动，首次调用会核对/建桶，因此与 PostgreSQL、Redis 一样需要就绪。
+      - name: 后台真实接口验收的 MinIO
+        if: steps.admin-e2e.outputs.run == 'true'
+        run: docker compose -f infra/compose/local.yml up -d --wait minio
       - name: 后台登录真实接口验收
         if: steps.admin-e2e.outputs.run == 'true'
         run: pnpm admin:e2e:live
