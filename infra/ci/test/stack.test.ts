@@ -450,7 +450,7 @@ describe("整套环境的 Compose 与镜像定义", () => {
   });
 
   it.each(["infra/docker/server/Dockerfile", "infra/docker/gateway/Dockerfile"])(
-    "%s 的构建上下文是白名单：先全部排除；.git、docs、node_modules、.env 进不来",
+    "%s 的构建上下文是白名单：只放明确声明的构建与核验输入",
     (file) => {
       const lines = read(`${file}.dockerignore`)
         .split("\n")
@@ -459,7 +459,11 @@ describe("整套环境的 Compose 与镜像定义", () => {
       const allowed = lines.filter((line) => line.startsWith("!")).map((line) => line.slice(1));
       expect(allowed.length).toBeGreaterThan(0);
       for (const path of allowed) {
-        expect(path).not.toMatch(/^\.git|^docs|^design|^tools|node_modules|\.env|^\*|^\/|\.\./);
+        expect(path).not.toMatch(
+          file === "infra/docker/server/Dockerfile"
+            ? /^\.git|^docs(?!\/06-data-model\.md$)|^design|^tools|node_modules|\.env|^\*|^\/|\.\./
+            : /^\.git|^docs|^design|^tools|node_modules|\.env|^\*|^\/|\.\./,
+        );
       }
       // 放行在前、再排除在后：后写的赢
       const lastAllow = lines.findLastIndex((line) => line.startsWith("!"));
