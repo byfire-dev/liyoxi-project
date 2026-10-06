@@ -141,3 +141,12 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 `pnpm weapp:shots` 截的是 Taro 的 H5 构建，是近似，不是小程序的渲染层：原生导航栏在 H5 下不出现（没有标题栏与胶囊），标签栏是 Taro 的 H5 仿制件，高度与字体都与微信不同；自绘导航取不到胶囊位置，用的是兜底值；H5 下页面底色没有铺满，内容区是白的。真机上的样子以微信开发者工具与手机为准。
 
 组件预览的图同样是 H5 近似：原生的输入框、多行输入、开关、弹层在微信里的样子，以及点击区、按下态、弹层正文的内部滚动，以真机为准（W0-29 看样时看）。
+
+
+## 首页与商城四页（W1-18 PR1）
+
+首页、商城、短剧详情与选剧单消费正式生成的 DTO；所有生产请求走现有中央 request。店员首页只读 city+banners，店员/游客选剧单不发 cart 请求。商城按配置给的筛选和 sort 加载，游标续页按 dramaId 去重；本域 revision、令牌与 contextRev 丢弃切店/卸载后的旧成功和旧错误。价格确认发送服务器当前原价 P，网络重试沿用同一次意图的 key；成功或 C50 重放后重新 GET 选剧单。选中合计只累加服务器逐项实扣 S，不在端上重算价格。确认订购页属 PR2，本轮入口明确显示“订购即将开放”。
+
+十一态夹具在 `shots/catalog-fixtures.ts`，清单在 `shots/catalog-scenes.ts`。运行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene home-owner --scene home-clerk --scene home-guest --scene mall-default --scene mall-end --scene mall-empty --scene detail-owner --scene cart-default --scene cart-invalid --scene cart-price-changed --scene cart-clerk`，产物为 `shots/dist/png/catalog__<场景>.png`。不带场景参数时旧账户八态、建档九态和支付十一态仍保留；每场景独立上下文与既有外发网络、console.error、pageerror 守卫全部生效。
+
+截图同时实际执行分页、复选/取消、删除、价格确认网络重试与自然重复加入；价格确认验证 P=1200、同 key 重试和 C50 重放后的 GET，不把固定离线图当真实 API 证据。H5 选剧单底栏仅在本页私有样式里为仿制标签栏让出 50px；小程序使用原生标签栏。原生导航、胶囊、安全区、下拉刷新与触底手势仍须 E16/E7 在开发者工具和真机上手验。

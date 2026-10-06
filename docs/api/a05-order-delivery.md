@@ -2533,6 +2533,8 @@ a02 2.3 为交付侧来源暂定的归属角色与可见条件，本文确认照
 
 **说明**：时长 `duration_ms` 在体检通过时由订阅者回写；体检拒收时版本置 `check_rejected`（10-delivery.md:641）。
 
+M1（W1-16a）同步桩只处理匹配上下文的人工上传、已入库且 AI 未使用的记录；时长与尺寸取已有 `media_info`，不从 ready 状态推造元数据。没有真实时长的样片保持 `uploaded`；质检以 `PRODUCTION_NOT_READY` 拒绝且不追加 QC、状态历史、审计或事件。M3（G3-A）接真实体检与订阅者回补，样片播放桩当前档位指向原文件，不代表水印已生成。
+
 ### 3.39 admin.sample.inspect　样片质检
 
 `POST /admin/samples/{sampleId}/inspect`
