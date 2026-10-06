@@ -9,7 +9,10 @@ import { lockParents, viewerOf } from "./repo.js";
 async function facts(tx: Tx, deps: DeliveryDownloadDeps, v: DeliveryViewer, id: string) {
   await viewerOf(tx, v, true);
   const { s, t } = await sampleOf(tx, id, v);
-  if (!["pushed", "confirmed", "change_requested"].includes(s.status))
+  if (
+    !["pushed", "confirmed", "change_requested"].includes(s.status) ||
+    s.versionNo !== t.currentSampleVersionNo
+  )
     throw new AppError("STATE_NOT_ALLOWED");
   if (!s.previewChannels.includes("album") && (await deps.samplePlayback?.(s.entityId)))
     throw new AppError("SAMPLE_VIEW_CHANNEL_NOT_OFFERED", {
