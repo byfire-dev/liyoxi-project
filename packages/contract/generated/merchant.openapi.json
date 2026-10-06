@@ -2,6 +2,97 @@
   "components": {
     "parameters": {},
     "schemas": {
+      "AddressView": {
+        "properties": {
+          "city": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "district": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "latitude": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "longitude": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "poiName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "province": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "zone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "province",
+          "city",
+          "district",
+          "zone",
+          "detail",
+          "poiName",
+          "latitude",
+          "longitude"
+        ],
+        "type": "object"
+      },
       "AgreementConsentReceipt": {
         "properties": {
           "consents": {
@@ -606,6 +697,97 @@
         ],
         "type": "object"
       },
+      "Completeness": {
+        "properties": {
+          "pct": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "requiredFilled": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "requiredTotal": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "steps": {
+            "items": {
+              "properties": {
+                "missing": {
+                  "items": {
+                    "properties": {
+                      "item": {
+                        "enum": [
+                          "brand_name",
+                          "store_name",
+                          "industry",
+                          "address",
+                          "business_hours",
+                          "store_tel",
+                          "avg_spend",
+                          "door_photos",
+                          "interior_photos",
+                          "service",
+                          "selling_points",
+                          "entity_type",
+                          "business_license",
+                          "contact",
+                          "declaration",
+                          "permit"
+                        ],
+                        "type": "string",
+                        "x-open-enum": true
+                      },
+                      "permitType": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "item",
+                      "permitType"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "state": {
+                  "enum": [
+                    "not_started",
+                    "in_progress",
+                    "completed"
+                  ],
+                  "type": "string",
+                  "x-open-enum": true
+                },
+                "step": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "step",
+                "state",
+                "missing"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "pct",
+          "requiredFilled",
+          "requiredTotal",
+          "steps"
+        ],
+        "type": "object"
+      },
       "ConsentInput": {
         "properties": {
           "agreementKey": {
@@ -754,6 +936,64 @@
           "scene",
           "method",
           "versionLabel"
+        ],
+        "type": "object"
+      },
+      "ContactView": {
+        "properties": {
+          "isSmsVerifyAvailable": {
+            "type": "boolean"
+          },
+          "lockVersion": {
+            "type": "integer"
+          },
+          "loginPhoneMask": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phoneMask": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phoneVerifiedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phoneVerifyState": {
+            "enum": [
+              "login",
+              "sms_verified",
+              "unverified",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "name",
+          "phoneMask",
+          "phoneVerifyState",
+          "phoneVerifiedAt",
+          "loginPhoneMask",
+          "isSmsVerifyAvailable",
+          "lockVersion"
         ],
         "type": "object"
       },
@@ -1566,6 +1806,88 @@
         ],
         "type": "object"
       },
+      "MediaFileView": {
+        "properties": {
+          "coverUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "displayHeight": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "displayWidth": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "durationMs": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "image",
+              "video",
+              "audio",
+              "document"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "moderationState": {
+            "enum": [
+              "none",
+              "pending",
+              "pass",
+              "review",
+              "block"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "fileId",
+          "kind",
+          "url",
+          "expiresAt",
+          "coverUrl",
+          "durationMs",
+          "displayWidth",
+          "displayHeight",
+          "moderationState"
+        ],
+        "type": [
+          "object",
+          "null"
+        ]
+      },
       "MemberPreview": {
         "properties": {
           "displayName": {
@@ -2260,6 +2582,708 @@
         ],
         "type": "object"
       },
+      "QualificationDoc": {
+        "properties": {
+          "certNoMask": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "displayFields": {
+            "items": {
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "value"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "docType": {
+            "enum": [
+              "business_license",
+              "branch_license",
+              "industry_permit"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "expiryState": {
+            "enum": [
+              "none",
+              "expiring",
+              "expired"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "fileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "hasSubmittedFields": {
+            "type": "boolean"
+          },
+          "holderName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isEffective": {
+            "type": "boolean"
+          },
+          "isLongTerm": {
+            "type": "boolean"
+          },
+          "ocrStatus": {
+            "enum": [
+              "ok",
+              "unavailable",
+              "unreadable"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "ocrWarnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "origin": {
+            "enum": [
+              "uploaded",
+              "carried"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "permitType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "principalNameMask": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "principalRole": {
+            "enum": [
+              "legal_rep",
+              "operator",
+              "branch_head",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "qualificationDocId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "entity",
+              "store"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "subjectType": {
+            "enum": [
+              "enterprise",
+              "individual",
+              "branch",
+              "unknown",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "uploadedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "validEndDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "validStartDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "verdict": {
+            "enum": [
+              "accepted",
+              "rejected",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "qualificationDocId",
+          "docType",
+          "permitType",
+          "scope",
+          "origin",
+          "fileId",
+          "ocrStatus",
+          "ocrWarnings",
+          "hasSubmittedFields",
+          "holderName",
+          "certNoMask",
+          "principalNameMask",
+          "principalRole",
+          "subjectType",
+          "validStartDate",
+          "validEndDate",
+          "isLongTerm",
+          "expiryState",
+          "displayFields",
+          "verdict",
+          "isEffective",
+          "uploadedAt"
+        ],
+        "type": "object"
+      },
+      "QualificationDocRecognized": {
+        "properties": {
+          "doc": {
+            "$ref": "#/components/schemas/QualificationDoc"
+          },
+          "entityTypeCheck": {
+            "properties": {
+              "claimedEntityType": {
+                "enum": [
+                  "enterprise",
+                  "individual",
+                  null
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "x-open-enum": true
+              },
+              "isMismatch": {
+                "type": "boolean"
+              },
+              "recognizedSubjectType": {
+                "enum": [
+                  "enterprise",
+                  "individual",
+                  "branch",
+                  "unknown",
+                  null
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "x-open-enum": true
+              }
+            },
+            "required": [
+              "recognizedSubjectType",
+              "claimedEntityType",
+              "isMismatch"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "lockVersion": {
+            "type": "integer"
+          },
+          "qualificationSubmissionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "recognized": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "replayed": {
+            "type": "boolean"
+          },
+          "submitted": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "qualificationSubmissionId",
+          "lockVersion",
+          "doc",
+          "recognized",
+          "submitted",
+          "entityTypeCheck",
+          "replayed"
+        ],
+        "type": "object"
+      },
+      "QualificationRound": {
+        "properties": {
+          "changedFields": {
+            "items": {
+              "enum": [
+                "store_name",
+                "address",
+                "industry",
+                "docs",
+                "entity_license"
+              ],
+              "type": "string",
+              "x-open-enum": true
+            },
+            "type": "array"
+          },
+          "claimedEntityType": {
+            "enum": [
+              "enterprise",
+              "individual",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "closedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contactSnapshot": {
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "phoneMask": {
+                "type": "string"
+              },
+              "phoneVerifyState": {
+                "enum": [
+                  "login",
+                  "sms_verified",
+                  "unverified"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              }
+            },
+            "required": [
+              "name",
+              "phoneMask",
+              "phoneVerifyState"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "decidedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decisionNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "declarationConfirmedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "declarationVersion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "docs": {
+            "items": {
+              "$ref": "#/components/schemas/QualificationDoc"
+            },
+            "type": "array"
+          },
+          "dueAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finalRejectedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isDecidedBySystem": {
+            "type": "boolean"
+          },
+          "isResubmit": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "initial",
+              "new_store",
+              "change"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "lockVersion": {
+            "type": "integer"
+          },
+          "outcome": {
+            "enum": [
+              "approved",
+              "rejected",
+              "withdrawn",
+              "discarded",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "phase": {
+            "enum": [
+              "draft",
+              "in_review",
+              "closed"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "proposed": {
+            "type": "null"
+          },
+          "qualificationSubmissionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "rejectReasons": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "roundNo": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "systemRejectCode": {
+            "enum": [
+              "duplicate_entity",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "qualificationSubmissionId",
+          "kind",
+          "phase",
+          "roundNo",
+          "isResubmit",
+          "claimedEntityType",
+          "declarationConfirmedAt",
+          "declarationVersion",
+          "changedFields",
+          "proposed",
+          "contactSnapshot",
+          "submittedAt",
+          "dueAt",
+          "closedAt",
+          "outcome",
+          "decidedAt",
+          "isDecidedBySystem",
+          "rejectReasons",
+          "decisionNote",
+          "systemRejectCode",
+          "finalRejectedAt",
+          "docs",
+          "lockVersion"
+        ],
+        "type": [
+          "object",
+          "null"
+        ]
+      },
+      "QualificationView": {
+        "oneOf": [
+          {
+            "properties": {
+              "actions": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "contact": {
+                "$ref": "#/components/schemas/ContactView"
+              },
+              "declaration": {
+                "properties": {
+                  "currentVersion": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "currentVersion"
+                ],
+                "type": "object"
+              },
+              "effectiveDocs": {
+                "items": {
+                  "$ref": "#/components/schemas/QualificationDoc"
+                },
+                "type": "array"
+              },
+              "entity": {
+                "properties": {
+                  "entityType": {
+                    "enum": [
+                      "enterprise",
+                      "individual",
+                      null
+                    ],
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "x-open-enum": true
+                  },
+                  "legalRepNameMask": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "usccMask": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "verificationStatus": {
+                    "enum": [
+                      "unsubmitted",
+                      "pending",
+                      "verified",
+                      "rejected"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  },
+                  "verifiedAt": {
+                    "format": "date-time",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "verificationStatus",
+                  "name",
+                  "entityType",
+                  "usccMask",
+                  "legalRepNameMask",
+                  "verifiedAt"
+                ],
+                "type": "object"
+              },
+              "isChangeInReview": {
+                "type": "boolean"
+              },
+              "isFinalRejected": {
+                "type": "boolean"
+              },
+              "lastClosedRound": {
+                "$ref": "#/components/schemas/QualificationRound"
+              },
+              "openRound": {
+                "$ref": "#/components/schemas/QualificationRound"
+              },
+              "requiredPermits": {
+                "items": {
+                  "properties": {
+                    "isProvided": {
+                      "type": "boolean"
+                    },
+                    "permitType": {
+                      "$ref": "#/components/schemas/DictRef"
+                    }
+                  },
+                  "required": [
+                    "permitType",
+                    "isProvided"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "storeQualificationStatus": {
+                "enum": [
+                  "unsubmitted",
+                  "pending",
+                  "verified",
+                  "rejected"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "viewerRole": {
+                "enum": [
+                  "owner"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "viewerRole",
+              "storeQualificationStatus",
+              "isChangeInReview",
+              "isFinalRejected",
+              "entity",
+              "openRound",
+              "lastClosedRound",
+              "effectiveDocs",
+              "requiredPermits",
+              "contact",
+              "declaration",
+              "actions"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "isChangeInReview": {
+                "type": "boolean"
+              },
+              "isFinalRejected": {
+                "type": "boolean"
+              },
+              "storeQualificationStatus": {
+                "enum": [
+                  "unsubmitted",
+                  "pending",
+                  "verified",
+                  "rejected"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "viewerRole": {
+                "enum": [
+                  "clerk"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "viewerRole",
+              "storeQualificationStatus",
+              "isChangeInReview",
+              "isFinalRejected"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "SentryEnvelope": {
         "description": "Sentry envelope 原文，≤200KB",
         "maxLength": 204800,
@@ -2746,6 +3770,1512 @@
           "actions"
         ],
         "type": "object"
+      },
+      "StoreProfileBasic": {
+        "oneOf": [
+          {
+            "properties": {
+              "address": {
+                "$ref": "#/components/schemas/AddressView"
+              },
+              "avgSpendFen": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "brandIntro": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "brandName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "businessHours": {
+                "items": {
+                  "properties": {
+                    "end": {
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                      "type": "string"
+                    },
+                    "start": {
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "start",
+                    "end"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "category": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  }
+                ]
+              },
+              "completeness": {
+                "$ref": "#/components/schemas/Completeness"
+              },
+              "industry": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  }
+                ]
+              },
+              "lastEditedAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "lockVersion": {
+                "type": "integer"
+              },
+              "logo": {
+                "$ref": "#/components/schemas/MediaFileView"
+              },
+              "pendingChange": {
+                "type": "null"
+              },
+              "reviewFieldsLocked": {
+                "type": "boolean"
+              },
+              "reviewRequiredOnChange": {
+                "type": "boolean"
+              },
+              "storeName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "storeTel": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "viewerRole": {
+                "enum": [
+                  "owner"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "viewerRole",
+              "brandName",
+              "logo",
+              "storeName",
+              "industry",
+              "category",
+              "address",
+              "businessHours",
+              "storeTel",
+              "avgSpendFen",
+              "brandIntro",
+              "reviewFieldsLocked",
+              "reviewRequiredOnChange",
+              "lastEditedAt",
+              "completeness",
+              "pendingChange",
+              "lockVersion"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "address": {
+                "$ref": "#/components/schemas/AddressView"
+              },
+              "avgSpendFen": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "brandIntro": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "brandName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "businessHours": {
+                "items": {
+                  "properties": {
+                    "end": {
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                      "type": "string"
+                    },
+                    "start": {
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "start",
+                    "end"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "category": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  }
+                ]
+              },
+              "completeness": {
+                "$ref": "#/components/schemas/Completeness"
+              },
+              "industry": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  }
+                ]
+              },
+              "lastEditedAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "logo": {
+                "$ref": "#/components/schemas/MediaFileView"
+              },
+              "reviewFieldsLocked": {
+                "type": "boolean"
+              },
+              "reviewRequiredOnChange": {
+                "type": "boolean"
+              },
+              "storeName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "storeTel": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "viewerRole": {
+                "enum": [
+                  "clerk"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "viewerRole",
+              "brandName",
+              "logo",
+              "storeName",
+              "industry",
+              "category",
+              "address",
+              "businessHours",
+              "storeTel",
+              "avgSpendFen",
+              "brandIntro",
+              "reviewFieldsLocked",
+              "reviewRequiredOnChange",
+              "lastEditedAt",
+              "completeness"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "StoreProfileMedia": {
+        "oneOf": [
+          {
+            "properties": {
+              "completeness": {
+                "$ref": "#/components/schemas/Completeness"
+              },
+              "groups": {
+                "properties": {
+                  "door": {
+                    "items": {
+                      "properties": {
+                        "file": {
+                          "$ref": "#/components/schemas/MediaFileView"
+                        },
+                        "isCopied": {
+                          "type": "boolean"
+                        },
+                        "mediaItemId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "mediaKind": {
+                          "enum": [
+                            "image",
+                            "video"
+                          ],
+                          "type": "string",
+                          "x-open-enum": true
+                        },
+                        "position": {
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "mediaItemId",
+                        "position",
+                        "mediaKind",
+                        "file",
+                        "isCopied"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "interior": {
+                    "items": {
+                      "properties": {
+                        "file": {
+                          "$ref": "#/components/schemas/MediaFileView"
+                        },
+                        "isCopied": {
+                          "type": "boolean"
+                        },
+                        "mediaItemId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "mediaKind": {
+                          "enum": [
+                            "image",
+                            "video"
+                          ],
+                          "type": "string",
+                          "x-open-enum": true
+                        },
+                        "position": {
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "mediaItemId",
+                        "position",
+                        "mediaKind",
+                        "file",
+                        "isCopied"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "product": {
+                    "items": {
+                      "properties": {
+                        "file": {
+                          "$ref": "#/components/schemas/MediaFileView"
+                        },
+                        "isCopied": {
+                          "type": "boolean"
+                        },
+                        "mediaItemId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "mediaKind": {
+                          "enum": [
+                            "image",
+                            "video"
+                          ],
+                          "type": "string",
+                          "x-open-enum": true
+                        },
+                        "position": {
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "mediaItemId",
+                        "position",
+                        "mediaKind",
+                        "file",
+                        "isCopied"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "promo": {
+                    "items": {
+                      "properties": {
+                        "file": {
+                          "$ref": "#/components/schemas/MediaFileView"
+                        },
+                        "isCopied": {
+                          "type": "boolean"
+                        },
+                        "mediaItemId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "mediaKind": {
+                          "enum": [
+                            "image",
+                            "video"
+                          ],
+                          "type": "string",
+                          "x-open-enum": true
+                        },
+                        "position": {
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "mediaItemId",
+                        "position",
+                        "mediaKind",
+                        "file",
+                        "isCopied"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "door",
+                  "interior",
+                  "product",
+                  "promo"
+                ],
+                "type": "object"
+              },
+              "lockVersion": {
+                "type": "integer"
+              },
+              "viewerRole": {
+                "enum": [
+                  "owner"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "viewerRole",
+              "groups",
+              "lockVersion",
+              "completeness"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "completeness": {
+                "$ref": "#/components/schemas/Completeness"
+              },
+              "groups": {
+                "properties": {
+                  "door": {
+                    "items": {
+                      "properties": {
+                        "file": {
+                          "$ref": "#/components/schemas/MediaFileView"
+                        },
+                        "isCopied": {
+                          "type": "boolean"
+                        },
+                        "mediaItemId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "mediaKind": {
+                          "enum": [
+                            "image",
+                            "video"
+                          ],
+                          "type": "string",
+                          "x-open-enum": true
+                        },
+                        "position": {
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "mediaItemId",
+                        "position",
+                        "mediaKind",
+                        "file",
+                        "isCopied"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "interior": {
+                    "items": {
+                      "properties": {
+                        "file": {
+                          "$ref": "#/components/schemas/MediaFileView"
+                        },
+                        "isCopied": {
+                          "type": "boolean"
+                        },
+                        "mediaItemId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "mediaKind": {
+                          "enum": [
+                            "image",
+                            "video"
+                          ],
+                          "type": "string",
+                          "x-open-enum": true
+                        },
+                        "position": {
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "mediaItemId",
+                        "position",
+                        "mediaKind",
+                        "file",
+                        "isCopied"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "product": {
+                    "items": {
+                      "properties": {
+                        "file": {
+                          "$ref": "#/components/schemas/MediaFileView"
+                        },
+                        "isCopied": {
+                          "type": "boolean"
+                        },
+                        "mediaItemId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "mediaKind": {
+                          "enum": [
+                            "image",
+                            "video"
+                          ],
+                          "type": "string",
+                          "x-open-enum": true
+                        },
+                        "position": {
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "mediaItemId",
+                        "position",
+                        "mediaKind",
+                        "file",
+                        "isCopied"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "promo": {
+                    "items": {
+                      "properties": {
+                        "file": {
+                          "$ref": "#/components/schemas/MediaFileView"
+                        },
+                        "isCopied": {
+                          "type": "boolean"
+                        },
+                        "mediaItemId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "mediaKind": {
+                          "enum": [
+                            "image",
+                            "video"
+                          ],
+                          "type": "string",
+                          "x-open-enum": true
+                        },
+                        "position": {
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "mediaItemId",
+                        "position",
+                        "mediaKind",
+                        "file",
+                        "isCopied"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "door",
+                  "interior",
+                  "product",
+                  "promo"
+                ],
+                "type": "object"
+              },
+              "viewerRole": {
+                "enum": [
+                  "clerk"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "viewerRole",
+              "groups",
+              "completeness"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "StoreProfileOverview": {
+        "oneOf": [
+          {
+            "properties": {
+              "ads": {
+                "properties": {
+                  "confirmedCount": {
+                    "type": "integer"
+                  },
+                  "pendingConfirmCount": {
+                    "type": "integer"
+                  },
+                  "producingCount": {
+                    "type": "integer"
+                  },
+                  "revisingCount": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "confirmedCount",
+                  "pendingConfirmCount",
+                  "producingCount",
+                  "revisingCount"
+                ],
+                "type": "object"
+              },
+              "assets": {
+                "properties": {
+                  "recent": {
+                    "items": {
+                      "properties": {},
+                      "type": "object"
+                    },
+                    "maxItems": 0,
+                    "type": "array"
+                  },
+                  "recent7dCount": {
+                    "type": "integer"
+                  },
+                  "total": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "total",
+                  "recent7dCount",
+                  "recent"
+                ],
+                "type": "object"
+              },
+              "completeness": {
+                "$ref": "#/components/schemas/Completeness"
+              },
+              "entityName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "members": {
+                "properties": {
+                  "clerkCount": {
+                    "type": "integer"
+                  },
+                  "ownerDisplayName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "pendingInvitationCount": {
+                    "type": "integer"
+                  },
+                  "preview": {
+                    "items": {
+                      "properties": {
+                        "displayName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "role": {
+                          "enum": [
+                            "owner",
+                            "clerk"
+                          ],
+                          "type": "string",
+                          "x-open-enum": true
+                        }
+                      },
+                      "required": [
+                        "displayName",
+                        "role"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "ownerDisplayName",
+                  "clerkCount",
+                  "preview",
+                  "pendingInvitationCount"
+                ],
+                "type": "object"
+              },
+              "qualification": {
+                "properties": {
+                  "dueAt": {
+                    "format": "date-time",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "lastDecidedAt": {
+                    "format": "date-time",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "unsubmitted",
+                      "pending",
+                      "verified",
+                      "rejected"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  },
+                  "submittedAt": {
+                    "format": "date-time",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "status",
+                  "submittedAt",
+                  "dueAt",
+                  "lastDecidedAt"
+                ],
+                "type": "object"
+              },
+              "steps": {
+                "properties": {
+                  "basic": {
+                    "properties": {
+                      "state": {
+                        "enum": [
+                          "not_started",
+                          "in_progress",
+                          "completed"
+                        ],
+                        "type": "string",
+                        "x-open-enum": true
+                      }
+                    },
+                    "required": [
+                      "state"
+                    ],
+                    "type": "object"
+                  },
+                  "media": {
+                    "properties": {
+                      "doorCount": {
+                        "type": "integer"
+                      },
+                      "interiorCount": {
+                        "type": "integer"
+                      },
+                      "productCount": {
+                        "type": "integer"
+                      },
+                      "promoCount": {
+                        "type": "integer"
+                      },
+                      "state": {
+                        "enum": [
+                          "not_started",
+                          "in_progress",
+                          "completed"
+                        ],
+                        "type": "string",
+                        "x-open-enum": true
+                      }
+                    },
+                    "required": [
+                      "state",
+                      "doorCount",
+                      "interiorCount",
+                      "productCount",
+                      "promoCount"
+                    ],
+                    "type": "object"
+                  },
+                  "qualification": {
+                    "properties": {
+                      "docTypes": {
+                        "items": {
+                          "properties": {
+                            "docType": {
+                              "enum": [
+                                "business_license",
+                                "branch_license",
+                                "industry_permit"
+                              ],
+                              "type": "string",
+                              "x-open-enum": true
+                            },
+                            "permitType": {
+                              "allOf": [
+                                {
+                                  "$ref": "#/components/schemas/DictRef"
+                                },
+                                {
+                                  "type": [
+                                    "object",
+                                    "null"
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "docType",
+                            "permitType"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "state": {
+                        "enum": [
+                          "not_started",
+                          "in_progress",
+                          "completed"
+                        ],
+                        "type": "string",
+                        "x-open-enum": true
+                      }
+                    },
+                    "required": [
+                      "state",
+                      "docTypes"
+                    ],
+                    "type": "object"
+                  },
+                  "service": {
+                    "properties": {
+                      "hasPromoText": {
+                        "type": "boolean"
+                      },
+                      "sellingPointCount": {
+                        "type": "integer"
+                      },
+                      "serviceItemCount": {
+                        "type": "integer"
+                      },
+                      "state": {
+                        "enum": [
+                          "not_started",
+                          "in_progress",
+                          "completed"
+                        ],
+                        "type": "string",
+                        "x-open-enum": true
+                      }
+                    },
+                    "required": [
+                      "state",
+                      "serviceItemCount",
+                      "sellingPointCount",
+                      "hasPromoText"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "basic",
+                  "media",
+                  "service",
+                  "qualification"
+                ],
+                "type": "object"
+              },
+              "store": {
+                "properties": {
+                  "category": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DictRef"
+                      },
+                      {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      }
+                    ]
+                  },
+                  "industry": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DictRef"
+                      },
+                      {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      }
+                    ]
+                  },
+                  "isChangeInReview": {
+                    "type": "boolean"
+                  },
+                  "isFinalRejected": {
+                    "type": "boolean"
+                  },
+                  "isPrimary": {
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "qualificationStatus": {
+                    "enum": [
+                      "unsubmitted",
+                      "pending",
+                      "verified",
+                      "rejected"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  },
+                  "storeId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "storeId",
+                  "name",
+                  "isPrimary",
+                  "qualificationStatus",
+                  "isChangeInReview",
+                  "isFinalRejected",
+                  "industry",
+                  "category"
+                ],
+                "type": "object"
+              },
+              "viewerRole": {
+                "enum": [
+                  "owner"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "viewerRole",
+              "store",
+              "completeness",
+              "assets",
+              "entityName",
+              "steps",
+              "qualification",
+              "members",
+              "ads"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "assets": {
+                "properties": {
+                  "recent": {
+                    "items": {
+                      "properties": {},
+                      "type": "object"
+                    },
+                    "maxItems": 0,
+                    "type": "array"
+                  },
+                  "recent7dCount": {
+                    "type": "integer"
+                  },
+                  "total": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "total",
+                  "recent7dCount",
+                  "recent"
+                ],
+                "type": "object"
+              },
+              "completeness": {
+                "$ref": "#/components/schemas/Completeness"
+              },
+              "members": {
+                "properties": {
+                  "clerkCount": {
+                    "type": "integer"
+                  },
+                  "ownerDisplayName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "preview": {
+                    "items": {
+                      "properties": {
+                        "displayName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "role": {
+                          "enum": [
+                            "owner",
+                            "clerk"
+                          ],
+                          "type": "string",
+                          "x-open-enum": true
+                        }
+                      },
+                      "required": [
+                        "displayName",
+                        "role"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "ownerDisplayName",
+                  "clerkCount",
+                  "preview"
+                ],
+                "type": "object"
+              },
+              "qualification": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "unsubmitted",
+                      "pending",
+                      "verified",
+                      "rejected"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  }
+                },
+                "required": [
+                  "status"
+                ],
+                "type": "object"
+              },
+              "steps": {
+                "properties": {
+                  "basic": {
+                    "properties": {
+                      "state": {
+                        "enum": [
+                          "not_started",
+                          "in_progress",
+                          "completed"
+                        ],
+                        "type": "string",
+                        "x-open-enum": true
+                      }
+                    },
+                    "required": [
+                      "state"
+                    ],
+                    "type": "object"
+                  },
+                  "media": {
+                    "properties": {
+                      "doorCount": {
+                        "type": "integer"
+                      },
+                      "interiorCount": {
+                        "type": "integer"
+                      },
+                      "productCount": {
+                        "type": "integer"
+                      },
+                      "promoCount": {
+                        "type": "integer"
+                      },
+                      "state": {
+                        "enum": [
+                          "not_started",
+                          "in_progress",
+                          "completed"
+                        ],
+                        "type": "string",
+                        "x-open-enum": true
+                      }
+                    },
+                    "required": [
+                      "state",
+                      "doorCount",
+                      "interiorCount",
+                      "productCount",
+                      "promoCount"
+                    ],
+                    "type": "object"
+                  },
+                  "qualification": {
+                    "properties": {
+                      "state": {
+                        "enum": [
+                          "not_started",
+                          "in_progress",
+                          "completed"
+                        ],
+                        "type": "string",
+                        "x-open-enum": true
+                      }
+                    },
+                    "required": [
+                      "state"
+                    ],
+                    "type": "object"
+                  },
+                  "service": {
+                    "properties": {
+                      "hasPromoText": {
+                        "type": "boolean"
+                      },
+                      "sellingPointCount": {
+                        "type": "integer"
+                      },
+                      "serviceItemCount": {
+                        "type": "integer"
+                      },
+                      "state": {
+                        "enum": [
+                          "not_started",
+                          "in_progress",
+                          "completed"
+                        ],
+                        "type": "string",
+                        "x-open-enum": true
+                      }
+                    },
+                    "required": [
+                      "state",
+                      "serviceItemCount",
+                      "sellingPointCount",
+                      "hasPromoText"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "basic",
+                  "media",
+                  "service",
+                  "qualification"
+                ],
+                "type": "object"
+              },
+              "store": {
+                "properties": {
+                  "category": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DictRef"
+                      },
+                      {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      }
+                    ]
+                  },
+                  "industry": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/DictRef"
+                      },
+                      {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      }
+                    ]
+                  },
+                  "isChangeInReview": {
+                    "type": "boolean"
+                  },
+                  "isFinalRejected": {
+                    "type": "boolean"
+                  },
+                  "isPrimary": {
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "qualificationStatus": {
+                    "enum": [
+                      "unsubmitted",
+                      "pending",
+                      "verified",
+                      "rejected"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  },
+                  "storeId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "storeId",
+                  "name",
+                  "isPrimary",
+                  "qualificationStatus",
+                  "isChangeInReview",
+                  "isFinalRejected",
+                  "industry",
+                  "category"
+                ],
+                "type": "object"
+              },
+              "viewerRole": {
+                "enum": [
+                  "clerk"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "viewerRole",
+              "store",
+              "completeness",
+              "assets",
+              "steps",
+              "qualification",
+              "members"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "StoreProfileService": {
+        "oneOf": [
+          {
+            "properties": {
+              "completeness": {
+                "$ref": "#/components/schemas/Completeness"
+              },
+              "groupBuyText": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "lockVersion": {
+                "type": "integer"
+              },
+              "promoText": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "sellingNote": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "sellingPoints": {
+                "items": {
+                  "$ref": "#/components/schemas/DictRef"
+                },
+                "type": "array"
+              },
+              "serviceItems": {
+                "items": {
+                  "properties": {
+                    "image": {
+                      "$ref": "#/components/schemas/MediaFileView"
+                    },
+                    "intro": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "originalPriceFen": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "position": {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "priceFen": {
+                      "type": "integer"
+                    },
+                    "serviceItemId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "serviceItemId",
+                    "position",
+                    "name",
+                    "priceFen",
+                    "originalPriceFen",
+                    "image",
+                    "intro"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "viewerRole": {
+                "enum": [
+                  "owner"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "viewerRole",
+              "serviceItems",
+              "promoText",
+              "groupBuyText",
+              "sellingPoints",
+              "sellingNote",
+              "completeness",
+              "lockVersion"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "completeness": {
+                "$ref": "#/components/schemas/Completeness"
+              },
+              "groupBuyText": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "promoText": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "sellingNote": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "sellingPoints": {
+                "items": {
+                  "$ref": "#/components/schemas/DictRef"
+                },
+                "type": "array"
+              },
+              "serviceItems": {
+                "items": {
+                  "properties": {
+                    "image": {
+                      "$ref": "#/components/schemas/MediaFileView"
+                    },
+                    "intro": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "originalPriceFen": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "position": {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "priceFen": {
+                      "type": "integer"
+                    },
+                    "serviceItemId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "serviceItemId",
+                    "position",
+                    "name",
+                    "priceFen",
+                    "originalPriceFen",
+                    "image",
+                    "intro"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "viewerRole": {
+                "enum": [
+                  "clerk"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "viewerRole",
+              "serviceItems",
+              "promoText",
+              "groupBuyText",
+              "sellingPoints",
+              "sellingNote",
+              "completeness"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "StsCredential": {
         "properties": {
@@ -4524,6 +7054,308 @@
         "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
       }
     },
+    "/api/v1/m/qualification-docs": {
+      "post": {
+        "operationId": "m.qualificationDoc.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "docType": {
+                    "enum": [
+                      "business_license",
+                      "branch_license",
+                      "industry_permit"
+                    ],
+                    "type": "string"
+                  },
+                  "fileId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "permitType": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "fileId",
+                  "docType"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/QualificationDocRecognized"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "证照挂到草稿并同步识别回显：{fileId, docType: business_license | branch_license | industry_permit, permitType?}；同类旧证照从草稿移除",
+        "x-auth": "member",
+        "x-capability": "store.qualification.edit",
+        "x-clerk-view": "none",
+        "x-idempotent": "required",
+        "x-idempotent-reason": "三段式（C51 先调外部、再开事务；A139 已登记）：先占用幂等记录，事务外识别（复用 ocr_result），再开事务落证照行；结果脱敏（C50、A80）：幂等记录不存 recognized、submitted，重放时为空并带 replayed",
+        "x-redact-on-replay": [
+          "recognized",
+          "submitted"
+        ],
+        "x-three-phase": true
+      }
+    },
+    "/api/v1/m/qualification-docs/{qualificationDocId}": {
+      "patch": {
+        "operationId": "m.qualificationDoc.update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "qualificationDocId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "fields": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "lockVersion",
+                  "fields"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "doc": {
+                          "$ref": "#/components/schemas/QualificationDoc"
+                        },
+                        "lockVersion": {
+                          "type": "integer"
+                        },
+                        "qualificationSubmissionId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "qualificationSubmissionId",
+                        "lockVersion",
+                        "doc"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "保存核对后的证照提交值（识别有误时人工修正）",
+        "x-auth": "member",
+        "x-capability": "store.qualification.edit",
+        "x-clerk-view": "none",
+        "x-idempotent": "required"
+      }
+    },
     "/api/v1/m/sessions": {
       "post": {
         "operationId": "m.session.create",
@@ -4867,6 +7699,2258 @@
         "x-idempotent": "none",
         "x-idempotent-reason": "登录与换会话（A18）",
         "x-rate-limit": "m.login.phone"
+      }
+    },
+    "/api/v1/m/store-profile": {
+      "get": {
+        "operationId": "m.storeProfile.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StoreProfileOverview"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "建档首页聚合：完整度、四步摘要与状态、审核状态、主体名称、素材总数与近 7 天新增、成员摘要、广告三态计数；按角色裁剪",
+        "x-auth": "member",
+        "x-capability": "store.profile.read",
+        "x-clerk-view": "trimmed",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/store-profile/basic": {
+      "get": {
+        "operationId": "m.storeProfile.basic.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StoreProfileBasic"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "建档第 1 步：品牌名称与 Logo、门店名称、行业品类、地址与选点、营业时间、电话、人均、品牌简介；重审字段的生效值与待审值",
+        "x-auth": "member",
+        "x-capability": "store.profile.read",
+        "x-clerk-view": "trimmed",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      },
+      "patch": {
+        "operationId": "m.storeProfile.basic.update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "address": {
+                    "properties": {
+                      "cityCode": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "detail": {
+                        "maxLength": 200,
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "districtCode": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "latitude": {
+                        "maximum": 90,
+                        "minimum": -90,
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "longitude": {
+                        "maximum": 180,
+                        "minimum": -180,
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "poiName": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "provinceCode": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "zoneCode": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "provinceCode",
+                      "cityCode",
+                      "districtCode",
+                      "zoneCode",
+                      "detail",
+                      "poiName",
+                      "latitude",
+                      "longitude"
+                    ],
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  },
+                  "avgSpendFen": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "brandIntro": {
+                    "maxLength": 300,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "brandName": {
+                    "maxLength": 30,
+                    "minLength": 2,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "businessHours": {
+                    "items": {
+                      "properties": {
+                        "end": {
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                          "type": "string"
+                        },
+                        "start": {
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "start",
+                        "end"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 4,
+                    "type": "array"
+                  },
+                  "categoryCode": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "confirmReview": {
+                    "type": "boolean"
+                  },
+                  "draft": {
+                    "type": "boolean"
+                  },
+                  "industryCode": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "logoFileId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "storeName": {
+                    "maxLength": 30,
+                    "minLength": 2,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "storeTel": {
+                    "maxLength": 20,
+                    "pattern": "^(?:1\\d{10}|0\\d{2,3}-?\\d{7,8}(?:-\\d{1,6})?)$",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "draft",
+                  "lockVersion"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "address": {
+                          "$ref": "#/components/schemas/AddressView"
+                        },
+                        "avgSpendFen": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "brandIntro": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "brandName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "businessHours": {
+                          "items": {
+                            "properties": {
+                              "end": {
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                                "type": "string"
+                              },
+                              "start": {
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "start",
+                              "end"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "category": {
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/DictRef"
+                            },
+                            {
+                              "type": [
+                                "object",
+                                "null"
+                              ]
+                            }
+                          ]
+                        },
+                        "completeness": {
+                          "$ref": "#/components/schemas/Completeness"
+                        },
+                        "industry": {
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/DictRef"
+                            },
+                            {
+                              "type": [
+                                "object",
+                                "null"
+                              ]
+                            }
+                          ]
+                        },
+                        "lastEditedAt": {
+                          "format": "date-time",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "lockVersion": {
+                          "type": "integer"
+                        },
+                        "logo": {
+                          "$ref": "#/components/schemas/MediaFileView"
+                        },
+                        "pendingChange": {
+                          "type": "null"
+                        },
+                        "replayed": {
+                          "type": "boolean"
+                        },
+                        "reviewFieldsLocked": {
+                          "type": "boolean"
+                        },
+                        "reviewRequiredOnChange": {
+                          "type": "boolean"
+                        },
+                        "storeName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "storeTel": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "viewerRole": {
+                          "enum": [
+                            "owner"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "viewerRole",
+                        "brandName",
+                        "logo",
+                        "storeName",
+                        "industry",
+                        "category",
+                        "address",
+                        "businessHours",
+                        "storeTel",
+                        "avgSpendFen",
+                        "brandIntro",
+                        "reviewFieldsLocked",
+                        "reviewRequiredOnChange",
+                        "lastEditedAt",
+                        "completeness",
+                        "pendingChange",
+                        "lockVersion",
+                        "replayed"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "保存第 1 步（只存草稿）：{draft, lockVersion, confirmReview?}；已通过门店改名称/地址/行业品类时先返回 409 REVIEW_REQUIRED，确认后重审字段写入 change 草稿；提交走 m.storeProfile.qualification.submit",
+        "x-auth": "member",
+        "x-capability": "store.profile.edit",
+        "x-clerk-view": "none",
+        "x-idempotent": "required",
+        "x-redact-on-replay": [
+          "logo.url",
+          "logo.expiresAt",
+          "logo.coverUrl"
+        ]
+      }
+    },
+    "/api/v1/m/store-profile/contact": {
+      "patch": {
+        "operationId": "m.storeProfile.contact.update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "maxLength": 20,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "phone": {
+                    "pattern": "^1\\d{10}$",
+                    "type": "string"
+                  },
+                  "phoneSource": {
+                    "enum": [
+                      "login",
+                      "input"
+                    ],
+                    "type": "string"
+                  },
+                  "smsCode": {
+                    "pattern": "^\\d{6}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "lockVersion",
+                  "name",
+                  "phoneSource"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ContactView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "保存资质联系人：{name, phoneSource: login | input, phone?, smsCode?, lockVersion}；改成非登录手机号须带短信验证码（短信未配置时记为未验证并提示审核人）",
+        "x-auth": "member",
+        "x-capability": "store.qualification.edit",
+        "x-clerk-view": "none",
+        "x-idempotent": "required"
+      }
+    },
+    "/api/v1/m/store-profile/media": {
+      "get": {
+        "operationId": "m.storeProfile.media.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StoreProfileMedia"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "建档第 2 步：门头、店内环境、服务或产品实拍、已有宣传素材四组媒体（标签、类型、时长、顺序）",
+        "x-auth": "member",
+        "x-capability": "store.profile.read",
+        "x-clerk-view": "trimmed",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      },
+      "patch": {
+        "operationId": "m.storeProfile.media.update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "draft": {
+                    "type": "boolean"
+                  },
+                  "groups": {
+                    "properties": {
+                      "door": {
+                        "items": {
+                          "properties": {
+                            "fileId": {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "fileId"
+                          ],
+                          "type": "object"
+                        },
+                        "maxItems": 12,
+                        "type": "array"
+                      },
+                      "interior": {
+                        "items": {
+                          "properties": {
+                            "fileId": {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "fileId"
+                          ],
+                          "type": "object"
+                        },
+                        "maxItems": 12,
+                        "type": "array"
+                      },
+                      "product": {
+                        "items": {
+                          "properties": {
+                            "fileId": {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "fileId"
+                          ],
+                          "type": "object"
+                        },
+                        "maxItems": 12,
+                        "type": "array"
+                      },
+                      "promo": {
+                        "items": {
+                          "properties": {
+                            "fileId": {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "fileId"
+                          ],
+                          "type": "object"
+                        },
+                        "maxItems": 12,
+                        "type": "array"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "draft",
+                  "lockVersion",
+                  "groups"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "completeness": {
+                          "$ref": "#/components/schemas/Completeness"
+                        },
+                        "groups": {
+                          "properties": {
+                            "door": {
+                              "items": {
+                                "properties": {
+                                  "file": {
+                                    "$ref": "#/components/schemas/MediaFileView"
+                                  },
+                                  "isCopied": {
+                                    "type": "boolean"
+                                  },
+                                  "mediaItemId": {
+                                    "format": "uuid",
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  },
+                                  "mediaKind": {
+                                    "enum": [
+                                      "image",
+                                      "video"
+                                    ],
+                                    "type": "string",
+                                    "x-open-enum": true
+                                  },
+                                  "position": {
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "mediaItemId",
+                                  "position",
+                                  "mediaKind",
+                                  "file",
+                                  "isCopied"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array"
+                            },
+                            "interior": {
+                              "items": {
+                                "properties": {
+                                  "file": {
+                                    "$ref": "#/components/schemas/MediaFileView"
+                                  },
+                                  "isCopied": {
+                                    "type": "boolean"
+                                  },
+                                  "mediaItemId": {
+                                    "format": "uuid",
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  },
+                                  "mediaKind": {
+                                    "enum": [
+                                      "image",
+                                      "video"
+                                    ],
+                                    "type": "string",
+                                    "x-open-enum": true
+                                  },
+                                  "position": {
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "mediaItemId",
+                                  "position",
+                                  "mediaKind",
+                                  "file",
+                                  "isCopied"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array"
+                            },
+                            "product": {
+                              "items": {
+                                "properties": {
+                                  "file": {
+                                    "$ref": "#/components/schemas/MediaFileView"
+                                  },
+                                  "isCopied": {
+                                    "type": "boolean"
+                                  },
+                                  "mediaItemId": {
+                                    "format": "uuid",
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  },
+                                  "mediaKind": {
+                                    "enum": [
+                                      "image",
+                                      "video"
+                                    ],
+                                    "type": "string",
+                                    "x-open-enum": true
+                                  },
+                                  "position": {
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "mediaItemId",
+                                  "position",
+                                  "mediaKind",
+                                  "file",
+                                  "isCopied"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array"
+                            },
+                            "promo": {
+                              "items": {
+                                "properties": {
+                                  "file": {
+                                    "$ref": "#/components/schemas/MediaFileView"
+                                  },
+                                  "isCopied": {
+                                    "type": "boolean"
+                                  },
+                                  "mediaItemId": {
+                                    "format": "uuid",
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  },
+                                  "mediaKind": {
+                                    "enum": [
+                                      "image",
+                                      "video"
+                                    ],
+                                    "type": "string",
+                                    "x-open-enum": true
+                                  },
+                                  "position": {
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "mediaItemId",
+                                  "position",
+                                  "mediaKind",
+                                  "file",
+                                  "isCopied"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array"
+                            }
+                          },
+                          "required": [
+                            "door",
+                            "interior",
+                            "product",
+                            "promo"
+                          ],
+                          "type": "object"
+                        },
+                        "lockVersion": {
+                          "type": "integer"
+                        },
+                        "replayed": {
+                          "type": "boolean"
+                        },
+                        "viewerRole": {
+                          "enum": [
+                            "owner"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "viewerRole",
+                        "groups",
+                        "lockVersion",
+                        "completeness",
+                        "replayed"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "保存第 2 步（整步覆盖四组媒体的 fileId、标签、顺序；校验门头 ≥1、环境 ≥3）",
+        "x-auth": "member",
+        "x-capability": "store.profile.edit",
+        "x-clerk-view": "none",
+        "x-idempotent": "required",
+        "x-redact-on-replay": [
+          "groups.door[].file.url",
+          "groups.door[].file.expiresAt",
+          "groups.door[].file.coverUrl",
+          "groups.interior[].file.url",
+          "groups.interior[].file.expiresAt",
+          "groups.interior[].file.coverUrl",
+          "groups.product[].file.url",
+          "groups.product[].file.expiresAt",
+          "groups.product[].file.coverUrl",
+          "groups.promo[].file.url",
+          "groups.promo[].file.expiresAt",
+          "groups.promo[].file.coverUrl"
+        ]
+      }
+    },
+    "/api/v1/m/store-profile/qualification": {
+      "get": {
+        "operationId": "m.storeProfile.qualification.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/QualificationView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "当前资质视图：草稿或在审轮次、主体类型、证照元数据与识别结果、生效证照、驳回原因与被驳回的证照、预计完成时间；老板视图另带资质联系人 contact {name, phoneMask, phoneVerifyState, phoneVerifiedAt} 与在审轮次的 contactSnapshot；店员只有状态",
+        "x-auth": "member",
+        "x-capability": "store.profile.read",
+        "x-clerk-view": "trimmed",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      },
+      "patch": {
+        "operationId": "m.storeProfile.qualification.update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "claimedEntityType": {
+                    "enum": [
+                      "enterprise",
+                      "individual",
+                      null
+                    ],
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "declarationConfirmed": {
+                    "type": "boolean"
+                  },
+                  "declarationVersion": {
+                    "type": "string"
+                  },
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "lockVersion"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "actions": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "contact": {
+                          "$ref": "#/components/schemas/ContactView"
+                        },
+                        "declaration": {
+                          "properties": {
+                            "currentVersion": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "currentVersion"
+                          ],
+                          "type": "object"
+                        },
+                        "effectiveDocs": {
+                          "items": {
+                            "$ref": "#/components/schemas/QualificationDoc"
+                          },
+                          "type": "array"
+                        },
+                        "entity": {
+                          "properties": {
+                            "entityType": {
+                              "enum": [
+                                "enterprise",
+                                "individual",
+                                null
+                              ],
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "x-open-enum": true
+                            },
+                            "legalRepNameMask": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "name": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "usccMask": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "verificationStatus": {
+                              "enum": [
+                                "unsubmitted",
+                                "pending",
+                                "verified",
+                                "rejected"
+                              ],
+                              "type": "string",
+                              "x-open-enum": true
+                            },
+                            "verifiedAt": {
+                              "format": "date-time",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "verificationStatus",
+                            "name",
+                            "entityType",
+                            "usccMask",
+                            "legalRepNameMask",
+                            "verifiedAt"
+                          ],
+                          "type": "object"
+                        },
+                        "isChangeInReview": {
+                          "type": "boolean"
+                        },
+                        "isFinalRejected": {
+                          "type": "boolean"
+                        },
+                        "lastClosedRound": {
+                          "$ref": "#/components/schemas/QualificationRound"
+                        },
+                        "openRound": {
+                          "$ref": "#/components/schemas/QualificationRound"
+                        },
+                        "requiredPermits": {
+                          "items": {
+                            "properties": {
+                              "isProvided": {
+                                "type": "boolean"
+                              },
+                              "permitType": {
+                                "$ref": "#/components/schemas/DictRef"
+                              }
+                            },
+                            "required": [
+                              "permitType",
+                              "isProvided"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "storeQualificationStatus": {
+                          "enum": [
+                            "unsubmitted",
+                            "pending",
+                            "verified",
+                            "rejected"
+                          ],
+                          "type": "string",
+                          "x-open-enum": true
+                        },
+                        "viewerRole": {
+                          "enum": [
+                            "owner"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "viewerRole",
+                        "storeQualificationStatus",
+                        "isChangeInReview",
+                        "isFinalRejected",
+                        "entity",
+                        "openRound",
+                        "lastClosedRound",
+                        "effectiveDocs",
+                        "requiredPermits",
+                        "contact",
+                        "declaration",
+                        "actions"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "保存第 4 步草稿：主体类型（企业/个体工商户）、信息确认；没有草稿时建草稿轮次（ensureDraft）",
+        "x-auth": "member",
+        "x-capability": "store.qualification.edit",
+        "x-clerk-view": "none",
+        "x-idempotent": "required"
+      }
+    },
+    "/api/v1/m/store-profile/qualification/submit": {
+      "post": {
+        "operationId": "m.storeProfile.qualification.submit",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "declarationConfirmed": {
+                    "type": "boolean"
+                  },
+                  "declarationVersion": {
+                    "type": "string"
+                  },
+                  "qualificationSubmissionId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "qualificationSubmissionId",
+                  "declarationConfirmed",
+                  "declarationVersion"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "actions": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "contact": {
+                          "$ref": "#/components/schemas/ContactView"
+                        },
+                        "declaration": {
+                          "properties": {
+                            "currentVersion": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "currentVersion"
+                          ],
+                          "type": "object"
+                        },
+                        "effectiveDocs": {
+                          "items": {
+                            "$ref": "#/components/schemas/QualificationDoc"
+                          },
+                          "type": "array"
+                        },
+                        "entity": {
+                          "properties": {
+                            "entityType": {
+                              "enum": [
+                                "enterprise",
+                                "individual",
+                                null
+                              ],
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "x-open-enum": true
+                            },
+                            "legalRepNameMask": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "name": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "usccMask": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "verificationStatus": {
+                              "enum": [
+                                "unsubmitted",
+                                "pending",
+                                "verified",
+                                "rejected"
+                              ],
+                              "type": "string",
+                              "x-open-enum": true
+                            },
+                            "verifiedAt": {
+                              "format": "date-time",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "verificationStatus",
+                            "name",
+                            "entityType",
+                            "usccMask",
+                            "legalRepNameMask",
+                            "verifiedAt"
+                          ],
+                          "type": "object"
+                        },
+                        "isChangeInReview": {
+                          "type": "boolean"
+                        },
+                        "isFinalRejected": {
+                          "type": "boolean"
+                        },
+                        "lastClosedRound": {
+                          "$ref": "#/components/schemas/QualificationRound"
+                        },
+                        "openRound": {
+                          "$ref": "#/components/schemas/QualificationRound"
+                        },
+                        "requiredPermits": {
+                          "items": {
+                            "properties": {
+                              "isProvided": {
+                                "type": "boolean"
+                              },
+                              "permitType": {
+                                "$ref": "#/components/schemas/DictRef"
+                              }
+                            },
+                            "required": [
+                              "permitType",
+                              "isProvided"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "storeQualificationStatus": {
+                          "enum": [
+                            "unsubmitted",
+                            "pending",
+                            "verified",
+                            "rejected"
+                          ],
+                          "type": "string",
+                          "x-open-enum": true
+                        },
+                        "viewerRole": {
+                          "enum": [
+                            "owner"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "viewerRole",
+                        "storeQualificationStatus",
+                        "isChangeInReview",
+                        "isFinalRejected",
+                        "entity",
+                        "openRound",
+                        "lastClosedRound",
+                        "effectiveDocs",
+                        "requiredPermits",
+                        "contact",
+                        "declaration",
+                        "actions"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "提交资质审核（首次、驳回后重新提交、已通过后的变更）：十项提交校验、建审批单、进入审核队列",
+        "x-auth": "member",
+        "x-capability": "store.qualification.edit",
+        "x-clerk-view": "none",
+        "x-idempotent": "required"
+      }
+    },
+    "/api/v1/m/store-profile/service": {
+      "get": {
+        "operationId": "m.storeProfile.service.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StoreProfileService"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "建档第 3 步：主推服务（名称、现价、原价、图片、简介）、优惠活动、团购信息、核心卖点与补充说明",
+        "x-auth": "member",
+        "x-capability": "store.profile.read",
+        "x-clerk-view": "trimmed",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      },
+      "patch": {
+        "operationId": "m.storeProfile.service.update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "draft": {
+                    "type": "boolean"
+                  },
+                  "groupBuyText": {
+                    "maxLength": 100,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "promoText": {
+                    "maxLength": 100,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "sellingNote": {
+                    "maxLength": 100,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "sellingPointCodes": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 5,
+                    "type": "array"
+                  },
+                  "serviceItems": {
+                    "items": {
+                      "properties": {
+                        "imageFileId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "intro": {
+                          "maxLength": 20,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "name": {
+                          "maxLength": 30,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "originalPriceFen": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "priceFen": {
+                          "exclusiveMinimum": 0,
+                          "type": "integer"
+                        },
+                        "serviceItemId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "priceFen"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 10,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "draft",
+                  "lockVersion"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "completeness": {
+                          "$ref": "#/components/schemas/Completeness"
+                        },
+                        "groupBuyText": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "lockVersion": {
+                          "type": "integer"
+                        },
+                        "promoText": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "replayed": {
+                          "type": "boolean"
+                        },
+                        "sellingNote": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "sellingPoints": {
+                          "items": {
+                            "$ref": "#/components/schemas/DictRef"
+                          },
+                          "type": "array"
+                        },
+                        "serviceItems": {
+                          "items": {
+                            "properties": {
+                              "image": {
+                                "$ref": "#/components/schemas/MediaFileView"
+                              },
+                              "intro": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "originalPriceFen": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "position": {
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "priceFen": {
+                                "type": "integer"
+                              },
+                              "serviceItemId": {
+                                "format": "uuid",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "serviceItemId",
+                              "position",
+                              "name",
+                              "priceFen",
+                              "originalPriceFen",
+                              "image",
+                              "intro"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "viewerRole": {
+                          "enum": [
+                            "owner"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "viewerRole",
+                        "serviceItems",
+                        "promoText",
+                        "groupBuyText",
+                        "sellingPoints",
+                        "sellingNote",
+                        "completeness",
+                        "lockVersion",
+                        "replayed"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "保存第 3 步（整步覆盖，含主推服务数组 1～10 项、卖点标签 ≤5）",
+        "x-auth": "member",
+        "x-capability": "store.profile.edit",
+        "x-clerk-view": "none",
+        "x-idempotent": "required",
+        "x-redact-on-replay": [
+          "serviceItems[].image.url",
+          "serviceItems[].image.expiresAt",
+          "serviceItems[].image.coverUrl"
+        ]
       }
     },
     "/api/v1/m/stores": {
