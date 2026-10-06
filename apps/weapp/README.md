@@ -150,3 +150,14 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 十一态夹具在 `shots/catalog-fixtures.ts`，清单在 `shots/catalog-scenes.ts`。运行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene home-owner --scene home-clerk --scene home-guest --scene mall-default --scene mall-end --scene mall-empty --scene detail-owner --scene cart-default --scene cart-invalid --scene cart-price-changed --scene cart-clerk`，产物为 `shots/dist/png/catalog__<场景>.png`。不带场景参数时旧账户八态、建档九态和支付十一态仍保留；每场景独立上下文与既有外发网络、console.error、pageerror 守卫全部生效。
 
 截图同时实际执行分页、复选/取消、删除、价格确认网络重试与自然重复加入；价格确认验证 P=1200、同 key 重试和 C50 重放后的 GET，不把固定离线图当真实 API 证据。H5 选剧单底栏仅在本页私有样式里为仿制标签栏让出 50px；小程序使用原生标签栏。原生导航、胶囊、安全区、下拉刷新与触底手势仍须 E16/E7 在开发者工具和真机上手验。
+
+
+## 确认订购、订单与发布账号（W1-18 PR2）
+
+四页消费实际合入的 merchant DTO，生产仍走中央 request。选剧单与详情的“确认订购”进入 checkout；一次意图网络重试复用 key，账号、重点、模型或报价变化换 key。提交 expect 和协议版本都取当次报价；QUOTE_CHANGED 与 AGREEMENT_VERSION_STALE 按符号名刷新并重新勾选。C50 后重新 GET 订单及选剧单，再更新订单/账号/角标修订号。
+
+本域十二态：`LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene checkout-default --scene checkout-points --scene checkout-qualification --scene checkout-quote-changed --scene orders-default --scene orders-empty --scene order-detail-default --scene order-detail-producing --scene order-success --scene accounts-default --scene accounts-rejected --scene accounts-bind`。夹具在 `shots/order-fixtures.ts`、`shots/publish-fixtures.ts`，场景清单分别为 `order-scenes.ts`、`publish-scenes.ts`。同域交互核对请求体、重试 key、报价变化、新版 expect、C50 后 GET、订单游标及切页签、账号绑定/核验重提；每场景保留独立上下文、外发网络、console.error 与 pageerror 守卫。旧账户8、建档9、支付11、商城11态及其断言全部保留。
+
+主页截图由 `withPrivacy` 包选图，正式环境只用公共 `prepareTaroFile/createTaroUpload`，分类 `channel_screenshot`；最多3张，图片上限取公共 `UPLOAD_LIMITS.imageMaxMb`（5MB），通道由登记接口的 mode 决定。H5 截图的入库文件ID是显式离线替身，不是真实上传证据。订单方案、样片、发布任务和上线记录按 DTO 数据/actions 显示，后继页尚未合入时提示“即将开放”；广告、参考素材、视频、解绑、授权书及取消入口均不出。原支付结果状态保持。
+
+H5 仍缺少原生导航栏、胶囊与真实安全区；下拉/触底、订阅授权、隐私授权和微信文件直传须在 E16/E7 到位后手验。本域离线图不能当作真实接口或微信授权/上传证据。
