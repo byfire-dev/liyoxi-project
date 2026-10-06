@@ -161,3 +161,66 @@ describe("商城公开筛选元数据的精确店员扫描例外", () => {
     rejects({ hasPhone: true }, "m.session.create");
   });
 });
+
+describe("门店公开卖点标签的精确店员扫描例外", () => {
+  const route = "m.storeProfile.service.get";
+  const tag = { code: "service", name: "服务周到" };
+  const scan = (sellingPoints: unknown) => clerkVisibleKeys(route, { sellingPoints });
+
+  it("仅放行顶层 DictRef 数组并继续记录完整子路径", () => {
+    expect(scan([])).toEqual(["sellingPoints"]);
+    expect(scan([tag])).toEqual(["sellingPoints", "sellingPoints[].code", "sellingPoints[].name"]);
+  });
+
+  it.each(["m.storeProfile.get", "m.home.get", "m.drama.get", "m.sample"])(
+    "其它操作 %s 仍拒绝同名字段",
+    (other) => rejects({ sellingPoints: [tag] }, other),
+  );
+
+  it.each([
+    { nested: { sellingPoints: [tag] } },
+    { items: [{ sellingPoints: [tag] }] },
+    { serviceItems: [{ sellingPoints: [tag] }] },
+  ])("嵌套或数组中的同名字段仍拒绝：%j", (data) => rejects(data, route));
+
+  it.each([
+    null,
+    false,
+    100,
+    "100",
+    tag,
+    [null],
+    [false],
+    [100],
+    ["100"],
+    [[]],
+    [{ code: tag.code }],
+    [{ name: tag.name }],
+    [{ ...tag, code: 1 }],
+    [{ ...tag, name: { phone: "13800138001" } }],
+    [{ ...tag, extra: "公开文字" }],
+    [{ ...tag, points: 1 }],
+    [{ ...tag, nested: { balance: 1 } }],
+  ])("错误类型、缺项与多余键均拒绝：%j", (value) => {
+    expect(() => scan(value)).toThrow("店员禁用字段");
+  });
+
+  it("同级与嵌套敏感字段仍拒绝，目录价仅按原完整路径登记", () => {
+    for (const key of [
+      "points",
+      "balance",
+      "amount",
+      "priceFen",
+      "contract",
+      "invoice",
+      "uscc",
+      "license",
+      "phone",
+    ]) {
+      rejects({ sellingPoints: [tag], [key]: 1 }, route);
+      rejects({ sellingPoints: [tag], nested: [{ [key]: 1 }] }, route);
+    }
+    rejects({ sellingPoints: [tag], serviceItems: [{ price: 1000 }] }, route);
+    rejects({ sellingPoints: [tag], nested: { originalPriceFen: 2000 } }, route);
+  });
+});
