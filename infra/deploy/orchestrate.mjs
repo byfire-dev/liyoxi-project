@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // 单机预发：只调登记的节点步骤，不构建镜像、不读取密钥、不启动工作流。
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { appendFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -16,6 +16,7 @@ export const RELEASE_STEPS = [
   "pull",
   "check-env",
   "stage-assets",
+  "verify-assets",
   "migrate",
   "seed",
   "worker-swap",
@@ -24,15 +25,18 @@ export const RELEASE_STEPS = [
   "status",
   "verify-db",
   "smoke",
+  "verify-assets-live",
   "prune",
 ];
 export const ROLLBACK_STEPS = [
+  "verify-assets",
   "api-stop",
   "api-start",
   "worker-swap",
   "status",
   "verify-db",
   "smoke",
+  "verify-assets-live",
 ];
 const UNTAGGED = new Set(["api-stop", "status", "prune", "preflight", "facts"]);
 
@@ -195,7 +199,14 @@ export function orchestrate(
         record.onlineTouched = true;
         record.runtimeTouched = true;
       }
-      call(step, UNTAGGED.has(step) ? [] : [record.version]);
+      call(
+        step,
+        UNTAGGED.has(step)
+          ? []
+          : step === "verify-assets-live" && record.previousVersion
+            ? [record.version, record.previousVersion]
+            : [record.version],
+      );
       if (step === "pull") imageFacts();
     }
     record.result = "success";
@@ -225,7 +236,54 @@ export function orchestrate(
   };
 }
 
-export function main(args, env = process.env) {
+async function startProbe(config, output, env) {
+  const child = spawn(
+    process.execPath,
+    [join(ROOT, "infra/ci/probe-during-deploy.mjs"), "--config", config, "--output", output],
+    { env, stdio: ["ignore", "pipe", "pipe"] },
+  );
+  let detail = "";
+  child.stderr.on("data", (chunk) => {
+    detail = (detail + chunk).slice(-8192);
+  });
+  const ended = new Promise((done) => {
+    child.once("error", (error) => done({ code: 2, error: error.message }));
+    child.once("exit", (code) => done({ code, error: detail }));
+  });
+  await new Promise((done, reject) => {
+    const timeout = setTimeout(() => {
+      child.kill();
+      reject(new Error("持续探测启动超时"));
+    }, 5000);
+    let stdout = "";
+    child.stdout.on("data", (chunk) => {
+      stdout = (stdout + chunk).slice(-8192);
+      if (stdout.includes("LYX_PROBE_READY\n")) {
+        clearTimeout(timeout);
+        done();
+      }
+    });
+    ended.then((result) => {
+      clearTimeout(timeout);
+      reject(new Error(`持续探测未启动：${result.error}`));
+    });
+  });
+  return {
+    stop: async () => {
+      if (child.exitCode === null && child.signalCode === null) child.kill("SIGTERM");
+      const timeout = setTimeout(() => child.kill("SIGKILL"), 5000);
+      const result = await ended;
+      clearTimeout(timeout);
+      if (result.code !== 0) throw new Error(`持续探测异常：${result.error}`);
+      const report = JSON.parse(readFileSync(output, "utf8"));
+      if (report.schemaVersion !== 1 || !report.finishedAt || report.rounds < 1)
+        throw new Error("持续探测缺少完整记录");
+      return report;
+    },
+  };
+}
+
+export async function main(args, env = process.env) {
   const { values } = parseArgs({
     args,
     strict: true,
@@ -240,6 +298,8 @@ export function main(args, env = process.env) {
       local: { type: "boolean", default: false },
       node: { type: "string" },
       summary: { type: "string" },
+      "probe-config": { type: "string" },
+      "probe-summary": { type: "string" },
     },
   });
   if (values.local && values.node) throw new Error("--local 与 --node 只能选一个");
@@ -248,19 +308,47 @@ export function main(args, env = process.env) {
     !["passed", "failed", "unavailable"].includes(values["compat-result"])
   )
     throw new Error("发布标记不合法");
-  const result = orchestrate(
-    {
-      tag: values.tag,
-      rollback: values.rollback,
-      force: values.force,
-      reason: values.reason,
-      overrideP1: values["override-p1"],
-      rollbackSafe: values["rollback-safe"] === "true",
-      compatibility: values["compat-result"],
-      freeze: env.STG_FREEZE === "true",
-    },
-    createChannel({ local: values.local, node: values.node }),
-  );
+  if (Boolean(values["probe-config"]) !== Boolean(values["probe-summary"]))
+    throw new Error("持续探测须同时给 --probe-config 与 --probe-summary");
+  const monitor = values["probe-config"]
+    ? await startProbe(values["probe-config"], values["probe-summary"], env)
+    : null;
+  let result;
+  let probeReport = null;
+  let probeError = "";
+  try {
+    result = orchestrate(
+      {
+        tag: values.tag,
+        rollback: values.rollback,
+        force: values.force,
+        reason: values.reason,
+        overrideP1: values["override-p1"],
+        rollbackSafe: values["rollback-safe"] === "true",
+        compatibility: values["compat-result"],
+        freeze: env.STG_FREEZE === "true",
+      },
+      createChannel({ local: values.local, node: values.node }),
+    );
+  } finally {
+    if (monitor) {
+      try {
+        probeReport = await monitor.stop();
+      } catch (error) {
+        probeError = error instanceof Error ? error.message : "持续探测没保存";
+      }
+    }
+  }
+  result = {
+    ...result,
+    probe: probeReport,
+    probeError,
+    probeStatus: monitor ? "recorded" : "unconfigured",
+  };
+  if (probeError) {
+    result.probeStatus = "failed";
+    result.exitCode = 1;
+  }
   const json = JSON.stringify(result, null, 2);
   if (values.summary) writeFileSync(values.summary, `${json}\n`);
   if (env.GITHUB_STEP_SUMMARY)
@@ -274,7 +362,7 @@ export function main(args, env = process.env) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    process.exitCode = main(process.argv.slice(2));
+    process.exitCode = await main(process.argv.slice(2));
   } catch (error) {
     console.error(error instanceof Error ? error.message : "编排失败");
     process.exitCode = 2;

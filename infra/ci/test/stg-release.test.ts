@@ -172,7 +172,7 @@ esac
       expect(result.p1).toBe("unavailable");
       expect(result.imageDigests.server).toBe(DIGEST);
     }
-    expect(mock.calls.slice(0, 16).map((row) => row.step)).toEqual([
+    expect(mock.calls.slice(0, RELEASE_STEPS.length + 4).map((row) => row.step)).toEqual([
       "facts",
       "preflight",
       "pull",

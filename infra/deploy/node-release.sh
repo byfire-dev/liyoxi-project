@@ -250,3 +250,53 @@ step_prune() {
   done
   say "仅清理本项目旧版本；最近三个成功版本及当前版本受保护，资源至少保留 60 天"
 }
+
+asset_helper() {
+  local runner="$1" mode="$2" stage="$3" network=none access=""
+  shift 3
+  if [ "$mode" = live ]; then network="container:$(container gateway)"; access=,readonly; fi
+  docker run --rm --network "$network" --read-only --user 0:0 --cap-drop ALL --security-opt no-new-privileges:true \
+    --tmpfs /tmp:size=16m \
+    --mount "type=bind,source=$stage,target=/facts/image,readonly" \
+    --mount "type=bind,source=$LYX_NODE_HOME/static,target=/facts/static,readonly" \
+    --mount "type=bind,source=$LYX_NODE_HOME/static/.releases,target=/facts/records$access" \
+    --mount "type=bind,source=$LYX_SRC/infra/deploy/asset-inventory.mjs,target=/helper/deploy/asset-inventory.mjs,readonly" \
+    --mount "type=bind,source=$LYX_SRC/infra/ci/probe-during-deploy.mjs,target=/helper/ci/probe-during-deploy.mjs,readonly" \
+    -e "LYX_ADMIN_HOST=$(setting LYX_ADMIN_HOST)" -e "LYX_PORTAL_HOST=$(setting LYX_PORTAL_HOST)" \
+    --entrypoint node "$(image_name server "$runner")" /helper/deploy/asset-inventory.mjs "$mode" "$@"
+}
+
+capture_assets() (
+  local tag="$1" runner="$2" stage name one
+  stage="$(mktemp -d "$LYX_NODE_HOME/.verify-assets.XXXXXX")" || die "建不了资源核对临时目录"
+  name="${LYX_NODE_PREFIX}-verify-assets-${tag}-$$"
+  cleanup_inventory() {
+    local code=$?
+    trap - EXIT
+    if [ -n "$name" ]; then docker rm "$name" >/dev/null || code=1; fi
+    rm -rf -- "$stage"
+    exit "$code"
+  }
+  trap cleanup_inventory EXIT
+  docker create --name "$name" --network none --read-only --entrypoint /bin/true \
+    "$(image_name gateway "$tag")" >/dev/null || { name=""; die "创建完整资源提取容器失败"; }
+  for one in admin portal; do
+    mkdir -p "$stage/$one"
+    docker cp "$name:/usr/share/nginx/$one/." "$stage/$one" || die "提取完整资源失败：$one"
+  done
+  asset_helper "$runner" capture "$stage" "$tag" || die "完整资源不符：线上未动"
+)
+
+step_verify_assets() {
+  local tag="$1" previous
+  mkdir -p "$LYX_NODE_HOME/static/.releases"
+  capture_assets "$tag" "$tag" || return 1
+  previous="$(current_tag)"
+  if [ -n "$previous" ] && [ "$previous" != "$tag" ]; then
+    need_tag "$previous"
+    capture_assets "$previous" "$tag" || return 1
+  fi
+}
+step_verify_assets_live() {
+  asset_helper "$1" live "$LYX_NODE_HOME/static/.releases" "$@" || die "当前入口或新旧资源不完整"
+}

@@ -40,4 +40,4 @@ export function orchestrate(
   channel: Channel,
   seams?: { clock?: () => number; runId?: string },
 ): Summary;
-export function main(args: string[], env?: NodeJS.ProcessEnv): number;
+export function main(args: string[], env?: NodeJS.ProcessEnv): Promise<number>;
