@@ -7,6 +7,26 @@ export default {
     const cases = [
       [
         "packages/services/src/billing/lyxtest-rounding.ts",
+        "const { Math: math } = globalThis; export const value = math.round(12.5);",
+      ],
+      [
+        "packages/services/src/billing/lyxtest-rounding.ts",
+        'const { ["Math"]: math } = globalThis; export const value = math["round"](12.5);',
+      ],
+      [
+        "packages/services/src/billing/lyxtest-rounding.ts",
+        "const root = globalThis; const { Math: math } = root; export const value = math.round(12.5);",
+      ],
+      [
+        "packages/services/src/billing/lyxtest-rounding.ts",
+        "const { Math: math } = globalThis; const copy = math; const { round } = copy; export const value = round(12.5);",
+      ],
+      [
+        "packages/services/src/billing/lyxtest-rounding.ts",
+        "const { Number: ctor } = globalThis; const { toFixed: fixed } = ctor.prototype; export const value = fixed.call(12.5, 2);",
+      ],
+      [
+        "packages/services/src/billing/lyxtest-rounding.ts",
         "export const value = globalThis.Math.round(12.5);",
       ],
       [
@@ -75,6 +95,22 @@ export default {
         return { status: 0, output: `没有拦住 ${filename}：${input}\n${result.output}` };
     }
     const allowed = [
+      [
+        "packages/services/src/billing/lyxtest-rounding.ts",
+        "const { Math: math } = globalThis; export const value = math.floor(12.5) + math.trunc(12.5);",
+      ],
+      [
+        "packages/services/src/billing/lyxtest-rounding.ts",
+        "const { Math: { floor: round } } = globalThis; export const value = round(12.5);",
+      ],
+      [
+        "packages/services/src/billing/lyxtest-rounding.ts",
+        "const { floor: fn } = Math; export const value = fn.round?.(12.5);",
+      ],
+      [
+        "packages/services/src/billing/lyxtest-rounding.ts",
+        "const { Math: local } = { Math: { round: (value: number) => value } }; export const value = local.round(12.5);",
+      ],
       [
         "packages/services/src/billing/lyxtest-rounding.ts",
         'const math = Math; const method = "min" as const; export const value = math[method](1, 2);',

@@ -38,7 +38,7 @@ export const roundingPlugin = {
           let scope = source.getScope(node);
           while (scope) {
             const variable = scope.set.get(node.name);
-            if (variable) return variable.defs.find((def) => def.type === "Variable")?.node.init;
+            if (variable) return variable.defs.find((def) => def.type === "Variable")?.node;
             scope = scope.upper;
           }
           return undefined;
@@ -47,16 +47,58 @@ export const roundingPlugin = {
           if (!node || depth > 8) return undefined;
           if (node.type === "TSAsExpression" || node.type === "TSSatisfiesExpression")
             return constant(node.expression, depth + 1);
-          return node.type === "Identifier" ? constant(binding(node), depth + 1) : keyOf(node);
+          if (node.type !== "Identifier") return keyOf(node);
+          const definition = binding(node);
+          return definition?.id.type === "Identifier"
+            ? constant(definition.init, depth + 1)
+            : undefined;
         };
         const propertyOf = (node) =>
           node.computed ? constant(node.property ?? node.key) : keyOf(node.property ?? node.key);
-        const isMath = (node, depth = 0) => {
-          if (!node || depth > 8) return false;
-          if (node.type === "MemberExpression") return propertyOf(node) === "Math";
-          return (
-            node.type === "Identifier" && (node.name === "Math" || isMath(binding(node), depth + 1))
-          );
+        // 解构别名属于具体属性：{ Math: math } 的来源是 globalThis.Math，
+        // { floor: fn } 的来源是 Math.floor，不能把这两个变量都当成整个 initializer。
+        const patternKeys = (pattern, name) => {
+          if (pattern.type !== "ObjectPattern") return undefined;
+          for (const property of pattern.properties) {
+            if (property.type !== "Property") continue;
+            const key = propertyOf(property);
+            if (typeof key !== "string") continue;
+            const value =
+              property.value.type === "AssignmentPattern" ? property.value.left : property.value;
+            if (value.type === "Identifier" && value.name === name) return [key];
+            const nested = patternKeys(value, name);
+            if (nested) return [key, ...nested];
+          }
+          return undefined;
+        };
+        const pathOf = (node, depth = 0) => {
+          if (!node || depth > 8) return undefined;
+          if (node.type === "TSAsExpression" || node.type === "TSSatisfiesExpression")
+            return pathOf(node.expression, depth + 1);
+          if (node.type === "MemberExpression") {
+            const owner = pathOf(node.object, depth + 1);
+            const property = propertyOf(node);
+            return owner && typeof property === "string" ? [...owner, property] : undefined;
+          }
+          if (node.type !== "Identifier") return undefined;
+          const definition = binding(node);
+          if (!definition) return [node.name];
+          const owner = pathOf(definition.init, depth + 1);
+          if (definition.id.type === "Identifier") return owner;
+          const keys = patternKeys(definition.id, node.name);
+          return owner && keys ? [...owner, ...keys] : undefined;
+        };
+        const isMathPath = (path) =>
+          ["Math", "globalThis.Math", "global.Math", "window.Math"].includes(path?.join("."));
+        const patternPath = (pattern) => {
+          const parent = pattern.parent;
+          if (parent.type === "VariableDeclarator") return pathOf(parent.init);
+          if (parent.type === "AssignmentExpression") return pathOf(parent.right);
+          if (parent.type !== "Property" || parent.parent.type !== "ObjectPattern")
+            return undefined;
+          const owner = patternPath(parent.parent);
+          const key = propertyOf(parent);
+          return owner && typeof key === "string" ? [...owner, key] : undefined;
         };
         const filename = context.filename.replaceAll("\\", "/");
         const except = Object.entries(timingExpressions).find(([path]) =>
@@ -78,20 +120,17 @@ export const roundingPlugin = {
             if (
               property === "toFixed" ||
               property === "parseFloat" ||
-              (property === "round" && isMath(node.object))
+              (property === "round" && isMathPath(pathOf(node.object)))
             )
               report(node);
           },
           ObjectPattern(node) {
-            const parent = node.parent;
-            const object = parent.type === "VariableDeclarator" ? parent.init : parent.right;
             for (const property of node.properties) {
               const name = propertyOf(property);
               if (
                 name === "toFixed" ||
                 name === "parseFloat" ||
-                (name === "round" &&
-                  (isMath(object) || (parent.type === "Property" && propertyOf(parent) === "Math")))
+                (name === "round" && isMathPath(patternPath(node)))
               )
                 report(property);
             }
