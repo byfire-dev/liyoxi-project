@@ -74,9 +74,11 @@ function Assignment({
   const submit = async () => {
     if (!live.current || !staffId || note.length > 100) return;
     const body = { staffId, ...(note.trim() ? { note: note.trim() } : {}) };
+    let started = false;
     try {
       const result = await intent({ id: row.deliveryTicketId, body }, async (key) => {
         if (!live.current) return null;
+        started = true;
         setPending(true);
         setError(undefined);
         return api.assign(row.deliveryTicketId, body, key);
@@ -100,7 +102,7 @@ function Assignment({
       )
         onSuccess();
     } finally {
-      if (live.current) setPending(false);
+      if (started && live.current) setPending(false);
     }
   };
   return (

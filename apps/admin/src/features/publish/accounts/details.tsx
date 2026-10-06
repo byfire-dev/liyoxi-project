@@ -60,11 +60,13 @@ export function AccountDetails({
   ): Promise<QueueActionResult> => {
     if (!live.current || !mutable || !detail.actions.includes(kind))
       return { outcome: "failed", message: "当前事项已变化，请重新核对" };
+    let started = false;
     try {
       const result = await intent(
         { id: detail.channelAccountSubmissionId, kind, body },
         async (key) => {
           if (!live.current) return null;
+          started = true;
           setPending(true);
           setFailure(undefined);
           return kind === "approve" && "lockVersion" in body
@@ -101,7 +103,7 @@ export function AccountDetails({
       setFailure(message);
       return { outcome: "failed", message };
     } finally {
-      if (live.current) setPending(false);
+      if (started && live.current) setPending(false);
     }
   };
   useEffect(() => {

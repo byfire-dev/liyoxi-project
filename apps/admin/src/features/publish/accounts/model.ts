@@ -78,7 +78,7 @@ export function approveBody(
   )
     return null;
   if (detail.approval.confirmChecks.some((key) => !checked.includes(`confirm:${key}`))) return null;
-  if (!(draft.account_type.recognized in accountTypes)) return null;
+  if (!Object.hasOwn(accountTypes, draft.account_type.recognized)) return null;
   if (template?.items.some((item) => item.required && !checked.includes(item.key))) return null;
   return {
     lockVersion: detail.approval.lockVersion,
