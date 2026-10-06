@@ -7,6 +7,7 @@ import {
   fileRefTypePort,
   implementKeyed,
   implementMerchantFacts,
+  notifyReadPort,
 } from "../kernel/index.js";
 import { accountKind, launchKind } from "./write.js";
 import { publishMachines } from "./machines.js";
@@ -14,12 +15,15 @@ import { launchChangedPort, launchHandlerPort } from "./ports.js";
 import { findPublishViolations, PUBLISH_INVARIANT_CODES } from "./invariants.js";
 import { launchInclude, accountInclude } from "./repo.js";
 import { accountCard, todo } from "./views.js";
+import { channelAccountForNotify, launchTaskForNotify } from "./notify-read.js";
 export const registration = defineRegistration("publish", {
   ports: [launchChangedPort, launchHandlerPort],
   portImplementations: [
     ...publishMachines,
     implementKeyed(approvalKindPort, "channel_account", accountKind),
     implementKeyed(approvalKindPort, "launch_link", launchKind),
+    implementKeyed(notifyReadPort, "channelAccountForNotify", channelAccountForNotify),
+    implementKeyed(notifyReadPort, "launchTaskForNotify", launchTaskForNotify),
     implementKeyed(fileCategoryGuardPort, "evidence", {
       async assert(_tx, actor) {
         if (

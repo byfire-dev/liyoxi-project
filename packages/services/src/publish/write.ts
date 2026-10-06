@@ -250,8 +250,8 @@ export async function submitLaunch(
       launchTaskId: id,
       roundNo,
       linkKind: body.linkKind,
-      collectionUrl: body.linkKind === "collection" ? body.collectionUrl! : null,
-      ...(body.linkKind === "episodes" ? { episodeUrls: body.episodeUrls! } : {}),
+      collectionUrl: body.collectionUrl ?? null,
+      ...(body.episodeUrls ? { episodeUrls: body.episodeUrls } : {}),
       reportedEpisodeCount: body.reportedEpisodeCount,
       actualLaunchDate: new Date(`${body.actualLaunchDate}T00:00:00Z`),
       submitActorType: "merchant",
@@ -296,6 +296,7 @@ export interface CreateLaunchTasksInput {
   deliveryTicketId: string;
   channelAccountIds: readonly string[];
 }
+/** delivery 已完成成片推送的四项守卫；调用方在 release210 前先锁所选账号190。 */
 export async function createLaunchTasks(
   tx: Tx,
   deps: PublishDeps,
@@ -318,7 +319,6 @@ export async function createLaunchTasks(
     !["delivering", "awaiting_launch", "launch_verify", "in_service"].includes(ticket.step)
   )
     throw new AppError("STATE_NOT_ALLOWED");
-  await gate(tx, item.storeId, true);
   const ids: string[] = [];
   for (const accountId of [...new Set(input.channelAccountIds)].sort()) {
     const a = await accountOf(tx, accountId),
@@ -331,7 +331,7 @@ export async function createLaunchTasks(
       !selected ||
       a.storeId !== item.storeId ||
       a.entityId !== item.entityId ||
-      a.status !== "available"
+      a.status === "unbound"
     )
       throw new AppError("PRECONDITION_CHANGED");
     const old = await tx.launchTask.findUnique({

@@ -128,16 +128,16 @@ export function submittedLinks(task: TaskRow, body: LaunchTaskSubmitBody, now: D
     } catch {
       throw bad(field, "unparsable");
     }
-    if (parsed.protocol !== "https:") throw bad(field, "not_https");
+    if (parsed.protocol !== "https:" || !parsed.hostname) throw bad(field, "not_https");
     if (parsed.username || parsed.password) throw bad(field, "has_credentials");
   };
-  if (body.linkKind === "collection") {
-    if (!body.collectionUrl || body.episodeUrls?.length)
-      throw invalid("collectionUrl", "合集回填只填写合集链接");
-    url(body.collectionUrl, "collectionUrl");
-  } else {
-    if (!body.episodeUrls?.length || body.collectionUrl)
-      throw invalid("episodeUrls", "逐集回填只填写逐集链接");
+  if (body.linkKind === "collection" && !body.collectionUrl)
+    throw invalid("collectionUrl", "合集回填须填写合集链接");
+  if (body.linkKind === "episodes" && !body.episodeUrls?.length)
+    throw invalid("episodeUrls", "逐集回填须填写逐集链接");
+  if (body.collectionUrl !== undefined) url(body.collectionUrl, "collectionUrl");
+  if (body.episodeUrls !== undefined) {
+    if (!body.episodeUrls.length) throw invalid("episodeUrls", "逐集链接至少一条");
     const keys = new Set<number>();
     for (const [i, ep] of body.episodeUrls.entries()) {
       if (keys.has(ep.episodeNo)) throw bad(`episodeUrls.${i}.episodeNo`, "duplicate_episode");

@@ -1,5 +1,6 @@
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { useSeededDatabase } from "../testing/index.js";
+import { notifyReadOf } from "../kernel/index.js";
 import { harness } from "./__fixtures__/harness.js";
 import type { Harness } from "./__fixtures__/harness.js";
 const db = useSeededDatabase("services");
@@ -54,6 +55,10 @@ describe("publish 账号与上线真实事务", { timeout: 60000 }, () => {
       where: { channelAccountId: card.channelAccountId },
     });
     const rows = (await h.approveBody(first.id)).compareRows;
+    const notify = notifyReadOf(h.assembly);
+    expect(
+      await h.tx.run((tx) => notify.read(tx, "channelAccountForNotify", card.channelAccountId)),
+    ).toMatchObject({ channelAccountId: card.channelAccountId, status: "pending_verify" });
     await h.publish.rejectAccount(admin.ctx, admin.staff, first.id, {
       reasonCode: "R12",
       note: "请补完整主页",
@@ -117,6 +122,9 @@ describe("publish 账号与上线真实事务", { timeout: 60000 }, () => {
     expect(events.map((e) => e.eventType).sort()).toEqual(
       ["account.abnormal", "account.submitted", "account.submitted", "account.verified"].sort(),
     );
+    expect(
+      await h.tx.run((tx) => notify.read(tx, "channelAccountForNotify", card.channelAccountId)),
+    ).toMatchObject({ status: "available", reasonCode: null, note: null });
   });
   it("账号两财务式并发决定仅一次迁移", async () => {
     const { viewer } = await h.owner(),
@@ -160,6 +168,7 @@ describe("publish 账号与上线真实事务", { timeout: 60000 }, () => {
     const body = {
       linkKind: "collection" as const,
       collectionUrl: "https://example.invalid/test",
+      episodeUrls: [{ episodeNo: 1, url: "https://example.invalid/1" }],
       reportedEpisodeCount: 2,
       actualLaunchDate: "2026-01-04",
     };
@@ -188,6 +197,7 @@ describe("publish 账号与上线真实事务", { timeout: 60000 }, () => {
     let r = await h.prisma.launchSubmission.findFirstOrThrow({
       where: { launchTaskId: taskId, roundNo: 1 },
     });
+    expect(r).toMatchObject({ collectionUrl: body.collectionUrl, episodeUrls: body.episodeUrls });
     expect(h.changes.at(-1)).toMatchObject({ hasVerifying: true, hasLive: false });
     await h.publish.approveLaunch(admin.ctx, admin.staff, r.id, await h.launchBody(r.id, 2));
     const first = await h.prisma.launchTask.findUniqueOrThrow({ where: { id: taskId } });
@@ -237,6 +247,9 @@ describe("publish 账号与上线真实事务", { timeout: 60000 }, () => {
       firstLaunchDate: "2026-01-02",
     });
     expect(
+      await h.tx.run((tx) => notifyReadOf(h.assembly).read(tx, "launchTaskForNotify", taskId)),
+    ).toMatchObject({ isLive: true, verifiedEpisodeCount: 3, firstLaunchDate: "2026-01-02" });
+    expect(
       await h.prisma.statusTransition.count({
         where: { subjectId: taskId, stateField: "review_status" },
       }),
@@ -278,6 +291,7 @@ it("部分上线参数假、暂停核验仍可退回；游标稳定且绑定筛�
   });
   const body = {
     linkKind: "episodes" as const,
+    collectionUrl: "https://example.invalid/collection",
     episodeUrls: [{ episodeNo: 1, url: "https://example.invalid/1" }],
     reportedEpisodeCount: 1,
     actualLaunchDate: "2026-01-04",
@@ -286,6 +300,7 @@ it("部分上线参数假、暂停核验仍可退回；游标稳定且绑定筛�
   let round = await h.prisma.launchSubmission.findFirstOrThrow({
     where: { launchTaskId: id, roundNo: 1 },
   });
+  expect(round).toMatchObject({ collectionUrl: body.collectionUrl, episodeUrls: body.episodeUrls });
   await h.prisma.deliveryTicket.update({
     where: { id: fixture.ticket.id },
     data: { pauseCount: 1, pausedAt: h.clock.now() },
