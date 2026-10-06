@@ -390,6 +390,8 @@ await runMain(async () => {
       "SET session_replication_role = replica; DELETE FROM dict_item WHERE code = 'lyx_rehearse'",
     );
     step("seed", config.tag);
+    // gateway 的 assets 已改为宿主机只读挂载；首次启动也须先填好两个目录。
+    step("stage-assets", config.tag);
     step("up", config.tag);
     step("status");
     check(
