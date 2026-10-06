@@ -272,6 +272,18 @@ export const CLERK_SAMPLES: readonly Sample[] = [
         headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
       }),
   })),
+  ...[
+    ["m.orderItem.sample.get", "GET", `/m/order-items/${uuidv7()}/sample`],
+    ["m.sample.confirm", "POST", `/m/samples/${uuidv7()}/confirm`],
+  ].map(([operationId, method, path]): Sample => ({
+    operationId: operationId!,
+    play: (api, ctx) =>
+      api.request(`/api/v1${path}`, {
+        method,
+        ...(method === "POST" ? { json: {} } : {}),
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      }),
+  })),
   ...mallClerkSamples,
   ...orderClerkSamples,
   // 退出会吊销当前凭据，放到这一份样例的最后。其它样例不得靠退出后的身份。

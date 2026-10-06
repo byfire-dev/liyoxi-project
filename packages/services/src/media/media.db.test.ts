@@ -232,10 +232,29 @@ describe("W1-07 文件生命周期", { timeout: 60_000 }, () => {
     await expect(register(archived, "pay_receipt")).resolves.toHaveProperty("items");
     await expect(
       media.register(staff, {
-        category: "sample_video",
+        category: "ad_video",
         files: [{ fileName: "x.mp4", sizeBytes: "8", clientToken: uuidv7() }],
       }),
     ).rejects.toMatchObject({ error: "FILE_CATEGORY_NOT_ALLOWED" });
+    const counts = () =>
+      Promise.all([
+        prisma.fileObject.count(),
+        prisma.productionRecord.count(),
+        prisma.fileRef.count(),
+        prisma.mediaJob.count(),
+        prisma.outboxEvent.count(),
+        prisma.statusTransition.count(),
+      ]);
+    const rejectedBefore = await counts();
+    for (const category of ["sample_video", "final_episode"] as const)
+      await expect(
+        media.register(staff, {
+          category,
+          storeId: actor.merchant!.storeId,
+          files: [{ fileName: "missing-context.mp4", sizeBytes: "8", clientToken: uuidv7() }],
+        }),
+      ).rejects.toMatchObject({ error: "VALIDATION_FAILED" });
+    expect(await counts()).toEqual(rejectedBefore);
     const first = await registered();
     await expect(media.getMerchant(actorOther, first.fileId)).rejects.toMatchObject({
       error: "NOT_FOUND",

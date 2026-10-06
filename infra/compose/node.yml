@@ -230,6 +230,9 @@ services:
       MEDIA_ORIGINS: ${LYX_MEDIA_ORIGINS:-}
     ports:
       - "127.0.0.1:${LYX_GATEWAY_PORT:-8080}:8080"
+    volumes:
+      - ${LYX_NODE_HOME:-/opt/liyoxi}/static/admin/assets:/usr/share/nginx/admin/assets:ro
+      - ${LYX_NODE_HOME:-/opt/liyoxi}/static/portal/assets:/usr/share/nginx/portal/assets:ro
     mem_limit: 64m
     stop_grace_period: 60s
     restart: "no"

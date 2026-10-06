@@ -98,7 +98,7 @@ sudo bash /opt/liyoxi/infra/bootstrap/db-init.sh
 ```sh
 TAG=sha-<12 位提交号>          # images.yml 推上去的那个标签
 S=/opt/liyoxi/infra/deploy/node-step.sh
-sudo $S pull $TAG && sudo $S check-env $TAG && sudo $S migrate $TAG && sudo $S seed $TAG && sudo $S up $TAG && sudo $S status
+sudo $S pull $TAG && sudo $S check-env $TAG && sudo $S stage-assets $TAG && sudo $S migrate $TAG && sudo $S seed $TAG && sudo $S up $TAG && sudo $S status
 sudo $S verify-db $TAG
 ```
 
@@ -108,6 +108,7 @@ sudo $S verify-db $TAG
 | --- | --- | --- |
 | `pull` | `== 镜像已拉取：标签 …` | 线上没有动。查镜像仓库的登录（`docker login` 由业主在节点上做一次）与 `node.env` 的前缀 |
 | `check-env` | `== 环境变量自检通过` | 线上没有动。上面逐条是“键名: 原因”，不带值：照它补密钥文件 |
+| `stage-assets` | `== 静态资源已预置且没有覆盖：…` | 线上进程没换。gateway 的 assets 是宿主机只读挂载，首次 up 前也须预置；提取、同名内容冲突或清场失败时不要迁移 |
 | `migrate` | `== 迁移完成` | 正在跑的容器没有动。首次失败（库是空的）可以照第 3 步的回退删卷重来 |
 | `seed` | `播种完成：新增 N 行`、`断言：0 条违规`、`== 播种完成，断言 0 违规`；再跑一遍 N 是 0 | 退出码 1 = 配置类断言有违规（上面逐条 `违规 <编号> …`），**不要往下起容器**，把那几行回传；2 = 环境不对或连不上库 |
 | `up` | `== 六个容器都在跑且健康：标签 …` | `sudo $S status` 看是哪个，`sudo docker logs --tail 50 lyx-<名字>` 看原因 |

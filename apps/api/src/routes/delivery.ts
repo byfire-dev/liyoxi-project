@@ -17,6 +17,24 @@ import {
   AdminDeliveryPlanWriteResultSchema,
   DeliveryPlanDetailSchema,
   DeliveryPlanWriteResultSchema,
+  adminDeliveryTicketSampleCreate,
+  adminSampleInspect,
+  adminSamplePush,
+  mOrderItemSampleGet,
+  mSampleConfirm,
+  adminDeliveryTicketEpisodeOutputList,
+  adminDeliveryTicketEpisodeOutputCreate,
+  adminDeliveryTicketInspectEpisodes,
+  adminDeliveryTicketInspectPackage,
+  adminDeliveryTicketPushPackage,
+  AdminSampleWriteResultSchema,
+  SampleViewSchema,
+  SampleWriteResultSchema,
+  EpisodeGridSchema,
+  EpisodeRegisterResultSchema,
+  InspectEpisodesResultSchema,
+  InspectPackageResultSchema,
+  PushPackageResultSchema,
 } from "@liyoxi/contract";
 import { AppError, createDelivery, createSla } from "@liyoxi/services";
 import type { Delivery, DeliveryViewer, Runtime } from "@liyoxi/services";
@@ -27,6 +45,7 @@ import { idemOf } from "../http/idempotency.js";
 import { merchantServicesOf } from "../merchant/services.js";
 import { defineHandler } from "../routing/define.js";
 import { defineAdminHandler } from "../routing/admin.js";
+import { publishOf } from "./publish.js";
 const built = new WeakMap<Runtime, Delivery>();
 export function deliveryOf(runtime: Runtime) {
   let service = built.get(runtime);
@@ -41,6 +60,9 @@ export function deliveryOf(runtime: Runtime) {
       media,
       sla: createSla({ clock, assembly }),
       profile: merchantServicesOf(runtime).profile,
+      publish: publishOf(runtime),
+      samplePlayback: (entityId) =>
+        runtime.config.flags.isEnabled("weapp.video.sample.enabled", { entityId }),
     });
     built.set(runtime, service);
   }
@@ -52,7 +74,141 @@ const viewer = (c: Context<ApiEnv>): DeliveryViewer => {
 };
 const read = { module: "delivery", need: "view" } as const;
 const edit = { module: "delivery", need: "edit" } as const;
+const privateOk = <T>(c: Context<ApiEnv>, data: T) => {
+  c.header("Cache-Control", "no-store");
+  return ok(c, data);
+};
 export const deliveryHandlers = [
+  defineAdminHandler(adminDeliveryTicketSampleCreate, edit, async (c, s) =>
+    privateOk(
+      c,
+      AdminSampleWriteResultSchema.parse(
+        await deliveryOf(c.var.runtime).sampleCreate(
+          c.var.identity!,
+          s.ctx,
+          c.req.valid("param").deliveryTicketId,
+          c.req.valid("json"),
+          { idem: idemOf(c) },
+        ),
+      ),
+    ),
+  ),
+  defineAdminHandler(adminSampleInspect, edit, async (c, s) =>
+    privateOk(
+      c,
+      AdminSampleWriteResultSchema.parse(
+        await deliveryOf(c.var.runtime).sampleInspect(
+          c.var.identity!,
+          s.ctx,
+          c.req.valid("param").sampleId,
+          c.req.valid("json"),
+          { idem: idemOf(c) },
+        ),
+      ),
+    ),
+  ),
+  defineAdminHandler(adminSamplePush, edit, async (c, s) =>
+    privateOk(
+      c,
+      AdminSampleWriteResultSchema.parse(
+        await deliveryOf(c.var.runtime).samplePush(
+          c.var.identity!,
+          s.ctx,
+          c.req.valid("param").sampleId,
+          c.req.valid("json"),
+          { idem: idemOf(c) },
+        ),
+      ),
+    ),
+  ),
+  defineHandler(mOrderItemSampleGet, async (c) => {
+    c.header("Cache-Control", "no-store");
+    return ok(
+      c,
+      SampleViewSchema.parse(
+        await deliveryOf(c.var.runtime).merchantSample(viewer(c), c.req.valid("param").orderItemId),
+      ),
+    );
+  }),
+  defineHandler(mSampleConfirm, async (c) =>
+    privateOk(
+      c,
+      SampleWriteResultSchema.parse(
+        await deliveryOf(c.var.runtime).sampleConfirm(
+          viewer(c),
+          c.req.valid("param").sampleId,
+          c.req.valid("json"),
+          { idem: idemOf(c) },
+        ),
+      ),
+    ),
+  ),
+  defineAdminHandler(adminDeliveryTicketEpisodeOutputList, read, async (c, s) => {
+    c.header("Cache-Control", "no-store");
+    return ok(
+      c,
+      EpisodeGridSchema.parse(
+        await deliveryOf(c.var.runtime).episodes(s.ctx, c.req.valid("param").deliveryTicketId),
+      ),
+    );
+  }),
+  defineAdminHandler(adminDeliveryTicketEpisodeOutputCreate, edit, async (c, s) =>
+    ok(
+      c,
+      EpisodeRegisterResultSchema.parse(
+        await deliveryOf(c.var.runtime).episodeRegister(
+          c.var.identity!,
+          s.ctx,
+          c.req.valid("param").deliveryTicketId,
+          c.req.valid("json"),
+          { idem: idemOf(c) },
+        ),
+      ),
+    ),
+  ),
+  defineAdminHandler(adminDeliveryTicketInspectEpisodes, edit, async (c, s) =>
+    ok(
+      c,
+      InspectEpisodesResultSchema.parse(
+        await deliveryOf(c.var.runtime).episodeInspect(
+          c.var.identity!,
+          s.ctx,
+          c.req.valid("param").deliveryTicketId,
+          c.req.valid("json"),
+          { idem: idemOf(c) },
+        ),
+      ),
+    ),
+  ),
+  defineAdminHandler(adminDeliveryTicketInspectPackage, edit, async (c, s) =>
+    ok(
+      c,
+      InspectPackageResultSchema.parse(
+        await deliveryOf(c.var.runtime).packageInspect(
+          c.var.identity!,
+          s.ctx,
+          c.req.valid("param").deliveryTicketId,
+          c.req.valid("json"),
+          { idem: idemOf(c) },
+        ),
+      ),
+    ),
+  ),
+  defineAdminHandler(adminDeliveryTicketPushPackage, edit, async (c, s) =>
+    ok(
+      c,
+      PushPackageResultSchema.parse(
+        await deliveryOf(c.var.runtime).packagePush(
+          c.var.identity!,
+          s.ctx,
+          c.req.valid("param").deliveryTicketId,
+          c.req.valid("json"),
+          { idem: idemOf(c) },
+        ),
+      ),
+    ),
+  ),
+
   defineAdminHandler(adminDeliveryTicketList, read, async (c, s) => {
     c.header("Cache-Control", "no-store");
     return ok(

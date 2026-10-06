@@ -4,6 +4,7 @@ import { AppError, createIdentityContext, invariantsOf, lockRows } from "../kern
 import type { IdentityContext, Tx } from "../kernel/index.js";
 import type { DeliveryCoreDeps } from "./context.js";
 import { checked } from "./machines.js";
+import { prefillPublishList } from "./publish-list.js";
 import { orderSidePort } from "./ports.js";
 import { dateOf, lockTickets, ticketOf } from "./repo.js";
 import type { TicketRow } from "./repo.js";
@@ -45,7 +46,7 @@ export async function planApplied(tx: Tx, dramaOrderId: string, snapshot: unknow
     return false;
   return true;
 }
-async function step(
+export async function step(
   tx: Tx,
   deps: DeliveryCoreDeps,
   ctx: IdentityContext,
@@ -140,6 +141,7 @@ export async function reevaluate(
         await step(tx, deps, ctx, t, "episodes.all_passed", "delivering", "10:180", {
           composed_at: deps.clock.now(),
         });
+        await prefillPublishList(tx, deps, await ticketOf(tx, ticketId));
         moved++;
         continue;
       }

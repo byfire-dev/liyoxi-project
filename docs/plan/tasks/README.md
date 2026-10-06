@@ -195,6 +195,7 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 | — | W1-09、W1-12、W1-19、W1-20 | 真实后台验收复用 `pnpm admin:e2e:live`：造数在 services/testing/admin-live 新增 *.fixture.ts，单进程顺序共享 make/runtime；浏览器只新增 live-*.spec.ts，由项目依赖复用 storageState。不改起栈脚本或配置，不从前端导入服务端。G2-0 接 mask/validateSearch，G2-A 补用户菜单两项与员工操作 | W1-02①；apps/admin/README.md；任务书第 9 节 |
 
 | — | W1-17；W1-16a PR2；G2-A | W1-16a PR1 公共 createTickets/prepareTicketAssignees、reevaluate 与按订单项工单/按订购单方案摘要可复用；开工须同 TX 先 staff20 prepare（同 TX/order 重入无计数变化，main pickNext 无游标/计数写），后 store130/order160/item170/account420，create 只重入预持父锁及 INSERT，传首 capture 返回 Tf 给 at。确认需注册 orderSidePort.applyConfirmedPlan，default INTERNAL；rederive 在新步骤写入后同 TX 调，稳态上线事实也回调且带 launchFacts，不重开事务。方案应用前父锁和选中账号190已持，不能 release210 后首次补锁账号。PR2 补样片/包写侧及相应详情聚合/I7–13/I15；G2-A 补工单三负责人在办来源端口，当前 main 未注册，承接 W1-01b M2 既有留桩 | W1-16a 第 7、9、10 节；10 分组 第 2.1、5 节；W1-01b 第 7、9 节 |
+| — | W1-16b；W1-19、W1-20、W1-21；G3-A、G5-A、G6-A | W1-16a PR2 十接口交样片、逐集/包质检与成片包。media 公开 ensureProductionStubs/consumeFinalReleaseBatch/recordAdoptedStoreAssets；批次消费是真实 ready final_release 行与引用交接，上游批次管理 API 仍待 G3-A。M1 只桥接本上下文人工无 AI，已有 mediaInfo 才回写时长/尺寸；无时长 uploaded 的 QC 受控拒绝零写，真实探测/水印留 G3-A。W1-19 live 造数须明确已知媒体事实并标注替身。W1-16b 写访问证据，GET 与确认不制造 evidence；G5-A 替换首次登记认领；G6-A 接清单编辑、ZIP 与到期定时器 | W1-16a 第 7、10 节；a05 第 3.30、3.38、3.39 节；m05 第 3.8、3.9 节 |
 | — | W1-12、W1-18、W1-19、W1-20 | W1-09 分类上传入口：`lib/upload/taro.ts` 的 prepareTaroFile/createTaroUpload/useUploadBusy，纯编排 queue.ts 与生成 DTO 的 api.ts。pay_receipt 图片/PDF、channel_screenshot 及 licenseKind 复用；非图片/视频精确上限由登记 API 判，post 之外给小文件/代传说明；切店/退出取消、暂停可恢复，原 token/确认意图沿重试。审核 CompareTable/RejectDialog 仍私有，第二调用方先走构件 PR 提升 | W1-09 状态与本包 PR；原第 41 行归属不变 |
 
 ## 6. 任务书加的前置（计划依赖列没有）
@@ -233,6 +234,7 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 | W1-18 | PR 1、PR 2 | 1 首页、商城、详情、选剧单；2 确认订购、订单、发布账号 | 无 |
 | W1-19 | PR 1、PR 2 | 1 订购单两页、工单池、账号核验；2 工单详情与表单、交付主路径的 Playwright | 无 |
 | W1-23、W2-25、W2-27 | a、b 两步 | 见各任务书第 9 节 | W2-26 只等 W2-25 的第一步；W2-29 只等 W2-27 的第一步 |
+| W2-26 | a、b 两步 | a 节点步骤、通道编排、回滚与测试；b 持续探测、发布加回滚演练、上传体验版、完整结构核对与工作流；按任务书第 9 节预拆，见 [变更](../changes/W2-26-split-a-b.md) | 无：下游等整包 |
 
 体量仍超上限而没有再拆的三处，由调度会话在 PR 上定，会话不停下：W1-04 的 ①（约 1,100 行）、W1-15 的 a（约 1,200 行，只有“确认订购”一个机制）、W1-08 的 a（约 1,900 行，乙类按接口数 13 条不超）。
 

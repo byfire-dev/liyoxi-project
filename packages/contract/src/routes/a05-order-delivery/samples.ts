@@ -2,13 +2,22 @@
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { adminMeta } from "../meta-only.js";
 
-export const adminSampleInspect = adminMeta({
+export const adminSampleInspect = adminRoute({
   method: "post",
   path: "/admin/samples/{sampleId}/inspect",
   operationId: "admin.sample.inspect",
   summary: "样片质检：逐项清单结果，通过或不通过（注明原因）",
   "x-permission": "delivery.sample.qc",
   "x-idempotent": "required",
+  request: {
+    params: SampleParamSchema,
+    body: { required: true, content: { "application/json": { schema: SampleInspectBodySchema } } },
+  },
+  responses: {
+    ...okResponse(AdminSampleWriteResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
+  "x-redact-on-replay": ["preview", "decision.feedbackImages"],
 });
 
 export const adminSampleMarkSent = adminMeta({
@@ -20,7 +29,7 @@ export const adminSampleMarkSent = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminSamplePush = adminMeta({
+export const adminSamplePush = adminRoute({
   method: "post",
   path: "/admin/samples/{sampleId}/push",
   operationId: "admin.sample.push",
@@ -28,6 +37,15 @@ export const adminSamplePush = adminMeta({
     "推送样片给商家确认（previewChannels：小程序不播放时提供水印版存相册、电脑端或企业微信）",
   "x-permission": "delivery.sample.push",
   "x-idempotent": "required",
+  request: {
+    params: SampleParamSchema,
+    body: { required: true, content: { "application/json": { schema: SamplePushBodySchema } } },
+  },
+  responses: {
+    ...okResponse(AdminSampleWriteResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
+  "x-redact-on-replay": ["preview", "decision.feedbackImages"],
 });
 
 export const adminSampleRequestChange = adminMeta({
@@ -39,3 +57,12 @@ export const adminSampleRequestChange = adminMeta({
   "x-permission": "delivery.sample.feedback_on_behalf",
   "x-idempotent": "required",
 });
+
+import { adminRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  SampleParamSchema,
+  SampleInspectBodySchema,
+  SamplePushBodySchema,
+  AdminSampleWriteResultSchema,
+} from "./production.schemas.js";
