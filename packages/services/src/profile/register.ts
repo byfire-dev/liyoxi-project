@@ -7,12 +7,13 @@ import {
 } from "../kernel/index.js";
 import type { ExpectedFileRef } from "../kernel/index.js";
 import { findViolations, PROFILE_INVARIANT_CODES } from "./invariants.js";
+import { adminProfileFactsPort } from "./admin-ports.js";
 import { deliveryManagerPort, orderManagerPort } from "./ports.js";
 import { qualificationKind } from "./qualification-kind.js";
 import { dictRef, snapshot } from "./repo.js";
 
 export const registration = defineRegistration("profile", {
-  ports: [orderManagerPort, deliveryManagerPort],
+  ports: [orderManagerPort, deliveryManagerPort, adminProfileFactsPort],
   portImplementations: [
     implementKeyed(approvalKindPort, "qualification", qualificationKind),
     implementMerchantFacts("profile", async (tx, query) => {

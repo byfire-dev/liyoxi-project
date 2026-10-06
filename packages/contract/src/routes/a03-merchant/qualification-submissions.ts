@@ -1,8 +1,16 @@
 // 后台：商家、资质审核与素材复核 · qualification-submissions（docs/api/a03-merchant.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { adminMeta } from "../meta-only.js";
+import { adminRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  QualificationSubmissionDetailSchema,
+  QualificationApproveBodySchema,
+  QualificationRejectBodySchema,
+  QualificationSubmissionParamsSchema,
+} from "./qualification.schemas.js";
 
-export const adminQualificationSubmissionGet = adminMeta({
+export const adminQualificationSubmissionGet = adminRoute({
   method: "get",
   path: "/admin/qualification-submissions/{qualificationSubmissionId}",
   operationId: "admin.qualificationSubmission.get",
@@ -10,18 +18,34 @@ export const adminQualificationSubmissionGet = adminMeta({
     "资质提交详情（审核页右栏）：本轮证照与识别字段（脱敏）、系统比对结论、修正记录、历次审核与审批单引用",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: QualificationSubmissionParamsSchema },
+  responses: {
+    ...okResponse(QualificationSubmissionDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409),
+  },
 });
 
-export const adminQualificationSubmissionApprove = adminMeta({
+export const adminQualificationSubmissionApprove = adminRoute({
   method: "post",
   path: "/admin/qualification-submissions/{qualificationSubmissionId}/approve",
   operationId: "admin.qualificationSubmission.approve",
   summary: "资质审核通过（initial 轮次门店与主体认证生效；change 轮次保持已认证）",
   "x-permission": "merchant.qualification.review",
   "x-idempotent": "required",
+  request: {
+    params: QualificationSubmissionParamsSchema,
+    body: {
+      content: { "application/json": { schema: QualificationApproveBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    ...okResponse(QualificationSubmissionDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409),
+  },
 });
 
-export const adminQualificationSubmissionReject = adminMeta({
+export const adminQualificationSubmissionReject = adminRoute({
   method: "post",
   path: "/admin/qualification-submissions/{qualificationSubmissionId}/reject",
   operationId: "admin.qualificationSubmission.reject",
@@ -29,6 +53,17 @@ export const adminQualificationSubmissionReject = adminMeta({
     "资质驳回或退回补充：原因（字典 reject_reason）+ 说明；可指明被驳回的证照行；可选终局驳回",
   "x-permission": "merchant.qualification.review",
   "x-idempotent": "required",
+  request: {
+    params: QualificationSubmissionParamsSchema,
+    body: {
+      content: { "application/json": { schema: QualificationRejectBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    ...okResponse(QualificationSubmissionDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409),
+  },
 });
 
 export const adminQualificationSubmissionRejectQuote = adminMeta({

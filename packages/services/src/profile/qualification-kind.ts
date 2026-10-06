@@ -250,6 +250,17 @@ export const qualificationKind = defineApprovalKind<{ submissionId: string; roun
       domain: { type: "qualification_submission", id: round.id },
     };
   },
+  async handlerOf(tx, row) {
+    if (!row.storeId) return null;
+    return (
+      (
+        await tx.store.findUnique({
+          where: { id: row.storeId },
+          select: { deliveryManagerId: true },
+        })
+      )?.deliveryManagerId ?? null
+    );
+  },
   async revalidate(tx, row, args) {
     const { deps } = call(tx);
     const { round, input } = await lockedRound(tx, row, args);

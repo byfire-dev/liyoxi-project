@@ -219,7 +219,12 @@ export async function setDeliveryManager(
   tx: Tx,
   now: Date,
   ctx: IdentityContext,
-  input: { storeId: string; staffId: string | null },
+  input: {
+    storeId: string;
+    staffId: string | null;
+    auditMeta?: { synced: { dramaOrderCount: number; deliveryTicketCount: number } };
+    note?: string;
+  },
 ): Promise<{ storeId: string; previousStaffId: string | null; staffId: string | null }> {
   const store = await lockStore(tx, input.storeId, false);
   const previousStaffId = store.deliveryManagerId;
@@ -241,6 +246,8 @@ export async function setDeliveryManager(
     before: { deliveryManagerId: previousStaffId },
     after: { deliveryManagerId: input.staffId },
     fields: ["deliveryManagerId"],
+    ...(input.auditMeta ? { meta: input.auditMeta } : {}),
+    ...(input.note ? { reason: { code: "", text: input.note } } : {}),
   });
   return { storeId: store.id, previousStaffId, staffId: input.staffId };
 }
