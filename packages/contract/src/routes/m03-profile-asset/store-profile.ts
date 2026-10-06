@@ -61,6 +61,7 @@ export const mStoreProfileBasicUpdate = merchantRoute({
   "x-capability": "store.profile.edit",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  "x-three-phase": true,
   request: {
     body: {
       content: { "application/json": { schema: StoreProfileBasicPatchSchema } },
@@ -83,6 +84,7 @@ export const mStoreProfileContactUpdate = merchantRoute({
   "x-capability": "store.qualification.edit",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  "x-three-phase": true,
   request: {
     body: { content: { "application/json": { schema: ContactPatchSchema } }, required: true },
   },
@@ -235,6 +237,7 @@ export const mStoreProfileServiceUpdate = merchantRoute({
   "x-capability": "store.profile.edit",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  "x-three-phase": true,
   request: {
     body: {
       content: { "application/json": { schema: StoreProfileServicePatchSchema } },

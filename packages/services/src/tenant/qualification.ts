@@ -244,3 +244,37 @@ export async function setDeliveryManager(
   });
   return { storeId: store.id, previousStaffId, staffId: input.staffId };
 }
+
+/** 初次建档清空名称：与既有起名入口分开，只允许真实营业中的未提交门店。 */
+export async function clearDraftStoreName(
+  tx: Tx,
+  now: Date,
+  ctx: IdentityContext,
+  input: { storeId: string },
+): Promise<{ storeId: string; name: null }> {
+  await lockRows(tx, "store", [input.storeId]);
+  const store = await tx.store.findUnique({
+    where: { id: input.storeId },
+    select: { id: true, entityId: true, name: true, lifecycle: true, qualificationStatus: true },
+  });
+  if (!store) throw new AppError("NOT_FOUND");
+  if (store.lifecycle !== "active" || store.qualificationStatus !== "unsubmitted")
+    throw new AppError("STATE_NOT_ALLOWED", {
+      details: { reason: "clear_name_only_before_submit" },
+    });
+  if (store.name === null) return { storeId: store.id, name: null };
+  await tx.store.update({ where: { id: store.id }, data: { name: null, updatedAt: now } });
+  await recordAudit(tx, ctx.actor, metaOf(ctx), {
+    stream: "activity",
+    category: "profile_edit",
+    action: "tenant.store.clear_name",
+    summary: "清空建档门店名称",
+    target: { type: "store", id: store.id },
+    entityId: store.entityId,
+    storeId: store.id,
+    fields: ["name"],
+    before: { name: store.name },
+    after: { name: null },
+  });
+  return { storeId: store.id, name: null };
+}

@@ -629,7 +629,7 @@ export interface components {
             steps: {
                 missing: {
                     /** @enum {string} */
-                    item: "brand_name" | "store_name" | "industry" | "address" | "business_hours" | "store_tel" | "avg_spend" | "door_photos" | "interior_photos" | "service" | "selling_points" | "entity_type" | "business_license" | "contact" | "declaration" | "permit" | (string & {});
+                    item: "brand_name" | "store_name" | "industry" | "address" | "business_hours" | "store_tel" | "avg_spend" | "door_photos" | "interior_photos" | "service_items" | "selling_points" | "entity_type" | "business_license" | "contact" | "declaration" | "permit" | (string & {});
                     permitType: string | null;
                 }[];
                 /** @enum {string} */

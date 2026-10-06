@@ -729,7 +729,7 @@
                           "avg_spend",
                           "door_photos",
                           "interior_photos",
-                          "service",
+                          "service_items",
                           "selling_points",
                           "entity_type",
                           "business_license",
@@ -8296,7 +8296,8 @@
           "logo.url",
           "logo.expiresAt",
           "logo.coverUrl"
-        ]
+        ],
+        "x-three-phase": true
       }
     },
     "/api/v1/m/store-profile/contact": {
@@ -8431,7 +8432,8 @@
         "x-auth": "member",
         "x-capability": "store.qualification.edit",
         "x-clerk-view": "none",
-        "x-idempotent": "required"
+        "x-idempotent": "required",
+        "x-three-phase": true
       }
     },
     "/api/v1/m/store-profile/media": {
@@ -9950,7 +9952,8 @@
           "serviceItems[].image.url",
           "serviceItems[].image.expiresAt",
           "serviceItems[].image.coverUrl"
-        ]
+        ],
+        "x-three-phase": true
       }
     },
     "/api/v1/m/stores": {

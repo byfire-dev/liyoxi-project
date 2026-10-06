@@ -40,3 +40,4 @@ export { registration } from "./register.js";
 
 export { assembleBootstrap, bootstrapDefaults } from "./bootstrap.js";
 export type { BootstrapInput, BootstrapLoaders } from "./bootstrap.js";
+export { currentSessionOpenid } from "./current-openid.js";

@@ -14,7 +14,7 @@ export const MissingItemSchema = z.object({
     "avg_spend",
     "door_photos",
     "interior_photos",
-    "service",
+    "service_items",
     "selling_points",
     "entity_type",
     "business_license",
@@ -133,6 +133,10 @@ export const StoreProfileBasicPatchSchema = z
   .refine(
     (v) => (v.industryCode === undefined) === (v.categoryCode === undefined),
     "行业与品类须同时传入",
+  )
+  .refine(
+    (v) => v.industryCode === undefined || (v.industryCode === null) === (v.categoryCode === null),
+    "清空行业与品类须成对",
   );
 const mediaItem = z.object({
   mediaItemId: IdSchema,

@@ -627,7 +627,7 @@ PermitFieldDef：`{ key: string（小驼峰）, label: string, sensitive: boolea
 | --- | --- |
 | 鉴权 | `member`；能力点 `store.profile.edit` |
 | 店员视图 | `none`（403 `ROLE_FORBIDDEN`） |
-| 幂等 | required（带锁的 PATCH，A17） |
+| 幂等 | required（三段式：先只读预检，事务外检测，事务内保存）（带锁的 PATCH，A17） |
 | 乐观锁 | 带 `lockVersion`（`store_profile.lock_version`，A21） |
 | 限流 | `m.global` |
 | 开关 | 无 |
@@ -670,9 +670,10 @@ PermitFieldDef：`{ key: string（小驼峰）, label: string, sensitive: boolea
 | `PROVIDER_UNAVAILABLE` | 503 | 文本内容安全检测服务不可用（C27，可重试）；不写库（A137） |
 
 **副作用**：
+- 三段式（C51）：先占用幂等记录并只读预检，事务外调文本内容检测，末个事务锁行重读全部守卫后保存；完成的同键重放不再检测，服务不可用时拒收且不写业务数据；失败与 BUSY 后续做沿统一 runner。
 - 状态迁移：无（档案行与 `store` 的名称都不是状态列）。
 - 写 `store_profile` 的上述列与 `last_edited_at`、`last_edit_actor_type = 'merchant'`、`last_edit_actor_id`、`last_edit_client = 'weapp'`，`lock_version + 1`，完整度三列重算写回。
-- 未通过过的门店（`unsubmitted`、`rejected`）改名：同事务经 `tenant.renameStore` 写 `store.name`，先锁门店行再锁档案行（d9-profile.md:750）。
+- 未通过过的门店（`unsubmitted`、`rejected`）改名：同事务经 `tenant.setStoreName` 写 `store.name`；仅 `unsubmitted` 的草稿可在必填守卫后经 `tenant.clearDraftStoreName` 清为真实 `null`。先锁门店行再锁档案行（d9-profile.md:750）。
 - 已通过门店带 `confirmReview = true` 且重审字段有变化：`ensureDraft`（规则见 3.9）取或建 `kind = 'change'` 的草稿轮次（新建时带入该门店全部生效的门店级证照为 `carried` 行，d9-profile.md:283），锁轮次行，只写本次有变化的 `proposed_*` 类别，`qualification_submission.lock_version + 1`（草稿编辑递增，04-profile.md:290）；生效值不动。锁顺序：轮次 → 档案行（补 04-profile.md:668 指出的这条路径）。草稿新建不是状态机迁移，不写 `status_transition`。
 - `file_ref`：新 Logo `files.link(store_profile / logo)`；被替换的 Logo `files.release`，保留 30 天（04-profile.md:648）。
 - `audit_log` activity 流一行，记改了哪些字段（前后值，敏感字段脱敏）。
@@ -785,7 +786,7 @@ PermitFieldDef：`{ key: string（小驼峰）, label: string, sensitive: boolea
 | --- | --- |
 | 鉴权 | `member`；能力点 `store.profile.edit` |
 | 店员视图 | `none` |
-| 幂等 | required |
+| 幂等 | required（三段式：先只读预检，事务外检测，事务内保存） |
 | 乐观锁 | 带 `lockVersion`（`store_profile.lock_version`） |
 | 限流 | `m.global` |
 | 开关 | 无 |
@@ -825,6 +826,7 @@ PermitFieldDef：`{ key: string（小驼峰）, label: string, sensitive: boolea
 | `PROVIDER_UNAVAILABLE` | 503 | 文本内容安全检测服务不可用（C27，可重试）；不写库（A137） |
 
 **副作用**：
+- 三段式（C51）：先占用幂等记录并只读预检，事务外调文本内容检测，末个事务锁行重读全部守卫后保存；完成的同键重放不再检测，服务不可用时拒收且不写业务数据；失败与 BUSY 后续做沿统一 runner。
 - 状态迁移：无。
 - `store_service_item`：带 `serviceItemId` 的行原地更新名称、价格、图片、简介、`position`；新项插入；未出现在数组里的在用行写 `removed_at`。
 - `file_ref`：新图片 `files.link(store_service_item / image)`；被替换或随行移除的图片 `files.release`，保留 30 天。
@@ -931,7 +933,7 @@ PermitFieldDef：`{ key: string（小驼峰）, label: string, sensitive: boolea
 | --- | --- |
 | 鉴权 | `member`；能力点 `store.qualification.edit` |
 | 店员视图 | `none` |
-| 幂等 | required（A17；原路线图“覆盖写”取消） |
+| 幂等 | required（三段式：先只读预检，事务外检测，事务内保存）（A17；原路线图“覆盖写”取消） |
 | 乐观锁 | 带 `lockVersion`（`store_profile.lock_version`） |
 | 限流 | `m.global` |
 | 开关 | 无 |
@@ -961,8 +963,9 @@ PermitFieldDef：`{ key: string（小驼峰）, label: string, sensitive: boolea
 | `PROVIDER_UNAVAILABLE` | 503 | 文本内容安全检测服务不可用（C27，可重试）；不写库、不核销验证码（A137） |
 
 **副作用**：
+- 三段式（C51）：先占用幂等记录并只读预检，事务外调文本内容检测，末个事务锁行重读全部守卫后保存；完成的同键重放不再检测，服务不可用时拒收且不写业务数据；失败与 BUSY 后续做沿统一 runner。
 - 状态迁移：无。
-- 写 `store_profile.contact_name`，以及手机号三件套与来源：`login`（或 `input` 的号码就是登录手机号）→ 取当前用户的 `merchant_user.phone_enc`、`merchant_user.phone_mask` 复制到 `contact_phone_enc`、`contact_phone_mask`，`contact_phone_source = 'login'`，`contact_phone_verified_at` 为空；`input` 且验证码通过 → `sms_verified`，写 `contact_phone_verified_at`；`input` 且短信验证不可用 → `unverified`。
+- 写 `store_profile.contact_name`，以及手机号三件套与来源：`login`（或 `input` 的号码就是登录手机号）→ 按 `merchant_user.phone_enc` 的列 AAD 解密当前用户手机号，再按 `store_profile.contact_phone_enc` 的列 AAD 重新加密写入 `contact_phone_enc`，脱敏串写 `contact_phone_mask`（密文不能跨列 AAD 复用），`contact_phone_source = 'login'`，`contact_phone_verified_at` 为空；`input` 且验证码通过 → `sms_verified`，写 `contact_phone_verified_at`；`input` 且短信验证不可用 → `unverified`。
 - 核销验证码（同 m01 3.7 的写法）：取当前用户、`purpose = 'contact_phone'`、`phone_bidx` 为新号码盲索引的最新一条 `sms_verification`，要求 `used_at` 为空、未过期、`attempts < 5`；相符则在主事务里写 `used_at`。不符时 `attempts + 1` 在**独立短事务**里提交后再返回 `SMS_CODE_INVALID`（主事务回滚不能带走计数）；累计 5 次该行作废，须重新获取（02-identity-tenant.md:355）。
 - `store_profile.lock_version + 1`、最近修改四列、完整度三列；`audit_log` activity 流（手机号只记脱敏串）。
 
