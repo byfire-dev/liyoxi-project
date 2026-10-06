@@ -449,7 +449,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
     /** 各文档的 paths 条数与具名结构 */
     const expected: Record<string, { paths: number; schemas: string[] }> = {
       merchant: {
-        paths: 36,
+        paths: 32,
         schemas: [
           "AgreementConsentReceipt",
           "AgreementConsentSummary",
