@@ -1,7 +1,7 @@
 // billing 的不变量检查项（W1-10）：账本内核的九条——billing.I1–I8、I16。
 // 依据：07 分组 第 5.6 节的登记表与各表“不变量”一节；D1 第 9 节。由 ops 的 invariant.full 每日调度。
 // 涉及积分与金额的一律不自愈（heal: none）：修正走调整单或 fix 操作。直接关系数量的 P1，漏跑、顺序、缓存类 P2。
-// I9–I13、I15、I17 随履约与 M4。
+// I9、I10、I12 在 subscription/invariants.ts 随履约登记；I11、I13、I15、I17 留待后续履约与 M4。
 // 每条检查是一句 SQL，返回违规对象、所属主体与说明；可按主体缩小范围（后台手工触发）。一次至多报 500 条。
 import { invariantNow } from "../kernel/index.js";
 import type { InvariantRegistration, InvariantSeverity } from "../kernel/index.js";
@@ -36,7 +36,11 @@ interface ViolationRow {
 }
 
 /** sql 给出四列：subject_type、subject_id、entity_id、detail（jsonb）。$1 是限定的主体，$2 是业务时间（用不到的检查不写它） */
-function check(code: string, severity: InvariantSeverity, sql: string): InvariantRegistration {
+export function check(
+  code: string,
+  severity: InvariantSeverity,
+  sql: string,
+): InvariantRegistration {
   return {
     code,
     severity,

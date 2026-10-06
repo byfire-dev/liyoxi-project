@@ -17,6 +17,7 @@
 | `sweep.ts` | 每分钟扫描的用例函数 `advanceDueAccounts`（循环 `billing_advance`） |
 | `invariants.ts`、`register.ts` | `billing.I1`–`I8`、`I16` 的检查与登记 |
 | `seed.ts`、`seed-data.ts` | 套餐、价目、参数的种子（W0-21） |
+| `subscription/`、`ports.ts` | 付清后的履约（建周期与发放计划、发首月）、`billing.I9`、`I10`、`I12`、两个端口的实现（W1-11a），见 [subscription/README.md](subscription/README.md) |
 
 ## 2. 用账本
 
@@ -83,7 +84,7 @@ await tx.run(async (handle) => {
 
 - 每个账本操作提交前，对当前主体从批次重算：七个桶、账户缓存、冻结中的冻结单合计、操作行上的“操作后可花、操作后冻结”。不一致抛 `LedgerError("self_check")` 回滚，不上报、不自愈。
 - 工厂直接插的冻结单（`make.pointHold`、`make.orderItem`）不动账本：对这样的主体调账本函数会被自检拦下。要自洽的数据，积分一律经账本函数入账。
-- 九条不变量（`I1`–`I8`、`I16`）由 ops 的 `invariant.full` 每日跑，`heal: "none"`。`I4` 核对冻结单与分摊及批次冻结桶，`I5` 核对状态与扣减、释放、退回操作；`I9`–`I13`、`I15`、`I17` 随履约与 M4。
+- 账本九条不变量（`I1`–`I8`、`I16`）与订阅三条不变量（`I9`、`I10`、`I12`）一并登记，由 ops 的 `invariant.full` 每日跑，`heal: "none"`。`I4` 核对冻结单与分摊及批次冻结桶，`I5` 核对状态与扣减、释放、退回操作；订阅三条的说明见 [履约 README](subscription/README.md)。`I11`、`I13`、`I15`、`I17` 留待后续履约与 M4。
 
 ## 6. 测试里怎么用
 

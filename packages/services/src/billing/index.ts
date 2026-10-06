@@ -68,3 +68,21 @@ export type {
 } from "./ledger/index.js";
 export { quoteHold } from "./pricing/quote.js";
 export type { HoldPricing, QuoteTerm } from "./pricing/quote.js";
+// W1-11a（账本侧）：付清后的履约 createFulfillment（建周期与发放计划、发首月）；两个端口的实现；订阅一侧的三条不变量
+export {
+  blockedResult,
+  createFulfillment,
+  FULFILL_STEPS,
+  FulfillBlockedError,
+  fulfillOpKey,
+  isNotBlockage,
+  subscriptionInvariants,
+} from "./subscription/index.js";
+export type {
+  FulfillDeps,
+  Fulfillment,
+  FulfillInput,
+  FulfillOutcome,
+  FulfillStep,
+} from "./subscription/index.js";
+export { billingAccountOpener, billingMerchantFacts, openAccountForEntity } from "./ports.js";

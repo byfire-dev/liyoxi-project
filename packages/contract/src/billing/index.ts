@@ -11,3 +11,28 @@ export {
   PricingSnapshotSchema,
 } from "./pricing-snapshot.js";
 export type { DramaPricingSnapshot, PricingSnapshot } from "./pricing-snapshot.js";
+// W1-11a：付款单内容快照、履约结果、订阅事件细节
+export {
+  billingOrderContentSchema,
+  FULFILL_BLOCK_REASONS,
+  FULFILL_NOTES,
+  fulfillBlockedSchema,
+  fulfillDoneSchema,
+  fulfillResultSchema,
+  planOrderContentSchema,
+  planPromoSchema,
+  SUBSCRIPTION_EVENT_PAYLOADS,
+  topupOrderContentSchema,
+  upgradeOrderContentSchema,
+} from "./fulfill.js";
+export type {
+  BillingOrderContent,
+  FulfillBlocked,
+  FulfillBlockReason,
+  FulfillDone,
+  FulfillNote,
+  FulfillResult,
+  PlanOrderContent,
+  SubscriptionEventPayload,
+  SubscriptionEventPayloadType,
+} from "./fulfill.js";
