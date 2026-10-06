@@ -1,8 +1,20 @@
 // 后台：订购、取消、交付与广告任务 · orders（docs/api/a05-order-delivery.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { adminMeta } from "../meta-only.js";
+import { adminRoute } from "../builders.js";
+import { z } from "../../zod.js";
+import { IdSchema, okResponse, errorResponses } from "../../common/index.js";
+import {
+  AdminOrderListQuerySchema,
+  AdminOrderFiltersSchema,
+  AdminOrderListSchema,
+  AdminOrderSummarySchema,
+  AdminOrderDetailSchema,
+} from "./order-read.schemas.js";
 
-export const adminOrderList = adminMeta({
+export const adminOrderList = adminRoute({
+  request: { query: AdminOrderListQuerySchema },
+  responses: { ...okResponse(AdminOrderListSchema), ...errorResponses(400, 401, 403) },
   method: "get",
   path: "/admin/orders",
   operationId: "admin.order.list",
@@ -22,7 +34,9 @@ export const adminOrderQuote = adminMeta({
   "x-idempotent-reason": "试算（A20）",
 });
 
-export const adminOrderSummary = adminMeta({
+export const adminOrderSummary = adminRoute({
+  request: { query: AdminOrderFiltersSchema },
+  responses: { ...okResponse(AdminOrderSummarySchema), ...errorResponses(400, 401, 403) },
   method: "get",
   path: "/admin/orders/summary",
   operationId: "admin.order.summary",
@@ -31,7 +45,9 @@ export const adminOrderSummary = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminOrderGet = adminMeta({
+export const adminOrderGet = adminRoute({
+  request: { params: z.object({ orderId: IdSchema }) },
+  responses: { ...okResponse(AdminOrderDetailSchema), ...errorResponses(400, 401, 403, 404) },
   method: "get",
   path: "/admin/orders/{orderId}",
   operationId: "admin.order.get",

@@ -27,6 +27,9 @@ admin.file.get | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.launchSubmission.approve | publish:edit | publish.link.verify | 11 00 00 00 11 00 00 00
 admin.launchSubmission.get | publish:view | - | 11 11 11 00 11 11 00 00
 admin.launchSubmission.reject | publish:edit | publish.link.verify | 11 00 00 00 11 00 00 00
+admin.order.get | order:view | - | 11 11 11 00 00 11 11 11
+admin.order.list | order:view | - | 11 11 11 00 00 11 11 11
+admin.order.summary | order:view | - | 11 11 11 00 00 11 11 11
 admin.paymentOrder.get | order:view | - | 11 11 11 00 00 11 11 11
 admin.qualificationSubmission.approve | merchant:view | merchant.qualification.review | 11 11 00 00 00 00 00 00
 admin.qualificationSubmission.get | merchant:view | - | 11 11 11 11 11 11 11 11
