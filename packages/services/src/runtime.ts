@@ -253,6 +253,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const unbindContent = bindContent(assembly);
   const unbindPublish = bindPublish(assembly);
   const unbindDelivery = bindDelivery({
+    media,
     tx,
     clock,
     assembly,

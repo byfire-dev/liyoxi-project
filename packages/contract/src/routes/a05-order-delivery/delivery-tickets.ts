@@ -91,22 +91,35 @@ export const adminDeliveryTicketAssignPublisher = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminDeliveryTicketEpisodeOutputList = adminMeta({
+export const adminDeliveryTicketEpisodeOutputList = adminRoute({
   method: "get",
   path: "/admin/delivery-tickets/{deliveryTicketId}/episode-outputs",
   operationId: "admin.deliveryTicket.episodeOutput.list",
   summary: "成片剧集列表：逐集文件、大小、质检状态（成片包格子）",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: TicketParamSchema },
+  responses: { ...okResponse(EpisodeGridSchema), ...errorResponses(400, 401, 403, 404, 409, 500) },
 });
 
-export const adminDeliveryTicketEpisodeOutputCreate = adminMeta({
+export const adminDeliveryTicketEpisodeOutputCreate = adminRoute({
   method: "post",
   path: "/admin/delivery-tickets/{deliveryTicketId}/episode-outputs",
   operationId: "admin.deliveryTicket.episodeOutput.create",
   summary: "登记成片剧集（批量；同一集再登记即换版；可带补发单 id）",
   "x-permission": "delivery.episode.register",
   "x-idempotent": "required",
+  request: {
+    params: TicketParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: EpisodeRegisterBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(EpisodeRegisterResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });
 
 export const adminDeliveryTicketForceTransition = adminMeta({
@@ -118,22 +131,41 @@ export const adminDeliveryTicketForceTransition = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminDeliveryTicketInspectEpisodes = adminMeta({
+export const adminDeliveryTicketInspectEpisodes = adminRoute({
   method: "post",
   path: "/admin/delivery-tickets/{deliveryTicketId}/inspect-episodes",
   operationId: "admin.deliveryTicket.inspectEpisodes",
   summary: "逐集质检（批量）：通过或不通过并注明原因；全部通过后系统推进到成片交付",
   "x-permission": "delivery.episode.qc",
   "x-idempotent": "required",
+  request: {
+    params: TicketParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: InspectEpisodesBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(InspectEpisodesResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });
 
-export const adminDeliveryTicketInspectPackage = adminMeta({
+export const adminDeliveryTicketInspectPackage = adminRoute({
   method: "post",
   path: "/admin/delivery-tickets/{deliveryTicketId}/inspect-package",
   operationId: "admin.deliveryTicket.inspectPackage",
   summary: "成片包级质检（集数完整等成片阶段清单项）",
   "x-permission": "delivery.episode.qc",
   "x-idempotent": "required",
+  request: {
+    params: TicketParamSchema,
+    body: { required: true, content: { "application/json": { schema: InspectPackageBodySchema } } },
+  },
+  responses: {
+    ...okResponse(InspectPackageResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });
 
 export const adminDeliveryTicketMaterialList = adminMeta({
@@ -155,7 +187,7 @@ export const adminDeliveryTicketMaterialDownloadUrls = adminMeta({
   "x-idempotent-reason": "签发短时地址，结果不进幂等记录（A18）",
 });
 
-export const adminDeliveryTicketPushPackage = adminMeta({
+export const adminDeliveryTicketPushPackage = adminRoute({
   method: "post",
   path: "/admin/delivery-tickets/{deliveryTicketId}/push-package",
   operationId: "admin.deliveryTicket.pushPackage",
@@ -163,6 +195,14 @@ export const adminDeliveryTicketPushPackage = adminMeta({
     "推送成片包与发布清单（交付前检查全过）：生成成片包与下载授权、为每个发布账号建上线任务、通知商家",
   "x-permission": "publish.package.push",
   "x-idempotent": "required",
+  request: {
+    params: TicketParamSchema,
+    body: { required: true, content: { "application/json": { schema: PushPackageBodySchema } } },
+  },
+  responses: {
+    ...okResponse(PushPackageResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });
 
 export const adminDeliveryTicketReevaluate = adminMeta({
@@ -202,13 +242,22 @@ export const adminDeliveryTicketRework = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminDeliveryTicketSampleCreate = adminMeta({
+export const adminDeliveryTicketSampleCreate = adminRoute({
   method: "post",
   path: "/admin/delivery-tickets/{deliveryTicketId}/samples",
   operationId: "admin.deliveryTicket.sample.create",
   summary: "登记样片新版本（文件已上传；未决旧版本置 superseded）",
   "x-permission": "delivery.sample.upload",
   "x-idempotent": "required",
+  request: {
+    params: TicketParamSchema,
+    body: { required: true, content: { "application/json": { schema: SampleCreateBodySchema } } },
+  },
+  responses: {
+    ...okResponse(AdminSampleWriteResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
+  "x-redact-on-replay": ["preview", "decision.feedbackImages"],
 });
 
 import { adminRoute } from "../builders.js";
@@ -223,3 +272,17 @@ import {
   DeliveryTicketDetailSchema,
   DeliveryTicketWriteResultSchema,
 } from "./delivery.schemas.js";
+
+import {
+  AdminSampleWriteResultSchema,
+  EpisodeGridSchema,
+  EpisodeRegisterBodySchema,
+  EpisodeRegisterResultSchema,
+  InspectEpisodesBodySchema,
+  InspectEpisodesResultSchema,
+  InspectPackageBodySchema,
+  InspectPackageResultSchema,
+  PushPackageBodySchema,
+  PushPackageResultSchema,
+  SampleCreateBodySchema,
+} from "./production.schemas.js";

@@ -142,7 +142,10 @@ export function harness(prisma: PrismaClient, apply = true) {
     wechat: fake.wechat,
     currentOpenid: async () => "lyxtest_delivery_openid",
   });
+  const unbindPublish = bindPublish(assembly),
+    publish = createPublish({ tx, clock, assembly, approval, flow, media });
   const deps = {
+      publish,
       tx,
       clock,
       assembly,
@@ -154,8 +157,6 @@ export function harness(prisma: PrismaClient, apply = true) {
     },
     unbindDelivery = bindDelivery(deps),
     delivery = createDelivery(deps);
-  const unbindPublish = bindPublish(assembly),
-    publish = createPublish({ tx, clock, assembly, approval, flow, media });
   const unbind = () => {
     unbindPublish();
     unbindDelivery();
@@ -168,7 +169,12 @@ export function harness(prisma: PrismaClient, apply = true) {
       ctx: createIdentityContext({ actor: { type: "staff", id: row.id, client: "admin" } }),
     };
   }
-  async function order(hasManager = false, count = 1, posterFileId?: string) {
+  async function order(
+    hasManager = false,
+    count = 1,
+    posterFileId?: string,
+    episodeCount?: number,
+  ) {
     await prisma.dictItem.upsert({
       where: { dictTypeKey_code: { dictTypeKey: "custom_focus", code: "CF01" } },
       create: {
@@ -211,6 +217,7 @@ export function harness(prisma: PrismaClient, apply = true) {
         await make.orderItem({
           dramaOrderId: order.id,
           phase: "producing",
+          ...(episodeCount !== undefined ? { episodeCount } : {}),
           dramaSnapshot: {
             title: `测试短剧${i + 1}`,
             genreCodes: ["G01"],
@@ -290,6 +297,7 @@ export function harness(prisma: PrismaClient, apply = true) {
     assembly,
     make,
     fake,
+    media,
     flow,
     events,
     profile,

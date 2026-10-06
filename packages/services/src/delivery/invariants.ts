@@ -5,7 +5,22 @@ import { boundDelivery } from "./binding.js";
 import { PlanContentSchema } from "@liyoxi/contract";
 import { planApplied, reevaluate } from "./reevaluate.js";
 import { lockTickets, ticketInclude } from "./repo.js";
-export const DELIVERY_INVARIANT_CODES = ["I1", "I3", "I4", "I5", "I6"] as const;
+import { productionViolations } from "./production-invariants.js";
+export const DELIVERY_INVARIANT_CODES = [
+  "I1",
+  "I3",
+  "I4",
+  "I5",
+  "I6",
+  "I7",
+  "I8",
+  "I9",
+  "I10",
+  "I11",
+  "I12",
+  "I13",
+  "I15",
+] as const;
 export async function findDeliveryViolations(tx: Tx, code: string): Promise<InvariantViolation[]> {
   const result: InvariantViolation[] = [],
     bad = (type: string, id: string, entityId: string, detail: Record<string, unknown>) =>
@@ -26,6 +41,18 @@ export async function findDeliveryViolations(tx: Tx, code: string): Promise<Inva
         "delivery_plan",
         rows.flatMap((r) => (r.dramaOrder.deliveryPlan ? [r.dramaOrder.deliveryPlan.id] : [])),
       );
+    }
+    if (code === "I3") {
+      // 自动推进多工单可能预填封面；同事务统一先持全部封面锁，不能逐项回退文件 id。
+      const posters = rows.flatMap((r) => {
+        const shot = r.orderItem.dramaSnapshot as { posterFileId?: string };
+        return shot.posterFileId ? [shot.posterFileId] : [];
+      });
+      const dramas = await tx.drama.findMany({ where: { id: { in: rows.map((r) => r.dramaId) } } });
+      await lockRows(tx, "file_object", [
+        ...posters,
+        ...dramas.flatMap((d) => (d.posterFileId ? [d.posterFileId] : [])),
+      ]);
     }
     for (const r of rows) {
       if (code === "I1") {
@@ -183,5 +210,5 @@ export async function findDeliveryViolations(tx: Tx, code: string): Promise<Inva
         if (!PlanContentSchema.safeParse(v.contentSnapshot).success)
           bad("delivery_plan_version", v.id, v.entityId, { invalidSnapshot: true });
     }
-  return result;
+  return [...result, ...(await productionViolations(tx, code))];
 }
