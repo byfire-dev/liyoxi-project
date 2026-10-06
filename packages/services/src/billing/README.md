@@ -1,6 +1,6 @@
 # billing：账本内核
 
-每个主体的积分账本：只增流水、按批次存放、账户行是唯一的锁（W1-10）。这一份交的是“账户与批次”：进入（锁、时钟、推进）、月度发放、加购入账、读函数、每分钟扫描、七条不变量。冻结单一族（`hold`、`capture`、`release`、`refund`、`adjust`）与取整规则在本包的第二个 PR。依据：[07 分组](../../../../docs/data-model/07-billing-ledger.md)；[03](../../../../docs/03-key-designs.md) 第 2 节；D1 第 6.2、7.1、8 节；x01 第 3.7、4.3、5.8 节；任务书 `docs/plan/tasks/W1-10.md`。
+每个主体的积分账本：只增流水、按批次存放、账户行是唯一的锁（W1-10）。账户与批次交进入（锁、时钟、推进）、月度发放、加购入账、读函数与每分钟扫描；冻结单一族交 `hold`、`capture`、`release`、`refund`、`adjust`、快照计价、九条不变量与唯一取整门禁。依据：[07 分组](../../../../docs/data-model/07-billing-ledger.md)；[03](../../../../docs/03-key-designs.md) 第 2 节；D1 第 6.2、7.1、8 节；x01 第 3.7、4.3、5.8 节；任务书 `docs/plan/tasks/W1-10.md`。
 
 ## 1. 这里有什么
 
@@ -9,12 +9,13 @@
 | `ledger/context.ts` | 账户锁（等锁 3 秒，`ACCOUNT_BUSY`）、账本时钟、`ensureAccount` |
 | `ledger/operation.ts` | 一次账本操作的登记与落库：按写入顺序写批次、操作行、流水、账户缓存。账本的写只有这一个出口 |
 | `ledger/advance.ts` | 时间推进：到点的发放、期末清零、预约周期接续、过期后加购积分停用 |
+| `ledger/hold.ts`、`ledger/adjust.ts` | 冻结、扣减、释放、退回与调整；尾部退回和原周期结束后的快照去向 |
 | `ledger/self-check.ts` | 写入时自检 |
 | `ledger/index.ts` | `createLedger`：对外的账本函数 |
-| `pricing/` | 读侧：`paramsAt`（计费参数）、`priceAt`（剧目积分价） |
+| `pricing/` | `paramsAt`（计费参数）、`priceAt`（剧目积分价）、`quoteHold`（锁内重算积分与下单快照） |
 | `read/` | `getEntitlements`、`getWalletView`、`listOperationsByHold` |
 | `sweep.ts` | 每分钟扫描的用例函数 `advanceDueAccounts`（循环 `billing_advance`） |
-| `invariants.ts`、`register.ts` | `billing.I1`、`I2`、`I3`、`I6`、`I7`、`I8`、`I16` 的检查与登记 |
+| `invariants.ts`、`register.ts` | `billing.I1`–`I8`、`I16` 的检查与登记 |
 | `seed.ts`、`seed-data.ts` | 套餐、价目、参数的种子（W0-21） |
 
 ## 2. 用账本
@@ -32,7 +33,7 @@ await tx.run(async (handle) => {
 
 - 账本函数第一个参数是事务句柄，自己不开事务，不写审计（由调用它的用例写）。
 - 每个操作同一个骨架：拿账户锁 → 账本时钟 → `advance` → 按操作键查，已登记即返回第一次的结果（`replayed: true`）→ 守卫 → 落库 → 自检 → 发事件。
-- **账户锁**：一个事务只锁一个主体的账户，锁第二个即抛 `LedgerError("one_account_per_tx")`。等锁至多 3 秒（只对拿锁那一句设 `lock_timeout`），等不到抛 `AppError("ACCOUNT_BUSY")`（503，可重试），不进 `tx.run` 的重试。
+- **账户锁**：一个事务只锁一个主体的账户，锁第二个即抛 `LedgerError("one_account_per_tx")`。只对拿锁那一句设 `lock_timeout` 与 `statement_timeout`，总等锁至多 3 秒，原语句超时更短则沿用；成功后恢复两项原值。等不到抛 `AppError("ACCOUNT_BUSY")`（503，可重试），不进 `tx.run` 的重试。SQL 超时后事务已中止，直接退出或由调用方回滚保存点，不在失败路径再发恢复 SQL。
 - **账本时钟**：拿到锁之后取注入的时钟，与该主体上一次操作的时刻取较大者；同一事务再次进入用同一个值。流水的 `occurred_at`、`biz_date` 用它；到点类操作用逻辑时间（发放 = 应发时刻，清零 = 周期止点、业务日 = 止日）。
 - 没有计费账户行的主体，进入时会补建；正常情况下主体创建时由 tenant 经端口建（端口实现由 W1-11a 登记，调 `ledger.ensureAccount`）。
 - 账本的内部错误是 `LedgerError`（`reason`：`guard`、`op_key_conflict`、`term_chain`、`self_check`、`one_account_per_tx`），都是代码缺陷或数据异常，按 500 处理；业务上的拒绝是 `AppError`。
@@ -43,6 +44,12 @@ await tx.run(async (handle) => {
 | `advance(tx, entityId, { wait? })` | 推进到现在；`wait: "skip"` 而账户被占着时返回 `null` | — |
 | `grant(tx, { grantScheduleId, ctx? })` | 月度发放。到点的发放 `advance` 会自己做；履约建好周期后发首月调它，`ctx` 把这一笔记在入账的操作人名下 | `grant:grant_schedule:{id}` |
 | `purchase(tx, { entityId, billingOrderId, points, payFen, ctx })` | 加购入账：新建长期有效的加购批次，成本 = 实付。套餐已过期也照常入账（停用） | `purchase:billing_order:{id}` |
+| `hold(tx, { entityId, storeId, refType, refId, pricing, title, ctx, expectS? })` | 锁内重新计价并存快照，套餐先于加购，按批次顺序冻结；给 `expectS` 时拒绝已变的报价 | `hold:{refType}:{refId}` |
+| `capture(tx, { pointHoldId, title, ctx })` | 冻结转为已消耗；订阅过期或退款处理中也可扣减 | `capture:point_hold:{id}` |
+| `release(tx, { pointHoldId, reasonClass, title, ctx })` | 开工前释放全部冻结；按分摊尾部退回 | `release:point_hold:{id}` |
+| `refund(tx, { pointHoldId, qty, reasonClass, source, refNo, ctx })` | 扣减后部分或全额退回；原周期结束时按下单快照转加购或清零 | `refund:{取消明细 id}` 或 `adjust:{审批单号}` |
+| `adjust(tx, { entityId, approvalRequestId, requestNo, pointAdjustmentRequestId, direction, lotKind, points, reasonCode, ctx })` | 审批后的积分调整；增加建批次，扣减按指定类型的批次顺序，余额不足拒绝 | `adjust:{审批单号}` |
+| `resumeAddon(tx, { subscriptionTermId, ctx? })` | 过期后重新开通时恢复加购积分闸门，不改变批次数量 | `resume:subscription_term:{id}:{止日}` |
 | `refreshNextDue(tx, entityId)` | 重算 `next_due_at`。建周期、改发放计划的一方在自己的写入之后调（`grant` 已含） | — |
 | `ensureAccount(tx, entityId)` | 没有才建账户行 | — |
 
@@ -76,7 +83,7 @@ await tx.run(async (handle) => {
 
 - 每个账本操作提交前，对当前主体从批次重算：七个桶、账户缓存、冻结中的冻结单合计、操作行上的“操作后可花、操作后冻结”。不一致抛 `LedgerError("self_check")` 回滚，不上报、不自愈。
 - 工厂直接插的冻结单（`make.pointHold`、`make.orderItem`）不动账本：对这样的主体调账本函数会被自检拦下。要自洽的数据，积分一律经账本函数入账。
-- 七条不变量由 ops 的 `invariant.full` 每日跑，`heal: "none"`。`I4`、`I5` 随冻结一族；`I9`–`I13`、`I15`、`I17` 随履约与 M4。
+- 九条不变量（`I1`–`I8`、`I16`）由 ops 的 `invariant.full` 每日跑，`heal: "none"`。`I4` 核对冻结单与分摊及批次冻结桶，`I5` 核对状态与扣减、释放、退回操作；`I9`–`I13`、`I15`、`I17` 随履约与 M4。
 
 ## 6. 测试里怎么用
 
@@ -108,6 +115,16 @@ pnpm --filter @liyoxi/worker exec vitest run test/billing-advance.test.ts
 ```sh
 LYX_FC_RUNS=200 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run src/billing/ledger/advance.property.test.ts
 ```
+
+冻结单一族的验收：`hold.concurrency.test.ts` 用 20 条独立连接与屏障重复 20 轮，核对余额不超扣及同键冻结、扣减恰一次；`op-key.test.ts` 对照重放前后的全表快照；`return.test.ts` 验五行状态表、尾部退回与快照去向；`adjust.test.ts` 验调整增减与重新开通。
+
+`ledger.model.property.test.ts` 随机 1–60 步同时驱动真库与独立内存账本：发放、加购、冻结、扣减、释放、部分和全额退回、跨月跨期清零、套餐和加购调整。模型不调生产的分摊与退回函数，每步对照七个桶、账户缓存、冻结单及其分摊，并只读回放流水、检查 `I1`–`I5`。轮次和种子同上：
+
+```sh
+LYX_FC_RUNS=200 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run src/billing/ledger/ledger.model.property.test.ts
+```
+
+`capture`、`release`、`refund` 状态不符抛 `HoldStateError`，带操作、当前状态、拒绝原因及剩余可退数量；幂等重放先于状态守卫。业务取整仅经 `@liyoxi/shared/pricing`：ESLint 覆盖 services、API、worker 的非测试 `src` 源码，直接调用、方括号及解构都拦。四条既有耗时日志只按文件和精确表达式豁免，构建脚本不属于业务源码；反例见 `infra/ci/selftest/cases/lint-one-rounding-function.mjs`。
 
 ## 7. 已知的限度
 
