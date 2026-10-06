@@ -9,6 +9,7 @@ import { zodEnum } from "../../enums/zod.js";
 import { z } from "../../zod.js";
 
 export const A03_ERROR_DETAILS = {
+  STORE_MANAGER_ASSIGNED: z.object({ deliveryManagerId: IdSchema }),
   /** 审批单此刻的状态与进入终态的时间 */
   APPROVAL_NOT_PENDING: z.object({
     status: zodEnum(APPROVAL_STATUS),
