@@ -52,5 +52,5 @@ export type {
 export { BOOTSTRAP_JOB } from "./bootstrap.js";
 export { createStaffManagement } from "./management.js";
 export type { StaffManagementDeps } from "./management.js";
-export { pickNext, staffBriefs } from "./assignment.js";
+export { pickNext, recommendedStaff, staffBriefs } from "./assignment.js";
 export type { AssignmentPool } from "./assignment.js";
