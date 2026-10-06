@@ -57,7 +57,7 @@ export function DetailSample() {
   const detail = useQuery({
     queryKey: ["samples", "stores", "detail", storeId],
     queryFn: async () => {
-      const { data, error } = await client.GET("/admin/samples/stores/{storeId}", {
+      const { data, error } = await client.GET("/api/v1/admin/samples/stores/{storeId}", {
         params: { path: { storeId } },
       });
       if (!data) throw new SampleApiError(error);
@@ -243,7 +243,7 @@ export function DetailSample() {
             void queryClient.invalidateQueries({ queryKey: ["samples", "stores"] });
           }}
           onConfirm={async ({ seenValue, idempotencyKey }) => {
-            const { error } = await client.POST("/admin/samples/stores/{storeId}/disable", {
+            const { error } = await client.POST("/api/v1/admin/samples/stores/{storeId}/disable", {
               params: { path: { storeId }, header: { "Idempotency-Key": idempotencyKey } },
               body: { lockVersion: store.lockVersion, confirm: { phoneTail: seenValue ?? "" } },
             });

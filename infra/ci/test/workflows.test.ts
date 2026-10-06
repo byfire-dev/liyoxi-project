@@ -457,6 +457,8 @@ describe("ci.yml", () => {
       `node -p '"version=" + require("./apps/admin/package.json").devDependencies["@playwright/test"]' >> "$GITHUB_OUTPUT"`,
       "pnpm --filter @liyoxi/admin exec playwright install --with-deps chromium",
       "pnpm admin:e2e",
+      "docker compose -f infra/compose/local.yml up -d --wait postgres redis",
+      "pnpm admin:e2e:live",
       // W0-27a：小程序的单测、体积门禁；截图按受影响范围跑（它后面上传截图的一步没有 run）
       "pnpm --filter @liyoxi/weapp test",
       "node infra/ci/check-mp-size.mjs apps/weapp/dist",
@@ -635,6 +637,8 @@ describe("nightly.yml", () => {
       "pnpm test",
       // W0-30：M0 的演示，业主用的那条命令每晚重放一遍
       "pnpm demo:m0",
+      "pnpm --filter @liyoxi/admin exec playwright install --with-deps chromium",
+      "pnpm admin:e2e:live",
     ]);
   });
 
