@@ -201,3 +201,9 @@ export type { Media, MediaActor, MediaDeps, PromoteRef } from "./media/index.js"
 export { createProfile } from "./profile/index.js";
 export type { Profile, ProfileDeps, ProfileViewer } from "./profile/index.js";
 export { currentSessionOpenid } from "./identity/index.js";
+
+export { createContent } from "./content/index.js";
+export type { Content, ContentDeps, DramaPrices, DramaPrice } from "./content/index.js";
+export { createMall } from "./workbench/index.js";
+export type { Mall, MallDeps, MallViewer } from "./workbench/index.js";
+export { seedDemoContent } from "./content/index.js";

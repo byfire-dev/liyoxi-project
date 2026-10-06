@@ -83,6 +83,10 @@
     "./profile": {
       "types": "./src/profile/index.ts",
       "default": "./src/profile/index.ts"
+    },
+    "./catalog": {
+      "types": "./src/catalog/index.ts",
+      "default": "./src/catalog/index.ts"
     }
   },
   "scripts": {

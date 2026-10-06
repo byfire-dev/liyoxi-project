@@ -48,6 +48,7 @@ async function main(): Promise<number> {
       flow: runtime.flow,
       appEnv: env.APP_ENV,
       media: runtime.media,
+      content: runtime.content,
       notices: createNotices({ clock: runtime.clock, events: runtime.events }),
     });
     for (const table of report.tables) {

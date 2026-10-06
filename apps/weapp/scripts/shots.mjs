@@ -7,6 +7,7 @@
 //   --page <路由>      只出这一页，可给多次。路由照页面清单的写法，如 pages/home/index
 //   --component <名字> 只出这个组件的预览，可给多次。名字是 src/components/ 下的目录名，如 Button
 //   --sheet <名字>     只出这张基础样张，可给多次。名字照 src/gallery.ts 的 GALLERY_SHEETS，如 colors
+//   --scene <名字>     只出账户固定离线场景，可多次；场景见 shots/account-scenes.ts
 //   --no-build         不重新构建，直接用上一次的 H5 产物
 // 组件预览的图（W0-27b）：文件名 gallery__<组件名>.png，截整页（预览比一屏长），其余的页只截一屏。
 // 基础样张的图（W0-29）：文件名 gallery__sheet-<样张名>.png，同样截整页；陈列的目录页也截整页（看样要看全各组的节号与要点）。
@@ -51,6 +52,10 @@ const args = process.argv.slice(2).filter((arg) => arg !== "--");
 const wanted = [];
 const wantedComponents = [];
 const wantedSheets = [];
+const wantedScenes = [];
+const { ACCOUNT_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/account-scenes.ts")).href
+);
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--no-build") build = false;
@@ -66,6 +71,10 @@ for (let index = 0; index < args.length; index += 1) {
     const name = args[(index += 1)];
     if (!name) fail("--sheet 后面要跟一个样张名，如 colors");
     wantedSheets.push(name);
+  } else if (args[index] === "--scene") {
+    const name = args[(index += 1)];
+    if (!ACCOUNT_SCENES.some((item) => item.name === name)) fail(`未知账户场景 ${name}`);
+    wantedScenes.push(name);
   } else fail(`不认识的参数 ${args[index]}`);
 }
 
@@ -92,10 +101,29 @@ const unknownSheets = wantedSheets.filter((name) => !sheetNames.includes(name));
 if (unknownSheets.length > 0) {
   fail(`这些样张不在陈列的登记（src/gallery.ts）里：${unknownSheets.join("、")}`, 1);
 }
-const all = wanted.length === 0 && wantedComponents.length === 0 && wantedSheets.length === 0;
+const all =
+  wanted.length === 0 &&
+  wantedComponents.length === 0 &&
+  wantedSheets.length === 0 &&
+  wantedScenes.length === 0;
 /** 要出的图：url 是 # 后面的部分，file 是不带扩展名的文件名，fullPage 为真截整页 */
 const targets = [
-  ...(all ? builtRoutes : wanted).map((route) => ({
+  ...(all ? ACCOUNT_SCENES : ACCOUNT_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
+    (item) => ({
+      label: item.name,
+      url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
+      file: `account__${item.name}`,
+      scene: item.name,
+      fullPage: false,
+    }),
+  ),
+  ...(all
+    ? builtRoutes.filter(
+        (route) =>
+          !["pages/login/index", "pages/agreement/index", "pages/mine/index"].includes(route),
+      )
+    : wanted
+  ).map((route) => ({
     label: route,
     url: route,
     file: route.replaceAll("/", "__"),
@@ -157,13 +185,49 @@ const context = await browser.newContext({
 });
 const failed = [];
 async function shoot(target) {
-  const page = await context.newPage();
+  const isolated = target.scene
+    ? await browser.newContext({
+        viewport: VIEWPORT,
+        deviceScaleFactor: 1,
+        locale: "zh-CN",
+        timezoneId: "Asia/Shanghai",
+      })
+    : null;
+  const page = await (isolated ?? context).newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   try {
+    if (target.scene) {
+      await page.addInitScript((scene) => {
+        globalThis.__LYX_ACCOUNT_SHOT__ = scene;
+      }, target.scene);
+      await page.route("**/*", (route) => {
+        if (new URL(route.request().url()).origin === origin) return route.continue();
+        errors.push(`离线场景外发请求：${route.request().url()}`);
+        return route.abort();
+      });
+      page.on("console", (message) => {
+        if (message.type() === "error") errors.push(message.text());
+      });
+    }
     await page.goto(`${origin}/#/${target.url}`, { waitUntil: "networkidle" });
     const taroPage = page.locator(".taro_page").first();
     await taroPage.waitFor({ state: "visible", timeout: 15_000 });
+    if (target.scene) {
+      await page.locator("#account-ready").waitFor({ state: "visible", timeout: 15_000 });
+      if (target.scene.startsWith("login")) {
+        await page.locator("input").fill("13800138000");
+        if (target.scene === "login-checked")
+          await page.getByText("我已阅读并同意", { exact: true }).click();
+        else await page.locator(".lyx-button").filter({ hasText: "手机号快捷登录" }).click();
+      }
+      if (target.scene === "store-switch")
+        await page.locator(".lyx-text-button").filter({ hasText: "切换门店" }).click();
+      if (target.scene === "reconsent")
+        await page.getByText("请确认更新后的协议", { exact: true }).waitFor({ state: "visible" });
+      if (target.scene === "store-switch" || target.scene === "reconsent")
+        await page.waitForTimeout(400);
+    }
     if (errors.length > 0) throw new Error(`页面报错：${errors[0]}`);
     if (target.fullPage) {
       // 页面上开着弹层时，等它的进场动画走完
@@ -178,9 +242,10 @@ async function shoot(target) {
     await page.screenshot({ path: file });
     console.log(`已出图 ${path.relative(appRoot, file)}`);
   } catch (error) {
-    failed.push(`${target.label}：${String(error.message).split("\n")[0]}`);
+    failed.push(`${target.label}：${String(error.message)}`);
   }
   await page.close();
+  await isolated?.close();
 }
 // 一张图的时间大半花在等（等网络空闲、等动画），几页并着截；每页各用各的标签页，互不影响
 const queue = [...targets];

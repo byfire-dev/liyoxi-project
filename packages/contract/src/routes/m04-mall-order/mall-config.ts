@@ -1,8 +1,10 @@
 // 商家端：商城、选剧单与订购 · mall-config（docs/api/m04-mall-order.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import { MallConfigViewSchema } from "./mall.schemas.js";
 
-export const mMallConfigGet = merchantMeta({
+export const mMallConfigGet = merchantRoute({
   method: "get",
   path: "/m/mall-config",
   operationId: "m.mallConfig.get",
@@ -10,4 +12,5 @@ export const mMallConfigGet = merchantMeta({
   "x-auth": "public",
   "x-clerk-view": "same",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  responses: { ...okResponse(MallConfigViewSchema), ...errorResponses(500) },
 });
