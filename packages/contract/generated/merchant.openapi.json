@@ -5,15 +5,12 @@
       "AddressView": {
         "properties": {
           "city": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/DictRef"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },
@@ -24,15 +21,12 @@
             ]
           },
           "district": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/DictRef"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },
@@ -55,28 +49,22 @@
             ]
           },
           "province": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/DictRef"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },
           "zone": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/DictRef"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           }
@@ -966,10 +954,14 @@
             ]
           },
           "phoneVerifiedAt": {
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "phoneVerifyState": {
@@ -5768,10 +5760,14 @@
             ]
           },
           "expiresAt": {
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "fileId": {
@@ -5818,10 +5814,7 @@
           "displayHeight",
           "moderationState"
         ],
-        "type": [
-          "object",
-          "null"
-        ]
+        "type": "object"
       },
       "MemberPreview": {
         "properties": {
@@ -7621,15 +7614,12 @@
             "x-open-enum": true
           },
           "permitType": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/DictRef"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },
@@ -7684,17 +7674,25 @@
             "type": "string"
           },
           "validEndDate": {
-            "format": "date",
-            "type": [
-              "string",
-              "null"
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "validStartDate": {
-            "format": "date",
-            "type": [
-              "string",
-              "null"
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "verdict": {
@@ -7853,10 +7851,14 @@
             "x-open-enum": true
           },
           "closedAt": {
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "contactSnapshot": {
@@ -7888,10 +7890,14 @@
             ]
           },
           "decidedAt": {
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "decisionNote": {
@@ -7901,10 +7907,14 @@
             ]
           },
           "declarationConfirmedAt": {
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "declarationVersion": {
@@ -7920,17 +7930,25 @@
             "type": "array"
           },
           "dueAt": {
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "finalRejectedAt": {
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "isDecidedBySystem": {
@@ -7995,10 +8013,14 @@
             ]
           },
           "submittedAt": {
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "systemRejectCode": {
@@ -8038,10 +8060,7 @@
           "docs",
           "lockVersion"
         ],
-        "type": [
-          "object",
-          "null"
-        ]
+        "type": "object"
       },
       "QualificationView": {
         "oneOf": [
@@ -8116,10 +8135,14 @@
                     "x-open-enum": true
                   },
                   "verifiedAt": {
-                    "format": "date-time",
-                    "type": [
-                      "string",
-                      "null"
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
                     ]
                   }
                 },
@@ -8140,10 +8163,24 @@
                 "type": "boolean"
               },
               "lastClosedRound": {
-                "$ref": "#/components/schemas/QualificationRound"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/QualificationRound"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "openRound": {
-                "$ref": "#/components/schemas/QualificationRound"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/QualificationRound"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "requiredPermits": {
                 "items": {
@@ -8764,15 +8801,12 @@
                 "type": "array"
               },
               "category": {
-                "allOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/DictRef"
                   },
                   {
-                    "type": [
-                      "object",
-                      "null"
-                    ]
+                    "type": "null"
                   }
                 ]
               },
@@ -8780,30 +8814,38 @@
                 "$ref": "#/components/schemas/Completeness"
               },
               "industry": {
-                "allOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/DictRef"
                   },
                   {
-                    "type": [
-                      "object",
-                      "null"
-                    ]
+                    "type": "null"
                   }
                 ]
               },
               "lastEditedAt": {
-                "format": "date-time",
-                "type": [
-                  "string",
-                  "null"
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
                 ]
               },
               "lockVersion": {
                 "type": "integer"
               },
               "logo": {
-                "$ref": "#/components/schemas/MediaFileView"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/MediaFileView"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "pendingChange": {
                 "type": "null"
@@ -8898,15 +8940,12 @@
                 "type": "array"
               },
               "category": {
-                "allOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/DictRef"
                   },
                   {
-                    "type": [
-                      "object",
-                      "null"
-                    ]
+                    "type": "null"
                   }
                 ]
               },
@@ -8914,27 +8953,35 @@
                 "$ref": "#/components/schemas/Completeness"
               },
               "industry": {
-                "allOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/DictRef"
                   },
                   {
-                    "type": [
-                      "object",
-                      "null"
-                    ]
+                    "type": "null"
                   }
                 ]
               },
               "lastEditedAt": {
-                "format": "date-time",
-                "type": [
-                  "string",
-                  "null"
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
                 ]
               },
               "logo": {
-                "$ref": "#/components/schemas/MediaFileView"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/MediaFileView"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "reviewFieldsLocked": {
                 "type": "boolean"
@@ -9466,17 +9513,25 @@
               "qualification": {
                 "properties": {
                   "dueAt": {
-                    "format": "date-time",
-                    "type": [
-                      "string",
-                      "null"
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
                     ]
                   },
                   "lastDecidedAt": {
-                    "format": "date-time",
-                    "type": [
-                      "string",
-                      "null"
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
                     ]
                   },
                   "status": {
@@ -9490,10 +9545,14 @@
                     "x-open-enum": true
                   },
                   "submittedAt": {
-                    "format": "date-time",
-                    "type": [
-                      "string",
-                      "null"
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
                     ]
                   }
                 },
@@ -9572,15 +9631,12 @@
                               "x-open-enum": true
                             },
                             "permitType": {
-                              "allOf": [
+                              "anyOf": [
                                 {
                                   "$ref": "#/components/schemas/DictRef"
                                 },
                                 {
-                                  "type": [
-                                    "object",
-                                    "null"
-                                  ]
+                                  "type": "null"
                                 }
                               ]
                             }
@@ -9650,28 +9706,22 @@
               "store": {
                 "properties": {
                   "category": {
-                    "allOf": [
+                    "anyOf": [
                       {
                         "$ref": "#/components/schemas/DictRef"
                       },
                       {
-                        "type": [
-                          "object",
-                          "null"
-                        ]
+                        "type": "null"
                       }
                     ]
                   },
                   "industry": {
-                    "allOf": [
+                    "anyOf": [
                       {
                         "$ref": "#/components/schemas/DictRef"
                       },
                       {
-                        "type": [
-                          "object",
-                          "null"
-                        ]
+                        "type": "null"
                       }
                     ]
                   },
@@ -9940,28 +9990,22 @@
               "store": {
                 "properties": {
                   "category": {
-                    "allOf": [
+                    "anyOf": [
                       {
                         "$ref": "#/components/schemas/DictRef"
                       },
                       {
-                        "type": [
-                          "object",
-                          "null"
-                        ]
+                        "type": "null"
                       }
                     ]
                   },
                   "industry": {
-                    "allOf": [
+                    "anyOf": [
                       {
                         "$ref": "#/components/schemas/DictRef"
                       },
                       {
-                        "type": [
-                          "object",
-                          "null"
-                        ]
+                        "type": "null"
                       }
                     ]
                   },
@@ -10066,7 +10110,14 @@
                 "items": {
                   "properties": {
                     "image": {
-                      "$ref": "#/components/schemas/MediaFileView"
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/MediaFileView"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "intro": {
                       "type": [
@@ -10161,7 +10212,14 @@
                 "items": {
                   "properties": {
                     "image": {
-                      "$ref": "#/components/schemas/MediaFileView"
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/MediaFileView"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "intro": {
                       "type": [
@@ -14380,74 +14438,78 @@
               "schema": {
                 "properties": {
                   "address": {
-                    "properties": {
-                      "cityCode": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
+                    "anyOf": [
+                      {
+                        "properties": {
+                          "cityCode": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "detail": {
+                            "maxLength": 200,
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "districtCode": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "latitude": {
+                            "maximum": 90,
+                            "minimum": -90,
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "longitude": {
+                            "maximum": 180,
+                            "minimum": -180,
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "poiName": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "provinceCode": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "zoneCode": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "provinceCode",
+                          "cityCode",
+                          "districtCode",
+                          "zoneCode",
+                          "detail",
+                          "poiName",
+                          "latitude",
+                          "longitude"
+                        ],
+                        "type": "object"
                       },
-                      "detail": {
-                        "maxLength": 200,
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
-                      "districtCode": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
-                      "latitude": {
-                        "maximum": 90,
-                        "minimum": -90,
-                        "type": [
-                          "number",
-                          "null"
-                        ]
-                      },
-                      "longitude": {
-                        "maximum": 180,
-                        "minimum": -180,
-                        "type": [
-                          "number",
-                          "null"
-                        ]
-                      },
-                      "poiName": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
-                      "provinceCode": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
-                      "zoneCode": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
+                      {
+                        "type": "null"
                       }
-                    },
-                    "required": [
-                      "provinceCode",
-                      "cityCode",
-                      "districtCode",
-                      "zoneCode",
-                      "detail",
-                      "poiName",
-                      "latitude",
-                      "longitude"
-                    ],
-                    "type": [
-                      "object",
-                      "null"
                     ]
                   },
                   "avgSpendFen": {
@@ -14516,11 +14578,15 @@
                     "type": "integer"
                   },
                   "logoFileId": {
-                    "format": "uuid",
-                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-                    "type": [
-                      "string",
-                      "null"
+                    "anyOf": [
+                      {
+                        "format": "uuid",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
                     ]
                   },
                   "storeName": {
@@ -14606,15 +14672,12 @@
                           "type": "array"
                         },
                         "category": {
-                          "allOf": [
+                          "anyOf": [
                             {
                               "$ref": "#/components/schemas/DictRef"
                             },
                             {
-                              "type": [
-                                "object",
-                                "null"
-                              ]
+                              "type": "null"
                             }
                           ]
                         },
@@ -14622,30 +14685,38 @@
                           "$ref": "#/components/schemas/Completeness"
                         },
                         "industry": {
-                          "allOf": [
+                          "anyOf": [
                             {
                               "$ref": "#/components/schemas/DictRef"
                             },
                             {
-                              "type": [
-                                "object",
-                                "null"
-                              ]
+                              "type": "null"
                             }
                           ]
                         },
                         "lastEditedAt": {
-                          "format": "date-time",
-                          "type": [
-                            "string",
-                            "null"
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
                           ]
                         },
                         "lockVersion": {
                           "type": "integer"
                         },
                         "logo": {
-                          "$ref": "#/components/schemas/MediaFileView"
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/MediaFileView"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "pendingChange": {
                           "type": "null"
@@ -15621,10 +15692,14 @@
                               "x-open-enum": true
                             },
                             "verifiedAt": {
-                              "format": "date-time",
-                              "type": [
-                                "string",
-                                "null"
+                              "anyOf": [
+                                {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
                               ]
                             }
                           },
@@ -15645,10 +15720,24 @@
                           "type": "boolean"
                         },
                         "lastClosedRound": {
-                          "$ref": "#/components/schemas/QualificationRound"
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/QualificationRound"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "openRound": {
-                          "$ref": "#/components/schemas/QualificationRound"
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/QualificationRound"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "requiredPermits": {
                           "items": {
@@ -15891,10 +15980,14 @@
                               "x-open-enum": true
                             },
                             "verifiedAt": {
-                              "format": "date-time",
-                              "type": [
-                                "string",
-                                "null"
+                              "anyOf": [
+                                {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
                               ]
                             }
                           },
@@ -15915,10 +16008,24 @@
                           "type": "boolean"
                         },
                         "lastClosedRound": {
-                          "$ref": "#/components/schemas/QualificationRound"
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/QualificationRound"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "openRound": {
-                          "$ref": "#/components/schemas/QualificationRound"
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/QualificationRound"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "requiredPermits": {
                           "items": {
@@ -16187,11 +16294,15 @@
                     "items": {
                       "properties": {
                         "imageFileId": {
-                          "format": "uuid",
-                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-                          "type": [
-                            "string",
-                            "null"
+                          "anyOf": [
+                            {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
                           ]
                         },
                         "intro": {
@@ -16293,7 +16404,14 @@
                           "items": {
                             "properties": {
                               "image": {
-                                "$ref": "#/components/schemas/MediaFileView"
+                                "anyOf": [
+                                  {
+                                    "$ref": "#/components/schemas/MediaFileView"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               },
                               "intro": {
                                 "type": [

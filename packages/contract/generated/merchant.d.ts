@@ -677,14 +677,14 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         AddressView: {
-            city: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            city: components["schemas"]["DictRef"] | null;
             detail: string | null;
-            district: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            district: components["schemas"]["DictRef"] | null;
             latitude: number | null;
             longitude: number | null;
             poiName: string | null;
-            province: components["schemas"]["DictRef"] & (Record<string, never> | null);
-            zone: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            province: components["schemas"]["DictRef"] | null;
+            zone: components["schemas"]["DictRef"] | null;
         };
         AgreementConsentReceipt: {
             consents: {
@@ -858,7 +858,6 @@ export interface components {
             loginPhoneMask: string | null;
             name: string | null;
             phoneMask: string | null;
-            /** Format: date-time */
             phoneVerifiedAt: string | null;
             /** @enum {string|null} */
             phoneVerifyState: "login" | "sms_verified" | "unverified" | (string & {}) | null;
@@ -1940,7 +1939,6 @@ export interface components {
             displayHeight: number | null;
             displayWidth: number | null;
             durationMs: number | null;
-            /** Format: date-time */
             expiresAt: string | null;
             /** Format: uuid */
             fileId: string;
@@ -1949,7 +1947,7 @@ export interface components {
             /** @enum {string} */
             moderationState: "none" | "pending" | "pass" | "review" | "block" | (string & {});
             url: string | null;
-        } | null;
+        };
         MemberPreview: {
             displayName: string | null;
             /** @enum {string} */
@@ -2331,7 +2329,7 @@ export interface components {
             ocrWarnings: string[];
             /** @enum {string} */
             origin: "uploaded" | "carried" | (string & {});
-            permitType: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            permitType: components["schemas"]["DictRef"] | null;
             principalNameMask: string | null;
             /** @enum {string|null} */
             principalRole: "legal_rep" | "operator" | "branch_head" | (string & {}) | null;
@@ -2343,9 +2341,7 @@ export interface components {
             subjectType: "enterprise" | "individual" | "branch" | "unknown" | (string & {}) | null;
             /** Format: date-time */
             uploadedAt: string;
-            /** Format: date */
             validEndDate: string | null;
-            /** Format: date */
             validStartDate: string | null;
             /** @enum {string|null} */
             verdict: "accepted" | "rejected" | (string & {}) | null;
@@ -2374,7 +2370,6 @@ export interface components {
             changedFields: ("store_name" | "address" | "industry" | "docs" | "entity_license" | (string & {}))[];
             /** @enum {string|null} */
             claimedEntityType: "enterprise" | "individual" | (string & {}) | null;
-            /** Format: date-time */
             closedAt: string | null;
             contactSnapshot: {
                 name: string;
@@ -2382,16 +2377,12 @@ export interface components {
                 /** @enum {string} */
                 phoneVerifyState: "login" | "sms_verified" | "unverified" | (string & {});
             } | null;
-            /** Format: date-time */
             decidedAt: string | null;
             decisionNote: string | null;
-            /** Format: date-time */
             declarationConfirmedAt: string | null;
             declarationVersion: string | null;
             docs: components["schemas"]["QualificationDoc"][];
-            /** Format: date-time */
             dueAt: string | null;
-            /** Format: date-time */
             finalRejectedAt: string | null;
             isDecidedBySystem: boolean;
             isResubmit: boolean;
@@ -2407,11 +2398,10 @@ export interface components {
             qualificationSubmissionId: string;
             rejectReasons: components["schemas"]["DictRef"][];
             roundNo: number | null;
-            /** Format: date-time */
             submittedAt: string | null;
             /** @enum {string|null} */
             systemRejectCode: "duplicate_entity" | (string & {}) | null;
-        } | null;
+        };
         QualificationView: {
             actions: string[];
             contact: components["schemas"]["ContactView"];
@@ -2427,13 +2417,12 @@ export interface components {
                 usccMask: string | null;
                 /** @enum {string} */
                 verificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
-                /** Format: date-time */
                 verifiedAt: string | null;
             };
             isChangeInReview: boolean;
             isFinalRejected: boolean;
-            lastClosedRound: components["schemas"]["QualificationRound"];
-            openRound: components["schemas"]["QualificationRound"];
+            lastClosedRound: components["schemas"]["QualificationRound"] | null;
+            openRound: components["schemas"]["QualificationRound"] | null;
             requiredPermits: {
                 isProvided: boolean;
                 permitType: components["schemas"]["DictRef"];
@@ -2544,13 +2533,12 @@ export interface components {
                 end: string;
                 start: string;
             }[];
-            category: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            category: components["schemas"]["DictRef"] | null;
             completeness: components["schemas"]["Completeness"];
-            industry: components["schemas"]["DictRef"] & (Record<string, never> | null);
-            /** Format: date-time */
+            industry: components["schemas"]["DictRef"] | null;
             lastEditedAt: string | null;
             lockVersion: number;
-            logo: components["schemas"]["MediaFileView"];
+            logo: components["schemas"]["MediaFileView"] | null;
             pendingChange: null;
             reviewFieldsLocked: boolean;
             reviewRequiredOnChange: boolean;
@@ -2567,12 +2555,11 @@ export interface components {
                 end: string;
                 start: string;
             }[];
-            category: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            category: components["schemas"]["DictRef"] | null;
             completeness: components["schemas"]["Completeness"];
-            industry: components["schemas"]["DictRef"] & (Record<string, never> | null);
-            /** Format: date-time */
+            industry: components["schemas"]["DictRef"] | null;
             lastEditedAt: string | null;
-            logo: components["schemas"]["MediaFileView"];
+            logo: components["schemas"]["MediaFileView"] | null;
             reviewFieldsLocked: boolean;
             reviewRequiredOnChange: boolean;
             storeName: string | null;
@@ -2691,13 +2678,10 @@ export interface components {
                 }[];
             };
             qualification: {
-                /** Format: date-time */
                 dueAt: string | null;
-                /** Format: date-time */
                 lastDecidedAt: string | null;
                 /** @enum {string} */
                 status: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
-                /** Format: date-time */
                 submittedAt: string | null;
             };
             steps: {
@@ -2717,7 +2701,7 @@ export interface components {
                     docTypes: {
                         /** @enum {string} */
                         docType: "business_license" | "branch_license" | "industry_permit" | (string & {});
-                        permitType: components["schemas"]["DictRef"] & (Record<string, never> | null);
+                        permitType: components["schemas"]["DictRef"] | null;
                     }[];
                     /** @enum {string} */
                     state: "not_started" | "in_progress" | "completed" | (string & {});
@@ -2731,8 +2715,8 @@ export interface components {
                 };
             };
             store: {
-                category: components["schemas"]["DictRef"] & (Record<string, never> | null);
-                industry: components["schemas"]["DictRef"] & (Record<string, never> | null);
+                category: components["schemas"]["DictRef"] | null;
+                industry: components["schemas"]["DictRef"] | null;
                 isChangeInReview: boolean;
                 isFinalRejected: boolean;
                 isPrimary: boolean;
@@ -2790,8 +2774,8 @@ export interface components {
                 };
             };
             store: {
-                category: components["schemas"]["DictRef"] & (Record<string, never> | null);
-                industry: components["schemas"]["DictRef"] & (Record<string, never> | null);
+                category: components["schemas"]["DictRef"] | null;
+                industry: components["schemas"]["DictRef"] | null;
                 isChangeInReview: boolean;
                 isFinalRejected: boolean;
                 isPrimary: boolean;
@@ -2812,7 +2796,7 @@ export interface components {
             sellingNote: string | null;
             sellingPoints: components["schemas"]["DictRef"][];
             serviceItems: {
-                image: components["schemas"]["MediaFileView"];
+                image: components["schemas"]["MediaFileView"] | null;
                 intro: string | null;
                 name: string;
                 originalPriceFen: number | null;
@@ -2830,7 +2814,7 @@ export interface components {
             sellingNote: string | null;
             sellingPoints: components["schemas"]["DictRef"][];
             serviceItems: {
-                image: components["schemas"]["MediaFileView"];
+                image: components["schemas"]["MediaFileView"] | null;
                 intro: string | null;
                 name: string;
                 originalPriceFen: number | null;
@@ -5222,7 +5206,6 @@ export interface operations {
                     draft: boolean;
                     industryCode?: string | null;
                     lockVersion: number;
-                    /** Format: uuid */
                     logoFileId?: string | null;
                     storeName?: string | null;
                     storeTel?: string | null;
@@ -5248,13 +5231,12 @@ export interface operations {
                                 end: string;
                                 start: string;
                             }[];
-                            category: components["schemas"]["DictRef"] & (Record<string, never> | null);
+                            category: components["schemas"]["DictRef"] | null;
                             completeness: components["schemas"]["Completeness"];
-                            industry: components["schemas"]["DictRef"] & (Record<string, never> | null);
-                            /** Format: date-time */
+                            industry: components["schemas"]["DictRef"] | null;
                             lastEditedAt: string | null;
                             lockVersion: number;
-                            logo: components["schemas"]["MediaFileView"];
+                            logo: components["schemas"]["MediaFileView"] | null;
                             pendingChange: null;
                             replayed: boolean;
                             reviewFieldsLocked: boolean;
@@ -5723,13 +5705,12 @@ export interface operations {
                                 usccMask: string | null;
                                 /** @enum {string} */
                                 verificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
-                                /** Format: date-time */
                                 verifiedAt: string | null;
                             };
                             isChangeInReview: boolean;
                             isFinalRejected: boolean;
-                            lastClosedRound: components["schemas"]["QualificationRound"];
-                            openRound: components["schemas"]["QualificationRound"];
+                            lastClosedRound: components["schemas"]["QualificationRound"] | null;
+                            openRound: components["schemas"]["QualificationRound"] | null;
                             requiredPermits: {
                                 isProvided: boolean;
                                 permitType: components["schemas"]["DictRef"];
@@ -5833,13 +5814,12 @@ export interface operations {
                                 usccMask: string | null;
                                 /** @enum {string} */
                                 verificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
-                                /** Format: date-time */
                                 verifiedAt: string | null;
                             };
                             isChangeInReview: boolean;
                             isFinalRejected: boolean;
-                            lastClosedRound: components["schemas"]["QualificationRound"];
-                            openRound: components["schemas"]["QualificationRound"];
+                            lastClosedRound: components["schemas"]["QualificationRound"] | null;
+                            openRound: components["schemas"]["QualificationRound"] | null;
                             requiredPermits: {
                                 isProvided: boolean;
                                 permitType: components["schemas"]["DictRef"];
@@ -5989,7 +5969,6 @@ export interface operations {
                     sellingNote?: string | null;
                     sellingPointCodes?: string[];
                     serviceItems?: {
-                        /** Format: uuid */
                         imageFileId?: string | null;
                         intro?: string | null;
                         name: string;
@@ -6020,7 +5999,7 @@ export interface operations {
                             sellingNote: string | null;
                             sellingPoints: components["schemas"]["DictRef"][];
                             serviceItems: {
-                                image: components["schemas"]["MediaFileView"];
+                                image: components["schemas"]["MediaFileView"] | null;
                                 intro: string | null;
                                 name: string;
                                 originalPriceFen: number | null;

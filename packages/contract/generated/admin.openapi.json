@@ -541,6 +541,249 @@
         ],
         "type": "object"
       },
+      "AdminQualificationDoc": {
+        "properties": {
+          "certNoMask": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "displayFields": {
+            "items": {
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "value"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "docType": {
+            "enum": [
+              "business_license",
+              "branch_license",
+              "industry_permit"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "expiryState": {
+            "enum": [
+              "none",
+              "expiring",
+              "expired"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "fieldChecks": {
+            "items": {
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "field": {
+                  "type": "string"
+                },
+                "result": {
+                  "enum": [
+                    "pass",
+                    "fail",
+                    "warn",
+                    "manual",
+                    "info"
+                  ],
+                  "type": "string",
+                  "x-open-enum": true
+                }
+              },
+              "required": [
+                "code",
+                "field",
+                "result"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "fileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "holderName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isCorrected": {
+            "type": "boolean"
+          },
+          "isEffective": {
+            "type": "boolean"
+          },
+          "isLongTerm": {
+            "type": "boolean"
+          },
+          "ocrStatus": {
+            "enum": [
+              "ok",
+              "unavailable",
+              "unreadable"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "ocrWarnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "origin": {
+            "enum": [
+              "uploaded",
+              "carried"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "permitType": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "principalNameMask": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "principalRole": {
+            "enum": [
+              "legal_rep",
+              "operator",
+              "branch_head",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "qualificationDocId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "entity",
+              "store"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "subjectType": {
+            "enum": [
+              "enterprise",
+              "individual",
+              "branch",
+              "unknown",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "uploadedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "validEndDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "validStartDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verdict": {
+            "enum": [
+              "accepted",
+              "rejected",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "qualificationDocId",
+          "docType",
+          "permitType",
+          "scope",
+          "origin",
+          "fileId",
+          "ocrStatus",
+          "ocrWarnings",
+          "holderName",
+          "certNoMask",
+          "principalNameMask",
+          "principalRole",
+          "subjectType",
+          "validStartDate",
+          "validEndDate",
+          "isLongTerm",
+          "expiryState",
+          "displayFields",
+          "verdict",
+          "isEffective",
+          "uploadedAt",
+          "fieldChecks",
+          "isCorrected"
+        ],
+        "type": "object"
+      },
       "ApprovalCounts": {
         "properties": {
           "items": {
@@ -678,6 +921,156 @@
           "items",
           "total",
           "pointsAdjustMonth"
+        ],
+        "type": "object"
+      },
+      "ApprovalDecisionView": {
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "approve",
+                "reject",
+                "withdraw",
+                "approve-review",
+                "reject-review"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "approvalId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "badges": {
+            "items": {
+              "enum": [
+                "check_mismatch",
+                "final_rejected",
+                "overdue"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "decidedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decidedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decisionNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dueAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isDecidedBySystem": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "qualification",
+              "channel_account",
+              "launch_link",
+              "order_cancel",
+              "ad_cancel",
+              "qualification_cancel",
+              "plan_refund",
+              "points_adjust",
+              "subscription_extend",
+              "finance_config_change",
+              "account_change",
+              "transfer_confirm"
+            ],
+            "type": "string"
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "requester": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "roundNo": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "withdrawn"
+            ],
+            "type": "string"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "approvalId",
+          "kind",
+          "status",
+          "roundNo",
+          "submittedAt",
+          "dueAt",
+          "badges",
+          "requester",
+          "decidedBy",
+          "isDecidedBySystem",
+          "decidedAt",
+          "decisionNote",
+          "reasons",
+          "lockVersion",
+          "actions"
         ],
         "type": "object"
       },
@@ -1685,6 +2078,41 @@
         ],
         "type": "object"
       },
+      "ManagerAssignResult": {
+        "properties": {
+          "deliveryManager": {
+            "$ref": "#/components/schemas/StaffBrief"
+          },
+          "storeId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "synced": {
+            "properties": {
+              "deliveryTicketCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "dramaOrderCount": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "dramaOrderCount",
+              "deliveryTicketCount"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "storeId",
+          "deliveryManager",
+          "synced"
+        ],
+        "type": "object"
+      },
       "PaymentOrderAdminDetail": {
         "properties": {
           "actions": {
@@ -2650,6 +3078,613 @@
         "required": [
           "url",
           "fields"
+        ],
+        "type": "object"
+      },
+      "QualificationSubmissionDetail": {
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "approval": {
+            "$ref": "#/components/schemas/ApprovalDecisionView"
+          },
+          "approveMode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "normal",
+                  "corrected",
+                  "override"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "canOverride": {
+            "type": "boolean"
+          },
+          "changedFields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "checkSummary": {
+            "anyOf": [
+              {
+                "properties": {
+                  "fail": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "manual": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "suggestedNote": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "suggestedReason": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/DictRef"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "warn": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "fail",
+                  "warn",
+                  "manual",
+                  "suggestedReason",
+                  "suggestedNote"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checksRanAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "claimedEntityType": {
+            "anyOf": [
+              {
+                "enum": [
+                  "enterprise",
+                  "individual"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "closedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confirmChecks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "contact": {
+            "anyOf": [
+              {
+                "properties": {
+                  "name": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "phoneMask": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "phoneVerifyState": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "login",
+                          "sms_verified",
+                          "unverified"
+                        ],
+                        "type": "string",
+                        "x-open-enum": true
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "phoneMask",
+                  "phoneVerifyState"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "docs": {
+            "items": {
+              "$ref": "#/components/schemas/AdminQualificationDoc"
+            },
+            "type": "array"
+          },
+          "duplicateUscc": {
+            "properties": {
+              "inReviewElsewhereCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "isVerifiedElsewhere": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "inReviewElsewhereCount",
+              "isVerifiedElsewhere"
+            ],
+            "type": "object"
+          },
+          "entity": {
+            "properties": {
+              "entityId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "usccMask": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "verificationStatus": {
+                "enum": [
+                  "unsubmitted",
+                  "pending",
+                  "verified",
+                  "rejected"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "verifiedAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "verifiedStores": {
+                "items": {
+                  "properties": {
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "storeId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "storeId",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "entityId",
+              "name",
+              "verificationStatus",
+              "usccMask",
+              "verifiedAt",
+              "verifiedStores"
+            ],
+            "type": "object"
+          },
+          "finalRejectedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isResubmit": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "initial",
+              "new_store",
+              "change"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "approved",
+                  "rejected",
+                  "withdrawn",
+                  "discarded"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profileDigest": {
+            "properties": {
+              "completenessPct": {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "doorCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "interiorCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "serviceItemCount": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "completenessPct",
+              "doorCount",
+              "interiorCount",
+              "serviceItemCount"
+            ],
+            "type": "object"
+          },
+          "proposed": {
+            "type": "null"
+          },
+          "qualificationSubmissionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "referenceDocs": {
+            "items": {
+              "$ref": "#/components/schemas/AdminQualificationDoc"
+            },
+            "type": "array"
+          },
+          "relatedOrders": {
+            "items": {
+              "properties": {
+                "amountFen": {
+                  "anyOf": [
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "heldPoints": {
+                  "anyOf": [
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "payment_order",
+                    "drama_order"
+                  ],
+                  "type": "string"
+                },
+                "no": {
+                  "type": "string"
+                },
+                "statusText": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "id",
+                "no",
+                "title",
+                "statusText",
+                "amountFen",
+                "heldPoints"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "roundNo": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "store": {
+            "properties": {
+              "category": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "industry": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "isPrimary": {
+                "type": "boolean"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "qualificationStatus": {
+                "enum": [
+                  "unsubmitted",
+                  "pending",
+                  "verified",
+                  "rejected"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "region": {
+                "properties": {
+                  "city": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/DictRef"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "district": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/DictRef"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "province": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/DictRef"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "zone": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/DictRef"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "province",
+                  "city",
+                  "district",
+                  "zone"
+                ],
+                "type": "object"
+              },
+              "storeId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "storeId",
+              "name",
+              "isPrimary",
+              "qualificationStatus",
+              "industry",
+              "category",
+              "region"
+            ],
+            "type": "object"
+          },
+          "systemRejectCode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "duplicate_entity"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "qualificationSubmissionId",
+          "kind",
+          "roundNo",
+          "isResubmit",
+          "claimedEntityType",
+          "approval",
+          "confirmChecks",
+          "lockVersion",
+          "closedAt",
+          "outcome",
+          "approveMode",
+          "systemRejectCode",
+          "finalRejectedAt",
+          "store",
+          "entity",
+          "proposed",
+          "changedFields",
+          "contact",
+          "profileDigest",
+          "checkSummary",
+          "checksRanAt",
+          "docs",
+          "referenceDocs",
+          "duplicateUscc",
+          "relatedOrders",
+          "canOverride",
+          "actions"
         ],
         "type": "object"
       },
@@ -3791,6 +4826,816 @@
         ],
         "type": "object"
       },
+      "StoreHeader": {
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "archiveReason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "by_owner",
+                  "draft_deleted",
+                  "entity_closed",
+                  "entity_abandoned"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "archivedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contact": {
+            "properties": {
+              "name": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "phoneMask": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "phoneMask"
+            ],
+            "type": "object"
+          },
+          "deliveringTicketCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "deliveryManager": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entity": {
+            "properties": {
+              "activeStoreCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "entityId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "verificationStatus": {
+                "enum": [
+                  "unsubmitted",
+                  "pending",
+                  "verified",
+                  "rejected"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              }
+            },
+            "required": [
+              "entityId",
+              "name",
+              "verificationStatus",
+              "activeStoreCount"
+            ],
+            "type": "object"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isChangeInReview": {
+            "type": "boolean"
+          },
+          "isFinalRejected": {
+            "type": "boolean"
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "isWecomAdded": {
+            "type": "boolean"
+          },
+          "lifecycle": {
+            "enum": [
+              "active",
+              "archived"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "liveDramaCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "liveSummary": {
+            "properties": {
+              "firstLiveDate": {
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "latestUsageEndDate": {
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "usageEndSource": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "license",
+                      "early_end",
+                      "expired"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "firstLiveDate",
+              "latestUsageEndDate",
+              "usageEndSource"
+            ],
+            "type": "object"
+          },
+          "managerContact": {
+            "anyOf": [
+              {
+                "properties": {
+                  "assignmentHistoryId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "contactDueAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "isOverdue": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "assignmentHistoryId",
+                  "contactDueAt",
+                  "isOverdue"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "managerOpenWork": {
+            "properties": {
+              "deliveryTicketInServiceCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "deliveryTicketProducingCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "dramaOrderCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "serviceTicketCount": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "dramaOrderCount",
+              "deliveryTicketProducingCount",
+              "deliveryTicketInServiceCount",
+              "serviceTicketCount"
+            ],
+            "type": "object"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nearestAgreedLaunchDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "properties": {
+                  "displayName": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "merchantUserId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "phoneMask": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "active",
+                      "disabled",
+                      "deleted"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  }
+                },
+                "required": [
+                  "merchantUserId",
+                  "displayName",
+                  "phoneMask",
+                  "status"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "paid": {
+            "properties": {
+              "paidOrderCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "planOrderCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "topupOrderCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "totalPaidFen": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "totalPaidFen",
+              "paidOrderCount",
+              "planOrderCount",
+              "topupOrderCount"
+            ],
+            "type": "object"
+          },
+          "pendingPointAdjustment": {
+            "anyOf": [
+              {
+                "properties": {
+                  "adjustPoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "direction": {
+                    "type": "string"
+                  },
+                  "lotKind": {
+                    "type": "string"
+                  },
+                  "pointAdjustmentRequestId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "requestNo": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pointAdjustmentRequestId",
+                  "requestNo",
+                  "direction",
+                  "lotKind",
+                  "adjustPoints"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "points": {
+            "properties": {
+              "addonAvailablePoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "heldPoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "isAddonSuspended": {
+                "type": "boolean"
+              },
+              "planAvailablePoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "spendablePoints": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "spendablePoints",
+              "planAvailablePoints",
+              "addonAvailablePoints",
+              "heldPoints",
+              "isAddonSuspended"
+            ],
+            "type": "object"
+          },
+          "qualificationStatus": {
+            "enum": [
+              "unsubmitted",
+              "pending",
+              "verified",
+              "rejected"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "region": {
+            "properties": {
+              "city": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "district": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "province": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "zone": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "province",
+              "city",
+              "district",
+              "zone"
+            ],
+            "type": "object"
+          },
+          "registeredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "sourceType": {
+            "enum": [
+              "organic",
+              "sales",
+              "campaign",
+              "partner"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "storeId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "subscription": {
+            "$ref": "#/components/schemas/SubscriptionBrief"
+          }
+        },
+        "required": [
+          "storeId",
+          "name",
+          "isPrimary",
+          "lifecycle",
+          "region",
+          "industry",
+          "category",
+          "qualificationStatus",
+          "sourceType",
+          "deliveryManager",
+          "subscription",
+          "points",
+          "registeredAt",
+          "actions",
+          "archiveReason",
+          "archivedAt",
+          "isChangeInReview",
+          "isFinalRejected",
+          "entity",
+          "contact",
+          "owner",
+          "isWecomAdded",
+          "managerContact",
+          "managerOpenWork",
+          "pendingPointAdjustment",
+          "paid",
+          "liveDramaCount",
+          "liveSummary",
+          "deliveringTicketCount",
+          "nearestAgreedLaunchDate"
+        ],
+        "type": "object"
+      },
+      "StoreRow": {
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deliveryManager": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entity": {
+            "properties": {
+              "activeStoreCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "entityId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "primaryStoreName": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "entityId",
+              "name",
+              "activeStoreCount",
+              "primaryStoreName"
+            ],
+            "type": "object"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "lastOrderAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lifecycle": {
+            "enum": [
+              "active",
+              "archived"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "points": {
+            "properties": {
+              "addonAvailablePoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "heldPoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "isAddonSuspended": {
+                "type": "boolean"
+              },
+              "planAvailablePoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "spendablePoints": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "spendablePoints",
+              "planAvailablePoints",
+              "addonAvailablePoints",
+              "heldPoints",
+              "isAddonSuspended"
+            ],
+            "type": "object"
+          },
+          "qualificationStatus": {
+            "enum": [
+              "unsubmitted",
+              "pending",
+              "verified",
+              "rejected"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "region": {
+            "properties": {
+              "city": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "district": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "province": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "zone": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "province",
+              "city",
+              "district",
+              "zone"
+            ],
+            "type": "object"
+          },
+          "registeredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "sourceType": {
+            "enum": [
+              "organic",
+              "sales",
+              "campaign",
+              "partner"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "storeId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "subscription": {
+            "$ref": "#/components/schemas/SubscriptionBrief"
+          },
+          "totalPaidFen": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "storeId",
+          "name",
+          "isPrimary",
+          "lifecycle",
+          "entity",
+          "region",
+          "industry",
+          "category",
+          "qualificationStatus",
+          "sourceType",
+          "deliveryManager",
+          "subscription",
+          "points",
+          "totalPaidFen",
+          "lastOrderAt",
+          "registeredAt",
+          "actions"
+        ],
+        "type": "object"
+      },
       "StsCredential": {
         "properties": {
           "expiredTime": {
@@ -3817,6 +5662,145 @@
           "sessionToken",
           "startTime",
           "expiredTime"
+        ],
+        "type": "object"
+      },
+      "SubscriptionBrief": {
+        "properties": {
+          "endDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hasScheduledTerm": {
+            "type": "boolean"
+          },
+          "isRefundPending": {
+            "type": "boolean"
+          },
+          "latestPaymentOrder": {
+            "anyOf": [
+              {
+                "properties": {
+                  "orderNo": {
+                    "type": "string"
+                  },
+                  "paymentOrderId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "refundedAt": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "paymentOrderId",
+                  "orderNo",
+                  "type",
+                  "status",
+                  "title",
+                  "refundedAt"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "months": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "planId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "planId",
+                  "code",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "startDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "none",
+              "active",
+              "expired"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "status",
+          "plan",
+          "months",
+          "startDate",
+          "endDate",
+          "hasScheduledTerm",
+          "isRefundPending",
+          "latestPaymentOrder"
         ],
         "type": "object"
       },
@@ -6251,6 +8235,417 @@
         "x-idempotent-reason": "纯查询（GET 不写库，A19）"
       }
     },
+    "/api/v1/admin/qualification-submissions/{qualificationSubmissionId}": {
+      "get": {
+        "operationId": "admin.qualificationSubmission.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "qualificationSubmissionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/QualificationSubmissionDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "资质提交详情（审核页右栏）：本轮证照与识别字段（脱敏）、系统比对结论、修正记录、历次审核与审批单引用",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/qualification-submissions/{qualificationSubmissionId}/approve": {
+      "post": {
+        "operationId": "admin.qualificationSubmission.approve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "qualificationSubmissionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "confirm": {
+                    "properties": {
+                      "roundNo": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "confirmChecks": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 10,
+                    "type": "array"
+                  },
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "mode": {
+                    "default": "normal",
+                    "enum": [
+                      "normal",
+                      "override"
+                    ],
+                    "type": "string"
+                  },
+                  "overrideReason": {
+                    "maxLength": 200,
+                    "minLength": 10,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "lockVersion"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/QualificationSubmissionDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "资质审核通过（initial 轮次门店与主体认证生效；change 轮次保持已认证）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "merchant.qualification.review"
+      }
+    },
+    "/api/v1/admin/qualification-submissions/{qualificationSubmissionId}/reject": {
+      "post": {
+        "operationId": "admin.qualificationSubmission.reject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "qualificationSubmissionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "confirm": {
+                    "properties": {
+                      "roundNo": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "isFinal": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "note": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "reasonCodes": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 3,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "rejectedDocIds": {
+                    "items": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "reasonCodes",
+                  "note"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/QualificationSubmissionDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "资质驳回或退回补充：原因（字典 reject_reason）+ 说明；可指明被驳回的证照行；可选终局驳回",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "merchant.qualification.review"
+      }
+    },
     "/api/v1/admin/roles": {
       "get": {
         "operationId": "admin.role.list",
@@ -6828,6 +9223,482 @@
         "x-auth": "staff",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/stores": {
+      "get": {
+        "operationId": "admin.store.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "regionCode",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "industryCode",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "categoryCode",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "qualificationStatus",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "deliveryManagerId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isManagerUnassigned",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lifecycle",
+            "required": false,
+            "schema": {
+              "default": "active",
+              "enum": [
+                "active",
+                "archived"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "-registeredAt",
+              "enum": [
+                "-registeredAt",
+                "registeredAt"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/StoreRow"
+                          },
+                          "type": "array"
+                        },
+                        "page": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "商家（门店）列表：关键字、区域、行业、审核状态、来源、交付经理、套餐版本、到期；排序与分页；也用于门店远程搜索下拉",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/stores/{storeId}": {
+      "get": {
+        "operationId": "admin.store.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StoreHeader"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "商家详情页头：门店、主体、标签、联系人（脱敏）、交付经理、5 张 KPI 卡",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/stores/{storeId}/assign-delivery-manager": {
+      "post": {
+        "operationId": "admin.store.assignDeliveryManager",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "note": {
+                    "maxLength": 200,
+                    "type": "string"
+                  },
+                  "toStaffId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "toStaffId"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ManagerAssignResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "首次指派交付经理（门店还没有交付经理时）：写门店交付经理，同步未结订购单，同事务分配本门店的待分配工单",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "merchant.manager.assign"
       }
     },
     "/api/v1/admin/transfer-proofs": {
