@@ -6,6 +6,8 @@ export const CLERK_DICTIONARY_PATHS = ["flags", "versions.dict", "versions.site"
 /** 目录标价例外按 operationId + 完整字段路径登记，不是全局按键名放行。后续目录包只增。 */
 export const CLERK_CATALOG_PRICE_PATHS: Readonly<Record<string, readonly string[]>> = {
   // 目录包在此按 operationId 只增完整字段路径。
+  "m.drama.list": ["items[].listPricePoints"],
+  "m.drama.get": ["listPricePoints", "adUnitPoints"],
 };
 
 /** m04 §3.3 的公开筛选元数据：仅完整路径与既定类型，分档沿用契约的严格边界。 */

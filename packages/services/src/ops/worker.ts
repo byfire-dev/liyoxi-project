@@ -4,6 +4,7 @@
 import { createPrismaClient } from "@liyoxi/db";
 import type { PrismaClient } from "@liyoxi/db";
 
+import { bindContent } from "../content/index.js";
 import { createMedia } from "../media/index.js";
 import type { PromoteRef } from "../media/index.js";
 import { advanceDueAccounts, createLedger } from "../billing/index.js";
@@ -131,6 +132,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const alerts = alertsOf(assembly);
   // ops 的周期任务与违规上报端口要连接、时钟与装配结果（W0-24）
   bindOps({ db: prisma, tx, clock, assembly });
+  bindContent(assembly);
   const delivery = { tx, subscribers: events.subscribers, channel, alerts };
   // 账本（W1-10）：每分钟扫描用它推进到点的主体
   const ledger = createLedger({ clock, events });

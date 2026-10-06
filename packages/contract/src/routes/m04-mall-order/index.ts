@@ -23,3 +23,10 @@ export const M04_MALL_ORDER = defineRouteDoc("m04-mall-order", [
   orders,
   todos,
 ]);
+
+export * from "./home.js";
+export * from "./mall-config.js";
+export * from "./dramas.js";
+export * from "./mall.schemas.js";
+export * from "./error-details.js";
+export * from "./banner.schemas.js";

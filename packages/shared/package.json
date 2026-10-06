@@ -79,6 +79,10 @@
     "./params": {
       "types": "./src/params/index.ts",
       "default": "./src/params/index.ts"
+    },
+    "./catalog": {
+      "types": "./src/catalog/index.ts",
+      "default": "./src/catalog/index.ts"
     }
   },
   "scripts": {
