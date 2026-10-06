@@ -133,6 +133,7 @@ it("游客、店员、当前店老板与带其他店的老板：观察者和裁�
   const home = await get("/m/home", clerk.withStore(storeId));
   expect(home.response.headers.get("cache-control")).toBe("no-store");
   expect(Object.keys(home.body.data).sort()).toEqual(["banners", "city", "viewerRole"]);
+  expect(() => clerkVisibleKeys("m.home.get", home.body.data)).not.toThrow();
   const mallConfig = await get("/m/mall-config");
   expect(() => clerkVisibleKeys("m.mallConfig.get", mallConfig.body.data)).not.toThrow();
 });
