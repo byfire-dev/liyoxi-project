@@ -510,7 +510,12 @@ export async function ticketDetail(tx: Tx, t: TicketRow, staff: StaffContext, no
       forfeitedPoints: item.forfeitedPoints,
       cancelReasonCode: item.cancelReasonCode,
       cancelledAt: iso(item.cancelledAt),
-      ticket: null,
+      ticket: {
+        deliveryTicketId: t.id,
+        ticketNo: t.ticketNo,
+        step: t.step,
+        isPaused: t.pauseCount > 0,
+      },
       pointHold: {
         pointHoldId: item.pointHold.id,
         status: item.pointHold.status,

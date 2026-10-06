@@ -211,7 +211,9 @@ describe("delivery PR1 十个真实 HTTP 入口", { timeout: 60000 }, () => {
     ] as const) {
       const response = await request(op);
       expect(response.headers.get("Cache-Control")).toBe("no-store");
-      await data(response);
+      const result = await data(response);
+      if (op === "admin.deliveryTicket.get")
+        expect(result.orderItem).toMatchObject({ ticket: { deliveryTicketId: ticketId } });
     }
     for (const [op, json] of [
       ["m.deliveryPlan.get", undefined],
