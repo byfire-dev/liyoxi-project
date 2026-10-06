@@ -1,5 +1,7 @@
-import type { Data } from "../src/lib/account-api";
+import type { Body, Data } from "../src/lib/account-api";
 import type { RequestLayer } from "../src/lib/request";
+import { createUploadApi } from "../src/lib/upload/api";
+import type { UploadDeps } from "../src/lib/upload/queue";
 
 export const BILLING_ID = "00000000-0000-4000-8000-000000000001";
 export const BILLING_NOW = "2026-10-06T00:00:00.000Z";
@@ -143,6 +145,43 @@ export const billingReceipt = {
   name: "receipt.png",
   size: 1200,
 };
+const receiptPost = {
+  url: "https://fake-storage.invalid/billing-receipt",
+  fields: { key: "billing/receipt.png" },
+};
+export const billingUploadEvidence: string[] = [];
+/** 只替代本域 H5 的原生字节读取与对象直传；完整流程仍由统一 createUpload 执行。 */
+export function billingReceiptDeps(
+  call: RequestLayer["request"],
+  key: UploadDeps["key"],
+  context: UploadDeps["context"],
+): UploadDeps {
+  return {
+    api: createUploadApi(call),
+    key,
+    context,
+    head: async (path, length) => {
+      if (path !== billingReceipt.path) throw new Error("回单场景不能读取其他文件");
+      billingUploadEvidence.push("head");
+      return new TextEncoder().encode(decodeURIComponent(path.split(",")[1]!)).slice(0, length);
+    },
+    post: (ticket, file, progress) => {
+      if (
+        file.path !== billingReceipt.path ||
+        file.name !== billingReceipt.name ||
+        ticket.fileId !== BILLING_ID ||
+        ticket.post?.url !== receiptPost.url ||
+        JSON.stringify(ticket.post.fields) !== JSON.stringify(receiptPost.fields)
+      )
+        throw new Error("回单场景不能直传其他文件或目标");
+      billingUploadEvidence.push("post");
+      progress(100);
+      return { done: Promise.resolve(), abort() {} };
+    },
+    now: () => Date.parse(BILLING_NOW),
+    sleep: async () => undefined,
+  };
+}
 export function billingPayment(scene: string): Data<"m.paymentOrder.get"> {
   const active = scene === "payment-active",
     processing = scene === "payment-processing",
@@ -222,6 +261,8 @@ export function billingPayment(scene: string): Data<"m.paymentOrder.get"> {
 }
 /** 固定 DTO 的单一注入口，只在 H5 明确标记时启用。 */
 export function offlineBillingRequest(scene: string): RequestLayer["request"] {
+  let receiptRegistered = false,
+    receiptConfirmed = false;
   return async <T>(path: string, options?: Parameters<RequestLayer["request"]>[1]): Promise<T> => {
     let value: unknown;
     if (path === "/m/wallet") value = billingWallet(scene);
@@ -233,18 +274,30 @@ export function offlineBillingRequest(scene: string): RequestLayer["request"] {
       value = { ...billingPayment(scene), replayed: false } satisfies Data<"m.paymentOrder.create">;
     else if (path.endsWith("/transfer-proofs")) value = billingPayment("payment-waiting");
     else if (path.startsWith("/m/payment-orders/")) value = billingPayment(scene);
-    else if (path === "/m/files")
+    else if (path === "/m/files") {
+      const body = options?.data as Body<"m.file.create">;
+      if (
+        options?.method !== "POST" ||
+        body.category !== "pay_receipt" ||
+        body.files.length !== 1 ||
+        body.files[0]?.fileName !== billingReceipt.name ||
+        body.files[0]?.sizeBytes !== String(billingReceipt.size) ||
+        !/^[0-9a-f]{40}$/.test(body.files[0]?.clientToken ?? "")
+      )
+        throw new Error("回单必须经统一上传登记");
+      receiptRegistered = true;
+      billingUploadEvidence.push("register");
       value = {
         items: [
           {
             fileId: BILLING_ID,
-            clientToken: "billingreceipt",
-            status: "stored",
+            clientToken: body.files[0]!.clientToken,
+            status: "pending",
             mode: "post",
             bucket: "fake-secure",
             region: "ap-shanghai",
             key: "receipt.png",
-            post: null,
+            post: receiptPost,
             sts: null,
             chunkSize: null,
             chunkParallel: null,
@@ -254,7 +307,29 @@ export function offlineBillingRequest(scene: string): RequestLayer["request"] {
           },
         ],
       } satisfies Data<"m.file.create">;
-    else throw new Error(`离线账单场景未登记调用：${path}`);
+    } else if (path === `/m/files/${BILLING_ID}/complete` || path === `/m/files/${BILLING_ID}`) {
+      if (!receiptRegistered || !billingUploadEvidence.includes("post"))
+        throw new Error("回单必须登记并直传后才能确认");
+      const complete = path.endsWith("/complete");
+      if (complete) {
+        if (!options?.idempotencyKey) throw new Error("回单确认缺少幂等键");
+        receiptConfirmed = true;
+      } else if (!receiptConfirmed) throw new Error("回单必须确认后才能查询入库");
+      billingUploadEvidence.push(complete ? "complete" : "get");
+      value = {
+        fileId: BILLING_ID,
+        category: "pay_receipt",
+        status: complete ? "promoting" : "stored",
+        rejectReason: null,
+        declaredSizeBytes: String(billingReceipt.size),
+        sizeBytes: complete ? null : String(billingReceipt.size),
+        mime: "image/png",
+        moderationState: "not_required",
+        storedAt: complete ? null : BILLING_NOW,
+        uploadExpiresAt: "2026-10-07T00:00:00.000Z",
+        createdAt: BILLING_NOW,
+      } satisfies Data<"m.file.get">;
+    } else throw new Error(`离线账单场景未登记调用：${path}`);
     return value as T;
   };
 }

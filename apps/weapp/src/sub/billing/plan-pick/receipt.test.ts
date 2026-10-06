@@ -52,6 +52,10 @@ vi.mock("@/lib/runtime", () => ({
   },
 }));
 vi.mock("@/lib/upload/billing-receipt", () => ({ createReceiptUpload: () => h.job }));
+vi.mock("@/lib/upload/taro", () => ({
+  prepareTaroFile: async (file: unknown) => file,
+  createTaroUpload: () => h.job,
+}));
 vi.mock("@/stores/context", () => ({
   useContextStore: { getState: () => ({ contextRev: h.rev }) },
 }));

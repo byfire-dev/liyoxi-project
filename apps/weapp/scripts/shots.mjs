@@ -281,6 +281,10 @@ async function shoot(target) {
             .locator(".billing-receipt .lyx-button")
             .filter({ hasText: "提交转账凭证" })
             .waitFor({ state: "visible" });
+          await page.waitForFunction(() => {
+            const button = globalThis.document.querySelector(".billing-receipt .lyx-button");
+            return button && !button.classList.contains("lyx-button--disabled");
+          });
           await page.waitForTimeout(300);
         }
         await page.waitForTimeout(500);

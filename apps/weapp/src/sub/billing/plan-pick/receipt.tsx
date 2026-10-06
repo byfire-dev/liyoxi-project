@@ -10,7 +10,8 @@ import {
   type ReceiptFile,
   type ReceiptUpload,
 } from "@/lib/upload/billing-receipt";
-import { useBootstrapStore } from "@/stores/bootstrap";
+import { createTaroUpload, prepareTaroFile } from "@/lib/upload/taro";
+import { createUpload } from "@/lib/upload/queue";
 import { useContextStore } from "@/stores/context";
 import { useSessionStore } from "@/stores/session";
 import { billingRequest } from "../wallet/runtime";
@@ -64,6 +65,17 @@ export function ReceiptPicker({
           (globalThis as { __LYX_BILLING_SHOT__?: string }).__LYX_BILLING_SHOT__
         )
           return (await import("../../../../shots/billing-fixtures")).billingReceipt;
+        const kind = await Taro.showActionSheet({ itemList: ["选择图片", "选择 PDF 回单"] });
+        if (kind.tapIndex === 1) {
+          const choice = await Taro.chooseMessageFile({
+            count: 1,
+            type: "file",
+            extension: ["pdf"],
+          });
+          const selected = choice.tempFiles[0];
+          if (!selected) throw new Error("请先选择 PDF 回单");
+          return { path: selected.path, name: selected.name, size: selected.size };
+        }
         const choice = await Taro.chooseMedia({
           count: 1,
           mediaType: ["image"],
@@ -72,12 +84,8 @@ export function ReceiptPicker({
         const selected = choice.tempFiles[0];
         if (!selected) throw new Error("请先选择凭证图片");
         const info = await Taro.getImageInfo({ src: selected.tempFilePath });
-        const ext = (
-          { jpeg: "jpg", jpg: "jpg", png: "png", webp: "webp" } as Record<string, string>
-        )[info.type];
-        if (!ext) throw new Error("请选择 JPG、PNG 或 WebP 图片");
-        if (selected.size > useBootstrapStore.getState().data.uploadLimits.imageMaxMb * 1024 * 1024)
-          throw new Error("图片超过当前上传限制，请选择更小的图片");
+        const ext = ({ jpeg: "jpg", jpg: "jpg", png: "png" } as Record<string, string>)[info.type];
+        if (!ext) throw new Error("请选择 JPG 或 PNG 图片");
         return { path: selected.tempFilePath, name: `receipt.${ext}`, size: selected.size };
       });
       if (!current()) return;
@@ -85,31 +93,35 @@ export function ReceiptPicker({
         setError("未同意隐私指引，暂未选择图片");
         return;
       }
+      let prepared: ReceiptFile | null = result.value;
+      let next: ReceiptUpload;
+      if (
+        process.env.TARO_ENV === "h5" &&
+        (globalThis as { __LYX_BILLING_SHOT__?: string }).__LYX_BILLING_SHOT__
+      ) {
+        const fixture = await import("../../../../shots/billing-fixtures");
+        if (!current()) return;
+        next = createReceiptUpload(
+          createUpload(
+            fixture.billingReceiptDeps(billingRequest, newIdempotencyKey, () => ({
+              token: useSessionStore.getState().accessToken,
+              storeId: useContextStore.getState().currentStoreId,
+              revision: useContextStore.getState().contextRev,
+            })),
+            prepared,
+            "pay_receipt",
+          ),
+        );
+      } else {
+        prepared = await prepareTaroFile(prepared, "pay_receipt");
+        if (!current() || !prepared) return;
+        next = createReceiptUpload(createTaroUpload(prepared, "pay_receipt"));
+      }
       job.current?.dispose();
-      setFile(result.value);
+      setFile(prepared);
       setError(null);
       proofKey.current = null;
       stateFile.current = null;
-      const next = createReceiptUpload(result.value, {
-        call: billingRequest,
-        key: newIdempotencyKey,
-        upload(post, picked, progress) {
-          const task = Taro.uploadFile({
-            url: post.url,
-            filePath: picked.path,
-            name: "file",
-            formData: post.fields,
-          });
-          task.onProgressUpdate((v) => progress(v.progress));
-          return {
-            promise: task.then((v) => {
-              if (v.statusCode < 200 || v.statusCode >= 300)
-                throw new Error("图片未传成功，请重试");
-            }),
-            abort: () => task.abort(),
-          };
-        },
-      });
       job.current = next;
       next.subscribe(() => {
         if (current()) setState(next.snapshot());
@@ -167,7 +179,7 @@ export function ReceiptPicker({
             ? [
                 {
                   key: "receipt",
-                  src: file.path,
+                  src: file.name.toLowerCase().endsWith(".pdf") ? undefined : file.path,
                   status:
                     state?.status === "failed"
                       ? "failed"
@@ -181,11 +193,15 @@ export function ReceiptPicker({
         }
         onAdd={() => void choose()}
         onPreview={() => {
-          if (file) void Taro.previewImage({ urls: [file.path], current: file.path });
+          if (!file) return;
+          if (file.name.toLowerCase().endsWith(".pdf"))
+            void Taro.openDocument({ filePath: file.path, fileType: "pdf" });
+          else void Taro.previewImage({ urls: [file.path], current: file.path });
         }}
         onRetry={() => void job.current?.retry()}
         onRemove={() => {
           generation.current++;
+          void job.current?.cancel().catch(() => undefined);
           job.current?.dispose();
           job.current = null;
           setFile(null);
