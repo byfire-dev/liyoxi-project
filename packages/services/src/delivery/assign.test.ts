@@ -1,5 +1,7 @@
 import { beforeAll, afterAll, describe, it, expect } from "vitest";
 import { useSeededDatabase } from "../testing/index.js";
+import { lockRows } from "../kernel/index.js";
+import { deliveryManagerPort, orderManagerPort } from "../profile/index.js";
 import { harness } from "./__fixtures__/harness.js";
 import type { Harness } from "./__fixtures__/harness.js";
 const db = useSeededDatabase("services");
@@ -16,6 +18,12 @@ describe("工单分配守卫与同事务同步", { timeout: 60000 }, () => {
       wrong = await h.make.staff({ staffRoleKey: "publisher" }),
       outside = await h.make.staff({ staffRoleKey: "delivery_manager" }),
       lead = await h.staff("delivery_manager");
+    const closed = await h.make.dramaOrder({
+      entityId: o.entity.id,
+      storeId: o.store.id,
+      status: "ended",
+      deliveryManagerId: lead.row.id,
+    });
     for (const [staffId, reason] of [
       [disabled.id, "not_active"],
       [wrong.id, "role_mismatch"],
@@ -42,11 +50,34 @@ describe("工单分配守卫与同事务同步", { timeout: 60000 }, () => {
         scope: a.staff.scope,
       }),
     );
-    expect(result.synced).toEqual({ dramaOrderCount: 0, deliveryTicketCount: 2 });
+    expect(result.synced).toEqual({ dramaOrderCount: 1, deliveryTicketCount: 2 });
+    expect(
+      (await h.prisma.dramaOrder.findUniqueOrThrow({ where: { id: o.order.id } }))
+        .deliveryManagerId,
+    ).toBe(outside.id);
     for (const id of o.deliveryTicketIds)
-      expect((await h.prisma.deliveryTicket.findUniqueOrThrow({ where: { id } })).step).toBe(
-        "plan_confirm",
-      );
+      expect(await h.prisma.deliveryTicket.findUniqueOrThrow({ where: { id } })).toMatchObject({
+        step: "plan_confirm",
+        deliveryManagerId: outside.id,
+      });
+    // profile 的首次指派仍拒绝重复；已合 order/delivery 同步端口同值返回真实零行。
+    const repeated = await h.tx.run(async (tx) => {
+      await lockRows(tx, "store", [o.store.id]);
+      const assignment = {
+        entityId: o.entity.id,
+        storeId: o.store.id,
+        staffId: outside.id,
+        ctx: a.ctx,
+      };
+      return {
+        dramaOrderCount: await h.assembly.port(orderManagerPort)(tx, assignment),
+        deliveryTicketCount: await h.assembly.port(deliveryManagerPort)(tx, assignment),
+      };
+    });
+    expect(repeated).toEqual({ dramaOrderCount: 0, deliveryTicketCount: 0 });
+    expect(
+      (await h.prisma.dramaOrder.findUniqueOrThrow({ where: { id: closed.id } })).deliveryManagerId,
+    ).toBe(lead.row.id);
   });
   it("暂停目标不能借首次经理批量分配返回成功；全事务保持门店和其他工单未分配", async () => {
     const o = await h.order(false, 2),
