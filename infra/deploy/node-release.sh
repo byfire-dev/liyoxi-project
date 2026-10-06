@@ -18,7 +18,8 @@ step_image_facts() {
   done
 }
 
-step_facts() {
+step_facts() (
+  set -o pipefail
   local tag row
   tag="$(current_tag)"
   if [ -n "$tag" ]; then need_tag "$tag"; fi
@@ -34,7 +35,7 @@ step_facts() {
       [ -z "$row" ] || printf 'LYX_RECORD=%s\n' "$row"
     done <"$LYX_NODE_HOME/releases.log"
   fi
-}
+)
 
 step_preflight() {
   local mode db exists ids
