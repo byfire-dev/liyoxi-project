@@ -29,6 +29,7 @@ it("同步桥只处理本上下文人工无AI；错上下文、拒收、AI pendi
       episodeNo: 1,
       productionTier: item.productionModel,
       uploadedByStaffId: staff.row.id,
+      forcedByDrama: false,
     };
   };
   const good = await input();

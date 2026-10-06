@@ -74,9 +74,13 @@ const viewer = (c: Context<ApiEnv>): DeliveryViewer => {
 };
 const read = { module: "delivery", need: "view" } as const;
 const edit = { module: "delivery", need: "edit" } as const;
+const privateOk = <T>(c: Context<ApiEnv>, data: T) => {
+  c.header("Cache-Control", "no-store");
+  return ok(c, data);
+};
 export const deliveryHandlers = [
   defineAdminHandler(adminDeliveryTicketSampleCreate, edit, async (c, s) =>
-    ok(
+    privateOk(
       c,
       AdminSampleWriteResultSchema.parse(
         await deliveryOf(c.var.runtime).sampleCreate(
@@ -90,7 +94,7 @@ export const deliveryHandlers = [
     ),
   ),
   defineAdminHandler(adminSampleInspect, edit, async (c, s) =>
-    ok(
+    privateOk(
       c,
       AdminSampleWriteResultSchema.parse(
         await deliveryOf(c.var.runtime).sampleInspect(
@@ -104,7 +108,7 @@ export const deliveryHandlers = [
     ),
   ),
   defineAdminHandler(adminSamplePush, edit, async (c, s) =>
-    ok(
+    privateOk(
       c,
       AdminSampleWriteResultSchema.parse(
         await deliveryOf(c.var.runtime).samplePush(
@@ -127,7 +131,7 @@ export const deliveryHandlers = [
     );
   }),
   defineHandler(mSampleConfirm, async (c) =>
-    ok(
+    privateOk(
       c,
       SampleWriteResultSchema.parse(
         await deliveryOf(c.var.runtime).sampleConfirm(

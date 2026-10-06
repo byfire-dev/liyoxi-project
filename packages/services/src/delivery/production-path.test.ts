@@ -16,7 +16,7 @@ import { useSeededDatabase } from "../testing/index.js";
 import { record } from "../audit/index.js";
 import type { IdentityContext, IdempotencyContext } from "../kernel/index.js";
 import { createIdempotencyContext, uuidv7 } from "../kernel/index.js";
-import { findI2Violations, findI14Violations } from "../media/index.js";
+import { findI2Violations, findI14Violations, ensureProductionStubs } from "../media/index.js";
 import { findDeliveryViolations } from "./invariants.js";
 import { createDelivery } from "./service.js";
 import { draft, harness } from "./__fixtures__/harness.js";
@@ -66,9 +66,12 @@ async function file(
   category: "sample_video" | "final_episode",
   editor: Awaited<ReturnType<Harness["staff"]>>,
   episodeNo = 1,
+  used = false,
+  onRegistered?: (fileId: string, clientToken: string) => Promise<void>,
 ) {
   const actor = { identity: editor.ctx, staff: editor.staff },
-    bytes = new Uint8Array(1234);
+    bytes = new Uint8Array(1234),
+    clientToken = uuidv7();
   bytes.set([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
   const registration = await h.media.register(actor, {
     category,
@@ -77,13 +80,12 @@ async function file(
       kind: category === "sample_video" ? "sample" : "final",
       orderItemId: o.items[0]!.id,
       episodeNo,
-      aiUsage: { used: false, tools: [] },
+      aiUsage: { used, tools: [] },
     },
-    files: [
-      { fileName: `test-${episodeNo}.mp4`, sizeBytes: String(bytes.length), clientToken: uuidv7() },
-    ],
+    files: [{ fileName: `test-${episodeNo}.mp4`, sizeBytes: String(bytes.length), clientToken }],
   });
   const entry = registration.items[0]!;
+  await onRegistered?.(entry.fileId, clientToken);
   h.fake.storage.put(
     {
       bucket: "media",
@@ -710,6 +712,150 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
         })
       ).status,
     ).toBe("confirmed");
+  });
+  it("真实剧目 AI × 声明正反强制 used/forcedByDrama，分类重放及样片/成片 fallback 不越过 pending", async () => {
+    const { o, editor, qc, id, item } = await ready();
+    let nonAiSampleFile: string | undefined;
+    for (const kind of ["sample", "final"] as const) {
+      if (kind === "final") {
+        // 用合法非 AI 样片走真实确认迁移，避免伪写工单步骤来开放成片分类。
+        await h.prisma.drama.update({
+          where: { id: item.dramaId },
+          data: { isAiGenerated: false },
+        });
+        await h.prisma.mediaInfo.create({
+          data: {
+            fileId: nonAiSampleFile!,
+            kind: "video",
+            durationMs: 60000,
+            width: 1080,
+            height: 1920,
+            probeVersion: 1,
+            raw: { fixture: "explicit known metadata for non-AI stage transition" },
+            probedAt: h.clock.now(),
+            createdAt: h.clock.now(),
+            updatedAt: h.clock.now(),
+          },
+        });
+        const healthy = await h.delivery.sampleCreate(editor.ctx, editor.staff, id, {
+          fileId: nonAiSampleFile!,
+          adSlots: [],
+        });
+        await h.delivery.sampleInspect(
+          qc.ctx,
+          qc.staff,
+          healthy.sampleId,
+          await checks("qc.sample"),
+        );
+        await h.delivery.samplePush(qc.ctx, qc.staff, healthy.sampleId, {
+          includeWecom: true,
+          markWecomSent: true,
+        });
+        await h.delivery.sampleConfirm(o.viewer, healthy.sampleId, {
+          versionNo: healthy.versionNo,
+          viewedVia: "wecom",
+          hasViewed: true,
+        });
+      }
+      const category = kind === "sample" ? "sample_video" : "final_episode",
+        episodeNo = kind === "sample" ? 1 : 2;
+      for (const isAiGenerated of [false, true])
+        for (const used of [false, true]) {
+          await h.prisma.drama.update({ where: { id: item.dramaId }, data: { isAiGenerated } });
+          const f = await file(o, category, editor, episodeNo, used, async (fileId, token) => {
+            const declared = await h.prisma.productionRecord.findUniqueOrThrow({
+              where: { fileId },
+            });
+            expect(declared).toMatchObject({
+              aigcState: used || isAiGenerated ? "pending" : "not_required",
+              pipelineState: "uploading",
+              aiUsage: {
+                used: used || isAiGenerated,
+                forcedByDrama: isAiGenerated,
+                tools: [],
+                declaredBy: editor.row.id,
+              },
+            });
+            const countsBefore = [
+              await h.prisma.fileObject.count(),
+              await h.prisma.productionRecord.count(),
+            ];
+            // 登记的自然重放只复用 pending 文件；在 complete/promote 前核真实语义。
+            const replayed = await h.media.register(
+              { identity: editor.ctx, staff: editor.staff },
+              {
+                category,
+                storeId: o.store.id,
+                production: { kind, orderItemId: item.id, episodeNo, aiUsage: { used, tools: [] } },
+                files: [
+                  { fileName: `test-${episodeNo}.mp4`, sizeBytes: "1234", clientToken: token },
+                ],
+              },
+            );
+            expect(replayed.items[0]!.fileId).toBe(fileId);
+            expect(
+              await h.prisma.productionRecord.findUniqueOrThrow({ where: { fileId } }),
+            ).toEqual(declared);
+            expect([
+              await h.prisma.fileObject.count(),
+              await h.prisma.productionRecord.count(),
+            ]).toEqual(countsBefore);
+          });
+          const [bridged] = await h.tx.run((tx) =>
+            ensureProductionStubs(tx, h.deps, [
+              {
+                fileId: f.id,
+                kind,
+                orderItemId: item.id,
+                episodeNo,
+                entityId: o.entity.id,
+                storeId: o.store.id,
+                productionTier: item.productionModel,
+                uploadedByStaffId: editor.row.id,
+                forcedByDrama: isAiGenerated,
+              },
+            ]),
+          );
+          expect(bridged!.record).toMatchObject({
+            pipelineState: used || isAiGenerated ? "uploading" : "ready",
+            aigcState: used || isAiGenerated ? "pending" : "not_required",
+            aiUsage: { used: used || isAiGenerated, forcedByDrama: isAiGenerated },
+          });
+          if (used || isAiGenerated) expect(bridged!.playable).toBeNull();
+          if (kind === "sample" && !used && !isAiGenerated) nonAiSampleFile = f.id;
+        }
+      // 兼容既存 stored 文件缺制作留痕的分支，也必须读取真实所属 AI 剧目。
+      const legacy = await h.make.fileObject({
+        category,
+        scopeType: "store",
+        entityId: o.entity.id,
+        storeId: o.store.id,
+      });
+      if (kind === "sample") {
+        const s = await h.delivery.sampleCreate(editor.ctx, editor.staff, id, {
+          fileId: legacy.id,
+          adSlots: [],
+        });
+        const before = await h.tx.run((tx) => h.counts(tx, s.sampleId)),
+          qcBefore = await h.prisma.qcRecord.count();
+        await expect(
+          h.delivery.sampleInspect(qc.ctx, qc.staff, s.sampleId, await checks("qc.sample")),
+        ).rejects.toMatchObject({ error: "PRODUCTION_NOT_READY" });
+        expect(await h.tx.run((tx) => h.counts(tx, s.sampleId))).toEqual(before);
+        expect(await h.prisma.qcRecord.count()).toBe(qcBefore);
+      } else
+        await h.delivery.episodeRegister(editor.ctx, editor.staff, id, {
+          items: [{ episodeNo, fileId: legacy.id }],
+        });
+      expect(
+        await h.prisma.productionRecord.findUniqueOrThrow({ where: { fileId: legacy.id } }),
+      ).toMatchObject({
+        pipelineState: "uploading",
+        aigcState: "pending",
+        aiUsage: { used: true, forcedByDrama: true },
+      });
+      expect(await h.prisma.playableAsset.count({ where: { sourceFileId: legacy.id } })).toBe(0);
+    }
   });
   it("完整清单 fail 写一次 qc_failed，补传新版本；旧 metadata 与引用不删，AI 预判按真实 not_required", async () => {
     const { o, editor, qc, id } = await ready(),

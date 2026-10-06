@@ -14,7 +14,14 @@ import { staffBriefs } from "../staff/index.js";
 import type { DeliveryDeps } from "./context.js";
 import { lockTickets, ticketOf, iso } from "./repo.js";
 import type { TicketRow } from "./repo.js";
-import { invalid, quality, insertQuality, productionReady, unpaused } from "./quality.js";
+import {
+  dramaUsesAi,
+  invalid,
+  quality,
+  insertQuality,
+  productionReady,
+  unpaused,
+} from "./quality.js";
 import type { QualityInput } from "./quality.js";
 import { qcView } from "./quality-views.js";
 import { reevaluate } from "./reevaluate.js";
@@ -148,6 +155,7 @@ export async function registerEpisodes(
   });
   if (samples.length !== adopted.length)
     throw new AppError("FILE_NOT_USABLE", { details: { fileIds: [], reason: "context_mismatch" } });
+  const forcedByDrama = await dramaUsesAi(tx, t.orderItem.dramaId);
   const files = items
     .filter((r) => r.fileId)
     .map((r) => ({
@@ -159,6 +167,7 @@ export async function registerEpisodes(
       storeId: t.storeId,
       productionTier: t.orderItem.productionModel,
       uploadedByStaffId: staff.staff.id,
+      forcedByDrama,
     }));
   const media = await ensureProductionStubs(tx, deps, files, async () => {
     await recordAdoptedStoreAssets(tx, deps, ctx, {

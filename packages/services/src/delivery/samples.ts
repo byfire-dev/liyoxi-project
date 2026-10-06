@@ -10,7 +10,14 @@ import { assertOwner, lockTickets, ticketOf } from "./repo.js";
 import type { TicketRow } from "./repo.js";
 import { step, reevaluate } from "./reevaluate.js";
 import { orderSidePort } from "./ports.js";
-import { invalid, insertQuality, productionReady, quality, unpaused } from "./quality.js";
+import {
+  dramaUsesAi,
+  invalid,
+  insertQuality,
+  productionReady,
+  quality,
+  unpaused,
+} from "./quality.js";
 import type { QualityInput } from "./quality.js";
 export type Slots = Array<{
   slot: "opening" | "ending";
@@ -122,6 +129,7 @@ export async function createSample(
       storeId: t.storeId,
       productionTier: t.orderItem.productionModel,
       uploadedByStaffId: staff.staff.id,
+      forcedByDrama: await dramaUsesAi(tx, t.orderItem.dramaId),
     },
   ]);
   const { file, record } = production[0]!;

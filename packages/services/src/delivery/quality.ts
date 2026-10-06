@@ -127,3 +127,13 @@ export async function productionReady(tx: Tx, fileId: string) {
     });
   return p;
 }
+
+/** 仅由所属订单项的真实剧目行提供，客户端不能否认此事实。 */
+export async function dramaUsesAi(tx: Tx, dramaId: string): Promise<boolean> {
+  return (
+    await tx.drama.findUniqueOrThrow({
+      where: { id: dramaId },
+      select: { isAiGenerated: true },
+    })
+  ).isAiGenerated;
+}

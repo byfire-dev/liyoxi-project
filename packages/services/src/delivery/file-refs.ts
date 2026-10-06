@@ -6,7 +6,7 @@ import { declareManualProduction, fileCategoryGuardPort } from "../media/index.j
 import type { FileCategoryGuard } from "../media/index.js";
 import { boundDelivery } from "./binding.js";
 import { ticketOf } from "./repo.js";
-import { invalid, unpaused } from "./quality.js";
+import { invalid, unpaused, dramaUsesAi } from "./quality.js";
 function guard(kind: "sample" | "final"): FileCategoryGuard {
   const context = async (
     tx: Tx,
@@ -66,6 +66,7 @@ function guard(kind: "sample" | "final"): FileCategoryGuard {
         uploadedByStaffId: staff.staff.id,
         dramaEpisodeMasterId: p.dramaEpisodeMasterId,
         aiUsage: p.aiUsage,
+        forcedByDrama: await dramaUsesAi(tx, t.orderItem.dramaId),
       });
     },
   };

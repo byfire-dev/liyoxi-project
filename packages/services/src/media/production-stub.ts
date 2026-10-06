@@ -12,6 +12,8 @@ export interface ManualProductionInput {
   readonly storeId: string;
   readonly productionTier: string;
   readonly uploadedByStaffId: string;
+  /** 由父域读取真实所属剧目，不能直接透传客户端字段。 */
+  readonly forcedByDrama: boolean;
   readonly dramaEpisodeMasterId?: string;
   readonly aiUsage?: {
     readonly used: boolean;
@@ -35,7 +37,8 @@ export async function declareManualProduction(tx: Tx, clock: Clock, input: Manua
     return;
   }
   const now = clock.now(),
-    ai = input.aiUsage ?? { used: false, tools: [] };
+    ai = input.aiUsage ?? { used: false, tools: [] },
+    used = ai.used || input.forcedByDrama;
   await tx.productionRecord.create({
     data: {
       fileId: input.fileId,
@@ -48,13 +51,13 @@ export async function declareManualProduction(tx: Tx, clock: Clock, input: Manua
       dramaEpisodeMasterId: input.dramaEpisodeMasterId ?? null,
       masterSource: input.dramaEpisodeMasterId ? "declared" : null,
       aiUsage: {
-        used: ai.used,
+        used,
         tools: ai.tools.map((t) => ({ ...t })),
         declaredBy: input.uploadedByStaffId,
         declaredAt: now.toISOString(),
-        forcedByDrama: false,
+        forcedByDrama: input.forcedByDrama,
       },
-      aigcState: ai.used ? "pending" : "not_required",
+      aigcState: used ? "pending" : "not_required",
       pipelineState: "uploading",
       uploadedByStaffId: input.uploadedByStaffId,
       createdAt: now,
@@ -108,17 +111,13 @@ export async function ensureProductionStubs(
     if (file.moderationState === "block") throw unusable(input.fileId, "blocked");
     let record = await tx.productionRecord.findUnique({ where: { fileId: input.fileId } });
     if (!record) {
-      await declareManualProduction(tx, deps.clock, {
-        ...input,
-        aiUsage: { used: false, tools: [] },
-      });
-      record = await tx.productionRecord.update({
-        where: { fileId: input.fileId },
-        data: {
-          pipelineState: "ready",
-          updatedAt: now,
-        },
-      });
+      await declareManualProduction(tx, deps.clock, input);
+      record = await tx.productionRecord.findUniqueOrThrow({ where: { fileId: input.fileId } });
+      if (record.aigcState === "not_required")
+        record = await tx.productionRecord.update({
+          where: { fileId: input.fileId },
+          data: { pipelineState: "ready", updatedAt: now },
+        });
     } else {
       if (
         record.kind !== input.kind ||
@@ -134,6 +133,7 @@ export async function ensureProductionStubs(
       const ai = record.aiUsage as { used?: boolean };
       // 已上传的人工、未用 AI 声明可以用同步桩完成；真实派生或 AI 标识事实保持原样。
       if (
+        !input.forcedByDrama &&
         record.source === "manual_upload" &&
         ai.used === false &&
         record.aigcState === "not_required" &&
@@ -171,6 +171,7 @@ export async function ensureProductionStubs(
       throw unusable(file.id, "context_mismatch");
     if (
       input.kind === "sample" &&
+      !input.forcedByDrama &&
       !playable &&
       record.pipelineState === "ready" &&
       record.aigcState === "not_required" &&
