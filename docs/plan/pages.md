@@ -15,7 +15,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 运营管理后台 | 80 | 67 | 11 | 56 | 13 | 2 |
 | 电脑端下载页 | 8 | 7 | 0 | 7 | 1 | 0 |
-| 商家端小程序 | 49 | 48 | 16 | 32 | 1 | 0 |
+| 商家端小程序 | 49 | 48 | 20 | 28 | 1 | 0 |
 
 应实现未实现页面数，按里程碑：
 
@@ -23,7 +23,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 运营管理后台 | 7 | 12 | 6 | 14 | 1 | 4 | 12 |
 | 电脑端下载页 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
-| 商家端小程序 | 9 | 8 | 5 | 4 | 3 | 1 | 2 |
+| 商家端小程序 | 5 | 8 | 5 | 4 | 3 | 1 | 2 |
 
 “入口隐藏”的页面照做、外壳不给入口（规范 第 14 节第 12 项），计入应实现，不算留桩。
 
@@ -166,17 +166,17 @@
 | `sub/catalog` | 搜索 | `sub/catalog/search/index` | Search | M03 | G3-B | M3 | 否 |  |
 | `sub/catalog` | 预告片模式 | `sub/catalog/trailer/index` | Trailer | M05 | — | V1.0 不做 | 否 | V1.0 不做（规范 第 11 节） |
 | `sub/catalog` | 短剧详情 | `sub/catalog/detail/index` | Detail | M06 | W1-18 | M1 | 是 |  |
-| `sub/order` | 确认订购 | `sub/order/checkout/index` | Checkout | M09 | W1-18 | M1 | 否 |  |
+| `sub/order` | 确认订购 | `sub/order/checkout/index` | Checkout | M09 | W1-18 | M1 | 是 |  |
 | `sub/order` | 结果页 | `sub/order/result/index` | PayResult | M11 | W1-12 | M1 | 是 | 订购成功与付款成功共用，?type=order\|payment |
-| `sub/order` | 订单列表 | `sub/order/orders/index` | Orders | M20 | W1-18 | M1 | 否 |  |
-| `sub/order` | 订单详情 | `sub/order/order-detail/index` | OrderDetail | M21 | W1-18 | M1 | 否 |  |
+| `sub/order` | 订单列表 | `sub/order/orders/index` | Orders | M20 | W1-18 | M1 | 是 |  |
+| `sub/order` | 订单详情 | `sub/order/order-detail/index` | OrderDetail | M21 | W1-18 | M1 | 是 |  |
 | `sub/order` | 方案确认 | `sub/order/plan/index` | Plan | M22 | W1-20 | M1 | 否 |  |
 | `sub/order` | 样片确认 | `sub/order/sample/index` | Sample | M23 | W1-20 | M1 | 否 |  |
 | `sub/order` | 上线记录 | `sub/order/launch-record/index` | LaunchRecord | M24 | W1-20 | M1 | 否 |  |
 | `sub/order` | 我的短剧 | `sub/order/my-dramas/index` | MyDramas | M33 | G5-A | M5 | 否 |  |
 | `sub/publish` | 发布任务 | `sub/publish/tasks/index` | Publish | M28 | W1-20 | M1 | 否 |  |
 | `sub/publish` | 逐集下载 | `sub/publish/downloads/index` | — | — | W1-20 | M1 | 否 | 新增页：逐集下载管理与“扫码在电脑上下载”入口 |
-| `sub/publish` | 发布账号 | `sub/publish/accounts/index` | Accounts | M26 | W1-18 | M1 | 否 | 含 M27 弹层 |
+| `sub/publish` | 发布账号 | `sub/publish/accounts/index` | Accounts | M26 | W1-18 | M1 | 是 | 含 M27 弹层 |
 | `sub/publish` | 扫码确认 | `sub/publish/portal-approve/index` | — | — | G6-B | M6 | 否 | 新增页：下载页扫码后的确认页 |
 | `sub/billing` | 钱包 | `sub/billing/wallet/index` | Wallet、WalletExpired | M43 | W1-12 | M1 | 是 | 一页两态 |
 | `sub/billing` | 套餐选择 | `sub/billing/plan-pick/index` | PlanPick | M44 | W1-12 | M1 | 是 | 含 M10 对公转账弹层与付款结果 |

@@ -1,0 +1,32 @@
+.checkout-page {
+  &__drama {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  &__title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  &__muted {
+    color: $lyx-color-text-secondary;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  &__points,
+  &__total {
+    color: $lyx-color-primary-text;
+    font-weight: 700;
+  }
+  &__total {
+    flex: 1;
+    font-size: 18px;
+  }
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+}
