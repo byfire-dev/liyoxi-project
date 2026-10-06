@@ -63,7 +63,7 @@ describe("占位受控财务配置正常双人审批", () => {
         data: {
           status: "disabled",
           disabledAt: t.clock.now(),
-          disabledReason: "测试停用",
+          disabledReason: "other",
           disabledByStaffId: lead.staffId,
         },
       });
