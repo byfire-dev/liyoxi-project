@@ -71,7 +71,7 @@ export interface HoldResult {
     readonly lotKind: string;
     readonly qty: number;
   }[];
-  /** 账本时钟：订购侧同一事务里的提交时间、同意时间用它 */
+  /** 账本时钟：订购侧提交时间等财务业务字段用它；hold 前已追加的 Docs 同意证据保留其真实 Tc，不回填 */
   readonly now: Date;
   readonly replayed: boolean;
 }

@@ -1,5 +1,6 @@
 // 每个商家接口包在这里登记生产处理器的回放。样例用真实鉴权；测试直接建店员成员关系。
 import { mallClerkSamples } from "./mall-samples.js";
+import { orderClerkSamples } from "./order-samples.js";
 import { uuidv7 } from "@liyoxi/services";
 import { createFactories } from "@liyoxi/services/testing";
 import type { FakeStorage } from "@liyoxi/services/testing";
@@ -257,6 +258,7 @@ export const CLERK_SAMPLES: readonly Sample[] = [
       }),
   })),
   ...mallClerkSamples,
+  ...orderClerkSamples,
   // 退出会吊销当前凭据，放到这一份样例的最后。其它样例不得靠退出后的身份。
   {
     operationId: "m.session.current.delete",

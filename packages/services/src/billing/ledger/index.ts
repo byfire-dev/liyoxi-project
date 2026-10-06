@@ -92,7 +92,7 @@ export interface Ledger {
   ensureAccount(tx: Tx, entityId: string): Promise<void>;
   /**
    * 拿账户锁、取账本时钟并推进。之后本事务里对这个主体的账本操作都用这把锁与这个时钟；
-   * 调用方同一事务里写的时间敏感字段（提交时间、同意时间）用返回的 now。等锁超过 3 秒抛 ACCOUNT_BUSY。
+   * 调用方财务业务字段（如订购提交时间）用返回的 now；hold 前 Docs 已追加的同意证据保留真实 Tc，不预锁或回填。等锁超过 3 秒抛 ACCOUNT_BUSY。
    */
   lockAccount(tx: Tx, entityId: string): Promise<LedgerClock>;
   /** 推进到现在。wait: "skip" 而账户被别的事务占着时返回 null（每分钟扫描用） */

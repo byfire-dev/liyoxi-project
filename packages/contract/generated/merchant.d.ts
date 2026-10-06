@@ -431,6 +431,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 确认订购：{dramaIds, channelAccountIds, focusCodes, referenceStoreAssetIds?, note?, isTopModel?, adIds?, expectedLaunchDate?, agreementVersionId, expect}；逐部冻结积分，建订购单与订单项，记协议同意 */
+        post: operations["m.order.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/orders/quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 订购报价（纯计算不落库）：逐部积分价、折扣、顶级模型加扣、实扣、合计、扣减来源（各批次套餐积分 / 加购积分）、订购后剩余、可选账号、可用广告、最早可指定上线日、主体与门店联系人 */
+        post: operations["m.order.quote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/payment-orders": {
         parameters: {
             query?: never;
@@ -2298,6 +2332,340 @@ export interface components {
             /** @enum {string} */
             licenseKind?: "business_license" | "branch_license";
         };
+        OrderCreateBody: {
+            adIds?: string[];
+            /** Format: uuid */
+            agreementVersionId: string;
+            channelAccountIds: string[];
+            dramaIds: string[];
+            expect: {
+                items: {
+                    chargePoints: number;
+                    /** Format: uuid */
+                    dramaId: string;
+                }[];
+                totalChargePoints: number;
+            };
+            /** Format: date */
+            expectedLaunchDate?: string | null;
+            focusCodes: string[];
+            /** @default false */
+            isTopModel: boolean;
+            note?: string;
+            referenceStoreAssetIds?: string[];
+        };
+        OrderCreateResult: components["schemas"]["OrderDetail"] & {
+            replayed: boolean;
+        };
+        OrderDetail: {
+            actions: string[];
+            afterSales: {
+                /** Format: uuid */
+                cancelRequestId: string;
+                closeReason: ("rejected" | "withdrawn" | "voided" | (string & {})) | null;
+                /** Format: date-time */
+                executedAt: string | null;
+                /** @enum {string} */
+                kind: "order_cancel" | "ad_cancel" | "qualification_cancel" | (string & {});
+                lines: {
+                    convertedPoints: number | null;
+                    forfeitedPoints: number | null;
+                    /** @enum {string} */
+                    mode: "release" | "refund" | "terminate_only" | (string & {});
+                    /** Format: uuid */
+                    orderItemId: string;
+                    refundPoints: number;
+                    returnedPoints: number | null;
+                }[];
+                /** @enum {string} */
+                reasonCode: "merchant_request" | "store_closed" | "platform_fault" | "qualification_final" | (string & {});
+                requestNo: string;
+                /** @enum {string} */
+                status: "pending_approval" | "pending_execution" | "done" | "not_executed" | (string & {});
+                /** Format: date-time */
+                submittedAt: string;
+                totalRefundPoints: number;
+            }[];
+            agreements: {
+                agreementKey: string;
+                /** Format: uuid */
+                agreementVersionId: string;
+                /** Format: date-time */
+                consentedAt: string;
+                name: string;
+                versionLabel: string;
+            }[];
+            /** Format: date-time */
+            closedAt: string | null;
+            deliveryPlan: {
+                /** Format: date */
+                agreedLaunchDate: string | null;
+                /** Format: date-time */
+                confirmedAt: string | null;
+                confirmedVersionNo: number | null;
+                /** Format: uuid */
+                deliveryPlanId: string;
+                focus: components["schemas"]["DictRef"][];
+                /** @enum {string|null} */
+                launchMode: "merchant_self" | null;
+                placements: {
+                    durationSec: number;
+                    /** @enum {string} */
+                    slot: "opening" | "ending";
+                }[];
+                /** @enum {string} */
+                status: "drafting" | "pending_confirm" | "revising" | "confirmed" | (string & {});
+                summaryVersionNo: number | null;
+            } | null;
+            discountBp: number;
+            entityName: string | null;
+            /** Format: date */
+            expectedLaunchDate: string | null;
+            focus: components["schemas"]["DictRef"][];
+            isTopModel: boolean;
+            itemCount: number;
+            items: components["schemas"]["OrderItemInOrder"][];
+            licenseLetters: {
+                accountName: string;
+                /** @enum {string} */
+                displayStatus: "pending_effective" | "effective" | "expired" | (string & {});
+                letterNo: string;
+                /** Format: uuid */
+                licenseLetterId: string;
+                /** Format: uuid */
+                orderItemId: string;
+                /** Format: date */
+                periodEndDate: string;
+                /** Format: date */
+                periodStartDate: string | null;
+                /** @enum {string} */
+                platform: "douyin" | "wechat_channels" | (string & {});
+                /** @enum {string} */
+                status: "pending_effective" | "effective" | (string & {});
+            }[];
+            note: string | null;
+            /** Format: uuid */
+            orderId: string;
+            orderNo: string;
+            pendingTodo: components["schemas"]["OrderTodo"] | null;
+            planCode: string;
+            planName: string;
+            pointsEvents: {
+                addonPoints: number;
+                /** Format: date-time */
+                occurredAt: string;
+                /** @enum {string} */
+                opType: "hold" | "capture" | "release" | "refund" | (string & {});
+                planPoints: number;
+                points: number;
+            }[];
+            referenceStoreAssetIds: string[];
+            /** Format: date-time */
+            startedAt: string | null;
+            /** @enum {string} */
+            status: "pending_start" | "producing" | "to_launch" | "live" | "ended" | "cancelled" | "after_sale" | "refunded" | (string & {});
+            /** Format: date-time */
+            statusChangedAt: string;
+            /** Format: uuid */
+            storeId: string;
+            storeName: string | null;
+            subStatus: ("qualification_reviewing" | "qualification_rejected" | "starting" | "assigning" | "plan_confirm" | "ad_prep" | "sample_making" | "sample_confirm" | "batch_compose" | "delivering" | "awaiting_links" | "verifying" | "need_fix" | "expired_unlaunched" | "in_service" | "takedown_pending" | "takedown_overdue" | "cancel_reviewing" | "refund_executing" | "cancelled_before_start" | "terminated_no_return" | (string & {})) | null;
+            /** Format: date-time */
+            submittedAt: string;
+            surchargeBp: number;
+            /** @enum {string} */
+            tab: "producing" | "to_launch" | "live" | "ended" | "after_sale" | (string & {});
+            totalChargePoints: number;
+        };
+        OrderItemInOrder: {
+            accounts: {
+                accountName: string;
+                /** Format: uuid */
+                channelAccountId: string;
+                /** @enum {string} */
+                platform: "douyin" | "wechat_channels" | (string & {});
+            }[];
+            /** Format: date */
+            agreedLaunchDate: string | null;
+            cancelReasonCode: ("merchant_request" | "store_closed" | "platform_fault" | "qualification_final" | (string & {})) | null;
+            /** Format: date-time */
+            cancelledAt: string | null;
+            chargePoints: number;
+            discountBp: number;
+            /** Format: uuid */
+            dramaId: string;
+            dramaTitle: string;
+            episodeCount: number;
+            genres: components["schemas"]["DictRef"][];
+            itemNo: number;
+            listPricePoints: number;
+            liveEpisodeCount: number;
+            /** Format: uuid */
+            orderItemId: string;
+            /** @enum {string} */
+            phase: "pending_start" | "producing" | "to_launch" | "live" | "ended" | "cancelled" | "refunded" | "terminated" | (string & {});
+            /** Format: date-time */
+            phaseChangedAt: string;
+            placements: {
+                /** Format: uuid */
+                adId: string;
+                adNo: string;
+                boundVersionNo: number | null;
+                durationSec: number;
+                /** @enum {string} */
+                slot: "opening" | "ending";
+            }[];
+            posterUrl: components["schemas"]["SignedUrl"] | null;
+            /** @enum {string} */
+            productionModel: "standard" | "advanced" | "top" | (string & {});
+            returnPoints: {
+                convertedPoints: number;
+                forfeitedPoints: number;
+                refundRequestedPoints: number;
+                returnedPoints: number;
+            };
+            surchargeBp: number;
+            ticketStep: ("assigning" | "plan_confirm" | "ad_prep" | "sample_making" | "sample_confirm" | "batch_compose" | "delivering" | "awaiting_launch" | "launch_verify" | "in_service" | "takedown" | "archived" | "terminated" | (string & {})) | null;
+            timeline: {
+                at: string | null;
+                /** @enum {string} */
+                key: "submitted" | "started" | "manager_assigned" | "plan_confirmed" | "ads_confirmed" | "sample_confirmed" | "delivered" | "live" | "usage_ended" | (string & {});
+                /** @enum {string} */
+                state: "done" | "current" | "todo" | (string & {});
+            }[];
+            /** Format: date */
+            usageEndDate: string;
+            /** @enum {string} */
+            usageEndSource: "license" | "early_end" | "expired" | (string & {});
+            /** Format: date */
+            usageStartDate: string | null;
+        };
+        OrderQuote: {
+            ads: {
+                /** Format: uuid */
+                adId: string;
+                adNo: string;
+                /** Format: date-time */
+                confirmedAt: string;
+                confirmedVersionNo: number;
+                copy: string | null;
+                durationSec: number;
+                /** @enum {string} */
+                type: "opening" | "ending";
+            }[];
+            agreement: {
+                /** @enum {string} */
+                agreementKey: "custom_license";
+                /** Format: uuid */
+                agreementVersionId: string;
+                name: string;
+                versionLabel: string;
+            };
+            allocation: {
+                addonPoints: number;
+                planLots: {
+                    /** Format: date-time */
+                    expiresAt: string;
+                    points: number;
+                }[];
+            };
+            balanceAfter: {
+                addonPoints: number;
+                planPoints: number;
+            };
+            blockers: components["schemas"]["QuoteBlocker"][];
+            channelAccounts: {
+                abnormalReason: components["schemas"]["DictRef"] | null;
+                accountName: string;
+                accountType: ("enterprise" | "personal" | "none" | (string & {})) | null;
+                accountUid: string;
+                /** Format: uuid */
+                channelAccountId: string;
+                isSelectable: boolean;
+                /** @enum {string} */
+                platform: "douyin" | "wechat_channels" | (string & {});
+                /** @enum {string} */
+                status: "pending_verify" | "available" | "abnormal" | "unbound" | (string & {});
+            }[];
+            /** Format: date */
+            earliestLaunchDate: string;
+            expect: {
+                items: {
+                    chargePoints: number;
+                    /** Format: uuid */
+                    dramaId: string;
+                }[];
+                totalChargePoints: number;
+            };
+            items: components["schemas"]["OrderQuoteItem"][];
+            plan: {
+                discountBp: number;
+                isTopModelIncluded: boolean;
+                planCode: string;
+                planName: string;
+                /** @enum {string} */
+                productionModel: "standard" | "advanced" | "top" | (string & {});
+                topModelSurchargeBp: number;
+            };
+            pointsShortfall: number;
+            /** Format: date-time */
+            quotedAt: string;
+            spendablePoints: number;
+            store: {
+                contactName: string | null;
+                contactPhoneMask: string | null;
+                entityName: string | null;
+                isEntityVerified: boolean;
+                /** Format: uuid */
+                storeId: string;
+                storeName: string | null;
+            };
+            totalChargePoints: number;
+        };
+        OrderQuoteBody: {
+            channelAccountIds?: string[];
+            dramaIds: string[];
+            /** @default false */
+            isTopModel: boolean;
+        };
+        OrderQuoteItem: {
+            allowedPlacements: ("opening" | "ending")[];
+            chargePoints: number;
+            discountBp: number;
+            discountDeltaPoints: number;
+            drama: components["schemas"]["DramaCard"];
+            listPricePoints: number;
+            orderable: boolean;
+            platforms: ("douyin" | "wechat_channels" | (string & {}))[];
+            surchargeBp: number;
+            surchargeDeltaPoints: number;
+            unorderableReason: ("not_listed" | "stopped" | "platform_not_licensed" | "permit_missing" | (string & {})) | null;
+        };
+        OrderTodo: {
+            /** Format: date-time */
+            dueAt: string | null;
+            /** @enum {string} */
+            kind: "plan_confirm" | "ad_confirm" | "sample_confirm" | "launch_submit" | "takedown_confirm" | "channel_account_fix" | "qualification_fix" | "ticket_confirm" | "asset_demand" | (string & {});
+            link: {
+                params: {
+                    [key: string]: string;
+                };
+                route: string;
+            };
+            /** Format: uuid */
+            orderId: string | null;
+            /** Format: uuid */
+            orderItemId: string | null;
+            /** Format: uuid */
+            subjectId: string;
+            subjectType: string;
+            /** @enum {string} */
+            tag: "to_confirm" | "to_handle" | "failed" | (string & {});
+            title: string;
+            todoId: string;
+            /** @enum {string} */
+            urgency: "overdue" | "due_today" | "normal" | (string & {});
+        };
         OverviewPlanCard: {
             addonAvailablePoints: number;
             endDate: string | null;
@@ -2726,6 +3094,12 @@ export interface components {
             storeQualificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
             /** @enum {string} */
             viewerRole: "clerk";
+        };
+        QuoteBlocker: {
+            code: string;
+            /** Format: uuid */
+            dramaId?: string | null;
+            message: string;
         };
         /** @description Sentry envelope 原文，≤200KB */
         SentryEnvelope: string;
@@ -4986,6 +5360,174 @@ export interface operations {
             };
             /** @description 限流 */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.order.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderCreateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["OrderCreateResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.order.quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderQuoteBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["OrderQuote"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
