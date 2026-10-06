@@ -6769,15 +6769,12 @@
                 ]
               },
               "rejectReason": {
-                "allOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/DictRef"
                   },
                   {
-                    "type": [
-                      "object",
-                      "null"
-                    ]
+                    "type": "null"
                   }
                 ]
               },
