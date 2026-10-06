@@ -1,0 +1,47 @@
+.cart-page {
+  &__sheet-h5 {
+    padding-bottom: calc(74px + env(safe-area-inset-bottom));
+  }
+  &__footer-h5 {
+    bottom: 50px;
+  }
+  min-height: 100vh;
+  background: $lyx-color-bg-page;
+  &__row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  &__body {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  &__title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  &__muted {
+    font-size: 12px;
+    line-height: 1.6;
+    color: $lyx-color-text-secondary;
+  }
+  &__points {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  &__total {
+    flex: 1;
+    min-width: 0;
+    margin-left: 8px;
+    font-weight: 600;
+  }
+}
