@@ -17,3 +17,8 @@ export const M03_PROFILE_ASSET = defineRouteDoc("m03-profile-asset", [
 ]);
 
 export * from "./error-details.js";
+
+export * from "./profile.schemas.js";
+export * from "./qualification.schemas.js";
+export * from "./store-profile.js";
+export * from "./qualification-docs.js";

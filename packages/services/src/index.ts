@@ -207,6 +207,10 @@ export * as media from "./media/index.js";
 export { createMedia } from "./media/index.js";
 export type { Media, MediaActor, MediaDeps, PromoteRef } from "./media/index.js";
 export { seedPlaceholderFinanceConfig, PLACEHOLDER_FINANCE } from "./billing/index.js";
+// W1-08a：商家档案及 initial 资质核心；后台路由随 b。
+export { createProfile } from "./profile/index.js";
+export type { Profile, ProfileDeps, ProfileViewer } from "./profile/index.js";
+export { currentSessionOpenid } from "./identity/index.js";
 
 export { createContent } from "./content/index.js";
 export type { Content, ContentDeps, DramaPrices, DramaPrice } from "./content/index.js";

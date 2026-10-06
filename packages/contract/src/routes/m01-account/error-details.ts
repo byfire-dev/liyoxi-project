@@ -8,6 +8,7 @@ import { z } from "../../zod.js";
 import { AgreementKeySchema } from "./agreement.schemas.js";
 
 export const M01_ERROR_DETAILS = {
+  CONTENT_REJECTED: z.object({ fields: z.array(z.string()) }),
   /** 当前版本按 m01 第 3.12 节的唯一口径判定；该协议此刻没有生效版本时为 null */
   AGREEMENT_VERSION_STALE: z.object({
     agreementKey: AgreementKeySchema,

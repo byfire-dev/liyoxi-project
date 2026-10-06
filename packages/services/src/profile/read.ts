@@ -1,0 +1,71 @@
+import { merchantFactsOf } from "../kernel/index.js";
+import type { Tx } from "../kernel/index.js";
+import type { ProfileDeps, ProfileViewer } from "./context.js";
+import { dictRef, snapshot } from "./repo.js";
+import { instant } from "./views.js";
+
+export async function overview(tx: Tx, deps: ProfileDeps, viewer: ProfileViewer) {
+  const s = await snapshot(tx, viewer.membership.storeId),
+    p = s.profile;
+  const facts = await merchantFactsOf(deps.assembly).read(tx, {
+    entityId: s.store.entityId,
+    storeIds: [s.store.id],
+    viewerRole: viewer.membership.role,
+    merchantUserId: viewer.principal.merchantUserId,
+    now: deps.clock.now(),
+  });
+  const [basic, media, service, qualification] = s.completeness.steps;
+  const docTypes = [];
+  for (const doc of s.current?.qualificationDocs ?? [])
+    docTypes.push({
+      docType: doc.docType,
+      permitType: await dictRef(tx, "permit_type", doc.permitType),
+    });
+  const ad = facts.ad.stores[s.store.id]!;
+  return {
+    viewerRole: "owner" as const,
+    store: {
+      storeId: s.store.id,
+      name: s.store.name,
+      isPrimary: s.store.isPrimary,
+      qualificationStatus: s.store.qualificationStatus,
+      isChangeInReview: false,
+      isFinalRejected: p?.finalRejectedAt != null,
+      industry: await dictRef(tx, "industry", p?.industryCode),
+      category: await dictRef(tx, "industry", p?.categoryCode),
+    },
+    entityName: s.store.entity.name,
+    completeness: s.completeness,
+    steps: {
+      basic: { state: basic!.state },
+      media: {
+        state: media!.state,
+        doorCount: s.media.filter((m) => m.mediaGroup === "door").length,
+        interiorCount: s.media.filter((m) => m.mediaGroup === "interior").length,
+        productCount: s.media.filter((m) => m.mediaGroup === "product").length,
+        promoCount: s.media.filter((m) => m.mediaGroup === "promo").length,
+      },
+      service: {
+        state: service!.state,
+        serviceItemCount: s.services.length,
+        sellingPointCount: p?.sellingPointCodes.length ?? 0,
+        hasPromoText: !!p?.promoText,
+      },
+      qualification: { state: qualification!.state, docTypes },
+    },
+    qualification: {
+      status: s.store.qualificationStatus,
+      submittedAt: instant(s.open?.submittedAt),
+      dueAt: instant(s.open?.approvalRequest?.dueAt),
+      lastDecidedAt: instant(p?.lastDecidedAt),
+    },
+    members: { ownerDisplayName: null, clerkCount: 0, pendingInvitationCount: 0, preview: [] },
+    assets: { total: facts.asset.stores[s.store.id]!.assetCount, recent7dCount: 0, recent: [] },
+    ads: {
+      confirmedCount: ad.readyCount,
+      pendingConfirmCount: ad.pendingConfirmCount,
+      producingCount: ad.producingCount,
+      revisingCount: 0,
+    },
+  };
+}

@@ -1,8 +1,17 @@
 // 商家端：门店档案、资质与素材 · qualification-docs（docs/api/m03-profile-asset.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { merchantMeta } from "../meta-only.js";
+import { merchantRoute } from "../builders.js";
+import { errorResponses, okResponse, IdSchema } from "../../common/index.js";
+import { z } from "../../zod.js";
+import {
+  QualificationDocCreateBodySchema,
+  QualificationDocPatchSchema,
+  QualificationDocRecognizedSchema,
+  QualificationDocUpdateResultSchema,
+} from "./qualification.schemas.js";
 
-export const mQualificationDocCreate = merchantMeta({
+export const mQualificationDocCreate = merchantRoute({
   method: "post",
   path: "/m/qualification-docs",
   operationId: "m.qualificationDoc.create",
@@ -13,9 +22,21 @@ export const mQualificationDocCreate = merchantMeta({
   "x-idempotent": "required",
   "x-idempotent-reason":
     "三段式（C51 先调外部、再开事务；A139 已登记）：先占用幂等记录，事务外识别（复用 ocr_result），再开事务落证照行；结果脱敏（C50、A80）：幂等记录不存 recognized、submitted，重放时为空并带 replayed",
+  request: {
+    body: {
+      content: { "application/json": { schema: QualificationDocCreateBodySchema } },
+      required: true,
+    },
+  },
+  "x-three-phase": true,
+  "x-redact-on-replay": ["recognized", "submitted"],
+  responses: {
+    ...okResponse(QualificationDocRecognizedSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
-export const mQualificationDocUpdate = merchantMeta({
+export const mQualificationDocUpdate = merchantRoute({
   method: "patch",
   path: "/m/qualification-docs/{qualificationDocId}",
   operationId: "m.qualificationDoc.update",
@@ -23,6 +44,17 @@ export const mQualificationDocUpdate = merchantMeta({
   "x-capability": "store.qualification.edit",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    params: z.object({ qualificationDocId: IdSchema }),
+    body: {
+      content: { "application/json": { schema: QualificationDocPatchSchema } },
+      required: true,
+    },
+  },
+  responses: {
+    ...okResponse(QualificationDocUpdateResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
 export const mQualificationDocDownloadUrls = merchantMeta({
