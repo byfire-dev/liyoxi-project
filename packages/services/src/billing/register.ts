@@ -11,6 +11,7 @@ import {
 } from "../kernel/index.js";
 import { machinePort } from "../flow/index.js";
 import { paymentMachineBindings } from "./payment/machines.js";
+import { paymentInvariants } from "./payment/invariants.js";
 import { billingAccountPort } from "../tenant/index.js";
 import { billingInvariants } from "./invariants.js";
 import { billingAccountOpener, billingMerchantFacts } from "./ports.js";
@@ -22,5 +23,5 @@ export const registration = defineRegistration("billing", {
     implementMerchantFacts("billing", billingMerchantFacts),
     ...paymentMachineBindings.map(({ key, binding }) => implementKeyed(machinePort, key, binding)),
   ],
-  invariants: [...billingInvariants, ...subscriptionInvariants],
+  invariants: [...billingInvariants, ...subscriptionInvariants, ...paymentInvariants],
 });
