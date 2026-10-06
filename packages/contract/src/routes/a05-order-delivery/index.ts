@@ -29,3 +29,5 @@ export const A05_ORDER_DELIVERY = defineRouteDoc("a05-order-delivery", [
   reissues,
   samples,
 ]);
+
+export * from "./public.schemas.js";

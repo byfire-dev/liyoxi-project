@@ -65,6 +65,46 @@
         ],
         "type": "object"
       },
+      "AdminChecklistItemView": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "merchantVisible": {
+            "type": "boolean"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result": {
+            "enum": [
+              "pass",
+              "fail",
+              "na"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "result",
+          "note",
+          "merchantVisible"
+        ],
+        "type": "object"
+      },
       "AdminFileCreateBody": {
         "additionalProperties": false,
         "properties": {
@@ -541,6 +581,80 @@
         ],
         "type": "object"
       },
+      "AdminStoreBrief": {
+        "additionalProperties": false,
+        "properties": {
+          "city": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "district": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entityId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "entityName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "qualificationStatus": {
+            "enum": [
+              "unsubmitted",
+              "pending",
+              "verified",
+              "rejected"
+            ],
+            "type": "string"
+          },
+          "storeId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "storeName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "storeId",
+          "storeName",
+          "entityId",
+          "entityName",
+          "city",
+          "district",
+          "qualificationStatus"
+        ],
+        "type": "object"
+      },
       "ApprovalCounts": {
         "properties": {
           "items": {
@@ -678,6 +792,156 @@
           "items",
           "total",
           "pointsAdjustMonth"
+        ],
+        "type": "object"
+      },
+      "ApprovalDecisionView": {
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "approve",
+                "reject",
+                "withdraw",
+                "approve-review",
+                "reject-review"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "approvalId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "badges": {
+            "items": {
+              "enum": [
+                "check_mismatch",
+                "final_rejected",
+                "overdue"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "decidedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decidedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decisionNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dueAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isDecidedBySystem": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "qualification",
+              "channel_account",
+              "launch_link",
+              "order_cancel",
+              "ad_cancel",
+              "qualification_cancel",
+              "plan_refund",
+              "points_adjust",
+              "subscription_extend",
+              "finance_config_change",
+              "account_change",
+              "transfer_confirm"
+            ],
+            "type": "string"
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "requester": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "roundNo": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "withdrawn"
+            ],
+            "type": "string"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "approvalId",
+          "kind",
+          "status",
+          "roundNo",
+          "submittedAt",
+          "dueAt",
+          "badges",
+          "requester",
+          "decidedBy",
+          "isDecidedBySystem",
+          "decidedAt",
+          "decisionNote",
+          "reasons",
+          "lockVersion",
+          "actions"
         ],
         "type": "object"
       },
@@ -1321,6 +1585,1201 @@
         ],
         "type": "object"
       },
+      "ChannelAccountBrief": {
+        "additionalProperties": false,
+        "properties": {
+          "accountName": {
+            "type": "string"
+          },
+          "accountUid": {
+            "type": "string"
+          },
+          "channelAccountId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "platform": {
+            "enum": [
+              "douyin",
+              "wechat_channels"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending_verify",
+              "available",
+              "abnormal",
+              "unbound"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "channelAccountId",
+          "platform",
+          "accountName",
+          "accountUid",
+          "status"
+        ],
+        "type": "object"
+      },
+      "ChannelAccountDecisionResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ChannelAccountSubmissionDetail"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "replayed": {
+                "type": "boolean"
+              },
+              "screenshots": {
+                "items": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ImageRef"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "url": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "replayed"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ChannelAccountDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ChannelAccountRow"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "history": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "actorName": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "actorType": {
+                      "enum": [
+                        "merchant",
+                        "staff",
+                        "system"
+                      ],
+                      "type": "string"
+                    },
+                    "at": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "kind": {
+                      "enum": [
+                        "bound",
+                        "submitted",
+                        "verified",
+                        "rejected",
+                        "resubmitted",
+                        "abnormal",
+                        "unbound"
+                      ],
+                      "type": "string"
+                    },
+                    "note": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "reasons": {
+                      "items": {
+                        "$ref": "#/components/schemas/DictRef"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "at",
+                    "kind",
+                    "actorType",
+                    "actorName",
+                    "reasons",
+                    "note"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "rounds": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "approval": {
+                      "$ref": "#/components/schemas/PublishApprovalView"
+                    },
+                    "channelAccountSubmissionId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "compareRows": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "field": {
+                                "enum": [
+                                  "account_name",
+                                  "account_uid",
+                                  "account_type",
+                                  "cert_subject_name",
+                                  "account_status"
+                                ],
+                                "type": "string"
+                              },
+                              "filled": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "match": {
+                                "anyOf": [
+                                  {
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "recognized": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "field",
+                              "filled",
+                              "recognized",
+                              "match"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "filled": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "accountName": {
+                          "type": "string"
+                        },
+                        "accountType": {
+                          "enum": [
+                            "enterprise",
+                            "personal",
+                            "none"
+                          ],
+                          "type": "string"
+                        },
+                        "accountUid": {
+                          "type": "string"
+                        },
+                        "platform": {
+                          "enum": [
+                            "douyin",
+                            "wechat_channels"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "platform",
+                        "accountName",
+                        "accountUid",
+                        "accountType"
+                      ],
+                      "type": "object"
+                    },
+                    "kind": {
+                      "enum": [
+                        "new_binding",
+                        "resubmit"
+                      ],
+                      "type": "string"
+                    },
+                    "roundNo": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "screenshotCount": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "submittedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "channelAccountSubmissionId",
+                    "roundNo",
+                    "kind",
+                    "submittedAt",
+                    "filled",
+                    "screenshotCount",
+                    "compareRows",
+                    "approval"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "rounds",
+              "history"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ChannelAccountRow": {
+        "additionalProperties": false,
+        "properties": {
+          "abnormalNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "abnormalReason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "abnormalSource": {
+            "anyOf": [
+              {
+                "enum": [
+                  "verify",
+                  "manual"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "accountName": {
+            "type": "string"
+          },
+          "accountType": {
+            "anyOf": [
+              {
+                "enum": [
+                  "enterprise",
+                  "personal",
+                  "none"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "accountUid": {
+            "type": "string"
+          },
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "activeDramas": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "agreedLaunchDate": {
+                  "anyOf": [
+                    {
+                      "format": "date",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "dramaTitle": {
+                  "type": "string"
+                },
+                "orderItemId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "phase": {
+                  "enum": [
+                    "pending_start",
+                    "producing",
+                    "to_launch",
+                    "live",
+                    "ended",
+                    "cancelled",
+                    "refunded",
+                    "terminated"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "orderItemId",
+                "dramaTitle",
+                "phase",
+                "agreedLaunchDate"
+              ],
+              "type": "object"
+            },
+            "maxItems": 5,
+            "type": "array"
+          },
+          "boundAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "certSubjectName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "channelAccountId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "isCertSubjectMatched": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latestRound": {
+            "additionalProperties": false,
+            "properties": {
+              "approvalId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "approvalStatus": {
+                "type": "string"
+              },
+              "channelAccountSubmissionId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "dueAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "kind": {
+                "enum": [
+                  "new_binding",
+                  "resubmit"
+                ],
+                "type": "string"
+              },
+              "roundNo": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "submittedAt": {
+                "format": "date-time",
+                "type": "string"
+              }
+            },
+            "required": [
+              "channelAccountSubmissionId",
+              "roundNo",
+              "kind",
+              "submittedAt",
+              "approvalId",
+              "approvalStatus",
+              "dueAt"
+            ],
+            "type": "object"
+          },
+          "openTakedownTaskCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "platform": {
+            "enum": [
+              "douyin",
+              "wechat_channels"
+            ],
+            "type": "string"
+          },
+          "previousDecision": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "decidedAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "decidedBy": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/StaffBrief"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reasons": {
+                    "items": {
+                      "$ref": "#/components/schemas/DictRef"
+                    },
+                    "type": "array"
+                  },
+                  "result": {
+                    "enum": [
+                      "approved",
+                      "rejected",
+                      "withdrawn"
+                    ],
+                    "type": "string"
+                  },
+                  "roundNo": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "roundNo",
+                  "decidedAt",
+                  "decidedBy",
+                  "result",
+                  "reasons"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "pending_verify",
+              "available",
+              "abnormal",
+              "unbound"
+            ],
+            "type": "string"
+          },
+          "store": {
+            "$ref": "#/components/schemas/AdminStoreBrief"
+          },
+          "submittedAccountType": {
+            "enum": [
+              "enterprise",
+              "personal",
+              "none"
+            ],
+            "type": "string"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "unboundAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usage": {
+            "additionalProperties": false,
+            "properties": {
+              "liveCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "pendingStartCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "producingCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "toLaunchCount": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "pendingStartCount",
+              "producingCount",
+              "toLaunchCount",
+              "liveCount"
+            ],
+            "type": "object"
+          },
+          "verifiedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verifiedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "channelAccountId",
+          "store",
+          "platform",
+          "accountName",
+          "accountUid",
+          "status",
+          "accountType",
+          "submittedAccountType",
+          "certSubjectName",
+          "isCertSubjectMatched",
+          "abnormalSource",
+          "abnormalReason",
+          "abnormalNote",
+          "boundAt",
+          "submittedAt",
+          "verifiedAt",
+          "verifiedBy",
+          "unboundAt",
+          "latestRound",
+          "previousDecision",
+          "usage",
+          "activeDramas",
+          "openTakedownTaskCount",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "ChannelAccountSubmissionDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/ChannelAccountRow"
+          },
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "approval": {
+            "$ref": "#/components/schemas/PublishApprovalView"
+          },
+          "channelAccountSubmissionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "compareRows": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "field": {
+                  "enum": [
+                    "account_name",
+                    "account_uid",
+                    "account_type",
+                    "cert_subject_name",
+                    "account_status"
+                  ],
+                  "type": "string"
+                },
+                "filled": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "match": {
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "recognized": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "field",
+                "filled",
+                "recognized",
+                "match"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "filled": {
+            "additionalProperties": false,
+            "properties": {
+              "accountName": {
+                "type": "string"
+              },
+              "accountType": {
+                "enum": [
+                  "enterprise",
+                  "personal",
+                  "none"
+                ],
+                "type": "string"
+              },
+              "accountUid": {
+                "type": "string"
+              },
+              "platform": {
+                "enum": [
+                  "douyin",
+                  "wechat_channels"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "platform",
+              "accountName",
+              "accountUid",
+              "accountType"
+            ],
+            "type": "object"
+          },
+          "history": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "actorName": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "actorType": {
+                  "enum": [
+                    "merchant",
+                    "staff",
+                    "system"
+                  ],
+                  "type": "string"
+                },
+                "at": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "bound",
+                    "submitted",
+                    "verified",
+                    "rejected",
+                    "resubmitted",
+                    "abnormal",
+                    "unbound"
+                  ],
+                  "type": "string"
+                },
+                "note": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reasons": {
+                  "items": {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "at",
+                "kind",
+                "actorType",
+                "actorName",
+                "reasons",
+                "note"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "isCurrentRound": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "new_binding",
+              "resubmit"
+            ],
+            "type": "string"
+          },
+          "otherRounds": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "approval": {
+                  "$ref": "#/components/schemas/PublishApprovalView"
+                },
+                "channelAccountSubmissionId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "compareRows": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "field": {
+                            "enum": [
+                              "account_name",
+                              "account_uid",
+                              "account_type",
+                              "cert_subject_name",
+                              "account_status"
+                            ],
+                            "type": "string"
+                          },
+                          "filled": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "match": {
+                            "anyOf": [
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "recognized": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "field",
+                          "filled",
+                          "recognized",
+                          "match"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "filled": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "accountName": {
+                      "type": "string"
+                    },
+                    "accountType": {
+                      "enum": [
+                        "enterprise",
+                        "personal",
+                        "none"
+                      ],
+                      "type": "string"
+                    },
+                    "accountUid": {
+                      "type": "string"
+                    },
+                    "platform": {
+                      "enum": [
+                        "douyin",
+                        "wechat_channels"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "platform",
+                    "accountName",
+                    "accountUid",
+                    "accountType"
+                  ],
+                  "type": "object"
+                },
+                "kind": {
+                  "enum": [
+                    "new_binding",
+                    "resubmit"
+                  ],
+                  "type": "string"
+                },
+                "roundNo": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "screenshotCount": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "submittedAt": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "channelAccountSubmissionId",
+                "roundNo",
+                "kind",
+                "submittedAt",
+                "filled",
+                "screenshotCount",
+                "compareRows",
+                "approval"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "roundNo": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "screenshots": {
+            "items": {
+              "$ref": "#/components/schemas/ImageRef"
+            },
+            "type": "array"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "submittedByName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "channelAccountSubmissionId",
+          "roundNo",
+          "kind",
+          "isCurrentRound",
+          "submittedAt",
+          "submittedByName",
+          "account",
+          "filled",
+          "screenshots",
+          "compareRows",
+          "approval",
+          "otherRounds",
+          "history",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "ChecklistTemplateView": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "activate",
+                "discard"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "activatedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checklistTemplateId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "code": {
+            "enum": [
+              "qc.sample",
+              "qc.episode",
+              "qc.package",
+              "delivery.precheck",
+              "launch.verify",
+              "patrol.check",
+              "takedown.check",
+              "takedown.absence_check",
+              "account.verify"
+            ],
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "allowNa": {
+                  "type": "boolean"
+                },
+                "hint": {
+                  "type": "string"
+                },
+                "key": {
+                  "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$",
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "merchantVisible": {
+                  "type": "boolean"
+                },
+                "required": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "required",
+                "allowNa",
+                "merchantVisible"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "retiredAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "active",
+              "retired"
+            ],
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "versionNo": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "checklistTemplateId",
+          "code",
+          "versionNo",
+          "status",
+          "items",
+          "activatedAt",
+          "retiredAt",
+          "createdBy",
+          "createdAt",
+          "updatedAt",
+          "lockVersion",
+          "actions"
+        ],
+        "type": "object"
+      },
       "ConfirmTotpBody": {
         "properties": {
           "code": {
@@ -1667,6 +3126,864 @@
         ],
         "type": "object"
       },
+      "ImageRef": {
+        "additionalProperties": false,
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "fileId",
+          "url",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
+      "LaunchSubmissionDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChannelAccountBrief"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "accountType": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "enterprise",
+                          "personal",
+                          "none"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "accountType"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "approval": {
+            "$ref": "#/components/schemas/PublishApprovalView"
+          },
+          "evidenceFileIds": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "isCurrentRound": {
+            "type": "boolean"
+          },
+          "isPartialGoesLive": {
+            "type": "boolean"
+          },
+          "launchSubmissionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "launchTaskId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "licenseLetter": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "letterNo": {
+                    "type": "string"
+                  },
+                  "licenseLetterId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "licenseLetterId",
+                  "letterNo",
+                  "status"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "link": {
+            "additionalProperties": false,
+            "properties": {
+              "actualLaunchDate": {
+                "format": "date",
+                "type": "string"
+              },
+              "collectionUrl": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "episodeUrls": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "episodeNo": {
+                      "type": "integer"
+                    },
+                    "url": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "episodeNo",
+                    "url"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "linkKind": {
+                "enum": [
+                  "collection",
+                  "episodes"
+                ],
+                "type": "string"
+              },
+              "reportedEpisodeCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "submitActorType": {
+                "enum": [
+                  "merchant",
+                  "staff",
+                  "system",
+                  "partner"
+                ],
+                "type": "string"
+              },
+              "submitClient": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "weapp",
+                      "portal",
+                      "admin"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "submittedAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "submittedByName": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "linkKind",
+              "collectionUrl",
+              "episodeUrls",
+              "reportedEpisodeCount",
+              "actualLaunchDate",
+              "submittedAt",
+              "submitActorType",
+              "submitClient",
+              "submittedByName"
+            ],
+            "type": "object"
+          },
+          "orderItem": {
+            "additionalProperties": false,
+            "properties": {
+              "agreedLaunchDate": {
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dramaTitle": {
+                "type": "string"
+              },
+              "episodeCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "liveEpisodeCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "orderId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "orderItemId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "orderNo": {
+                "type": "string"
+              },
+              "orderedAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "phase": {
+                "enum": [
+                  "pending_start",
+                  "producing",
+                  "to_launch",
+                  "live",
+                  "ended",
+                  "cancelled",
+                  "refunded",
+                  "terminated"
+                ],
+                "type": "string"
+              },
+              "productionModel": {
+                "enum": [
+                  "standard",
+                  "advanced",
+                  "top"
+                ],
+                "type": "string"
+              },
+              "usageEndDate": {
+                "format": "date",
+                "type": "string"
+              },
+              "usageEndSource": {
+                "enum": [
+                  "license",
+                  "early_end",
+                  "expired"
+                ],
+                "type": "string"
+              },
+              "usageStartDate": {
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "orderItemId",
+              "orderId",
+              "orderNo",
+              "orderedAt",
+              "dramaTitle",
+              "episodeCount",
+              "productionModel",
+              "phase",
+              "agreedLaunchDate",
+              "usageStartDate",
+              "usageEndDate",
+              "usageEndSource",
+              "liveEpisodeCount"
+            ],
+            "type": "object"
+          },
+          "otherTasks": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account": {
+                  "$ref": "#/components/schemas/ChannelAccountBrief"
+                },
+                "currentRoundNo": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "currentSubmissionId": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "firstLaunchDate": {
+                  "anyOf": [
+                    {
+                      "format": "date",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "isLive": {
+                  "type": "boolean"
+                },
+                "isOverdue": {
+                  "type": "boolean"
+                },
+                "latestPassedSubmissionId": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "launchTaskId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "platform": {
+                  "enum": [
+                    "douyin",
+                    "wechat_channels"
+                  ],
+                  "type": "string"
+                },
+                "reviewStatus": {
+                  "enum": [
+                    "pending",
+                    "verifying",
+                    "need_fix",
+                    "passed",
+                    "void"
+                  ],
+                  "type": "string"
+                },
+                "verifiedEpisodeCount": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "launchTaskId",
+                "platform",
+                "account",
+                "reviewStatus",
+                "isLive",
+                "currentRoundNo",
+                "verifiedEpisodeCount",
+                "firstLaunchDate",
+                "isOverdue",
+                "currentSubmissionId",
+                "latestPassedSubmissionId"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "projectedUsageStartDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reopenOfLaunchSubmissionId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result": {
+            "enum": [
+              "pending",
+              "passed",
+              "passed_partial",
+              "returned",
+              "revoked",
+              "withdrawn"
+            ],
+            "type": "string"
+          },
+          "revoke": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "blockedReasons": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "canRevoke": {
+                    "type": "boolean"
+                  },
+                  "deadlineAt": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "canRevoke",
+                  "deadlineAt",
+                  "blockedReasons"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "roundNo": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "rounds": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "actualLaunchDate": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "decidedAt": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "decidedBy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/StaffBrief"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "decisionNote": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "launchSubmissionId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "reasons": {
+                  "items": {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  "type": "array"
+                },
+                "reopenOfLaunchSubmissionId": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reportedEpisodeCount": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "result": {
+                  "enum": [
+                    "pending",
+                    "passed",
+                    "passed_partial",
+                    "returned",
+                    "revoked",
+                    "withdrawn"
+                  ],
+                  "type": "string"
+                },
+                "roundNo": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "submittedAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "verifiedEpisodeCount": {
+                  "anyOf": [
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "launchSubmissionId",
+                "roundNo",
+                "result",
+                "submittedAt",
+                "reportedEpisodeCount",
+                "verifiedEpisodeCount",
+                "actualLaunchDate",
+                "reopenOfLaunchSubmissionId",
+                "decidedAt",
+                "decidedBy",
+                "reasons",
+                "decisionNote"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "store": {
+            "$ref": "#/components/schemas/AdminStoreBrief"
+          },
+          "task": {
+            "additionalProperties": false,
+            "properties": {
+              "account": {
+                "$ref": "#/components/schemas/ChannelAccountBrief"
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "currentRoundNo": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "currentSubmissionId": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "firstLaunchDate": {
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "isLive": {
+                "type": "boolean"
+              },
+              "isOverdue": {
+                "type": "boolean"
+              },
+              "latestPassedSubmissionId": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "launchTaskId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "platform": {
+                "enum": [
+                  "douyin",
+                  "wechat_channels"
+                ],
+                "type": "string"
+              },
+              "reviewStatus": {
+                "enum": [
+                  "pending",
+                  "verifying",
+                  "need_fix",
+                  "passed",
+                  "void"
+                ],
+                "type": "string"
+              },
+              "verifiedEpisodeCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "wentLiveAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "launchTaskId",
+              "platform",
+              "account",
+              "reviewStatus",
+              "isLive",
+              "currentRoundNo",
+              "verifiedEpisodeCount",
+              "firstLaunchDate",
+              "isOverdue",
+              "currentSubmissionId",
+              "latestPassedSubmissionId",
+              "wentLiveAt",
+              "completedAt"
+            ],
+            "type": "object"
+          },
+          "ticket": {
+            "additionalProperties": false,
+            "properties": {
+              "deliveredAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deliveryManager": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deliveryTargetAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "deliveryTicketId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "isPaused": {
+                "type": "boolean"
+              },
+              "pauseReasons": {
+                "items": {
+                  "enum": [
+                    "cancel_review",
+                    "plan_amendment"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "publisher": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "step": {
+                "enum": [
+                  "assigning",
+                  "plan_confirm",
+                  "ad_prep",
+                  "sample_making",
+                  "sample_confirm",
+                  "batch_compose",
+                  "delivering",
+                  "awaiting_launch",
+                  "launch_verify",
+                  "in_service",
+                  "takedown",
+                  "archived",
+                  "terminated"
+                ],
+                "type": "string"
+              },
+              "ticketNo": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "deliveryTicketId",
+              "ticketNo",
+              "step",
+              "isPaused",
+              "pauseReasons",
+              "deliveryManager",
+              "publisher",
+              "deliveryTargetAt",
+              "deliveredAt"
+            ],
+            "type": "object"
+          },
+          "verifiedEpisodeCount": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "launchSubmissionId",
+          "launchTaskId",
+          "roundNo",
+          "result",
+          "isCurrentRound",
+          "reopenOfLaunchSubmissionId",
+          "link",
+          "verifiedEpisodeCount",
+          "evidenceFileIds",
+          "account",
+          "task",
+          "orderItem",
+          "ticket",
+          "store",
+          "licenseLetter",
+          "approval",
+          "projectedUsageStartDate",
+          "isPartialGoesLive",
+          "rounds",
+          "otherTasks",
+          "revoke",
+          "actions"
+        ],
+        "type": "object"
+      },
       "LoginBody": {
         "properties": {
           "password": {
@@ -1745,6 +4062,110 @@
           "fields"
         ],
         "type": "object"
+      },
+      "PublishApprovalView": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApprovalDecisionView"
+          },
+          {
+            "properties": {
+              "checklist": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "result": {
+                        "items": {
+                          "$ref": "#/components/schemas/AdminChecklistItemView"
+                        },
+                        "type": "array"
+                      },
+                      "versionNo": {
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "versionNo",
+                      "result"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "confirmChecks": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "submitClient": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "weapp",
+                      "portal",
+                      "admin"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "submitter": {
+                "properties": {
+                  "actorId": {
+                    "anyOf": [
+                      {
+                        "format": "uuid",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "actorType": {
+                    "enum": [
+                      "staff",
+                      "merchant",
+                      "system",
+                      "partner"
+                    ],
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "actorType",
+                  "actorId",
+                  "label"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "submitter",
+              "submitClient",
+              "checklist",
+              "confirmChecks"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "RoleSummary": {
         "properties": {
@@ -4179,6 +6600,821 @@
         "x-rate-limit": "admin.login"
       }
     },
+    "/api/v1/admin/channel-account-submissions/{channelAccountSubmissionId}": {
+      "get": {
+        "operationId": "admin.channelAccountSubmission.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channelAccountSubmissionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelAccountSubmissionDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "账号核验详情：填报信息与截图比对表、历次核验记录、审批单引用",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/channel-account-submissions/{channelAccountSubmissionId}/approve": {
+      "post": {
+        "operationId": "admin.channelAccountSubmission.approve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channelAccountSubmissionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "accountType": {
+                    "enum": [
+                      "enterprise",
+                      "personal",
+                      "none"
+                    ],
+                    "type": "string"
+                  },
+                  "certSubjectName": {
+                    "anyOf": [
+                      {
+                        "maxLength": 100,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "checklistVersionNo": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "compareRows": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "field": {
+                          "enum": [
+                            "account_name",
+                            "account_uid",
+                            "account_type",
+                            "cert_subject_name",
+                            "account_status"
+                          ],
+                          "type": "string"
+                        },
+                        "match": {
+                          "type": "boolean"
+                        },
+                        "recognized": {
+                          "anyOf": [
+                            {
+                              "maxLength": 100,
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "field",
+                        "recognized",
+                        "match"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "confirm": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "accountUid": {
+                        "type": "string"
+                      },
+                      "roundNo": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "roundNo",
+                      "accountUid"
+                    ],
+                    "type": "object"
+                  },
+                  "confirmChecks": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 10,
+                    "type": "array"
+                  },
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "results": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "note": {
+                          "maxLength": 200,
+                          "type": "string"
+                        },
+                        "result": {
+                          "enum": [
+                            "pass",
+                            "fail",
+                            "na"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "result"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "lockVersion",
+                  "accountType",
+                  "compareRows"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelAccountDecisionResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "账号核验通过（比对表没有不一致项；填写账号类型）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.account.verify",
+        "x-redact-on-replay": [
+          "screenshots[].url",
+          "screenshots[].expiresAt"
+        ]
+      }
+    },
+    "/api/v1/admin/channel-account-submissions/{channelAccountSubmissionId}/reject": {
+      "post": {
+        "operationId": "admin.channelAccountSubmission.reject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channelAccountSubmissionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "compareRows": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "field": {
+                          "enum": [
+                            "account_name",
+                            "account_uid",
+                            "account_type",
+                            "cert_subject_name",
+                            "account_status"
+                          ],
+                          "type": "string"
+                        },
+                        "match": {
+                          "type": "boolean"
+                        },
+                        "recognized": {
+                          "anyOf": [
+                            {
+                              "maxLength": 100,
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "field",
+                        "recognized",
+                        "match"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "note": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "reasonCode": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "reasonCode",
+                  "note",
+                  "compareRows"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelAccountDecisionResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "账号核验驳回（原画板“标记异常”）：原因（字典）与说明必填",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.account.verify",
+        "x-redact-on-replay": [
+          "screenshots[].url",
+          "screenshots[].expiresAt"
+        ]
+      }
+    },
+    "/api/v1/admin/channel-accounts/{channelAccountId}": {
+      "get": {
+        "operationId": "admin.channelAccount.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channelAccountId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelAccountDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "渠道账号详情与历次核验提交",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/checklist-templates": {
+      "get": {
+        "operationId": "admin.checklistTemplate.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "allVersions",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/ChecklistTemplateView"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "items"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "清单模板：质检、交付前检查、链接核验、账号核验、巡检、下架核查（按编码取当前启用版本或全部版本）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+        "x-permission": "assert-in-handler"
+      }
+    },
     "/api/v1/admin/dict-items": {
       "get": {
         "operationId": "admin.dictItem.list",
@@ -4790,6 +8026,481 @@
         "x-idempotent": "none",
         "x-idempotent-reason": "签发短时地址，结果不进幂等记录（A18）",
         "x-permission": "assert-in-handler"
+      }
+    },
+    "/api/v1/admin/launch-submissions/{launchSubmissionId}": {
+      "get": {
+        "operationId": "admin.launchSubmission.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "launchSubmissionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/LaunchSubmissionDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "链接核验详情：回填链接与截图、核验清单、本轮与历次核验记录、审批单引用",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/launch-submissions/{launchSubmissionId}/approve": {
+      "post": {
+        "operationId": "admin.launchSubmission.approve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "launchSubmissionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "checklistVersionNo": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "confirm": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "reportedEpisodeCount": {
+                        "type": "integer"
+                      },
+                      "roundNo": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "roundNo",
+                      "reportedEpisodeCount"
+                    ],
+                    "type": "object"
+                  },
+                  "confirmChecks": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 10,
+                    "type": "array"
+                  },
+                  "evidenceFileIds": {
+                    "items": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "maxItems": 9,
+                    "type": "array"
+                  },
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "results": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "note": {
+                          "maxLength": 200,
+                          "type": "string"
+                        },
+                        "result": {
+                          "enum": [
+                            "pass",
+                            "fail",
+                            "na"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "result"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "type": "array"
+                  },
+                  "verifiedEpisodeCount": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "lockVersion",
+                  "verifiedEpisodeCount",
+                  "checklistVersionNo",
+                  "results"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/LaunchSubmissionDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "链接核验通过（清单 launch.verify 全部通过；首个账号通过时写使用期起始日）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.link.verify"
+      }
+    },
+    "/api/v1/admin/launch-submissions/{launchSubmissionId}/reject": {
+      "post": {
+        "operationId": "admin.launchSubmission.reject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "launchSubmissionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "evidenceFileIds": {
+                    "items": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "maxItems": 9,
+                    "type": "array"
+                  },
+                  "note": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "reasonCodes": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 6,
+                    "minItems": 1,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "reasonCodes",
+                  "note"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/LaunchSubmissionDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "链接核验退回修改：原因（字典 reject_reason，场景 link_verify）至少 1 项 + 说明",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.link.verify"
       }
     },
     "/api/v1/admin/roles": {

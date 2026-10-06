@@ -1,3 +1,4 @@
+import { bindPublish } from "./publish/index.js";
 // 进程运行时（W0-22）：api 与 worker 启动时各建一次。环境 → 日志 → 数据库与 Redis 连接 → 事务入口、业务单号、
 // 配置读侧、健康检查 → 服务装配。应用层只经 @liyoxi/services 的入口拿到它，不引 @liyoxi/db（硬性规则 5）。
 // 依据：D7 第 2.3 节规则 7、第 8.3 节“应用侧的数据库会话设置与连接池”、第 9.1 节；h01 第 3.12 节；
@@ -230,6 +231,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     videoMaxMb: () => config.params.get("upload.weapp_video_max_mb"),
   });
   const unbindContent = bindContent(assembly);
+  const unbindPublish = bindPublish(assembly);
   const content = createContent({ clock, flow, media, assembly });
   const bizNo = createBizNoIssuer({ clock, appEnv: env.APP_ENV });
   const approval = createApproval({ assembly, clock, flow, events, bizNo });
@@ -284,6 +286,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     startupChecks,
     async close() {
       unbindContent();
+      unbindPublish();
       unbindOps();
       await mediaChannel.close();
       redis.disconnect();

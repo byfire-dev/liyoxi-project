@@ -19,6 +19,15 @@ export type PasswordPolicyRule = (typeof PASSWORD_POLICY_RULES)[number];
 export const A01_ERROR_DETAILS = {
   /** 未满足的规则，至少一条 */
   PASSWORD_POLICY_VIOLATED: z.object({ rules: z.array(z.enum(PASSWORD_POLICY_RULES)).min(1) }),
+  CHECKLIST_VERSION_STALE: z.object({
+    code: z.string(),
+    currentVersionNo: z.number().int().nullable(),
+  }),
+  CHECKLIST_NOT_PASSED: z.object({
+    missingKeys: z.array(z.string()),
+    failedKeys: z.array(z.string()),
+    invalidNaKeys: z.array(z.string()),
+  }),
   FILE_NOT_AVAILABLE: z.object({ status: openEnum(FILE_OBJECT_STATUS.values) }),
 } satisfies Partial<Record<DomainErrorSymbol, z.ZodType>>;
 

@@ -36,3 +36,6 @@ export * from "./routes/m08-support-misc/index.js";
 
 export * from "./routes/m03-profile-asset/index.js";
 export * from "./routes/m04-mall-order/index.js";
+
+export * from "./routes/m05-delivery-publish/index.js";
+export * from "./routes/a06-publish/index.js";

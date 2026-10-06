@@ -207,3 +207,20 @@ export type { Content, ContentDeps, DramaPrices, DramaPrice } from "./content/in
 export { createMall } from "./workbench/index.js";
 export type { Mall, MallDeps, MallViewer } from "./workbench/index.js";
 export { seedDemoContent } from "./content/index.js";
+
+export {
+  createPublish,
+  getLaunchFacts,
+  bindPublish,
+  countPendingChannelAccountsByStore,
+  launchChangedPort,
+  launchHandlerPort,
+  findPublishViolations,
+  PUBLISH_INVARIANT_CODES,
+} from "./publish/index.js";
+export type {
+  Publish,
+  PublishDeps,
+  PublishViewer,
+  CreateLaunchTasksInput,
+} from "./publish/index.js";

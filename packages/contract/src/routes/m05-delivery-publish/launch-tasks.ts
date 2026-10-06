@@ -1,8 +1,7 @@
 // 商家端：交付与发布 · launch-tasks（docs/api/m05-delivery-publish.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
 
-export const mLaunchTaskList = merchantMeta({
+export const mLaunchTaskList = merchantRoute({
   method: "get",
   path: "/m/launch-tasks",
   operationId: "m.launchTask.list",
@@ -11,9 +10,14 @@ export const mLaunchTaskList = merchantMeta({
   "x-capability": "publish.read",
   "x-clerk-view": "none",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  request: { query: LaunchTaskListQuerySchema },
+  responses: {
+    ...okResponse(LaunchTaskPageSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
-export const mLaunchTaskSummary = merchantMeta({
+export const mLaunchTaskSummary = merchantRoute({
   method: "get",
   path: "/m/launch-tasks/summary",
   operationId: "m.launchTask.summary",
@@ -21,9 +25,14 @@ export const mLaunchTaskSummary = merchantMeta({
   "x-capability": "publish.read",
   "x-clerk-view": "none",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  request: { query: LaunchFilterQuerySchema },
+  responses: {
+    ...okResponse(LaunchTaskSummarySchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
-export const mLaunchTaskGet = merchantMeta({
+export const mLaunchTaskGet = merchantRoute({
   method: "get",
   path: "/m/launch-tasks/{launchTaskId}",
   operationId: "m.launchTask.get",
@@ -32,9 +41,14 @@ export const mLaunchTaskGet = merchantMeta({
   "x-capability": "publish.read",
   "x-clerk-view": "none",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  request: { params: LaunchTaskParamSchema },
+  responses: {
+    ...okResponse(LaunchTaskDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
-export const mLaunchTaskSubmit = merchantMeta({
+export const mLaunchTaskSubmit = merchantRoute({
   method: "post",
   path: "/m/launch-tasks/{launchTaskId}/submit",
   operationId: "m.launchTask.submit",
@@ -42,4 +56,28 @@ export const mLaunchTaskSubmit = merchantMeta({
   "x-capability": "publish.submit_link",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    params: LaunchTaskParamSchema,
+    body: {
+      content: { "application/json": { schema: LaunchTaskSubmitBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    ...okResponse(LaunchTaskCardSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
+
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  LaunchFilterQuerySchema,
+  LaunchTaskCardSchema,
+  LaunchTaskDetailSchema,
+  LaunchTaskListQuerySchema,
+  LaunchTaskPageSchema,
+  LaunchTaskParamSchema,
+  LaunchTaskSubmitBodySchema,
+  LaunchTaskSummarySchema,
+} from "./publish.schemas.js";

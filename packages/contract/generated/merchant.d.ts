@@ -90,6 +90,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/channel-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 当前门店的渠道账号：平台、账号名称与 ID、状态（待核验/可用/异常）、认证类型、使用情况、异常原因与处理指引 */
+        get: operations["m.channelAccount.list"];
+        put?: never;
+        /** 绑定渠道账号：{platform, accountName, accountId, accountType, screenshotFileIds}，生成账号核验单 */
+        post: operations["m.channelAccount.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/channel-accounts/{channelAccountId}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 核验未通过后重新上传主页截图（可重选账号类型；名称与账号 ID 不可改） */
+        post: operations["m.channelAccount.submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/dict-items": {
         parameters: {
             query?: never;
@@ -254,6 +289,74 @@ export interface paths {
         get: operations["m.home.get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/launch-tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 上线任务（?tab=todo|done&orderId=&orderItemId=）：按订单聚合，约定上线日与剩余天数、成片包摘要、逐剧逐账号状态（待发布/核验中/需补充/已通过）与核验结果 */
+        get: operations["m.launchTask.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/launch-tasks/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 发布任务页“待上线 N / 已完成 N”中上线任务一侧的计数，键与列表 tab 取值一致 */
+        get: operations["m.launchTask.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/launch-tasks/{launchTaskId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 上线记录（一个账号）：上线日期、发布方式、链接、核验项与结论、回填与核验时间线、作品巡检记录与检查项 */
+        get: operations["m.launchTask.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/launch-tasks/{launchTaskId}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 回填上线链接并提交核验：{collectionUrl 或逐集作品链接, actualLaunchDate, episodeCount} */
+        post: operations["m.launchTask.submit"];
         delete?: never;
         options?: never;
         head?: never;
@@ -689,6 +792,58 @@ export interface components {
             platform: "douyin" | "wechat_channels" | (string & {});
             /** @enum {string} */
             status: "abnormal" | "pending_verify" | (string & {});
+        };
+        ChannelAccountBrief: {
+            accountName: string;
+            accountUid: string;
+            /** Format: uuid */
+            channelAccountId: string;
+            /** @enum {string} */
+            platform: "douyin" | "wechat_channels";
+            /** @enum {string} */
+            status: "pending_verify" | "available" | "abnormal" | "unbound";
+        };
+        ChannelAccountCard: components["schemas"]["ChannelAccountBrief"] & {
+            abnormalNote: string | null;
+            abnormalReason: components["schemas"]["DictRef"] | null;
+            abnormalSource: ("verify" | "manual") | null;
+            accountType: ("enterprise" | "personal" | "none") | null;
+            actions: string[];
+            certSubjectName: string | null;
+            openTakedownTaskCount: number;
+            reviewDueAt: string | null;
+            roundNo: number;
+            /** @enum {string} */
+            submittedAccountType: "enterprise" | "personal" | "none";
+            /** Format: date-time */
+            submittedAt: string;
+            usage: {
+                inProgressCount: number;
+                liveCount: number;
+                toLaunchCount: number;
+            };
+            verifiedAt: string | null;
+        };
+        ChannelAccountCreateBody: {
+            accountName: string;
+            /** @enum {string} */
+            accountType: "enterprise" | "personal" | "none";
+            accountUid: string;
+            /** @enum {string} */
+            platform: "douyin" | "wechat_channels";
+            screenshotFileIds: string[];
+        };
+        ChannelAccountSubmitBody: {
+            /** @enum {string} */
+            accountType: "enterprise" | "personal" | "none";
+            screenshotFileIds: string[];
+        };
+        ChecklistItemView: {
+            key: string;
+            label: string;
+            note: string | null;
+            /** @enum {string} */
+            result: "pass" | "fail" | "na";
         };
         Completeness: {
             pct: number;
@@ -1720,6 +1875,139 @@ export interface components {
              */
             viewerRole: "owner";
         };
+        LaunchSubmissionView: {
+            /** Format: date */
+            actualLaunchDate: string;
+            collectionUrl: string | null;
+            episodeUrlCount: number;
+            /** @enum {string} */
+            linkKind: "collection" | "episodes";
+            reportedEpisodeCount: number;
+            /** @enum {string} */
+            result: "pending" | "passed" | "passed_partial" | "returned" | "revoked" | "withdrawn";
+            roundNo: number;
+            /** Format: date-time */
+            submittedAt: string;
+        };
+        LaunchTaskCard: {
+            actions: string[];
+            channelAccount: components["schemas"]["ChannelAccountBrief"];
+            completedAt: string | null;
+            firstLaunchDate: string | null;
+            isLive: boolean;
+            latestSubmission: components["schemas"]["LaunchSubmissionView"] | null;
+            /** Format: uuid */
+            launchTaskId: string;
+            /** Format: uuid */
+            orderItemId: string;
+            /** @enum {string} */
+            platform: "douyin" | "wechat_channels";
+            returnInfo: {
+                decidedAt: string | null;
+                note: string | null;
+                reasons: components["schemas"]["DictRef"][];
+            } | null;
+            reviewDueAt: string | null;
+            /** @enum {string} */
+            reviewStatus: "pending" | "verifying" | "need_fix" | "passed" | "void";
+            verifiedEpisodeCount: number;
+            voidReason: ("terminated" | "usage_expired" | "account_changed") | null;
+            wentLiveAt: string | null;
+        };
+        LaunchTaskDetail: {
+            accountType: ("enterprise" | "personal" | "none") | null;
+            launch: {
+                /** Format: date */
+                actualLaunchDate: string;
+                collectionUrl: string | null;
+                episodeUrls: {
+                    episodeNo: number;
+                    url: string;
+                }[];
+                /** @enum {string} */
+                linkKind: "collection" | "episodes";
+                reportedEpisodeCount: number;
+                verifiedAt: string | null;
+                verifiedByName: string | null;
+                verifiedEpisodeCount: number;
+            } | null;
+            patrols: {
+                abnormalKind: components["schemas"]["DictRef"] | null;
+                /** Format: date-time */
+                checkedAt: string;
+                checkedByName: string | null;
+                foundAt: string | null;
+                note: string | null;
+                /** Format: uuid */
+                patrolTaskId: string;
+                recoveredAt: string | null;
+                results: components["schemas"]["ChecklistItemView"][];
+                /** @enum {string} */
+                status: "normal" | "abnormal" | "recovered";
+            }[];
+            task: components["schemas"]["LaunchTaskCard"];
+            timeline: {
+                /** Format: date-time */
+                at: string;
+                /** @enum {string} */
+                kind: "created" | "submitted" | "passed" | "passed_partial" | "returned" | "revoked" | "withdrawn" | "voided";
+                linkKind: ("collection" | "episodes") | null;
+                note: string | null;
+                reasons: components["schemas"]["DictRef"][];
+                reportedEpisodeCount: number | null;
+                roundNo: number;
+                verifiedEpisodeCount: number | null;
+            }[];
+            verifyChecks: components["schemas"]["ChecklistItemView"][];
+        };
+        LaunchTaskItem: {
+            agreedLaunchDate: string | null;
+            dramaTitle: string;
+            episodeCount: number;
+            isPaused: boolean;
+            liveEpisodeCount: number;
+            /** Format: uuid */
+            orderItemId: string;
+            /** @enum {string} */
+            phase: "pending_start" | "producing" | "to_launch" | "live" | "ended" | "cancelled" | "refunded" | "terminated";
+            posterUrl: components["schemas"]["SignedUrl"] | null;
+            release: {
+                /** Format: uuid */
+                deliveryReleaseId: string;
+                episodeCount: number;
+                grantExpiresAt: string | null;
+                hasChangedEpisodes: boolean;
+                isGrantValid: boolean;
+                releaseNo: number;
+                savedEpisodeCount: number;
+                totalBytes: string;
+            } | null;
+            tasks: components["schemas"]["LaunchTaskCard"][];
+            /** @enum {string} */
+            ticketStep: "assigning" | "plan_confirm" | "ad_prep" | "sample_making" | "sample_confirm" | "batch_compose" | "delivering" | "awaiting_launch" | "launch_verify" | "in_service" | "takedown" | "archived" | "terminated";
+            /** Format: date */
+            usageEndDate: string;
+        };
+        LaunchTaskOrderGroup: {
+            agreedLaunchDate: string | null;
+            daysUntilLaunch: number | null;
+            items: components["schemas"]["LaunchTaskItem"][];
+            /** Format: uuid */
+            orderId: string;
+            orderNo: string;
+        };
+        LaunchTaskSubmitBody: {
+            /** Format: date */
+            actualLaunchDate: string;
+            collectionUrl?: string;
+            episodeUrls?: {
+                episodeNo: number;
+                url: string;
+            }[];
+            /** @enum {string} */
+            linkKind: "collection" | "episodes";
+            reportedEpisodeCount: number;
+        };
         MaintenanceNotice: {
             body: string;
             expectedEndAt: string | null;
@@ -2144,6 +2432,11 @@ export interface components {
             name: string;
             /** @enum {string} */
             subjectKind: "user" | "entity" | "partner" | (string & {});
+        };
+        SignedUrl: {
+            /** Format: date-time */
+            expiresAt: string;
+            url: string;
         };
         SilentLoginResult: {
             me: components["schemas"]["MeView"] | null;
@@ -2848,6 +3141,265 @@ export interface operations {
             };
         };
     };
+    "m.channelAccount.list": {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+                status?: string;
+                platform?: "douyin" | "wechat_channels";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            hasMore: boolean;
+                            items: components["schemas"]["ChannelAccountCard"][];
+                            nextCursor: string | null;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.channelAccount.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChannelAccountCreateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["ChannelAccountCard"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.channelAccount.submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channelAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChannelAccountSubmitBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["ChannelAccountCard"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "m.dictItem.list": {
         parameters: {
             query: {
@@ -3459,6 +4011,351 @@ export interface operations {
             };
             /** @description 入参不合约定，或业务规则拒绝了输入本身 */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.launchTask.list": {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+                orderId?: string;
+                orderItemId?: string;
+                tab?: "todo" | "done" | "all";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            hasMore: boolean;
+                            items: components["schemas"]["LaunchTaskOrderGroup"][];
+                            nextCursor: string | null;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.launchTask.summary": {
+        parameters: {
+            query?: {
+                orderId?: string;
+                orderItemId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            done: number;
+                            needFix: number;
+                            todo: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.launchTask.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                launchTaskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["LaunchTaskDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.launchTask.submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                launchTaskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LaunchTaskSubmitBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["LaunchTaskCard"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

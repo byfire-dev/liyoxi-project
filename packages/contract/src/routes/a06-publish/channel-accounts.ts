@@ -21,13 +21,18 @@ export const adminChannelAccountSummary = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminChannelAccountGet = adminMeta({
+export const adminChannelAccountGet = adminRoute({
   method: "get",
   path: "/admin/channel-accounts/{channelAccountId}",
   operationId: "admin.channelAccount.get",
   summary: "渠道账号详情与历次核验提交",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: ChannelAccountParamSchema },
+  responses: {
+    ...okResponse(ChannelAccountDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
 export const adminChannelAccountMarkAbnormal = adminMeta({
@@ -38,3 +43,9 @@ export const adminChannelAccountMarkAbnormal = adminMeta({
   "x-permission": "publish.account.mark_abnormal",
   "x-idempotent": "required",
 });
+
+import { ChannelAccountParamSchema } from "../m05-delivery-publish/publish.schemas.js";
+
+import { adminRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import { ChannelAccountDetailSchema } from "./publish.schemas.js";
