@@ -13,17 +13,17 @@
 
 | 端 | 登记 | V1.0 应实现 | 已实现 | 未实现 | V1.1 只登记 | 入口隐藏 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 运营管理后台 | 80 | 67 | 10 | 57 | 13 | 2 |
+| 运营管理后台 | 80 | 67 | 11 | 56 | 13 | 2 |
 | 电脑端下载页 | 8 | 7 | 0 | 7 | 1 | 0 |
-| 商家端小程序 | 49 | 48 | 6 | 42 | 1 | 0 |
+| 商家端小程序 | 49 | 48 | 12 | 36 | 1 | 0 |
 
 应实现未实现页面数，按里程碑：
 
 | 端 | M1 | M2 | M3 | M4 | M5 | M6 | M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 运营管理后台 | 8 | 12 | 6 | 14 | 1 | 4 | 12 |
+| 运营管理后台 | 7 | 12 | 6 | 14 | 1 | 4 | 12 |
 | 电脑端下载页 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
-| 商家端小程序 | 19 | 8 | 5 | 4 | 3 | 1 | 2 |
+| 商家端小程序 | 13 | 8 | 5 | 4 | 3 | 1 | 2 |
 
 “入口隐藏”的页面照做、外壳不给入口（规范 第 14 节第 12 项），计入应实现，不算留桩。
 
@@ -47,7 +47,7 @@
 | 套餐与积分 | 积分账户与流水 | `/billing/accounts` | PointAccounts | 筛选表格 | 是 | — | M4 | G4-C | 否 |
 | 商家 | 商家列表 | `/merchants` | Merchants | 筛选表格 | 是 | — | M2 | G2-B | 否 |
 | 商家 | 商家详情 | `/merchants/$storeId` | MerchantDetail | 详情页 | 否 | — | M2 | G2-B | 否 |
-| 商家 | 资质审核 | `/merchants/review` | Review | 审核工作台 | 是 | — | M1 | W1-09 | 否 |
+| 商家 | 资质审核 | `/merchants/review` | Review | 审核工作台 | 是 | — | M1 | W1-09 | 是 |
 | 订单 | 订购单与付款单 | `/orders` | Orders | 筛选表格 | 是 | — | M1 | W1-19 | 否 |
 | 订单 | 订单详情 | `/orders/$orderNo` | OrderDetail | 详情页 | 否 | — | M1 | W1-19 | 否 |
 | 订单 | 对公收款确认 | `/orders/receipts` | Receipts | 审核工作台 | 是 | — | M1 | W1-12 | 是 |
@@ -184,12 +184,12 @@
 | `sub/billing` | 积分流水 | `sub/billing/ledger/index` | Ledger | M46 | G4-C | M4 | 否 |  |
 | `sub/billing` | 发票 | `sub/billing/invoices/index` | Invoices | M35 | G4-C | M4 | 否 |  |
 | `sub/billing` | 合同 | `sub/billing/contracts/index` | Contracts | M34 | G4-C | M4 | 否 |  |
-| `sub/profile` | 建档首页 | `sub/profile/profile/index` | Profile | M12 | W1-09 | M1 | 否 |  |
-| `sub/profile` | 基础信息 | `sub/profile/basic/index` | ProfileBasic | M13 | W1-09 | M1 | 否 |  |
-| `sub/profile` | 门店环境 | `sub/profile/store/index` | ProfileStore | M14 | W1-09 | M1 | 否 |  |
-| `sub/profile` | 主推服务 | `sub/profile/service/index` | ProfileService | M15 | W1-09 | M1 | 否 |  |
-| `sub/profile` | 证照 | `sub/profile/cert/index` | ProfileCert | M16 | W1-09 | M1 | 否 |  |
-| `sub/profile` | 审核进度 | `sub/profile/review/index` | ProfileReview | M17 | W1-09 | M1 | 否 |  |
+| `sub/profile` | 建档首页 | `sub/profile/profile/index` | Profile | M12 | W1-09 | M1 | 是 |  |
+| `sub/profile` | 基础信息 | `sub/profile/basic/index` | ProfileBasic | M13 | W1-09 | M1 | 是 |  |
+| `sub/profile` | 门店环境 | `sub/profile/store/index` | ProfileStore | M14 | W1-09 | M1 | 是 |  |
+| `sub/profile` | 主推服务 | `sub/profile/service/index` | ProfileService | M15 | W1-09 | M1 | 是 |  |
+| `sub/profile` | 证照 | `sub/profile/cert/index` | ProfileCert | M16 | W1-09 | M1 | 是 |  |
+| `sub/profile` | 审核进度 | `sub/profile/review/index` | ProfileReview | M17 | W1-09 | M1 | 是 |  |
 | `sub/profile` | 门店管理 | `sub/profile/stores/index` | Stores | M48 | G2-B | M2 | 否 |  |
 | `sub/profile` | 新增门店 | `sub/profile/store-add/index` | StoreAdd | M49 | G2-B | M2 | 否 |  |
 | `sub/profile` | 店员档案 | `sub/profile/staff-profile/index` | StaffProfile | M56 | G2-B | M2 | 否 | 仅店员 |

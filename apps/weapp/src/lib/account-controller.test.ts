@@ -287,7 +287,9 @@ describe("账户启动与登录", () => {
       tab: true,
       url: "/pages/mine/index",
     });
-    expect(accountEntries("owner")).toEqual([]);
+    expect(accountEntries("owner")).toEqual([
+      { route: "sub/profile/profile/index", title: "门店档案", owner: true },
+    ]);
     expect(accountEntries("clerk")).toEqual([]);
   });
 });

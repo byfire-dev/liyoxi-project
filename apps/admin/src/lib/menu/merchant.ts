@@ -46,7 +46,7 @@ const merchant: AdminModule = {
       badgeKey: "merchant.review",
       milestone: "M1",
       workPackage: "W1-09",
-      implemented: false,
+      implemented: true,
       screen: "Review",
       kind: "board",
       skeleton: "queue-workbench",

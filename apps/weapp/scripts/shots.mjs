@@ -7,7 +7,7 @@
 //   --page <路由>      只出这一页，可给多次。路由照页面清单的写法，如 pages/home/index
 //   --component <名字> 只出这个组件的预览，可给多次。名字是 src/components/ 下的目录名，如 Button
 //   --sheet <名字>     只出这张基础样张，可给多次。名字照 src/gallery.ts 的 GALLERY_SHEETS，如 colors
-//   --scene <名字>     只出固定离线场景，可多次；场景见 shots/account-scenes.ts、billing-scenes.ts
+//   --scene <名字>     只出账户固定离线场景，可多次；场景见 shots/account-scenes.ts
 //   --no-build         不重新构建，直接用上一次的 H5 产物
 // 组件预览的图（W0-27b）：文件名 gallery__<组件名>.png，截整页（预览比一屏长），其余的页只截一屏。
 // 基础样张的图（W0-29）：文件名 gallery__sheet-<样张名>.png，同样截整页；陈列的目录页也截整页（看样要看全各组的节号与要点）。
@@ -26,6 +26,12 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { chromium } from "@playwright/test";
+import {
+  profileContactRegression,
+  profileAuthorizationRegression,
+  profileContextRegression,
+  profileEditRegression,
+} from "../shots/profile-regressions.mjs";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const h5Dir = path.join(appRoot, "shots/dist/h5");
@@ -56,10 +62,12 @@ const wantedScenes = [];
 const { ACCOUNT_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/account-scenes.ts")).href
 );
+const { PROFILE_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/profile-scenes.ts")).href
+);
 const { BILLING_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/billing-scenes.ts")).href
 );
-const SCENES = [...ACCOUNT_SCENES, ...BILLING_SCENES];
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--no-build") build = false;
@@ -77,7 +85,10 @@ for (let index = 0; index < args.length; index += 1) {
     wantedSheets.push(name);
   } else if (args[index] === "--scene") {
     const name = args[(index += 1)];
-    if (!SCENES.some((item) => item.name === name)) fail(`未知离线场景 ${name}`);
+    if (
+      ![...ACCOUNT_SCENES, ...PROFILE_SCENES, ...BILLING_SCENES].some((item) => item.name === name)
+    )
+      fail(`未知固定场景 ${name}`);
     wantedScenes.push(name);
   } else fail(`不认识的参数 ${args[index]}`);
 }
@@ -112,24 +123,42 @@ const all =
   wantedScenes.length === 0;
 /** 要出的图：url 是 # 后面的部分，file 是不带扩展名的文件名，fullPage 为真截整页 */
 const targets = [
-  ...(all ? SCENES : SCENES.filter((item) => wantedScenes.includes(item.name))).map((item) => ({
-    label: item.name,
-    url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
-    file: `${BILLING_SCENES.some((v) => v.name === item.name) ? "billing" : "account"}__${item.name}`,
-    scene: item.name,
-    fullPage: false,
-  })),
+  ...(all ? ACCOUNT_SCENES : ACCOUNT_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
+    (item) => ({
+      label: item.name,
+      url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
+      file: `account__${item.name}`,
+      scene: item.name,
+      kind: "account",
+      fullPage: false,
+    }),
+  ),
+  ...(all ? PROFILE_SCENES : PROFILE_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
+    (item) => ({
+      label: item.name,
+      url: `${item.route}?lyxShot=${item.name}`,
+      file: `profile__${item.name}`,
+      scene: item.name,
+      kind: "profile",
+      fullPage: false,
+    }),
+  ),
+  ...(all ? BILLING_SCENES : BILLING_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
+    (item) => ({
+      label: item.name,
+      url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
+      file: `billing__${item.name}`,
+      scene: item.name,
+      kind: "billing",
+      fullPage: false,
+    }),
+  ),
   ...(all
     ? builtRoutes.filter(
         (route) =>
-          ![
-            "pages/login/index",
-            "pages/agreement/index",
-            "pages/mine/index",
-            "sub/billing/wallet/index",
-            "sub/billing/plan-pick/index",
-            "sub/order/result/index",
-          ].includes(route),
+          !["pages/login/index", "pages/agreement/index", "pages/mine/index"].includes(route) &&
+          !PROFILE_SCENES.some((item) => item.route === route) &&
+          !BILLING_SCENES.some((item) => item.route === route),
       )
     : wanted
   ).map((route) => ({
@@ -137,6 +166,9 @@ const targets = [
     url: route,
     file: route.replaceAll("/", "__"),
     fullPage: route === GALLERY_INDEX_ROUTE,
+    ...(PROFILE_SCENES.some((item) => item.route === route)
+      ? { scene: PROFILE_SCENES.find((item) => item.route === route)?.name, kind: "profile" }
+      : {}),
   })),
   ...(all ? componentNames : wantedComponents).map((name) => ({
     label: `组件 ${name}`,
@@ -207,17 +239,16 @@ async function shoot(target) {
   page.on("pageerror", (error) => errors.push(error.message));
   try {
     if (target.scene) {
-      await page.addInitScript((scene) => {
-        if (
-          scene.startsWith("wallet-") ||
-          scene.startsWith("plan-") ||
-          scene.startsWith("bank-") ||
-          scene.startsWith("payment-")
-        ) {
-          globalThis.__LYX_ACCOUNT_SHOT__ = "mine-owner";
-          globalThis.__LYX_BILLING_SHOT__ = scene;
-        } else globalThis.__LYX_ACCOUNT_SHOT__ = scene;
-      }, target.scene);
+      await page.addInitScript(
+        ({ scene, kind }) => {
+          globalThis.__LYX_ACCOUNT_SHOT__ = ["profile", "billing"].includes(kind)
+            ? "mine-owner"
+            : scene;
+          if (kind === "profile") globalThis.__LYX_PROFILE_SHOT__ = scene;
+          if (kind === "billing") globalThis.__LYX_BILLING_SHOT__ = scene;
+        },
+        { scene: target.scene, kind: target.kind },
+      );
       await page.route("**/*", (route) => {
         if (new URL(route.request().url()).origin === origin) return route.continue();
         errors.push(`离线场景外发请求：${route.request().url()}`);
@@ -232,7 +263,13 @@ async function shoot(target) {
     await taroPage.waitFor({ state: "visible", timeout: 15_000 });
     if (target.scene) {
       await page
-        .locator(target.file.startsWith("billing__") ? "#billing-ready" : "#account-ready")
+        .locator(
+          target.kind === "profile"
+            ? "#profile-ready"
+            : target.kind === "billing"
+              ? "#billing-ready"
+              : "#account-ready",
+        )
         .waitFor({ state: "visible", timeout: 15_000 });
       if (target.scene.startsWith("bank-")) {
         await page.locator(".lyx-button").filter({ hasText: "对公转账" }).click();
@@ -260,6 +297,68 @@ async function shoot(target) {
         await page.getByText("请确认更新后的协议", { exact: true }).waitFor({ state: "visible" });
       if (target.scene === "store-switch" || target.scene === "reconsent")
         await page.waitForTimeout(400);
+      if (target.kind === "profile") {
+        if (target.scene === "basic-normal") {
+          await page.locator("input").first().fill("邻里咖啡新店");
+          await page.locator(".lyx-button").filter({ hasText: "保存基础信息" }).click();
+          await page.locator(".lyx-button--loading").waitFor({ state: "hidden" });
+          const body = await page.evaluate(
+            () =>
+              globalThis.__LYX_PROFILE_CALLS__.find(
+                (call) => call.path === "/m/store-profile/basic" && call.method === "PATCH",
+              )?.data,
+          );
+          if (
+            body?.brandName !== "邻里咖啡新店" ||
+            body?.draft !== true ||
+            body?.lockVersion !== 1 ||
+            body?.address?.latitude !== null ||
+            body?.address?.longitude !== null ||
+            body?.address?.poiName !== null ||
+            body?.businessHours?.[0]?.start !== "09:00"
+          )
+            throw new Error("基础信息保存未按当前DTO发送");
+          await taroPage.evaluate((node) => {
+            node.scrollTop = 0;
+          });
+        }
+        if (target.scene === "store-normal" || target.scene === "service-normal") {
+          const media = target.scene === "store-normal";
+          await page
+            .locator(".lyx-button")
+            .filter({ hasText: media ? "保存门店环境" : "保存服务与价格" })
+            .click();
+          await page.locator(".lyx-button--loading").waitFor({ state: "hidden" });
+          const body = await page.evaluate(
+            (path) =>
+              globalThis.__LYX_PROFILE_CALLS__.find(
+                (call) => call.path === path && call.method === "PATCH",
+              )?.data,
+            media ? "/m/store-profile/media" : "/m/store-profile/service",
+          );
+          if (
+            body?.draft !== true ||
+            body?.lockVersion !== 1 ||
+            (media
+              ? body?.groups?.interior?.length !== 3
+              : body?.serviceItems?.[0]?.priceFen !== 2800 ||
+                body?.sellingPointCodes?.[0] !== "fresh")
+          )
+            throw new Error("建档保存未按当前DTO发送");
+          await taroPage.evaluate((node) => {
+            node.scrollTop = 0;
+          });
+        }
+        if (target.scene === "cert-missing") {
+          await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
+          await page.locator(".lyx-button").filter({ hasText: "提交资质审核" }).click();
+          const missing = page.getByText("请补充门店必填资料", { exact: true });
+          await missing.waitFor({ state: "visible" });
+          await missing.scrollIntoViewIfNeeded();
+        }
+        if (target.scene === "review-rejected")
+          await page.getByText("证照不清晰", { exact: true }).waitFor({ state: "visible" });
+      }
     }
     if (errors.length > 0) throw new Error(`页面报错：${errors[0]}`);
     if (target.fullPage) {
@@ -273,6 +372,53 @@ async function shoot(target) {
     }
     const file = path.join(outDir, `${target.file}.png`);
     await page.screenshot({ path: file });
+    if (target.scene === "profile-not-started") {
+      if (
+        await page.evaluate(() =>
+          globalThis.__LYX_PROFILE_CALLS__.some((call) => call.path === "/m/entities"),
+        )
+      )
+        throw new Error("打开建档首页不应创建主体");
+      await page.locator(".lyx-button").filter({ hasText: "开始建档" }).click();
+      await page.getByText("建档完成度", { exact: true }).waitFor({ state: "visible" });
+      if (
+        (await page.evaluate(
+          () =>
+            globalThis.__LYX_PROFILE_CALLS__.filter((call) => call.path === "/m/entities").length,
+        )) !== 1
+      )
+        throw new Error("开始建档须只创建一次");
+    }
+    if (target.scene === "cert-normal") {
+      await profileContactRegression(page);
+      await profileAuthorizationRegression(page);
+      await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
+      await page.locator(".lyx-button").filter({ hasText: "提交资质审核" }).click();
+      await page
+        .getByText("信息确认已更新，请刷新后重新阅读并确认", { exact: true })
+        .waitFor({ state: "visible" });
+      await page.locator(".lyx-text-button").filter({ hasText: "刷新并核对" }).click();
+      await page.getByText("确认版本：2", { exact: true }).waitFor({ state: "visible" });
+      const submit = page.locator(".lyx-button").filter({ hasText: "提交资质审核" });
+      if (!(await submit.getAttribute("class"))?.includes("lyx-button--disabled"))
+        throw new Error("声明更新后须重新勾选");
+      await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
+      await submit.click();
+      await page
+        .getByText("当前资料只读。审核进度与结果请到审核进度页查看", { exact: true })
+        .waitFor({ state: "visible" });
+      const submitted = await page.evaluate(() =>
+        globalThis.__LYX_PROFILE_CALLS__
+          .filter((call) => call.path === "/m/store-profile/qualification/submit")
+          .map((call) => call.data.declarationVersion),
+      );
+      if (JSON.stringify(submitted) !== JSON.stringify(["1", "2"]))
+        throw new Error("提交没有携带本次声明版本");
+      await profileContextRegression(page, "cert");
+    }
+    if (["basic-normal", "store-normal", "service-normal"].includes(target.scene))
+      await profileEditRegression(page, target.scene);
+    if (errors.length > 0) throw new Error(`页面报错：${errors[0]}`);
     console.log(`已出图 ${path.relative(appRoot, file)}`);
   } catch (error) {
     failed.push(`${target.label}：${String(error.message)}`);
