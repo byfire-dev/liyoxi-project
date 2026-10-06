@@ -72,10 +72,17 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
   }),
   page("pages/mall/index", "main", "短剧商城", "Mall", "M04", "M1", "W1-18", TAB),
   page("pages/cart/index", "main", "选剧单", "Cart", "M08", "M1", "W1-18", TAB),
-  page("pages/mine/index", "main", "我的", "Mine", "M32", "M1", "W1-05", TAB),
-  page("pages/login/index", "main", "登录", "Login", "M01", "M1", "W1-05", { customNav: true }),
+  page("pages/mine/index", "main", "我的", "Mine", "M32", "M1", "W1-05", {
+    tab: true,
+    implemented: true,
+  }),
+  page("pages/login/index", "main", "登录", "Login", "M01", "M1", "W1-05", {
+    customNav: true,
+    implemented: true,
+  }),
   page("pages/agreement/index", "main", "协议正文", null, null, "M1", "W1-05", {
     note: "新增页：登录前可读",
+    implemented: true,
   }),
   // sub/catalog（3 页）
   page("sub/catalog/search/index", "sub/catalog", "搜索", "Search", "M03", "M3", "G3-B"),

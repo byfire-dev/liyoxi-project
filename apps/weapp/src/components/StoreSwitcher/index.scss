@@ -1,0 +1,36 @@
+.account-switcher {
+  padding: 0 0 24px;
+  &__quota-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 12px;
+    border: 1px solid $lyx-color-border;
+    border-radius: 14px;
+    margin-top: 12px;
+  }
+  &__item--selected {
+    border-color: $lyx-color-primary;
+    background: $lyx-color-primary-bg-subtle;
+    > .lyx-icon {
+      color: $lyx-color-primary;
+    }
+  }
+  &__main {
+    flex: 1;
+  }
+  &__name {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  &__meta {
+    margin: 7px 0;
+    color: $lyx-color-text-secondary;
+    font-size: 12px;
+  }
+}

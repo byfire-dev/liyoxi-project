@@ -1,15 +1,194 @@
+import { useState } from "react";
 import { View } from "@tarojs/components";
+import Taro, { useDidShow } from "@tarojs/taro";
 
-import "@/styles/placeholder.scss";
+import { Avatar } from "@/components/Avatar";
+import { Button } from "@/components/Button";
+import { Card } from "@/components/Card";
+import { Empty } from "@/components/Empty";
+import { InfoTag } from "@/components/InfoTag";
+import { List, ListRow } from "@/components/List";
+import { LoadError } from "@/components/LoadError";
+import { Sheet } from "@/components/Sheet";
+import { Skeleton } from "@/components/Skeleton";
+import { StatusTag, merchantStatusByEnum } from "@/components/StatusTag";
+import { StoreSwitcher } from "@/components/StoreSwitcher";
+import { TextButton } from "@/components/TextButton";
+import { accountEntries, accountPageImplemented } from "@/lib/account-entries";
+import { accountError } from "@/lib/account-controller";
+import { gotoAccountLogin } from "@/lib/account-routing";
+import { account, useAccount } from "@/lib/account-runtime";
+import { useSessionStore } from "@/stores/session";
 
-// 占位页：我的 随 W1-05 交付
-export default function Page() {
+import "./index.scss";
+
+export default function Mine() {
+  const state = useAccount();
+  const token = useSessionStore((value) => value.accessToken);
+  const [error, setError] = useState<string | null>(null);
+  const [logout, setLogout] = useState(false);
+  const [exiting, setExiting] = useState(false);
+  const load = () => {
+    setError(null);
+    void account
+      .start()
+      .then(() => account.loadMine())
+      .catch((failure) => setError(accountError(failure)));
+  };
+  useDidShow(load);
+  const data = state.overview;
+  const store = data?.currentStore;
+  const status =
+    store && merchantStatusByEnum("store.qualification_status", store.qualificationStatus);
+  const navigate = (route: string) => {
+    void Taro.navigateTo({ url: `/${route}` });
+  };
   return (
-    <View className="lyx-placeholder-page">
-      <View className="lyx-placeholder-page__card">
-        <View className="lyx-placeholder-page__title">我的</View>
-        <View className="lyx-placeholder-page__note">页面建设中</View>
-      </View>
+    <View
+      className="account-mine"
+      id={!state.booting && (!token || state.me) ? "account-ready" : undefined}
+    >
+      {state.booting ? (
+        <Skeleton cards={3} />
+      ) : !token ? (
+        <Card>
+          <Empty
+            title="登录后，管理你的门店"
+            description="查看账号、门店与短剧服务"
+            actionText="去登录"
+            onAction={gotoAccountLogin}
+          />
+        </Card>
+      ) : error || state.error ? (
+        <LoadError message={error ?? state.error ?? "加载失败"} onRetry={load} />
+      ) : state.me ? (
+        <>
+          <View className="account-mine__header">
+            <Avatar text={store?.name ?? state.me.user.displayName ?? "商"} size={56} />
+            <View className="account-mine__identity">
+              <View className="account-mine__name">
+                {store?.name ?? state.me.user.displayName ?? "商家账号"}
+              </View>
+              <View className="account-mine__phone">{state.me.user.phoneMask}</View>
+              <View className="account-mine__tags">
+                {data ? <InfoTag>{data.viewerRole === "owner" ? "老板" : "店员"}</InfoTag> : null}
+                {store?.lifecycle === "archived" ? <InfoTag>已停用</InfoTag> : null}
+                {status ? <StatusTag tone={status.tone}>{status.label}</StatusTag> : null}
+              </View>
+            </View>
+            {state.me.memberships.some((item) => item.stores.length > 0) ? (
+              <TextButton
+                onClick={() => {
+                  void account.openSwitcher();
+                }}
+              >
+                切换门店
+              </TextButton>
+            ) : null}
+          </View>
+          {data?.viewerRole === "owner" ? (
+            <>
+              <Card
+                variant="dark"
+                eyebrow="套餐与积分"
+                title={data.subscription.planName ?? "暂未开通套餐"}
+                extra={
+                  accountPageImplemented("sub/billing/wallet/index") ? (
+                    <TextButton arrow onClick={() => navigate("sub/billing/wallet/index")}>
+                      积分明细
+                    </TextButton>
+                  ) : undefined
+                }
+              >
+                <View className="account-mine__points">
+                  {data.subscription.spendablePoints}
+                  <View>可用积分</View>
+                </View>
+                <View className="account-mine__plan-meta">
+                  {data.subscription.endDate
+                    ? `有效期至 ${data.subscription.endDate}`
+                    : "开通套餐后可享短剧定制服务"}
+                  {data.subscription.remainingDays !== null
+                    ? ` · 剩余 ${data.subscription.remainingDays} 天`
+                    : ""}
+                </View>
+              </Card>
+              <View className="account-mine__stats">
+                <View>
+                  <View>{data.storeStats.liveCount}</View>已上线
+                </View>
+                <View>
+                  <View>{data.storeStats.deliveringCount}</View>交付中
+                </View>
+                <View>
+                  <View>{data.storeStats.cartCount}</View>选剧单
+                </View>
+              </View>
+            </>
+          ) : null}
+          {!state.me.memberships.some((item) => item.stores.length > 0) ? (
+            <Card>
+              <Empty
+                title="尚未绑定门店"
+                description="门店档案建立后，可在这里管理门店"
+                actionText={
+                  accountPageImplemented("sub/profile/profile/index") ? "开始建档" : undefined
+                }
+                onAction={() => navigate("sub/profile/profile/index")}
+              />
+            </Card>
+          ) : null}
+          {data && accountEntries(data.viewerRole).length ? (
+            <List>
+              {accountEntries(data.viewerRole).map((item) => (
+                <ListRow key={item.route} title={item.title} onClick={() => navigate(item.route)} />
+              ))}
+            </List>
+          ) : null}
+          <List>
+            <ListRow title="退出登录" onClick={() => setLogout(true)} />
+          </List>
+        </>
+      ) : (
+        <Skeleton cards={2} />
+      )}
+      <StoreSwitcher />
+      <Sheet
+        visible={logout}
+        title="退出登录？"
+        description="退出后可继续浏览，管理门店需要重新登录"
+        onClose={() => {
+          if (!exiting) setLogout(false);
+        }}
+        closeOnOverlayClick={!exiting}
+        footer={
+          <Button
+            variant="danger"
+            block
+            loading={exiting}
+            onClick={() => {
+              setExiting(true);
+              void account.logout().finally(() => {
+                setExiting(false);
+                setLogout(false);
+              });
+            }}
+          >
+            退出登录
+          </Button>
+        }
+      />
+      <Sheet
+        visible={Boolean(token && state.switchedFrom)}
+        title="已切换登录账号"
+        description={`刚才登录的是 ${state.switchedFrom ?? ""}，现在显示本次登录的账号`}
+        onClose={account.dismissSwitchNotice}
+        footer={
+          <Button block onClick={account.dismissSwitchNotice}>
+            知道了
+          </Button>
+        }
+      />
     </View>
   );
 }

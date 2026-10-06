@@ -5,6 +5,7 @@
 // 埋点与错误上报不发请求。
 import Taro from "@tarojs/taro";
 
+import { gotoAccountLogin } from "./account-routing";
 import { createErrorReporter } from "./errors";
 import { bindPersistence } from "./persist";
 import { systemClock, uuid } from "./platform";
@@ -51,7 +52,7 @@ const layer = createRequestLayer({
       useSessionStore.getState().clear();
       useContextStore.getState().clear();
     },
-    gotoLogin: platform.gotoLogin,
+    gotoLogin: gotoAccountLogin,
     reloadMe: async () => serverCall("reloadMe")?.(),
     askConsent: async (details) => (await serverCall("askConsent")?.(details)) ?? false,
     showUpdatePrompt: async () => serverCall("showUpdatePrompt")?.(),
