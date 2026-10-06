@@ -157,6 +157,7 @@ node infra/ci/classify-gate-changes.mjs --base origin/main --labels gate-change
 | `new-file` | 新增文件 | 改已有的文件，加一行也算（检查脚本、门禁自测的框架与反例：加一行就能让它空转，逐行判不出） |
 | `workflow` | 新增工作流文件；新增整个步骤或任务；`needs` 里加一行 | 删改已有行；往已有的步骤或任务里加行；新增的一段里夹带步骤或任务之外的行（比如跟在新步骤后面的任务级 `if:`）；`continue-on-error`、`paths-ignore` 之类 |
 | `frozen` | 新建，且它的条目是同一个 PR 的差异里新登记的（门禁与放行文件同一个 PR 建立）：分支头的清单里有，共同祖先与目标分支头（`--base`）的清单里都没有 | 其余任何改动；条目已登记后的新建（放行文件、安装设置、格式规则、会遮蔽已登记配置的文件）；目标分支上已经登记、落后的分支把清单拷进来再新建的 |
+| `clerk-golden` | 仅 `apps/api/golden/clerk-visible-keys.snap`：新增完整的 operationId → string[] 条目，所有旧键与字段路径数组（含顺序）完全不变 | 删除或修改旧条目；任一端不是完整 JSON 对象或值不是字符串数组；不是框架生成的 canonical JSON（键按 `localeCompare` 排序、2 空格、尾换行，拒绝重复键与歧义）；新建、文件类型或属性变化；没有新增条目 |
 | `tsconfig` | 新增文件；新增键、往数组里加项；把严格性开关由松改严。按解析后的键值判（允许注释与行尾逗号），只改排版不算改动 | 删、改已有的键值；把严格性开关关掉（新增 `"noImplicitAny": false`、`skipLibCheck` 由 `false` 改 `true` 之类）；新增 `exclude`、`include`、`files`、`extends`，往 `exclude` 里加项；新增的键或项命中 `append` 的关键字；解析不了 |
 | `manifest` | 新增依赖，写精确版本（工作区内部包写 `workspace:`）；已有的 `typecheck`、`test`、`lint` 脚本由占位（`echo`）换成真实命令，或去掉 `--passWithNoTests` | 新增的依赖不是精确版本（`^`、`~`、`*`、`latest`、区间、别名、`catalog:`）；依赖版本有变、删除依赖（升级要单独成 PR）；已有的 `typecheck`、`test`、`lint` 脚本被删、改成空转（`true`、`echo`、后面接 <code>&#124;&#124; true</code>）或换了别的写法；动了 `prettier`、`lint-staged`、`commitlint`、`eslintConfig` 这几个键。`build` 与其余脚本、其余的键不管 |
 | `root-manifest` | 新增依赖（同上）；新增根脚本 | 依赖同上；改、删已有的根脚本；改 `engines`、`packageManager`、`pnpm`、`resolutions`、`overrides`（加也算）；已知集合以外的顶层键有变，新增也算（已知集合：依赖、脚本、上面五个字段，以及 `name`、`version`、`private`、`description`、`type`、`license` 等说明性的键） |
@@ -166,6 +167,7 @@ node infra/ci/classify-gate-changes.mjs --base origin/main --labels gate-change
 | `generated` | 入库的生成物：内容有变（重新生成）、新增文件。不逐行判；清单里逐个文件列出加了几行、删了几行，并写明由哪道检查把关它与源码一致 | 删除已有的生成物；条目没写 `check`（判不出）；内容没变而文件属性有变、文件类型有变（换成符号链接之类，判不出） |
 
 - 删除任何门禁文件都算放松。判不出的按放松算。
+- `clerk-golden` 是 W1-04 店员回放框架交给后续路由包的增量口径（例如 W1-07）：领域 PR 可按 `pnpm clerk:snapshot` 加新路由黄金，仍由 API 测试核对全部已挂载路由、样例和禁用字段。改已有路由的黄金必须走独立 `gate-change`；其他黄金、白名单与 `frozen` 条目不变。分类器不替代店员实际回放。
 - 一个文件命中几条就按几条各判一遍。`except` 里的路径不按那一条判，但仍算门禁路径：本目录下的 `.md` 没有别的条目，不逐行判；检查脚本与 `selftest/` 由各自的 `new-file` 条目判。
 - 有放松项而 PR 没有 `gate-change` 标签：`gate-classify` 失败。带 `gate-change` 的 PR 改了门禁文件以外的路径：也失败。
 - 标签是在任务运行时从 PR 上读的。开 PR 之后才补打 `gate-change` 的，重跑 `gate-classify` 任务即可。
