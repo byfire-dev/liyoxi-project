@@ -94,7 +94,7 @@ node apps/api/dist/server.js --port 3000 --trusted-proxy-hops 1 --trusted-proxy-
 - 构建：`@liyoxi/*` 内联，第三方包留给运行时从 `apps/api/node_modules` 解析，所以产物引到的第三方包都要写进本包的 `dependencies`（源码里不引；构建完会核对）。镜像标签取构建环境的 `LYX_BUILD`，没给即 `dev`。
 - 已挂载清单 `dist/mounted-operations.json` 由 `test/probes.test.ts` 写出，随 `pnpm test` 生成；`node infra/ci/landed.mjs --check` 读它。文件不入库，没有它时探活 3 条按待落地算，所以待落地基线本包没有降（留在 613；状态文件偏差 13）。
 - 监听端口走命令行参数（`--port`，缺省 3000；`--host`，缺省 `0.0.0.0`），不是环境变量。
-- 客户端 IP 按可信代理的跳数取（D4 第 9.5 节）：对端在可信网段内才看 `X-Forwarded-For`，从右数第 N 个。`--trusted-proxy-hops` 缺省 1，`--trusted-proxy-cidrs`（逗号分隔）缺省回环与私有网段；负载均衡的回源网段在预发实测后照实填。
+- 客户端 IP 按可信代理的跳数取（D4 第 9.5 节）：对端在可信网段内才看 `X-Forwarded-For`，从右数第 N 个。`--trusted-proxy-hops` 缺省 1，`--trusted-proxy-cidrs`（逗号分隔）缺省回环与私有网段；负载均衡的回源网段在预发实测后照实填。请求协议共用同一信任边界：跳数大于 0 且套接字对端可信时，才采纳单值 `http`、`https` 的 `X-Forwarded-Proto`；直连优先看连接是否 TLS，无连接对象时取请求 URL，结果放在 `c.var.requestProtocol`。
 
 ## 6. 已知的限度
 
@@ -132,7 +132,7 @@ pnpm exec vitest run --project api apps/api/test/merchant-auth.test.ts
 | 槽位 | 文件 | 做什么 | 不过时 |
 | --- | --- | --- | --- |
 | `auth` | `session.ts` | 校验会话 Cookie（未吊销、未过期、员工仍是启用），把 `identity`、`sessionId`、`staff` 放进上下文；`x-auth: public` 的不挂 | 401 `AUTH_REQUIRED`、`SESSION_INVALID` |
-| `csrf` | `csrf.ts` | 非 GET：`X-LYX-Admin: 1`，且 `Origin` 的主机与端口等于请求的 `Host`、这个 Host 属于后台；默认端口按 Origin 的协议归一化，网关保留请求端口。登录前的公开接口也查 | 403 `ORIGIN_REJECTED` |
+| `csrf` | `csrf.ts` | 非 GET：`X-LYX-Admin: 1`，且 `Origin` 的协议、主机与端口与请求一致、这个 Host 属于后台；默认端口按 `requestProtocol` 归一化，网关保留请求端口。登录前的公开接口也查 | 403 `ORIGIN_REJECTED` |
 | `authz` | `authz.ts` | 模块等级 × 权限点（“仅主管”已算在内） | 403 `PERMISSION_DENIED` |
 | `stepUp` | `authz.ts` | 权限点在注册表里标了再验证、会话的再验证超过 10 分钟；`x-step-up: skip` 的不挂 | 403 `STEP_UP_REQUIRED` |
 

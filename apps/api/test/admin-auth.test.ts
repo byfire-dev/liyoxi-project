@@ -104,7 +104,7 @@ describe("防跨站：后台的非 GET 请求", () => {
         headers: {
           "x-lyx-admin": "1",
           host: "admin.lyxtest.cn",
-          origin: "https://admin.lyxtest.cn",
+          origin: "http://admin.lyxtest.cn",
         },
         peer: freshPeer(),
       });
@@ -132,6 +132,82 @@ describe("防跨站：后台的非 GET 请求", () => {
         peer: freshPeer(),
       });
       expect(await errorOf(wrongPort)).toMatchObject({ status: 403, error: "ORIGIN_REJECTED" });
+    },
+  );
+  it(
+    "后台同源必须匹配实际协议；默认端口与可信代理 TLS 终止正常，伪造转发协议不能过关",
+    TIMEOUT,
+    async () => {
+      const path = "/api/v1/admin/auth/login";
+      const body = { phone: "13900019994", password: "whatever-1" };
+      const send = (host: string, origin: string, forwarded?: string, peer = freshPeer()) =>
+        app.request(path, {
+          method: "POST",
+          json: body,
+          headers: {
+            "x-lyx-admin": "1",
+            host,
+            origin,
+            ...(forwarded === undefined ? {} : { "x-forwarded-proto": forwarded }),
+          },
+          peer,
+        });
+      expect(await errorOf(await send("admin.localhost", "https://admin.localhost"))).toMatchObject(
+        {
+          status: 403,
+          error: "ORIGIN_REJECTED",
+        },
+      );
+      expect(
+        await errorOf(await send("admin.localhost:80", "http://admin.localhost")),
+      ).toMatchObject({
+        status: 401,
+        error: "AUTH_FAILED",
+      });
+      // 没有 Node 连接对象时，取请求 URL 的协议；显式 :443 与 Origin 里的默认端口等价。
+      const directHttps = await app.request(`https://admin.localhost${path}`, {
+        method: "POST",
+        json: body,
+        headers: {
+          "x-lyx-admin": "1",
+          host: "admin.localhost:443",
+          origin: "https://admin.localhost",
+        },
+        peer: null,
+      });
+      expect(await errorOf(directHttps)).toMatchObject({ status: 401, error: "AUTH_FAILED" });
+      const proxyPeer = "10.0.0.8";
+      expect(
+        await errorOf(
+          await send("admin.localhost:443", "https://admin.localhost", "https", proxyPeer),
+        ),
+      ).toMatchObject({
+        status: 401,
+        error: "AUTH_FAILED",
+      });
+      // HTTP Origin 不能按自己的 :80 把实际 HTTPS 主机误归一化为同源。
+      expect(
+        await errorOf(await send("admin.localhost", "http://admin.localhost", "https", proxyPeer)),
+      ).toMatchObject({
+        status: 403,
+        error: "ORIGIN_REJECTED",
+      });
+      expect(
+        await errorOf(await send("admin.localhost:443", "https://admin.localhost", "https")),
+      ).toMatchObject({
+        status: 403,
+        error: "ORIGIN_REJECTED",
+      });
+      for (const value of ["https, http", "HTTPS", "ftp"]) {
+        expect(
+          await errorOf(
+            await send("admin.localhost:443", "https://admin.localhost", value, proxyPeer),
+          ),
+        ).toMatchObject({
+          status: 403,
+          error: "ORIGIN_REJECTED",
+        });
+      }
     },
   );
 });

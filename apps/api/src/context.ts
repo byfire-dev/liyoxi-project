@@ -3,6 +3,7 @@
 //   c.var.requestId  请求编号，等于回包头 X-Request-Id
 //   c.var.log        带着 reqId 的日志
 //   c.var.clientIp   客户端 IP（按可信代理跳数取，http/client-ip.ts）；拿不到对端地址时是 null
+//   c.var.requestProtocol 实际请求协议；仅可信代理的单值 X-Forwarded-Proto 可覆盖连接协议（同一信任边界）
 //   c.var.identity   身份上下文：鉴权链放进来（M1）；公开路由上没有
 //   c.var.sessionId  会话行的 id（不是令牌）：鉴权链放进来；按会话限流的档位用它，没有就退到操作人
 //   c.var.idem       幂等上下文：写用例把它交给 runtime.tx.run(fn, { idem })
@@ -34,6 +35,7 @@ export interface ApiVariables {
   requestId: string;
   log: Logger;
   clientIp: string | null;
+  requestProtocol: "http" | "https";
   identity?: IdentityContext;
   sessionId?: string;
   idem?: IdempotencyContext;
@@ -42,9 +44,9 @@ export interface ApiVariables {
   staff?: RequestStaff;
 }
 
-/** @hono/node-server 给的环境：只用到对端地址。用例里的 app.request() 可以照这个形状传 */
+/** @hono/node-server 给的环境：对端地址与 TLS 状态。用例里的 app.request() 可以照这个形状传 */
 export interface ApiBindings {
-  incoming?: { socket?: { remoteAddress?: string | undefined } };
+  incoming?: { socket?: { remoteAddress?: string | undefined; encrypted?: boolean } };
 }
 
 export interface ApiEnv {
