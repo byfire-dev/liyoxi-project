@@ -1,16 +1,20 @@
 // 商家端：商城、选剧单与订购 · orders（docs/api/m04-mall-order.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
 import { merchantRoute } from "../builders.js";
-import { okResponse, errorResponses } from "../../common/index.js";
+import { z } from "../../zod.js";
+import { IdSchema, okResponse, errorResponses } from "../../common/index.js";
+import { MerchantOrderListQuerySchema, MerchantOrderListSchema } from "./read.schemas.js";
 import {
   OrderCreateBodySchema,
   OrderCreateResultSchema,
   OrderQuoteBodySchema,
   OrderQuoteSchema,
+  OrderDetailSchema,
 } from "./order.schemas.js";
 
-export const mOrderList = merchantMeta({
+export const mOrderList = merchantRoute({
+  request: { query: MerchantOrderListQuerySchema },
+  responses: { ...okResponse(MerchantOrderListSchema), ...errorResponses(400, 401, 403) },
   method: "get",
   path: "/m/orders",
   operationId: "m.order.list",
@@ -56,7 +60,9 @@ export const mOrderQuote = merchantRoute({
   "x-idempotent-reason": "试算，不写库、不缓存（A18、A20）",
 });
 
-export const mOrderGet = merchantMeta({
+export const mOrderGet = merchantRoute({
+  request: { params: z.object({ orderId: IdSchema }) },
+  responses: { ...okResponse(OrderDetailSchema), ...errorResponses(400, 401, 403, 404) },
   method: "get",
   path: "/m/orders/{orderId}",
   operationId: "m.order.get",

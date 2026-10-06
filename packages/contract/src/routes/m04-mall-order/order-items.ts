@@ -1,8 +1,19 @@
 // 商家端：商城、选剧单与订购 · order-items（docs/api/m04-mall-order.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
+import { merchantRoute } from "../builders.js";
+import { z } from "../../zod.js";
+import { IdSchema, okResponse, errorResponses } from "../../common/index.js";
+import {
+  MerchantOrderItemQuerySchema,
+  MerchantOrderItemSummaryQuerySchema,
+  MerchantOrderItemListSchema,
+  OrderItemSummarySchema,
+  OrderItemDetailSchema,
+} from "./read.schemas.js";
 
-export const mOrderItemList = merchantMeta({
+export const mOrderItemList = merchantRoute({
+  request: { query: MerchantOrderItemQuerySchema },
+  responses: { ...okResponse(MerchantOrderItemListSchema), ...errorResponses(400, 401, 403, 404) },
   method: "get",
   path: "/m/order-items",
   operationId: "m.orderItem.list",
@@ -13,7 +24,9 @@ export const mOrderItemList = merchantMeta({
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
 });
 
-export const mOrderItemSummary = merchantMeta({
+export const mOrderItemSummary = merchantRoute({
+  request: { query: MerchantOrderItemSummaryQuerySchema },
+  responses: { ...okResponse(OrderItemSummarySchema), ...errorResponses(400, 401, 403, 404) },
   method: "get",
   path: "/m/order-items/summary",
   operationId: "m.orderItem.summary",
@@ -24,7 +37,9 @@ export const mOrderItemSummary = merchantMeta({
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
 });
 
-export const mOrderItemGet = merchantMeta({
+export const mOrderItemGet = merchantRoute({
+  request: { params: z.object({ orderItemId: IdSchema }) },
+  responses: { ...okResponse(OrderItemDetailSchema), ...errorResponses(400, 401, 403, 404) },
   method: "get",
   path: "/m/order-items/{orderItemId}",
   operationId: "m.orderItem.get",

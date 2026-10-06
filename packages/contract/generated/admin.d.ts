@@ -617,6 +617,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 订购单列表：订单号 / 商家 / 剧名、下单时间、交付经理、剧目、状态（8 种）；每页 10 */
+        get: operations["admin.order.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 订购单状态筛选条计数 */
+        get: operations["admin.order.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{orderId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 订购单详情：进度、剧目明细与工单、定制需求、协议与授权书、积分明细与冻结扣减时间线、商家与负责人 */
+        get: operations["admin.order.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/payment-orders/{paymentOrderId}": {
         parameters: {
             query?: never;
@@ -1070,6 +1121,134 @@ export interface components {
                 label: string;
             };
         };
+        AdminOrderCard: {
+            actions: string[];
+            deliveryManager: components["schemas"]["StaffBrief"] | null;
+            discountBp: number;
+            firstDramaTitle: string;
+            firstEpisodeCount: number;
+            isTopModel: boolean;
+            itemCount: number;
+            openCancelRequest: {
+                /** Format: uuid */
+                cancelRequestId: string;
+                requestNo: string;
+                status: string;
+                totalRefundPoints: number;
+            } | null;
+            /** Format: uuid */
+            orderId: string;
+            orderNo: string;
+            planCode: string;
+            planName: string | null;
+            platforms: string[];
+            productionModels: string[];
+            /** @enum {string} */
+            status: "pending_start" | "producing" | "to_launch" | "live" | "ended" | "cancelled" | "after_sale" | "refunded" | (string & {});
+            /** Format: date-time */
+            statusChangedAt: string;
+            store: components["schemas"]["AdminStoreBrief"];
+            subStatus: ("qualification_reviewing" | "qualification_rejected" | "starting" | "assigning" | "plan_confirm" | "ad_prep" | "sample_making" | "sample_confirm" | "batch_compose" | "delivering" | "awaiting_links" | "verifying" | "need_fix" | "expired_unlaunched" | "in_service" | "takedown_pending" | "takedown_overdue" | "cancel_reviewing" | "refund_executing" | "cancelled_before_start" | "terminated_no_return" | (string & {})) | null;
+            /** Format: date-time */
+            submittedAt: string;
+            surchargeBp: number;
+            totalChargePoints: number;
+        };
+        AdminOrderDetail: components["schemas"]["AdminOrderCard"] & {
+            agreements: {
+                agreementKey: string;
+                /** Format: date-time */
+                consentedAt: string;
+                method: string;
+                title: string;
+                versionLabel: string;
+            }[];
+            cancelRequests: components["schemas"]["OrderCancelRequestCard"][];
+            /** Format: date-time */
+            closedAt: string | null;
+            deliveryPlan: {
+                /** Format: date-time */
+                confirmedAt: string | null;
+                confirmedVersionNo: number | null;
+                currentVersionNo: number | null;
+                /** Format: uuid */
+                deliveryPlanId: string;
+                launchMode: string | null;
+                /** Format: date-time */
+                pushedAt: string | null;
+                status: string;
+            } | null;
+            /** Format: date */
+            expectedLaunchDate: string | null;
+            focus: components["schemas"]["DictRef"][];
+            items: components["schemas"]["AdminOrderItemRow"][];
+            licenseLetterCount: number;
+            licenseLetters: {
+                accountName: string;
+                currentRevision: {
+                    /** Format: uuid */
+                    fileId: string | null;
+                    /** Format: uuid */
+                    licenseLetterRevisionId: string;
+                    renderStatus: string;
+                    revNo: number;
+                } | null;
+                dramaTitle: string;
+                isExpired: boolean;
+                letterNo: string;
+                /** Format: uuid */
+                licenseLetterId: string;
+                /** Format: uuid */
+                orderItemId: string;
+                /** Format: date */
+                periodEnd: string;
+                /** Format: date */
+                periodStart: string | null;
+                platform: string;
+                status: string;
+            }[];
+            lockVersion: number;
+            merchant: {
+                addonAvailablePoints: number;
+                contactName: string | null;
+                contactPhoneMask: string | null;
+                currentPlanName: string | null;
+                /** Format: date */
+                currentTermEndDate: string | null;
+                planAvailablePoints: number;
+                sourceType: string;
+                spendablePoints: number;
+            };
+            note: string | null;
+            pointsBreakdown: {
+                addonPoints: number;
+                discountDeltaPoints: number;
+                listPriceTotalPoints: number;
+                planPoints: number;
+                surchargeDeltaPoints: number;
+                totalChargePoints: number;
+            };
+            pointsEvents: {
+                addonPoints: number;
+                /** Format: date-time */
+                occurredAt: string;
+                /** @enum {string} */
+                opType: "hold" | "capture" | "release" | "refund" | (string & {});
+                planPoints: number;
+                points: number;
+            }[];
+            referenceFiles: components["schemas"]["OrderReferenceFile"][];
+            /** Format: date-time */
+            startedAt: string | null;
+            subscriptionTerm: {
+                /** Format: date */
+                endDate: string;
+                /** Format: date */
+                startDate: string;
+                /** Format: uuid */
+                subscriptionTermId: string;
+            };
+        };
         AdminOrderItemRow: {
             accounts: components["schemas"]["ChannelAccountBrief"][];
             agreedLaunchDate: string | null;
@@ -1130,6 +1309,12 @@ export interface components {
             /** @enum {string} */
             usageEndSource: "license" | "early_end" | "expired";
             usageStartDate: string | null;
+        };
+        AdminOrderList: {
+            items: components["schemas"]["AdminOrderCard"][];
+            page: number;
+            pageSize: number;
+            total: number;
         };
         AdminPlanContentView: {
             focus: components["schemas"]["DictRef"][];
@@ -2399,6 +2584,70 @@ export interface components {
             synced: {
                 deliveryTicketCount: number;
                 dramaOrderCount: number;
+            };
+        };
+        OrderCancelRequestCard: {
+            actions: string[];
+            /** Format: date-time */
+            approvalDueAt: string | null;
+            approvalStatus: string;
+            /** Format: uuid */
+            cancelRequestId: string;
+            closeReason: string | null;
+            /** Format: date-time */
+            decidedAt: string | null;
+            /** Format: date-time */
+            execDueAt: string | null;
+            /** Format: date-time */
+            executedAt: string | null;
+            isFullReturn: boolean;
+            isOverdue: boolean;
+            isSystemSubmitted: boolean;
+            kind: string;
+            lineCount: number;
+            reasonCode: string;
+            requestNo: string;
+            requester: components["schemas"]["StaffBrief"] | null;
+            status: string;
+            store: components["schemas"]["AdminStoreBrief"];
+            /** Format: date-time */
+            submittedAt: string;
+            target: {
+                /** Format: uuid */
+                id: string;
+                label: string;
+                no: string | null;
+                /** @enum {string} */
+                type: "drama_order" | "ad" | "store" | (string & {});
+            };
+            totalBasePoints: number;
+            totalDeductPoints: number;
+            totalRefundPoints: number;
+        };
+        OrderReferenceFile: {
+            /** Format: uuid */
+            fileId: string;
+            mediaGroup: ("door" | "interior" | "product" | "promo" | (string & {})) | null;
+            /** @enum {string} */
+            source: "store_asset" | "profile_media" | (string & {});
+            /** Format: uuid */
+            storeAssetId: string | null;
+            thumbnail: components["schemas"]["SignedUrl"] | null;
+            title: string | null;
+            type: string;
+            usability: string | null;
+        };
+        OrderSummary: {
+            tabs: {
+                after_sale: number;
+                all: number;
+                cancelled: number;
+                ended: number;
+                live: number;
+                pending_start: number;
+                producing: number;
+                refunded: number;
+                to_launch: number;
             };
         };
         PaymentOrderAdminDetail: {
@@ -6317,6 +6566,198 @@ export interface operations {
             };
             /** @description 外部能力不可用、系统繁忙或停机维护 */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.order.list": {
+        parameters: {
+            query?: {
+                q?: string;
+                storeId?: string;
+                entityId?: string;
+                deliveryManagerId?: string | "none";
+                dramaId?: string;
+                submittedFrom?: string;
+                submittedTo?: string;
+                isRejectedStale?: "true" | "false";
+                page?: number;
+                pageSize?: number;
+                tab?: "all" | "pending_start" | "producing" | "to_launch" | "live" | "ended" | "cancelled" | "after_sale" | "refunded";
+                sort?: "-submittedAt" | "submittedAt" | "-statusChangedAt";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminOrderList"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.order.summary": {
+        parameters: {
+            query?: {
+                q?: string;
+                storeId?: string;
+                entityId?: string;
+                deliveryManagerId?: string | "none";
+                dramaId?: string;
+                submittedFrom?: string;
+                submittedTo?: string;
+                isRejectedStale?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["OrderSummary"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.order.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminOrderDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
