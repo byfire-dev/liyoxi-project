@@ -1,8 +1,15 @@
 import { chainKey, machinePort, rowKey } from "../flow/index.js";
-import { defineRegistration, implement, implementKeyed, lockRows } from "../kernel/index.js";
+import {
+  defineRegistration,
+  implement,
+  implementKeyed,
+  implementMerchantFacts,
+  lockRows,
+} from "../kernel/index.js";
 import { orderManagerPort } from "../profile/index.js";
 import type { SyncStoreManager } from "../profile/index.js";
 import { findOrderViolations, ORDER_INVARIANT_CODES } from "./invariants.js";
+import { orderMerchantFacts } from "./counts.js";
 export const syncOrderManager: SyncStoreManager = async (tx, input) => {
   const rows = await tx.dramaOrder.findMany({
     where: {
@@ -31,6 +38,7 @@ export const syncOrderManager: SyncStoreManager = async (tx, input) => {
 };
 export const registration = defineRegistration("order", {
   portImplementations: [
+    implementMerchantFacts("order", orderMerchantFacts),
     implement(orderManagerPort, syncOrderManager),
     implementKeyed(machinePort, chainKey("drama_order", "status"), {
       activity: () => ({ category: "flow", action: "order.order.submit", summary: "确认订购短剧" }),

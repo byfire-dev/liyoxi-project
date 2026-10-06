@@ -1,8 +1,18 @@
 // 商家端：商城、选剧单与订购 · cart-items（docs/api/m04-mall-order.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
+import { merchantRoute } from "../builders.js";
+import { z } from "../../zod.js";
+import { IdSchema, okResponse, errorResponses } from "../../common/index.js";
+import {
+  CartItemSchema,
+  CartListSchema,
+  CartCreateBodySchema,
+  CartAcceptBodySchema,
+  CartAcceptResultSchema,
+} from "./read.schemas.js";
 
-export const mCartItemList = merchantMeta({
+export const mCartItemList = merchantRoute({
+  responses: { ...okResponse(CartListSchema), ...errorResponses(400, 401, 403) },
   method: "get",
   path: "/m/cart-items",
   operationId: "m.cartItem.list",
@@ -13,7 +23,11 @@ export const mCartItemList = merchantMeta({
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
 });
 
-export const mCartItemCreate = merchantMeta({
+export const mCartItemCreate = merchantRoute({
+  request: {
+    body: { required: true, content: { "application/json": { schema: CartCreateBodySchema } } },
+  },
+  responses: { ...okResponse(CartItemSchema), ...errorResponses(400, 401, 403, 404, 409) },
   method: "post",
   path: "/m/cart-items",
   operationId: "m.cartItem.create",
@@ -24,7 +38,9 @@ export const mCartItemCreate = merchantMeta({
   "x-idempotent-by": ["uq_cart_item_store_id_drama_id"],
 });
 
-export const mCartItemDelete = merchantMeta({
+export const mCartItemDelete = merchantRoute({
+  request: { params: z.object({ cartItemId: IdSchema }) },
+  responses: { ...okResponse(z.null()), ...errorResponses(400, 401, 403, 404, 409) },
   method: "delete",
   path: "/m/cart-items/{cartItemId}",
   operationId: "m.cartItem.delete",
@@ -34,7 +50,13 @@ export const mCartItemDelete = merchantMeta({
   "x-idempotent": "required",
 });
 
-export const mCartItemAcceptPrice = merchantMeta({
+export const mCartItemAcceptPrice = merchantRoute({
+  request: {
+    params: z.object({ cartItemId: IdSchema }),
+    body: { required: true, content: { "application/json": { schema: CartAcceptBodySchema } } },
+  },
+  responses: { ...okResponse(CartAcceptResultSchema), ...errorResponses(400, 401, 403, 404, 409) },
+  "x-redact-on-replay": ["drama.posterUrl"],
   method: "post",
   path: "/m/cart-items/{cartItemId}/accept-price",
   operationId: "m.cartItem.acceptPrice",

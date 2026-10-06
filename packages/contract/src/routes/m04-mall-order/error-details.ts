@@ -8,6 +8,8 @@ export const UNORDERABLE_REASONS = [
   "permit_missing",
 ] as const;
 export const M04_ERROR_DETAILS = {
+  CART_LIMIT_REACHED: z.object({ limit: z.literal(50) }),
+  CART_PRICE_CHANGED: z.object({ currentPricePoints: z.int().positive() }),
   STORE_NOT_QUALIFIED: z.object({
     storeId: IdSchema,
     reason: openEnum(["not_submitted", "pending_review", "rejected", "final_rejected"]),
