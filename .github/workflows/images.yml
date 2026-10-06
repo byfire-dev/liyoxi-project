@@ -1,0 +1,203 @@
+# W2-25b：PR 仅构建四镜像；云写 job 只有 main 与显式配置开启时执行，不进 required。
+name: images
+
+on:
+  pull_request:
+    paths:
+      - infra/docker/**
+      - apps/**
+      - packages/**
+      - pnpm-lock.yaml
+      - .github/workflows/images.yml
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mirror_base:
+        description: 转存固定 PostgreSQL 与 Redis 多架构镜像
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: images-${{ github.head_ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-images:
+    name: build-images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      tag: ${{ steps.source.outputs.tag }}
+    steps:
+      - name: 检出
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 装 pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: 装 Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: 固定源码标签
+        id: source
+        run: |
+          set -eu
+          tag="sha-${GITHUB_SHA:0:12}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: 装独立工具的固定 Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: 3.11.14
+      - name: 官方 COS SDK 的冻结安装与本机 HTTP 验证（不取凭据）
+        run: |
+          set -eu
+          python3 -m venv "$RUNNER_TEMP/cos-tools"
+          "$RUNNER_TEMP/cos-tools/bin/python" infra/bootstrap/cos-adapter/verify_lock.py
+          "$RUNNER_TEMP/cos-tools/bin/pip" install --require-hashes --no-build-isolation -r infra/bootstrap/cos-adapter/build-requirements.lock
+          "$RUNNER_TEMP/cos-tools/bin/pip" install --require-hashes --no-build-isolation -r infra/bootstrap/cos-adapter/requirements.lock
+          "$RUNNER_TEMP/cos-tools/bin/python" infra/bootstrap/cos-adapter/adapter.py --check
+          cd infra/bootstrap/cos-adapter && "$RUNNER_TEMP/cos-tools/bin/python" -m unittest -v test_adapter.py
+      - name: 冻结安装与小程序构建（含原体积门禁）
+        env:
+          WEAPP_API_BASE_URL: ${{ vars.STG_WEAPP_API_BASE_URL || 'https://api-stg.invalid' }}
+          WEAPP_APPID: ${{ vars.STG_WEAPP_APPID || 'touristappid' }}
+          WEAPP_VERSION: ${{ steps.source.outputs.tag }}
+        run: pnpm install --frozen-lockfile && pnpm weapp:build
+      - name: 构建四镜像并加载上传 SDK
+        env:
+          TAG: ${{ steps.source.outputs.tag }}
+        run: |
+          set -eu
+          node infra/docker/weapp-uploader/check-lock.mjs
+          for image in server gateway; do
+            docker build -f "infra/docker/$image/Dockerfile" --build-arg "LYX_BUILD=$TAG" -t "liyoxi/$image:$TAG" .
+          done
+          for image in mediatool weapp-uploader; do
+            docker build -t "liyoxi/$image:$TAG" "infra/docker/$image"
+          done
+          docker run --rm --network none "liyoxi/server:$TAG" pg_dump --version | grep -E '^pg_dump \(PostgreSQL\) 17\.'
+          docker run --rm --network none --read-only --tmpfs /tmp "liyoxi/weapp-uploader:$TAG" --check
+      - name: 打包同一源码的构建产物
+        env:
+          TAG: ${{ steps.source.outputs.tag }}
+          WEAPP_API_BASE_URL: ${{ vars.STG_WEAPP_API_BASE_URL || 'https://api-stg.invalid' }}
+          WEAPP_APPID: ${{ vars.STG_WEAPP_APPID || 'touristappid' }}
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/images-out"
+          docker save "liyoxi/server:$TAG" "liyoxi/gateway:$TAG" "liyoxi/mediatool:$TAG" "liyoxi/weapp-uploader:$TAG" | gzip > "$RUNNER_TEMP/images-out/images.tar.gz"
+          tar -czf "$RUNNER_TEMP/images-out/weapp.tar.gz" -C apps/weapp/dist .
+          node --input-type=module -e 'import fs from "node:fs"; import crypto from "node:crypto"; const file=process.env.RUNNER_TEMP+"/images-out/"; fs.writeFileSync(file+"source.json",JSON.stringify({source:process.env.GITHUB_SHA,tag:process.env.TAG,appid:process.env.WEAPP_APPID,apiBaseUrl:process.env.WEAPP_API_BASE_URL,weappSha256:crypto.createHash("sha256").update(fs.readFileSync(file+"weapp.tar.gz")).digest("hex")}));'
+      - name: 保存构建产物
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: images-build-${{ github.sha }}
+          path: ${{ runner.temp }}/images-out/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  publish-images:
+    name: publish-images
+    if: vars.STG_IMAGES_PUBLISH_ENABLED == 'true' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: build-images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: 检出固定源码
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 取本次构建产物
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: images-build-${{ github.sha }}
+          path: ${{ runner.temp }}/images-out
+      - name: 验证发布配置并推四镜像
+        env:
+          REGISTRY: ${{ vars.STG_REGISTRY }}
+          NAMESPACE: ${{ vars.STG_REGISTRY_NAMESPACE }}
+          REGISTRY_USER: ${{ secrets.STG_REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.STG_REGISTRY_PASSWORD }}
+          TAG: ${{ needs.build-images.outputs.tag }}
+          WEAPP_API_BASE_URL: ${{ vars.STG_WEAPP_API_BASE_URL }}
+          WEAPP_APPID: ${{ vars.STG_WEAPP_APPID }}
+        run: |
+          set -eu
+          node --input-type=module -e 'if(!/^[a-z0-9.-]+(?::[0-9]+)?$/.test(process.env.REGISTRY)||!/^[a-z0-9][a-z0-9/_-]*$/.test(process.env.NAMESPACE)||!/^wx[a-f0-9]{16}$/.test(process.env.WEAPP_APPID)||!/^https:\/\//.test(process.env.WEAPP_API_BASE_URL)||!process.env.REGISTRY_USER||!process.env.REGISTRY_PASSWORD) process.exit(2);'
+          node --input-type=module -e 'import fs from "node:fs";import crypto from "node:crypto";const p=process.env.RUNNER_TEMP+"/images-out/";const s=JSON.parse(fs.readFileSync(p+"source.json"));if(s.source!==process.env.GITHUB_SHA||s.tag!==process.env.TAG||s.appid!==process.env.WEAPP_APPID||s.apiBaseUrl!==process.env.WEAPP_API_BASE_URL||s.weappSha256!==crypto.createHash("sha256").update(fs.readFileSync(p+"weapp.tar.gz")).digest("hex"))throw Error("构建来源或制品不符");'
+          docker load -i "$RUNNER_TEMP/images-out/images.tar.gz"
+          printf '%s' "$REGISTRY_PASSWORD" | docker login "$REGISTRY" --username "$REGISTRY_USER" --password-stdin
+          mkdir -p "$RUNNER_TEMP/images-release"
+          for image in server gateway mediatool weapp-uploader; do
+            target="$REGISTRY/$NAMESPACE/$image:$TAG"
+            docker tag "liyoxi/$image:$TAG" "$target"
+            docker push "$target"
+            node infra/ci/stg-image-facts.mjs "$target" > "$RUNNER_TEMP/images-release/$image.fact.json"
+          done
+          node --input-type=module -e 'import fs from "node:fs";import {validateRelease} from "./infra/ci/stg-image-facts.mjs";const base=process.env.RUNNER_TEMP;const s=JSON.parse(fs.readFileSync(base+"/images-out/source.json"));if(s.source!==process.env.GITHUB_SHA||s.tag!==process.env.TAG)throw Error("源码不符");const images=Object.fromEntries(["server","gateway","mediatool","weapp-uploader"].map(n=>[n,JSON.parse(fs.readFileSync(base+"/images-release/"+n+".fact.json","utf8"))]));fs.writeFileSync(base+"/images-release/images.json",JSON.stringify(validateRelease({...s,images},process.env.GITHUB_SHA)));'
+      - name: 装独立工具的固定 Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: 3.11.14
+      - name: 安装独立 COS 工具（完整 hash 锁）
+        run: |
+          set -eu
+          python3 -m venv "$RUNNER_TEMP/cos-tools"
+          "$RUNNER_TEMP/cos-tools/bin/python" infra/bootstrap/cos-adapter/verify_lock.py
+          "$RUNNER_TEMP/cos-tools/bin/pip" install --require-hashes --no-build-isolation -r infra/bootstrap/cos-adapter/build-requirements.lock
+          "$RUNNER_TEMP/cos-tools/bin/pip" install --require-hashes --no-build-isolation -r infra/bootstrap/cos-adapter/requirements.lock
+      - name: 显式推送 secure 制品
+        env:
+          STG_ARTIFACT_UPLOAD_ENABLED: ${{ vars.STG_ARTIFACT_UPLOAD_ENABLED }}
+          COS_APPID: ${{ vars.STG_COS_APPID }}
+          LYX_COS_SECRET_ID: ${{ secrets.STG_COS_SECRET_ID }}
+          LYX_COS_SECRET_KEY: ${{ secrets.STG_COS_SECRET_KEY }}
+          TAG: ${{ needs.build-images.outputs.tag }}
+        run: |
+          set -eu
+          test "$STG_ARTIFACT_UPLOAD_ENABLED" = true
+          test -n "$LYX_COS_SECRET_ID" && test -n "$LYX_COS_SECRET_KEY"
+          export LYX_COS_APPLY_ENABLED=true LYX_COS_ARTIFACT_UPLOAD_ENABLED=true
+          for file in weapp.tar.gz images.json; do
+            if [ "$file" = images.json ]; then dir=images-release; else dir=images-out; fi
+            node --input-type=module -e 'console.log(JSON.stringify({operation:"artifact.put",bucket:"lyx-stg-secure-"+process.env.COS_APPID,configuration:{file:process.env.RUNNER_TEMP+"/"+process.argv[1]+"/"+process.argv[2],key:"ci/"+process.env.TAG+"/"+process.argv[2]}}))' "$dir" "$file" | "$RUNNER_TEMP/cos-tools/bin/python" infra/bootstrap/cos-adapter/adapter.py
+          done
+      - name: 保存同源发布摘要
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: images-release-${{ github.sha }}
+          path: ${{ runner.temp }}/images-release/images.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: 清理登录态与临时工具
+        if: always()
+        run: docker logout; rm -rf "$RUNNER_TEMP/cos-tools"
+
+  mirror-base:
+    name: mirror-base
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && vars.STG_IMAGES_PUBLISH_ENABLED == 'true' && inputs.mirror_base == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: 登录配置的仓库
+        env:
+          REGISTRY: ${{ vars.STG_REGISTRY }}
+          NAMESPACE: ${{ vars.STG_REGISTRY_NAMESPACE }}
+          REGISTRY_USER: ${{ secrets.STG_REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.STG_REGISTRY_PASSWORD }}
+        run: |
+          set -eu
+          test -n "$REGISTRY" && test -n "$NAMESPACE" && test -n "$REGISTRY_USER" && test -n "$REGISTRY_PASSWORD"
+          printf '%s' "$REGISTRY_PASSWORD" | docker login "$REGISTRY" --username "$REGISTRY_USER" --password-stdin
+          docker buildx imagetools create --tag "$REGISTRY/$NAMESPACE/postgres:17" postgres:17-trixie@sha256:ae69c452f483507a6b99fb654cf93aad7fe156ffd2c56247707eef4e36d3c12b
+          docker buildx imagetools create --tag "$REGISTRY/$NAMESPACE/redis:7" redis:7.4-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+      - name: 清理登录态
+        if: always()
+        run: docker logout
