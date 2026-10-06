@@ -2,7 +2,7 @@ import { PlanContentSchema } from "@liyoxi/contract";
 import type { PlanContent } from "@liyoxi/contract";
 import type { Prisma } from "@liyoxi/db";
 import { calendarDate } from "@liyoxi/shared/time";
-import { hasPermission } from "../authz/index.js";
+import { hasPermission, satisfiesLevel } from "../authz/index.js";
 import type { StaffContext } from "../authz/index.js";
 import type { Tx } from "../kernel/index.js";
 import { staffBriefs } from "../staff/index.js";
@@ -13,6 +13,24 @@ import { publishListFacts } from "./publish-list.js";
 import { iso, dateOf } from "./repo.js";
 import type { PlanRow, TicketRow } from "./repo.js";
 type Item = PlanRow["dramaOrder"]["orderItems"][number];
+/** 表单入口的权限与工单事实；请求体、媒体与质检守卫仍由写用例在锁内复核。 */
+export function ticketProductionActions(
+  t: Pick<TicketRow, "step" | "pauseCount" | "editorId" | "deliveredAt">,
+  staff: StaffContext,
+) {
+  if (t.pauseCount || !satisfiesLevel(staff.moduleLevels.delivery, "edit")) return [];
+  const actions: string[] = [],
+    canUpload = !t.editorId || t.editorId === staff.staff.id,
+    composing = ["batch_compose", "delivering"].includes(t.step);
+  if (t.step === "sample_making" && canUpload && hasPermission(staff, "delivery.sample.upload"))
+    actions.push("sample-create");
+  if (composing && !t.deliveredAt && canUpload && hasPermission(staff, "delivery.episode.register"))
+    actions.push("episode-register");
+  if (composing && hasPermission(staff, "delivery.episode.qc")) actions.push("inspect-episodes");
+  if (t.step === "batch_compose" && hasPermission(staff, "delivery.episode.qc"))
+    actions.push("inspect-package");
+  return actions;
+}
 const snapshot = (r: Prisma.JsonValue) =>
   r as {
     title?: string;
@@ -173,12 +191,18 @@ export async function adminPlanView(tx: Tx, p: PlanRow, staff: StaffContext) {
         !["archived", "terminated"].includes(t.step),
     })),
     lockVersion: p.lockVersion,
-    actions:
-      hasPermission(staff, "delivery.plan.push") &&
+    actions: [
+      ...(satisfiesLevel(staff.moduleLevels.delivery, "edit") &&
+      hasPermission(staff, "delivery.plan.edit") &&
+      p.status !== "confirmed"
+        ? ["draft-replace"]
+        : []),
+      ...(hasPermission(staff, "delivery.plan.push") &&
       !p.dramaOrder.openCancelRequestId &&
       p.status !== "confirmed"
         ? ["push"]
-        : [],
+        : []),
+    ],
   };
 }
 export async function merchantPlanView(tx: Tx, p: PlanRow) {
@@ -475,6 +499,7 @@ export async function ticketDetail(tx: Tx, t: TicketRow, staff: StaffContext, no
     ...card,
     actions: [
       ...card.actions,
+      ...ticketProductionActions(t, staff),
       ...(t.step === "delivering" && !t.pauseCount && hasPermission(staff, "publish.package.push")
         ? ["push-package"]
         : []),
