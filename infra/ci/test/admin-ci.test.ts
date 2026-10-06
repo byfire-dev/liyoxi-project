@@ -311,19 +311,22 @@ describe("页面清单", () => {
     expect(pages).toMatch(/\| 全局搜索 \| — \| 弹层或抽屉 \| 入口隐藏 \|/);
   });
 
-  it("明细与两张汇总同步增加一页 M1 实现：可以通过", () => {
-    let pages = read("docs/plan/pages.md").replace(/(\| M1 \| [WG][\w-]+ \| )否/, "$1是");
+  it("明细与两张汇总同步更新一页 M1 进度：可以通过（全部完成时也能运行）", () => {
+    let pages = read("docs/plan/pages.md");
+    const row = /(\| M1 \| [WG][\w-]+ \| )(是|否)/;
+    const delta = pages.match(row)![2] === "是" ? -1 : 1;
+    pages = pages.replace(row, `$1${delta === 1 ? "是" : "否"}`);
     const summaries = pages.split("\n").filter((line) => line.startsWith("| 运营管理后台 |"));
     for (const table of [0, 1]) {
       const line = summaries[table]!;
       const cells = line.split("|");
-      for (const [column, delta] of table === 0
+      for (const [column, cellDelta] of table === 0
         ? [
-            [4, 1],
-            [5, -1],
+            [4, delta],
+            [5, -delta],
           ]
-        : [[2, -1]]) {
-        cells[column!] = ` ${Number(cells[column!]!.trim()) + delta!} `;
+        : [[2, -delta]]) {
+        cells[column!] = ` ${Number(cells[column!]!.trim()) + cellDelta!} `;
       }
       pages = pages.replace(line, cells.join("|"));
     }
