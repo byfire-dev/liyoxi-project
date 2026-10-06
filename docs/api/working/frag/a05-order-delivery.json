@@ -2895,7 +2895,7 @@
    "code": 45304,
    "http": 409,
    "meaning": "方案内容校验不通过（d3-flow.md:1150-1156）",
-   "details": "`{ issues: [{ orderItemId: string \\| null, field, reason: 'item_missing'\\|'placement_missing'\\|'placement_not_allowed'\\|'ad_invalid'\\|'ad_type_mismatch'\\|'account_invalid'\\|'account_missing'\\|'launch_date_missing'\\|'ticket_unassigned' }] }`",
+   "details": "`{ issues: [{ orderItemId: string \\| null, field, reason: 'item_missing'\\|'placement_missing'\\|'placement_not_allowed'\\|'ad_invalid'\\|'ad_type_mismatch'\\|'account_invalid'\\|'account_missing'\\|'launch_date_missing'\\|'ticket_unassigned'\\|'reference_unusable' }] }`",
    "retryable": false
   },
   {

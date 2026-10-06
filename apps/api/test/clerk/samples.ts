@@ -73,6 +73,21 @@ const playClerkFile = (operationId: string, action?: string): Sample => ({
   },
 });
 export const CLERK_SAMPLES: readonly Sample[] = [
+  get("m.deliveryPlan.get", `/m/delivery-plans/${uuidv7()}`),
+  ...(
+    [
+      ["m.deliveryPlan.confirm", "confirm", { versionNo: 1 }],
+      ["m.deliveryPlan.requestChange", "request-change", { kinds: ["other"], note: "调整方案" }],
+    ] as const
+  ).map(([operationId, action, json]): Sample => ({
+    operationId,
+    play: async (api, ctx) =>
+      api.request(`/api/v1/m/delivery-plans/${uuidv7()}/${action}`, {
+        method: "POST",
+        json,
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      }),
+  })),
   get("m.agreement.list", "/m/agreements"),
   {
     operationId: "m.agreementVersion.get",

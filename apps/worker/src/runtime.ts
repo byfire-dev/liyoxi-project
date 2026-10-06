@@ -185,6 +185,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
         } finally {
           services.closeBillingTimers?.();
           services.closePublish?.();
+          services.closeDelivery?.();
         }
       })());
     },

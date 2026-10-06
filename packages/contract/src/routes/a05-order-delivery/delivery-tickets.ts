@@ -2,7 +2,7 @@
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { adminMeta } from "../meta-only.js";
 
-export const adminDeliveryTicketList = adminMeta({
+export const adminDeliveryTicketList = adminRoute({
   method: "get",
   path: "/admin/delivery-tickets",
   operationId: "admin.deliveryTicket.list",
@@ -10,18 +10,28 @@ export const adminDeliveryTicketList = adminMeta({
     "交付工单列表：状态页签、关键字、交付经理（含未分配）、制作模型、平台、仅看超时；默认按紧急程度排序；也用于各队列视图",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { query: TicketListQuerySchema },
+  responses: {
+    ...okResponse(DeliveryTicketPageSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });
 
-export const adminDeliveryTicketSummary = adminMeta({
+export const adminDeliveryTicketSummary = adminRoute({
   method: "get",
   path: "/admin/delivery-tickets/summary",
   operationId: "admin.deliveryTicket.summary",
   summary: "工单池页头统计与状态页签计数（处理中、超时或逾期、今日截止）",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { query: TicketFilterSchema },
+  responses: {
+    ...okResponse(DeliveryTicketSummarySchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });
 
-export const adminDeliveryTicketGet = adminMeta({
+export const adminDeliveryTicketGet = adminRoute({
   method: "get",
   path: "/admin/delivery-tickets/{deliveryTicketId}",
   operationId: "admin.deliveryTicket.get",
@@ -29,6 +39,11 @@ export const adminDeliveryTicketGet = adminMeta({
     "工单详情聚合：11 步进度、方案、广告、样片与质检、成片与发布、侧栏商家 / 订购单 / 负责人 / 时效",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: TicketParamSchema },
+  responses: {
+    ...okResponse(DeliveryTicketDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });
 
 export const adminDeliveryTicketActivityList = adminMeta({
@@ -49,13 +64,22 @@ export const adminDeliveryTicketAssignEditor = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminDeliveryTicketAssignManager = adminMeta({
+export const adminDeliveryTicketAssignManager = adminRoute({
   method: "post",
   path: "/admin/delivery-tickets/{deliveryTicketId}/assign-manager",
   operationId: "admin.deliveryTicket.assignManager",
   summary: "分配交付经理（单选，显示在办量与轮询推荐，说明 ≤100 字）；进入方案确认并通知",
   "x-permission": "merchant.manager.assign",
   "x-idempotent": "required",
+  request: {
+    params: TicketParamSchema,
+    body: { required: true, content: { "application/json": { schema: AssignManagerBodySchema } } },
+  },
+  responses: {
+    ...okResponse(DeliveryTicketWriteResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
+  "x-redact-on-replay": ["currentSample.preview", "currentSample.decision.feedbackImages"],
 });
 
 export const adminDeliveryTicketAssignPublisher = adminMeta({
@@ -186,3 +210,16 @@ export const adminDeliveryTicketSampleCreate = adminMeta({
   "x-permission": "delivery.sample.upload",
   "x-idempotent": "required",
 });
+
+import { adminRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  TicketListQuerySchema,
+  TicketFilterSchema,
+  TicketParamSchema,
+  AssignManagerBodySchema,
+  DeliveryTicketPageSchema,
+  DeliveryTicketSummarySchema,
+  DeliveryTicketDetailSchema,
+  DeliveryTicketWriteResultSchema,
+} from "./delivery.schemas.js";

@@ -1,8 +1,8 @@
 // 商家端：交付与发布 · delivery-plans（docs/api/m05-delivery-publish.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
+import { merchantRoute } from "../builders.js";
 
-export const mDeliveryPlanGet = merchantMeta({
+export const mDeliveryPlanGet = merchantRoute({
   method: "get",
   path: "/m/delivery-plans/{deliveryPlanId}",
   operationId: "m.deliveryPlan.get",
@@ -11,9 +11,14 @@ export const mDeliveryPlanGet = merchantMeta({
   "x-capability": "order.read",
   "x-clerk-view": "none",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  request: { params: PlanParamSchema },
+  responses: {
+    ...okResponse(DeliveryPlanDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });
 
-export const mDeliveryPlanConfirm = merchantMeta({
+export const mDeliveryPlanConfirm = merchantRoute({
   method: "post",
   path: "/m/delivery-plans/{deliveryPlanId}/confirm",
   operationId: "m.deliveryPlan.confirm",
@@ -21,9 +26,18 @@ export const mDeliveryPlanConfirm = merchantMeta({
   "x-capability": "delivery.confirm_plan",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    params: PlanParamSchema,
+    body: { required: true, content: { "application/json": { schema: PlanConfirmBodySchema } } },
+  },
+  responses: {
+    ...okResponse(DeliveryPlanWriteResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
+  "x-redact-on-replay": ["content.items[].posterUrl"],
 });
 
-export const mDeliveryPlanRequestChange = merchantMeta({
+export const mDeliveryPlanRequestChange = merchantRoute({
   method: "post",
   path: "/m/delivery-plans/{deliveryPlanId}/request-change",
   operationId: "m.deliveryPlan.requestChange",
@@ -32,4 +46,25 @@ export const mDeliveryPlanRequestChange = merchantMeta({
   "x-capability": "delivery.confirm_plan",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    params: PlanParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: PlanChangeRequestBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(DeliveryPlanWriteResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
+  "x-redact-on-replay": ["content.items[].posterUrl"],
 });
+
+import { okResponse, errorResponses } from "../../common/index.js";
+import { PlanParamSchema } from "../a05-order-delivery/delivery.schemas.js";
+import {
+  PlanConfirmBodySchema,
+  PlanChangeRequestBodySchema,
+  DeliveryPlanDetailSchema,
+  DeliveryPlanWriteResultSchema,
+} from "./delivery.schemas.js";

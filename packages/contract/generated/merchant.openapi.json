@@ -1299,6 +1299,294 @@
         ],
         "type": "object"
       },
+      "DeliveryPlanDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "changeRequests": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "changeRequestId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "createdAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "kinds": {
+                  "items": {
+                    "enum": [
+                      "launch_date",
+                      "account",
+                      "customization",
+                      "placement",
+                      "ad",
+                      "other"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "onVersionNo": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "resolvedByVersionNo": {
+                  "anyOf": [
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "changeRequestId",
+                "onVersionNo",
+                "kinds",
+                "note",
+                "createdAt",
+                "resolvedByVersionNo"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "confirmedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confirmedVersionNo": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "content": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanContentView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currentVersionNo": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "deliveryManagerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deliveryPlanId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "isOrderInAfterSale": {
+            "type": "boolean"
+          },
+          "itemCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "openChange": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kinds": {
+                    "items": {
+                      "enum": [
+                        "launch_date",
+                        "account",
+                        "customization",
+                        "placement",
+                        "ad",
+                        "other"
+                      ],
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "notes": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kinds",
+                  "notes"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orderId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "planCode": {
+            "type": "string"
+          },
+          "staffDueAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "drafting",
+              "pending_confirm",
+              "revising",
+              "confirmed"
+            ],
+            "type": "string"
+          },
+          "totalEpisodes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "changeSummary": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "decidedAt": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "decision": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "confirmed",
+                          "change_requested",
+                          "superseded"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "pushedAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "pushedByName": {
+                    "type": "string"
+                  },
+                  "versionNo": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "versionNo",
+                  "pushedAt",
+                  "pushedByName",
+                  "changeSummary",
+                  "decision",
+                  "decidedAt"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "deliveryPlanId",
+          "orderId",
+          "orderNo",
+          "planCode",
+          "status",
+          "currentVersionNo",
+          "confirmedVersionNo",
+          "confirmedAt",
+          "staffDueAt",
+          "isOrderInAfterSale",
+          "deliveryManagerName",
+          "version",
+          "content",
+          "itemCount",
+          "totalEpisodes",
+          "openChange",
+          "changeRequests",
+          "actions"
+        ],
+        "type": "object"
+      },
       "DeviceInfo": {
         "properties": {
           "model": {
@@ -9925,6 +10213,320 @@
         ],
         "type": "object"
       },
+      "PlanContentView": {
+        "additionalProperties": false,
+        "properties": {
+          "focusTags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "accounts": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChannelAccountBrief"
+                  },
+                  "type": "array"
+                },
+                "agreedLaunchDate": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "dramaTitle": {
+                  "type": "string"
+                },
+                "episodeCount": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "expectedDeliveryDate": {
+                  "anyOf": [
+                    {
+                      "format": "date",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "genres": {
+                  "items": {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  "type": "array"
+                },
+                "orderItemId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "placements": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "adCopy": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "adDisplayStatus": {
+                        "enum": [
+                          "producing",
+                          "pending_confirm",
+                          "revising",
+                          "confirmed",
+                          "cancelled"
+                        ],
+                        "type": "string"
+                      },
+                      "adId": {
+                        "format": "uuid",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      },
+                      "adNo": {
+                        "type": "string"
+                      },
+                      "confirmedAt": {
+                        "anyOf": [
+                          {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "confirmedVersionNo": {
+                        "anyOf": [
+                          {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "dueAt": {
+                        "anyOf": [
+                          {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "durationSec": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "latestVersionNo": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "nextVersionNo": {
+                        "anyOf": [
+                          {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "openRevisionRequestedAt": {
+                        "anyOf": [
+                          {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "slot": {
+                        "enum": [
+                          "opening",
+                          "ending"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "slot",
+                      "durationSec",
+                      "adId",
+                      "adNo",
+                      "adDisplayStatus",
+                      "adCopy",
+                      "latestVersionNo",
+                      "nextVersionNo",
+                      "openRevisionRequestedAt",
+                      "confirmedVersionNo",
+                      "confirmedAt",
+                      "dueAt"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "posterUrl": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SignedUrl"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "productionModel": {
+                  "enum": [
+                    "standard",
+                    "advanced",
+                    "top"
+                  ],
+                  "type": "string"
+                },
+                "usageEndDate": {
+                  "format": "date",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "orderItemId",
+                "dramaTitle",
+                "genres",
+                "posterUrl",
+                "episodeCount",
+                "usageEndDate",
+                "productionModel",
+                "accounts",
+                "placements",
+                "agreedLaunchDate",
+                "expectedDeliveryDate"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "launchMode": {
+            "enum": [
+              "merchant_self"
+            ],
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profileMedia": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "fileId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "mediaGroup": {
+                  "enum": [
+                    "door",
+                    "interior",
+                    "product",
+                    "promo"
+                  ],
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "image",
+                    "video"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "fileId",
+                "mediaGroup",
+                "type"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "referenceAssets": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "contentTags": {
+                  "items": {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  "type": "array"
+                },
+                "storeAssetId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "title": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "storeAssetId",
+                "type",
+                "title",
+                "contentTags"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "focusTags",
+          "referenceAssets",
+          "profileMedia",
+          "note",
+          "launchMode",
+          "items"
+        ],
+        "type": "object"
+      },
       "PlanQuote": {
         "properties": {
           "action": {
@@ -14611,6 +15213,451 @@
         "x-capability": "channel.manage",
         "x-clerk-view": "none",
         "x-idempotent": "required"
+      }
+    },
+    "/api/v1/m/delivery-plans/{deliveryPlanId}": {
+      "get": {
+        "operationId": "m.deliveryPlan.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deliveryPlanId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DeliveryPlanDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "方案确认页：状态（待确认/修改中/已确认）、当前版本内容、推送人与时间、修改请求记录、剧目与上线账号、定制内容、植入形式与广告、上线安排",
+        "x-auth": "member",
+        "x-capability": "order.read",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/delivery-plans/{deliveryPlanId}/confirm": {
+      "post": {
+        "operationId": "m.deliveryPlan.confirm",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deliveryPlanId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "versionNo": {
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "versionNo"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/DeliveryPlanDetail"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "replayed": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "replayed"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "确认方案 {versionNo}：内容落到订单项、发布账号、广告位绑定，推进交付工单",
+        "x-auth": "member",
+        "x-capability": "delivery.confirm_plan",
+        "x-clerk-view": "none",
+        "x-idempotent": "required",
+        "x-redact-on-replay": [
+          "content.items[].posterUrl"
+        ]
+      }
+    },
+    "/api/v1/m/delivery-plans/{deliveryPlanId}/request-change": {
+      "post": {
+        "operationId": "m.deliveryPlan.requestChange",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deliveryPlanId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "kinds": {
+                    "items": {
+                      "enum": [
+                        "launch_date",
+                        "account",
+                        "customization",
+                        "placement",
+                        "ad",
+                        "other"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 6,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "note": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kinds",
+                  "note"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/DeliveryPlanDetail"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "replayed": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "replayed"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "联系服务经理修改 / 补充修改意见：{kinds[]（上线日期、上线账号、定制内容、植入形式、广告视频、其他）, note ≤200}",
+        "x-auth": "member",
+        "x-capability": "delivery.confirm_plan",
+        "x-clerk-view": "none",
+        "x-idempotent": "required",
+        "x-redact-on-replay": [
+          "content.items[].posterUrl"
+        ]
       }
     },
     "/api/v1/m/dict-items": {

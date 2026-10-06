@@ -4,6 +4,8 @@
 import { createPrismaClient } from "@liyoxi/db";
 import type { PrismaClient } from "@liyoxi/db";
 
+import { bindDelivery, reevaluateSweep } from "../delivery/index.js";
+import { createSla } from "../sla/index.js";
 import { bindContent } from "../content/index.js";
 import { bindPublish } from "../publish/index.js";
 import { createMedia } from "../media/index.js";
@@ -84,6 +86,8 @@ export interface WorkerServicesOptions {
 export interface WorkerServices {
   readonly closeBillingTimers?: () => void;
   readonly closePublish?: () => void;
+  readonly closeDelivery?: () => void;
+  reevaluateDelivery(): Promise<{ inspected: number; moved: number }>;
   promoteFile(ref: PromoteRef): Promise<void>;
   scanPromote(): Promise<number>;
   readonly assembly: Assembly;
@@ -124,9 +128,10 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const tx = createTxRunner({ prisma, appEnv: options.appEnv, report: options.report });
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
+  const flow = createFlow({ assembly, clock, events });
   const closeBillingTimers = bindBillingTimers({
     clock,
-    flow: createFlow({ assembly, clock, events }),
+    flow,
     timers,
   });
   const logger = options.logger ?? silent;
@@ -143,6 +148,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   bindOps({ db: prisma, tx, clock, assembly });
   bindContent(assembly);
   const closePublish = bindPublish(assembly);
+  const deliveryCore = { tx, clock, assembly, flow, events, sla: createSla({ clock, assembly }) };
+  const closeDelivery = bindDelivery(deliveryCore);
   const delivery = { tx, subscribers: events.subscribers, channel, alerts };
   // 账本（W1-10）：每分钟扫描用它推进到点的主体
   const ledger = createLedger({ clock, events });
@@ -152,6 +159,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   return {
     closeBillingTimers,
     closePublish,
+    closeDelivery,
+    reevaluateDelivery: () => reevaluateSweep(deliveryCore),
     promoteFile: (ref) => media.promote(ref),
     scanPromote: () => media.scanPromote(),
     assembly,
