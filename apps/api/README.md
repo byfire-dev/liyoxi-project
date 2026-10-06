@@ -132,11 +132,13 @@ pnpm exec vitest run --project api apps/api/test/merchant-auth.test.ts
 | 槽位 | 文件 | 做什么 | 不过时 |
 | --- | --- | --- | --- |
 | `auth` | `session.ts` | 校验会话 Cookie（未吊销、未过期、员工仍是启用），把 `identity`、`sessionId`、`staff` 放进上下文；`x-auth: public` 的不挂 | 401 `AUTH_REQUIRED`、`SESSION_INVALID` |
-| `csrf` | `csrf.ts` | 非 GET：`X-LYX-Admin: 1`，且 `Origin` 的主机名等于请求的 `Host` 的主机名、这个 Host 属于后台（端口不比：网关转来的 Host 不带端口）。登录前的公开接口也查 | 403 `ORIGIN_REJECTED` |
+| `csrf` | `csrf.ts` | 非 GET：`X-LYX-Admin: 1`，且 `Origin` 的主机与端口等于请求的 `Host`、这个 Host 属于后台；默认端口按 Origin 的协议归一化，网关保留请求端口。登录前的公开接口也查 | 403 `ORIGIN_REJECTED` |
 | `authz` | `authz.ts` | 模块等级 × 权限点（“仅主管”已算在内） | 403 `PERMISSION_DENIED` |
 | `stepUp` | `authz.ts` | 权限点在注册表里标了再验证、会话的再验证超过 10 分钟；`x-step-up: skip` 的不挂 | 403 `STEP_UP_REQUIRED` |
 
 四件都排在限流与幂等上下文之前：再验证之后拿原幂等键重放即可。
+
+后台路径的响应（含登录前、鉴权失败等错误响应）返回 `X-Admin-Build`（约定 C18），取 `src/version.ts` 的构建号；本地源码运行时为 `dev`，构建产物取 `LYX_BUILD`。在请求编号中间件统一附加。
 
 ### 8.1 登记一条后台接口：`defineAdminHandler`
 
@@ -192,5 +194,5 @@ LYX_UPDATE_GOLDEN=1 pnpm exec vitest run --project api test/admin-matrix.test.ts
 ### 8.3 已知的限度
 
 - 密钥没配（本地默认）：进程起得来，`/api/v1/admin/auth/*` 与要会话的后台接口回 500；启动自检在 `local`、`test` 下只记一条告警，`stg`、`prod` 下不过。
-- 后台来源 IP 白名单（槽位 `surface`、`IP_NOT_ALLOWED`）默认不启用，没有做；`X-Admin-Build` 响应头（约定 C18）没有加。
+- 后台来源 IP 白名单（槽位 `surface`、`IP_NOT_ALLOWED`）默认不启用，没有做。
 - 再验证失败不单独计数，穷举靠 `admin.login` 档按会话的限流。

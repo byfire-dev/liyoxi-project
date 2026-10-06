@@ -77,11 +77,14 @@ describe("防跨站：后台的非 GET 请求", () => {
         { "x-lyx-admin": "1" },
         { "x-lyx-admin": "1", origin: "http://evil.example" },
         { "x-lyx-admin": "1", origin: "http://localhost.evil.example" },
+        { "x-lyx-admin": "1", origin: "http://localhost:8081" },
         { "x-lyx-admin": "1", origin: "null" },
         { "x-lyx-admin": "0", origin: ORIGIN },
       ];
       for (const headers of variants) {
-        expect(await errorOf(await post("/auth/login", body, headers))).toMatchObject({
+        const response = await post("/auth/login", body, headers);
+        expect(response.headers.get("X-Admin-Build")).toBe("dev");
+        expect(await errorOf(response)).toMatchObject({
           status: 403,
           error: "ORIGIN_REJECTED",
         });
@@ -106,18 +109,29 @@ describe("防跨站：后台的非 GET 请求", () => {
         peer: freshPeer(),
       });
       expect(await errorOf(adminHost)).toMatchObject({ status: 401, error: "AUTH_FAILED" });
-      // 端口不比：本地整套环境走网关的 8080 端口，转给 api 的 Host 不带端口，浏览器的 Origin 带
+      // 网关保留 Host 里的 8080 端口，和浏览器 Origin 对齐，正常同源请求可通过
       const viaGateway = await app.request("/api/v1/admin/auth/login", {
         method: "POST",
         json: { phone: "13900019998", password: "whatever-1" },
         headers: {
           "x-lyx-admin": "1",
-          host: "admin.localhost",
+          host: "admin.localhost:8080",
           origin: "http://admin.localhost:8080",
         },
         peer: freshPeer(),
       });
       expect(await errorOf(viaGateway)).toMatchObject({ status: 401, error: "AUTH_FAILED" });
+      const wrongPort = await app.request("/api/v1/admin/auth/login", {
+        method: "POST",
+        json: body,
+        headers: {
+          "x-lyx-admin": "1",
+          host: "admin.localhost:8080",
+          origin: "http://admin.localhost:8081",
+        },
+        peer: freshPeer(),
+      });
+      expect(await errorOf(wrongPort)).toMatchObject({ status: 403, error: "ORIGIN_REJECTED" });
     },
   );
 });
@@ -227,6 +241,7 @@ describe("会话", () => {
         headers: { cookie: state.cookie },
       });
       expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(response.headers.get("X-Admin-Build")).toBe("dev");
       const me = await dataOf<Record<string, unknown>>(response);
       expect(me).toMatchObject({
         staff: { name: "首位管理员", roleKey: "super_admin", isLead: false, status: "active" },
