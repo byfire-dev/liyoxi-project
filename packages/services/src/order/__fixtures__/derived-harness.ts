@@ -40,7 +40,7 @@ export function derivedHarness(h: Harness) {
   });
   const unbind = bindOrder(binding),
     clearDelivery = bindDelivery(core);
-  const delivery = createDelivery({ ...core, media: h.deps.media, profile });
+  const delivery = createDelivery({ ...core, media, profile });
   async function order(count = 1) {
     await version(h);
     const b = await buyer(h),

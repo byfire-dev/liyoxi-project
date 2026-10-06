@@ -1,6 +1,18 @@
 import { z } from "../../zod.js";
 import { DateSchema, IdSchema } from "../../common/index.js";
 export const M05_ERROR_DETAILS = {
+  SAMPLE_VERSION_STALE: z.object({
+    currentSampleId: IdSchema.nullable(),
+    currentVersionNo: z.int().nullable(),
+  }),
+  SAMPLE_VIEW_CHANNEL_NOT_OFFERED: z.object({
+    previewChannels: z.array(z.enum(["weapp", "album", "portal", "wecom"])),
+  }),
+  SAMPLE_NOT_VIEWABLE: z.object({
+    viewedVia: z.enum(["weapp", "album", "portal", "wecom"]),
+    requiredEvidence: z.enum(["album_saved", "portal_viewed", "wecom_sent", "album_or_portal"]),
+  }),
+  AD_CHANGED: z.object({ adIds: z.array(IdSchema) }),
   ORDER_IN_AFTER_SALE: z.object({ cancelRequestId: IdSchema }),
   PLAN_VERSION_STALE: z.object({ currentVersionNo: z.int().nonnegative() }),
   TICKET_ON_HOLD: z.object({ reasons: z.array(z.enum(["cancel_review", "plan_amendment"])) }),

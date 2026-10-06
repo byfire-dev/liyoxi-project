@@ -7,10 +7,12 @@ import { DELIVERY_INVARIANT_CODES, findDeliveryViolations } from "./invariants.j
 import { deliveryMachines } from "./machines.js";
 import { orderSidePort } from "./ports.js";
 import { reevaluate } from "./reevaluate.js";
+import { deliveryFileRefs } from "./file-refs.js";
 export const registration = defineRegistration("delivery", {
   ports: [orderSidePort],
   portImplementations: [
     ...deliveryMachines,
+    ...deliveryFileRefs,
     implement(deliveryManagerPort, (tx, input) => assignStoreTickets(tx, boundDelivery(), input)),
     implement(launchChangedPort, (tx, input) =>
       reevaluate(
