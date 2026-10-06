@@ -124,7 +124,7 @@ describe("每一项的字段", () => {
     }
   });
 
-  it("W1-02 的基础页与用户菜单已实现；V1.1 的不排工作包或标已实现", () => {
+  it("W1-02 的基础页、用户菜单与员工页已实现；V1.1 的不排工作包或标已实现", () => {
     const baseKeys = [
       "base.login",
       "base.mfa",
@@ -134,6 +134,7 @@ describe("每一项的字段", () => {
       "base.forbidden",
       "base.not_found",
       "shell.user_menu",
+      "system.staff",
     ];
     for (const key of baseKeys) {
       expect(findPage(key)?.implemented, key).toBe(true);

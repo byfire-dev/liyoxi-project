@@ -12,7 +12,7 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 | `pnpm --filter @liyoxi/admin test` | 单测（Vitest，Node 环境）。配置就在 `vite.config.ts` 里，与构建共用一份 |
 | `pnpm admin:build` | 生产构建到 `apps/admin/dist/app`，随后跑 `scripts/check-build.mjs`：文件名带内容哈希、写入了构建号、不含夹具 |
 | `pnpm admin:e2e` | 冒烟：带样例页构建（`dist/e2e-app`），验证外壳、陈列页与鉴权样例。截图在 `dist/e2e-shots`，失败现场在 `dist/e2e-results` |
-| `pnpm admin:e2e:live` | 真实 API + 生产后台：独立测试库与假密钥，激活、绑定、恢复码登录与登录态复用；截图在 `dist/e2e-shots`，失败 trace 在 `dist/e2e-live-results` |
+| `pnpm admin:e2e:live` | 真实 API + 生产后台：独立测试库与假密钥，激活、绑定、恢复码登录与登录态复用，员工筛选分页、新增及一次性激活码；截图在 `dist/e2e-shots`，失败 trace 在 `dist/e2e-live-results` |
 | `node infra/ci/pages/generate.mjs`（加 `--check` 只比对） | 由菜单登记表重新生成 `docs/plan/pages.md` 的后台部分 |
 
 冒烟缺省用 Playwright 自带的 Chromium：第一次跑先 `pnpm --filter @liyoxi/admin exec playwright install chromium`。本机不想下载时用已装的 Chrome：`LYX_E2E_CHANNEL=chrome pnpm admin:e2e`。
@@ -127,7 +127,7 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 
 - 路由树是手写装配的（`src/routes/tree.ts`），没有用 `@tanstack/router-plugin` 的文件路由生成：装上它会把锁文件里已有依赖的解析版本带着变，属“放松”类门禁改动，要走单独的依赖 PR。目录约定已照文件路由来，换过去时只动装配（[状态文件](../../docs/plan/status/W0-28.md)“偏差”）。
 - 单测不装 DOM 测试库：结构用 `react-dom/server` 渲染后断言，交互留给 Playwright（任务书 第 11 节第 2 项）。
-- W1-02① 已接登录、激活、动态口令、绑定、再验证、用户菜单、403/404。并发请求共用一个再验证弹层，成功后沿用原幂等键重放；M1 用户菜单仅退出登录。员工页等待 W1-02②，修改密码与动态口令设置等待 M2。
+- W1-02① 已接登录、激活、动态口令、绑定、再验证、用户菜单、403/404。并发请求共用一个再验证弹层，成功后沿用原幂等键重放；M1 用户菜单仅退出登录。员工页已接真实员工/角色查询与新增，manual 激活码只留当前弹层内存，关闭即清；行内操作及页头汇总等待 M2，修改密码与动态口令设置等待 M2。
 - 全局搜索与通知入口不显示（规范 第 14 节第 12 项）；V1.1 的 13 个菜单只登记、默认不显示。
 - 表格行高的两档靠 CSS 的 `:has()` 选择器判断一行里有没有双行单元格（Chrome 105、Safari 15.4、Firefox 121 起支持）；更老的浏览器里双行的行会落到 44 那一档，不到 56。复选框、单选框、分段控件的键盘聚焦环同样靠 `:has()`。
 - 衬线字体（页面标题、品牌字）没有带字体文件，按字体栈回落到系统的宋体；antd 控件内部自带的图标（下拉箭头、清除键、排序箭头、关闭“×”等）还是它自己的。两件都在状态文件“偏差”里，等业主定。
@@ -138,4 +138,6 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 
 显式提供本地 Compose 的公开测试连接参数（APP_ENV=test、DATABASE_URL、REDIS_URL），执行 `pnpm admin:e2e:live`；不读取 .env。正常 Node24，nightly 沿用仓库 Node26 兼容作业。CI 先安装 Chromium；本机可 `LYX_E2E_CHANNEL=chrome`。脚本为本轮生成严格配对的测试库与 Redis 前缀，seed 与 staff:bootstrap 后启动真实 API 构建产物和生产后台静态文件；/api 转发保留 Host/Origin 及端口。结束或中断后停止本轮子进程、精确清理数据库/Redis 与私有临时文件；失败时保留截图、trace 和 API 脱敏日志（dist/e2e-live-logs）。
 
-后续页面包只在 `packages/services/src/testing/admin-live/` 新增 `<短名>.fixture.ts`，共享一个服务端进程的 `make`/`runtime`；前端调用已合并的 `admin:live:data` CLI，不导入数据库或 services。新增 `test/e2e/live-*.spec.ts`，用 `readLiveContext()` 读取返回的 fixtures；live 项目依赖一次登录准备并自动复用 storageState，无需改起栈脚本或 Playwright 配置。数据与登录态文件不入库。
+后续页面包只在 `packages/services/src/testing/admin-live/` 新增 `<短名>.fixture.ts`，共享一个服务端进程的 `make`/`runtime`；前端调用已合并的 `admin:live:data` CLI，不导入数据库或 services。新增 `test/e2e/live-*.spec.ts`，用 `liveContext()` 读取返回的 fixtures；live 项目依赖一次登录准备并自动复用 storageState，无需改起栈脚本或 Playwright 配置。数据与登录态文件不入库。
+
+员工真实用例 `live-staff.spec.ts` 使用 `staff.fixture.ts`：10 位假员工加 bootstrap 管理员覆盖角色、主管、待激活、待启用、禁用及10条分页；返回的 fixtures 经 `liveContext().fixtures` 读取服务端桥 JSON。三张截图为 `staff-01-list.png`、`staff-02-create.png`、`staff-03-activation.png`。同一事件循环触发两次表单提交，断言只发一个创建请求、真实查询只有一行；关闭后不再显示码，重新打开表单为空。
