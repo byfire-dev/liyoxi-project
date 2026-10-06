@@ -1,5 +1,13 @@
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -195,9 +203,25 @@ describe("真实 bash 核库工具来源", () => {
     expect(missing.status).toBe(1);
     expect(missing.stderr).toContain("compatible_plain_index");
     const before = readFileSync(f.calls, "utf8");
-    writeFileSync(join(f.home, "db-release.env"), "LYX_DB_TAG=invalid;id\n");
+    for (const value of [
+      "LYX_DB_TAG=invalid;id\n",
+      `LYX_DB_TAG=${NEW}\nLYX_DB_TAG=${OLD}\n`,
+      `LYX_DB_TAG=${"x".repeat(142)}\n`,
+    ]) {
+      writeFileSync(join(f.home, "db-release.env"), value);
+      expect(f.run(["verify-db", OLD]).status).toBe(1);
+      expect(readFileSync(f.calls, "utf8")).toBe(before);
+    }
+    rmSync(join(f.home, "db-release.env"));
+    symlinkSync(join(f.home, "missing-record"), join(f.home, "db-release.env"));
     expect(f.run(["verify-db", OLD]).status).toBe(1);
     expect(readFileSync(f.calls, "utf8")).toBe(before);
+    rmSync(join(f.home, "db-release.env"));
+    mkdirSync(join(f.home, "db-release.env.tmp"));
+    const persistFailure = f.run(["migrate", NEW]);
+    expect(persistFailure.status).toBe(1);
+    const calls = readFileSync(f.calls, "utf8").slice(before.length).trim().split("\n");
+    expect(calls.every((line) => JSON.parse(line).args.at(-1) !== "migrate")).toBe(true);
   });
   it("编排摘要另记应用/核库 runner 来源，节点发布记录仍按应用版本严格保存", () => {
     const digest = `sha256:${"a".repeat(64)}`;
