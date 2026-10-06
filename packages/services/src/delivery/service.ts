@@ -4,6 +4,12 @@ import type {
   PlanChangeRequestBody,
   TicketFilter,
   TicketListQuery,
+  SampleCreateBody,
+  SampleInspectBody,
+  SamplePushBody,
+  EpisodeRegisterBody,
+  InspectEpisodesBody,
+  PushPackageBody,
 } from "@liyoxi/contract";
 import { calendarDate } from "@liyoxi/shared/time";
 import { assertAccess, assertPermission } from "../authz/index.js";
@@ -21,7 +27,24 @@ import {
   ticketCard,
   ticketDetail,
   urgency,
+  qcView,
 } from "./views.js";
+import { createSample, inspectSample, pushSample, confirmSample, sampleOf } from "./samples.js";
+import {
+  adminSampleView,
+  merchantSampleView,
+  signMerchantSample,
+  signAdminSample,
+} from "./sample-views.js";
+import {
+  registerEpisodes,
+  inspectEpisodes,
+  inspectPackage,
+  episodeView,
+  episodeGrid,
+} from "./episodes.js";
+import { pushPackage } from "./packages.js";
+import { AppError, uuidv7 } from "../kernel/index.js";
 const steps = [
   "assigning",
   "plan_confirm",
@@ -125,6 +148,188 @@ export function createDelivery(deps: DeliveryDeps) {
     );
   }
   return {
+    sampleCreate: async (
+      ctx: IdentityContext,
+      staff: StaffContext,
+      id: string,
+      body: SampleCreateBody,
+      options: DeliveryWriteOptions = {},
+    ) => {
+      assertPermission(staff, "delivery.sample.upload", deps.clock.now());
+      const data = await deps.tx.run(async (tx) => {
+        const sampleId = await createSample(tx, deps, ctx, staff, id, body),
+          { s, t } = await sampleOf(tx, sampleId, staff);
+        return adminSampleView(tx, t, s, staff);
+      }, options);
+      return {
+        ...(options.idem?.replayed ? data : await signAdminSample(deps, data)),
+        replayed: options.idem?.replayed ?? false,
+      };
+    },
+    sampleInspect: async (
+      ctx: IdentityContext,
+      staff: StaffContext,
+      id: string,
+      body: SampleInspectBody,
+      options: DeliveryWriteOptions = {},
+    ) => {
+      assertPermission(staff, "delivery.sample.qc", deps.clock.now());
+      const data = await deps.tx.run(async (tx) => {
+        await inspectSample(tx, deps, ctx, staff, id, body);
+        const { s, t } = await sampleOf(tx, id, staff);
+        return adminSampleView(tx, t, s, staff);
+      }, options);
+      return {
+        ...(options.idem?.replayed ? data : await signAdminSample(deps, data)),
+        replayed: options.idem?.replayed ?? false,
+      };
+    },
+    samplePush: async (
+      ctx: IdentityContext,
+      staff: StaffContext,
+      id: string,
+      body: SamplePushBody,
+      options: DeliveryWriteOptions = {},
+    ) => {
+      assertPermission(staff, "delivery.sample.push", deps.clock.now());
+      const data = await deps.tx.run(async (tx) => {
+        await pushSample(tx, deps, ctx, staff, id, body);
+        const { s, t } = await sampleOf(tx, id, staff);
+        return adminSampleView(tx, t, s, staff);
+      }, options);
+      return {
+        ...(options.idem?.replayed ? data : await signAdminSample(deps, data)),
+        replayed: options.idem?.replayed ?? false,
+      };
+    },
+    merchantSample: async (viewer: DeliveryViewer, orderItemId: string) => {
+      assertOwner(viewer);
+      const raw = await deps.tx.run(async (tx) => {
+        const t = await tx.deliveryTicket.findFirst({
+          where: {
+            orderItemId,
+            storeId: viewer.membership.storeId,
+            entityId: viewer.membership.entityId,
+          },
+          include: ticketInclude,
+        });
+        if (!t) throw new AppError("NOT_FOUND");
+        const s = await tx.sample.findUnique({
+          where: {
+            deliveryTicketId_versionNo: {
+              deliveryTicketId: t.id,
+              versionNo: t.currentSampleVersionNo ?? 0,
+            },
+          },
+        });
+        if (!s?.pushedAt) throw new AppError("NOT_FOUND");
+        return merchantSampleView(tx, deps, t, s);
+      });
+      return signMerchantSample(deps, raw);
+    },
+    sampleConfirm: async (
+      viewer: DeliveryViewer,
+      id: string,
+      body: { versionNo: number; viewedVia: string; hasViewed: boolean },
+      options: DeliveryWriteOptions = {},
+    ) => {
+      assertOwner(viewer);
+      const raw = await deps.tx.run(async (tx) => {
+        await confirmSample(tx, deps, viewer, id, body);
+        const { s, t } = await sampleOf(tx, id, viewer);
+        return (await merchantSampleView(tx, deps, t, s)).view;
+      }, options);
+      return {
+        ...(options.idem?.replayed
+          ? { ...raw, playable: null }
+          : await signMerchantSample(
+              deps,
+              await deps.tx.run(async (tx) => {
+                const { s, t } = await sampleOf(tx, id, viewer);
+                return merchantSampleView(tx, deps, t, s);
+              }),
+            )),
+        replayed: options.idem?.replayed ?? false,
+      };
+    },
+    episodes: async (staff: StaffContext, id: string) => {
+      view(staff);
+      return deps.tx.run(async (tx) => episodeGrid(tx, await ticketOf(tx, id, staff)));
+    },
+    episodeRegister: async (
+      ctx: IdentityContext,
+      staff: StaffContext,
+      id: string,
+      body: EpisodeRegisterBody,
+      options: DeliveryWriteOptions = {},
+    ) => {
+      assertPermission(staff, "delivery.episode.register", deps.clock.now());
+      const data = await deps.tx.run(async (tx) => {
+        const rows = await registerEpisodes(tx, deps, ctx, staff, id, body);
+        return { items: await Promise.all(rows.map((e) => episodeView(tx, e))) };
+      }, options);
+      return { ...data, replayed: options.idem?.replayed ?? false };
+    },
+    episodeInspect: async (
+      ctx: IdentityContext,
+      staff: StaffContext,
+      id: string,
+      body: InspectEpisodesBody,
+      options: DeliveryWriteOptions = {},
+    ) => {
+      assertPermission(staff, "delivery.episode.qc", deps.clock.now());
+      const data = await deps.tx.run(async (tx) => {
+        const results = await inspectEpisodes(tx, deps, ctx, staff, id, body);
+        return {
+          results,
+          ticket: await ticketCard(tx, await ticketOf(tx, id, staff), staff, deps.clock.now()),
+        };
+      }, options);
+      return { ...data, replayed: options.idem?.replayed ?? false };
+    },
+    packageInspect: async (
+      ctx: IdentityContext,
+      staff: StaffContext,
+      id: string,
+      body: SampleInspectBody,
+      options: DeliveryWriteOptions = {},
+    ) => {
+      assertPermission(staff, "delivery.episode.qc", deps.clock.now());
+      const data = await deps.tx.run(async (tx) => {
+        const r = await inspectPackage(tx, deps, ctx, staff, id, body);
+        return {
+          qcRecord: (await qcView(tx, r))!,
+          ticket: await ticketCard(tx, await ticketOf(tx, id, staff), staff, deps.clock.now()),
+        };
+      }, options);
+      // QC 投影在事务内完成，不能把 Promise 存到幂等结果。
+      return { ...data, replayed: options.idem?.replayed ?? false };
+    },
+    packagePush: async (
+      ctx: IdentityContext,
+      staff: StaffContext,
+      id: string,
+      body: PushPackageBody,
+      options: DeliveryWriteOptions = {},
+    ) => {
+      assertPermission(staff, "publish.package.push", deps.clock.now());
+      const data = await deps.tx.run(async (tx) => {
+        const result = await pushPackage(
+          tx,
+          deps,
+          ctx,
+          staff,
+          id,
+          body,
+          options.idem?.key ?? uuidv7(),
+        );
+        return {
+          ...result,
+          ticket: await ticketCard(tx, await ticketOf(tx, id, staff), staff, deps.clock.now()),
+        };
+      }, options);
+      return { ...data, replayed: options.idem?.replayed ?? false };
+    },
     list: (staff: StaffContext, q: TicketListQuery) => {
       view(staff);
       return deps.tx.run(async (tx) => {
@@ -189,11 +394,15 @@ export function createDelivery(deps: DeliveryDeps) {
         };
       });
     },
-    get: (staff: StaffContext, id: string) => {
+    get: async (staff: StaffContext, id: string) => {
       view(staff);
-      return deps.tx.run(async (tx) =>
+      const data = await deps.tx.run(async (tx) =>
         ticketDetail(tx, await ticketOf(tx, id, staff), staff, deps.clock.now()),
       );
+      return {
+        ...data,
+        currentSample: data.currentSample ? await signAdminSample(deps, data.currentSample) : null,
+      };
     },
     assign: (
       ctx: IdentityContext,

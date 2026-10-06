@@ -1,12 +1,15 @@
-import { ChecklistItemsSchema, PlanContentSchema } from "@liyoxi/contract";
+import { PlanContentSchema } from "@liyoxi/contract";
 import type { PlanContent } from "@liyoxi/contract";
-import type { Prisma, QcRecord } from "@liyoxi/db";
+import type { Prisma } from "@liyoxi/db";
 import { calendarDate } from "@liyoxi/shared/time";
 import { hasPermission } from "../authz/index.js";
 import type { StaffContext } from "../authz/index.js";
 import type { Tx } from "../kernel/index.js";
 import { staffBriefs } from "../staff/index.js";
 import type { DeliveryDeps } from "./context.js";
+import { qcView } from "./quality-views.js";
+import { adminSampleView } from "./sample-views.js";
+import { publishListFacts } from "./publish-list.js";
 import { iso, dateOf } from "./repo.js";
 import type { PlanRow, TicketRow } from "./repo.js";
 type Item = PlanRow["dramaOrder"]["orderItems"][number];
@@ -396,31 +399,7 @@ export async function ticketCard(tx: Tx, t: TicketRow, staff: StaffContext, now:
         : [],
   };
 }
-async function qcView(tx: Tx, r: QcRecord | null) {
-  if (!r) return null;
-  const template = await tx.checklistTemplate.findUnique({
-    where: { code_versionNo: { code: r.checklistCode, versionNo: r.checklistVersionNo } },
-  });
-  const defs = template ? ChecklistItemsSchema.parse(template.items) : [],
-    results = r.results as Array<{ key: string; result: string; note?: string }>;
-  return {
-    qcRecordId: r.id,
-    targetType: r.targetType,
-    targetId: r.targetId,
-    checklistCode: r.checklistCode,
-    checklistVersionNo: r.checklistVersionNo,
-    verdict: r.verdict,
-    rejectReason: r.rejectReason,
-    items: results.map((i) => ({
-      ...i,
-      label: defs.find((d) => d.key === i.key)?.label ?? i.key,
-      note: i.note ?? null,
-      merchantVisible: defs.find((d) => d.key === i.key)?.merchantVisible ?? false,
-    })),
-    inspectedBy: (await brief(tx, r.inspectedByStaffId))!,
-    inspectedAt: iso(r.inspectedAt),
-  };
-}
+export { qcView } from "./quality-views.js";
 export async function ticketDetail(tx: Tx, t: TicketRow, staff: StaffContext, now: Date) {
   const card = await ticketCard(tx, t, staff, now),
     item = t.orderItem,
@@ -460,8 +439,46 @@ export async function ticketDetail(tx: Tx, t: TicketRow, staff: StaffContext, no
     currentLaunchSubmissionId:
       r.launchSubmissions.find((s) => s.roundNo === r.currentRoundNo)?.id ?? null,
   }));
+  const samples = await tx.sample.findMany({
+      where: { deliveryTicketId: t.id },
+      orderBy: { versionNo: "desc" },
+    }),
+    currentSample =
+      samples.find((s) => ["uploaded", "qc_passed", "pushed"].includes(s.status)) ?? samples[0],
+    episodes = await tx.episodeOutput.findMany({ where: { deliveryTicketId: t.id } }),
+    release = await tx.deliveryRelease.findFirst({
+      where: { deliveryTicketId: t.id, state: "pushed" },
+      orderBy: { releaseNo: "desc" },
+    }),
+    grant = release
+      ? await tx.downloadGrant.findFirst({
+          where: { deliveryReleaseId: release.id, state: "active" },
+          orderBy: { expiresAt: "desc" },
+        })
+      : null,
+    saved = release
+      ? await tx.deliveryDownloadLog.findMany({
+          where: { deliveryReleaseId: release.id, clientAck: "saved" },
+          select: { episodeNo: true },
+        })
+      : [],
+    batches = await tx.uploadBatch.findMany({
+      where: {
+        purpose: "final_release",
+        targetId: item.id,
+        state: { in: ["matching", "uploading", "verifying", "ready"] },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    list = await publishListFacts(tx, t);
   return {
     ...card,
+    actions: [
+      ...card.actions,
+      ...(t.step === "delivering" && !t.pauseCount && hasPermission(staff, "publish.package.push")
+        ? ["push-package"]
+        : []),
+    ],
     pauses: t.deliveryTicketPauses.map((r) => ({
       reason: r.reason,
       refType: r.refType,
@@ -579,26 +596,52 @@ export async function ticketDetail(tx: Tx, t: TicketRow, staff: StaffContext, no
           item: row ? await planItem(tx, p, row) : null,
         }
       : null,
-    // PR2 落地样片、成片包写侧时补聚合；PR1 的生产主链尚未生成这些产物。
-    ads: [],
-    currentSample: null,
-    samples: [],
+    ads: [], // 广告制作展示由 M5 接管；M1 没有广告写入口。
+    currentSample: currentSample ? await adminSampleView(tx, t, currentSample, staff) : null,
+    samples: samples.map((s) => ({
+      sampleId: s.id,
+      versionNo: s.versionNo,
+      status: s.status,
+      uploadedAt: iso(s.uploadedAt)!,
+      pushedAt: iso(s.pushedAt),
+    })),
     episodeProgress: {
       totalEpisodes: item.episodeCount,
-      currentPassedCount: t.episodeOutputs.filter((r) => r.status === "qc_passed").length,
-      uploadedCount: t.episodeOutputs.length,
-      rejectedCount: t.episodeOutputs.filter((r) =>
-        ["qc_rejected", "check_rejected"].includes(r.status),
-      ).length,
+      currentPassedCount: episodes.filter((e) => e.isCurrent && e.status === "qc_passed").length,
+      uploadedCount: episodes.filter((e) => e.status === "uploaded").length,
+      rejectedCount: episodes.filter((e) => ["qc_rejected", "check_rejected"].includes(e.status))
+        .length,
       packageQc: await qcView(
         tx,
-        t.qcRecords.find((r) => r.targetType === "delivery_ticket") ?? null,
+        t.qcRecords.find((q) => q.targetType === "delivery_ticket") ?? null,
       ),
     },
-    release: null,
-    openReissue: null,
-    openUploadBatches: [],
-    publishList: null,
+    release: release
+      ? {
+          deliveryReleaseId: release.id,
+          releaseNo: String(release.releaseNo),
+          kind: release.kind,
+          pushedAt: iso(release.pushedAt)!,
+          episodeCount: release.episodeCount,
+          totalBytes: release.totalBytes.toString(),
+          savedEpisodeCount: new Set(saved.map((r) => r.episodeNo)).size,
+          grantExpiresAt: iso(grant?.expiresAt ?? null),
+        }
+      : null,
+    openReissue: null, // M5 无创建入口，保持留桩。
+    openUploadBatches: await Promise.all(
+      batches.map(async (b) => ({
+        uploadBatchId: b.id,
+        state: b.state,
+        scope: b.scope,
+        expectedCount: b.expectedCount,
+        createdBy: (await brief(tx, b.createdByStaffId))!,
+        expiresAt: iso(b.expiresAt)!,
+      })),
+    ),
+    publishList: list.p
+      ? { publishListId: list.p.id, savedAt: iso(list.p.savedAt), isComplete: list.complete }
+      : null,
     launch: {
       taskCount: tasks.length,
       liveCount: tasks.filter((r) => r.isLive).length,

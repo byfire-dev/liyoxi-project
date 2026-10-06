@@ -44,7 +44,7 @@ export const mOrderItemReleaseGet = merchantMeta({
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
 });
 
-export const mOrderItemSampleGet = merchantMeta({
+export const mOrderItemSampleGet = merchantRoute({
   method: "get",
   path: "/m/order-items/{orderItemId}/sample",
   operationId: "m.orderItem.sample.get",
@@ -53,4 +53,11 @@ export const mOrderItemSampleGet = merchantMeta({
   "x-capability": "delivery.confirm_sample",
   "x-clerk-view": "none",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  request: { params: z.strictObject({ orderItemId: IdSchema }) },
+  responses: { ...okResponse(SampleViewSchema), ...errorResponses(400, 401, 403, 404, 409, 500) },
 });
+
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses, IdSchema } from "../../common/index.js";
+import { z } from "../../zod.js";
+import { SampleViewSchema } from "./sample.schemas.js";
