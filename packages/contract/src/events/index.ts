@@ -3,6 +3,7 @@
 // 一个模块一个文件，各导出一个 payloads；各域发事件之前先在这里交 schema（计划 第 5.3 节“契约先行”）：
 // 加一个模块文件，在下面 import 并展开进 EVENT_PAYLOAD_SCHEMAS。没有 schema 的事件 events.emit() 不给发。
 import { payloads as content } from "./content.js";
+import { payloads as order } from "./order.js";
 import { payloads as media } from "./media.js";
 import type { EventName } from "../registry/index.js";
 import type { z } from "../zod.js";
@@ -19,6 +20,7 @@ import { payloads as profile } from "./profile.js";
 /** 已交 schema 的事件：事件名 → 载荷 schema。键必须是事件目录里的名字 */
 export const EVENT_PAYLOAD_SCHEMAS = {
   ...content,
+  ...order,
   ...media,
   ...sla,
   ...tenant,

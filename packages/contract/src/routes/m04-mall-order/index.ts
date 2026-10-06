@@ -29,4 +29,6 @@ export * from "./mall-config.js";
 export * from "./dramas.js";
 export * from "./mall.schemas.js";
 export * from "./error-details.js";
+export * from "./orders.js";
+export * from "./order.schemas.js";
 export * from "./banner.schemas.js";

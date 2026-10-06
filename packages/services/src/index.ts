@@ -235,3 +235,6 @@ export type {
   PublishViewer,
   CreateLaunchTasksInput,
 } from "./publish/index.js";
+
+export { createOrderService } from "./order/index.js";
+export type { OrderActor, OrderDeps, OrderService } from "./order/index.js";
