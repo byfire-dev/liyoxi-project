@@ -746,6 +746,8 @@ describe("stack-smoke.yml", () => {
       "infra/docker/**",
       "infra/compose/**",
       "infra/stack/**",
+      "infra/deploy/**",
+      "infra/bootstrap/**",
       "apps/api/**",
       "apps/worker/**",
       "packages/db/prisma/**",
@@ -763,6 +765,7 @@ describe("stack-smoke.yml", () => {
       "node infra/stack/up.mjs up",
       "node infra/stack/up.mjs up",
       "node infra/stack/smoke.mjs",
+      "node infra/deploy/rehearse.mjs --without-image-smoke",
       "node infra/stack/up.mjs down --reset",
     ]);
     expect(stackSmoke).not.toMatch(/pnpm install/);

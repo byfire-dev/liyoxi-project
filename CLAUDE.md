@@ -224,6 +224,7 @@
 | `node infra/ci/natural-constraints.mjs` | natural 幂等的约束名核对：契约里写的每个约束名在迁移库 `lyx_migrate_check` 里都找得到；只读 |
 | `node infra/ci/api-check.mjs` | CI 里跑 `tools/api-check/check.py` 的写法：“表.列”一项连 `lyx_migrate_check`，未核对按失败算；通过后重新生成三份登记文档（`docs/api/registry-*.md`）并 `git diff --exit-code` |
 | `pnpm stack:build` | 构建本地整套环境的三个镜像 `liyoxi/{server,gateway,mediatool}:local`（三个同时构建）。要本机 Docker 与外网，第一次十来分钟。镜像里有什么见 [README](infra/docker/server/README.md) |
+| `pnpm stg:rehearse`（加 `--keep` 演练完不清场） | 预发节点的本机演练（W2-25）：照 `infra/compose/node.yml` 另起六个容器（项目名、容器名前缀、网段、端口都与共享的本地依赖和 `pnpm stack:up` 那一套错开，不停它们），密钥用现造的假值，走一遍节点步骤（`check-env`、`migrate`、`seed`、`up`、`status`、`verify-db`），核对容器的形态与密钥分挂，冒烟，跑完自己清场。先要有三个本地镜像（`pnpm stack:build`）。上服务器的步骤（业主执行）见 [README](infra/bootstrap/README.md) |
 | `pnpm stack:up`（加 `--build` 先重建镜像；加 `--lan` 真机走局域网） | 一条命令起整套：依赖没起先起、镜像不在先构建、建库 `lyx_stack`、用 server 镜像跑迁移与播种、起 `lyx-gateway`、`lyx-api`、`lyx-worker`、`lyx-mediatool` 四个容器，都健康才返回。可以反复跑。后台在 `http://admin.localhost:8080`。整套只起一份，各 worktree 共用；用法与可调的环境变量见 [README](infra/stack/README.md) |
 | `pnpm stack:smoke`（直接跑脚本时加 `--image-only` 只看 server 镜像、`--inspect-only` 只核对容器约束） | 整套环境的冒烟：镜像的内容、经网关的探活与静态资源、域名隔离、请求体上限、mediatool 的套接字、容器约束。要先 `pnpm stack:up`。见 [README](infra/stack/README.md) 第 5 节 |
 | `pnpm stack:down`（加 `--reset` 另删库 `lyx_stack`、共享卷与本环境在 Redis 里的键） | 只停整套环境的四个容器；卷与库保留，依赖的三个容器不动。`--reset` 遇到不以 `lyx_` 开头的库名、校验库、测试库拒绝执行 |
