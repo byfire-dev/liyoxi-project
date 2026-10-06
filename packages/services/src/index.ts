@@ -179,6 +179,17 @@ export type { DataScope, StaffContext } from "./authz/index.js";
 export type { AuthNext, SignedIn, StaffAuth, StaffPrincipal } from "./staff/index.js";
 export { DEMO_SEED_STEPS, DemoSeedRefusedError, runDemoSeed } from "./demo-seed.js";
 export type { DemoSeedDeps, DemoSeedReport, DemoSeedState, DemoSeedStep } from "./demo-seed.js";
-
 export { cropMerchantView } from "./authz/index.js";
 export type { MerchantViewerRole, MerchantViewSchemas } from "./authz/index.js";
+
+// W1-11a 付款侧：对公确认在自己的事务里调用唯一入账入口；履约依赖由组合根装配。
+export { createPayment, createFulfillment } from "./billing/index.js";
+export type {
+  Payment,
+  PaymentDeps,
+  ApplyPaymentInput,
+  ApplyPaymentOutcome,
+  ApplyPaymentResult,
+  Fulfillment,
+  FulfillDeps,
+} from "./billing/index.js";

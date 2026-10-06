@@ -86,3 +86,18 @@ export type {
   FulfillStep,
 } from "./subscription/index.js";
 export { billingAccountOpener, billingMerchantFacts, openAccountForEntity } from "./ports.js";
+export {
+  createPayment,
+  openPaymentException,
+  APPLY_STEPS,
+  paymentInvariants,
+} from "./payment/index.js";
+export type {
+  Payment,
+  PaymentDeps,
+  ApplyPaymentInput,
+  ApplyPaymentOutcome,
+  ApplyPaymentResult,
+  ApplyStep,
+  PaymentExceptionKind,
+} from "./payment/index.js";

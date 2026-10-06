@@ -621,12 +621,15 @@ BEGIN
     cancelled 且有 opts.restore（调用方已在事务外实时查单确认 SUCCESS 且金额相等）
     pending_payment / pending_confirmation:
         UPDATE billing_order SET status = 'paid', paid_amount_fen = txn.channel_amount_fen,
-               paid_at = txn.channel_success_at, paid_txn_id, applied_at = now()
+               paid_at = txn.channel_success_at, paid_payment_txn_id = txn.id,
+               applied_at = 注入时钟, transfer_state = NULL
          WHERE id AND status IN (…)
-        UPDATE payment_txn SET applied_at = now()
-        r = billing.fulfill(tx, order.id)          -- D1：内部锁 billing_account、advance、决定起算时刻（第 6 节）
+        UPDATE payment_txn SET applied_at = 注入时钟
+        { result: r, replayed } = billing.fulfill(tx, { billingOrderId: order.id, ctx })
+                                                  -- 内部锁 billing_account；保存点内 advance、按快照履约、自检
         写回 fulfillment_status = r.status、fulfilled_at、fulfillment_note、fulfillment_result
-        r.status = 'exception' → 差异单 fulfillment_exception；通知财务与商家（“已收到付款，正在处理”）
+        r.status = 'blocked' → 差异单 fulfillment_blocked；出站 billing_order.fulfillment_blocked
+                              通知财务与商家（“已收到付款，正在处理”）
         有 opts.restore → 差异单置 resolved
         取消 timer(po.expire / po.transfer_ttl)；outbox('billing_order.paid')；audit
 COMMIT
@@ -634,7 +637,8 @@ COMMIT
 
 - 调用方：回调内联、`payment_txn.succeeded` 的 worker 消费者、主动查单（`sync`、超时流程）、对账自愈、对公确认、差异单补单。**六个入口同一段代码**，一致性校验 C1、C2 在函数内部，任何入口都绕不过（评审 M3）。
 - `paid_amount_fen` 记的是**实收**（`channel_amount_fen`），不是应付。
-- `fulfill()` 抛错（程序错误）时整个事务回滚：付款单不变，收款保持“成功未入账”，由 `tx.unapplied_scan` 每 5 分钟重试；超过 10 分钟仍未入账即告警（第 16 节）。钱的事实在 T1 已经落库，不受影响。
+- `fulfill()` 的保存点内业务错误、约束冲突、自检失败与推进失败回滚履约写入并返回 `blocked`：付款单与收款入账事实仍提交，同事务开 `fulfillment_blocked`。可重试数据库错误（死锁、序列化失败、锁等待超时）、`ACCOUNT_BUSY`、连接/事务故障与内核违规继续外抛，整个入账事务回滚；收款保持“成功未入账”，由后续扫描重试。以 03 第 1.3 节、08 第 2.1 节与 ADR-0046 为准。
+- W1-11a 的 M1 实现只接对公成功交易，没有微信、孤儿与 `restore` 入口；后三项在 M4 回补。`fulfill` 的完成时间取账本操作时钟，预约起点另存 `effectiveAt`。
 - 付款单只要收到过款，就一定不在“待支付 / 待确认”里：要么已支付（履约完成或履约异常），要么已取消并挂着未入账收款。商家随时可以另下新单（评审 M4）。
 
 ### 4.6 超时、关单与用户取消
