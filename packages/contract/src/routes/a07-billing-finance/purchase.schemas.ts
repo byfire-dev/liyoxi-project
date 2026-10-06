@@ -5,6 +5,7 @@ import {
   DictRefSchema,
   PageQuerySchema,
   openEnum,
+  orNull,
 } from "../../common/index.js";
 import { adminPage, StaffBriefSchema } from "../a01-system/structures.js";
 import {
@@ -21,7 +22,7 @@ const Entity = z.object({
   primaryStoreName: z.string().nullable(),
   storeCount: z.int().nonnegative(),
   verificationStatus: z.string(),
-  managerStaff: StaffBriefSchema.nullable(),
+  managerStaff: orNull(StaffBriefSchema),
 });
 const UploadedBy = z.object({ type: openEnum(["merchant", "staff"]), name: z.string().nullable() });
 export const TransferProofParamsSchema = z.object({ transferProofId: IdSchema });
@@ -60,7 +61,7 @@ export const TransferProofQueueItemSchema = z.object({
   ),
   reviewStatus: openEnum(["pending", "accepted", "rejected", "superseded"]),
   reviewedAt: nullableTime,
-  reviewedBy: StaffBriefSchema.nullable(),
+  reviewedBy: orNull(StaffBriefSchema),
 });
 export const TransferProofPageSchema = adminPage(TransferProofQueueItemSchema);
 export const TransferProofDetailSchema = TransferProofQueueItemSchema.extend({
@@ -71,7 +72,7 @@ export const TransferProofDetailSchema = TransferProofQueueItemSchema.extend({
     expiresAt: InstantSchema,
     status: PaymentOrderDetailSchema.shape.status,
     transferState: PaymentOrderDetailSchema.shape.transferState,
-    createdBy: StaffBriefSchema.nullable(),
+    createdBy: orNull(StaffBriefSchema),
   }),
   bizHints: z.array(z.object({ code: z.string(), text: z.string() })),
   fileId: IdSchema,
@@ -91,7 +92,7 @@ export const TransferProofDetailSchema = TransferProofQueueItemSchema.extend({
   ),
   firstConfirm: z.null(),
   review: z.null(),
-  rejectReason: DictRefSchema.nullable(),
+  rejectReason: orNull(DictRefSchema),
   rejectNote: z.string().nullable(),
   otherUploads: z.array(
     z.object({
@@ -142,8 +143,8 @@ const PaymentTxnView = z.object({
   refundedFen: z.int(),
   reconState: openEnum(["pending", "matched", "diff", "resolved"]),
   payerName: z.string().nullable(),
-  confirmedBy: StaffBriefSchema.nullable(),
-  reviewedBy: StaffBriefSchema.nullable(),
+  confirmedBy: orNull(StaffBriefSchema),
+  reviewedBy: orNull(StaffBriefSchema),
 });
 export const PaymentOrderAdminDetailSchema = z
   .object({
@@ -192,7 +193,7 @@ export const PaymentOrderAdminDetailSchema = z
         phoneMask: z.string().nullable(),
       })
       .nullable(),
-    createdBy: StaffBriefSchema.nullable(),
+    createdBy: orNull(StaffBriefSchema),
     contractNo: z.string().nullable(),
     clientPlatform: z.string().nullable(),
     clientVersion: z.string().nullable(),

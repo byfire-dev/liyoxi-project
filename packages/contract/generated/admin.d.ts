@@ -1476,12 +1476,12 @@ export interface components {
             contractNo: string | null;
             /** Format: date-time */
             createdAt: string;
-            createdBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+            createdBy: components["schemas"]["StaffBrief"] | null;
             effectNote: string | null;
             entity: {
                 /** Format: uuid */
                 entityId: string;
-                managerStaff: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                managerStaff: components["schemas"]["StaffBrief"] | null;
                 name: string;
                 /** Format: uuid */
                 primaryStoreId: string | null;
@@ -1557,7 +1557,7 @@ export interface components {
                 /** Format: date-time */
                 channelSuccessAt: string | null;
                 channelTxnNo: string | null;
-                confirmedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                confirmedBy: components["schemas"]["StaffBrief"] | null;
                 feeFen: number | null;
                 isApplied: boolean;
                 outTradeNo: string;
@@ -1567,7 +1567,7 @@ export interface components {
                 /** @enum {string} */
                 reconState: "pending" | "matched" | "diff" | "resolved" | (string & {});
                 refundedFen: number;
-                reviewedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                reviewedBy: components["schemas"]["StaffBrief"] | null;
                 /** @enum {string} */
                 status: "created" | "prepaid" | "succeeded" | "closed" | (string & {});
             }[];
@@ -2152,7 +2152,7 @@ export interface components {
             entity: {
                 /** Format: uuid */
                 entityId: string;
-                managerStaff: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                managerStaff: components["schemas"]["StaffBrief"] | null;
                 name: string;
                 /** Format: uuid */
                 primaryStoreId: string | null;
@@ -2176,7 +2176,7 @@ export interface components {
             order: {
                 /** Format: date-time */
                 createdAt: string;
-                createdBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                createdBy: components["schemas"]["StaffBrief"] | null;
                 /** Format: date-time */
                 expiresAt: string;
                 formulaText: string | null;
@@ -2201,13 +2201,13 @@ export interface components {
             /** Format: uuid */
             paymentOrderId: string;
             rejectNote: string | null;
-            rejectReason: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            rejectReason: components["schemas"]["DictRef"] | null;
             review: null;
             /** @enum {string} */
             reviewStatus: "pending" | "accepted" | "rejected" | "superseded" | (string & {});
             /** Format: date-time */
             reviewedAt: string | null;
-            reviewedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+            reviewedBy: components["schemas"]["StaffBrief"] | null;
             secondReviewThresholdFen: number | null;
             /** Format: uuid */
             transferProofId: string;
@@ -4996,7 +4996,7 @@ export interface operations {
                                 entity: {
                                     /** Format: uuid */
                                     entityId: string;
-                                    managerStaff: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                    managerStaff: components["schemas"]["StaffBrief"] | null;
                                     name: string;
                                     /** Format: uuid */
                                     primaryStoreId: string | null;
@@ -5015,7 +5015,7 @@ export interface operations {
                                 reviewStatus: "pending" | "accepted" | "rejected" | "superseded" | (string & {});
                                 /** Format: date-time */
                                 reviewedAt: string | null;
-                                reviewedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                reviewedBy: components["schemas"]["StaffBrief"] | null;
                                 /** Format: uuid */
                                 transferProofId: string;
                                 uploadNo: number;

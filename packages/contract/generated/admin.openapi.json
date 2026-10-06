@@ -4457,15 +4457,12 @@
             "type": "string"
           },
           "createdBy": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/StaffBrief"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },
@@ -4483,15 +4480,12 @@
                 "type": "string"
               },
               "managerStaff": {
-                "allOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/StaffBrief"
                   },
                   {
-                    "type": [
-                      "object",
-                      "null"
-                    ]
+                    "type": "null"
                   }
                 ]
               },
@@ -4811,15 +4805,12 @@
                   ]
                 },
                 "confirmedBy": {
-                  "allOf": [
+                  "anyOf": [
                     {
                       "$ref": "#/components/schemas/StaffBrief"
                     },
                     {
-                      "type": [
-                        "object",
-                        "null"
-                      ]
+                      "type": "null"
                     }
                   ]
                 },
@@ -4860,15 +4851,12 @@
                   "type": "integer"
                 },
                 "reviewedBy": {
-                  "allOf": [
+                  "anyOf": [
                     {
                       "$ref": "#/components/schemas/StaffBrief"
                     },
                     {
-                      "type": [
-                        "object",
-                        "null"
-                      ]
+                      "type": "null"
                     }
                   ]
                 },
@@ -8196,15 +8184,12 @@
                 "type": "string"
               },
               "managerStaff": {
-                "allOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/StaffBrief"
                   },
                   {
-                    "type": [
-                      "object",
-                      "null"
-                    ]
+                    "type": "null"
                   }
                 ]
               },
@@ -8310,15 +8295,12 @@
                 "type": "string"
               },
               "createdBy": {
-                "allOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/StaffBrief"
                   },
                   {
-                    "type": [
-                      "object",
-                      "null"
-                    ]
+                    "type": "null"
                   }
                 ]
               },
@@ -8434,15 +8416,12 @@
             ]
           },
           "rejectReason": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/DictRef"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },
@@ -8467,15 +8446,12 @@
             ]
           },
           "reviewedBy": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/StaffBrief"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },
@@ -13346,15 +13322,12 @@
                                     "type": "string"
                                   },
                                   "managerStaff": {
-                                    "allOf": [
+                                    "anyOf": [
                                       {
                                         "$ref": "#/components/schemas/StaffBrief"
                                       },
                                       {
-                                        "type": [
-                                          "object",
-                                          "null"
-                                        ]
+                                        "type": "null"
                                       }
                                     ]
                                   },
@@ -13449,15 +13422,12 @@
                                 ]
                               },
                               "reviewedBy": {
-                                "allOf": [
+                                "anyOf": [
                                   {
                                     "$ref": "#/components/schemas/StaffBrief"
                                   },
                                   {
-                                    "type": [
-                                      "object",
-                                      "null"
-                                    ]
+                                    "type": "null"
                                   }
                                 ]
                               },
