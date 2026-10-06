@@ -458,6 +458,7 @@ describe("ci.yml", () => {
       "pnpm --filter @liyoxi/admin exec playwright install --with-deps chromium",
       "pnpm admin:e2e",
       "docker compose -f infra/compose/local.yml up -d --wait postgres redis",
+      MINIO_UP,
       "pnpm admin:e2e:live",
       // W0-27a：小程序的单测、体积门禁；截图按受影响范围跑（它后面上传截图的一步没有 run）
       "pnpm --filter @liyoxi/weapp test",
@@ -632,6 +633,7 @@ describe("nightly.yml", () => {
       "pnpm typecheck",
       // W0-05 起 pnpm test 要连库：起库、给连接参数、建迁移库并跑迁移。往每晚任务加一步时，在这张清单的同一位置加一行
       "docker compose -f infra/compose/local.yml up -d --wait postgres redis",
+      "docker compose -f infra/compose/local.yml up -d --wait minio",
       'printf "%s\\n" "APP_ENV=test" "DATABASE_URL=postgresql://liyoxi:lyx-local-dev@localhost:5442/liyoxi" "REDIS_URL=redis://localhost:6389/0" >> "$GITHUB_ENV"',
       'psql -X -w -d postgres -c "CREATE DATABASE lyx_migrate_check" && pnpm db:deploy',
       "pnpm test",
