@@ -170,7 +170,7 @@ sudo rm /etc/nginx/conf.d/lyx-stg-*.conf && sudo nginx -t      # 通过后经确
 ## 9. 本机演练
 
 ```sh
-pnpm stack:build     # 出三个本地镜像；库与 Redis 的镜像本机也要有（pnpm infra:up 用的就是）
+pnpm stack:build     # 出三个本地镜像；库与 Redis 的固定摘要镜像本机也要备好（见 stg.env，两项分别 docker pull）
 pnpm stg:rehearse    # 约两三分钟；pnpm stg:rehearse --keep 演练完不清场
 ```
 
@@ -230,4 +230,4 @@ pnpm stg:rehearse    # 约两三分钟；pnpm stg:rehearse --keep 演练完不�
 - `package.json`
 
 
-另新增本包允许的 `docs/plan/external-verification/d7-14-stg-appid-domain-privacy.md` 说明行；本包状态按当前实际进度重写。两个固定摘要取自本机现有 Docker 官方同版本镜像的 RepoDigests；不改变共享 `infra/compose/local.yml`。nginx 配置检查复用仓内 gateway 的固定摘要 nginx:stable-alpine，没有声称在服务器上重载。
+另新增本包允许的 `docs/plan/external-verification/d7-14-stg-appid-domain-privacy.md` 说明行；本包状态按当前实际进度重写。两个固定摘要取自 Docker 官方同版本的多架构 OCI index（同时含 Linux amd64 与 arm64），由只读 registry manifest 核对；本机 RepoDigest 曾指向 arm64 单平台，已按 Linux CI 实证修正；不改变共享 `infra/compose/local.yml`。nginx 配置检查复用仓内 gateway 的固定摘要 nginx:stable-alpine，没有声称在服务器上重载。
