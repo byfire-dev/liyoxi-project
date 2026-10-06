@@ -1,3 +1,4 @@
+import { bindDelivery } from "./delivery/index.js";
 import { createOrderService } from "./order/index.js";
 import type { OrderService } from "./order/index.js";
 import { bindPublish } from "./publish/index.js";
@@ -250,6 +251,14 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
   const unbindContent = bindContent(assembly);
   const unbindPublish = bindPublish(assembly);
+  const unbindDelivery = bindDelivery({
+    tx,
+    clock,
+    assembly,
+    flow,
+    events,
+    sla: createSla({ clock, assembly }),
+  });
   const content = createContent({ clock, flow, media, assembly });
   const bizNo = createBizNoIssuer({ clock, appEnv: env.APP_ENV });
   const approval = createApproval({ assembly, clock, flow, events, bizNo });
@@ -348,6 +357,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       unbindBilling();
       unbindContent();
       unbindPublish();
+      unbindDelivery();
       unbindOps();
       await mediaChannel.close();
       redis.disconnect();
