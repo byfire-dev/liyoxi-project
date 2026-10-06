@@ -174,14 +174,14 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           const queueResults = await Promise.allSettled(
             queues.map((one) => one.close(SHUTDOWN_WAIT_MS)),
           );
-          // 让出放在最后：在途任务收完了，接任的实例不会与本实例同时干活
-          await lease
-            ?.release()
-            .catch((error: unknown) => logger.warn({ err: error }, "让出租约失败"));
           const failed = [...loopResults, ...queueResults].find(
             (result) => result.status === "rejected",
           );
           if (failed?.status === "rejected") throw failed.reason;
+          // 只有全部关停成功才主动让出；失败可能仍有在途任务，保持原租约语义。
+          await lease
+            ?.release()
+            .catch((error: unknown) => logger.warn({ err: error }, "让出租约失败"));
         } finally {
           services.closeBillingTimers?.();
         }

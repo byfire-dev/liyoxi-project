@@ -182,6 +182,7 @@ describe("对公付款 TTL 的真实 worker 执行", () => {
         timers: services.timers,
       });
       let closes = 0;
+      let releases = 0;
       const channel: QueueChannel = {
         enqueue: async () => {},
         downForMs: () => 0,
@@ -200,6 +201,17 @@ describe("对公付款 TTL 的真实 worker 执行", () => {
       const runtime = createWorkerRuntime({
         services: { ...services, closeBillingTimers: close },
         channel,
+        lease: {
+          holder: "shutdown-test",
+          renew: async () => true,
+          close: async () => {},
+          release: async () => {
+            expect(closes).toBe(3);
+            expect(await h.tx.run((tx) => handleTransferTtl(tx, inert))).toBe("skipped");
+            releases++;
+            return true;
+          },
+        },
         logger: silentLogger,
       });
       if (failClose) await expect(runtime.stop()).rejects.toThrow("consumer close failed");
@@ -207,6 +219,7 @@ describe("对公付款 TTL 的真实 worker 执行", () => {
         await runtime.stop();
         await runtime.stop();
       }
+      expect(releases).toBe(failClose ? 0 : 1);
       await expect(h.tx.run((tx) => handleTransferTtl(tx, inert))).rejects.toThrow("未绑定");
     }
   }, 60_000);
@@ -225,6 +238,7 @@ describe("对公付款 TTL 的真实 worker 执行", () => {
         timers: services.timers,
       });
       let cleaned = 0;
+      let releases = 0;
       let finish!: () => void, entered!: () => void;
       const delayed = new Promise<void>((resolve) => {
         finish = resolve;
@@ -258,6 +272,15 @@ describe("对公付款 TTL 的真实 worker 执行", () => {
           },
         },
         channel,
+        lease: {
+          holder: "shutdown-test",
+          renew: async () => true,
+          close: async () => {},
+          release: async () => {
+            releases++;
+            return true;
+          },
+        },
         logger: silentLogger,
       });
       if (loopFails)
@@ -267,11 +290,13 @@ describe("对公付款 TTL 的真实 worker 执行", () => {
       const stopped = runtime.stop();
       await started;
       expect(cleaned).toBe(0);
+      expect(releases).toBe(0);
       expect(await h.tx.run((tx) => handleTransferTtl(tx, inert))).toBe("skipped");
       finish();
       await expect(stopped).rejects.toThrow(loopFails ? "loop failed" : "consumer failed");
       await expect(runtime.stop()).rejects.toThrow(loopFails ? "loop failed" : "consumer failed");
       expect(cleaned).toBe(1);
+      expect(releases).toBe(0);
       await expect(h.tx.run((tx) => handleTransferTtl(tx, inert))).rejects.toThrow("未绑定");
     }
   }, 60_000);
