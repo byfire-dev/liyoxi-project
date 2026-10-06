@@ -93,6 +93,7 @@ export function createSampleBackend(): SampleBackend {
   const pending = new Map<string, SampleReview>(SAMPLE_REVIEWS.map((item) => [item.id, item]));
   const done: SampleReviewItem[] = [];
   const disabled = new Set<string>();
+  let stepUpAccepted = false;
   const replays = new Map<string, SampleResponse>();
 
   const filterStores = (query: Readonly<Record<string, string>>): SampleStore[] =>
@@ -107,6 +108,17 @@ export function createSampleBackend(): SampleBackend {
     !tab || tab === "all" || store.qualificationStatus === tab;
 
   const write = (request: SampleRequest, requestId: string): SampleResponse => {
+    if (request.path === "/api/v1/admin/auth/step-up") {
+      const body = request.body as Record<string, unknown>;
+      if (body.code !== "123456")
+        return error(401, 40102, "AUTH_FAILED", "验证未通过，请重试", requestId);
+      stepUpAccepted = true;
+      return ok({ stepUpValidUntil: "2026-10-06T08:00:00Z" });
+    }
+    if (request.path === `${SAMPLE_API_PREFIX}/step-up-check`)
+      return stepUpAccepted
+        ? ok({ accepted: true })
+        : error(403, 40304, "STEP_UP_REQUIRED", "请先验证身份", requestId);
     const parts = request.path.slice(SAMPLE_API_PREFIX.length).split("/").filter(Boolean);
     const [resource, id, action] = parts;
     const body = (request.body ?? {}) as Record<string, unknown>;

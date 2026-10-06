@@ -1436,3 +1436,120 @@ textarea.ant-input {
   font-size: var(--lyx-font-size-caption);
   color: var(--lyx-color-danger);
 }
+
+/* ---------- 后台登录与验证（W1-02；规范 第 12 节） ---------- */
+.lyx-auth {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--lyx-space-24);
+}
+.lyx-auth-card {
+  width: 400px;
+  max-width: 100%;
+  padding: var(--lyx-space-24);
+  background: var(--lyx-color-bg-card);
+  border: var(--lyx-border-width-default) solid var(--lyx-color-border);
+  border-radius: var(--lyx-radius-lg);
+}
+.lyx-auth-brand {
+  font-family: var(--lyx-font-family-serif);
+  font-weight: var(--lyx-font-weight-black);
+  font-size: var(--lyx-font-size-h1);
+  margin-bottom: var(--lyx-space-24);
+}
+.lyx-auth-brand span {
+  display: block;
+  font-family: var(--lyx-font-family-sans);
+  font-size: var(--lyx-font-size-caption);
+  font-weight: var(--lyx-font-weight-regular);
+  color: var(--lyx-color-text-secondary);
+}
+.lyx-auth-card h1 {
+  margin: 0 0 var(--lyx-space-8);
+  font-size: var(--lyx-font-size-h1);
+  line-height: var(--lyx-line-height-title);
+}
+.lyx-auth-description,
+.lyx-auth-hint {
+  color: var(--lyx-color-text-secondary);
+}
+.lyx-auth-description {
+  margin: 0 0 var(--lyx-space-24);
+}
+.lyx-auth-hint {
+  margin: 0;
+  font-size: var(--lyx-font-size-caption);
+}
+.lyx-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lyx-space-16);
+}
+.lyx-auth-field__label {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--lyx-space-8);
+  margin-bottom: var(--lyx-space-6);
+}
+.lyx-auth-field__label > span {
+  color: var(--lyx-color-text-secondary);
+  font-size: var(--lyx-font-size-caption);
+}
+.lyx-auth-field__error {
+  margin-top: var(--lyx-space-4);
+  color: var(--lyx-color-danger);
+  font-size: var(--lyx-font-size-caption);
+}
+.lyx-auth-link {
+  display: block;
+  margin: var(--lyx-space-12) auto 0;
+}
+.lyx-auth-qr {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--lyx-space-16);
+}
+.lyx-auth-qr + .lyx-auth-field {
+  margin-bottom: var(--lyx-space-16);
+}
+.lyx-recovery-codes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--lyx-space-12);
+  margin-bottom: var(--lyx-space-16);
+  padding: var(--lyx-space-16);
+  border-radius: var(--lyx-radius-sm);
+  background: var(--lyx-color-bg-page);
+}
+.lyx-recovery-codes code {
+  font-family: var(--lyx-font-family-mono);
+  text-align: center;
+}
+.lyx-recovery-codes + .lyx-auth-hint {
+  margin-bottom: var(--lyx-space-16);
+}
+.lyx-auth-continue {
+  margin-top: var(--lyx-space-16);
+}
+.lyx-auth-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--lyx-space-8);
+}
+.lyx-auth-user {
+  display: flex;
+  align-items: center;
+  gap: var(--lyx-space-10);
+  padding: var(--lyx-space-4);
+  border: 0;
+  border-radius: var(--lyx-radius-sm);
+  background: var(--lyx-color-bg-card);
+  color: var(--lyx-color-text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+.lyx-auth-user .lyx-user__name,
+.lyx-auth-user .lyx-user__role {
+  display: block;
+}

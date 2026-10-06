@@ -36,7 +36,13 @@ type Unused = {
 type ListQuery = Record<string, string | number>;
 
 export interface SamplePaths {
-  "/admin/samples/stores": { parameters: NoParams; post?: never } & Unused & {
+  "/api/v1/admin/samples/step-up-check": { parameters: NoParams; get?: never } & Unused & {
+      post: Omit<Post<never, Record<string, never>, { accepted: boolean }>, "parameters"> & {
+        parameters: NoParams;
+      };
+    };
+
+  "/api/v1/admin/samples/stores": { parameters: NoParams; post?: never } & Unused & {
       get: Omit<
         Get<
           ListQuery,
@@ -48,7 +54,7 @@ export interface SamplePaths {
         parameters: { query?: ListQuery; header?: never; path?: never; cookie?: never };
       };
     };
-  "/admin/samples/stores/summary": { parameters: NoParams; post?: never } & Unused & {
+  "/api/v1/admin/samples/stores/summary": { parameters: NoParams; post?: never } & Unused & {
       get: Omit<
         Get<ListQuery, never, { all: number; pending: number; verified: number }>,
         "parameters"
@@ -56,34 +62,43 @@ export interface SamplePaths {
         parameters: { query?: ListQuery; header?: never; path?: never; cookie?: never };
       };
     };
-  "/admin/samples/stores/{storeId}": { parameters: NoParams; post?: never } & Unused & {
+  "/api/v1/admin/samples/stores/{storeId}": { parameters: NoParams; post?: never } & Unused & {
       get: Get<never, { storeId: string }, SampleStoreDetail>;
     };
-  "/admin/samples/stores/{storeId}/disable": { parameters: NoParams; get?: never } & Unused & {
+  "/api/v1/admin/samples/stores/{storeId}/disable": {
+    parameters: NoParams;
+    get?: never;
+  } & Unused & {
       post: Post<
         { storeId: string },
         { lockVersion: number; confirm: { phoneTail: string } },
         { id: string; disabled: boolean }
       >;
     };
-  "/admin/samples/reviews": { parameters: NoParams; post?: never } & Unused & {
+  "/api/v1/admin/samples/reviews": { parameters: NoParams; post?: never } & Unused & {
       get: Omit<Get<ListQuery, never, { items: SampleReviewItem[] }>, "parameters"> & {
         parameters: { query?: ListQuery; header?: never; path?: never; cookie?: never };
       };
     };
-  "/admin/samples/reviews/summary": { parameters: NoParams; post?: never } & Unused & {
+  "/api/v1/admin/samples/reviews/summary": { parameters: NoParams; post?: never } & Unused & {
       get: Omit<Get<never, never, { pending: number; done: number }>, "parameters"> & {
         parameters: NoParams;
       };
     };
-  "/admin/samples/reviews/{reviewId}/approve": { parameters: NoParams; get?: never } & Unused & {
+  "/api/v1/admin/samples/reviews/{reviewId}/approve": {
+    parameters: NoParams;
+    get?: never;
+  } & Unused & {
       post: Post<
         { reviewId: string },
         { lockVersion: number; checked: string[] },
         { id: string; result: string }
       >;
     };
-  "/admin/samples/reviews/{reviewId}/reject": { parameters: NoParams; get?: never } & Unused & {
+  "/api/v1/admin/samples/reviews/{reviewId}/reject": {
+    parameters: NoParams;
+    get?: never;
+  } & Unused & {
       post: Post<
         { reviewId: string },
         { lockVersion: number; checked: string[] },
