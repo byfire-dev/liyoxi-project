@@ -12,6 +12,7 @@ import { serve } from "@hono/node-server";
 import { createRuntime, loadEnv, runStartupChecks } from "@liyoxi/services";
 import type { Runtime } from "@liyoxi/services";
 
+import { testRedisKeyPrefix } from "./cli/test-redis-prefix.js";
 import { createApp } from "./app.js";
 import { DEFAULT_TRUSTED_PROXY } from "./http/client-ip.js";
 import { HANDLERS } from "./routes/index.js";
@@ -21,6 +22,7 @@ const { values } = parseArgs({
   options: {
     port: { type: "string", default: "3000" },
     host: { type: "string", default: "0.0.0.0" },
+    "test-redis-prefix": { type: "string" },
     "trusted-proxy-hops": { type: "string" },
     "trusted-proxy-cidrs": { type: "string" },
   },
@@ -33,7 +35,9 @@ if (!Number.isInteger(port) || port < 0 || port > 65_535) {
 
 let runtime: Runtime | undefined;
 try {
-  runtime = createRuntime({ entry: "api", env: loadEnv(), version: VERSION });
+  const env = loadEnv();
+  const redisKeyPrefix = testRedisKeyPrefix(env.APP_ENV, values["test-redis-prefix"]);
+  runtime = createRuntime({ entry: "api", env, version: VERSION, redisKeyPrefix });
   // 跳数、网段写错了在 createApp 里抛错，走下面的启动失败
   const trustedProxy = {
     hops:
