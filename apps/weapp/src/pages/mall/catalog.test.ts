@@ -11,11 +11,13 @@ import {
   useCatalogStore,
   viewerRole,
   type CatalogScope,
+  type DramaCard,
 } from "@/stores/catalog";
 import { catalogCard, catalogCartItem } from "../../../shots/catalog-fixtures";
 import { makeMe } from "../../../shots/account-fixtures";
 vi.mock("@/lib/runtime", () => ({ request: vi.fn() }));
 import { createCatalogApi } from "./api";
+import { createCatalogPagination } from "./pagination";
 let sequence = 0;
 beforeEach(() => useCatalogStore.getState().ensureScope(`test-${++sequence}`));
 describe("商城意图、游标与门店边界", () => {
@@ -152,4 +154,56 @@ describe("商城意图、游标与门店边界", () => {
       revisions: {},
     });
   });
+});
+
+describe("商城续页与同店刷新竞态", () => {
+  it.each(["success", "failure"] as const)(
+    "旧续页%s在刷新后完成，不污染新列表或解锁新续页",
+    async (outcome) => {
+      const life = createCatalogLifetime(() => ({ storeId: "a", contextRev: 1, token: "fake" }));
+      const pagination = createCatalogPagination();
+      life.read();
+      let items: DramaCard[] = [catalogCard(1)],
+        errors = 0;
+      const fetches: { resolve: (value: DramaCard[]) => void; reject: (error: Error) => void }[] =
+        [];
+      const read = vi.fn(
+        () => new Promise<typeof items>((resolve, reject) => fetches.push({ resolve, reject })),
+      );
+      const more = async () => {
+        const request = pagination.begin(life.capture(true));
+        if (!request) return;
+        try {
+          const next = await read();
+          if (request.valid()) items = concatCards(items, next);
+        } catch {
+          if (request.valid()) errors++;
+        } finally {
+          request.finish();
+        }
+      };
+      const old = more();
+      expect(read).toHaveBeenCalledTimes(1);
+      // 真实lifetime用于refresh的invalidate/read；无需等待旧续页网络。
+      life.invalidate();
+      life.read();
+      items = [catalogCard(2)];
+      const next = more();
+      expect(read).toHaveBeenCalledTimes(2);
+      if (outcome === "success") fetches[0]!.resolve([catalogCard(4)]);
+      else fetches[0]!.reject(new Error("旧网络失败"));
+      await old;
+      expect(items.map((i) => i.dramaId)).toEqual([catalogCard(2).dramaId]);
+      expect(errors).toBe(0);
+      await more();
+      expect(read).toHaveBeenCalledTimes(2); // 旧finally不能释放正在运行的新续页。
+      fetches[1]!.resolve([catalogCard(2), catalogCard(3)]);
+      await next;
+      expect(items.map((i) => i.dramaId)).toEqual([catalogCard(2).dramaId, catalogCard(3).dramaId]);
+      const last = more();
+      expect(read).toHaveBeenCalledTimes(3); // 新请求自己完成后正常再续页。
+      fetches[2]!.resolve([]);
+      await last;
+    },
+  );
 });

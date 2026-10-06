@@ -15,6 +15,7 @@ import { useSessionStore } from "@/stores/session";
 import { catalogApi } from "./api";
 import { useCatalogResource } from "./resource";
 import { DramaCards } from "./cards";
+import { createCatalogPagination, type CatalogPageRequest } from "./pagination";
 import "./catalog.scss";
 const sortLabel: Readonly<Record<string, string>> = {
   composite: "综合",
@@ -34,9 +35,10 @@ function MallContent() {
     })),
     [continuation, setContinuation] = useState<{ base: DramaPage; page: DramaPage } | null>(null),
     [moreError, setMoreError] = useState<string | null>(null),
-    [loadingMore, setLoadingMore] = useState(false);
-  const fence = useRef(false),
-    queryVersion = useRef(0);
+    [pendingPage, setPendingPage] = useState<CatalogPageRequest | null>(null);
+  const [pagination] = useState(createCatalogPagination);
+  const loadingMore = pendingPage?.valid() ?? false;
+  const queryVersion = useRef(0);
   const resource = useCatalogResource(async () => {
     const config = await catalogApi.config();
     const list = await catalogApi.list({
@@ -52,8 +54,8 @@ function MallContent() {
   const change = (patch: Partial<DramaQuery>) => {
     resource.invalidate();
     queryVersion.current++;
-    fence.current = false;
-    setLoadingMore(false);
+    pagination.reset();
+    setPendingPage(null);
     setMoreError(null);
     setContinuation(null);
     setQuery((q) => ({ ...q, ...patch, cursor: undefined }));
@@ -71,11 +73,12 @@ function MallContent() {
       });
   }, [resource.data, query.category, query.sort]);
   const more = async () => {
-    if (!page?.hasMore || !page.nextCursor || resource.loading || fence.current) return;
+    if (!page?.hasMore || !page.nextCursor || resource.loading) return;
     const current = resource.guard(true),
       own = queryVersion.current;
-    fence.current = true;
-    setLoadingMore(true);
+    const request = pagination.begin(() => current() && own === queryVersion.current);
+    if (!request) return;
+    setPendingPage(request);
     setMoreError(null);
     try {
       const next = await catalogApi.list({
@@ -84,16 +87,12 @@ function MallContent() {
         cursor: page.nextCursor,
         limit: 20,
       });
-      if (current() && own === queryVersion.current)
-        setContinuation({ base: base!, page: mergeDramaPage(page, next) });
+      if (request.valid()) setContinuation({ base: base!, page: mergeDramaPage(page, next) });
     } catch (error: unknown) {
-      if (current() && own === queryVersion.current)
+      if (request.valid())
         setMoreError(error instanceof Error ? error.message : "加载失败，请重试");
     } finally {
-      if (current() && own === queryVersion.current) {
-        fence.current = false;
-        setLoadingMore(false);
-      }
+      if (request.finish()) setPendingPage(null);
     }
   };
   useReachBottom(() => {
