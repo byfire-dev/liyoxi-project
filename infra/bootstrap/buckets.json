@@ -1,0 +1,131 @@
+{
+  "region": "ap-shanghai",
+  "buckets": {
+    "secure": {
+      "versioning": "Enabled",
+      "encryption": "AES256",
+      "rules": [
+        {
+          "ID": "lyx-incoming",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "incoming/" },
+          "Expiration": { "Days": 3 }
+        },
+        {
+          "ID": "lyx-multipart",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "" },
+          "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 7 }
+        },
+        {
+          "ID": "lyx-versions",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "" },
+          "NoncurrentVersionExpiration": { "NoncurrentDays": 90 }
+        },
+        {
+          "ID": "lyx-markers",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "" },
+          "Expiration": { "ExpiredObjectDeleteMarker": "true" }
+        },
+        {
+          "ID": "lyx-export",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "export/" },
+          "Expiration": { "Days": 2 }
+        },
+        {
+          "ID": "lyx-ci",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "ci/" },
+          "Expiration": { "Days": 7 }
+        }
+      ]
+    },
+    "asset": {
+      "versioning": "Enabled",
+      "encryption": null,
+      "rules": [
+        {
+          "ID": "lyx-incoming",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "incoming/" },
+          "Expiration": { "Days": 3 }
+        },
+        {
+          "ID": "lyx-multipart",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "" },
+          "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 7 }
+        },
+        {
+          "ID": "lyx-versions",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "" },
+          "NoncurrentVersionExpiration": { "NoncurrentDays": 30 }
+        },
+        {
+          "ID": "lyx-markers",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "" },
+          "Expiration": { "ExpiredObjectDeleteMarker": "true" }
+        }
+      ]
+    },
+    "media": {
+      "versioning": "Enabled",
+      "encryption": null,
+      "rules": [
+        {
+          "ID": "lyx-incoming",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "incoming/" },
+          "Expiration": { "Days": 3 }
+        },
+        {
+          "ID": "lyx-multipart",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "" },
+          "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 7 }
+        },
+        {
+          "ID": "lyx-versions",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "" },
+          "NoncurrentVersionExpiration": { "NoncurrentDays": 30 }
+        },
+        {
+          "ID": "lyx-markers",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "" },
+          "Expiration": { "ExpiredObjectDeleteMarker": "true" }
+        },
+        {
+          "ID": "lyx-ci-out",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "ci-out/" },
+          "Expiration": { "Days": 3 }
+        },
+        {
+          "ID": "lyx-final",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "final/" },
+          "Transition": { "Days": 60, "StorageClass": "STANDARD_IA" }
+        }
+      ]
+    },
+    "pub": {
+      "versioning": "Off",
+      "encryption": null,
+      "rules": [
+        {
+          "ID": "lyx-multipart",
+          "Status": "Enabled",
+          "Filter": { "Prefix": "" },
+          "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 7 }
+        }
+      ]
+    }
+  }
+}
