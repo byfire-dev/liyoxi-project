@@ -239,6 +239,23 @@ export const CLERK_SAMPLES: readonly Sample[] = [
         headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
       }),
   })),
+  ...[
+    ["m.channelAccount.list", "GET", "/m/channel-accounts"],
+    ["m.channelAccount.create", "POST", "/m/channel-accounts"],
+    ["m.channelAccount.submit", "POST", `/m/channel-accounts/${uuidv7()}/submit`],
+    ["m.launchTask.list", "GET", "/m/launch-tasks"],
+    ["m.launchTask.summary", "GET", "/m/launch-tasks/summary"],
+    ["m.launchTask.get", "GET", `/m/launch-tasks/${uuidv7()}`],
+    ["m.launchTask.submit", "POST", `/m/launch-tasks/${uuidv7()}/submit`],
+  ].map(([operationId, method, path]): Sample => ({
+    operationId: operationId!,
+    play: (api, ctx) =>
+      api.request(`/api/v1${path}`, {
+        method,
+        ...(method === "POST" ? { json: {} } : {}),
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      }),
+  })),
   ...mallClerkSamples,
   // 退出会吊销当前凭据，放到这一份样例的最后。其它样例不得靠退出后的身份。
   {

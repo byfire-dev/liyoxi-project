@@ -42,3 +42,5 @@ export * from "./files.schemas.js";
 export * from "./error-details.js";
 export * from "./dict-items.js";
 export * from "./dict-items.schemas.js";
+
+export * from "./image.schemas.js";

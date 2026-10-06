@@ -5,6 +5,7 @@ import { createPrismaClient } from "@liyoxi/db";
 import type { PrismaClient } from "@liyoxi/db";
 
 import { bindContent } from "../content/index.js";
+import { bindPublish } from "../publish/index.js";
 import { createMedia } from "../media/index.js";
 import type { PromoteRef } from "../media/index.js";
 import { advanceDueAccounts, createLedger, bindBillingTimers } from "../billing/index.js";
@@ -82,6 +83,7 @@ export interface WorkerServicesOptions {
 
 export interface WorkerServices {
   readonly closeBillingTimers?: () => void;
+  readonly closePublish?: () => void;
   promoteFile(ref: PromoteRef): Promise<void>;
   scanPromote(): Promise<number>;
   readonly assembly: Assembly;
@@ -140,6 +142,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   // ops 的周期任务与违规上报端口要连接、时钟与装配结果（W0-24）
   bindOps({ db: prisma, tx, clock, assembly });
   bindContent(assembly);
+  const closePublish = bindPublish(assembly);
   const delivery = { tx, subscribers: events.subscribers, channel, alerts };
   // 账本（W1-10）：每分钟扫描用它推进到点的主体
   const ledger = createLedger({ clock, events });
@@ -148,6 +151,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const timing = { tx, assembly, registry: timers.registry, clock, alerts, channel };
   return {
     closeBillingTimers,
+    closePublish,
     promoteFile: (ref) => media.promote(ref),
     scanPromote: () => media.scanPromote(),
     assembly,

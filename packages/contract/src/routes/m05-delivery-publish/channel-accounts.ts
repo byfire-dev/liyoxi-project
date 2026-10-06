@@ -2,7 +2,7 @@
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { merchantMeta } from "../meta-only.js";
 
-export const mChannelAccountList = merchantMeta({
+export const mChannelAccountList = merchantRoute({
   method: "get",
   path: "/m/channel-accounts",
   operationId: "m.channelAccount.list",
@@ -11,9 +11,14 @@ export const mChannelAccountList = merchantMeta({
   "x-capability": "channel.manage",
   "x-clerk-view": "none",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  request: { query: ChannelAccountListQuerySchema },
+  responses: {
+    ...okResponse(ChannelAccountPageSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
-export const mChannelAccountCreate = merchantMeta({
+export const mChannelAccountCreate = merchantRoute({
   method: "post",
   path: "/m/channel-accounts",
   operationId: "m.channelAccount.create",
@@ -22,9 +27,19 @@ export const mChannelAccountCreate = merchantMeta({
   "x-capability": "channel.manage",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    body: {
+      content: { "application/json": { schema: ChannelAccountCreateBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    ...okResponse(ChannelAccountCardSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
-export const mChannelAccountSubmit = merchantMeta({
+export const mChannelAccountSubmit = merchantRoute({
   method: "post",
   path: "/m/channel-accounts/{channelAccountId}/submit",
   operationId: "m.channelAccount.submit",
@@ -32,6 +47,17 @@ export const mChannelAccountSubmit = merchantMeta({
   "x-capability": "channel.manage",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    params: ChannelAccountParamSchema,
+    body: {
+      content: { "application/json": { schema: ChannelAccountSubmitBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    ...okResponse(ChannelAccountCardSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
 export const mChannelAccountUnbind = merchantMeta({
@@ -43,3 +69,14 @@ export const mChannelAccountUnbind = merchantMeta({
   "x-clerk-view": "none",
   "x-idempotent": "required",
 });
+
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  ChannelAccountCardSchema,
+  ChannelAccountCreateBodySchema,
+  ChannelAccountListQuerySchema,
+  ChannelAccountPageSchema,
+  ChannelAccountParamSchema,
+  ChannelAccountSubmitBodySchema,
+} from "./publish.schemas.js";
