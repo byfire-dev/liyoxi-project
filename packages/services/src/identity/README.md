@@ -62,3 +62,11 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 - 会话的过期清理（吊销或过期满 30 天的行）没有登记，随清理框架（W0-24）合并后由 M2 的包接。
 - `auth_event` 的写函数在 `audit/auth-event.ts`，是 W1-01a 交的那一份（本包开工时先建的最小实现签名相同，接到 main 时让位）。
 - 区号只能从 `getPhoneNumber` 交回的原串里看（`phone.ts`）：Provider 的接口只交 `phone`，没有区号一项。带 `+区号`、`00区号` 而不是 86 的回 `PHONE_REGION_UNSUPPORTED`；真实驱动（G2-D）要把区号交出来，不能把区号不带加号地拼在号码前面（`+1` 的号码去掉符号与大陆号同形）。
+
+## 5. 引导与我的聚合（W1-04②）
+
+`identity.bootstrap({ merchantUserId, storeId, platform, clientVersion, envVersion })` 对七块独立取数；单块失败用 m08 第 3.1 节默认并记录 `degraded`，全块失败才 `INTERNAL`。匿名个人块为 `null`；只用解析成功的成员关系给开关主体白名单上下文。待同意协议直接读 docs，不走会回写指纹的鉴权门；最后门店来自 tenant 的可访问概要，不因传入的门店头改写。
+
+`identity.overview({ merchantUserId, membership })` 取 tenant 的门店卡、条数和额度；套餐积分、概览、发布广告客服入口、未读数经事实端口，未登记即默认。店员只询问未读消息事实，返回门店、可见数与未读数；接口回包还会用观察者角色结构 parse 一次。
+
+图片上限按任务书暂为 5 MB；引导订阅登录后为 `[]`，客服为 contact。未登记的订阅参数暂为 7 天、每次 3 个，随 G2-C 接共享参数。事实端口已有实现会自动生效，不把整个聚合等到其余包到齐才交。

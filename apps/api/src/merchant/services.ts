@@ -12,7 +12,7 @@
 import { createFlow, createIdentity, createTenant, security } from "@liyoxi/services";
 import type { Docs, Identity, Runtime, Tenant, WechatProvider } from "@liyoxi/services";
 
-import { docsOf } from "../routes/agreements.js";
+import { docsOf } from "./docs.js";
 
 export interface MerchantServices {
   readonly docs: Docs;

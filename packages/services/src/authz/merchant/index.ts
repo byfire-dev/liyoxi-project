@@ -3,3 +3,6 @@ export { assertCapability, hasCapability, MERCHANT_STANDINGS, standingOf } from 
 export type { MerchantStanding, StoreMode } from "./capabilities.js";
 export { entityScopeOf, ScopeError, storeScopeOf } from "./scope.js";
 export type { EntityScope, StoreScope } from "./scope.js";
+
+export { cropMerchantView } from "./response.js";
+export type { MerchantViewerRole, MerchantViewSchemas } from "./response.js";
