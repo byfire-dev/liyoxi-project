@@ -65,6 +65,9 @@ const { ACCOUNT_SCENES } = await import(
 const { PROFILE_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/profile-scenes.ts")).href
 );
+const { BILLING_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/billing-scenes.ts")).href
+);
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--no-build") build = false;
@@ -82,7 +85,9 @@ for (let index = 0; index < args.length; index += 1) {
     wantedSheets.push(name);
   } else if (args[index] === "--scene") {
     const name = args[(index += 1)];
-    if (![...ACCOUNT_SCENES, ...PROFILE_SCENES].some((item) => item.name === name))
+    if (
+      ![...ACCOUNT_SCENES, ...PROFILE_SCENES, ...BILLING_SCENES].some((item) => item.name === name)
+    )
       fail(`未知固定场景 ${name}`);
     wantedScenes.push(name);
   } else fail(`不认识的参数 ${args[index]}`);
@@ -138,11 +143,22 @@ const targets = [
       fullPage: false,
     }),
   ),
+  ...(all ? BILLING_SCENES : BILLING_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
+    (item) => ({
+      label: item.name,
+      url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
+      file: `billing__${item.name}`,
+      scene: item.name,
+      kind: "billing",
+      fullPage: false,
+    }),
+  ),
   ...(all
     ? builtRoutes.filter(
         (route) =>
           !["pages/login/index", "pages/agreement/index", "pages/mine/index"].includes(route) &&
-          !PROFILE_SCENES.some((item) => item.route === route),
+          !PROFILE_SCENES.some((item) => item.route === route) &&
+          !BILLING_SCENES.some((item) => item.route === route),
       )
     : wanted
   ).map((route) => ({
@@ -225,8 +241,11 @@ async function shoot(target) {
     if (target.scene) {
       await page.addInitScript(
         ({ scene, kind }) => {
-          globalThis.__LYX_ACCOUNT_SHOT__ = kind === "profile" ? "mine-owner" : scene;
+          globalThis.__LYX_ACCOUNT_SHOT__ = ["profile", "billing"].includes(kind)
+            ? "mine-owner"
+            : scene;
           if (kind === "profile") globalThis.__LYX_PROFILE_SHOT__ = scene;
+          if (kind === "billing") globalThis.__LYX_BILLING_SHOT__ = scene;
         },
         { scene: target.scene, kind: target.kind },
       );
@@ -244,8 +263,32 @@ async function shoot(target) {
     await taroPage.waitFor({ state: "visible", timeout: 15_000 });
     if (target.scene) {
       await page
-        .locator(target.kind === "profile" ? "#profile-ready" : "#account-ready")
+        .locator(
+          target.kind === "profile"
+            ? "#profile-ready"
+            : target.kind === "billing"
+              ? "#billing-ready"
+              : "#account-ready",
+        )
         .waitFor({ state: "visible", timeout: 15_000 });
+      if (target.scene.startsWith("bank-")) {
+        await page.locator(".lyx-button").filter({ hasText: "对公转账" }).click();
+        await page.locator(".lyx-button").filter({ hasText: "确认付款" }).click();
+        await page.getByText("选择转账凭证", { exact: true }).waitFor({ state: "visible" });
+        if (target.scene === "bank-selected") {
+          await page.getByText("选择转账凭证", { exact: true }).click();
+          await page
+            .locator(".billing-receipt .lyx-button")
+            .filter({ hasText: "提交转账凭证" })
+            .waitFor({ state: "visible" });
+          await page.waitForFunction(() => {
+            const button = globalThis.document.querySelector(".billing-receipt .lyx-button");
+            return button && !button.classList.contains("lyx-button--disabled");
+          });
+          await page.waitForTimeout(300);
+        }
+        await page.waitForTimeout(500);
+      }
       if (target.scene.startsWith("login")) {
         await page.locator("input").fill("13800138000");
         if (target.scene === "login-checked")

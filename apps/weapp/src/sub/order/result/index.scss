@@ -1,0 +1,9 @@
+.billing-result {
+  min-height: 100vh;
+  background: $lyx-color-bg-page;
+  &__title {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+}

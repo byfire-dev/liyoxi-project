@@ -1,0 +1,20 @@
+.billing-wallet {
+  min-height: 100vh;
+  background: $lyx-color-bg-page;
+  &__nowrap {
+    white-space: nowrap;
+  }
+  &__plan {
+    font-size: 26px;
+    font-weight: 600;
+  }
+  &__balance {
+    font-size: 32px;
+    font-weight: 600;
+  }
+  &__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
