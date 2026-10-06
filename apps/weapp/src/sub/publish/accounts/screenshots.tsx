@@ -6,11 +6,18 @@ import { UploadGrid, type UploadItem } from "@/components/UploadGrid";
 import { withPrivacy } from "@/lib/runtime";
 import { createTaroUpload, prepareTaroFile } from "@/lib/upload/taro";
 import { createPublishLifetime } from "@/stores/publish";
+import { createScreenshotUpload } from "./screenshot-upload";
 export interface Screenshot {
   fileId: string;
   src: string;
 }
 type Job = ReturnType<typeof createTaroUpload>;
+type Entry = {
+  job: Job;
+  src: string;
+  key: string;
+  upload: ReturnType<typeof createScreenshotUpload>;
+};
 export function Screenshots({
   files,
   onChange,
@@ -21,7 +28,7 @@ export function Screenshots({
   disabled?: boolean;
 }) {
   const [life] = useState(createPublishLifetime),
-    [pending, setPending] = useState<{ job: Job; src: string; key: string }[]>([]),
+    [pending, setPending] = useState<Entry[]>([]),
     [message, setMessage] = useState<string | null>(null),
     [revision, setRevision] = useState(0);
   const jobs = useRef<Job[]>([]),
@@ -40,16 +47,6 @@ export function Screenshots({
       for (const job of activeJobs) job.dispose();
     };
   }, [life]);
-  const finish = async (entry: { job: Job; src: string; key: string }, retry = false) => {
-    const current = life.capture();
-    const result = await (retry ? entry.job.retry() : entry.job.start());
-    if (!current() || !result) return;
-    const next = [...latest.current, { fileId: result.fileId, src: entry.src }].slice(0, 3);
-    latest.current = next;
-    changed.current(next);
-    setPending((items) => items.filter((i) => i !== entry));
-    entry.job.dispose();
-  };
   const add = async () => {
     if (disabled || selecting.current || latest.current.length + pending.length >= 3) return;
     selecting.current = true;
@@ -101,9 +98,23 @@ export function Screenshots({
         job.subscribe(() => {
           if (current()) setRevision((v) => v + 1);
         });
-        const entry = { job, src: file.path, key: `screenshot-${jobs.current.length}` };
+        const entry: Entry = {
+          job,
+          src: file.path,
+          key: `screenshot-${jobs.current.length}`,
+          upload: createScreenshotUpload(
+            job,
+            () => life.capture(),
+            (fileId) => {
+              const next = [...latest.current, { fileId, src: file.path }].slice(0, 3);
+              latest.current = next;
+              changed.current(next);
+              setPending((items) => items.filter((i) => i !== entry));
+            },
+          ),
+        };
         setPending((items) => [...items, entry]);
-        await finish(entry);
+        await entry.upload.finish();
       }
     } catch (e: unknown) {
       if (current()) setMessage(e instanceof Error ? e.message : "选择截图失败，请重试");
@@ -136,7 +147,7 @@ export function Screenshots({
         onRemove={(key) => {
           const entry = pending.find((p) => p.key === key);
           if (entry) {
-            void entry.job.cancel().catch(() => setMessage("已停止上传，请重新选择"));
+            void entry.upload.remove().catch(() => setMessage("已停止上传，请重新选择"));
             setPending((p) => p.filter((i) => i !== entry));
           } else {
             const next = files.filter((f) => f.fileId !== key);
@@ -146,7 +157,7 @@ export function Screenshots({
         }}
         onRetry={(key) => {
           const entry = pending.find((p) => p.key === key);
-          if (entry) void finish(entry, true);
+          if (entry) void entry.upload.finish(true);
         }}
         onPreview={(key) => {
           const f = files.find((i) => i.fileId === key);
