@@ -216,3 +216,7 @@ pnpm gates:selftest --only clerk-visible
 ```
 
 根 `pnpm test` 已包含这套回放，更新命令仅在显式设置 `LYX_CLERK_UPDATE=1` 时重写黄金文件。后续包只增自己路由条目，不手改黄金文件；变更的门禁分类由 CI 按 main 的规则判定。
+
+### 真实接口浏览器验收的 Redis 隔离
+
+W1-02 的 `admin:e2e:live` 起构建产物时传 `--test-redis-prefix lyx:test:admin_live_<本轮标识>:`，将限流与缓存放在本轮专属键空间。只允许 `APP_ENV=test`，前缀须符合 `lyx:test:[a-z0-9_-]{1,48}:`；其他环境或格式立即拒绝。省略参数时仍使用 runtime 原默认前缀。清理仅删本轮前缀，不运行 FLUSHDB。
