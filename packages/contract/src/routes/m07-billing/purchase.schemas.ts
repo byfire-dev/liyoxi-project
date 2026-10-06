@@ -5,6 +5,7 @@ import {
   DateSchema,
   DictRefSchema,
   openEnum,
+  orNull,
 } from "../../common/index.js";
 
 const n = z.int().nonnegative();
@@ -125,7 +126,7 @@ export const TransferProofViewSchema = z.object({
   uploadedAt: InstantSchema,
   dueAt: nullableTime,
   reviewedAt: nullableTime,
-  rejectReason: DictRefSchema.nullable(),
+  rejectReason: orNull(DictRefSchema),
   rejectNote: z.string().nullable(),
 });
 export const PaymentOrderContentViewSchema = z.object({
