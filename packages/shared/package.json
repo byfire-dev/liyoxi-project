@@ -91,6 +91,10 @@
     "./purchase-policy": {
       "types": "./src/purchase-policy/index.ts",
       "default": "./src/purchase-policy/index.ts"
+    },
+    "./aggregate": {
+      "types": "./src/aggregate/index.ts",
+      "default": "./src/aggregate/index.ts"
     }
   },
   "scripts": {

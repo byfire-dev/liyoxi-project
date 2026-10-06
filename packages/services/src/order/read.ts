@@ -1,6 +1,7 @@
 import { DramaSnapshotSchema, OrderDetailSchema } from "@liyoxi/contract";
 import type { OrderDetail } from "@liyoxi/contract";
 import { listOperationsByHold } from "../billing/index.js";
+import { getTicketBriefsByOrder, getPlanBriefByOrder } from "../delivery/index.js";
 import { AppError } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 import type { OrderActor, OrderDeps } from "./context.js";
@@ -18,7 +19,7 @@ const TIMELINE = [
   "live",
   "usage_ended",
 ] as const;
-// a 只创建待开工单：后续履约、售后、授权书字段明确留桩；b 在此基础上扩充读取。
+// 履约字段经公开只读端口聚合；售后与授权书由后续工作包回补。
 export async function detail(tx: Tx, actor: OrderActor, id: string): Promise<OrderDetail> {
   const o = await tx.dramaOrder.findFirst({
     where: { id, storeId: actor.membership.storeId, entityId: actor.membership.entityId },
@@ -58,6 +59,8 @@ export async function detail(tx: Tx, actor: OrderActor, id: string): Promise<Ord
       grouped.set(key, entry);
     }
   }
+  const tickets = await getTicketBriefsByOrder(tx, o.id),
+    plan = await getPlanBriefByOrder(tx, o.id);
   const consent = o.agreementConsent,
     version = consent.agreementVersion;
   return OrderDetailSchema.parse({
@@ -103,7 +106,7 @@ export async function detail(tx: Tx, actor: OrderActor, id: string): Promise<Ord
           episodeCount: i.episodeCount,
           phase: i.phase,
           phaseChangedAt: iso(i.phaseChangedAt),
-          ticketStep: null,
+          ticketStep: tickets.find((t) => t.orderItemId === i.id)?.step ?? null,
           listPricePoints: i.listPricePoints,
           discountBp: i.discountBp,
           surchargeBp: i.surchargeBp,
@@ -128,20 +131,32 @@ export async function detail(tx: Tx, actor: OrderActor, id: string): Promise<Ord
           },
           cancelReasonCode: i.cancelReasonCode,
           cancelledAt: iso(i.cancelledAt),
-          timeline: TIMELINE.map((key, index) => ({
-            key,
-            state: index === 0 ? "done" : index === 1 ? "current" : "todo",
-            at:
-              index === 0
-                ? iso(o.submittedAt)
-                : key === "usage_ended"
-                  ? date(i.usageEndDate)
-                  : null,
-          })),
+          timeline: (() => {
+            const ticket = tickets.find((t) => t.orderItemId === i.id);
+            const times: Record<(typeof TIMELINE)[number], string | null> = {
+              submitted: iso(o.submittedAt),
+              started: iso(o.startedAt),
+              manager_assigned: ticket?.assignedAt ?? null,
+              plan_confirmed: ticket?.planConfirmedAt ?? null,
+              ads_confirmed: ticket?.adsReadyAt ?? null,
+              sample_confirmed: ticket?.sampleConfirmedAt ?? null,
+              delivered: ticket?.deliveredAt ?? null,
+              live: ticket?.liveAt ?? null,
+              usage_ended: ticket?.usageEndedAt ?? null,
+            };
+            const firstPending = ["cancelled", "terminated"].includes(i.phase)
+              ? undefined
+              : TIMELINE.find((key) => !times[key]);
+            return TIMELINE.map((key) => ({
+              key,
+              state: times[key] ? "done" : key === firstPending ? "current" : "todo",
+              at: times[key] ?? (key === "usage_ended" ? date(i.usageEndDate) : null),
+            }));
+          })(),
         };
       }),
     ),
-    deliveryPlan: null,
+    deliveryPlan: plan,
     pointsEvents: [...grouped.values()].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt)),
     afterSales: [],
     agreements: [

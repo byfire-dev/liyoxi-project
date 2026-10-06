@@ -184,6 +184,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
             .catch((error: unknown) => logger.warn({ err: error }, "让出租约失败"));
         } finally {
           services.closeBillingTimers?.();
+          services.closeOrder?.();
           services.closePublish?.();
           services.closeDelivery?.();
         }

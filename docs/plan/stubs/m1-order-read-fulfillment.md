@@ -2,9 +2,9 @@
 
 | 项 | 内容 |
 | --- | --- |
-| 状态 | 留桩中 |
+| 状态 | 已回补 |
 | 留桩内容 | OrderDetail.deliveryPlan / items[].ticketStep 与开工后时间轴 |
-| 骨架里的做法 | read.ts deliveryPlan/ticketStep=null，提交节点真实done，开工节点current，后继节点todo |
+| 骨架里的做法 | W1-17a 经公开 delivery reader 读取真实工单步骤、方案摘要与逐项里程碑；未开工仍为空，方案未推送时摘要字段为空。售后、授权书、广告位与待办仍由各自后续包交付 |
 | 登记的工作包 | W1-15a |
 | 回补里程碑 | M1 |
 | 回补的工作包 | W1-17 |
