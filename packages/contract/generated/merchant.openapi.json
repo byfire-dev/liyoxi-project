@@ -1836,6 +1836,74 @@
         ],
         "type": "object"
       },
+      "DownloadGrantView": {
+        "additionalProperties": false,
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "downloadGrantId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "isExpired": {
+            "type": "boolean"
+          },
+          "state": {
+            "enum": [
+              "active",
+              "superseded",
+              "revoked"
+            ],
+            "type": "string"
+          },
+          "validDays": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "downloadGrantId",
+          "state",
+          "expiresAt",
+          "validDays",
+          "isExpired",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "DownloadUrl": {
+        "additionalProperties": false,
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "pattern": "^\\d+$",
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expiresAt",
+          "fileName",
+          "sizeBytes"
+        ],
+        "type": "object"
+      },
       "DramaCard": {
         "properties": {
           "badge": {
@@ -3524,6 +3592,47 @@
           "canAddStore"
         ],
         "type": "object"
+      },
+      "EpisodeDownloadBody": {
+        "additionalProperties": false,
+        "properties": {
+          "episodeNo": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "episode"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "episodeNo"
+        ],
+        "type": "object"
+      },
+      "EpisodeDownloadUrl": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/DownloadUrl"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "downloadId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "downloadId"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "ErrorBody": {
         "properties": {
@@ -12657,6 +12766,155 @@
         ],
         "type": "object"
       },
+      "ReleaseView": {
+        "additionalProperties": false,
+        "properties": {
+          "canRegenerate": {
+            "type": "boolean"
+          },
+          "changedEpisodeNos": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "closeReason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "cancelled",
+                  "usage_ended"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deliveryReleaseId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "episodeCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "episodes": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "episodeNo": {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "fileName": {
+                  "type": "string"
+                },
+                "isChanged": {
+                  "type": "boolean"
+                },
+                "lastSavedAt": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sizeBytes": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "episodeNo",
+                "fileName",
+                "sizeBytes",
+                "isChanged",
+                "lastSavedAt"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "grant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DownloadGrantView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isDownloadable": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "initial",
+              "reissue"
+            ],
+            "type": "string"
+          },
+          "orderItemId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "pushedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "regrantRemainingToday": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "releaseNo": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "savedEpisodeCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "pushed",
+              "superseded",
+              "closed"
+            ],
+            "type": "string"
+          },
+          "totalBytes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "deliveryReleaseId",
+          "orderItemId",
+          "releaseNo",
+          "kind",
+          "state",
+          "closeReason",
+          "pushedAt",
+          "episodeCount",
+          "totalBytes",
+          "changedEpisodeNos",
+          "episodes",
+          "savedEpisodeCount",
+          "grant",
+          "regrantRemainingToday",
+          "isDownloadable",
+          "canRegenerate"
+        ],
+        "type": "object"
+      },
       "SampleConfirmBody": {
         "additionalProperties": false,
         "properties": {
@@ -19864,6 +20122,251 @@
         "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
       }
     },
+    "/api/v1/m/order-items/{orderItemId}/download-urls": {
+      "post": {
+        "operationId": "m.orderItem.downloadUrls",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orderItemId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EpisodeDownloadBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/EpisodeDownloadUrl"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "逐集下载 {kind: episode, episodeNo}：校验下载授权，写 delivery_download_log，返回 15 分钟直链与 downloadId",
+        "x-auth": "member",
+        "x-capability": "delivery.download",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "签发短时地址，结果不进幂等记录，避免回放过期地址（A18、A19）",
+        "x-rate-limit": "m.sign"
+      }
+    },
+    "/api/v1/m/order-items/{orderItemId}/release": {
+      "get": {
+        "operationId": "m.orderItem.release.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orderItemId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ReleaseView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "当前成片包：逐集清单（集号、大小、是否有变更）、总大小、下载授权状态与到期时间",
+        "x-auth": "member",
+        "x-capability": "delivery.download",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
     "/api/v1/m/order-items/{orderItemId}/sample": {
       "get": {
         "operationId": "m.orderItem.sample.get",
@@ -21674,6 +22177,146 @@
           "decision.feedbackImages[].url",
           "decision.feedbackImages[].expiresAt"
         ]
+      }
+    },
+    "/api/v1/m/samples/{sampleId}/download-urls": {
+      "post": {
+        "operationId": "m.sample.downloadUrls",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sampleId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DownloadUrl"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "签发水印版样片的 15 分钟直链（保存到相册查看）；每次写访问审计，首次访问回写 sample.first_viewed_at",
+        "x-auth": "member",
+        "x-capability": "delivery.confirm_sample",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "签发短时地址，结果不进幂等记录，避免回放过期地址（A18、A19）",
+        "x-rate-limit": "m.sign"
       }
     },
     "/api/v1/m/sessions": {
