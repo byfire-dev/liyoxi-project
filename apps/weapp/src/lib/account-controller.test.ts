@@ -318,63 +318,71 @@ describe("重新同意与门店上下文", () => {
     expect(env.controller.snapshot().consent).toEqual([]);
     expect(env.controller.snapshot().overview).toBeNull();
   });
-  it("五个真实请求层428共用一个弹层；同意完成后保留请求编号/幂等键各重放一次", async () => {
-    const env = setup();
-    const sent: WireRequest[] = [];
-    let accepted = false;
-    vi.mocked(env.api.consent).mockImplementation(async () => {
-      accepted = true;
-      return { consents: [], pendingConsents: [] };
-    });
-    let count = 0;
-    const ask = vi.fn(env.controller.askConsent);
-    const layer = createRequestLayer({
-      baseUrl: "https://api.example.test",
-      clock: { now: () => env.local.now, sleep: async () => undefined },
-      uuid: () => `00000000-0000-4000-8000-${String(++count).padStart(12, "0")}`,
-      client: () => ({ platform: "devtools", version: "1.0.0", envVersion: "develop" }),
-      getToken: () => env.local.token,
-      getStoreId: () => env.local.storeId,
-      recover: { askConsent: ask },
-      send: async (request) => {
-        sent.push(request);
-        const response: WireResponse = accepted
-          ? { statusCode: 200, header: {}, data: { code: 0, message: "ok", data: request.url } }
-          : {
-              statusCode: 428,
-              header: {},
-              data: {
-                error: "CONSENT_REQUIRED",
-                code: 42800,
-                message: "consent",
-                requestId: "test",
-                retryable: false,
-                details: { pendingConsents: [pending] },
-              },
-            };
-        return response;
-      },
-    });
-    const requests = Promise.all(
-      Array.from({ length: 5 }, (_, i) =>
-        layer.request(`/m/test/${i}`, { method: "POST", idempotencyKey: `test:${i}` }),
-      ),
-    );
-    await vi.waitFor(() => expect(ask).toHaveBeenCalledTimes(1));
-    expect(sent).toHaveLength(5);
-    expect(env.controller.snapshot().consent).toEqual([pending]);
-    const meFlight = env.controller.askConsent([pending]);
-    await env.controller.acceptConsent();
-    await expect(meFlight).resolves.toBe(true);
-    expect(await requests).toHaveLength(5);
-    expect(env.api.consent).toHaveBeenCalledTimes(1);
-    for (const first of sent.slice(0, 5)) {
-      const replay = sent.slice(5).find((request) => request.url === first.url)!;
-      expect(replay.header["X-Request-Id"]).toBe(first.header["X-Request-Id"]);
-      expect(replay.header["Idempotency-Key"]).toBe(first.header["Idempotency-Key"]);
-    }
-    expect(env.controller.snapshot().consent).toEqual([]);
-  });
+  it.each([
+    ["概要刷新成功", null],
+    ["概要刷新网络失败", failure("NETWORK_ERROR", 0)],
+    ["概要刷新503", failure("HTTP_503", 503)],
+  ] as const)(
+    "五个真实请求层428共用一个弹层；回执成功后%s也保留编号/幂等键重放",
+    async (_name, meError) => {
+      const env = setup();
+      const sent: WireRequest[] = [];
+      let accepted = false;
+      vi.mocked(env.api.consent).mockImplementation(async () => {
+        accepted = true;
+        return { consents: [], pendingConsents: [] };
+      });
+      let count = 0;
+      const ask = vi.fn(env.controller.askConsent);
+      const layer = createRequestLayer({
+        baseUrl: "https://api.example.test",
+        clock: { now: () => env.local.now, sleep: async () => undefined },
+        uuid: () => `00000000-0000-4000-8000-${String(++count).padStart(12, "0")}`,
+        client: () => ({ platform: "devtools", version: "1.0.0", envVersion: "develop" }),
+        getToken: () => env.local.token,
+        getStoreId: () => env.local.storeId,
+        recover: { askConsent: ask },
+        send: async (request) => {
+          sent.push(request);
+          const response: WireResponse = accepted
+            ? { statusCode: 200, header: {}, data: { code: 0, message: "ok", data: request.url } }
+            : {
+                statusCode: 428,
+                header: {},
+                data: {
+                  error: "CONSENT_REQUIRED",
+                  code: 42800,
+                  message: "consent",
+                  requestId: "test",
+                  retryable: false,
+                  details: { pendingConsents: [pending] },
+                },
+              };
+          return response;
+        },
+      });
+      if (meError) vi.mocked(env.api.me).mockRejectedValueOnce(meError);
+      const requests = Promise.all(
+        Array.from({ length: 5 }, (_, i) =>
+          layer.request(`/m/test/${i}`, { method: "POST", idempotencyKey: `test:${i}` }),
+        ),
+      );
+      await vi.waitFor(() => expect(ask).toHaveBeenCalledTimes(1));
+      expect(sent).toHaveLength(5);
+      expect(env.controller.snapshot().consent).toEqual([pending]);
+      const meFlight = env.controller.askConsent([pending]);
+      await env.controller.acceptConsent();
+      await expect(meFlight).resolves.toBe(true);
+      expect(await requests).toHaveLength(5);
+      expect(env.api.consent).toHaveBeenCalledTimes(1);
+      for (const first of sent.slice(0, 5)) {
+        const replay = sent.slice(5).find((request) => request.url === first.url)!;
+        expect(replay.header["X-Request-Id"]).toBe(first.header["X-Request-Id"]);
+        expect(replay.header["Idempotency-Key"]).toBe(first.header["Idempotency-Key"]);
+      }
+      expect(env.controller.snapshot().consent).toEqual([]);
+    },
+  );
   it("合并me与428且只用最新版；拒绝只能退出，30秒静默；协议正文可读后仍阻断", async () => {
     const env = setup();
     const first = env.controller.askConsent([pending]);

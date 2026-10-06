@@ -5,6 +5,7 @@ import { Button } from "@/components/Button";
 import { Note } from "@/components/Note";
 import { Sheet } from "@/components/Sheet";
 import { TextButton } from "@/components/TextButton";
+import { agreementEffectiveDate } from "@/lib/account-date";
 import { account, useAccount } from "@/lib/account-runtime";
 import { useSessionStore } from "@/stores/session";
 
@@ -59,7 +60,7 @@ export function ConsentPopup() {
               {item.name}
             </TextButton>
             <View className="account-consent__version">
-              {item.versionLabel} · {item.effectiveAt.slice(0, 10)} 生效
+              {item.versionLabel} · {agreementEffectiveDate(item.effectiveAt)} 生效
             </View>
             <View className="account-consent__summary">{item.summary}</View>
           </View>

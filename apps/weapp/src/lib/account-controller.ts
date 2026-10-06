@@ -336,6 +336,13 @@ export function createAccountController(deps: AccountDeps) {
       try {
         const receipt = await api.consent(state.consent.slice(0, 2));
         if (epoch !== generation) return;
+        if (!receipt.pendingConsents.length) {
+          // 回执已确认全部签署；释放原请求，让服务端重放时再次校验。
+          // 后续 me 仅刷新概要，失败不能留下隐藏弹层与未决等待。
+          finishConsent(true);
+          await controller.reloadMe().catch(() => undefined);
+          return;
+        }
         update({ consent: receipt.pendingConsents });
         await controller.reloadMe();
         if (!state.consent.length) finishConsent(true);

@@ -7,6 +7,7 @@ import { LoadError } from "@/components/LoadError";
 import { Skeleton } from "@/components/Skeleton";
 import type { Data } from "@/lib/account-api";
 import { accountError } from "@/lib/account-controller";
+import { agreementEffectiveDate } from "@/lib/account-date";
 import { account } from "@/lib/account-runtime";
 
 import "./index.scss";
@@ -39,7 +40,7 @@ export default function AgreementPage() {
         <>
           <View className="account-agreement__title">{data.name}</View>
           <View className="account-agreement__version">
-            {data.versionLabel} · {data.effectiveAt.slice(0, 10)} 生效
+            {data.versionLabel} · {agreementEffectiveDate(data.effectiveAt)} 生效
           </View>
           {data.summary ? <View className="account-agreement__summary">{data.summary}</View> : null}
           {data.contentHtml ? <RichText nodes={data.contentHtml} /> : <Empty title="正文准备中" />}
