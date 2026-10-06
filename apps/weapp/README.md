@@ -155,6 +155,16 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 
 方案 `sub/order/plan/index?deliveryPlanId=…`，样片和上线记录带 `orderItemId`，发布任务可带 `orderId`，逐集下载带 `orderItemId`。全部只供当前门店老板；店员直接打开也不发本域业务请求。页面私有 API 工厂消费生成 merchant operations，生产仍经中央 request，不改已有封装。
 
-`shots/delivery-scenes.ts` 登记十五态，产物 `shots/dist/png/delivery__<scene>.png`：plan-pending/revising/confirmed/change、sample-unsaved/viewed/confirmed、tasks-todo/verifying/live/submit、downloads-default/expired、record-default/returned。保存样片场景实际调用签发并重新 GET，再勾选；下载场景连续两次点击分别签发单集，不缓存 URL。默认截图保留原三十九态与全部错误守卫。H5 相册函数明确空转，仅验证界面与请求结构；真正微信 downloadFile → saveVideoToPhotosAlbum → 临时文件清理经可替换私有边界单测，真机效果仍等 V7。
+`shots/delivery-scenes.ts` 登记十五态，产物 `shots/dist/png/delivery__<scene>.png`：plan-pending/revising/confirmed/change、sample-unsaved/viewed/confirmed、tasks-todo/verifying/live/submit、downloads-default/expired、record-default/returned。保存样片场景实际调用签发并重新 GET，再勾选；下载场景连续两次点击分别签发单集，不缓存 URL。默认截图保留实际主干原五十一态与全部错误守卫。H5 相册函数明确空转，仅验证界面与请求结构；真正微信 downloadFile → saveVideoToPhotosAlbum → 临时文件清理经可替换私有边界单测，真机效果仍等 V7。
 
 本域同步锁先于订阅请求，确认分别用 plan_confirm、sample_confirm，成片保存 package_download，链接回填 link_submit；隐私拒绝不签发。写意图在所见版本/请求体不变时复用幂等键，C50 重放后重新 GET；下载无业务幂等键，每次独立签发。token、store、contextRev、role 改变或卸载后丢弃旧成功/错误，并停止后续相册操作。
+
+## 确认订购、订单与发布账号（W1-18 PR2）
+
+四页消费实际合入的 merchant DTO，生产仍走中央 request。选剧单与详情的“确认订购”进入 checkout；一次意图网络重试复用 key，账号、重点、模型或报价变化换 key。提交 expect 和协议版本都取当次报价；QUOTE_CHANGED 与 AGREEMENT_VERSION_STALE 按符号名刷新并重新勾选。C50 后重新 GET 订单及选剧单，再更新订单/账号/角标修订号。
+
+本域十二态：`LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene checkout-default --scene checkout-points --scene checkout-qualification --scene checkout-quote-changed --scene orders-default --scene orders-empty --scene order-detail-default --scene order-detail-producing --scene order-success --scene accounts-default --scene accounts-rejected --scene accounts-bind`。夹具在 `shots/order-fixtures.ts`、`shots/publish-fixtures.ts`，场景清单分别为 `order-scenes.ts`、`publish-scenes.ts`。同域交互核对请求体、重试 key、报价变化、新版 expect、C50 后 GET、订单游标及切页签、账号绑定/核验重提；每场景保留独立上下文、外发网络、console.error 与 pageerror 守卫。旧账户8、建档9、支付11、商城11态及其断言全部保留。
+
+主页截图由 `withPrivacy` 包选图，正式环境只用公共 `prepareTaroFile/createTaroUpload`，分类 `channel_screenshot`；最多3张，图片上限取公共 `UPLOAD_LIMITS.imageMaxMb`（5MB），通道由登记接口的 mode 决定。H5 截图的入库文件ID是显式离线替身，不是真实上传证据。订单方案、样片、发布任务和上线记录按 DTO 数据/actions 显示，后继页尚未合入时提示“即将开放”；广告、参考素材、视频、解绑、授权书及取消入口均不出。原支付结果状态保持。
+
+H5 仍缺少原生导航栏、胶囊与真实安全区；下拉/触底、订阅授权、隐私授权和微信文件直传须在 E16/E7 到位后手验。本域离线图不能当作真实接口或微信授权/上传证据。

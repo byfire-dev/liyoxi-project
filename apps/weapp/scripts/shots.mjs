@@ -26,14 +26,14 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { chromium } from "@playwright/test";
+import { deliveryRegression } from "../shots/delivery-regressions.mjs";
+import { orderRegression, publishRegression } from "../shots/order-regressions.mjs";
 import {
   profileContactRegression,
   profileAuthorizationRegression,
   profileContextRegression,
   profileEditRegression,
 } from "../shots/profile-regressions.mjs";
-
-import { deliveryRegression } from "../shots/delivery-regressions.mjs";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const h5Dir = path.join(appRoot, "shots/dist/h5");
@@ -73,6 +73,12 @@ const { BILLING_SCENES } = await import(
 const { CATALOG_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/catalog-scenes.ts")).href
 );
+const { ORDER_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/order-scenes.ts")).href
+);
+const { PUBLISH_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/publish-scenes.ts")).href
+);
 const { DELIVERY_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/delivery-scenes.ts")).href
 );
@@ -99,6 +105,8 @@ for (let index = 0; index < args.length; index += 1) {
         ...PROFILE_SCENES,
         ...BILLING_SCENES,
         ...CATALOG_SCENES,
+        ...ORDER_SCENES,
+        ...PUBLISH_SCENES,
         ...DELIVERY_SCENES,
       ].some((item) => item.name === name)
     )
@@ -177,6 +185,26 @@ const targets = [
       fullPage: false,
     }),
   ),
+  ...(all ? PUBLISH_SCENES : PUBLISH_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
+    (item) => ({
+      label: item.name,
+      url: `${item.route}?lyxShot=${item.name}`,
+      file: `publish__${item.name}`,
+      scene: item.name,
+      kind: "publish",
+      fullPage: false,
+    }),
+  ),
+  ...(all ? ORDER_SCENES : ORDER_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
+    (item) => ({
+      label: item.name,
+      url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
+      file: `order__${item.name}`,
+      scene: item.name,
+      kind: "order",
+      fullPage: false,
+    }),
+  ),
   ...(all
     ? DELIVERY_SCENES
     : DELIVERY_SCENES.filter((item) => wantedScenes.includes(item.name))
@@ -195,6 +223,8 @@ const targets = [
           !PROFILE_SCENES.some((item) => item.route === route) &&
           !BILLING_SCENES.some((item) => item.route === route) &&
           !CATALOG_SCENES.some((item) => item.route.split("?")[0] === route) &&
+          !ORDER_SCENES.some((item) => item.route.split("?")[0] === route) &&
+          !PUBLISH_SCENES.some((item) => item.route === route) &&
           !DELIVERY_SCENES.some((item) => item.route.split("?")[0] === route),
       )
     : wanted
@@ -278,7 +308,13 @@ async function shoot(target) {
     if (target.scene) {
       await page.addInitScript(
         ({ scene, kind }) => {
-          globalThis.__LYX_ACCOUNT_SHOT__ = ["profile", "billing", "delivery"].includes(kind)
+          globalThis.__LYX_ACCOUNT_SHOT__ = [
+            "profile",
+            "billing",
+            "order",
+            "publish",
+            "delivery",
+          ].includes(kind)
             ? "mine-owner"
             : scene;
           if (kind === "catalog") {
@@ -289,9 +325,11 @@ async function shoot(target) {
                 : "mine-owner";
             globalThis.__LYX_CATALOG_SHOT__ = scene;
           }
+          if (kind === "order") globalThis.__LYX_ORDER_SHOT__ = scene;
+          if (kind === "publish") globalThis.__LYX_PUBLISH_SHOT__ = scene;
+          if (kind === "delivery") globalThis.__LYX_DELIVERY_SHOT__ = scene;
           if (kind === "profile") globalThis.__LYX_PROFILE_SHOT__ = scene;
           if (kind === "billing") globalThis.__LYX_BILLING_SHOT__ = scene;
-          if (kind === "delivery") globalThis.__LYX_DELIVERY_SHOT__ = scene;
         },
         { scene: target.scene, kind: target.kind },
       );
@@ -314,13 +352,21 @@ async function shoot(target) {
             ? "#profile-ready"
             : target.kind === "billing"
               ? "#billing-ready"
-              : target.kind === "catalog"
-                ? "#catalog-ready"
-                : target.kind === "delivery"
-                  ? "#delivery-ready"
-                  : "#account-ready",
+              : target.kind === "publish"
+                ? "#publish-ready"
+                : target.kind === "order"
+                  ? "#order-ready"
+                  : target.kind === "catalog"
+                    ? "#catalog-ready"
+                    : target.kind === "delivery"
+                      ? "#delivery-ready"
+                      : "#account-ready",
         )
         .waitFor({ state: "visible", timeout: 15_000 });
+      if (target.kind === "publish" && target.scene === "accounts-bind") {
+        await page.locator(".accounts-page .lyx-button").filter({ hasText: "绑定新账号" }).click();
+        await page.locator(".accounts-page__form").waitFor({ state: "visible" });
+      }
       if (target.kind === "delivery") {
         if (target.scene === "plan-change") {
           await page.locator(".lyx-button").filter({ hasText: "联系服务经理修改" }).click();
@@ -516,6 +562,8 @@ async function shoot(target) {
     const file = path.join(outDir, `${target.file}.png`);
     await page.screenshot({ path: file });
     if (target.kind === "delivery") await deliveryRegression(page, target.scene);
+    if (target.kind === "order") await orderRegression(page, target.scene);
+    if (target.kind === "publish") await publishRegression(page, target.scene);
     if (target.kind === "catalog") {
       if (target.scene === "cart-default") {
         if (!(await page.locator(".cart-page__total").innerText()).includes("900 积分"))
