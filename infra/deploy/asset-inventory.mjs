@@ -31,6 +31,11 @@ function bytes(path, max = 32 * 1024 * 1024) {
   return readFileSync(path);
 }
 function entryPaths(index) {
+  const references = [...index.matchAll(/(?:src|href)\s*=\s*["']([^"']+)["']/g)].map(
+    (match) => match[1],
+  );
+  if (references.some((path) => !path.startsWith("/assets/") && !path.startsWith("data:")))
+    throw new Error("入口引用未受资源清单覆盖");
   const found = [...index.matchAll(/(?:src|href)\s*=\s*["']([^"']+)["']/g)]
     .map((match) => match[1])
     .filter((path) => path.startsWith("/assets/"))
@@ -39,6 +44,8 @@ function entryPaths(index) {
   return [...new Set(found)].sort();
 }
 function collect(directory, prefix = "") {
+  const root = lstatSync(directory);
+  if (!root.isDirectory() || root.isSymbolicLink()) throw new Error("资源目录不接受符号链接");
   const files = [];
   for (const name of readdirSync(directory).sort()) {
     const path = safePath(prefix + name);
@@ -121,7 +128,12 @@ export function capture(tag, image, shared, records) {
     const assets = collect(join(image, app, "assets"));
     inventory.apps[app] = { index, build, entry: entryPaths(index), assets };
     for (const asset of assets) {
-      const body = bytes(join(shared, app, "assets", asset.path));
+      let path = shared;
+      for (const part of [app, "assets", ...asset.path.split("/")]) {
+        path = join(path, part);
+        if (lstatSync(path).isSymbolicLink()) throw new Error("共享资源不接受符号链接");
+      }
+      const body = bytes(path);
       if (body.length !== asset.bytes || hash(body) !== asset.sha256)
         throw new Error(`共享资源缺失或内容不符：${app}/${asset.path}`);
     }

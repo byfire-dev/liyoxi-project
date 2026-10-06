@@ -7,6 +7,7 @@
 //
 //   node infra/deploy/rehearse.mjs          先要有三个本地镜像（pnpm stack:build），库与 Redis 的镜像本机也要有
 //   node infra/deploy/rehearse.mjs --keep   演练完不清场，打印怎么手工清（排查用）
+//   加 --release：构建两份不同构建号的 server/gateway 与自有 mediatool 标签，发布后回滚，留下连续探测与少索引反例
 //   加 --without-image-smoke：不跑 server 镜像的冒烟（stack-smoke 工作流里同一个任务已经对同一个镜像跑过）
 //
 // 走什么：造密钥 → 齐备检查 → deps → db-init → pull（本地镜像，跳过）→ check-env → migrate → seed 两遍（第二遍新增 0 行）
@@ -150,7 +151,7 @@ function freePort() {
  * @param {number} port
  * @param {string} host
  * @param {string} path
- * @param {{ method?: string, bodyBytes?: number, headers?: Record<string, string> }} [options]
+ * @param {{ method?: string, bodyBytes?: number, headers?: Record<string, string>, fresh?: boolean }} [options]
  * @returns {Promise<{ status: number, headers: http.IncomingHttpHeaders, body: string }>}
  */
 function request(port, host, path, options = {}) {
@@ -171,6 +172,7 @@ function request(port, host, path, options = {}) {
             : {}),
         },
         timeout: 20_000,
+        agent: options.fresh ? false : undefined,
       },
       (res) => {
         answered = true;
@@ -205,17 +207,24 @@ await runMain(async () => {
       args: process.argv.slice(2).filter((arg) => arg !== "--"),
       options: {
         keep: { type: "boolean", default: false },
+        release: { type: "boolean", default: false },
         "without-image-smoke": { type: "boolean", default: false },
       },
     }).values;
   } catch {
-    throw new UsageError("用法：node infra/deploy/rehearse.mjs [--keep] [--without-image-smoke]");
+    throw new UsageError(
+      "用法：node infra/deploy/rehearse.mjs [--keep] [--without-image-smoke] [--release]",
+    );
   }
-  const config = readConfig();
+  let config = readConfig();
   assertDockerRunning();
   const pgImage = stg("LYX_PG_IMAGE");
   const redisImage = stg("LYX_REDIS_IMAGE");
-  for (const image of [...Object.values(config.images), pgImage, redisImage]) {
+  for (const image of [
+    ...(flags.release ? [] : Object.values(config.images)),
+    pgImage,
+    redisImage,
+  ]) {
     if (docker(["image", "inspect", "-f", "{{.Id}}", image], { capture: true }).status !== 0) {
       throw new UsageError(
         `没有镜像 ${image}：三个 liyoxi/* 镜像用 pnpm stack:build 出，库与 Redis 的镜像用 pnpm infra:up 或 docker pull 备好`,
@@ -225,6 +234,21 @@ await runMain(async () => {
 
   const id = randomBytes(3).toString("hex");
   const prefix = `lyxrh-${id}`;
+  const newTag = `sha-${randomBytes(6).toString("hex")}`;
+  const ownedImages = [];
+  if (flags.release) {
+    config = readConfig({ ...process.env, LYX_STACK_TAG: `sha-${randomBytes(6).toString("hex")}` });
+    for (const tag of [config.tag, newTag])
+      for (const app of ["server", "gateway", "mediatool"]) {
+        const image = `liyoxi/${app}:${tag}`;
+        if (docker(["image", "inspect", image], { capture: true }).status === 0)
+          throw new UsageError("演练标签已经存在，拒绝覆盖");
+        ownedImages.push(image);
+      }
+  }
+  const evidence = flags.release
+    ? realpathSync(mkdtempSync(join(tmpdir(), "lyx-release-evidence-")))
+    : null;
   const home = realpathSync(mkdtempSync(join(tmpdir(), "lyx-rehearse-")));
   const secretsDir = join(home, "secrets");
   const subnet = pickSubnet();
@@ -241,6 +265,7 @@ await runMain(async () => {
   /** @type {NodeJS.ProcessEnv} */
   const env = {
     ...process.env,
+    LYX_SRC: root,
     LYX_NODE_HOME: home,
     LYX_SECRETS_DIR: secretsDir,
     LYX_NODE_PREFIX: prefix,
@@ -315,6 +340,36 @@ await runMain(async () => {
     `演练：前缀 ${prefix}，网段 ${subnet}，gateway 在 127.0.0.1:${port}，镜像标签 ${config.tag}，临时目录 ${home}`,
   );
   try {
+    if (flags.release) {
+      say(`真实构建两个版本 ${config.tag} / ${newTag}；证据目录 ${evidence}`);
+      const label = ["--label", `io.liyoxi.rehearsal=${id}`];
+      mustDocker("构建演练专用 mediatool", [
+        "build",
+        ...label,
+        "-t",
+        config.images.mediatool,
+        "-t",
+        `liyoxi/mediatool:${newTag}`,
+        "infra/docker/mediatool",
+      ]);
+      for (const tag of [config.tag, newTag])
+        for (const app of ["server", "gateway"]) {
+          mustDocker(`构建 ${app} 的真实版本 ${tag}`, [
+            "build",
+            ...label,
+            "-f",
+            `infra/docker/${app}/Dockerfile`,
+            "--build-arg",
+            `LYX_BUILD=${tag}`,
+            ...(process.env.LYX_NPM_REGISTRY
+              ? ["--build-arg", `NPM_CONFIG_REGISTRY=${process.env.LYX_NPM_REGISTRY}`]
+              : []),
+            "-t",
+            `liyoxi/${app}:${tag}`,
+            ".",
+          ]);
+        }
+    }
     // ---------- 密钥 ----------
     say("造密钥文件（假值，只在临时目录里）");
     if (script("infra/bootstrap/gen-secrets.sh", ["--dir", secretsDir]).status !== 0) {
@@ -679,6 +734,91 @@ await runMain(async () => {
       tested.status === 0 && /test is successful/.test(tested.stderr),
       tested.stderr.trim().split("\n").slice(-3),
     );
+    if (flags.release && evidence) {
+      say("双版本发布与回滚：独立持续探测，摘要保留到临时证据目录");
+      const probeConfig = join(evidence, "probe-config.json");
+      writeFileSync(
+        probeConfig,
+        JSON.stringify([
+          ...["/healthz", "/readyz", "/api/v1/m/mall-config"].map((path) => ({
+            name: `api${path}`,
+            url: `http://127.0.0.1:${port}${path}`,
+            host: hosts.api,
+          })),
+          ...["admin", "portal"].map((app) => ({
+            name: `${app}/index`,
+            url: `http://127.0.0.1:${port}/`,
+            host: hosts[app],
+            contains: '<meta name="lyx-build"',
+          })),
+        ]),
+      );
+      const release = (label, args) => {
+        const summary = join(evidence, `${label}-summary.json`);
+        const result = spawnSync(
+          process.execPath,
+          [
+            join(root, "infra/deploy/orchestrate.mjs"),
+            "--local",
+            ...args,
+            "--summary",
+            summary,
+            "--probe-config",
+            probeConfig,
+            "--probe-summary",
+            join(evidence, `${label}-probe.json`),
+          ],
+          { env, cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+        );
+        process.stdout.write(`${result.stdout ?? ""}${result.stderr ?? ""}`);
+        if (result.status !== 0) throw new StepError(`${label} 编排没过；证据 ${evidence}`);
+        const record = JSON.parse(readFileSync(summary, "utf8"));
+        check(
+          `${label} 有完整连续探测报告`,
+          record.probeStatus === "recorded" &&
+            record.probe.rounds > 0 &&
+            record.probe.finishedAt !== null,
+        );
+        return record;
+      };
+      release("baseline", ["--tag", config.tag]); // 真实走幂等链，记录初始成功版供缺省回滚选择。
+      const deployed = release("release", ["--tag", newTag]);
+      const version = async () =>
+        JSON.parse((await request(port, hosts.api, "/health", { fresh: true })).body).version;
+      check("发布后的 /health 是新构建号", (await version()) === newTag);
+      const rolled = release("rollback", ["--rollback"]);
+      check("回滚后的 /health 是旧构建号", (await version()) === config.tag);
+      check(
+        "新旧 server/gateway 真正分别构建",
+        deployed.imageDigests.server !== rolled.imageDigests.server &&
+          deployed.imageDigests.gateway !== rolled.imageDigests.gateway,
+      );
+      check(
+        "回滚不跑迁移/补种/资源预置",
+        rolled.steps.every((row) => !["migrate", "seed", "stage-assets"].includes(row.name)),
+      );
+      const index = JSON.parse(
+        superSql(
+          "SELECT json_build_object('name',i.indexname,'definition',i.indexdef) FROM pg_indexes i JOIN pg_class c ON c.relname=i.tablename AND c.relnamespace='public'::regnamespace WHERE i.schemaname='public' AND c.relkind='r' AND NOT c.relispartition AND i.indexdef LIKE '% WHERE %' ORDER BY i.indexname LIMIT 1",
+        ),
+      );
+      if (!/^[a-z0-9_]+$/.test(index.name) || !index.definition.startsWith("CREATE "))
+        throw new StepError("没有可演练的部分索引");
+      superSql(`DROP INDEX public."${index.name}"`);
+      try {
+        const rejected = script("infra/deploy/node-step.sh", ["verify-db", config.tag]);
+        check(
+          "自己的库少一个索引时完整 verify-db 变红",
+          rejected.status === 1 && /约束清单比对未通过/.test(rejected.output),
+        );
+        writeFileSync(join(evidence, "missing-index.log"), rejected.output);
+      } finally {
+        superSql(index.definition);
+      }
+      step("verify-db", config.tag);
+      copyFileSync(join(home, "releases.log"), join(evidence, "releases.jsonl"));
+      console.log(`发布/回滚与故障证据：${evidence}`);
+    }
   } catch (error) {
     // 没过时的现场：容器的状态与各自最后几行日志
     docker(["ps", "-a", "--filter", `name=${prefix}-`]);
@@ -709,6 +849,18 @@ await runMain(async () => {
         failures.push("演练自己的容器、网络与卷未清干净");
       } else {
         rmSync(home, { recursive: true, force: true });
+        for (const image of ownedImages) {
+          const owner = docker(
+            ["image", "inspect", "-f", '{{index .Config.Labels "io.liyoxi.rehearsal"}}', image],
+            { capture: true },
+          );
+          if (owner.status !== 0) continue;
+          if (
+            owner.stdout.trim() !== id ||
+            docker(["image", "rm", image], { capture: true }).status !== 0
+          )
+            failures.push(`演练专用镜像未清干净：${image}`);
+        }
       }
     }
   }

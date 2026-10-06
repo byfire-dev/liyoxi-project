@@ -204,7 +204,7 @@ step_smoke() {
     body="$(docker exec "$(container gateway)" curl -fsS -m 5 -H "Host: $host" http://127.0.0.1:8080/)" || die "前端入口冒烟请求失败：$key"
     printf '%s' "$body" | grep -Fq "<meta name=\"lyx-build\" content=\"$tag\"" || die "前端入口构建号不符：$key"
   done
-  # 入口页与完整资源清单的连续探测由 W2-26b 接续；此处不假称全量资源验收。
+  # 随后的 verify-assets-live 核当前入口和新旧全部资源；此步只做轻量健康/版本冒烟。
   say "API 探活、两个前端入口、构建版本与 worker 冒烟通过：$tag"
 }
 

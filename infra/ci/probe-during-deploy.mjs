@@ -20,12 +20,20 @@ export function validateTargets(value) {
       Object.keys(target).some(
         (key) => !["name", "url", "host", "sha256", "contains"].includes(key),
       ) ||
+      typeof target.name !== "string" ||
+      typeof target.url !== "string" ||
       !/^[a-zA-Z0-9/_.-]{1,512}$/.test(target.name ?? "") ||
       names.has(target.name)
     )
       throw new Error("探测目标名称或字段不合法");
     const url = new URL(target.url);
-    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.hash)
+    if (
+      !["http:", "https:"].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      url.hash ||
+      url.search
+    )
       throw new Error("探测 URL 不合法");
     if (target.host !== undefined && !/^[a-zA-Z0-9][a-zA-Z0-9.-]*(:[0-9]{1,5})?$/.test(target.host))
       throw new Error("探测 Host 不合法");
@@ -230,6 +238,10 @@ export async function main(args) {
   if (targets.length > 32) throw new Error("每秒探测至多 32 项");
   const controller = new AbortController();
   const stop = () => controller.abort();
+  const parent = process.ppid;
+  const parentWatch = setInterval(() => {
+    if (process.ppid !== parent) stop();
+  }, 1000);
   process.once("SIGTERM", stop);
   process.once("SIGINT", stop);
   try {
@@ -241,6 +253,7 @@ export async function main(args) {
       onReady: () => console.log("LYX_PROBE_READY"),
     });
   } finally {
+    clearInterval(parentWatch);
     process.removeListener("SIGTERM", stop);
     process.removeListener("SIGINT", stop);
   }

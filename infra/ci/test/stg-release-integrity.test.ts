@@ -149,6 +149,31 @@ describe("完整版本资源与受限真实 bash", () => {
     expect(() =>
       capture(NEW, join(path.images, NEW), join(path.home, "static"), path.records),
     ).toThrow("路径");
+    const publicFile = fixture();
+    writeFileSync(
+      join(publicFile.images, NEW, "admin", "index.html"),
+      `<meta name="lyx-build" content="${NEW}"><script src="/missing.js"></script>`,
+    );
+    expect(() =>
+      capture(
+        NEW,
+        join(publicFile.images, NEW),
+        join(publicFile.home, "static"),
+        publicFile.records,
+      ),
+    ).toThrow("未受资源清单覆盖");
+    const sharedLink = fixture();
+    const sharedAssets = join(sharedLink.home, "static", "admin", "assets");
+    rmSync(sharedAssets, { recursive: true });
+    symlinkSync(join(sharedLink.images, NEW, "admin", "assets"), sharedAssets);
+    expect(() =>
+      capture(
+        NEW,
+        join(sharedLink.images, NEW),
+        join(sharedLink.home, "static"),
+        sharedLink.records,
+      ),
+    ).toThrow("共享资源不接受符号链接");
   });
   it("节点预核新旧版本；helper 不挂密钥且只可写清单目录，失败仍清自己的提取容器", async () => {
     const f = fixture();
@@ -234,7 +259,7 @@ describe("完整版本资源与受限真实 bash", () => {
     const f = fixture();
     writeFileSync(join(f.home, "dummy"), "");
     // 先形成调用日志；以下每次拒绝不能新增 Docker 调用。
-    await f.run(["verify-assets", OLD]);
+    const baseline = await f.run(["verify-assets", OLD]);
     for (const args of [
       ["verify-assets"],
       ["verify-assets", "x;id"],
@@ -243,6 +268,7 @@ describe("完整版本资源与受限真实 bash", () => {
     ]) {
       const result = await f.run(args);
       expect(result.status).toBe(2);
+      expect(result.calls).toEqual(baseline.calls);
     }
     expect((await f.run([], { SSH_ORIGINAL_COMMAND: `verify-assets ${NEW}; id` })).status).toBe(2);
   });

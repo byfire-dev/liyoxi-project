@@ -10,11 +10,11 @@
 #   seed <标签>        一次性容器播种（应用登录账号）：没有才插；播完跑六条配置类断言，有违规即以 1 退出
 #   up <标签>          记下“现在跑这个版本”，起（换）六个容器，等到都在跑且健康
 #   status             六个容器的状态与版本、经 gateway 的探活、worker 是否持有租约；有一项不对即非 0
-#   verify-db <标签>   库的核对：库名、两个扩展、应用连库用的是登录账号而不是属主、角色与授权
+#   verify-db <标签>   库的核对：库名、两个扩展、应用连库用的是登录账号而不是属主、角色与授权、约束清单和分区
 #   stage-assets <标签> 不覆盖地预置两个前端的资源；worker-swap <标签> 停旧再换 worker 与 mediatool
 #   api-stop / api-start <标签> 停 api/gateway，再换新并等 readyz 连续三次 200
 #   verify-assets <标签> 完整镜像资源与共享目录核对；verify-assets-live <标签> [旧标签] 实际网关全资源核对
-#   smoke <标签>      API 探活、两个前端入口、实际版本与 worker；完整资源探测由 W2-26b 交
+#   smoke <标签>      API 探活、两个前端入口、实际版本与 worker；完整资源由 verify-assets-live 核对
 #   prune             只清本项目记录过的旧版本，留当前与最近三版；资源至少保留 60 天
 #   facts / preflight 只读版本、发布历史与 P1（告警包未接时明确 unavailable）
 #   image-facts <标签> 只核目标三类本地镜像；record <标签> <base64url JSON> 严格校验后追加记录
