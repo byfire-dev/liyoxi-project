@@ -74,7 +74,7 @@ test("账号真实人工核验：30秒静默读、通过下一条、驳回必选
         configurable: true,
         get: () => "hidden",
       });
-      document.dispatchEvent(new Event("visibilitychange"));
+      document.dispatchEvent(new Event("visibilitychange", { bubbles: true }));
     });
   test.info().annotations.push({
     type: "queue-visibility",
@@ -90,13 +90,16 @@ test("账号真实人工核验：30秒静默读、通过下一条、驳回必选
   if (!browserHidden)
     await page.evaluate(() => {
       Reflect.deleteProperty(document, "visibilityState");
-      document.dispatchEvent(new Event("visibilitychange"));
+      document.dispatchEvent(new Event("visibilitychange", { bubbles: true }));
     });
   await expect.poll(() => queueReads).toBeGreaterThan(hiddenReads);
   await expect(page.getByRole("textbox", { name: "账号名称识别值", exact: true })).toHaveValue(
     first.name,
   );
   await background.close();
+  console.info(
+    `W119 队列：${browserHidden ? "真实 tab 隐藏" : "限定 visibility 依赖探针"}，31秒隐藏零 GET，恢复可见后 GET 且输入保留`,
+  );
   let approves = 0,
     rejects = 0;
   page.on("request", (request) => {
@@ -125,7 +128,8 @@ test("账号真实人工核验：30秒静默读、通过下一条、驳回必选
     (button as HTMLButtonElement).click();
   });
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByText("暂无待核验账号", { exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /待核验.*0/ })).toBeVisible();
+  await expect(page.getByText("没有符合条件的事项", { exact: true })).toBeVisible();
   expect(rejects).toBe(1);
   await noHorizontalScroll(page, "账号核验处理完成");
   expect(errors).toEqual([]);

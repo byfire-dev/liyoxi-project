@@ -1,3 +1,13 @@
+.lyx-ticket-page {
+  display: contents;
+}
+.lyx-ticket-page .lyx-tabs {
+  overflow-x: auto;
+}
+.lyx-ticket-page .lyx-tabs__item {
+  flex: none;
+  white-space: nowrap;
+}
 .lyx-ticket-toolbar,
 .lyx-ticket-assignment__footer {
   display: flex;

@@ -15,6 +15,10 @@ export async function orderShot(page: Page, name: string) {
   await noHorizontalScroll(page, name);
   mkdirSync("dist/e2e-shots", { recursive: true });
   await page.setViewportSize({ width: 1440, height: 900 });
+  await page.evaluate(() => {
+    window.scrollTo({ top: 0, left: 0 });
+    document.querySelector("main")?.scrollTo({ top: 0, left: 0 });
+  });
   await page.screenshot({ path: `dist/e2e-shots/${name}.png`, animations: "disabled" });
   await page.setViewportSize({ width: 1366, height: 768 });
 }

@@ -19,6 +19,7 @@ test("工单池真实指派：同步双点击仅一次，另一交付经理登�
   const dialog = page.getByRole("dialog", { name: "分配交付经理", exact: true });
   await dialog.getByRole("combobox", { name: "交付经理", exact: true }).click();
   await page.getByTitle(fixture.manager.name, { exact: true }).click();
+  await expect(page.locator(".ant-select-dropdown:visible")).toHaveCount(0);
   await dialog
     .getByRole("textbox", { name: "分配备注", exact: true })
     .fill("按门店已提交的要求安排制作");

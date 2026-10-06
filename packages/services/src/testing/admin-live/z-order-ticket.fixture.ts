@@ -1,6 +1,6 @@
 import { calendarDate, addDays } from "@liyoxi/shared/time";
 import { DramaSnapshotSchema } from "@liyoxi/contract";
-import { createIdentityContext } from "../../kernel/index.js";
+import { createIdentityContext, uuidv7 } from "../../kernel/index.js";
 import { createTickets, prepareTicketAssignees } from "../../delivery/index.js";
 import { createPublish } from "../../publish/index.js";
 import { createSla } from "../../sla/index.js";
@@ -43,6 +43,24 @@ const fixture: AdminLiveFixture = async ({ make, runtime }) => {
   const admin = await runtime.tx.run((tx) =>
     tx.staff.findFirstOrThrow({ where: { staffRoleKey: "super_admin", status: "active" } }),
   );
+  // actual main 的首次指派要求主管；只调整本轮已有假管理员，不改变旧员工角色/状态或总数。
+  await runtime.tx.run(async (tx) => {
+    await tx.staff.update({ where: { id: admin.id }, data: { isLead: true } });
+    await tx.dictItem.create({
+      data: {
+        id: uuidv7(),
+        dictTypeKey: "custom_focus",
+        code: "W119F",
+        name: "主推服务",
+        parentCode: null,
+        ext: {},
+        isEnabled: true,
+        position: 999,
+        createdAt: runtime.clock.now(),
+        updatedAt: runtime.clock.now(),
+      },
+    });
+  });
   const version = await runtime.tx.run((tx) =>
     tx.agreementVersion.findFirst({ where: { agreementKey: "custom_license", status: "active" } }),
   );
@@ -65,6 +83,7 @@ const fixture: AdminLiveFixture = async ({ make, runtime }) => {
       status,
       totalChargePoints: 1200,
       itemCount: 1,
+      focusCodes: ["W119F"],
     });
     const drama = await make.drama({
       title: `订单演练短剧${index + 1}`,

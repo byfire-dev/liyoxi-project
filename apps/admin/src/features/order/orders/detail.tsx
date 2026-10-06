@@ -20,12 +20,17 @@ function OrderContent({ data }: { data: OrderDetail }) {
         <h2 className="lyx-section-title">剧目明细</h2>
         <div className="lyx-order-items">
           {data.items.map((item) => {
-            const tone = statusToneByEnum("order_item.phase", item.phase)?.admin;
+            const tone =
+              statusToneByEnum("order_item.phase", item.phase)?.admin ??
+              statusToneByEnum("drama_order.status", item.phase)?.admin ??
+              (item.phase === "terminated"
+                ? statusToneByEnum("delivery_ticket.step", "terminated")?.admin
+                : undefined);
             return (
               <article key={item.orderItemId} className="lyx-order-item">
                 <div className="lyx-order-item__title">
                   <strong>{item.dramaTitle}</strong>
-                  {tone ? <StatusTag tone={tone.tone}>{tone.label}</StatusTag> : item.phase}
+                  {tone ? <StatusTag tone={tone.tone}>{tone.label}</StatusTag> : "其他阶段"}
                 </div>
                 <InfoList
                   items={[

@@ -276,7 +276,7 @@ export function TicketsPage() {
     },
   ];
   return (
-    <>
+    <div className="lyx-ticket-page">
       <PageHeader
         title="工单池"
         subtitle="按当前步骤与交付时限安排制作"
@@ -381,6 +381,6 @@ export function TicketsPage() {
           onSuccess={refresh}
         />
       ) : null}
-    </>
+    </div>
   );
 }
