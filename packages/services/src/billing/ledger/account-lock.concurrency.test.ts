@@ -1,9 +1,10 @@
 import type { PrismaClient } from "@liyoxi/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { isAppError } from "../../kernel/index.js";
+import { isAppError, savepoint, uuidv7 } from "../../kernel/index.js";
 import {
   createLedgerHarness,
+  dramaHoldInput,
   joinLedger,
   openTerm,
   ownerContext,
@@ -14,7 +15,8 @@ import { ACCOUNT_LOCK_WAIT_MS, LedgerError } from "./index.js";
 
 // 验收 4（甲类的并发测试）：等锁 3 秒。账户锁被另一条连接占着：加购入账在 3 到 4 秒之间得到 ACCOUNT_BUSY，
 // 不进 tx.run 的重试（进了的话是 6 秒以上、拿到的是 BUSY）；放开之后同一个键重试成功，只入账一次。
-// 一个事务锁第二个主体的账户即抛错。冻结（hold）走的是同一个入口，随冻结一族再补一条。
+// 一个事务锁第二个主体的账户即抛错。冻结（hold）走的是同一个入口，第二个 PR 补了一条：
+// 冻结等锁 3 秒；同一事务再次进入而锁已随保存点回滚丢掉时，重新拿锁同样只等 3 秒。
 
 const SLOW = 120_000;
 
@@ -99,6 +101,74 @@ describe("账户锁（验收 4）", () => {
       expect(await prisma.pointLot.count({ where: { entityId: entity.id, kind: "addon" } })).toBe(
         1,
       );
+    },
+    SLOW,
+  );
+
+  it(
+    "冻结等锁 3 秒；同一事务再次进入而锁已随保存点回滚丢掉：重新拿锁也是 3 到 4 秒得到 ACCOUNT_BUSY。放开后同键重试成功",
+    async () => {
+      const { entity, store } = await h.make.merchant({ verified: true });
+      await openTerm(h, { entityId: entity.id });
+      const drama = await h.make.drama({ heatTier: "A" });
+      const order = { entityId: entity.id, storeId: store.id, dramaId: drama.id };
+      const [fresh, reentered] = [
+        dramaHoldInput({ ...order, refId: uuidv7() }),
+        dramaHoldInput({ ...order, refId: uuidv7() }),
+      ];
+
+      const lost = gate();
+      const locked = gate();
+      const release = gate();
+      const timed = async (run: () => Promise<unknown>) => {
+        const startedAt = performance.now();
+        const outcome = await run().then(
+          () => "冻结了",
+          (error: unknown) => error,
+        );
+        return { outcome, waitedMs: performance.now() - startedAt };
+      };
+      // 这个事务先在保存点里进入账本，保存点回滚，账户锁随之释放；等另一条连接占住锁之后再冻结
+      const second = h.tx.run(
+        async (tx) => {
+          await savepoint(tx, async () => {
+            await h.ledger.lockAccount(tx, entity.id);
+            throw new Error("回滚这个保存点");
+          }).catch(() => undefined);
+          lost.open();
+          await locked.opened;
+          return timed(() => h.ledger.hold(tx, reentered));
+        },
+        { timeoutMs: 30_000 },
+      );
+      await lost.opened;
+      const holder = other.tx.run(
+        async (tx) => {
+          await other.ledger.lockAccount(tx, entity.id);
+          locked.open();
+          await release.opened;
+        },
+        { timeoutMs: 30_000 },
+      );
+      await locked.opened;
+      // 另一个事务第一次进入：照常等 3 秒
+      const first = await timed(() => h.tx.run((tx) => h.ledger.hold(tx, fresh)));
+      const again = await second.catch((error: unknown) => ({ outcome: error, waitedMs: -1 }));
+      release.open();
+      await holder;
+
+      for (const { outcome, waitedMs } of [first, again]) {
+        expect(isAppError(outcome) && outcome.error).toBe("ACCOUNT_BUSY");
+        expect(waitedMs).toBeGreaterThanOrEqual(ACCOUNT_LOCK_WAIT_MS - 100);
+        expect(waitedMs).toBeLessThan(ACCOUNT_LOCK_WAIT_MS + 1_000);
+      }
+      expect(await prisma.pointHold.count({ where: { entityId: entity.id } })).toBe(0);
+      for (const input of [fresh, reentered]) {
+        expect(await h.tx.run((tx) => h.ledger.hold(tx, input))).toMatchObject({
+          points: 1800,
+          replayed: false,
+        });
+      }
     },
     SLOW,
   );

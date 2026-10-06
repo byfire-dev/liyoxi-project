@@ -10,6 +10,7 @@ import type { LocalDate } from "@liyoxi/shared/time";
 
 import { createLedger } from "../billing/index.js";
 import type {
+  AdjustResult,
   CaptureResult,
   HoldResult,
   Ledger,
@@ -357,6 +358,31 @@ export const refundHold = (
       ctx: fixtureContext(found.entityId, "lyxtest.refund"),
     });
   });
+
+/** 手动调整入账一笔（审批单、申请单的 id 与单号现生成；账本不查它们）。自己开一个事务 */
+export const adjustPoints = (
+  harness: LedgerHarness,
+  input: {
+    entityId: string;
+    direction: "increase" | "decrease";
+    lotKind: "plan" | "addon";
+    points: number;
+    requestNo?: string;
+  },
+): Promise<AdjustResult> =>
+  harness.tx.run((tx) =>
+    harness.ledger.adjust(tx, {
+      entityId: input.entityId,
+      approvalRequestId: uuidv7(),
+      requestNo: input.requestNo ?? `TZ-${uuidv7()}`,
+      pointAdjustmentRequestId: uuidv7(),
+      direction: input.direction,
+      lotKind: input.lotKind,
+      points: input.points,
+      reasonCode: "correction",
+      ctx: fixtureContext(input.entityId, "lyxtest.adjust"),
+    }),
+  );
 
 const iso = (at: Date | null): string | null => at?.toISOString() ?? null;
 
