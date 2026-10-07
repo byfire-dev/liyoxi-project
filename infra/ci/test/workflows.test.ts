@@ -573,14 +573,7 @@ describe("ci.yml", () => {
     "test-2": [INSTALL, DB_GENERATE, MIGRATE, MINIO_UP, "pnpm test --project '!infra' --shard=2/3"],
     "test-3": [INSTALL, DB_GENERATE, MIGRATE, MINIO_UP, "pnpm test --project '!infra' --shard=3/3"],
     // infra 项目的用例：连库的几份自己建临时库，不用生成的客户端；W0-10 约束名核对的用例只读迁移库，所以先建一份
-    "test-infra": [
-      INSTALL,
-      DB_GENERATE,
-      MIGRATE,
-      "docker compose -f infra/compose/local.yml up -d --wait redis",
-      EXPORT_MOUNTED,
-      "pnpm test --project infra",
-    ],
+    "test-infra": [INSTALL, MIGRATE, "pnpm test --project infra"],
     // W0-05b：两个会话同时跑连库的测试项目（挂了 globalSetup 的），核对库名与 Redis 前缀没有交集。
     // 全量分成四片，一个任务跑一片（每片里照旧是两个会话），合起来是原来的那一遍
     "test-isolation": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 1/4"],
@@ -624,6 +617,14 @@ describe("ci.yml", () => {
       "pnpm gates:selftest",
     ],
   };
+  // M1 冷检出仅加入探针的三个前置命令，原三个命令及完整相等断言保留。
+  STEPS["test-infra"]!.splice(1, 0, DB_GENERATE);
+  STEPS["test-infra"]!.splice(
+    3,
+    0,
+    "docker compose -f infra/compose/local.yml up -d --wait redis",
+    EXPORT_MOUNTED,
+  );
   const commandsOf = (id: string) =>
     [...jobBody(ci, id).matchAll(/^ {8}run: (.+)$/gm)].map((match) => match[1] ?? "");
 
