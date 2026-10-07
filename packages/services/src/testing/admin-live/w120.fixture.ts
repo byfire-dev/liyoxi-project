@@ -342,6 +342,7 @@ const fixture: AdminLiveFixture = async ({ runtime, make }) => {
         outcome,
         headers: { authorization: `Bearer ${login.token}`, "X-Store-Id": merchant.store.id },
         sampleId: sample.sampleId,
+        mediaFileIds: [sampleFile, finalFile],
       });
     }
     return {

@@ -228,8 +228,8 @@ export function createW120Media(ctx: Runtime) {
 async function cleanupRun(runId: string, ids: string[]) {
   guard(
     /^[a-z0-9]{16}$/.test(runId) &&
-      ids.length === 4 &&
-      new Set(ids).size === 4 &&
+      ids.length === 2 &&
+      new Set(ids).size === 2 &&
       ids.every((id) => /^[0-9a-f-]{36}$/.test(id)),
   );
   const runtime = createRuntime({
@@ -250,6 +250,7 @@ async function cleanupRun(runId: string, ids: string[]) {
       const { file, info, production, item, jobs } = await runtime.tx.run(async (tx) => {
         const file = await tx.fileObject.findUniqueOrThrow({ where: { id } });
         const production = await tx.productionRecord.findUniqueOrThrow({ where: { fileId: id } });
+        guard(production.orderItemId);
         return {
           file,
           production,
@@ -303,10 +304,10 @@ async function cleanupRun(runId: string, ids: string[]) {
       );
       refs.push(file.objectKey, `incoming/${id}/${token}`);
     }
-    guard(new Set(refs).size === 8);
+    guard(new Set(refs).size === 4);
     for (const key of refs)
       guard((await runtime.providers.storage.delete({ bucket: "media", key })).ok);
-    process.stdout.write("W120 本轮四个正式对象及四个 incoming 对象已清理\n");
+    process.stdout.write("W120 本链两个正式对象及两个 incoming 对象已清理\n");
   } finally {
     await runtime.close();
   }

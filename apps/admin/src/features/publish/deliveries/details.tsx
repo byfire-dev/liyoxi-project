@@ -163,7 +163,11 @@ export function DeliveryDetails({
       </section>
       <section>
         <h3 className="lyx-section-title">发布清单</h3>
-        <p>已按剧目资料预填</p>
+        <p>
+          {detail.publishList?.isComplete
+            ? "已按剧目资料预填，内容完整"
+            : "发布资料尚未完整，请补齐后再推送"}
+        </p>
         <InfoList
           labelWidth={84}
           items={[
