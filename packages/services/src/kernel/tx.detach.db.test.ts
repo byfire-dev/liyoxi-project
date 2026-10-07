@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@liyoxi/db";
+import type { Prisma, PrismaClient } from "@liyoxi/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { useTestDatabase } from "../testing/index.js";
@@ -111,6 +111,28 @@ describe("detach：独立事务的真库边界", () => {
     });
     expect((await rows(inspect)).DX).toBeUndefined();
     expect((await rows(inspect)).DY).toBe(1);
+  });
+
+  it("模型方法局部覆盖在同一事务可见，不污染独立或后续事务", async () => {
+    let calls = 0;
+    await tx.run(async (outer) => {
+      const delegate = outer.bizSequence;
+      const create = delegate.create.bind(delegate);
+      delegate.create = <T extends Prisma.BizSequenceCreateArgs>(
+        args: Prisma.SelectSubset<T, Prisma.BizSequenceCreateArgs>,
+      ) => {
+        calls++;
+        return create<T>(args);
+      };
+      expect(outer.bizSequence).toBe(delegate);
+      await put(outer, "MA");
+      await detach(() => tx.run((inner) => put(inner, "MB")));
+      expect(calls).toBe(1);
+      await put(outer, "MC");
+    });
+    await tx.run((next) => put(next, "MD"));
+    expect(calls).toBe(2);
+    expect(await rows(inspect)).toMatchObject({ MA: 1, MB: 1, MC: 1, MD: 1 });
   });
 
   it("预先构造但未执行的 Prisma 查询也不能延迟到脱离链使用", async () => {

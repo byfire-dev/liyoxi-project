@@ -100,6 +100,7 @@ function scopedHandle(client: TxClient, state: TxState): Tx {
     if (existing) return existing;
     // Prisma 的事务客户端会共享方法；局部覆写（如测试 spy）留在该句柄，不能写回共享对象。
     const local = Object.create(null) as object;
+    const delegates = new Map<PropertyKey, object>();
     const view = new Proxy(local, {
       get(_, key) {
         const object = target;
@@ -125,10 +126,15 @@ function scopedHandle(client: TxClient, state: TxState): Tx {
           !key.startsWith("_") &&
           typeof value === "object" &&
           value !== null
-        )
-          return wrap(value);
+        ) {
+          // Prisma delegate 的 getter 可返回新对象；同一公开句柄必须复用同一视图及局部覆写。
+          const delegate = delegates.get(key) ?? wrap(value);
+          delegates.set(key, delegate);
+          return delegate;
+        }
         return value;
       },
+      set: (_, key, value: unknown) => Reflect.set(local, key, value, local),
       has: (_, key) => Reflect.has(local, key) || Reflect.has(target, key),
       ownKeys: () => [...new Set([...Reflect.ownKeys(target), ...Reflect.ownKeys(local)])],
       getOwnPropertyDescriptor(_, key) {
