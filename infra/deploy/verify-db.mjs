@@ -7,7 +7,7 @@
 //   1. 迁移账号连得上，连的库名是预发的库名（LYX_DB_NAME）；btree_gist、pg_trgm 两个扩展已装
 //   2. 应用用的连接串（DATABASE_URL_FILE）连上去是登录账号：是 lyx_app 的成员；不是超级用户，不能建库、建角色；
 //      不是库的属主，名下一张表都没有（表的属主是迁移账号）
-//   3. 角色与授权：node infra/ci/db-verify-grants.mjs --database <库名>（与 pnpm db:verify-grants 是同一份核对）
+//   3. 角色与授权、约束清单与分区：复用 infra/ci 里已入库的三份核对，不另写规则
 // 两份连接串从 /run/secrets 下的文件读，只进子进程的环境变量：不进命令行参数，不打印。
 // 只读，另有 db-verify-grants 那一处插完即回滚的写入。退出码：0 通过；1 有一项没过；2 环境不对。
 import { spawnSync } from "node:child_process";
@@ -95,15 +95,21 @@ check(
   `库的属主=${ownsDatabase}，名下的表=${ownedTables}`,
 );
 
-console.log("\n## 角色与授权（infra/ci/db-verify-grants.mjs）");
-const grants = spawnSync(
-  process.execPath,
-  [new URL("../ci/db-verify-grants.mjs", import.meta.url).pathname, "--database", dbName],
-  { stdio: "inherit", env: { ...process.env, DATABASE_URL: migratorUrl } },
-);
-if (grants.status !== 0) {
-  console.log(`  不通过 角色与授权核对（退出码 ${grants.status}）`);
-  failed += 1;
+for (const [label, file, option] of [
+  ["角色与授权", "db-verify-grants.mjs", "--database"],
+  ["约束清单", "db-constraints.mjs", "--db"],
+  ["分区断言", "db-partition-assert.mjs", "--db"],
+]) {
+  console.log(`\n## ${label}（infra/ci/${file}）`);
+  const result = spawnSync(
+    process.execPath,
+    [new URL(`../ci/${file}`, import.meta.url).pathname, option, dbName],
+    { stdio: "inherit", env: { ...process.env, DATABASE_URL: migratorUrl } },
+  );
+  if (result.status !== 0) {
+    console.log(`  不通过 ${label}核对（退出码 ${result.status ?? "工具未启动"}）`);
+    failed += 1;
+  }
 }
 
 if (failed > 0) stop(1, `有 ${failed} 项没过`);

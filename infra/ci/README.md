@@ -47,6 +47,8 @@
 
 工作流在 `.github/workflows/`：`ci.yml`（每个 PR 与推到 main）、`nightly.yml`（每晚，Node 26，失败只告警）。
 
+`images.yml`（W2-25b）在受影响 PR 构建四镜像、真加载上传 SDK、校验独立工具冻结锁，并构建小程序经过原体积门禁；PR 不访问密文、不推送。只有 main 的 push/manual 且 `STG_IMAGES_PUBLISH_ENABLED=true` 才推镜像；secure 制品另要求 `STG_ARTIFACT_UPLOAD_ENABLED=true`。PG/Redis 只手动转存固定多架构清单。`deploy-stg.yml` 整个 job 受 `STG_DEPLOY_ENABLED=true` 控制，只取同仓 main 成功 push 的同 run 发布摘要，验证 HEAD/镜像摘要后调用既有编排。两工作流均暂不进入 required；外部配置与密文键见 bootstrap README 第 12 节，真实云写/部署未执行。
+
 另有 `stack-smoke.yml`（W1-22）：构建三个镜像、起本地整套环境、冒烟、收场。改到镜像定义、Compose、起停脚本、两个服务端应用或迁移的 PR 与推到 main 时跑，超时 15 分钟；不是必过检查，不进 `required`（镜像构建进必过是 M2 的事，W2-25）。往它里面加一步时，在 `test/workflows.test.ts`“stack-smoke.yml”一组的命令清单里同一位置加一行。
 
 ## 2. CI 的结构
