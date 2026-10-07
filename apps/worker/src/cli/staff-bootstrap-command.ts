@@ -24,6 +24,12 @@ export interface StaffBootstrapOptions {
 
 const USAGE = "用法：staff:bootstrap --name <姓名，1 到 10 个字> --phone <11 位手机号>";
 
+/** x01 的稳定代码名与实际 CLI 处理器；镜像入口和真实薄壳测试使用同一描述符。 */
+export const staffBootstrapCommand = {
+  name: "staff_bootstrap",
+  run: runStaffBootstrapCommand,
+} as const;
+
 export async function runStaffBootstrapCommand(
   options: StaffBootstrapOptions = {},
 ): Promise<number> {

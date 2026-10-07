@@ -7,9 +7,7 @@
 // 用例失败、钩子（beforeAll、afterAll、beforeEach、afterEach）失败都算失败。
 // 改名是因为同一个 worker 编号马上会被下一个测试文件用到，不改名留不住。
 
-import { aroundAll, inject } from "vitest";
 import type { RunnerTask } from "vitest";
-import { getCurrentSuite } from "vitest/suite";
 
 import { createPrismaClient } from "../index.js";
 import type { PrismaClient } from "../index.js";
@@ -24,6 +22,16 @@ import type { TestConnectionOptions, TestPackage } from "./database.js";
 // 只为类型：inject("lyxTestMaxWorkers") 的键是 global-setup.ts 里对 Vitest 的类型扩充。别的包（apps/api、apps/worker）
 // 经 @liyoxi/services/testing 引到本文件时，它们的类型检查里没有 global-setup.ts，不带这一行就认不得那个键（W0-22）
 import type {} from "./global-setup.js";
+
+// 无 Vitest 的命令可安全导入测试公共入口；只有真实 Vitest worker 加载钩子。
+const vitest =
+  process.env.VITEST === "true"
+    ? { hooks: await import("vitest"), suite: await import("vitest/suite") }
+    : undefined;
+function requireVitest() {
+  if (!vitest) throw new Error("useTestDatabase/测试钩子只能在 Vitest worker 中使用");
+  return vitest;
+}
 
 /**
  * 收尾钩子的时限。删库平时不到一秒，但它要等数据库做一次检查点：
@@ -138,7 +146,8 @@ export class TestDatabaseHandle implements TestDatabase {
  * 用了支架却没挂的项目会被漏在外面。只连 Redis、不连库的项目同样要挂。
  */
 export function assertTestScaffoldAttached(): void {
-  if ((inject("lyxTestMaxWorkers") as number | undefined) !== undefined) return;
+  if ((requireVitest().hooks.inject("lyxTestMaxWorkers") as number | undefined) !== undefined)
+    return;
   throw new Error(
     '本包的 vitest.config.ts 没有挂测试支架的 globalSetup：在 test 里加一行 globalSetup: ["@liyoxi/services/testing/global-setup"]（packages/services/src/testing/README.md 第 7 节）',
   );
@@ -161,9 +170,10 @@ export function useTestDatabase(pkg: TestPackage, options: TestDatabaseOptions =
   assertTestScaffoldAttached();
   const handle = new TestDatabaseHandle(testDatabaseName(pkg, { label: options.label }), options);
   // 这一组的任务对象：文件顶层登记时取到的是文件，describe 里登记时是那个 describe
-  const collector = getCurrentSuite();
+  const { hooks, suite } = requireVitest();
+  const collector = suite.getCurrentSuite();
   // 回调只写一个参数：Vitest 会解析回调的参数表，第二个参数不是解构写法就报错
-  aroundAll(async (runSuite) => {
+  hooks.aroundAll(async (runSuite) => {
     try {
       await runSuite();
     } finally {

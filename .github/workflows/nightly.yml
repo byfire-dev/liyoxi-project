@@ -69,6 +69,16 @@ jobs:
         run: psql -X -w -d postgres -c "CREATE DATABASE lyx_migrate_check" && pnpm db:deploy
       - name: 测试
         run: pnpm test
+      - name: M1 接口主路径
+        run: pnpm e2e
+      - name: M1 状态机覆盖门禁
+        run: pnpm machines:coverage -- --strict --contract
+      - name: M1 留桩清单核对
+        run: node infra/ci/check-stubs.mjs
+      - name: M0 与 M1 接口清零
+        run: node infra/ci/landed.mjs --check --require M0,M1
+      - name: M0 与 M1 四个计数
+        run: node infra/ci/four-counts.mjs --require M0,M1
       # M0 的演示（W0-30；计划 第 6.3 节“退出：演示”）：自己建演示库、跑全部迁移与种子，把样例链路重放一遍，
       # 末尾打印四个计数；跑完删掉自己建的库。同一条链路的用例已在上面的“测试”里，这里跑的是业主用的那条命令
       - name: 演示（demo:m0）
