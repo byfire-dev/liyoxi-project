@@ -14,7 +14,7 @@
  */
 import { createNotices } from "../src/config/index.js";
 import { DemoSeedRefusedError, runDemoSeed } from "../src/demo-seed.js";
-import { EnvError, loadEnv } from "../src/kernel/index.js";
+import { EnvError, loadEnv, systemClock } from "../src/kernel/index.js";
 import { createRuntime } from "../src/runtime.js";
 import { loadKeyring, SecurityError } from "../src/security/index.js";
 
@@ -34,11 +34,14 @@ async function main(): Promise<number> {
     console.error(`演示种子：${error.message}`);
     return 2;
   }
+  // 单次播种共用一个业务时刻：“立即生效”的协议与公告不能在两次读钟之间出现时间倒挂。
+  const seededAtMs = systemClock.now().getTime();
   // 日志只留告警以上：这条命令的输出是给人看的行数与激活码
   const runtime = createRuntime({
     entry: "worker",
     env: { ...env, LOG_LEVEL: "warn" },
     version: "dev",
+    clock: { now: () => new Date(seededAtMs) },
   });
   try {
     const report = await runDemoSeed({
