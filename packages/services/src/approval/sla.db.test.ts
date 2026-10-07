@@ -392,9 +392,9 @@ describe("审批决定 SLA", () => {
     expect(await world.sample.tx.run((tx) => handleApprovalSlaBreach(tx, deps, input))).toBe(
       "fired",
     );
-    expect(await world.prisma.outboxEvent.count({ where: { dedupeKey: `tmr:${timer.id}` } })).toBe(
-      1,
-    );
+    expect(
+      await world.prisma.outboxEvent.count({ where: { dedupeKey: `tmr:${timer.dedupeKey}` } }),
+    ).toBe(1);
     await world.prisma.timer.update({
       where: { id: timer.id },
       data: { status: "fired", firedAt: world.sample.clock.now(), leaseUntil: null },

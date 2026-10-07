@@ -267,7 +267,7 @@ export async function handleApprovalSlaBreach(
     },
     entityId: row.entityId,
     storeId: row.storeId,
-    dedupeKey: `tmr:${timer.id}`,
+    dedupeKey: `tmr:${persisted.dedupeKey}`,
   });
   return "fired";
 }

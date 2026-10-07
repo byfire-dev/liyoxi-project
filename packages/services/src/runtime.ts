@@ -36,7 +36,7 @@ import type { BillingPurchase } from "./billing/index.js";
 import { staffBriefs } from "./staff/index.js";
 import { createDocs } from "./docs/index.js";
 import { createTenant } from "./tenant/index.js";
-import { createSla, createCalendarAdmin } from "./sla/index.js";
+import { createSla, createCalendarAdmin, bindCalendarCoverage } from "./sla/index.js";
 import type { CalendarAdmin } from "./sla/index.js";
 import type { Keyring } from "./security/index.js";
 import { createConfig, createConfigAdmin } from "./config/index.js";
@@ -51,6 +51,7 @@ import {
   createBizNoIssuer,
   createTxRunner,
   createQueueChannel,
+  detach,
   systemClock,
 } from "./kernel/index.js";
 import type {
@@ -292,6 +293,11 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
   const configAdmin = createConfigAdmin({ tx, clock, assembly, config, staffBriefs });
   const calendarAdmin = createCalendarAdmin({ tx, clock, events });
+  const unbindCalendarCoverage = bindCalendarCoverage({
+    clock,
+    alerts: alertsOf(assembly),
+    detach,
+  });
   const unbindBilling = bindBillingTimers({ clock, flow, timers });
   const ledger = createLedger({ clock, events });
   const tenant = createTenant({ tx, clock, flow, assembly });
@@ -409,6 +415,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       unbindPublish();
       unbindDelivery();
       unbindApprovalSla();
+      unbindCalendarCoverage();
       unbindOps();
       unbindWebhooks();
       await mediaChannel.close();
