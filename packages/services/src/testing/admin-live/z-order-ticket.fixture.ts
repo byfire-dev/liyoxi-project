@@ -190,6 +190,7 @@ const fixture: AdminLiveFixture = async ({ make, runtime }) => {
   return {
     orders,
     accounts,
+    managerRecoveryCodePR2: signed.recoveryCodes[1],
     manager: {
       id: manager.id,
       name: manager.name,
