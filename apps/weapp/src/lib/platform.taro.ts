@@ -3,6 +3,7 @@
 import Taro from "@tarojs/taro";
 
 import type { ClientInfo, ClientPlatform, EnvVersion, KeyValueStorage, SendFn } from "./platform";
+import { saveVideoUrl as saveToAlbum } from "./platform";
 
 export const send: SendFn = async (request) => {
   const response = await Taro.request({
@@ -120,4 +121,17 @@ export function privacyApi(): {
 /** 回登录页。登录页还没建（W1-05）时这一跳会失败，不处理 */
 export function gotoLogin(): void {
   void Taro.reLaunch({ url: "/pages/login/index" }).catch(() => undefined);
+}
+
+/** H5 只供近似截图，保存空转；小程序下载到平台临时路径，存完尽力删除。 */
+export async function saveVideoUrl(url: string): Promise<void> {
+  if (process.env.TARO_ENV === "h5") return;
+  await saveToAlbum(url, {
+    download: (address) => Taro.downloadFile({ url: address }),
+    save: (filePath) => Taro.saveVideoToPhotosAlbum({ filePath }),
+    unlink: (filePath) =>
+      new Promise((resolve, reject) =>
+        Taro.getFileSystemManager().unlink({ filePath, success: resolve, fail: reject }),
+      ),
+  });
 }

@@ -15,7 +15,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 运营管理后台 | 80 | 67 | 17 | 50 | 13 | 2 |
 | 电脑端下载页 | 8 | 7 | 0 | 7 | 1 | 0 |
-| 商家端小程序 | 49 | 48 | 20 | 28 | 1 | 0 |
+| 商家端小程序 | 49 | 48 | 25 | 23 | 1 | 0 |
 
 应实现未实现页面数，按里程碑：
 
@@ -23,7 +23,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 运营管理后台 | 1 | 12 | 6 | 14 | 1 | 4 | 12 |
 | 电脑端下载页 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
-| 商家端小程序 | 5 | 8 | 5 | 4 | 3 | 1 | 2 |
+| 商家端小程序 | 0 | 8 | 5 | 4 | 3 | 1 | 2 |
 
 “入口隐藏”的页面照做、外壳不给入口（规范 第 14 节第 12 项），计入应实现，不算留桩。
 
@@ -170,12 +170,12 @@
 | `sub/order` | 结果页 | `sub/order/result/index` | PayResult | M11 | W1-12 | M1 | 是 | 订购成功与付款成功共用，?type=order\|payment |
 | `sub/order` | 订单列表 | `sub/order/orders/index` | Orders | M20 | W1-18 | M1 | 是 |  |
 | `sub/order` | 订单详情 | `sub/order/order-detail/index` | OrderDetail | M21 | W1-18 | M1 | 是 |  |
-| `sub/order` | 方案确认 | `sub/order/plan/index` | Plan | M22 | W1-20 | M1 | 否 |  |
-| `sub/order` | 样片确认 | `sub/order/sample/index` | Sample | M23 | W1-20 | M1 | 否 |  |
-| `sub/order` | 上线记录 | `sub/order/launch-record/index` | LaunchRecord | M24 | W1-20 | M1 | 否 |  |
+| `sub/order` | 方案确认 | `sub/order/plan/index` | Plan | M22 | W1-20 | M1 | 是 |  |
+| `sub/order` | 样片确认 | `sub/order/sample/index` | Sample | M23 | W1-20 | M1 | 是 |  |
+| `sub/order` | 上线记录 | `sub/order/launch-record/index` | LaunchRecord | M24 | W1-20 | M1 | 是 |  |
 | `sub/order` | 我的短剧 | `sub/order/my-dramas/index` | MyDramas | M33 | G5-A | M5 | 否 |  |
-| `sub/publish` | 发布任务 | `sub/publish/tasks/index` | Publish | M28 | W1-20 | M1 | 否 |  |
-| `sub/publish` | 逐集下载 | `sub/publish/downloads/index` | — | — | W1-20 | M1 | 否 | 新增页：逐集下载管理与“扫码在电脑上下载”入口 |
+| `sub/publish` | 发布任务 | `sub/publish/tasks/index` | Publish | M28 | W1-20 | M1 | 是 |  |
+| `sub/publish` | 逐集下载 | `sub/publish/downloads/index` | — | — | W1-20 | M1 | 是 | M1 单集存相册替身；队列、扫码与回报 M6 回补 |
 | `sub/publish` | 发布账号 | `sub/publish/accounts/index` | Accounts | M26 | W1-18 | M1 | 是 | 含 M27 弹层 |
 | `sub/publish` | 扫码确认 | `sub/publish/portal-approve/index` | — | — | G6-B | M6 | 否 | 新增页：下载页扫码后的确认页 |
 | `sub/billing` | 钱包 | `sub/billing/wallet/index` | Wallet、WalletExpired | M43 | W1-12 | M1 | 是 | 一页两态 |
