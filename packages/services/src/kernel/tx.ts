@@ -83,12 +83,81 @@ export interface TxState {
 }
 
 const scope = new AsyncLocalStorage<TxState>();
+// detach 只脱离数据库作用域；仍在执行的祖先事务继续约束外呼与旧句柄。
+const detachedScopes = new AsyncLocalStorage<readonly TxState[]>();
 const states = new WeakMap<object, TxState>();
+
+function assertHandleScope(state: TxState): void {
+  if (detachedScopes.getStore()?.includes(state) && scope.getStore() !== state)
+    throw new TypeError("脱离事务作用域后不能使用外层事务句柄");
+}
+
+/** 原客户端保留给内核；公开句柄的 SQL、模型方法在调用时检查 detach 边界。 */
+function scopedHandle(client: TxClient, state: TxState): Tx {
+  const views = new WeakMap<object, object>();
+  const wrap = (target: object): object => {
+    const existing = views.get(target);
+    if (existing) return existing;
+    // Prisma 的事务客户端会共享方法；局部覆写（如测试 spy）留在该句柄，不能写回共享对象。
+    const local = Object.create(null) as object;
+    const delegates = new Map<PropertyKey, object>();
+    const view = new Proxy(local, {
+      get(_, key) {
+        const object = target;
+        const value: unknown = Object.hasOwn(local, key)
+          ? Reflect.get(local, key, local)
+          : Reflect.get(object, key, object);
+        if (typeof value === "function")
+          return (...args: unknown[]) => {
+            assertHandleScope(state);
+            const result: unknown = Reflect.apply(value, object, args);
+            // Prisma 查询是惰性 thenable；预先构造查询也要在实际消费时过同一边界。
+            return typeof result === "object" &&
+              result !== null &&
+              typeof Reflect.get(result, "then", result) === "function"
+              ? wrap(result)
+              : result;
+          };
+        // 只包装客户端的一层模型 delegate，不改变查询参数、结果或 Prisma 内部对象。
+        if (
+          object === client &&
+          typeof key === "string" &&
+          !key.startsWith("$") &&
+          !key.startsWith("_") &&
+          typeof value === "object" &&
+          value !== null
+        ) {
+          // Prisma delegate 的 getter 可返回新对象；同一公开句柄必须复用同一视图及局部覆写。
+          const delegate = delegates.get(key) ?? wrap(value);
+          delegates.set(key, delegate);
+          return delegate;
+        }
+        return value;
+      },
+      set: (_, key, value: unknown) => Reflect.set(local, key, value, local),
+      has: (_, key) => Reflect.has(local, key) || Reflect.has(target, key),
+      ownKeys: () => [...new Set([...Reflect.ownKeys(target), ...Reflect.ownKeys(local)])],
+      getOwnPropertyDescriptor(_, key) {
+        const own = Reflect.getOwnPropertyDescriptor(local, key);
+        if (own) return own;
+        const original = Reflect.getOwnPropertyDescriptor(target, key);
+        return original ? { ...original, configurable: true } : undefined;
+      },
+      getPrototypeOf: () => Reflect.getPrototypeOf(target),
+    });
+    views.set(target, view);
+    return view;
+  };
+  const handle = wrap(client) as Tx;
+  states.set(handle, state);
+  return handle;
+}
 
 /** 取句柄上的状态。句柄不是 run 给的（硬转出来的），或事务已经结束，即抛错 */
 export function txState(tx: Tx): TxState {
   const state = states.get(tx);
   if (!state?.open) throw new TypeError("这个事务句柄不是 tx.run 给的，或它的事务已经结束");
+  assertHandleScope(state);
   return state;
 }
 
@@ -96,11 +165,24 @@ export function txState(tx: Tx): TxState {
 export const isInTransaction = (): boolean => scope.getStore()?.open === true;
 
 /**
+ * 仅本异步链脱离当前事务；独立短事务仍由 tx.run 开，不继承锁、保存点或幂等状态。
+ * 正常返回、抛错或取消都由 AsyncLocalStorage 恢复调用方作用域，兄弟链不受影响。
+ * 祖先事务未结束时仍禁止 Provider 外呼，旧句柄也不能用于脱离后的调用链。
+ */
+export async function detach<T>(fn: () => Promise<T>): Promise<T> {
+  const current = scope.getStore();
+  const parents = detachedScopes.getStore()?.filter((state) => state.open) ?? [];
+  return detachedScopes.run(current?.open ? [...parents, current] : parents, () => scope.exit(fn));
+}
+
+/**
  * 外呼断言：Provider 的入口调它（接线在 W0-19、W0-20）。在事务里即违规。
  * @param what 要调的是什么，如 "wechatPay.createOrder"，写进报错
  */
 export function assertNotInTransaction(what: string): void {
-  const state = scope.getStore();
+  const state = scope.getStore()?.open
+    ? scope.getStore()
+    : detachedScopes.getStore()?.findLast((parent) => parent.open);
   if (!state?.open) return;
   state.violate(
     new KernelViolation(
@@ -229,7 +311,7 @@ export function createTxRunner({ prisma, appEnv, report }: TxRunnerOptions): TxR
               states.set(client, state);
               try {
                 // 品牌只在这里贴：先收窄成带品牌的事务客户端，再当成去掉 $transaction 的句柄给出去
-                const handle: Tx = client as TxClient & Branded;
+                const handle = scopedHandle(client, state);
                 const result = await scope.run(state, async () => {
                   if (!keyed) return fn(handle);
                   const stored = await claimIdempotency(client, keyed).catch((error: unknown) => {
