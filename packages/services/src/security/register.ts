@@ -1,5 +1,6 @@
 import { createIdentityContext, defineRegistration, isUuid } from "../kernel/index.js";
 import { boundWebhooks } from "./webhooks/binding.js";
+import { purgeWebhookPayloads } from "./webhooks/runtime.js";
 
 export const registration = defineRegistration("security", {
   subscribers: [
@@ -21,7 +22,7 @@ export const registration = defineRegistration("security", {
     {
       name: "security.webhook_payload",
       every: "day",
-      run: (tx, input) => boundWebhooks().purge(tx, input),
+      run: purgeWebhookPayloads,
     },
   ],
 });

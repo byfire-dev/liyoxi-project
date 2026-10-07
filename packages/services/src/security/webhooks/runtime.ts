@@ -359,12 +359,18 @@ export function createWebhooks(deps: WebhooksOptions): Webhooks {
       }
       return seen.length;
     },
-    async purge(tx, { now, limit }) {
-      return tx.$executeRawUnsafe(
-        "WITH due AS (SELECT id FROM webhook_event WHERE payload_purge_at <= $1 AND payload_purged_at IS NULL ORDER BY payload_purge_at,id LIMIT $2 FOR UPDATE SKIP LOCKED) UPDATE webhook_event w SET payload = CASE WHEN w.payload ? 'summary' THEN jsonb_build_object('summary', w.payload -> 'summary') ELSE NULL END, payload_purged_at = $1, updated_at = $1 FROM due WHERE w.id = due.id",
-        now,
-        limit,
-      );
-    },
+    purge: purgeWebhookPayloads,
   };
+}
+
+/** 独立清理登记只依赖传入事务；无需回调来源或进程运行时绑定。 */
+export async function purgeWebhookPayloads(
+  tx: Tx,
+  { now, limit }: { readonly now: Date; readonly limit: number },
+): Promise<number> {
+  return tx.$executeRawUnsafe(
+    "WITH due AS (SELECT id FROM webhook_event WHERE payload_purge_at <= $1 AND payload_purged_at IS NULL ORDER BY payload_purge_at,id LIMIT $2 FOR UPDATE SKIP LOCKED) UPDATE webhook_event w SET payload = CASE WHEN w.payload ? 'summary' THEN jsonb_build_object('summary', w.payload -> 'summary') ELSE NULL END, payload_purged_at = $1, updated_at = $1 FROM due WHERE w.id = due.id",
+    now,
+    limit,
+  );
 }
