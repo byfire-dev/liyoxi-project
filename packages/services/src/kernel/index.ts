@@ -15,6 +15,7 @@ export type { AppErrorOptions, ErrorSymbol } from "./errors.js";
 export {
   assertNotInTransaction,
   createTxRunner,
+  detach,
   isInTransaction,
   isRetryableDbError,
   KernelViolation,
