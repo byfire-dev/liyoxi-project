@@ -3,6 +3,8 @@ import type { SmsProvider, SmsSendResult, SmsTemplateBinding } from "../types.js
 import { createSmsHttp, isRecord, opaque } from "./http.js";
 import type { SmsHttpOptions } from "./http.js";
 
+const uncertainCode = (code: string | undefined) => !code || code.startsWith("InternalError");
+
 export interface TencentSmsOptions extends SmsHttpOptions {
   readonly getTemplate: (key: string) => Promise<SmsTemplateBinding | null>;
 }
@@ -36,7 +38,7 @@ export function createTencentSms(options: TencentSmsOptions): SmsProvider {
     if (template.status !== "active") return rejection("短信模板未生效");
     if (
       !template.providerTemplateId ||
-      !/^\d{1,64}$/.test(template.providerTemplateId) ||
+      !/^\d{1,32}$/.test(template.providerTemplateId) ||
       !template.signName ||
       !/^[\p{Script=Han}A-Za-z0-9]{2,12}$/u.test(template.signName)
     )
@@ -111,7 +113,7 @@ export function createTencentSms(options: TencentSmsOptions): SmsProvider {
     const error = response.value["Error"];
     if (isRecord(error)) {
       const providerCode = opaque(error["Code"]);
-      const uncertain = !providerCode || providerCode.startsWith("InternalError");
+      const uncertain = uncertainCode(providerCode);
       return {
         ...failed(
           uncertain ? "unavailable" : "rejected",
@@ -128,6 +130,8 @@ export function createTencentSms(options: TencentSmsOptions): SmsProvider {
     let firstId: string | undefined;
     const seen = new Set<string>();
     let rejectedCode: string | undefined;
+    let hasFailure = false;
+    let uncertainStatus = false;
     for (const candidate of statuses as unknown[]) {
       if (
         !isRecord(candidate) ||
@@ -143,7 +147,9 @@ export function createTencentSms(options: TencentSmsOptions): SmsProvider {
       seen.add(candidate["PhoneNumber"]);
       const code = opaque(candidate["Code"]);
       if (code !== "Ok") {
-        rejectedCode = code ?? "UnknownStatus";
+        hasFailure = true;
+        uncertainStatus ||= uncertainCode(code);
+        rejectedCode ??= code;
         continue;
       }
       const id = opaque(candidate["SerialNo"]);
@@ -155,13 +161,18 @@ export function createTencentSms(options: TencentSmsOptions): SmsProvider {
         };
       firstId ??= id;
     }
-    if (rejectedCode)
+    if (hasFailure) {
+      const uncertain = uncertainStatus || firstId !== undefined;
       return {
-        ...failed("rejected", "腾讯云未完整接受短信投递"),
-        providerCode: rejectedCode,
+        ...failed(
+          uncertain ? "unavailable" : "rejected",
+          uncertain ? "腾讯云响应未确定全部受理结果" : "腾讯云明确拒绝短信投递",
+        ),
+        ...(rejectedCode ? { providerCode: rejectedCode } : {}),
         requestId,
-        acceptance: firstId || rejectedCode === "UnknownStatus" ? "unknown" : "not_accepted",
+        acceptance: uncertain ? "unknown" : "not_accepted",
       };
+    }
     if (!firstId)
       return {
         ...failed("unavailable", "短信响应缺少真实投递编号"),

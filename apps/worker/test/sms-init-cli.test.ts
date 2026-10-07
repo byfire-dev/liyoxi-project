@@ -58,6 +58,14 @@ async function run(argv: string[], env = source) {
   return { code, text: lines.join("\n") };
 }
 describe("短信初始化真实薄CLI与构建入口", () => {
+  it("33位模板编号按配置错误退出1，未配置环境亦不能误报存储失败", async () => {
+    const invalid = structuredClone(data);
+    invalid.templates[0]!.providerTemplateId = "1".repeat(33);
+    const path = file("long-template-id.json", JSON.stringify(invalid));
+    const result = await run(["--config", path, "--staff-id", staffId], {});
+    expect(result).toEqual({ code: 1, text: "短信配置不合固定清单或审批事实" });
+    expect(result.text).not.toContain(path);
+  });
   it("缺参数、非法文件/JSON/字段/大文件拒绝，不打印内容/文件路径", async () => {
     expect((await run([])).code).toBe(1);
     const secretMarker = "forbidden-private-marker";
@@ -116,6 +124,31 @@ describe("短信初始化真实薄CLI与构建入口", () => {
     } catch (error) {
       code = (error as { status: number }).status;
       expect(String((error as { stderr: string }).stderr)).toContain("短信初始化参数不合规");
+    }
+    expect(code).toBe(1);
+  });
+  it("实际dist入口先拒绝33位模板编号，再加载环境", () => {
+    const invalid = structuredClone(data);
+    invalid.templates[0]!.providerTemplateId = "1".repeat(33);
+    const path = file("dist-long-template-id.json", JSON.stringify(invalid));
+    let code = 0;
+    try {
+      execFileSync(
+        process.execPath,
+        ["dist/sms-init.js", "--config", path, "--staff-id", staffId],
+        {
+          cwd: new URL("../", import.meta.url),
+          encoding: "utf8",
+          stdio: "pipe",
+          timeout: 5000,
+          env: { PATH: process.env.PATH },
+        },
+      );
+    } catch (error) {
+      code = (error as { status: number }).status;
+      expect(String((error as { stderr: string }).stderr)).toContain(
+        "短信配置不合固定清单或审批事实",
+      );
     }
     expect(code).toBe(1);
   });

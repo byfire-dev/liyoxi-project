@@ -139,6 +139,80 @@ describe("腾讯云短信：TC3 与真实本地 HTTP（公开虚构凭据，不�
     expect(JSON.stringify(result)).not.toContain(config.secretKey);
     expect(http.calls()).toBe(1);
   });
+  it.each(["InternalError.Timeout", "InternalError.SendAndRecvFail", undefined])(
+    "逐号码结果 %s 不确定受理，只调用一次",
+    async (code) => {
+      const http = await local((_req, res) =>
+        sendJson(res, {
+          Response: {
+            RequestId: "request-uncertain",
+            SendStatusSet: [{ Code: code, SerialNo: "", PhoneNumber: "+8613800138000" }],
+          },
+        }),
+      );
+      expect(
+        await createTencentSms({ config, ...http, getTemplate: async () => template }).sendTemplate(
+          input,
+        ),
+      ).toMatchObject({ ok: false, reason: "unavailable", acceptance: "unknown" });
+      expect(http.calls()).toBe(1);
+    },
+  );
+  it.each([
+    [undefined, "FailedOperation.InsufficientBalanceInSmsPackage", "unknown"],
+    ["FailedOperation.InsufficientBalanceInSmsPackage", undefined, "unknown"],
+    ["InternalError.Timeout", "FailedOperation.InsufficientBalanceInSmsPackage", "unknown"],
+    ["FailedOperation.InsufficientBalanceInSmsPackage", "InternalError.SendAndRecvFail", "unknown"],
+    [
+      "FailedOperation.InsufficientBalanceInSmsPackage",
+      "InvalidParameterValue.IncorrectPhoneNumber",
+      "not_accepted",
+    ],
+  ])("批量失败 %s / %s 保留整体受理事实 %s", async (first, second, acceptance) => {
+    const http = await local((_req, res) =>
+      sendJson(res, {
+        Response: {
+          RequestId: "request-batch-failure",
+          SendStatusSet: [
+            { Code: first, SerialNo: "", PhoneNumber: "+8613800138000" },
+            { Code: second, SerialNo: "", PhoneNumber: "+8613900139000" },
+          ],
+        },
+      }),
+    );
+    const sms = createTencentSms({
+      config,
+      ...http,
+      getTemplate: async () => ({
+        ...template,
+        templateKey: "ops_alert",
+        params: [{ name: "rule_name", maxLen: 64 }],
+      }),
+    });
+    expect(
+      await sms.sendOncallAlert({
+        phones: [phone, "13900139000"],
+        title: "短信保活",
+        content: "私有上下文",
+      }),
+    ).toMatchObject({
+      ok: false,
+      reason: acceptance === "unknown" ? "unavailable" : "rejected",
+      acceptance,
+    });
+    expect(http.calls()).toBe(1);
+  });
+  it("超出已登记模板字段长度时不外呼", async () => {
+    const http = await local((_req, res) => sendJson(res, success));
+    const sms = createTencentSms({ config, ...http, getTemplate: async () => template });
+    expect(
+      await sms.sendTemplate({
+        ...input,
+        template: { ...template, providerTemplateId: "1".repeat(33) },
+      }),
+    ).toMatchObject({ ok: false, reason: "unconfigured", acceptance: "not_accepted" });
+    expect(http.calls()).toBe(0);
+  });
   it.each(["serial", "request", "phone", "malformed"])("异常 %s 不造成功、不重试", async (mode) => {
     const copy = structuredClone(success);
     if (mode === "serial") copy.Response.SendStatusSet[0]!.SerialNo = "";

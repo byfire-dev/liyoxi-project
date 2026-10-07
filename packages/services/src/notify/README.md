@@ -32,7 +32,7 @@ node apps/worker/dist/sms-init.js --config /run/config/sms-templates.json --staf
 }
 ```
 
-真实 `approval` 表示业主已核对模板/签名获批事实与参数长度，不能用本文件的示例代替。签名按官方规则为2–12个中英文/数字；配置只接受 active 或 pending_carrier，pending_carrier 不发送。整批先严格校验，再同事务校验超级管理员、九个种子与 kind，原子写入。相同配置重跑不改时间、不重复审计。实际变化会清空旧 lastOkAt，重新开始闲置周期；ops/notify_config、notify.sms.init 对自然模板键写 target_key，留 cli.sms-init，审计只保存有限差分与数量，不保存正文或签名。
+真实 `approval` 表示业主已核对模板/签名获批事实与参数长度，不能用本文件的示例代替。模板编号为1–32位数字，与实际 sms_template 字段约束一致；33位起在事务和外呼前拒绝。签名按官方规则为2–12个中英文/数字；配置只接受 active 或 pending_carrier，pending_carrier 不发送。整批先严格校验，再同事务校验超级管理员、九个种子与 kind，原子写入。相同配置重跑不改时间、不重复审计。实际变化会清空旧 lastOkAt，重新开始闲置周期；ops/notify_config、notify.sms.init 对自然模板键写 target_key，留 cli.sms-init，审计只保存有限差分与数量，不保存正文或签名。
 
 ## 2. 固定变量与发送约束
 
@@ -54,7 +54,7 @@ generic_todo 事项仅可选：样片确认、广告确认、成片交付、上�
 
 真实 sendTemplate 每次一个中国大陆号码；旧 sendOncallAlert 的多个号码走一次腾讯批量请求，200上限、禁止重复号码，部分受理返回失败且受理不明，不假称全部成功。只把 title 作为固定规则名，不把详细告警 content 填成额外变量。旧三方法输入/void结果保持兼容。
 
-原生 fetch/node:crypto，固定 sms.tencentcloudapi.com、SendSms、2021-01-11、TC3-HMAC-SHA256。外部每次10s×1，无内部重试（包括限流、5xx和读查询）。响应体256KiB上限；信号覆盖请求和流，取消会释放 reader 与 timer。Code=Ok、匹配号码、真实 RequestId/SerialNo 完整才认同步受理；超时/断连/内部异常或部分批量受理不能自动再发。服务商原 Message 与 PhoneNumber 不进入错误/日志；保留有限官方错误码与真实追踪号。
+原生 fetch/node:crypto，固定 sms.tencentcloudapi.com、SendSms、2021-01-11、TC3-HMAC-SHA256。外部每次10s×1，无内部重试（包括限流、5xx和读查询）。响应体256KiB上限；信号覆盖请求和流，取消会释放 reader 与 timer。Code=Ok、匹配号码、真实 RequestId/SerialNo 完整才认同步受理；超时/断连/内部异常或部分批量受理不能自动再发。外层 Error 和逐号码 SendStatus 的 InternalError 或缺码均按 unavailable/unknown；批内任一受理不明不会被后续明确拒绝覆盖，只有全部明确拒绝才为 not_accepted。服务商原 Message 与 PhoneNumber 不进入错误/日志；保留有限官方错误码与真实追踪号。
 
 ## 3. 两个日任务
 

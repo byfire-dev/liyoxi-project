@@ -73,6 +73,27 @@ async function setup() {
   return { prisma, clock, tx, make, staff, init, sms, alerts, health, param, ctx, prepare };
 }
 describe("短信原子初始化、自然键审计、真实库保活（独立测试库）", () => {
+  it("模板编号32位可落库，33位在事务前拒绝且无配置或审计变更", async () => {
+    const h = await setup();
+    const accepted = configInput();
+    accepted.templates[0]!.providerTemplateId = "1".repeat(32);
+    expect(SmsInitSchema.safeParse(accepted).success).toBe(true);
+    expect(await h.init({ staffId: h.staff.id, config: accepted })).toEqual({ changed: 9 });
+    expect(
+      await h.prisma.smsTemplate.findUnique({
+        where: { templateKey: accepted.templates[0]!.templateKey },
+      }),
+    ).toMatchObject({ providerTemplateId: "1".repeat(32) });
+    const before = await h.prisma.smsTemplate.findMany();
+    const rejected = configInput();
+    rejected.templates[0]!.providerTemplateId = "1".repeat(33);
+    expect(SmsInitSchema.safeParse(rejected).success).toBe(false);
+    await expect(h.init({ staffId: h.staff.id, config: rejected })).rejects.toMatchObject({
+      error: "VALIDATION_FAILED",
+    });
+    expect(await h.prisma.smsTemplate.findMany()).toEqual(before);
+    expect(await h.prisma.auditLog.count({ where: { action: "notify.sms.init" } })).toBe(9);
+  }, 60_000);
   it("九模板原子初始化、精确审计对象、同值重跑幂等，不造 seed approved", async () => {
     const h = await setup();
     expect(await h.prisma.smsTemplate.count({ where: { status: "unconfigured" } })).toBe(9);

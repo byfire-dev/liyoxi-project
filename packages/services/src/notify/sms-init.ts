@@ -30,7 +30,7 @@ const TemplateSchema = z
   .object({
     templateKey: z.string(),
     kind: z.enum(["verify", "notice"]),
-    providerTemplateId: z.string().regex(/^\d{1,64}$/),
+    providerTemplateId: z.string().regex(/^\d{1,32}$/),
     signName: z.string().regex(/^[\p{Script=Han}A-Za-z0-9]{2,12}$/u),
     params: z
       .array(z.object({ name: z.string(), maxLen: z.number().int().min(1).max(128) }).strict())
