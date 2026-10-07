@@ -29,11 +29,11 @@ describe("页面清单", () => {
     ).toEqual(["sub/catalog/trailer/index"]);
   });
 
-  it("M1 交付账号三页、付款三页与建档六页、商城四页；商城四页与订购四页已实现，V1.1不实现", () => {
+  it("M1 全部二十五页已实现，V1.1不实现", () => {
     const built = WEAPP_PAGES.filter(isBuilt);
     expect(built.filter((page) => page.placeholder)).toHaveLength(0);
     expect(WEAPP_PAGES.filter((page) => page.milestone === "M1" && !page.implemented)).toHaveLength(
-      5,
+      0,
     );
     expect(built.map((page) => page.route)).toEqual([
       "pages/home/index",
@@ -47,6 +47,11 @@ describe("页面清单", () => {
       "sub/order/result/index",
       "sub/order/orders/index",
       "sub/order/order-detail/index",
+      "sub/order/plan/index",
+      "sub/order/sample/index",
+      "sub/order/launch-record/index",
+      "sub/publish/tasks/index",
+      "sub/publish/downloads/index",
       "sub/publish/accounts/index",
       "sub/billing/wallet/index",
       "sub/billing/plan-pick/index",
@@ -69,6 +74,11 @@ describe("页面清单", () => {
       "sub/order/result/index",
       "sub/order/orders/index",
       "sub/order/order-detail/index",
+      "sub/order/plan/index",
+      "sub/order/sample/index",
+      "sub/order/launch-record/index",
+      "sub/publish/tasks/index",
+      "sub/publish/downloads/index",
       "sub/publish/accounts/index",
       "sub/billing/wallet/index",
       "sub/billing/plan-pick/index",
@@ -107,9 +117,17 @@ describe("由清单拼出全局配置", () => {
         { root: "sub/catalog", pages: ["detail/index"] },
         {
           root: "sub/order",
-          pages: ["checkout/index", "result/index", "orders/index", "order-detail/index"],
+          pages: [
+            "checkout/index",
+            "result/index",
+            "orders/index",
+            "order-detail/index",
+            "plan/index",
+            "sample/index",
+            "launch-record/index",
+          ],
         },
-        { root: "sub/publish", pages: ["accounts/index"] },
+        { root: "sub/publish", pages: ["tasks/index", "downloads/index", "accounts/index"] },
         { root: "sub/billing", pages: ["wallet/index", "plan-pick/index"] },
         {
           root: "sub/profile",
@@ -147,7 +165,18 @@ describe("由清单拼出全局配置", () => {
     const routes = buildRoutes(pages);
     expect(routes.subPackages).toEqual([
       { root: "sub/catalog", pages: ["detail/index"] },
-      { root: "sub/order", pages: ["checkout/index", "result/index", "orders/index"] },
+      {
+        root: "sub/order",
+        pages: [
+          "checkout/index",
+          "result/index",
+          "orders/index",
+          "plan/index",
+          "sample/index",
+          "launch-record/index",
+        ],
+      },
+      { root: "sub/publish", pages: ["tasks/index", "downloads/index"] },
       { root: "sub/billing", pages: ["wallet/index", "plan-pick/index"] },
       {
         root: "sub/profile",
