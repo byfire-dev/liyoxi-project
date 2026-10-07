@@ -91,6 +91,7 @@ function Original({ services, doc }: { services: AppServices; doc: Doc }) {
         </div>
       )}
       <Button
+        aria-label="查看原图"
         loading={loading}
         onClick={async () => {
           if (busy.current) return;
