@@ -65,7 +65,11 @@ const accessFields: Readonly<Record<string, string>> = {
 };
 export function accessFieldLabel(action: string): string | undefined {
   const match = /^pii\.([a-z][a-z0-9_]*)\.reveal$/.exec(action);
-  return match ? (accessFields[match[1]!] ?? "其他字段") : undefined;
+  return match
+    ? Object.hasOwn(accessFields, match[1]!)
+      ? accessFields[match[1]!]
+      : "其他字段"
+    : undefined;
 }
 export function safeText(value: string): string {
   return value
@@ -84,10 +88,11 @@ export function displayField(key: string, value: unknown): { label: string; valu
     )
   )
     return null;
-  const label = labels[key] ?? "其他字段";
+  const known = Object.hasOwn(labels, key);
+  const label = known ? labels[key]! : "其他字段";
   if (value === null || value === undefined) return { label, value: "—" };
   if (typeof value === "object") return { label, value: "复杂内容已裁剪" };
-  if (!(key in labels)) return { label, value: "已裁剪" };
+  if (!known) return { label, value: "已裁剪" };
   const text = String(value);
   const mask = /phone/i.test(key)
     ? maskPhone
@@ -103,7 +108,8 @@ export function displayField(key: string, value: unknown): { label: string; valu
               ? maskBankAccount
               : undefined;
   if (mask) return { label, value: safeText(text.includes("*") ? text : mask(text)) };
-  if (key === "purpose") return { label, value: purposes[text] ?? "其他" };
+  if (key === "purpose")
+    return { label, value: Object.hasOwn(purposes, text) ? purposes[text]! : "其他" };
   return { label, value: typeof value === "boolean" ? (value ? "是" : "否") : safeText(text) };
 }
 export function displayFields(

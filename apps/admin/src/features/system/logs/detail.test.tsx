@@ -98,3 +98,34 @@ it("已脱敏具名值中的其他号码仍脱敏；备注中的证照/座机/�
   expect(rendered).toContain("028-****3321");
   expect(rendered).toContain("91510104MA6B****2R");
 });
+
+it("合法JSON中的原型属性名不会越过字段白名单或使详情崩溃", () => {
+  const keys = Object.getOwnPropertyNames(Object.prototype);
+  const meta = Object.fromEntries(keys.map((key) => [key, "INHERITED_META_PRIVATE"]));
+  expect(displayFields(meta)).toEqual(
+    keys.map((key) => ({ key, label: "其他字段", value: "已裁剪" })),
+  );
+  const html = renderToStaticMarkup(
+    <AuditDetailPanel detail={{ ...detail, meta, before: meta, after: meta }} access={null} />,
+  );
+  expect(html).not.toContain("INHERITED_META_PRIVATE");
+  expect(html).toContain("已裁剪");
+});
+
+it("用途与访问字段映射只接受自有键，原型属性使用未知文案", () => {
+  for (const purpose of ["__proto__", "constructor", "toString"]) {
+    expect(displayFields({ purpose })).toEqual([
+      { key: "purpose", label: "访问用途", value: "其他" },
+    ]);
+    expect(() =>
+      renderToStaticMarkup(
+        <AuditDetailPanel detail={{ ...detail, meta: { purpose } }} access={null} />,
+      ),
+    ).not.toThrow();
+  }
+  expect(accessFieldLabel("pii.constructor.reveal")).toBe("其他字段");
+  expect(displayFields({ purpose: "finance_ops", status: "active" })).toEqual([
+    { key: "purpose", label: "访问用途", value: "财务处理" },
+    { key: "status", label: "状态", value: "active" },
+  ]);
+});
