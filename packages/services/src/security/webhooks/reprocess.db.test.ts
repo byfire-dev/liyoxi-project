@@ -73,13 +73,20 @@ it("五档退避精确边界/5次升级/8次dead；未知来源停用不吞收�
   const pending = await prisma.webhookEvent.findFirstOrThrow({
     where: { eventId: "unknown-until-rebound" },
   });
-  const unknown = createWebhooks({ ...sample });
-  expect(await unknown.scan()).toBe(1);
+  const unknown = createWebhooks({
+    ...sample,
+    tx: {
+      run: async () => {
+        throw new Error("empty registry must not enter TX");
+      },
+    },
+  });
+  expect(await unknown.scan()).toBe(0);
   expect(await prisma.webhookEvent.findUniqueOrThrow({ where: { id: pending.id } })).toEqual(
     pending,
   );
   enabled = false;
-  expect(await recovery.scan()).toBe(1);
+  expect(await recovery.scan()).toBe(0);
   expect(await prisma.webhookEvent.findUniqueOrThrow({ where: { id: pending.id } })).toEqual(
     pending,
   );
@@ -91,3 +98,84 @@ it("五档退避精确边界/5次升级/8次dead；未知来源停用不吞收�
     attempts: 0,
   });
 }, 120_000);
+
+it.each(["unregistered", "disabled"] as const)(
+  "50条更早%s来源不占领取额度，后方inline支付兜底失去wake仍处理；恢复后原50条可回放",
+  async (caseName) => {
+    const prisma = await db.prisma(),
+      sample = createSampleEvents(prisma);
+    const beforeCount = await count(prisma, "WSA");
+    let enabled = true,
+      failing = true;
+    const blocked = source("WSB", { enabled: () => enabled, handle: async () => "ignored" });
+    const payment = source("WSA", {
+      provider: "wechatpay",
+      mode: "inline",
+      fallbackToInbox: true,
+      payload: () => ({
+        summary: { serial: "fake", state: "SUCCESS", amountFen: 1 },
+        resourceCipher: { ciphertext: "fake", nonce: "fake", associated_data: "" },
+      }),
+      restore: async () => "local-decrypted-fixture",
+      handle: async (tx) => {
+        await write(tx, "WSA");
+        if (failing) throw new Error("fixture first inline failure");
+        return "processed";
+      },
+    });
+    const seed = createWebhooks({ ...sample, sources: [blocked, payment] });
+    const blockedIds = Array.from({ length: 50 }, (_, i) => `${caseName}-blocked-${i}`);
+    for (const id of blockedIds) {
+      expect((await seed.accept(await prepare(seed, id), sampleSystemContext())).status).toBe(200);
+      sample.clock.advance(1);
+    }
+    const paymentId = `${caseName}-payment-fallback`;
+    expect(
+      (
+        await seed.accept(
+          await prepare(seed, paymentId, "wechatpay", { keyVersion: "fixture-kid" }),
+          sampleSystemContext(),
+        )
+      ).status,
+    ).toBe(200);
+    const original = await prisma.webhookEvent.findMany({
+      where: { eventId: { in: blockedIds } },
+      orderBy: { id: "asc" },
+    });
+    expect(original).toHaveLength(50);
+    expect(
+      await prisma.webhookEvent.findFirstOrThrow({ where: { eventId: paymentId } }),
+    ).toMatchObject({ mode: "inbox", processState: "failed", attempts: 1 });
+    expect(await count(prisma, "WSA")).toBe(beforeCount);
+    enabled = false;
+    failing = false;
+    sample.clock.advance(60_000);
+    const consumer = createWebhooks({
+      ...sample,
+      sources: caseName === "unregistered" ? [payment] : [blocked, payment],
+    });
+    expect(await consumer.scan()).toBe(1);
+    expect(await consumer.scan()).toBe(0);
+    expect(
+      await prisma.webhookEvent.findFirstOrThrow({ where: { eventId: paymentId } }),
+    ).toMatchObject({ processState: "processed", attempts: 1 });
+    expect(await count(prisma, "WSA")).toBe(beforeCount + 1);
+    expect(
+      await prisma.webhookEvent.findMany({
+        where: { eventId: { in: blockedIds } },
+        orderBy: { id: "asc" },
+      }),
+    ).toEqual(original);
+    // 新注册或重新启用均重新进入领取集合，保留的50条仍完整可处理。
+    enabled = true;
+    const restored = createWebhooks({ ...sample, sources: [blocked, payment] });
+    expect(await restored.scan()).toBe(50);
+    expect(await restored.scan()).toBe(0);
+    expect(
+      await prisma.webhookEvent.count({
+        where: { eventId: { in: blockedIds }, processState: "ignored" },
+      }),
+    ).toBe(50);
+  },
+  120_000,
+);

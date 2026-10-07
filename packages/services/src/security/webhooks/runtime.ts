@@ -332,13 +332,18 @@ export function createWebhooks(deps: WebhooksOptions): Webhooks {
       return outcome;
     },
     async scan(beat) {
+      const eligible = [...sources.values()]
+        .filter((source) => source.enabled?.() !== false)
+        .map((source) => source.provider);
+      if (eligible.length === 0) return 0;
       const seen: string[] = [];
       for (let i = 0; i < 50; i++) {
         const outcome = await deps.tx.run(async (tx) => {
           const rows = await tx.$queryRawUnsafe<Array<{ id: string }>>(
-            "SELECT id FROM webhook_event WHERE process_state IN ('received','failed') AND next_attempt_at <= $1 AND NOT (id = ANY($2::uuid[])) ORDER BY next_attempt_at, id LIMIT 1 FOR UPDATE SKIP LOCKED",
+            "SELECT id FROM webhook_event WHERE process_state IN ('received','failed') AND next_attempt_at <= $1 AND NOT (id = ANY($2::uuid[])) AND provider = ANY($3::text[]) ORDER BY next_attempt_at, id LIMIT 1 FOR UPDATE SKIP LOCKED",
             deps.clock.now(),
             seen,
+            eligible,
           );
           if (!rows[0]) return null;
           return processLocked(
