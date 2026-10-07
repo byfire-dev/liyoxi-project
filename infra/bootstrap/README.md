@@ -243,17 +243,17 @@ a 已经 PR #94 实际合入；b 续交桶声明/比较工具、独立上传器�
 
 只有业主明确设置 `LYX_COS_APPLY_ENABLED=true` 并给 `--apply` 才允许窄 PUT；写前完整读四桶，未知策略/ACL/生命周期/加密、缺桶或不认识的输出均停止，不能删除外部规则。pub 的 Enabled/Suspended 不能被改成“从未开启”。可管理差异依次写私有 ACL、版本/SSE 与完整生命周期，再逐项 GET 读回；失败不报告成功，不删除对象或桶。COSCLI 未证实生命周期命令，AWS 逐操作兼容也无腾讯保证，因此使用官方 SDK 的原生方法，未编造 CLI。
 
-GitHub Actions 的公开 vars 与 encrypted secrets 由业主事后设置。缺省三个外部开关都关闭，未配置而开启则失败，不以跳过步骤冒充发布成功：
+GitHub Actions 的公开 vars 与 encrypted secrets 由业主事后设置。缺省镜像发布、制品写入、部署三个外部开关都关闭；b2b 后续接体验版上传的独立开关，未配置而开启则失败，不以跳过步骤冒充发布成功：
 
 | 类别 | 配置 |
 | --- | --- |
-| 开关 | `STG_IMAGES_PUBLISH_ENABLED`、`STG_ARTIFACT_UPLOAD_ENABLED`、`STG_DEPLOY_ENABLED`；冻结仍为 `STG_FREEZE` |
+| 开关 | `STG_IMAGES_PUBLISH_ENABLED`、`STG_ARTIFACT_UPLOAD_ENABLED`、`STG_DEPLOY_ENABLED`、`STG_WEAPP_UPLOAD_ENABLED`；冻结仍为 `STG_FREEZE` |
 | 镜像仓库 | vars `STG_REGISTRY`（域名/可选端口）、`STG_REGISTRY_NAMESPACE`（不带末尾 /）；secrets `STG_REGISTRY_USERNAME`、`STG_REGISTRY_PASSWORD` |
 | 小程序构建 | vars `STG_WEAPP_APPID`、`STG_WEAPP_API_BASE_URL`，开启推送前必须配置真实公开值；PR 缺省只编译占位，不上传 |
 | secure 制品 | vars `STG_COS_APPID`；secrets `STG_COS_SECRET_ID`、`STG_COS_SECRET_KEY`，仅显式 `ci/sha-<12HEAD>/{weapp.tar.gz,images.json}`，上传另加 SSE-COS |
 | 受限 SSH | vars `STG_SSH_USER`、`STG_SSH_HOST`；secrets `STG_SSH_PRIVATE_KEY`、`STG_SSH_KNOWN_HOSTS`。known_hosts 由业主核主机指纹后录入，不现场 ssh-keyscan；临时文件0600、always清理 |
 
-PR 四镜像只 build，以 `sha-<12HEAD>` 绑定同一源码，小程序原 1500/800KB 预算不变。成功构建产物在 GitHub 保留七天；发布 job 从自己的 run 取产物，校验源码/公开构建配置/制品哈希后推四镜像，并记录远端摘要。`mirror_base` 只手动、main 且推送开关已启用才转存 PG17/Redis7 的固定多架构清单，不用单平台 pull/tag/push。部署只消费同仓 main 成功 push 的同 run 摘要，受限节点预拉后比对三个常驻应用镜像摘要，再调用 actual W2-26a 编排；小程序上传步骤仍留 W2-26b2。没有借用未合 #107。
+PR 四镜像只 build，以 `sha-<12HEAD>` 绑定同一源码，小程序原 1500/800KB 预算不变。成功构建产物在 GitHub 保留七天；发布 job 从自己的 run 取产物，校验源码/公开构建配置/制品哈希后推四镜像，并记录远端摘要。`mirror_base` 只手动、main 且推送开关已启用才转存 PG17/Redis7 的固定多架构清单，不用单平台 pull/tag/push。部署只消费同仓 main 成功 push 的同 run 摘要，受限节点预拉后比对三个常驻应用镜像摘要，再调用 actual W2-26a 编排；W2-26b2a 已交私有同源制品消费者；以下工作流接线待 b2b 独立 gate-change，现有工作流没有启用它：成功部署（含 verify-db）后串行消费，部署/探测/上传摘要统一保留。上传还有节点 LYX_WEAPP_UPLOAD_ENABLED 独立默认关闭；固定 reader venv、两份 COS 凭据文件及唯一微信密钥只读挂载见 cos-adapter/README.md。节点当前成功部署必须匹配本次 source，不能复用另一版。手动 rollback-stg 与发布同 concurrency，只在 main、STG_DEPLOY_ENABLED=true、execute=true 时执行，冻结与原安全拒绝保持。STG_PROBE_CONFIG 为公开的探测目标 JSON。
 
 `images.json` 四个镜像各记录 `registryDigest`、`amd64ManifestDigest`、`amd64ConfigDigest`。发布工具按摘要固定查询原始 index/manifest、校验字节 SHA256，且只接受唯一 linux/amd64 平台与其 config；节点实际 a 的 `.Id` 必须匹配同一镜像这三个明确事实之一，兼容 classic 的 config ID 与 containerd 的 index ID。缺字段、坏摘要、未知镜像或重复节点行均在编排前停止，不能只按 tag 放行。输出形状与原字节依据 [Docker Buildx 文档](https://docs.docker.com/reference/cli/docker/buildx/imagetools/inspect/)及[官方 raw 输出实现](https://github.com/docker/buildx/blob/master/util/imagetools/printers.go)，本机仅用真实 Node 与 fake Docker/SSH 核验，无 registry 推送或节点部署。
 
