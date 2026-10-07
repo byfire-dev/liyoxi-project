@@ -89,7 +89,17 @@ test("真实首店校验与资质审核：通过自动选下一条、驳回必�
   page.on("request", (request) => {
     if (new URL(request.url()).pathname.endsWith("/download-urls")) signatures++;
   });
-  await page.goto("/merchants/review");
+  const firstList = page.waitForRequest(
+    (request) =>
+      request.method() === "GET" && new URL(request.url()).pathname === "/api/v1/admin/approvals",
+  );
+  await page.goto("/merchants/review?tab=future&id=UI-only&sort=unsupported&uiOnly=x");
+  const firstQuery = new URL((await firstList).url()).searchParams;
+  expect(firstQuery.getAll("kind")).toEqual(["qualification"]);
+  expect(firstQuery.get("tab")).toBe("todo");
+  expect(firstQuery.get("pageSize")).toBe("100");
+  expect(firstQuery.get("sort")).toBe("due");
+  for (const key of ["id", "uiOnly"]) expect(firstQuery.has(key)).toBe(false);
   await expect(page.getByRole("heading", { name: "资质审核", exact: true })).toBeVisible();
   const queue = page.locator("[data-queue-item]");
   await expect(queue).toHaveCount(2);

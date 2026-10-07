@@ -1,10 +1,12 @@
 import type { Client, MethodResponse } from "openapi-fetch";
+import { ApprovalListQuerySchema } from "@liyoxi/contract/queries/admin";
 import type { operations, paths } from "@liyoxi/contract/types/admin";
 import type { ErrorBody } from "@liyoxi/contract/errors";
 
 import type { QueueActionResult } from "../../../components/QueueWorkbench";
 import { newIdempotencyKey } from "../../../lib/idempotency";
 import { readQueueSearch, type QueueSearch } from "../../../lib/queue";
+import { readContractQuery } from "../../../lib/contract-query";
 
 type AdminClient = Client<paths>;
 export type Approval = ReviewList["items"][number];
@@ -27,10 +29,46 @@ export const REVIEW_KEY = ["merchant", "qualification-review"] as const;
 
 export function reviewSearch(raw: Readonly<Record<string, unknown>>): QueueSearch {
   const search = readQueueSearch(raw);
+  const { wire } = readContractQuery(
+    ApprovalListQuerySchema,
+    {
+      tab: search.tab === "done_today" ? "done_today" : "todo",
+      q: search.q,
+    },
+    { keys: ["tab", "q"], keywordLimit: 30 },
+  );
   return {
-    ...search,
-    tab: search.tab === "done_today" ? "done_today" : "todo",
-    q: search.q?.slice(0, 30),
+    id: search.id,
+    tab: wire.tab ?? "todo",
+    q: wire.q,
+  };
+}
+
+/** 队列选中 id 只属于 UI；完整列表 wire 固定真实 kind、100 条页容量和 due 排序。 */
+export function reviewListQuery(search: QueueSearch, page: number) {
+  const { wire, parsed } = readContractQuery(
+    ApprovalListQuerySchema,
+    {
+      kind: "qualification",
+      tab: search.tab,
+      q: search.q,
+      page,
+      pageSize: 100,
+      sort: "due",
+    },
+    {
+      keys: ["kind", "tab", "q", "page", "pageSize", "sort"],
+      defaults: { kind: "qualification", tab: "todo", page: "1", pageSize: "100", sort: "due" },
+      keywordLimit: 30,
+    },
+  );
+  return {
+    kind: wire.kind,
+    tab: parsed.tab,
+    ...(wire.q ? { q: wire.q } : {}),
+    page: parsed.page,
+    pageSize: parsed.pageSize,
+    sort: "due" as const,
   };
 }
 export function decisionResult(error?: Pick<ErrorBody, "error" | "message">): QueueActionResult {

@@ -157,8 +157,11 @@ export function FormsBody() {
           </Form.Item>
         </Form>
         <Remark>
-          有字数上限的字段在标签行右侧显示计数（规范 第 5.3、8
-          节）还没有做，交第一个有表单的后台页面包；只读值、原因单选、单选卡、月份切换还没有构件（见下面“需要自己写的组件”）。整张表单的样子看{" "}
+          字数计数与就地错误由 FormField 提供；只读值、原因单选、单选卡、月份切换在{" "}
+          <a className="lyx-link" href="/dev/shared-controls">
+            共用控件样例
+          </a>
+          。整张表单的样子看{" "}
           <a className="lyx-link" href="/dev/form">
             表单样例页
           </a>

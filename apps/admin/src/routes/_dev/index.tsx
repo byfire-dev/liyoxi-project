@@ -88,6 +88,44 @@ export const devShowcaseRoute = createRoute({
     : undefined,
 });
 
+export const devMasterDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dev/master-detail",
+  validateSearch: passthrough,
+  beforeLoad: devOnly,
+  component: __LYX_DEV_FIXTURES__
+    ? lazyRouteComponent(() => import("../../dev/MasterDetailSample"), "MasterDetailSample")
+    : undefined,
+});
+
+export const devConfigRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dev/config",
+  validateSearch: passthrough,
+  beforeLoad: devOnly,
+  component: __LYX_DEV_FIXTURES__
+    ? lazyRouteComponent(() => import("../../dev/ConfigSample"), "ConfigSample")
+    : undefined,
+});
+
+export const devChartRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dev/chart",
+  beforeLoad: devOnly,
+  component: __LYX_DEV_FIXTURES__
+    ? lazyRouteComponent(() => import("../../dev/ChartSample"), "ChartSample")
+    : undefined,
+});
+
+export const devSharedControlsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dev/shared-controls",
+  beforeLoad: devOnly,
+  component: __LYX_DEV_FIXTURES__
+    ? lazyRouteComponent(() => import("../../dev/SharedControlsSample"), "SharedControlsSample")
+    : undefined,
+});
+
 export const devRoutes = [
   devTableRoute,
   devQueueRoute,
@@ -95,4 +133,8 @@ export const devRoutes = [
   devRowsRoute,
   devFormRoute,
   devShowcaseRoute,
+  devMasterDetailRoute,
+  devConfigRoute,
+  devChartRoute,
+  devSharedControlsRoute,
 ] as const;

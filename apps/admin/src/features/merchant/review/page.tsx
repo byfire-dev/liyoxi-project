@@ -20,6 +20,7 @@ import {
   createDecisionIntent,
   decisionResult,
   reviewSearch,
+  reviewListQuery,
   REVIEW_KEY,
   type Approval,
   type Detail,
@@ -56,12 +57,7 @@ export function QualificationReviewPage() {
     queryFn: async ({ pageParam }) => {
       const { data, response } = await client.GET("/api/v1/admin/approvals", {
         params: {
-          query: {
-            ...query,
-            page: typeof pageParam === "number" ? pageParam : 1,
-            pageSize: 100,
-            sort: "due",
-          },
+          query: reviewListQuery(search, typeof pageParam === "number" ? pageParam : 1),
         },
       });
       if (!data) throw new Error((await readFailure(response)).message);
