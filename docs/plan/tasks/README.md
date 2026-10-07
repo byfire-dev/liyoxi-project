@@ -201,6 +201,8 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 
 | — | W2-21、W2-22、W2-17、W2-23；W3-03、W4-02/10及M7回调包 | W2-01公共 `security.createWebhooks`/`WebhookSource`、两根 `webhookSources`，API `receiveWebhook`。verify在事务外用原始字节验签，POST必须event/error（仅h01明确两种可信skip免收件），restore本地恢复、handle复用传入Tx。inline原子/支付显式失败inbox兜底（必须summary+完整resourceCipher/kid）；inbox同TX出站、subscriber复用现有Tx、分钟50条SKIP LOCKED扫描。1/5/15分钟、1/6小时/8死信，支付5次升级；每日载荷UPDATE清理180/90天保留summary/举证。W4-02须补实际Provider公开的密文/kid适配，现有verifyAndDecrypt仅归一通知，不得深引；当前未挂真实hook/未验真实平台。W2-23接人工死信管理，W2-24接真实告警隔离/实现，不在本包偷偷detach | W2-01第4/7节；h01第2.1/2.4节；15分组第2.1/4节；security README第5/6节 |
 
+W2-10精准授权移交：PR1的identity实现必须同时过滤主体和（owner范围时）原授权老板，只改尚未撤销的portal_session，重复不覆盖证据。主包移除店员不吊销全账号user_session，by_owner归档仍允许老板下载；真实阻断/取消收尾必须所属公开函数，缺装配不能当0。notify/portal登录producer不由此口实现。
+
 
 ### 5.3 W2-05 配置与审批 SLA 移交
 
@@ -252,6 +254,7 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 | W1-19 | PR 1、PR 2 | 1 订购单两页、工单池、账号核验；2 工单详情与表单、交付主路径的 Playwright | 无 |
 | W1-23、W2-25、W2-27 | a、b 两步 | 见各任务书第 9 节 | W2-26 只等 W2-25 的第一步；W2-29 只等 W2-27 的第一步 |
 | W2-26 | a、b1、b2 三步 | a 节点步骤、通道编排、回滚与测试；原 b 下拆 b1 持续探测、全资源/DB核对与双版演练，b2 上传体验版与工作流消费者（另等 W2-25b actual main）；按任务书第 9 节预拆，见 [原变更](../changes/W2-26-split-a-b.md)与[续拆](../changes/W2-26-b-split-b1-b2.md) | 无：下游等整包 |
+| W2-10 | PR1、主包 | PR1甲仅tenant定义端口、identity同事务精准吊销portal授权；其actual后主包乙17接口/2x01/2桩，其他缺失收尾公口仍由拥有者先实际交；见[记录](../changes/W2-10-portal-revocation-first.md) | 无：下游等整包 |
 
 体量仍超上限而没有再拆的三处，由调度会话在 PR 上定，会话不停下：W1-04 的 ①（约 1,100 行）、W1-15 的 a（约 1,200 行，只有“确认订购”一个机制）、W1-08 的 a（约 1,900 行，乙类按接口数 13 条不超）。
 
