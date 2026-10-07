@@ -203,7 +203,7 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 
 
 | — | W2-31 所拆 G7-A；W2-30 | W2-08 单页 system.logs 已接真实 admin.auditLog.list/get、ops/access 权限、CSV/日期/对象查询、游标与脱敏详情；G7-A 接 admin.exportJob.create/audit_logs.list 与导出记录，保持后端先裁剪、scope/stream 授权和异步结果，不放空导出按钮。W2-30 接本页日期键盘、PII实际POST→auditLogId可查询、查询零新增审计与截图结论；未来关联详情按正式 link/权限补准确入口 | W2-08 第 3/4/7 节；admin README；W2-04 已落地审计/PII公共能力 |
-W2-10精准授权移交：PR1的identity实现必须同时过滤主体和（owner范围时）原授权老板，只改尚未撤销的portal_session，重复不覆盖证据。主包移除店员不吊销全账号user_session，by_owner归档仍允许老板下载；真实阻断/取消收尾必须所属公开函数，缺装配不能当0。notify/portal登录producer不由此口实现。
+W2-10精准授权移交：PR1的tenant公口是membershipAuthorizationsPort（tenant.membership_authorizations，无fallback），identity实现revokePortalGrants(tx,input)返回实际count。必须同时过滤主体和（owner范围时）原授权老板，只改尚未撤销的portal_session，重复不覆盖证据；now取调用方时钟，调用方在同TX先持主体及相关成员锁。PR1已随#133实际合入，主包移除店员不吊销全账号user_session，by_owner归档仍允许老板下载；真实阻断/取消收尾必须所属公开函数，缺装配不能当0。notify/portal登录producer不由此口实现，下游仍等整包。
 
 
 ### 5.3 W2-05 配置与审批 SLA 移交
