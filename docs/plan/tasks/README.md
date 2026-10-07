@@ -203,6 +203,20 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 
 
 | — | W2-31 所拆 G7-A；W2-30 | W2-08 单页 system.logs 已接真实 admin.auditLog.list/get、ops/access 权限、CSV/日期/对象查询、游标与脱敏详情；G7-A 接 admin.exportJob.create/audit_logs.list 与导出记录，保持后端先裁剪、scope/stream 授权和异步结果，不放空导出按钮。W2-30 接本页日期键盘、PII实际POST→auditLogId可查询、查询零新增审计与截图结论；未来关联详情按正式 link/权限补准确入口 | W2-08 第 3/4/7 节；admin README；W2-04 已落地审计/PII公共能力 |
+W2-10精准授权移交：PR1的identity实现必须同时过滤主体和（owner范围时）原授权老板，只改尚未撤销的portal_session，重复不覆盖证据。主包移除店员不吊销全账号user_session，by_owner归档仍允许老板下载；真实阻断/取消收尾必须所属公开函数，缺装配不能当0。notify/portal登录producer不由此口实现。
+
+
+### 5.3 W2-05 配置与审批 SLA 移交
+
+W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的审批主体、calendar.coverage_check。x01 第2.3节已补实际 approval.recordExecuted 去重取法；审批仍采用既有 FOR UPDATE，不把锁强度优化混入本包。
+
+| 接收方 | 实际公开入口与接入要求 |
+| --- | --- |
+| W2-06、W2-07 | 使用已结构化 a01 DTO 和当前/pending/version；字典 refCount 为 null 表示没有已注册来源，不能当成零。缺内置日历年份明确拒绝，当前只内置2026官方安排。 |
+| W3-16 | 资质 OCR 字段修正先经 `approval.touchPending(tx, { approvalId, lockVersion })` 持30阶审批锁并只升版本，再锁所属领域行；真实字段更正及领域审计由本包自行持有。 |
+| 后续引用写域 | 注册 `dictReferencesPort` keyed 真实只读计数来源；Profile/Content/Config 已接实际事实。新增启用项引用在事务中以该 dict_item 共享锁保护后检查并写业务，不能用恒零来源冒充没有引用。 |
+| W4-08、W4-10、W4-13 | `ApprovalKind.executionSla(tx, row)` 返回真实 pending_execution、nullable exec_due_at、hasExecuted；审批通过的事务登记 execution timer，执行/作废/晚回调完成同事务取消。失败返回待执行不重新计时，缺来源不能假造已覆盖。 |
+| W2-24 PR2 | 独立告警存储/投递接实际 alerts 端口；calendar coverage 的 detach 只隔离事务，不能豁免存活祖先的 Provider 外呼守卫。 |
 
 
 ## 6. 任务书加的前置（计划依赖列没有）
@@ -242,6 +256,7 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 | W1-19 | PR 1、PR 2 | 1 订购单两页、工单池、账号核验；2 工单详情与表单、交付主路径的 Playwright | 无 |
 | W1-23、W2-25、W2-27 | a、b 两步 | 见各任务书第 9 节 | W2-26 只等 W2-25 的第一步；W2-29 只等 W2-27 的第一步 |
 | W2-26 | a、b1、b2 三步 | a 节点步骤、通道编排、回滚与测试；原 b 下拆 b1 持续探测、全资源/DB核对与双版演练，b2 上传体验版与工作流消费者（另等 W2-25b actual main）；按任务书第 9 节预拆，见 [原变更](../changes/W2-26-split-a-b.md)与[续拆](../changes/W2-26-b-split-b1-b2.md) | 无：下游等整包 |
+| W2-10 | PR1、主包 | PR1甲仅tenant定义端口、identity同事务精准吊销portal授权；其actual后主包乙17接口/2x01/2桩，其他缺失收尾公口仍由拥有者先实际交；见[记录](../changes/W2-10-portal-revocation-first.md) | 无：下游等整包 |
 
 体量仍超上限而没有再拆的三处，由调度会话在 PR 上定，会话不停下：W1-04 的 ①（约 1,100 行）、W1-15 的 a（约 1,200 行，只有“确认订购”一个机制）、W1-08 的 a（约 1,900 行，乙类按接口数 13 条不超）。
 

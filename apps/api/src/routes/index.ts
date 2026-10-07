@@ -1,3 +1,9 @@
+import { adminDictTypeHandlers } from "./admin/dict-types.js";
+import { adminDictItemHandlers } from "./admin/dict-items.js";
+import { adminParamValueHandlers } from "./admin/param-values.js";
+import { adminFeatureFlagHandlers } from "./admin/feature-flags.js";
+import { adminChecklistTemplateHandlers } from "./admin/checklist-templates.js";
+import { adminCalendarDayHandlers } from "./admin/calendar-days.js";
 import { orderHandlers } from "./order.js";
 import { publishHandlers } from "./publish.js";
 import { deliveryHandlers } from "./delivery.js";
@@ -41,6 +47,12 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...adminAuthHandlers,
   ...merchantViewHandlers,
   ...adminApprovalHandlers,
+  ...adminDictTypeHandlers,
+  ...adminDictItemHandlers,
+  ...adminParamValueHandlers,
+  ...adminFeatureFlagHandlers,
+  ...adminChecklistTemplateHandlers,
+  ...adminCalendarDayHandlers,
   ...adminStaffHandlers,
   ...adminRoleHandlers,
   ...adminAuditLogHandlers,

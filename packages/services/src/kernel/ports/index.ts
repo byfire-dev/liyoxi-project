@@ -46,5 +46,7 @@ export type {
   SupportStoreFacts,
 } from "./merchant-facts.js";
 
+export { dictReferencesPort, dictReferencesOf } from "./dict-references.js";
+export type { DictReferenceSource } from "./dict-references.js";
 export { piiFieldsPort, piiFieldsOf, implementPiiFields } from "./pii-fields.js";
 export type { PiiFactDb, PiiFieldQuery, PiiFieldFact, PiiFieldProvider } from "./pii-fields.js";

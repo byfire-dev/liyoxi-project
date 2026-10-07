@@ -62,3 +62,5 @@ export type {
   M1MediaScope,
   M1StateIds,
 } from "./m1-types.js";
+
+export { configTestStaffBriefs, createConfigProfileFixture } from "./config-admin.js";
