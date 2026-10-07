@@ -201,6 +201,10 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 
 | — | W2-21、W2-22、W2-17、W2-23；W3-03、W4-02/10及M7回调包 | W2-01公共 `security.createWebhooks`/`WebhookSource`、两根 `webhookSources`，API `receiveWebhook`。verify在事务外用原始字节验签，POST必须event/error（仅h01明确两种可信skip免收件），restore本地恢复、handle复用传入Tx。inline原子/支付显式失败inbox兜底（必须summary+完整resourceCipher/kid）；inbox同TX出站、subscriber复用现有Tx、分钟50条SKIP LOCKED扫描。1/5/15分钟、1/6小时/8死信，支付5次升级；每日载荷UPDATE清理180/90天保留summary/举证。W4-02须补实际Provider公开的密文/kid适配，现有verifyAndDecrypt仅归一通知，不得深引；当前未挂真实hook/未验真实平台。W2-23接人工死信管理，W2-24接真实告警隔离/实现，不在本包偷偷detach | W2-01第4/7节；h01第2.1/2.4节；15分组第2.1/4节；security README第5/6节 |
 
+
+| — | W2-31 所拆 G7-A；W2-30 | W2-08 单页 system.logs 已接真实 admin.auditLog.list/get、ops/access 权限、CSV/日期/对象查询、游标与脱敏详情；G7-A 接 admin.exportJob.create/audit_logs.list 与导出记录，保持后端先裁剪、scope/stream 授权和异步结果，不放空导出按钮。W2-30 接本页日期键盘、PII实际POST→auditLogId可查询、查询零新增审计与截图结论；未来关联详情按正式 link/权限补准确入口 | W2-08 第 3/4/7 节；admin README；W2-04 已落地审计/PII公共能力 |
+
+
 ## 6. 任务书加的前置（计划依赖列没有）
 
 写任务书时查实的三处。已由一条计划小改补进计划 第 7.2 节依赖列与第 12 节（[changes/W0-04-post-kickoff-fixes.md](../changes/W0-04-post-kickoff-fixes.md)）。下表留作出处，“怎么办”一栏照旧有效（默认，W0-04 定）。
