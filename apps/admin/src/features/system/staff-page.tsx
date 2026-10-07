@@ -70,7 +70,8 @@ function staffColumns(roles: readonly Role[]): QueryColumn<StaffRow>[] {
     {
       key: "phone",
       title: "手机号",
-      width: 118,
+      width: 164,
+      mask: true,
       render: (row) => <span className="lyx-num">{row.phoneMask ?? "—"}</span>,
     },
     {
