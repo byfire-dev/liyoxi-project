@@ -676,7 +676,7 @@ G2-D 环境包的拆包（W0-31；任务书在 `docs/plan/tasks/W2-25.md`–`W2-
 | W3-03 | G3-A | 媒体任务循环、队列、回查与CI回调 | W2-01、W2-02、W3-01 | M | 乙 | 3/0/3 | lease/ProduceID/provenance、崩溃回查、mediaJob列表重投；重复回调 |
 | W3-04 | G3-A | mediatool体检补标及云规格化/水印 | W2-01、W2-02、W3-03、X-02 | L | 乙 | 0/0/0 | probe/restamp/transcode_mp4/watermark_sample/normalize；真实读回与资源预算 |
 | W3-05 | G3-A | 图片、视频与文本审核媒体任务 | W2-01、W2-02、W3-03、W2-21 | M | 乙 | 0/0/0 | audit_image/audit_image_wx/audit_video/audit_text；block拒签/拒引用；file.moderated |
-| W3-06 | G3-A | 媒体清除、恢复与注销清理 | W2-01、W2-02、W3-01、W2-09 | M | 乙 | 6/0/1 | 保留期/引用/归属与清除放行；media.sweep补偿扫描 |
+| W3-06 | G3-A | 媒体清除、恢复与注销清理 | W2-01、W2-02、W3-01、W2-09 | M | 甲 | 6/0/1 | 同编号PR1甲仅跨TX session mutex公开能力与必要工厂接线；PR2乙等PR1actual做恢复/彻删、保留期/引用/归属与media.sweep，两PR齐完成 |
 | W3-07 | G3-A | 制作体检流水线与交付订阅者接入 | W2-01、W2-02、W3-04、W3-05、W1-16a | M | 乙 | 0/0/1 | media.production.checked；delivery订阅重复/乱序；去同步桩；真实AI/时长水印 |
 | W3-08 | G3-A | 文件清除放行页与流程运维媒体任务增量 | W2-01、W2-02、W3-03、W3-06、W2-23 | M | 丙 | 0/1/0 | 1新页+1已有页增量；放行拒绝/权限；媒体任务两接口接线 |
 | W3-09 | G3-B | 短剧全量、原片就绪与上下架 | W2-01、W2-02、W1-13、W3-02 | L | 乙 | 19/0/4 | 内容校验/原片/预览就绪；上下架与archive/stats；现存字段不造零 |
