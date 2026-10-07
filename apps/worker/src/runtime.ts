@@ -187,6 +187,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           services.closeOrder?.();
           services.closePublish?.();
           services.closeDelivery?.();
+          services.closeWebhooks?.();
         }
       })());
     },

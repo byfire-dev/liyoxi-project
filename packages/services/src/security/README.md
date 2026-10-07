@@ -54,7 +54,30 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 
 `bidx.db.test.ts` 连真库（`merchant_user`），走测试支架：要本地的 PostgreSQL 与 `DATABASE_URL`（`CLAUDE.md` 第 9 节）。
 
-## 5. 专用明文查看（W2-04）
+## 5. 回调框架（W2-01）
+
+公共入口是 `security.createWebhooks({ tx, clock, events, sources, alerts? })`。
+两进程分别通过 `RuntimeOptions.webhookSources`、`WorkerServicesOptions.webhookSources` 注入同一来源契约。
+`WebhookSource` 提供 `provider/mode/verify/payload/restore/handle/reply`；一个 provider 只登记一份，验签器用 `operationId` 区分其端点，未登记或未启用来源拒绝。
+本包不挂真实业务 hook；后继包把 Provider 的公开验签结果映射进该接口，不能深引私有实现。
+
+- `prepare(provider, request)` 在事务外消费复制的原始字节，框架拒绝超过1MiB与有时间戳时超过五分钟偏差。来源必须先验签再解析，不能改原文、把解密明文写进日志或把网络调用藏进 `restore/handle`。
+- `verify` 的 `kind: reply` 只供 GET 地址校验；POST 产生 `event` 或 `error`。h01第2.1节允许的两类免收件成功须显式返回 `skip`，原因只能为 `unregistered_event/passive_reply`，且仍先验签/校验时间戳。不属于本端点的已登记事件走正常收件后返回 `ignored`。
+- `accept(prepared, systemContext)` 只认本实例的私有验证快照。inline 插入即 `processed`，自然去重和领域处理同事务；处理返回 `ignored` 则同事务改为已忽略。失败整个事务回滚，不能用“查到行”代替重处理失败行。
+- inbox 原子提交 `received` 与 `webhook.received { v:1, webhookEventId, provider }`，重复不再发出站事件。`security.onWebhookReceived` 在既有 subscriber Tx 中调用 `process(tx,id,ctx)`；域段保存点失败只回滚该段，外层提交受控 `WEBHOOK_HANDLER_FAILED`、次数和下次时间。外层最终失败则失败记录也回滚，不嵌套 `tx.run`。
+- `scan()` 由 `webhook_reprocess` 每分钟调用，按到期时间/id逐行独立事务、最多50条、`SKIP LOCKED`。缺来源或停用时保留可恢复行；1/5/15分钟、1/6小时退避，第8次 dead。支付第5次升级，其他来源可显式选 `escalateAfter:5`；告警只含 provider/attempts/id，当前端口为空实现，不声称真实通知。
+- 只有 `wechatpay/inline` 可显式 `fallbackToInbox:true`。其 payload 必有完整 `resourceCipher` 和 `keyVersion` 才能在首事务失败后用新短事务落 `failed/inbox`；收件时间保留，下一次按实际失败时间加1分钟。其他来源无此成功兜底。CI/ASR 的 inline payload 必须为 null；其他 inbox 须有可恢复最小载荷。
+- 微信支付保留 `summary` 与密文180天，其他有载荷来源90天。`security.webhook_payload` 经既有每日 `ops.retention` 做限量 UPDATE，仅留 summary或置空并写 purgedAt；不删行、不改摘要/digest/来源/原收件举证列。`restore` 在载荷过期后必须受控失败，不制造恢复数据。
+
+`apps/api/src/http/webhook.ts` 的 `receiveWebhook` 是后继 hooks handler 薄口：一次既有IP限流后有界读原文/验签，再进入 OpenAPI解析；协议回包不带公共JSON信封，强制 no-store，429保留 RATE_LIMITED/retryAfterSec 与 Retry-After。自然幂等不落客户端 idem 行。维护拦截仍只归网关三组，不给 hooks 增加维护门禁；本包 API 用三组维护替身核此隔离，真实维护配置由后继环境/运维能力验证。
+
+## 6. 回调目标验证
+
+`pnpm exec vitest run --project services packages/services/src/security/webhooks/` 跑真实DB、100轮固定种子20261007模型、53条双扫描并发、实际提交时延迟约束/23505保存点/40001重试、8次死信及180/90天清理。
+`pnpm exec vitest run --project api apps/api/test/webhook-framework.test.ts` 跑完整接收链；`pnpm exec vitest run --project worker apps/worker/test/webhook-reprocess.test.ts` 跑真实worker装配/消费/循环和等待在途后解绑。
+所有来源/媒体/支付事实都是显式本地替身；真平台地址、密钥、解密适配与业务处理由接收方另验。
+
+## 7. 专用明文查看（W2-04）
 
 `createPiiReveal({ db, tx, clock, keyring, facts, alerts })` 提供 `reveal(ctx, actor, meta, body)`，只接受契约登记的11类 subjectType / 20种字段组合。权限、员工电话的 system 查看权、再验证和真实范围事实均先在事务外校验；范围外和缺失统一404。随后独立 `tx.run(audit.record)` 提交 access，再在事务外解密指定字段。审计失败即不解密，解密失败仍保留已提交审计；在已有 TX 里调用直接拒绝。响应只有 value/field/auditLogId，API no-store，既无幂等结果也不把 value 写进日志、指标或告警。
 

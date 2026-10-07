@@ -73,7 +73,14 @@ import { createMedia } from "./media/index.js";
 import type { Media } from "./media/index.js";
 import { createRateLimiter } from "./rate-limit.js";
 import type { RateLimiter } from "./rate-limit.js";
-import { loadAuthKeys, loadKeyring, createPiiReveal } from "./security/index.js";
+import {
+  loadAuthKeys,
+  loadKeyring,
+  createPiiReveal,
+  bindWebhooks,
+  createWebhooks,
+} from "./security/index.js";
+import type { Webhooks, WebhookSource } from "./security/index.js";
 import {
   createStaffAuth,
   recommendedStaff,
@@ -116,6 +123,7 @@ export const DB_POOLS: Readonly<Record<AssemblyEntry, DbPoolSettings>> = {
 };
 
 export interface RuntimeOptions {
+  readonly webhookSources?: readonly WebhookSource[];
   /** 仅测试/演示装配传假密钥；生产仍通过受控配置延迟加载。 */
   readonly billingKeyring?: Keyring;
   /** 哪个进程 */
@@ -142,6 +150,7 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly webhooks: Webhooks;
   readonly order: OrderService;
   readonly billing: BillingPurchase;
   readonly content: Content;
@@ -249,6 +258,14 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
   const providers = options.providers ?? assembleProviders({ appEnv: env.APP_ENV, logger });
   const events = createEvents({ assembly, clock, tx });
+  const webhooks = createWebhooks({
+    tx,
+    clock,
+    events,
+    sources: options.webhookSources,
+    alerts: alertsOf(assembly),
+  });
+  const unbindWebhooks = bindWebhooks(webhooks);
   const timers = createTimers({ assembly });
   const flow = createFlow({ assembly, clock, events });
   const unbindOrder = bindOrder({ assembly, clock, flow });
@@ -372,6 +389,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   }
 
   return {
+    webhooks,
     order,
     billing,
     content,
@@ -401,6 +419,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       unbindPublish();
       unbindDelivery();
       unbindOps();
+      unbindWebhooks();
       await mediaChannel.close();
       redis.disconnect();
       await prisma.$disconnect();

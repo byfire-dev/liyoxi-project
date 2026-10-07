@@ -14,3 +14,7 @@ export * from "./auth-keys.js";
 
 export { createPiiReveal } from "./pii-reveal.js";
 export type { PiiRevealDeps } from "./pii-reveal.js";
+export { createWebhooks } from "./webhooks/runtime.js";
+export type * from "./webhooks/types.js";
+export { bindWebhooks } from "./webhooks/binding.js";
+export { registration } from "./register.js";

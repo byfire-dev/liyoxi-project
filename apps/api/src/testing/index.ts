@@ -53,6 +53,7 @@ import type { PipelineEntry, PipelineSlot } from "../routing/pipeline.js";
 import { HANDLERS } from "../routes/index.js";
 
 export interface TestApiOptions {
+  readonly webhookSources?: readonly security.WebhookSource[];
   /** 处理器清单；缺省是生产的那份 */
   readonly handlers?: readonly HandlerEntry[];
   /** 补上或顶替的几件（fakeAuth、stubMiddleware）：同一个槽位的顶掉生产的那一件 */
@@ -132,6 +133,7 @@ export function useTestApi(): TestApiHandle {
       // 十二个 Provider 换成 W0-25 的替身支架（带“事务内不外呼”的钩子）：商家端登录取的就是运行时上的这个假微信
       const { providers } = createProviderHarness({ clock });
       const runtime = createRuntime({
+        webhookSources: options.webhookSources,
         entry: "api",
         env,
         version: "test",
