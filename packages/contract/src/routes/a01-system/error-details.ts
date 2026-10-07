@@ -29,8 +29,14 @@ export const A01_ERROR_DETAILS = {
     invalidNaKeys: z.array(z.string()),
   }),
   FILE_NOT_AVAILABLE: z.object({ status: openEnum(FILE_OBJECT_STATUS.values) }),
+  WECOM_USERID_TAKEN: z.object({
+    staffId: z.string().uuid(),
+    name: z.string(),
+    status: z.enum(["pending", "active", "disabled"]),
+  }),
 } satisfies Partial<Record<DomainErrorSymbol, z.ZodType>>;
 
 export type PasswordPolicyViolatedDetails = z.infer<
   (typeof A01_ERROR_DETAILS)["PASSWORD_POLICY_VIOLATED"]
 >;
+export type WecomUseridTakenDetails = z.infer<(typeof A01_ERROR_DETAILS)["WECOM_USERID_TAKEN"]>;
