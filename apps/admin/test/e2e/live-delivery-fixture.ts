@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect, type APIRequestContext, type Page, type Response } from "@playwright/test";
 import { liveContext } from "./live-context";
+import { liveChildEnv, liveChildFailure } from "./live-child-env";
 import { orderFixture, type OrderFixture } from "./live-order-fixture";
 export type Artifact = "sample" | "unknown_sample" | "final_1" | "final_2";
 interface Scope {
@@ -68,22 +69,20 @@ interface Upload {
 function runBridge(file: Upload, cleanup = false) {
   const context = process.env.LYX_ADMIN_LIVE_CONTEXT;
   if (!context) throw new Error("缺少本轮 context");
-  const env = Object.fromEntries(
-    [
-      "PATH",
-      "HOME",
-      "USER",
-      "LOGNAME",
-      "SHELL",
-      "TMPDIR",
-      "TMP",
-      "TEMP",
-      "LANG",
-      "LC_ALL",
-      "CI",
-      "PNPM_HOME",
-    ].flatMap((key) => (process.env[key] === undefined ? [] : [[key, process.env[key]!]])),
-  );
+  const env = liveChildEnv([
+    "PATH",
+    "HOME",
+    "USER",
+    "LOGNAME",
+    "SHELL",
+    "TMPDIR",
+    "TMP",
+    "TEMP",
+    "LANG",
+    "LC_ALL",
+    "CI",
+    "PNPM_HOME",
+  ]);
   return new Promise<void>((resolve, reject) => {
     const child = spawn(
       "pnpm",
@@ -116,12 +115,12 @@ function runBridge(file: Upload, cleanup = false) {
       output += data;
     });
     child.stderr.on("data", (data) => {
-      error += data;
+      error = `${error}${data}`.slice(0, 4096);
     });
     child.on("error", reject);
     child.on("close", (code) => {
       if (code !== 0) {
-        reject(new Error(`本域文件窄桥失败：${error}`));
+        reject(liveChildFailure("本域文件窄桥失败", error));
         return;
       }
       try {
@@ -221,7 +220,12 @@ export function attachKnownMedia(page: Page) {
       await Promise.all(registrations);
       await Promise.all(jobs);
       const results = await Promise.allSettled([...files.values()].map((f) => runBridge(f, true)));
-      if (results.some((r) => r.status === "rejected")) throw new Error("本轮上传文件清理失败");
+      const rejected = results.filter((result) => result.status === "rejected");
+      if (rejected.length)
+        throw new AggregateError(
+          [...failures, ...rejected.map((result) => result.reason)],
+          "本轮上传文件清理失败",
+        );
     },
   };
 }
