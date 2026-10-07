@@ -25,6 +25,7 @@ import { KeywordInput } from "./KeywordInput";
 import { SimplePager } from "./SimplePager";
 import { EmptyState, ErrorState } from "./StateBlock";
 import { Tabs, type TabItem } from "./Tabs";
+import "./W202Pages.css";
 
 export interface FilterOption {
   value: string;
@@ -50,6 +51,8 @@ export interface QueryColumn<Row> {
   align?: "left" | "right";
   /** 可排序时给排序字段名（契约里该列表声明的可排序字段） */
   sortField?: string;
+  /** 值已由服务端脱敏；仅添加明确提示，不读取明文或发起 PII 请求。 */
+  mask?: boolean;
 }
 
 export type QueryState<Row> =
@@ -76,6 +79,7 @@ export interface QueryTablePageProps<Row> {
   onRetry: () => void;
   /** 整行可点（点一行看详情一类）：鼠标点或键盘聚焦到这一行后按回车 */
   onRowClick?: (row: Row) => void;
+  selectedRowKey?: string;
   /** 行强调：超时或异常行 */
   rowTone?: (row: Row) => "danger" | undefined;
   /**
@@ -197,6 +201,7 @@ export function QueryTablePage<Row extends object>({
   refreshing,
   onRetry,
   onRowClick,
+  selectedRowKey,
   rowTone,
   empty,
   toolbar,
@@ -206,7 +211,14 @@ export function QueryTablePage<Row extends object>({
 
   const tableColumns: TableColumnsType<Row> = columns.map((column) => ({
     key: column.key,
-    title: column.title,
+    title: column.mask ? (
+      <>
+        {column.title}
+        <span className="lyx-column-mask">已脱敏</span>
+      </>
+    ) : (
+      column.title
+    ),
     width: column.width,
     align: column.align,
     ellipsis: column.width === undefined,
@@ -251,7 +263,23 @@ export function QueryTablePage<Row extends object>({
               placeholder={field.placeholder}
               aria-label={field.placeholder}
               value={search.filters[field.key]}
-              options={[...field.options]}
+              options={
+                search.filters[field.key]?.includes(",")
+                  ? [
+                      ...field.options,
+                      {
+                        value: search.filters[field.key]!,
+                        label: search.filters[field.key]!.split(",")
+                          .map(
+                            (value) =>
+                              field.options.find((option) => option.value === value)?.label ??
+                              value,
+                          )
+                          .join("、"),
+                      },
+                    ]
+                  : [...field.options]
+              }
               onChange={(value: string | undefined) =>
                 onSearchChange(withFilter(search, field.key, value))
               }
@@ -297,11 +325,15 @@ export function QueryTablePage<Row extends object>({
             [
               rowTone?.(row) === "danger" ? "lyx-row--danger" : "",
               onRowClick ? "lyx-row--clickable" : "",
+              selectedRowKey === rowKey(row) ? "lyx-row--selected" : "",
             ]
               .filter(Boolean)
               .join(" ")
           }
-          onRow={onRowClick ? (row) => clickableRowProps(() => onRowClick(row)) : undefined}
+          onRow={(row) => ({
+            ...(onRowClick ? clickableRowProps(() => onRowClick(row)) : {}),
+            "aria-selected": selectedRowKey === rowKey(row) ? true : undefined,
+          })}
           onChange={(_pagination, _filters, sorter) => {
             const single = Array.isArray(sorter) ? sorter[0] : sorter;
             const column = columns.find((item) => item.key === single?.columnKey);
