@@ -1,0 +1,35 @@
+.lyx-delivery-details {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.lyx-delivery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.lyx-delivery-episode {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--lyx-color-border-light);
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+.lyx-delivery-episode small {
+  color: var(--lyx-color-text-secondary);
+}
+.lyx-delivery-release {
+  padding: 16px;
+  border: 1px solid var(--lyx-color-border-light);
+  border-radius: 6px;
+}
+.lyx-delivery-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.lyx-delivery-notice {
+  margin-bottom: 16px;
+  display: grid;
+  gap: 12px;
+}

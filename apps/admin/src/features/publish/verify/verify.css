@@ -1,0 +1,19 @@
+.lyx-verify-details {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.lyx-verify-links {
+  display: grid;
+  gap: 10px;
+}
+.lyx-verify-links > div {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 12px;
+}
+.lyx-verify-links a,
+.lyx-verify-links span,
+.lyx-verify-rounds p {
+  overflow-wrap: anywhere;
+}
