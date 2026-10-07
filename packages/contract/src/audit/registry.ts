@@ -147,6 +147,7 @@ export const AUDIT_TARGET_TYPES = [
   "store_profile",
   "qualification_submission",
   "qualification_doc",
+  "agreement_consent", // W2-04：协议同意快照字段的 access 审计
 ] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 

@@ -14,6 +14,8 @@ import type { HandlerEntry } from "../routing/define.js";
 import { adminApprovalHandlers } from "./admin/approvals.js";
 import { adminAuthHandlers } from "./admin/auth.js";
 import { adminStaffHandlers } from "./admin/staff.js";
+import { adminPiiRevealHandlers } from "./admin/pii-reveals.js";
+import { adminAuditLogHandlers } from "./admin/audit-logs.js";
 import { adminRoleHandlers } from "./admin/roles.js";
 import { agreementHandlers } from "./agreements.js";
 import { merchantViewHandlers } from "./merchant-views.js";
@@ -41,6 +43,8 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...adminApprovalHandlers,
   ...adminStaffHandlers,
   ...adminRoleHandlers,
+  ...adminAuditLogHandlers,
+  ...adminPiiRevealHandlers,
   ...agreementConsentHandlers,
   ...entityHandlers,
   ...storeHandlers,

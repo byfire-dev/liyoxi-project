@@ -1,3 +1,4 @@
+import { createAuditRead } from "./audit/index.js";
 import { bindDelivery } from "./delivery/index.js";
 import { createOrderService, bindOrder, bindOrderStart } from "./order/index.js";
 import { assignDeliveryManager } from "./profile/index.js";
@@ -45,6 +46,7 @@ import { createFlow } from "./flow/index.js";
 import type { Flow } from "./flow/index.js";
 import {
   alertsOf,
+  piiFieldsOf,
   assembleProviders,
   createBizNoIssuer,
   createTxRunner,
@@ -71,8 +73,13 @@ import { createMedia } from "./media/index.js";
 import type { Media } from "./media/index.js";
 import { createRateLimiter } from "./rate-limit.js";
 import type { RateLimiter } from "./rate-limit.js";
-import { loadAuthKeys, loadKeyring } from "./security/index.js";
-import { createStaffAuth, recommendedStaff } from "./staff/index.js";
+import { loadAuthKeys, loadKeyring, createPiiReveal } from "./security/index.js";
+import {
+  createStaffAuth,
+  recommendedStaff,
+  createRoleManagement,
+  createStaffSelfSecurity,
+} from "./staff/index.js";
 import type { StaffAuth } from "./staff/index.js";
 import { createTimers } from "./timers/index.js";
 import type { Timers } from "./timers/index.js";
@@ -174,6 +181,10 @@ export interface Runtime {
    * 第一次取时才加载密钥并装配；三份密钥文件（DATA_KEYS_FILE、BIDX_KEYS_FILE、AUTH_KEYS_FILE）没配全即抛 SecurityError
    */
   readonly staffAuth: StaffAuth;
+  readonly staffRoles: ReturnType<typeof createRoleManagement>;
+  readonly staffSelfSecurity: ReturnType<typeof createStaffSelfSecurity>;
+  readonly auditRead: ReturnType<typeof createAuditRead>;
+  readonly piiReveal: ReturnType<typeof createPiiReveal>;
 }
 
 /**
@@ -321,6 +332,17 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     docs: createDocs({ tx, clock }),
   });
   let staffAuth: StaffAuth | undefined;
+  let staffRoles: ReturnType<typeof createRoleManagement> | undefined;
+  let staffSelfSecurity: ReturnType<typeof createStaffSelfSecurity> | undefined;
+  const auditRead = createAuditRead(prisma);
+  const piiReveal = createPiiReveal({
+    db: prisma,
+    tx,
+    clock,
+    keyring: () => loadKeyring(env),
+    facts: piiFieldsOf(assembly),
+    alerts: alertsOf(assembly),
+  });
 
   // 连库一项加移交表第 1 行的四个自检：security 的加解密与盲索引、审计 target_type 对表名单、聚合类型对表名单、
   // machine 与 state_field 对库里的表与列
@@ -384,6 +406,24 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       await prisma.$disconnect();
     },
     flow,
+    auditRead,
+    piiReveal,
+    get staffRoles() {
+      staffRoles ??= createRoleManagement({ db: prisma, tx, clock, roles: this.staffAuth.roles });
+      return staffRoles;
+    },
+    get staffSelfSecurity() {
+      staffSelfSecurity ??= createStaffSelfSecurity({
+        db: prisma,
+        tx,
+        clock,
+        keyring: loadKeyring(env),
+        authKeys: loadAuthKeys(env),
+        flags: config.flags,
+        wecom: providers.wecom,
+      });
+      return staffSelfSecurity;
+    },
     get staffAuth() {
       staffAuth ??= createStaffAuth({
         tx,

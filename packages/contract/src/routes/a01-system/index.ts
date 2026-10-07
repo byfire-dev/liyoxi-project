@@ -79,3 +79,6 @@ export * from "./files.schemas.js";
 
 export * from "./checklist.schemas.js";
 export * from "./checklist-templates.js";
+
+export * from "./audit-logs.js";
+export * from "./pii-reveals.js";
