@@ -1,0 +1,5 @@
+# Independent tool; never add these dependencies to the root workspace.
+cos-python-sdk-v5==1.9.44
+# Newer releases were younger than seven days when this lock was resolved.
+pycryptodome==3.23.0
+charset-normalizer==3.5.1

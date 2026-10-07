@@ -1,0 +1,60 @@
+# 默认整 job 关闭；只消费同仓 main 的成功 images run，不执行小程序上传（W2-26b2）。
+name: deploy-stg
+
+on:
+  workflow_run:
+    workflows: [images]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-stg
+  cancel-in-progress: false
+
+jobs:
+  deploy-stg:
+    name: deploy-stg
+    if: vars.STG_DEPLOY_ENABLED == 'true' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: 检出产物的同一源码
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - name: 装 Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: 只取触发 run 的发布摘要
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: images-release-${{ github.event.workflow_run.head_sha }}
+          path: ${{ runner.temp }}/images-release
+          run-id: ${{ github.event.workflow_run.id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+      - name: 验证同源摘要并走登记的预发节点步骤
+        env:
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+          STG_NODE_USER: ${{ vars.STG_SSH_USER }}
+          STG_NODE_HOST: ${{ vars.STG_SSH_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.STG_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.STG_SSH_KNOWN_HOSTS }}
+          STG_FREEZE: ${{ vars.STG_FREEZE }}
+        run: |
+          set -eu
+          node --input-type=module -e 'import fs from "node:fs";import {validateRelease} from "./infra/ci/stg-image-facts.mjs";const v=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/images-release/images.json"));validateRelease(v,process.env.EXPECTED_SHA);if(v.source!==process.env.EXPECTED_SHA||! /^[a-z_][a-z0-9_-]*$/.test(process.env.STG_NODE_USER)||! /^[a-zA-Z0-9][a-zA-Z0-9.-]*$/.test(process.env.STG_NODE_HOST)||!process.env.SSH_PRIVATE_KEY||!process.env.SSH_KNOWN_HOSTS)throw Error("部署配置或摘要无效");fs.mkdirSync(process.env.HOME+"/.ssh",{recursive:true,mode:0o700});fs.writeFileSync(process.env.HOME+"/.ssh/id_ed25519",process.env.SSH_PRIVATE_KEY,{mode:0o600});fs.writeFileSync(process.env.HOME+"/.ssh/known_hosts",process.env.SSH_KNOWN_HOSTS,{mode:0o600});'
+          tag="sha-${EXPECTED_SHA:0:12}"
+          node --input-type=module -e 'import fs from "node:fs";import {createChannel} from "./infra/deploy/orchestrate.mjs";import {assertNodeImages} from "./infra/ci/stg-image-facts.mjs";if(process.env.STG_FREEZE==="true")throw Error("预发已冻结");const a=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/images-release/images.json"));const channel=createChannel({node:process.env.STG_NODE_USER+"@"+process.env.STG_NODE_HOST});if(channel("pull",[a.tag]).status!==0)throw Error("节点拉取失败");const f=channel("image-facts",[a.tag]);if(f.status!==0)throw Error("节点镜像事实不可用");assertNodeImages(a,f.stdout);'
+          node infra/deploy/orchestrate.mjs --tag "$tag" --node "$STG_NODE_USER@$STG_NODE_HOST" --summary "$RUNNER_TEMP/deploy-summary.json"
+      - name: 清理 SSH 文件
+        if: always()
+        run: rm -f "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
