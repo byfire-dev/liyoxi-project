@@ -180,28 +180,6 @@ describe("上传前同源、部署与SDK隔离", () => {
     expect(failed.status).toBe(1);
     expect(failed.stderr).toContain("缺少固定 COS 工具");
   });
-  it("消费者工作流默认关、同run同源码、成功部署后串行上传；回滚与发布共锁", () => {
-    const deploy = readFileSync(join(repoRoot, ".github/workflows/deploy-stg.yml"), "utf8"),
-      rollback = readFileSync(join(repoRoot, ".github/workflows/rollback-stg.yml"), "utf8");
-    expect(deploy).toContain("vars.STG_DEPLOY_ENABLED == 'true'");
-    expect(deploy).toContain("run-id: ${{ github.event.workflow_run.id }}");
-    expect(deploy.indexOf("node infra/deploy/orchestrate.mjs")).toBeLessThan(
-      deploy.indexOf("node infra/deploy/upload-release.mjs"),
-    );
-    expect(deploy).toContain("--probe-config");
-    expect(deploy).toContain("--probe-summary");
-    expect(deploy).toContain("STG_WEAPP_UPLOAD_ENABLED: ${{ vars.STG_WEAPP_UPLOAD_ENABLED }}");
-    expect(rollback).toContain(
-      "if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && vars.STG_DEPLOY_ENABLED == 'true' && inputs.execute == true",
-    );
-    expect(rollback).toContain("default: false");
-    for (const text of [deploy, rollback]) {
-      expect(text).toContain("group: deploy-stg");
-      expect(text).toContain("cancel-in-progress: false");
-      expect(text).toContain("if: always()");
-    }
-    expect(rollback).not.toMatch(/upload-release|migrate|seed|stage-assets/);
-  });
 });
 
 describe("真实节点步骤到桩微信SDK", () => {

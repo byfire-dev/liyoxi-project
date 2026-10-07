@@ -18,6 +18,7 @@
 #   prune             只清本项目记录过的旧版本，留当前与最近三版；资源至少保留 60 天
 #   facts / preflight 只读版本、发布历史与 P1（告警包未接时明确 unavailable）
 #   image-facts <标签> 只核目标三类本地镜像；record <标签> <base64url JSON> 严格校验后追加记录
+#   weapp-upload <40hex源码> <64hex摘要> 只读同源制品、复核成功部署，再用机器人1上传；未启用或未配桶时跳过
 #  下面三个给 systemd 单元用（infra/deploy/systemd/），不经 SSH：
 #   run <服务>         前台起一个服务（docker compose up --no-deps），容器退出即返回
 #   stop <服务>        停一个服务（按 Compose 里的 stop_grace_period 等它收尾）
