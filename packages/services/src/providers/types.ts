@@ -403,6 +403,8 @@ export type WecomCallbackEvent =
   | { kind: "other"; eventType: string };
 
 export interface WecomProvider extends ProviderBase {
+  /** 后台内嵌扫码的单次 code 换员工 userid；真实驱动交 G7-A。 */
+  exchangeWebLoginCode(input: { code: string }): Promise<ProviderResult<{ userid: string }>>;
   /** 员工通知：自建应用消息 */
   sendAppMessage(input: {
     toUser: string;
@@ -548,7 +550,13 @@ export const PROVIDER_METHODS = {
   ocr: ["recognizeBusinessLicense", "extractLicenseFields"],
   asr: ["transcribe"],
   llm: ["tagAsset", "extractKeyPoints"],
-  wecom: ["sendAppMessage", "createContactWay", "verifyAndDecryptCallback", "getKfLink"],
+  wecom: [
+    "sendAppMessage",
+    "createContactWay",
+    "verifyAndDecryptCallback",
+    "getKfLink",
+    "exchangeWebLoginCode",
+  ],
   esign: ["seal"],
   invoice: ["issue"],
   mail: ["send"],

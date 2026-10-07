@@ -1,3 +1,4 @@
+import { identityPiiFields } from "./pii-fields.js";
 // identity 模块的登记（W1-04）：
 //   状态机   merchant_user.status 的随迁列与“注册”一行的守卫。
 //   不变量   identity.I8、I9、I22、I23、I25；调度与落库由 ops（W0-24）。
@@ -19,7 +20,7 @@ const check = (
 ): InvariantRegistration => ({ code, severity: "P2", modes: ["full"], heal: "none", run });
 
 export const registration = defineRegistration("identity", {
-  portImplementations: [...machineImplementations()],
+  portImplementations: [...identityPiiFields, ...machineImplementations()],
   invariants: [
     check("identity.I8", (tx) => findI8Violations(tx)),
     check("identity.I9", (tx) => findI9Violations(tx)),
