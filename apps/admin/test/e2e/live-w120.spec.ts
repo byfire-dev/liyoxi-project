@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import type { operations } from "@liyoxi/contract/types/merchant";
 import { expect, test, type APIResponse, type Page } from "@playwright/test";
 import { liveContext, noHorizontalScroll, recordErrors } from "./live-context";
+import { liveChildEnv, liveChildFailure } from "./live-child-env";
 type ResponseOf<K extends keyof operations> = operations[K] extends {
   responses: { 200: { content: { "application/json": { data: infer T } } } };
 }
@@ -34,28 +35,31 @@ test.afterEach(({ page: _page }, info) => {
     (row) => row.outcome === (info.title.includes("通过链") ? "pass" : "reject"),
   );
   if (!item) throw new Error("W120 清理范围缺失");
-  execFileSync(
-    "pnpm",
-    [
-      "--filter",
-      "@liyoxi/services",
-      "exec",
-      "tsx",
-      "src/testing/admin-live/w120-media.ts",
-      "--cleanup-run",
-      own.runId,
-      ...item.mediaFileIds,
-    ],
-    {
-      cwd: fileURLToPath(new URL("../../../..", import.meta.url)),
-      env: Object.fromEntries(
-        ["PATH", "HOME", "USER", "TMPDIR"].flatMap((key) =>
-          process.env[key] === undefined ? [] : [[key, process.env[key]]],
-        ),
-      ),
-      stdio: "pipe",
-    },
-  );
+  try {
+    execFileSync(
+      "pnpm",
+      [
+        "--filter",
+        "@liyoxi/services",
+        "exec",
+        "tsx",
+        "src/testing/admin-live/w120-media.ts",
+        "--cleanup-run",
+        own.runId,
+        ...item.mediaFileIds,
+      ],
+      {
+        cwd: fileURLToPath(new URL("../../../..", import.meta.url)),
+        env: liveChildEnv(["PATH", "HOME", "USER", "TMPDIR"]),
+        stdio: "pipe",
+      },
+    );
+  } catch (error) {
+    throw liveChildFailure(
+      "W120 本轮对象清理失败",
+      error && typeof error === "object" && "stderr" in error ? error.stderr : undefined,
+    );
+  }
 });
 async function data<T>(response: APIResponse): Promise<T> {
   expect(response.status(), await response.text()).toBe(200);
