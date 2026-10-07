@@ -46,6 +46,9 @@ export async function uploadArtifacts(options, upload) {
   const last = readRecords(releaseLog).at(-1);
   if (last?.version !== manifest.tag || last.result !== "success" || last.action !== "release")
     throw Error("本次部署未成功");
+  for (const name of ["server", "gateway", "mediatool"])
+    if (!Object.values(manifest.images[name]).includes(last.imageDigests[name]))
+      throw Error("部署镜像来源不符");
   const project = `${artifacts}/project`;
   if (
     !statSync(`${project}/app.json`).isFile() ||

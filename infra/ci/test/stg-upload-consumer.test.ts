@@ -79,6 +79,26 @@ function fixture() {
   return { dir: tmp.dir, manifest, record, raw, options };
 }
 describe("上传前同源、部署与SDK隔离", () => {
+  it.each(["server", "gateway", "mediatool"] as const)(
+    "部署记录的%s摘要与同标签manifest不符时SDK零调用",
+    async (name) => {
+      const f = fixture(),
+        sdk = vi.fn(async () => {});
+      f.record.imageDigests[name] = digest("9");
+      writeFileSync(f.options.releaseLog, JSON.stringify(f.record) + "\n");
+      await expect(uploadArtifacts(f.options, sdk)).rejects.toThrow("部署镜像来源不符");
+      expect(sdk).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["1", "2", "3"])("部署记录采用第%s类独立镜像事实仍可上传", async (n) => {
+    const f = fixture(),
+      sdk = vi.fn(async () => {});
+    f.record.imageDigests = { server: digest(n), gateway: digest(n), mediatool: digest(n) };
+    writeFileSync(f.options.releaseLog, JSON.stringify(f.record) + "\n");
+    expect(await uploadArtifacts(f.options, sdk)).toMatchObject({ status: "uploaded", robot: 1 });
+    expect(sdk).toHaveBeenCalledOnce();
+  });
+
   it.each(["1", "2", "3"])("真实 %s digest事实可到达桩SDK，robot固定1且没有tag调用", async (n) => {
     const f = fixture(),
       sdk = vi.fn(async (_args: string[]) => {});
