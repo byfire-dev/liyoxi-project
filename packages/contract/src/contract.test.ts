@@ -381,7 +381,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
   //     加具名结构时再改组件清单（现在只有 DictRef、ErrorBody、SentryEnvelope）。
   // 这是预期替换，不算“删改已有黄金条目”。替换时把断言换成新的现状（条数、组件名），不要整条删掉。
   // 路由清单本身的条数、与路线图的对账在 src/routes/routes.test.ts 与 pnpm contract:docs-check。
-  it("路由都已登记：带结构的 130 条在商家端与后台文档里，其余还只有元数据；三份文档都有通用结构与错误体", async () => {
+  it("路由都已登记：带结构的 143 条在商家端与后台文档里，其余还只有元数据；三份文档都有通用结构与错误体", async () => {
     // W1-03：协议与主体门店 8 条；W1-04：商家会话与当前账号 6 条；W1-01a：后台登录链路 9 条；W1-01b：员工增查与角色只读 4 条；W1-06：审批与字典读侧 4 条；W1-04b：商家字典 1 条；W1-07：文件 9 条；W1-13：内容读侧4条；W1-08a：商家档案13条；W1-11b：付款13条；W1-08b：后台档案6条；W1-14：发布15条；W1-15a：报价与订购2条；W1-15b：选剧单与读侧12条；W1-16a PR1：工单与方案10条；PR2：样片成片包10条；W1-16b：登录逐集下载4条
     expect(allRoutes.map((route) => route.operationId).sort()).toEqual([
       "admin.approval.get",
@@ -395,10 +395,15 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "admin.auth.setPassword",
       "admin.auth.stepUp",
       "admin.auth.verifyMfa",
+      "admin.calendarDay.batchImport",
+      "admin.calendarDay.list",
       "admin.channelAccount.get",
       "admin.channelAccountSubmission.approve",
       "admin.channelAccountSubmission.get",
       "admin.channelAccountSubmission.reject",
+      "admin.checklistTemplate.activate",
+      "admin.checklistTemplate.create",
+      "admin.checklistTemplate.discard",
       "admin.checklistTemplate.list",
       "admin.deliveryPlan.draft.replace",
       "admin.deliveryPlan.get",
@@ -414,7 +419,12 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "admin.deliveryTicket.pushPackage",
       "admin.deliveryTicket.sample.create",
       "admin.deliveryTicket.summary",
+      "admin.dictItem.create",
       "admin.dictItem.list",
+      "admin.dictItem.update",
+      "admin.dictType.list",
+      "admin.featureFlag.list",
+      "admin.featureFlag.update",
       "admin.file.complete",
       "admin.file.create",
       "admin.file.downloadUrls",
@@ -425,6 +435,9 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "admin.order.get",
       "admin.order.list",
       "admin.order.summary",
+      "admin.paramValue.list",
+      "admin.paramValue.replace",
+      "admin.paramValue.withdraw",
       "admin.paymentOrder.get",
       "admin.qualificationSubmission.approve",
       "admin.qualificationSubmission.get",
@@ -515,7 +528,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "m.storeProfile.service.update",
       "m.wallet.get",
     ]);
-    expect(allMetaOnlyRoutes).toHaveLength(534);
+    expect(allMetaOnlyRoutes).toHaveLength(521);
     expect(allRegistryOnly).toHaveLength(5);
     /** 各文档的 paths 条数与具名结构 */
     const expected: Record<string, { paths: number; schemas: string[] }> = {
@@ -644,7 +657,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
         ],
       },
       admin: {
-        paths: 58,
+        paths: 68,
         schemas: [
           "AdminSampleWriteResult",
           "EpisodeGrid",
@@ -721,6 +734,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
           "StoreRow",
           "StsCredential",
           "SubscriptionBrief",
+          "SystemConfigJsonValue",
           "TotpConfirmResult",
           "TotpEnrollment",
           "TransferProofDetail",

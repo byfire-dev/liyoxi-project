@@ -198,6 +198,20 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 | — | W1-16b；W1-19、W1-20、W1-21；G3-A、G5-A、G6-A | W1-16a PR2 十接口交样片、逐集/包质检与成片包。media 公开 ensureProductionStubs/consumeFinalReleaseBatch/recordAdoptedStoreAssets；批次消费是真实 ready final_release 行与引用交接，上游批次管理 API 仍待 G3-A。M1 只桥接本上下文人工无 AI，已有 mediaInfo 才回写时长/尺寸；无时长 uploaded 的 QC 受控拒绝零写，真实探测/水印留 G3-A。W1-19 live 造数须明确已知媒体事实并标注替身。W1-16b 写访问证据，GET 与确认不制造 evidence；G5-A 替换首次登记认领；G6-A 接清单编辑、ZIP 与到期定时器 | W1-16a 第 7、10 节；a05 第 3.30、3.38、3.39 节；m05 第 3.8、3.9 节 |
 | — | W1-12、W1-18、W1-19、W1-20 | W1-09 分类上传入口：`lib/upload/taro.ts` 的 prepareTaroFile/createTaroUpload/useUploadBusy，纯编排 queue.ts 与生成 DTO 的 api.ts。pay_receipt 图片/PDF、channel_screenshot 及 licenseKind 复用；非图片/视频精确上限由登记 API 判，post 之外给小文件/代传说明；切店/退出取消、暂停可恢复，原 token/确认意图沿重试。审核 CompareTable/RejectDialog 仍私有，第二调用方先走构件 PR 提升 | W1-09 状态与本包 PR；原第 41 行归属不变 |
 
+
+### 5.3 W2-05 配置与审批 SLA 移交
+
+W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的审批主体、calendar.coverage_check。x01 第2.3节已补实际 approval.recordExecuted 去重取法；审批仍采用既有 FOR UPDATE，不把锁强度优化混入本包。
+
+| 接收方 | 实际公开入口与接入要求 |
+| --- | --- |
+| W2-06、W2-07 | 使用已结构化 a01 DTO 和当前/pending/version；字典 refCount 为 null 表示没有已注册来源，不能当成零。缺内置日历年份明确拒绝，当前只内置2026官方安排。 |
+| W3-16 | 资质 OCR 字段修正先经 `approval.touchPending(tx, { approvalId, lockVersion })` 持30阶审批锁并只升版本，再锁所属领域行；真实字段更正及领域审计由本包自行持有。 |
+| 后续引用写域 | 注册 `dictReferencesPort` keyed 真实只读计数来源；Profile/Content/Config 已接实际事实。新增启用项引用在事务中以该 dict_item 共享锁保护后检查并写业务，不能用恒零来源冒充没有引用。 |
+| W4-08、W4-10、W4-13 | `ApprovalKind.executionSla(tx, row)` 返回真实 pending_execution、nullable exec_due_at、hasExecuted；审批通过的事务登记 execution timer，执行/作废/晚回调完成同事务取消。失败返回待执行不重新计时，缺来源不能假造已覆盖。 |
+| W2-24 PR2 | 独立告警存储/投递接实际 alerts 端口；calendar coverage 的 detach 只隔离事务，不能豁免存活祖先的 Provider 外呼守卫。 |
+
+
 ## 6. 任务书加的前置（计划依赖列没有）
 
 写任务书时查实的三处。已由一条计划小改补进计划 第 7.2 节依赖列与第 12 节（[changes/W0-04-post-kickoff-fixes.md](../changes/W0-04-post-kickoff-fixes.md)）。下表留作出处，“怎么办”一栏照旧有效（默认，W0-04 定）。

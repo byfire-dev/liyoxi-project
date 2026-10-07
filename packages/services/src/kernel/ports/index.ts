@@ -45,3 +45,6 @@ export type {
   PublishStoreFacts,
   SupportStoreFacts,
 } from "./merchant-facts.js";
+
+export { dictReferencesPort, dictReferencesOf } from "./dict-references.js";
+export type { DictReferenceSource } from "./dict-references.js";

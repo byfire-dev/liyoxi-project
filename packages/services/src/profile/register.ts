@@ -15,6 +15,7 @@ import { dictRef, snapshot } from "./repo.js";
 export const registration = defineRegistration("profile", {
   ports: [orderManagerPort, deliveryManagerPort, adminProfileFactsPort],
   portImplementations: [
+    implementKeyed(dictReferencesPort, "profile", profileDictReferences),
     implementKeyed(approvalKindPort, "qualification", qualificationKind),
     implementMerchantFacts("profile", async (tx, query) => {
       const stores: Record<
@@ -114,3 +115,6 @@ export const registration = defineRegistration("profile", {
     run: (tx, scope, ctx) => findViolations(tx, code, scope, ctx),
   })),
 });
+
+import { dictReferencesPort } from "../kernel/index.js";
+import { profileDictReferences } from "./dict-references.js";
