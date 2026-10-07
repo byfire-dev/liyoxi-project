@@ -739,13 +739,14 @@ Banner 各有独立的时间窗与启停，保存即生效，到结束时间自�
 | `trg_analytics_event_append_only` | 触发器：行级拦截 UPDATE、DELETE（`lyx_forbid_mutation`）；建在父表上，自动带到各分区 |
 | `trg_analytics_event_no_truncate` | 触发器：禁止 TRUNCATE 父表（`lyx_forbid_mutation`） |
 | `analytics_event_default` | 兜底分区（`DEFAULT`），带 `trg_analytics_event_default_no_truncate`。正常应为空 |
-| `lyx_14_analytics_event_ensure_partition(date)` | 函数：建某个月的分区 `analytics_event_y<年>m<月>`（已存在则跳过），并给它加禁止 TRUNCATE 的语句级触发器（语句级触发器不会从父表带到分区）。迁移执行时预建当月与未来 3 个月 |
+| `lyx_14_analytics_event_ensure_partition(date)` | 受限 SECURITY DEFINER，PUBLIC 收回、仅授 lyx_app；参数须为 0001–9999 年有限公历月首，返回固定分区名 text。父表独占锁内建 Shanghai 月分区，给它补禁止 TRUNCATE 的语句级 trigger；已有对象须精确校验 owner、父关系、范围、trigger OID/类型/启用/克隆关系，否则失败。default 有目标月行时原样失败。首版迁移预建当月与未来 3 月 |
+| `lyx_14_analytics_event_repartition_month(date)` | 同样受限的 SECURITY DEFINER 与月首校验，返回本月搬移条数 bigint。锁定 parent/default，用本次自建 pg_temp 表保存完整行，临时停用 default 行级防改 trigger 后 DELETE RETURNING，调用严格 ensure、INSERT 父表、按条数与全列 EXCEPT ALL 验证，再恢复 trigger 并删除自建 temp；已有同名 temp 先拒绝，任何错误/外层回滚整体恢复 |
 
 **分区运维**
 
-- `analytics.partitions`（每月 20 日的周期任务）调用 `lyx_14_analytics_event_ensure_partition`，预建未来 3 个月的分区（d6:1952）。这是 DDL，用迁移账号执行。
+- `analytics.partitions`（每月 20 日的周期任务）调用 `lyx_14_analytics_event_ensure_partition`，预建未来 3 个月的分区（d6:1952）。由 lyx_app 调用受限 SECURITY DEFINER，不给 worker 迁移口令或直接 DDL 权限。服务按注入 clock 与现有参数确定允许月份，数据库仅校验结构日期，不新增 now/保留期业务规则。
 - 原始事件保留 25 个月（参数 `analytics.retention_months`）：到期整分区导出到对象存储后 `DETACH` 再 `DROP`，不逐行删除。
-- 兜底分区有数据之后的修复（d6:1954-1965）：脚本 `ops analytics:repartition <YYYY-MM>` 在同一事务里先 `ALTER TABLE analytics_event_default DISABLE TRIGGER trg_analytics_event_append_only`，把该月的行搬到新分区，再恢复触发器。只有迁移账号能做。
+- 兜底分区有数据之后的修复（d6:1954-1965）：脚本 `ops analytics:repartition <YYYY-MM>` 按服务范围和环境授权调用 `lyx_14_analytics_event_repartition_month(date)`，只搬该月完整行，同一事务恢复 trigger；其他月、dedup、identity 不改。此能力由独立结构迁移包落地，W2-18 主包实际合流后才消费；不授任意 DDL，不改归档权限。
 
 **不变量**
 
