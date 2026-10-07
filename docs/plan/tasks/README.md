@@ -201,7 +201,7 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 
 | — | W2-21、W2-22、W2-17、W2-23；W3-03、W4-02/10及M7回调包 | W2-01公共 `security.createWebhooks`/`WebhookSource`、两根 `webhookSources`，API `receiveWebhook`。verify在事务外用原始字节验签，POST必须event/error（仅h01明确两种可信skip免收件），restore本地恢复、handle复用传入Tx。inline原子/支付显式失败inbox兜底（必须summary+完整resourceCipher/kid）；inbox同TX出站、subscriber复用现有Tx、分钟50条SKIP LOCKED扫描。1/5/15分钟、1/6小时/8死信，支付5次升级；每日载荷UPDATE清理180/90天保留summary/举证。W4-02须补实际Provider公开的密文/kid适配，现有verifyAndDecrypt仅归一通知，不得深引；当前未挂真实hook/未验真实平台。W2-23接人工死信管理，W2-24接真实告警隔离/实现，不在本包偷偷detach | W2-01第4/7节；h01第2.1/2.4节；15分组第2.1/4节；security README第5/6节 |
 
-W2-10精准授权移交：PR1的identity实现必须同时过滤主体和（owner范围时）原授权老板，只改尚未撤销的portal_session，重复不覆盖证据。主包移除店员不吊销全账号user_session，by_owner归档仍允许老板下载；真实阻断/取消收尾必须所属公开函数，缺装配不能当0。notify/portal登录producer不由此口实现。
+W2-10精准授权移交：PR1代码候选的tenant公口是membershipAuthorizationsPort（tenant.membership_authorizations，无fallback），identity实现revokePortalGrants(tx,input)返回实际count。必须同时过滤主体和（owner范围时）原授权老板，只改尚未撤销的portal_session，重复不覆盖证据；now取调用方时钟，调用方在同TX先持主体及相关成员锁。PR1尚待actual，主包移除店员不吊销全账号user_session，by_owner归档仍允许老板下载；真实阻断/取消收尾必须所属公开函数，缺装配不能当0。notify/portal登录producer不由此口实现，下游仍等整包。
 
 
 ### 5.3 W2-05 配置与审批 SLA 移交
