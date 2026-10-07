@@ -204,6 +204,19 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 W2-10精准授权移交：PR1的identity实现必须同时过滤主体和（owner范围时）原授权老板，只改尚未撤销的portal_session，重复不覆盖证据。主包移除店员不吊销全账号user_session，by_owner归档仍允许老板下载；真实阻断/取消收尾必须所属公开函数，缺装配不能当0。notify/portal登录producer不由此口实现。
 
 
+### 5.3 W2-05 配置与审批 SLA 移交
+
+W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的审批主体、calendar.coverage_check。x01 第2.3节已补实际 approval.recordExecuted 去重取法；审批仍采用既有 FOR UPDATE，不把锁强度优化混入本包。
+
+| 接收方 | 实际公开入口与接入要求 |
+| --- | --- |
+| W2-06、W2-07 | 使用已结构化 a01 DTO 和当前/pending/version；字典 refCount 为 null 表示没有已注册来源，不能当成零。缺内置日历年份明确拒绝，当前只内置2026官方安排。 |
+| W3-16 | 资质 OCR 字段修正先经 `approval.touchPending(tx, { approvalId, lockVersion })` 持30阶审批锁并只升版本，再锁所属领域行；真实字段更正及领域审计由本包自行持有。 |
+| 后续引用写域 | 注册 `dictReferencesPort` keyed 真实只读计数来源；Profile/Content/Config 已接实际事实。新增启用项引用在事务中以该 dict_item 共享锁保护后检查并写业务，不能用恒零来源冒充没有引用。 |
+| W4-08、W4-10、W4-13 | `ApprovalKind.executionSla(tx, row)` 返回真实 pending_execution、nullable exec_due_at、hasExecuted；审批通过的事务登记 execution timer，执行/作废/晚回调完成同事务取消。失败返回待执行不重新计时，缺来源不能假造已覆盖。 |
+| W2-24 PR2 | 独立告警存储/投递接实际 alerts 端口；calendar coverage 的 detach 只隔离事务，不能豁免存活祖先的 Provider 外呼守卫。 |
+
+
 ## 6. 任务书加的前置（计划依赖列没有）
 
 写任务书时查实的三处。已由一条计划小改补进计划 第 7.2 节依赖列与第 12 节（[changes/W0-04-post-kickoff-fixes.md](../changes/W0-04-post-kickoff-fixes.md)）。下表留作出处，“怎么办”一栏照旧有效（默认，W0-04 定）。

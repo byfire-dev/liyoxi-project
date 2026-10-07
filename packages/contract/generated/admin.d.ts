@@ -293,6 +293,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/calendar-days": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 某年的工作日历（放假、调休上班），参数页的节假日表 */
+        get: operations["admin.calendarDay.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/calendar-days/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 导入年度放假安排（按年幂等；有变化才升日历批次并重算各类工作日时限） */
+        post: operations["admin.calendarDay.batchImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/channel-account-submissions/{channelAccountSubmissionId}": {
         parameters: {
             query?: never;
@@ -371,7 +405,42 @@ export interface paths {
         /** 清单模板：质检、交付前检查、链接核验、账号核验、巡检、下架核查（按编码取当前启用版本或全部版本） */
         get: operations["admin.checklistTemplate.list"];
         put?: never;
-        post?: never;
+        /** 新建清单模板版本（草稿） */
+        post: operations["admin.checklistTemplate.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/checklist-templates/{checklistTemplateId}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 启用清单模板版本（同编码旧版本退役） */
+        post: operations["admin.checklistTemplate.activate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/checklist-templates/{checklistTemplateId}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 放弃清单模板草稿 */
+        post: operations["admin.checklistTemplate.discard"];
         delete?: never;
         options?: never;
         head?: never;
@@ -610,11 +679,80 @@ export interface paths {
         /** 字典项：按类型查询（树形，可带引用计数）；后台各处下拉与原因单选共用 */
         get: operations["admin.dictItem.list"];
         put?: never;
+        /** 新增字典项（编码由系统按顺序生成，保存后不可改；同级不重名） */
+        post: operations["admin.dictItem.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dict-items/{dictItemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 修改字典项名称、说明，或启用 / 停用 */
+        patch: operations["admin.dictItem.update"];
+        trace?: never;
+    };
+    "/api/v1/admin/dict-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 字典类型列表（项数、启用数、是否可新增） */
+        get: operations["admin.dictType.list"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/feature-flags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 特性开关列表：键、说明、默认值、规则（平台、版本、环境、主体白名单） */
+        get: operations["admin.featureFlag.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/feature-flags/{flagKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 修改开关的默认值或规则（写审计，触发即时播报） */
+        patch: operations["admin.featureFlag.update"];
         trace?: never;
     };
     "/api/v1/admin/files": {
@@ -781,6 +919,41 @@ export interface paths {
         get: operations["admin.order.get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/param-values": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 系统参数：分组、元数据（类型、范围、单位、默认值）、当前值与待生效值、最近保存人 */
+        get: operations["admin.paramValue.list"];
+        /** 整批保存参数（[{key, value, expectedRev, effectiveFrom?}]，整批乐观锁） */
+        put: operations["admin.paramValue.replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/param-values/{paramValueId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 撤销一条尚未生效的预约参数值 */
+        post: operations["admin.paramValue.withdraw"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3911,6 +4084,7 @@ export interface components {
             /** @enum {string} */
             status: "none" | "active" | "expired" | (string & {});
         };
+        SystemConfigJsonValue: Record<string, never> | unknown[] | string | number | boolean | null;
         TotpConfirmResult: {
             me: components["schemas"]["StaffMe"];
             recoveryCodes: string[];
@@ -5209,6 +5383,274 @@ export interface operations {
             };
         };
     };
+    "admin.calendarDay.list": {
+        parameters: {
+            query: {
+                year: number;
+                includeAllDays?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            calendarVersion: number;
+                            days: {
+                                /** Format: date */
+                                date: string;
+                                isWorkday: boolean;
+                                /** @enum {string} */
+                                kind: "weekday" | "weekend" | "holiday" | "adjusted_workday";
+                            }[] | null;
+                            holidays: {
+                                days: number;
+                                /** Format: date */
+                                from: string;
+                                /** @enum {string} */
+                                kind: "holiday" | "adjusted_workday";
+                                name: string;
+                                /** Format: date */
+                                to: string;
+                            }[];
+                            importedAt: string | null;
+                            items: {
+                                /** Format: date */
+                                date: string;
+                                /** @enum {string} */
+                                kind: "holiday" | "adjusted_workday";
+                                note: string;
+                            }[];
+                            workHours: {
+                                end: string;
+                                start: string;
+                            };
+                            year: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.calendarDay.batchImport": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    days?: {
+                        /** Format: date */
+                        date: string;
+                        /** @enum {string} */
+                        kind: "holiday" | "adjusted_workday";
+                        note: string;
+                    }[];
+                    source?: string;
+                    year: number;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            adjustedWorkdayCount: number;
+                            calendar: {
+                                calendarVersion: number;
+                                days: {
+                                    /** Format: date */
+                                    date: string;
+                                    isWorkday: boolean;
+                                    /** @enum {string} */
+                                    kind: "weekday" | "weekend" | "holiday" | "adjusted_workday";
+                                }[] | null;
+                                holidays: {
+                                    days: number;
+                                    /** Format: date */
+                                    from: string;
+                                    /** @enum {string} */
+                                    kind: "holiday" | "adjusted_workday";
+                                    name: string;
+                                    /** Format: date */
+                                    to: string;
+                                }[];
+                                importedAt: string | null;
+                                items: {
+                                    /** Format: date */
+                                    date: string;
+                                    /** @enum {string} */
+                                    kind: "holiday" | "adjusted_workday";
+                                    note: string;
+                                }[];
+                                workHours: {
+                                    end: string;
+                                    start: string;
+                                };
+                                year: number;
+                            };
+                            calendarVersion: number;
+                            changedDays: string[];
+                            holidayCount: number;
+                            isChanged: boolean;
+                            source: string | null;
+                            year: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.channelAccountSubmission.get": {
         parameters: {
             query?: never;
@@ -5645,6 +6087,292 @@ export interface operations {
             };
             /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.checklistTemplate.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    code: "qc.sample" | "qc.episode" | "qc.package" | "delivery.precheck" | "launch.verify" | "patrol.check" | "takedown.check" | "takedown.absence_check" | "account.verify";
+                    items: {
+                        allowNa: boolean;
+                        hint?: string;
+                        key: string;
+                        label: string;
+                        merchantVisible: boolean;
+                        required: boolean;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["ChecklistTemplateView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.checklistTemplate.activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                checklistTemplateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["ChecklistTemplateView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.checklistTemplate.discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                checklistTemplateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["ChecklistTemplateView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6980,6 +7708,562 @@ export interface operations {
             };
         };
     };
+    "admin.dictItem.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    description?: string | null;
+                    ext?: {
+                        [key: string]: unknown;
+                    };
+                    name: string;
+                    parentCode?: string | null;
+                    tags?: string[];
+                    typeKey: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["DictItemView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.dictItem.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dictItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    description?: string | null;
+                    ext?: {
+                        [key: string]: unknown;
+                    };
+                    isEnabled?: boolean;
+                    lockVersion: number;
+                    name?: string;
+                    position?: number;
+                    tags?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["DictItemView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.dictType.list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: {
+                                canCreate: boolean;
+                                /** @enum {string} */
+                                disablePolicy: "free" | "block_if_referenced" | "never";
+                                enabledCount: number;
+                                isMerchantVisible: boolean;
+                                isSystem: boolean;
+                                itemCount: number;
+                                levelCounts: number[];
+                                maxDepth: number;
+                                name: string;
+                                /** @enum {string} */
+                                structure: "flat" | "tree";
+                                typeKey: string;
+                                versionNo: number;
+                            }[];
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.featureFlag.list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: {
+                                defaultValue?: unknown;
+                                description: string | null;
+                                /** @enum {string} */
+                                exposedTo: "client" | "server";
+                                flagKey: string;
+                                lockVersion: number;
+                                options: string[] | null;
+                                rules: {
+                                    value: components["schemas"]["SystemConfigJsonValue"];
+                                    when: {
+                                        clientVersion?: string;
+                                        entityIds?: string[];
+                                        envVersion?: ("develop" | "trial" | "release")[];
+                                        platform?: string[];
+                                    };
+                                }[];
+                                /** Format: date-time */
+                                updatedAt: string;
+                                updatedBy: components["schemas"]["StaffBrief"] | null;
+                                /** @enum {string} */
+                                valueType: "bool" | "enum" | "json";
+                            }[];
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.featureFlag.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flagKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    defaultValue?: unknown;
+                    description?: string;
+                    lockVersion: number;
+                    rules?: {
+                        value: components["schemas"]["SystemConfigJsonValue"];
+                        when: {
+                            clientVersion?: string;
+                            entityIds?: string[];
+                            envVersion?: ("develop" | "trial" | "release")[];
+                            platform?: string[];
+                        };
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            defaultValue?: unknown;
+                            description: string | null;
+                            /** @enum {string} */
+                            exposedTo: "client" | "server";
+                            flagKey: string;
+                            lockVersion: number;
+                            options: string[] | null;
+                            rules: {
+                                value: components["schemas"]["SystemConfigJsonValue"];
+                                when: {
+                                    clientVersion?: string;
+                                    entityIds?: string[];
+                                    envVersion?: ("develop" | "trial" | "release")[];
+                                    platform?: string[];
+                                };
+                            }[];
+                            /** Format: date-time */
+                            updatedAt: string;
+                            updatedBy: components["schemas"]["StaffBrief"] | null;
+                            /** @enum {string} */
+                            valueType: "bool" | "enum" | "json";
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.file.create": {
         parameters: {
             query?: never;
@@ -7771,6 +9055,418 @@ export interface operations {
             };
             /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.paramValue.list": {
+        parameters: {
+            query?: {
+                group?: string;
+                keys?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            groups: {
+                                group: string;
+                                title: string;
+                            }[];
+                            items: {
+                                defaultValue?: unknown;
+                                description: string;
+                                effectiveAt: string | null;
+                                group: string;
+                                key: string;
+                                label: string;
+                                latestRev: string | null;
+                                pending: {
+                                    canWithdraw: boolean;
+                                    /** Format: date-time */
+                                    effectiveAt: string;
+                                    /** Format: uuid */
+                                    paramValueId: string;
+                                    reason: string | null;
+                                    rev: string;
+                                    /** Format: date-time */
+                                    savedAt: string;
+                                    savedBy: components["schemas"]["StaffBrief"] | null;
+                                    value?: unknown;
+                                }[];
+                                range: {
+                                    [key: string]: unknown;
+                                } | null;
+                                rev: string | null;
+                                savedAt: string | null;
+                                savedBy: components["schemas"]["StaffBrief"] | null;
+                                /** @enum {string} */
+                                snapshotOn: "create" | "read";
+                                /** @enum {string} */
+                                type: "int" | "bp" | "int_list" | "time_hm" | "bool" | "enum" | "text" | "json" | "sla_policy";
+                                unit: string | null;
+                                value?: unknown;
+                            }[];
+                            lastSaved: {
+                                /** Format: date-time */
+                                at: string;
+                                staff: components["schemas"]["StaffBrief"];
+                            } | null;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.paramValue.replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    items: {
+                        /** Format: date-time */
+                        effectiveAt?: string;
+                        expectedRev: string | null;
+                        key: string;
+                        value: components["schemas"]["SystemConfigJsonValue"];
+                    }[];
+                    reason?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            groups: {
+                                group: string;
+                                title: string;
+                            }[];
+                            items: {
+                                defaultValue?: unknown;
+                                description: string;
+                                effectiveAt: string | null;
+                                group: string;
+                                key: string;
+                                label: string;
+                                latestRev: string | null;
+                                pending: {
+                                    canWithdraw: boolean;
+                                    /** Format: date-time */
+                                    effectiveAt: string;
+                                    /** Format: uuid */
+                                    paramValueId: string;
+                                    reason: string | null;
+                                    rev: string;
+                                    /** Format: date-time */
+                                    savedAt: string;
+                                    savedBy: components["schemas"]["StaffBrief"] | null;
+                                    value?: unknown;
+                                }[];
+                                range: {
+                                    [key: string]: unknown;
+                                } | null;
+                                rev: string | null;
+                                savedAt: string | null;
+                                savedBy: components["schemas"]["StaffBrief"] | null;
+                                /** @enum {string} */
+                                snapshotOn: "create" | "read";
+                                /** @enum {string} */
+                                type: "int" | "bp" | "int_list" | "time_hm" | "bool" | "enum" | "text" | "json" | "sla_policy";
+                                unit: string | null;
+                                value?: unknown;
+                            }[];
+                            lastSaved: {
+                                /** Format: date-time */
+                                at: string;
+                                staff: components["schemas"]["StaffBrief"];
+                            } | null;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.paramValue.withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paramValueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            defaultValue?: unknown;
+                            description: string;
+                            effectiveAt: string | null;
+                            group: string;
+                            key: string;
+                            label: string;
+                            latestRev: string | null;
+                            pending: {
+                                canWithdraw: boolean;
+                                /** Format: date-time */
+                                effectiveAt: string;
+                                /** Format: uuid */
+                                paramValueId: string;
+                                reason: string | null;
+                                rev: string;
+                                /** Format: date-time */
+                                savedAt: string;
+                                savedBy: components["schemas"]["StaffBrief"] | null;
+                                value?: unknown;
+                            }[];
+                            range: {
+                                [key: string]: unknown;
+                            } | null;
+                            rev: string | null;
+                            savedAt: string | null;
+                            savedBy: components["schemas"]["StaffBrief"] | null;
+                            /** @enum {string} */
+                            snapshotOn: "create" | "read";
+                            /** @enum {string} */
+                            type: "int" | "bp" | "int_list" | "time_hm" | "bool" | "enum" | "text" | "json" | "sla_policy";
+                            unit: string | null;
+                            value?: unknown;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

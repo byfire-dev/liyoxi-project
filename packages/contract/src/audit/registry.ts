@@ -148,6 +148,8 @@ export const AUDIT_TARGET_TYPES = [
   "qualification_submission",
   "qualification_doc",
   "agreement_consent", // W2-04：协议同意快照字段的 access 审计
+  // 01：年度日历配置审计的自然键对象（W2-05）
+  "work_calendar_day",
 ] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 

@@ -15195,6 +15195,16 @@
         ],
         "type": "object"
       },
+      "SystemConfigJsonValue": {
+        "type": [
+          "object",
+          "array",
+          "string",
+          "number",
+          "boolean",
+          "null"
+        ]
+      },
       "TotpConfirmResult": {
         "properties": {
           "me": {
@@ -17697,6 +17707,639 @@
         "x-rate-limit": "admin.login"
       }
     },
+    "/api/v1/admin/calendar-days": {
+      "get": {
+        "operationId": "admin.calendarDay.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "year",
+            "required": true,
+            "schema": {
+              "maximum": 2100,
+              "minimum": 2024,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeAllDays",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "calendarVersion": {
+                          "type": "integer"
+                        },
+                        "days": {
+                          "items": {
+                            "properties": {
+                              "date": {
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "isWorkday": {
+                                "type": "boolean"
+                              },
+                              "kind": {
+                                "enum": [
+                                  "weekday",
+                                  "weekend",
+                                  "holiday",
+                                  "adjusted_workday"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "kind",
+                              "isWorkday"
+                            ],
+                            "type": "object"
+                          },
+                          "type": [
+                            "array",
+                            "null"
+                          ]
+                        },
+                        "holidays": {
+                          "items": {
+                            "properties": {
+                              "days": {
+                                "type": "integer"
+                              },
+                              "from": {
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "kind": {
+                                "enum": [
+                                  "holiday",
+                                  "adjusted_workday"
+                                ],
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "to": {
+                                "format": "date",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "kind",
+                              "from",
+                              "to",
+                              "days"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "importedAt": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "items": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "date": {
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "kind": {
+                                "enum": [
+                                  "holiday",
+                                  "adjusted_workday"
+                                ],
+                                "type": "string"
+                              },
+                              "note": {
+                                "maxLength": 20,
+                                "minLength": 1,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "kind",
+                              "note"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "workHours": {
+                          "properties": {
+                            "end": {
+                              "type": "string"
+                            },
+                            "start": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "start",
+                            "end"
+                          ],
+                          "type": "object"
+                        },
+                        "year": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "year",
+                        "calendarVersion",
+                        "holidays",
+                        "days",
+                        "importedAt",
+                        "workHours"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "某年的工作日历（放假、调休上班），参数页的节假日表",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/calendar-days/import": {
+      "post": {
+        "operationId": "admin.calendarDay.batchImport",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "days": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "date": {
+                          "format": "date",
+                          "type": "string"
+                        },
+                        "kind": {
+                          "enum": [
+                            "holiday",
+                            "adjusted_workday"
+                          ],
+                          "type": "string"
+                        },
+                        "note": {
+                          "maxLength": 20,
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "date",
+                        "kind",
+                        "note"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 80,
+                    "type": "array"
+                  },
+                  "source": {
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "year": {
+                    "maximum": 2100,
+                    "minimum": 2024,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "year"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "adjustedWorkdayCount": {
+                          "type": "integer"
+                        },
+                        "calendar": {
+                          "properties": {
+                            "calendarVersion": {
+                              "type": "integer"
+                            },
+                            "days": {
+                              "items": {
+                                "properties": {
+                                  "date": {
+                                    "format": "date",
+                                    "type": "string"
+                                  },
+                                  "isWorkday": {
+                                    "type": "boolean"
+                                  },
+                                  "kind": {
+                                    "enum": [
+                                      "weekday",
+                                      "weekend",
+                                      "holiday",
+                                      "adjusted_workday"
+                                    ],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "date",
+                                  "kind",
+                                  "isWorkday"
+                                ],
+                                "type": "object"
+                              },
+                              "type": [
+                                "array",
+                                "null"
+                              ]
+                            },
+                            "holidays": {
+                              "items": {
+                                "properties": {
+                                  "days": {
+                                    "type": "integer"
+                                  },
+                                  "from": {
+                                    "format": "date",
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "enum": [
+                                      "holiday",
+                                      "adjusted_workday"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "to": {
+                                    "format": "date",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "kind",
+                                  "from",
+                                  "to",
+                                  "days"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array"
+                            },
+                            "importedAt": {
+                              "anyOf": [
+                                {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "items": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "date": {
+                                    "format": "date",
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "enum": [
+                                      "holiday",
+                                      "adjusted_workday"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "note": {
+                                    "maxLength": 20,
+                                    "minLength": 1,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "date",
+                                  "kind",
+                                  "note"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array"
+                            },
+                            "workHours": {
+                              "properties": {
+                                "end": {
+                                  "type": "string"
+                                },
+                                "start": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "start",
+                                "end"
+                              ],
+                              "type": "object"
+                            },
+                            "year": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "items",
+                            "year",
+                            "calendarVersion",
+                            "holidays",
+                            "days",
+                            "importedAt",
+                            "workHours"
+                          ],
+                          "type": "object"
+                        },
+                        "calendarVersion": {
+                          "type": "integer"
+                        },
+                        "changedDays": {
+                          "items": {
+                            "format": "date",
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "holidayCount": {
+                          "type": "integer"
+                        },
+                        "isChanged": {
+                          "type": "boolean"
+                        },
+                        "source": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "year": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "year",
+                        "isChanged",
+                        "changedDays",
+                        "calendarVersion",
+                        "holidayCount",
+                        "adjustedWorkdayCount",
+                        "source",
+                        "calendar"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "导入年度放假安排（按年幂等；有变化才升日历批次并重算各类工作日时限）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "sys.param.edit"
+      }
+    },
     "/api/v1/admin/channel-account-submissions/{channelAccountSubmissionId}": {
       "get": {
         "operationId": "admin.channelAccountSubmission.get",
@@ -18510,6 +19153,435 @@
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询（GET 不写库，A19）",
         "x-permission": "assert-in-handler"
+      },
+      "post": {
+        "operationId": "admin.checklistTemplate.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "enum": [
+                      "qc.sample",
+                      "qc.episode",
+                      "qc.package",
+                      "delivery.precheck",
+                      "launch.verify",
+                      "patrol.check",
+                      "takedown.check",
+                      "takedown.absence_check",
+                      "account.verify"
+                    ],
+                    "type": "string"
+                  },
+                  "items": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "allowNa": {
+                          "type": "boolean"
+                        },
+                        "hint": {
+                          "type": "string"
+                        },
+                        "key": {
+                          "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$",
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "merchantVisible": {
+                          "type": "boolean"
+                        },
+                        "required": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "label",
+                        "required",
+                        "allowNa",
+                        "merchantVisible"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "code",
+                  "items"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChecklistTemplateView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "新建清单模板版本（草稿）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "flow.checklist.manage"
+      }
+    },
+    "/api/v1/admin/checklist-templates/{checklistTemplateId}/activate": {
+      "post": {
+        "operationId": "admin.checklistTemplate.activate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "checklistTemplateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChecklistTemplateView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "启用清单模板版本（同编码旧版本退役）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "flow.checklist.manage"
+      }
+    },
+    "/api/v1/admin/checklist-templates/{checklistTemplateId}/discard": {
+      "post": {
+        "operationId": "admin.checklistTemplate.discard",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "checklistTemplateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChecklistTemplateView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "放弃清单模板草稿",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "flow.checklist.manage"
       }
     },
     "/api/v1/admin/delivery-plans/{deliveryPlanId}": {
@@ -20950,6 +22022,1113 @@
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询（GET 不写库，A19）",
         "x-permission": "assert-in-handler"
+      },
+      "post": {
+        "operationId": "admin.dictItem.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "description": {
+                    "maxLength": 40,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "ext": {
+                    "additionalProperties": {},
+                    "type": "object"
+                  },
+                  "name": {
+                    "maxLength": 20,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "parentCode": {
+                    "minLength": 1,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "tags": {
+                    "items": {
+                      "maxLength": 20,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 20,
+                    "type": "array"
+                  },
+                  "typeKey": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "typeKey",
+                  "name"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DictItemView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "新增字典项（编码由系统按顺序生成，保存后不可改；同级不重名）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "sys.dict.edit"
+      }
+    },
+    "/api/v1/admin/dict-items/{dictItemId}": {
+      "patch": {
+        "operationId": "admin.dictItem.update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dictItemId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "description": {
+                    "maxLength": 40,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "ext": {
+                    "additionalProperties": {},
+                    "type": "object"
+                  },
+                  "isEnabled": {
+                    "type": "boolean"
+                  },
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "maxLength": 20,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "position": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "tags": {
+                    "items": {
+                      "maxLength": 20,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 20,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "lockVersion"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DictItemView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "修改字典项名称、说明，或启用 / 停用",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "sys.dict.edit"
+      }
+    },
+    "/api/v1/admin/dict-types": {
+      "get": {
+        "operationId": "admin.dictType.list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "properties": {
+                              "canCreate": {
+                                "type": "boolean"
+                              },
+                              "disablePolicy": {
+                                "enum": [
+                                  "free",
+                                  "block_if_referenced",
+                                  "never"
+                                ],
+                                "type": "string"
+                              },
+                              "enabledCount": {
+                                "type": "integer"
+                              },
+                              "isMerchantVisible": {
+                                "type": "boolean"
+                              },
+                              "isSystem": {
+                                "type": "boolean"
+                              },
+                              "itemCount": {
+                                "type": "integer"
+                              },
+                              "levelCounts": {
+                                "items": {
+                                  "type": "integer"
+                                },
+                                "type": "array"
+                              },
+                              "maxDepth": {
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "structure": {
+                                "enum": [
+                                  "flat",
+                                  "tree"
+                                ],
+                                "type": "string"
+                              },
+                              "typeKey": {
+                                "type": "string"
+                              },
+                              "versionNo": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "typeKey",
+                              "name",
+                              "structure",
+                              "maxDepth",
+                              "isSystem",
+                              "canCreate",
+                              "disablePolicy",
+                              "isMerchantVisible",
+                              "versionNo",
+                              "itemCount",
+                              "enabledCount",
+                              "levelCounts"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "items"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "字典类型列表（项数、启用数、是否可新增）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/feature-flags": {
+      "get": {
+        "operationId": "admin.featureFlag.list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "properties": {
+                              "defaultValue": {},
+                              "description": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "exposedTo": {
+                                "enum": [
+                                  "client",
+                                  "server"
+                                ],
+                                "type": "string"
+                              },
+                              "flagKey": {
+                                "type": "string"
+                              },
+                              "lockVersion": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "options": {
+                                "items": {
+                                  "type": "string"
+                                },
+                                "type": [
+                                  "array",
+                                  "null"
+                                ]
+                              },
+                              "rules": {
+                                "items": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "value": {
+                                      "$ref": "#/components/schemas/SystemConfigJsonValue"
+                                    },
+                                    "when": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "clientVersion": {
+                                          "pattern": "^(?:>=|<=|>|<|=)\\d{1,5}\\.\\d{1,5}\\.\\d{1,5}(?: (?:>=|<=|>|<|=)\\d{1,5}\\.\\d{1,5}\\.\\d{1,5})*$",
+                                          "type": "string"
+                                        },
+                                        "entityIds": {
+                                          "items": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          },
+                                          "maxItems": 500,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        },
+                                        "envVersion": {
+                                          "items": {
+                                            "enum": [
+                                              "develop",
+                                              "trial",
+                                              "release"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "minItems": 1,
+                                          "type": "array"
+                                        },
+                                        "platform": {
+                                          "items": {
+                                            "maxLength": 32,
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "type": "object"
+                                    }
+                                  },
+                                  "required": [
+                                    "when",
+                                    "value"
+                                  ],
+                                  "type": "object"
+                                },
+                                "maxItems": 50,
+                                "type": "array"
+                              },
+                              "updatedAt": {
+                                "format": "date-time",
+                                "type": "string"
+                              },
+                              "updatedBy": {
+                                "anyOf": [
+                                  {
+                                    "$ref": "#/components/schemas/StaffBrief"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "valueType": {
+                                "enum": [
+                                  "bool",
+                                  "enum",
+                                  "json"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "flagKey",
+                              "valueType",
+                              "rules",
+                              "exposedTo",
+                              "description",
+                              "options",
+                              "updatedAt",
+                              "updatedBy",
+                              "lockVersion"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "items"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "特性开关列表：键、说明、默认值、规则（平台、版本、环境、主体白名单）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+        "x-permission": "sys.super_admin"
+      }
+    },
+    "/api/v1/admin/feature-flags/{flagKey}": {
+      "patch": {
+        "operationId": "admin.featureFlag.update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "flagKey",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "defaultValue": {},
+                  "description": {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "rules": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "value": {
+                          "$ref": "#/components/schemas/SystemConfigJsonValue"
+                        },
+                        "when": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "clientVersion": {
+                              "pattern": "^(?:>=|<=|>|<|=)\\d{1,5}\\.\\d{1,5}\\.\\d{1,5}(?: (?:>=|<=|>|<|=)\\d{1,5}\\.\\d{1,5}\\.\\d{1,5})*$",
+                              "type": "string"
+                            },
+                            "entityIds": {
+                              "items": {
+                                "format": "uuid",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                "type": "string"
+                              },
+                              "maxItems": 500,
+                              "minItems": 1,
+                              "type": "array"
+                            },
+                            "envVersion": {
+                              "items": {
+                                "enum": [
+                                  "develop",
+                                  "trial",
+                                  "release"
+                                ],
+                                "type": "string"
+                              },
+                              "minItems": 1,
+                              "type": "array"
+                            },
+                            "platform": {
+                              "items": {
+                                "maxLength": 32,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "minItems": 1,
+                              "type": "array"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "when",
+                        "value"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 50,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "lockVersion"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "defaultValue": {},
+                        "description": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "exposedTo": {
+                          "enum": [
+                            "client",
+                            "server"
+                          ],
+                          "type": "string"
+                        },
+                        "flagKey": {
+                          "type": "string"
+                        },
+                        "lockVersion": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "options": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": [
+                            "array",
+                            "null"
+                          ]
+                        },
+                        "rules": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "value": {
+                                "$ref": "#/components/schemas/SystemConfigJsonValue"
+                              },
+                              "when": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "clientVersion": {
+                                    "pattern": "^(?:>=|<=|>|<|=)\\d{1,5}\\.\\d{1,5}\\.\\d{1,5}(?: (?:>=|<=|>|<|=)\\d{1,5}\\.\\d{1,5}\\.\\d{1,5})*$",
+                                    "type": "string"
+                                  },
+                                  "entityIds": {
+                                    "items": {
+                                      "format": "uuid",
+                                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                      "type": "string"
+                                    },
+                                    "maxItems": 500,
+                                    "minItems": 1,
+                                    "type": "array"
+                                  },
+                                  "envVersion": {
+                                    "items": {
+                                      "enum": [
+                                        "develop",
+                                        "trial",
+                                        "release"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "minItems": 1,
+                                    "type": "array"
+                                  },
+                                  "platform": {
+                                    "items": {
+                                      "maxLength": 32,
+                                      "minLength": 1,
+                                      "type": "string"
+                                    },
+                                    "minItems": 1,
+                                    "type": "array"
+                                  }
+                                },
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "when",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 50,
+                          "type": "array"
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "updatedBy": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/StaffBrief"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "valueType": {
+                          "enum": [
+                            "bool",
+                            "enum",
+                            "json"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "flagKey",
+                        "valueType",
+                        "rules",
+                        "exposedTo",
+                        "description",
+                        "options",
+                        "updatedAt",
+                        "updatedBy",
+                        "lockVersion"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "修改开关的默认值或规则（写审计，触发即时播报）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "sys.super_admin"
       }
     },
     "/api/v1/admin/files": {
@@ -22380,6 +24559,1041 @@
         "x-auth": "staff",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/param-values": {
+      "get": {
+        "operationId": "admin.paramValue.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "group",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "keys",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "groups": {
+                          "items": {
+                            "properties": {
+                              "group": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "group",
+                              "title"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "items": {
+                          "items": {
+                            "properties": {
+                              "defaultValue": {},
+                              "description": {
+                                "type": "string"
+                              },
+                              "effectiveAt": {
+                                "anyOf": [
+                                  {
+                                    "format": "date-time",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "group": {
+                                "type": "string"
+                              },
+                              "key": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "latestRev": {
+                                "pattern": "^[1-9][0-9]*$",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "pending": {
+                                "items": {
+                                  "properties": {
+                                    "canWithdraw": {
+                                      "type": "boolean"
+                                    },
+                                    "effectiveAt": {
+                                      "format": "date-time",
+                                      "type": "string"
+                                    },
+                                    "paramValueId": {
+                                      "format": "uuid",
+                                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                      "type": "string"
+                                    },
+                                    "reason": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "rev": {
+                                      "type": "string"
+                                    },
+                                    "savedAt": {
+                                      "format": "date-time",
+                                      "type": "string"
+                                    },
+                                    "savedBy": {
+                                      "anyOf": [
+                                        {
+                                          "$ref": "#/components/schemas/StaffBrief"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "value": {}
+                                  },
+                                  "required": [
+                                    "paramValueId",
+                                    "rev",
+                                    "effectiveAt",
+                                    "reason",
+                                    "savedBy",
+                                    "savedAt",
+                                    "canWithdraw"
+                                  ],
+                                  "type": "object"
+                                },
+                                "type": "array"
+                              },
+                              "range": {
+                                "additionalProperties": {},
+                                "type": [
+                                  "object",
+                                  "null"
+                                ]
+                              },
+                              "rev": {
+                                "pattern": "^[1-9][0-9]*$",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "savedAt": {
+                                "anyOf": [
+                                  {
+                                    "format": "date-time",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "savedBy": {
+                                "anyOf": [
+                                  {
+                                    "$ref": "#/components/schemas/StaffBrief"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "snapshotOn": {
+                                "enum": [
+                                  "create",
+                                  "read"
+                                ],
+                                "type": "string"
+                              },
+                              "type": {
+                                "enum": [
+                                  "int",
+                                  "bp",
+                                  "int_list",
+                                  "time_hm",
+                                  "bool",
+                                  "enum",
+                                  "text",
+                                  "json",
+                                  "sla_policy"
+                                ],
+                                "type": "string"
+                              },
+                              "unit": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "value": {}
+                            },
+                            "required": [
+                              "key",
+                              "group",
+                              "label",
+                              "description",
+                              "type",
+                              "unit",
+                              "range",
+                              "rev",
+                              "latestRev",
+                              "effectiveAt",
+                              "savedBy",
+                              "savedAt",
+                              "pending",
+                              "snapshotOn"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "lastSaved": {
+                          "properties": {
+                            "at": {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "staff": {
+                              "$ref": "#/components/schemas/StaffBrief"
+                            }
+                          },
+                          "required": [
+                            "at",
+                            "staff"
+                          ],
+                          "type": [
+                            "object",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "groups",
+                        "lastSaved"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "系统参数：分组、元数据（类型、范围、单位、默认值）、当前值与待生效值、最近保存人",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      },
+      "put": {
+        "operationId": "admin.paramValue.replace",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "items": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "effectiveAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "expectedRev": {
+                          "pattern": "^[1-9][0-9]*$",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "key": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "value": {
+                          "$ref": "#/components/schemas/SystemConfigJsonValue"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "value",
+                        "expectedRev"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "reason": {
+                    "maxLength": 100,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "groups": {
+                          "items": {
+                            "properties": {
+                              "group": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "group",
+                              "title"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "items": {
+                          "items": {
+                            "properties": {
+                              "defaultValue": {},
+                              "description": {
+                                "type": "string"
+                              },
+                              "effectiveAt": {
+                                "anyOf": [
+                                  {
+                                    "format": "date-time",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "group": {
+                                "type": "string"
+                              },
+                              "key": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "latestRev": {
+                                "pattern": "^[1-9][0-9]*$",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "pending": {
+                                "items": {
+                                  "properties": {
+                                    "canWithdraw": {
+                                      "type": "boolean"
+                                    },
+                                    "effectiveAt": {
+                                      "format": "date-time",
+                                      "type": "string"
+                                    },
+                                    "paramValueId": {
+                                      "format": "uuid",
+                                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                      "type": "string"
+                                    },
+                                    "reason": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "rev": {
+                                      "type": "string"
+                                    },
+                                    "savedAt": {
+                                      "format": "date-time",
+                                      "type": "string"
+                                    },
+                                    "savedBy": {
+                                      "anyOf": [
+                                        {
+                                          "$ref": "#/components/schemas/StaffBrief"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "value": {}
+                                  },
+                                  "required": [
+                                    "paramValueId",
+                                    "rev",
+                                    "effectiveAt",
+                                    "reason",
+                                    "savedBy",
+                                    "savedAt",
+                                    "canWithdraw"
+                                  ],
+                                  "type": "object"
+                                },
+                                "type": "array"
+                              },
+                              "range": {
+                                "additionalProperties": {},
+                                "type": [
+                                  "object",
+                                  "null"
+                                ]
+                              },
+                              "rev": {
+                                "pattern": "^[1-9][0-9]*$",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "savedAt": {
+                                "anyOf": [
+                                  {
+                                    "format": "date-time",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "savedBy": {
+                                "anyOf": [
+                                  {
+                                    "$ref": "#/components/schemas/StaffBrief"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "snapshotOn": {
+                                "enum": [
+                                  "create",
+                                  "read"
+                                ],
+                                "type": "string"
+                              },
+                              "type": {
+                                "enum": [
+                                  "int",
+                                  "bp",
+                                  "int_list",
+                                  "time_hm",
+                                  "bool",
+                                  "enum",
+                                  "text",
+                                  "json",
+                                  "sla_policy"
+                                ],
+                                "type": "string"
+                              },
+                              "unit": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "value": {}
+                            },
+                            "required": [
+                              "key",
+                              "group",
+                              "label",
+                              "description",
+                              "type",
+                              "unit",
+                              "range",
+                              "rev",
+                              "latestRev",
+                              "effectiveAt",
+                              "savedBy",
+                              "savedAt",
+                              "pending",
+                              "snapshotOn"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "lastSaved": {
+                          "properties": {
+                            "at": {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "staff": {
+                              "$ref": "#/components/schemas/StaffBrief"
+                            }
+                          },
+                          "required": [
+                            "at",
+                            "staff"
+                          ],
+                          "type": [
+                            "object",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "groups",
+                        "lastSaved"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "整批保存参数（[{key, value, expectedRev, effectiveFrom?}]，整批乐观锁）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "sys.param.edit"
+      }
+    },
+    "/api/v1/admin/param-values/{paramValueId}/withdraw": {
+      "post": {
+        "operationId": "admin.paramValue.withdraw",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paramValueId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "reason": {
+                    "maxLength": 100,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "defaultValue": {},
+                        "description": {
+                          "type": "string"
+                        },
+                        "effectiveAt": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "group": {
+                          "type": "string"
+                        },
+                        "key": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "latestRev": {
+                          "pattern": "^[1-9][0-9]*$",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "pending": {
+                          "items": {
+                            "properties": {
+                              "canWithdraw": {
+                                "type": "boolean"
+                              },
+                              "effectiveAt": {
+                                "format": "date-time",
+                                "type": "string"
+                              },
+                              "paramValueId": {
+                                "format": "uuid",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "rev": {
+                                "type": "string"
+                              },
+                              "savedAt": {
+                                "format": "date-time",
+                                "type": "string"
+                              },
+                              "savedBy": {
+                                "anyOf": [
+                                  {
+                                    "$ref": "#/components/schemas/StaffBrief"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "value": {}
+                            },
+                            "required": [
+                              "paramValueId",
+                              "rev",
+                              "effectiveAt",
+                              "reason",
+                              "savedBy",
+                              "savedAt",
+                              "canWithdraw"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "range": {
+                          "additionalProperties": {},
+                          "type": [
+                            "object",
+                            "null"
+                          ]
+                        },
+                        "rev": {
+                          "pattern": "^[1-9][0-9]*$",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "savedAt": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "savedBy": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/StaffBrief"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "snapshotOn": {
+                          "enum": [
+                            "create",
+                            "read"
+                          ],
+                          "type": "string"
+                        },
+                        "type": {
+                          "enum": [
+                            "int",
+                            "bp",
+                            "int_list",
+                            "time_hm",
+                            "bool",
+                            "enum",
+                            "text",
+                            "json",
+                            "sla_policy"
+                          ],
+                          "type": "string"
+                        },
+                        "unit": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "value": {}
+                      },
+                      "required": [
+                        "key",
+                        "group",
+                        "label",
+                        "description",
+                        "type",
+                        "unit",
+                        "range",
+                        "rev",
+                        "latestRev",
+                        "effectiveAt",
+                        "savedBy",
+                        "savedAt",
+                        "pending",
+                        "snapshotOn"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "撤销一条尚未生效的预约参数值",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "sys.param.edit"
       }
     },
     "/api/v1/admin/payment-orders/{paymentOrderId}": {

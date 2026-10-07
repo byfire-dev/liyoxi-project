@@ -6,6 +6,7 @@ import { purgeExpiredIdempotencyRecords } from "./idempotency-tools.js";
 import {
   piiFieldsPort,
   alertsPort,
+  dictReferencesPort,
   invariantsPort,
   merchantFactsPort,
   notifyReadPort,
@@ -15,6 +16,7 @@ import {
 
 export const registration = defineRegistration("kernel", {
   ports: [
+    dictReferencesPort,
     alertsPort,
     invariantsPort,
     trackPort,
