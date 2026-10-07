@@ -45,3 +45,6 @@ export type {
   PublishStoreFacts,
   SupportStoreFacts,
 } from "./merchant-facts.js";
+
+export { piiFieldsPort, piiFieldsOf, implementPiiFields } from "./pii-fields.js";
+export type { PiiFactDb, PiiFieldQuery, PiiFieldFact, PiiFieldProvider } from "./pii-fields.js";
