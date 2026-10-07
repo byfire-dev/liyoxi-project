@@ -178,10 +178,11 @@ export async function findI5Violations(tx: Tx, now: Date): Promise<InvariantViol
     }
     // 在途日历订阅尚未消费时允许旧批次：当工作窗口有更新，不能把暂时旧 due_at 误报成污染。
     const from = calendarDate(row.submittedAt);
-    const to = addDays(calendarDate(row.dueAt!), Math.max(45, snapshot.amount * 4));
+    const windowEnd = calendarDate(row.dueAt!);
+    const to = addDays(windowEnd, Math.max(45, snapshot.amount * 4));
     const changed = await tx.workCalendarDay.count({
       where: {
-        day: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T00:00:00Z`) },
+        day: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${windowEnd}T00:00:00Z`) },
         calendarVersion: { gt: snapshot.calendarVersion },
       },
     });

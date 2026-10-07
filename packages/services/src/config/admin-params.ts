@@ -190,10 +190,26 @@ export function createAdminParams(deps: ConfigAdminDeps) {
         .map((item) => ({ key: item.key, latestRev: byKey.get(item.key)?.seq.toString() ?? null }));
       if (conflicts.length) throw new AppError("VERSION_CONFLICT", { details: { conflicts } });
       const now = deps.clock.now();
+      // latest 只供CAS；脱敏回传沿用当前DTO对应的生效值，不能借未来预约提前生效。
+      const current = await tx.paramValue.findMany({
+        where: {
+          key: { in: input.items.map((item) => item.key) },
+          cancelledAt: null,
+          effectiveAt: { lte: now },
+        },
+        orderBy: [{ effectiveAt: "desc" }, { seq: "desc" }],
+        distinct: ["key"],
+      });
+      const currentByKey = new Map(current.map((row) => [row.key, row]));
       const prepared = input.items.map((item, index) => {
         const def = paramDef(item.key);
         if (!def) return invalid(`items.${index}.key`, "未登记的参数键");
-        const value = restored(def, item.value, byKey.get(item.key)?.value);
+        const currentRow = currentByKey.get(item.key);
+        const previous =
+          currentRow && validateParamValue(def, currentRow.value) === null
+            ? currentRow.value
+            : def.default;
+        const value = restored(def, item.value, previous);
         const issue = validateParamValue(def, value);
         if (issue) invalid(`items.${index}.value`, issue);
         const effectiveAt = item.effectiveAt ? new Date(item.effectiveAt) : now;

@@ -696,6 +696,7 @@ BullMQ 只是执行通道：任务一律 `attempts: 1`，重试、到期、租�
 | `03:805` | `approval_request.status` | pending→approved（免审批，系统） | `cancel.auto_execute`，随取消申请的提交事务（`admin.order.cancelRequest.create`、`admin.ad.cancelRequest.create`、`m.cancelRequest.create`（V1.1）、订阅者 `order.onQualificationDecided`） | 随调用方事务 |
 | `03:806` | `approval_request.status` | pending→rejected（系统） | 订阅者 `profile.onQualificationApproved`；`profile.I7` 自愈 | 订阅者 |
 | `03:807` | `approval_request.status` | pending→withdrawn（系统代撤） | 随调用方事务：`m.me.deletion.create`（账号变更申请）；空账号清理（`m.me.changePhone`、`admin.accountChangeRequest.approve`）；主体关闭撤回待审批的取消申请（`admin.entity.close`）；`m.channelAccount.unbind`；`launch.void` / `launch.settle`（定时器 `usage.end`、`admin.cancelRequest.execute`、`m.takedownTask.confirm`、`admin.deliveryTicket.reevaluate`）；订阅者 `profile.onTenantLifecycle`（资质轮次） | 随调用方事务 |
+| `03:808` | `approval_request.status` | pending→pending（sla.recalculated） | 订阅者 `approval.onCalendarImported`：决定窗口内日历更正后，在同一事务经 flow 重算时限与日历快照、记录同态历史及审计 | 订阅者 |
 
 ### 5.5 档案（04）
 

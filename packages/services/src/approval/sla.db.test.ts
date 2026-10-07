@@ -13,6 +13,7 @@ import type { Approval, ApprovalSlaBinding } from "./index.js";
 import { alertsOf, createBizNoIssuer, uuidv7 } from "../kernel/index.js";
 import { createSla, lockCalendarImport } from "../sla/index.js";
 import { createTimers, runTimer } from "../timers/index.js";
+import { claimDeliveries, consumeDelivery } from "../events/index.js";
 import { sampleSystemContext, SAMPLE_APPROVAL_TABLE } from "../testing/index.js";
 import { SLOW, useApprovalWorld, refusal } from "./__fixtures__/world.js";
 import type { Merchant, Person } from "./__fixtures__/world.js";
@@ -126,6 +127,30 @@ async function changedDay(day: string, isWorkday: boolean) {
     };
   });
 }
+async function consumeCalendar(event: { id: string }) {
+  await world.sample.events.expand();
+  const claimed = await world.sample.tx.run((tx) => claimDeliveries(tx));
+  const ref = claimed.claimed.find(
+    (item) => item.eventId === event.id && item.subscriber === "approval.onCalendarImported",
+  );
+  expect(ref).toBeDefined();
+  expect(
+    await consumeDelivery(
+      {
+        tx: world.sample.tx,
+        subscribers: world.sample.events.subscribers,
+        alerts: alertsOf(world.sample.assembly),
+      },
+      ref!,
+    ),
+  ).toBe("done");
+  expect(
+    await world.prisma.outboxDelivery.findFirstOrThrow({
+      where: { outboxEventId: event.id, subscriber: "approval.onCalendarImported" },
+    }),
+  ).toMatchObject({ status: "done", consumedAt: expect.any(Date) });
+}
+
 async function timers(id: string) {
   return world.prisma.timer.findMany({
     where: { subjectType: "approval_request", subjectId: id },
@@ -580,5 +605,68 @@ describe("审批决定 SLA", () => {
     );
     await world.prisma.timer.update({ where: { id: fake.id }, data: { status: "cancelled" } });
     await healthy();
+  });
+  it("P2 窗口外更正真实消费后不掩盖I5截止时间污染", T, async () => {
+    const row = await submit(await world.merchant());
+    const event = await changedDay("2026-01-20", false);
+    try {
+      await consumeCalendar(event);
+      const unchanged = await world.prisma.approvalRequest.findUniqueOrThrow({
+        where: { id: row.id },
+      });
+      expect(unchanged).toMatchObject({ dueAt: row.dueAt, slaSnapshot: row.slaSnapshot });
+      await healthy();
+      const polluted = new Date(row.dueAt!.getTime() + 3_600_000);
+      expect(polluted.getTime()).toBeLessThan(new Date("2026-01-20").getTime());
+      await world.prisma.approvalRequest.update({
+        where: { id: row.id },
+        data: { dueAt: polluted },
+      });
+      expect(
+        await world.sample.tx.run((tx) => findI5Violations(tx, world.sample.clock.now())),
+      ).toContainEqual(
+        expect.objectContaining({
+          subject: { type: "approval_request", id: row.id },
+          detail: expect.objectContaining({
+            problem: "decision_due_mismatch",
+            expected: row.dueAt!.toISOString(),
+            actual: polluted.toISOString(),
+          }),
+        }),
+      );
+    } finally {
+      await world.prisma.approvalRequest.update({
+        where: { id: row.id },
+        data: { dueAt: row.dueAt },
+      });
+      await consumeCalendar(await changedDay("2026-01-20", true));
+      await healthy();
+    }
+  });
+
+  it("P2 窗口内日历更正在途仍豁免，真实消费后I3I5健康", T, async () => {
+    const row = await submit(await world.merchant());
+    const event = await changedDay("2026-01-06", false);
+    try {
+      expect(
+        (await world.prisma.approvalRequest.findUniqueOrThrow({ where: { id: row.id } }))
+          .slaSnapshot,
+      ).toEqual(row.slaSnapshot);
+      expect(
+        await world.sample.tx.run((tx) => findI5Violations(tx, world.sample.clock.now())),
+      ).toEqual([]);
+      await consumeCalendar(event);
+      const recomputed = await world.prisma.approvalRequest.findUniqueOrThrow({
+        where: { id: row.id },
+      });
+      expect(recomputed.dueAt!.getTime()).toBeGreaterThan(row.dueAt!.getTime());
+      expect(recomputed.slaSnapshot).toMatchObject({
+        calendarVersion: event.payload.calendarVersion,
+      });
+      await healthy();
+    } finally {
+      await consumeCalendar(await changedDay("2026-01-06", true));
+      await healthy();
+    }
   });
 });

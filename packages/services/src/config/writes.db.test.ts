@@ -358,4 +358,68 @@ describe("W2-05 配置事务", { timeout: 120000 }, () => {
       0,
     );
   });
+  it.each([
+    { name: "不同mask", phone: "15899994455", wxOpenid: "future_openid_9876" },
+    { name: "mask碰撞", phone: "13999992233", wxOpenid: "future_openid_1234" },
+  ])("P2 当前敏感原样回传保持A，未来预约B不提前生效：$name", async ({ phone, wxOpenid }) => {
+    const key = "notify.test_recipients";
+    const currentA = [
+      { staffId: actor.staff.staff.id, phone: "13900112233", wxOpenid: "current_openid_1234" },
+    ];
+    const pendingB = [{ staffId: actor.staff.staff.id, phone, wxOpenid }];
+    const prior = (await admin.params({ keys: [key] })).items[0]!;
+    clock.advance(1);
+    const first = (
+      await admin.replaceParams(actor, {
+        items: [{ key, value: currentA, expectedRev: prior.latestRev }],
+      })
+    ).items[0]!;
+    const effectiveAt = new Date(clock.now().getTime() + 3_600_000).toISOString();
+    const scheduled = (
+      await admin.replaceParams(actor, {
+        items: [{ key, value: pendingB, expectedRev: first.latestRev, effectiveAt }],
+      })
+    ).items[0]!;
+    const pending = scheduled.pending.find((item) => item.effectiveAt === effectiveAt)!;
+    const pendingBefore = await prisma.paramValue.findUniqueOrThrow({
+      where: { id: pending.paramValueId },
+    });
+    const displayed = (await admin.params({ keys: [key] })).items[0]!;
+    expect(displayed).toMatchObject({
+      value: first.value,
+      rev: first.rev,
+      latestRev: scheduled.latestRev,
+    });
+    expect(displayed.rev).not.toBe(displayed.latestRev);
+    clock.advance(1);
+    try {
+      const result = (
+        await admin.replaceParams(actor, {
+          items: [
+            { key, value: displayed.value as typeof currentA, expectedRev: displayed.latestRev },
+          ],
+        })
+      ).items[0]!;
+      const saved = await prisma.paramValue.findFirstOrThrow({
+        where: { key, cancelledAt: null, effectiveAt: { lte: clock.now() } },
+        orderBy: [{ effectiveAt: "desc" }, { seq: "desc" }],
+      });
+      expect(saved.value).toEqual(currentA);
+      expect(result).toMatchObject({ value: first.value, pending: [pending] });
+      expect(
+        await prisma.paramValue.findUniqueOrThrow({ where: { id: pending.paramValueId } }),
+      ).toEqual(pendingBefore);
+      // 立即行seq较新也不能覆盖预约的更晚生效时刻；到点仍读取B。
+      clock.set(new Date(effectiveAt));
+      const nowEffective = (await admin.params({ keys: [key] })).items[0]!;
+      expect(nowEffective).toMatchObject({ rev: pending.rev, value: pending.value, pending: [] });
+      expect(
+        (await prisma.paramValue.findUniqueOrThrow({ where: { id: pending.paramValueId } })).value,
+      ).toEqual(pendingB);
+    } finally {
+      // 回到保存时刻只为用真实撤销口收本用例的预约，不删业务历史行。
+      clock.set(new Date(pendingBefore.createdAt.getTime() + 1));
+      await admin.withdrawParam(actor, pending.paramValueId);
+    }
+  });
 });
