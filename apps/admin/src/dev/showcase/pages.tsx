@@ -42,8 +42,18 @@ export const PAGE_KINDS: readonly { kind: string; href: string | null; note: str
     href: "/dev/form",
     note: "一张比一屏长的表单；提交有错时滚到第一个出错的字段",
   },
-  { kind: "列表加右侧详情栏", href: null, note: "还没有构件：G2-0 的构件包" },
-  { kind: "报表页", href: null, note: "还没有构件：指标卡、图表封装在 G2-0 的构件包及 M6、M7" },
+  {
+    kind: "列表加右侧详情栏",
+    href: "/dev/master-detail",
+    note: "选中写入 URL；详情 key 防止陈旧响应串到其他记录",
+  },
+  { kind: "配置页", href: "/dev/config", note: "受控表单、只读、提交等待与错误反馈" },
+  {
+    kind: "图表构件",
+    href: "/dev/chart",
+    note: "真实柱/折线/饼图与容器生命周期；报表业务由后继页交付",
+  },
+  { kind: "报表页", href: null, note: "M7 交付指标口径与报表业务，图表构件已有样例" },
 ];
 
 export function FrameBody() {

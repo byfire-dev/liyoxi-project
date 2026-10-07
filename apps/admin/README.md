@@ -65,7 +65,7 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 | 弹窗的页脚 | 一律自己摆，不用 antd 的缺省页脚，也不用 `modal.confirm` 这类静态确认框：缺省页脚的按钮高 36、两键间距 8、离内容 12，不是规范的 40、10、16，主题这一层没有套（状态文件“偏差”，等业主定）。写法照 `ConfirmAction`：`footer={null}`，内容最后放 `.lyx-confirm__footer`（右对齐、间距 10，取消在左、确认在右），按钮用 `size="large"`。要二次确认的直接用 `ConfirmAction` |
 | 抽屉 | antd 的 `Drawer`：右侧、宽 480、内边距 24、阴影都已套好；头部照原型是标题在左、关闭按钮（32 × 32）在右，没有分隔线。宽度是全局给的缺省值，页面自己传了 `size` 的按页面的 |
 | 表单 | antd 的 `Form`，纵向布局：标签 13px / 600、标签文字到控件 6、字段间距 14、不显示必填星号（选填项在标签后写“（选填）”）、错误提示与字段下方的辅助说明 12px、提交有错时滚到第一个出错的字段（不在视野里才滚，落在内容区中间，标签与错误提示一起看得见），都已套好。样例页 `/dev/form`，冒烟里有断言。输入框、下拉、数值输入、日期与日期范围选择器高 36、13px、左右内边距 10（小号的下拉沿用 antd 的紧凑内边距，规范没写这一档）；多行输入内边距 8px 10px、行高 1.6。校验错误的警示播报（`role="alert"`）antd 的表单没有给，见状态文件“偏差” |
-| 日期范围选择器的键盘 | 样子已经套好，键盘要用到它的页面包自己核：在 Playwright 驱动的无头 Chrome 里，Tab 走进它的第一个输入之后再按 Tab 出不来（不带主题的裸 antd 6.6.5 也一样，不是主题带来的；有头的浏览器里没有试）。第一个用到它的页面包在真实浏览器里把“Tab 进、Tab 出、Esc 关浮层”核一遍，结果写进自己的 PR |
+| 日期范围选择器的键盘 | W2-02 在有头 Chrome 复现原 AntD6.6.5 的空值 Tab 焦点锁。`DateRangeField` 保留原 RangePicker props/日期校验，在空字段 Tab 时收口原焦点锁并保留浏览器顺序遍历；非空值走原确认逻辑。样例 `/dev/config`，浏览器覆盖 Tab/Shift+Tab 进出、Esc关闭、手输范围与不误提交；未升级 AntD 或改全局键盘事件 |
 | 开关、分段控件、复选框、单选框 | 直接用 antd 的：开关 36 × 20（开是绿色）、分段控件项高 30（选中项只是白底，不带阴影）、复选框与单选框 16 × 16，都已套好。禁用的输入框、数值输入、下拉、日期选择器的描边与禁用按钮的描边同色（规范没写禁用的输入框，状态文件“偏差”）。核对清单里的绿色复选框用 `CheckList` |
 | 键盘聚焦 | 输入框、下拉是“描边变主色加浅色光晕”，其余可点的东西是主色聚焦环，都不用页面管：antd 的按钮、关闭键、清除键、复选框、单选框、开关、分段控件与侧栏菜单已经换成主色环；自己写的可点元素挂 `.lyx-focusable`，文字链 `.lyx-link` 自带。分段控件用 Tab 走有两站（先是容器自己，再按一下进到里面的项，之后用方向键换项），两站的环都画在整条轨道上。用键盘打开弹窗时焦点直接落在它的关闭键上（主色环）；用键盘打开抽屉时焦点先落在整个抽屉这一层上，那是容器不是控件，不画环，再按一下 Tab 到关闭键。antd 别的控件（`Tabs`、`Pagination`、`Dropdown`、`Tree`、`Collapse`、`Steps` 等）本包没有用到、没有套，用到的包走构件 PR 照 `global.css` 开头那一段补 |
 | 整行可点的表格 | `QueryTablePage` 的 `onRowClick`：鼠标点行里的空白或文字，或 Tab 到这一行后按回车。行里另有链接、按钮、输入类控件（含 antd 的下拉、日期选择器、分段控件）时各管各的：点它们、或焦点在它们上面按回车，只做它们自己的事，不触发整行的动作；从行里弹出去的浮层、弹窗里的点击也不算这一行的。行里自己写的可点元素照规范 第 10 节用 `button` 或 `a`，不要给 `span`、`div` 绑点击，否则会被算成点了这一行。样例页 `/dev/rows`，冒烟里有断言。现在有两样规范没写、没有处理的：在行里的文字上按住拖选再松开，会触发一次整行的动作（想复制单号时抽屉会弹出来）；双击会触发两次。等业主看样时定（状态文件“偏差”） |
@@ -132,9 +132,25 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 - 表格行高的两档靠 CSS 的 `:has()` 选择器判断一行里有没有双行单元格（Chrome 105、Safari 15.4、Firefox 121 起支持）；更老的浏览器里双行的行会落到 44 那一档，不到 56。复选框、单选框、分段控件的键盘聚焦环同样靠 `:has()`。
 - 衬线字体（页面标题、品牌字）没有带字体文件，按字体栈回落到系统的宋体；antd 控件内部自带的图标（下拉箭头、清除键、排序箭头、关闭“×”等）还是它自己的。两件都在状态文件“偏差”里，等业主定。
 - 还有几样只量了、没有改，同样在状态文件“偏差”里等业主定：antd 弹窗的缺省页脚（见上面“弹窗的页脚”）；antd 按钮点击后的水波动画没有关（规范没写点击的动效）；日期浮层里不属于本月的日期用的是禁用色（antd 的缺省）；上传区里的图标是 16px、线宽 1.8（规范说 16px 及以下用 2；图标集里这个图标就是 1.8，图标集不在本包改）。
-- `QueryTablePage` 的列脱敏声明（`mask`）与 `validateSearch` 复用契约结构交给 G2-0 独立构件包；页面包保留冻结构件。
+- `QueryTablePage` 的 `mask` 只提示服务端已脱敏值，不能证明 DTO 安全或请求明文；`selectedRowKey` 加选中行和左侧色条。业务页只消费这些公开构件。
 
-## 真实接口浏览器验收
+## W2-02 公共构件与查询
+
+| 公口 | 受控边界与样例 |
+| --- | --- |
+| `MasterDetailPage` | `selectedKey/onSelect/list/detail/onRetry`；详情带取数 key，旧 key 响应显示加载而非串记录；默认右栏360px。`/dev/master-detail` 验选中 URL、后退/刷新和陈旧响应 |
+| `ConfigPage` | `children/aside/readOnly/pending/canSubmit/onSubmit/error`；字段禁用与同步提交锁，领域给校验/版本/权限/幂等。保存按钮（或焦点在按钮时按Enter）才提交，日期 Enter 不隐式保存。`/dev/config` |
+| `Chart` | 调用方给 `option/label/state/height/onRetry`，按需柱/折线/饼图，ResizeObserver/零尺寸延迟与dispose；图例/指标由调用方给出。`/dev/chart` |
+| 单选控件 | `CapsuleRadio/ReasonChips/RadioCard` 的 `value/options/onChange/ariaLabel/disabled`；原生 radio 支持方向键/Tab，disabled 不回写。`/dev/shared-controls` |
+| 月份与展示 | `MonthSwitcher` 的年月对象与范围；`ReadOnlyValue/NeutralNotice/EmphasisBlock/Stepper/LogList/DiffBlock` 只展示调用方事实，不推导领域进度/日志/差异。同上样例 |
+| 既有比对/驳回 | `CompareTable` 的 `rows/ariaLabel` 与 `RejectDialog` 受控签名不变；提交等待期间不能Esc/关闭/取消/重复提交，不重做现有业务包装 |
+| 查询适配 | `readContractQuery(schema, raw, options)` 返回分离的 `wire/parsed`；显式白名单、默认和恢复；审批 CSV 数组不重新传给输入 schema。已有表格10/20/50和队列100分页保持。员工/资质页消费公开 `/queries/admin`，id只属队列UI |
+
+四个样例继续由 `__LYX_DEV_FIXTURES__` 控制，生产访问404且产物无夹具，不新增真实页/菜单/接口。`pnpm admin:e2e` 沿用 samples项目；定点命令 `LYX_E2E_CHANNEL=chrome pnpm --filter @liyoxi/admin exec playwright test test/e2e/w202-components.spec.ts --project=samples`；加`--headed`验有头日期键盘。
+
+截图写入 `dist/e2e-shots/w202-{master-detail,config,chart,shared-controls}.png`。叶控件SSR/纯测试只证明结构与年月规则，实际方向键、只读、等待、尺寸与焦点由浏览器验收。
+
+## 真实接口浏览器验收（运行入口）
 
 显式提供本地 Compose 的公开测试连接参数（APP_ENV=test、DATABASE_URL、REDIS_URL），执行 `pnpm admin:e2e:live`；不读取 .env。正常 Node24，nightly 沿用仓库 Node26 兼容作业。CI 先安装 Chromium；本机可 `LYX_E2E_CHANNEL=chrome`。脚本为本轮生成严格配对的测试库与 Redis 前缀，seed 与 staff:bootstrap 后启动真实 API 构建产物和生产后台静态文件；/api 转发保留 Host/Origin 及端口。结束或中断后停止本轮子进程、精确清理数据库/Redis 与私有临时文件；失败时保留截图、trace 和 API 脱敏日志（dist/e2e-live-logs）。
 
