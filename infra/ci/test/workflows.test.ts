@@ -97,7 +97,7 @@ function jobBody(workflow: string, id: string): string {
   return (shapeOf(workflow).jobs.find((job) => job.id === id)?.lines ?? []).join("\n");
 }
 
-// W2-25b 只允许三个默认关闭的可信发布任务引用明确的加密凭据；构建与其余工作流仍禁止。
+// 仅默认关闭的可信发布与回滚任务可引用明确的加密凭据；构建与其余工作流仍禁止。
 const CREDENTIAL_JOBS: Record<string, { id: string; condition: string; keys: string[] }[]> = {
   "images.yml": [
     {
@@ -123,6 +123,14 @@ const CREDENTIAL_JOBS: Record<string, { id: string; condition: string; keys: str
       id: "deploy-stg",
       condition:
         "vars.STG_DEPLOY_ENABLED == 'true' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository",
+      keys: ["STG_SSH_PRIVATE_KEY", "STG_SSH_KNOWN_HOSTS"],
+    },
+  ],
+  "rollback-stg.yml": [
+    {
+      id: "rollback-stg",
+      condition:
+        "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && vars.STG_DEPLOY_ENABLED == 'true' && inputs.execute == true",
       keys: ["STG_SSH_PRIVATE_KEY", "STG_SSH_KNOWN_HOSTS"],
     },
   ],
