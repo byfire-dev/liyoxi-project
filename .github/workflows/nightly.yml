@@ -67,6 +67,8 @@ jobs:
           PGPASSWORD: lyx-local-dev
           DATABASE_URL: postgresql://liyoxi:lyx-local-dev@localhost:5442/lyx_migrate_check
         run: psql -X -w -d postgres -c "CREATE DATABASE lyx_migrate_check" && pnpm db:deploy
+      - name: 生成本作业真实接口挂载清单
+        run: rm -f apps/api/dist/mounted-operations.json && pnpm exec vitest run apps/api/test/probes.test.ts && test -s apps/api/dist/mounted-operations.json
       - name: 测试
         run: pnpm test
       - name: M1 接口主路径

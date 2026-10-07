@@ -46,13 +46,10 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
   if (!/^[a-z0-9]{1,12}$/.test(runId)) throw new Error("M1 runId 要 1–12 位小写字母数字");
   const databaseName = testDatabaseName("api", { session: runId, worker: "0", label: "m1" });
   const redisPrefix = `lyx:test:${runId}:0:`;
-  const ownerToken = randomBytes(16).toString("hex"),
-    redis = new Redis(base.REDIS_URL, { maxRetriesPerRequest: 1 });
+  const ownerToken = randomBytes(16).toString("hex");
   const ownerKey = `${redisPrefix}m1.owner`;
-  if ((await redis.set(ownerKey, ownerToken, "NX")) !== "OK") {
-    redis.disconnect();
-    throw new Error("M1 scope 已被另一轮使用，拒绝清理或覆盖");
-  }
+  let redis: Redis | undefined;
+  let ownRedisOwner = false;
   const clock = options.clock ?? createClock(),
     startedAt = clock.now();
   let ownDatabase = false;
@@ -61,43 +58,60 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
   let db: ReturnType<typeof createPrismaClient> | undefined;
   let closed = false;
   const clearRedis = async () => {
-    if ((await redis.get(ownerKey)) !== ownerToken)
+    // SET 抛错或 NX 冲突都不证明归属；只断开本客户端，不清理其他轮次。
+    const client = redis;
+    if (!ownRedisOwner || !client) return;
+    if ((await client.get(ownerKey)) !== ownerToken)
       throw new Error("M1 Redis scope 归属已改变，拒绝清理");
     if (!ownRedisScope) {
-      await redis.unlink(ownerKey);
+      await client.unlink(ownerKey);
       return;
     }
     let cursor = "0";
     do {
-      const [next, keys] = await redis.scan(cursor, "MATCH", `${redisPrefix}*`, "COUNT", 500);
+      const [next, keys] = await client.scan(cursor, "MATCH", `${redisPrefix}*`, "COUNT", 500);
       cursor = next;
       const own = keys.filter((key) => key.startsWith(redisPrefix) && key !== ownerKey);
-      if (own.length) await redis.unlink(...own);
+      if (own.length) await client.unlink(...own);
     } while (cursor !== "0");
-    await redis.unlink(ownerKey);
+    await client.unlink(ownerKey);
   };
   const close = async () => {
     if (closed) return;
     closed = true;
     const errors: unknown[] = [];
-    for (const action of [
-      () => runtime?.close(),
-      () => db?.$disconnect(),
-      async () => {
-        if (ownDatabase) await dropTestDatabase(databaseName);
-      },
-      clearRedis,
-    ]) {
-      try {
-        await action();
-      } catch (error) {
-        errors.push(error);
+    try {
+      for (const action of [
+        () => runtime?.close(),
+        () => db?.$disconnect(),
+        async () => {
+          if (ownDatabase) await dropTestDatabase(databaseName);
+        },
+        clearRedis,
+      ]) {
+        try {
+          await action();
+        } catch (error) {
+          errors.push(error);
+        }
       }
+    } finally {
+      redis?.disconnect();
     }
-    redis.disconnect();
     if (errors.length) throw new AggregateError(errors, "M1 本轮资源未完整清理");
   };
   try {
+    redis = new Redis(base.REDIS_URL, {
+      lazyConnect: true,
+      connectTimeout: 1000,
+      maxRetriesPerRequest: 1,
+    });
+    // 错误由 connect/命令 Promise 传回；不让 ioredis 默认日志暴露连接信息。
+    redis.on("error", () => undefined);
+    await redis.connect();
+    if ((await redis.set(ownerKey, ownerToken, "NX")) !== "OK")
+      throw new Error("M1 scope 已被另一轮使用，拒绝清理或覆盖");
+    ownRedisOwner = true;
     let cursor = "0";
     do {
       const [next, keys] = await redis.scan(cursor, "MATCH", `${redisPrefix}*`, "COUNT", 500);

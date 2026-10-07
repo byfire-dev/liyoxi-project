@@ -476,6 +476,8 @@ jobs:
           cache: pnpm
       - name: 冻结安装
         run: pnpm install --frozen-lockfile
+      - name: 生成数据库客户端（接口探针用）
+        run: pnpm db:generate
       # 写法同 test 任务的“空库跑全部迁移”。跑迁移不用生成的客户端
       - name: 建迁移库（infra 的用例用）
         env:
@@ -485,6 +487,10 @@ jobs:
           PGPASSWORD: lyx-local-dev
           DATABASE_URL: postgresql://liyoxi:lyx-local-dev@localhost:5442/lyx_migrate_check
         run: psql -X -w -d postgres -c "CREATE DATABASE lyx_migrate_check" && pnpm db:deploy
+      - name: 起 Redis（接口探针用）
+        run: docker compose -f infra/compose/local.yml up -d --wait redis
+      - name: 生成本作业真实接口挂载清单
+        run: rm -f apps/api/dist/mounted-operations.json && pnpm exec vitest run apps/api/test/probes.test.ts && test -s apps/api/dist/mounted-operations.json
       - name: 测试（infra 项目）
         run: pnpm test --project infra
 
