@@ -188,6 +188,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           services.closePublish?.();
           services.closeDelivery?.();
           services.closeWebhooks?.();
+          services.closeSmsHealth?.();
         }
       })());
     },

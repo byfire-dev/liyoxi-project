@@ -55,6 +55,7 @@ describe("类别编码", () => {
 
 describe("对象类型", () => {
   it("不重复，都过库里的格式 CHECK（小写蛇形）", () => {
+    expect(AUDIT_TARGET_TYPES.filter((name) => name === "sms_template")).toEqual(["sms_template"]);
     expect(new Set(AUDIT_TARGET_TYPES).size).toBe(AUDIT_TARGET_TYPES.length);
     for (const type of AUDIT_TARGET_TYPES) expect(type).toMatch(/^[a-z][a-z0-9_]*$/);
     expect(isAuditTargetType("approval_request")).toBe(true);

@@ -55,6 +55,19 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
     fetchTradeBill: { billDate: "2026-10-01" },
   },
   sms: {
+    sendTemplate: {
+      phone: "13800138000",
+      template: {
+        templateKey: "account_notice",
+        kind: "notice",
+        status: "active",
+        providerTemplateId: "1234",
+        signName: "样例平台",
+        params: [],
+      },
+      params: {},
+    },
+    checkBalance: {},
     sendActivationCode: { phone: "13800138000", code: "246810" },
     sendSubscribeFallback: {
       phone: "13800138000",

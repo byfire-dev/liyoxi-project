@@ -8,6 +8,12 @@ import type { FakeClock, FakeControl } from "./base.js";
 type Method = ProviderMethodName<SmsProvider>;
 
 export type FakeSmsMessage =
+  | {
+      kind: "template";
+      phone: string;
+      templateKey: string;
+      params: Readonly<Record<string, string>>;
+    }
   | { kind: "activation_code"; phone: string; code: string }
   | {
       kind: "subscribe_fallback";
@@ -40,6 +46,20 @@ export function createFakeSms(options: { clock?: FakeClock } = {}): FakeSms {
       return undefined;
     },
 
+    sendTemplate: (input) =>
+      core.run("sendTemplate", input, () => {
+        sent.push({
+          kind: "template",
+          phone: input.phone,
+          templateKey: input.template.templateKey,
+          params: { ...input.params },
+        });
+        return ok({ requestId: "fake-request", providerMsgId: `fake-message-${sent.length}` });
+      }),
+    checkBalance: (input) =>
+      core.run("checkBalance", input, () =>
+        ok({ remaining: 100, observedAt: (options.clock ?? systemClock).now() }),
+      ),
     sendActivationCode: (input) =>
       core.run("sendActivationCode", input, () => {
         sent.push({ kind: "activation_code", ...input });

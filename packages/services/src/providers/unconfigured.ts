@@ -113,6 +113,8 @@ export const unconfiguredWechatPay: WechatPayProvider = {
 const smsOff = unconfigured("短信", "提醒只剩站内与订阅消息");
 
 export const unconfiguredSms: SmsProvider = {
+  sendTemplate: smsOff,
+  checkBalance: smsOff,
   ...BASE,
   sendActivationCode: smsOff,
   sendSubscribeFallback: smsOff,

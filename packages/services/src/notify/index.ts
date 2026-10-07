@@ -8,3 +8,7 @@ export {
   WX_TEMPLATE_SLOT_SEEDS,
 } from "./seed-data.js";
 export type { SceneBinding, WxTemplateSlotKey } from "./seed-data.js";
+
+export { createSmsInit, smsTemplateReader, SmsInitSchema } from "./sms-init.js";
+export { createSmsHealth, bindSmsHealth } from "./sms-health.js";
+export { registration } from "./register.js";

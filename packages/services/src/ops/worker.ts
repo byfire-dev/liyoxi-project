@@ -4,6 +4,10 @@
 import { createPrismaClient } from "@liyoxi/db";
 import type { PrismaClient } from "@liyoxi/db";
 
+import { createConfig } from "../config/index.js";
+import { createSmsHealth, bindSmsHealth, smsTemplateReader } from "../notify/index.js";
+import { keyringFromEnv } from "../security/index.js";
+import type { Env } from "../kernel/index.js";
 import { bindDelivery, reevaluateSweep } from "../delivery/index.js";
 import { createSla } from "../sla/index.js";
 import { bindContent } from "../content/index.js";
@@ -82,7 +86,11 @@ export interface WorkerServicesOptions {
   /** 进程的日志口：Provider 的生效状态、放行的自检项往这里记。不给即不记（用例） */
   readonly logger?: ProviderLogger;
   /** loadEnv 的结果里那两份密钥（把 env 整个传进来即可）：启动自检用。没配就不给 */
-  readonly keys?: { readonly DATA_KEYS?: DataKeysConfig; readonly BIDX_KEYS?: BidxKeysConfig };
+  readonly keys?: {
+    readonly DATA_KEYS?: DataKeysConfig;
+    readonly BIDX_KEYS?: BidxKeysConfig;
+    readonly SMS?: Env["SMS"];
+  };
   /** 换掉十二个 Provider：只有用例会给（替身）。不给即 assembleProviders 按环境选实现 */
   readonly providers?: Providers;
   /** 只给测试装配：样例事件与样例 kind 的名字来源 */
@@ -91,6 +99,7 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  readonly closeSmsHealth?: () => void;
   readonly closeWebhooks?: () => void;
   reprocessWebhooks(beat?: () => void): Promise<number>;
   readonly closeOrder?: () => void;
@@ -154,7 +163,39 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     timers,
   });
   const logger = options.logger ?? silent;
-  const providers = options.providers ?? assembleProviders({ appEnv: options.appEnv, logger });
+  const providers =
+    options.providers ??
+    assembleProviders({
+      appEnv: options.appEnv,
+      logger,
+      ...(options.keys?.SMS
+        ? {
+            settings: {
+              sms: {
+                driver: "tencent",
+                tencent: {
+                  config: options.keys.SMS,
+                  getTemplate: smsTemplateReader(prisma),
+                  now: () => clock.now(),
+                },
+              },
+            },
+          }
+        : {}),
+    });
+  const closeSmsHealth = bindSmsHealth(
+    createSmsHealth({
+      db: prisma,
+      tx,
+      clock,
+      config: createConfig({ db: prisma, clock, redis: null }),
+      sms: providers.sms,
+      alerts: alertsOf(assembly),
+      env: options.appEnv,
+      keyring: () =>
+        options.keys?.DATA_KEYS && options.keys.BIDX_KEYS ? keyringFromEnv(options.keys) : null,
+    }),
+  );
   const media = createMedia({ tx, clock, assembly, events, storage: providers.storage, channel });
   const startupChecks = createStartupChecks({
     db: prisma,
@@ -193,6 +234,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const laggards = new Map<string, number>();
   const timing = { tx, assembly, registry: timers.registry, clock, alerts, channel };
   return {
+    closeSmsHealth,
     closeWebhooks,
     reprocessWebhooks: (beat) => webhooks.scan(beat),
     closeOrder: () => {

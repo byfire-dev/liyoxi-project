@@ -1,3 +1,10 @@
+import {
+  createSmsInit,
+  createSmsHealth,
+  bindSmsHealth,
+  smsTemplateReader,
+} from "./notify/index.js";
+import { keyringFromEnv } from "./security/index.js";
 import { createAuditRead } from "./audit/index.js";
 import { bindDelivery } from "./delivery/index.js";
 import { createOrderService, bindOrder, bindOrderStart } from "./order/index.js";
@@ -153,6 +160,7 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly smsInit: ReturnType<typeof createSmsInit>;
   readonly webhooks: Webhooks;
   readonly order: OrderService;
   readonly billing: BillingPurchase;
@@ -261,7 +269,41 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const assembly = assembleServices({ entry, appEnv: env.APP_ENV });
   // 违规上报端口（invariants.report）的实现在 ops，要连接、时钟与装配结果（W0-24）
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
-  const providers = options.providers ?? assembleProviders({ appEnv: env.APP_ENV, logger });
+  const providers =
+    options.providers ??
+    assembleProviders({
+      appEnv: env.APP_ENV,
+      logger,
+      ...(env.SMS
+        ? {
+            settings: {
+              sms: {
+                driver: "tencent",
+                tencent: {
+                  config: env.SMS,
+                  getTemplate: smsTemplateReader(prisma),
+                  now: () => clock.now(),
+                },
+              },
+            },
+          }
+        : {}),
+    });
+  const unbindSmsHealth =
+    entry === "worker"
+      ? bindSmsHealth(
+          createSmsHealth({
+            db: prisma,
+            tx,
+            clock,
+            config,
+            sms: providers.sms,
+            alerts: alertsOf(assembly),
+            env: env.APP_ENV,
+            keyring: () => (env.DATA_KEYS && env.BIDX_KEYS ? keyringFromEnv(env) : null),
+          }),
+        )
+      : () => {};
   const events = createEvents({ assembly, clock, tx });
   const webhooks = createWebhooks({
     tx,
@@ -410,6 +452,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   }
 
   return {
+    smsInit: createSmsInit({ tx, clock }),
     webhooks,
     order,
     billing,
@@ -445,6 +488,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       unbindCalendarCoverage();
       unbindOps();
       unbindWebhooks();
+      unbindSmsHealth();
       await mediaChannel.close();
       redis.disconnect();
       await prisma.$disconnect();

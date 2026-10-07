@@ -6,6 +6,8 @@
 // mail 在 G4-B；esign 在 G5-B；wecom 在 G7-A；invoice 属 V1.1）：下面各 select* 函数里留了位置，由那些包填。
 // 领域模块不引本文件，只引 ./types.ts；驱动只在装配处（kernel）经本文件引入（D7 第 2.2 节 D8）。
 
+import { createTencentSms } from "./sms/tencent.js";
+import type { TencentSmsOptions } from "./sms/tencent.js";
 import { createConsoleSms } from "./sms/console.js";
 import { createMinioStorage, LOCAL_MINIO } from "./storage/minio.js";
 import type { MinioConfig } from "./storage/minio.js";
@@ -50,7 +52,8 @@ export {
 export interface ProviderSettings {
   sms?: {
     /** 显式选控制台短信。不写时：local、test 用控制台输出，stg、prod 为未配置 */
-    driver?: "console";
+    driver?: "console" | "tencent";
+    tencent?: TencentSmsOptions;
   };
   storage?: {
     /** 显式选本地 MinIO。不写时：local、test 用本地 MinIO，stg、prod 为未配置 */
@@ -94,13 +97,25 @@ function selectSms(
   logger: ProviderLogger,
 ): SmsProvider {
   const driver: string | undefined = settings.sms?.driver;
-  if (driver !== undefined && driver !== "console") {
-    throw new ProviderConfigError("sms", "不认识的驱动；现在只有 console");
+  if (driver !== undefined && driver !== "console" && driver !== "tencent") {
+    throw new ProviderConfigError("sms", "不认识的驱动；只接受 console、tencent");
   }
   if (driver === "console" && !isLocalEnv(appEnv)) {
     throw new ProviderConfigError("sms", `控制台短信只限 local、test，${appEnv} 不能选它`);
   }
-  // 真实驱动（腾讯云短信）的位置：G2-D
+  if (driver === "tencent") {
+    const config = settings.sms?.tencent;
+    if (
+      !config ||
+      !/^[A-Za-z0-9_-]{1,128}$/.test(config.config.secretId) ||
+      !/^[A-Za-z0-9_-]{1,128}$/.test(config.config.secretKey) ||
+      !/^\d{1,20}$/.test(config.config.sdkAppId) ||
+      !/^ap-[a-z]+(?:-[a-z]+)*$/.test(config.config.region)
+    ) {
+      throw new ProviderConfigError("sms", "腾讯云配置须成组且格式合法");
+    }
+    return createTencentSms(config);
+  }
   return isLocalEnv(appEnv) ? createConsoleSms({ logger }) : unconfiguredSms;
 }
 
