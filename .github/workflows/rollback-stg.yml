@@ -1,0 +1,70 @@
+# 手动、main、显式开启且确认才执行；与发布共享串行锁，不上传、不迁移。
+name: rollback-stg
+
+on:
+  workflow_dispatch:
+    inputs:
+      execute:
+        description: 明确执行预发回滚（默认仅关闭入口）
+        type: boolean
+        default: false
+      tag:
+        description: 本地已有的 sha-12hex；空则上一个成功版本
+        type: string
+        default: ""
+      force:
+        description: 越过已记录的不安全回滚（须理由）
+        type: boolean
+        default: false
+      reason:
+        description: 越过理由（不填写任何凭据）
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-stg
+  cancel-in-progress: false
+
+jobs:
+  rollback-stg:
+    name: rollback-stg
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && vars.STG_DEPLOY_ENABLED == 'true' && inputs.execute == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: 检出当前 main 的节点协议
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: 装 Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: 校验并执行有探测的回滚
+        env:
+          STG_NODE_USER: ${{ vars.STG_SSH_USER }}
+          STG_NODE_HOST: ${{ vars.STG_SSH_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.STG_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.STG_SSH_KNOWN_HOSTS }}
+          STG_FREEZE: ${{ vars.STG_FREEZE }}
+          STG_PROBE_CONFIG: ${{ vars.STG_PROBE_CONFIG }}
+          ROLLBACK_TAG: ${{ inputs.tag }}
+          ROLLBACK_FORCE: ${{ inputs.force }}
+          ROLLBACK_REASON: ${{ inputs.reason }}
+        run: node infra/deploy/rollback-workflow.mjs
+      - name: 保留回滚与探测摘要
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rollback-stg-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/rollback-summary.json
+            ${{ runner.temp }}/probe-summary.json
+          if-no-files-found: warn
+      - name: 清理 SSH 文件
+        if: always()
+        run: rm -f "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"

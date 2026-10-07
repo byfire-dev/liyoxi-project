@@ -31,3 +31,9 @@ owner 未来显式配置凭据文件后，由调用者读取并只给此子进�
 成功 stdout 只有 `{value:...}`；head/PUT 返回 `{}`，policy 被解包为 JSON 对象，其他 GET 保留 SDK 配置 body。空 versioning 的精确 `{VersioningConfiguration:null}` 归一为 `{}`。三类 404 配置缺失只按已知服务错误码归空；NoSuchBucket 非零，不能当缺配置。ACL 返回 `Owner.ID`、`AccessControlList.Grant[]` 的 `Grantee.Type/ID/URI`、`Permission` 和 `CannedACL`；数字 XML GET 值为字符串，生命周期 Transition 与 Rule 为数组。错误只有固定 `COS_*` 代码和非零状态，不输出 SDK 消息、响应头或凭据。
 
 验证加载真实锁定 SDK，使用假凭据连接本机 loopback HTTP，捕获五类 GET/PUT 的 XML/JSON、私有 ACL 头、正确 SSE XML、只读零 PUT、缺桶拒绝和制品字节/key；生产 CLI 不暴露这个 import-only 测试 seam。腾讯默认加密 Python 示例字段与原生 API 有出入，本工具捕获并验证了实际 `Rule/ApplyServerSideEncryptionByDefault/SSEAlgorithm=AES256`。本机通过不代表四桶已经配置或腾讯线上成功；真实 CAM 权限、owner 凭据、桶状态和显式 apply 后读回仍待外部手验。
+
+W2-26b2 的 `artifact_reader.py` 是独立私有消费者，不扩展上述公共 JSON 协议。它只读取固定 secure 桶的同源 `ci/sha-<12hex>/{images.json,weapp.tar.gz}`，先核摘要本身的 SHA256 和完整 source，再核归档 SHA256，拒绝路径逃逸、链接与过大的归档。输出只在本次空临时目录内；失败不加载微信 SDK。
+
+预发启用仍待业主按任务书逐步配置：用上述两份完整哈希锁，将同一 CPython 3.11.14/COS 1.9.44 venv 明确安装到 `$LYX_NODE_HOME/tools/cos`。节点消费者不会自动安装或换版本。私有 reader 只从 `$LYX_SECRETS_DIR/cos-secret-id`、`cos-secret-key` 读取预配置文件，路径不由 SSH 参数指定，凭据不放 argv 或摘要。节点另挂唯一 `weapp-upload-private-key` 给 UID/GID 1000:1000 的既有上传器，业主须确保该用户可只读而其他用户不可读；COS 凭据不挂进上传器。缺工具、配置或文件即拒绝，未配置桶或未启用则零退出跳过。
+
+本机目标可用 `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m unittest -v test_artifact_reader.py`：真实锁定 SDK、假凭据与本机 HTTP 下载验证正常两对象、摘要/归档篡改、缺对象和不安全归档；不连接 COS 或微信。
