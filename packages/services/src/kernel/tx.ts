@@ -98,9 +98,14 @@ function scopedHandle(client: TxClient, state: TxState): Tx {
   const wrap = (target: object): object => {
     const existing = views.get(target);
     if (existing) return existing;
-    const view = new Proxy(target, {
-      get(object, key) {
-        const value: unknown = Reflect.get(object, key, object);
+    // Prisma 的事务客户端会共享方法；局部覆写（如测试 spy）留在该句柄，不能写回共享对象。
+    const local = Object.create(null) as object;
+    const view = new Proxy(local, {
+      get(_, key) {
+        const object = target;
+        const value: unknown = Object.hasOwn(local, key)
+          ? Reflect.get(local, key, local)
+          : Reflect.get(object, key, object);
         if (typeof value === "function")
           return (...args: unknown[]) => {
             assertHandleScope(state);
@@ -124,6 +129,15 @@ function scopedHandle(client: TxClient, state: TxState): Tx {
           return wrap(value);
         return value;
       },
+      has: (_, key) => Reflect.has(local, key) || Reflect.has(target, key),
+      ownKeys: () => [...new Set([...Reflect.ownKeys(target), ...Reflect.ownKeys(local)])],
+      getOwnPropertyDescriptor(_, key) {
+        const own = Reflect.getOwnPropertyDescriptor(local, key);
+        if (own) return own;
+        const original = Reflect.getOwnPropertyDescriptor(target, key);
+        return original ? { ...original, configurable: true } : undefined;
+      },
+      getPrototypeOf: () => Reflect.getPrototypeOf(target),
     });
     views.set(target, view);
     return view;
