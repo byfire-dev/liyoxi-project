@@ -22,6 +22,7 @@ import { merchantConsent } from "../http/merchant-consent.js";
 import { merchantCapability, merchantMembership } from "../http/merchant-membership.js";
 import { rateLimit } from "../http/rate-limit.js";
 import { versionGate } from "../http/version-gate.js";
+import { webhookNatural, webhookPreparation, webhookRateLimit } from "../http/webhook.js";
 
 import type { RouteMiddlewareFactory } from "./types.js";
 
@@ -69,8 +70,11 @@ export interface PipelineEntry {
 
 /** 生产的登记表。一件一行，往末尾加 */
 export const ROUTE_MIDDLEWARES: readonly PipelineEntry[] = [
-  { slot: "rateLimit", factory: rateLimit() },
-  { slot: "idempotency", factory: idempotency },
+  { slot: "rateLimit", groups: ["m", "admin", "portal"], factory: rateLimit() },
+  { slot: "idempotency", groups: ["m", "admin", "portal"], factory: idempotency },
+  { slot: "signature", groups: ["hooks"], factory: webhookPreparation },
+  { slot: "rateLimit", groups: ["hooks"], factory: webhookRateLimit() },
+  { slot: "idempotency", groups: ["hooks"], factory: webhookNatural },
   // W1-04 商家鉴权链：版本门槛、会话、成员关系、协议同意、能力点。先后看槽位，不看这几行的次序
   { slot: "versionGate", groups: ["m"], factory: versionGate },
   { slot: "auth", groups: ["m"], factory: merchantAuth },

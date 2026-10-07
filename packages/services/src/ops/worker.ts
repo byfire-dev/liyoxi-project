@@ -48,6 +48,8 @@ import type {
   Timers,
 } from "../timers/index.js";
 import { bindOps } from "./binding.js";
+import { bindWebhooks, createWebhooks } from "../security/index.js";
+import type { WebhookSource } from "../security/index.js";
 import { createStartupChecks, runStartupChecks } from "./startup.js";
 
 /** worker 主池（D7 第 8.3 节）：10 条连接，语句 30 秒、等锁 3 秒、事务内空闲 60 秒 */
@@ -66,6 +68,7 @@ export function connectWorkerDatabase(connectionString: string): {
 }
 
 export interface WorkerServicesOptions {
+  readonly webhookSources?: readonly WebhookSource[];
   readonly appEnv: AppEnv;
   /** 业务连接池：connectWorkerDatabase 给的；用例传测试库的客户端 */
   readonly prisma: PrismaClient;
@@ -88,6 +91,8 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  readonly closeWebhooks?: () => void;
+  reprocessWebhooks(beat?: () => void): Promise<number>;
   readonly closeOrder?: () => void;
   readonly closeBillingTimers?: () => void;
   readonly closePublish?: () => void;
@@ -134,6 +139,14 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const flow = createFlow({ assembly, clock, events });
+  const webhooks = createWebhooks({
+    tx,
+    clock,
+    events,
+    sources: options.webhookSources,
+    alerts: alertsOf(assembly),
+  });
+  const closeWebhooks = bindWebhooks(webhooks);
   const closeDerive = bindOrder({ assembly, clock, flow });
   const closeBillingTimers = bindBillingTimers({
     clock,
@@ -180,6 +193,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const laggards = new Map<string, number>();
   const timing = { tx, assembly, registry: timers.registry, clock, alerts, channel };
   return {
+    closeWebhooks,
+    reprocessWebhooks: (beat) => webhooks.scan(beat),
     closeOrder: () => {
       closeStart();
       closeDerive();

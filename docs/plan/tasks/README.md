@@ -198,6 +198,9 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 | — | W1-16b；W1-19、W1-20、W1-21；G3-A、G5-A、G6-A | W1-16a PR2 十接口交样片、逐集/包质检与成片包。media 公开 ensureProductionStubs/consumeFinalReleaseBatch/recordAdoptedStoreAssets；批次消费是真实 ready final_release 行与引用交接，上游批次管理 API 仍待 G3-A。M1 只桥接本上下文人工无 AI，已有 mediaInfo 才回写时长/尺寸；无时长 uploaded 的 QC 受控拒绝零写，真实探测/水印留 G3-A。W1-19 live 造数须明确已知媒体事实并标注替身。W1-16b 写访问证据，GET 与确认不制造 evidence；G5-A 替换首次登记认领；G6-A 接清单编辑、ZIP 与到期定时器 | W1-16a 第 7、10 节；a05 第 3.30、3.38、3.39 节；m05 第 3.8、3.9 节 |
 | — | W1-12、W1-18、W1-19、W1-20 | W1-09 分类上传入口：`lib/upload/taro.ts` 的 prepareTaroFile/createTaroUpload/useUploadBusy，纯编排 queue.ts 与生成 DTO 的 api.ts。pay_receipt 图片/PDF、channel_screenshot 及 licenseKind 复用；非图片/视频精确上限由登记 API 判，post 之外给小文件/代传说明；切店/退出取消、暂停可恢复，原 token/确认意图沿重试。审核 CompareTable/RejectDialog 仍私有，第二调用方先走构件 PR 提升 | W1-09 状态与本包 PR；原第 41 行归属不变 |
 
+
+| — | W2-21、W2-22、W2-17、W2-23；W3-03、W4-02/10及M7回调包 | W2-01公共 `security.createWebhooks`/`WebhookSource`、两根 `webhookSources`，API `receiveWebhook`。verify在事务外用原始字节验签，POST必须event/error（仅h01明确两种可信skip免收件），restore本地恢复、handle复用传入Tx。inline原子/支付显式失败inbox兜底（必须summary+完整resourceCipher/kid）；inbox同TX出站、subscriber复用现有Tx、分钟50条SKIP LOCKED扫描。1/5/15分钟、1/6小时/8死信，支付5次升级；每日载荷UPDATE清理180/90天保留summary/举证。W4-02须补实际Provider公开的密文/kid适配，现有verifyAndDecrypt仅归一通知，不得深引；当前未挂真实hook/未验真实平台。W2-23接人工死信管理，W2-24接真实告警隔离/实现，不在本包偷偷detach | W2-01第4/7节；h01第2.1/2.4节；15分组第2.1/4节；security README第5/6节 |
+
 ## 6. 任务书加的前置（计划依赖列没有）
 
 写任务书时查实的三处。已由一条计划小改补进计划 第 7.2 节依赖列与第 12 节（[changes/W0-04-post-kickoff-fixes.md](../changes/W0-04-post-kickoff-fixes.md)）。下表留作出处，“怎么办”一栏照旧有效（默认，W0-04 定）。
