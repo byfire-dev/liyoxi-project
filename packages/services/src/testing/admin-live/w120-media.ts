@@ -109,7 +109,10 @@ export function createW120Media(ctx: Runtime) {
         url.pathname === `/lyx-local-media/${current.file.objectKey}`,
     );
     const response = await fetch(url);
-    guard(response.ok && response.headers.get("content-type")?.startsWith("video/mp4"));
+    if (!response.ok || !response.headers.get("content-type")?.startsWith("video/mp4"))
+      throw new Error(
+        `W120 physical HTTP ${response.status} ${response.headers.get("content-type")}`,
+      );
     const body = new Uint8Array(await response.arrayBuffer());
     guard(body.length === bytes.length && digest(body) === VIDEO_FACTS.sha256);
     return current;

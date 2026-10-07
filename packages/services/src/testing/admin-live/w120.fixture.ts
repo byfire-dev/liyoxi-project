@@ -359,10 +359,12 @@ const fixture: AdminLiveFixture = async ({ runtime, make }) => {
       error?: string;
       meta?: { modelName?: string; constraint?: unknown };
       stack?: string;
+      message?: string;
     };
     process.stderr.write(
       `${JSON.stringify({
         fixture: "w120",
+        stage: failure.message?.startsWith("W120 physical HTTP") ? failure.message : undefined,
         code: failure.error ?? failure.code,
         model: failure.meta?.modelName,
         constraint: failure.meta?.constraint,
