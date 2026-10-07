@@ -26,6 +26,35 @@ function run(args: string[]) {
 afterEach(() => roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true })));
 
 describe("临时 runner 浏览器的 Ubuntu 软件源", () => {
+  for (const deb822 of [true, false]) {
+    it(`实际 runner 的 ${deb822 ? "deb822" : "legacy"} mirrorlist 入口会修复优先镜像并保留原优先级与回退`, () => {
+      const root = fixture();
+      const source = deb822
+        ? "Types: deb\nURIs: mirror+file:/etc/apt/apt-mirrors.txt\nSuites: noble noble-updates noble-backports noble-security\nComponents: main universe\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n"
+        : "deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] mirror+file:/etc/apt/apt-mirrors.txt noble main\n";
+      const path = join(root, deb822 ? "sources.list.d/ubuntu.sources" : "sources.list");
+      writeFileSync(path, source);
+      const mirrors =
+        "# http://azure.archive.ubuntu.com/ubuntu/\n" +
+        "http://azure.archive.ubuntu.com/ubuntu/\tpriority:1\n" +
+        "https://archive.ubuntu.com/ubuntu/\tpriority:2\n" +
+        "https://security.ubuntu.com/ubuntu/\tpriority:3\n";
+      const mirrorPath = join(root, "apt-mirrors.txt");
+      writeFileSync(mirrorPath, mirrors);
+      expect(run(["--root", root]).status).toBe(0);
+      expect(readFileSync(path, "utf8")).toBe(source);
+      const expected = mirrors.replace(
+        "http://azure.archive.ubuntu.com/ubuntu/\t",
+        "https://archive.ubuntu.com/ubuntu\t",
+      );
+      expect(readFileSync(mirrorPath, "utf8")).toBe(expected);
+      const repeated = run(["--root", root]);
+      expect(repeated.status).toBe(0);
+      expect(repeated.stdout).toContain("0 file(s)");
+      expect(readFileSync(mirrorPath, "utf8")).toBe(expected);
+    });
+  }
+
   it("两处源准备与原安装步骤沿用相同条件，并紧邻原安装命令", () => {
     const ci = readFileSync(join(repoRoot, ".github/workflows/ci.yml"), "utf8");
     for (const [condition, install] of [
@@ -136,6 +165,11 @@ describe("临时 runner 浏览器的 Ubuntu 软件源", () => {
     symlinkSync(path, join(root, "sources.list.d/linked.sources"));
     expect(run(["--root", root]).status).toBe(1);
     expect(readFileSync(path, "utf8")).toBe(source);
+    rmSync(join(root, "sources.list.d/linked.sources"));
+    symlinkSync(path, join(root, "apt-mirrors.txt"));
+    expect(run(["--root", root]).status).toBe(1);
+    expect(readFileSync(path, "utf8")).toBe(source);
+    rmSync(join(root, "apt-mirrors.txt"));
     rmSync(join(root, "sources.list.d"), { recursive: true });
     symlinkSync(join(fixture(), "sources.list.d"), join(root, "sources.list.d"), "dir");
     expect(run(["--root", root]).status).toBe(1);

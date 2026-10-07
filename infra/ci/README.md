@@ -16,7 +16,7 @@
 | `secret-scan.mjs` | 密钥扫描：gitleaks 官方镜像的固定标签，扫 HEAD 能到的全部提交，合并提交按它相对第一个父提交的差异扫（别的分支上的提交由它自己的 PR 扫）。放行项只在仓库根的 `.gitleaks.toml`，逐条写原因；写在被扫文件里的行内放行注释（`gitleaks:allow`）不认。所有文件都按文本出差异（`--text`），`.gitattributes` 里把一类文件标成 `-diff`、`binary` 也照扫。git 历史没读全（gitleaks 报了 git 的错误）按没跑完算，不报通过 | CI；本机要有 Docker |
 | `classify-gate-changes.mjs`、`gate-files.json` | 门禁改动分类：只增（`gate-touch`）与放松（`gate-change`） | CI 的 `gate-classify` 任务 |
 | `ci-required.mjs` | 汇总任务 `required`：判定必过任务的结论，统计耗时，出 `ci-duration.json` | CI 的 `required` 任务 |
-| `normalize-browser-apt-source.mjs` | 临时 Ubuntu runner 的 Azure Ubuntu 源改为官方 HTTPS URI，兼容 legacy/deb822，保留套件、组件、签名与第三方源；先验证全部路径，拒绝软链接。不安装包或更新索引 | `web` 的两处原 Playwright 安装步骤之前，沿用各自受影响条件；本地测试用 `--root` 指向自有临时目录 |
+| `normalize-browser-apt-source.mjs` | 临时 Ubuntu runner 的 Azure Ubuntu 源改为官方 HTTPS URI，兼容 legacy/deb822 及实际 runner 的 `apt-mirrors.txt` 镜像列表，保留套件、组件、签名、镜像优先级与第三方源；先验证全部路径，拒绝软链接。不安装包或更新索引 | `web` 的两处原 Playwright 安装步骤之前，沿用各自受影响条件；本地测试用 `--root` 指向自有临时目录 |
 | `status-summary.mjs` | 核对各包的状态文件合不合规；生成状态汇总 `docs/plan/status/SUMMARY.md`（不入库，要看时现生成） | CI 用 `--check` 只核对状态文件；`pnpm status:summary` 在本地现生成（第 6 节） |
 | `selftest/run.mjs`、`selftest/cases/` | 门禁自测：一个反例一个文件 | `pnpm gates:selftest`；CI |
 | `isolation-shard.mjs` | 测试隔离的全量分片跑：范围同 `pnpm test:isolation --scope connected`，分成互不重叠的几片，一次跑一片（两个会话同时跑），核对交给 `packages/services/src/testing/isolation.mjs --check`（第 2 节） | CI 的 `test-isolation` 与它的另三片；本地 `node infra/ci/isolation-shard.mjs --shard 1/4` |

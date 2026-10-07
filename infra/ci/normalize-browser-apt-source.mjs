@@ -10,12 +10,15 @@ const officialUri = (uri) =>
     ? "https://archive.ubuntu.com/ubuntu"
     : uri;
 
-function normalize(content, deb822) {
+function normalize(content, deb822, mirrorlist = false) {
   let inUris = false;
   return content
     .split(/(\r?\n)/)
     .map((line) => {
       if (/^\s*#/.test(line) || /^\r?\n$/.test(line)) return line;
+      if (mirrorlist) {
+        return line.replace(/^(\s*)(\S+)/, (_, prefix, uri) => prefix + officialUri(uri));
+      }
       if (!deb822) {
         return line.replace(
           /^(\s*deb(?:-src)?\s+(?:\[[^\]\r\n]*\]\s+)?)(\S+)/,
@@ -65,11 +68,15 @@ async function main() {
     }
   }
   if (paths.length === 0) throw new Error("No APT source files found");
+  // 官方 runner-images 的 Ubuntu 源使用 mirror+file:/etc/apt/apt-mirrors.txt。
+  // 只处理该已知列表，不跟随来源文件里的任意 file URI；保留优先级与回退项。
+  const mirrors = join(root, "apt-mirrors.txt");
+  if (await regular(mirrors, false, true)) paths.push(mirrors);
   // 先验证并读取全部候选文件，坏路径不会造成部分源已被改写。
   const changes = [];
   for (const path of paths) {
     const content = await readFile(path, "utf8");
-    const next = normalize(content, path.endsWith(".sources"));
+    const next = normalize(content, path.endsWith(".sources"), path === mirrors);
     if (next !== content) changes.push({ path, next });
   }
   for (const { path, next } of changes) await writeFile(path, next);
