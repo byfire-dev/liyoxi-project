@@ -3726,8 +3726,12 @@ export interface components {
             boundAt: string | null;
             /** Format: uuid */
             qrFileId: string | null;
-            /** Format: uri */
-            qrUrl: string | null;
+            qrUrl: {
+                /** Format: date-time */
+                expiresAt: string;
+                /** Format: uri */
+                url: string;
+            } | null;
             /** @enum {string} */
             status: "none" | "invited" | "bound" | "unbound";
             userid: string | null;

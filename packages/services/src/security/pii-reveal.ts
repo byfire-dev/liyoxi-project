@@ -121,7 +121,13 @@ export function createPiiReveal(deps: PiiRevealDeps) {
           fact.enc,
         );
         if (["submittedFields", "reviewedFields"].includes(input.field)) {
-          const parsed: unknown = JSON.parse(plaintext);
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(plaintext);
+          } catch {
+            // SyntaxError可能包含已解密内容；只抛固定领域错误，不保留原message、stack或cause。
+            throw new AppError("INTERNAL");
+          }
           if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed))
             throw new AppError("INTERNAL");
           value = parsed as Record<string, unknown>;

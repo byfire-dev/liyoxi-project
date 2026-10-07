@@ -1,6 +1,7 @@
 // W2-04 全部10接口经过生产鉴权/权限/幂等/限流中间件；只用隔离库、假密钥和Provider。
 import { runSeed, security, staff, uuidv7 } from "@liyoxi/services";
 import {
+  createFactories,
   createRedisOutage,
   fakeAuthKeys,
   signInAsStaff,
@@ -82,6 +83,85 @@ const pii = (id: string) => ({
 });
 
 describe("W2-04 生产 HTTP 链", () => {
+  it.each(["submittedFields", "reviewedFields"] as const)(
+    "资质JSON格式异常：%s 的真实HTTP错误日志无明文，access已独立提交",
+    async (field) => {
+      const who = await signed();
+      const make = createFactories({ db: prisma, clock: app.clock });
+      const store = await make.store();
+      const entity = await prisma.entity.findUniqueOrThrow({ where: { id: store.entityId } });
+      const file = await make.fileObject({
+        bucket: "secure",
+        category: "kyc_license",
+        scopeType: "entity",
+        entityId: store.entityId,
+      });
+      const round = await prisma.qualificationSubmission.create({
+        data: {
+          id: uuidv7(),
+          entityId: store.entityId,
+          storeId: store.id,
+          kind: "initial",
+          createdByUserId: entity.createdByUserId!,
+          createdAt: app.clock.now(),
+          updatedAt: app.clock.now(),
+        },
+      });
+      const marker = field === "submittedFields" ? "PII204S" : "PII204R";
+      const column =
+        field === "submittedFields"
+          ? "qualification_doc.submitted_fields_enc"
+          : "qualification_doc.reviewed_fields_enc";
+      const encrypted = security.encryptField(TEST_KEYRING, column, marker);
+      expect(security.openField(TEST_KEYRING, column, encrypted)).toBe(marker);
+      const doc = await prisma.qualificationDoc.create({
+        data: {
+          id: uuidv7(),
+          entityId: store.entityId,
+          storeId: store.id,
+          qualificationSubmissionId: round.id,
+          fileId: file.id,
+          docType: "business_license",
+          scope: "entity",
+          origin: "uploaded",
+          uploadedByUserId: entity.createdByUserId!,
+          [field === "submittedFields" ? "submittedFieldsEnc" : "reviewedFieldsEnc"]: encrypted,
+          createdAt: app.clock.now(),
+          updatedAt: app.clock.now(),
+        },
+      });
+      const logStart = app.logs.length;
+      const response = await request(who, "/pii-reveals", "POST", {
+        subjectType: "qualification_doc",
+        subjectId: doc.id,
+        field,
+        purpose: "verify_identity",
+      });
+      expect(response.status).toBe(500);
+      const body = await response.text();
+      expect(JSON.parse(body)).toMatchObject({ error: "INTERNAL" });
+      expect(body).not.toContain(marker);
+      // 支架db.prisma与runtime的事务连接独立：HTTP结束后确实可见已提交access。
+      const audits = await prisma.auditLog.findMany({
+        where: { stream: "access", targetId: doc.id },
+      });
+      expect(audits).toHaveLength(1);
+      expect(audits[0]).toMatchObject({
+        category: "pii_reveal",
+        action: `pii.${field === "submittedFields" ? "submitted_fields" : "reviewed_fields"}.reveal`,
+      });
+      const errorLogs = app.logs.slice(logStart).filter((log) => log.evt === "http.error");
+      expect(errorLogs).toHaveLength(1);
+      expect(errorLogs[0]).toMatchObject({ error: "INTERNAL" });
+      console.error("W2-04 资质JSON错误边界", {
+        field,
+        status: response.status,
+        auditLogId: audits[0]!.id,
+        errorLog: errorLogs[0],
+      });
+      expect(JSON.stringify(app.logs.slice(logStart))).not.toContain(marker);
+    },
+  );
   it("PII access提交前真实TX故障，HTTP500无明文、无残留审计；可重试成功", async () => {
     const who = await signed();
     const original = app.runtime.tx.run.bind(app.runtime.tx);

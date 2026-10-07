@@ -166,7 +166,7 @@ export const StaffWecomSchema = z
     userid: z.string().nullable(),
     boundAt: z.string().datetime().nullable(),
     qrFileId: z.string().uuid().nullable(),
-    qrUrl: z.string().url().nullable(),
+    qrUrl: orNull(z.object({ url: z.url(), expiresAt: InstantSchema })),
   })
   .openapi("StaffWecom");
 export const TotpReEnrollmentSchema = z

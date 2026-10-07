@@ -14137,10 +14137,27 @@
             ]
           },
           "qrUrl": {
-            "format": "uri",
-            "type": [
-              "string",
-              "null"
+            "anyOf": [
+              {
+                "properties": {
+                  "expiresAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "url": {
+                    "format": "uri",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url",
+                  "expiresAt"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "status": {
