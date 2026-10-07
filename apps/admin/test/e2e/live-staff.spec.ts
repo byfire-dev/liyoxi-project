@@ -26,10 +26,20 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
   const fixture = (context.fixtures as { fixtures: { staff: StaffFixture } }).fixtures.staff;
   expect(fixture.staff).toHaveLength(10);
   const errors = recordErrors(page);
-  await page.goto("/sys/staff");
+  const firstList = page.waitForRequest(
+    (request) =>
+      request.method() === "GET" && new URL(request.url()).pathname === "/api/v1/admin/staff",
+  );
+  await page.goto("/sys/staff?sort=unsupported&roleKey=unknown&page=0&pageSize=13&uiOnly=x");
+  const firstQuery = new URL((await firstList).url()).searchParams;
+  expect(firstQuery.get("page")).toBe("1");
+  expect(firstQuery.get("pageSize")).toBe("20");
+  for (const key of ["roleKey", "sort", "uiOnly"]) expect(firstQuery.has(key)).toBe(false);
   await expect(page.getByRole("heading", { name: "员工账号", exact: true })).toBeVisible();
   const table = page.getByRole("table");
   await expect(table.getByRole("columnheader")).toHaveCount(8);
+  await expect(table.getByRole("columnheader", { name: /手机号.*已脱敏/ })).toBeVisible();
+  await expect(table).toContainText("****");
   await expect(table.getByRole("row")).toHaveCount(14);
   await expect(table.getByText("演练交付", { exact: true })).toBeVisible();
   await expect(table.getByText("演练渠道", { exact: true })).toBeVisible();

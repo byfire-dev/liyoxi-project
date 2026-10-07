@@ -9,6 +9,7 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { afterAll, beforeAll, describe, expect, expectTypeOf, it } from "vitest";
 // 包自己的子路径，按使用方的写法引：exports 配错了这里过不了类型检查
 import type { CommonErrorSymbol as SubpathErrorSymbol } from "@liyoxi/contract/errors";
+import * as adminQueries from "@liyoxi/contract/queries/admin";
 import type { components as AdminComponents } from "@liyoxi/contract/types/admin";
 import type { components as MerchantComponents } from "@liyoxi/contract/types/merchant";
 import type { components as PortalComponents } from "@liyoxi/contract/types/portal";
@@ -1061,7 +1062,7 @@ describe("验收 5：导出的路由都已登记", () => {
   });
 });
 
-describe("验收 6：纯常量子路径不带 Zod", () => {
+describe("验收 6：公共子路径边界（纯常量不带 Zod，查询复用既有 schema）", () => {
   const manifest = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8")) as {
     exports: Record<string, { types: string; default?: string }>;
     dependencies?: Record<string, string>;
@@ -1117,7 +1118,7 @@ describe("验收 6：纯常量子路径不带 Zod", () => {
     }
   });
 
-  it("exports 只开任务书定的子路径（W0-08 的五个；W0-09a、W0-09b 加的纯常量子路径各有自己的用例）", () => {
+  it("exports 精确登记已有子路径及 W2-02 的后台查询入口；纯常量与查询边界分别验证", () => {
     expect(Object.keys(manifest.exports)).toEqual([
       ".",
       "./errors",
@@ -1131,7 +1132,47 @@ describe("验收 6：纯常量子路径不带 Zod", () => {
       "./types/merchant",
       "./types/admin",
       "./types/portal",
+      "./queries/admin",
     ]);
+  });
+
+  it("./queries/admin 只暴露两份既有查询 schema，不经契约根装配", () => {
+    const target = manifest.exports["./queries/admin"]!;
+    expect(target).toEqual({ types: "./src/queries/admin.ts", default: "./src/queries/admin.ts" });
+    expect(Object.keys(adminQueries).sort()).toEqual([
+      "ApprovalListQuerySchema",
+      "StaffListQuerySchema",
+    ]);
+    expect(adminQueries.StaffListQuerySchema).toBe(contract.StaffListQuerySchema);
+    expect(adminQueries.ApprovalListQuerySchema).toBe(contract.ApprovalListQuerySchema);
+    const scan = importsReachableFrom(join(packageDir, target.default!));
+    expect(scan.files).not.toContain(join(packageDir, "src/index.ts"));
+    expect(scan.unresolved).toEqual([]);
+  });
+
+  it("后台公开查询入口保留实际 CSV、布尔转换及跨字段拒绝", () => {
+    expect(
+      adminQueries.StaffListQuerySchema.parse({
+        roleKey: "cs,finance",
+        withLoad: "true",
+        sort: "openWorkCount",
+        pageSize: "50",
+      }),
+    ).toMatchObject({ roleKey: "cs,finance", withLoad: true, sort: "openWorkCount", pageSize: 50 });
+    expect(adminQueries.StaffListQuerySchema.safeParse({ sort: "openWorkCount" }).success).toBe(
+      false,
+    );
+    expect(
+      adminQueries.ApprovalListQuerySchema.parse({
+        kind: "qualification,qualification",
+        overdue: "true",
+        pageSize: "100",
+      }),
+    ).toMatchObject({ kind: ["qualification"], overdue: true, pageSize: 100, tab: "todo" });
+    expect(adminQueries.ApprovalListQuerySchema.safeParse({ overdue: true }).success).toBe(false);
+    expect(
+      adminQueries.ApprovalListQuerySchema.safeParse({ kind: ["qualification"] }).success,
+    ).toBe(false);
   });
 
   it("contract 不依赖任何工作区包（验收 9）", () => {
