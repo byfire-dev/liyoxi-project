@@ -6,4 +6,4 @@
 | 原因 | 现行分类器将 deploy-stg 原注释/编排行修改与 images 既有步骤内新增 reader 目标判为放松；硬规则 22 要求单独 PR，不改分类器、不绕过旧反例 |
 | 影响的包 | 原 W2-26 的编号、完整范围、退出、里程碑与包数不变；b2b 收口前唯一状态文件仍为进行中，下游仍等整包 |
 | 类别 | 拆并 |
-| PR | — |
+| PR | b2a [#119](https://github.com/byfire-dev/liyoxi-project/pull/119)；b2b [#120](https://github.com/byfire-dev/liyoxi-project/pull/120)，均已实际合入 |
