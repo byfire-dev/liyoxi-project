@@ -20,7 +20,7 @@ export const deliveryScopeKey = () => JSON.stringify(deliveryScope());
 export function createDeliveryGuard(read: () => string, newKey: (action: string) => string) {
   let live = true,
     generation = 0,
-    locked = false;
+    locked: (() => boolean) | null = null;
   const intents = new Map<string, { fingerprint: string; key: string }>();
   const capture = (readVersion = false) => {
     const scope = read(),
@@ -45,11 +45,13 @@ export function createDeliveryGuard(read: () => string, newKey: (action: string)
     },
     begin: () => {
       if (locked || !live) return null;
-      locked = true;
-      return capture();
+      locked = capture(true);
+      return locked;
     },
-    finish: () => {
-      locked = false;
+    finish: (operation: () => boolean) => {
+      if (locked !== operation) return false;
+      locked = null;
+      return live;
     },
     intent: (action: string, value: unknown) => {
       const fingerprint = JSON.stringify(value),

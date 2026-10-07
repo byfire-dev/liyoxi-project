@@ -70,8 +70,7 @@ export function useDeliveryResource<T>(load: (current: () => boolean) => Promise
           }
         }
       } finally {
-        life.finish();
-        if (current()) setBusy(false);
+        if (life.finish(current)) setBusy(false);
       }
     };
     if (point) withSubscribe(point, handler)();

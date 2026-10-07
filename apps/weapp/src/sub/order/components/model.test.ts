@@ -16,9 +16,10 @@ describe("交付页面上下文与意图", () => {
     const key = vi.fn(() => "key");
     const g = createDeliveryGuard(() => scope, key);
     const old = g.nextRead();
-    expect(g.begin()).not.toBeNull();
+    const operation = g.begin();
+    expect(operation).not.toBeNull();
     expect(g.begin()).toBeNull();
-    g.finish();
+    g.finish(operation!);
     expect(g.begin()).not.toBeNull();
     scope = "token:store2:2";
     expect(old()).toBe(false);
