@@ -1,3 +1,7 @@
+import { analyticsEventHandlers } from "./analytics-events.js";
+import { subscribeResultHandlers } from "./subscribe-results.js";
+import { clientErrorHandlers } from "./client-errors.js";
+import { adminClientErrorHandlers } from "./admin/client-errors.js";
 import { adminDictTypeHandlers } from "./admin/dict-types.js";
 import { adminDictItemHandlers } from "./admin/dict-items.js";
 import { adminParamValueHandlers } from "./admin/param-values.js";
@@ -35,6 +39,10 @@ import { billingHandlers } from "./billing.js";
 import { adminBillingHandlers } from "./admin/billing.js";
 
 export const HANDLERS: readonly HandlerEntry[] = [
+  ...analyticsEventHandlers,
+  ...subscribeResultHandlers,
+  ...clientErrorHandlers,
+  ...adminClientErrorHandlers,
   ...orderHandlers,
   // W1-03：协议清单与版本正文（两条公开路由）
   ...agreementHandlers,

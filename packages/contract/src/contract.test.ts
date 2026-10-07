@@ -382,7 +382,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
   //     加具名结构时再改组件清单（现在只有 DictRef、ErrorBody、SentryEnvelope）。
   // 这是预期替换，不算“删改已有黄金条目”。替换时把断言换成新的现状（条数、组件名），不要整条删掉。
   // 路由清单本身的条数、与路线图的对账在 src/routes/routes.test.ts 与 pnpm contract:docs-check。
-  it("路由都已登记：带结构的 153 条在商家端与后台文档里，其余还只有元数据；三份文档都有通用结构与错误体", async () => {
+  it("路由都已登记：带结构的 157 条在商家端与后台文档里，其余还只有元数据；三份文档都有通用结构与错误体", async () => {
     // W1-03：协议与主体门店 8 条；W1-04：商家会话与当前账号 6 条；W1-01a：后台登录链路 9 条；W1-01b：员工增查与角色只读 4 条；W1-06：审批与字典读侧 4 条；W1-04b：商家字典 1 条；W1-07：文件 9 条；W1-13：内容读侧4条；W1-08a：商家档案13条；W1-11b：付款13条；W1-08b：后台档案6条；W1-14：发布15条；W1-15a：报价与订购2条；W1-15b：选剧单与读侧12条；W1-16a PR1：工单与方案10条；PR2：样片成片包10条；W1-16b：登录逐集下载4条
     expect(allRoutes.map((route) => route.operationId).sort()).toEqual([
       "admin.approval.get",
@@ -412,6 +412,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "admin.checklistTemplate.create",
       "admin.checklistTemplate.discard",
       "admin.checklistTemplate.list",
+      "admin.clientError.create",
       "admin.deliveryPlan.draft.replace",
       "admin.deliveryPlan.get",
       "admin.deliveryPlan.push",
@@ -473,6 +474,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "m.agreementConsent.list",
       "m.agreementConsent.summary",
       "m.agreementVersion.get",
+      "m.analyticsEvent.batchCreate",
       "m.bootstrap.get",
       "m.cartItem.acceptPrice",
       "m.cartItem.create",
@@ -481,6 +483,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "m.channelAccount.create",
       "m.channelAccount.list",
       "m.channelAccount.submit",
+      "m.clientError.create",
       "m.deliveryPlan.confirm",
       "m.deliveryPlan.get",
       "m.deliveryPlan.requestChange",
@@ -537,15 +540,18 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "m.storeProfile.qualification.update",
       "m.storeProfile.service.get",
       "m.storeProfile.service.update",
+      "m.subscribeResult.create",
       "m.wallet.get",
     ]);
-    expect(allMetaOnlyRoutes).toHaveLength(511);
+    expect(allMetaOnlyRoutes).toHaveLength(507);
     expect(allRegistryOnly).toHaveLength(5);
     /** 各文档的 paths 条数与具名结构 */
     const expected: Record<string, { paths: number; schemas: string[] }> = {
       merchant: {
-        paths: 62,
+        paths: 65,
         schemas: [
+          "AnalyticsEventBatch",
+          "AnalyticsIngestResult",
           "ImageRef",
           "Playable",
           "PlayableSource",
@@ -651,6 +657,8 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
           "StoreProfileMedia",
           "StoreProfileOverview",
           "StoreProfileService",
+          "SubscribeResultBody",
+          "SubscribeResultOutcome",
           "StsCredential",
           "UserNotice",
           "Wallet",
@@ -668,7 +676,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
         ],
       },
       admin: {
-        paths: 77,
+        paths: 78,
         schemas: [
           "AuditLogDetail",
           "AuditLogItem",

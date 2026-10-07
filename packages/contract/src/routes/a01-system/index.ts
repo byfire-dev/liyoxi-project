@@ -87,3 +87,5 @@ export * from "./calendar-days.js";
 export * from "./system-config.schemas.js";
 export * from "./audit-logs.js";
 export * from "./pii-reveals.js";
+
+export * from "./client-errors.js";

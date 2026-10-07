@@ -64,7 +64,7 @@ const reporter = createErrorReporter({
   clock: systemClock,
   uuid,
   dsn: __LYX_SENTRY_DSN__,
-  sender: () => serverCall("sendClientError"),
+  sender: () => (layer.isConfigured() ? serverCall("sendClientError") : undefined),
   client: platform.clientInfo,
   // 用户概要的结构等契约里有了再取 id（W1-04）；在那之前不带用户
   getUserId: () => null,
@@ -96,7 +96,7 @@ const tracker = createTracker({
   clock: systemClock,
   uuid,
   enabled: () => flagOn("analytics.ingest.enabled"),
-  sender: () => serverCall("sendAnalytics"),
+  sender: () => (layer.isConfigured() ? serverCall("sendAnalytics") : undefined),
   client: () => {
     const client = platform.clientInfo();
     return { version: client.version, platform: client.platform, scene: launchScene };

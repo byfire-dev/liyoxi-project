@@ -69,6 +69,12 @@
     "summary",
     "versionLabel"
   ],
+  "m.analyticsEvent.batchCreate": [
+    "accepted",
+    "dropped",
+    "duplicated",
+    "rejected"
+  ],
   "m.bootstrap.get": [
     "context",
     "context.storeId",
@@ -97,6 +103,7 @@
     "versions.dict",
     "versions.site"
   ],
+  "m.clientError.create": [],
   "m.dictItem.list": [
     "items",
     "items[].items",
@@ -539,5 +546,9 @@
     "serviceItems[].priceFen",
     "serviceItems[].serviceItemId",
     "viewerRole"
+  ],
+  "m.subscribeResult.create": [
+    "appliedCount",
+    "ignoredCount"
   ]
 }

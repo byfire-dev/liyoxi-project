@@ -1,6 +1,7 @@
 // 任务进程的服务装配（W0-23）：apps/worker 启动时调一次，拿到四个循环与两个队列消费者要调的用例函数。
 // 依据：D7 第 2.3 节规则 7、8，第 8.3 节“应用侧的数据库会话设置与连接池”；计划 第 5.1 节。
 // 应用层不引数据包（CLAUDE.md 第 6 节规则 5）：连接池在这里建，apps/worker 只把拿到的对象原样传回来。
+import { bindAnalytics } from "../analytics/index.js";
 import { createPrismaClient } from "@liyoxi/db";
 import type { PrismaClient } from "@liyoxi/db";
 
@@ -92,6 +93,7 @@ export interface WorkerServicesOptions {
 
 export interface WorkerServices {
   readonly closeWebhooks?: () => void;
+  readonly closeAnalytics?: () => void;
   reprocessWebhooks(beat?: () => void): Promise<number>;
   readonly closeOrder?: () => void;
   readonly closeBillingTimers?: () => void;
@@ -165,6 +167,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const alerts = alertsOf(assembly);
   // ops 的周期任务与违规上报端口要连接、时钟与装配结果（W0-24）
   bindOps({ db: prisma, tx, clock, assembly });
+  const closeAnalytics = bindAnalytics({ clock });
   bindContent(assembly);
   const closePublish = bindPublish(assembly);
   const deliveryCore = {
@@ -194,6 +197,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const timing = { tx, assembly, registry: timers.registry, clock, alerts, channel };
   return {
     closeWebhooks,
+    closeAnalytics,
     reprocessWebhooks: (beat) => webhooks.scan(beat),
     closeOrder: () => {
       closeStart();

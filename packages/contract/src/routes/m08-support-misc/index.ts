@@ -44,3 +44,8 @@ export * from "./dict-items.js";
 export * from "./dict-items.schemas.js";
 
 export * from "./image.schemas.js";
+
+export * from "./reporting.schemas.js";
+export * from "./analytics-events.js";
+export * from "./subscribe-results.js";
+export * from "./client-errors.js";

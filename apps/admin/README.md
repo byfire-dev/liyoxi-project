@@ -178,3 +178,7 @@ W1-19 PR2 的 `zz-delivery-flow.fixture.ts` 用独立“制作演练-本轮 runI
 真实截图在 `dist/e2e-shots/`：`audit-01-filtered-ops.png`（多条件）、`audit-02-masked-detail.png` / `audit-02-masked-diff.png`（脱敏详情与差异）、`audit-03-access-pii.png` / `audit-03-access-purpose.png`（访问留痕与用途）、`audit-04-empty.png`、`audit-05-permission-denied.png`。截图尺寸 1440×900，另在 1366×768 核对整页/内容区无横滚；图中均为虚构数据。日期空值 Tab/Shift+Tab 进出、Enter打开、Esc关闭与手输当天两端包含由真实 Chrome 验收；无头全量与有头 W208 定向结论分别写在本包状态。保留原 runner/config 与失败 trace 策略。
 
 后续 `W2-31` 所拆 G7-A 接 `admin.exportJob.create` / `audit_logs.list` 及导出记录，不在本页放占位导出按钮；关联页落地后再按正式 link 与权限接准确对象入口。
+
+## 错误上报装配（W2-18 PR1）
+
+createAppServices从公开构建变量VITE_CLIENT_ERROR_DSN装配clientReporting，sender经既有中央api与生成AdminPaths发送原文信封；用户只取当前access缓存的内部staff UUID。App的React effect安装error/unhandledrejection监听并在卸载解绑。空DSN关闭采集与请求；没有增加SDK、事件正文日志或自动重发。公开DSN不得含秘密，上游项目与服务端FILE白名单由W2-27配置，真实平台收件尚未验证。去敏、分钟/会话/在途限制见[叶说明](src/app/client-reporting.README.md)；services.reporting.test真实经过生产AppServices与中央sender，原权限刷新仍沿原实现。
