@@ -1,0 +1,47 @@
+.delivery-page {
+  min-height: 100vh;
+  background: $lyx-color-bg-page;
+  color: $lyx-color-text-primary;
+}
+.delivery-lead {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.delivery-caption {
+  color: $lyx-color-text-regular;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.delivery-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.delivery-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.delivery-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.delivery-separator {
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid $lyx-color-border;
+}
+.delivery-cover {
+  width: 110px;
+  flex-shrink: 0;
+}
+.delivery-link {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.delivery-page .lyx-card--dark .delivery-caption {
+  color: $lyx-color-text-on-dark-secondary;
+}
