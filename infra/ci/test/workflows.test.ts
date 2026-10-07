@@ -513,6 +513,8 @@ describe("ci.yml", () => {
       "pnpm registry:check",
       // W0-12：状态机迁移表与分组文档逐行对照
       "pnpm machines:check",
+      "pnpm machines:coverage -- --strict --contract",
+      "node infra/ci/check-stubs.mjs",
       // W0-09b：接口侧注册表对账（错误码、权限点、能力点、资源、场景、点位、埋点事件）
       "pnpm api-registries:check",
       // W0-10：路由元数据对账（不连库；其余四步在 test）
@@ -548,6 +550,7 @@ describe("ci.yml", () => {
       "pnpm exec vitest run packages/services/src/providers/storage/minio.test.ts",
       // infra 以外的全部测试项目分成三片，这里是第一片；另两片在 test-2、test-3
       "pnpm test --project '!infra' --shard=1/3",
+      "pnpm e2e",
       // W0-10：api-check、约束名核对读上面建的迁移库；待落地数只减不增要排在“测试”之后（已挂载处理器的清单由
       // apps/api 的测试装配导出）；计划 第 8.2 节的表（它的下一步上传两份清单，没有 run）
       "node infra/ci/api-check.mjs",
@@ -555,6 +558,7 @@ describe("ci.yml", () => {
       // 分片之后写清单的那份用例不一定在本任务这一片里：单独跑它一遍，清单没写出来这一步就红
       EXPORT_MOUNTED,
       "node infra/ci/landed.mjs --check --report --out packages/contract/dist/pending-routes.md",
+      "node infra/ci/landed.mjs --check --require M0,M1",
       "node infra/ci/plan-routes.mjs --check --summary packages/contract/dist/route-milestones.md",
       // W0-23：只构建任务进程这一个包（“构建”在 web，产物过不来），下面两步跑它的产物
       "pnpm --filter @liyoxi/worker build",
@@ -563,6 +567,7 @@ describe("ci.yml", () => {
       "pnpm redis:compat --jobs 500 --idle-minutes 0.05",
       // W0-30：四个计数，排在“测试”之后（读 apps/api 的用例写出的已挂载清单）；M0 的四样退回去即失败
       "node infra/ci/four-counts.mjs --require M0",
+      "node infra/ci/four-counts.mjs --require M0,M1",
     ],
     // “测试”的第二、三片：各自生成客户端、建迁移库、起 MinIO
     "test-2": [INSTALL, DB_GENERATE, MIGRATE, MINIO_UP, "pnpm test --project '!infra' --shard=2/3"],
@@ -612,6 +617,14 @@ describe("ci.yml", () => {
       "pnpm gates:selftest",
     ],
   };
+  // M1 冷检出仅加入探针的三个前置命令，原三个命令及完整相等断言保留。
+  STEPS["test-infra"]!.splice(1, 0, DB_GENERATE);
+  STEPS["test-infra"]!.splice(
+    3,
+    0,
+    "docker compose -f infra/compose/local.yml up -d --wait redis",
+    EXPORT_MOUNTED,
+  );
   const commandsOf = (id: string) =>
     [...jobBody(ci, id).matchAll(/^ {8}run: (.+)$/gm)].map((match) => match[1] ?? "");
 
@@ -768,7 +781,13 @@ describe("nightly.yml", () => {
       "docker compose -f infra/compose/local.yml up -d --wait minio",
       'printf "%s\\n" "APP_ENV=test" "DATABASE_URL=postgresql://liyoxi:lyx-local-dev@localhost:5442/liyoxi" "REDIS_URL=redis://localhost:6389/0" >> "$GITHUB_ENV"',
       'psql -X -w -d postgres -c "CREATE DATABASE lyx_migrate_check" && pnpm db:deploy',
+      "rm -f apps/api/dist/mounted-operations.json && pnpm exec vitest run apps/api/test/probes.test.ts && test -s apps/api/dist/mounted-operations.json",
       "pnpm test",
+      "pnpm e2e",
+      "pnpm machines:coverage -- --strict --contract",
+      "node infra/ci/check-stubs.mjs",
+      "node infra/ci/landed.mjs --check --require M0,M1",
+      "node infra/ci/four-counts.mjs --require M0,M1",
       // W0-30：M0 的演示，业主用的那条命令每晚重放一遍
       "pnpm demo:m0",
       "pnpm --filter @liyoxi/admin exec playwright install --with-deps chromium",

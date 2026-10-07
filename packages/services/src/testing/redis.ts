@@ -17,7 +17,9 @@ import {
 } from "@liyoxi/db/testing";
 import { Redis } from "ioredis";
 import type { RedisOptions } from "ioredis";
-import { aroundAll } from "vitest";
+
+// 公共测试入口也被无 Vitest 演示调用；不在 worker 中就不加载 Vitest。
+const vitest = process.env.VITEST === "true" ? await import("vitest") : undefined;
 
 /** 测试键的总前缀 */
 export const TEST_REDIS_PREFIX = "lyx:test:";
@@ -223,9 +225,10 @@ const DISPOSE_TIMEOUT_MS = 60_000;
  */
 export function useTestRedis(): TestRedis {
   assertTestScaffoldAttached();
+  if (!vitest) throw new Error("useTestRedis/测试钩子只能在 Vitest worker 中使用");
   const handle = new TestRedisHandle(testRedisPrefix());
   // 回调只写一个参数：Vitest 会解析回调的参数表
-  aroundAll(async (runSuite) => {
+  vitest.aroundAll(async (runSuite) => {
     try {
       await runSuite();
     } finally {

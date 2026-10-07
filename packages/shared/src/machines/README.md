@@ -68,4 +68,8 @@ export const staff = chain("staff", "status", STAFF_STATUS, [
 
 ## 5. 覆盖检查
 
-`pnpm machines:coverage`（脚本 `packages/shared/scripts/machines-coverage.ts`）：每一行迁移有没有被接口或 x01 的归属表引用（约定 C84）。现在只出报告、不进 CI；M1 起由路由元数据接替接口一侧的来源并转成门禁（计划 第 5.5 节），带 `--strict` 时有未引用的行即失败。
+`pnpm machines:coverage`（脚本 `packages/shared/scripts/machines-coverage.ts`）：每一行迁移有没有被接口或 x01 的归属表引用（约定 C84）。旧命令仍读取两个文档来源，旧 `--strict` 仍在有任意未引用行时失败。
+
+W1-21 起 CI 以 `pnpm machines:coverage -- --strict --contract` 作为额外门禁。契约清单目前没有 transitions 字段，因此以真实契约 operationId 限定冻结文档中的 transitions 引用，x01 归属来源与逐行判据保持不变；未登记接口不能提供引用。相对任务书仅 `--strict` 的命令新增 `--contract` 是为保留旧模式的严格语义。
+
+未引用存量逐行登记在 `infra/ci/machines-coverage-baseline.jsonl`（一行一份完整快照，含链列、ref、原因）。首份由实际契约模式覆盖结果生成；后续只能追加前一份的子集，不能增加未知行、重复行或改写原因。基线行始终报告为“未覆盖”，不会计入覆盖率。`--strict --contract` 对不在末份基线中的未引用行失败，仍校验基线历史只减不增；已有引用齐全后可追加去除相应行的快照。`--baseline <文件>` 只在契约模式替换只读基线输入，供仓库外反例用，没有跳过判据的开关。

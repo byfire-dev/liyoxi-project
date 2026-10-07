@@ -3,7 +3,7 @@
 | 项 | 内容 |
 | --- | --- |
 | 状态 | 留桩中 |
-| 留桩内容 | `admin.staff.create` 的激活码短信下发 |
+| 留桩内容 | admin.staff.create 的激活码短信下发 |
 | 骨架里的做法 | 无论 `activationDelivery` 请求值都按 `manual` 生成，首次响应返回 8 位明文，幂等记录保存前置空，重放返回 `null` 与 `replayed=true`；不调用短信通道 |
 | 登记的工作包 | W1-01b |
 | 回补里程碑 | M2（G2-A；真实短信驱动随 G2-D） |
