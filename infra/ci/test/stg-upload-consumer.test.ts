@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -201,5 +201,140 @@ describe("上传前同源、部署与SDK隔离", () => {
       expect(text).toContain("if: always()");
     }
     expect(rollback).not.toMatch(/upload-release|migrate|seed|stage-assets/);
+  });
+});
+
+describe("真实节点步骤到桩微信SDK", () => {
+  it("关闭上传的真实CI入口无需SSH配置，退出0并写跳过摘要", () => {
+    const tmp = makeTempDir("lyx-upload-disabled-");
+    cleanups.push(tmp.cleanup);
+    const result = spawnSync(
+      process.execPath,
+      [join(repoRoot, "infra/deploy/upload-release.mjs")],
+      {
+        env: {
+          ...process.env,
+          RUNNER_TEMP: tmp.dir,
+          STG_WEAPP_UPLOAD_ENABLED: "false",
+          STG_NODE_USER: "",
+          STG_NODE_HOST: "",
+          GITHUB_STEP_SUMMARY: "",
+        },
+        encoding: "utf8",
+      },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(readFileSync(join(tmp.dir, "weapp-upload-summary.json"), "utf8"))).toEqual({
+      status: "skipped",
+      reason: "disabled",
+    });
+  });
+
+  it.each([false, true])("下载替身后真实bash/Node校验，archive篡改=%s", (tampered) => {
+    const f = fixture(),
+      home = join(f.dir, "node"),
+      bin = join(f.dir, "bin"),
+      calls = join(f.dir, "calls.jsonl");
+    mkdirSync(bin);
+    mkdirSync(join(home, "tools/cos/bin"), { recursive: true });
+    mkdirSync(join(home, "secrets"));
+    writeFileSync(join(home, "release.env"), readFileSync(f.options.releaseEnv));
+    writeFileSync(join(home, "releases.log"), readFileSync(f.options.releaseLog));
+    for (const key of ["cos-secret-id", "cos-secret-key", "weapp-upload-private-key"])
+      writeFileSync(join(home, "secrets", key), "fake-credential-never-output");
+    const executable = (file: string, body: string) => {
+      writeFileSync(file, `#!${process.execPath}\n${body}`);
+      chmodSync(file, 0o755);
+    };
+    executable(
+      join(home, "tools/cos/bin/python"),
+      `import fs from 'node:fs';const args=process.argv.slice(2),out=args[4];fs.appendFileSync(process.env.CALLS,JSON.stringify(['reader',...args])+'\\n');fs.copyFileSync(process.env.FIXTURE+'/images.json',out+'/images.json');fs.writeFileSync(out+'/weapp.tar.gz',process.env.TAMPER==='true'?'wrong archive':'archive');fs.cpSync(process.env.FIXTURE+'/project',out+'/project',{recursive:true});`,
+    );
+    executable(
+      join(bin, "chown"),
+      `import fs from 'node:fs';fs.appendFileSync(process.env.CALLS,JSON.stringify(['chown',...process.argv.slice(2)])+'\\n');`,
+    );
+    executable(
+      join(bin, "docker"),
+      `import fs from 'node:fs';import {uploadArtifacts} from ${JSON.stringify(new URL("../../deploy/weapp-artifact.mjs", import.meta.url).href)};const args=process.argv.slice(2);fs.appendFileSync(process.env.CALLS,JSON.stringify(['docker',...args])+'\\n');if(args[0]==='image'){console.log(${JSON.stringify(digest("3"))});}else if(args[0]==='run'){const env={},mounts={};for(let i=0;i<args.length;i++){if(args[i]==='-e'){const v=args[++i],n=v.indexOf('=');env[v.slice(0,n)]=v.slice(n+1);}if(args[i]==='-v'){const v=args[++i].split(':');mounts[v[1]]=v[0];}}try{const value=await uploadArtifacts({source:env.LYX_UPLOAD_SOURCE,manifestSha256:env.LYX_UPLOAD_MANIFEST_SHA,appid:env.WEAPP_APPID,apiBaseUrl:env.WEAPP_API_BASE_URL,imageId:env.LYX_UPLOADER_IMAGE_ID,artifacts:mounts['/artifacts'],releaseEnv:mounts['/node-release.env'],releaseLog:mounts['/node-releases.log'],key:mounts['/run/secrets/weapp-upload-private-key']},async(sdk)=>{fs.appendFileSync(process.env.CALLS,JSON.stringify(['sdk',...sdk])+'\\n');});console.log('LYX_WEAPP_UPLOAD='+JSON.stringify(value));}catch{console.error('rejected before SDK');process.exit(1);}}else process.exit(2);`,
+    );
+    const env = {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH}`,
+      LYX_SRC: repoRoot,
+      LYX_NODE_HOME: home,
+      LYX_SECRETS_DIR: join(home, "secrets"),
+      LYX_NODE_SUPERVISOR: "compose",
+      LYX_WEAPP_UPLOAD_ENABLED: "true",
+      STG_COS_APPID: "1250000000",
+      WEAPP_APPID: f.manifest.appid,
+      WEAPP_API_BASE_URL: f.manifest.apiBaseUrl,
+      CALLS: calls,
+      FIXTURE: f.dir,
+      TAMPER: String(tampered),
+    };
+    const result = spawnSync(
+      "bash",
+      [
+        join(repoRoot, "infra/deploy/node-step.sh"),
+        "weapp-upload",
+        source,
+        f.options.manifestSha256,
+      ],
+      { env, encoding: "utf8" },
+    );
+    const history = readFileSync(calls, "utf8")
+      .trim()
+      .split("\n")
+      .map((v) => JSON.parse(v) as string[]);
+    expect(result.stdout + result.stderr).not.toContain("fake-credential-never-output");
+    expect(history.flat().join(" ")).not.toContain("fake-credential-never-output");
+    const sdk = history.filter((row) => row[0] === "sdk");
+    if (tampered) {
+      expect(result.status).toBe(1);
+      expect(sdk).toEqual([]);
+    } else {
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toContain('"status":"uploaded"');
+      expect(sdk).toHaveLength(1);
+      expect(sdk[0]!.slice(-2)).toEqual(["--robot", "1"]);
+      expect(sdk[0]).not.toContain("--tag");
+    }
+    expect(history.find((row) => row[0] === "reader")?.slice(2, 5)).toEqual([
+      "lyx-stg-secure-1250000000",
+      source,
+      f.options.manifestSha256,
+    ]);
+  });
+
+  it.each([
+    { ROLLBACK_TAG: "../escape" },
+    { ROLLBACK_FORCE: "true", ROLLBACK_REASON: "" },
+    { STG_FREEZE: "true" },
+  ])("回滚配置%j在SSH/密钥落盘之前拒绝", (change) => {
+    const tmp = makeTempDir("lyx-rollback-input-");
+    cleanups.push(tmp.cleanup);
+    const result = spawnSync(
+      process.execPath,
+      [join(repoRoot, "infra/deploy/rollback-workflow.mjs")],
+      {
+        env: {
+          ...process.env,
+          HOME: tmp.dir,
+          RUNNER_TEMP: tmp.dir,
+          ROLLBACK_FORCE: "false",
+          STG_NODE_USER: "release",
+          STG_NODE_HOST: "node.invalid",
+          SSH_PRIVATE_KEY: "fake-secret",
+          SSH_KNOWN_HOSTS: "fake-host",
+          STG_PROBE_CONFIG: '[{"name":"api","url":"https://api.invalid/readyz"}]',
+          ...change,
+        },
+        encoding: "utf8",
+      },
+    );
+    expect(result.status).toBe(2);
+    expect(result.stdout + result.stderr).not.toContain("fake-secret");
+    expect(existsSync(join(tmp.dir, ".ssh"))).toBe(false);
   });
 });

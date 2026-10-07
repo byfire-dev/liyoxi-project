@@ -62,7 +62,8 @@ jobs:
           "$RUNNER_TEMP/cos-tools/bin/pip" install --require-hashes --no-build-isolation -r infra/bootstrap/cos-adapter/build-requirements.lock
           "$RUNNER_TEMP/cos-tools/bin/pip" install --require-hashes --no-build-isolation -r infra/bootstrap/cos-adapter/requirements.lock
           "$RUNNER_TEMP/cos-tools/bin/python" infra/bootstrap/cos-adapter/adapter.py --check
-          cd infra/bootstrap/cos-adapter && "$RUNNER_TEMP/cos-tools/bin/python" -m unittest -v test_adapter.py test_artifact_reader.py
+          cd infra/bootstrap/cos-adapter && "$RUNNER_TEMP/cos-tools/bin/python" -m unittest -v test_adapter.py
+          "$RUNNER_TEMP/cos-tools/bin/python" -m unittest -v test_artifact_reader.py
       - name: 冻结安装与小程序构建（含原体积门禁）
         env:
           WEAPP_API_BASE_URL: ${{ vars.STG_WEAPP_API_BASE_URL || 'https://api-stg.invalid' }}

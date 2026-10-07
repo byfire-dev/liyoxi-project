@@ -30,9 +30,11 @@ export function uploadRelease(env, channel) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   let summary;
   try {
-    summary = uploadRelease(
-      process.env,
-      createChannel({ node: `${process.env.STG_NODE_USER}@${process.env.STG_NODE_HOST}` }),
+    summary = uploadRelease(process.env, (step, args) =>
+      createChannel({ node: `${process.env.STG_NODE_USER}@${process.env.STG_NODE_HOST}` })(
+        step,
+        args,
+      ),
     );
   } catch {
     summary = { status: "failed" };
