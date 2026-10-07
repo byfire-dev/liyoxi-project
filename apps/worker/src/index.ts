@@ -43,6 +43,7 @@ async function main(): Promise<void> {
         onError: (source, error) => logger.debug({ source, err: error }, "队列连接报错"),
       });
   const services = buildWorkerServices({
+    documentWorkerUrl: new URL("./document-converter.js", import.meta.url),
     appEnv: env.APP_ENV,
     prisma: database.prisma,
     assembly,
@@ -65,6 +66,7 @@ async function main(): Promise<void> {
   };
   if (channel === undefined) {
     logger.info(summary, "装配与自检通过");
+    await services.documentConverter?.close();
     await database.close();
     return;
   }
@@ -81,6 +83,7 @@ async function main(): Promise<void> {
     stopping = true;
     logger.info({ signal }, "收到终止信号：停循环、收在途任务、让出租约");
     await runtime.stop();
+    await services.documentConverter?.close();
     await Promise.allSettled([channel.close(), lease.close(), database.close()]);
     process.exit(0);
   };

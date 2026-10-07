@@ -50,6 +50,7 @@ import {
   alertsOf,
   piiFieldsOf,
   assembleProviders,
+  createDocumentConverter,
   createBizNoIssuer,
   createTxRunner,
   createQueueChannel,
@@ -126,6 +127,7 @@ export const DB_POOLS: Readonly<Record<AssemblyEntry, DbPoolSettings>> = {
 };
 
 export interface RuntimeOptions {
+  readonly documentWorkerUrl?: URL;
   readonly webhookSources?: readonly WebhookSource[];
   /** 仅测试/演示装配传假密钥；生产仍通过受控配置延迟加载。 */
   readonly billingKeyring?: Keyring;
@@ -153,6 +155,7 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly documentConverter: ReturnType<typeof createDocumentConverter> | null;
   readonly webhooks: Webhooks;
   readonly order: OrderService;
   readonly billing: BillingPurchase;
@@ -409,7 +412,11 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     });
   }
 
+  const documentConverter = options.documentWorkerUrl
+    ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
+    : null;
   return {
+    documentConverter,
     webhooks,
     order,
     billing,
@@ -435,6 +442,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
+      await documentConverter?.close();
       unbindOrderStart();
       unbindOrder();
       unbindBilling();

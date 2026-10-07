@@ -128,6 +128,49 @@ describe("假存储：不依赖 MinIO，行为照本地驱动", () => {
     expiresSec: 600,
   } as const;
 
+  it("完整读取绑定 etag、校验大小、返回独立字节，取消不读取", async () => {
+    const { storage } = setup().fakes;
+    const ref = { bucket: "secure", key: "files/sample/legal.pdf" } as const;
+    const source = new Uint8Array([1, 2, 3]);
+    const etag = storage.put(ref, source, "application/pdf");
+    const input = { ...ref, maxBytes: source.length, ifMatchEtag: etag };
+    const result = await storage.readObject(input);
+    expect(result).toEqual({ ok: true, value: source });
+    if (!result.ok) throw new Error("未读取到对象");
+    result.value[0] = 9;
+    expect(await storage.readObject(input)).toEqual({ ok: true, value: source });
+    expect(await storage.readObject({ ...input, maxBytes: 2 })).toMatchObject({
+      ok: false,
+      reason: "rejected",
+    });
+    expect(await storage.readObject({ ...input, ifMatchEtag: '"stale"' })).toMatchObject({
+      ok: false,
+      reason: "rejected",
+    });
+    expect(await storage.readObject({ ...input, key: "files/missing.pdf" })).toMatchObject({
+      ok: false,
+      reason: "rejected",
+    });
+    for (const maxBytes of [0, -1, 1.5, Infinity, NaN, Number.MAX_SAFE_INTEGER + 1])
+      expect(await storage.readObject({ ...input, maxBytes })).toMatchObject({
+        ok: false,
+        reason: "rejected",
+      });
+    const controller = new AbortController();
+    controller.abort();
+    expect(await storage.readObject({ ...input, signal: controller.signal })).toMatchObject({
+      ok: false,
+      reason: "rejected",
+      message: "对象读取已取消",
+    });
+    const empty = { ...ref, key: "files/sample/empty.pdf" };
+    storage.put(empty, new Uint8Array(), "application/pdf");
+    expect(await storage.readObject({ ...empty, maxBytes: 1 })).toEqual({
+      ok: true,
+      value: new Uint8Array(),
+    });
+  });
+
   it("表单直传到 incoming/ → 读对象头 → 条件复制到正式区 → 签发读地址 → 删除", async () => {
     const { fakes } = setup();
     const { storage } = fakes;

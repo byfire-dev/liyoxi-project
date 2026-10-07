@@ -271,3 +271,11 @@ export {
   countOrderItemsByPhase,
 } from "./order/index.js";
 export type { OrderActor, OrderDeps, OrderService, OrderStartBinding } from "./order/index.js";
+
+export { createDocumentConverter, runDocumentConversionWorker } from "./kernel/index.js";
+export type {
+  DocumentConversionRequest,
+  DocumentConversionResult,
+  DocumentConverter,
+  DocumentInput,
+} from "./kernel/index.js";

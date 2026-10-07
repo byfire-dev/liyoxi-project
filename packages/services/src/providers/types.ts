@@ -245,6 +245,10 @@ export interface StorageProvider extends ProviderBase {
   readPrefix(
     input: ObjectRef & { bytes: number; ifMatchEtag?: string },
   ): Promise<ProviderResult<Uint8Array>>;
+  /** 完整有界读取：HEAD 与 GET 绑定同一 etag，实际流不能超过 maxBytes；可取消。 */
+  readObject(
+    input: ObjectRef & { maxBytes: number; ifMatchEtag?: string; signal?: AbortSignal },
+  ): Promise<ProviderResult<Uint8Array>>;
   /** 系统文件写入正式区；只供服务端种子与系统生成文件，禁止端侧使用。 */
   putObject(
     input: ObjectRef & {
@@ -541,6 +545,7 @@ export const PROVIDER_METHODS = {
     "issueSts",
     "head",
     "readPrefix",
+    "readObject",
     "putObject",
     "copy",
     "presignGet",

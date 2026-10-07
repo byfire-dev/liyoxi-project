@@ -79,6 +79,7 @@ describe("构建产物", () => {
   it("出了两个入口：server.js 与 check-env.js", () => {
     expect(existsSync(`${root}${out}/server.js`)).toBe(true);
     expect(existsSync(`${root}${out}/check-env.js`)).toBe(true);
+    expect(existsSync(`${root}${out}/document-converter.js`)).toBe(true);
   });
 
   it("起得来：探活通，收到 SIGTERM 后排空并以 0 退出", TIMEOUT, async () => {

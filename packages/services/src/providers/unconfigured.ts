@@ -130,6 +130,7 @@ export const unconfiguredStorage: StorageProvider = {
   issueSts: storageOff,
   head: storageOff,
   readPrefix: storageOff,
+  readObject: storageOff,
   putObject: storageOff,
   copy: storageOff,
   presignGet: storageOff,

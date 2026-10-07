@@ -68,6 +68,7 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
     issueSts: { bucket: "media", keyPrefix: "incoming/sample/", durationSec: 900 },
     head: SAMPLE_REF,
     readPrefix: { ...SAMPLE_REF, bytes: 4096 },
+    readObject: { ...SAMPLE_REF, maxBytes: 20 * 1024 * 1024 },
     putObject: { ...SAMPLE_REF, body: new Uint8Array([1, 2, 3]), contentType: "application/pdf" },
     copy: {
       src: SAMPLE_REF,

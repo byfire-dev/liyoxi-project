@@ -26,7 +26,13 @@ import type {
   Events,
   TestEventDefinition,
 } from "../events/index.js";
-import { alertsOf, assembleProviders, createTxRunner, systemClock } from "../kernel/index.js";
+import {
+  alertsOf,
+  assembleProviders,
+  createDocumentConverter,
+  createTxRunner,
+  systemClock,
+} from "../kernel/index.js";
 import type {
   AppEnv,
   Assembly,
@@ -68,6 +74,7 @@ export function connectWorkerDatabase(connectionString: string): {
 }
 
 export interface WorkerServicesOptions {
+  readonly documentWorkerUrl?: URL;
   readonly webhookSources?: readonly WebhookSource[];
   readonly appEnv: AppEnv;
   /** 业务连接池：connectWorkerDatabase 给的；用例传测试库的客户端 */
@@ -91,6 +98,7 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  readonly documentConverter: ReturnType<typeof createDocumentConverter> | null;
   readonly closeWebhooks?: () => void;
   reprocessWebhooks(beat?: () => void): Promise<number>;
   readonly closeOrder?: () => void;
@@ -134,6 +142,9 @@ const silent: ProviderLogger = { info: () => {}, warn: () => {}, error: () => {}
  */
 export function buildWorkerServices(options: WorkerServicesOptions): WorkerServices {
   const { assembly, prisma, channel } = options;
+  const documentConverter = options.documentWorkerUrl
+    ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
+    : null;
   const clock = options.clock ?? systemClock;
   const tx = createTxRunner({ prisma, appEnv: options.appEnv, report: options.report });
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
@@ -193,6 +204,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const laggards = new Map<string, number>();
   const timing = { tx, assembly, registry: timers.registry, clock, alerts, channel };
   return {
+    documentConverter,
     closeWebhooks,
     reprocessWebhooks: (beat) => webhooks.scan(beat),
     closeOrder: () => {
