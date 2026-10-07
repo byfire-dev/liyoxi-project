@@ -53,9 +53,9 @@ describe("漏挂中间件，建应用即失败", () => {
   });
 
   it("回调没有验签中间件", TIMEOUT, async () => {
-    expect(await issuesOf({ handlers: [hookReceiveHandler] })).toEqual([
-      "hooks.lyxtest.event.receive：声明了 x-auth: signed，装配里没有中间件 signature",
-    ]);
+    expect(
+      await issuesOf({ handlers: [hookReceiveHandler], pipeline: without("signature") }),
+    ).toEqual(["hooks.lyxtest.event.receive：声明了 x-auth: signed，装配里没有中间件 signature"]);
   });
 
   it("声明了能力点而没有鉴权与授权中间件", TIMEOUT, async () => {
@@ -80,7 +80,7 @@ describe("漏挂中间件，建应用即失败", () => {
             portalGetHandler,
             hookReceiveHandler,
           ],
-          pipeline: [...without("rateLimit"), stubMiddleware("signature")],
+          pipeline: without("rateLimit"),
         }),
       ).toEqual([
         `m.lyxtestThing.limited：${NO_RATE_LIMIT}`,
