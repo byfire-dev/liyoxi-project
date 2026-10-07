@@ -4,7 +4,14 @@ import { describe, expect, it } from "vitest";
 
 import { CHAINS, chain } from "../src/machines/index.js";
 
-import { REFERENCE_SOURCES, coverageOf, parseRefs } from "./machines-coverage.js";
+import {
+  REFERENCE_SOURCES,
+  coverageOf,
+  parseRefs,
+  registeredReferences,
+  baselineKeys,
+  missingBeyondBaseline,
+} from "./machines-coverage.js";
 
 describe("行引用怎么读", () => {
   it("两种写法都认，统一成“分组:行号”", () => {
@@ -76,5 +83,63 @@ describe("真实数据", () => {
     }
     // 归属表按“分组:行号”引用了迁移行：至少有一行被覆盖，说明两边用的是同一种行的身份
     expect(result.some((item) => item.uncovered.length < item.total)).toBe(true);
+  });
+});
+
+// 新契约模式保留旧来源与逐行判据，只以契约身份限定真实引用。
+describe("契约身份与存量基线额外门禁", () => {
+  const sample = chain(
+    "staff",
+    "status",
+    { name: "baseline", columns: ["staff.status"], values: ["active", "disabled"] },
+    [
+      ["03:218", null, "staff.create", ["active"]],
+      ["03:221", ["active"], "staff.disable", ["disabled"]],
+    ],
+  );
+  const row = { column: "staff.status", ref: "03:218", reason: "存量未引用，尚待真实归属" };
+  const snapshot = (rows: { column: string; ref: string; reason: string }[]) =>
+    JSON.stringify({ schemaVersion: 1, rows });
+
+  it("契约外接口的真实文字不能贡献引用；登记接口的真实文字可以", () => {
+    const result = registeredReferences(
+      [{ operationId: "admin.staff.create" }],
+      [
+        {
+          endpoints: [
+            { operationId: "fake.staff.disable", transitions: ["03:221"] },
+            { operationId: "admin.staff.create", transitions: ["03:218"] },
+          ],
+        },
+      ],
+    );
+    expect(result).toEqual([{ ref: "03:218", by: "admin.staff.create" }]);
+    expect(coverageOf([sample], result)[0]!.uncovered.map((item) => item.ref)).toEqual(["03:221"]);
+  });
+  it("空或重复契约身份不是可用引用源", () => {
+    expect(() => registeredReferences([], [])).toThrow(/为空/);
+    expect(() => registeredReferences([{ operationId: "a" }, { operationId: "a" }], [])).toThrow(
+      /唯一/,
+    );
+  });
+  it("可追加去除存量的快照，但不能恢复或扩张", () => {
+    expect(baselineKeys(`${snapshot([row])}\n${snapshot([])}\n`, [sample]).size).toBe(0);
+    expect(() =>
+      baselineKeys(`${snapshot([row])}\n${snapshot([])}\n${snapshot([row])}\n`, [sample]),
+    ).toThrow(/只减不增/);
+  });
+  it("未知行、重复行、空原因、改写原因都拒绝", () => {
+    expect(() => baselineKeys(snapshot([{ ...row, ref: "03:999" }]), [sample])).toThrow(/未知行/);
+    expect(() => baselineKeys(snapshot([row, row]), [sample])).toThrow(/重复行/);
+    expect(() => baselineKeys(snapshot([{ ...row, reason: " " }]), [sample])).toThrow(/原因/);
+    expect(() =>
+      baselineKeys(`${snapshot([row])}\n${snapshot([{ ...row, reason: "变成已覆盖" }])}`, [sample]),
+    ).toThrow(/原因不得改写/);
+  });
+  it("基线不改变覆盖率，新未覆盖行不能自动计为存量", () => {
+    const result = coverageOf([sample], []);
+    const baseline = baselineKeys(snapshot([row]), [sample]);
+    expect(result[0]!.uncovered).toHaveLength(2);
+    expect(missingBeyondBaseline(result, baseline).map((item) => item.ref)).toEqual(["03:221"]);
   });
 });

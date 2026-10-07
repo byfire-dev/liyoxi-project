@@ -12,7 +12,7 @@ import type { Content } from "./content/index.js";
 import { AGREEMENT_SEEDS, seedPlaceholderAgreementVersions } from "./docs/index.js";
 import { seedPlaceholderFiles } from "./media/index.js";
 import type { Media } from "./media/index.js";
-import type { Notices } from "./config/index.js";
+import type { Notices, Params } from "./config/index.js";
 import { createIdentityContext, lockRows } from "./kernel/index.js";
 import type { Flow } from "./flow/index.js";
 import type { AppEnv, Clock, SeedTableResult, TxRunner } from "./kernel/index.js";
@@ -32,6 +32,8 @@ export interface DemoSeedDeps {
   readonly media?: Media;
   readonly content?: Content;
   readonly notices?: Pick<Notices, "announce">;
+  /** M1 演示核验现行开工延迟；参数写侧尚属 M2，不覆盖已有配置。 */
+  readonly params?: Pick<Params, "get">;
   readonly billing?: { readonly assembly: Assembly; readonly bizNo: BizNoIssuer };
 }
 
@@ -143,7 +145,15 @@ export const DEMO_SEED_STEPS: readonly DemoSeedStep[] = [
       );
     },
   },
-  // 演示参数（order.start_delay_minutes = 0）：W1-21
+  {
+    name: "parameters",
+    async run(deps) {
+      if (deps.params && (await deps.params.get("order.start_delay_minutes")) !== 0) {
+        throw new Error("M1 演示要求 order.start_delay_minutes 为 0，现有参数保持不变");
+      }
+      return [];
+    },
+  },
 ];
 
 /** 生产环境拒绝执行 */

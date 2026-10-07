@@ -7,7 +7,7 @@ import { useTestDatabase } from "@liyoxi/services/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { runSeedCommand } from "../src/cli/seed-command.js";
-import { runStaffBootstrapCommand } from "../src/cli/staff-bootstrap-command.js";
+import { staffBootstrapCommand } from "../src/cli/staff-bootstrap-command.js";
 import { SLOW } from "./support/harness.js";
 
 // W1-01a：引导命令 staff:bootstrap（dist/staff-bootstrap.js 的本体；任务书 第 7 节验收 10 的前半）。
@@ -44,7 +44,7 @@ beforeAll(async () => {
 async function run(argv: string[], source: Record<string, string | undefined>) {
   const out: string[] = [];
   const err: string[] = [];
-  const code = await runStaffBootstrapCommand({
+  const code = await staffBootstrapCommand.run({
     argv,
     source,
     out: (line) => out.push(line),
@@ -55,7 +55,7 @@ async function run(argv: string[], source: Record<string, string | undefined>) {
 
 const ARGS = ["--name", "首位管理员", "--phone", "13900020001"];
 
-describe("引导命令 staff:bootstrap", () => {
+describe("引导命令 staff_bootstrap（staff:bootstrap）", () => {
   it(
     "缺参数：以 1 退出并给出用法；没配密钥：以 2 退出，只说缺哪一份",
     async () => {

@@ -12,15 +12,7 @@ import { createEvents } from "../events/index.js";
 import { createFlow } from "../flow/index.js";
 import type { Flow } from "../flow/index.js";
 import { alertsOf, createTxRunner, uuidv7 } from "../kernel/index.js";
-import type {
-  AlertInput,
-  AppEnv,
-  AuthKeysConfig,
-  BidxKeysConfig,
-  Clock,
-  DataKeysConfig,
-  TxRunner,
-} from "../kernel/index.js";
+import type { AlertInput, AppEnv, Clock, TxRunner } from "../kernel/index.js";
 import { createAuthKeys, createKeyring } from "../security/index.js";
 import type { AuthKeys, Keyring } from "../security/index.js";
 import {
@@ -65,22 +57,7 @@ export const fakeKeyring = (): Keyring =>
  * 字段加密与盲索引那两份和测试数据工厂的 TEST_KEYRING 是同一组字节：工厂造的手机号，运行时解得开、按盲索引查得到；
  * 后台登录那一份和 fakeAuthKeys 是同一组字节。都是固定字节现造的，不是任何环境在用的密钥。
  */
-export const fakeKeyEnv = (): {
-  DATA_KEYS: DataKeysConfig;
-  BIDX_KEYS: BidxKeysConfig;
-  AUTH_KEYS: AuthKeysConfig;
-} => {
-  const b64 = (byte: number): string => fill(byte).toString("base64");
-  return {
-    DATA_KEYS: { current: "test", keys: { test: b64(0x51) } },
-    BIDX_KEYS: { phone: b64(0x52), uscc: b64(0x53) },
-    AUTH_KEYS: {
-      ticket: b64(0x71),
-      device: b64(0x72),
-      mfa: { current: "t1", keys: { t1: b64(0x73) } },
-    },
-  };
-};
+export { fakeKeyEnv } from "./m1-fake-keys.js";
 
 export interface TestStaffAuth {
   readonly staff: StaffAuth;
