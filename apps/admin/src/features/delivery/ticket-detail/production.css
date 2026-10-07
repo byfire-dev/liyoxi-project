@@ -1,0 +1,105 @@
+.lyx-production {
+  min-width: 0;
+}
+.lyx-production-sections,
+.lyx-production-form {
+  display: grid;
+  gap: 18px;
+}
+.lyx-production-card {
+  padding: 16px;
+  border: 1px solid var(--lyx-color-border-light);
+  border-radius: 10px;
+  min-width: 0;
+}
+.lyx-production-card h3 {
+  margin: 0 0 12px;
+}
+.lyx-production-actions,
+.lyx-production-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.lyx-production-footer {
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.lyx-production-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.lyx-production-form .ant-select {
+  width: 100%;
+}
+.lyx-production-file-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--lyx-color-border-light);
+  border-radius: 6px;
+  font: inherit;
+}
+.lyx-production-steps {
+  display: grid;
+  grid-template-columns: repeat(11, minmax(0, 1fr));
+  padding: 18px 16px;
+  gap: 8px;
+}
+.lyx-production-steps > div {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+  padding: 6px 2px;
+  border-bottom: 2px solid var(--lyx-color-border-light);
+}
+.lyx-production-steps > div[aria-current] {
+  border-color: var(--lyx-color-primary);
+  font-weight: 600;
+}
+.lyx-production-steps span {
+  font-size: 12px;
+}
+.lyx-production-steps small {
+  font-size: 11px;
+  color: var(--lyx-color-text-secondary);
+}
+.lyx-production video {
+  width: 200px;
+  max-width: 100%;
+  max-height: 356px;
+  border-radius: 10px;
+  background: var(--lyx-color-bg-page);
+}
+.lyx-production .lyx-info__value {
+  overflow-wrap: anywhere;
+}
+.lyx-production-episode-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.lyx-production-card p,
+.lyx-production-qc-row strong {
+  overflow-wrap: anywhere;
+}
+.lyx-production-qc-row {
+  display: grid;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--lyx-color-border-light);
+}
+.lyx-production-hint {
+  color: var(--lyx-color-text-secondary);
+}
+@media (max-width: 1100px) {
+  .lyx-production-steps {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .lyx-production-two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

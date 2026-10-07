@@ -1,7 +1,7 @@
 import { statusToneByEnum } from "@liyoxi/shared/design/status-tone";
 import { appDateTimeFormat as date } from "@liyoxi/shared/format/datetime";
 import { useQuery } from "@tanstack/react-query";
-import { getRouteApi, useRouteContext } from "@tanstack/react-router";
+import { getRouteApi, Link, useRouteContext } from "@tanstack/react-router";
 import { Alert, Button, Checkbox, Input, Modal, Select } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { showSuccessNotice } from "../../../app/feedback";
@@ -208,7 +208,25 @@ export function TicketsPage() {
     void services.queryClient.invalidateQueries({ queryKey: TICKETS_KEY });
   };
   const columns: QueryColumn<TicketCard>[] = [
-    { key: "ticketNo", title: "工单号", width: 155, render: (row) => row.ticketNo },
+    {
+      key: "ticketNo",
+      title: "工单号",
+      width: 155,
+      render: (row) => (
+        <Link
+          className="lyx-link"
+          to="/delivery/tickets/$ticketNo"
+          params={{ ticketNo: row.ticketNo }}
+          search={{ tab: "plan" }}
+          state={(previous) => ({
+            ...previous,
+            lyxTicket: { ticketNo: row.ticketNo, ticketId: row.deliveryTicketId },
+          })}
+        >
+          {row.ticketNo}
+        </Link>
+      ),
+    },
     {
       key: "store",
       title: "商家",
