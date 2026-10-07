@@ -6,7 +6,7 @@
 
 | 文件 | 内容 |
 | --- | --- |
-| `tx.ts` | `createTxRunner`（`run`）、事务句柄 `Tx`、`savepoint`、`assertNotInTransaction`、`isInTransaction`、`sqlStateOf`、`dbErrorCause`、`isRetryableDbError`、`KernelViolation` |
+| `tx.ts` | `createTxRunner`（`run`）、事务句柄 `Tx`、`detach`、`savepoint`、`assertNotInTransaction`、`isInTransaction`、`sqlStateOf`、`dbErrorCause`、`isRetryableDbError`、`KernelViolation` |
 | `errors.ts` | `AppError`：服务层的业务错误，只带契约里的错误符号名 |
 | `lock-order.ts` | 加锁顺序常量 `LOCK_ORDER`（照 06 第 5 节逐行写）、锁序断言 `assertLockOrder`。门禁文件 |
 | `lock.ts` | 加锁函数 `lockRows` |
@@ -46,6 +46,26 @@ export async function submitOrder(input: Input) {
 | 其余（业务错误、唯一约束冲突等） | 不重试 | 原样抛出 |
 
 错误出在提交那一刻（延迟到提交时检查的约束、可串行化事务提交时才判出的序列化失败、提交时的死锁）也按上表办。这时 Prisma 抛出来的是驱动适配器的 `DriverAdapterError` 本身，不是包过一层的 Prisma 错误（没有 `code`、`meta`）：读 SQLSTATE 一律用 `sqlStateOf(error)`，读数据库的原始报错用 `dbErrorCause(error)?.originalMessage`，不要自己去翻 `error.meta`。两种形状由 `tx.commit.concurrency.test.ts` 连真库钉住。
+
+### 2.1 独立短事务（W2-24 PR1）
+
+`detach<T>(fn: () => Promise<T>): Promise<T>` 由 kernel 公开导出，只让当前异步链脱离正在执行的事务；它不连接数据库、不接收句柄或连接参数，也不自行开事务。
+
+```ts
+await tx.run(async (outer) => {
+  await changeBusiness(outer);
+  await detach(() => tx.run((independent) => recordIndependent(independent)));
+  // 独立事务已经提交；这里失败只回滚本业务事务。
+});
+```
+
+- 独立事务仍只能经 `tx.run`，使用原连接池和超时/重试；锁序、保存点、幂等上下文均不继承。它需要可用连接，不能同时锁外层持有的行，否则仍受正常等锁限制。
+- 成功、抛错、取消都恢复调用方作用域；并发兄弟链一直保持原事务标记。正常的 `run` 内嵌 `run` 仍拒绝。
+- 不把 `outer` 传入独立链。运行时限制外层句柄的内核函数、SQL、模型方法及预先构造的惰性查询；已经取出的 delegate/方法同样受限。
+- `isInTransaction()` 在脱离链为 `false`，用于判定能否重新 `run`；Provider 外呼断言还会检查存活的祖先事务，不能借此绕过外呼规约。原 local/test 抛错、stg/prod 上报策略保留。
+- 这里只交作用域机制；告警持久化、探针和备份等由 W2-24 PR2 在 PR1 实际合入后接入。
+
+`tx.detach.test.ts` 覆盖异步作用域/错误/取消；`tx.detach.property.test.ts` 固定种子随机交错 200 轮，驱动为本地替身，验证真实 AsyncLocalStorage；`tx.detach.db.test.ts` 用真实库和独立连接验证提交/回滚、并发、锁与幂等边界。原 nested/savepoint/retry/commit/外呼与幂等回归继续运行。
 
 ## 3. 保存点
 
