@@ -65,7 +65,17 @@ describe("W2-25b 构建与外部写边界", () => {
     expect(body).toContain("mode:0o600");
     expect(body).toContain("if: always()");
     expect(deploy).toContain("cancel-in-progress: false");
-    expect(body).not.toMatch(/\bweapp-upload\b/);
+    const upload =
+      body.split("      - name: 成功部署后串行上传体验版\n")[1]?.split("      - name:")[0] ?? "";
+    expect(body.match(/run: node infra\/deploy\/upload-release\.mjs/g)).toHaveLength(1);
+    expect(body.indexOf("node infra/deploy/orchestrate.mjs")).toBeLessThan(
+      body.indexOf("run: node infra/deploy/upload-release.mjs"),
+    );
+    expect(upload).toContain("if: success()");
+    expect(upload).toContain("STG_WEAPP_UPLOAD_ENABLED: ${{ vars.STG_WEAPP_UPLOAD_ENABLED }}");
+    expect(upload).toContain("EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}");
+    expect(upload).not.toMatch(/continue-on-error|if: always\(\)|--upload\b|\bsecrets\./);
+    expect(body).not.toMatch(/--upload\b|(?:ssh|channel\()[^\n]*weapp-upload/);
   });
 
   it.each(["--unknown", "--upload"])("真实 uploader 命令 %s 失败关闭且不回显账号输入", (arg) => {
