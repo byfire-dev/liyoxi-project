@@ -1,5 +1,5 @@
 import { mkdirSync } from "node:fs";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 import { liveContext, noHorizontalScroll, recordErrors } from "./live-context";
 
 interface Fixture {
@@ -105,8 +105,41 @@ test("真实首店校验与资质审核：通过自动选下一条、驳回必�
   const original = page.getByRole("img", { name: "营业执照原图", exact: true });
   await expect(original).toBeVisible();
   expect(signatures).toBe(1);
-  await page.getByRole("button", { name: "查看原图", exact: true }).click();
-  await expect.poll(() => signatures).toBe(2);
+  let releaseResponse = () => {};
+  const responseGate = new Promise<void>((resolve) => {
+    releaseResponse = resolve;
+  });
+  let responseStatus: number | undefined, responseWork: Promise<void> | undefined;
+  const signingUrl = (url: URL) =>
+    url.pathname === `/api/v1/admin/files/${first.fileId}/download-urls`;
+  const holdResponse = (route: Route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    responseWork = (async () => {
+      // 实际请求API并保留真实响应；仅暂缓交给浏览器，让在途状态可确定验收。
+      const response = await route.fetch();
+      responseStatus = response.status();
+      await responseGate;
+      await route.fulfill({ response });
+    })();
+    return responseWork;
+  };
+  await page.route(signingUrl, holdResponse);
+  try {
+    await page.getByRole("button", { name: "查看原图", exact: true }).click();
+    await expect.poll(() => signatures).toBe(2);
+    await expect.poll(() => responseStatus).toBe(200);
+    const viewing = page.getByRole("button", { name: "查看原图", exact: true });
+    await expect(viewing).toBeVisible();
+    await expect(viewing).toHaveClass(/ant-btn-loading/);
+    await expect(page.getByRole("heading", { name: first.name, exact: true })).toBeVisible();
+  } finally {
+    releaseResponse();
+    try {
+      await responseWork;
+    } finally {
+      await page.unroute(signingUrl, holdResponse);
+    }
+  }
   await expect(page.getByRole("button", { name: "查看原图", exact: true })).not.toHaveClass(
     /ant-btn-loading/,
   );
