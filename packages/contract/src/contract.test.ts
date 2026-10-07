@@ -1150,15 +1150,17 @@ describe("验收 6：公共子路径边界（纯常量不带 Zod，查询复用�
     ]);
   });
 
-  it("./queries/admin 只暴露两份既有查询 schema，不经契约根装配", () => {
+  it("./queries/admin 只暴露三份既有查询 schema，不经契约根装配", () => {
     const target = manifest.exports["./queries/admin"]!;
     expect(target).toEqual({ types: "./src/queries/admin.ts", default: "./src/queries/admin.ts" });
     expect(Object.keys(adminQueries).sort()).toEqual([
       "ApprovalListQuerySchema",
+      "AuditLogListQuerySchema",
       "StaffListQuerySchema",
     ]);
     expect(adminQueries.StaffListQuerySchema).toBe(contract.StaffListQuerySchema);
     expect(adminQueries.ApprovalListQuerySchema).toBe(contract.ApprovalListQuerySchema);
+    expect(adminQueries.AuditLogListQuerySchema).toBe(contract.AuditLogListQuerySchema);
     const scan = importsReachableFrom(join(packageDir, target.default!));
     expect(scan.files).not.toContain(join(packageDir, "src/index.ts"));
     expect(scan.unresolved).toEqual([]);
@@ -1186,6 +1188,24 @@ describe("验收 6：公共子路径边界（纯常量不带 Zod，查询复用�
     expect(adminQueries.ApprovalListQuerySchema.safeParse({ overdue: true }).success).toBe(false);
     expect(
       adminQueries.ApprovalListQuerySchema.safeParse({ kind: ["qualification"] }).success,
+    ).toBe(false);
+  });
+
+  it("日志公开查询保留游标和原跨字段校验", () => {
+    expect(
+      adminQueries.AuditLogListQuerySchema.parse({ limit: "100", category: "param,dict" }),
+    ).toMatchObject({ stream: "ops", limit: 100, category: "param,dict" });
+    expect(
+      adminQueries.AuditLogListQuerySchema.safeParse({
+        targetId: "01900000-0000-7000-8000-000000000001",
+        targetKey: "key",
+      }).success,
+    ).toBe(false);
+    expect(
+      adminQueries.AuditLogListQuerySchema.safeParse({
+        createdFrom: "2026-10-08",
+        createdTo: "2026-10-07",
+      }).success,
     ).toBe(false);
   });
 

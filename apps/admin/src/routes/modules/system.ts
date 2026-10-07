@@ -5,6 +5,7 @@ import { dictRoute } from "../system/dict";
 import { paramsRoute } from "../system/params";
 import { flagsRoute } from "../system/flags";
 import { checklistsRoute } from "../system/checklists";
+import { auditLogsRoute } from "../system/logs";
 
 export const systemRoutes = [
   staffRoute,
@@ -12,4 +13,5 @@ export const systemRoutes = [
   paramsRoute,
   flagsRoute,
   checklistsRoute,
+  auditLogsRoute,
 ] as const;
