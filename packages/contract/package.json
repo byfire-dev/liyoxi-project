@@ -49,6 +49,10 @@
     },
     "./types/portal": {
       "types": "./generated/portal.d.ts"
+    },
+    "./queries/admin": {
+      "types": "./src/queries/admin.ts",
+      "default": "./src/queries/admin.ts"
     }
   },
   "scripts": {

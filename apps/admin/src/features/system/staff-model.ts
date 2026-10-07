@@ -1,8 +1,10 @@
 import type { components } from "@liyoxi/contract/types/admin";
-import { STAFF_ROLE_KEY, STAFF_STATUS } from "@liyoxi/contract/enums";
+import { StaffListQuerySchema } from "@liyoxi/contract/queries/admin";
+import { STAFF_ROLE_KEY } from "@liyoxi/contract/enums";
 
 import { newIdempotencyKey } from "../../lib/idempotency";
-import { readTableSearch, type TableSearch } from "../../lib/table-search";
+import { readTableSearch, toListQuery, type TableSearch } from "../../lib/table-search";
+import { readContractQuery } from "../../lib/contract-query";
 
 export type StaffRow = components["schemas"]["StaffListItem"];
 export type Role = components["schemas"]["RoleSummary"];
@@ -13,21 +15,12 @@ export const STAFF_ROLES_KEY = ["system", "staff", "roles"] as const;
 
 export function staffSearch(raw: Readonly<Record<string, unknown>>): TableSearch {
   const search = readTableSearch(raw, ["roleKey", "status"]);
-  const filters: Record<string, string> = {};
-  for (const [key, values] of [
-    ["roleKey", STAFF_ROLE_KEY.values],
-    ["status", STAFF_STATUS.values],
-  ] as const) {
-    const value = search.filters[key];
-    if (value && (values as readonly string[]).includes(value)) filters[key] = value;
-  }
-  return {
-    ...search,
-    tab: undefined,
-    q: search.q?.slice(0, 20),
-    filters,
-    sort: search.sort === "-lastLoginAt" ? search.sort : undefined,
-  };
+  const { wire } = readContractQuery(StaffListQuerySchema, toListQuery(search), {
+    keys: ["q", "page", "pageSize", "roleKey", "status", "sort"],
+    defaults: { page: "1", pageSize: "20" },
+    keywordLimit: 20,
+  });
+  return readTableSearch(wire, ["roleKey", "status"]);
 }
 export function staffLabel(row: Pick<StaffRow, "status" | "isActivated">): string {
   if (row.status === "active") return row.isActivated ? "启用" : "待激活";

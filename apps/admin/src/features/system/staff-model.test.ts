@@ -57,6 +57,12 @@ describe("员工页查询与创建守卫", () => {
     for (const sort of ["-staffNo", "lastLoginAt", "openWorkCount", "future"])
       expect(staffSearch({ sort }).sort).toBeUndefined();
     expect(
+      staffSearch({ sort: "staffNo", roleKey: "cs,finance", status: "active,disabled" }),
+    ).toMatchObject({
+      sort: "staffNo",
+      filters: { roleKey: "cs,finance", status: "active,disabled" },
+    });
+    expect(
       staffSearch({
         roleKey: "future",
         status: "bad",

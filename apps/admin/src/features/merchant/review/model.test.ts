@@ -3,6 +3,7 @@ import {
   createDecisionIntent,
   decisionResult,
   reviewSearch,
+  reviewListQuery,
   approveBody,
   rejectBody,
 } from "./model";
@@ -26,6 +27,16 @@ describe("资质审核意图与当前服务端事实", () => {
     expect(reviewSearch({ tab: "all", q: "a".repeat(50) })).toMatchObject({
       tab: "todo",
       q: "a".repeat(30),
+    });
+  });
+  it("真实审批列表保留100条页容量，id只在UI而非API查询里", () => {
+    expect(reviewListQuery({ id: "UI-only", tab: "done_today", q: "门店" }, 2)).toEqual({
+      kind: "qualification",
+      tab: "done_today",
+      q: "门店",
+      page: 2,
+      pageSize: 100,
+      sort: "due",
     });
   });
   it("通过用审批版本与轮次，驳回必须原因和说明，保持M1非终局", () => {
