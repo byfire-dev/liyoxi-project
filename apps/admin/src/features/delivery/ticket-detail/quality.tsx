@@ -110,28 +110,50 @@ function qcBody(template: Template, input: QualityInput): QcBody {
       : {}),
   };
 }
-export function QualityModal({
-  mode,
-  ticket,
-  grid,
-  api,
-  onClose,
-  onRefresh,
-}: {
+interface QualityProps {
   mode: "sample" | "episodes" | "package";
   ticket: Ticket;
   grid?: Grid;
   api: DetailApi;
   onClose(): void;
   onRefresh(): void;
-}) {
+}
+function useQualityTemplate(mode: QualityProps["mode"], api: DetailApi) {
   const code = mode === "sample" ? "qc.sample" : mode === "episodes" ? "qc.episode" : "qc.package";
-  const title = mode === "sample" ? "样片质检" : mode === "episodes" ? "逐集质检" : "成片包质检";
-  const template = useQuery({
+  return useQuery({
     queryKey: [...DETAIL_KEY, "checklist", code],
     queryFn: () => api.template(code),
     ...DETAIL_QUERY,
   });
+}
+export function QualityModal(props: QualityProps) {
+  const template = useQualityTemplate(props.mode, props.api);
+  const { ticket, mode, grid } = props;
+  // 只为实际待检查对象与清单建立新表单；签名预览地址的重取不丢弃结论。
+  const identity = JSON.stringify([
+    ticket.deliveryTicketId,
+    mode,
+    mode === "sample"
+      ? [ticket.currentSample?.sampleId, ticket.currentSample?.versionNo]
+      : grid?.episodes.map((e) => {
+          const output = e.latest ?? e.current;
+          return [e.episodeNo, output?.episodeOutputId, output?.revisionNo, output?.fileId];
+        }),
+    template.data?.checklistTemplateId,
+    template.data?.versionNo,
+  ]);
+  return <QualityForm key={identity} {...props} template={template} />;
+}
+function QualityForm({
+  mode,
+  ticket,
+  grid,
+  api,
+  onClose,
+  onRefresh,
+  template,
+}: QualityProps & { template: ReturnType<typeof useQualityTemplate> }) {
+  const title = mode === "sample" ? "样片质检" : mode === "episodes" ? "逐集质检" : "成片包质检";
   const outputs =
     grid?.episodes.flatMap((e) => (e.latest ? [e.latest] : e.current ? [e.current] : [])) ?? [];
   const [input, setInput] = useState(emptyQuality),

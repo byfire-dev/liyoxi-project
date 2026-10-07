@@ -55,15 +55,16 @@ function AiDeclaration({
   );
 }
 function context(
-  ticket: Ticket,
+  storeId: string,
+  orderItemId: string,
   kind: "sample" | "final",
   episodeNo: number,
   aiUsage: AiUsage,
 ): Omit<FileBody, "fileName" | "sizeBytes" | "clientToken" | "mime"> {
   return {
     category: kind === "sample" ? "sample_video" : "final_episode",
-    storeId: ticket.store.storeId,
-    production: { kind, orderItemId: ticket.orderItemId, episodeNo, aiUsage },
+    storeId,
+    production: { kind, orderItemId, episodeNo, aiUsage },
   };
 }
 type UploadLifetime = { active: boolean; adapter: ReturnType<typeof createProductionUpload> };
@@ -94,7 +95,12 @@ function SampleUpload({
   onBusy(busy: boolean): void;
   disabled: boolean;
 }) {
-  const input = useMemo(() => context(ticket, "sample", 1, ai), [ticket, ai]),
+  const storeId = ticket.store.storeId,
+    orderItemId = ticket.orderItemId;
+  const input = useMemo(
+      () => context(storeId, orderItemId, "sample", 1, ai),
+      [storeId, orderItemId, ai],
+    ),
     slot = useUploadLifetime(api, input);
   const upload = useMemo(
     () => async (file: File, hooks: { onProgress(value: number): void }) => {
@@ -125,17 +131,18 @@ function SampleUpload({
     />
   );
 }
-export function SampleUploadModal({
-  ticket,
-  api,
-  onClose,
-  onRefresh,
-}: {
+interface UploadModalProps {
   ticket: Ticket;
   api: DetailApi;
   onClose(): void;
   onRefresh(): void;
-}) {
+}
+const uploadModalIdentity = (ticket: Ticket) =>
+  JSON.stringify([ticket.deliveryTicketId, ticket.store.storeId, ticket.orderItemId]);
+export function SampleUploadModal(props: UploadModalProps) {
+  return <SampleUploadForm key={uploadModalIdentity(props.ticket)} {...props} />;
+}
+function SampleUploadForm({ ticket, api, onClose, onRefresh }: UploadModalProps) {
   const [fileId, setFileId] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
     [ai, setAi] = useState<AiUsage>(plain);
@@ -227,9 +234,11 @@ function EpisodeUpload({
   const [percent, setPercent] = useState(0),
     [error, setError] = useState<string>();
   const busyRef = useRef(false);
+  const storeId = ticket.store.storeId,
+    orderItemId = ticket.orderItemId;
   const input = useMemo(
-      () => context(ticket, "final", row.episodeNo ?? 1, ai),
-      [ticket, row.episodeNo, ai],
+      () => context(storeId, orderItemId, "final", row.episodeNo ?? 1, ai),
+      [storeId, orderItemId, row.episodeNo, ai],
     ),
     slot = useUploadLifetime(api, input);
   const upload = async () => {
@@ -295,17 +304,10 @@ function EpisodeUpload({
     </section>
   );
 }
-export function EpisodeRegisterModal({
-  ticket,
-  api,
-  onClose,
-  onRefresh,
-}: {
-  ticket: Ticket;
-  api: DetailApi;
-  onClose(): void;
-  onRefresh(): void;
-}) {
+export function EpisodeRegisterModal(props: UploadModalProps) {
+  return <EpisodeRegisterForm key={uploadModalIdentity(props.ticket)} {...props} />;
+}
+function EpisodeRegisterForm({ ticket, api, onClose, onRefresh }: UploadModalProps) {
   const [rows, setRows] = useState<EpisodeRow[]>([]),
     [ai, setAi] = useState<AiUsage>(plain),
     [selectionError, setSelectionError] = useState<string>();

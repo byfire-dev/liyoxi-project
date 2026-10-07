@@ -157,6 +157,7 @@ export function SamplePanel({ ticket, api, onRefresh }: PanelProps) {
       ) : null}
       {open === "push" && sample ? (
         <PushSampleModal
+          key={`${sample.sampleId}:${sample.versionNo}`}
           ticket={ticket}
           api={api}
           onClose={() => setOpen(undefined)}
