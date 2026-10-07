@@ -8,4 +8,4 @@
 | 登记的工作包 | W1-19；W1-21 合流补记任务书已经约定的遗漏项 |
 | 回补里程碑 | M4（G4-C） |
 | 回补的工作包 | G4-C“订单与收款余下” |
-| 依据 | 03-key-designs.md 第1.1节；a07-orders-collection.md 的 A:Orders 付款单范围；tasks/W1-19.md 第7节既有留桩原措辞按上述正式单据边界纠正 |
+| 依据 | 03-key-designs.md 第1.1节；a07-billing-finance.md 的 A:Orders 付款单范围；tasks/W1-19.md 第7节既有留桩原措辞按上述正式单据边界纠正 |
