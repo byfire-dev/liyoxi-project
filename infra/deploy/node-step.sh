@@ -45,7 +45,7 @@ DB_RELEASE_ENV="$LYX_NODE_HOME/db-release.env"
 COMPOSE_FILE="$LYX_SRC/infra/compose/node.yml"
 SUPERVISOR="${LYX_NODE_SUPERVISOR:-systemd}"
 SERVICES="postgres redis mediatool api worker gateway"
-PUBLIC_STEPS="deps pull check-env migrate seed up status verify-db stage-assets worker-swap api-stop api-start smoke prune preflight facts image-facts record verify-assets verify-assets-live"
+PUBLIC_STEPS="deps pull check-env migrate seed up status verify-db stage-assets worker-swap api-stop api-start smoke prune preflight facts image-facts record verify-assets verify-assets-live weapp-upload"
 USAGE="用法：node-step.sh deps | pull <标签> | check-env <标签> | migrate <标签> | seed <标签> | up <标签> | status | verify-db <标签> | stage-assets <标签> | worker-swap <标签> | api-stop | api-start <标签> | smoke <标签> | prune | facts | preflight | image-facts <标签> | record <标签> <base64url JSON> | verify-assets <标签> | verify-assets-live <标签> [旧标签]"
 
 via_ssh=0
@@ -68,6 +68,9 @@ need_services() {
   for one in "$@"; do in_list "$one" "$SERVICES" || usage_die "不认识的服务 ${one}。服务有：$SERVICES"; done
 }
 case "$step" in
+  weapp-upload)
+    [ $# -eq 2 ] && [[ "$1" =~ ^[a-f0-9]{40}$ ]] && [[ "$2" =~ ^[a-f0-9]{64}$ ]] || usage_die "weapp-upload 只接受源码 SHA 与摘要 SHA256"
+    ;;
   deps | status | api-stop | prune | preflight | facts) [ $# -eq 0 ] || usage_die "$step 不带参数。$USAGE" ;;
   pull | check-env | migrate | seed | up | verify-db | stage-assets | worker-swap | api-start | smoke | image-facts | verify-assets) need_tag "$@" ;;
   verify-assets-live)
@@ -302,8 +305,10 @@ step_run() {
 
 # 发布步骤没有独立的命令入口；上面的窄协议校验同时覆盖本地调用与强制 SSH。
 . "$LYX_SRC/infra/deploy/node-release.sh"
+. "$LYX_SRC/infra/deploy/node-weapp.sh"
 
 case "$step" in
+  weapp-upload) step_weapp_upload "$1" "$2" ;;
   deps) step_deps ;;
   pull) step_pull "$1" ;;
   check-env) step_check_env "$1" ;;
