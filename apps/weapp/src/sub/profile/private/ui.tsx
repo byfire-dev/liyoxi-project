@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { View } from "@tarojs/components";
 import Taro, { useDidShow, usePullDownRefresh } from "@tarojs/taro";
 import { Button } from "@/components/Button";
@@ -16,6 +16,7 @@ import { useSessionStore } from "@/stores/session";
 import type { ProfileApi, DictItems } from "./api";
 import { createIntent, errorInfo, generationGuard } from "./model";
 import { profileRuntime, profileContext } from "./runtime";
+import { createResource, resourceView, type ResourceError } from "./resource";
 import "./profile.scss";
 
 export const STEP_NAMES = ["基础信息", "门店环境", "主推服务", "资质认证"];
@@ -24,33 +25,27 @@ export const navigate = (page: string) => {
   void Taro.navigateTo({ url: `/sub/profile/${page}/index` });
 };
 
-export function useResource<T>(read: (api: ProfileApi) => Promise<T>) {
-  const readRef = useRef(read);
-  useEffect(() => {
-    readRef.current = read;
-  }, [read]);
-  const guard = useRef(generationGuard(profileContext));
-  const mounted = useRef(true);
-  const requestNo = useRef(0);
-  const [data, setData] = useState<T>();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const load = async () => {
-    const requestId = ++requestNo.current;
-    try {
-      const runtime = await profileRuntime();
-      if (!mounted.current || requestId !== requestNo.current) return;
-      setError(null);
-      setLoading(true);
-      const result = await guard.current.run(() => readRef.current(runtime.api));
-      if (result !== undefined && mounted.current && requestId === requestNo.current)
-        setData(result);
-    } catch (e) {
-      if (mounted.current && requestId === requestNo.current) setError(errorInfo(e).message);
-    } finally {
-      if (mounted.current && requestId === requestNo.current) setLoading(false);
-    }
+function resourceReader<T>(read: (api: ProfileApi) => Promise<T>) {
+  return async (isCurrent: () => boolean) => {
+    const runtime = await profileRuntime();
+    if (!isCurrent()) return undefined;
+    return read(runtime.api);
   };
+}
+
+export function useResource<T>(read: (api: ProfileApi) => Promise<T>) {
+  const [resource] = useState(() =>
+    createResource<T>({
+      context: profileContext,
+      read: resourceReader(read),
+      message: (error) => errorInfo(error).message,
+    }),
+  );
+  useEffect(() => {
+    resource.setReader(resourceReader(read));
+  }, [read, resource]);
+  const state = useSyncExternalStore(resource.subscribe, resource.snapshot, resource.snapshot);
+  const { load } = resource;
   useDidShow(() => {
     void load();
   });
@@ -58,10 +53,9 @@ export function useResource<T>(read: (api: ProfileApi) => Promise<T>) {
     void load().finally(() => Taro.stopPullDownRefresh());
   });
   useEffect(() => {
-    const currentGuard = guard.current;
+    resource.activate();
     const changed = () => {
-      currentGuard.invalidate();
-      setData(undefined);
+      resource.reset();
       void load();
     };
     const offContext = useContextStore.subscribe((state, previous) => {
@@ -71,13 +65,12 @@ export function useResource<T>(read: (api: ProfileApi) => Promise<T>) {
       if (state.accessToken !== previous.accessToken) changed();
     });
     return () => {
-      mounted.current = false;
-      currentGuard.invalidate();
+      resource.dispose();
       offContext();
       offSession();
     };
-  }, []);
-  return { data, loading, error, load, setData };
+  }, [resource, load]);
+  return { ...state, load, setData: resource.setData };
 }
 export function useAction(action: string, step?: 1 | 2 | 3 | 4) {
   const intent = useRef(createIntent(() => newIdempotencyKey(action)));
@@ -135,20 +128,30 @@ export function Frame({
   ready = true,
 }: {
   loading?: boolean;
-  error?: string | null;
+  error?: string | ResourceError | null;
   retry?: () => void;
   children?: ReactNode;
   ready?: boolean;
 }) {
+  const failure = typeof error === "string" ? { message: error, preserveContent: false } : error;
+  const view = resourceView({ loading: Boolean(loading), error: failure ?? null });
   return (
-    <View className="profile-page" id={!loading && !error && ready ? "profile-ready" : undefined}>
+    <View className="profile-page" id={view === "content" && ready ? "profile-ready" : undefined}>
       <PageBody>
-        {loading ? (
+        {view === "loading" ? (
           <Skeleton cards={3} />
-        ) : error ? (
-          <LoadError message={error} onRetry={retry} />
+        ) : view === "error" ? (
+          <LoadError message={failure!.message} onRetry={retry} />
         ) : (
-          children
+          <>
+            {failure ? (
+              <Note tone="warning">
+                <View>资料刷新失败：{failure.message}</View>
+                {retry ? <TextButton onClick={retry}>重新加载</TextButton> : null}
+              </Note>
+            ) : null}
+            {children}
+          </>
         )}
       </PageBody>
     </View>

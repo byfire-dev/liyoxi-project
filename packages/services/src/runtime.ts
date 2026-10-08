@@ -298,9 +298,12 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     assembleProviders({
       appEnv: env.APP_ENV,
       logger,
+      settings: {
+        ...(env.MINIO ? { storage: { minio: env.MINIO } } : {}),
+        ...(env.WECHAT ? { wechat: { appid: env.WECHAT.appid, secret: env.WECHAT.secret } } : {}),
+      },
       ...(env.WECHAT
         ? {
-            settings: { wechat: { appid: env.WECHAT.appid, secret: env.WECHAT.secret } },
             wechat: {
               redis,
               prefix: keyPrefix,

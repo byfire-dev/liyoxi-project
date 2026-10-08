@@ -63,10 +63,16 @@ pnpm stack:down    # 只停这四个容器；卷与库保留，依赖的三个�
 ## 4. 真机走局域网
 
 ```sh
-pnpm stack:up --lan
+MINIO_PUBLIC_ENDPOINT=http://<本机局域网地址>:9110 pnpm stack:up --lan
 ```
 
 gateway 改绑全部网卡；按 IP 进来的请求（Host 不是三个域名）全部转 api（本地模板 `infra/docker/nginx/lan.conf.template`，不在镜像里）；另开 9110 端口把请求原样转给 MinIO（Host 不改写，预签名才验得过；端口可用 `LYX_STACK_MINIO_PORT` 换）。开发者工具与手机用 `http://<本机局域网地址>:8080`。
+
+`MINIO_PUBLIC_ENDPOINT` 必须填手机能访问的 MinIO API 地址，端口须与透传端口一致。API/worker 的 `MINIO_ENDPOINT` 在 Compose 中固定为 `http://lyx-minio:9000`，供服务端读头、复制和删除；对外表单与签读使用 `MINIO_PUBLIC_ENDPOINT`。这些变量只允许 local/test，经 `loadEnv` 校验。手机不能使用 `127.0.0.1`；不带 `--lan` 时对外地址缺省仍为本机 9100。
+
+手工在宿主机跑 API/worker 时，内部地址是 `http://127.0.0.1:9100`，对外地址须由保留 Host 的局域网代理提供；仅改环境变量不会开放当前只绑定回环的 MinIO 端口。照片上传确认后还需 worker 处理入库，`/health` 的 `worker` 应为 `ok`。配置改完需重建并重启 API/worker，小程序的接口地址仍由 `WEAPP_API_BASE_URL` 构建期注入。
+
+宿主机开发可以单独运行 `node infra/stack/minio-lan.mjs --host <本机局域网IPv4>`：只绑定指定本机地址的 9110，转发到本机 9100，保留 Host，不记录请求或读取密钥。API 与 worker 的启动环境同时给出 `MINIO_ENDPOINT=http://127.0.0.1:9100`、`MINIO_PUBLIC_ENDPOINT=http://<本机局域网IPv4>:9110`。关闭代理进程即收回此入口，不修改共享 MinIO 容器与端口。
 
 口令是公开的开发值：只在可信的局域网里开，用完 `pnpm stack:up`（不带 `--lan`）收回。带着 `--lan` 起的环境，冒烟写 `node infra/stack/smoke.mjs --lan`。演示手册怎么用它归 W1-21。
 
@@ -103,5 +109,5 @@ CI：`.github/workflows/stack-smoke.yml`，改到镜像定义、Compose、这里
 - 容器的重启策略是 `on-failure`：进程自己退出（看门狗、崩溃）会被拉起；Docker 重启之后不自己起来（依赖的三个容器也不会），要再跑一遍 `pnpm stack:up`。mediatool 的 README 第 3 节写的是 `unless-stopped`，这里没有照抄这一行。
 - worker 容器的健康检查看的是租约那一行的心跳（60 秒之内）：进程起来并抢到租约才算健康。只在本地这样写，预发的节点上进程由 systemd 管（D7 第 7.4 节）。
 - mediatool 的调用端还没有挂到媒体任务上（G3-A）：冒烟只验容器健康、约束与套接字连得上。
-- 对象存储的桶、预签名用的对外地址还没有接进 `loadEnv`：`--lan` 的 MinIO 透传现在只有通道，等存储接线的包用。
+- 本地对象存储沿用四个固定开发桶；`MINIO_ENDPOINT`/`MINIO_PUBLIC_ENDPOINT` 已接进 `loadEnv`，真实 COS 驱动仍待接入。
 - 镜像只在本机构建成本机的架构；多架构与推仓库归 W2-25。
