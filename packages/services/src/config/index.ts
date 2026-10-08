@@ -127,6 +127,7 @@ export { createNotices } from "./notices.js";
 export type { AnnouncedNotice, NoticeAnnouncement, Notices, NoticesDeps } from "./notices.js";
 
 export { insertDictItemsMissing } from "./insert-dict-items.js";
+export { localRegionSeeds, LOCAL_REGION_SOURCE, seedLocalRegions } from "./local-regions.js";
 
 export { createConfigAdmin } from "./admin.js";
 export type { ConfigAdmin, ConfigActor, ConfigAdminDeps } from "./admin.js";
