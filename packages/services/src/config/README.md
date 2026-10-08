@@ -68,6 +68,19 @@ const name = await config.dicts.label("industry", "C0101"); // 不看启用状�
 
 ## 5. 跑用例
 
+本地小程序省市区为空时，先导入地区调试数据。基础 `db:seed` 只登记行政区划类型，`db:seed:demo` 也不补地区；重复这两条命令不会产生省市区选项。后台普通新增不可新增国标地区。
+
+```sh
+# 默认只预览，不连库；可给 --province=510000 只取四川
+pnpm --filter @liyoxi/services exec tsx scripts/seed-regions.ts
+# 使用 CLAUDE.md 第 9 节的本机开发连接；不需要字段加密密钥
+APP_ENV=local DATABASE_URL='postgresql://liyoxi:lyx-local-dev@localhost:5442/liyoxi' REDIS_URL='redis://localhost:6389/0' pnpm --filter @liyoxi/services exec tsx scripts/seed-regions.ts --apply
+```
+
+该命令只允许本机 local/test，stg/prod 拒绝。按[民政部2024年快照](https://www.mca.gov.cn/mzsj/xzqh/2025/202401xzqh.html)补缺项，不覆盖已有名称、启停和开通配置；已有层级/父码冲突则整批拒绝。仅为本地调试开放完整三级链，已有祖先关闭或停用时新增下级也不开通。提交后刷新 `dict` 缓存，退出“基础信息”再重新进入即可加载；不是2026实时区划，也不是生产开通方案。
+
+原表34省级、333地级、2846县级，补9个明确标注的选择器中间分组，共3222项。东莞、中山、儋州、嘉峪关无县级记录，港澳台缺下级数据，本地快照保留这些节点但不可选，不编造县区或将功能区当县区；这些地区须补独立数据/地址层级方案才能完成建档。
+
 ```sh
 pnpm --filter @liyoxi/services exec vitest run src/config/
 ```
