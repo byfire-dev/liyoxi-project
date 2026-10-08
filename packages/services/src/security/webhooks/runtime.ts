@@ -25,6 +25,44 @@ import type {
 
 const MINUTE = 60_000;
 const delays = [MINUTE, 5 * MINUTE, 15 * MINUTE, 60 * MINUTE, 360 * MINUTE];
+// 只识别框架对新口返回值的拒绝；来源抛错仍沿用 PERSIST，不能透出原值。
+class InvalidProjectionPayload extends Error {
+  constructor() {
+    super("回调投影载荷非法");
+  }
+}
+const isJson = (value: unknown, ancestors: Set<object>): boolean => {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value !== "object" || ancestors.has(value)) return false;
+  if (
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) !== Object.prototype &&
+    Object.getPrototypeOf(value) !== null
+  )
+    return false;
+  ancestors.add(value);
+  const items: unknown[] = Array.isArray(value) ? Array.from(value) : Object.values(value);
+  const valid = items.every((item) => isJson(item, ancestors));
+  ancestors.delete(value);
+  return valid;
+};
+const projectionPayload = (value: unknown): WebhookPayload => {
+  try {
+    const copy: unknown = structuredClone(value);
+    if (
+      copy === null ||
+      typeof copy !== "object" ||
+      Array.isArray(copy) ||
+      !isJson(copy, new Set())
+    )
+      throw new InvalidProjectionPayload();
+    return copy as WebhookPayload;
+  } catch {
+    // 不携带不可 clone 的原对象、getter 错误或敏感 cause。
+    throw new InvalidProjectionPayload();
+  }
+};
 const terminal = (state: string) => ["processed", "ignored", "dead"].includes(state);
 const stored = (row: WebhookEvent): WebhookStored => ({
   ...row,
@@ -46,6 +84,8 @@ export function createWebhooks(deps: WebhooksOptions): Webhooks {
       throw new TypeError("回调来源非法或重复");
     if (source.fallbackToInbox && (source.provider !== "wechatpay" || source.mode !== "inline"))
       throw new TypeError("只有支付内联来源可登记收件箱兜底");
+    if (source.projectPayload && source.mode !== "inbox")
+      throw new TypeError("载荷投影仅限收件箱来源");
     sources.set(source.provider, source);
   }
   const issued = new WeakMap<
@@ -293,7 +333,14 @@ export function createWebhooks(deps: WebhooksOptions): Webhooks {
       }
       try {
         await deps.tx.run(async (tx) => {
-          const { row, fresh } = await insert(tx, receipt, payload, source.mode);
+          // 投影不能缓存到事务外；重试时重新 clone 验签快照并读取当前事实。
+          // 来源自身异常交给原事务重试/错误映射，只有非法返回值映射 PAYLOAD。
+          const projected = source.projectPayload
+            ? projectionPayload(await source.projectPayload(tx, structuredClone(receipt.event)))
+            : payload;
+          if (source.projectPayload && ["ci", "asr"].includes(source.provider))
+            throw new InvalidProjectionPayload();
+          const { row, fresh } = await insert(tx, receipt, projected, source.mode);
           if (!fresh && terminal(row.processState)) return;
           if (source.mode === "inbox") {
             if (fresh)
@@ -310,7 +357,9 @@ export function createWebhooks(deps: WebhooksOptions): Webhooks {
           }
         });
         return reply(source, true);
-      } catch {
+      } catch (error) {
+        if (error instanceof InvalidProjectionPayload)
+          return reply(source, false, "WEBHOOK_PAYLOAD_INVALID");
         if (!source.fallbackToInbox) return reply(source, false, "WEBHOOK_PERSIST_FAILED");
         try {
           const failure = await deps.tx.run(async (tx) => {
