@@ -39,6 +39,14 @@ node apps/worker/dist/alerts-ack.js reset-webhook --staff <员工UUID> --webhook
 
 原因必填 5–200 字。`ack`/`close` 查真实 `sys.health.manage`，`reset-webhook` 查真实 `flow.ops.manage`；员工必须 active，不造登录会话或二次验证时间。仅操作显式单条对象，状态不允许时拒绝，不重发回调事件。成功只输出命令、对象 ID、状态，退出 0；参数、取消或业务拒绝退出 1，环境或运行故障退出 2。等待已开始的原子事务结果并关闭连接，审计记录员工、CLI 来路和原因。
 
+W2-18 单月修复入口构建为 `dist/analytics-repartition.js`：
+
+```sh
+node apps/worker/dist/analytics-repartition.js YYYY-MM --env test --staff <员工UUID> --note <原因>
+```
+
+月份只接受单个 `YYYY-MM`；显式环境须与 `APP_ENV` 相同，实际 active 员工须有 `sys.super_admin`，原因 5–200 字。只允许当前正式保留窗口及未来三个月，使用应用角色调用受限数据库函数，同事务记录月份自然键、员工和原因审计。成功输出月份与搬移行数、退出 0；输入/权限/取消拒绝退出 1，环境/执行/关闭故障退出 2。非法参数在装配前拒绝，进入的原子事务等待真实结果，最终关闭自身资源。
+
 环境变量只经 `loadEnv` 读（`APP_ENV`、`DATABASE_URL`、`REDIS_URL`、`LOG_LEVEL`，取值见 `CLAUDE.md` 第 9 节）。自检要连一个跑过迁移的库：本地用 `lyx_migrate_check`（只读它的系统目录）。
 
 | 循环 | 节奏 | 队列 | 并发 |
@@ -77,6 +85,7 @@ pnpm --filter @liyoxi/worker exec vitest run test/fault/redis-flush.test.ts   # 
 | `test/recurring.test.ts` | 补登记循环；只在预发登记的任务在生产配置下不存在 |
 | `test/seed-cli.test.ts` | 播种命令：退出码、可重复跑、不打印连接串 |
 | `test/alerts-ack-cli.test.ts` | 严格参数早拒绝、真实权限/原子审计、构建入口真实执行与关停、安全输出 |
+| `test/analytics-repartition-cli.test.ts` | 单月/显式环境早拒绝、实际超级管理员、DEFAULT完整搬移及重复、构建入口和资源关闭 |
 | `test/billing-advance.test.ts` | 账务推进循环：到点的主体逐个推进，被占着的跳过，一个主体出错不影响别的 |
 
 ## 4. 兼容脚本

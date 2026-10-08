@@ -173,6 +173,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           const mediaShutdown = services.shutdownMediaJobs?.();
           const loopResults = await Promise.allSettled([
             services.closeNotify(),
+            services.closeAnalytics?.(),
             ...all.map((one) => one.stop()),
             ...(mediaShutdown ? [mediaShutdown] : []),
           ]);
@@ -193,7 +194,6 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           services.closePublish?.();
           services.closeDelivery?.();
           services.closeWebhooks?.();
-          services.closeAnalytics?.();
           services.closeMediaJobs?.();
           await Promise.allSettled([
             services.closeMediaDrivers?.(),

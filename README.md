@@ -54,4 +54,4 @@ M2 的 25 本任务书已随 PR #124 合入，回调框架与后台通用构件�
 
 ## 客户端上报开发（W2-18）
 
-按[接收先交付计划](docs/plan/changes/W2-18-reporting-first.md)预拆：PR1提供四接口、真实订阅引导、两端上报接线与埋点DML去重清理；PR2的分区job/重分区CLI等待独立数据库能力实际合入。整体仍进行中，本地交付不代表CI或main落地。运行方式及外部配置见[API](apps/api/README.md)、[埋点服务](packages/services/src/analytics/README.md)、[小程序](apps/weapp/README.md)与[后台](apps/admin/README.md)说明；真实微信模板/错误平台与网关仍待W2-27授权验证。
+按[接收先交付计划](docs/plan/changes/W2-18-reporting-first.md)预拆：PR1提供四接口、真实订阅引导、两端上报接线与埋点DML去重清理；PR1与三项独立受限分区能力均已实际进入本地main。PR2的月维护、完整对象归档与单月CLI已通过本地验收和唯一独审，随本次正常提交合入本地main。本地验证不代表远端CI或真实平台落地。运行方式及外部配置见[API](apps/api/README.md)、[埋点服务](packages/services/src/analytics/README.md)、[小程序](apps/weapp/README.md)与[后台](apps/admin/README.md)说明；真实微信模板/错误平台与网关仍待W2-27授权验证。
