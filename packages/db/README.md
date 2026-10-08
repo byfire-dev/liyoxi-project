@@ -187,6 +187,10 @@ PGPASSWORD=lyx-local-dev psql -X -h localhost -p 5442 -U liyoxi -d postgres -c "
 - 分区结构能力由新增迁移 `20261007230600_analytics_partition_capability` 补齐（[计划偏差](../../docs/plan/changes/W2-18-analytics-partition-capability.md)）。`ensure_partition(date) → text` 与 `repartition_month(date) → bigint` 都是受限 `SECURITY DEFINER`：只接 0001–9999 年有限公历月首，固定 `public` 对象、`pg_catalog` 内置函数与安全 `search_path`，月界取 Asia/Shanghai。建分区在父表独占锁内校验现有对象的属主、父关系、精确范围和防改触发器；同名错误对象会失败，default 有当月行时普通建分区也失败。
 - `repartition_month` 只搬指定月，临时停用 default 的行级防改触发器，完整行经本次自建 `pg_temp` 暂存表转回父表；条数及全部列（含主键、来源、收件时刻）必须一致。调用者已有同名 temp 时先拒绝，成功仅删除自建 temp，任何错误或外层回滚恢复 DDL、数据与触发器。应用直接 DDL/改删/清空权限与子表零权限保持原样，readonly 缺省 SELECT 沿用。
 - 数据库只校验结构日期，不以 `now()` 新增保留期规则。W2-18 服务仍要按注入 clock 和既有参数校验允许月份、CLI 环境授权与当前至未来 3 月预建；归档/过期 `DETACH`、`DROP` 仍不在这两个能力内。迁移账号口令不进入 worker。本包是独立结构能力，不能据此宣称 W2-18 整包完成。
+
+- 新增迁移 `20261008183700_analytics_partition_retirement` 单独提供 `lyx_14_analytics_event_retire_partition(date,timestamptz,integer,bigint,text) → boolean`。只接固定月首、注入业务时钟、正式保留月数 13–60、已验证完整归档的行数与 manifest SHA-256；只退役结束边界不晚于时钟减保留期的完整北京时间自然月。父表独占锁内复用上述结构/guard 验证，完整行数匹配才原子 DETACH/DROP，无 CASCADE；缺失分区返回 false，错误不改分区或旁侧表。PUBLIC/readonly 无 EXECUTE，仅授 app，原表 SI 与禁改/删/清空权限保持。
+- 数据库不向对象存储外呼，也不替可信服务验证 manifest 内容。后继 W2-18 PR2 必须先分批导出全部 21 列，写入并校验每块对象与最后的不可变 manifest，再提交实际总行数与 manifest 哈希。只增源表下的锁内行数失配会拒绝退役，导出期间迟到插入须重做归档；不得仅凭最大 UUID 或上传受理声称归档完整。此函数不验证失陷应用凭据伪造的归档证明，不改变 DEFAULT、dedup 或 identity；真实 COS/运维与 W2-18 业务包仍待后继验收。
+- 同既有 auth_event purge 的角色年龄下限，退役函数额外以数据库语句时钟保护最短 13 个月：伪造未来业务时钟不能退役这一范围内的月份，报 `23001`。这只是权限下限，服务仍按注入 clock 与实际 13–60 月配置决定业务保留期；不使用数据库时钟替代业务时间。真实当前月、伪未来时钟和完整行保持的反例固定在能力测试。
 - 窄真库回归：`pnpm --filter @liyoxi/db exec vitest run src/analytics-partitions.test.ts src/grants.test.ts`；使用隔离测试库与真实 `lyx_app`，不修改长驻校验库。
 
 - 两个角色不可登录、不带口令，实例上已有同名角色就不再建（也不改它的属性）。登录账号另建，加为这两个角色的成员（`GRANT lyx_app TO <应用的登录账号>`）；账号的名字、口令、怎么加，由环境初始化做，不进迁移。
