@@ -17,6 +17,7 @@ import {
   CONFIG_KEY,
   paramBody,
   paramDraft,
+  paramDraftValue,
   paramsSearch,
   scheduleInstant,
   valueText,
@@ -186,7 +187,7 @@ export function ParamsPage() {
                   <TypedParamField
                     key={`${fieldEpoch}:${item.key}:${item.latestRev ?? "default"}`}
                     item={item}
-                    value={drafts[item.key]?.value ?? (item.value as Json)}
+                    value={paramDraftValue(item, drafts)}
                     onChange={(value) => change(item.key, value)}
                     error={errors[item.key]}
                     onJsonIssue={(issue) =>
@@ -202,6 +203,9 @@ export function ParamsPage() {
                     {item.description} ·{" "}
                     {item.snapshotOn === "create" ? "创建时快照" : "读取时生效"}
                   </p>
+                  {item.defaultValue === null && (item.type === "int" || item.type === "bp") ? (
+                    <p className="lyx-config-help">清空表示不设。</p>
+                  ) : null}
                   <p>
                     当前：{valueText(item.value)} ·{" "}
                     {item.rev === null ? "内置默认" : `版本 ${item.rev}`}

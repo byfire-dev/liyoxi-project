@@ -111,6 +111,24 @@ describe("W207 typed参数、当前/预约与幂等意图", () => {
     expect(paramIssue({ ...item, type: "int_list" }, [1, 2, 3])).toBeUndefined();
     expect(paramIssue({ ...item, type: "int_list" }, ["1"])).toBeDefined();
   });
+  it("服务端元数据允许不设时保留null，其他参数仍拒绝空值", () => {
+    const nullable = {
+      ...item,
+      key: "invoice.apply_within_days",
+      type: "int" as const,
+      defaultValue: null,
+      value: 30,
+      range: { min: 1, max: 3650 },
+    };
+    expect(paramIssue(nullable, null)).toBeUndefined();
+    expect(
+      paramBody([nullable], { [nullable.key]: { value: null, expectedRev: "4" } }).body,
+    ).toEqual({
+      items: [{ key: nullable.key, value: null, expectedRev: "4" }],
+    });
+    expect(paramIssue({ ...nullable, defaultValue: 30 }, null)).toBeDefined();
+    expect(paramIssue(item, null)).toBeDefined();
+  });
   it("409不改变旧草稿，只有显式核对才替换expectedRev", () => {
     const drafts = { [item.key]: { value: "11:00", expectedRev: "4" } };
     const fresh = { ...item, latestRev: "5", value: "08:00" };

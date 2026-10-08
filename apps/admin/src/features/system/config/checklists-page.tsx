@@ -22,6 +22,7 @@ import {
   CONFIG_KEY,
   checklistBody,
   configTableSearch,
+  createChecklistDiscardIntent,
   createConfigIntent,
   type Checklist,
   type ChecklistBody,
@@ -37,7 +38,10 @@ export function ChecklistsPage() {
     raw = route.useSearch(),
     search = configTableSearch(raw, true);
   const canEdit = useCan("flow.checklist.manage");
-  const [editing, setEditing] = useState<{ source?: Checklist }>();
+  const [editing, setEditing] = useState<{
+    source?: Checklist;
+    discard: ReturnType<typeof createChecklistDiscardIntent>;
+  }>();
   const [action, setAction] = useState<{ row: Checklist; action: "activate" | "discard" }>(),
     [notice, setNotice] = useState<string>();
   const list = useQuery({
@@ -117,7 +121,10 @@ export function ChecklistsPage() {
         subtitle="新版本先存为草稿；启用会让同编码旧版本退役。既有业务快照保持只读。"
         extra={
           canEdit ? (
-            <Button type="primary" onClick={() => setEditing({})}>
+            <Button
+              type="primary"
+              onClick={() => setEditing({ discard: createChecklistDiscardIntent() })}
+            >
               新建清单版本
             </Button>
           ) : undefined
@@ -181,7 +188,7 @@ export function ChecklistsPage() {
           {canEdit ? (
             <Button
               onClick={() => {
-                setEditing({ source: detail });
+                setEditing({ source: detail, discard: createChecklistDiscardIntent(detail) });
                 void navigate({ search: writeTableSearch(search) });
               }}
             >
@@ -196,16 +203,17 @@ export function ChecklistsPage() {
           close={() => setEditing(undefined)}
           save={async (body, key) => {
             try {
-              if (editing.source?.status === "draft")
-                await configResult(
+              await editing.discard(async (id, discardKey) =>
+                configResult(
                   await services.api.client.POST(
                     "/api/v1/admin/checklist-templates/{checklistTemplateId}/discard",
                     {
-                      params: { path: { checklistTemplateId: editing.source.checklistTemplateId } },
-                      headers: { "Idempotency-Key": `${key}_discard` },
+                      params: { path: { checklistTemplateId: id } },
+                      headers: { "Idempotency-Key": discardKey },
                     },
                   ),
-                );
+                ),
+              );
               await configResult(
                 await services.api.client.POST("/api/v1/admin/checklist-templates", {
                   body,

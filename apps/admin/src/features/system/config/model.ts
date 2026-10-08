@@ -162,7 +162,12 @@ export interface ParamDraft {
 export function paramDraft(item: Param): ParamDraft {
   return { value: item.value as Json, expectedRev: item.latestRev };
 }
+export function paramDraftValue(item: Param, drafts: Readonly<Record<string, ParamDraft>>): Json {
+  const draft = drafts[item.key];
+  return draft === undefined ? (item.value as Json) : draft.value;
+}
 export function paramIssue(item: Param, value: Json): string | undefined {
+  if (value === null) return item.defaultValue === null ? undefined : "此参数不能设为空";
   if (item.type === "int" || item.type === "bp") {
     if (typeof value !== "number" || !Number.isSafeInteger(value)) return "请填写整数";
     const min = item.range?.min,
@@ -287,6 +292,17 @@ export function checklistBody(
   return parsed.success
     ? { body: parsed.data as ChecklistBody, errors: {} }
     : { errors: schemaErrors(parsed.error.issues) };
+}
+/** 退役是独立且不可撤销的一步；创建改稿不能换退役键，未知响应只用原键回放。 */
+export function createChecklistDiscardIntent(source?: Checklist) {
+  const id = source?.status === "draft" ? source.checklistTemplateId : undefined;
+  const key = newIdempotencyKey("checklist-discard");
+  let completed = false;
+  return async (discard: (id: string, key: string) => Promise<unknown>) => {
+    if (!id || completed) return;
+    await discard(id, key);
+    completed = true;
+  };
 }
 /** 相同 body 重试沿用键；用户实质改动后更换键，同步挡住重复提交。 */
 export function createConfigIntent(action: string, makeKey = () => newIdempotencyKey(action)) {
