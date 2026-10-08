@@ -256,7 +256,7 @@ describe("对公付款 TTL 的真实 worker 执行", () => {
           pause: async () => {},
           close: async () => {
             if (queue === "outbox_delivery") throw new Error("consumer failed");
-            if (queue === "promote") {
+            if (queue === "media_job") {
               entered();
               await delayed;
             }

@@ -108,3 +108,9 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 [官方安全模式与回复封装](https://developers.weixin.qq.com/miniprogram/dev/framework/server-ability/message-push.html)、[客服四类请求](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/customer-message/receive.html)、[订阅事件与单项 List](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/subscribe-message.html) 与[官方图片回调结果有效性](https://developers.weixin.qq.com/miniprogram/dev/server/API/sec-center/sec-check/api_mediacheckasync.html) 于2026-10-08取得公开 HTTP200正文。客服转接行为遵循正式 h01 §3.4；实际平台接收与运营客服配置继续未验，不以本地加密回复等同真实平台闭环。
 
 `wechat-message.test.ts` 使用独立 node:crypto 打包的假安全请求及隔离真库，验证同 Tx 投影/emit、零敏感载荷、20次去重、40001新事务重查、解绑重绑重放保真、持久接收时间、保存点回滚、未配处理器与正式 Provider TX guard。测试注入真实自然键读取，完整组合根另用 identity 公开函数验接线。此叶不标两 HTTP、一回调 x01、三桩或整包完成。
+
+## 9. CI 媒体只唤醒来源（W3-03）
+
+`createCiWebhookSource({key,wake})` 经既有 W2-01 inline 模式：query.sig 只验 HMAC-SHA256(path.mediaJobId) 的规范 base64url，实际公共 adapter 传可选 path params，其余框架不变。JSON 只抽一个 JobsDetail 中的安全 JobId（官方数组最多 1，也接受单对象）；XML 只抽 Response/JobsDetail/JobId，拒 DTD/实体扩展/属性/重复标量。raw 体最多 64KiB、深度 32 为来源防御界限，入口仍原 1MiB 逐 chunk 限制，不宣传 64KiB 流入口机制。eventId=mediaJobId:JobId，payload=null，不入库任意云状态或原正文。
+
+处理函数在原收件事务内调用注入 media.wakeCiJob：仅 submitted 且外部号相符提前 nextRunAt，其余 ignored；ACK 之后队列只加速，查询结果仍是真实事实。签错 401、坏 JobId 400、未配或持久失败 500 均空正文；DB 故障与收件整体回滚，不能重放伪 success。本包没有真实云收到回调的结论。

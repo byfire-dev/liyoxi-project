@@ -61,6 +61,14 @@ export const ENV_KEYS: readonly string[] = [
   "COS_SIGNER_KEYS_FILE",
   "COS_STS_ISSUER_KEYS_FILE",
   "COS_WORKER_KEYS_FILE",
+  "CI_REGION",
+  "CI_BUCKET_SECURE",
+  "CI_BUCKET_ASSET",
+  "CI_BUCKET_MEDIA",
+  "CI_BUCKET_PUB",
+  "CI_WORKER_KEYS_FILE",
+  "CI_CALLBACK_KEY_FILE",
+  "CI_CALLBACK_ORIGIN",
 ];
 
 /** 数据加密密钥文件的内容：current 是当前 kid，keys 是 kid → base64 写的 32 字节 */
@@ -102,6 +110,15 @@ export interface Env {
     readonly signer?: { readonly secretId: string; readonly secretKey: string };
     readonly stsIssuer?: { readonly secretId: string; readonly secretKey: string };
     readonly worker?: { readonly secretId: string; readonly secretKey: string };
+  };
+  readonly CI?: {
+    readonly callback: { readonly key: string; readonly origin: string };
+    readonly worker?: {
+      readonly region: string;
+      readonly buckets: Readonly<Record<"secure" | "asset" | "media" | "pub", string>>;
+      readonly secretId: string;
+      readonly secretKey: string;
+    };
   };
   /** 数据加密密钥；两份密钥文件都没配时没有这一项 */
   readonly DATA_KEYS?: DataKeysConfig;
@@ -449,6 +466,93 @@ function readWechatFile(source: EnvSource, key: string, issues: EnvIssue[]): str
   return undefined;
 }
 
+function readCi(source: EnvSource, issues: EnvIssue[]): Env["CI"] {
+  const callbackKey = readWechatFile(source, "CI_CALLBACK_KEY", issues);
+  const workerText = readWechatFile(source, "CI_WORKER_KEYS", issues);
+  const fields = [
+    "CI_REGION",
+    "CI_BUCKET_SECURE",
+    "CI_BUCKET_ASSET",
+    "CI_BUCKET_MEDIA",
+    "CI_BUCKET_PUB",
+  ] as const;
+  const values = fields.map((key) => read(source, key));
+  const origin = read(source, "CI_CALLBACK_ORIGIN");
+  if (!callbackKey && !workerText && !origin && !values.some(Boolean)) return undefined;
+  if (
+    !callbackKey ||
+    Buffer.byteLength(callbackKey) < 32 ||
+    Buffer.byteLength(callbackKey) > 256 ||
+    !/^[\x21-\x7e]+$/.test(callbackKey)
+  )
+    issues.push({ key: "CI_CALLBACK_KEY_FILE", reason: "回调密钥须为32至256字节可见ASCII" });
+  try {
+    const parsed = new URL(origin ?? "");
+    if (
+      parsed.protocol !== "https:" ||
+      parsed.username ||
+      parsed.password ||
+      parsed.search ||
+      parsed.hash ||
+      parsed.pathname !== "/"
+    )
+      throw new Error();
+  } catch {
+    issues.push({
+      key: "CI_CALLBACK_ORIGIN",
+      reason: "须为固定HTTPS根origin，无用户信息/查询/片段",
+    });
+  }
+  let worker: NonNullable<Env["CI"]>["worker"];
+  if (workerText || values.some(Boolean)) {
+    for (const [index, key] of fields.entries())
+      if (!values[index]) issues.push({ key, reason: "CI worker地域与四桶须成组配置" });
+    if (!workerText)
+      issues.push({ key: "CI_WORKER_KEYS_FILE", reason: "CI worker须有独立角色FILE" });
+    const region = values[0];
+    if (region && !/^[a-z]+(?:-[a-z0-9]+){1,4}$/.test(region))
+      issues.push({ key: "CI_REGION", reason: "不是合法地域" });
+    for (const [index, value] of values.entries())
+      if (index > 0 && value && !/^[a-z0-9][a-z0-9-]{1,50}-[0-9]{5,20}$/.test(value))
+        issues.push({ key: fields[index]!, reason: "须为物理桶名" });
+    if (
+      new Set(
+        values
+          .slice(1)
+          .filter(Boolean)
+          .map((value) => value!.split("-").at(-1)),
+      ).size > 1
+    )
+      issues.push({ key: "CI_BUCKET_SECURE", reason: "四桶须同一账号" });
+    try {
+      const role: unknown = JSON.parse(workerText ?? "");
+      if (
+        !isRecord(role) ||
+        Object.keys(role).some((key) => key !== "secretId" && key !== "secretKey") ||
+        typeof role.secretId !== "string" ||
+        !/^[A-Za-z0-9_-]{1,128}$/.test(role.secretId) ||
+        typeof role.secretKey !== "string" ||
+        !/^[\x21-\x7e]{1,256}$/.test(role.secretKey)
+      )
+        throw new Error();
+      if (region && values[1] && values[2] && values[3] && values[4])
+        worker = {
+          region,
+          buckets: { secure: values[1], asset: values[2], media: values[3], pub: values[4] },
+          secretId: role.secretId,
+          secretKey: role.secretKey,
+        };
+    } catch {
+      issues.push({
+        key: "CI_WORKER_KEYS_FILE",
+        reason: "须为合法secretId/secretKey JSON普通文件",
+      });
+    }
+  }
+  if (!callbackKey || !origin) return undefined;
+  return { callback: { key: callbackKey, origin }, ...(worker ? { worker } : {}) };
+}
+
 function readCos(source: EnvSource, issues: EnvIssue[]): Env["COS"] {
   const fields = [
     "COS_REGION",
@@ -604,6 +708,7 @@ export function loadEnv(
   const wechat = readWechat(source, issues);
   const minio = readMinio(source, appEnv, issues);
   const cos = readCos(source, issues);
+  const ci = readCi(source, issues);
   const clientErrorProjects = readKeyFile(
     source,
     "CLIENT_ERROR_PROJECTS",
@@ -640,6 +745,7 @@ export function loadEnv(
     REDIS_URL,
     ...(minio ? { MINIO: minio } : {}),
     ...(cos ? { COS: cos } : {}),
+    ...(ci ? { CI: ci } : {}),
     ...(dataKeys && bidxKeys ? { DATA_KEYS: dataKeys, BIDX_KEYS: bidxKeys } : {}),
     ...(authKeys ? { AUTH_KEYS: authKeys } : {}),
     ...(wechat ? { WECHAT: wechat } : {}),

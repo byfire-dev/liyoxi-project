@@ -36,7 +36,7 @@ export type WorkerLoop = keyof typeof LOOP_INTERVALS_MS;
 export const QUEUE_CONCURRENCY = {
   outbox_delivery: 4,
   timer_run: 4,
-  promote: 2,
+  media_job: 10,
 } as const satisfies Partial<Record<QueueId, number>>;
 export type WorkerQueue = keyof typeof QUEUE_CONCURRENCY;
 
@@ -95,7 +95,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
       QUEUE_CONCURRENCY.outbox_delivery,
       async (ref) => void (await services.consume(ref)),
     ),
-    promote: channel.consume<{ jobId: string }>("promote", QUEUE_CONCURRENCY.promote, (ref) =>
+    media_job: channel.consume<{ jobId: string }>("media_job", QUEUE_CONCURRENCY.media_job, (ref) =>
       services.promoteFile(ref),
     ),
     timer_run: channel.consume<TimerRef>(
@@ -116,25 +116,20 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
       }),
     ]),
   );
-  const promoteRecovery = createLoop({
-    name: "promote.recovery",
-    intervalMs: options.domainIntervals?.["promote.recovery"] ?? 30_000,
-    run: () => services.scanPromote(),
-    onError,
-    monotonic,
-  });
-  const all = [...Object.values(loops), ...Object.values(domainLoops), promoteRecovery];
+  const all = [...Object.values(loops), ...Object.values(domainLoops)];
   const queues = Object.values(consumers);
 
   let active = false;
   let stopping: Promise<void> | undefined;
   const promote = (): void => {
     active = true;
+    services.resumeMediaJobs?.();
     for (const one of all) one.start();
     for (const one of queues) one.start();
   };
   const demote = (): void => {
     active = false;
+    void services.pauseMediaJobs?.().catch((error) => onError("media_job_run.pause", error));
     for (const one of all) void one.stop();
     for (const one of queues) void one.pause().catch(() => undefined);
   };
@@ -170,7 +165,11 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
         active = false;
         try {
           // 一个关闭失败不能提前解绑：循环与全部消费者都收完后才清理绑定。
-          const loopResults = await Promise.allSettled(all.map((one) => one.stop()));
+          const mediaShutdown = services.shutdownMediaJobs?.();
+          const loopResults = await Promise.allSettled([
+            ...all.map((one) => one.stop()),
+            ...(mediaShutdown ? [mediaShutdown] : []),
+          ]);
           const queueResults = await Promise.allSettled(
             queues.map((one) => one.close(SHUTDOWN_WAIT_MS)),
           );
@@ -189,7 +188,11 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           services.closeDelivery?.();
           services.closeWebhooks?.();
           services.closeAnalytics?.();
-          await services.closeStorageDrivers?.();
+          services.closeMediaJobs?.();
+          await Promise.allSettled([
+            services.closeMediaDrivers?.(),
+            services.closeStorageDrivers?.(),
+          ]);
         }
       })());
     },

@@ -29,6 +29,7 @@ const clock = createClock();
 let prisma: Awaited<ReturnType<typeof db.prisma>>;
 let channel: ReturnType<typeof createQueueChannel>;
 let services: ReturnType<typeof buildWorkerServices>;
+let assembly: ReturnType<typeof assembleForTest>;
 let media: ReturnType<typeof createMedia>;
 let runtime: ReturnType<typeof createWorkerRuntime>;
 let fake: ReturnType<typeof createFakeProviders>;
@@ -38,7 +39,7 @@ const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 beforeAll(async () => {
   prisma = await db.prisma();
   const make = createFactories({ db: prisma, clock });
-  const assembly = assembleForTest({ entry: "worker", omitReal: ["recurringJobs"] });
+  assembly = assembleForTest({ entry: "worker", omitReal: ["recurringJobs"] });
   fake = createFakeProviders({ clock });
   await redis.flush();
   channel = createQueueChannel({ redisUrl: process.env.REDIS_URL!, prefix: `${redis.prefix}bull` });
@@ -89,7 +90,24 @@ beforeAll(async () => {
 }, 180_000);
 // pause 不等待已经取得的阻塞队列请求；每例用独立消费者并完整关闭，
 // 避免上一例的消费者在下一例布置过期租约前把新任务执行完。
-beforeEach(() => {
+beforeEach(async () => {
+  await services.shutdownMediaJobs?.();
+  services.closeOrder?.();
+  services.closeBillingTimers?.();
+  services.closePublish?.();
+  services.closeDelivery?.();
+  services.closeWebhooks?.();
+  services.closeAnalytics?.();
+  services.closeMediaJobs?.();
+  await Promise.allSettled([services.closeMediaDrivers?.(), services.closeStorageDrivers?.()]);
+  services = buildWorkerServices({
+    appEnv: "test",
+    prisma,
+    assembly,
+    channel,
+    clock,
+    providers: fake,
+  });
   runtime = createWorkerRuntime({ services, channel, logger: silentLogger });
 });
 
@@ -99,6 +117,7 @@ afterEach(async () => {
 afterAll(async () => {
   await runtime?.stop();
   await channel?.close();
+  await media?.jobs.shutdown();
   await serviceRuntime?.close();
 });
 async function queued() {
@@ -127,20 +146,22 @@ async function waitStored(fileId: string) {
   throw new Error("promote 消费者没有把文件入库");
 }
 describe("promote 生产队列和数据库恢复", () => {
-  it("独立前缀队列被清后，30 秒扫描重唤醒，重复投递仅一个 stored 事实", async () => {
+  it("独立前缀队列被清后，统一扫描直接恢复，重复投递仅一个 stored 事实", async () => {
     const file = await queued();
-    expect(QUEUE_CONCURRENCY.promote).toBe(2);
+    expect(QUEUE_CONCURRENCY.media_job).toBe(10);
     await redis.flush();
     expect((await prisma.mediaJob.findUniqueOrThrow({ where: { id: file.job.id } })).state).toBe(
       "queued",
     );
-    expect(await services.scanPromote()).toBe(0);
-    clock.advance(30_001);
     expect(await services.scanPromote()).toBe(1);
-    await channel.enqueue("promote", uuidv7(), { jobId: file.job.id });
-    runtime.consumers.promote.start();
     await waitStored(file.fileId);
-    await runtime.consumers.promote.pause();
+    expect((await prisma.fileObject.findUniqueOrThrow({ where: { id: file.fileId } })).status).toBe(
+      "stored",
+    );
+    await channel.enqueue("media_job", uuidv7(), { jobId: file.job.id });
+    runtime.consumers.media_job.start();
+    await waitStored(file.fileId);
+    await runtime.consumers.media_job.pause();
     expect(
       await prisma.outboxEvent.count({
         where: { eventType: "file.stored", aggregateId: file.fileId },
@@ -161,9 +182,9 @@ describe("promote 生产队列和数据库恢复", () => {
       },
     });
     expect(await services.scanPromote()).toBe(1);
-    runtime.consumers.promote.start();
+    runtime.consumers.media_job.start();
     await waitStored(file.fileId);
-    await runtime.consumers.promote.pause();
+    await runtime.consumers.media_job.pause();
     expect(await prisma.mediaJob.findUniqueOrThrow({ where: { id: file.job.id } })).toMatchObject({
       state: "succeeded",
       attemptNo: 2,
@@ -306,7 +327,7 @@ phoneAcceptance(
       });
       expect(uploaded.status).toBe(204);
       await uploaded.body?.cancel();
-      ownWorker.consumers.promote.start();
+      ownWorker.consumers.media_job.start();
       // complete 自己创建 media_job 并唤醒 BullMQ；测试不调用入库、补偿扫描或入队接口。
       await api.media.complete(ownActor, file.fileId);
       await expect

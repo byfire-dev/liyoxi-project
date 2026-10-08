@@ -1,7 +1,9 @@
-import { defineRegistration, implementKeyed } from "../kernel/index.js";
+import { defineRegistration, implementKeyed, invariantNow } from "../kernel/index.js";
 import { fileCategoryGuardPort, fileRefTypePort } from "./ports.js";
 import { findI2Violations, findI14Violations } from "./invariants.js";
 import { mediaDeliveryRefTypes } from "./production-stub.js";
+import { boundMediaJobs } from "./jobs/binding.js";
+import { findI10Violations, findI11Violations } from "./jobs/invariants.js";
 export const registration = defineRegistration("media", {
   ports: [fileRefTypePort, fileCategoryGuardPort],
   portImplementations: [
@@ -9,6 +11,20 @@ export const registration = defineRegistration("media", {
     implementKeyed(fileRefTypePort, "upload_batch", mediaDeliveryRefTypes.upload_batch),
   ],
   invariants: [
+    {
+      code: "media.I10",
+      severity: "P2",
+      modes: ["quick", "full"],
+      heal: "heal_only",
+      run: (tx, scope, ctx) => findI10Violations(tx, scope, invariantNow(ctx), boundMediaJobs()),
+    },
+    {
+      code: "media.I11",
+      severity: "P2",
+      modes: ["quick", "full"],
+      heal: "heal_only",
+      run: (tx, scope, ctx) => findI11Violations(tx, scope, invariantNow(ctx), boundMediaJobs()),
+    },
     {
       code: "media.I2",
       severity: "P2",

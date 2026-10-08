@@ -23,3 +23,6 @@ export const H01_HOOKS = defineRouteDoc("h01-hooks", [
 ]);
 
 export * from "./wechat.schemas.js";
+
+export * from "./ci.js";
+export * from "./ci.schemas.js";

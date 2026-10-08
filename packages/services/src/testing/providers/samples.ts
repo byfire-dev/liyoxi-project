@@ -11,7 +11,9 @@ import type {
 
 export type ProviderInputs = {
   [K in ProviderName]: {
-    [M in ProviderMethodName<Providers[K]>]: Providers[K][M] extends (input: infer I) => unknown
+    [M in ProviderMethodName<Providers[K]>]: NonNullable<Providers[K][M]> extends (
+      input: infer I,
+    ) => unknown
       ? I
       : never;
   };
@@ -94,6 +96,15 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
       userData: "sample-job:2",
     },
     audit: { src: SAMPLE_REF, scenes: ["porn", "politics"], userData: "sample-job:3" },
+    describe: { jobId: "fake-job-1", family: "media" },
+    find: {
+      family: "media",
+      tag: "Transcode",
+      userData: "sample-job:3",
+      createdAfter: new Date("2026-01-01T00:00:00Z"),
+      createdBefore: new Date("2026-01-02T00:00:00Z"),
+    },
+    cancel: { jobId: "fake-job-1", family: "media" },
   },
   ocr: {
     recognizeBusinessLicense: { imageUrl: "https://example.invalid/license.jpg" },

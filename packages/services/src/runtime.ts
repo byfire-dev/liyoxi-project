@@ -89,7 +89,7 @@ import type { Health, StartupCheck } from "./ops/index.js";
 import type { Providers } from "./providers/types.js";
 import { createContent, bindContent } from "./content/index.js";
 import type { Content } from "./content/index.js";
-import { createMedia } from "./media/index.js";
+import { createMedia, bindMediaJobs } from "./media/index.js";
 import type { Media } from "./media/index.js";
 import { createRateLimiter } from "./rate-limit.js";
 import type { RateLimiter } from "./rate-limit.js";
@@ -100,6 +100,7 @@ import {
   bindWebhooks,
   createWebhooks,
   createWechatMessageSource,
+  createCiWebhookSource,
 } from "./security/index.js";
 import type { Webhooks, WebhookSource } from "./security/index.js";
 import {
@@ -233,6 +234,8 @@ export interface Runtime {
  */
 export function createRuntime(options: RuntimeOptions): Runtime {
   const { entry, env, version } = options;
+  if (entry === "worker" && env.CI && !env.CI.worker)
+    throw new TypeError("CI worker入口缺少worker角色");
   if (env.COS && (entry === "worker" ? !env.COS.worker : !env.COS.signer || !env.COS.stsIssuer))
     throw new TypeError("当前进程 COS 角色配置不完整");
   const clock = options.clock ?? systemClock;
@@ -307,6 +310,18 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       appEnv: env.APP_ENV,
       logger,
       settings: {
+        ...(entry === "worker" && env.CI?.worker
+          ? {
+              media: {
+                ci: {
+                  region: env.CI.worker.region,
+                  buckets: env.CI.worker.buckets,
+                  worker: { secretId: env.CI.worker.secretId, secretKey: env.CI.worker.secretKey },
+                  callback: env.CI.callback,
+                },
+              },
+            }
+          : {}),
         ...(env.MINIO ? { storage: { minio: env.MINIO } } : {}),
         ...(env.COS
           ? {
@@ -324,6 +339,14 @@ export function createRuntime(options: RuntimeOptions): Runtime {
           : {}),
         ...(env.WECHAT ? { wechat: { appid: env.WECHAT.appid, secret: env.WECHAT.secret } } : {}),
       },
+      ...(entry === "worker" && env.CI?.worker
+        ? {
+            media: {
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => wechatClosers.push(close),
+            },
+          }
+        : {}),
       ...(env.COS
         ? {
             storage: {
@@ -367,7 +390,13 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     tx,
     clock,
     events,
-    sources: options.webhookSources ?? wechatSources,
+    sources: options.webhookSources ?? [
+      ...wechatSources,
+      createCiWebhookSource({
+        key: env.CI?.callback.key,
+        wake: (tx, input) => media.wakeCiJob(tx, input),
+      }),
+    ],
     alerts: alertsOf(assembly),
   });
   const unbindWebhooks = bindWebhooks(webhooks);
@@ -405,6 +434,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       recentWechatOpenid,
     },
   });
+  const unbindMediaJobs = bindMediaJobs(media.jobs);
   const unbindContent = bindContent(assembly);
   const unbindPublish = bindPublish(assembly);
   const unbindDelivery = bindDelivery({
@@ -594,6 +624,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
+      await media.jobs.shutdown();
+      unbindMediaJobs();
       await Promise.allSettled(wechatClosers.map((close) => close()));
       await clientErrors.close();
       unbindOrderStart();

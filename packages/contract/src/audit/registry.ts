@@ -152,6 +152,7 @@ export const AUDIT_TARGET_TYPES = [
   "work_calendar_day",
   "timer", // W2-23：失败定时器人工恢复/取消
   "outbox_delivery", // W2-23：事件×订阅者复合键人工重投
+  "media_job", // W3-03：媒体任务人工重试
 ] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 

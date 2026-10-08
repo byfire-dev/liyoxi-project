@@ -1,9 +1,9 @@
 import { AppError, lockRows, uuidv7 } from "../kernel/index.js";
 import type { IdentityContext, Tx } from "../kernel/index.js";
 import type { MediaJob } from "@liyoxi/db";
-import type { StorageBucket, ContentCheckOutcome } from "../providers/types.js";
+import type { StorageBucket } from "../providers/types.js";
 import type { BoundMediaDeps, FileRow } from "./context.js";
-import { notifyPromote } from "./upload.js";
+import type { MediaJobHandler } from "./jobs/types.js";
 
 export interface WechatImageResultInput {
   traceId: string;
@@ -12,7 +12,6 @@ export interface WechatImageResultInput {
 }
 const WX_DEADLINE = 35 * 60_000;
 const CI_DEADLINE = 15 * 60_000;
-const LEASE = 2 * 60_000;
 const categories = [
   "profile_image",
   "profile_promo",
@@ -126,187 +125,144 @@ const currentFile = (job: MediaJob, file: FileRow | null): file is FileRow => {
     src.key === file.objectKey
   );
 };
-export async function runWechatImageAudit(deps: BoundMediaDeps, jobId: string): Promise<void> {
+const auditInput = (value: unknown) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const input = value as { src?: { bucket?: unknown; key?: unknown }; scenes?: unknown };
+  return (
+    Object.keys(input).length === 2 &&
+    Object.keys(input).every((key) => ["src", "scenes"].includes(key)) &&
+    input.src !== null &&
+    typeof input.src === "object" &&
+    !Array.isArray(input.src) &&
+    Object.keys(input.src).length === 2 &&
+    ["secure", "asset", "media", "pub"].includes(String(input.src.bucket)) &&
+    typeof input.src.key === "string" &&
+    Buffer.byteLength(input.src.key) <= 1024 &&
+    input.src.key.length > 0 &&
+    !/\p{Cc}/u.test(input.src.key) &&
+    Array.isArray(input.scenes) &&
+    input.scenes.length === 1 &&
+    input.scenes[0] === "profile"
+  );
+};
+const auditOutput = (value: unknown): value is { verdict: "pass" | "review" | "block" } =>
+  value !== null &&
+  typeof value === "object" &&
+  !Array.isArray(value) &&
+  ["pass", "review", "block"].includes((value as { verdict: string }).verdict);
+
+export function createWechatImageHandlers(deps: BoundMediaDeps): readonly MediaJobHandler[] {
   const binding = deps.wechatImage;
-  if (!binding) return;
-  const owner = uuidv7();
-  const claim = await deps.tx.run(async (tx) => {
-    await lockRows(tx, "media_job", [jobId]);
-    const job = await tx.mediaJob.findUnique({ where: { id: jobId } });
-    const now = deps.clock.now();
-    if (
-      !job ||
-      !["audit_image_wx", "audit_image"].includes(job.kind) ||
-      job.dedupeKey !== `${job.kind}:${job.subjectId}:v1` ||
-      (job.kind === "audit_image_wx"
-        ? job.provider !== "wechat" || job.mode !== "remote"
-        : job.provider !== binding.fallback.status || job.mode !== "local") ||
-      !["queued", "running", "submitting", "submitted"].includes(job.state) ||
-      job.nextRunAt > now
-    )
-      return null;
+  if (!binding) return [];
+  const current: MediaJobHandler["current"] = async (tx, job) => {
     await lockRows(tx, "file_object", [job.subjectId]);
-    const file = await tx.fileObject.findUnique({ where: { id: job.subjectId } });
-    if (!currentFile(job, file)) {
-      await tx.mediaJob.update({
-        where: { id: job.id },
-        data: { state: "canceled", finishedAt: now, leaseOwner: null, updatedAt: now },
-      });
-      return null;
-    }
-    if (
-      job.kind === "audit_image_wx" &&
-      (job.state === "submitted" ||
-        job.state === "submitting" ||
-        job.deadlineAt <= now ||
-        job.attemptNo >= job.maxAttempts)
-    )
-      return { wake: await fallback(tx, deps, job, file, "WX_IMAGE_TIMEOUT") };
-    if (job.deadlineAt <= now || job.attemptNo >= job.maxAttempts) {
-      await tx.mediaJob.update({
-        where: { id: job.id },
-        data: {
+    return currentFile(job, await tx.fileObject.findUnique({ where: { id: job.subjectId } }));
+  };
+  const wx: MediaJobHandler = {
+    kind: "audit_image_wx",
+    provider: "wechat",
+    mode: "remote",
+    validInput: auditInput,
+    validOutput: () => false,
+    current,
+    prepare: async (tx, job) => {
+      const file = await tx.fileObject.findUniqueOrThrow({ where: { id: job.subjectId } });
+      const identity =
+        binding.appid && binding.provider.configured && file.uploadActorId
+          ? await binding.recentWechatOpenid(tx, {
+              merchantUserId: file.uploadActorId,
+              appid: binding.appid,
+              now: deps.clock.now(),
+            })
+          : null;
+      return { file, identity };
+    },
+    execute: async (_job, context, signal) => {
+      const { file, identity } = context as { file: FileRow; identity: { openid: string } | null };
+      if (!identity)
+        return {
           state: "failed",
-          finishedAt: now,
-          errorCode: "IMAGE_AUDIT_EXHAUSTED",
-          errorMessage: "Image audit deadline or attempts exhausted",
-          updatedAt: now,
-        },
+          failure: { code: "WX_IMAGE_IDENTITY_UNAVAILABLE", retryable: false },
+        };
+      if (signal.aborted) return { state: "pending" };
+      const signed = await deps.storage.presignGet({
+        bucket: file.bucket as StorageBucket,
+        key: file.objectKey,
+        expiresSec: 3600,
+        disposition: "inline",
       });
-      return null;
-    }
-    const identity =
-      job.kind === "audit_image_wx" &&
-      binding.appid &&
-      binding.provider.configured &&
-      file.uploadActorId
-        ? await binding.recentWechatOpenid(tx, {
-            merchantUserId: file.uploadActorId,
-            appid: binding.appid,
-            now,
-          })
-        : null;
-    if (job.kind === "audit_image_wx" && !identity)
-      return { wake: await fallback(tx, deps, job, file, "WX_IMAGE_IDENTITY_UNAVAILABLE") };
-    await tx.mediaJob.update({
-      where: { id: job.id },
-      data: {
-        state: job.kind === "audit_image_wx" ? "submitting" : "running",
-        attemptNo: { increment: 1 },
-        leaseOwner: owner,
-        nextRunAt: new Date(now.getTime() + LEASE),
-        startedAt: job.startedAt ?? now,
-        updatedAt: now,
-      },
-    });
-    return { job, file, identity, attempt: job.attemptNo + 1 };
-  });
-  if (!claim) return;
-  if ("wake" in claim) {
-    await notifyPromote(deps, claim.wake!);
-    return;
-  }
-  let outcome: { ok: true; value: ContentCheckOutcome } | { ok: false } = { ok: false };
-  if (claim.job.kind === "audit_image_wx") {
-    const signed = await deps.storage.presignGet({
-      bucket: claim.file.bucket as StorageBucket,
-      key: claim.file.objectKey,
-      expiresSec: 3600,
-      disposition: "inline",
-    });
-    if (signed.ok)
-      outcome = await binding.provider.checkImage({
-        openid: claim.identity!.openid,
+      if (!signed.ok || signal.aborted)
+        return { state: "failed", failure: { code: "WX_IMAGE_SUBMIT_FAILED", retryable: false } };
+      const result = await binding.provider.checkImage({
+        openid: identity.openid,
         scene: "profile",
         mediaUrl: signed.value.url,
+        signal,
       });
-  } else {
-    const audited = await binding.fallback.audit({
-      src: { bucket: claim.file.bucket as StorageBucket, key: claim.file.objectKey },
-      scenes: ["profile"],
-      userData: `${claim.job.id}:${claim.attempt}`,
-    });
-    if (
-      audited.ok &&
-      audited.value.processed &&
-      ["pass", "review", "block"].includes(audited.value.verdict)
-    )
-      outcome = { ok: true, value: { verdict: audited.value.verdict } };
-  }
-  const wake = await deps.tx.run(async (tx) => {
-    await lockRows(tx, "media_job", [jobId]);
-    const job = await tx.mediaJob.findUniqueOrThrow({ where: { id: jobId } });
-    const now = deps.clock.now();
-    if (
-      job.state !== (claim.job.kind === "audit_image_wx" ? "submitting" : "running") ||
-      job.attemptNo !== claim.attempt ||
-      job.leaseOwner !== owner ||
-      job.nextRunAt <= now
-    )
-      return null;
-    await lockRows(tx, "file_object", [job.subjectId]);
-    const file = await tx.fileObject.findUnique({ where: { id: job.subjectId } });
-    if (!currentFile(job, file)) {
-      await tx.mediaJob.update({
-        where: { id: job.id },
-        data: { state: "canceled", finishedAt: now, leaseOwner: null, updatedAt: now },
+      if (!result.ok || result.value.verdict !== "pending" || !result.value.traceId)
+        return { state: "failed", failure: { code: "WX_IMAGE_SUBMIT_FAILED", retryable: false } };
+      return {
+        state: "submitted",
+        externalJobId: result.value.traceId,
+        nextRunAt: _job.deadlineAt,
+      };
+    },
+    recover: async () => ({
+      state: "failed",
+      failure: { code: "WX_IMAGE_TIMEOUT", retryable: false },
+    }),
+    poll: async () => ({ state: "pending" }),
+    finish: async (tx, job) => {
+      if (job.state !== "failed") return;
+      const file = await tx.fileObject.findUniqueOrThrow({ where: { id: job.subjectId } });
+      const reason =
+        job.errorCode === "MEDIA_JOB_EXHAUSTED" || job.errorCode === "MEDIA_JOB_DEADLINE"
+          ? "WX_IMAGE_TIMEOUT"
+          : (job.errorCode ?? "WX_IMAGE_SUBMIT_FAILED");
+      return [await fallback(tx, deps, job, file, reason)];
+    },
+  };
+  const ci: MediaJobHandler = {
+    kind: "audit_image",
+    provider: binding.fallback.status,
+    mode: "local",
+    validInput: auditInput,
+    validOutput: auditOutput,
+    current,
+    execute: async (job, _context, signal) => {
+      const src = (job.input as { src: { bucket: StorageBucket; key: string } }).src;
+      const result = await binding.fallback.audit({
+        src,
+        scenes: ["profile"],
+        userData: `${job.id}:${job.attemptNo}`,
+        signal,
       });
-      return null;
-    }
-    if (job.kind === "audit_image_wx") {
-      if (!outcome.ok || outcome.value.verdict !== "pending" || !outcome.value.traceId)
-        return fallback(tx, deps, job, file, "WX_IMAGE_SUBMIT_FAILED");
-      await tx.mediaJob.update({
-        where: { id: job.id },
-        data: {
-          state: "submitted",
-          externalJobId: outcome.value.traceId,
-          nextRunAt: job.deadlineAt,
-          leaseOwner: null,
-          errorCode: null,
-          errorMessage: null,
-          updatedAt: now,
-        },
-      });
-    } else if (outcome.ok) {
-      await tx.mediaJob.update({
-        where: { id: job.id },
-        data: {
-          state: "succeeded",
-          finishedAt: now,
-          leaseOwner: null,
-          output: { verdict: outcome.value.verdict },
-          updatedAt: now,
-        },
-      });
+      if (
+        !result.ok ||
+        !result.value.processed ||
+        !["pass", "review", "block"].includes(result.value.verdict)
+      )
+        return { state: "failed", failure: { code: "CI_IMAGE_UNAVAILABLE", retryable: false } };
+      return { state: "succeeded", output: { verdict: result.value.verdict } };
+    },
+    finish: async (tx, job, outcome) => {
+      if (outcome.state !== "succeeded" || !auditOutput(outcome.output)) return;
+      const now = deps.clock.now();
       await tx.fileObject.update({
-        where: { id: file.id },
+        where: { id: job.subjectId },
         data: {
-          moderationState: outcome.value.verdict,
+          moderationState: outcome.output.verdict,
           moderationDetail: {
             channel: "ci",
-            verdict: outcome.value.verdict,
+            verdict: outcome.output.verdict,
             decidedAt: now.toISOString(),
           },
           updatedAt: now,
         },
       });
-    } else
-      await tx.mediaJob.update({
-        where: { id: job.id },
-        data: {
-          state: "failed",
-          finishedAt: now,
-          leaseOwner: null,
-          errorCode: "CI_IMAGE_UNAVAILABLE",
-          errorMessage: "CI image audit not processed",
-          isRetryable: true,
-          updatedAt: now,
-        },
-      });
-    return null;
-  });
-  if (wake) await notifyPromote(deps, wake);
+    },
+  };
+  return [wx, ci];
 }
 export async function applyWechatImageResult(
   deps: BoundMediaDeps,
