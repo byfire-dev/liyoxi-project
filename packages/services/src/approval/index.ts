@@ -38,3 +38,5 @@ export type { ApprovalSlaBinding } from "./sla.js";
 export type { TouchPendingInput } from "./touch.js";
 
 export { findI3Violations, findI5Violations } from "./sla-invariants.js";
+
+export { approvalRecipientsForNotify } from "./notify-facts.js";

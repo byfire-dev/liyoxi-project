@@ -56,6 +56,7 @@ node apps/worker/dist/analytics-repartition.js YYYY-MM --env test --staff <员�
 | 定时器扫描 `timer_scan` | 每 20 秒 | | |
 | 周期补登记 `ensure_recurring` | 每 60 秒 | | |
 | 账务推进 `billing_advance`（W1-10） | 每 60 秒 | | |
+| 通知投递 `notify_scan`（W2-17） | 每 5 秒 | 通知 `notify` | 4 |
 
 - 一主一热备：谁持有 `worker_lease` 那一行谁干活。每 10 秒续约（专用连接）；持有者 30 秒没续约可被接任。
 - 看门狗每秒看一眼，只读本地变量：续约超过 20 秒没成功即降级（停循环、消费者不再领新任务）；自己晚到 10 秒以上、或某个循环连续两个周期没有进展（不少于 60 秒）即退出进程，由外面拉起。
@@ -96,3 +97,7 @@ pnpm --filter @liyoxi/worker exec vitest run test/fault/redis-flush.test.ts   # 
 - 降级时消费者只是不再领新任务：已经在等任务的那一下可能还会领到一条，照常处理，不影响正确性。
 - 进程内执行的长任务（`mode: "job"`）不占着扫描循环，关停时也不等它：没跑完的由租约到期后重新认领。
 - 启动自检与 api 是同一份清单（`packages/services/src/ops/startup.ts`）：连库、字段加密的密钥环、审计 `target_type`、聚合类型、状态机的表与列，问题一次列全。密钥没配时预发、生产起不来，`local`、`test` 放行并记一条告警。
+
+## 7. M2 通知调度
+
+`notify_scan` 只调公开 worker 服务的 `scanNotify`，入既有 `notify` 队列，消费者调三事务的 `notifyDeliver`。每个 API/worker 有自己的通知 Assembly 闭包及 Provider/clock，静态通知订阅者、remind_scan、N15/N5 指向该 scope。关停先通知 close 取消在途外呼，同时停止循环，随后收消费者再让出租约；单个失败不提前解绑其他根。默认未配置通道仍写真实站内事实，不能把假 Provider 或未配置受控降级写成真实平台到达。未来提醒与通道归属见 [通知域](../../packages/services/src/notify/README.md)。

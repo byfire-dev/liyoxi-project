@@ -1,3 +1,8 @@
+import {
+  implementKeyed as notifyReaderImplementation,
+  notifyReadPort as currentNotifyReadPort,
+} from "../kernel/index.js";
+import { merchantAccountForNotify } from "./notify-facts.js";
 import { identityPiiFields } from "./pii-fields.js";
 // identity 模块的登记（W1-04）：
 //   端口     W2-10 PR1：tenant 的强制下载页成员授权吊销，调用方同事务持锁。
@@ -24,6 +29,12 @@ const check = (
 
 export const registration = defineRegistration("identity", {
   portImplementations: [
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "merchantAccountForNotify",
+      merchantAccountForNotify,
+    ),
+
     ...identityPiiFields,
     ...machineImplementations(),
     implement(membershipAuthorizationsPort, membershipAuthorizations),

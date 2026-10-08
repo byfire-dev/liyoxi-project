@@ -1,3 +1,8 @@
+import {
+  implementKeyed as notifyFactImplementation,
+  notifyReadPort as currentNotifyRead,
+} from "../kernel/index.js";
+import { followUpForNotify, followUpsDueForNotify, activeStaffForNotify } from "./notify-facts.js";
 import { staffPiiFields } from "./pii-fields.js";
 // staff 模块的登记：
 //   1. 不变量 staff.I8（W0-24 补；断言是 W0-21 写的）：后台角色恰是契约登记的 8 个。
@@ -110,6 +115,9 @@ export const registration = defineRegistration("staff", {
     { code: "staff.I8", severity: "P2", modes: ["full"], heal: "none", run: findRoleSetViolations },
   ],
   portImplementations: [
+    notifyFactImplementation(currentNotifyRead, "activeStaffForNotify", activeStaffForNotify),
+    notifyFactImplementation(currentNotifyRead, "followUpForNotify", followUpForNotify),
+    notifyFactImplementation(currentNotifyRead, "followUpsDueForNotify", followUpsDueForNotify),
     staffPiiFields,
     implementKeyed(machinePort, chainKey("staff", "status"), staffStatusBinding),
   ],

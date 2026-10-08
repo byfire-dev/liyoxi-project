@@ -57,3 +57,5 @@ export type {
   AlertCliInput,
   AlertCliResult,
 } from "./alert-actions.js";
+
+export { createNotifyAssembly, createRuntimeNotify } from "./notify-runtime.js";

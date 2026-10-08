@@ -21624,6 +21624,42 @@
                                       "params": {
                                         "additionalProperties": false,
                                         "properties": {
+                                          "storeAssetId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          },
+                                          "storeId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "storeAssetId",
+                                          "storeId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "asset.detail"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
                                           "key": {
                                             "enum": [
                                               "user",
