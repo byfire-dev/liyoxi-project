@@ -4,6 +4,7 @@ import {
   MessageSummarySchema,
   MessageBatchReadResultSchema,
   NotifySettingListResultSchema,
+  routeCatalog,
 } from "@liyoxi/contract";
 import { runSeed, uuidv7 } from "@liyoxi/services";
 import {
@@ -14,7 +15,7 @@ import {
   updateNotifySlotFixture,
 } from "@liyoxi/services/testing";
 import { useTestApi } from "../src/testing/index.js";
-import type { TestApi } from "../src/testing/index.js";
+import type { TestApi, TestRequestInit } from "../src/testing/index.js";
 import { seedUserAgreements, signInAsMerchant } from "../src/testing/merchant.js";
 import type { SignedInMerchant } from "../src/testing/merchant.js";
 
@@ -51,12 +52,38 @@ const responseData = async <T>(
   schema: { parse(input: unknown): T },
 ): Promise<T> => schema.parse(((await response.json()) as { data: unknown }).data);
 
+function request(
+  operationId:
+    | "m.message.list"
+    | "m.message.summary"
+    | "m.message.read"
+    | "m.message.batchRead"
+    | "m.notifySetting.list",
+  path: string,
+  init: TestRequestInit = {},
+): Promise<Response> {
+  const route = routeCatalog.find((item) => item.operationId === operationId);
+  if (!route) throw new Error(`契约未登记 ${operationId}`);
+  expect((init.method ?? "GET").toUpperCase(), operationId).toBe(route.method);
+  // 查询串不属于路径段；原始 path（含查询串）原样交给真实 API 校验。
+  const actual = new URL(path, "http://localhost").pathname.split("/");
+  const expected = `/api/v1${route.path}`.split("/");
+  expect(actual, operationId).toHaveLength(expected.length);
+  expected.forEach((segment, index) => {
+    if (/^\{[^}]+\}$/.test(segment)) expect(actual[index], operationId).not.toBe("");
+    else expect(actual[index], operationId).toBe(segment);
+  });
+  return api.request(path, init);
+}
+
 it("m.message.list / m.message.summary：真实非空安全DTO、user鉴权、门店可选、无效头403与cursor400", async () => {
   const row = await message();
   await message({ merchantUserId: owner.merchantUserId, entityId, storeId });
   const unauthorized = await api.request("/api/v1/m/messages");
   expect(unauthorized.status).toBe(401);
-  const response = await api.request("/api/v1/m/messages?limit=1", { headers: owner.headers });
+  const response = await request("m.message.list", "/api/v1/m/messages?limit=1", {
+    headers: owner.headers,
+  });
   expect(response.status).toBe(200);
   expect(response.headers.get("Cache-Control")).toBe("no-store");
   const body = await responseData(response, MessageListResultSchema);
@@ -82,7 +109,7 @@ it("m.message.list / m.message.summary：真实非空安全DTO、user鉴权、�
       "createdDate",
     ].sort(),
   );
-  const summary = await api.request("/api/v1/m/messages/summary", {
+  const summary = await request("m.message.summary", "/api/v1/m/messages/summary", {
     headers: owner.withStore(storeId),
   });
   expect(summary.status).toBe(200);
@@ -108,7 +135,7 @@ it("m.message.read：无JSONbody、required幂等与并发原读时刻；越权/
   const input = { method: "POST", headers: { ...owner.headers, "Idempotency-Key": key } };
   const path = `/api/v1/m/messages/${row.id}/read`;
   expect((await api.request(path, { method: "POST", headers: owner.headers })).status).toBe(400);
-  const first = await api.request(path, input);
+  const first = await request("m.message.read", path, input);
   expect(first.status).toBe(200);
   const body = await first.json();
   api.clock.advance(1000);
@@ -144,7 +171,7 @@ it("m.message.batchRead：真实上界、tab、required幂等重放，新消息�
     headers: { ...owner.headers, "Idempotency-Key": uuidv7() },
     json: { upToMessageId: upper.id, tab: "review" },
   };
-  const first = await api.request("/api/v1/m/messages/read", input);
+  const first = await request("m.message.batchRead", "/api/v1/m/messages/read", input);
   expect(first.status).toBe(200);
   const body = await responseData(first, MessageBatchReadResultSchema);
   expect(body.markedCount).toBe(1);
@@ -178,7 +205,7 @@ it("m.notifySetting.list：当前真实登录会话额度与12槽位，invalid�
       lastAcceptAt: api.clock.now(),
     });
   });
-  const response = await api.request("/api/v1/m/notify-settings", {
+  const response = await request("m.notifySetting.list", "/api/v1/m/notify-settings", {
     headers: owner.withStore("bad"),
   });
   expect(response.status).toBe(200);
