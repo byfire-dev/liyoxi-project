@@ -829,7 +829,7 @@ describe("lyx_readonly 与分区（任务书 第 11 节第 5、7 项）", () => 
     );
   });
 
-  it("属主新建一个月的分区：lyx_app 经父表写得进、不能直接碰子表；lyx_readonly 自动读得到；lyx_app 自己建不了分区", async () => {
+  it("属主新建一个月的分区：lyx_app 经父表写得进、不能直接碰子表；lyx_readonly 自动读得到；lyx_app 仅经固定月份能力建分区", async () => {
     const [made] = await query<{ part: string }>(
       owner,
       "select lyx_14_analytics_event_ensure_partition('2031-03-01') as part",
@@ -849,11 +849,16 @@ describe("lyx_readonly 与分区（任务书 第 11 节第 5、7 项）", () => 
     expect(
       await query(readonly, "select count(*)::int as n from analytics_event_y2031m03"),
     ).toEqual([{ n: 1 }]);
-    // 14 分组 第 2.9 节的周期任务要建分区：应用角色建不了（见本包的 ADR）。先卡在模式 public 上没有 CREATE；
-    // 就算有，它也不是父表的属主
+    // ADR-045 的受限 SECURITY DEFINER 能力只负责固定月份；应用仍不能直接 DDL。
     expect(
-      await dbError(exec(app, "select lyx_14_analytics_event_ensure_partition('2031-04-01')")),
-    ).toEqual({ code: DENIED, message: "permission denied for schema public" });
+      await query<{ part: string }>(
+        app,
+        "select lyx_14_analytics_event_ensure_partition('2031-04-01') as part",
+      ),
+    ).toEqual([{ part: "analytics_event_y2031m04" }]);
+    expect(await sqlState(exec(app, "create table public.grants_denied_partition(id int)"))).toBe(
+      DENIED,
+    );
   });
 });
 
