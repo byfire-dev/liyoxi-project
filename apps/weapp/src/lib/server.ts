@@ -1,6 +1,6 @@
 // 服务端调用的接入点。本包（W0-27a）交的是请求层与四个端上封装，对应的接口在后面的包里落地：
 // 引导与会话在 W1-04，订阅结果与埋点接收在 G2-C，错误上报接口按契约的里程碑归属。
-// 所以这里只定“要接哪几个调用、各自长什么样”，一个都没接：没接上的调用，对应的封装空转、不报错。
+// W1-04已接引导/登录，W2-18接订阅结果、埋点与错误信封；未配置API时仍由中央请求层与封装降级。
 // 接口落地的那个包用 connectServer({ … }) 接上自己那一个，实现里用 runtime.ts 的 request，类型取契约的生成类型。
 import type { SubscribeResultBody } from "./subscribe";
 import type { AnalyticsEventBatch, SendOutcome } from "./track";

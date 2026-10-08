@@ -11,5 +11,6 @@ export const registry = defineRegistry("ops", {
     job("stg.pay.autorefund", "M4"),
   ],
   loops: [loop("probe", "探针 probe()", "M2")],
+  // W2-23：实际worker入口alerts-ack，name=alerts_ack；只提供ack/close/reset-webhook。
   commands: [command("alerts_ack", "cli.alerts.ack / 关闭告警、重置死信回调", "M2")],
 });

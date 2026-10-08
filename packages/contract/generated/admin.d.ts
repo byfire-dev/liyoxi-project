@@ -447,6 +447,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/client-errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 后台前端错误上报转发（同源） */
+        post: operations["admin.clientError.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/delivery-plans/{deliveryPlanId}": {
         parameters: {
             query?: never;
@@ -925,6 +942,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/outbox-deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 出站投递查询：死信与重试中的投递 */
+        get: operations["admin.outboxDelivery.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/outbox-events/{outboxEventId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 把某个出站事件对某订阅者的死信重新投递（body 带 subscriber） */
+        post: operations["admin.outboxEvent.retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/param-values": {
         parameters: {
             query?: never;
@@ -1234,6 +1285,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/timers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 定时器查询：失败、待触发，按对象类型与 id 过滤 */
+        get: operations["admin.timer.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/timers/{timerId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 把失败的定时器标记为不再需要（原因必填，写审计） */
+        post: operations["admin.timer.cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/timers/{timerId}/reschedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 定时器重新排期（失败或需改期的定时器） */
+        post: operations["admin.timer.reschedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/transfer-proofs": {
         parameters: {
             query?: never;
@@ -1313,6 +1415,40 @@ export interface paths {
         put?: never;
         /** 驳回凭证（原因 + 说明）：付款单回到待支付（凭证被驳回），对公有效期顺延，商家可重传 */
         post: operations["admin.transferProof.reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/webhook-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 回调收件箱查询（失败、死信） */
+        get: operations["admin.webhookEvent.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/webhook-events/{webhookEventId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 把死信回调重置为待处理（attempts 清零） */
+        post: operations["admin.webhookEvent.retry"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2822,6 +2958,9 @@ export interface components {
             /** Format: date-time */
             uploadExpiresAt: string;
         };
+        FlowOpsNoteBody: {
+            note?: string;
+        };
         ImageRef: {
             /** Format: date-time */
             expiresAt: string;
@@ -3117,6 +3256,51 @@ export interface components {
                 refunded: number;
                 to_launch: number;
             };
+        };
+        OutboxDeliveryPage: {
+            items: components["schemas"]["OutboxDeliveryView"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        OutboxDeliveryView: {
+            actions: "retry"[];
+            attempts: number;
+            /** Format: date-time */
+            consumedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            dispatchNo: number;
+            event: {
+                actorType: string;
+                /** Format: uuid */
+                aggregateId: string | null;
+                aggregateType: string | null;
+                /** Format: uuid */
+                entityId: string | null;
+                eventType: string;
+                /** Format: date-time */
+                occurredAt: string;
+                requestId: string | null;
+                /** Format: uuid */
+                storeId: string | null;
+            };
+            lastError: string | null;
+            /** Format: date-time */
+            leaseUntil: string | null;
+            /** Format: date-time */
+            nextAttemptAt: string;
+            /** Format: uuid */
+            outboxEventId: string;
+            /** @enum {string} */
+            status: "pending" | "leased" | "done" | "retry" | "dead";
+            subscriber: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        OutboxRetryBody: {
+            note?: string;
+            subscriber: string;
         };
         PaymentOrderAdminDetail: {
             actions: string[];
@@ -4085,6 +4269,54 @@ export interface components {
             status: "none" | "active" | "expired" | (string & {});
         };
         SystemConfigJsonValue: Record<string, never> | unknown[] | string | number | boolean | null;
+        TimerCancelBody: {
+            reason: string;
+        };
+        TimerPage: {
+            items: components["schemas"]["TimerView"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        TimerView: {
+            actions: ("reschedule" | "cancel")[];
+            attempts: number;
+            /** Format: date-time */
+            createdAt: string;
+            dedupeKey: string;
+            dispatchNo: number;
+            /** Format: uuid */
+            entityId: string | null;
+            /** Format: date-time */
+            fireAt: string;
+            /** Format: date-time */
+            firedAt: string | null;
+            kind: string;
+            lastError: string | null;
+            /** Format: date-time */
+            leaseUntil: string | null;
+            payload: {
+                [key: string]: unknown;
+            } | null;
+            result: {
+                [key: string]: unknown;
+            } | null;
+            /** Format: date-time */
+            retryAt: string | null;
+            /** @enum {string} */
+            status: "scheduled" | "dispatched" | "fired" | "skipped" | "cancelled" | "failed";
+            /** Format: uuid */
+            storeId: string | null;
+            subject: {
+                /** Format: uuid */
+                id: string;
+                type: string;
+            } | null;
+            /** Format: uuid */
+            timerId: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         TotpConfirmResult: {
             me: components["schemas"]["StaffMe"];
             recoveryCodes: string[];
@@ -4198,6 +4430,38 @@ export interface components {
             /** @enum {string} */
             method: "totp" | "recovery";
             ticket: string;
+        };
+        WebhookEventPage: {
+            hasMore: boolean;
+            items: components["schemas"]["WebhookEventView"][];
+            nextCursor: string | null;
+            totalApprox: number;
+        };
+        WebhookEventView: {
+            actions: "retry"[];
+            attempts: number;
+            error: string | null;
+            eventId: string;
+            eventType: string;
+            /** @enum {string} */
+            mode: "inline" | "inbox";
+            /** Format: date-time */
+            nextAttemptAt: string | null;
+            /** Format: date-time */
+            payloadPurgedAt: string | null;
+            /** @enum {string} */
+            processState: "received" | "processed" | "ignored" | "failed" | "dead";
+            /** Format: date-time */
+            processedAt: string | null;
+            /** @enum {string} */
+            provider: "wechatpay" | "wechat" | "wecom" | "ci" | "asr" | "sms" | "esign";
+            /** Format: date-time */
+            receivedAt: string;
+            summary: {
+                [key: string]: unknown;
+            } | null;
+            /** Format: uuid */
+            webhookEventId: string;
         };
     };
     responses: never;
@@ -6382,6 +6646,54 @@ export interface operations {
             };
             /** @description 外部能力不可用、系统繁忙或停机维护 */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.clientError.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-sentry-envelope": components["schemas"]["SentryEnvelope"];
+            };
+        };
+        responses: {
+            /** @description 已收下，未处理 */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: null;
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9064,6 +9376,163 @@ export interface operations {
             };
         };
     };
+    "admin.outboxDelivery.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                status?: string;
+                subscriber?: string;
+                eventType?: string;
+                aggregateType?: string;
+                aggregateId?: string;
+                entityId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["OutboxDeliveryPage"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.outboxEvent.retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                outboxEventId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["OutboxRetryBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["OutboxDeliveryView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.paramValue.list": {
         parameters: {
             query?: {
@@ -10844,6 +11313,250 @@ export interface operations {
             };
         };
     };
+    "admin.timer.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                status?: string;
+                kind?: string;
+                subjectType?: string;
+                subjectId?: string;
+                entityId?: string;
+                fireFrom?: string;
+                fireTo?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["TimerPage"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.timer.cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                timerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["TimerCancelBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["TimerView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.timer.reschedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                timerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["FlowOpsNoteBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["TimerView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.transferProof.list": {
         parameters: {
             query?: {
@@ -11319,6 +12032,162 @@ export interface operations {
             };
             /** @description 外部能力不可用、系统繁忙或停机维护 */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.webhookEvent.list": {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+                provider?: string;
+                processState?: string;
+                eventType?: string;
+                receivedFrom?: string;
+                receivedTo?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["WebhookEventPage"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.webhookEvent.retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhookEventId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["FlowOpsNoteBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["WebhookEventView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

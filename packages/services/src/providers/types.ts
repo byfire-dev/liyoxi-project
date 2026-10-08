@@ -49,6 +49,72 @@ export function failed(reason: ProviderFailureReason, message: string): Provider
   return { ok: false, reason, message };
 }
 
+/** 只用于通知发送；通用失败原因不足以证明外部是否受理，不据此自动重发。 */
+export const NOTIFICATION_FAILURE_CODES = [
+  "no_quota",
+  "user_refused",
+  "invalid_openid",
+  "template_invalid",
+  "field_mismatch",
+  "rate_limited",
+  "provider_rejected",
+  "unconfigured",
+  "unsupported",
+  "aborted",
+  "unknown_outcome",
+] as const;
+export interface NotificationFailureDetail {
+  readonly acceptance: "not_accepted" | "unknown";
+  readonly code: (typeof NOTIFICATION_FAILURE_CODES)[number];
+}
+export interface NotificationProviderFailure extends ProviderFailure {
+  /** 旧实现可不带；缺省表示受理情况未知，不是可重试证明。 */
+  readonly notification?: NotificationFailureDetail;
+}
+export interface NotificationProviderSuccess<T> extends ProviderSuccess<T> {
+  /** 服务商返回的标识，不代表终端到达。≤64 的 ASCII 标识；本地替身不伪造真实标识。 */
+  readonly providerMsgId?: string;
+}
+export type NotificationProviderResult<T> =
+  NotificationProviderSuccess<T> | NotificationProviderFailure;
+
+/** 入参强转也不能引入任意分类；message 沿旧契约，不承载原始 Provider 响应/敏感正文。 */
+export function notificationFailed(
+  reason: ProviderFailureReason,
+  message: string,
+  detail: NotificationFailureDetail,
+): NotificationProviderFailure {
+  if (
+    detail === null ||
+    typeof detail !== "object" ||
+    !Object.hasOwn(detail, "acceptance") ||
+    !Object.hasOwn(detail, "code") ||
+    !["not_accepted", "unknown"].includes(detail.acceptance) ||
+    !NOTIFICATION_FAILURE_CODES.includes(detail.code) ||
+    Reflect.ownKeys(detail).some((key) => key !== "acceptance" && key !== "code")
+  )
+    throw new TypeError("通知失败分类不合法");
+  return {
+    ...failed(reason, message),
+    notification: { acceptance: detail.acceptance, code: detail.code },
+  };
+}
+
+export function notificationOk<T>(
+  value: T,
+  providerMsgId?: string,
+): NotificationProviderSuccess<T> {
+  if (
+    providerMsgId !== undefined &&
+    (typeof providerMsgId !== "string" ||
+      providerMsgId.length > 64 ||
+      !/^[A-Za-z0-9]/.test(providerMsgId) ||
+      /[^A-Za-z0-9._:-]/.test(providerMsgId))
+  )
+    throw new TypeError("通知服务商标识不合法");
+  return { ...ok(value), ...(providerMsgId === undefined ? {} : { providerMsgId }) };
+}
+
 /**
  * 生效状态：真实驱动名，或下面三个固定值（任务书 第 11 节第 5 项）。
  *   local         只限 local、test 的落点：本地 MinIO、控制台短信、本地的假微信、媒体的小文件通道
@@ -107,7 +173,8 @@ export interface WechatProvider extends ProviderBase {
     templateId: string;
     page?: string;
     data: Record<string, string>;
-  }): Promise<ProviderResult<void>>;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<void>>;
   /** 小程序码 */
   createMiniProgramCode(input: {
     scene: string;
@@ -333,19 +400,25 @@ export interface MediaProvider extends ProviderBase {
 
 export interface SmsProvider extends ProviderBase {
   /** 员工激活码 */
-  sendActivationCode(input: { phone: string; code: string }): Promise<ProviderResult<void>>;
+  sendActivationCode(input: {
+    phone: string;
+    code: string;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<void>>;
   /** 订阅消息的补发：订阅消息发不出去时改发短信 */
   sendSubscribeFallback(input: {
     phone: string;
     templateKey: string;
     params: Record<string, string>;
-  }): Promise<ProviderResult<void>>;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<void>>;
   /** 值班告警 */
   sendOncallAlert(input: {
     phones: string[];
     title: string;
     content: string;
-  }): Promise<ProviderResult<void>>;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<void>>;
 }
 
 // ---------- ocr：营业执照识别、行业许可证字段抽取 ----------
@@ -418,7 +491,8 @@ export interface WecomProvider extends ProviderBase {
     title: string;
     description: string;
     url?: string;
-  }): Promise<ProviderResult<void>>;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<void>>;
   /** “联系我”二维码 */
   createContactWay(input: {
     userId: string;
@@ -477,7 +551,8 @@ export interface MailProvider extends ProviderBase {
     subject: string;
     text: string;
     attachments?: MailAttachment[];
-  }): Promise<ProviderResult<{ messageId: string }>>;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<{ messageId: string }>>;
 }
 
 // ---------- 十二个接口的汇总 ----------

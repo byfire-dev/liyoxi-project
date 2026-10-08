@@ -1,3 +1,11 @@
+import { bindAnalytics, createAnalyticsReceiver } from "./analytics/index.js";
+import type { AnalyticsReceiver } from "./analytics/index.js";
+import { createSubscribeResults } from "./notify/index.js";
+import type { SubscribeResults } from "./notify/index.js";
+import { createClientErrorForwarder } from "./ops/index.js";
+import type { ClientErrorForwarder } from "./ops/index.js";
+import { createFlowOps, createAlertActions } from "./ops/index.js";
+import type { FlowOps, AlertActions } from "./ops/index.js";
 import { createAuditRead } from "./audit/index.js";
 import { bindDelivery } from "./delivery/index.js";
 import { createOrderService, bindOrder, bindOrderStart } from "./order/index.js";
@@ -32,8 +40,11 @@ import {
   createLedger,
   createPayment,
   createFulfillment,
+  getNotifyPurchaseMode,
 } from "./billing/index.js";
 import type { BillingPurchase } from "./billing/index.js";
+import { createNotifyMessages } from "./notify/index.js";
+import type { NotifyMessages } from "./notify/index.js";
 import { staffBriefs } from "./staff/index.js";
 import { createDocs } from "./docs/index.js";
 import { createTenant } from "./tenant/index.js";
@@ -153,9 +164,13 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly analytics: AnalyticsReceiver;
+  readonly subscribeResults: SubscribeResults;
+  readonly clientErrors: ClientErrorForwarder;
   readonly webhooks: Webhooks;
   readonly order: OrderService;
   readonly billing: BillingPurchase;
+  readonly notifyMessages: NotifyMessages;
   readonly content: Content;
   readonly media: Media;
   /** 审批执行器与只读队列：api、worker 各自装配（移交表 64） */
@@ -198,6 +213,8 @@ export interface Runtime {
   readonly staffRoles: ReturnType<typeof createRoleManagement>;
   readonly staffSelfSecurity: ReturnType<typeof createStaffSelfSecurity>;
   readonly auditRead: ReturnType<typeof createAuditRead>;
+  readonly flowOps: FlowOps;
+  readonly alertActions: AlertActions;
   readonly piiReveal: ReturnType<typeof createPiiReveal>;
 }
 
@@ -250,6 +267,17 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     version,
     ...(options.healthCacheMs === undefined ? {} : { cacheMs: options.healthCacheMs }),
   });
+  const notifyMessages = createNotifyMessages({
+    tx,
+    clock,
+    config,
+    purchaseMode: getNotifyPurchaseMode,
+  });
+  const clientErrors = createClientErrorForwarder({
+    clock,
+    logger,
+    projects: env.CLIENT_ERROR_PROJECTS?.projects ?? [],
+  });
   const rateLimiter = createRateLimiter({
     store: redis,
     clock,
@@ -261,6 +289,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const assembly = assembleServices({ entry, appEnv: env.APP_ENV });
   // 违规上报端口（invariants.report）的实现在 ops，要连接、时钟与装配结果（W0-24）
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
+  const unbindAnalytics = bindAnalytics({ clock });
   const providers = options.providers ?? assembleProviders({ appEnv: env.APP_ENV, logger });
   const events = createEvents({ assembly, clock, tx });
   const webhooks = createWebhooks({
@@ -273,6 +302,21 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const unbindWebhooks = bindWebhooks(webhooks);
   const timers = createTimers({ assembly });
   const flow = createFlow({ assembly, clock, events });
+  const reportingTenant = createTenant({ tx, clock, flow, assembly });
+  const analytics = createAnalyticsReceiver({
+    tx,
+    clock,
+    config,
+    tenant: reportingTenant,
+    alerts: alertsOf(assembly),
+  });
+  const subscribeResults = createSubscribeResults({
+    tx,
+    clock,
+    params: config.params,
+    alerts: alertsOf(assembly),
+    logger,
+  });
   const unbindOrder = bindOrder({ assembly, clock, flow });
   const mediaChannel = createQueueChannel({ redisUrl: env.REDIS_URL, prefix: `${keyPrefix}bull` });
   const media = createMedia({
@@ -410,9 +454,13 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   }
 
   return {
+    analytics,
+    subscribeResults,
+    clientErrors,
     webhooks,
     order,
     billing,
+    notifyMessages,
     content,
     media,
     entry,
@@ -435,6 +483,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
+      await clientErrors.close();
       unbindOrderStart();
       unbindOrder();
       unbindBilling();
@@ -443,6 +492,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       unbindDelivery();
       unbindApprovalSla();
       unbindCalendarCoverage();
+      unbindAnalytics();
       unbindOps();
       unbindWebhooks();
       await mediaChannel.close();
@@ -451,6 +501,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     },
     flow,
     auditRead,
+    flowOps: createFlowOps({ tx, clock }),
+    alertActions: createAlertActions({ tx, clock }),
     piiReveal,
     get staffRoles() {
       staffRoles ??= createRoleManagement({ db: prisma, tx, clock, roles: this.staffAuth.roles });

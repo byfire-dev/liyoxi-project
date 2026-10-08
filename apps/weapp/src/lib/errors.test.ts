@@ -127,6 +127,6 @@ describe("信封与清洗", () => {
           }
         ).exception.values[0]?.value,
     );
-    expect(values).toEqual(["纯字符串", '{"errMsg":"request:fail"}']);
+    expect(values).toEqual(["纯字符串", "Unknown error"]);
   });
 });

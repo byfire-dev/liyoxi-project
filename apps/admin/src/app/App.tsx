@@ -21,6 +21,11 @@ function FeedbackBridge() {
   return null;
 }
 
+function ClientReportingBridge({ services }: { services: AppServices }) {
+  useEffect(() => services.clientReporting.install(window), [services]);
+  return null;
+}
+
 export function App({ services, router }: { services: AppServices; router: AppRouter }) {
   return (
     // 主题之外的组件级配置（表单不显示必填星号、弹窗居中、抽屉的缺省宽度等）在 theme/antd.ts 的 adminComponentConfig 里
@@ -28,6 +33,7 @@ export function App({ services, router }: { services: AppServices; router: AppRo
       {/* 通知在右上角，距顶 68（规范 第 5.4 节） */}
       <AntApp notification={{ placement: "topRight", top: 68 }}>
         <FeedbackBridge />
+        <ClientReportingBridge services={services} />
         <QueryClientProvider client={services.queryClient}>
           <RouterProvider router={router} />
         </QueryClientProvider>

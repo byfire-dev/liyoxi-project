@@ -282,6 +282,7 @@ describe("键名清单", () => {
       "WECHAT_SECRET_FILE",
       "WECHAT_MESSAGE_TOKEN_FILE",
       "WECHAT_MESSAGE_AES_KEY_FILE",
+      "CLIENT_ERROR_PROJECTS_FILE",
     ]);
   });
 });
@@ -456,5 +457,51 @@ describe("后台登录的密钥文件", () => {
     expect(example.split("\n").filter((line) => line.startsWith("AUTH_KEYS"))).toEqual([
       "AUTH_KEYS_FILE=<文件路径>",
     ]);
+  });
+});
+
+// W2-18：全部是示例 DSN，未连接外部项目。
+describe("客户端错误项目 FILE", () => {
+  const base = { APP_ENV: "test", DATABASE_URL, REDIS_URL };
+  const project = {
+    dsn: "https://publickey@example.invalid/42",
+    upstreamDsn: "https://upstreamkey@upstream.invalid/sentry/7",
+  };
+  it("未配置降级；完整 FILE 严格读取", () => {
+    expect(loadEnv(base).CLIENT_ERROR_PROJECTS).toBeUndefined();
+    expect(
+      loadEnv({
+        ...base,
+        CLIENT_ERROR_PROJECTS_FILE: fileWith(
+          "report-projects",
+          JSON.stringify({ projects: [project] }),
+        ),
+      }).CLIENT_ERROR_PROJECTS,
+    ).toEqual({ projects: [project] });
+  });
+  it.each([
+    { projects: [] },
+    { projects: [project, project] },
+    { projects: [project], extra: true },
+    { projects: [{ ...project, extra: true }] },
+    { projects: [{ dsn: "http://publickey@example.invalid/42" }] },
+    { projects: [{ dsn: "https://publickey:secret@example.invalid/42" }] },
+    { projects: [{ dsn: "https://publickey@example.invalid/42?query=secret" }] },
+    { projects: [{ dsn: "https://publickey@example.invalid/abc" }] },
+    { projects: [{ ...project, upstreamDsn: "https://key@upstream.invalid/7#secret" }] },
+  ])("非法项目受控拒绝，不输出 DSN 或文件路径", (content) => {
+    const path = fileWith("bad-projects", JSON.stringify(content));
+    const error = failure({ ...base, CLIENT_ERROR_PROJECTS_FILE: path });
+    expect(keysOf(error)).toEqual(["CLIENT_ERROR_PROJECTS_FILE"]);
+    expect(error.message).not.toContain(path);
+    expect(error.message).not.toContain("publickey");
+    expect(error.message).not.toContain("secret");
+  });
+  it("明文配置在任意环境均拒绝", () => {
+    const error = failure({
+      ...base,
+      CLIENT_ERROR_PROJECTS: JSON.stringify({ projects: [project] }),
+    });
+    expect(keysOf(error)).toEqual(["CLIENT_ERROR_PROJECTS"]);
   });
 });

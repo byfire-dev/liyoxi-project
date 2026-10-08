@@ -50,6 +50,7 @@ export const ENV_KEYS: readonly string[] = [
   "WECHAT_SECRET_FILE",
   "WECHAT_MESSAGE_TOKEN_FILE",
   "WECHAT_MESSAGE_AES_KEY_FILE",
+  "CLIENT_ERROR_PROJECTS_FILE",
 ];
 
 /** 数据加密密钥文件的内容：current 是当前 kid，keys 是 kid → base64 写的 32 字节 */
@@ -73,6 +74,11 @@ export interface WechatConfig {
   readonly messageEncodingAESKey: string;
 }
 
+/** 上报项目白名单与固定上游；只能来自 CLIENT_ERROR_PROJECTS_FILE。 */
+export interface ClientErrorProjectsConfig {
+  readonly projects: readonly { readonly dsn: string; readonly upstreamDsn?: string }[];
+}
+
 export interface Env {
   readonly APP_ENV: AppEnv;
   readonly LOG_LEVEL: LogLevel;
@@ -86,6 +92,7 @@ export interface Env {
   readonly AUTH_KEYS?: AuthKeysConfig;
   /** 整组未配置时没有此项；敏感字段只能从 FILE 读取。 */
   readonly WECHAT?: WechatConfig;
+  readonly CLIENT_ERROR_PROJECTS?: ClientErrorProjectsConfig;
 }
 
 export type EnvSource = Readonly<Record<string, string | undefined>>;
@@ -250,7 +257,7 @@ function parseAuthKeys(json: unknown): AuthKeysConfig | string {
 /** 按规则 5、6 取出一份密钥文件：只认 *_FILE；明文变量给了即报错 */
 function readKeyFile<T>(
   source: EnvSource,
-  key: "DATA_KEYS" | "BIDX_KEYS" | "AUTH_KEYS",
+  key: "DATA_KEYS" | "BIDX_KEYS" | "AUTH_KEYS" | "CLIENT_ERROR_PROJECTS",
   issues: EnvIssue[],
   parse: (json: unknown) => T | string,
 ): T | undefined {
@@ -278,6 +285,53 @@ function readKeyFile<T>(
   if (typeof parsed !== "string") return parsed;
   issues.push({ key: fileKey, reason: parsed });
   return undefined;
+}
+
+/** DSN 只作为 FILE 白名单/固定目的地；请求中的 URL 从不成为外呼目的地。 */
+function validErrorDsn(value: unknown): value is string {
+  if (typeof value !== "string" || value !== value.trim() || value.includes("\\")) return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      !!url.hostname &&
+      /^[A-Za-z0-9_-]+$/.test(url.username) &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      /^\/(?:[A-Za-z0-9_-]+\/)*[0-9]+$/.test(url.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+function parseClientErrorProjects(json: unknown): ClientErrorProjectsConfig | string {
+  if (
+    !isRecord(json) ||
+    Object.keys(json).some((key) => key !== "projects") ||
+    !Array.isArray(json.projects) ||
+    json.projects.length < 1 ||
+    json.projects.length > 3
+  )
+    return "文件内容须为 { projects: [项目] }，项目1–3个";
+  const seen = new Set<string>();
+  const projects: { dsn: string; upstreamDsn?: string }[] = [];
+  for (const project of json.projects) {
+    if (
+      !isRecord(project) ||
+      Object.keys(project).some((key) => key !== "dsn" && key !== "upstreamDsn") ||
+      !validErrorDsn(project.dsn) ||
+      (project.upstreamDsn !== undefined && !validErrorDsn(project.upstreamDsn))
+    )
+      return "每个项目须给合法HTTPS DSN（公钥、数字项目），固定上游可选；不得含密码、查询或片段";
+    if (seen.has(project.dsn)) return "项目白名单不得重复";
+    seen.add(project.dsn);
+    projects.push({
+      dsn: project.dsn,
+      ...(project.upstreamDsn === undefined ? {} : { upstreamDsn: project.upstreamDsn }),
+    });
+  }
+  return { projects };
 }
 
 function hasProtocol(value: string, protocols: readonly string[]): boolean {
@@ -404,6 +458,12 @@ export function loadEnv(
   const bidxKeys = readKeyFile(source, "BIDX_KEYS", issues, parseBidxKeys);
   const authKeys = readKeyFile(source, "AUTH_KEYS", issues, parseAuthKeys);
   const wechat = readWechat(source, issues);
+  const clientErrorProjects = readKeyFile(
+    source,
+    "CLIENT_ERROR_PROJECTS",
+    issues,
+    parseClientErrorProjects,
+  );
   if (!parsed.success) {
     for (const issue of parsed.error.issues) {
       issues.push({ key: issue.path.join("."), reason: issue.message });
@@ -435,5 +495,6 @@ export function loadEnv(
     ...(dataKeys && bidxKeys ? { DATA_KEYS: dataKeys, BIDX_KEYS: bidxKeys } : {}),
     ...(authKeys ? { AUTH_KEYS: authKeys } : {}),
     ...(wechat ? { WECHAT: wechat } : {}),
+    ...(clientErrorProjects ? { CLIENT_ERROR_PROJECTS: clientErrorProjects } : {}),
   });
 }

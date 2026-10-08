@@ -4,6 +4,7 @@
 import { defineRegistration } from "./assembly/index.js";
 import { purgeExpiredIdempotencyRecords } from "./idempotency-tools.js";
 import {
+  subscribePlanPort,
   piiFieldsPort,
   alertsPort,
   dictReferencesPort,
@@ -16,6 +17,7 @@ import {
 
 export const registration = defineRegistration("kernel", {
   ports: [
+    subscribePlanPort,
     dictReferencesPort,
     alertsPort,
     invariantsPort,

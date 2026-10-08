@@ -110,13 +110,15 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 
 ## 账户与服务端接线
 
-请求层与四个封装都写成不依赖小程序运行时的模块（接口在 `src/lib/platform.ts`，真实实现在 `platform.taro.ts`），服务端调用经 `src/lib/server.ts` 的 `connectServer({ … })` 接入。`account-runtime.ts` 接上引导、静默登录、重拉账号、协议同意与版本提示五个调用；11条账户接口都经生成契约类型与中央 `runtime.request` 调用。订阅结果、埋点与错误上报的接收调用仍未接，封装照调并登记留桩。
+请求层与四个封装都写成不依赖小程序运行时的模块（接口在 `src/lib/platform.ts`，真实实现在 `platform.taro.ts`），服务端调用经 `src/lib/server.ts` 的 `connectServer({ … })` 接入。`account-runtime.ts` 接上引导、静默登录、重拉账号、协议同意与版本提示五个调用；11条账户接口都经生成契约类型与中央 `runtime.request` 调用。W2-18 PR1的`client-reporting.ts`补订阅结果、埋点与错误上报三调用，均用生成operation类型与同一个中央request。
 
 | 调用 | 接口 | 由谁接 |
 | --- | --- | --- |
 | `fetchBootstrap`、`silentLogin`、`reloadMe`、`askConsent`、`showUpdatePrompt` | `m.bootstrap.get`、`m.session.create`、`m.me.get`、协议同意 | W1-05②已接（后端 W1-04 / W1-04b） |
-| `reportSubscribeResult`、`sendAnalytics` | `m.subscribeResult.create`、`m.analyticsEvent.batchCreate` | G2-C |
-| `sendClientError` | `m.clientError.create` | 该接口落地的包 |
+| `reportSubscribeResult`、`sendAnalytics` | `m.subscribeResult.create`、`m.analyticsEvent.batchCreate` | W2-18 PR1实际接线 |
+| `sendClientError` | `m.clientError.create` | W2-18 PR1实际接线 |
+
+订阅保留真实accept/reject/ban/filter与原精确幂等键；埋点网络/5xx交回原队列重试，4xx/未配丢弃，不增加adapter重试。信封以原文与`application/x-sentry-envelope`传输，不JSON重编码。未配`API_BASE_URL`不装配埋点/错误发送器，保留本地开发降级；公开DSN构建变量为`WEAPP_SENTRY_DSN`，空值沿原封装关闭采集。DSN仅含公开项目key；真实项目与服务端FILE白名单按W2-27移交，尚未验证真实平台收件或微信授权。`pnpm --filter @liyoxi/weapp test`中的client-reporting用例真实经过中央request，覆盖原文字节/头、四结果、网络/5xx与4xx分支。
 
 ## 账户流程（W1-05②）
 
