@@ -1,4 +1,5 @@
 import { analyticsEventHandlers } from "./analytics-events.js";
+import { wechatHookHandlers } from "./hooks/wechat.js";
 import { subscribeResultHandlers } from "./subscribe-results.js";
 import { clientErrorHandlers } from "./client-errors.js";
 import { adminClientErrorHandlers } from "./admin/client-errors.js";
@@ -42,6 +43,7 @@ import { messageHandlers } from "./messages.js";
 import { notifySettingHandlers } from "./notify-settings.js";
 
 export const HANDLERS: readonly HandlerEntry[] = [
+  ...wechatHookHandlers,
   ...analyticsEventHandlers,
   ...subscribeResultHandlers,
   ...clientErrorHandlers,

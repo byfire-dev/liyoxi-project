@@ -21,3 +21,5 @@ export type {
   SubscribeResultsDeps,
   SubscribePrincipal,
 } from "./subscribe-results.js";
+export { createWechatReceiptHandler } from "./wechat-receipts.js";
+export type { WechatReceiptHandler, WechatReceiptInput } from "./wechat-receipts.js";

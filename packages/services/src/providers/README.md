@@ -50,11 +50,13 @@ import type { StorageProvider } from "../providers/types.js";
 
 启动日志里十二个接口各一行（`provider <接口名>: <状态>`），最后一行 `providers ready` 汇总。只打状态，不打任何配置值。
 
-启动失败只有一种：在 stg、prod 选了只限本地的驱动（控制台短信、本地 MinIO），抛 `ProviderConfigError`。
+在 stg、prod 选了只限本地的驱动（控制台短信、本地 MinIO），或只提供微信配置与运行时依赖的一半，抛 `ProviderConfigError`。
 
 ## 4. 选项与环境变量
 
-`createProviders` 现在认三个选项（`ProviderSettings`）：`sms.driver`（`console`）、`storage.driver`（`minio`，另可用 `storage.minio` 覆盖连接参数）、`esign.imageSeal`（图片章开关）。
+`createProviders` 的三个本地选项（`ProviderSettings`）为 `sms.driver`（`console`）、`storage.driver`（`minio`，另可用 `storage.minio` 覆盖连接参数）、`esign.imageSeal`（图片章开关）。
+
+W2-21 增加 `settings.wechat { appid, secret }`，须同时提供借用的带前缀 Redis、时钟和关闭登记。运行时只从 `loadEnv().WECHAT` 注入；`WECHAT_APPID` 与三个 `*_FILE` 配置须完整成组。完整配置选择真实微信驱动，local/test、stg、prod 分别使用 develop、trial、release；初始化零 HTTP。全未配保留表中的本地假实现或未配置行为；显式 `RuntimeOptions.providers` 替身优先。运行时关闭先取消自有驱动在途请求，再关闭父 Redis；驱动不关闭借来的 Redis。密钥值与 openid 不进生效状态日志。
 
 **这三个选项还没有对应的环境变量。** 任务书要把 Provider 的变量名加进 `loadEnv` 与 `.env.example`，本包没有做：`infra/ci/test/env-example.test.ts` 把键数写死成 6，加键必须改那一行，而改已有的门禁用例属放松类改动，不能随工作包 PR。要先有一个单独的 `gate-change` PR 把那条断言改成不写死键数，之后再把变量加进 `loadEnv`、`.env.example`，并在装配处映射成 `ProviderSettings`。在那之前不要另写一个读环境变量的入口绕开 `loadEnv`。详见 `docs/plan/status/W0-19.md` 的“偏差”。
 

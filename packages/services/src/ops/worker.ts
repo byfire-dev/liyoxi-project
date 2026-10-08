@@ -2,6 +2,8 @@
 // 依据：D7 第 2.3 节规则 7、8，第 8.3 节“应用侧的数据库会话设置与连接池”；计划 第 5.1 节。
 // 应用层不引数据包（CLAUDE.md 第 6 节规则 5）：连接池在这里建，apps/worker 只把拿到的对象原样传回来。
 import { bindAnalytics } from "../analytics/index.js";
+import { findWechatIdentityId, recentWechatOpenid } from "../identity/index.js";
+import { createWechatReceiptHandler } from "../notify/index.js";
 import { createPrismaClient } from "@liyoxi/db";
 import type { PrismaClient } from "@liyoxi/db";
 
@@ -34,6 +36,7 @@ import type {
   BidxKeysConfig,
   Clock,
   DataKeysConfig,
+  Env,
   KernelViolation,
   QueueChannel,
 } from "../kernel/index.js";
@@ -49,7 +52,7 @@ import type {
   Timers,
 } from "../timers/index.js";
 import { bindOps } from "./binding.js";
-import { bindWebhooks, createWebhooks } from "../security/index.js";
+import { bindWebhooks, createWebhooks, createWechatMessageSource } from "../security/index.js";
 import type { WebhookSource } from "../security/index.js";
 import { createStartupChecks, runStartupChecks } from "./startup.js";
 
@@ -69,6 +72,10 @@ export function connectWorkerDatabase(connectionString: string): {
 }
 
 export interface WorkerServicesOptions {
+  readonly wechat?: {
+    readonly config: NonNullable<Env["WECHAT"]>;
+    readonly transport: NonNullable<Parameters<typeof assembleProviders>[0]["wechat"]>;
+  };
   readonly webhookSources?: readonly WebhookSource[];
   readonly appEnv: AppEnv;
   /** 业务连接池：connectWorkerDatabase 给的；用例传测试库的客户端 */
@@ -141,11 +148,27 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const flow = createFlow({ assembly, clock, events });
+  const logger = options.logger ?? silent;
+  const wechatSources = options.wechat
+    ? [
+        createWechatMessageSource({
+          cryptoConfig: {
+            appid: options.wechat.config.appid,
+            token: options.wechat.config.messageToken,
+            encodingAESKey: options.wechat.config.messageEncodingAESKey,
+          },
+          logger,
+          findWechatIdentityId,
+          handleImage: (t, input, ctx) => media.applyWechatImageResult(t, input, ctx),
+          handleSubscription: createWechatReceiptHandler({ clock, logger }),
+        }),
+      ]
+    : [];
   const webhooks = createWebhooks({
     tx,
     clock,
     events,
-    sources: options.webhookSources,
+    sources: options.webhookSources ?? wechatSources,
     alerts: alertsOf(assembly),
   });
   const closeWebhooks = bindWebhooks(webhooks);
@@ -155,9 +178,34 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     flow,
     timers,
   });
-  const logger = options.logger ?? silent;
-  const providers = options.providers ?? assembleProviders({ appEnv: options.appEnv, logger });
-  const media = createMedia({ tx, clock, assembly, events, storage: providers.storage, channel });
+  const providers =
+    options.providers ??
+    assembleProviders({
+      appEnv: options.appEnv,
+      logger,
+      ...(options.wechat
+        ? {
+            settings: {
+              wechat: { appid: options.wechat.config.appid, secret: options.wechat.config.secret },
+            },
+            wechat: options.wechat.transport,
+          }
+        : {}),
+    });
+  const media = createMedia({
+    tx,
+    clock,
+    assembly,
+    events,
+    storage: providers.storage,
+    channel,
+    wechatImage: {
+      appid: options.wechat?.config.appid,
+      provider: providers.wechat,
+      fallback: providers.media,
+      recentWechatOpenid,
+    },
+  });
   const startupChecks = createStartupChecks({
     db: prisma,
     appEnv: options.appEnv,

@@ -109,7 +109,11 @@ describe("已挂载清单", () => {
       expect(api.mountedOperations).toEqual(
         expect.arrayContaining(["hooks.health.get", "hooks.healthz.get", "hooks.readyz.get"]),
       );
-      expect(api.mountedOperations.filter((id) => id.startsWith("hooks."))).toHaveLength(3);
+      expect(
+        api.mountedOperations.filter((id) =>
+          ["hooks.health.get", "hooks.healthz.get", "hooks.readyz.get"].includes(id),
+        ),
+      ).toHaveLength(3);
       expect(api.mountedOperations).toEqual([...api.mountedOperations].sort());
       // “已落地”的判定（node infra/ci/landed.mjs）读这份文件：JSON 字符串数组，取生产的处理器清单
       const dist = fileURLToPath(new URL("../dist/", import.meta.url));

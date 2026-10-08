@@ -220,9 +220,18 @@ describe("成组变量成对校验", () => {
   };
   const base = { APP_ENV: "local", DATABASE_URL, REDIS_URL };
 
-  it("登记的组：两份密钥文件（W0-14）", () => {
+  it("登记的组：两份密钥文件（W0-14）与微信完整配置（W2-21）", () => {
     expect(ENV_GROUPS).toEqual([
       { name: "字段加密与盲索引密钥", keys: ["DATA_KEYS_FILE", "BIDX_KEYS_FILE"] },
+      {
+        name: "微信小程序与唯一消息接收地址",
+        keys: [
+          "WECHAT_APPID",
+          "WECHAT_SECRET_FILE",
+          "WECHAT_MESSAGE_TOKEN_FILE",
+          "WECHAT_MESSAGE_AES_KEY_FILE",
+        ],
+      },
     ]);
   });
 
@@ -269,6 +278,10 @@ describe("键名清单", () => {
       "DATA_KEYS_FILE",
       "BIDX_KEYS_FILE",
       "AUTH_KEYS_FILE",
+      "WECHAT_APPID",
+      "WECHAT_SECRET_FILE",
+      "WECHAT_MESSAGE_TOKEN_FILE",
+      "WECHAT_MESSAGE_AES_KEY_FILE",
       "CLIENT_ERROR_PROJECTS_FILE",
     ]);
   });
