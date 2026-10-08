@@ -616,9 +616,15 @@ async function settle(
 export function deliveryRunner(deps: NotifyDispatchDeps) {
   const calls = new Set<{ controller: AbortController; done: Promise<void> }>();
   let closed = false;
+  const pending = new Set<Promise<void>>();
   async function deliver(ref: { deliveryId: string }) {
     assertNotInTransaction("notify.deliver");
     if (closed) return;
+    const job = execute(ref).finally(() => pending.delete(job));
+    pending.add(job);
+    await job;
+  }
+  async function execute(ref: { deliveryId: string }) {
     const id = ref.deliveryId;
     const claim = await deps.tx.run(async (tx) => {
       const now = deps.clock.now();
@@ -628,7 +634,7 @@ export function deliveryRunner(deps: NotifyDispatchDeps) {
         WHERE id = ${id}::uuid AND status = 'pending' AND due_at <= ${now}::timestamptz
           AND channel <> 'inbox' AND attempt_no < max_attempts`;
     });
-    if (!claim || closed) return;
+    if (!claim) return;
     let prepared: Prepared | null;
     try {
       prepared = await deps.tx.run((tx) => prepare(tx, deps, id));
@@ -643,10 +649,19 @@ export function deliveryRunner(deps: NotifyDispatchDeps) {
     const call = { controller, done: Promise.resolve() };
     call.done = (async () => {
       let result: NotificationProviderResult<unknown>;
-      try {
-        result = await prepared.send(controller.signal);
-      } catch {
-        result = { ok: false, reason: "unavailable", message: "通知发送结果未知" };
+      if (closed) {
+        result = {
+          ok: false,
+          reason: "unavailable",
+          message: "通知在外呼前已取消",
+          notification: { acceptance: "not_accepted", code: "aborted" },
+        };
+      } else {
+        try {
+          result = await prepared.send(controller.signal);
+        } catch {
+          result = { ok: false, reason: "unavailable", message: "通知发送结果未知" };
+        }
       }
       const alert = await deps.tx.run((tx) => settle(tx, deps, prepared, result));
       if (alert?.slot)
@@ -723,7 +738,7 @@ export function deliveryRunner(deps: NotifyDispatchDeps) {
     async close() {
       closed = true;
       for (const call of calls) call.controller.abort();
-      await Promise.allSettled([...calls].map((call) => call.done));
+      await Promise.allSettled([...pending]);
     },
   };
 }

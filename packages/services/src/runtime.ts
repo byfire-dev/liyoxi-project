@@ -557,12 +557,25 @@ export function createRuntime(options: RuntimeOptions): Runtime {
 
   // 连库一项加移交表第 1 行的四个自检：security 的加解密与盲索引、审计 target_type 对表名单、聚合类型对表名单、
   // machine 与 state_field 对库里的表与列
+  let notifyDatabaseConnected = false;
   const startupChecks: StartupCheck[] = createStartupChecks({
     db: prisma,
     appEnv: env.APP_ENV,
     keys: env,
     warn: (message) => logger.warn({ evt: "startup.check_skipped" }, message),
-  });
+  }).map((check) =>
+    check.name !== "db.connect"
+      ? check
+      : {
+          ...check,
+          async run() {
+            notifyDatabaseConnected = false;
+            const issues = await check.run();
+            notifyDatabaseConnected = issues.length === 0;
+            return issues;
+          },
+        },
+  );
   // 后台登录的三把密钥（W1-01a）：只有 api 进程签票据、建会话。没配：stg、prod 下不过；local、test 下放行并记一条告警
   if (entry === "api") {
     startupChecks.push({
@@ -585,7 +598,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   startupChecks.push({
     name: "notify.templates",
     async run() {
-      await notify.validateConfiguration();
+      if (notifyDatabaseConnected) await notify.validateConfiguration();
       return [];
     },
   });

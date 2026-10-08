@@ -34,8 +34,14 @@ export type DirectNotificationInput = z.infer<typeof Input>;
 export function directSender(deps: NotifyDispatchDeps) {
   let closed = false;
   const calls = new Set<{ controller: AbortController; done: Promise<unknown> }>();
+  const pending = new Set<Promise<{ deliveryId: string; status: string }>>();
   async function sendDirect(raw: DirectNotificationInput) {
     assertNotInTransaction("notify.sendDirect");
+    const job = execute(raw).finally(() => pending.delete(job));
+    pending.add(job);
+    return job;
+  }
+  async function execute(raw: DirectNotificationInput) {
     const input = Input.parse(raw);
     if (closed) throw new AppError("INTERNAL", { message: "通知发送已关闭" });
     if (input.purpose === "staff_activation" && !/^[A-Za-z0-9]{8}$/.test(input.params.code ?? ""))
@@ -137,22 +143,31 @@ export function directSender(deps: NotifyDispatchDeps) {
     const call = { controller, done: Promise.resolve<unknown>(undefined) };
     call.done = (async () => {
       let result: NotificationProviderResult<unknown>;
-      try {
-        result =
-          input.purpose === "staff_activation"
-            ? await deps.providers.sms.sendActivationCode({
-                phone: input.phone,
-                code: input.params.code!,
-                signal: controller.signal,
-              })
-            : await deps.providers.sms.sendSubscribeFallback({
-                phone: input.phone,
-                templateKey: input.templateKey,
-                params: input.params,
-                signal: controller.signal,
-              });
-      } catch {
-        result = { ok: false, reason: "unavailable", message: "直发结果未知" };
+      if (closed) {
+        result = {
+          ok: false,
+          reason: "unavailable",
+          message: "直发在外呼前已取消",
+          notification: { acceptance: "not_accepted", code: "aborted" },
+        };
+      } else {
+        try {
+          result =
+            input.purpose === "staff_activation"
+              ? await deps.providers.sms.sendActivationCode({
+                  phone: input.phone,
+                  code: input.params.code!,
+                  signal: controller.signal,
+                })
+              : await deps.providers.sms.sendSubscribeFallback({
+                  phone: input.phone,
+                  templateKey: input.templateKey,
+                  params: input.params,
+                  signal: controller.signal,
+                });
+        } catch {
+          result = { ok: false, reason: "unavailable", message: "直发结果未知" };
+        }
       }
       const verdict = sendVerdict(result),
         now = deps.clock.now();
@@ -202,7 +217,7 @@ export function directSender(deps: NotifyDispatchDeps) {
     async close() {
       closed = true;
       for (const call of calls) call.controller.abort();
-      await Promise.allSettled([...calls].map((call) => call.done));
+      await Promise.allSettled([...pending]);
     },
   };
 }

@@ -12,7 +12,7 @@ import {
   createClock,
   fakeKeyEnv,
   SAMPLE_PROVIDER_INPUTS,
-  useTestDatabase,
+  useSeededDatabase,
   useTestRedis,
 } from "./testing/index.js";
 
@@ -20,7 +20,7 @@ import { bindCalendarCoverage } from "./sla/index.js";
 import { armRecurringSlot, claimTimers, runTimer } from "./timers/index.js";
 import type { TimerRunDeps } from "./timers/index.js";
 
-const db = useTestDatabase("services");
+const db = useSeededDatabase("services");
 const redis = useTestRedis();
 const TIMEOUT = { timeout: 60_000 };
 

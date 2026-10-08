@@ -228,7 +228,9 @@ it("公告共享守卫锁真实阻挡另一连接撤回，当前页提交后下�
       return "in_app";
     },
   });
-  const [{ pid }] = await other.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
+  const [backend] = await other.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
+  if (!backend) throw new Error("虚构撤回连接未返回 backend PID");
+  const { pid } = backend;
   const sending = local.deliver({ fanoutId: task.id });
   let withdraw: Promise<unknown> | undefined;
   try {
@@ -246,7 +248,7 @@ it("公告共享守卫锁真实阻挡另一连接撤回，当前页提交后下�
     let blocked = false;
     for (let n = 0; n < 100 && !blocked; n++) {
       const [state] = await h.prisma.$queryRaw<{ waiting: boolean }[]>`
-        SELECT wait_event_type = 'Lock' AS waiting FROM pg_stat_activity WHERE pid = ${pid}`;
+        SELECT EXISTS (SELECT 1 FROM pg_locks WHERE pid = ${pid} AND NOT granted) AS waiting`;
       blocked = state?.waiting === true;
       if (!blocked) await new Promise((resolve) => setTimeout(resolve, 10));
     }
