@@ -130,6 +130,8 @@ export const unconfiguredWechatPay: WechatPayProvider = {
 
 // ---------- sms：本地是控制台输出（sms/console.ts）；这里是连控制台都不许用时的实现 ----------
 
+const smsOff = unconfigured("短信", "提醒只剩站内与订阅消息");
+
 export const unconfiguredSms: SmsProvider = {
   sendTemplate: smsOff,
   checkBalance: smsOff,

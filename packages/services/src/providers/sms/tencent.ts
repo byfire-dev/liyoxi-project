@@ -1,5 +1,17 @@
-import { failed, ok, SMS_TEMPLATE_PARAMS, SMS_TODO_ITEMS } from "../types.js";
-import type { SmsProvider, SmsSendResult, SmsTemplateBinding } from "../types.js";
+import {
+  failed,
+  notificationFailed,
+  notificationOk,
+  ok,
+  SMS_TEMPLATE_PARAMS,
+  SMS_TODO_ITEMS,
+} from "../types.js";
+import type {
+  NotificationProviderResult,
+  SmsProvider,
+  SmsSendResult,
+  SmsTemplateBinding,
+} from "../types.js";
 import { createSmsHttp, isRecord, opaque } from "./http.js";
 import type { SmsHttpOptions } from "./http.js";
 
@@ -181,16 +193,61 @@ export function createTencentSms(options: TencentSmsOptions): SmsProvider {
       };
     return ok({ requestId, providerMsgId: firstId });
   };
-  const legacy = async (phones: readonly string[], key: string, params: Record<string, string>) => {
+  const aborted = () =>
+    notificationFailed("unavailable", "短信请求已取消，未发起外呼", {
+      acceptance: "not_accepted",
+      code: "aborted",
+    });
+  const notificationResult = (
+    result: SmsSendResult,
+    phoneCount: number,
+  ): NotificationProviderResult<void> => {
+    if (result.ok) {
+      const id = result.value.providerMsgId;
+      return notificationOk(
+        undefined,
+        phoneCount === 1 && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(id) ? id : undefined,
+      );
+    }
+    const acceptance = result.acceptance ?? "unknown";
+    return {
+      ...result,
+      ...notificationFailed(result.reason, result.message, {
+        acceptance,
+        code:
+          acceptance === "unknown"
+            ? "unknown_outcome"
+            : result.reason === "unconfigured"
+              ? "unconfigured"
+              : result.providerCode === "RequestLimitExceeded"
+                ? "rate_limited"
+                : "provider_rejected",
+      }),
+    };
+  };
+  const legacy = async (
+    phones: readonly string[],
+    key: string,
+    params: Record<string, string>,
+    signal?: AbortSignal,
+  ): Promise<NotificationProviderResult<void>> => {
+    if (signal?.aborted) return aborted();
     let template;
     try {
       template = await options.getTemplate(key);
     } catch {
-      return failed("unavailable", "短信模板读取失败，未发起外呼");
+      return notificationFailed("unavailable", "短信模板读取失败，未发起外呼", {
+        acceptance: "not_accepted",
+        code: "unconfigured",
+      });
     }
-    if (!template) return failed("unconfigured", "短信模板未配置");
-    const result = await send({ phones, template, params });
-    return result.ok ? ok(undefined) : result;
+    if (signal?.aborted) return aborted();
+    if (!template)
+      return notificationFailed("unconfigured", "短信模板未配置", {
+        acceptance: "not_accepted",
+        code: "unconfigured",
+      });
+    return notificationResult(await send({ phones, template, params, signal }), phones.length);
   };
   return {
     status: "tencent",
@@ -199,13 +256,24 @@ export function createTencentSms(options: TencentSmsOptions): SmsProvider {
     async checkBalance() {
       return failed("unsupported", "尚无账号完整套餐范围与正式阈值，禁止推断账号总余量");
     },
-    sendActivationCode: ({ phone, code }) =>
-      /^\d{1,6}$/.test(code)
-        ? legacy([phone], "verify_code", { code })
-        : Promise.resolve(
-            failed("rejected", "腾讯云验证码变量仅接受至多6位纯数字；员工激活码不兼容"),
-          ),
-    sendSubscribeFallback: ({ phone, templateKey, params }) => legacy([phone], templateKey, params),
-    sendOncallAlert: ({ phones, title }) => legacy(phones, "ops_alert", { rule_name: title }),
+    sendActivationCode: ({ phone, code, signal }) =>
+      signal?.aborted
+        ? Promise.resolve(aborted())
+        : /^\d{1,6}$/.test(code)
+          ? legacy([phone], "verify_code", { code }, signal)
+          : Promise.resolve(
+              notificationFailed(
+                "rejected",
+                "腾讯云验证码变量仅接受至多6位纯数字；员工激活码不兼容",
+                {
+                  acceptance: "not_accepted",
+                  code: "provider_rejected",
+                },
+              ),
+            ),
+    sendSubscribeFallback: ({ phone, templateKey, params, signal }) =>
+      legacy([phone], templateKey, params, signal),
+    sendOncallAlert: ({ phones, title, signal }) =>
+      legacy(phones, "ops_alert", { rule_name: title }, signal),
   };
 }

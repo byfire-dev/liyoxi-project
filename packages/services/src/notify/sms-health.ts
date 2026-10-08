@@ -1,7 +1,7 @@
 // W222 私有保活直发，不实现 W217 dispatch/sendDirect；无 Provider 内重试。
 import type { PrismaClient } from "@liyoxi/db";
 import { maskPhone } from "@liyoxi/shared/mask";
-import { paramsAt } from "../config/index.js";
+import { createConfig, paramsAt } from "../config/index.js";
 import type { Config } from "../config/index.js";
 import { uuidv7 } from "../kernel/index.js";
 import type { Alerts, Clock, RecurringRunContext, TxRunner } from "../kernel/index.js";
@@ -9,6 +9,7 @@ import type { SmsProvider, SmsTemplateBinding } from "../providers/types.js";
 import { phoneBidx } from "../security/index.js";
 import type { Keyring } from "../security/index.js";
 import { SMS_FIELDS, smsTemplateReader } from "./sms-init.js";
+import { lockSmsBudget, smsDayUsage } from "./sms-budget.js";
 
 export interface SmsHealthDeps {
   db: Pick<PrismaClient, "smsTemplate">;
@@ -37,6 +38,32 @@ function sameBinding(a: SmsTemplateBinding, b: SmsTemplateBinding) {
 export function createSmsHealth(deps: SmsHealthDeps) {
   const readTemplate = smsTemplateReader(deps.db);
   const enabled = () => deps.config.flags.isEnabled("notify.sms.enabled", {});
+  let closed = false;
+  let closing: Promise<void> | undefined;
+  const pending = new Set<{
+    controller: AbortController;
+    done: Promise<Readonly<Record<string, unknown>>>;
+  }>();
+  function owned(
+    ctx: RecurringRunContext,
+    run: (context: RecurringRunContext) => Promise<Readonly<Record<string, unknown>>>,
+  ) {
+    if (closed) return Promise.resolve({ outcome: "cancelled" });
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    if (ctx.signal?.aborted) abort();
+    else ctx.signal?.addEventListener("abort", abort, { once: true });
+    const call = {
+      controller,
+      done: Promise.resolve<Readonly<Record<string, unknown>>>({}),
+    };
+    call.done = run({ ...ctx, signal: controller.signal }).finally(() => {
+      ctx.signal?.removeEventListener("abort", abort);
+      pending.delete(call);
+    });
+    pending.add(call);
+    return call.done;
+  }
   async function inspectSuspect(
     row: { templateKey: string; updatedAt: Date },
     finished: Date,
@@ -73,7 +100,7 @@ export function createSmsHealth(deps: SmsHealthDeps) {
       });
     return changed;
   }
-  return {
+  const service = {
     async balance(ctx: RecurringRunContext): Promise<Readonly<Record<string, unknown>>> {
       if (ctx.signal?.aborted) return { outcome: "cancelled" };
       if (!(await enabled())) return { outcome: "disabled" };
@@ -180,18 +207,15 @@ export function createSmsHealth(deps: SmsHealthDeps) {
           skipped++;
           continue;
         }
-        let claimed: { id: string; phone: string; day: string } | null = null;
+        let claimed: { id: string; phone: string; staffId: string; day: string } | null = null;
         for (const target of targets) {
           if (ctx.signal?.aborted) break;
           const phone = target.phone;
           if (!phone) continue;
           const ref = phoneBidx(keyring, phone).toString("hex");
           claimed = await ctx.runTx(async (tx) => {
-            // 一个号码的保活日额度串行；同一模板/日期也串行，多 worker 不重复提交。
-            await tx.$executeRawUnsafe(
-              "SELECT pg_advisory_xact_lock(hashtext($1))",
-              "notify:sms_keepalive",
-            );
+            // 与其他短信 producer 共用实际种子锚；有效的未开始认领也预约同号日额度。
+            if (!(await lockSmsBudget(tx, [row.templateKey]))) return null;
             if (ctx.signal?.aborted) return null;
             const claimTime = deps.clock.now();
             const values = await paramsAt(
@@ -213,7 +237,6 @@ export function createSmsHealth(deps: SmsHealthDeps) {
             )
               return null;
             const day = dayOf(claimTime);
-            const dayStart = new Date(`${day}T00:00:00+08:00`);
             const directKey = `sms_keepalive:${day}:${row.templateKey}`;
             const staff = await tx.staff.findUnique({
               where: { id: target.staffId },
@@ -238,14 +261,7 @@ export function createSmsHealth(deps: SmsHealthDeps) {
               })
             )
               return null;
-            const count = await tx.notificationDelivery.count({
-              where: {
-                channel: "sms",
-                targetRef: ref,
-                createdAt: { gte: dayStart, lt: new Date(dayStart.getTime() + 86_400_000) },
-                status: { in: ["sending", "sent", "failed"] },
-              },
-            });
+            const count = await smsDayUsage(tx, { targetRef: ref, now: claimTime });
             if (count >= values["notify.sms.daily_cap"]) return null;
             const id = uuidv7();
             await tx.notificationDelivery.create({
@@ -270,7 +286,7 @@ export function createSmsHealth(deps: SmsHealthDeps) {
                 updatedAt: claimTime,
               },
             });
-            return { id, phone, day };
+            return { id, phone, staffId: target.staffId, day };
           });
           if (claimed) break;
         }
@@ -278,6 +294,7 @@ export function createSmsHealth(deps: SmsHealthDeps) {
           skipped++;
           continue;
         }
+        const claim = claimed;
         const latest = await readTemplate(row.templateKey);
         const beforeSend = deps.clock.now();
         const sendWindow = await ctx.runTx((tx) =>
@@ -285,7 +302,7 @@ export function createSmsHealth(deps: SmsHealthDeps) {
         );
         const permitted =
           !ctx.signal?.aborted &&
-          dayOf(beforeSend) === claimed.day &&
+          dayOf(beforeSend) === claim.day &&
           windowOpen(
             beforeSend,
             sendWindow["notify.window.start"],
@@ -296,20 +313,69 @@ export function createSmsHealth(deps: SmsHealthDeps) {
           sameBinding(binding, latest);
         if (permitted) {
           const started = await ctx.runTx(async (tx) => {
+            if (!(await lockSmsBudget(tx, [row.templateKey]))) return false;
+            await tx.$queryRaw`SELECT id FROM notification_delivery
+              WHERE id = ${claim.id}::uuid FOR UPDATE`;
             const startedAt = deps.clock.now();
+            const values = await paramsAt(
+              tx,
+              [
+                "notify.window.start",
+                "notify.window.end",
+                "notify.sms.keepalive_days",
+                "notify.test_recipients",
+              ],
+              startedAt,
+            );
+            const staff = await tx.staff.findUnique({
+              where: { id: claim.staffId },
+              select: { status: true },
+            });
+            const current = await tx.smsTemplate.findUnique({
+              where: { templateKey: row.templateKey },
+            });
+            const liveBinding = await smsTemplateReader(tx)(row.templateKey);
             if (
               ctx.signal?.aborted ||
-              dayOf(startedAt) !== claimed.day ||
-              !windowOpen(
-                startedAt,
-                sendWindow["notify.window.start"],
-                sendWindow["notify.window.end"],
-              )
-            )
+              dayOf(startedAt) !== claim.day ||
+              !windowOpen(startedAt, values["notify.window.start"], values["notify.window.end"]) ||
+              staff?.status !== "active" ||
+              !values["notify.test_recipients"].some(
+                (target) => target.staffId === claim.staffId && target.phone === claim.phone,
+              ) ||
+              !current ||
+              current.status !== "active" ||
+              current.updatedAt.getTime() !== row.updatedAt.getTime() ||
+              startedAt.getTime() - (current.lastOkAt ?? current.updatedAt).getTime() <
+                values["notify.sms.keepalive_days"] * 86_400_000 ||
+              !liveBinding ||
+              !sameBinding(binding, liveBinding) ||
+              !(await createConfig({ db: tx, clock: deps.clock, redis: null }).flags.isEnabled(
+                "notify.sms.enabled",
+                {},
+              ))
+            ) {
+              await tx.notificationDelivery.updateMany({
+                where: {
+                  id: claim.id,
+                  status: "sending",
+                  attemptNo: 1,
+                  callStartedAt: null,
+                  leaseUntil: { gt: startedAt },
+                },
+                data: {
+                  status: "cancelled",
+                  reason: "guard_invalid",
+                  finishedAt: startedAt,
+                  leaseUntil: null,
+                  updatedAt: startedAt,
+                },
+              });
               return false;
+            }
             const update = await tx.notificationDelivery.updateMany({
               where: {
-                id: claimed.id,
+                id: claim.id,
                 attemptNo: 1,
                 status: "sending",
                 leaseUntil: { gt: startedAt },
@@ -329,19 +395,24 @@ export function createSmsHealth(deps: SmsHealthDeps) {
           }
         }
         // 条件标记成功后，立即在事务外调用，期间不再做异步查询。
-        const result = permitted
-          ? await deps.sms.sendTemplate({
-              phone: claimed.phone,
-              template: binding,
-              params,
-              ...(ctx.signal ? { signal: ctx.signal } : {}),
-            })
-          : null;
-        const finished = deps.clock.now();
+        const result =
+          permitted && !ctx.signal?.aborted
+            ? await deps.sms.sendTemplate({
+                phone: claim.phone,
+                template: binding,
+                params,
+                ...(ctx.signal ? { signal: ctx.signal } : {}),
+              })
+            : null;
+        let finished = deps.clock.now();
         const settled = await ctx.runTx(async (tx) => {
+          await lockSmsBudget(tx, [row.templateKey]);
+          await tx.$queryRaw`SELECT id FROM notification_delivery
+            WHERE id = ${claim.id}::uuid FOR UPDATE`;
+          finished = deps.clock.now();
           const update = await tx.notificationDelivery.updateMany({
             where: {
-              id: claimed.id,
+              id: claim.id,
               attemptNo: 1,
               status: "sending",
               leaseUntil: { gt: finished },
@@ -397,6 +468,20 @@ export function createSmsHealth(deps: SmsHealthDeps) {
         skipped,
         suspect,
       };
+    },
+  };
+  return {
+    balance: (ctx: RecurringRunContext) => owned(ctx, service.balance),
+    keepalive: (ctx: RecurringRunContext) => owned(ctx, service.keepalive),
+    close() {
+      if (closing) return closing;
+      closed = true;
+      const calls = [...pending];
+      closing = Promise.resolve().then(async () => {
+        for (const call of calls) call.controller.abort();
+        await Promise.allSettled(calls.map((call) => call.done));
+      });
+      return closing;
     },
   };
 }
