@@ -65,6 +65,9 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 - `verify` 的 `kind: reply` 只供 GET 地址校验；POST 产生 `event` 或 `error`。h01第2.1节允许的两类免收件成功须显式返回 `skip`，原因只能为 `unregistered_event/passive_reply`，且仍先验签/校验时间戳。不属于本端点的已登记事件走正常收件后返回 `ignored`。
 - `accept(prepared, systemContext)` 只认本实例的私有验证快照。inline 插入即 `processed`，自然去重和领域处理同事务；处理返回 `ignored` 则同事务改为已忽略。失败整个事务回滚，不能用“查到行”代替重处理失败行。
 - inbox 原子提交 `received` 与 `webhook.received { v:1, webhookEventId, provider }`，重复不再发出站事件。`security.onWebhookReceived` 在既有 subscriber Tx 中调用 `process(tx,id,ctx)`；域段保存点失败只回滚该段，外层提交受控 `WEBHOOK_HANDLER_FAILED`、次数和下次时间。外层最终失败则失败记录也回滚，不嵌套 `tx.run`。
+- inbox 可选 `projectPayload(tx, verifiedEvent): Promise<WebhookPayload | null>`：在 `accept` 的同一事务内、收件插入与加锁之前作有界的本地只读投影，再原子写收件与出站。原必需的同步 `payload` 仍作事务前先验检查；先验非法不调用投影。没有新口的旧来源、inline 与支付兜底沿用原路径；inline 登记此口在构造时拒绝。
+- 投影每次事务重试重新读取事实，接收独立复制的验签快照；返回值再复制并验证为非空的 JSON 对象，拒绝数组、循环、非有限数字与非 JSON 值。框架只验证形状，字段白名单、限量查询和去敏由来源负责；`null` 身份须放在对象字段内，不把原 openid 放进载荷。只读是来源契约，不是新的数据库权限代理；不得加业务行锁、写业务状态、另开事务或外呼，原事务/Provider guard 保持。
+- 非法投影输出以固定 `WEBHOOK_PAYLOAD_INVALID` 应答，投影自身异常、SQL/提交失败或 guard 拒绝沿原 `WEBHOOK_PERSIST_FAILED`；不传出原错误或 cause。收件、出站任一失败整体回滚。重放可再次只读投影，但不得覆盖首次 payload、摘要/密文、digest、收件时间或重复出站；同事务不表示绑定一直到提交不变，后继业务处理仍须校验当前事实。
 - `scan()` 由 `webhook_reprocess` 每分钟调用，按到期时间/id逐行独立事务、最多50条、`SKIP LOCKED`。缺来源或停用时保留可恢复行；1/5/15分钟、1/6小时退避，第8次 dead。支付第5次升级，其他来源可显式选 `escalateAfter:5`；告警只含 provider/attempts/id，当前端口为空实现，不声称真实通知。
 - 只有 `wechatpay/inline` 可显式 `fallbackToInbox:true`。其 payload 必有完整 `resourceCipher` 和 `keyVersion` 才能在首事务失败后用新短事务落 `failed/inbox`；收件时间保留，下一次按实际失败时间加1分钟。其他来源无此成功兜底。CI/ASR 的 inline payload 必须为 null；其他 inbox 须有可恢复最小载荷。
 - 微信支付保留 `summary` 与密文180天，其他有载荷来源90天。`security.webhook_payload` 经既有每日 `ops.retention` 做限量 UPDATE，仅留 summary或置空并写 purgedAt；不删行、不改摘要/digest/来源/原收件举证列。`restore` 在载荷过期后必须受控失败，不制造恢复数据。
@@ -76,6 +79,8 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 `pnpm exec vitest run --project services packages/services/src/security/webhooks/` 跑真实DB、100轮固定种子20261007模型、53条双扫描并发、实际提交时延迟约束/23505保存点/40001重试、8次死信及180/90天清理。
 `pnpm exec vitest run --project api apps/api/test/webhook-framework.test.ts` 跑完整接收链；`pnpm exec vitest run --project worker apps/worker/test/webhook-reprocess.test.ts` 跑真实worker装配/消费/循环和等待在途后解绑。
 所有来源/媒体/支付事实都是显式本地替身；真平台地址、密钥、解密适配与业务处理由接收方另验。
+
+`pnpm --filter @liyoxi/services exec vitest run src/security/webhooks/projection.db.test.ts` 验证新口：真实 `txid_current()`、prepare 后事实变化、零 DML 拒绝、40001 前后两种故障、真实 COMMIT 回滚、双连接20次去重和事务外呼 guard。合成身份使用测试事实，不能代替 W2-21 的真实身份投影或微信回调验收；W2-21 须在本修复实际合入本地 main 后才消费此公口。
 
 ## 7. 专用明文查看（W2-04）
 
