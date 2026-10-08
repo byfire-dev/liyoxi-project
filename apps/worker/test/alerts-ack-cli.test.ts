@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { createFlowOpsCliSupport, useSeededDatabase } from "@liyoxi/services/testing";
@@ -8,6 +9,7 @@ import { runAlertsAckCommand } from "../src/cli/alerts-ack-command.js";
 
 const db = useSeededDatabase("worker", { label: "alertscli" });
 const execute = promisify(execFile);
+const workerDir = fileURLToPath(new URL("../", import.meta.url));
 const id = "00000000-0000-4000-8000-000000000001";
 const note = "核对后受限人工处理";
 const args = (staff: string, target: string) => [
@@ -102,6 +104,7 @@ describe("W223 alerts-ack真实应用角色/构建入口", { timeout: 120000 }, 
     support = createFlowOpsCliSupport(await db.prisma());
     source = { APP_ENV: "test", DATABASE_URL: await db.url(), REDIS_URL: process.env.REDIS_URL };
     await execute(process.execPath, ["scripts/build.mjs"], {
+      cwd: workerDir,
       timeout: 60000,
       maxBuffer: 2 * 1024 * 1024,
     });
@@ -151,7 +154,7 @@ describe("W223 alerts-ack真实应用角色/构建入口", { timeout: 120000 }, 
       const result = await execute(
         process.execPath,
         ["dist/alerts-ack.js", command, "--staff", staff.id, flag, target, "--note", note],
-        { env: source, timeout: 20000, maxBuffer: 1024 * 1024 },
+        { cwd: workerDir, env: source, timeout: 20000, maxBuffer: 1024 * 1024 },
       );
       expect(result.stderr).toBe("");
       expect(JSON.parse(result.stdout)).toEqual({ command, targetId: target, status });
@@ -189,6 +192,7 @@ describe("W223 alerts-ack真实应用角色/构建入口", { timeout: 120000 }, 
     expect(await prisma.auditLog.count({ where: { targetId: row.id } })).toBe(0);
     try {
       await execute(process.execPath, ["dist/alerts-ack.js", "--all"], {
+        cwd: workerDir,
         env: { DATABASE_URL: "fictional-db-secret" },
         timeout: 20000,
       });
