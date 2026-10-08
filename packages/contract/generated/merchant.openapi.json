@@ -6738,7 +6738,50 @@
             "type": "array"
           },
           "noticeBar": {
-            "type": "null"
+            "properties": {
+              "effectiveAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "link": {
+                "properties": {
+                  "params": {
+                    "additionalProperties": {},
+                    "type": "object"
+                  },
+                  "route": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "route",
+                  "params"
+                ],
+                "type": "object"
+              },
+              "siteNoticeId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "siteNoticeId",
+              "title",
+              "summary",
+              "effectiveAt",
+              "link"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
           },
           "recommend": {
             "properties": {
@@ -18952,6 +18995,332 @@
         "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
       }
     },
+    "/api/v1/m/dramas/search": {
+      "get": {
+        "operationId": "m.drama.search",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 2048,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "oneOf": [
+                        {
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/DramaPageOwner"
+                            },
+                            {
+                              "properties": {
+                                "fallbackIndustry": {
+                                  "properties": {
+                                    "code": {
+                                      "type": "string"
+                                    },
+                                    "keywordCategoryName": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "code",
+                                    "name",
+                                    "keywordCategoryName"
+                                  ],
+                                  "type": [
+                                    "object",
+                                    "null"
+                                  ]
+                                },
+                                "items": {
+                                  "items": {
+                                    "allOf": [
+                                      {
+                                        "$ref": "#/components/schemas/DramaCard"
+                                      },
+                                      {
+                                        "properties": {
+                                          "matchedFields": {
+                                            "items": {
+                                              "enum": [
+                                                "title",
+                                                "genre",
+                                                "cast"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          }
+                                        },
+                                        "required": [
+                                          "matchedFields"
+                                        ],
+                                        "type": "object"
+                                      }
+                                    ]
+                                  },
+                                  "type": "array"
+                                },
+                                "mode": {
+                                  "enum": [
+                                    "match",
+                                    "industry_fallback"
+                                  ],
+                                  "type": "string"
+                                },
+                                "totalApprox": {
+                                  "maximum": 999,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "mode",
+                                "fallbackIndustry",
+                                "totalApprox"
+                              ],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        {
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/DramaPageClerk"
+                            },
+                            {
+                              "properties": {
+                                "fallbackIndustry": {
+                                  "properties": {
+                                    "code": {
+                                      "type": "string"
+                                    },
+                                    "keywordCategoryName": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "code",
+                                    "name",
+                                    "keywordCategoryName"
+                                  ],
+                                  "type": [
+                                    "object",
+                                    "null"
+                                  ]
+                                },
+                                "items": {
+                                  "items": {
+                                    "allOf": [
+                                      {
+                                        "$ref": "#/components/schemas/DramaCardForClerk"
+                                      },
+                                      {
+                                        "properties": {
+                                          "matchedFields": {
+                                            "items": {
+                                              "enum": [
+                                                "title",
+                                                "genre",
+                                                "cast"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          }
+                                        },
+                                        "required": [
+                                          "matchedFields"
+                                        ],
+                                        "type": "object"
+                                      }
+                                    ]
+                                  },
+                                  "type": "array"
+                                },
+                                "mode": {
+                                  "enum": [
+                                    "match",
+                                    "industry_fallback"
+                                  ],
+                                  "type": "string"
+                                },
+                                "totalApprox": {
+                                  "maximum": 999,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "mode",
+                                "fallbackIndustry",
+                                "totalApprox"
+                              ],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        {
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/DramaPageGuest"
+                            },
+                            {
+                              "properties": {
+                                "fallbackIndustry": {
+                                  "properties": {
+                                    "code": {
+                                      "type": "string"
+                                    },
+                                    "keywordCategoryName": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "code",
+                                    "name",
+                                    "keywordCategoryName"
+                                  ],
+                                  "type": [
+                                    "object",
+                                    "null"
+                                  ]
+                                },
+                                "items": {
+                                  "items": {
+                                    "allOf": [
+                                      {
+                                        "$ref": "#/components/schemas/DramaCardForClerk"
+                                      },
+                                      {
+                                        "properties": {
+                                          "matchedFields": {
+                                            "items": {
+                                              "enum": [
+                                                "title",
+                                                "genre",
+                                                "cast"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          }
+                                        },
+                                        "required": [
+                                          "matchedFields"
+                                        ],
+                                        "type": "object"
+                                      }
+                                    ]
+                                  },
+                                  "type": "array"
+                                },
+                                "mode": {
+                                  "enum": [
+                                    "match",
+                                    "industry_fallback"
+                                  ],
+                                  "type": "string"
+                                },
+                                "totalApprox": {
+                                  "maximum": 999,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "mode",
+                                "fallbackIndustry",
+                                "totalApprox"
+                              ],
+                              "type": "object"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          }
+        },
+        "summary": "搜索（?q=）：按剧名、题材、主演匹配，剧名命中在前；未命中且关键词属于某品类时按适配行业兜底，返回 mode: match | industry_fallback",
+        "x-auth": "optional",
+        "x-capability": "catalog.read",
+        "x-clerk-view": "trimmed",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
     "/api/v1/m/dramas/{dramaId}": {
       "get": {
         "operationId": "m.drama.get",
@@ -21239,6 +21608,42 @@
                                       "route": {
                                         "enum": [
                                           "store.members"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "key": {
+                                            "enum": [
+                                              "user",
+                                              "privacy",
+                                              "member",
+                                              "points",
+                                              "custom_license",
+                                              "ad_service"
+                                            ],
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "key"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "agreement.view"
                                         ],
                                         "type": "string"
                                       }

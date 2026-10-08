@@ -21,3 +21,5 @@ export const H01_HOOKS = defineRouteDoc("h01-hooks", [
   wechatpay,
   wecom,
 ]);
+
+export * from "./wechat.schemas.js";

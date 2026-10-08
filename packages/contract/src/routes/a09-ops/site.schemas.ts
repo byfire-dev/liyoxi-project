@@ -103,7 +103,7 @@ const bannerInput = {
 export const HomeBannerCreateBodySchema = z.strictObject({
   ...bannerInput,
   jumpKind: z.enum(["drama", "mall", "page", "none"]),
-  jumpTarget: z.json().nullable().optional(),
+  jumpTarget: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 export const HomeBannerUpdateBodySchema = z.strictObject({
   title: bannerInput.title.optional(),
@@ -112,7 +112,7 @@ export const HomeBannerUpdateBodySchema = z.strictObject({
   endAt: InstantSchema.nullable().optional(),
   isEnabled: z.boolean().optional(),
   jumpKind: z.enum(["drama", "mall", "page", "none"]).optional(),
-  jumpTarget: z.json().nullable().optional(),
+  jumpTarget: z.record(z.string(), z.unknown()).nullable().optional(),
   lockVersion: z.int().nonnegative(),
 });
 export const HomeBannerReorderBodySchema = z.strictObject({
