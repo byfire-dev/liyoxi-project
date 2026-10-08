@@ -1,10 +1,8 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { createPrismaClient } from "@liyoxi/db";
 import { createTxRunner, uuidv7 } from "../kernel/index.js";
-import { noticeRecipientsPageForNotify } from "../tenant/index.js";
-import { useSeededDatabase } from "../testing/index.js";
+import { useSeededDatabase, notificationFixture } from "../testing/index.js";
 import { createNotifyDispatcher } from "./service.js";
-import { notificationFixture } from "./__fixtures__/dispatch.js";
 
 const db = useSeededDatabase("services");
 let h: ReturnType<typeof notificationFixture>;
@@ -86,7 +84,7 @@ it("batch+1真实探测只生成持久task，两个连接同页CAS且分页游�
   expect(await h.deps.params.get("notify.fanout.batch")).toBe(2);
   const { row, event, task } = await notice();
   const recipients = await h.tx.run((tx) =>
-    noticeRecipientsPageForNotify(tx, { after: null, take: 10_001 }),
+    h.noticeRecipientsPage(tx, { after: null, take: 10_001 }),
   );
   expect(recipients.length).toBeGreaterThan(2);
   expect(await messages(row.id)).toHaveLength(0);

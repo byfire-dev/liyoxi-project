@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { uuidv7 } from "../kernel/index.js";
-import { useSeededDatabase } from "../testing/index.js";
-import { notificationFixture } from "./__fixtures__/dispatch.js";
+import { useSeededDatabase, notificationFixture } from "../testing/index.js";
 const db = useSeededDatabase("services");
 let h: ReturnType<typeof notificationFixture>;
 beforeAll(async () => {

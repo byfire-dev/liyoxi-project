@@ -1,10 +1,9 @@
 import { createPrismaClient } from "@liyoxi/db";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { createIdentityContext, createTxRunner, uuidv7 } from "../kernel/index.js";
-import { seedWorkCalendar, useSeededDatabase } from "../testing/index.js";
+import { seedWorkCalendar, useSeededDatabase, notificationFixture } from "../testing/index.js";
 import { createNotifyDispatcher } from "./service.js";
 import { createWechatReceiptHandler } from "./wechat-receipts.js";
-import { notificationFixture } from "./__fixtures__/dispatch.js";
 const db = useSeededDatabase("services");
 let h: ReturnType<typeof notificationFixture>;
 let other: ReturnType<typeof createPrismaClient>;

@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { Prisma } from "@liyoxi/db";
-import { useSeededDatabase } from "../testing/index.js";
-import { notificationFixture } from "./__fixtures__/dispatch.js";
+import { useSeededDatabase, notificationFixture } from "../testing/index.js";
 import { createNotifyDispatcher } from "./service.js";
 
 const db = useSeededDatabase("services");

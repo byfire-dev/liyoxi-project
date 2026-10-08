@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { useSeededDatabase } from "../testing/index.js";
+import { useSeededDatabase, notificationFixture } from "../testing/index.js";
 import { uuidv7 } from "../kernel/index.js";
-import { notificationFixture } from "../notify/__fixtures__/dispatch.js";
 import { createNotifyAssembly } from "./notify-runtime.js";
 const db = useSeededDatabase("services");
 let a: ReturnType<typeof notificationFixture>, b: ReturnType<typeof notificationFixture>;
@@ -62,6 +61,28 @@ it("两真实同时scope各用其clock/服务，所有索引指向自己的对�
   expect(await b.prisma.notification.findFirst({ where: { bizId: two.order.id } })).toMatchObject({
     createdAt: b.clock.now(),
   });
+  // Exercise the registered deletion callback in the same scoped transaction.
+  await a.prisma.merchantUser.update({
+    where: { id: one.user.id },
+    data: {
+      status: "deleted",
+      phoneEnc: null,
+      phoneBidx: null,
+      phoneMask: null,
+      phoneLast4: null,
+      displayName: null,
+      deletedAt: a.clock.now(),
+    },
+  });
+  await a.tx.run((tx) =>
+    aa.assembly.subscriber("notify.onMerchantUserDeleted")!.handle(tx, {
+      id: uuidv7(),
+      type: "merchant_user.deleted",
+      payload: { v: 1, merchantUserId: one.user.id },
+    }),
+  );
+  expect(await a.prisma.merchantMessage.count({ where: { merchantUserId: one.user.id } })).toBe(0);
+  expect(await b.prisma.merchantMessage.count({ where: { merchantUserId: two.user.id } })).toBe(1);
   await aa.close();
   await expect(
     a.tx.run((t) =>

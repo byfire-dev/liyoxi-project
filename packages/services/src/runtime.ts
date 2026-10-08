@@ -1,4 +1,3 @@
-import { createRuntimeNotify, createNotifyAssembly } from "./ops/notify-runtime.js";
 import type { NotifyDispatcherService } from "./notify/index.js";
 import { bindAgreementNoticeLink } from "./config/index.js";
 import { bindAnalytics, createAnalyticsReceiver, countBannerClicks } from "./analytics/index.js";
@@ -87,7 +86,13 @@ import type {
 } from "./kernel/index.js";
 import { createLogger } from "./logger.js";
 import type { Logger } from "./logger.js";
-import { bindOps, createHealth, createStartupChecks } from "./ops/index.js";
+import {
+  bindOps,
+  createHealth,
+  createStartupChecks,
+  createRuntimeNotify,
+  createNotifyAssembly,
+} from "./ops/index.js";
 import type { Health, StartupCheck } from "./ops/index.js";
 import type { Providers } from "./providers/types.js";
 import { createContent, bindContent } from "./content/index.js";

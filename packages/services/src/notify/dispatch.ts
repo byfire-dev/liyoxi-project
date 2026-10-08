@@ -143,6 +143,17 @@ export async function currentNotificationFact(
 export const smsNodeAllowed = (nodes: unknown, node: string): boolean =>
   nodes === null || (Array.isArray(nodes) && nodes.includes(node));
 
+// These producers can recur while the account/store and current status stay the same.
+// A stable outbox ID preserves each occurrence, including replay after a later review round.
+const occurrenceEvents = new Set([
+  "merchant_user.wechat_bound",
+  "store.qualification.submitted",
+  "store.qualification.approved",
+  "store.qualification.rejected",
+  "account.verified",
+  "account.abnormal",
+]);
+
 /** Caller transaction is the only transaction: consumer status, inbox and deliveries roll back together. */
 export async function dispatchFact(
   tx: Tx,
@@ -238,7 +249,9 @@ export async function dispatchFact(
     const mode = entityId === null ? null : await deps.purchaseMode(tx, entityId, now);
     const id = uuidv7();
     const key = `${spec.sceneKey}:${fact.bizId}:v${fact.version}:${source.node}:${
-      spec.sceneKey.startsWith("m.points_") ? (source.event?.id ?? "rule") : fact.status
+      spec.sceneKey.startsWith("m.points_") || occurrenceEvents.has(source.event?.type ?? "")
+        ? (source.event?.id ?? "rule")
+        : fact.status
     }:${recipient.merchantUserId}${mandatory ? `:${entityId}` : ""}`;
     const vars = {
       ...fact,

@@ -1,7 +1,6 @@
 import { beforeAll, afterAll, expect, it } from "vitest";
 import { uuidv7 } from "../kernel/index.js";
-import { useSeededDatabase } from "../testing/index.js";
-import { notificationFixture } from "./__fixtures__/dispatch.js";
+import { useSeededDatabase, notificationFixture } from "../testing/index.js";
 const db = useSeededDatabase("services");
 let h: ReturnType<typeof notificationFixture>;
 beforeAll(async () => {
@@ -328,4 +327,339 @@ it("actual order.started 与 asset.adopted 生成正式深链，素材只当前�
       }),
     ),
   ).toBe(0);
+});
+
+it("同账号两次真实新微信绑定分别通知并排除对应新身份，旧event跨绑定重放不新增", async () => {
+  const own = await h.merchant(),
+    now = h.clock.now();
+  const identities = [];
+  for (let index = 0; index < 3; index++)
+    identities.push(
+      await h.prisma.wechatIdentity.create({
+        data: {
+          id: uuidv7(),
+          merchantUserId: own.user.id,
+          appid: h.deps.appid!,
+          openid: `fictional-occurrence-${uuidv7()}`,
+          lastLoginAt: now,
+          lastActiveAt: now,
+          createdAt: now,
+          updatedAt: now,
+        },
+      }),
+    );
+  const events = identities.slice(1).map((identity) => ({
+    id: uuidv7(),
+    type: "merchant_user.wechat_bound",
+    payload: { v: 1, merchantUserId: own.user.id, wechatIdentityId: identity.id },
+  }));
+  const made = [];
+  for (const event of events) made.push(await h.tx.run((tx) => h.service.onEvent(tx, event)));
+  const replay = await Promise.all(
+    events.map((event) => h.tx.run((tx) => h.service.onEvent(tx, event))),
+  );
+  expect(made).toEqual([1, 1]);
+  expect(replay).toEqual([0, 0]);
+  const notifications = await h.prisma.notification.findMany({
+    where: { bizId: own.user.id, notifySceneKey: "m.account_security" },
+    orderBy: { sourceOutboxEventId: "asc" },
+  });
+  expect(notifications).toHaveLength(2);
+  for (const event of events) {
+    const notification = notifications.find((row) => row.sourceOutboxEventId === event.id);
+    expect(notification?.vars).toMatchObject({
+      excludeWechatIdentityId: event.payload.wechatIdentityId,
+    });
+    expect(
+      await h.prisma.merchantMessage.count({ where: { notificationId: notification!.id } }),
+    ).toBe(1);
+    expect(
+      await h.prisma.notificationDelivery.findMany({
+        where: { notificationId: notification!.id },
+        orderBy: { channel: "asc" },
+      }),
+    ).toMatchObject([
+      { channel: "inbox", status: "sent" },
+      { channel: "sms", status: "pending" },
+    ]);
+  }
+});
+
+async function pendingReview(
+  own: Pick<Awaited<ReturnType<typeof h.merchant>>, "user" | "entity" | "store">,
+  kind: "qualification" | "channel_account",
+  subjectId: string,
+  roundNo: number,
+) {
+  return h.prisma.approvalRequest.create({
+    data: {
+      id: uuidv7(),
+      kind,
+      category: "review",
+      subjectType: kind === "qualification" ? "store" : "channel_account",
+      subjectId,
+      entityId: own.entity.id,
+      storeId: own.store.id,
+      roundNo,
+      status: "pending",
+      summarySnapshot: { title: "虚构重复审核轮次" },
+      submitActorType: "merchant",
+      submitActorId: own.user.id,
+      submitClient: "weapp",
+      submittedAt: h.clock.now(),
+      dedupeKey: `${kind}:${subjectId}`,
+      createdAt: h.clock.now(),
+      updatedAt: h.clock.now(),
+    },
+  });
+}
+
+it("同门店真实资质两轮提交及驳回各通知一次，旧event跨轮重放不新增", async () => {
+  const own = await h.make.merchant(),
+    staff = await h.make.staff(),
+    now = h.clock.now();
+  const events: Parameters<typeof h.service.onEvent>[1][] = [],
+    made = [];
+  let previousId: string | null = null;
+  for (const roundNo of [1, 2]) {
+    const approval = await pendingReview(own, "qualification", own.store.id, roundNo);
+    const submissionId = uuidv7();
+    await h.prisma.qualificationSubmission.create({
+      data: {
+        id: submissionId,
+        entityId: own.entity.id,
+        storeId: own.store.id,
+        kind: "initial",
+        roundNo,
+        resubmitOfQualificationSubmissionId: previousId,
+        claimedEntityType: "enterprise",
+        proposedStoreName: "虚构资质门店",
+        proposedIndustryCode: "fictional",
+        proposedCategoryCode: "fictional",
+        proposedAddressSnapshot: { detail: "虚构地址" },
+        declarationConfirmedAt: now,
+        declarationVersion: "fictional",
+        approvalRequestId: approval.id,
+        submittedAt: now,
+        submittedByUserId: own.user.id,
+        createdByUserId: own.user.id,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    const submitted = {
+      id: uuidv7(),
+      type: "store.qualification.submitted",
+      payload: {
+        v: 1,
+        storeId: own.store.id,
+        entityId: own.entity.id,
+        submissionId,
+        kind: "initial",
+        roundNo,
+      },
+    };
+    made.push(
+      await h.tx.run(async (tx) => {
+        await tx.store.update({
+          where: { id: own.store.id },
+          data: { qualificationStatus: "pending", name: "虚构资质门店" },
+        });
+        return h.service.onEvent(tx, submitted);
+      }),
+    );
+    const rejected = {
+      id: uuidv7(),
+      type: "store.qualification.rejected",
+      payload: {
+        v: 1,
+        storeId: own.store.id,
+        entityId: own.entity.id,
+        submissionId,
+        isFinal: false,
+        reasonCodes: ["fictional"],
+        isSystem: false,
+      },
+    };
+    made.push(
+      await h.tx.run(async (tx) => {
+        await tx.approvalRequest.update({
+          where: { id: approval.id },
+          data: {
+            status: "rejected",
+            decidedAt: now,
+            decidedByStaffId: staff.id,
+            decisionNote: "虚构审核驳回",
+            reasonCodes: ["fictional"],
+          },
+        });
+        await tx.qualificationSubmission.update({
+          where: { id: submissionId },
+          data: { closedAt: now, outcome: "rejected" },
+        });
+        await tx.store.update({
+          where: { id: own.store.id },
+          data: { qualificationStatus: "rejected" },
+        });
+        return h.service.onEvent(tx, rejected);
+      }),
+    );
+    events.push(submitted, rejected);
+    previousId = submissionId;
+  }
+  const replay = await Promise.all(
+    events.map((event) => h.tx.run((tx) => h.service.onEvent(tx, event))),
+  );
+  expect(made).toEqual([1, 1, 1, 1]);
+  expect(replay).toEqual([0, 0, 0, 0]);
+  expect(
+    await h.prisma.qualificationSubmission.findMany({
+      where: { storeId: own.store.id },
+      orderBy: { roundNo: "asc" },
+    }),
+  ).toMatchObject([
+    { roundNo: 1, outcome: "rejected" },
+    { roundNo: 2, outcome: "rejected" },
+  ]);
+  expect(await h.prisma.notification.count({ where: { bizId: own.store.id } })).toBe(4);
+  expect(
+    await h.prisma.merchantMessage.count({ where: { notification: { bizId: own.store.id } } }),
+  ).toBe(4);
+  expect(
+    await h.prisma.notificationDelivery.count({
+      where: { channel: "inbox", notification: { bizId: own.store.id } },
+    }),
+  ).toBe(4);
+});
+
+it("同渠道账号真实两轮审核驳回分别通知，旧event跨重新提交重放不新增", async () => {
+  const own = await h.merchant(),
+    staff = await h.make.staff(),
+    now = h.clock.now();
+  const accountId = uuidv7();
+  await h.prisma.channelAccount.create({
+    data: {
+      id: accountId,
+      entityId: own.entity.id,
+      storeId: own.store.id,
+      platform: "douyin",
+      accountName: "虚构审核账号",
+      accountUid: accountId,
+      accountUidNorm: accountId,
+      status: "pending_verify",
+      submittedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    },
+  });
+  const events: Parameters<typeof h.service.onEvent>[1][] = [],
+    made = [];
+  for (const roundNo of [1, 2]) {
+    const approval = await pendingReview(own, "channel_account", accountId, roundNo);
+    const screenshot = await h.make.fileObject({
+      entityId: own.entity.id,
+      storeId: own.store.id,
+      category: "channel_screenshot",
+      bucket: "asset",
+      scopeType: "store",
+      uploadActorType: "merchant",
+      uploadActorId: own.user.id,
+      uploadClient: "weapp",
+    });
+    await h.prisma.channelAccountSubmission.create({
+      data: {
+        id: uuidv7(),
+        entityId: own.entity.id,
+        storeId: own.store.id,
+        channelAccountId: accountId,
+        roundNo,
+        kind: roundNo === 1 ? "new_binding" : "resubmit",
+        filledSnapshot: {
+          platform: "douyin",
+          accountName: "虚构审核账号",
+          accountUid: accountId,
+          accountType: "none",
+        },
+        screenshotFileIds: [screenshot.id],
+        approvalRequestId: approval.id,
+        submittedByUserId: own.user.id,
+        submittedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    const event = {
+      id: uuidv7(),
+      type: "account.abnormal",
+      payload: {
+        v: 1,
+        channelAccountId: accountId,
+        entityId: own.entity.id,
+        storeId: own.store.id,
+        fromState: "pending_verify",
+        toState: "abnormal",
+        transition: "account.verify_reject",
+        abnormalSource: "verify",
+        reasonCode: "fictional",
+      },
+    };
+    made.push(
+      await h.tx.run(async (tx) => {
+        await tx.approvalRequest.update({
+          where: { id: approval.id },
+          data: {
+            status: "rejected",
+            decidedAt: now,
+            decidedByStaffId: staff.id,
+            decisionNote: "虚构审核驳回",
+            reasonCodes: ["fictional"],
+          },
+        });
+        await tx.channelAccount.update({
+          where: { id: accountId },
+          data: {
+            status: "abnormal",
+            abnormalSource: "verify",
+            abnormalReasonCode: "fictional",
+            abnormalNote: "虚构核验失败",
+          },
+        });
+        return h.service.onEvent(tx, event);
+      }),
+    );
+    events.push(event);
+    if (roundNo === 1)
+      await h.prisma.channelAccount.update({
+        where: { id: accountId },
+        data: {
+          status: "pending_verify",
+          abnormalSource: null,
+          abnormalReasonCode: null,
+          abnormalNote: null,
+        },
+      });
+  }
+  const replay = await Promise.all(
+    events.map((event) => h.tx.run((tx) => h.service.onEvent(tx, event))),
+  );
+  expect(made).toEqual([1, 1]);
+  expect(replay).toEqual([0, 0]);
+  expect(
+    await h.prisma.channelAccountSubmission.findMany({
+      where: { channelAccountId: accountId },
+      orderBy: { roundNo: "asc" },
+    }),
+  ).toMatchObject([
+    { roundNo: 1, kind: "new_binding" },
+    { roundNo: 2, kind: "resubmit" },
+  ]);
+  expect(await h.prisma.notification.count({ where: { bizId: accountId } })).toBe(2);
+  expect(
+    await h.prisma.merchantMessage.count({ where: { notification: { bizId: accountId } } }),
+  ).toBe(2);
+  expect(
+    await h.prisma.notificationDelivery.count({
+      where: { channel: "inbox", notification: { bizId: accountId } },
+    }),
+  ).toBe(2);
 });
