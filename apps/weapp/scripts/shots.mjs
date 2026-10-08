@@ -38,6 +38,7 @@ import {
   profileEditRegression,
   profilePageReady,
   profileMissingRegression,
+  profileCertificateSheetRegression,
 } from "../shots/profile-regressions.mjs";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -307,6 +308,7 @@ async function shoot(target) {
       })
     : null;
   const page = await (isolated ?? context).newPage();
+  if (target.scene === "cert-sheet") await page.setViewportSize({ width: 320, height: 568 });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   try {
@@ -700,6 +702,11 @@ async function shoot(target) {
       await profilePageReady(page, "cert");
       await profileContextRegression(page, "cert");
     }
+    if (target.scene === "cert-sheet")
+      await profileCertificateSheetRegression(
+        page,
+        path.join(outDir, "profile__cert-sheet-bottom.png"),
+      );
     if (["basic-normal", "store-normal", "service-normal"].includes(target.scene))
       await profileEditRegression(page, target.scene);
     if (

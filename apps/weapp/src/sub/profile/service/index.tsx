@@ -16,6 +16,7 @@ import { FileGrid, type MediaFile } from "../private/uploads";
 import { parseFen, yuan } from "../private/model";
 import { useDraft } from "../private/draft";
 import { profileContext, profileRuntime } from "../private/runtime";
+import { useMediaPreview } from "../private/use-media-preview";
 type Item = NonNullable<Body<"m.storeProfile.service.update">["serviceItems"]>[number] & {
   image?: MediaFile | null;
 };
@@ -51,6 +52,11 @@ export default function Service() {
       points: value.sellingPoints.map((p) => p.code),
     }),
     { promo: "", groupBuy: "", note: "", points: [] as string[] },
+  );
+  const previews = useMediaPreview(
+    items.flatMap((item) =>
+      item.image ? [{ fileId: item.image.fileId, src: item.image.coverUrl ?? item.image.url }] : [],
+    ),
   );
   const [edit, setEdit] = useDraft(data, (): number | null => null, null);
   const emptyItem = { name: "", price: "", original: "", intro: "", image: [] as MediaFile[] };
@@ -122,11 +128,22 @@ export default function Service() {
         extra={<View className="profile-subtitle">{items.length}/10</View>}
       >
         <View className="profile-subtitle">名称、价格、图片与简介将用于门店广告</View>
+        {previews.pending ? <Note>图片加载中…</Note> : null}
+        {previews.message ? (
+          <Note tone="warning">
+            {previews.message}
+            <TextButton onClick={previews.retry}>重试加载图片</TextButton>
+          </Note>
+        ) : null}
         <View className="profile-spaced">
           {items.map((item, i) => (
             <View className="profile-row" key={item.serviceItemId ?? i}>
-              {item.image?.url ? (
-                <Image className="profile-photo" src={item.image.url} mode="aspectFill" />
+              {item.image && previews.sources[item.image.fileId] ? (
+                <Image
+                  className="profile-photo"
+                  src={previews.sources[item.image.fileId]!}
+                  mode="aspectFill"
+                />
               ) : null}
               <View>
                 <View>{item.name}</View>

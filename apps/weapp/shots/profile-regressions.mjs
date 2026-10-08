@@ -28,6 +28,119 @@ export async function profilePageReady(page, kind) {
       field(page, { basic: "品牌名称", service: "优惠活动", cert: "联系人姓名" }[kind]),
     ).toBeVisible();
 }
+
+export async function profileCertificateSheetRegression(page, screenshot) {
+  await profilePageReady(page, "cert");
+  const card = page.locator(".lyx-card").filter({
+    has: page.locator(".lyx-card__title").getByText("营业执照", { exact: true }),
+  });
+  await card.locator(".lyx-button").filter({ hasText: "核对并填写信息" }).click();
+  const sheet = page.locator(".profile-certificate-sheet:visible");
+  const body = sheet.locator(".lyx-sheet__body");
+  const footer = sheet.locator(".lyx-sheet__footer");
+  await expect(sheet.locator(".lyx-sheet__title")).toHaveText("填写营业执照");
+  await expect(footer).toBeInViewport({ ratio: 1 });
+  await expect
+    .poll(() =>
+      sheet.evaluate((node) => !node.closest(".nut-popup")?.className.includes("enter-active")),
+    )
+    .toBe(true);
+  const initial = await body.evaluate((node) => ({
+    height: node.clientHeight,
+    contentHeight: node.scrollHeight,
+    top: node.scrollTop,
+  }));
+  expect(initial.height).toBeGreaterThan(100);
+  expect(initial.height).toBeLessThanOrEqual(page.viewportSize().height * 0.6 + 1);
+  expect(initial.contentHeight).toBeGreaterThan(initial.height);
+  expect(initial.top).toBe(0);
+  const background = page.locator('.taro_page[id*="sub/profile/cert/index"]');
+  const backgroundTop = await background.evaluate((node) => node.scrollTop);
+  const input = (label) =>
+    sheet.locator(".lyx-field").filter({ hasText: label }).locator("input").first();
+  const option = (label) => sheet.locator(".lyx-checkbox").filter({ hasText: label });
+  const reachable = async (control) => {
+    const [bounds, target, fixed] = await Promise.all([
+      body.boundingBox(),
+      control.boundingBox(),
+      footer.boundingBox(),
+    ]);
+    return Boolean(
+      bounds &&
+      target &&
+      fixed &&
+      target.x >= bounds.x - 1 &&
+      target.x + target.width <= bounds.x + bounds.width + 1 &&
+      target.y >= bounds.y - 1 &&
+      target.y + target.height <= Math.min(bounds.y + bounds.height, fixed.y) + 1,
+    );
+  };
+  // fill/click 可替测试自动滚动；每次操作前必须先用用户滚轮把控件完整露出来。
+  const scrollTo = async (control) => {
+    for (let attempt = 0; attempt < 15; attempt++) {
+      if (await reachable(control)) return;
+      const bounds = await body.boundingBox();
+      const target = await control.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(target).not.toBeNull();
+      const before = await body.evaluate((node) => node.scrollTop);
+      const direction = target.y < bounds.y ? -1 : 1;
+      await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+      await page.mouse.wheel(0, direction * Math.min(180, bounds.height * 0.65));
+      await expect.poll(() => body.evaluate((node) => node.scrollTop)).not.toBe(before);
+    }
+    expect(await reachable(control), "真实滚动后证照字段须完整露出且不被底栏遮挡").toBe(true);
+  };
+  const address = input("注册地址");
+  const scope = input("经营范围");
+  expect(await reachable(address), "小屏幕下底部字段起初应在正文可视区外").toBe(false);
+  expect(await reachable(option("分支机构"))).toBe(false);
+  const values = {
+    address: "广东省深圳市福田区小屏测试路28号",
+    businessScope: "咖啡饮品、点心制作与销售",
+    principalRole: "operator",
+    subjectType: "individual",
+  };
+  await scrollTo(address);
+  await address.fill(values.address);
+  await expect(address).toHaveValue(values.address);
+  await scrollTo(scope);
+  await scope.fill(values.businessScope);
+  await expect(scope).toHaveValue(values.businessScope);
+  await scrollTo(option("经营者"));
+  await option("经营者").click();
+  await expect(option("经营者")).toHaveClass(/lyx-checkbox--checked/);
+  await scrollTo(option("个体工商户"));
+  await option("个体工商户").click();
+  await expect(option("个体工商户")).toHaveClass(/lyx-checkbox--checked/);
+  await scrollTo(option("分支机构"));
+  expect(await body.evaluate((node) => node.scrollTop)).toBeGreaterThan(initial.top);
+  expect(await background.evaluate((node) => node.scrollTop)).toBe(backgroundTop);
+  await expect(footer).toBeInViewport({ ratio: 1 });
+  await page.screenshot({ path: screenshot });
+  const bottom = await body.evaluate((node) => node.scrollTop);
+  const bounds = await body.boundingBox();
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.wheel(0, -180);
+  await expect.poll(() => body.evaluate((node) => node.scrollTop)).toBeLessThan(bottom);
+  expect(await background.evaluate((node) => node.scrollTop)).toBe(backgroundTop);
+  await footer.locator(".lyx-button").filter({ hasText: "保存核对信息" }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(card.getByText(`注册地址：${values.address}`, { exact: true })).toBeVisible();
+  await expect(card.getByText(`经营范围：${values.businessScope}`, { exact: true })).toBeVisible();
+  const calls = await page.evaluate(() => globalThis.__LYX_PROFILE_CALLS__);
+  const writes = calls.filter((call) => call.path.startsWith("/m/qualification-docs/"));
+  expect(writes).toHaveLength(1);
+  expect(writes[0].method).toBe("PATCH");
+  expect(writes[0].path).toBe("/m/qualification-docs/00000000-0000-4000-8000-000000000020");
+  expect(writes[0].data).toEqual({ lockVersion: 1, fields: values });
+  expect(writes[0].idempotencyKey).toBeTruthy();
+  expect(
+    calls
+      .slice(calls.indexOf(writes[0]) + 1)
+      .some((call) => call.path === "/m/store-profile/qualification" && call.method === "GET"),
+  ).toBe(true);
+}
 async function refreshConflict(page, path, save) {
   await page.evaluate((path) => globalThis.__LYX_PROFILE_CONTROL__.conflict(path), path);
   await save.click();
