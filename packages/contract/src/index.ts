@@ -43,3 +43,8 @@ export * from "./routes/m05-delivery-publish/index.js";
 export * from "./routes/a06-publish/index.js";
 export * from "./routes/a05-order-delivery/index.js";
 export * from "./routes/h01-hooks/wechat.js";
+
+export * from "./routes/a09-ops/site.schemas.js";
+export * from "./routes/a09-ops/site-configs.js";
+export * from "./routes/a09-ops/home-banners.js";
+export * from "./routes/a09-ops/site-notices.js";

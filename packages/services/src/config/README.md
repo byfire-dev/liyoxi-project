@@ -106,3 +106,11 @@ pnpm --filter @liyoxi/services exec vitest run src/config/
 - 清单模板按 code 串行版本分配。新建为 draft，activate 同事务退役旧 active；discard 只允许 draft。它是配置生命周期，不写业务 status_transition；历史 version 查询继续可读。
 
 对应真库用例：`writes.db.test.ts`，API 全链在 `apps/api/test/system-config.test.ts`。无新增参数键、字典类型、开关键、DDL 或默认值。
+
+## 8. 站点配置、Banner 和规则公告（W3-11）
+
+`runtime.siteAdmin` 通过真实员工权限提供 mall/home_recommend 草稿整份替换、发布和历史。保存仅验结构，失效引用可留在草稿；发布先锁草稿比较 lockVersion，再锁 published 比较请求与草稿的 baseRevNo。同事务先归档再发布，成功提交后 bump site；草稿与幂等重放不 bump。读侧只消费已发布版本，当前字典与 content 的 CatalogRefPort 在发布时复核，失效置顶和商城 Banner 在商家读侧隐藏。
+
+Banner 创建、编辑和全量未结束集合排序共用 home_banner 事务咨询锁。容量扫描含未来的半开区间和已启用行；排序包括停用行但不增加业务 lockVersion。媒体归属、banner 分类、stored/非 block 由注入的 media 公口核验，换图先 link 新图再 release 旧图并保留180天。C50 在幂等事务中持久 imageUrl:null，第一次成功在事务外签名，重放明确 null/replayed。点击量由 analytics 公开聚合供给，五分钟有限缓存；config 不查询 analytics 私表。
+
+公告不新增 CMS。首页只取 announced、barEnabled 和正式时间窗内最新一条，老板按当前设备购买策略取摘要，clerk/guest 不返回公告。旧协议公告通过 docs.readAgreementNoticeLink 读取真实 key/siteNoticeId/status 后正规化为 agreement.view；错引用不伪造链接。notice-read 的 GET 不写业务状态。对应真实接口验证为 apps/api/test/site.test.ts；本地只使用隔离库与假存储，不执行真实运营发布。

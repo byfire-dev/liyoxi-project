@@ -4,6 +4,10 @@ import {
   mMallConfigGet,
   mDramaList,
   mDramaGet,
+  mDramaSearch,
+  DramaSearchOwnerSchema,
+  DramaSearchClerkSchema,
+  DramaSearchGuestSchema,
   HomeOwnerSchema,
   HomeClerkSchema,
   HomeGuestSchema,
@@ -14,7 +18,7 @@ import {
   DramaDetailClerkSchema,
   DramaDetailGuestSchema,
 } from "@liyoxi/contract";
-import type { HomeView, DramaPage, DramaDetail } from "@liyoxi/contract";
+import type { HomeView, DramaPage, DramaDetail, DramaSearch } from "@liyoxi/contract";
 import { createMall, cropMerchantView } from "@liyoxi/services";
 import type { Runtime, Mall, MallViewer } from "@liyoxi/services";
 import type { Context } from "hono";
@@ -32,6 +36,7 @@ function mallOf(runtime: Runtime): Mall {
       content: runtime.content,
       config: runtime.config,
       media: runtime.media,
+      homeNotice: runtime.siteAdmin.homeNotice,
     });
     built.set(runtime, service);
   }
@@ -57,7 +62,10 @@ export const mallHandlers = [
   defineHandler(mHomeGet, async (c) => {
     c.header("Cache-Control", "no-store");
     const viewer = await viewerOf(c),
-      raw = await mallOf(c.var.runtime).home(viewer, c.req.valid("query").cityCode);
+      raw = await mallOf(c.var.runtime).home(viewer, c.req.valid("query").cityCode, {
+        platform: c.req.header("X-Client-Platform") ?? "unknown",
+        ...(c.req.header("X-App-Version") ? { appVersion: c.req.header("X-App-Version")! } : {}),
+      });
     return ok(
       c,
       cropMerchantView<HomeView>(
@@ -76,6 +84,23 @@ export const mallHandlers = [
       cropMerchantView<DramaPage>(
         viewer.role,
         { owner: DramaPageOwnerSchema, clerk: DramaPageClerkSchema, guest: DramaPageGuestSchema },
+        raw,
+      ),
+    );
+  }),
+  defineHandler(mDramaSearch, async (c) => {
+    c.header("Cache-Control", "no-store");
+    const viewer = await viewerOf(c),
+      raw = await mallOf(c.var.runtime).search(viewer, c.req.valid("query"));
+    return ok(
+      c,
+      cropMerchantView<DramaSearch>(
+        viewer.role,
+        {
+          owner: DramaSearchOwnerSchema,
+          clerk: DramaSearchClerkSchema,
+          guest: DramaSearchGuestSchema,
+        },
         raw,
       ),
     );

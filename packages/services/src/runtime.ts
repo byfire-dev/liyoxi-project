@@ -1,4 +1,4 @@
-import { bindAnalytics, createAnalyticsReceiver } from "./analytics/index.js";
+import { bindAnalytics, createAnalyticsReceiver, countBannerClicks } from "./analytics/index.js";
 import type { AnalyticsReceiver } from "./analytics/index.js";
 import { createSubscribeResults, createWechatReceiptHandler } from "./notify/index.js";
 import { findWechatIdentityId, recentWechatOpenid } from "./identity/index.js";
@@ -47,13 +47,18 @@ import type { BillingPurchase } from "./billing/index.js";
 import { createNotifyMessages } from "./notify/index.js";
 import type { NotifyMessages } from "./notify/index.js";
 import { staffBriefs } from "./staff/index.js";
-import { createDocs } from "./docs/index.js";
+import { createDocs, readAgreementNoticeLink } from "./docs/index.js";
 import { createTenant } from "./tenant/index.js";
 import { createSla, createCalendarAdmin, bindCalendarCoverage } from "./sla/index.js";
 import type { CalendarAdmin } from "./sla/index.js";
 import type { Keyring } from "./security/index.js";
-import { createConfig, createConfigAdmin } from "./config/index.js";
-import type { Config, ConfigAdmin } from "./config/index.js";
+import {
+  createConfig,
+  createConfigAdmin,
+  createSiteAdmin,
+  normalizeSiteNoticeLink,
+} from "./config/index.js";
+import type { Config, ConfigAdmin, SiteAdmin } from "./config/index.js";
 import { createEvents } from "./events/index.js";
 import type { Events } from "./events/index.js";
 import { createFlow } from "./flow/index.js";
@@ -187,6 +192,7 @@ export interface Runtime {
   readonly bizNo: BizNoIssuer;
   readonly config: Config;
   readonly configAdmin: ConfigAdmin;
+  readonly siteAdmin: SiteAdmin;
   readonly calendarAdmin: CalendarAdmin;
   readonly health: Health;
   /** 限流计数：Redis 上的固定窗口，Redis 不可用时进程内兜底、限额减半（约定 C68） */
@@ -397,6 +403,39 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     kinds: approval.kinds,
   });
   const configAdmin = createConfigAdmin({ tx, clock, assembly, config, staffBriefs });
+  const siteAdmin = createSiteAdmin({
+    tx,
+    clock,
+    assembly,
+    config,
+    staffBriefs,
+    clicks: countBannerClicks,
+    noticeLink: (t, notice) => normalizeSiteNoticeLink(t, notice, readAgreementNoticeLink),
+    files: {
+      link: async (t, fileId, bannerId) => {
+        await media.link(t, {
+          fileId,
+          refType: "home_banner",
+          refId: bannerId,
+          role: "image",
+          entityId: null,
+          storeId: null,
+        });
+      },
+      release: async (t, fileId, bannerId, keepUntil) => {
+        await media.release(t, {
+          fileId,
+          refType: "home_banner",
+          refId: bannerId,
+          role: "image",
+          keepUntil,
+          entityId: null,
+          storeId: null,
+        });
+      },
+      sign: (fileId) => media.signRead({ fileId }),
+    },
+  });
   const calendarAdmin = createCalendarAdmin({ tx, clock, events });
   const unbindCalendarCoverage = bindCalendarCoverage({
     clock,
@@ -518,6 +557,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     approval,
     config,
     configAdmin,
+    siteAdmin,
     calendarAdmin,
     health,
     rateLimiter,

@@ -42,7 +42,10 @@ import { adminBillingHandlers } from "./admin/billing.js";
 import { messageHandlers } from "./messages.js";
 import { notifySettingHandlers } from "./notify-settings.js";
 
+import { siteHandlers } from "./admin/site.js";
+
 export const HANDLERS: readonly HandlerEntry[] = [
+  ...siteHandlers,
   ...wechatHookHandlers,
   ...analyticsEventHandlers,
   ...subscribeResultHandlers,
