@@ -20,7 +20,7 @@
 | `status-summary.mjs` | 核对各包的状态文件合不合规；生成状态汇总 `docs/plan/status/SUMMARY.md`（不入库，要看时现生成） | CI 用 `--check` 只核对状态文件；`pnpm status:summary` 在本地现生成（第 6 节） |
 | `selftest/run.mjs`、`selftest/cases/` | 门禁自测：一个反例一个文件 | `pnpm gates:selftest`；CI |
 | `isolation-shard.mjs` | 测试隔离的全量分片跑：范围同 `pnpm test:isolation --scope connected`，分成互不重叠的几片，一次跑一片（两个会话同时跑），核对交给 `packages/services/src/testing/isolation.mjs --check`（第 2 节） | CI 的 `test-isolation` 与它的另三片；本地 `node infra/ci/isolation-shard.mjs --shard 1/4` |
-| `db-catalog-diff.mjs`、`db-lib.mjs` | 系统目录比对（W0-05）：由底稿建的参照库与首版迁移建的库逐项 0 差异，数量两组口径对得上；出报告。`db-lib.mjs` 是连库、读系统目录、计数的共用部分 | `pnpm db:catalog-diff`；CI |
+| `db-catalog-diff.mjs`、`db-lib.mjs`、`db-post-init-lib.mjs` | 系统目录比对：冻结草稿与仅首版迁移独立证明七类等价及首版数量；现行参照与目标七类逐项比较，数量读当前快照，目标六类结构与快照、Prisma 只读库→schema diff 一致。连接与计数共用 `db-lib.mjs` | `pnpm db:catalog-diff`；CI |
 | `db-verify-managed.mjs` | 托管库验证（W0-05）：两个扩展可建、迁移跑通、数量对得上；不打印连接串 | `pnpm db:verify-managed`；业主在托管库上跑 |
 | `db-verify-grants.mjs`、`db-grants-rules.mjs` | 角色与授权的核对（W0-06a）：两个角色在、成员与属主合规、授权生效、分区表可写可查；只读系统目录（另有一处插完即回滚的写入），不打印连接串。前一份是命令，后一份是不连库的判定规则（拆开是为了用例能不动实例就验到成员那几条）。期望的授权不写在脚本里，读 `packages/db/src/grants.expected.json`（与权限测试共用，不是门禁文件）：加表、加函数、改一张表的授权的包往那里加行、改行，脚本与它的用例不用改，用例里不写数量、不点名表的权限（[packages/db/README.md](../../packages/db/README.md) 第 9 节）。缺省只认 `lyx_` 开头的库名，核对别的库名加 `--database <库名>`；要 PostgreSQL 16 及以上。没有改 `db-verify-managed.mjs`（改已有的检查脚本是放松类改动），做成它的后置步骤 | `pnpm db:verify-grants`；根脚本 `postdb:verify-managed` 让 `pnpm db:verify-managed` 成功后自动接着跑（要经 pnpm 跑才有这一步；`test/db-verify-managed-hook.test.ts` 把它钉住，核对不通过时整条命令的退出码也钉住） |
 | `grants-floor.txt` | 授权下限清单（W0-06a）：受限的表上应用角色最多能有什么权限，一行一张表。期望数据不是门禁文件，这一份是：按 `append` 判，加行（新登记一张受限的表）算只增，删行、改行（放开）算放松，要走单独的 `gate-change` PR。期望与库里的授权都不得超过它，受限的表都得登记。写法与放开的走法见文件开头 | `db-verify-grants.mjs`；`test/grants-floor.test.ts`（不连库） |
@@ -346,15 +346,15 @@ DATABASE_URL=<同上> pnpm db:partitions:assert --db <库名>
 4. 同一个 PR 改分组文档的字段表（`python3 tools/schema-check/check.py` 核对），授权的期望与下限清单（`packages/db/README.md` 第 9 节）。
 5. 不改草稿：`docs/data-model/schema.prisma` 与 `constraints/` 已冻结。
 
-本包之前写死的数量还有几处，第一个改结构的包会撞上，要先用一个单独的 `gate-change` PR 处理（任务书 第 11 节第 9 项说的“届时”）：
+首版之后的结构检查已由独立 `gate-change` 包衔接；现行结构变更沿以下口径：
 
-- `db-lib.mjs` 的 `EXPECTED_COUNTS`（首版迁移的数量，七项）被两处用着。`db-verify-managed.mjs` 拿它核对“空库上跑完全部迁移”的数量：改成读快照的“计数”一节（`db-structure-lib.mjs` 的 `readSnapshot().counts` 与它同形），`test/db-verify-managed.test.ts` 里三处写死的数跟着改。`db-catalog-diff.mjs` 拿它核对首版迁移：见下一条。
-- `pnpm db:catalog-diff` 是首版迁移的等价性证明。它的第 1 段拿草稿的 `schema.prisma` 与 `packages/db` 的逐字节比，模型一改就红；第 3 段的数量同上。草稿冻结、首版迁移不能改之后，“首版迁移与草稿等价”是一个不会再变的事实：届时把 CI 里那几步撤下，或固定成“草稿（`check.py --from-draft`）对只跑首版迁移的库”。
-- `packages/db` 里不是门禁文件的几处随结构变更包自己改：`scripts/build-init-migration.mjs` 现在拿 `prisma/schema.prisma` 重拼首版迁移（模型一改就对不上，要改成读冻结的草稿）；`src/grants.test.ts` 里的几个数。
+- `db-lib.mjs` 的 `EXPECTED_COUNTS` 固定代表冻结首版的七项数量。`db-verify-managed.mjs` 与 `db-catalog-diff.mjs` 核对现行全部迁移时读 `readSnapshot().counts`；缺项或非法数量直接失败，不扩大首版数量。
+- `pnpm db:catalog-diff` 每次从冻结 `docs/data-model/schema.prisma` 独立出 DDL，接上 00–15 约束，在本进程临时库上与仅执行 init 的库按七类逐项比较，保留首版等价证明。另对现行 ref/target 七类比较、目标六类快照核对和 ADR-045 只读库→schema diff。唯一允许的 Prisma 假动作是完整且唯一的 `DROP INDEX "ix_store_asset_search";`；同名索引旁的其他动作仍失败。
+- `packages/db` 中非门禁文件随结构包维护：`scripts/build-init-migration.mjs` 从冻结草稿重拼首版，现行模型新增表仍不改变原首版迁移；`src/grants.test.ts` 的当前表数随新结构调整，原权限断言保留。
 
 ### 8.4 已知的限度
 
-- CI 里“由底稿建参照库（schema-check）”那一步的命令没有变（`check.py --keep`），而 `check.py` 的缺省流程从本包起是“跑全部迁移”：那一步现在建出来的 `lyx_schema_check` 是迁移后的库，不再是由草稿建的；它后面的“系统目录比对”因此比的是“迁移对迁移”，第 2 段恒为 0 差异。首版等价性现在靠三样合起来保证：草稿冻结守卫、`packages/db` 的用例里重拼首版迁移的逐字节比对（`migration:build --check`）、已经合并的迁移不能改。改那一步是放松类改动，本包没有动，留给第 8.3 节说的 `gate-change` PR 一并处理。
+- CI 原参照构造命令 `check.py --keep` 与 required 步骤保留；其 `lyx_schema_check` 跑全部迁移，现行 ref/target 仍比较完整迁移之间的一致性。首版等价另由 `db-catalog-diff` 每次真正独立建冻结草稿库及仅 init 库证明，不能把“迁移对迁移”称为首版证明。草稿冻结守卫、首版逐字节重拼及旧迁移不可改仍保留。
 - 快照不逐行判（`generated` 口径）：单独改快照过不了 `db:snapshot:check`；改了生成脚本的输出再重出快照，检查是绿的，要连同脚本的差异一起看（第 5.1 节的限度同样适用）。
 - 迁移规范检查按文本认语句：动态拼出来再 `EXECUTE` 的、先建函数再调它来删东西的，查不出；“带不带默认值”按迁移自己的文本推。迁移是甲类，靠评审。
 - 06 第 1 节的数量是从正文那一条里按句式读出来的：句式被改写、读不出数时检查报错（不当成通过），把 `db-structure-lib.mjs` 的 `readDocCounts` 一起改（改已有的检查脚本，走 `gate-change` PR）。
