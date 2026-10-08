@@ -167,6 +167,24 @@ W1-19 PR2 的 `zz-delivery-flow.fixture.ts` 用独立“制作演练-本轮 runI
 该流程走方案推送/商家确认、不同员工样片质检/推送、商家实际 900 秒附件下载留证/确认、两集上传登记、默认与单集例外质检、成片包质检至 delivering；成片包推送由 W1-20 接续。八张 `delivery-01-detail` 至 `delivery-08-delivering` 截图为 1440×900，另核 1366×768 无横向滚动。服务端窄桥目标可直接在 CI 用 Node FormData 运行；早期本机 CORS 探针显式加 `LYX_W119_BROWSER_POST=1`、`LYX_E2E_CHANNEL=chrome`，最终完整 live 总是实际浏览器上传，不以 Node 上传代替。
 
 
+## W2-07 系统配置四页
+
+`/sys/dict` 消费类型的 `canCreate/maxDepth/disablePolicy/isSystem` 与真实引用计数，以 `MasterDetailPage` 展示层级和详情。编码、类型、上级不可修改；系统枚举仅编辑名称/说明。引用为 `null` 表示来源未注册，不能当零；实际 `DICT_ITEM_IN_USE` 的 `details.refCount` 留在确认框。合法创建、改名与启停后重读，停用记录保留名称。
+
+`/sys/params` 用 `ConfigPage` 与服务端类型、单位、范围构造字段，明确当前值、来源、当前 rev、`latestRev` 和预约列表。整批一个幂等键，CAS 使用每键 `latestRev`。立即保存与撤销预约是独立操作；预约显式提交北京时间日期/时刻换算的 `effectiveAt`。真实 409 保留旧草稿并刷新，只有点击“我已核对最新版本，保留草稿继续”才采用新版本并再次确认。无效 JSON 阻止保存；放弃草稿会重置 JSON 输入。分组与年份在 URL 中校验，草稿可跨组保留。
+
+年度日历在参数页内读取，默认业务北京时间年、合法边界 2024–2100；导入只提交 `{year}`，服务端选择内置安排。展示未导入状态、批次、时间、`changedDays` 与重复导入无变化。当前只内置 2026；其他年份的实际 `VALIDATION_FAILED.fieldErrors` 保留路径及原因，包括缺内置安排返回的 `days`，不提供自定义日期或在线抓取。
+
+`/sys/flags` 与 `/sys/checklists` 复用 `QueryTablePage`，登记保留 `inMenu=false,parent=system.params`；参数页按实际权限显示链接。开关路由和读取都要求超级管理员，编辑现有默认值与完整有序规则，显示规则维度和缺省分支；不伪造命中预览或告警已到达。清单仅使用契约登记的 9 个编码，普通查看者读取 active（`allVersions=false`），管理者读取草稿与退役历史并按服务端 actions 操作。启用会使旧 active 退役，放弃草稿为 retired；更改草稿先确认放弃旧版本再建新版本，两个真实提交分别成功，创建失败不会把旧草稿恢复为 active。已有业务快照不被升级。
+
+四页私有模型直接取生成的 `operations` DTO，写表单使用正式 schema。私有 `configResult` 接收 openapi-fetch 已解析的真实 error，再交已有公共错误适配，避免 consumed body 丢失领域符号/字段路径；没有修改公共请求层。`UnsavedGuard` 消费已安装 Router 的导航保护与 beforeunload，弹窗取消另确认未保存草稿。接口列表不提供分页参数的开关/清单页在实际读取结果上筛选与分页，筛选/选中记录受 URL 校验。
+
+模型验收：`pnpm --filter @liyoxi/admin exec vitest run src/features/system/config/`。真实验收仍执行原 `pnpm admin:e2e:live`，仅新增 `w207.fixture.ts` 与 `live-system-config.spec.ts`。造数复用既有“演练财务配置提议”员工走真实激活/口令链，只将本轮 finance 角色增加 system 查看等级，不追加员工、不增加编辑权限；两浏览器上下文共用原管理员会话，真实竞争 CAS。查看者凭据仅由 Node fetch 送入真实认证，临时登录态权限 0600 且精确清理，不进入浏览器请求 trace 或截图。
+
+用例逐项核对真实字典引用 409、参数版本 409、缺内置年份 400 的 endpoint/status/error/refCount/fieldErrors；Chrome 对这三个刻意拒绝请求的资源诊断逐字逐数量断言，任何额外控制台错误或 pageerror 都失败，其他两项仍要求零错误。原 `recordErrors`、旧用例、runner 与 Playwright 配置均不变。
+
+七态截图为 `dist/e2e-shots/w207-dict-01-master-detail.png`、`w207-dict-02-in-use.png`、`w207-params-01-current-pending.png`、`w207-params-02-conflict.png`、`w207-calendar-01-imported.png`、`w207-flags-01-rules.png`、`w207-checklists-01-activate-confirm.png`。截图用 1440×900，另在 1366×768 核整页/内容无横滚。确认框用真实 Tab 到取消、Tab 到确认、Enter 提交；预约日期核 Esc 关闭、Tab 到时间、Shift+Tab 返回。具体无头/有头运行结论分别记录在 W2-07 状态，不混称。
+
 ## W2-08 操作日志与访问留痕
 
 `/sys/logs` 是唯一 `system.logs` 主从页，默认 ops；实际消费 `admin.auditLog.list/get`，复用 `MasterDetailPage`、`DateRangeField`、`DiffBlock` 与公共 mask。category 多选写 CSV，操作人、对象 ID/key 二选一、主体/门店、标题/RZ编号与北京时间日期均沿正式查询 schema 校验；筛选/切流清旧详情与游标。分页仅使用真实 nextCursor/hasMore，前驱按身份和筛选范围隔离，totalApprox 明示近似与 10,000 条封顶，不计算精确页数。URL 的日期范围也显示为两端含的文本；近 7/30 天和全部日期只改变查询条件。

@@ -219,6 +219,12 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 | W2-24 PR2 | 独立告警存储/投递接实际 alerts 端口；calendar coverage 的 detach 只隔离事务，不能豁免存活祖先的 Provider 外呼守卫。 |
 
 
+### 5.4 W2-07 系统配置页面移交
+
+| 接收方 | 实际页面与合流要求 |
+| --- | --- |
+| W2-30 | 四页为 `/sys/dict`、`/sys/params`、`/sys/flags`、`/sys/checklists`；后两页保留参数页子入口与实际权限。合流演示要区分参数当前 `rev`/CAS `latestRev`/预约列表；409 保留草稿、显式核对再确认。日历只提交 `{year}`，演示 2026 内置导入及重复 changedDays 空；缺内置年实际 fieldErrors.path 为 `days`。清单草稿修订是先退役旧草稿再创建的两个提交，失败/历史按事实显示，不能承诺旧业务快照自动升级。真实浏览器前置复用原财务配置提议员工，finance 只增加 system 查看等级，不新增员工或编辑权限。 |
+
 ## 6. 任务书加的前置（计划依赖列没有）
 
 写任务书时查实的三处。已由一条计划小改补进计划 第 7.2 节依赖列与第 12 节（[changes/W0-04-post-kickoff-fixes.md](../changes/W0-04-post-kickoff-fixes.md)）。下表留作出处，“怎么办”一栏照旧有效（默认，W0-04 定）。
