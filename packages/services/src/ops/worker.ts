@@ -4,7 +4,7 @@ import { createConfig, bindAgreementNoticeLink } from "../config/index.js";
 // 任务进程的服务装配（W0-23）：apps/worker 启动时调一次，拿到四个循环与两个队列消费者要调的用例函数。
 // 依据：D7 第 2.3 节规则 7、8，第 8.3 节“应用侧的数据库会话设置与连接池”；计划 第 5.1 节。
 // 应用层不引数据包（CLAUDE.md 第 6 节规则 5）：连接池在这里建，apps/worker 只把拿到的对象原样传回来。
-import { bindAnalytics } from "../analytics/index.js";
+import { createAnalyticsJobs } from "../analytics/index.js";
 import { findWechatIdentityId, recentWechatOpenid } from "../identity/index.js";
 import { createWechatReceiptHandler } from "../notify/index.js";
 import type { NotifyQueueRef } from "../notify/index.js";
@@ -114,7 +114,7 @@ export interface WorkerServices {
   /** 只关闭本次装配创建的存储驱动；不关闭借用数据库、队列或 Redis。 */
   readonly closeStorageDrivers?: () => Promise<void>;
   readonly closeWebhooks?: () => void;
-  readonly closeAnalytics?: () => void;
+  readonly closeAnalytics?: () => Promise<void>;
   reprocessWebhooks(beat?: () => void): Promise<number>;
   readonly closeOrder?: () => void;
   readonly closeBillingTimers?: () => void;
@@ -159,14 +159,20 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const cos = options.keys?.COS;
   if (cos && !cos.worker) throw new TypeError("COS worker入口缺少worker角色");
   const { prisma, channel } = options;
-  const notifyScope = createNotifyAssembly(options.assembly);
-  const assembly = notifyScope.assembly;
   const clock = options.clock ?? systemClock;
   const storageClosers: Array<() => Promise<void>> = [];
   let storageClosing: Promise<void> | undefined;
   const closeStorageDrivers = (): Promise<void> =>
     (storageClosing ??= Promise.all(storageClosers.map((close) => close())).then(() => undefined));
   const tx = createTxRunner({ prisma, appEnv: options.appEnv, report: options.report });
+  const analyticsScope = createAnalyticsJobs(options.assembly, {
+    tx,
+    clock,
+    appEnv: options.appEnv,
+    storage: () => providers.storage,
+  });
+  const notifyScope = createNotifyAssembly(analyticsScope.assembly);
+  const assembly = notifyScope.assembly;
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const flow = createFlow({ assembly, clock, events });
@@ -256,7 +262,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const alerts = alertsOf(assembly);
   // ops 的周期任务与违规上报端口要连接、时钟与装配结果（W0-24）
   bindOps({ db: prisma, tx, clock, assembly });
-  const closeAnalytics = bindAnalytics({ clock });
+  const closeAnalytics = () => analyticsScope.close();
   bindContent(assembly);
   const closePublish = bindPublish(assembly);
   const deliveryCore = {

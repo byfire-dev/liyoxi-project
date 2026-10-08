@@ -281,12 +281,13 @@ export {
 } from "./order/index.js";
 export type { OrderActor, OrderDeps, OrderService, OrderStartBinding } from "./order/index.js";
 export {
-  bindAnalytics,
+  createAnalyticsJobs,
   createAnalyticsReceiver,
   analyticsDayStart,
   purgeAnalyticsDedup,
 } from "./analytics/index.js";
 export type {
+  AnalyticsJobs,
   AnalyticsReceiver,
   AnalyticsReceiverDeps,
   AnalyticsRequest,

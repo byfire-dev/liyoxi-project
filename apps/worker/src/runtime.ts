@@ -177,6 +177,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           // 一个关闭失败不能提前解绑：循环与全部消费者都收完后才清理绑定。
           const loopResults = await Promise.allSettled([
             services.closeNotify(),
+            services.closeAnalytics?.(),
             ...all.map((one) => one.stop()),
           ]);
           const queueResults = await Promise.allSettled(
@@ -196,7 +197,6 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           services.closePublish?.();
           services.closeDelivery?.();
           services.closeWebhooks?.();
-          services.closeAnalytics?.();
           await services.closeStorageDrivers?.();
         }
       })());
