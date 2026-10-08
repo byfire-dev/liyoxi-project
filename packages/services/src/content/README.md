@@ -13,3 +13,8 @@
 `seedDemoContent` 拒绝 prod，以服务函数造 S/A/B、一/二/三类三部双平台/单平台剧；自带纯色 PNG 经 media 入库，按固定剧名跳过已上架行。字典补项只新增缺失编码，保留运营已修改或停用的项。集数、授权平台、两年止日在 `demo-seed.ts` 可核对。
 
 验收：`vitest run src/content/ src/config/insert-dict-items.db.test.ts src/ops/content-worker.db.test.ts`；接口层 `apps/api/test/mall.test.ts` 与全已挂载店员回放。M1 留桩见 docs/plan/status/W1-13.md；四条 route 与输出契约在 m04。Banner 只使用本域契约里已明确的 DeepLink 键和参数，未知规则拒绝下发，后续由 notify/m08 公共 DeepLink 契约包统一并覆盖其余正式合法键，本包 13 键只是 M1 参数已明确的子集。
+# W3-11 目录引用与搜索
+
+content 自己实现 kernel CatalogRefPort。read/areListed 在调用者同一事务按当前状态、版权止日和正式最短授权月份复用 shared/catalog.visible；config 不跨层查询 drama/copyright。areListed 沿名但表示当前可见且可订，不能把仅 status=listed 当成有效引用。
+
+matchedFields 与 normalizeSearch 是列表 q 和搜索共用的纯函数：去空白与间隔点，剧名和主演包含、启用题材显示名双向包含。workbench/mall 在真实可见目录中应用它，title 命中优先并以首次上架时间/id稳定裁决；getDramaCards 提供真实价目修订 source 给内部60秒快照键，不改变商家卡片 DTO。独立搜索不建表，不上传搜索词。

@@ -296,6 +296,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/dramas/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 搜索（?q=）：按剧名、题材、主演匹配，剧名命中在前；未命中且关键词属于某品类时按适配行业兜底，返回 mode: match | industry_fallback */
+        get: operations["m.drama.search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/dramas/{dramaId}": {
         parameters: {
             query?: never;
@@ -2687,7 +2704,20 @@ export interface components {
                 termEndDate: string | null;
             } | null;
             new: components["schemas"]["DramaCard"][];
-            noticeBar: null;
+            noticeBar: {
+                /** Format: date-time */
+                effectiveAt: string;
+                link: {
+                    params: {
+                        [key: string]: unknown;
+                    };
+                    route: string;
+                };
+                /** Format: uuid */
+                siteNoticeId: string;
+                summary: string;
+                title: string;
+            } | null;
             recommend: {
                 items: components["schemas"]["DramaCard"][];
                 matchBy: {
@@ -5898,6 +5928,81 @@ export interface operations {
             };
         };
     };
+    "m.drama.search": {
+        parameters: {
+            query: {
+                q: string;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: (components["schemas"]["DramaPageOwner"] & {
+                            fallbackIndustry: {
+                                code: string;
+                                keywordCategoryName: string;
+                                name: string;
+                            } | null;
+                            items?: (components["schemas"]["DramaCard"] & {
+                                matchedFields: ("title" | "genre" | "cast")[];
+                            })[];
+                            /** @enum {string} */
+                            mode: "match" | "industry_fallback";
+                            totalApprox: number;
+                        }) | (components["schemas"]["DramaPageClerk"] & {
+                            fallbackIndustry: {
+                                code: string;
+                                keywordCategoryName: string;
+                                name: string;
+                            } | null;
+                            items?: (components["schemas"]["DramaCardForClerk"] & {
+                                matchedFields: ("title" | "genre" | "cast")[];
+                            })[];
+                            /** @enum {string} */
+                            mode: "match" | "industry_fallback";
+                            totalApprox: number;
+                        }) | (components["schemas"]["DramaPageGuest"] & {
+                            fallbackIndustry: {
+                                code: string;
+                                keywordCategoryName: string;
+                                name: string;
+                            } | null;
+                            items?: (components["schemas"]["DramaCardForClerk"] & {
+                                matchedFields: ("title" | "genre" | "cast")[];
+                            })[];
+                            /** @enum {string} */
+                            mode: "match" | "industry_fallback";
+                            totalApprox: number;
+                        });
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "m.drama.get": {
         parameters: {
             query?: never;
@@ -7150,6 +7255,13 @@ export interface operations {
                                     };
                                     /** @enum {string} */
                                     route: "store.members";
+                                } | {
+                                    params: {
+                                        /** @enum {string} */
+                                        key: "user" | "privacy" | "member" | "points" | "custom_license" | "ad_service";
+                                    };
+                                    /** @enum {string} */
+                                    route: "agreement.view";
                                 } | {
                                     params: {
                                         /** Format: uuid */

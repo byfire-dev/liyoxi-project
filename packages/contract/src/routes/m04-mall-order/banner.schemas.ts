@@ -36,3 +36,20 @@ export const BannerJumpSchema = z.discriminatedUnion("jumpKind", [
   z.strictObject({ jumpKind: z.literal("page"), jumpTarget: BannerPageJumpSchema }),
   z.strictObject({ jumpKind: z.literal("none"), jumpTarget: z.null() }),
 ]);
+
+/** Banner已登记页面的中文名称；未知路由不会借标签表获得访问许可。 */
+export const BANNER_PAGE_LABELS: Readonly<Record<string, string>> = {
+  "order.detail": "订购详情",
+  "delivery.sample": "样片确认",
+  "delivery.plan": "制作计划",
+  "publish.task": "上线任务",
+  "offline.task": "下架任务",
+  "ticket.detail": "工单详情",
+  "account.detail": "账号详情",
+  "asset.demand": "素材需求",
+  "wallet.home": "积分钱包",
+  "cart.list": "选剧单",
+  "ad.detail": "广告详情",
+  "profile.review": "门店资料",
+  "store.members": "门店成员",
+};

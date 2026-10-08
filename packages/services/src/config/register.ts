@@ -70,6 +70,11 @@ const paramValues: InvariantRegistration = {
 };
 
 export const registration = defineRegistration("config", {
-  portImplementations: [implementKeyed(dictReferencesPort, "config", configDictReferences)],
+  portImplementations: [
+    implementKeyed(dictReferencesPort, "config", configDictReferences),
+    homeBannerFiles,
+  ],
   invariants: [paramValues, ...CONFIG_SQL_INVARIANTS.map(sqlInvariant)],
 });
+
+import { homeBannerFiles } from "./site-files.js";

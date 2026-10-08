@@ -316,3 +316,6 @@ export type {
   AlertCliInput,
   AlertCliResult,
 } from "./ops/index.js";
+
+export { createSiteAdmin } from "./config/index.js";
+export type { SiteAdmin, SiteAdminDeps } from "./config/index.js";
