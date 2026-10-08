@@ -51,6 +51,7 @@ beforeAll(async () => {
 });
 async function close(one: ReturnType<typeof buildWorkerServices>) {
   await one.shutdownMediaJobs?.();
+  await one.closeNotify?.();
   one.closeMediaJobs?.();
   one.closeOrder?.();
   one.closeBillingTimers?.();

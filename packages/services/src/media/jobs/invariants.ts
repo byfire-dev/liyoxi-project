@@ -3,6 +3,9 @@ import { lockRows } from "../../kernel/index.js";
 import type { InvariantScope, InvariantViolation, Tx } from "../../kernel/index.js";
 import type { MediaJobs } from "./runner.js";
 import type { MediaParentType } from "./types.js";
+type MediaJobResolver = MediaJobs | (() => MediaJobs);
+const resolveJobs = (jobs: MediaJobResolver): MediaJobs =>
+  typeof jobs === "function" ? jobs() : jobs;
 const active = ["queued", "running", "submitting", "submitted"];
 const parentOrder: readonly MediaParentType[] = [
   "playable_asset",
@@ -28,7 +31,7 @@ export async function findI10Violations(
   tx: Tx,
   scope: InvariantScope,
   now: Date,
-  jobs: MediaJobs,
+  jobs: MediaJobResolver,
 ): Promise<InvariantViolation[]> {
   if (scope.entityIds?.length === 0) return [];
   const scoped =
@@ -47,6 +50,8 @@ export async function findI10Violations(
     where: { id: { in: ids.map((row) => row.id) } },
     orderBy: { id: "asc" },
   });
+  if (!rows.length) return [];
+  const executor = resolveJobs(jobs);
   await lockParents(tx, rows);
   if (rows.length)
     await lockRows(
@@ -60,7 +65,7 @@ export async function findI10Violations(
   if (files.length) await lockRows(tx, "file_object", files);
   const violations: InvariantViolation[] = [];
   for (const row of rows) {
-    if (await jobs.expire(tx, row.id, now))
+    if (await executor.expire(tx, row.id, now))
       violations.push({
         subject: { type: "media_job", id: row.id },
         detail: { problem: "媒体任务超过deadline仍未结束" },
@@ -116,7 +121,7 @@ export async function findI11Violations(
   tx: Tx,
   scope: InvariantScope,
   now: Date,
-  jobs: MediaJobs,
+  jobs: MediaJobResolver,
 ): Promise<InvariantViolation[]> {
   const cutoff = new Date(now.getTime() - 15 * 60_000);
   const candidates = await staleParents(tx, scope, cutoff);
@@ -143,6 +148,7 @@ export async function findI11Violations(
   const stillStale = await staleParents(tx, scope, cutoff);
   const current = new Set(stillStale.map((row) => `${row.parentType}:${row.id}`));
   const violations: InvariantViolation[] = [];
+  let executor: MediaJobs | undefined;
   for (const parent of candidates) {
     if (!current.has(`${parent.parentType}:${parent.id}`)) continue;
     if (
@@ -151,7 +157,7 @@ export async function findI11Violations(
       })
     )
       continue;
-    const handler = jobs.convergence.get(parent.parentType);
+    const handler = (executor ??= resolveJobs(jobs)).convergence.get(parent.parentType);
     await handler?.converge(tx, parent.id, now);
     const remains = (await staleParents(tx, scope, cutoff)).some(
       (row) => row.id === parent.id && row.parentType === parent.parentType,

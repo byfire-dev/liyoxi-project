@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@liyoxi/db";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createTxRunner, defineRegistration, invariantsOf, uuidv7 } from "../../kernel/index.js";
 import type { InvariantScope, InvariantViolation, TxRunner } from "../../kernel/index.js";
@@ -8,7 +8,11 @@ import {
   createClock,
   createFactories,
   useSeededDatabase,
+  createFakeProviders,
+  createRecordingLogger,
 } from "../../testing/index.js";
+import { createConfig } from "../../config/index.js";
+import { createNotifyAssembly, createRuntimeNotify } from "../index.js";
 import { bindOps } from "../binding.js";
 import { runInvariants } from "./run.js";
 import { selectChecks } from "./select.js";
@@ -84,7 +88,22 @@ const runRow = async (id: string): Promise<RunRow> => {
 };
 
 describe("真实装配：空库加种子（验收 1、2）", () => {
-  const assembly = assembleForTest({ entry: "worker" });
+  const notifyScope = createNotifyAssembly(assembleForTest({ entry: "worker" }));
+  const assembly = notifyScope.assembly;
+  beforeAll(() => {
+    notifyScope.attach(
+      createRuntimeNotify({
+        tx,
+        clock,
+        assembly,
+        appEnv: "test",
+        providers: createFakeProviders({ clock }),
+        logger: createRecordingLogger(),
+        params: createConfig({ db: prisma, clock, redis: null }).params,
+      }),
+    );
+  });
+  afterAll(() => notifyScope.close());
   const deps = () => ({ tx, assembly, clock });
 
   it(

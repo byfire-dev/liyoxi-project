@@ -23,14 +23,14 @@ export const registration = defineRegistration("media", {
       severity: "P2",
       modes: ["quick", "full"],
       heal: "heal_only",
-      run: (tx, scope, ctx) => findI10Violations(tx, scope, invariantNow(ctx), boundMediaJobs()),
+      run: (tx, scope, ctx) => findI10Violations(tx, scope, invariantNow(ctx), boundMediaJobs),
     },
     {
       code: "media.I11",
       severity: "P2",
       modes: ["quick", "full"],
       heal: "heal_only",
-      run: (tx, scope, ctx) => findI11Violations(tx, scope, invariantNow(ctx), boundMediaJobs()),
+      run: (tx, scope, ctx) => findI11Violations(tx, scope, invariantNow(ctx), boundMediaJobs),
     },
     {
       code: "media.I2",
