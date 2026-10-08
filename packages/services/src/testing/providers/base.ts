@@ -4,10 +4,13 @@
 // 延迟：被延迟的调用在发起时就已经生效（外部侧已经收到并处理了），只是应答晚到。
 //       拨动时钟之后调 tick()，到点的应答才放行。
 // 失败：注入的失败不生效（外部侧没有处理），直接返回 { ok: false }。
+// 通知受理证明独立于本地 sent 记录：未知应答被取消仍不能证明未受理。
 
-import { failed } from "../../providers/types.js";
+import { failed, notificationFailed } from "../../providers/types.js";
 import type {
-  ProviderFailure,
+  NotificationFailureDetail,
+  NotificationProviderResult,
+  NotificationProviderFailure,
   ProviderFailureReason,
   ProviderLogger,
   ProviderResult,
@@ -45,6 +48,15 @@ export interface FakeControl<M extends string> {
   resetCalls(): void;
 }
 
+/** 只由通知发送替身公开；failNext 的旧通用失败仍不带受理证明。 */
+export interface FakeNotificationControl<M extends string> {
+  failNotificationNext(
+    method: M,
+    detail: NotificationFailureDetail,
+    options?: { reason?: ProviderFailureReason; message?: string; times?: number },
+  ): void;
+}
+
 interface Held {
   dueAt: number;
   release(): void;
@@ -52,17 +64,27 @@ interface Held {
 
 export interface FakeCore<M extends string> {
   control: FakeControl<M>;
+  notificationControl: FakeNotificationControl<M>;
   /** 每个方法的入口都经它：记调用，套上注入的失败与延迟，再执行 action */
   run<T>(
     method: M,
     input: unknown,
     action: () => ProviderResult<T> | Promise<ProviderResult<T>>,
   ): Promise<ProviderResult<T>>;
+  runNotification<T>(
+    method: M,
+    input: unknown,
+    action: () => NotificationProviderResult<T> | Promise<NotificationProviderResult<T>>,
+    signal?: AbortSignal,
+  ): Promise<NotificationProviderResult<T>>;
 }
 
-export function createFakeCore<M extends string>(clock: FakeClock): FakeCore<M> {
+export function createFakeCore<M extends string>(
+  clock: FakeClock,
+  notificationMethods: readonly M[] = [],
+): FakeCore<M> {
   const calls: Array<FakeCall<M>> = [];
-  const failures = new Map<M, ProviderFailure[]>();
+  const failures = new Map<M, NotificationProviderFailure[]>();
   const delays = new Map<M, number[]>();
   const held: Held[] = [];
 
@@ -70,14 +92,25 @@ export function createFakeCore<M extends string>(clock: FakeClock): FakeCore<M> 
     method: M,
     input: unknown,
     action: () => ProviderResult<T> | Promise<ProviderResult<T>>,
+    signal?: AbortSignal,
   ): Promise<ProviderResult<T>> {
     calls.push({ method, input, at: clock.now() });
+    if (signal?.aborted)
+      return Promise.resolve(
+        notificationFailed("rejected", "通知调用开始前已取消", {
+          acceptance: "not_accepted",
+          code: "aborted",
+        }),
+      );
     const failure = failures.get(method)?.shift();
     const delayMs = delays.get(method)?.shift();
     let outcome: Promise<ProviderResult<T>>;
+    let mayHaveBeenAccepted = false;
     if (failure !== undefined) {
+      mayHaveBeenAccepted = failure.notification?.acceptance !== "not_accepted";
       outcome = Promise.resolve(failure);
     } else {
+      mayHaveBeenAccepted = true;
       // action 在发起调用的当下同步执行：返回之前外部侧的状态已经变了
       try {
         outcome = Promise.resolve(action());
@@ -85,14 +118,46 @@ export function createFakeCore<M extends string>(clock: FakeClock): FakeCore<M> 
         outcome = Promise.reject(error);
       }
     }
-    if (delayMs === undefined) return outcome;
+    if (delayMs === undefined && signal === undefined) return outcome;
     // 应答压住期间 action 抛的错（用例写错了），留到放行时再报，不变成未处理的拒绝
     outcome.catch(() => {});
     return new Promise((resolve, reject) => {
-      held.push({
-        dueAt: clock.now().getTime() + delayMs,
-        release: () => void outcome.then(resolve, reject),
-      });
+      let settled = false;
+      let item: Held | undefined;
+      const cleanup = () => {
+        signal?.removeEventListener("abort", onAbort);
+        if (item !== undefined && held.includes(item)) held.splice(held.indexOf(item), 1);
+      };
+      const finish = (action: () => void) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        action();
+      };
+      const release = () =>
+        void outcome.then(
+          (result) => finish(() => resolve(result)),
+          (error: unknown) => finish(() => reject(error)),
+        );
+      const onAbort = () =>
+        finish(() =>
+          resolve(
+            notificationFailed(mayHaveBeenAccepted ? "unavailable" : "rejected", "通知调用已取消", {
+              acceptance: mayHaveBeenAccepted ? "unknown" : "not_accepted",
+              code: "aborted",
+            }),
+          ),
+        );
+      if (delayMs !== undefined) {
+        item = {
+          dueAt: clock.now().getTime() + delayMs,
+          release,
+        };
+        held.push(item);
+      }
+      signal?.addEventListener("abort", onAbort, { once: true });
+      if (signal?.aborted) onAbort();
+      else if (delayMs === undefined) release();
     });
   }
 
@@ -127,7 +192,27 @@ export function createFakeCore<M extends string>(clock: FakeClock): FakeCore<M> 
     },
   };
 
-  return { control, run };
+  const notificationControl: FakeNotificationControl<M> = {
+    failNotificationNext(method, detail, options = {}) {
+      if (!notificationMethods.includes(method)) throw new TypeError("不是通知发送方法");
+      const { reason = "rejected", message = "替身注入的通知失败", times = 1 } = options;
+      if (!Number.isSafeInteger(times) || times < 1 || times > 1000)
+        throw new TypeError("通知失败注入次数不合法");
+      const outcome = notificationFailed(reason, message, detail);
+      const queue = failures.get(method) ?? [];
+      for (let index = 0; index < times; index += 1) queue.push(outcome);
+      failures.set(method, queue);
+    },
+  };
+  return {
+    control,
+    run: (method, input, action) => run(method, input, action),
+    notificationControl,
+    runNotification: (method, input, action, signal) => {
+      if (!notificationMethods.includes(method)) throw new TypeError("不是通知发送方法");
+      return run(method, input, action, signal);
+    },
+  };
 }
 
 export interface RecordedLog {

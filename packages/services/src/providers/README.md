@@ -96,3 +96,17 @@ fakes.wechatPay.failNext("createJsapiOrder");
 - 假微信：文本检测可切到“服务不可用”；图片审核直接放行。
 - 假媒体：体检给预置报告；转码、打包直接完成；视频审核直接放行。
 - 假存储：对象在内存里，不依赖 MinIO；到期与否按替身的时钟判。
+
+## 9. 通知发送结果协议（W2-17 前置 PR2）
+
+只有 `wechat.sendSubscribeMessage`、三个旧短信方法、`wecom.sendAppMessage`、`mail.send` 使用 `NotificationProviderResult<T>`，入参增加可选 `signal`。方法名、旧 `ok(value)` / `failed(reason,message)` 结果、邮件原 `value.messageId` 都兼容；通用 `ProviderResult` 和支付、存储等能力不变。
+
+通知失败可带 `notification: { acceptance, code }`，分类只取 `NOTIFICATION_FAILURE_CODES`；构造器 `notificationFailed` 对强转值、继承字段和额外字段同样做运行时验证。`acceptance='not_accepted'` 需驱动确有未受理证据；`unknown` 表示不能判断。旧通用失败没有这项证明，调用方必须视为受理未知；不能因为 `unavailable` 或 `rejected` 就重发。这项协议不决定重试、退款或派发状态。
+
+`notificationOk(value, providerMsgId?)` 保留旧 value；服务商标识可选，仅接受≤64字符的 ASCII 标识（字母数字开头，其余可含 `._:-`），不接受URL、正文或控制字符。没有实际标识就省略，成功也不代表终端到达。替身/local成功不会伪造此字段。
+
+通知替身增加 `failNotificationNext(method, detail, options?)`，仅允许本接口的通知发送方法；旧 `failNext` 原样不带受理证明。预取消不执行发送action；替身的 `delayNext` 沿旧语义在调用开始就执行action，仅压住应答，因此途中取消返回 `unknown/aborted`，不会撤销已记录发送。取消、正常释放或action程序错误均清除自己的等待项/监听器；不自动再调用。`signal.reason` 不进入结果或日志。
+
+未配置通知明确返回 `not_accepted/unconfigured`，预取消返回 `not_accepted/aborted`，不外呼。local微信/consoleSMS只在同步日志之前检查取消，保留已有local/test日志行为；它们没有真实外部请求。生产工厂/替身的原事务guard仍在最外层先执行，预取消也不能绕过正在存活的本层或祖先TX。
+
+真实驱动尚未在本包接入；未来驱动必须把signal传递至全部实际IO，并在返回取消前释放自有资源。该字段本身不能让不支持取消的旧驱动终止网络。这里没有新增HTTP/x01/队列/DDL/派发器、外部回执处理或真实短信，W2-17整体仍待PR1与本PR2实际main后由PR3集成。

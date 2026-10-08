@@ -11,7 +11,7 @@ import type {
   WecomProvider,
 } from "../../providers/types.js";
 import { createFakeCore, systemClock } from "./base.js";
-import type { FakeClock, FakeControl } from "./base.js";
+import type { FakeClock, FakeControl, FakeNotificationControl } from "./base.js";
 
 type Method = ProviderMethodName<WecomProvider>;
 
@@ -29,7 +29,8 @@ export interface FakeContactWay {
   state: string;
 }
 
-export interface FakeWecom extends WecomProvider, FakeControl<Method> {
+export interface FakeWecom
+  extends FakeNotificationControl<"sendAppMessage">, WecomProvider, FakeControl<Method> {
   /** 仅测试预置一次性扫码 code；不访问真实平台。 */
   setWebLoginCode(code: string, userid: string): void;
   /** 发出去的应用消息 */
@@ -48,7 +49,7 @@ function signatureOf(timestamp: string, nonce: string, rawBody: string): string 
 
 export function createFakeWecom(options: { clock?: FakeClock } = {}): FakeWecom {
   const clock = options.clock ?? systemClock;
-  const core = createFakeCore<Method>(clock);
+  const core = createFakeCore<Method>(clock, ["sendAppMessage"]);
   const messages: FakeWecomMessage[] = [];
   const contactWays: FakeContactWay[] = [];
   let nonceSeq = 0;
@@ -58,6 +59,7 @@ export function createFakeWecom(options: { clock?: FakeClock } = {}): FakeWecom 
     status: "fake",
     configured: true,
     ...core.control,
+    ...core.notificationControl,
     messages,
     contactWays,
     setWebLoginCode: (code, userid) => {
@@ -81,10 +83,17 @@ export function createFakeWecom(options: { clock?: FakeClock } = {}): FakeWecom 
     },
 
     sendAppMessage: (input) =>
-      core.run("sendAppMessage", input, () => {
-        messages.push({ ...input });
-        return ok(undefined);
-      }),
+      core.runNotification(
+        "sendAppMessage",
+        input,
+        () => {
+          const message = { ...input };
+          delete message.signal;
+          messages.push(message);
+          return ok(undefined);
+        },
+        input.signal,
+      ),
     createContactWay: (input) =>
       core.run("createContactWay", input, () => {
         const configId = `fake-contact-way-${contactWays.length + 1}`;
