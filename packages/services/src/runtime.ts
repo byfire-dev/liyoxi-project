@@ -1,3 +1,5 @@
+import { createFlowOps, createAlertActions } from "./ops/index.js";
+import type { FlowOps, AlertActions } from "./ops/index.js";
 import { createAuditRead } from "./audit/index.js";
 import { bindDelivery } from "./delivery/index.js";
 import { createOrderService, bindOrder, bindOrderStart } from "./order/index.js";
@@ -198,6 +200,8 @@ export interface Runtime {
   readonly staffRoles: ReturnType<typeof createRoleManagement>;
   readonly staffSelfSecurity: ReturnType<typeof createStaffSelfSecurity>;
   readonly auditRead: ReturnType<typeof createAuditRead>;
+  readonly flowOps: FlowOps;
+  readonly alertActions: AlertActions;
   readonly piiReveal: ReturnType<typeof createPiiReveal>;
 }
 
@@ -451,6 +455,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     },
     flow,
     auditRead,
+    flowOps: createFlowOps({ tx, clock }),
+    alertActions: createAlertActions({ tx, clock }),
     piiReveal,
     get staffRoles() {
       staffRoles ??= createRoleManagement({ db: prisma, tx, clock, roles: this.staffAuth.roles });

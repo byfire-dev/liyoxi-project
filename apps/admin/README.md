@@ -178,3 +178,15 @@ W1-19 PR2 的 `zz-delivery-flow.fixture.ts` 用独立“制作演练-本轮 runI
 真实截图在 `dist/e2e-shots/`：`audit-01-filtered-ops.png`（多条件）、`audit-02-masked-detail.png` / `audit-02-masked-diff.png`（脱敏详情与差异）、`audit-03-access-pii.png` / `audit-03-access-purpose.png`（访问留痕与用途）、`audit-04-empty.png`、`audit-05-permission-denied.png`。截图尺寸 1440×900，另在 1366×768 核对整页/内容区无横滚；图中均为虚构数据。日期空值 Tab/Shift+Tab 进出、Enter打开、Esc关闭与手输当天两端包含由真实 Chrome 验收；无头全量与有头 W208 定向结论分别写在本包状态。保留原 runner/config 与失败 trace 策略。
 
 后续 `W2-31` 所拆 G7-A 接 `admin.exportJob.create` / `audit_logs.list` 及导出记录，不在本页放占位导出按钮；关联页落地后再按正式 link 与权限接准确对象入口。
+
+## 流程运维页（W2-23）
+
+`/sys/flow-ops` 复用既有筛选表格、日期范围和普通确认构件，分别查询定时器、出站投递和回调收件箱。前两项使用正式 `AdminPage` 页码分页；回调使用 `AdminCursorPage`，筛选范围内的前驱游标最多保留 1,000 项。日期、对象、状态和分页参数进 URL，由正式公开查询 schema 校验；请求取生成 DTO，经中央客户端发送。
+
+直接访问需 `system≥v` 或 `flow.ops.view`，侧栏仍遵循既有 system 模块等级过滤。操作按钮同时要求 `flow.ops.manage` 和服务端 `actions`。取消定时器须填 5–200 字原因；其他恢复操作接受至多 200 字备注。确认仅针对单个目标，写请求使用当前确认的幂等键。确认回显到期时刻使用带年份的北京时间，重新排期不提交新的 `fireAt`；成功或状态冲突均刷新实际列表，409 会撤下陈旧确认并提示重新核对。
+
+本页只展示服务端已脱敏的失败摘要和固定安全字段，不展示原始载荷。三种传输状态目前用中文普通文本，保持中央状态色调字典原样。M3 媒体任务由 W3-08 在同页接入，本包不渲染未实现的按钮或页签。
+
+`w223.fixture.ts` 通过原真实造数登记口添加本轮隔离库的失败/死信事实，不增加初始员工或改已有角色、旧夹具。`live-flow-ops.spec.ts` 覆盖三查询、两种分页、日期键盘、四个真实恢复动作与状态冲突刷新。只读用例在原员工用例末尾注册独立 `w223-flow-ops-readonly.ts` helper，原员工数量验收结束后才通过真实创建、激活、设密码和 TOTP 接口创建自己的财务员工；不依赖文件排序，不改变旧断言或执行配置。使用原 `pnpm admin:e2e:live` 起栈和清理。截图落在原 `dist/e2e-shots/flow-ops-*.png`，失败 trace 在原 `dist/e2e-live-results`；只读登录的假手机号、口令、激活码和 TOTP 通过 typed 中央客户端与原生 Node fetch 使用，不写入 Playwright 请求步骤或截图。
+
+浏览器请求使用中央客户端已有的 `Request.clone()`；Chrome 对流正文可能只提供实际长度而不提供 CDP `postData`。四动作验收仅观察本夹具五次精确 POST 的只读副本，原请求立即原样发往真实 API，以精确正文和幂等键断言。刻意状态冲突只允许该请求地址对应的一条固定 409 资源错误，其他 console 或 pageerror 仍失败；旧用例监听保持原样。

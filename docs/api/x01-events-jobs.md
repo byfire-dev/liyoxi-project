@@ -621,6 +621,9 @@ BullMQ 只是执行通道：任务一律 `attempts: 1`，重试、到期、租�
 | `ops analytics:repartition <YYYY-MM>` | 14:748 | 兜底分区搬迁（迁移账号） |
 | `cli.alerts.ack / 关闭告警、重置死信回调` | 15:120、260 | 以 `--staff` 指定的员工身份写 alert_event、webhook_event 与审计（client = cli） |
 
+实际worker入口`alerts-ack`仅接受`ack`、`close`、`reset-webhook`。三者均必须指定`--staff <active员工UUID>`、一个目标（前两者`--alert-id`，后者`--webhook-event-id`）与`--note <5–200字原因>`，不接受另一个目标参数、批量或任意状态。服务在同一事务读取员工当前角色、验证`sys.health.manage`或`flow.ops.manage`并修改固定目标、追加审计；不伪造会话/step-up，stdout只给命令、对象与结果状态。HTTP可选note的协议保持原样。`acked`状态供告警求值器延长重复通知间隔使用，人工关闭本身不发恢复通知。
+
+
 ### 4.7 草案提到、不单独登记的任务（去向）
 
 | 草案里的任务 | 出处 | 去向 |

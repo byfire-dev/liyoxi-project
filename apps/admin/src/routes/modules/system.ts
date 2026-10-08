@@ -4,4 +4,6 @@ import { staffRoute } from "../system/staff";
 
 import { auditLogsRoute } from "../system/logs";
 
-export const systemRoutes = [staffRoute, auditLogsRoute] as const;
+import { flowOpsRoute } from "../system/flow-ops";
+
+export const systemRoutes = [staffRoute, auditLogsRoute, flowOpsRoute] as const;

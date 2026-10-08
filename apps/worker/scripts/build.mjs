@@ -30,6 +30,7 @@ const result = await build({
     "redis-compat": "src/cli/redis-compat.ts",
     seed: "src/cli/seed.ts",
     "staff-bootstrap": "src/cli/staff-bootstrap.ts",
+    "alerts-ack": "src/cli/alerts-ack.ts",
   },
   outdir: "dist",
   bundle: true,

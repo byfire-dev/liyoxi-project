@@ -64,3 +64,4 @@ export type {
 } from "./m1-types.js";
 
 export { configTestStaffBriefs, createConfigProfileFixture } from "./config-admin.js";
+export { createFlowOpsCliSupport } from "./flow-ops-cli.js";
