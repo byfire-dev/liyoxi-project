@@ -1,5 +1,6 @@
 import { runSeed, seedDemoContent } from "@liyoxi/services";
 import { createFactories } from "@liyoxi/services/testing";
+import { expect } from "vitest";
 import type { TestApi } from "../../src/testing/index.js";
 import type { SignedInMerchant } from "../../src/testing/merchant.js";
 type ClerkSampleContext = { clerk: SignedInMerchant; storeId: string };
@@ -54,6 +55,23 @@ export const mallClerkSamples = [
     play: async (api: TestApi, ctx: ClerkSampleContext) => {
       await prepare(api);
       return api.request("/api/v1/m/dramas", { headers: ctx.clerk.withStore(ctx.storeId) });
+    },
+  },
+  {
+    operationId: "m.drama.search",
+    play: async (api: TestApi, ctx: ClerkSampleContext) => {
+      const id = await prepare(api);
+      const drama = await api.runtime.tx.run((tx) =>
+        tx.drama.findUniqueOrThrow({ where: { id }, select: { title: true } }),
+      );
+      const response = await api.request(
+        `/api/v1/m/dramas/search?q=${encodeURIComponent(drama.title)}`,
+        { headers: ctx.clerk.withStore(ctx.storeId) },
+      );
+      expect(await response.clone().json()).toMatchObject({
+        data: { items: expect.arrayContaining([expect.objectContaining({ dramaId: id })]) },
+      });
+      return response;
     },
   },
   {

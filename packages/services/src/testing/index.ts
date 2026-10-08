@@ -72,3 +72,5 @@ export {
   updateNotifySlotFixture,
 } from "./notify-messages.js";
 export { createFlowOpsCliSupport } from "./flow-ops-cli.js";
+
+export { installSitePurchasePolicy } from "./site.js";

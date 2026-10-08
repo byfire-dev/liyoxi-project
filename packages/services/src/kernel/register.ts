@@ -13,6 +13,7 @@ import {
   notifyReadPort,
   remindersPort,
   trackPort,
+  catalogRefPort,
 } from "./ports/index.js";
 
 export const registration = defineRegistration("kernel", {
@@ -22,6 +23,7 @@ export const registration = defineRegistration("kernel", {
     alertsPort,
     invariantsPort,
     trackPort,
+    catalogRefPort,
     notifyReadPort,
     remindersPort,
     merchantFactsPort,

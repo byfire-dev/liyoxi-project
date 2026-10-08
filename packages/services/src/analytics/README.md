@@ -1,5 +1,7 @@
 # 客户端埋点接收（W2-18 PR1）
 
+W3-11 的 countBannerClicks(tx, ids) 只返回 banner_click 的真实 homeBannerId 聚合计数，供 runtime 向低层 config 注入。不返回 props，不让 config 查询本模块私表，也不新增点击计数列。聚合读取不写事件；展示端五分钟缓存归 config。
+
 `createAnalyticsReceiver`只接契约定义的10个客户端事件。批头严格校验；单条按`ClientAnalyticsEventSchema`的strict属性白名单检查，坏事件计`rejected`，合法事件照常受理。OpenAPI使用strict事件与unknown的联合表达部分受理，不意味着unknown事件可以落库。19种服务端事件名、额外属性、任意文本及手机号/证照/凭证不进入props。
 
 `eventId` UUID统一小写，在`analytics_event_dedup`全局认领；认领与事件新增同一个事务，跨月也不重复。发生时间按`serverNow-sentAt`校时，未来截到serverNow，超过7天拒收。归属用户只取会话；门店经真实成员关系解析，无权门店不落store/entity/role。`analytics_identity`首次绑定后不改绑。

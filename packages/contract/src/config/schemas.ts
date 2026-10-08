@@ -143,6 +143,9 @@ export const MallConfigSchema = z
       ctx.addIssue({ code: "custom", message, path });
     };
     const { categories, filters, weights } = config;
+    if (!unique(config.hotWords)) issue("热词不能重复", ["hotWords"]);
+    if (!config.sorts.includes(config.defaultSort))
+      issue("默认排序须在可选排序中", ["defaultSort"]);
     if (!unique(categories.map((item) => item.key))) issue("分类的 key 不能重复", ["categories"]);
     if (!unique(categories.map((item) => item.name))) issue("分类不能重名", ["categories"]);
     const fixed = categories.filter((item) => item.fixed);
