@@ -3,7 +3,7 @@
 import { ok } from "../../providers/types.js";
 import type { MailAttachment, MailProvider, ProviderMethodName } from "../../providers/types.js";
 import { createFakeCore, systemClock } from "./base.js";
-import type { FakeClock, FakeControl } from "./base.js";
+import type { FakeClock, FakeControl, FakeNotificationControl } from "./base.js";
 
 type Method = ProviderMethodName<MailProvider>;
 
@@ -15,26 +15,35 @@ export interface FakeMailMessage {
   attachments: MailAttachment[];
 }
 
-export interface FakeMail extends MailProvider, FakeControl<Method> {
+export interface FakeMail
+  extends FakeNotificationControl<"send">, MailProvider, FakeControl<Method> {
   /** “发出去”的邮件，按先后 */
   readonly outbox: FakeMailMessage[];
 }
 
 export function createFakeMail(options: { clock?: FakeClock } = {}): FakeMail {
-  const core = createFakeCore<Method>(options.clock ?? systemClock);
+  const core = createFakeCore<Method>(options.clock ?? systemClock, ["send"]);
   const outbox: FakeMailMessage[] = [];
 
   return {
     status: "fake",
     configured: true,
     ...core.control,
+    ...core.notificationControl,
     outbox,
 
     send: (input) =>
-      core.run("send", input, () => {
-        const messageId = `fake-mail-${outbox.length + 1}`;
-        outbox.push({ messageId, ...input, attachments: [...(input.attachments ?? [])] });
-        return ok({ messageId });
-      }),
+      core.runNotification(
+        "send",
+        input,
+        () => {
+          const messageId = `fake-mail-${outbox.length + 1}`;
+          const message = { ...input };
+          delete message.signal;
+          outbox.push({ messageId, ...message, attachments: [...(input.attachments ?? [])] });
+          return ok({ messageId });
+        },
+        input.signal,
+      ),
   };
 }
