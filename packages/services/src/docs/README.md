@@ -12,7 +12,7 @@
 | `consents.ts` | `assertConsents`：同意记录的唯一写入口 |
 | `pending.ts` | 待同意的计算、两个指纹 |
 | `signed.ts` | 已签署协议：老板、店员两种形状，计数 |
-| `invariants.ts`、`register.ts` | `docs.N4`、`docs.N13` 的查询与登记 |
+| `invariants.ts`、`transaction-invariant.ts`、`register.ts` | `docs.N4`、`docs.N13` 与 `docs.N5` 的查询及登记 |
 | `seed.ts` | 六份协议的清单（W0-21，`pnpm db:seed`） |
 | `demo-seed.ts` | 六份占位版本（演示种子；只进本地与预发） |
 
@@ -55,7 +55,7 @@ pnpm --filter @liyoxi/services exec vitest run src/docs/
 
 - 版本正文的 `pdf.url` 是空串：签名读地址要经 media 现签，docs → media 不在同层白名单里，走法随 G2-B 定（留桩）。
 - 已签署协议里的 `bizTitle` 恒为 `null`：付款单的标题要经 billing 取，随 G4-C（留桩）。
-- `docs.N5`（单据都对得上同意记录）没有登记：它要查付款单、订购单、广告三张上层表，docs 在 L1 读不到，归属随 G2-C 定。
+- `docs.N5` 已随 W2-17 PR3 接入：`billingConsentFacts`、`orderConsentFacts`、`adConsentFacts` 经既有 keyed 通知事实端口返回单据/签署人/时刻/协议键。docs 仅读自身版本与只增同意表；缺登记报受控检查错误，不能反向查询三张上层表。默认 API/worker 用本运行时 Assembly 的 full 不变量闭包，污染可以真实报告，其他未配置发送通道不令 N5 恒真。
 - `docs.N4` 的哈希一项只比“版本行的内容哈希”与“文件登记行上的哈希”，文件行没有哈希的不比；不读对象存储里的文件本身。
 - 登记给框架的两条不变量拿不到注入的时钟，“现在”取数据库时间。
 - 取不到来源 IP、请求号的同意记录写 `unknown`，不拦业务。

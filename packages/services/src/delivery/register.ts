@@ -1,3 +1,20 @@
+import { remindersPort as currentReminders } from "../kernel/index.js";
+import {
+  implementKeyed as notifyReaderImplementation,
+  notifyReadPort as currentNotifyReadPort,
+} from "../kernel/index.js";
+import {
+  planForNotify,
+  sampleForNotify,
+  releaseForNotify,
+  samplesAwaitingMerchant,
+  ticketForNotify,
+  ticketManagerForNotify,
+  ticketEditorForNotify,
+  planManagerForNotify,
+  sampleManagerForNotify,
+  sampleEditorForNotify,
+} from "./notify-facts.js";
 import { deliveryManagerPort } from "../profile/index.js";
 import { launchChangedPort, launchHandlerPort } from "../publish/index.js";
 import { createIdentityContext, defineRegistration, implement } from "../kernel/index.js";
@@ -11,6 +28,46 @@ import { deliveryFileRefs } from "./file-refs.js";
 export const registration = defineRegistration("delivery", {
   ports: [orderSidePort],
   portImplementations: [
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "manualSubjectExists.delivery_ticket",
+      async (tx, id: string) =>
+        (await tx.deliveryTicket.findUnique({ where: { id }, select: { id: true } })) !== null,
+    ),
+    notifyReaderImplementation(currentReminders, "R4", {
+      targets: samplesAwaitingMerchant,
+      revalidate: async (tx, item) => {
+        const fact =
+          typeof item.sampleId === "string" ? await sampleForNotify(tx, item.sampleId) : null;
+        return { valid: fact?.status === "pushed" && fact.version === item.version };
+      },
+    }),
+    notifyReaderImplementation(currentNotifyReadPort, "planForNotify", planForNotify),
+    notifyReaderImplementation(currentNotifyReadPort, "sampleForNotify", sampleForNotify),
+    notifyReaderImplementation(currentNotifyReadPort, "releaseForNotify", releaseForNotify),
+
+    notifyReaderImplementation(currentNotifyReadPort, "ticketForNotify", ticketForNotify),
+    notifyReaderImplementation(currentNotifyReadPort, "planManagerForNotify", planManagerForNotify),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "sampleManagerForNotify",
+      sampleManagerForNotify,
+    ),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "sampleEditorForNotify",
+      sampleEditorForNotify,
+    ),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "ticketManagerForNotify",
+      ticketManagerForNotify,
+    ),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "ticketEditorForNotify",
+      ticketEditorForNotify,
+    ),
     ...deliveryMachines,
     ...deliveryFileRefs,
     implement(deliveryManagerPort, (tx, input) => assignStoreTickets(tx, boundDelivery(), input)),

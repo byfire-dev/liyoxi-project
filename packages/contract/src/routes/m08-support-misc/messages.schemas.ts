@@ -26,6 +26,10 @@ export const MessageTabSchema = z.enum(MESSAGE_TABS);
 export const MessageDeepLinkSchema = z.union([
   BannerPageJumpSchema,
   z.strictObject({
+    route: z.literal("asset.detail"),
+    params: z.strictObject({ storeAssetId: IdSchema, storeId: IdSchema }),
+  }),
+  z.strictObject({
     route: z.literal("agreement.view"),
     params: z.strictObject({
       key: z.enum(["user", "privacy", "member", "points", "custom_license", "ad_service"]),

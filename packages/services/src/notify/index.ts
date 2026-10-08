@@ -26,3 +26,17 @@ export type {
 } from "./subscribe-results.js";
 export { createWechatReceiptHandler } from "./wechat-receipts.js";
 export type { WechatReceiptHandler, WechatReceiptInput } from "./wechat-receipts.js";
+
+export { createNotifyDispatcher } from "./service.js";
+export type { NotifyDispatcherService } from "./service.js";
+export type { NotifyDispatchDeps } from "./context.js";
+export type { NotifyQueueRef, NotifyQueueTask } from "./context.js";
+
+export {
+  findNotifyN1Violations,
+  findNotifyN2Violations,
+  findNotifyN3Violations,
+  findNotifyN15Violations,
+} from "./invariants.js";
+
+export type { DirectNotificationInput } from "./direct.js";
