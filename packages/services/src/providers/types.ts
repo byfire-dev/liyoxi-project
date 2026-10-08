@@ -93,7 +93,14 @@ export interface WechatProvider extends ProviderBase {
   /** 登录：用小程序端 wx.login 给的 code 换 openid */
   code2Session(input: { code: string }): Promise<ProviderResult<WechatSession>>;
   /** 手机号：用手机号组件给的 code 换手机号 */
-  getPhoneNumber(input: { code: string }): Promise<ProviderResult<{ phone: string }>>;
+  getPhoneNumber(input: { code: string }): Promise<
+    ProviderResult<{
+      phone: string;
+      /** 微信真实区号与纯号码；旧替身/调用方可继续只返回phone。 */
+      countryCode?: string;
+      purePhoneNumber?: string;
+    }>
+  >;
   /** 订阅消息 */
   sendSubscribeMessage(input: {
     openid: string;

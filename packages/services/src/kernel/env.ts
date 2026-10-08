@@ -15,7 +15,7 @@
 // 后续包加变量：在这里加键与校验，同 PR 改 .env.example（node infra/ci/check-env-example.mjs 核对键集合）。
 // 本文件不写相对导入：infra/ci/check-env-example.mjs 用 Node 自带的类型擦除直接加载它。
 
-import { readFileSync } from "node:fs";
+import { closeSync, constants, fstatSync, openSync, readFileSync, readSync } from "node:fs";
 
 import { z } from "zod";
 
@@ -46,6 +46,10 @@ export const ENV_KEYS: readonly string[] = [
   "DATA_KEYS_FILE",
   "BIDX_KEYS_FILE",
   "AUTH_KEYS_FILE",
+  "WECHAT_APPID",
+  "WECHAT_SECRET_FILE",
+  "WECHAT_MESSAGE_TOKEN_FILE",
+  "WECHAT_MESSAGE_AES_KEY_FILE",
 ];
 
 /** 数据加密密钥文件的内容：current 是当前 kid，keys 是 kid → base64 写的 32 字节 */
@@ -62,6 +66,13 @@ export interface AuthKeysConfig {
   readonly mfa: DataKeysConfig;
 }
 
+export interface WechatConfig {
+  readonly appid: string;
+  readonly secret: string;
+  readonly messageToken: string;
+  readonly messageEncodingAESKey: string;
+}
+
 export interface Env {
   readonly APP_ENV: AppEnv;
   readonly LOG_LEVEL: LogLevel;
@@ -73,6 +84,8 @@ export interface Env {
   readonly BIDX_KEYS?: BidxKeysConfig;
   /** 后台登录的三把密钥；没配 AUTH_KEYS_FILE 时没有这一项 */
   readonly AUTH_KEYS?: AuthKeysConfig;
+  /** 整组未配置时没有此项；敏感字段只能从 FILE 读取。 */
+  readonly WECHAT?: WechatConfig;
 }
 
 export type EnvSource = Readonly<Record<string, string | undefined>>;
@@ -91,8 +104,18 @@ export interface EnvGroup {
 }
 
 /** 成组变量的登记处；后续包加变量时往这里加组 */
+const WECHAT_GROUP: EnvGroup = {
+  name: "微信小程序与唯一消息接收地址",
+  keys: [
+    "WECHAT_APPID",
+    "WECHAT_SECRET_FILE",
+    "WECHAT_MESSAGE_TOKEN_FILE",
+    "WECHAT_MESSAGE_AES_KEY_FILE",
+  ],
+};
 export const ENV_GROUPS: readonly EnvGroup[] = [
   { name: "字段加密与盲索引密钥", keys: ["DATA_KEYS_FILE", "BIDX_KEYS_FILE"] },
+  WECHAT_GROUP,
 ];
 
 export class EnvError extends Error {
@@ -265,6 +288,83 @@ function hasProtocol(value: string, protocols: readonly string[]): boolean {
   }
 }
 
+/** 微信敏感文本文件最多4KiB；只接受普通文件，所有诊断均不含路径/内容。 */
+function readWechatFile(source: EnvSource, key: string, issues: EnvIssue[]): string | undefined {
+  if (read(source, key) !== undefined)
+    issues.push({ key, reason: `敏感项只认 ${key}_FILE，任何环境都不接受明文` });
+  const fileKey = `${key}_FILE`;
+  const path = read(source, fileKey);
+  if (path === undefined) return undefined;
+  let fd: number | undefined;
+  try {
+    fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK);
+    const stat = fstatSync(fd);
+    if (!stat.isFile() || stat.size > 4096) {
+      issues.push({ key: fileKey, reason: "须为不超过4KiB的普通文本文件" });
+      return undefined;
+    }
+    const bytes = Buffer.alloc(4097);
+    let offset = 0;
+    while (offset < bytes.length) {
+      const count = readSync(fd, bytes, offset, bytes.length - offset, null);
+      if (count === 0) break;
+      offset += count;
+    }
+    if (offset > 4096) {
+      issues.push({ key: fileKey, reason: "文件内容超过4KiB" });
+      return undefined;
+    }
+    const value = bytes.subarray(0, offset).toString("utf8").trim();
+    if (value) return value;
+    issues.push({ key: fileKey, reason: "文件内容不能为空" });
+  } catch {
+    issues.push({ key: fileKey, reason: "所指的普通文本文件读不了" });
+  } finally {
+    if (fd !== undefined) {
+      try {
+        closeSync(fd);
+      } catch {
+        issues.push({ key: fileKey, reason: "配置文件关闭失败" });
+      }
+    }
+  }
+  return undefined;
+}
+
+function readWechat(source: EnvSource, issues: EnvIssue[]): WechatConfig | undefined {
+  const appid = read(source, "WECHAT_APPID");
+  const secret = readWechatFile(source, "WECHAT_SECRET", issues);
+  const messageToken = readWechatFile(source, "WECHAT_MESSAGE_TOKEN", issues);
+  const messageEncodingAESKey = readWechatFile(source, "WECHAT_MESSAGE_AES_KEY", issues);
+  const ascii = (value: string | undefined, maximum: number) =>
+    value === undefined || (value.length <= maximum && /^[\x21-\x7e]+$/.test(value));
+  if (appid !== undefined && !/^[A-Za-z0-9_-]{1,128}$/.test(appid))
+    issues.push({ key: "WECHAT_APPID", reason: "须为1至128个字母、数字、下划线或短横线" });
+  if (!ascii(secret, 256))
+    issues.push({ key: "WECHAT_SECRET_FILE", reason: "须为1至256个可见ASCII字符" });
+  if (!ascii(messageToken, 128))
+    issues.push({ key: "WECHAT_MESSAGE_TOKEN_FILE", reason: "须为1至128个可见ASCII字符" });
+  if (
+    messageEncodingAESKey !== undefined &&
+    (!/^[A-Za-z0-9+/]{43}$/.test(messageEncodingAESKey) ||
+      Buffer.from(messageEncodingAESKey + "=", "base64").length !== 32 ||
+      Buffer.from(messageEncodingAESKey + "=", "base64").toString("base64") !==
+        messageEncodingAESKey + "=")
+  )
+    issues.push({
+      key: "WECHAT_MESSAGE_AES_KEY_FILE",
+      reason: "须为规范43字符base64编码的32字节密钥",
+    });
+  if (
+    appid === undefined ||
+    secret === undefined ||
+    messageToken === undefined ||
+    messageEncodingAESKey === undefined
+  )
+    return undefined;
+  return Object.freeze({ appid, secret, messageToken, messageEncodingAESKey });
+}
+
 const EnvSchema = z.object({
   APP_ENV: z.enum(APP_ENVS, { error: `必填，只能是 ${APP_ENVS.join("、")} 之一` }),
   LOG_LEVEL: z.enum(LOG_LEVELS, { error: `只能是 ${LOG_LEVELS.join("、")} 之一` }).default("info"),
@@ -303,12 +403,16 @@ export function loadEnv(
   const dataKeys = readKeyFile(source, "DATA_KEYS", issues, parseDataKeys);
   const bidxKeys = readKeyFile(source, "BIDX_KEYS", issues, parseBidxKeys);
   const authKeys = readKeyFile(source, "AUTH_KEYS", issues, parseAuthKeys);
+  const wechat = readWechat(source, issues);
   if (!parsed.success) {
     for (const issue of parsed.error.issues) {
       issues.push({ key: issue.path.join("."), reason: issue.message });
     }
   }
-  issues.push(...groupIssues(source, options.groups ?? ENV_GROUPS));
+  const groups = options.groups ?? ENV_GROUPS;
+  issues.push(
+    ...groupIssues(source, groups.includes(WECHAT_GROUP) ? groups : [...groups, WECHAT_GROUP]),
+  );
 
   if (issues.length > 0 || !parsed.success) {
     const order = (issue: EnvIssue) => {
@@ -330,5 +434,6 @@ export function loadEnv(
     REDIS_URL,
     ...(dataKeys && bidxKeys ? { DATA_KEYS: dataKeys, BIDX_KEYS: bidxKeys } : {}),
     ...(authKeys ? { AUTH_KEYS: authKeys } : {}),
+    ...(wechat ? { WECHAT: wechat } : {}),
   });
 }
