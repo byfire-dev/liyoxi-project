@@ -1,5 +1,9 @@
-import { bindAnalytics, createAnalyticsReceiver, countBannerClicks } from "./analytics/index.js";
-import type { AnalyticsReceiver } from "./analytics/index.js";
+import {
+  createAnalyticsJobs,
+  createAnalyticsReceiver,
+  countBannerClicks,
+} from "./analytics/index.js";
+import type { AnalyticsReceiver, AnalyticsJobs } from "./analytics/index.js";
 import { createSubscribeResults, createWechatReceiptHandler } from "./notify/index.js";
 import { findWechatIdentityId, recentWechatOpenid } from "./identity/index.js";
 import type { SubscribeResults } from "./notify/index.js";
@@ -172,6 +176,7 @@ export interface RuntimeOptions {
 
 export interface Runtime {
   readonly analytics: AnalyticsReceiver;
+  readonly analyticsPartitions: Pick<AnalyticsJobs, "repartition">;
   readonly subscribeResults: SubscribeResults;
   readonly clientErrors: ClientErrorForwarder;
   readonly webhooks: Webhooks;
@@ -296,10 +301,15 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       ? {}
       : { commandTimeoutMs: options.rateLimitCommandTimeoutMs }),
   });
-  const assembly = assembleServices({ entry, appEnv: env.APP_ENV });
+  const analyticsScope = createAnalyticsJobs(assembleServices({ entry, appEnv: env.APP_ENV }), {
+    tx,
+    clock,
+    appEnv: env.APP_ENV,
+    storage: () => providers.storage,
+  });
+  const assembly = analyticsScope.assembly;
   // 违规上报端口（invariants.report）的实现在 ops，要连接、时钟与装配结果（W0-24）
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
-  const unbindAnalytics = bindAnalytics({ clock });
   const wechatClosers: Array<() => Promise<void>> = [];
   const providers =
     options.providers ??
@@ -594,6 +604,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
+      await analyticsScope.close();
       await Promise.allSettled(wechatClosers.map((close) => close()));
       await clientErrors.close();
       unbindOrderStart();
@@ -604,7 +615,6 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       unbindDelivery();
       unbindApprovalSla();
       unbindCalendarCoverage();
-      unbindAnalytics();
       unbindOps();
       unbindWebhooks();
       await mediaChannel.close();
@@ -615,6 +625,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     auditRead,
     flowOps: createFlowOps({ tx, clock }),
     alertActions: createAlertActions({ tx, clock }),
+    analyticsPartitions: { repartition: analyticsScope.repartition },
     piiReveal,
     get staffRoles() {
       staffRoles ??= createRoleManagement({ db: prisma, tx, clock, roles: this.staffAuth.roles });

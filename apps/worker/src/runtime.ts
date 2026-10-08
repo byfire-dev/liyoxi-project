@@ -188,7 +188,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           services.closePublish?.();
           services.closeDelivery?.();
           services.closeWebhooks?.();
-          services.closeAnalytics?.();
+          await services.closeAnalytics?.();
           await services.closeStorageDrivers?.();
         }
       })());

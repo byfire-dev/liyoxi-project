@@ -74,3 +74,4 @@ export {
 export { createFlowOpsCliSupport } from "./flow-ops-cli.js";
 
 export { installSitePurchasePolicy } from "./site.js";
+export { createAnalyticsCliSupport } from "./analytics-cli.js";
