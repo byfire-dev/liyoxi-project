@@ -9,6 +9,7 @@ import { runSeed, uuidv7 } from "@liyoxi/services";
 import {
   createFactories,
   createNotifyMessageFixture,
+  changeNotifyMessageAccessFixture,
   createNotifyQuotaFixture,
   updateNotifySlotFixture,
 } from "@liyoxi/services/testing";
@@ -135,7 +136,7 @@ it("m.message.read：无JSONbody、required幂等与并发原读时刻；越权/
   ).toEqual({ readAt: null });
 });
 
-it("m.message.batchRead：真实上界、tab、required幂等重放首次summary，新消息仍未读", async () => {
+it("m.message.batchRead：真实上界、tab、required幂等重放，新消息仍未读", async () => {
   const upper = await message({ merchantUserId: owner.merchantUserId, category: "review" });
   const newer = await message({ merchantUserId: owner.merchantUserId, category: "review" });
   const input = {
@@ -148,12 +149,10 @@ it("m.message.batchRead：真实上界、tab、required幂等重放首次summary
   const body = await responseData(first, MessageBatchReadResultSchema);
   expect(body.markedCount).toBe(1);
   await message();
-  expect(
-    await responseData(
-      await api.request("/api/v1/m/messages/read", input),
-      MessageBatchReadResultSchema,
-    ),
-  ).toEqual(body);
+  const replay = await api.request("/api/v1/m/messages/read", input);
+  expect(replay.status).toBe(200);
+  expect(replay.headers.get("Idempotent-Replayed")).toBe("true");
+  expect(await responseData(replay, MessageBatchReadResultSchema)).toEqual(body);
   const listed = await responseData(
     await api.request("/api/v1/m/messages?tab=review", { headers: owner.headers }),
     MessageListResultSchema,
@@ -189,4 +188,153 @@ it("m.notifySetting.list：当前真实登录会话额度与12槽位，invalid�
   expect(
     data.items.find((item: { slotKey: string }) => item.slotKey === "pay_result"),
   ).toMatchObject({ state: "on", estRemaining: 1, tmplId: "fictional-w217-pay-result" });
+});
+
+async function scopedMessageActor(clerk = false) {
+  const signed = await signInAsMerchant(api);
+  const scope = await api.runtime.tx.run(async (tx) => {
+    const make = createFactories({ db: tx, clock: api.clock });
+    const entity = await make.entity({ createdByUserId: signed.merchantUserId });
+    const store = await make.store({ entityId: entity.id });
+    const userId = clerk ? (await make.merchantUser()).id : signed.merchantUserId;
+    const primary = await make.entityMember({
+      entityId: entity.id,
+      merchantUserId: userId,
+      role: "owner",
+    });
+    if (clerk) {
+      const member = await make.entityMember({
+        entityId: entity.id,
+        merchantUserId: signed.merchantUserId,
+      });
+      await make.storeMember({
+        entityMemberId: member.id,
+        entityId: entity.id,
+        storeId: store.id,
+        addedByMemberId: primary.id,
+      });
+    }
+    return { entityId: entity.id, storeId: store.id };
+  });
+  return { signed, ...scope };
+}
+
+for (const change of ["remove_membership", "archive_store"] as const)
+  for (const operation of ["read", "batchRead"] as const)
+    it(`真实HTTP同键${operation}在${change}后403，旧成功不替代当前门店授权`, async () => {
+      const who = await scopedMessageActor(change === "remove_membership");
+      const row = await message({
+        merchantUserId: who.signed.merchantUserId,
+        entityId: who.entityId,
+        storeId: who.storeId,
+      });
+      const key = uuidv7();
+      const path =
+        operation === "read" ? `/api/v1/m/messages/${row.id}/read` : "/api/v1/m/messages/read";
+      const request = (sameKey = key) =>
+        api.request(path, {
+          method: "POST",
+          headers: { ...who.signed.withStore(who.storeId), "Idempotency-Key": sameKey },
+          ...(operation === "batchRead" ? { json: { upToMessageId: row.id, tab: "all" } } : {}),
+        });
+      expect((await request()).status).toBe(200);
+      const initial = await api.runtime.tx.run((tx) =>
+        tx.merchantMessage.findUniqueOrThrow({ where: { id: row.id }, select: { readAt: true } }),
+      );
+      await api.runtime.tx.run((tx) =>
+        changeNotifyMessageAccessFixture(tx, api.clock, {
+          merchantUserId: who.signed.merchantUserId,
+          entityId: who.entityId,
+          storeId: who.storeId,
+          change,
+        }),
+      );
+      expect((await request(uuidv7())).status).toBe(403);
+      const replay = await request();
+      expect(replay.status).toBe(403);
+      expect(await replay.json()).toMatchObject({ error: "NOT_A_MEMBER" });
+      expect(
+        await api.runtime.tx.run((tx) =>
+          tx.merchantMessage.findUniqueOrThrow({ where: { id: row.id }, select: { readAt: true } }),
+        ),
+      ).toEqual(initial);
+    });
+
+it("真实HTTP老板降店员后ownerOnly单读重放404，批读重放当前summary且保留首次已读时刻", async () => {
+  const who = await scopedMessageActor();
+  const limited = await message({
+    merchantUserId: who.signed.merchantUserId,
+    entityId: who.entityId,
+    isOwnerOnly: true,
+    category: "plan_points",
+  });
+  const upper = await message({
+    merchantUserId: who.signed.merchantUserId,
+    entityId: who.entityId,
+    storeId: who.storeId,
+  });
+  const pendingLimited = await message({
+    merchantUserId: who.signed.merchantUserId,
+    entityId: who.entityId,
+    isOwnerOnly: true,
+    category: "plan_points",
+  });
+  const readInput = {
+    method: "POST",
+    headers: { ...who.signed.withStore(who.storeId), "Idempotency-Key": uuidv7() },
+  };
+  const path = `/api/v1/m/messages/${limited.id}/read`;
+  const first = await api.request(path, readInput);
+  expect(first.status).toBe(200);
+  const firstBody = await first.json();
+  const batchInput = {
+    method: "POST",
+    headers: { ...who.signed.withStore(who.storeId), "Idempotency-Key": uuidv7() },
+    json: { upToMessageId: upper.id, tab: "all" },
+  };
+  const marked = await responseData(
+    await api.request("/api/v1/m/messages/read", batchInput),
+    MessageBatchReadResultSchema,
+  );
+  expect(marked).toMatchObject({ markedCount: 1, summary: { total: 1 } });
+  expect(marked.summary.byTab.find((item) => item.tab === "plan_points")?.unreadCount).toBe(1);
+  await api.runtime.tx.run((tx) =>
+    changeNotifyMessageAccessFixture(tx, api.clock, {
+      merchantUserId: who.signed.merchantUserId,
+      entityId: who.entityId,
+      storeId: who.storeId,
+      change: "downgrade_owner",
+    }),
+  );
+  api.clock.advance(1000);
+  const newer = await message({
+    merchantUserId: who.signed.merchantUserId,
+    entityId: who.entityId,
+    storeId: who.storeId,
+  });
+  expect((await api.request(path, readInput)).status).toBe(404);
+  const replay = await api.request("/api/v1/m/messages/read", batchInput);
+  expect(replay.status).toBe(200);
+  expect(replay.headers.get("Idempotent-Replayed")).toBe("true");
+  const replayBody = await responseData(replay, MessageBatchReadResultSchema);
+  expect(replayBody.markedCount).toBe(marked.markedCount);
+  const summary = await responseData(
+    await api.request("/api/v1/m/messages/summary", { headers: who.signed.withStore(who.storeId) }),
+    MessageSummarySchema,
+  );
+  expect(replayBody.summary).toEqual(summary);
+  expect(replayBody.summary.byTab.find((item) => item.tab === "plan_points")?.unreadCount).toBe(0);
+  expect(replayBody.summary.byStore).toEqual([{ storeId: who.storeId, unreadCount: 1 }]);
+  const stored = await api.runtime.tx.run((tx) =>
+    tx.merchantMessage.findUniqueOrThrow({ where: { id: limited.id }, select: { readAt: true } }),
+  );
+  expect(stored.readAt?.toISOString()).toBe(
+    (firstBody as { data: { readAt: string } }).data.readAt,
+  );
+  for (const row of [newer, pendingLimited])
+    expect(
+      await api.runtime.tx.run((tx) =>
+        tx.merchantMessage.findUniqueOrThrow({ where: { id: row.id }, select: { readAt: true } }),
+      ),
+    ).toEqual({ readAt: null });
 });

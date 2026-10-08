@@ -66,6 +66,7 @@ export type {
 export { configTestStaffBriefs, createConfigProfileFixture } from "./config-admin.js";
 export {
   createNotifyMessageFixture,
+  changeNotifyMessageAccessFixture,
   createNotifySessionFixture,
   createNotifyQuotaFixture,
   updateNotifySlotFixture,

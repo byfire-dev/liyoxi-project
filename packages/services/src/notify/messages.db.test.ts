@@ -1,13 +1,14 @@
 import { beforeAll, expect, it } from "vitest";
 import { MessageListQuerySchema } from "@liyoxi/contract";
 import { createConfig } from "../config/index.js";
-import { createTxRunner, uuidv7 } from "../kernel/index.js";
+import { createIdempotencyContext, createTxRunner, uuidv7 } from "../kernel/index.js";
 import type { TxRunner } from "../kernel/index.js";
 import {
   createClock,
   createFactories,
   useSeededDatabase,
   createNotifyMessageFixture,
+  changeNotifyMessageAccessFixture,
 } from "../testing/index.js";
 import { createNotifyMessages } from "./messages.js";
 import type { NotifyMessages } from "./messages.js";
@@ -360,4 +361,257 @@ it("同一真实事务内scope刚解析owner后改为clerk，最终list/条件UP
       (await prisma.merchantMessage.findUniqueOrThrow({ where: { id: message.id } })).readAt,
     ).toBeNull();
   }
+});
+
+const replayOptions = (
+  actor: { merchantUserId: string; storeId: string | null },
+  operation: "read" | "batchRead",
+  messageId: string,
+  key: string,
+) => ({
+  idem: createIdempotencyContext({
+    mode: "required",
+    scope: `m.message.${operation}`,
+    actor: { type: "merchant", id: actor.merchantUserId, role: null, client: "weapp" },
+    key,
+    request: {
+      method: "POST",
+      storeId: actor.storeId,
+      pathParams: operation === "read" ? { messageId } : {},
+      body: operation === "read" ? null : { upToMessageId: messageId, tab: "all" },
+    },
+  }),
+});
+
+for (const change of ["remove_membership", "archive_store"] as const)
+  for (const operation of ["read", "batchRead"] as const)
+    it(`真实同键${operation}在${change}后拒绝重放，不沿用旧成员授权`, async () => {
+      const own = await make.merchant();
+      let userId = own.user.id;
+      if (change === "remove_membership") {
+        const clerk = await make.merchantUser();
+        const member = await make.entityMember({
+          entityId: own.entity.id,
+          merchantUserId: clerk.id,
+        });
+        await make.storeMember({
+          entityMemberId: member.id,
+          entityId: own.entity.id,
+          storeId: own.store.id,
+          addedByMemberId: own.owner.id,
+        });
+        userId = clerk.id;
+      }
+      const actor = { merchantUserId: userId, storeId: own.store.id };
+      const row = await createNotifyMessageFixture(prisma, clock, {
+        merchantUserId: userId,
+        entityId: own.entity.id,
+        storeId: own.store.id,
+      });
+      const key = uuidv7();
+      const invoke = (sameKey = key) =>
+        operation === "read"
+          ? service.read(actor, row.id, replayOptions(actor, operation, row.id, sameKey))
+          : service.batchRead(
+              actor,
+              { upToMessageId: row.id, tab: "all" },
+              replayOptions(actor, operation, row.id, sameKey),
+            );
+      await invoke();
+      const firstRead = (await prisma.merchantMessage.findUniqueOrThrow({ where: { id: row.id } }))
+        .readAt;
+      await changeNotifyMessageAccessFixture(prisma, clock, {
+        merchantUserId: userId,
+        entityId: own.entity.id,
+        storeId: own.store.id,
+        change,
+      });
+      await expect(invoke(uuidv7())).rejects.toMatchObject({ error: "NOT_A_MEMBER" });
+      await expect(invoke()).rejects.toMatchObject({ error: "NOT_A_MEMBER" });
+      expect(
+        (await prisma.merchantMessage.findUniqueOrThrow({ where: { id: row.id } })).readAt,
+      ).toEqual(firstRead);
+    });
+
+it("owner降店员后单读同键404，批读重放保留历史markedCount但摘要按当前权限，DML不重执", async () => {
+  const own = await make.merchant();
+  const actor = { merchantUserId: own.user.id, storeId: own.store.id };
+  const limited = await createNotifyMessageFixture(prisma, clock, {
+    merchantUserId: own.user.id,
+    entityId: own.entity.id,
+    isOwnerOnly: true,
+    category: "plan_points",
+  });
+  const upper = await createNotifyMessageFixture(prisma, clock, {
+    merchantUserId: own.user.id,
+    entityId: own.entity.id,
+    storeId: own.store.id,
+  });
+  const unreadLimited = await createNotifyMessageFixture(prisma, clock, {
+    merchantUserId: own.user.id,
+    entityId: own.entity.id,
+    isOwnerOnly: true,
+    category: "plan_points",
+  });
+  const readKey = uuidv7(),
+    batchKey = uuidv7();
+  const first = await service.read(
+    actor,
+    limited.id,
+    replayOptions(actor, "read", limited.id, readKey),
+  );
+  const body = { upToMessageId: upper.id, tab: "all" as const };
+  const marked = await service.batchRead(
+    actor,
+    body,
+    replayOptions(actor, "batchRead", upper.id, batchKey),
+  );
+  expect(marked).toMatchObject({ markedCount: 1, summary: { total: 1 } });
+  expect(marked.summary.byTab.find((item) => item.tab === "plan_points")?.unreadCount).toBe(1);
+  await changeNotifyMessageAccessFixture(prisma, clock, {
+    merchantUserId: own.user.id,
+    entityId: own.entity.id,
+    storeId: own.store.id,
+    change: "downgrade_owner",
+  });
+  clock.advance(1000);
+  const newer = await createNotifyMessageFixture(prisma, clock, {
+    merchantUserId: own.user.id,
+    entityId: own.entity.id,
+    storeId: own.store.id,
+  });
+  await expect(
+    service.read(actor, limited.id, replayOptions(actor, "read", limited.id, readKey)),
+  ).rejects.toMatchObject({ error: "NOT_FOUND" });
+  const replay = await service.batchRead(
+    actor,
+    body,
+    replayOptions(actor, "batchRead", upper.id, batchKey),
+  );
+  expect(replay.markedCount).toBe(marked.markedCount);
+  expect(replay.summary).toEqual(await service.summary(actor));
+  expect(replay.summary.byTab.find((item) => item.tab === "plan_points")?.unreadCount).toBe(0);
+  expect(replay.summary.byStore).toEqual([{ storeId: own.store.id, unreadCount: 1 }]);
+  expect(
+    (
+      await prisma.merchantMessage.findUniqueOrThrow({ where: { id: limited.id } })
+    ).readAt?.toISOString(),
+  ).toBe(first.readAt);
+  for (const row of [newer, unreadLimited])
+    expect(
+      (await prisma.merchantMessage.findUniqueOrThrow({ where: { id: row.id } })).readAt,
+    ).toBeNull();
+});
+
+it("批读同权限保留首次summary，inbox范围与可进其他店变化才重裁且不重执DML", async () => {
+  const own = await make.merchant();
+  const second = await make.store({ entityId: own.entity.id });
+  const actor = { merchantUserId: own.user.id, storeId: own.store.id };
+  const staff = await make.staff();
+  const setScope = async (value: "current_store" | "all_stores") => {
+    clock.advance(1);
+    await prisma.paramValue.create({
+      data: {
+        id: uuidv7(),
+        key: "inbox.scope",
+        value,
+        effectiveAt: clock.now(),
+        createdAt: clock.now(),
+        createdByStaffId: staff.id,
+      },
+    });
+  };
+  await setScope("current_store");
+  const upper = await createNotifyMessageFixture(prisma, clock, {
+    merchantUserId: own.user.id,
+    entityId: own.entity.id,
+    storeId: own.store.id,
+  });
+  const other = await createNotifyMessageFixture(prisma, clock, {
+    merchantUserId: own.user.id,
+    entityId: own.entity.id,
+    storeId: second.id,
+  });
+  const body = { upToMessageId: upper.id, tab: "all" as const };
+  const key = uuidv7();
+  const invoke = () =>
+    service.batchRead(actor, body, replayOptions(actor, "batchRead", upper.id, key));
+  const first = await invoke();
+  expect(first).toMatchObject({ markedCount: 1, summary: { total: 0 } });
+  const newer = await createNotifyMessageFixture(prisma, clock, {
+    merchantUserId: own.user.id,
+    entityId: own.entity.id,
+    storeId: own.store.id,
+  });
+  expect((await service.summary(actor)).total).toBe(1);
+  expect(await invoke()).toEqual(first);
+  await setScope("all_stores");
+  expect(await invoke()).toEqual({
+    markedCount: first.markedCount,
+    summary: await service.summary(actor),
+  });
+  expect((await invoke()).summary.total).toBe(2);
+  await changeNotifyMessageAccessFixture(prisma, clock, {
+    merchantUserId: own.user.id,
+    entityId: own.entity.id,
+    storeId: second.id,
+    change: "archive_store",
+  });
+  const cropped = await invoke();
+  expect(cropped).toEqual({
+    markedCount: first.markedCount,
+    summary: await service.summary(actor),
+  });
+  expect(cropped.summary).toMatchObject({
+    total: 1,
+    byStore: [{ storeId: own.store.id, unreadCount: 1 }],
+  });
+  for (const row of [other, newer])
+    expect(
+      (await prisma.merchantMessage.findUniqueOrThrow({ where: { id: row.id } })).readAt,
+    ).toBeNull();
+});
+
+it("账号无门店的同键重放在停用后单读404、批读摘要零，历史markedCount与DML保持", async () => {
+  const user = await make.merchantUser();
+  const actor = { merchantUserId: user.id, storeId: null };
+  const upper = await createNotifyMessageFixture(prisma, clock, { merchantUserId: user.id });
+  const single = await createNotifyMessageFixture(prisma, clock, { merchantUserId: user.id });
+  const pending = await createNotifyMessageFixture(prisma, clock, { merchantUserId: user.id });
+  const readKey = uuidv7(),
+    batchKey = uuidv7();
+  const firstRead = await service.read(
+    actor,
+    single.id,
+    replayOptions(actor, "read", single.id, readKey),
+  );
+  const body = { upToMessageId: upper.id, tab: "all" as const };
+  const firstBatch = await service.batchRead(
+    actor,
+    body,
+    replayOptions(actor, "batchRead", upper.id, batchKey),
+  );
+  expect(firstBatch).toMatchObject({ markedCount: 1, summary: { total: 1 } });
+  await prisma.merchantUser.update({ where: { id: user.id }, data: { status: "disabled" } });
+  await expect(
+    service.read(actor, single.id, replayOptions(actor, "read", single.id, readKey)),
+  ).rejects.toMatchObject({ error: "NOT_FOUND" });
+  const replay = await service.batchRead(
+    actor,
+    body,
+    replayOptions(actor, "batchRead", upper.id, batchKey),
+  );
+  expect(replay).toEqual({
+    markedCount: firstBatch.markedCount,
+    summary: await service.summary(actor),
+  });
+  expect(replay.summary).toMatchObject({ total: 0, byStore: [] });
+  expect(
+    (
+      await prisma.merchantMessage.findUniqueOrThrow({ where: { id: single.id } })
+    ).readAt?.toISOString(),
+  ).toBe(firstRead.readAt);
+  expect(
+    (await prisma.merchantMessage.findUniqueOrThrow({ where: { id: pending.id } })).readAt,
+  ).toBeNull();
 });

@@ -8,6 +8,10 @@
 
 列表按 UUID ID 降序，私有 v1 base64url 游标限长并验证 UUID v7；没有总数。批读只更新当前可见、尚未读、ID 不超过上界、符合页签的行；新 ID 留作未读。单读用条件 UPDATE，竞争者返回已存在的原始 `readAt`。读写只改 `read_at/updated_at`，不建通知、审计、状态历史或出站事件，业务时刻来自注入时钟。
 
+`required` 同键重放会跳过 `tx.run` 的业务回调，因此单读在独立只读事务中先检查当前门店与消息可见性，返回前再检查；批读也先检查当前门店。原标读 DML 与首次 `readAt/markedCount` 不重复执行。单读失去消息权限为 `NOT_FOUND`，退出当前成员或门店不可进入为 `NOT_A_MEMBER`。
+
+按 C50，权限未变时批读重放仍返回首次 DTO，新到消息不会改变旧摘要或被旧请求标读。该尚未上线接口的私有幂等结果保存 `visibility/payload` 包装；指纹只含解析范围、当前账号正常/老板资格与排序后的全部可进门店，不进入公开 DTO 或日志。重放权限变化但当前门店仍可进入时，仅摘要按当前权限重裁，`markedCount` 保留首次操作结果。原摘要的分类计数与门店计数由两条 SELECT 合并为同一 READ COMMITTED statement，计数和权限指纹来自同一快照；GET 也复用它。固定八个页签与原可见谓词保持，门店 JSON 聚合明确按门店 ID 排序。
+
 DTO 的 DeepLink 严格复用原 Banner 13 项，增加 a09 §2.9 的 `payment.result/payment.detail {paymentOrderId}`、`points.ledger {}` 与账号安全消息的固定安全消息中心 `messages.list {}`。参数名沿用实际 m07 付款单路由，禁止裸 URL、任意路由与多余字段。原 Banner helper 的类型参数伴随只恢复精确参数推导，运行时严格结构与原键保持。尚未实现的发票等未来场景不在本 PR 猜测。
 
 设置以 12 个正式槽位顺序读取真实配置；仅当前会话微信身份的额度，最终查询再次验证会话、账号与身份关系。总开关关闭/槽位不可用优先 `unavailable`，否则 banned/rejected/on/off；不可用模板 ID 为 null，保留真实剩余额度与授权时间。有效启用场景名称来自库。无效门店头按账号设置降级；有效主体调用组合根的真实 `purchaseMode`，hidden 仅移除到期与积分两槽位。冷却与每次请求数读取正式参数，不硬编码。

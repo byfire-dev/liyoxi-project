@@ -75,15 +75,17 @@ async function scopeAt(tx: Tx, actor: MessageActor, now: Date): Promise<MessageS
   return messageScope(tx, actor, values["inbox.scope"] === "all_stores");
 }
 
-async function summaryAt(tx: Tx, scope: MessageScope): Promise<MessageSummary> {
-  const groups = await tx.$queryRaw<{ category: string; count: number }[]>(Prisma.sql`
-    SELECT m.category, count(*)::int AS count FROM merchant_message m
-    WHERE ${visibleMessages(scope)} AND m.read_at IS NULL GROUP BY m.category`);
-  const total = groups.reduce((count, row) => count + row.count, 0);
-  let byStore: MessageSummary["byStore"] = [];
-  if (scope.entityId !== null) {
-    // 店员只列此刻可进的门店；账号与主体级消息在每家门店的计数中各算一次。
-    const rows = await tx.$queryRaw<{ storeId: string; unreadCount: number }[]>(Prisma.sql`
+interface SummarySnapshot {
+  summary: MessageSummary;
+  visibility: string;
+}
+
+async function summarySnapshotAt(tx: Tx, scope: MessageScope): Promise<SummarySnapshot> {
+  // 计数与裁剪凭据必须同一个 READ COMMITTED statement，不能把 owner 计数绑定到 clerk 凭据。
+  const storeCounts =
+    scope.entityId === null
+      ? Prisma.sql`SELECT NULL::text AS "storeId", 0::int AS "unreadCount" WHERE FALSE`
+      : Prisma.sql`
       SELECT st.id::text AS "storeId", (
         SELECT count(*)::int FROM merchant_message m
         WHERE m.read_at IS NULL AND m.merchant_user_id = ${scope.merchantUserId}::uuid
@@ -98,17 +100,68 @@ async function summaryAt(tx: Tx, scope: MessageScope): Promise<MessageSummary> {
         AND EXISTS (SELECT 1 FROM merchant_user mu WHERE mu.id = ${scope.merchantUserId}::uuid AND mu.status = 'active')
         AND EXISTS (SELECT 1 FROM store current_store WHERE current_store.id = ${scope.storeId}::uuid
           AND current_store.id IN (${availableStores(scope.merchantUserId, scope.entityId)}))
-      ORDER BY st.id`);
-    byStore = rows;
+      ORDER BY st.id`;
+  const accessibleStores =
+    scope.entityId === null
+      ? Prisma.sql`SELECT NULL::uuid AS id WHERE FALSE`
+      : availableStores(scope.merchantUserId, scope.entityId);
+  const [snapshot] = await tx.$queryRaw<
+    {
+      groups: { category: string; count: number }[];
+      byStore: MessageSummary["byStore"];
+      userActive: boolean;
+      owner: boolean;
+      availableStoreIds: string[];
+    }[]
+  >(Prisma.sql`
+    WITH groups AS (
+      SELECT m.category, count(*)::int AS count FROM merchant_message m
+      WHERE ${visibleMessages(scope)} AND m.read_at IS NULL GROUP BY m.category
+    ), store_counts AS (${storeCounts})
+    SELECT COALESCE((SELECT jsonb_agg(g) FROM groups g), '[]'::jsonb) AS groups,
+      COALESCE((SELECT jsonb_agg(s ORDER BY s."storeId") FROM store_counts s), '[]'::jsonb) AS "byStore",
+      EXISTS (SELECT 1 FROM merchant_user mu WHERE mu.id = ${scope.merchantUserId}::uuid
+        AND mu.status = 'active') AS "userActive",
+      EXISTS (SELECT 1 FROM entity_member owner JOIN entity e ON e.id = owner.entity_id
+        WHERE owner.entity_id = ${scope.entityId}::uuid AND owner.merchant_user_id = ${scope.merchantUserId}::uuid
+          AND owner.status = 'active' AND owner.role = 'owner' AND e.lifecycle = 'active') AS owner,
+      ARRAY(SELECT available.id::text FROM (${accessibleStores}) available
+        ORDER BY available.id) AS "availableStoreIds"`);
+  if (!snapshot) throw new Error("消息摘要查询未返回结果");
+  if (scope.storeId !== null && !snapshot.availableStoreIds.includes(scope.storeId)) {
+    throw new AppError("NOT_A_MEMBER");
   }
-  return MessageSummarySchema.parse({
-    total,
-    byTab: MESSAGE_TABS.map((tab) => ({
-      tab,
-      unreadCount: tab === "all" ? total : (groups.find((row) => row.category === tab)?.count ?? 0),
-    })),
-    byStore,
-  });
+  const total = snapshot.groups.reduce((count, row) => count + row.count, 0);
+  return {
+    visibility: JSON.stringify([
+      scope.entityId,
+      scope.storeId,
+      scope.allStores,
+      snapshot.userActive,
+      snapshot.owner,
+      snapshot.availableStoreIds,
+    ]),
+    summary: MessageSummarySchema.parse({
+      total,
+      byTab: MESSAGE_TABS.map((tab) => ({
+        tab,
+        unreadCount:
+          tab === "all" ? total : (snapshot.groups.find((row) => row.category === tab)?.count ?? 0),
+      })),
+      byStore: snapshot.byStore,
+    }),
+  };
+}
+
+async function summaryAt(tx: Tx, scope: MessageScope): Promise<MessageSummary> {
+  return (await summarySnapshotAt(tx, scope)).summary;
+}
+
+async function assertVisibleMessage(tx: Tx, scope: MessageScope, messageId: string): Promise<void> {
+  const rows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
+    SELECT m.id::text AS id FROM merchant_message m
+    WHERE m.id = ${messageId}::uuid AND ${visibleMessages(scope)}`);
+  if (rows.length === 0) throw new AppError("NOT_FOUND");
 }
 
 interface MessageRow {
@@ -161,7 +214,14 @@ export function createNotifyMessages(deps: NotifyMessagesDeps): NotifyMessages {
     },
     async read(actor, rawId, options) {
       const { messageId } = MessageReadParamsSchema.parse({ messageId: rawId });
-      return tx.run(async (db) => {
+      const assertCurrent = () =>
+        tx.run(async (db) => {
+          const scope = await scopeAt(db, actor, clock.now());
+          await assertVisibleMessage(db, scope, messageId);
+        });
+      // required 重放跳过 fn；预检与回包前检查不得置于 keyed callback 内。
+      await assertCurrent();
+      const result = await tx.run(async (db) => {
         const now = clock.now();
         const scope = await scopeAt(db, actor, now);
         const updated = await db.$queryRaw<{ readAt: Date }[]>(Prisma.sql`
@@ -178,18 +238,34 @@ export function createNotifyMessages(deps: NotifyMessagesDeps): NotifyMessages {
         if (!row?.readAt) throw new AppError("NOT_FOUND");
         return { messageId, readAt: row.readAt.toISOString() };
       }, options);
+      await assertCurrent();
+      return result;
     },
     async batchRead(actor, raw, options) {
       const body = MessageBatchReadBodySchema.parse(raw);
-      return tx.run(async (db) => {
+      await tx.run((db) => scopeAt(db, actor, clock.now()));
+      const stored = await tx.run(async (db) => {
         const now = clock.now();
         const scope = await scopeAt(db, actor, now);
         const markedCount = await db.$executeRaw(Prisma.sql`
           UPDATE merchant_message m SET read_at = ${now}, updated_at = ${now}
           WHERE ${visibleMessages(scope)} AND m.read_at IS NULL AND m.id <= ${body.upToMessageId}::uuid
             AND ${tabWhere(body.tab)}`);
-        return { markedCount, summary: await summaryAt(db, scope) };
+        const snapshot = await summarySnapshotAt(db, scope);
+        // 私有持久化 envelope；public DTO 不包含角色/门店指纹。
+        return {
+          visibility: snapshot.visibility,
+          payload: { markedCount, summary: snapshot.summary },
+        };
       }, options);
+      if (!options?.idem?.replayed) return stored.payload;
+      return tx.run(async (db) => {
+        const scope = await scopeAt(db, actor, clock.now());
+        const current = await summarySnapshotAt(db, scope);
+        return current.visibility === stored.visibility
+          ? stored.payload
+          : { markedCount: stored.payload.markedCount, summary: current.summary };
+      });
     },
   };
 }

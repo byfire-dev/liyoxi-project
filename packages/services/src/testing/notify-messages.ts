@@ -3,6 +3,7 @@ import type { Prisma } from "@liyoxi/db";
 import type { MessageDeepLinkSchema, z } from "@liyoxi/contract";
 import { uuidv7 } from "../kernel/index.js";
 import type { Clock } from "../kernel/index.js";
+import { createFactories } from "./data/index.js";
 import type { FactoryDb } from "./data/index.js";
 
 export async function createNotifyMessageFixture(
@@ -124,4 +125,69 @@ export async function updateNotifySlotFixture(
   data: Prisma.WxTemplateSlotUpdateInput,
 ) {
   return db.wxTemplateSlot.update({ where: { slotKey }, data });
+}
+
+/** 仅虚构测试域：合法撤权字段，供真实 API 幂等重放反例，不变更约束或权限。 */
+export async function changeNotifyMessageAccessFixture(
+  db: FactoryDb,
+  clock: Clock,
+  input: {
+    merchantUserId: string;
+    entityId: string;
+    storeId: string;
+    change: "remove_membership" | "archive_store" | "downgrade_owner";
+  },
+) {
+  const now = clock.now();
+  await db.store.findFirstOrThrow({ where: { id: input.storeId, entityId: input.entityId } });
+  if (input.change === "archive_store") {
+    await db.store.update({
+      where: { id: input.storeId },
+      data: {
+        lifecycle: "archived",
+        archiveReason: "draft_deleted",
+        archivedAt: now,
+        archiveActorType: "system",
+        archiveActorId: null,
+        archiveClient: null,
+        updatedAt: now,
+      },
+    });
+    return;
+  }
+  const member = await db.entityMember.findFirstOrThrow({
+    where: { entityId: input.entityId, merchantUserId: input.merchantUserId, status: "active" },
+  });
+  if (input.change === "remove_membership") {
+    await db.entityMember.update({
+      where: { id: member.id },
+      data: {
+        status: "removed",
+        removedAt: now,
+        removeReason: "self",
+        removeActorType: "merchant",
+        removeActorId: input.merchantUserId,
+        removeClient: "weapp",
+        updatedAt: now,
+      },
+    });
+    return;
+  }
+  await db.entityMember.update({
+    where: { id: member.id },
+    data: { role: "clerk", updatedAt: now },
+  });
+  const make = createFactories({ db, clock });
+  const replacement = await make.merchantUser();
+  const owner = await make.entityMember({
+    entityId: input.entityId,
+    merchantUserId: replacement.id,
+    role: "owner",
+  });
+  await make.storeMember({
+    entityMemberId: member.id,
+    entityId: input.entityId,
+    storeId: input.storeId,
+    addedByMemberId: owner.id,
+  });
 }
