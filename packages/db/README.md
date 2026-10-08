@@ -179,8 +179,13 @@ PGPASSWORD=lyx-local-dev psql -X -h localhost -p 5442 -U liyoxi -d postgres -c "
 | `SELECT, INSERT, DELETE` | `service_ticket_ref` |
 | `SELECT, INSERT, UPDATE, DELETE` | 其余 135 张 |
 | 序列 `USAGE` | 14 个自增列背后的序列与 `audit_no_seq` |
-| 函数 `EXECUTE` | `lyx_03_purge_auth_event`（已收回所有人的执行权，只授给它） |
+| 函数 `EXECUTE` | `lyx_03_purge_auth_event`；固定月首的 `lyx_14_analytics_event_ensure_partition(date)` 与 `lyx_14_analytics_event_repartition_month(date)`（均收回 PUBLIC，只授 `lyx_app`） |
 | 没有任何权限 | 分区子表（经父表 `analytics_event` 读写）、`_prisma_migrations` |
+
+- 分区结构能力由新增迁移 `20261007230600_analytics_partition_capability` 补齐（[计划偏差](../../docs/plan/changes/W2-18-analytics-partition-capability.md)）。`ensure_partition(date) → text` 与 `repartition_month(date) → bigint` 都是受限 `SECURITY DEFINER`：只接 0001–9999 年有限公历月首，固定 `public` 对象、`pg_catalog` 内置函数与安全 `search_path`，月界取 Asia/Shanghai。建分区在父表独占锁内校验现有对象的属主、父关系、精确范围和防改触发器；同名错误对象会失败，default 有当月行时普通建分区也失败。
+- `repartition_month` 只搬指定月，临时停用 default 的行级防改触发器，完整行经本次自建 `pg_temp` 暂存表转回父表；条数及全部列（含主键、来源、收件时刻）必须一致。调用者已有同名 temp 时先拒绝，成功仅删除自建 temp，任何错误或外层回滚恢复 DDL、数据与触发器。应用直接 DDL/改删/清空权限与子表零权限保持原样，readonly 缺省 SELECT 沿用。
+- 数据库只校验结构日期，不以 `now()` 新增保留期规则。W2-18 服务仍要按注入 clock 和既有参数校验允许月份、CLI 环境授权与当前至未来 3 月预建；归档/过期 `DETACH`、`DROP` 仍不在这两个能力内。迁移账号口令不进入 worker。本包是独立结构能力，不能据此宣称 W2-18 整包完成。
+- 窄真库回归：`pnpm --filter @liyoxi/db exec vitest run src/analytics-partitions.test.ts src/grants.test.ts`；使用隔离测试库与真实 `lyx_app`，不修改长驻校验库。
 
 - 两个角色不可登录、不带口令，实例上已有同名角色就不再建（也不改它的属性）。登录账号另建，加为这两个角色的成员（`GRANT lyx_app TO <应用的登录账号>`）；账号的名字、口令、怎么加，由环境初始化做，不进迁移。
 - 登录账号只当这一个角色的成员：不要给超级用户，不要带 `ADMIN OPTION`，不要再加入别的角色（`pg_write_all_data` 之类一加，只增表就删得掉），不要让它当库的属主。平台收回了所有人对库的 `CONNECT` 时，把它授给两个角色（`GRANT CONNECT ON DATABASE <库> TO lyx_app, lyx_readonly`），成员靠继承连得上。这几条 `pnpm db:verify-grants` 都核对（2026-10-05 在另一个临时实例上用不是超级用户的管理账号逐种试过）。
