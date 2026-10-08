@@ -113,6 +113,11 @@ export function m1Transport(runtime: Runtime, assertOwned: () => void, startedAt
             tx.outboxDelivery.count({ where: { status: { not: "done" } } }),
           );
           guard(unsettled === 0);
+          // 无订阅者也可能留下下一批；SKIP LOCKED 的空批不证明已排空。
+          const unpublished = await runtime.tx.run((tx) =>
+            tx.outboxEvent.count({ where: { publishedAt: null } }),
+          );
+          if (unpublished > 0) continue;
           return { expanded, consumed };
         }
         for (const ref of claimed) {
