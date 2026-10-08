@@ -1,8 +1,75 @@
-import { defineRegistration, implementMerchantFacts } from "../kernel/index.js";
+import { defineRegistration, implementMerchantFacts, invariantNow } from "../kernel/index.js";
 import { countUnread } from "./messages.scope.js";
 
-// PR1只交真实消息读侧；五条x01由后续场景/派发集成登记，不能以空处理器抢占。
+import { boundNotifyDispatcher } from "./service.js";
+import { EVENT_SCENES } from "./registry.js";
+import {
+  findNotifyN1Violations,
+  findNotifyN2Violations,
+  findNotifyN3Violations,
+  findNotifyN15Violations,
+} from "./invariants.js";
+import { boundNotifyAssembly } from "./service.js";
 export const registration = defineRegistration("notify", {
+  subscribers: [
+    {
+      name: "notify.onEvent",
+      events: Object.keys(EVENT_SCENES),
+      handle: async (tx, event) => {
+        await boundNotifyDispatcher().onEvent(tx, event);
+      },
+    },
+    {
+      name: "notify.onMerchantUserDeleted",
+      events: ["merchant_user.deleted"],
+      handle: async (tx, event) => {
+        await boundNotifyDispatcher().onMerchantUserDeleted(tx, event);
+      },
+    },
+  ],
+  recurringJobs: [
+    {
+      kind: "notify.remind_scan",
+      schedule: { every: "minutes", minutes: 5 },
+      mode: "job",
+      leaseSec: 120,
+      maxAttempts: 3,
+      deadlineMin: 5,
+      missSeverity: "P2",
+      catchUp: true,
+      run: (ctx) => boundNotifyDispatcher().remindScan(ctx),
+    },
+  ],
+  invariants: [
+    {
+      code: "notify.N1",
+      severity: "P2",
+      modes: ["full"],
+      heal: "none",
+      run: (tx) => findNotifyN1Violations(tx),
+    },
+    {
+      code: "notify.N2",
+      severity: "P2",
+      modes: ["quick", "full"],
+      heal: "none",
+      run: (tx, _scope, ctx) => findNotifyN2Violations(tx, { now: invariantNow(ctx) }),
+    },
+    {
+      code: "notify.N3",
+      severity: "P2",
+      modes: ["full"],
+      heal: "none",
+      run: (tx) => findNotifyN3Violations(tx),
+    },
+    {
+      code: "notify.N15",
+      severity: "P2",
+      modes: ["full"],
+      heal: "none",
+      run: (tx) => findNotifyN15Violations(tx, boundNotifyAssembly()),
+    },
+  ],
   portImplementations: [
     implementMerchantFacts("notify", async (tx, query) => ({
       unreadMessageCount:

@@ -1,3 +1,15 @@
+import {
+  implementKeyed as notifyReaderImplementation,
+  notifyReadPort as currentNotifyReadPort,
+} from "../kernel/index.js";
+import {
+  billingOrderForNotify,
+  termForNotify,
+  billingAccountForNotify,
+  billingConsentFacts,
+  transferForNotify,
+  paymentExceptionForNotify,
+} from "./notify-facts.js";
 import { getPurchasePolicy } from "@liyoxi/shared/purchase-policy";
 import { readSubscribePlan } from "../notify/index.js";
 import { billingPiiFields } from "./pii-fields.js";
@@ -33,6 +45,31 @@ import { dramaPriceAdapter } from "./pricing/drama-price-port.js";
 
 export const registration = defineRegistration("billing", {
   portImplementations: [
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "manualSubjectExists.subscription_term",
+      async (tx, id: string) =>
+        (await tx.subscriptionTerm.findUnique({ where: { id }, select: { id: true } })) !== null,
+    ),
+    notifyReaderImplementation(currentNotifyReadPort, "billingConsentFacts", billingConsentFacts),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "billingOrderForNotify",
+      billingOrderForNotify,
+    ),
+    notifyReaderImplementation(currentNotifyReadPort, "termForNotify", termForNotify),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "billingAccountForNotify",
+      billingAccountForNotify,
+    ),
+    notifyReaderImplementation(currentNotifyReadPort, "transferForNotify", transferForNotify),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "paymentExceptionForNotify",
+      paymentExceptionForNotify,
+    ),
+
     implement(subscribePlanPort, async (tx, query) => {
       const current = await financeConfigAt(tx, query.now);
       const policy = getPurchasePolicy(

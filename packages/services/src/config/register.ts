@@ -1,3 +1,9 @@
+import {
+  implementKeyed as notifyReaderImplementation,
+  notifyReadPort as currentNotifyReadPort,
+} from "../kernel/index.js";
+import { siteNoticeForNotify } from "./notify-facts.js";
+import { lockSiteNoticeForNotify } from "./notify-notice-lock.js";
 // config 模块的登记（W0-24）：六条配置类不变量。调度在 invariant.full。
 // 依据：14 分组 第 5.4 节（都是 P2、每日；对象不是某张表的一行，subject_type 为空、只写键）。
 //   config.N9、N16、N17、N19、N20：W0-21 写成 SQL 断言的五条（invariants.ts），“现在”取框架给的业务时间。
@@ -71,6 +77,12 @@ const paramValues: InvariantRegistration = {
 
 export const registration = defineRegistration("config", {
   portImplementations: [
+    notifyReaderImplementation(currentNotifyReadPort, "siteNoticeForNotify", siteNoticeForNotify),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "lockSiteNoticeForNotify",
+      lockSiteNoticeForNotify,
+    ),
     implementKeyed(dictReferencesPort, "config", configDictReferences),
     homeBannerFiles,
   ],

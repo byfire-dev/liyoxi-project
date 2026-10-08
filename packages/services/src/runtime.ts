@@ -1,3 +1,5 @@
+import type { NotifyDispatcherService } from "./notify/index.js";
+import { bindAgreementNoticeLink } from "./config/index.js";
 import { bindAnalytics, createAnalyticsReceiver, countBannerClicks } from "./analytics/index.js";
 import type { AnalyticsReceiver } from "./analytics/index.js";
 import { createSubscribeResults, createWechatReceiptHandler } from "./notify/index.js";
@@ -84,7 +86,13 @@ import type {
 } from "./kernel/index.js";
 import { createLogger } from "./logger.js";
 import type { Logger } from "./logger.js";
-import { bindOps, createHealth, createStartupChecks } from "./ops/index.js";
+import {
+  bindOps,
+  createHealth,
+  createStartupChecks,
+  createRuntimeNotify,
+  createNotifyAssembly,
+} from "./ops/index.js";
 import type { Health, StartupCheck } from "./ops/index.js";
 import type { Providers } from "./providers/types.js";
 import { createContent, bindContent } from "./content/index.js";
@@ -179,6 +187,7 @@ export interface Runtime {
   readonly order: OrderService;
   readonly billing: BillingPurchase;
   readonly notifyMessages: NotifyMessages;
+  readonly notify: NotifyDispatcherService;
   readonly content: Content;
   readonly media: Media;
   /** 审批执行器与只读队列：api、worker 各自装配（移交表 64） */
@@ -299,7 +308,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       ? {}
       : { commandTimeoutMs: options.rateLimitCommandTimeoutMs }),
   });
-  const assembly = assembleServices({ entry, appEnv: env.APP_ENV });
+  const notifyScope = createNotifyAssembly(assembleServices({ entry, appEnv: env.APP_ENV }));
+  const assembly = notifyScope.assembly;
   // 违规上报端口（invariants.report）的实现在 ops，要连接、时钟与装配结果（W0-24）
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
   const unbindAnalytics = bindAnalytics({ clock });
@@ -458,6 +468,20 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     timers,
     kinds: approval.kinds,
   });
+  const notify = createRuntimeNotify({
+    tx,
+    clock,
+    assembly,
+    appEnv: env.APP_ENV,
+    params: config.params,
+    providers,
+    logger,
+    keys: env,
+    keyring: options.billingKeyring,
+    appid: env.WECHAT?.appid,
+  });
+  notifyScope.attach(notify);
+  const unbindNoticeLink = bindAgreementNoticeLink(readAgreementNoticeLink);
   const configAdmin = createConfigAdmin({ tx, clock, assembly, config, staffBriefs });
   const siteAdmin = createSiteAdmin({
     tx,
@@ -568,12 +592,25 @@ export function createRuntime(options: RuntimeOptions): Runtime {
 
   // 连库一项加移交表第 1 行的四个自检：security 的加解密与盲索引、审计 target_type 对表名单、聚合类型对表名单、
   // machine 与 state_field 对库里的表与列
+  let notifyDatabaseConnected = false;
   const startupChecks: StartupCheck[] = createStartupChecks({
     db: prisma,
     appEnv: env.APP_ENV,
     keys: env,
     warn: (message) => logger.warn({ evt: "startup.check_skipped" }, message),
-  });
+  }).map((check) =>
+    check.name !== "db.connect"
+      ? check
+      : {
+          ...check,
+          async run() {
+            notifyDatabaseConnected = false;
+            const issues = await check.run();
+            notifyDatabaseConnected = issues.length === 0;
+            return issues;
+          },
+        },
+  );
   // 后台登录的三把密钥（W1-01a）：只有 api 进程签票据、建会话。没配：stg、prod 下不过；local、test 下放行并记一条告警
   if (entry === "api") {
     startupChecks.push({
@@ -593,6 +630,14 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     });
   }
 
+  startupChecks.push({
+    name: "notify.templates",
+    async run() {
+      if (notifyDatabaseConnected) await notify.validateConfiguration();
+      return [];
+    },
+  });
+
   return {
     analytics,
     subscribeResults,
@@ -601,6 +646,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     order,
     billing,
     notifyMessages,
+    notify,
     content,
     media,
     entry,
@@ -624,8 +670,9 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
-      await media.jobs.shutdown();
+      await Promise.all([media.jobs.shutdown(), notifyScope.close()]);
       unbindMediaJobs();
+      unbindNoticeLink();
       await Promise.allSettled(wechatClosers.map((close) => close()));
       await clientErrors.close();
       unbindOrderStart();
