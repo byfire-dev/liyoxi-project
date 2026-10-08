@@ -25,7 +25,7 @@ import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 import {
   deliveryRegression,
   deliveryNavigationRegression,
@@ -36,6 +36,8 @@ import {
   profileAuthorizationRegression,
   profileContextRegression,
   profileEditRegression,
+  profilePageReady,
+  profileMissingRegression,
 } from "../shots/profile-regressions.mjs";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -492,7 +494,7 @@ async function shoot(target) {
       if (target.kind === "profile") {
         if (target.scene === "basic-normal") {
           await page.locator("input").first().fill("邻里咖啡新店");
-          await page.locator(".lyx-button").filter({ hasText: "保存基础信息" }).click();
+          await page.locator(".lyx-button").filter({ hasText: "保存草稿" }).click();
           await page.locator(".lyx-button--loading").waitFor({ state: "hidden" });
           const body = await page.evaluate(
             () =>
@@ -516,10 +518,7 @@ async function shoot(target) {
         }
         if (target.scene === "store-normal" || target.scene === "service-normal") {
           const media = target.scene === "store-normal";
-          await page
-            .locator(".lyx-button")
-            .filter({ hasText: media ? "保存门店环境" : "保存服务与价格" })
-            .click();
+          await page.locator(".lyx-button").filter({ hasText: "保存草稿" }).click();
           await page.locator(".lyx-button--loading").waitFor({ state: "hidden" });
           const body = await page.evaluate(
             (path) =>
@@ -543,9 +542,13 @@ async function shoot(target) {
         }
         if (target.scene === "cert-missing") {
           await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
+          await expect(
+            page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }),
+          ).toHaveClass(/lyx-checkbox--checked/);
           await page.locator(".lyx-button").filter({ hasText: "提交资质审核" }).click();
           const missing = page.getByText("请补充门店必填资料", { exact: true });
           await missing.waitFor({ state: "visible" });
+          await expect(page).toHaveURL(/sub\/profile\/cert\/index/);
           await missing.scrollIntoViewIfNeeded();
         }
         if (target.scene === "review-rejected")
@@ -657,21 +660,35 @@ async function shoot(target) {
     if (target.scene === "cert-normal") {
       await profileContactRegression(page);
       await profileAuthorizationRegression(page);
-      await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
-      await page.locator(".lyx-button").filter({ hasText: "提交资质审核" }).click();
+      await page.locator(".lyx-checkbox:visible").filter({ hasText: "我确认所填信息" }).click();
+      await expect(
+        page.locator(".lyx-checkbox:visible").filter({ hasText: "我确认所填信息" }),
+      ).toHaveClass(/lyx-checkbox--checked/);
+      await page.locator(".lyx-button:visible").filter({ hasText: "提交资质审核" }).click();
       await page
         .getByText("信息确认已更新，请刷新后重新阅读并确认", { exact: true })
         .waitFor({ state: "visible" });
       await page.locator(".lyx-text-button").filter({ hasText: "刷新并核对" }).click();
       await page.getByText("确认版本：2", { exact: true }).waitFor({ state: "visible" });
-      const submit = page.locator(".lyx-button").filter({ hasText: "提交资质审核" });
+      const submit = page.locator(".lyx-button:visible").filter({ hasText: "提交资质审核" });
       if (!(await submit.getAttribute("class"))?.includes("lyx-button--disabled"))
         throw new Error("声明更新后须重新勾选");
-      await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
-      await submit.click();
+      await page.locator(".lyx-checkbox:visible").filter({ hasText: "我确认所填信息" }).click();
+      await expect(
+        page.locator(".lyx-checkbox:visible").filter({ hasText: "我确认所填信息" }),
+      ).toHaveClass(/lyx-checkbox--checked/);
+      await page.evaluate(() =>
+        globalThis.__LYX_PROFILE_CONTROL__.authorization.failNextRedirect(),
+      );
+      await submit.dblclick();
       await page
-        .getByText("当前资料只读。审核进度与结果请到审核进度页查看", { exact: true })
+        .getByText("资料已保存，页面跳转失败，请点击下方重试", { exact: true })
         .waitFor({ state: "visible" });
+      await expect(page).toHaveURL(/sub\/profile\/cert\/index/);
+      await page.locator(".lyx-text-button").filter({ hasText: "重新进入审核进度" }).click();
+      await expect(page).toHaveURL(/sub\/profile\/review\/index/);
+      await profilePageReady(page, "review");
+      await page.getByText("平台审核中", { exact: true }).waitFor({ state: "visible" });
       const submitted = await page.evaluate(() =>
         globalThis.__LYX_PROFILE_CALLS__
           .filter((call) => call.path === "/m/store-profile/qualification/submit")
@@ -679,10 +696,21 @@ async function shoot(target) {
       );
       if (JSON.stringify(submitted) !== JSON.stringify(["1", "2"]))
         throw new Error("提交没有携带本次声明版本");
+      await page.evaluate(() => globalThis.__LYX_PROFILE_CONTROL__.authorization.enter());
+      await profilePageReady(page, "cert");
       await profileContextRegression(page, "cert");
     }
     if (["basic-normal", "store-normal", "service-normal"].includes(target.scene))
       await profileEditRegression(page, target.scene);
+    if (
+      [
+        "profile-missing-items",
+        "service-no-points",
+        "service-disabled-points",
+        "cert-declaration",
+      ].includes(target.scene)
+    )
+      await profileMissingRegression(page, target.scene);
     if (errors.length > 0) throw new Error(`页面报错：${errors[0]}`);
     console.log(`已出图 ${path.relative(appRoot, file)}`);
   } catch (error) {

@@ -9,4 +9,8 @@ export const PROFILE_SCENES = [
   { name: "profile-not-started", route: "sub/profile/profile/index" },
   { name: "cert-missing", route: "sub/profile/cert/index" },
   { name: "review-rejected", route: "sub/profile/review/index" },
+  { name: "profile-missing-items", route: "sub/profile/profile/index" },
+  { name: "service-no-points", route: "sub/profile/service/index" },
+  { name: "service-disabled-points", route: "sub/profile/service/index" },
+  { name: "cert-declaration", route: "sub/profile/cert/index" },
 ] as const;

@@ -30,6 +30,29 @@ function harness() {
 }
 
 describe("建档资源刷新与内容生命周期", () => {
+  it.each(["success", "failure"])("保存新视图后，旧GET的%s不覆盖保存结果", async (outcome) => {
+    const { resource, read } = harness();
+    const old = deferred<string>();
+    read.mockReturnValueOnce(old.promise);
+    const work = resource.load();
+    resource.setData("saved-confirmation");
+    expect(resource.snapshot()).toEqual({
+      data: "saved-confirmation",
+      loading: false,
+      error: null,
+    });
+    if (outcome === "success") old.resolve("old-unconfirmed");
+    else old.reject(new Error("旧读取失败"));
+    await work;
+    expect(resource.snapshot()).toEqual({
+      data: "saved-confirmation",
+      loading: false,
+      error: null,
+    });
+    read.mockResolvedValueOnce("fresh-read");
+    await resource.load();
+    expect(resource.snapshot().data).toBe("fresh-read");
+  });
   it("首次读取显示骨架；选择照片期间回前台刷新保持同一个内容实例", async () => {
     const { resource, read } = harness();
     const first = deferred<string>();
