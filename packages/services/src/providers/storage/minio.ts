@@ -330,5 +330,8 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
         return ok(undefined);
       });
     },
+    async abortMultipart() {
+      return failed("unsupported", "本地 MinIO 不提供 STS 分块通道");
+    },
   };
 }

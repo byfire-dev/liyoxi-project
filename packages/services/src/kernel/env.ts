@@ -53,6 +53,14 @@ export const ENV_KEYS: readonly string[] = [
   "WECHAT_MESSAGE_TOKEN_FILE",
   "WECHAT_MESSAGE_AES_KEY_FILE",
   "CLIENT_ERROR_PROJECTS_FILE",
+  "COS_REGION",
+  "COS_BUCKET_SECURE",
+  "COS_BUCKET_ASSET",
+  "COS_BUCKET_MEDIA",
+  "COS_BUCKET_PUB",
+  "COS_SIGNER_KEYS_FILE",
+  "COS_STS_ISSUER_KEYS_FILE",
+  "COS_WORKER_KEYS_FILE",
 ];
 
 /** 数据加密密钥文件的内容：current 是当前 kid，keys 是 kid → base64 写的 32 字节 */
@@ -88,6 +96,13 @@ export interface Env {
   readonly REDIS_URL: string;
   /** 本地 MinIO 的服务端地址与客户端签名地址；独立可选，只允许 local、test。 */
   readonly MINIO?: { readonly endpoint?: string; readonly publicEndpoint?: string };
+  readonly COS?: {
+    readonly region: string;
+    readonly buckets: Readonly<Record<"secure" | "asset" | "media" | "pub", string>>;
+    readonly signer?: { readonly secretId: string; readonly secretKey: string };
+    readonly stsIssuer?: { readonly secretId: string; readonly secretKey: string };
+    readonly worker?: { readonly secretId: string; readonly secretKey: string };
+  };
   /** 数据加密密钥；两份密钥文件都没配时没有这一项 */
   readonly DATA_KEYS?: DataKeysConfig;
   /** 盲索引密钥；同上 */
@@ -434,6 +449,86 @@ function readWechatFile(source: EnvSource, key: string, issues: EnvIssue[]): str
   return undefined;
 }
 
+function readCos(source: EnvSource, issues: EnvIssue[]): Env["COS"] {
+  const fields = [
+    "COS_REGION",
+    "COS_BUCKET_SECURE",
+    "COS_BUCKET_ASSET",
+    "COS_BUCKET_MEDIA",
+    "COS_BUCKET_PUB",
+  ] as const;
+  const roles: {
+    signer?: { secretId: string; secretKey: string };
+    stsIssuer?: { secretId: string; secretKey: string };
+    worker?: { secretId: string; secretKey: string };
+  } = {};
+  for (const [key, role] of [
+    ["COS_SIGNER_KEYS", "signer"],
+    ["COS_STS_ISSUER_KEYS", "stsIssuer"],
+    ["COS_WORKER_KEYS", "worker"],
+  ] as const) {
+    const content = readWechatFile(source, key, issues);
+    if (content === undefined) continue;
+    try {
+      const parsed: unknown = JSON.parse(content);
+      if (
+        !isRecord(parsed) ||
+        Object.keys(parsed).some((field) => field !== "secretId" && field !== "secretKey") ||
+        typeof parsed.secretId !== "string" ||
+        !/^[A-Za-z0-9_-]{1,128}$/.test(parsed.secretId) ||
+        typeof parsed.secretKey !== "string" ||
+        !/^[\x21-\x7e]{1,256}$/.test(parsed.secretKey)
+      )
+        throw new Error("shape");
+      roles[role] = { secretId: parsed.secretId, secretKey: parsed.secretKey };
+    } catch {
+      issues.push({ key: `${key}_FILE`, reason: "须为合法的 secretId/secretKey JSON 普通文件" });
+    }
+  }
+  const values = fields.map((key) => read(source, key));
+  if (!values.some((value) => value !== undefined) && !Object.keys(roles).length) return undefined;
+  for (const [index, key] of fields.entries())
+    if (values[index] === undefined) issues.push({ key, reason: "COS 地域和四桶须完整配置" });
+  const region = values[0];
+  if (region && !/^[a-z]+(?:-[a-z0-9]+){1,4}$/.test(region))
+    issues.push({ key: "COS_REGION", reason: "不是合法的 COS 地域标识" });
+  const buckets = { secure: values[1], asset: values[2], media: values[3], pub: values[4] };
+  for (const [index, value] of values.entries())
+    if (index > 0 && value && !/^[a-z0-9][a-z0-9-]{1,50}-[0-9]{5,20}$/.test(value))
+      issues.push({ key: fields[index]!, reason: "须为带账号后缀的物理桶名" });
+  if (
+    new Set(
+      values
+        .slice(1)
+        .filter((value) => value !== undefined)
+        .map((value) => value!.split("-").at(-1)),
+    ).size > 1
+  )
+    issues.push({ key: "COS_BUCKET_SECURE", reason: "四桶须属于同一账号" });
+  if (!roles.worker && (!roles.signer || !roles.stsIssuer))
+    issues.push({
+      key: "COS_SIGNER_KEYS_FILE",
+      reason: "API 须完整配置 signer 与 STS issuer；worker 须有独立角色",
+    });
+  if (
+    Object.keys(roles).length &&
+    (read(source, "MINIO_ENDPOINT") || read(source, "MINIO_PUBLIC_ENDPOINT"))
+  )
+    issues.push({ key: "COS_REGION", reason: "COS 与 MinIO 不能同时选择" });
+  if (!region || !buckets.secure || !buckets.asset || !buckets.media || !buckets.pub)
+    return undefined;
+  return {
+    region,
+    buckets: {
+      secure: buckets.secure,
+      asset: buckets.asset,
+      media: buckets.media,
+      pub: buckets.pub,
+    },
+    ...roles,
+  };
+}
+
 function readWechat(source: EnvSource, issues: EnvIssue[]): WechatConfig | undefined {
   const appid = read(source, "WECHAT_APPID");
   const secret = readWechatFile(source, "WECHAT_SECRET", issues);
@@ -508,6 +603,7 @@ export function loadEnv(
   const authKeys = readKeyFile(source, "AUTH_KEYS", issues, parseAuthKeys);
   const wechat = readWechat(source, issues);
   const minio = readMinio(source, appEnv, issues);
+  const cos = readCos(source, issues);
   const clientErrorProjects = readKeyFile(
     source,
     "CLIENT_ERROR_PROJECTS",
@@ -543,6 +639,7 @@ export function loadEnv(
     DATABASE_URL,
     REDIS_URL,
     ...(minio ? { MINIO: minio } : {}),
+    ...(cos ? { COS: cos } : {}),
     ...(dataKeys && bidxKeys ? { DATA_KEYS: dataKeys, BIDX_KEYS: bidxKeys } : {}),
     ...(authKeys ? { AUTH_KEYS: authKeys } : {}),
     ...(wechat ? { WECHAT: wechat } : {}),

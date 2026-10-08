@@ -18,6 +18,7 @@ import {
   loadEnv,
   setPortLogger,
 } from "@liyoxi/services";
+import type { WorkerServices } from "@liyoxi/services";
 
 import { createLogger } from "./log.js";
 import { recurringTable } from "./recurring.js";
@@ -52,34 +53,47 @@ async function main(): Promise<void> {
         prefix: bullPrefix(env.APP_ENV),
         onError: (source, error) => logger.debug({ source, err: error }, "队列连接报错"),
       });
-  const services = buildWorkerServices({
-    appEnv: env.APP_ENV,
-    prisma: database.prisma,
-    assembly,
-    channel: channel ?? {
-      enqueue: () => Promise.reject(new Error("自检模式不入队")),
-      downForMs: () => 0,
-    },
-    report: (violation) => logger.error({ err: violation }, "内核违规"),
-    logger,
-    keys: env,
-    ...(env.WECHAT && wechatRedis
-      ? {
-          wechat: {
-            config: env.WECHAT,
-            transport: {
-              redis: wechatRedis,
-              prefix: `lyx:${env.APP_ENV}:`,
-              now: () => new Date(),
-              registerClose: (close: () => Promise<void>) => {
-                wechatClosers.push(close);
+  let services: WorkerServices | undefined;
+  try {
+    services = buildWorkerServices({
+      appEnv: env.APP_ENV,
+      prisma: database.prisma,
+      assembly,
+      channel: channel ?? {
+        enqueue: () => Promise.reject(new Error("自检模式不入队")),
+        downForMs: () => 0,
+      },
+      report: (violation) => logger.error({ err: violation }, "内核违规"),
+      logger,
+      keys: env,
+      ...(env.WECHAT && wechatRedis
+        ? {
+            wechat: {
+              config: env.WECHAT,
+              transport: {
+                redis: wechatRedis,
+                prefix: `lyx:${env.APP_ENV}:`,
+                now: () => new Date(),
+                registerClose: (close: () => Promise<void>) => {
+                  wechatClosers.push(close);
+                },
               },
             },
-          },
-        }
-      : {}),
-  });
-  await services.selfCheck();
+          }
+        : {}),
+    });
+    await services.selfCheck();
+  } catch (error) {
+    // 自检或装配失败也回收本进程创建的资源；没有启动消费者，不借其它进程的连接。
+    await Promise.allSettled([
+      ...(services ? [services.closeStorageDrivers?.()] : []),
+      ...wechatClosers.map((close) => close()),
+      channel?.close(),
+      database.close(),
+    ]);
+    wechatRedis?.disconnect();
+    throw error;
+  }
   const summary = {
     version: VERSION,
     env: env.APP_ENV,
@@ -90,6 +104,7 @@ async function main(): Promise<void> {
   };
   if (channel === undefined) {
     logger.info(summary, "装配与自检通过");
+    await services.closeStorageDrivers?.();
     await Promise.allSettled(wechatClosers.map((close) => close()));
     wechatRedis?.disconnect();
     await database.close();

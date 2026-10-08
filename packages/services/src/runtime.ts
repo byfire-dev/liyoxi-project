@@ -227,6 +227,8 @@ export interface Runtime {
  */
 export function createRuntime(options: RuntimeOptions): Runtime {
   const { entry, env, version } = options;
+  if (env.COS && (entry === "worker" ? !env.COS.worker : !env.COS.signer || !env.COS.stsIssuer))
+    throw new TypeError("当前进程 COS 角色配置不完整");
   const clock = options.clock ?? systemClock;
   const logger =
     options.logger ?? createLogger({ svc: entry, env: env.APP_ENV, level: env.LOG_LEVEL, version });
@@ -300,8 +302,32 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       logger,
       settings: {
         ...(env.MINIO ? { storage: { minio: env.MINIO } } : {}),
+        ...(env.COS
+          ? {
+              storage: {
+                driver: "cos" as const,
+                cos: {
+                  region: env.COS.region,
+                  buckets: env.COS.buckets,
+                  ...(entry === "worker"
+                    ? { worker: env.COS.worker }
+                    : { signer: env.COS.signer, stsIssuer: env.COS.stsIssuer }),
+                },
+              },
+            }
+          : {}),
         ...(env.WECHAT ? { wechat: { appid: env.WECHAT.appid, secret: env.WECHAT.secret } } : {}),
       },
+      ...(env.COS
+        ? {
+            storage: {
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => {
+                wechatClosers.push(close);
+              },
+            },
+          }
+        : {}),
       ...(env.WECHAT
         ? {
             wechat: {

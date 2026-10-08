@@ -152,6 +152,7 @@ export const unconfiguredStorage: StorageProvider = {
   copy: storageOff,
   presignGet: storageOff,
   delete: storageOff,
+  abortMultipart: storageOff,
 };
 
 const mediaOff = unconfigured("媒体处理", "只有 local、test 有小文件通道");
