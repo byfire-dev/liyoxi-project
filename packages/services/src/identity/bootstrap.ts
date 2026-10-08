@@ -130,20 +130,23 @@ export function bootstrap(deps: IdentityReadDeps, input: BootstrapInput): Promis
   return assembleBootstrap(deps.clock.now(), loggedIn, {
     flags: async () => {
       const context = await contextOf();
-      const [flags, minClientVersion, weappVideoMaxMb, weappSaveMode] = await Promise.all([
-        config.flags.forClient(context),
-        config.flags.minClientVersion(context),
-        config.params.get("upload.weapp_video_max_mb"),
-        config.params.get("download.weapp_save_mode"),
-      ]);
+      const [flags, minClientVersion, weappVideoMaxMb, weappSaveMode, cooldownDays, maxPerAsk] =
+        await Promise.all([
+          config.flags.forClient(context),
+          config.flags.minClientVersion(context),
+          config.params.get("upload.weapp_video_max_mb"),
+          config.params.get("download.weapp_save_mode"),
+          config.params.get("notify.wx.ask_cooldown_days"),
+          config.params.get("notify.wx.max_per_ask"),
+        ]);
       return {
         flags,
         minClientVersion,
         uploadLimits: { weappVideoMaxMb, imageMaxMb: UPLOAD_LIMITS.imageMaxMb },
         download: { weappSaveMode },
         support: { mode: "contact", corpId: null, kfUrl: null },
-        subscribeCooldownDays: 7,
-        subscribeMaxPerAsk: 3,
+        subscribeCooldownDays: cooldownDays,
+        subscribeMaxPerAsk: maxPerAsk,
       };
     },
     versions: async () => {

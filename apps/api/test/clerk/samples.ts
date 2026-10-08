@@ -1,6 +1,7 @@
 // 每个商家接口包在这里登记生产处理器的回放。样例用真实鉴权；测试直接建店员成员关系。
 import { mallClerkSamples } from "./mall-samples.js";
 import { orderClerkSamples } from "./order-samples.js";
+import { messageClerkSamples } from "./messages-samples.js";
 import { uuidv7 } from "@liyoxi/services";
 import { createFactories } from "@liyoxi/services/testing";
 import type { FakeStorage } from "@liyoxi/services/testing";
@@ -73,6 +74,7 @@ const playClerkFile = (operationId: string, action?: string): Sample => ({
   },
 });
 export const CLERK_SAMPLES: readonly Sample[] = [
+  ...messageClerkSamples,
   get("m.orderItem.release.get", `/m/order-items/${uuidv7()}/release`),
   ...(
     [

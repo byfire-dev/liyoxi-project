@@ -61,6 +61,8 @@ export const PARAM_KEYS_BY_GROUP = {
     "notify.sms.daily_cap",
     "notify.sms.keepalive_days",
     "notify.wx.quota_cap",
+    "notify.wx.ask_cooldown_days",
+    "notify.wx.max_per_ask",
     "notify.wx.field_fail_streak",
     // 07 第 7 节的待回写项：后台“测试发送”的接收人；值里的 phone、wxOpenid 是敏感路径
     "notify.test_recipients",

@@ -534,6 +534,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 站内消息（?tab=&cursor=，游标分页）：分类、标题、正文、按钮文案、深链、未读标记；按今天/昨天/日期分组 */
+        get: operations["m.message.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/messages/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 全部已读 {tab?, upToMessageId} → {markedCount, summary} */
+        post: operations["m.message.batchRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/messages/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 未读计数：total、byTab（数组 [{tab, unreadCount}]，tab 取值与列表一致）、byStore（[{storeId, unreadCount}]） */
+        get: operations["m.message.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/messages/{messageId}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 标记单条已读（点击消息跳转时） */
+        post: operations["m.message.read"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/notify-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 通知设置：各类订阅消息（审核结果、付款结果、到期提醒、交付进度、待办提醒、工单回复、开票结果等槽位）的当前状态与可请求的模板 id */
+        get: operations["m.notifySetting.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/order-items": {
         parameters: {
             query?: never;
@@ -6569,6 +6654,493 @@ export interface operations {
             };
             /** @description 限流 */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.message.list": {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+                tab?: "all" | "order" | "delivery" | "launch" | "plan_points" | "review" | "store" | "service";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            hasMore: boolean;
+                            items: {
+                                body: string;
+                                /** @enum {string} */
+                                category: "order" | "delivery" | "launch" | "plan_points" | "review" | "store" | "service" | "system" | (string & {});
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date */
+                                createdDate: string;
+                                ctaText: string | null;
+                                isRead: boolean;
+                                link: {
+                                    params: {
+                                        /** Format: uuid */
+                                        orderId: string;
+                                        /** Format: uuid */
+                                        storeId: string;
+                                    };
+                                    /** @enum {string} */
+                                    route: "order.detail";
+                                } | {
+                                    params: {
+                                        /** Format: uuid */
+                                        orderItemId: string;
+                                        /** Format: uuid */
+                                        storeId: string;
+                                    };
+                                    /** @enum {string} */
+                                    route: "delivery.sample";
+                                } | {
+                                    params: {
+                                        /** Format: uuid */
+                                        deliveryPlanId: string;
+                                        /** Format: uuid */
+                                        storeId: string;
+                                    };
+                                    /** @enum {string} */
+                                    route: "delivery.plan";
+                                } | {
+                                    params: {
+                                        /** Format: date */
+                                        date?: string;
+                                        /** Format: uuid */
+                                        launchTaskId: string;
+                                        /** Format: uuid */
+                                        storeId: string;
+                                    };
+                                    /** @enum {string} */
+                                    route: "publish.task";
+                                } | {
+                                    params: {
+                                        /** Format: uuid */
+                                        storeId: string;
+                                        /** Format: uuid */
+                                        takedownTaskId: string;
+                                    };
+                                    /** @enum {string} */
+                                    route: "offline.task";
+                                } | {
+                                    params: {
+                                        /** Format: uuid */
+                                        serviceTicketId: string;
+                                        /** Format: uuid */
+                                        storeId: string;
+                                    };
+                                    /** @enum {string} */
+                                    route: "ticket.detail";
+                                } | {
+                                    params: {
+                                        /** Format: uuid */
+                                        channelAccountId: string;
+                                        /** Format: uuid */
+                                        storeId: string;
+                                    };
+                                    /** @enum {string} */
+                                    route: "account.detail";
+                                } | {
+                                    params: {
+                                        /** Format: uuid */
+                                        storeAssetDemandId: string;
+                                        /** Format: uuid */
+                                        storeId: string;
+                                    };
+                                    /** @enum {string} */
+                                    route: "asset.demand";
+                                } | {
+                                    params: Record<string, never>;
+                                    /** @enum {string} */
+                                    route: "wallet.home";
+                                } | {
+                                    params: {
+                                        /** Format: uuid */
+                                        storeId: string;
+                                    };
+                                    /** @enum {string} */
+                                    route: "cart.list";
+                                } | {
+                                    params: {
+                                        /** Format: uuid */
+                                        adId: string;
+                                        /** Format: uuid */
+                                        storeId: string;
+                                    };
+                                    /** @enum {string} */
+                                    route: "ad.detail";
+                                } | {
+                                    params: {
+                                        /** Format: uuid */
+                                        storeId: string;
+                                    };
+                                    /** @enum {string} */
+                                    route: "profile.review";
+                                } | {
+                                    params: {
+                                        /** Format: uuid */
+                                        storeId: string;
+                                    };
+                                    /** @enum {string} */
+                                    route: "store.members";
+                                } | {
+                                    params: {
+                                        /** Format: uuid */
+                                        paymentOrderId: string;
+                                    };
+                                    /** @enum {string} */
+                                    route: "payment.result";
+                                } | {
+                                    params: {
+                                        /** Format: uuid */
+                                        paymentOrderId: string;
+                                    };
+                                    /** @enum {string} */
+                                    route: "payment.detail";
+                                } | {
+                                    params: Record<string, never>;
+                                    /** @enum {string} */
+                                    route: "points.ledger";
+                                } | {
+                                    params: Record<string, never>;
+                                    /** @enum {string} */
+                                    route: "messages.list";
+                                };
+                                /** Format: uuid */
+                                messageId: string;
+                                readAt: string | null;
+                                storeId: string | null;
+                                title: string;
+                            }[];
+                            nextCursor: string | null;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.message.batchRead": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @default all
+                     * @enum {string}
+                     */
+                    tab?: "all" | "order" | "delivery" | "launch" | "plan_points" | "review" | "store" | "service";
+                    /** Format: uuid */
+                    upToMessageId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            markedCount: number;
+                            summary: {
+                                byStore: {
+                                    /** Format: uuid */
+                                    storeId: string;
+                                    unreadCount: number;
+                                }[];
+                                byTab: {
+                                    /** @enum {string} */
+                                    tab: "all" | "order" | "delivery" | "launch" | "plan_points" | "review" | "store" | "service";
+                                    unreadCount: number;
+                                }[];
+                                total: number;
+                            };
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.message.summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            byStore: {
+                                /** Format: uuid */
+                                storeId: string;
+                                unreadCount: number;
+                            }[];
+                            byTab: {
+                                /** @enum {string} */
+                                tab: "all" | "order" | "delivery" | "launch" | "plan_points" | "review" | "store" | "service";
+                                unreadCount: number;
+                            }[];
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.message.read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            /** Format: uuid */
+                            messageId: string;
+                            /** Format: date-time */
+                            readAt: string;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.notifySetting.list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            cooldownDays: number;
+                            items: {
+                                estRemaining: number;
+                                lastAcceptAt: string | null;
+                                sceneNames: string[];
+                                slotKey: string;
+                                /** @enum {string} */
+                                state: "on" | "off" | "rejected" | "banned" | "unavailable" | (string & {});
+                                title: string;
+                                tmplId: string | null;
+                            }[];
+                            maxPerAsk: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
