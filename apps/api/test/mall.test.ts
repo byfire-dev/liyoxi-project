@@ -258,6 +258,7 @@ it("Banner按生效窗口/顺序取5条；失效对象、未知路由与错误�
         ...entry,
       },
     });
+  await api.runtime.config.cache.bump("site");
   const home = await get("/m/home");
   expect(home.response.status, JSON.stringify(home.body)).toBe(200);
   expect(home.body.data.banners.map((row) => row.homeBannerId)).toEqual([

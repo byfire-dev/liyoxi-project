@@ -133,6 +133,12 @@ export { localRegionSeeds, LOCAL_REGION_SOURCE, seedLocalRegions } from "./local
 
 export { createConfigAdmin } from "./admin.js";
 export type { ConfigAdmin, ConfigActor, ConfigAdminDeps } from "./admin.js";
+
+export { createSiteAdmin } from "./site-admin.js";
+export type { SiteAdmin } from "./site-admin.js";
+export type { SiteAdminDeps } from "./site-context.js";
+export { readHomeNotice } from "./notice-read.js";
+
 export { normalizeSiteNoticeLink, bindAgreementNoticeLink } from "./notify-facts.js";
 export type { AgreementNoticeLinkReader } from "./notify-facts.js";
 export { lockSiteNoticeForNotify } from "./notify-notice-lock.js";

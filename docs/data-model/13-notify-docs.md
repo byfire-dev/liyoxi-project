@@ -2,8 +2,8 @@
 
 | 项 | 内容 |
 | --- | --- |
-| 模块 | notify（9 张）、docs（5 张），都在 L1 |
-| 表 | 14 张：`notify_scene`、`wx_template_slot`、`sms_template`、`notification`、`notification_delivery`、`merchant_message`、`staff_message`、`wx_subscribe_quota`、`manual_reminder_log`、`agreement`、`agreement_version`、`agreement_consent`、`license_letter`、`license_letter_revision` |
+| 模块 | notify（10 张）、docs（5 张），都在 L1 |
+| 表 | 15 张：`notify_scene`、`wx_template_slot`、`sms_template`、`notification`、`notification_delivery`、`notification_fanout`、`merchant_message`、`staff_message`、`wx_subscribe_quota`、`manual_reminder_log`、`agreement`、`agreement_version`、`agreement_consent`、`license_letter`、`license_letter_revision` |
 | 依据 | rulings M2、M9、M13、M17、M19、M26、M29、M33、M34、M41、M45，第二轮按 M46–M53、M57、M58、M63、M65、M80、M92 修订，第三轮按 M93、M94、M105、M109、M110 与其他分组的请求修订；catalogue 的约定与本分组 14 张表的条目；decisions 第 1 节 #9、#22、#28、#36，第 6 节（`license_letter` 的 lock_rank = 240），第 8 节；03-key-designs 第 8 节与 R6、R13、R14；草案 d6-notify-docs-data 第 1.4、2、3、7 节，d3-flow 第 12.6 节（`reminder_log`），d4-identity 第 3.1 节（`user_consent`） |
 | Prisma 片段 | 工作目录 `dm/prisma/frag/13-notify-docs.prisma`（合并后进 `packages/db`） |
 | 手写约束 | 工作目录 `dm/sql/13-notify-docs.sql`（合并后进迁移） |
@@ -1057,6 +1057,28 @@ erDiagram
 | 快照里 `consent.consentId` → `consent.consentNo`；`consent.by` 取自同意记录的 `operator_name_mask` 与 `phone_mask` | 印在授权书上的是同意记录编号（`agreement_consent.seq`），不是 uuid 主键；经办人不读账号表（称呼注销即清空） |
 | 快照补 `orderNo` | 事实端口已返回 `orderNo`（d6:1264）；商家端授权书列表显示“订单 LYX…”（merchant/Contracts），docs 在 L1 读不到订购单 |
 | “重新生成”把 `render_attempt_no` 置 0 | d6:1360 只在租约过期且到 4 次时置 `failed`；不清零的话人工重投后只剩一次机会 |
+
+### 2.15 `notification_fanout` 公告通知分页任务
+
+归属 notify L1，全局技术任务；不是只增表，不是业务状态机，无业务锁序。D6:514 的超限收件人分页由此持久化，独立迁移 `20261008162000_notification_fanout` 接管，冻结首版底稿不回改。
+
+| 列 | 类型 | 空 | 默认 | 说明 | 出处 |
+| --- | --- | --- | --- | --- | --- |
+| id | uuid | 否 | — | 应用生成 UUID v7 主键 | 06·主键 |
+| source_outbox_event_id | uuid | 否 | — | 原公告事件，只存 id，不绑定 outbox 保留期 | M65；本能力包 |
+| notify_scene_key | text | 否 | — | 商家场景外键及 m. 名称约束；本版消费端只接受 m.rule_change_notice / m.rule_change_withdrawn | D6:514 |
+| site_notice_id | uuid | 否 | — | 实际公告外键；和场景组成去重唯一键 | D6:514 |
+| cursor_merchant_user_id | uuid | 可 | — | 上页最后一个用户，与主体一起为空或非空；无外键 | 本能力包 |
+| cursor_entity_id | uuid | 可 | — | 上页最后一个主体，与用户构成有序二元游标；无外键 | 本能力包 |
+| status | text | 否 | pending | 复用 NOTIFICATION_DELIVERY_STATUS；条件 UPDATE 推进技术进度 | 06·技术状态 |
+| due_at | timestamptz | 否 | — | 到期时刻，注入业务时钟 | 06·时间 |
+| attempt_no | integer | 否 | 0 | 本页租约认领次数，0–3；推进成功重置 | 本能力包 |
+| lease_until | timestamptz | 可 | — | sending 时必有，其他状态必为空 | 本能力包 |
+| finished_at | timestamptz | 可 | — | sent/failed/skipped/cancelled 终态必有，其他为空 | 本能力包 |
+| created_at | timestamptz | 否 | — | 注入时钟创建时刻 | 06·时间 |
+| updated_at | timestamptz | 否 | — | 注入时钟更新时间 | 06·时间 |
+
+主键 pk_notification_fanout、唯一键 uq_notification_fanout_scene_notice、普通公告 FK 索引 ix_notification_fanout_site_notice_id，以及 pending(due_at,id) / sending(lease_until,id) 两个部分索引。手写 CHECK 为场景、状态、二元游标、0–3 次数、租约等价与终态等价，共 6 条。应用只给 INSERT/SELECT/UPDATE，readonly 继承默认 SELECT；不留 raw phone/openid/正文。TX1 短 CAS 认领；TX2 先取得实际商家/主体等合法事实和业务锁，再页内写通知与站内消息，最终用 status/attempt/lease CAS 写游标，失败须回滚整页，不能先持任务行锁后倒置业务锁。队列、扫描与页内幂等由 W2-17 PR3 实际实现另验。
 
 ## 3. 枚举汇总
 

@@ -9,6 +9,7 @@ export const CLERK_CATALOG_PRICE_PATHS: Readonly<Record<string, readonly string[
   "m.storeProfile.service.get": ["serviceItems[].priceFen", "serviceItems[].originalPriceFen"],
   // 目录包在此按 operationId 只增完整字段路径。
   "m.drama.list": ["items[].listPricePoints"],
+  "m.drama.search": ["items[].listPricePoints"],
   "m.drama.get": ["listPricePoints", "adUnitPoints"],
 };
 

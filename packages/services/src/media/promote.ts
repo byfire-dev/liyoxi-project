@@ -60,7 +60,8 @@ export async function promote(deps: BoundMediaDeps, { jobId }: PromoteRef): Prom
   });
   if (!claimed) return;
   const { file } = claimed;
-  let outcome: { etag: string; size: number } | { reason: string; retryable: boolean };
+  let outcome:
+    { etag: string; size: number; crc64?: string } | { reason: string; retryable: boolean };
   const copied = await deps.storage.copy({
     src: { bucket: file.incomingBucket as StorageBucket, key: file.incomingKey! },
     dst: { bucket: file.bucket as StorageBucket, key: file.objectKey },
@@ -84,10 +85,16 @@ export async function promote(deps: BoundMediaDeps, { jobId }: PromoteRef): Prom
       !checked.value.exists ||
       BigInt(checked.value.size) !== file.declaredSize ||
       !copied.value.etag ||
-      checked.value.etag !== copied.value.etag
+      checked.value.etag !== copied.value.etag ||
+      (file.incomingCrc64 !== null && checked.value.crc64 !== file.incomingCrc64)
     )
       outcome = { reason: "copy_verify_failed", retryable: false };
-    else outcome = { etag: copied.value.etag, size: checked.value.size };
+    else
+      outcome = {
+        etag: copied.value.etag,
+        size: checked.value.size,
+        ...(checked.value.crc64 ? { crc64: checked.value.crc64 } : {}),
+      };
   }
   const auditId = await deps.tx.run(async (tx) => {
     await lockRows(tx, "media_job", [jobId]);
@@ -114,6 +121,7 @@ export async function promote(deps: BoundMediaDeps, { jobId }: PromoteRef): Prom
           sizeBytes: BigInt(outcome.size),
           mime: file.declaredMime,
           etag: outcome.etag,
+          crc64: outcome.crc64 ?? null,
           storedAt: now,
           updatedAt: now,
         },

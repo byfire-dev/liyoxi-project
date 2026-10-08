@@ -3,6 +3,8 @@ import {
   adminFileGet,
   adminFileComplete,
   adminFileDownloadUrls,
+  adminFileRefreshCredentials,
+  adminFileCancel,
   AdminFileViewSchema,
   FileRegistrationSchema,
   SignedUrlSchema,
@@ -11,6 +13,30 @@ import { ok } from "../../http/errors.js";
 import { idemOf } from "../../http/idempotency.js";
 import { defineAdminHandler } from "../../routing/admin.js";
 export const adminFileHandlers = [
+  defineAdminHandler(adminFileRefreshCredentials, null, async (c, staff) => {
+    c.header("Cache-Control", "no-store");
+    return ok(
+      c,
+      FileRegistrationSchema.parse(
+        await c.var.runtime.media.refresh(
+          { identity: c.var.identity!, staff: staff.ctx },
+          c.req.valid("param").fileId,
+        ),
+      ),
+    );
+  }),
+  defineAdminHandler(adminFileCancel, null, async (c, staff) =>
+    ok(
+      c,
+      AdminFileViewSchema.parse(
+        await c.var.runtime.media.cancelAdmin(
+          { identity: c.var.identity!, staff: staff.ctx },
+          c.req.valid("param").fileId,
+          { idem: idemOf(c) },
+        ),
+      ),
+    ),
+  ),
   defineAdminHandler(adminFileCreate, null, async (c, staff) => {
     const body = c.req.valid("json");
     const result = await c.var.runtime.media.register(

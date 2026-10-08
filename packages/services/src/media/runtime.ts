@@ -48,6 +48,11 @@ export function createMedia(options: MediaDeps) {
       refresh(deps, ...args),
     cancel: (...args: Parameters<typeof cancel> extends [unknown, ...infer A] ? A : never) =>
       cancel(deps, ...args),
+    cancelAdmin: (
+      actor: Parameters<typeof cancel>[1],
+      fileId: string,
+      options: Parameters<typeof cancel>[3] = {},
+    ) => cancel(deps, actor, fileId, options, true),
     getMerchant: (
       ...args: Parameters<typeof getMerchant> extends [unknown, ...infer A] ? A : never
     ) => getMerchant(deps, ...args),

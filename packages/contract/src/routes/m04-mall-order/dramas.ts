@@ -4,6 +4,8 @@ import { merchantRoute } from "../builders.js";
 import { okResponse, errorResponses } from "../../common/index.js";
 import {
   DramaPageSchema,
+  DramaSearchQuerySchema,
+  DramaSearchSchema,
   DramaDetailSchema,
   MallDramaListQuerySchema,
   MallDramaParamsSchema,
@@ -24,7 +26,7 @@ export const mDramaList = merchantRoute({
   responses: { ...okResponse(DramaPageSchema), ...errorResponses(400) },
 });
 
-export const mDramaSearch = merchantMeta({
+export const mDramaSearch = merchantRoute({
   method: "get",
   path: "/m/dramas/search",
   operationId: "m.drama.search",
@@ -34,6 +36,8 @@ export const mDramaSearch = merchantMeta({
   "x-capability": "catalog.read",
   "x-clerk-view": "trimmed",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  request: { query: DramaSearchQuerySchema },
+  responses: { ...okResponse(DramaSearchSchema), ...errorResponses(400) },
 });
 
 export const mDramaGet = merchantRoute({

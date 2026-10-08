@@ -54,3 +54,6 @@ export type { PiiFactDb, PiiFieldQuery, PiiFieldFact, PiiFieldProvider } from ".
 
 export { subscribePlanOf, subscribePlanPort } from "./subscribe-plan.js";
 export type { SubscribePlanQuery, SubscribePlanReader } from "./subscribe-plan.js";
+
+export { catalogRefPort, catalogRefsOf } from "./catalog-refs.js";
+export type { CatalogRef, CatalogRefs } from "./catalog-refs.js";

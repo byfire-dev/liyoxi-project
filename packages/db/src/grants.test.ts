@@ -74,7 +74,7 @@ const EXPECTED = JSON.parse(
 const APPEND_ONLY: Record<string, string[]> = Object.fromEntries(
   EXPECTED.appendOnly.map((table) => [table, EXPECTED.columnUpdate[table] ?? []]),
 );
-/** lyx_app 在 166 张逻辑表上的表级权限 */
+/** lyx_app 在现行 167 张逻辑表上的表级权限 */
 const TABLE_PRIVILEGES = EXPECTED.tables;
 /** 14 个自增列（表.列）；它们背后的序列加审计编号的序列 audit_no_seq，lyx_app 各有 USAGE */
 const SERIAL_COLUMNS = [
@@ -577,8 +577,8 @@ describe("file_object（任务书 第 7 节第 5 条）", () => {
 });
 
 describe("授权没有漏表（任务书 第 7 节第 6 条）", () => {
-  it("期望清单自洽：166 张表；16 张只增表都只有 INSERT、SELECT；例外列所在的表没有表级 UPDATE", () => {
-    expect(Object.keys(TABLE_PRIVILEGES)).toHaveLength(166);
+  it("期望清单自洽：167 张表；16 张只增表都只有 INSERT、SELECT；例外列所在的表没有表级 UPDATE", () => {
+    expect(Object.keys(TABLE_PRIVILEGES)).toHaveLength(167);
     expect(EXPECTED.appendOnly).toHaveLength(16);
     expect(EXPECTED.appendOnly.map((table) => TABLE_PRIVILEGES[table])).toEqual(
       EXPECTED.appendOnly.map(() => "INSERT,SELECT"),
@@ -593,7 +593,7 @@ describe("授权没有漏表（任务书 第 7 节第 6 条）", () => {
     }
   });
 
-  it("166 张逻辑表逐张：lyx_app 的表级权限等于清单；分区子表与 _prisma_migrations 上没有", async () => {
+  it("167 张逻辑表逐张：lyx_app 的表级权限等于清单；分区子表与 _prisma_migrations 上没有", async () => {
     const actual = await query<{ name: string; part: boolean; privileges: string }>(
       owner,
       `select c.relname::text as name, c.relispartition as part,
@@ -786,7 +786,7 @@ describe("lyx_readonly 与分区（任务书 第 11 节第 5、7 项）", () => 
                           from aclexplode(c.relacl) a where a.grantee = 'lyx_readonly'::regrole), '') as privileges
          from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p', 'S')`,
     );
-    expect(relations.filter((row) => row.kind !== "S")).toHaveLength(166 + 5 + 1);
+    expect(relations.filter((row) => row.kind !== "S")).toHaveLength(167 + 5 + 1);
     expect(relations.filter((row) => row.kind === "S")).toHaveLength(15);
     expect(relations.filter((row) => row.privileges !== "SELECT")).toEqual([]);
     expect(await query(readonly, "select count(*)::int as n from _prisma_migrations")).toEqual([
@@ -829,7 +829,7 @@ describe("lyx_readonly 与分区（任务书 第 11 节第 5、7 项）", () => 
     );
   });
 
-  it("属主新建一个月的分区：lyx_app 经父表写得进、不能直接碰子表；lyx_readonly 自动读得到；lyx_app 自己建不了分区", async () => {
+  it("属主新建一个月的分区：lyx_app 经父表写得进、不能直接碰子表；lyx_readonly 自动读得到；lyx_app 仅经固定月份能力建分区", async () => {
     const [made] = await query<{ part: string }>(
       owner,
       "select lyx_14_analytics_event_ensure_partition('2031-03-01') as part",
@@ -849,11 +849,16 @@ describe("lyx_readonly 与分区（任务书 第 11 节第 5、7 项）", () => 
     expect(
       await query(readonly, "select count(*)::int as n from analytics_event_y2031m03"),
     ).toEqual([{ n: 1 }]);
-    // 14 分组 第 2.9 节的周期任务要建分区：应用角色建不了（见本包的 ADR）。先卡在模式 public 上没有 CREATE；
-    // 就算有，它也不是父表的属主
+    // ADR-045 的受限 SECURITY DEFINER 能力只负责固定月份；应用仍不能直接 DDL。
     expect(
-      await dbError(exec(app, "select lyx_14_analytics_event_ensure_partition('2031-04-01')")),
-    ).toEqual({ code: DENIED, message: "permission denied for schema public" });
+      await query<{ part: string }>(
+        app,
+        "select lyx_14_analytics_event_ensure_partition('2031-04-01') as part",
+      ),
+    ).toEqual([{ part: "analytics_event_y2031m04" }]);
+    expect(await sqlState(exec(app, "create table public.grants_denied_partition(id int)"))).toBe(
+      DENIED,
+    );
   });
 });
 

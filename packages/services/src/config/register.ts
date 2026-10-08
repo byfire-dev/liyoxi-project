@@ -84,6 +84,9 @@ export const registration = defineRegistration("config", {
       lockSiteNoticeForNotify,
     ),
     implementKeyed(dictReferencesPort, "config", configDictReferences),
+    homeBannerFiles,
   ],
   invariants: [paramValues, ...CONFIG_SQL_INVARIANTS.map(sqlInvariant)],
 });
+
+import { homeBannerFiles } from "./site-files.js";

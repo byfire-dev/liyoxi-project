@@ -806,6 +806,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/files/{fileId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 上传人本人取消未确认的上传登记（pending → expired，清空写入区键） */
+        post: operations["admin.file.cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/files/{fileId}/complete": {
         parameters: {
             query?: never;
@@ -838,6 +855,92 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/files/{fileId}/refresh-credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 续签直传临时密钥（大文件分块上传中途过期） */
+        post: operations["admin.file.refreshCredentials"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/home-banners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Banner 列表：标题、图片、跳转、时间窗、启用、点击数、派生状态（生效中、已排期、已结束、已停用）；可按是否已结束筛选 */
+        get: operations["admin.homeBanner.list"];
+        put?: never;
+        /** 新增 Banner（任意时刻同时生效 ≤5 张，按区间重叠校验） */
+        post: operations["admin.homeBanner.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/home-banners/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 拖动调整轮播顺序（提交全部未结束 Banner 的 id 数组；已结束的不参与、position 不变） */
+        post: operations["admin.homeBanner.batchReorder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/home-banners/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Banner 计数与上限：生效中、已排期、已结束、已停用张数与同时生效上限（OpsHome 页头“生效中 N 张 · 最多 5 张”） */
+        get: operations["admin.homeBanner.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/home-banners/{homeBannerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 编辑 Banner，或启用 / 停用（已结束的不可切换） */
+        patch: operations["admin.homeBanner.update"];
         trace?: never;
     };
     "/api/v1/admin/launch-submissions/{launchSubmissionId}": {
@@ -1194,6 +1297,91 @@ export interface paths {
         post?: never;
         /** 退出登录：吊销当前会话（当前会话视图别名，A41） */
         delete: operations["admin.session.current.delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/site-configs/{configKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 站点配置当前内容与草稿：首页推荐位（home_recommend）、商城配置（mall） */
+        get: operations["admin.siteConfig.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/site-configs/{configKey}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 保存站点配置草稿（整份覆盖，带 lockVersion） */
+        put: operations["admin.siteConfig.draft.replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/site-configs/{configKey}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 发布站点配置（base_rev_no 冲突返回 409；旧版本归档） */
+        post: operations["admin.siteConfig.publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/site-configs/{configKey}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 站点配置版本记录（发布时间、发布人） */
+        get: operations["admin.siteConfig.revision.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/site-notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 规则变更公告记录（套餐调整、计费参数、协议版本触发；只读） */
+        get: operations["admin.siteNotice.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -8742,6 +8930,88 @@ export interface operations {
             };
         };
     };
+    "admin.file.cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminFileView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.file.complete": {
         parameters: {
             query?: never;
@@ -8901,6 +9171,585 @@ export interface operations {
             };
             /** @description 外部能力不可用、系统繁忙或停机维护 */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.file.refreshCredentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["FileRegistration"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.homeBanner.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                displayState?: string;
+                isEnded?: ("true" | "false") | boolean;
+                sort?: "position" | "-startAt" | "-createdAt";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: {
+                                actions: ("edit" | "enable" | "disable")[];
+                                clickCount: number | null;
+                                /** Format: date-time */
+                                createdAt: string;
+                                createdBy: components["schemas"]["StaffBrief"];
+                                /** @enum {string} */
+                                displayState: "live" | "scheduled" | "ended" | "disabled";
+                                /** Format: date-time */
+                                endAt: string | null;
+                                /** Format: uuid */
+                                homeBannerId: string;
+                                /** Format: uuid */
+                                imageFileId: string;
+                                imageUrl: components["schemas"]["SignedUrl"] & (Record<string, never> | null);
+                                isEnabled: boolean;
+                                /** @enum {string} */
+                                jumpKind: "drama" | "mall" | "page" | "none";
+                                jumpTarget: {
+                                    [key: string]: unknown;
+                                } | null;
+                                jumpTargetLabel: string | null;
+                                lockVersion: number;
+                                position: number;
+                                /** Format: date-time */
+                                startAt: string;
+                                title: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                                updatedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                            }[];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.homeBanner.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date-time */
+                    endAt?: string | null;
+                    /** Format: uuid */
+                    imageFileId: string;
+                    isEnabled?: boolean;
+                    /** @enum {string} */
+                    jumpKind: "drama" | "mall" | "page" | "none";
+                    jumpTarget?: {
+                        [key: string]: unknown;
+                    } | null;
+                    /** Format: date-time */
+                    startAt: string;
+                    title: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: ("edit" | "enable" | "disable")[];
+                            clickCount: number | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            createdBy: components["schemas"]["StaffBrief"];
+                            /** @enum {string} */
+                            displayState: "live" | "scheduled" | "ended" | "disabled";
+                            /** Format: date-time */
+                            endAt: string | null;
+                            /** Format: uuid */
+                            homeBannerId: string;
+                            /** Format: uuid */
+                            imageFileId: string;
+                            imageUrl: components["schemas"]["SignedUrl"] & (Record<string, never> | null);
+                            isEnabled: boolean;
+                            /** @enum {string} */
+                            jumpKind: "drama" | "mall" | "page" | "none";
+                            jumpTarget: {
+                                [key: string]: unknown;
+                            } | null;
+                            jumpTargetLabel: string | null;
+                            lockVersion: number;
+                            position: number;
+                            replayed: boolean;
+                            /** Format: date-time */
+                            startAt: string;
+                            title: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                            updatedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.homeBanner.batchReorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    homeBannerIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: {
+                                actions: ("edit" | "enable" | "disable")[];
+                                clickCount: number | null;
+                                /** Format: date-time */
+                                createdAt: string;
+                                createdBy: components["schemas"]["StaffBrief"];
+                                /** @enum {string} */
+                                displayState: "live" | "scheduled" | "ended" | "disabled";
+                                /** Format: date-time */
+                                endAt: string | null;
+                                /** Format: uuid */
+                                homeBannerId: string;
+                                /** Format: uuid */
+                                imageFileId: string;
+                                imageUrl: components["schemas"]["SignedUrl"] & (Record<string, never> | null);
+                                isEnabled: boolean;
+                                /** @enum {string} */
+                                jumpKind: "drama" | "mall" | "page" | "none";
+                                jumpTarget: {
+                                    [key: string]: unknown;
+                                } | null;
+                                jumpTargetLabel: string | null;
+                                lockVersion: number;
+                                position: number;
+                                /** Format: date-time */
+                                startAt: string;
+                                title: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                                updatedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                            }[];
+                            replayed: boolean;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.homeBanner.summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            disabled: number;
+                            ended: number;
+                            live: number;
+                            maxActive: number;
+                            scheduled: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.homeBanner.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                homeBannerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date-time */
+                    endAt?: string | null;
+                    /** Format: uuid */
+                    imageFileId?: string;
+                    isEnabled?: boolean;
+                    /** @enum {string} */
+                    jumpKind?: "drama" | "mall" | "page" | "none";
+                    jumpTarget?: {
+                        [key: string]: unknown;
+                    } | null;
+                    lockVersion: number;
+                    /** Format: date-time */
+                    startAt?: string;
+                    title?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: ("edit" | "enable" | "disable")[];
+                            clickCount: number | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            createdBy: components["schemas"]["StaffBrief"];
+                            /** @enum {string} */
+                            displayState: "live" | "scheduled" | "ended" | "disabled";
+                            /** Format: date-time */
+                            endAt: string | null;
+                            /** Format: uuid */
+                            homeBannerId: string;
+                            /** Format: uuid */
+                            imageFileId: string;
+                            imageUrl: components["schemas"]["SignedUrl"] & (Record<string, never> | null);
+                            isEnabled: boolean;
+                            /** @enum {string} */
+                            jumpKind: "drama" | "mall" | "page" | "none";
+                            jumpTarget: {
+                                [key: string]: unknown;
+                            } | null;
+                            jumpTargetLabel: string | null;
+                            lockVersion: number;
+                            position: number;
+                            replayed: boolean;
+                            /** Format: date-time */
+                            startAt: string;
+                            title: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                            updatedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10842,6 +11691,917 @@ export interface operations {
             };
             /** @description 限流 */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.siteConfig.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                configKey: "mall" | "home_recommend";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            /** @enum {string} */
+                            configKey: "mall" | "home_recommend";
+                            draft: {
+                                baseRevNo: number | null;
+                                content: {
+                                    categories: {
+                                        fixed: boolean;
+                                        genreCodes: string[];
+                                        key: string;
+                                        name: string;
+                                        visible: boolean;
+                                    }[];
+                                    /** @enum {string} */
+                                    defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                                    filters: {
+                                        episodeBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                        episodes: boolean;
+                                        genre: boolean;
+                                        industry: boolean;
+                                        price: boolean;
+                                        priceBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                    };
+                                    hotWords: string[];
+                                    sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
+                                    weights: {
+                                        freshness: number;
+                                        heat: number;
+                                        manual: number;
+                                        sales30d: number;
+                                    };
+                                } | {
+                                    /** @enum {string} */
+                                    defaultTab: "hot" | "new";
+                                    newDays: number;
+                                    pins: {
+                                        /** Format: uuid */
+                                        dramaId: string;
+                                        industryCode: string;
+                                    }[];
+                                    recommendCount: number;
+                                };
+                                createdBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                lockVersion: number;
+                                note: string | null;
+                                /** Format: uuid */
+                                siteConfigRevisionId: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            } | null;
+                            published: {
+                                content: {
+                                    categories: {
+                                        fixed: boolean;
+                                        genreCodes: string[];
+                                        key: string;
+                                        name: string;
+                                        visible: boolean;
+                                    }[];
+                                    /** @enum {string} */
+                                    defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                                    filters: {
+                                        episodeBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                        episodes: boolean;
+                                        genre: boolean;
+                                        industry: boolean;
+                                        price: boolean;
+                                        priceBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                    };
+                                    hotWords: string[];
+                                    sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
+                                    weights: {
+                                        freshness: number;
+                                        heat: number;
+                                        manual: number;
+                                        sales30d: number;
+                                    };
+                                } | {
+                                    /** @enum {string} */
+                                    defaultTab: "hot" | "new";
+                                    newDays: number;
+                                    pins: {
+                                        /** Format: uuid */
+                                        dramaId: string;
+                                        industryCode: string;
+                                    }[];
+                                    recommendCount: number;
+                                };
+                                note: string | null;
+                                /** Format: date-time */
+                                publishedAt: string;
+                                publishedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                revNo: number;
+                                /** Format: uuid */
+                                siteConfigRevisionId: string;
+                                /** @enum {string} */
+                                status: "published" | "archived";
+                            };
+                            refs: {
+                                affectedBanners: {
+                                    categoryKey: string;
+                                    /** Format: uuid */
+                                    homeBannerId: string;
+                                    title: string;
+                                }[];
+                                categoryStats: {
+                                    dramaCount: number;
+                                    genreNames: string[];
+                                    key: string;
+                                }[];
+                                invalidRefs: {
+                                    code: string;
+                                    path: string;
+                                    /** @enum {string} */
+                                    reason: "genre_unknown" | "genre_disabled" | "industry_unknown" | "drama_not_found" | "drama_not_listed" | "drama_not_orderable";
+                                }[];
+                                pins: {
+                                    /** Format: uuid */
+                                    dramaId: string;
+                                    dramaTitle: string;
+                                    industryCode: string;
+                                    industryName: string;
+                                    isOrderable: boolean;
+                                }[];
+                            };
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.siteConfig.draft.replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                configKey: "mall" | "home_recommend";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    baseRevNo: number;
+                    content: {
+                        categories: {
+                            fixed: boolean;
+                            genreCodes: string[];
+                            key: string;
+                            name: string;
+                            visible: boolean;
+                        }[];
+                        /** @enum {string} */
+                        defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                        filters: {
+                            episodeBands: {
+                                key: string;
+                                label: string;
+                                max: number | null;
+                                min: number | null;
+                            }[];
+                            episodes: boolean;
+                            genre: boolean;
+                            industry: boolean;
+                            price: boolean;
+                            priceBands: {
+                                key: string;
+                                label: string;
+                                max: number | null;
+                                min: number | null;
+                            }[];
+                        };
+                        hotWords: string[];
+                        sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
+                        weights: {
+                            freshness: number;
+                            heat: number;
+                            manual: number;
+                            sales30d: number;
+                        };
+                    } | {
+                        /** @enum {string} */
+                        defaultTab: "hot" | "new";
+                        newDays: number;
+                        pins: {
+                            /** Format: uuid */
+                            dramaId: string;
+                            industryCode: string;
+                        }[];
+                        recommendCount: number;
+                    };
+                    lockVersion: number | null;
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            /** @enum {string} */
+                            configKey: "mall" | "home_recommend";
+                            draft: {
+                                baseRevNo: number | null;
+                                content: {
+                                    categories: {
+                                        fixed: boolean;
+                                        genreCodes: string[];
+                                        key: string;
+                                        name: string;
+                                        visible: boolean;
+                                    }[];
+                                    /** @enum {string} */
+                                    defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                                    filters: {
+                                        episodeBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                        episodes: boolean;
+                                        genre: boolean;
+                                        industry: boolean;
+                                        price: boolean;
+                                        priceBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                    };
+                                    hotWords: string[];
+                                    sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
+                                    weights: {
+                                        freshness: number;
+                                        heat: number;
+                                        manual: number;
+                                        sales30d: number;
+                                    };
+                                } | {
+                                    /** @enum {string} */
+                                    defaultTab: "hot" | "new";
+                                    newDays: number;
+                                    pins: {
+                                        /** Format: uuid */
+                                        dramaId: string;
+                                        industryCode: string;
+                                    }[];
+                                    recommendCount: number;
+                                };
+                                createdBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                lockVersion: number;
+                                note: string | null;
+                                /** Format: uuid */
+                                siteConfigRevisionId: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            } | null;
+                            published: {
+                                content: {
+                                    categories: {
+                                        fixed: boolean;
+                                        genreCodes: string[];
+                                        key: string;
+                                        name: string;
+                                        visible: boolean;
+                                    }[];
+                                    /** @enum {string} */
+                                    defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                                    filters: {
+                                        episodeBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                        episodes: boolean;
+                                        genre: boolean;
+                                        industry: boolean;
+                                        price: boolean;
+                                        priceBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                    };
+                                    hotWords: string[];
+                                    sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
+                                    weights: {
+                                        freshness: number;
+                                        heat: number;
+                                        manual: number;
+                                        sales30d: number;
+                                    };
+                                } | {
+                                    /** @enum {string} */
+                                    defaultTab: "hot" | "new";
+                                    newDays: number;
+                                    pins: {
+                                        /** Format: uuid */
+                                        dramaId: string;
+                                        industryCode: string;
+                                    }[];
+                                    recommendCount: number;
+                                };
+                                note: string | null;
+                                /** Format: date-time */
+                                publishedAt: string;
+                                publishedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                revNo: number;
+                                /** Format: uuid */
+                                siteConfigRevisionId: string;
+                                /** @enum {string} */
+                                status: "published" | "archived";
+                            };
+                            refs: {
+                                affectedBanners: {
+                                    categoryKey: string;
+                                    /** Format: uuid */
+                                    homeBannerId: string;
+                                    title: string;
+                                }[];
+                                categoryStats: {
+                                    dramaCount: number;
+                                    genreNames: string[];
+                                    key: string;
+                                }[];
+                                invalidRefs: {
+                                    code: string;
+                                    path: string;
+                                    /** @enum {string} */
+                                    reason: "genre_unknown" | "genre_disabled" | "industry_unknown" | "drama_not_found" | "drama_not_listed" | "drama_not_orderable";
+                                }[];
+                                pins: {
+                                    /** Format: uuid */
+                                    dramaId: string;
+                                    dramaTitle: string;
+                                    industryCode: string;
+                                    industryName: string;
+                                    isOrderable: boolean;
+                                }[];
+                            };
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.siteConfig.publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                configKey: "mall" | "home_recommend";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    baseRevNo: number;
+                    lockVersion: number;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            /** @enum {string} */
+                            configKey: "mall" | "home_recommend";
+                            draft: {
+                                baseRevNo: number | null;
+                                content: {
+                                    categories: {
+                                        fixed: boolean;
+                                        genreCodes: string[];
+                                        key: string;
+                                        name: string;
+                                        visible: boolean;
+                                    }[];
+                                    /** @enum {string} */
+                                    defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                                    filters: {
+                                        episodeBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                        episodes: boolean;
+                                        genre: boolean;
+                                        industry: boolean;
+                                        price: boolean;
+                                        priceBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                    };
+                                    hotWords: string[];
+                                    sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
+                                    weights: {
+                                        freshness: number;
+                                        heat: number;
+                                        manual: number;
+                                        sales30d: number;
+                                    };
+                                } | {
+                                    /** @enum {string} */
+                                    defaultTab: "hot" | "new";
+                                    newDays: number;
+                                    pins: {
+                                        /** Format: uuid */
+                                        dramaId: string;
+                                        industryCode: string;
+                                    }[];
+                                    recommendCount: number;
+                                };
+                                createdBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                lockVersion: number;
+                                note: string | null;
+                                /** Format: uuid */
+                                siteConfigRevisionId: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            } | null;
+                            published: {
+                                content: {
+                                    categories: {
+                                        fixed: boolean;
+                                        genreCodes: string[];
+                                        key: string;
+                                        name: string;
+                                        visible: boolean;
+                                    }[];
+                                    /** @enum {string} */
+                                    defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                                    filters: {
+                                        episodeBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                        episodes: boolean;
+                                        genre: boolean;
+                                        industry: boolean;
+                                        price: boolean;
+                                        priceBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                    };
+                                    hotWords: string[];
+                                    sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
+                                    weights: {
+                                        freshness: number;
+                                        heat: number;
+                                        manual: number;
+                                        sales30d: number;
+                                    };
+                                } | {
+                                    /** @enum {string} */
+                                    defaultTab: "hot" | "new";
+                                    newDays: number;
+                                    pins: {
+                                        /** Format: uuid */
+                                        dramaId: string;
+                                        industryCode: string;
+                                    }[];
+                                    recommendCount: number;
+                                };
+                                note: string | null;
+                                /** Format: date-time */
+                                publishedAt: string;
+                                publishedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                revNo: number;
+                                /** Format: uuid */
+                                siteConfigRevisionId: string;
+                                /** @enum {string} */
+                                status: "published" | "archived";
+                            };
+                            refs: {
+                                affectedBanners: {
+                                    categoryKey: string;
+                                    /** Format: uuid */
+                                    homeBannerId: string;
+                                    title: string;
+                                }[];
+                                categoryStats: {
+                                    dramaCount: number;
+                                    genreNames: string[];
+                                    key: string;
+                                }[];
+                                invalidRefs: {
+                                    code: string;
+                                    path: string;
+                                    /** @enum {string} */
+                                    reason: "genre_unknown" | "genre_disabled" | "industry_unknown" | "drama_not_found" | "drama_not_listed" | "drama_not_orderable";
+                                }[];
+                                pins: {
+                                    /** Format: uuid */
+                                    dramaId: string;
+                                    dramaTitle: string;
+                                    industryCode: string;
+                                    industryName: string;
+                                    isOrderable: boolean;
+                                }[];
+                            };
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.siteConfig.revision.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                status?: string;
+            };
+            header?: never;
+            path: {
+                configKey: "mall" | "home_recommend";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: {
+                                content: {
+                                    categories: {
+                                        fixed: boolean;
+                                        genreCodes: string[];
+                                        key: string;
+                                        name: string;
+                                        visible: boolean;
+                                    }[];
+                                    /** @enum {string} */
+                                    defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                                    filters: {
+                                        episodeBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                        episodes: boolean;
+                                        genre: boolean;
+                                        industry: boolean;
+                                        price: boolean;
+                                        priceBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                    };
+                                    hotWords: string[];
+                                    sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
+                                    weights: {
+                                        freshness: number;
+                                        heat: number;
+                                        manual: number;
+                                        sales30d: number;
+                                    };
+                                } | {
+                                    /** @enum {string} */
+                                    defaultTab: "hot" | "new";
+                                    newDays: number;
+                                    pins: {
+                                        /** Format: uuid */
+                                        dramaId: string;
+                                        industryCode: string;
+                                    }[];
+                                    recommendCount: number;
+                                };
+                                note: string | null;
+                                /** Format: date-time */
+                                publishedAt: string;
+                                publishedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                revNo: number;
+                                /** Format: uuid */
+                                siteConfigRevisionId: string;
+                                /** @enum {string} */
+                                status: "published" | "archived";
+                            }[];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.siteNotice.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                kind?: string;
+                refId?: string;
+                status?: "announced" | "withdrawn";
+                displayState?: string;
+                effectiveFrom?: string;
+                effectiveTo?: string;
+                sort?: "-announcedAt" | "-effectiveAt";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: {
+                                /** Format: date-time */
+                                announcedAt: string;
+                                /** Format: date-time */
+                                createdAt: string;
+                                createdBy: components["schemas"]["StaffBrief"];
+                                /** @enum {string} */
+                                displayState: "scheduled" | "effective" | "withdrawn";
+                                /** Format: date-time */
+                                effectiveAt: string;
+                                isBarEnabled: boolean;
+                                /** @enum {string} */
+                                kind: "plan_revision" | "billing_param" | "agreement_version";
+                                leadDays: number;
+                                link: {
+                                    params?: {
+                                        [key: string]: unknown;
+                                    };
+                                    route: string;
+                                };
+                                /** Format: uuid */
+                                refId: string;
+                                shortNoticeReason: string | null;
+                                /** Format: uuid */
+                                siteNoticeId: string;
+                                /** @enum {string} */
+                                status: "announced" | "withdrawn";
+                                summary: string;
+                                summaryNoPrice: string | null;
+                                title: string;
+                                /** Format: date-time */
+                                withdrawnAt: string | null;
+                                withdrawnBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                            }[];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

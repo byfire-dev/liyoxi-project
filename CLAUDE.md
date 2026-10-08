@@ -151,6 +151,7 @@
 | Redis 与 Compose | Redis 按键前缀隔离（库号只有 16 个，不够分）：每个会话、每个 worker 一个 `lyx:test:<会话标识>:<worker 编号>:`，测试文件顶层写 `const redis = useTestRedis()`；“清空”只清自己前缀下的键（SCAN 加 UNLINK），不用 FLUSHDB、FLUSHALL。Compose 只起一份共享实例，多个 worktree 共用：在哪个 worktree 里 `pnpm infra:up` 都是同一套容器，已经起着就不用再起，不要另起一套（会抢端口）；别的会话在跑测试时不要 `pnpm infra:down`；不直接删别人的库、清别人的键，连库的用例不往 `liyoxi`、`lyx_schema_check`、`lyx_migrate_check` 里写数据 |
 | 门禁自测 | 每加一道门禁，同包加一个反例进 `gates:selftest` |
 | 时长 | PR 必过检查合计 ≤15 分钟 |
+| 本机资源与性能观察 | 业主使用 MacBook Air：连库测试/构建/压测采用互不重叠的运行窗口，Vitest 文件调度使用 `--maxWorkers=1 --no-file-parallelism`，用例内部并发/轮数/时限保持原要求。轻量性能结果按本机观察记录，正式规模与性能门槛另按原任务验收。细则见 [本机开发验证](docs/plan/local-development-validation.md)。 |
 | 小程序 | CI 只构建；主包 ≤1,500KB、分包 ≤800KB；页面证据用截图命令的产物；真机手验按演示点批量做，由业主执行 |
 | 留桩 | 登记在 `docs/plan/stubs/`，一项一个文件，写明回补的里程碑。内核、账本、鉴权链不留桩 |
 
