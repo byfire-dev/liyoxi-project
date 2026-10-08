@@ -150,6 +150,7 @@
     "sms_template": "DELETE,INSERT,SELECT,UPDATE",
     "notification": "DELETE,INSERT,SELECT,UPDATE",
     "notification_delivery": "DELETE,INSERT,SELECT,UPDATE",
+    "notification_fanout": "INSERT,SELECT,UPDATE",
     "merchant_message": "DELETE,INSERT,SELECT,UPDATE",
     "staff_message": "DELETE,INSERT,SELECT,UPDATE",
     "wx_subscribe_quota": "DELETE,INSERT,SELECT,UPDATE",

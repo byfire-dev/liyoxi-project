@@ -2,11 +2,13 @@
 
 唯一的数据访问层：Prisma schema、迁移、客户端工厂。依据：[06](../../docs/06-data-model.md) 第 8 节、[开发计划](../../docs/08-development-plan.md) 第 5.7 节、W0-05 任务书。表结构以这里的迁移为准；`docs/data-model/` 下的 `schema.prisma` 与 `constraints/` 是首版迁移的底稿，接管后冻结。
 
+W2-17 独立结构能力增加 `notification_fanout`（13 列、6 CHECK、2 FK、5 索引），仅持久化公告分页进度；应用无 DELETE，readonly 沿原迁移属主默认 SELECT。新迁移、现行 Prisma、授权期望/下限、实际结构快照与字段文档一起核对，首版重拼改读冻结底稿，不改任何已经执行的迁移。完整派发、队列和恢复由 W2-17 PR3 在能力实际合入 main 后消费另验。见 [能力范围](../../docs/plan/changes/W2-17-notification-fanout-capability.md)。
+
 ## 1. 这里有什么
 
 | 路径 | 内容 |
 | --- | --- |
-| `prisma/schema.prisma` | 由底稿迁入，模型一字未改；只改了文件头注释与 `generator` 的输出目录 |
+| `prisma/schema.prisma` | 现行模型；首版从冻结底稿迁入，后续独立结构迁移同时维护这里 |
 | `prisma/migrations/20261005000000_init/migration.sql` | 首版迁移：166 张表与 00–15 的手写约束。拼出来的，不手改（第 4 节） |
 | `prisma/migrations/20261005060000_grants/migration.sql` | 第二个迁移：角色与授权。手写的，不改结构（第 9 节） |
 | `prisma.config.ts` | Prisma 的配置。连接串只取环境变量 `DATABASE_URL`，不读 `.env`，没有默认值 |
@@ -110,7 +112,7 @@ PGHOST=localhost PGPORT=5442 PGUSER=liyoxi PGPASSWORD=lyx-local-dev python3 tool
 pnpm db:catalog-diff
 ```
 
-- 四段，任何一段不过即退出码 1：两个库都在 PostgreSQL 17 上；两份 `schema.prisma` 去掉文件头注释与 `generator` 块后逐字节相同；系统目录逐项相同；数量等于 06 第 1 节的两组口径。
+- 首版后由独立门禁包衔接两种证明：冻结底稿与只跑首版迁移的自有临时库保持逐项等价和首版固定数量；当前两个全迁移库保持原完整目录逐项相同，另核现行快照/数量及真实库→当前 Prisma schema 只读差异。后续结构不再要求现行模型与冻结底稿逐字节相同，也不删除任何首版证明；只有原素材搜索手写索引的已确认 Prisma 假动作可精确忽略。
 - 逐项比的是表、列、约束定义、索引定义、触发器、函数体六类，另加一类：序列（连当前值与持久性）、扩展（名字与版本）、视图与物化视图（定义）、外部表、类型（枚举、域、范围、独立的复合类型）、模式、策略、规则、统计对象、事件触发器、注释。`_prisma_migrations` 不计。口径与查询在 [db-lib.mjs](../../infra/ci/db-lib.mjs)。
 - 几处容易漏的也在比的范围里（第一轮复审试出来后补上的，各有一条反向用例）：表的 TOAST 选项；列的压缩方式与列选项；外键名下内部触发器的启停（停用之后外键的定义不变，但不再校验）；视图上的触发器、物化视图上的索引、外部表的列、独立复合类型的属性；域的默认值与 CHECK；聚合的定义；序列的持久性。
 - 不比的，改了查不出，报告里的“0 差异”不含这些：
