@@ -1,0 +1,50 @@
+.lyx-flow-filters {
+  width: 100%;
+  min-width: 0;
+}
+.lyx-flow-filters__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+.lyx-flow-filters__grid .ant-select {
+  width: 100%;
+}
+.lyx-flow-filters__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.lyx-flow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.lyx-flow-actions .ant-btn {
+  padding-inline: 0;
+}
+.lyx-flow-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+.lyx-flow-cursor-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+}
+.lyx-flow-cursor-pager > span:first-child {
+  margin-right: auto;
+}
+.lyx-flow-loading {
+  padding: 20px;
+}
+.lyx-flow-notice {
+  margin-bottom: 16px;
+}

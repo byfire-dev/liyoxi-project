@@ -1,6 +1,7 @@
 import { useUploadBusy } from "@/lib/upload/taro";
 import { useEffect, useState } from "react";
 import { View } from "@tarojs/components";
+import Taro from "@tarojs/taro";
 import { Card } from "@/components/Card";
 import { Button } from "@/components/Button";
 import { Note } from "@/components/Note";
@@ -18,7 +19,7 @@ import {
   useResource,
 } from "../private/ui";
 import { FileGrid } from "../private/uploads";
-import { profileRuntime } from "../private/runtime";
+import { profileContext, profileRuntime } from "../private/runtime";
 import { parseFen, yuan } from "../private/model";
 import { useDraft } from "../private/draft";
 const basicForm = (data: BasicView) => ({
@@ -89,13 +90,14 @@ export default function Basic() {
     setForm((old) => ({ ...old, [key]: value }));
   const readonly = data?.viewerRole !== "owner";
   const reviewLocked = data?.reviewFieldsLocked || data?.reviewRequiredOnChange;
-  const save = async () => {
+  const save = async (draft: boolean) => {
     if (!data || data.viewerRole !== "owner") return;
+    const context = profileContext();
     const value = await action.run(
-      { form, logo, hours, lockVersion: data.lockVersion },
+      { draft, form, logo, hours, lockVersion: data.lockVersion },
       async (key) => {
         const body: Body<"m.storeProfile.basic.update"> = {
-          draft: true,
+          draft,
           lockVersion: data.lockVersion,
           brandName: form.brand || null,
           logoFileId: logo[0]?.fileId ?? null,
@@ -128,11 +130,14 @@ export default function Basic() {
         return result;
       },
     );
-    if (value) {
+    if (value && action.isCurrent(context)) {
       acceptForm(value);
       acceptHours(value);
       acceptLogo(value);
       resource.setData(value);
+      if (draft)
+        void Taro.showToast({ title: "草稿已保存", icon: "success" }).catch(() => undefined);
+      else await action.continueTo("store", context);
     }
   };
   return (
@@ -295,14 +300,23 @@ export default function Basic() {
       {!readonly ? (
         <FooterBar>
           <Button
-            block
+            variant="secondary"
             loading={action.busy}
             disabled={uploading}
             onClick={() => {
-              void save();
+              void save(true);
             }}
           >
-            保存基础信息
+            保存草稿
+          </Button>
+          <Button
+            loading={action.busy}
+            disabled={uploading}
+            onClick={() => {
+              void save(false);
+            }}
+          >
+            保存并下一步
           </Button>
         </FooterBar>
       ) : null}

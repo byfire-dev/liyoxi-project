@@ -313,11 +313,22 @@ export function offlineProfile(scene: string) {
     m = structuredClone(media),
     s = structuredClone(service),
     q = structuredClone(qualification),
-    o = structuredClone(overview);
+    o = structuredClone(overview),
+    d = structuredClone(dicts);
+  if (["profile-missing-items", "service-no-points", "service-disabled-points"].includes(scene))
+    s.sellingPoints = [];
+  const pointItems = d.items.find((item) => item.typeKey === "store_selling_point")!;
+  if (scene === "service-no-points") pointItems.items = [];
+  if (scene === "service-disabled-points")
+    pointItems.items.forEach((item) => {
+      item.isSelectable = false;
+    });
   if (scene === "review-normal") {
     q.storeQualificationStatus = "pending";
     q.openRound!.phase = "in_review";
     q.openRound!.submittedAt = NOW;
+    q.openRound!.declarationConfirmedAt = NOW;
+    q.openRound!.declarationVersion = "1";
     q.openRound!.dueAt = LATER;
     q.openRound!.roundNo = 1;
     q.openRound!.contactSnapshot = {
@@ -334,6 +345,8 @@ export function offlineProfile(scene: string) {
       phase: "closed",
       roundNo: 1,
       submittedAt: NOW,
+      declarationConfirmedAt: NOW,
+      declarationVersion: "1",
       decidedAt: LATER,
       closedAt: LATER,
       outcome: "rejected",
@@ -347,11 +360,97 @@ export function offlineProfile(scene: string) {
     q.openRound = null;
     q.actions = [];
   }
+  const refreshCompleteness = () => {
+    const current = q.openRound ?? q.lastClosedRound;
+    // 本演练的其余字段已填；独立记录标签与声明缺项，不把业务完整度计算引到端上。
+    const serviceMissing = [
+      ...(!s.serviceItems.length ? ["service_items"] : []),
+      ...(!s.sellingPoints.length ? ["selling_points"] : []),
+    ].map((item) => ({ item, permitType: null }));
+    const qualificationMissing = [
+      ...(current?.declarationConfirmedAt == null
+        ? [{ item: "declaration", permitType: null }]
+        : []),
+      ...q.requiredPermits
+        .filter(
+          (p) => !(current?.docs ?? []).some((doc) => doc.permitType?.code === p.permitType.code),
+        )
+        .map((p) => ({ item: "permit", permitType: p.permitType.code })),
+    ];
+    const steps = completeness.steps.map((step) => {
+      const missing =
+        step.step === 3 ? serviceMissing : step.step === 4 ? qualificationMissing : [];
+      const total = [7, 2, 2, 4 + q.requiredPermits.length][step.step - 1]!;
+      return {
+        ...step,
+        missing,
+        state: !missing.length
+          ? ("completed" as const)
+          : missing.length === total
+            ? ("not_started" as const)
+            : ("in_progress" as const),
+      };
+    });
+    const requiredTotal = 15 + q.requiredPermits.length;
+    const requiredFilled =
+      requiredTotal - steps.reduce((count, step) => count + step.missing.length, 0);
+    const value = {
+      steps,
+      requiredTotal,
+      requiredFilled,
+      pct: Math.round((requiredFilled * 100) / requiredTotal),
+    };
+    o.completeness = b.completeness = m.completeness = s.completeness = value;
+    o.steps.service.state = steps[2]!.state;
+    o.steps.qualification.state = steps[3]!.state;
+  };
+  refreshCompleteness();
   const conflicts = new Set<string>(),
-    replays = new Set<string>();
+    replays = new Set<string>(),
+    failures = new Set<string>();
+  const heldWrites = new Map<string, { promise: Promise<void>; release(): void }>();
   const control = {
+    advanceDeclaration() {
+      q.declaration.currentVersion = String(Number(q.declaration.currentVersion) + 1);
+      if (q.openRound) {
+        q.openRound.declarationConfirmedAt = null;
+        q.openRound.declarationVersion = null;
+        q.openRound.lockVersion++;
+      }
+      refreshCompleteness();
+    },
+    advanceRound() {
+      q.openRound = { ...qualification.openRound!, qualificationSubmissionId: file(90).fileId };
+      q.contact.name = "新轮次联系人";
+      refreshCompleteness();
+    },
+    advanceRoundVersion() {
+      q.openRound!.lockVersion++;
+      q.openRound!.claimedEntityType = "individual";
+    },
+    submitElsewhere() {
+      q.openRound!.phase = "in_review";
+      q.openRound!.lockVersion++;
+      q.storeQualificationStatus = "pending";
+      q.actions = [];
+    },
     conflict: (path: string) => conflicts.add(path),
     replay: (path: string) => replays.add(path),
+    failNext: (path: string) => failures.add(path),
+    hold(path: string) {
+      if (heldWrites.has(path)) throw new Error("该演练请求已暂停");
+      let release!: () => void;
+      const promise = new Promise<void>((done) => {
+        release = done;
+      });
+      heldWrites.set(path, { promise, release });
+    },
+    async release(path: string) {
+      const held = heldWrites.get(path);
+      if (!held) throw new Error("该演练请求未暂停");
+      held.release();
+      await new Promise((done) => setTimeout(done, 0));
+    },
     replaceStore() {
       Object.assign(b, structuredClone(basic), {
         brandName: "新门店品牌",
@@ -365,6 +464,7 @@ export function offlineProfile(scene: string) {
       Object.assign(q, structuredClone(qualification));
       q.contact.name = "新门店联系人";
       q.contact.lockVersion = 11;
+      refreshCompleteness();
     },
     lockBasic() {
       b.reviewFieldsLocked = true;
@@ -382,6 +482,31 @@ export function offlineProfile(scene: string) {
     });
     let response: unknown;
     const body = options?.data as Record<string, unknown> | undefined;
+    if (body && failures.delete(path))
+      throw new ApiError({
+        error: "VALIDATION_FAILED",
+        message: "离线保存失败，请重试",
+        status: 400,
+        requestId: "offline",
+      });
+    const missing =
+      body?.draft === false &&
+      ((path === "/m/store-profile/basic" && !body.brandName) ||
+        (path === "/m/store-profile/media" &&
+          (((body.groups as Body<"m.storeProfile.media.update">["groups"]).door?.length ??
+            m.groups.door.length) < 1 ||
+            ((body.groups as Body<"m.storeProfile.media.update">["groups"]).interior?.length ??
+              m.groups.interior.length) < 3)) ||
+        (path === "/m/store-profile/service" &&
+          (!(body.serviceItems as unknown[] | undefined)?.length ||
+            !(body.sellingPointCodes as unknown[] | undefined)?.length)));
+    if (missing)
+      throw new ApiError({
+        error: "VALIDATION_FAILED",
+        message: "请补齐本步必填资料再继续",
+        status: 400,
+        requestId: "offline",
+      });
     if (body && conflicts.delete(path)) {
       if (path === "/m/store-profile/basic" && b.viewerRole === "owner") b.lockVersion++;
       if (path === "/m/store-profile/media" && m.viewerRole === "owner") m.lockVersion++;
@@ -396,7 +521,7 @@ export function offlineProfile(scene: string) {
     }
     if (path.startsWith("/m/dict-items?")) {
       const types = new URL(`http://offline${path}`).searchParams.get("typeKey")!.split(",");
-      response = { items: dicts.items.filter((item) => types.includes(item.typeKey)) };
+      response = { items: d.items.filter((item) => types.includes(item.typeKey)) };
     } else if (path === "/m/entities") {
       created = true;
       response = {
@@ -468,6 +593,33 @@ export function offlineProfile(scene: string) {
       q.contact.name = body!.name as string;
       q.contact.lockVersion++;
       response = q.contact;
+    } else if (path.startsWith("/m/qualification-docs/") && options?.method === "PATCH") {
+      const round = q.openRound!;
+      const doc = round.docs.find(
+        (item) => path === `/m/qualification-docs/${item.qualificationDocId}`,
+      );
+      if (!doc) throw new Error("证照核对演练未找到对应资料");
+      const update = body as Body<"m.qualificationDoc.update">;
+      if (update.lockVersion !== round.lockVersion) throw new Error("证照核对须使用当前轮次版本");
+      for (const [key, label] of [
+        ["address", "注册地址"],
+        ["businessScope", "经营范围"],
+      ] as const) {
+        const value = update.fields[key];
+        if (value !== undefined) {
+          doc.displayFields = doc.displayFields.filter((field) => field.key !== key);
+          doc.displayFields.push({ key, label, value });
+        }
+      }
+      if (update.fields.principalRole) doc.principalRole = update.fields.principalRole;
+      if (update.fields.subjectType) doc.subjectType = update.fields.subjectType;
+      doc.hasSubmittedFields = true;
+      round.lockVersion++;
+      response = {
+        qualificationSubmissionId: round.qualificationSubmissionId,
+        lockVersion: round.lockVersion,
+        doc,
+      };
     } else if (path === "/m/store-profile/qualification/submit") {
       if (scene === "cert-normal" && q.declaration.currentVersion === "1") {
         q.declaration.currentVersion = "2";
@@ -490,6 +642,8 @@ export function offlineProfile(scene: string) {
       q.storeQualificationStatus = "pending";
       q.openRound!.phase = "in_review";
       q.openRound!.submittedAt = NOW;
+      q.openRound!.declarationConfirmedAt = NOW;
+      q.openRound!.declarationVersion = body!.declarationVersion as string;
       q.actions = [];
       response = q;
     } else if (path === "/m/store-profile/qualification") {
@@ -504,6 +658,12 @@ export function offlineProfile(scene: string) {
         };
         if (body.claimedEntityType)
           q.openRound.claimedEntityType = body.claimedEntityType as "enterprise";
+        if (body.declarationConfirmed !== undefined) {
+          q.openRound.declarationConfirmedAt = body.declarationConfirmed ? NOW : null;
+          q.openRound.declarationVersion = body.declarationConfirmed
+            ? (body.declarationVersion as string)
+            : null;
+        }
         q.openRound.lockVersion++;
         q.actions = ["submit"];
       }
@@ -522,9 +682,17 @@ export function offlineProfile(scene: string) {
           );
         return value;
       };
-      return { ...(redact(response) as object), replayed: true } as T;
+      response = { ...(redact(response) as object), replayed: true };
     }
-    return structuredClone(response) as T;
+    refreshCompleteness();
+    // 响应快照先于暂停形成；切换门店后释放旧响应不会把新门店的样张覆盖掉。
+    const result = structuredClone(response) as T;
+    const held = body ? heldWrites.get(path) : undefined;
+    if (held) {
+      await held.promise;
+      if (heldWrites.get(path) === held) heldWrites.delete(path);
+    }
+    return result;
   };
   return {
     call,

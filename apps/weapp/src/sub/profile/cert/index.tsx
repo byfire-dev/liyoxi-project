@@ -1,6 +1,7 @@
 import { useUploadBusy } from "@/lib/upload/taro";
 import { useRef, useState } from "react";
 import { View } from "@tarojs/components";
+import { useDidHide } from "@tarojs/taro";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { Checkbox } from "@/components/Checkbox";
@@ -12,6 +13,7 @@ import { Certificate } from "../private/certificates";
 import { Frame, Feedback, TextField, STEP_NAMES, useAction, useResource } from "../private/ui";
 import { useDraft } from "../private/draft";
 import { profileContext, profileRuntime } from "../private/runtime";
+import { errorInfo } from "../private/model";
 export default function Cert() {
   const uploading = useUploadBusy();
   const resource = useResource(async (api) => ({
@@ -20,7 +22,8 @@ export default function Cert() {
   }));
   const action = useAction("qualification_save", 4);
   const submit = useAction("qualification_submit");
-  const pendingAuthorization = useRef<string | null>(null);
+  const pendingAuthorization = useRef<{ context: string; key: string } | null>(null);
+  const pendingDeclaration = useRef<string | null>(null);
   const [authorizingContext, setAuthorizingContext] = useState<string | null>(null);
   const data = resource.data?.qualification;
   const owner = data?.viewerRole === "owner" ? data : null;
@@ -30,6 +33,7 @@ export default function Cert() {
     !owner.isFinalRejected &&
     owner.storeQualificationStatus !== "verified" &&
     round?.phase !== "in_review";
+  const authorizing = submit.busy || authorizingContext === profileContext();
   const [contact, setContact, acceptContact] = useDraft(
     owner?.contact,
     (value) => ({
@@ -45,6 +49,11 @@ export default function Cert() {
     setContact((old) => ({ ...old, phoneSource }));
   const setPhone = (phone: string) => setContact((old) => ({ ...old, phone }));
   const [agreed, setAgreed] = useState(false);
+  useDidHide(() => {
+    setAgreed(false);
+    setAuthorizingContext(null);
+    pendingAuthorization.current = null;
+  });
   const declarationKey = `${profileContext()}|${owner?.declaration.currentVersion ?? ""}|${round?.qualificationSubmissionId ?? ""}`;
   const [confirmedKey, setConfirmedKey] = useState(declarationKey);
   if (confirmedKey !== declarationKey) {
@@ -53,6 +62,75 @@ export default function Cert() {
   }
   const load = async () => {
     await resource.load();
+  };
+  const sameDeclaration = (context: string, key: string) => {
+    const latest = resource.currentData()?.qualification;
+    return (
+      action.isCurrent(context) &&
+      latest?.viewerRole === "owner" &&
+      latest.openRound?.phase !== "in_review" &&
+      `${context}|${latest.declaration.currentVersion}|${latest.openRound?.qualificationSubmissionId ?? ""}` ===
+        key
+    );
+  };
+  const saveDeclaration = (checked: boolean) => {
+    if (!owner) return;
+    const context = profileContext();
+    if (
+      pendingDeclaration.current === context ||
+      pendingAuthorization.current?.context === context ||
+      !action.isCurrent(context)
+    )
+      return;
+    pendingDeclaration.current = context;
+    const key = declarationKey;
+    // 已保存的草稿不替代本页用户确认；写入失败或尚未完成时不能提交。
+    setAgreed(false);
+    const body = {
+      lockVersion: round?.lockVersion ?? null,
+      declarationConfirmed: checked,
+      ...(checked ? { declarationVersion: owner.declaration.currentVersion } : {}),
+    };
+    void action
+      .run(body, (key) => profileRuntime().then(({ api }) => api.saveQualification(body, key)))
+      .then((value) => {
+        if (!value || !sameDeclaration(context, key)) return;
+        if (
+          round &&
+          value.openRound?.qualificationSubmissionId !== round.qualificationSubmissionId
+        ) {
+          action.setError(errorInfo(new Error("信息确认状态已变化，请刷新后重新确认")));
+          return;
+        }
+        const latest = resource.currentData()?.qualification;
+        if (
+          latest?.viewerRole === "owner" &&
+          latest.openRound &&
+          value.openRound &&
+          value.openRound.lockVersion < latest.openRound.lockVersion
+        )
+          return;
+        resource.setData((old) => (old ? { ...old, qualification: value } : old));
+        const saved =
+          value.openRound != null &&
+          (checked
+            ? value.openRound.declarationConfirmedAt != null &&
+              value.openRound.declarationVersion === owner.declaration.currentVersion &&
+              value.declaration.currentVersion === owner.declaration.currentVersion
+            : value.openRound.declarationConfirmedAt === null &&
+              value.openRound.declarationVersion === null);
+        if (!saved) {
+          action.setError(errorInfo(new Error("信息确认未保存成功，请重新勾选")));
+          return;
+        }
+        setConfirmedKey(
+          `${context}|${value.declaration.currentVersion}|${value.openRound?.qualificationSubmissionId ?? ""}`,
+        );
+        setAgreed(checked && value.declaration.currentVersion === owner.declaration.currentVersion);
+      })
+      .finally(() => {
+        if (pendingDeclaration.current === context) pendingDeclaration.current = null;
+      });
   };
   return (
     <Frame
@@ -93,7 +171,7 @@ export default function Cert() {
                     round?.claimedEntityType === value ||
                     (!round && owner.entity.entityType === value)
                   }
-                  disabled={!editable || action.busy}
+                  disabled={!editable || action.busy || authorizing}
                   onChange={() => {
                     const body = {
                       lockVersion: round?.lockVersion ?? null,
@@ -122,7 +200,7 @@ export default function Cert() {
             }
             permits={resource.data?.dicts[0]?.items ?? []}
             lockVersion={round?.lockVersion ?? 0}
-            editable={editable}
+            editable={editable && !authorizing}
             reload={load}
           />
           {owner.requiredPermits.map(({ permitType }) => (
@@ -137,7 +215,7 @@ export default function Cert() {
               }
               permits={resource.data?.dicts[0]?.items ?? []}
               lockVersion={round?.lockVersion ?? 0}
-              editable={editable}
+              editable={editable && !authorizing}
               reload={load}
             />
           ))}
@@ -157,7 +235,7 @@ export default function Cert() {
                 doc={doc}
                 permits={resource.data?.dicts[0]?.items ?? []}
                 lockVersion={round?.lockVersion ?? 0}
-                editable={editable}
+                editable={editable && !authorizing}
                 reload={load}
               />
             ))}
@@ -168,7 +246,7 @@ export default function Cert() {
                 value={name}
                 max={20}
                 required
-                disabled={!editable}
+                disabled={!editable || authorizing}
                 onChange={setName}
               />
               <View className="profile-subtitle">
@@ -177,7 +255,7 @@ export default function Cert() {
               <Checkbox
                 shape="round"
                 checked={phoneSource === "login"}
-                disabled={!editable}
+                disabled={!editable || authorizing}
                 onChange={() => setPhoneSource("login")}
               >
                 使用登录号码 {owner.contact.loginPhoneMask}
@@ -185,7 +263,7 @@ export default function Cert() {
               <Checkbox
                 shape="round"
                 checked={phoneSource === "input"}
-                disabled={!editable}
+                disabled={!editable || authorizing}
                 onChange={() => setPhoneSource("input")}
               >
                 使用其他号码
@@ -197,7 +275,7 @@ export default function Cert() {
                     value={phone}
                     max={11}
                     required
-                    disabled={!editable}
+                    disabled={!editable || authorizing}
                     onChange={setPhone}
                   />
                   <Note>短信核验暂未开放，提交后由审核员人工核对</Note>
@@ -208,6 +286,7 @@ export default function Cert() {
                   variant="outline"
                   block
                   loading={action.busy}
+                  disabled={authorizing}
                   onClick={() => {
                     const body = {
                       lockVersion: owner.contact.lockVersion,
@@ -239,23 +318,33 @@ export default function Cert() {
           </Card>
           {editable ? (
             <Card title="信息确认">
-              <Checkbox checked={agreed} onChange={setAgreed}>
+              <Checkbox
+                checked={agreed}
+                disabled={!editable || action.busy || authorizing}
+                onChange={saveDeclaration}
+              >
                 我确认所填信息与上传素材真实、合法，拥有使用权，并授权平台用于制作广告视频
               </Checkbox>
               <View className="profile-subtitle">确认版本：{owner.declaration.currentVersion}</View>
+              <View className="profile-subtitle">勾选后自动保存，再次进入此页时需重新确认</View>
             </Card>
           ) : null}
           {editable && owner.actions.includes("submit") && round ? (
             <FooterBar>
               <Button
                 block
-                loading={submit.busy || authorizingContext === profileContext()}
-                disabled={!agreed || uploading}
+                loading={authorizing}
+                disabled={!agreed || uploading || action.busy}
                 onClick={() => {
                   const context = profileContext();
-                  if (pendingAuthorization.current === context || !submit.isCurrent(context))
+                  if (
+                    pendingAuthorization.current?.context === context ||
+                    pendingDeclaration.current === context ||
+                    !submit.isCurrent(context)
+                  )
                     return;
-                  pendingAuthorization.current = context;
+                  const attempt = { context, key: declarationKey };
+                  pendingAuthorization.current = attempt;
                   setAuthorizingContext(context);
                   const body = {
                     qualificationSubmissionId: round.qualificationSubmissionId,
@@ -264,19 +353,24 @@ export default function Cert() {
                   };
                   withProfileSubscribe("profile_submit", async () => {
                     try {
-                      if (!submit.isCurrent(context)) return;
+                      if (
+                        pendingAuthorization.current !== attempt ||
+                        !sameDeclaration(context, attempt.key)
+                      )
+                        return;
                       const value = await submit.run(body, (key) =>
                         profileRuntime().then(({ api }) => api.submit(body, key)),
                       );
                       if (value && submit.isCurrent(context)) {
                         setAgreed(false);
-                        await load();
+                        await submit.continueTo("review", context);
                       }
                     } finally {
-                      if (pendingAuthorization.current === context) {
+                      if (pendingAuthorization.current === attempt) {
                         pendingAuthorization.current = null;
-                        if (submit.isCurrent(context)) setAuthorizingContext(null);
                       }
+                      if (pendingAuthorization.current === null && submit.isContextCurrent(context))
+                        setAuthorizingContext(null);
                     }
                   })();
                 }}

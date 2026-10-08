@@ -219,6 +219,12 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 | W2-24 PR2 | 独立告警存储/投递接实际 alerts 端口；calendar coverage 的 detach 只隔离事务，不能豁免存活祖先的 Provider 外呼守卫。 |
 
 
+### 5.4 W2-07 系统配置页面移交
+
+| 接收方 | 实际页面与合流要求 |
+| --- | --- |
+| W2-30 | 四页为 `/sys/dict`、`/sys/params`、`/sys/flags`、`/sys/checklists`；后两页保留参数页子入口与实际权限。合流演示要区分参数当前 `rev`/CAS `latestRev`/预约列表；409 保留草稿、显式核对再确认。日历只提交 `{year}`，演示 2026 内置导入及重复 changedDays 空；缺内置年实际 fieldErrors.path 为 `days`。清单草稿修订是先退役旧草稿再创建的两个提交，失败/历史按事实显示，不能承诺旧业务快照自动升级。真实浏览器前置复用原财务配置提议员工，finance 只增加 system 查看等级，不新增员工或编辑权限。 |
+
 ## 6. 任务书加的前置（计划依赖列没有）
 
 写任务书时查实的三处。已由一条计划小改补进计划 第 7.2 节依赖列与第 12 节（[changes/W0-04-post-kickoff-fixes.md](../changes/W0-04-post-kickoff-fixes.md)）。下表留作出处，“怎么办”一栏照旧有效（默认，W0-04 定）。
@@ -258,6 +264,7 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 | W2-26 | a、b1、b2 三步 | a 节点步骤、通道编排、回滚与测试；原 b 下拆 b1 持续探测、全资源/DB核对与双版演练，b2 上传体验版与工作流消费者（另等 W2-25b actual main）；按任务书第 9 节预拆，见 [原变更](../changes/W2-26-split-a-b.md)与[续拆](../changes/W2-26-b-split-b1-b2.md) | 无：下游等整包 |
 | W2-10 | PR1、主包 | PR1甲仅tenant定义端口、identity同事务精准吊销portal授权；其actual后主包乙17接口/2x01/2桩，其他缺失收尾公口仍由拥有者先实际交；见[记录](../changes/W2-10-portal-revocation-first.md) | 无：下游等整包 |
 | W2-12 | PR1、PR2 主包 | PR1仅有界对象读取、隔离正文技术转换、精确依赖和两应用真实产物，0 HTTP/页/x01/桩；actual后PR2乙交原8接口/2cron/2桩；见[记录](../changes/W2-12-document-capability-first.md) | 无：W2-16仍等整包，计划PR与PR1均不代替整包actual |
+| W2-17 | PR1、PR2、PR3 | PR1乙五消息/设置HTTP与真实未读读侧；PR2甲通知发送结果/取消协议，二者独立actual基线可并行；两者actual后PR3交M2场景、派发/提醒/删除、N5、五x01/五桩；见[记录](../changes/W2-17-independent-read-and-outcomes.md) | 无：所有原下游仍等整包actual |
 
 体量仍超上限而没有再拆的三处，由调度会话在 PR 上定，会话不停下：W1-04 的 ①（约 1,100 行）、W1-15 的 a（约 1,200 行，只有“确认订购”一个机制）、W1-08 的 a（约 1,900 行，乙类按接口数 13 条不超）。
 

@@ -126,6 +126,7 @@ export function Certificate({
         ) : null}
       </View>
       <Sheet
+        className="profile-certificate-sheet"
         visible={edit && editable && Boolean(doc)}
         title={`填写${title}`}
         description="已有脱敏值不可还原；只改动本次输入的字段，其余保留"

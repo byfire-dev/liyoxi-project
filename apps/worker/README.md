@@ -16,6 +16,7 @@
 | `src/log.ts` | 一行一条 JSON 的日志口 |
 | `src/cli/redis-compat.ts` | 托管 Redis 与队列库的兼容脚本（验证项 V1） |
 | `src/cli/seed.ts`、`seed-command.ts` | 播种的镜像内入口（W1-22）：与 `pnpm db:seed` 做同一件事、同一组退出码，只是不靠 `tsx`，server 镜像里跑得了 |
+| `src/cli/alerts-ack.ts`、`alerts-ack-command.ts` | W2-23 受限人工运维：真实在职员工权限、单条告警认领/关闭或死回调复位、同事务原因审计 |
 | `scripts/build.mjs` | 构建：esbuild 把工作区的包与第三方依赖打成 `dist/index.js`、`dist/redis-compat.js`、`dist/seed.js`，只留 `bullmq`、`ioredis` 在外 |
 | `src/domain-loops.ts`、`src/loops/` | 各域的进程内循环（M1 起）：一个循环一个文件，清单里加一行；`runtime.ts` 把它们与 M0 的四个循环一起起停、一起交给看门狗（W1-10） |
 
@@ -27,6 +28,16 @@ node apps/worker/dist/index.js --check   # 只做装配与自检，通过即 0 �
 node apps/worker/dist/index.js           # 起任务进程
 node apps/worker/dist/seed.js            # 播种：库要先跑完迁移；可反复跑。整套本地环境与预发的节点步骤用它
 ```
+
+W2-23 人工入口构建为 `dist/alerts-ack.js`，三种形式如下（UUID 替换为实际员工和单条对象）：
+
+```sh
+node apps/worker/dist/alerts-ack.js ack --staff <员工UUID> --alert-id <告警UUID> --note <原因>
+node apps/worker/dist/alerts-ack.js close --staff <员工UUID> --alert-id <告警UUID> --note <原因>
+node apps/worker/dist/alerts-ack.js reset-webhook --staff <员工UUID> --webhook-event-id <死回调UUID> --note <原因>
+```
+
+原因必填 5–200 字。`ack`/`close` 查真实 `sys.health.manage`，`reset-webhook` 查真实 `flow.ops.manage`；员工必须 active，不造登录会话或二次验证时间。仅操作显式单条对象，状态不允许时拒绝，不重发回调事件。成功只输出命令、对象 ID、状态，退出 0；参数、取消或业务拒绝退出 1，环境或运行故障退出 2。等待已开始的原子事务结果并关闭连接，审计记录员工、CLI 来路和原因。
 
 环境变量只经 `loadEnv` 读（`APP_ENV`、`DATABASE_URL`、`REDIS_URL`、`LOG_LEVEL`，取值见 `CLAUDE.md` 第 9 节）。自检要连一个跑过迁移的库：本地用 `lyx_migrate_check`（只读它的系统目录）。
 
@@ -63,6 +74,7 @@ pnpm --filter @liyoxi/worker exec vitest run test/fault/redis-flush.test.ts   # 
 | `test/lease.test.ts` | 抢租约、接任、自行降级、让出；看门狗的三条规则 |
 | `test/recurring.test.ts` | 补登记循环；只在预发登记的任务在生产配置下不存在 |
 | `test/seed-cli.test.ts` | 播种命令：退出码、可重复跑、不打印连接串 |
+| `test/alerts-ack-cli.test.ts` | 严格参数早拒绝、真实权限/原子审计、构建入口真实执行与关停、安全输出 |
 | `test/billing-advance.test.ts` | 账务推进循环：到点的主体逐个推进，被占着的跳过，一个主体出错不影响别的 |
 
 ## 4. 兼容脚本

@@ -35,6 +35,76 @@ function failure(source: EnvSource, groups?: readonly EnvGroup[]): EnvError {
 
 const keysOf = (error: EnvError) => error.issues.map((issue) => issue.key);
 
+describe("MinIO 本地端点", () => {
+  const base = { APP_ENV: "local", DATABASE_URL, REDIS_URL };
+  const endpoint = "http://127.0.0.1:9100";
+  const publicEndpoint = "https://minio.example.invalid/";
+
+  it("两个端点独立可选；空白当未配，保留已有缺省配置", () => {
+    expect(loadEnv({ ...base, MINIO_ENDPOINT: " ", MINIO_PUBLIC_ENDPOINT: "" })).not.toHaveProperty(
+      "MINIO",
+    );
+    expect(loadEnv({ ...base, MINIO_ENDPOINT: ` ${endpoint} ` }).MINIO).toEqual({ endpoint });
+    expect(loadEnv({ ...base, MINIO_PUBLIC_ENDPOINT: publicEndpoint }).MINIO).toEqual({
+      publicEndpoint,
+    });
+  });
+
+  it.each(["local", "test"])("%s 可以给服务端和客户端不同端点；配置冻结", (appEnv) => {
+    const env = loadEnv({
+      ...base,
+      APP_ENV: appEnv,
+      MINIO_ENDPOINT: endpoint,
+      MINIO_PUBLIC_ENDPOINT: publicEndpoint,
+    });
+    expect(env.MINIO).toEqual({ endpoint, publicEndpoint });
+    expect(Object.isFrozen(env.MINIO)).toBe(true);
+  });
+
+  it.each(["stg", "prod"])("%s 拒绝本地 MinIO 覆盖", (appEnv) => {
+    const error = failure({
+      APP_ENV: appEnv,
+      DATABASE_URL_FILE: fileWith(`minio-${appEnv}-pg`, DATABASE_URL),
+      REDIS_URL_FILE: fileWith(`minio-${appEnv}-redis`, REDIS_URL),
+      MINIO_ENDPOINT: endpoint,
+      MINIO_PUBLIC_ENDPOINT: publicEndpoint,
+    });
+    expect(keysOf(error)).toEqual(["MINIO_ENDPOINT", "MINIO_PUBLIC_ENDPOINT"]);
+    expect(error.message).toContain("只允许在 local、test 环境配置");
+    expect(error.message).not.toContain(endpoint);
+    expect(error.message).not.toContain(publicEndpoint);
+  });
+
+  const invalid = [
+    "not-a-url",
+    "ftp://minio.example.invalid",
+    "http:////minio.example.invalid",
+    "http://minio.example.invalid:99999",
+    "http://minio.example.invalid/photos",
+    "http://minio.example.invalid/../",
+    "http://minio.example.invalid/%2e/",
+    "http://minio.example.invalid?",
+    "http://minio.example.invalid?marker=private",
+    "http://minio.example.invalid#",
+    "http://minio.example.invalid#private",
+    "http://fake-user:fake-secret@minio.example.invalid",
+    "http://@minio.example.invalid",
+    "http://minio.example.invalid\\photos",
+    "http://mini\no.example.invalid",
+  ];
+  for (const key of ["MINIO_ENDPOINT", "MINIO_PUBLIC_ENDPOINT"]) {
+    it.each(invalid)(`${key} 拒绝非法 URL：%s；错误不带值`, (value) => {
+      const error = failure({ ...base, [key]: value });
+      expect(keysOf(error)).toEqual([key]);
+      const text = `${error.message}\n${JSON.stringify(error.issues)}`;
+      expect(text).not.toContain(value);
+      expect(text).not.toContain("minio.example.invalid");
+      expect(text).not.toContain("fake-user");
+      expect(text).not.toContain("fake-secret");
+    });
+  }
+});
+
 describe("合格的配置", () => {
   it("local 下给明文连接串：通过，LOG_LEVEL 不填按 info", () => {
     const env = loadEnv({ APP_ENV: "local", DATABASE_URL, REDIS_URL });
@@ -220,9 +290,18 @@ describe("成组变量成对校验", () => {
   };
   const base = { APP_ENV: "local", DATABASE_URL, REDIS_URL };
 
-  it("登记的组：两份密钥文件（W0-14）", () => {
+  it("登记的组：两份密钥文件（W0-14）与微信完整配置（W2-21）", () => {
     expect(ENV_GROUPS).toEqual([
       { name: "字段加密与盲索引密钥", keys: ["DATA_KEYS_FILE", "BIDX_KEYS_FILE"] },
+      {
+        name: "微信小程序与唯一消息接收地址",
+        keys: [
+          "WECHAT_APPID",
+          "WECHAT_SECRET_FILE",
+          "WECHAT_MESSAGE_TOKEN_FILE",
+          "WECHAT_MESSAGE_AES_KEY_FILE",
+        ],
+      },
     ]);
   });
 
@@ -266,9 +345,16 @@ describe("键名清单", () => {
       "DATABASE_URL_FILE",
       "REDIS_URL",
       "REDIS_URL_FILE",
+      "MINIO_ENDPOINT",
+      "MINIO_PUBLIC_ENDPOINT",
       "DATA_KEYS_FILE",
       "BIDX_KEYS_FILE",
       "AUTH_KEYS_FILE",
+      "WECHAT_APPID",
+      "WECHAT_SECRET_FILE",
+      "WECHAT_MESSAGE_TOKEN_FILE",
+      "WECHAT_MESSAGE_AES_KEY_FILE",
+      "CLIENT_ERROR_PROJECTS_FILE",
     ]);
   });
 });
@@ -443,5 +529,51 @@ describe("后台登录的密钥文件", () => {
     expect(example.split("\n").filter((line) => line.startsWith("AUTH_KEYS"))).toEqual([
       "AUTH_KEYS_FILE=<文件路径>",
     ]);
+  });
+});
+
+// W2-18：全部是示例 DSN，未连接外部项目。
+describe("客户端错误项目 FILE", () => {
+  const base = { APP_ENV: "test", DATABASE_URL, REDIS_URL };
+  const project = {
+    dsn: "https://publickey@example.invalid/42",
+    upstreamDsn: "https://upstreamkey@upstream.invalid/sentry/7",
+  };
+  it("未配置降级；完整 FILE 严格读取", () => {
+    expect(loadEnv(base).CLIENT_ERROR_PROJECTS).toBeUndefined();
+    expect(
+      loadEnv({
+        ...base,
+        CLIENT_ERROR_PROJECTS_FILE: fileWith(
+          "report-projects",
+          JSON.stringify({ projects: [project] }),
+        ),
+      }).CLIENT_ERROR_PROJECTS,
+    ).toEqual({ projects: [project] });
+  });
+  it.each([
+    { projects: [] },
+    { projects: [project, project] },
+    { projects: [project], extra: true },
+    { projects: [{ ...project, extra: true }] },
+    { projects: [{ dsn: "http://publickey@example.invalid/42" }] },
+    { projects: [{ dsn: "https://publickey:secret@example.invalid/42" }] },
+    { projects: [{ dsn: "https://publickey@example.invalid/42?query=secret" }] },
+    { projects: [{ dsn: "https://publickey@example.invalid/abc" }] },
+    { projects: [{ ...project, upstreamDsn: "https://key@upstream.invalid/7#secret" }] },
+  ])("非法项目受控拒绝，不输出 DSN 或文件路径", (content) => {
+    const path = fileWith("bad-projects", JSON.stringify(content));
+    const error = failure({ ...base, CLIENT_ERROR_PROJECTS_FILE: path });
+    expect(keysOf(error)).toEqual(["CLIENT_ERROR_PROJECTS_FILE"]);
+    expect(error.message).not.toContain(path);
+    expect(error.message).not.toContain("publickey");
+    expect(error.message).not.toContain("secret");
+  });
+  it("明文配置在任意环境均拒绝", () => {
+    const error = failure({
+      ...base,
+      CLIENT_ERROR_PROJECTS: JSON.stringify({ projects: [project] }),
+    });
+    expect(keysOf(error)).toEqual(["CLIENT_ERROR_PROJECTS"]);
   });
 });

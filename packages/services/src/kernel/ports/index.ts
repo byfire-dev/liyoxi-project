@@ -50,3 +50,6 @@ export { dictReferencesPort, dictReferencesOf } from "./dict-references.js";
 export type { DictReferenceSource } from "./dict-references.js";
 export { piiFieldsPort, piiFieldsOf, implementPiiFields } from "./pii-fields.js";
 export type { PiiFactDb, PiiFieldQuery, PiiFieldFact, PiiFieldProvider } from "./pii-fields.js";
+
+export { subscribePlanOf, subscribePlanPort } from "./subscribe-plan.js";
+export type { SubscribePlanQuery, SubscribePlanReader } from "./subscribe-plan.js";

@@ -12,6 +12,10 @@
 .profile-options {
   padding: 0 16px 16px;
 }
+// 原生 scroll-view 需要明确高度；保留 Sheet 的收缩能力，给标题和保存按钮留出空间。
+.profile-certificate-sheet .lyx-sheet__body {
+  height: 60vh;
+}
 .profile-title {
   font-size: 22px;
   font-weight: 700;
@@ -61,4 +65,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+.profile-steps .lyx-list-row__description {
+  white-space: normal;
 }

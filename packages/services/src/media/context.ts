@@ -11,7 +11,7 @@ import type {
   Tx,
   TxRunner,
 } from "../kernel/index.js";
-import type { StorageProvider } from "../providers/types.js";
+import type { WechatProvider, MediaProvider, StorageProvider } from "../providers/types.js";
 import type { FileRefType } from "../kernel/index.js";
 export type FileRow = FileObject;
 export interface MediaActor {
@@ -36,6 +36,15 @@ export interface MediaDeps {
   readonly channel?: Pick<QueueChannel, "enqueue">;
   readonly videoMaxMb?: () => Promise<number>;
   readonly pollMs?: number;
+  readonly wechatImage?: {
+    readonly appid?: string;
+    readonly provider: Pick<WechatProvider, "checkImage" | "configured">;
+    readonly fallback: Pick<MediaProvider, "audit" | "status">;
+    readonly recentWechatOpenid: (
+      tx: Tx,
+      input: { merchantUserId: string; appid: string; now: Date },
+    ) => Promise<{ wechatIdentityId: string; openid: string } | null>;
+  };
 }
 export interface BoundMediaDeps extends MediaDeps {
   readonly refTypes: ReadonlyMap<string, FileRefType>;

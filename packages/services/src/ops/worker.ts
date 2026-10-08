@@ -1,6 +1,9 @@
 // 任务进程的服务装配（W0-23）：apps/worker 启动时调一次，拿到四个循环与两个队列消费者要调的用例函数。
 // 依据：D7 第 2.3 节规则 7、8，第 8.3 节“应用侧的数据库会话设置与连接池”；计划 第 5.1 节。
 // 应用层不引数据包（CLAUDE.md 第 6 节规则 5）：连接池在这里建，apps/worker 只把拿到的对象原样传回来。
+import { bindAnalytics } from "../analytics/index.js";
+import { findWechatIdentityId, recentWechatOpenid } from "../identity/index.js";
+import { createWechatReceiptHandler } from "../notify/index.js";
 import { createPrismaClient } from "@liyoxi/db";
 import type { PrismaClient } from "@liyoxi/db";
 
@@ -33,6 +36,7 @@ import type {
   BidxKeysConfig,
   Clock,
   DataKeysConfig,
+  Env,
   KernelViolation,
   QueueChannel,
 } from "../kernel/index.js";
@@ -48,7 +52,7 @@ import type {
   Timers,
 } from "../timers/index.js";
 import { bindOps } from "./binding.js";
-import { bindWebhooks, createWebhooks } from "../security/index.js";
+import { bindWebhooks, createWebhooks, createWechatMessageSource } from "../security/index.js";
 import type { WebhookSource } from "../security/index.js";
 import { createStartupChecks, runStartupChecks } from "./startup.js";
 
@@ -68,6 +72,10 @@ export function connectWorkerDatabase(connectionString: string): {
 }
 
 export interface WorkerServicesOptions {
+  readonly wechat?: {
+    readonly config: NonNullable<Env["WECHAT"]>;
+    readonly transport: NonNullable<Parameters<typeof assembleProviders>[0]["wechat"]>;
+  };
   readonly webhookSources?: readonly WebhookSource[];
   readonly appEnv: AppEnv;
   /** 业务连接池：connectWorkerDatabase 给的；用例传测试库的客户端 */
@@ -81,8 +89,12 @@ export interface WorkerServicesOptions {
   readonly report?: (violation: KernelViolation) => void;
   /** 进程的日志口：Provider 的生效状态、放行的自检项往这里记。不给即不记（用例） */
   readonly logger?: ProviderLogger;
-  /** loadEnv 的结果里那两份密钥（把 env 整个传进来即可）：启动自检用。没配就不给 */
-  readonly keys?: { readonly DATA_KEYS?: DataKeysConfig; readonly BIDX_KEYS?: BidxKeysConfig };
+  /** loadEnv 的密钥与本地存储配置（把 env 整个传进来即可）：启动自检及 Provider 装配用。 */
+  readonly keys?: {
+    readonly DATA_KEYS?: DataKeysConfig;
+    readonly BIDX_KEYS?: BidxKeysConfig;
+    readonly MINIO?: Env["MINIO"];
+  };
   /** 换掉十二个 Provider：只有用例会给（替身）。不给即 assembleProviders 按环境选实现 */
   readonly providers?: Providers;
   /** 只给测试装配：样例事件与样例 kind 的名字来源 */
@@ -92,6 +104,7 @@ export interface WorkerServicesOptions {
 
 export interface WorkerServices {
   readonly closeWebhooks?: () => void;
+  readonly closeAnalytics?: () => void;
   reprocessWebhooks(beat?: () => void): Promise<number>;
   readonly closeOrder?: () => void;
   readonly closeBillingTimers?: () => void;
@@ -139,11 +152,27 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const flow = createFlow({ assembly, clock, events });
+  const logger = options.logger ?? silent;
+  const wechatSources = options.wechat
+    ? [
+        createWechatMessageSource({
+          cryptoConfig: {
+            appid: options.wechat.config.appid,
+            token: options.wechat.config.messageToken,
+            encodingAESKey: options.wechat.config.messageEncodingAESKey,
+          },
+          logger,
+          findWechatIdentityId,
+          handleImage: (t, input, ctx) => media.applyWechatImageResult(t, input, ctx),
+          handleSubscription: createWechatReceiptHandler({ clock, logger }),
+        }),
+      ]
+    : [];
   const webhooks = createWebhooks({
     tx,
     clock,
     events,
-    sources: options.webhookSources,
+    sources: options.webhookSources ?? wechatSources,
     alerts: alertsOf(assembly),
   });
   const closeWebhooks = bindWebhooks(webhooks);
@@ -153,9 +182,37 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     flow,
     timers,
   });
-  const logger = options.logger ?? silent;
-  const providers = options.providers ?? assembleProviders({ appEnv: options.appEnv, logger });
-  const media = createMedia({ tx, clock, assembly, events, storage: providers.storage, channel });
+  const providers =
+    options.providers ??
+    assembleProviders({
+      appEnv: options.appEnv,
+      logger,
+      settings: {
+        ...(options.keys?.MINIO ? { storage: { minio: options.keys.MINIO } } : {}),
+        ...(options.wechat
+          ? { wechat: { appid: options.wechat.config.appid, secret: options.wechat.config.secret } }
+          : {}),
+      },
+      ...(options.wechat
+        ? {
+            wechat: options.wechat.transport,
+          }
+        : {}),
+    });
+  const media = createMedia({
+    tx,
+    clock,
+    assembly,
+    events,
+    storage: providers.storage,
+    channel,
+    wechatImage: {
+      appid: options.wechat?.config.appid,
+      provider: providers.wechat,
+      fallback: providers.media,
+      recentWechatOpenid,
+    },
+  });
   const startupChecks = createStartupChecks({
     db: prisma,
     appEnv: options.appEnv,
@@ -165,6 +222,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const alerts = alertsOf(assembly);
   // ops 的周期任务与违规上报端口要连接、时钟与装配结果（W0-24）
   bindOps({ db: prisma, tx, clock, assembly });
+  const closeAnalytics = bindAnalytics({ clock });
   bindContent(assembly);
   const closePublish = bindPublish(assembly);
   const deliveryCore = {
@@ -194,6 +252,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const timing = { tx, assembly, registry: timers.registry, clock, alerts, channel };
   return {
     closeWebhooks,
+    closeAnalytics,
     reprocessWebhooks: (beat) => webhooks.scan(beat),
     closeOrder: () => {
       closeStart();

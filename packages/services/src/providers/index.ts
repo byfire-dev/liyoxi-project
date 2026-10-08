@@ -7,6 +7,9 @@
 // 领域模块不引本文件，只引 ./types.ts；驱动只在装配处（kernel）经本文件引入（D7 第 2.2 节 D8）。
 
 import { createConsoleSms } from "./sms/console.js";
+import type { Redis } from "ioredis";
+import { createWechatDriver } from "./wechat/driver.js";
+import { createRedisTokenCache } from "./wechat/token.js";
 import { createMinioStorage, LOCAL_MINIO } from "./storage/minio.js";
 import type { MinioConfig } from "./storage/minio.js";
 import { guardProviders, PROVIDER_NAMES } from "./types.js";
@@ -48,6 +51,7 @@ export {
  * 它们从哪些环境变量来、怎样并进 loadEnv 与 .env.example，本包没有做，原因见 README.md“环境变量”一节。
  */
 export interface ProviderSettings {
+  wechat?: { appid: string; secret: string };
   sms?: {
     /** 显式选控制台短信。不写时：local、test 用控制台输出，stg、prod 为未配置 */
     driver?: "console";
@@ -70,6 +74,14 @@ export interface CreateProvidersOptions {
   settings?: ProviderSettings;
   /** 外呼前钩子；缺省空转。W0-20 接上 kernel 的事务标记 */
   beforeCall?: BeforeProviderCall;
+  /** 借用进程连接；只登记本工厂创建的驱动的关闭函数。 */
+  wechat?: {
+    redis: Pick<Redis, "get" | "set" | "eval"> & { options: { keyPrefix?: string } };
+    prefix: string;
+    now: () => Date;
+    registerClose: (close: () => Promise<void>) => void;
+    fetchImpl?: typeof fetch;
+  };
 }
 
 /** 选项与环境对不上：启动即失败。message 只写接口名与原因，不带任何配置值 */
@@ -175,6 +187,8 @@ export function createProviders(options: CreateProvidersOptions): Providers {
   const { appEnv, logger } = options;
   const settings = options.settings ?? {};
   const local = isLocalEnv(appEnv);
+  if ((settings.wechat === undefined) !== (options.wechat === undefined))
+    throw new ProviderConfigError("wechat", "完整配置与运行时依赖须同时提供");
 
   const chosen: Providers = {
     ...unconfiguredProviders,
@@ -187,6 +201,23 @@ export function createProviders(options: CreateProvidersOptions): Providers {
     // wechatPay（G4-A）、ocr、asr、llm（G3-C）、wecom（G7-A）、mail（G4-B）、invoice（V1.1）：
     // 真实驱动没到之前一律未配置
   };
+
+  if (settings.wechat && options.wechat) {
+    const transport = options.wechat;
+    const driver = createWechatDriver(
+      {
+        ...settings.wechat,
+        releaseChannel: local ? "develop" : appEnv === "stg" ? "trial" : "release",
+      },
+      {
+        cache: createRedisTokenCache(transport.redis, transport.prefix),
+        now: transport.now,
+        fetchImpl: transport.fetchImpl,
+      },
+    );
+    transport.registerClose(driver.close);
+    chosen.wechat = driver.provider;
+  }
 
   const providers = guardProviders(chosen, options.beforeCall ?? noop);
   logProviderStatus(logger, providers);

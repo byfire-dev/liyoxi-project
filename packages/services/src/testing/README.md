@@ -221,6 +221,8 @@ const report = await runM0Chain({
 - 这里不注入故障。重复投递、进程中断、Redis 不可用下的“恰好一次”由 `apps/worker/test/fault/` 管；整套故障注入用例一条命令 `pnpm test:fault`，清单在 [docs/plan/m0-exit.md](../../../../docs/plan/m0-exit.md) 第 4 节。
 - 经 HTTP 的写请求重放（`Idempotency-Key` 请求头、`Idempotent-Replayed` 应答头）不在这条链路里，由 `apps/api/test/idempotency.test.ts` 管。M1 的接口级端到端脚本（W1-21）在 `apps/api/test/e2e/` 自建运行器；任务进程一侧“中继 → 派发 → 消费 → 扫描”怎么一步一步推，可以照 `runM0Chain` 的写法。
 
+M1 的 `drainEvents` 使用真实 `expand`、`claimDeliveries` 和 `consumeDelivery`。一批最多展开 200 条；没有订阅者的事件也必须全部标记已展开。没有认领到投递时，只有全部投递已完成且不存在 `publishedAt=null` 的事件才返回排空。被其他事务锁住的待展开行也算未排空，仍受原 32 轮上限约束；退避、死信、事件时刻与本轮资源归属检查保持原样。真实数据库回归在 `m1-transport.db.test.ts`；样例订阅者只用于测试装配，不登记到生产目录。
+
 ### 命令：`pnpm demo:m0`
 
 ```sh

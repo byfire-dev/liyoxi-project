@@ -50,19 +50,22 @@ import type { StorageProvider } from "../providers/types.js";
 
 启动日志里十二个接口各一行（`provider <接口名>: <状态>`），最后一行 `providers ready` 汇总。只打状态，不打任何配置值。
 
-启动失败只有一种：在 stg、prod 选了只限本地的驱动（控制台短信、本地 MinIO），抛 `ProviderConfigError`。
+在 stg、prod 选了只限本地的驱动（控制台短信、本地 MinIO），或只提供微信配置与运行时依赖的一半，抛 `ProviderConfigError`。
 
 ## 4. 选项与环境变量
 
-`createProviders` 现在认三个选项（`ProviderSettings`）：`sms.driver`（`console`）、`storage.driver`（`minio`，另可用 `storage.minio` 覆盖连接参数）、`esign.imageSeal`（图片章开关）。
+`createProviders` 的三个本地选项（`ProviderSettings`）为 `sms.driver`（`console`）、`storage.driver`（`minio`，另可用 `storage.minio` 覆盖连接参数）、`esign.imageSeal`（图片章开关）。
 
-**这三个选项还没有对应的环境变量。** 任务书要把 Provider 的变量名加进 `loadEnv` 与 `.env.example`，本包没有做：`infra/ci/test/env-example.test.ts` 把键数写死成 6，加键必须改那一行，而改已有的门禁用例属放松类改动，不能随工作包 PR。要先有一个单独的 `gate-change` PR 把那条断言改成不写死键数，之后再把变量加进 `loadEnv`、`.env.example`，并在装配处映射成 `ProviderSettings`。在那之前不要另写一个读环境变量的入口绕开 `loadEnv`。详见 `docs/plan/status/W0-19.md` 的“偏差”。
+W2-21 增加 `settings.wechat { appid, secret }`，须同时提供借用的带前缀 Redis、时钟和关闭登记。运行时只从 `loadEnv().WECHAT` 注入；`WECHAT_APPID` 与三个 `*_FILE` 配置须完整成组。完整配置选择真实微信驱动，local/test、stg、prod 分别使用 develop、trial、release；初始化零 HTTP。全未配保留表中的本地假实现或未配置行为；显式 `RuntimeOptions.providers` 替身优先。运行时关闭先取消自有驱动在途请求，再关闭父 Redis；驱动不关闭借来的 Redis。密钥值与 openid 不进生效状态日志。
+
+本地存储地址通过 `MINIO_ENDPOINT`、`MINIO_PUBLIC_ENDPOINT` 从 `loadEnv().MINIO` 注入 API 和 worker，仅 local/test 可用；两项各自可选，未填沿用固定开发默认。只接受不含凭据、查询、片段与路径前缀的 HTTP(S) 根地址。短信驱动与图片章开关仍未提供环境变量入口。早期关于样例键数写死的限制已解除，当前 `infra/ci/test/env-example.test.ts` 动态核对 `loadEnv` 的键集合。
 
 真实驱动的变量名由带来驱动的包登记，前缀按 D7 第 2.5 节（`WXPAY_*`、`COS_*`、`CI_*`、`WECOM_*`、`OCR_*`）；D7 没给前缀的用接口名大写（`SMS_*`、`MAIL_*` 等）。密钥类变量在任何环境只认 `*_FILE`；成组变量半配即启动失败（往 `kernel/env.ts` 的 `ENV_GROUPS` 里加组）。
 
 ## 5. 本地 MinIO
 
 - 连接参数是 `infra/compose/local.yml` 那套共享容器的固定开发值（`LOCAL_MINIO`），不是密钥；与 compose 文件是否一致由 `storage/minio.test.ts` 核对。
+- `endpoint` 用于服务端存储操作，`publicEndpoint` 用于客户端直传与签读；不配对外地址时沿用内部地址。真机地址与内部地址不同时分别构建 SDK 客户端，GET 的 Host 参与签名，代理必须保留 Host。不得签发后替换 URL 主机。局域网用法见 [整套环境](../../../../infra/stack/README.md) 第 4 节。
 - AWS SDK 缺省会去读环境变量与 `~/.aws` 下的文件找配置。驱动把这些选项全部写明，SDK 就不读那些文件；升级 AWS SDK 后要重查一遍（看有没有新增的这类选项）。
 - 四个桶：`lyx-local-secure`、`lyx-local-asset`、`lyx-local-media`、`lyx-local-pub`，都是私有桶。驱动第一次用到时建好，已有的不动；compose 里不另建桶。
 - 直传只能落在写入区 `incoming/`；入库是条件复制到正式区（对上源对象的 etag 才复制）。
@@ -96,3 +99,17 @@ fakes.wechatPay.failNext("createJsapiOrder");
 - 假微信：文本检测可切到“服务不可用”；图片审核直接放行。
 - 假媒体：体检给预置报告；转码、打包直接完成；视频审核直接放行。
 - 假存储：对象在内存里，不依赖 MinIO；到期与否按替身的时钟判。
+
+## 9. 通知发送结果协议（W2-17 前置 PR2）
+
+只有 `wechat.sendSubscribeMessage`、三个旧短信方法、`wecom.sendAppMessage`、`mail.send` 使用 `NotificationProviderResult<T>`，入参增加可选 `signal`。方法名、旧 `ok(value)` / `failed(reason,message)` 结果、邮件原 `value.messageId` 都兼容；通用 `ProviderResult` 和支付、存储等能力不变。
+
+通知失败可带 `notification: { acceptance, code }`，分类只取 `NOTIFICATION_FAILURE_CODES`；构造器 `notificationFailed` 对强转值、继承字段和额外字段同样做运行时验证。`acceptance='not_accepted'` 需驱动确有未受理证据；`unknown` 表示不能判断。旧通用失败没有这项证明，调用方必须视为受理未知；不能因为 `unavailable` 或 `rejected` 就重发。这项协议不决定重试、退款或派发状态。
+
+`notificationOk(value, providerMsgId?)` 保留旧 value；服务商标识可选，仅接受≤64字符的 ASCII 标识（字母数字开头，其余可含 `._:-`），不接受URL、正文或控制字符。没有实际标识就省略，成功也不代表终端到达。替身/local成功不会伪造此字段。
+
+通知替身增加 `failNotificationNext(method, detail, options?)`，仅允许本接口的通知发送方法；旧 `failNext` 原样不带受理证明。预取消不执行发送action；替身的 `delayNext` 沿旧语义在调用开始就执行action，仅压住应答，因此途中取消返回 `unknown/aborted`，不会撤销已记录发送。取消、正常释放或action程序错误均清除自己的等待项/监听器；不自动再调用。`signal.reason` 不进入结果或日志。
+
+未配置通知明确返回 `not_accepted/unconfigured`，预取消返回 `not_accepted/aborted`，不外呼。local微信/consoleSMS只在同步日志之前检查取消，保留已有local/test日志行为；它们没有真实外部请求。生产工厂/替身的原事务guard仍在最外层先执行，预取消也不能绕过正在存活的本层或祖先TX。
+
+真实驱动尚未在本包接入；未来驱动必须把signal传递至全部实际IO，并在返回取消前释放自有资源。该字段本身不能让不支持取消的旧驱动终止网络。这里没有新增HTTP/x01/队列/DDL/派发器、外部回执处理或真实短信，W2-17整体仍待PR1与本PR2实际main后由PR3集成。

@@ -179,7 +179,7 @@ export default function Review() {
                     } finally {
                       if (pendingAuthorization.current === context) {
                         pendingAuthorization.current = null;
-                        if (action.isCurrent(context)) setAuthorizingContext(null);
+                        if (action.isContextCurrent(context)) setAuthorizingContext(null);
                       }
                     }
                   })();
