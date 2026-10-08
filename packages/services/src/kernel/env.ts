@@ -43,6 +43,8 @@ export const ENV_KEYS: readonly string[] = [
   "DATABASE_URL_FILE",
   "REDIS_URL",
   "REDIS_URL_FILE",
+  "MINIO_ENDPOINT",
+  "MINIO_PUBLIC_ENDPOINT",
   "DATA_KEYS_FILE",
   "BIDX_KEYS_FILE",
   "AUTH_KEYS_FILE",
@@ -84,6 +86,8 @@ export interface Env {
   readonly LOG_LEVEL: LogLevel;
   readonly DATABASE_URL: string;
   readonly REDIS_URL: string;
+  /** 本地 MinIO 的服务端地址与客户端签名地址；独立可选，只允许 local、test。 */
+  readonly MINIO?: { readonly endpoint?: string; readonly publicEndpoint?: string };
   /** 数据加密密钥；两份密钥文件都没配时没有这一项 */
   readonly DATA_KEYS?: DataKeysConfig;
   /** 盲索引密钥；同上 */
@@ -140,6 +144,51 @@ export class EnvError extends Error {
 function read(source: EnvSource, key: string): string | undefined {
   const value = source[key]?.trim();
   return value === undefined || value === "" ? undefined : value;
+}
+
+/** 保持端点为根 URL，避免 URL 解析器把路径、反斜杠或控制字符静默归一化。 */
+function isMinioEndpoint(value: string): boolean {
+  if (!/^https?:\/\/[^/?#@\\\s\p{Cc}]+\/?$/iu.test(value)) return false;
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      url.hostname.length > 0 &&
+      url.username === "" &&
+      url.password === "" &&
+      url.pathname === "/" &&
+      url.search === "" &&
+      url.hash === ""
+    );
+  } catch {
+    return false;
+  }
+}
+
+function readMinio(
+  source: EnvSource,
+  appEnv: string | undefined,
+  issues: EnvIssue[],
+): Env["MINIO"] {
+  const config: { endpoint?: string; publicEndpoint?: string } = {};
+  for (const [key, field] of [
+    ["MINIO_ENDPOINT", "endpoint"],
+    ["MINIO_PUBLIC_ENDPOINT", "publicEndpoint"],
+  ] as const) {
+    const value = read(source, key);
+    if (value === undefined) continue;
+    if (!PLAINTEXT_ENVS.includes(appEnv ?? "")) {
+      issues.push({ key, reason: "只允许在 local、test 环境配置" });
+    } else if (!isMinioEndpoint(value)) {
+      issues.push({
+        key,
+        reason: "须为 http(s) 根 URL，不接受账号、密码、路径、查询、片段或反斜杠",
+      });
+    } else {
+      config[field] = value;
+    }
+  }
+  return Object.keys(config).length > 0 ? Object.freeze(config) : undefined;
 }
 
 /**
@@ -458,6 +507,7 @@ export function loadEnv(
   const bidxKeys = readKeyFile(source, "BIDX_KEYS", issues, parseBidxKeys);
   const authKeys = readKeyFile(source, "AUTH_KEYS", issues, parseAuthKeys);
   const wechat = readWechat(source, issues);
+  const minio = readMinio(source, appEnv, issues);
   const clientErrorProjects = readKeyFile(
     source,
     "CLIENT_ERROR_PROJECTS",
@@ -492,6 +542,7 @@ export function loadEnv(
     LOG_LEVEL,
     DATABASE_URL,
     REDIS_URL,
+    ...(minio ? { MINIO: minio } : {}),
     ...(dataKeys && bidxKeys ? { DATA_KEYS: dataKeys, BIDX_KEYS: bidxKeys } : {}),
     ...(authKeys ? { AUTH_KEYS: authKeys } : {}),
     ...(wechat ? { WECHAT: wechat } : {}),

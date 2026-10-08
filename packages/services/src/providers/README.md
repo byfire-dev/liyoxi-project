@@ -58,13 +58,14 @@ import type { StorageProvider } from "../providers/types.js";
 
 W2-21 增加 `settings.wechat { appid, secret }`，须同时提供借用的带前缀 Redis、时钟和关闭登记。运行时只从 `loadEnv().WECHAT` 注入；`WECHAT_APPID` 与三个 `*_FILE` 配置须完整成组。完整配置选择真实微信驱动，local/test、stg、prod 分别使用 develop、trial、release；初始化零 HTTP。全未配保留表中的本地假实现或未配置行为；显式 `RuntimeOptions.providers` 替身优先。运行时关闭先取消自有驱动在途请求，再关闭父 Redis；驱动不关闭借来的 Redis。密钥值与 openid 不进生效状态日志。
 
-**这三个选项还没有对应的环境变量。** 任务书要把 Provider 的变量名加进 `loadEnv` 与 `.env.example`，本包没有做：`infra/ci/test/env-example.test.ts` 把键数写死成 6，加键必须改那一行，而改已有的门禁用例属放松类改动，不能随工作包 PR。要先有一个单独的 `gate-change` PR 把那条断言改成不写死键数，之后再把变量加进 `loadEnv`、`.env.example`，并在装配处映射成 `ProviderSettings`。在那之前不要另写一个读环境变量的入口绕开 `loadEnv`。详见 `docs/plan/status/W0-19.md` 的“偏差”。
+本地存储地址通过 `MINIO_ENDPOINT`、`MINIO_PUBLIC_ENDPOINT` 从 `loadEnv().MINIO` 注入 API 和 worker，仅 local/test 可用；两项各自可选，未填沿用固定开发默认。只接受不含凭据、查询、片段与路径前缀的 HTTP(S) 根地址。短信驱动与图片章开关仍未提供环境变量入口。早期关于样例键数写死的限制已解除，当前 `infra/ci/test/env-example.test.ts` 动态核对 `loadEnv` 的键集合。
 
 真实驱动的变量名由带来驱动的包登记，前缀按 D7 第 2.5 节（`WXPAY_*`、`COS_*`、`CI_*`、`WECOM_*`、`OCR_*`）；D7 没给前缀的用接口名大写（`SMS_*`、`MAIL_*` 等）。密钥类变量在任何环境只认 `*_FILE`；成组变量半配即启动失败（往 `kernel/env.ts` 的 `ENV_GROUPS` 里加组）。
 
 ## 5. 本地 MinIO
 
 - 连接参数是 `infra/compose/local.yml` 那套共享容器的固定开发值（`LOCAL_MINIO`），不是密钥；与 compose 文件是否一致由 `storage/minio.test.ts` 核对。
+- `endpoint` 用于服务端存储操作，`publicEndpoint` 用于客户端直传与签读；不配对外地址时沿用内部地址。真机地址与内部地址不同时分别构建 SDK 客户端，GET 的 Host 参与签名，代理必须保留 Host。不得签发后替换 URL 主机。局域网用法见 [整套环境](../../../../infra/stack/README.md) 第 4 节。
 - AWS SDK 缺省会去读环境变量与 `~/.aws` 下的文件找配置。驱动把这些选项全部写明，SDK 就不读那些文件；升级 AWS SDK 后要重查一遍（看有没有新增的这类选项）。
 - 四个桶：`lyx-local-secure`、`lyx-local-asset`、`lyx-local-media`、`lyx-local-pub`，都是私有桶。驱动第一次用到时建好，已有的不动；compose 里不另建桶。
 - 直传只能落在写入区 `incoming/`；入库是条件复制到正式区（对上源对象的 etag 才复制）。

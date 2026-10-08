@@ -89,8 +89,12 @@ export interface WorkerServicesOptions {
   readonly report?: (violation: KernelViolation) => void;
   /** 进程的日志口：Provider 的生效状态、放行的自检项往这里记。不给即不记（用例） */
   readonly logger?: ProviderLogger;
-  /** loadEnv 的结果里那两份密钥（把 env 整个传进来即可）：启动自检用。没配就不给 */
-  readonly keys?: { readonly DATA_KEYS?: DataKeysConfig; readonly BIDX_KEYS?: BidxKeysConfig };
+  /** loadEnv 的密钥与本地存储配置（把 env 整个传进来即可）：启动自检及 Provider 装配用。 */
+  readonly keys?: {
+    readonly DATA_KEYS?: DataKeysConfig;
+    readonly BIDX_KEYS?: BidxKeysConfig;
+    readonly MINIO?: Env["MINIO"];
+  };
   /** 换掉十二个 Provider：只有用例会给（替身）。不给即 assembleProviders 按环境选实现 */
   readonly providers?: Providers;
   /** 只给测试装配：样例事件与样例 kind 的名字来源 */
@@ -183,11 +187,14 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     assembleProviders({
       appEnv: options.appEnv,
       logger,
+      settings: {
+        ...(options.keys?.MINIO ? { storage: { minio: options.keys.MINIO } } : {}),
+        ...(options.wechat
+          ? { wechat: { appid: options.wechat.config.appid, secret: options.wechat.config.secret } }
+          : {}),
+      },
       ...(options.wechat
         ? {
-            settings: {
-              wechat: { appid: options.wechat.config.appid, secret: options.wechat.config.secret },
-            },
             wechat: options.wechat.transport,
           }
         : {}),
