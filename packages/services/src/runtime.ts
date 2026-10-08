@@ -1,6 +1,7 @@
 import { bindAnalytics, createAnalyticsReceiver } from "./analytics/index.js";
 import type { AnalyticsReceiver } from "./analytics/index.js";
-import { createSubscribeResults } from "./notify/index.js";
+import { createSubscribeResults, createWechatReceiptHandler } from "./notify/index.js";
+import { findWechatIdentityId, recentWechatOpenid } from "./identity/index.js";
 import type { SubscribeResults } from "./notify/index.js";
 import { createClientErrorForwarder } from "./ops/index.js";
 import type { ClientErrorForwarder } from "./ops/index.js";
@@ -93,6 +94,7 @@ import {
   createPiiReveal,
   bindWebhooks,
   createWebhooks,
+  createWechatMessageSource,
 } from "./security/index.js";
 import type { Webhooks, WebhookSource } from "./security/index.js";
 import {
@@ -290,13 +292,47 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   // 违规上报端口（invariants.report）的实现在 ops，要连接、时钟与装配结果（W0-24）
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
   const unbindAnalytics = bindAnalytics({ clock });
-  const providers = options.providers ?? assembleProviders({ appEnv: env.APP_ENV, logger });
+  const wechatClosers: Array<() => Promise<void>> = [];
+  const providers =
+    options.providers ??
+    assembleProviders({
+      appEnv: env.APP_ENV,
+      logger,
+      ...(env.WECHAT
+        ? {
+            settings: { wechat: { appid: env.WECHAT.appid, secret: env.WECHAT.secret } },
+            wechat: {
+              redis,
+              prefix: keyPrefix,
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => {
+                wechatClosers.push(close);
+              },
+            },
+          }
+        : {}),
+    });
   const events = createEvents({ assembly, clock, tx });
+  const wechatSources = env.WECHAT
+    ? [
+        createWechatMessageSource({
+          cryptoConfig: {
+            appid: env.WECHAT.appid,
+            token: env.WECHAT.messageToken,
+            encodingAESKey: env.WECHAT.messageEncodingAESKey,
+          },
+          logger,
+          findWechatIdentityId,
+          handleImage: (t, input, ctx) => media.applyWechatImageResult(t, input, ctx),
+          handleSubscription: createWechatReceiptHandler({ clock, logger }),
+        }),
+      ]
+    : [];
   const webhooks = createWebhooks({
     tx,
     clock,
     events,
-    sources: options.webhookSources,
+    sources: options.webhookSources ?? wechatSources,
     alerts: alertsOf(assembly),
   });
   const unbindWebhooks = bindWebhooks(webhooks);
@@ -327,6 +363,12 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     storage: providers.storage,
     channel: mediaChannel,
     videoMaxMb: () => config.params.get("upload.weapp_video_max_mb"),
+    wechatImage: {
+      appid: env.WECHAT?.appid,
+      provider: providers.wechat,
+      fallback: providers.media,
+      recentWechatOpenid,
+    },
   });
   const unbindContent = bindContent(assembly);
   const unbindPublish = bindPublish(assembly);
@@ -483,6 +525,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
+      await Promise.allSettled(wechatClosers.map((close) => close()));
       await clientErrors.close();
       unbindOrderStart();
       unbindOrder();

@@ -1,7 +1,9 @@
 // 六个微信端点的有限投影；不读取或输出上游 errmsg/detail/session_key。
-import { failed, ok } from "../types.js";
+import { failed, notificationFailed, notificationOk, ok } from "../types.js";
 import type {
   ContentCheckOutcome,
+  NotificationProviderFailure,
+  NotificationProviderResult,
   ProviderFailure,
   ProviderResult,
   WechatProvider,
@@ -111,4 +113,52 @@ export function imageResult(value: unknown): ProviderResult<ContentCheckOutcome>
 }
 export function subscribeResult(value: unknown): ProviderResult<void> {
   return successful(value) ? ok(undefined) : unavailable();
+}
+
+/** 仅完整2xx平台拒绝证明未受理；未知结果不能支持自动重发。 */
+export function subscribeNotificationFailure(
+  failure: WechatHttpFailure,
+): NotificationProviderFailure {
+  const codes = new Map<
+    number,
+    | "invalid_openid"
+    | "template_invalid"
+    | "no_quota"
+    | "provider_rejected"
+    | "field_mismatch"
+    | "rate_limited"
+  >([
+    [40003, "invalid_openid"],
+    [40037, "template_invalid"],
+    [43101, "no_quota"],
+    [43107, "provider_rejected"],
+    [45168, "provider_rejected"],
+    [47003, "field_mismatch"],
+    [43108, "rate_limited"],
+    [40001, "provider_rejected"],
+    [40014, "provider_rejected"],
+    [42001, "provider_rejected"],
+  ]);
+  const code =
+    failure.status !== undefined && failure.status >= 200 && failure.status < 300
+      ? codes.get(failure.code ?? 0)
+      : undefined;
+  return notificationFailed(
+    code === undefined || tokenInvalid(failure.code) || failure.code === 43108
+      ? "unavailable"
+      : "rejected",
+    "微信通知请求未完成",
+    {
+      acceptance: code === undefined ? "unknown" : "not_accepted",
+      code: code ?? "unknown_outcome",
+    },
+  );
+}
+export function subscribeNotificationResult(value: unknown): NotificationProviderResult<void> {
+  return successful(value)
+    ? notificationOk(undefined)
+    : notificationFailed("unavailable", "微信通知结果不确定", {
+        acceptance: "unknown",
+        code: "unknown_outcome",
+      });
 }

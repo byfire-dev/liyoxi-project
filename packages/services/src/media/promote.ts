@@ -1,11 +1,19 @@
 import { AppError, createIdentityContext, lockRows, uuidv7 } from "../kernel/index.js";
 import type { StorageBucket } from "../providers/types.js";
 import type { BoundMediaDeps } from "./context.js";
+import { queueWechatImageAudit, runWechatImageAudit } from "./wechat-image-audit.js";
 import { emitFile, notifyPromote } from "./upload.js";
 export interface PromoteRef {
   readonly jobId: string;
 }
 export async function promote(deps: BoundMediaDeps, { jobId }: PromoteRef): Promise<void> {
+  if (deps.wechatImage) {
+    const kind = await deps.tx.run((tx) =>
+      tx.mediaJob.findUnique({ where: { id: jobId }, select: { kind: true } }),
+    );
+    if (kind && ["audit_image_wx", "audit_image"].includes(kind.kind))
+      return runWechatImageAudit(deps, jobId);
+  }
   const owner = uuidv7();
   const claimed = await deps.tx.run(async (tx) => {
     await lockRows(tx, "media_job", [jobId]);
@@ -81,7 +89,7 @@ export async function promote(deps: BoundMediaDeps, { jobId }: PromoteRef): Prom
       outcome = { reason: "copy_verify_failed", retryable: false };
     else outcome = { etag: copied.value.etag, size: checked.value.size };
   }
-  await deps.tx.run(async (tx) => {
+  const auditId = await deps.tx.run(async (tx) => {
     await lockRows(tx, "media_job", [jobId]);
     const job = await tx.mediaJob.findUniqueOrThrow({ where: { id: jobId } });
     // 租约过期、重领或取消后的旧外呼结果不能覆盖当前尝试。
@@ -130,6 +138,11 @@ export async function promote(deps: BoundMediaDeps, { jobId }: PromoteRef): Prom
         current,
         "file.stored",
       );
+      return queueWechatImageAudit(tx, deps, {
+        ...current,
+        status: "stored",
+        sizeBytes: BigInt(outcome.size),
+      });
     } else {
       const retry = outcome.retryable && job.attemptNo < job.maxAttempts;
       await tx.mediaJob.updateMany({
@@ -148,6 +161,7 @@ export async function promote(deps: BoundMediaDeps, { jobId }: PromoteRef): Prom
         await reject(tx, deps, file.id, outcome.retryable ? "copy_verify_failed" : outcome.reason);
     }
   });
+  if (auditId) await notifyPromote(deps, auditId);
 }
 async function reject(
   tx: Parameters<typeof lockRows>[0],
@@ -174,7 +188,7 @@ export async function scanPromote(deps: BoundMediaDeps): Promise<number> {
   const jobs = await deps.tx.run((tx) =>
     tx.mediaJob.findMany({
       where: {
-        kind: "promote",
+        kind: deps.wechatImage ? { in: ["promote", "audit_image_wx", "audit_image"] } : "promote",
         OR: [
           {
             state: "queued",
@@ -182,6 +196,9 @@ export async function scanPromote(deps: BoundMediaDeps): Promise<number> {
             nextRunAt: { lte: now },
           },
           { state: "running", nextRunAt: { lte: now } },
+          ...(deps.wechatImage
+            ? [{ state: { in: ["submitting", "submitted"] }, nextRunAt: { lte: now } }]
+            : []),
         ],
       },
       select: { id: true },

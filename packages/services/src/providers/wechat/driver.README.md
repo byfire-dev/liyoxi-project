@@ -37,3 +37,17 @@ token 为 getStableAccessToken 普通模式；旧 getAccessToken 不作失败降
 半配/未配、生产选择与 runtime close 属 root 装配验收；本叶绿不能代替。
 E2真实配置、平台接收地址、真机手机号组件、真实消息/图片回调均仍外部未验。
 W221 两 HTTP/回调/三个桩仍需各叶整合，一包一PR；本文不宣称全包完成。
+
+订阅发送复用 actual main 的 `NotificationProviderResult`：调用方 `signal` 只
+取消本方法的等待/目标 HTTP，不取消其他 caller 共用的取 token；外层 guard
+仍先执行。目标尚未发出的失败为 `not_accepted`，发出后网络/取消/畸形或
+未知回应为 `unknown`；完整 2xx 的有限官方拒绝码才证明未受理。已解码结果
+不被随后取消或 CAS token 清理覆盖；既不补发当前请求，也不把 `unavailable`
+当重发授权。原通用 mapping 及其他五方法不新增通知 metadata。
+
+官方 sendMessage 响应只列 errcode/errmsg，本驱动不给订阅成功生成 msgId。
+43101 仅能确定未订阅或次数已用完，映射 no_quota；43108 映射 rate_limited；
+42001 沿已有通用 tokenInvalid 的完整 2xx 拒绝证据，返回 provider_rejected，
+不称该码是发送页面新列码。所有失败字段有限，不输出原 errmsg/abort.reason。
+新 notification.test.ts 使用虚构响应和本机 owned socket 证明取消及结果边界；
+服务端订阅回执/quota 与真实消息到达仍属后续集成，不由本叶伪造。

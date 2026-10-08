@@ -5,6 +5,7 @@
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { parseArgs } from "node:util";
+import { Redis } from "ioredis";
 
 import {
   assembleServices,
@@ -35,6 +36,15 @@ async function main(): Promise<void> {
   // 装配：登记有重名、缺实现，订阅者、定时器处理器、周期任务与契约对不上，都在这几行抛错
   const assembly = assembleServices({ entry: "worker", appEnv: env.APP_ENV });
   const database = connectWorkerDatabase(env.DATABASE_URL);
+  const wechatClosers: Array<() => Promise<void>> = [];
+  const wechatRedis = env.WECHAT
+    ? new Redis(env.REDIS_URL, {
+        lazyConnect: true,
+        keyPrefix: `lyx:${env.APP_ENV}:`,
+        maxRetriesPerRequest: 1,
+      })
+    : undefined;
+  wechatRedis?.on("error", () => logger.warn({ evt: "wechat.cache_down" }, "微信令牌缓存不可用"));
   const channel = values.check
     ? undefined
     : createQueueChannel({
@@ -53,6 +63,21 @@ async function main(): Promise<void> {
     report: (violation) => logger.error({ err: violation }, "内核违规"),
     logger,
     keys: env,
+    ...(env.WECHAT && wechatRedis
+      ? {
+          wechat: {
+            config: env.WECHAT,
+            transport: {
+              redis: wechatRedis,
+              prefix: `lyx:${env.APP_ENV}:`,
+              now: () => new Date(),
+              registerClose: (close: () => Promise<void>) => {
+                wechatClosers.push(close);
+              },
+            },
+          },
+        }
+      : {}),
   });
   await services.selfCheck();
   const summary = {
@@ -65,6 +90,8 @@ async function main(): Promise<void> {
   };
   if (channel === undefined) {
     logger.info(summary, "装配与自检通过");
+    await Promise.allSettled(wechatClosers.map((close) => close()));
+    wechatRedis?.disconnect();
     await database.close();
     return;
   }
@@ -80,7 +107,9 @@ async function main(): Promise<void> {
     if (stopping) return;
     stopping = true;
     logger.info({ signal }, "收到终止信号：停循环、收在途任务、让出租约");
+    await Promise.allSettled(wechatClosers.map((close) => close()));
     await runtime.stop();
+    wechatRedis?.disconnect();
     await Promise.allSettled([channel.close(), lease.close(), database.close()]);
     process.exit(0);
   };

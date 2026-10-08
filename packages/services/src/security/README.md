@@ -93,3 +93,18 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 超额接口保留既有小时/日及全局限额：只有 PII 专用档位触发才带 `{ window, limit }`，Redis 降级返回实际减半额度。`raiseLimit(staffId, window, limit)` 尝试通过 alerts 端口上报 `pii.reveal_limit`，维度仅员工 id，告警失败不能替换429或丢失 Retry-After。当前 alertsOf 未配置持久实现，因此此包不声称告警已持久送达；后续由 W2-24 接入。
 
 `pii-reveal.db.test.ts` 覆盖真实 own/group/all、独立提交顺序、审计/解密故障、可空/JSON字段、嵌套拒绝；`apps/api/test/system-security.test.ts` 验证真实 HTTP 权限、再验证、限流与审计失败500零泄露。
+
+## 8. 小程序安全消息来源（W2-21）
+
+`createWechatMessageSource({cryptoConfig,findWechatIdentityId,handleImage?,handleSubscription?,logger?})` 固定为 `wechat/inbox`，由组合根登记。配置和加密只使用 security 同模块 crypto；身份与领域处理通过传入 Tx 的函数注入，不向上 import identity/media/notify。
+
+- `verify` 使用 `decryptPostDetailed` 的原始明文 SHA256，图片事件另取 `sha256("wxa_media_check:"+traceId)`。GET 原文 echo、四种客服固定加密转接及未知消息均不入箱；签名/时间/AppID 错误401，登记事件必需字段坏400，解密与持久化错误500，错误包体为空。
+- 同步 `payload` 提供合法去敏模板，`projectPayload` 在 accept 同一真实 Tx 按 appid/openid 读取身份，只保存 UUID 或 null；不保存原 openid、明文全文或任意扩展。查无身份的订阅事件整体 ignored；领域 handler 未装配时保留 failed/retry。
+- 项目防御界限：List 最多100项，标识256 UTF8字节，状态/码64字节、ErrorStatus256字节；这些不是平台最大值或 HTTP 流入口限量。官方 singleton List 仅在 wire 转成单项数组，restore 仍要求严格数组。正式 optional 字符串可缺省或为空，不造默认成功；有限 safe integer 转十进制，64位 MsgID 字符串原样保存，不安全数字拒绝。
+- 官方 errcode 仅数字0时 result有效；wire若提供非0/非数字码，回400且零入箱，缺省仍沿h01不抬必需。payload不保存errcode。
+- 审核 suggest 保存微信原生 `pass/review/risky`，媒体领域负责 risky→block；恢复只接受正式白名单字段。handler 收到的 receivedAt 来自已锁收件行的一次自身 select，处理重试不会改为当前时间。sent 回执、quota、图片任务/文件上下文由领域用例负责，来源不写跨域状态或补发。
+- 未登记消息只通过 optional logger 记录固定 kind/count；不记录客户端事件名、用户/正文。
+
+[官方安全模式与回复封装](https://developers.weixin.qq.com/miniprogram/dev/framework/server-ability/message-push.html)、[客服四类请求](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/customer-message/receive.html)、[订阅事件与单项 List](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/subscribe-message.html) 与[官方图片回调结果有效性](https://developers.weixin.qq.com/miniprogram/dev/server/API/sec-center/sec-check/api_mediacheckasync.html) 于2026-10-08取得公开 HTTP200正文。客服转接行为遵循正式 h01 §3.4；实际平台接收与运营客服配置继续未验，不以本地加密回复等同真实平台闭环。
+
+`wechat-message.test.ts` 使用独立 node:crypto 打包的假安全请求及隔离真库，验证同 Tx 投影/emit、零敏感载荷、20次去重、40001新事务重查、解绑重绑重放保真、持久接收时间、保存点回滚、未配处理器与正式 Provider TX guard。测试注入真实自然键读取，完整组合根另用 identity 公开函数验接线。此叶不标两 HTTP、一回调 x01、三桩或整包完成。

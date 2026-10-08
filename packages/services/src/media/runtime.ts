@@ -5,6 +5,7 @@ import { register, complete, refresh, cancel } from "./upload.js";
 import { getAdmin, getMerchant, createSigner, downloadUrls } from "./read.js";
 import { link, release } from "./refs.js";
 import { putSystemFile } from "./system.js";
+import { applyWechatImageResult } from "./wechat-image-audit.js";
 import { promote, scanPromote } from "./promote.js";
 import { readableByStaff } from "./access.js";
 import { bindFileRefTypes } from "./invariants.js";
@@ -73,6 +74,11 @@ export function createMedia(options: MediaDeps) {
     ) => downloadUrls(deps, signRead, ...args),
     promote: (ref: Parameters<typeof promote>[1]) => promote(deps, ref),
     scanPromote: () => scanPromote(deps),
+    applyWechatImageResult: (
+      tx: Parameters<typeof applyWechatImageResult>[1],
+      input: Parameters<typeof applyWechatImageResult>[2],
+      ctx: Parameters<typeof applyWechatImageResult>[3],
+    ) => applyWechatImageResult(deps, tx, input, ctx),
   };
 }
 export type Media = ReturnType<typeof createMedia>;

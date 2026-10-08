@@ -1,5 +1,5 @@
 // 六方法只负责平台协议，guard由原 withBeforeCall 外层统一执行一次。
-import { failed, ok } from "../types.js";
+import { failed, notificationFailed, ok } from "../types.js";
 import type { ProviderResult, WechatProvider, WechatTextScene } from "../types.js";
 import { createWechatClient, JSON_REQUEST_BYTES } from "./client.js";
 import type { WechatHttpOutcome, WechatRequest } from "./client.js";
@@ -12,7 +12,8 @@ import {
   object,
   phoneResult,
   sessionResult,
-  subscribeResult,
+  subscribeNotificationFailure,
+  subscribeNotificationResult,
   textResult,
   tokenInvalid,
   unavailable,
@@ -91,12 +92,30 @@ export function createWechatDriver(
     spec: Omit<WechatRequest, "signal">,
     project: (value: SuccessBody) => ProviderResult<T>,
     needsToken = true,
+    callerSignal?: AbortSignal,
   ): Promise<ProviderResult<T>> {
-    if (closed) return Promise.resolve(unavailable());
+    let targetStarted = false;
+    const stop = (aborted = false) =>
+      method === "sendSubscribeMessage"
+        ? notificationFailed("unavailable", "微信通知请求未完成", {
+            acceptance: targetStarted ? "unknown" : "not_accepted",
+            code: aborted ? "aborted" : "unknown_outcome",
+          })
+        : unavailable();
+    if (closed || callerSignal?.aborted) return Promise.resolve(stop(callerSignal?.aborted));
     if (spec.body && Buffer.byteLength(JSON.stringify(spec.body)) > JSON_REQUEST_BYTES)
-      return invalid();
+      return method === "sendSubscribeMessage"
+        ? Promise.resolve(
+            notificationFailed("rejected", "微信请求参数不合格", {
+              acceptance: "not_accepted",
+              code: "field_mismatch",
+            }),
+          )
+        : invalid();
     const controller = new AbortController();
     const signal = controller.signal;
+    const abort = () => controller.abort();
+    callerSignal?.addEventListener("abort", abort, { once: true });
     const timer = setTimeout(() => controller.abort(), METHOD_TIMEOUT_MS);
     timer.unref();
     const result = (async (): Promise<ProviderResult<T>> => {
@@ -105,25 +124,31 @@ export function createWechatDriver(
         if (needsToken) {
           const acquired = await wait(tokens.get(), signal);
           if (acquired === undefined || !acquired.ok || signal.aborted || closed)
-            return unavailable();
-          if (acquired.value.expiresAt <= deps.now().getTime()) return unavailable();
+            return stop(signal.aborted);
+          if (acquired.value.expiresAt <= deps.now().getTime()) return stop();
           token = acquired.value.token;
         }
-        if (signal.aborted || closed) return unavailable();
+        if (signal.aborted || closed) return stop(signal.aborted);
+        targetStarted = true;
         const response = await client.request({
           ...spec,
           signal,
           ...(token === undefined ? {} : { query: { ...spec.query, access_token: token } }),
         });
-        if (signal.aborted || closed) return unavailable();
-        if (!response.ok) {
-          if (token !== undefined && tokenInvalid(response.code))
-            await wait(tokens.invalidate(token), signal);
-          return mapWechatFailure(method, response);
-        }
-        return project(response.value);
+        if (method !== "sendSubscribeMessage" && (signal.aborted || closed)) return unavailable();
+        const projected = response.ok
+          ? project(response.value)
+          : method === "sendSubscribeMessage"
+            ? response.code === undefined && signal.aborted
+              ? stop(true)
+              : subscribeNotificationFailure(response)
+            : mapWechatFailure(method, response);
+        if (!response.ok && token !== undefined && tokenInvalid(response.code))
+          await wait(tokens.invalidate(token), signal);
+        return projected;
       } finally {
         clearTimeout(timer);
+        callerSignal?.removeEventListener("abort", abort);
       }
     })();
     pending.set(controller, result);
@@ -163,6 +188,13 @@ export function createWechatDriver(
       );
     },
     sendSubscribeMessage(input) {
+      if (input.signal?.aborted)
+        return Promise.resolve(
+          notificationFailed("rejected", "通知调用开始前已取消", {
+            acceptance: "not_accepted",
+            code: "aborted",
+          }),
+        );
       if (
         !inputText(input.openid) ||
         !inputText(input.templateId) ||
@@ -170,7 +202,12 @@ export function createWechatDriver(
         !object(input.data) ||
         !Object.values(input.data).every((value) => typeof value === "string")
       )
-        return invalid();
+        return Promise.resolve(
+          notificationFailed("rejected", "微信请求参数不合格", {
+            acceptance: "not_accepted",
+            code: "field_mismatch",
+          }),
+        );
       const data = Object.fromEntries(
         Object.entries(input.data).map(([key, value]) => [key, { value }]),
       );
@@ -189,7 +226,9 @@ export function createWechatDriver(
             lang: "zh_CN",
           },
         },
-        (value) => subscribeResult(value.json),
+        (value) => subscribeNotificationResult(value.json),
+        true,
+        input.signal,
       );
     },
     createMiniProgramCode(input) {
