@@ -33,10 +33,26 @@ function copyOfPackage(): string {
   symlinkSync(join(pkg, "node_modules"), join(copy, "node_modules"), "dir");
   const constraints = "docs/data-model/constraints";
   cpSync(join(repoRoot, constraints), join(dir, constraints), { recursive: true });
+  cpSync(
+    join(repoRoot, "docs/data-model/schema.prisma"),
+    join(dir, "docs/data-model/schema.prisma"),
+  );
   return copy;
 }
 
 describe("首版迁移", () => {
+  it("后续现行 schema 增表不会改变冻结首版重拼；底稿仍逐字节核对", { timeout: 60_000 }, () => {
+    const copy = copyOfPackage();
+    const schema = join(copy, "prisma/schema.prisma");
+    writeFileSync(
+      schema,
+      `${readFileSync(schema, "utf8")}\nmodel InitProofProbe {\n id String @id\n @@map("init_proof_probe")\n}\n`,
+    );
+    const result = check(copy);
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("重拼的结果与入库的迁移逐字节相同");
+  });
   it(
     "重拼的结果与入库的迁移逐字节相同；带 lyx:allow 的语句是登记的那 6 条",
     { timeout: 60_000 },

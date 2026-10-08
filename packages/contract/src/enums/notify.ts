@@ -64,7 +64,7 @@ export const NOTIFICATION_DELIVERY_ORIGIN = defineEnum(
 
 export const NOTIFICATION_DELIVERY_STATUS = defineEnum(
   "notification_delivery_status",
-  ["notification_delivery.status"],
+  ["notification_delivery.status", "notification_fanout.status"],
   ["pending", "sending", "sent", "failed", "skipped", "cancelled"],
 );
 

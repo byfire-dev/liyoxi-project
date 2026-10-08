@@ -2,11 +2,13 @@
 
 唯一的数据访问层：Prisma schema、迁移、客户端工厂。依据：[06](../../docs/06-data-model.md) 第 8 节、[开发计划](../../docs/08-development-plan.md) 第 5.7 节、W0-05 任务书。表结构以这里的迁移为准；`docs/data-model/` 下的 `schema.prisma` 与 `constraints/` 是首版迁移的底稿，接管后冻结。
 
+W2-17 独立结构能力增加 `notification_fanout`（13 列、6 CHECK、2 FK、5 索引），仅持久化公告分页进度；应用无 DELETE，readonly 沿原迁移属主默认 SELECT。新迁移、现行 Prisma、授权期望/下限、实际结构快照与字段文档一起核对，首版重拼改读冻结底稿，不改任何已经执行的迁移。完整派发、队列和恢复由 W2-17 PR3 在能力实际合入 main 后消费另验。见 [能力范围](../../docs/plan/changes/W2-17-notification-fanout-capability.md)。
+
 ## 1. 这里有什么
 
 | 路径 | 内容 |
 | --- | --- |
-| `prisma/schema.prisma` | 由底稿迁入，模型一字未改；只改了文件头注释与 `generator` 的输出目录 |
+| `prisma/schema.prisma` | 现行模型；首版从冻结底稿迁入，后续独立结构迁移同时维护这里 |
 | `prisma/migrations/20261005000000_init/migration.sql` | 首版迁移：166 张表与 00–15 的手写约束。拼出来的，不手改（第 4 节） |
 | `prisma/migrations/20261005060000_grants/migration.sql` | 第二个迁移：角色与授权。手写的，不改结构（第 9 节） |
 | `prisma.config.ts` | Prisma 的配置。连接串只取环境变量 `DATABASE_URL`，不读 `.env`，没有默认值 |
@@ -69,7 +71,7 @@ DATABASE_URL=postgresql://liyoxi:lyx-local-dev@localhost:5442/lyx_migrate_check 
 
 ## 4. 首版迁移是怎么来的
 
-迁移文件由脚本机械拼出：`prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script` 的输出，接上 `docs/data-model/constraints/` 下的 00–15（文件名顺序）。语义一字不改，只加了注释：文件头、每个来源前的分隔行、四类语句前各一行 `-- lyx:allow <理由>`（D7 第 8.3 节第 5 条：`DROP`、`RENAME`、`ALTER … TYPE`、不带默认值的 `SET NOT NULL`）。
+首版迁移由脚本机械拼出：Prisma 从冻结 `docs/data-model/schema.prisma` 离线出 DDL，接上 `docs/data-model/constraints/` 下的 00–15（文件名顺序）。现行模型新增表不会改变首版输出。语义一字不改，只加了注释：文件头、每个来源前的分隔行、四类语句前各一行 `-- lyx:allow <理由>`（D7 第 8.3 节第 5 条：`DROP`、`RENAME`、`ALTER … TYPE`、不带默认值的 `SET NOT NULL`）。
 
 ```sh
 pnpm --filter @liyoxi/db migration:build --check   # 重拼的结果应与入库的文件逐字节相同；并列出带 lyx:allow 的语句
@@ -110,7 +112,7 @@ PGHOST=localhost PGPORT=5442 PGUSER=liyoxi PGPASSWORD=lyx-local-dev python3 tool
 pnpm db:catalog-diff
 ```
 
-- 四段，任何一段不过即退出码 1：两个库都在 PostgreSQL 17 上；两份 `schema.prisma` 去掉文件头注释与 `generator` 块后逐字节相同；系统目录逐项相同；数量等于 06 第 1 节的两组口径。
+- 首版后由独立门禁包衔接两种证明：冻结底稿与只跑首版迁移的自有临时库保持逐项等价和首版固定数量；当前两个全迁移库保持原完整目录逐项相同，另核现行快照/数量及真实库→当前 Prisma schema 只读差异。后续结构不再要求现行模型与冻结底稿逐字节相同，也不删除任何首版证明；只有原素材搜索手写索引的已确认 Prisma 假动作可精确忽略。
 - 逐项比的是表、列、约束定义、索引定义、触发器、函数体六类，另加一类：序列（连当前值与持久性）、扩展（名字与版本）、视图与物化视图（定义）、外部表、类型（枚举、域、范围、独立的复合类型）、模式、策略、规则、统计对象、事件触发器、注释。`_prisma_migrations` 不计。口径与查询在 [db-lib.mjs](../../infra/ci/db-lib.mjs)。
 - 几处容易漏的也在比的范围里（第一轮复审试出来后补上的，各有一条反向用例）：表的 TOAST 选项；列的压缩方式与列选项；外键名下内部触发器的启停（停用之后外键的定义不变，但不再校验）；视图上的触发器、物化视图上的索引、外部表的列、独立复合类型的属性；域的默认值与 CHECK；聚合的定义；序列的持久性。
 - 不比的，改了查不出，报告里的“0 差异”不含这些：
@@ -199,7 +201,7 @@ PGPASSWORD=lyx-local-dev psql -X -h localhost -p 5442 -U liyoxi -d postgres -c "
   - 加表：`tables` 里加一行（表名与 `lyx_app` 的表级权限，权限按字母序、逗号连接）。只增表另加进 `appendOnly`；触发器放行的例外列写进 `columnUpdate`。受限的表（不是全套读写的，或只增表）另在下限清单 `infra/ci/grants-floor.txt` 里加一行（见下）。
   - 加视图、物化视图、外部表：应用要查它，就在迁移里授 `SELECT`，并在 `views` 里登记名字；这类关系上应用最多只有查询。`lyx_readonly` 靠缺省授权自动带上，不用写。
   - 加以属主身份执行的函数（`SECURITY DEFINER`）：先收回 PUBLIC 的执行权，`definerFunctions` 里加一行，写明由谁执行。
-  - 加自增列：迁移里给背后的序列授 `USAGE`。序列按规则核对（全部只给 `lyx_app` 的 `USAGE`），不用登记；`src/grants.test.ts` 里另有一张自增列的清单（`SERIAL_COLUMNS`）与几处写死的数量（166 张表、16 张只增表、15 个序列、11 列），跟着改。
+  - 加自增列：迁移里给背后的序列授 `USAGE`。序列按规则核对（全部只给 `lyx_app` 的 `USAGE`），不用登记；`src/grants.test.ts` 里另有一张自增列的清单（`SERIAL_COLUMNS`）与当前表、只增表、序列及自增列的数量断言，跟着实际结构改。
   - `lyx_readonly` 不用写：缺省授权自动带上。
   - 改一张已有表的授权也是这两处一起改：新迁移，加上期望里那一行。只改期望而没有对应的迁移，权限测试就红。把一张表收紧成受限的，下限清单里加一行；放开一张受限的表，先走下面说的门禁 PR。
   - 不用改的：核对脚本（`infra/ci/db-verify-grants.mjs`、`db-grants-rules.mjs`）与它的三份用例（`infra/ci/test/db-verify-grants.test.ts`、`grants-floor.test.ts`、`db-verify-managed-hook.test.ts`）、两个反例。它们是门禁文件，改已有的行要走单独的门禁 PR；所以里面不写数量、不点名哪张表现在是什么权限：数量现查，要动手脚的表按权限集合从期望里现挑，动完之后“实际是什么”由期望算出来。加表、加函数、收紧或放开一张表的授权都不用动它们（2026-10-05 在克隆里模拟过收紧 `store` 的 `DELETE`：`infra/ci/` 下只往下限清单加了一行）。例外是 `file_object`：核对脚本自己点名它不给删除。`src/grants.expected.json` 与 `src/grants.test.ts` 不是门禁文件，随工作包 PR 改。
