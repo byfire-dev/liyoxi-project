@@ -81,7 +81,8 @@ export function createResource<T>({
         typeof value === "function"
           ? (value as (previous: T | undefined) => T | undefined)(state.data)
           : value;
-      publish({ ...state, data });
+      requestNo++;
+      publish({ data, loading: data === undefined, error: null });
     },
     activate() {
       live = true;

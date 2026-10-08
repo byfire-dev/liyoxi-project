@@ -25,6 +25,25 @@ export function createIntent(key: () => string) {
     },
   };
 }
+const requiredLabels: Record<string, string> = {
+  brand_name: "品牌名称",
+  store_name: "门店名称",
+  industry: "行业品类",
+  address: "门店地址",
+  business_hours: "营业时间",
+  store_tel: "门店电话",
+  avg_spend: "人均消费",
+  door_photos: "门头照片",
+  interior_photos: "店内环境照片",
+  service_items: "主推服务",
+  selling_points: "核心卖点标签",
+  entity_type: "主体类型",
+  business_license: "营业执照",
+  contact: "资质联系人",
+  declaration: "信息确认",
+  permit: "行业许可证",
+};
+export const profileMissingLabel = (item: string) => requiredLabels[item] ?? "资料项目";
 export function errorInfo(error: unknown): {
   message: string;
   conflict: boolean;
@@ -42,24 +61,6 @@ export function errorInfo(error: unknown): {
     missing?: { step: number; item: string; permitType?: string | null }[];
     rejectedNotReplaced?: { docType: string; permitType: string | null }[];
   } | null;
-  const labels: Record<string, string> = {
-    brand_name: "品牌名称",
-    store_name: "门店名称",
-    industry: "行业品类",
-    address: "门店地址",
-    business_hours: "营业时间",
-    store_tel: "门店电话",
-    avg_spend: "人均消费",
-    door_photos: "门头照片",
-    interior_photos: "店内环境照片",
-    service_items: "主推服务",
-    selling_points: "核心卖点",
-    entity_type: "主体类型",
-    business_license: "营业执照",
-    contact: "资质联系人",
-    declaration: "信息确认",
-    permit: "行业许可证",
-  };
   return {
     message:
       error.error === "VERSION_CONFLICT"
@@ -70,7 +71,7 @@ export function errorInfo(error: unknown): {
     conflict: error.error === "VERSION_CONFLICT" || error.error === "DECLARATION_REQUIRED",
     step: details?.missing?.[0]?.step ?? null,
     missing:
-      details?.missing?.map((item) => labels[item.item] ?? "资料项目") ??
+      details?.missing?.map((item) => profileMissingLabel(item.item)) ??
       details?.rejectedNotReplaced?.map((item) =>
         item.docType === "industry_permit" ? "被驳回的许可证" : "被驳回的执照",
       ) ??

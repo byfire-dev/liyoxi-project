@@ -39,6 +39,13 @@ export function profileAuthorizationProbe() {
       enabled = true;
     },
     asks: () => count,
+    failNextRedirect() {
+      const redirect = Taro.redirectTo;
+      Taro.redirectTo = () => {
+        Taro.redirectTo = redirect;
+        return Promise.reject(new Error("离线演练：跳转失败"));
+      };
+    },
     async settle() {
       if (!resolve) throw new Error("演练授权未发起");
       enabled = false;
@@ -47,6 +54,17 @@ export function profileAuthorizationProbe() {
       await new Promise((done) => setTimeout(done, 0));
     },
     leave: () => Taro.redirectTo({ url: "/sub/profile/review/index" }),
-    enter: () => Taro.redirectTo({ url: "/sub/profile/cert/index" }),
+    hide: () => Taro.navigateTo({ url: "/sub/profile/review/index" }),
+    back: () => Taro.navigateBack(),
+    refresh() {
+      // H5 样张没有原生下拉动画；直接触发页面登记的同一个刷新生命周期。
+      const page = Taro.getCurrentPages().at(-1);
+      if (!page?.onPullDownRefresh) throw new Error("演练页面未登记下拉刷新");
+      if (typeof Taro.stopPullDownRefresh !== "function")
+        Taro.stopPullDownRefresh = () => Promise.resolve({ errMsg: "stopPullDownRefresh:ok" });
+      page.onPullDownRefresh();
+    },
+    enter: (page: "profile" | "basic" | "store" | "service" | "cert" = "cert") =>
+      Taro.redirectTo({ url: `/sub/profile/${page}/index` }),
   };
 }

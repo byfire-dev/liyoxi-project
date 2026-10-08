@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { View } from "@tarojs/components";
-import Taro, { useDidShow, usePullDownRefresh } from "@tarojs/taro";
+import Taro, { useDidHide, useDidShow, usePullDownRefresh } from "@tarojs/taro";
 import { Button } from "@/components/Button";
 import { Field } from "@/components/Field";
 import { Input } from "@/components/Input";
@@ -70,16 +70,25 @@ export function useResource<T>(read: (api: ProfileApi) => Promise<T>) {
       offSession();
     };
   }, [resource, load]);
-  return { ...state, load, setData: resource.setData };
+  return { ...state, load, setData: resource.setData, currentData: () => resource.snapshot().data };
 }
 export function useAction(action: string, step?: 1 | 2 | 3 | 4) {
   const intent = useRef(createIntent(() => newIdempotencyKey(action)));
   const guard = useRef(generationGuard(profileContext));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ReturnType<typeof errorInfo> | null>(null);
+  const [navigation, setNavigation] = useState<{ page: string; context: string } | null>(null);
   const live = useRef(true);
+  const visible = useRef(true);
   const locked = useRef(false);
   const [enteredAt] = useState(() => Date.now());
+  useDidShow(() => {
+    visible.current = true;
+  });
+  useDidHide(() => {
+    visible.current = false;
+    guard.current.invalidate();
+  });
   useEffect(
     () => () => {
       live.current = false;
@@ -91,10 +100,11 @@ export function useAction(action: string, step?: 1 | 2 | 3 | 4) {
     body: unknown,
     call: (key: string) => Promise<T>,
   ): Promise<T | undefined> => {
-    if (!live.current || locked.current) return undefined;
+    if (!live.current || !visible.current || locked.current) return undefined;
     locked.current = true;
     const context = profileContext();
     setError(null);
+    setNavigation(null);
     setBusy(true);
     try {
       const result = await guard.current.run(() => intent.current.run({ context, body }, call));
@@ -105,8 +115,29 @@ export function useAction(action: string, step?: 1 | 2 | 3 | 4) {
         });
       return result;
     } catch (failure) {
-      if (live.current && context === profileContext()) setError(errorInfo(failure));
+      if (live.current && visible.current && context === profileContext())
+        setError(errorInfo(failure));
       return undefined;
+    } finally {
+      locked.current = false;
+      if (live.current) setBusy(false);
+    }
+  };
+  const isContextCurrent = (context: string) => live.current && context === profileContext();
+  const isCurrent = (context: string) => visible.current && isContextCurrent(context);
+  const continueTo = async (page: string, context: string) => {
+    if (!isCurrent(context) || locked.current) return;
+    locked.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      await Taro.redirectTo({ url: `/sub/profile/${page}/index` });
+      if (live.current) setNavigation(null);
+    } catch {
+      if (isCurrent(context)) {
+        setNavigation({ page, context });
+        setError(errorInfo(new Error("资料已保存，页面跳转失败，请点击下方重试")));
+      }
     } finally {
       locked.current = false;
       if (live.current) setBusy(false);
@@ -117,7 +148,16 @@ export function useAction(action: string, step?: 1 | 2 | 3 | 4) {
     busy,
     error,
     setError,
-    isCurrent: (context: string) => live.current && context === profileContext(),
+    isContextCurrent,
+    isCurrent,
+    continueTo,
+    navigationPage: navigation?.page,
+    retryNavigation:
+      navigation && navigation.context === profileContext()
+        ? () => {
+            void continueTo(navigation.page, navigation.context);
+          }
+        : undefined,
   };
 }
 export function Frame({
@@ -167,6 +207,11 @@ export function Feedback({
   return action.error ? (
     <Note tone="danger">
       <View>{action.error.message}</View>
+      {action.retryNavigation ? (
+        <TextButton onClick={action.retryNavigation}>
+          重新进入{action.navigationPage === "review" ? "审核进度" : "下一步"}
+        </TextButton>
+      ) : null}
       {action.error.missing.length ? <View>需补充：{action.error.missing.join("、")}</View> : null}
       {action.error.step ? (
         <TextButton onClick={() => navigate(STEP_PATHS[action.error!.step! - 1]!)}>
