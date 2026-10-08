@@ -113,3 +113,19 @@ fakes.wechatPay.failNext("createJsapiOrder");
 未配置通知明确返回 `not_accepted/unconfigured`，预取消返回 `not_accepted/aborted`，不外呼。local微信/consoleSMS只在同步日志之前检查取消，保留已有local/test日志行为；它们没有真实外部请求。生产工厂/替身的原事务guard仍在最外层先执行，预取消也不能绕过正在存活的本层或祖先TX。
 
 真实驱动尚未在本包接入；未来驱动必须把signal传递至全部实际IO，并在返回取消前释放自有资源。该字段本身不能让不支持取消的旧驱动终止网络。这里没有新增HTTP/x01/队列/DDL/派发器、外部回执处理或真实短信，W2-17整体仍待PR1与本PR2实际main后由PR3集成。
+
+## 10. COS 四桶与短授权（W3-01）
+
+`storage.driver=cos` 与 `storage.cos`/transport 必须成对；构造零 HTTP。`COS_REGION`、四个 `COS_BUCKET_{SECURE,ASSET,MEDIA,PUB}` 是同账号的带 APPID 物理桶名。业务枚举仍为 secure/asset/media/pub。三角色只从≤4KiB JSON 普通 FILE 读 `{secretId,secretKey}`：API 配 signer+stsIssuer，worker 配独立 worker；中央装配只传入本入口角色。完整 COS 不与 MinIO 配置混选，半配启动拒绝，stg/prod 无本地回退。E4 的角色策略、四桶/CDN/CORS 和真实云联调仍需业主授权办理，没有调用真实云。
+
+COS 对象签名是 SHA1，STS JSON 是 TC3-HMAC-SHA256，二者不能混用。官方 canonical SHA1 中间向量与独立 Python 固定 TC3 向量均由公开假 key 验证；TC3 正文的 Policy 先做一次 RFC3986 URL 编码。小文件 post policy 固定 bucket/key/MIME/大小和签名身份/时段，最多10分钟；大文件 STS 最多30分钟，只允许 `incoming/<fileId>/` 下 Init/UploadPart/ListParts/Complete/Abort，不授正式区写/删、读其它文件或列桶。
+
+`abortMultipart` 是新增公开能力，方法清单、未配置、fake 和 MinIO 同步登记。取消只使用 exact object key 的 Abort 资源；列未完成上传另按官方 `cos:prefix` 的 string_equal 条件限定，列表返回再按完整 key 精确过滤。最多10页×100项、每响应64KiB，grant/list/abort 共用10秒总预算；不足或失败交原写入区补偿清扫，没有增加队列或自动重试。MinIO 明确 unsupported，保留原 post、小文件、备份 putObject 条件语义。
+
+所有固定 HTTPS origin 请求禁止重定向，单请求10秒，实际逐块读取协议正文≤64KiB；readPrefix 仍最多4096字节并带条件 ETag，二进制不做 UTF8 解码。HEAD 返回可选 CRC64/versionId，CRC 由服务端事实得出；copy 使用官方条件源 ETag，promote 再 HEAD 核大小、ETag 和确认时CRC。驱动 close 只取消/等待自有请求，不关闭借用资源；外层 TX 外呼守卫保持。
+
+实际 `apps/worker` 使用 `buildWorkerServices`：只将 COS worker 角色与业务时钟注入存储工厂，缺 worker 角色在任何绑定前拒绝，不借 API signer/issuer。`closeStorageDrivers` 等待本次装配的自有请求回收并允许重复关闭；实际 worker 的关停、自检成功和装配/自检失败路径均接入，不关闭借用数据库或队列。
+
+`putObject(ifAbsent)` 不使用 S3 的 If-None-Match/412：worker 先只读当前 bucket versioning；未知、Enabled、Suspended 或无读取权返回 unsupported。只有正式 VersioningConfiguration 无 Status 的未启用版本桶才用 `x-cos-forbid-overwrite:true`；仅409 FileAlreadyExists后核真实HEAD的SHA256、大小和contentIdentity，匹配才算重放。该原子保护依赖E4桶配置受控、写入途中不由外部管理员切换版本；真实桶配置尚未验。当前 `capabilities.versioning=false`，不会凭配置存在推定历史版本操作已可用；HEAD的实际versionId仅作为事实，不宣称已实现erase/restore。
+
+2026-10-08 查阅的 primary 来源（未访问云控制台/凭据发现链）：[COS 请求签名](https://cloud.tencent.com/document/product/436/7778)、[POST Object及签名策略](https://intl.cloud.tencent.com/document/product/436/14690)、[STS TC3 v3](https://cloud.tencent.com/document/api/1312/48202)、[GetFederationToken参数](https://cloud.tencent.com/document/api/1312/48195)、[COS授权条件cos:prefix](https://intl.cloud.tencent.com/zh/document/product/436/46205)、[PUT Object防覆盖与版本限制](https://intl.cloud.tencent.com/zh/document/product/436/7749)、[List Multipart Uploads](https://cloud.tencent.com/document/product/436/7736)、[官方SDK签名公式](https://github.com/TencentCloud/tencentcloud-sdk-nodejs/blob/master/src/common/sign.ts)。本地fake HTTP 验证协议、超限、拒绝、一次请求、条件读取和关闭，不代表四桶真实云验收。

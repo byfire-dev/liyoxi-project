@@ -84,6 +84,15 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
     status: "fake",
     configured: true,
     capabilities: { sts: true, versioning: false },
+    uploadLocation: {
+      region: "ap-test-1",
+      buckets: {
+        secure: "test-secure-1250000000",
+        asset: "test-asset-1250000000",
+        media: "test-media-1250000000",
+        pub: "test-pub-1250000000",
+      },
+    },
     ...core.control,
     objects,
     put,
@@ -139,6 +148,7 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
           secretAccessKey: `${token}-secret`,
           sessionToken: `${token}-session`,
           expiresAt: expiry(input.durationSec),
+          startTime: clock.now(),
         });
       }),
 
@@ -218,6 +228,12 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
         objects.delete(slot(input));
         return ok(undefined);
       }),
+    abortMultipart: (input) =>
+      core.run("abortMultipart", input, () =>
+        input.key.startsWith(INCOMING_PREFIX)
+          ? ok(undefined)
+          : failed("rejected", "中止分块只允许写入区对象"),
+      ),
   };
   return fake;
 }

@@ -94,6 +94,7 @@ export interface WorkerServicesOptions {
     readonly DATA_KEYS?: DataKeysConfig;
     readonly BIDX_KEYS?: BidxKeysConfig;
     readonly MINIO?: Env["MINIO"];
+    readonly COS?: Env["COS"];
   };
   /** 换掉十二个 Provider：只有用例会给（替身）。不给即 assembleProviders 按环境选实现 */
   readonly providers?: Providers;
@@ -103,6 +104,8 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  /** 只关闭本次装配创建的存储驱动；不关闭借用数据库、队列或 Redis。 */
+  readonly closeStorageDrivers?: () => Promise<void>;
   readonly closeWebhooks?: () => void;
   readonly closeAnalytics?: () => void;
   reprocessWebhooks(beat?: () => void): Promise<number>;
@@ -146,8 +149,14 @@ const silent: ProviderLogger = { info: () => {}, warn: () => {}, error: () => {}
  * 这里不连 Redis、不查库、不外呼：selfCheck 才查库。
  */
 export function buildWorkerServices(options: WorkerServicesOptions): WorkerServices {
+  const cos = options.keys?.COS;
+  if (cos && !cos.worker) throw new TypeError("COS worker入口缺少worker角色");
   const { assembly, prisma, channel } = options;
   const clock = options.clock ?? systemClock;
+  const storageClosers: Array<() => Promise<void>> = [];
+  let storageClosing: Promise<void> | undefined;
+  const closeStorageDrivers = (): Promise<void> =>
+    (storageClosing ??= Promise.all(storageClosers.map((close) => close())).then(() => undefined));
   const tx = createTxRunner({ prisma, appEnv: options.appEnv, report: options.report });
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
@@ -189,10 +198,26 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       logger,
       settings: {
         ...(options.keys?.MINIO ? { storage: { minio: options.keys.MINIO } } : {}),
+        ...(cos
+          ? {
+              storage: {
+                driver: "cos" as const,
+                cos: { region: cos.region, buckets: cos.buckets, worker: cos.worker },
+              },
+            }
+          : {}),
         ...(options.wechat
           ? { wechat: { appid: options.wechat.config.appid, secret: options.wechat.config.secret } }
           : {}),
       },
+      ...(cos
+        ? {
+            storage: {
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => storageClosers.push(close),
+            },
+          }
+        : {}),
       ...(options.wechat
         ? {
             wechat: options.wechat.transport,
@@ -251,6 +276,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const laggards = new Map<string, number>();
   const timing = { tx, assembly, registry: timers.registry, clock, alerts, channel };
   return {
+    closeStorageDrivers,
     closeWebhooks,
     closeAnalytics,
     reprocessWebhooks: (beat) => webhooks.scan(beat),

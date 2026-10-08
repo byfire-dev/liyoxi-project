@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import { assembleForTest, useTestDatabase, useTestRedis } from "./testing/index.js";
 import { loadEnv } from "./kernel/index.js";
-import * as providerAssembly from "./kernel/assembly/providers.js";
+import * as providerAssembly from "./kernel/index.js";
 import { createLogger } from "./logger.js";
-import { buildWorkerServices } from "./ops/worker.js";
+import { buildWorkerServices } from "./ops/index.js";
 import { createRuntime } from "./runtime.js";
 
 const db = useTestDatabase("services");

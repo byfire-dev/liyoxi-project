@@ -288,6 +288,8 @@ phoneAcceptance(
           files: [{ fileName: `${runId}.png`, sizeBytes: String(body.length), clientToken: runId }],
         })
       ).items[0]!;
+      expect(file.mode).toBe("post");
+      if (!file.post) throw new Error("小文件注册未返回POST字段");
       // register 生成自己的 UUID 文件目录和对象名；共享固定桶里只触碰这两个完整键。
       expect(file.key).toMatch(new RegExp(`^incoming/${file.fileId}/[a-f0-9-]+\\.png$`));
       const row = await livePrisma.fileObject.findUniqueOrThrow({ where: { id: file.fileId } });
