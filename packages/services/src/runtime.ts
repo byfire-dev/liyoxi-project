@@ -1,3 +1,9 @@
+import { bindAnalytics, createAnalyticsReceiver } from "./analytics/index.js";
+import type { AnalyticsReceiver } from "./analytics/index.js";
+import { createSubscribeResults } from "./notify/index.js";
+import type { SubscribeResults } from "./notify/index.js";
+import { createClientErrorForwarder } from "./ops/index.js";
+import type { ClientErrorForwarder } from "./ops/index.js";
 import { createAuditRead } from "./audit/index.js";
 import { bindDelivery } from "./delivery/index.js";
 import { createOrderService, bindOrder, bindOrderStart } from "./order/index.js";
@@ -156,6 +162,9 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly analytics: AnalyticsReceiver;
+  readonly subscribeResults: SubscribeResults;
+  readonly clientErrors: ClientErrorForwarder;
   readonly webhooks: Webhooks;
   readonly order: OrderService;
   readonly billing: BillingPurchase;
@@ -260,6 +269,11 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     config,
     purchaseMode: getNotifyPurchaseMode,
   });
+  const clientErrors = createClientErrorForwarder({
+    clock,
+    logger,
+    projects: env.CLIENT_ERROR_PROJECTS?.projects ?? [],
+  });
   const rateLimiter = createRateLimiter({
     store: redis,
     clock,
@@ -271,6 +285,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const assembly = assembleServices({ entry, appEnv: env.APP_ENV });
   // 违规上报端口（invariants.report）的实现在 ops，要连接、时钟与装配结果（W0-24）
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
+  const unbindAnalytics = bindAnalytics({ clock });
   const providers = options.providers ?? assembleProviders({ appEnv: env.APP_ENV, logger });
   const events = createEvents({ assembly, clock, tx });
   const webhooks = createWebhooks({
@@ -283,6 +298,21 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const unbindWebhooks = bindWebhooks(webhooks);
   const timers = createTimers({ assembly });
   const flow = createFlow({ assembly, clock, events });
+  const reportingTenant = createTenant({ tx, clock, flow, assembly });
+  const analytics = createAnalyticsReceiver({
+    tx,
+    clock,
+    config,
+    tenant: reportingTenant,
+    alerts: alertsOf(assembly),
+  });
+  const subscribeResults = createSubscribeResults({
+    tx,
+    clock,
+    params: config.params,
+    alerts: alertsOf(assembly),
+    logger,
+  });
   const unbindOrder = bindOrder({ assembly, clock, flow });
   const mediaChannel = createQueueChannel({ redisUrl: env.REDIS_URL, prefix: `${keyPrefix}bull` });
   const media = createMedia({
@@ -420,6 +450,9 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   }
 
   return {
+    analytics,
+    subscribeResults,
+    clientErrors,
     webhooks,
     order,
     billing,
@@ -446,6 +479,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
+      await clientErrors.close();
       unbindOrderStart();
       unbindOrder();
       unbindBilling();
@@ -454,6 +488,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       unbindDelivery();
       unbindApprovalSla();
       unbindCalendarCoverage();
+      unbindAnalytics();
       unbindOps();
       unbindWebhooks();
       await mediaChannel.close();

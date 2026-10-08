@@ -279,3 +279,29 @@ export {
   countOrderItemsByPhase,
 } from "./order/index.js";
 export type { OrderActor, OrderDeps, OrderService, OrderStartBinding } from "./order/index.js";
+
+export {
+  bindAnalytics,
+  createAnalyticsReceiver,
+  analyticsDayStart,
+  purgeAnalyticsDedup,
+} from "./analytics/index.js";
+export type {
+  AnalyticsReceiver,
+  AnalyticsReceiverDeps,
+  AnalyticsRequest,
+} from "./analytics/index.js";
+export { createSubscribeResults, readSubscribePlan } from "./notify/index.js";
+export type { SubscribeResults, SubscribeResultsDeps, SubscribePrincipal } from "./notify/index.js";
+export {
+  createClientErrorForwarder,
+  CLIENT_ERROR_MAX_BYTES,
+  CLIENT_ERROR_QUEUE_SIZE,
+} from "./ops/index.js";
+export type {
+  ClientErrorProject,
+  ClientErrorLogger,
+  ClientErrorForwarderOptions,
+  ClientErrorSnapshot,
+  ClientErrorForwarder,
+} from "./ops/index.js";

@@ -2,6 +2,7 @@
 import { mallClerkSamples } from "./mall-samples.js";
 import { orderClerkSamples } from "./order-samples.js";
 import { messageClerkSamples } from "./messages-samples.js";
+import { reportingClerkSamples } from "./reporting-samples.js";
 import { uuidv7 } from "@liyoxi/services";
 import { createFactories } from "@liyoxi/services/testing";
 import type { FakeStorage } from "@liyoxi/services/testing";
@@ -75,6 +76,7 @@ const playClerkFile = (operationId: string, action?: string): Sample => ({
 });
 export const CLERK_SAMPLES: readonly Sample[] = [
   ...messageClerkSamples,
+  ...reportingClerkSamples,
   get("m.orderItem.release.get", `/m/order-items/${uuidv7()}/release`),
   ...(
     [

@@ -2,7 +2,7 @@ import { UPLOAD_LIMITS } from "@liyoxi/shared/uploads";
 // m08 3.1：七块独立取数；失败只降级对应块。此读侧不更新协议指纹与最后门店。
 import { BOOTSTRAP_BLOCKS, FLAGS, MaintenanceNoticeSchema } from "@liyoxi/contract";
 import type { Bootstrap } from "@liyoxi/contract";
-import { AppError } from "../kernel/index.js";
+import { AppError, subscribePlanOf } from "../kernel/index.js";
 import type { FlagContext } from "../config/index.js";
 import type { IdentityReadDeps } from "./read.types.js";
 
@@ -166,7 +166,18 @@ export function bootstrap(deps: IdentityReadDeps, input: BootstrapInput): Promis
       input.merchantUserId === null
         ? Promise.resolve(null)
         : tx.run((db) => docs.pendingConsents(db, input.merchantUserId!)),
-    subscribe: async () => (loggedIn ? [] : null),
+    subscribe: async () => {
+      if (!loggedIn) return null;
+      const context = await contextOf();
+      return tx.run((db) =>
+        subscribePlanOf(deps.assembly)(db, {
+          platform: context.platform ?? "unknown",
+          ...(context.clientVersion == null ? {} : { clientVersion: context.clientVersion }),
+          entityId: context.entityId ?? null,
+          now: deps.clock.now(),
+        }),
+      );
+    },
     copy: async () => ({}),
     notice: async () => {
       const value = await config.flags.value("ops.maintenance_notice", await contextOf());

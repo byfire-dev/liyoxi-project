@@ -104,11 +104,11 @@ describe("按组登记", () => {
     expect((twice as MountError).issues).toEqual(["装配：槽位 auth 在 m 组登记了不止一件"]);
 
     const unknown = await testApi
-      .start({ pipeline: [...ROUTE_MIDDLEWARES, stubMiddleware("bodyLimit" as PipelineSlot)] })
+      .start({ pipeline: [...ROUTE_MIDDLEWARES, stubMiddleware("unknownSlot" as PipelineSlot)] })
       .catch((error: unknown) => error);
     expect(unknown).toBeInstanceOf(MountError);
     expect((unknown as MountError).issues).toEqual([
-      "装配：没有 bodyLimit 这个槽位（先后在 routing/pipeline.ts 的 PIPELINE_ORDER 里定）",
+      "装配：没有 unknownSlot 这个槽位（先后在 routing/pipeline.ts 的 PIPELINE_ORDER 里定）",
     ]);
   });
 });

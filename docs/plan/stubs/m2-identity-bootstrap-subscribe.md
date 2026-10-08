@@ -2,10 +2,10 @@
 
 | 项 | 内容 |
 | --- | --- |
-| 状态 | 留桩中 |
+| 状态 | 已回补 |
 | 留桩内容 | 引导尚未查询已配置启用的订阅模板槽位；匿名为空，登录后订阅清单为空数组 |
-| 骨架里的做法 | `identity/bootstrap.ts` 的订阅块返回 `[]`。共享参数表尚未登记 `notify.wx.ask_cooldown_days`、`notify.wx.max_per_ask`，暂取任务书默认 7 天、每次 3 个；随订阅接口一起登记并接参数读取，不另留同项。W1-05已接引导到端上，订阅封装照调；`server.reportSubscribeResult` 接收调用仍未接，不发上报，随 G2-C 的两条接收接口接上这一调用 |
+| 骨架里的做法 | 原来订阅块返回空数组，参数暂取7天/3个，端上结果不向服务端上报。W2-18 PR1现由只读bootstrap.subscribe_plan端口读取服务端启用且真实配置的槽位，按已批准finance购买模式筛选；匿名null，不读个人槽位。两个参数已登记并走config；account-runtime把reportSubscribeResult接到中央request的m.subscribeResult.create，保留真实微信四结果与subscribeReport:{reportId}幂等键。额度仍是估计值，不能表示微信真实余额；真实模板/授权等待W2-27环境验证 |
 | 登记的工作包 | W1-04、W1-05 |
 | 回补里程碑 | M2，G2-C |
-| 回补的工作包 | 待 W1-23 拆包后填 |
+| 回补的工作包 | W2-18 PR1（本地交付，PR号由调度创建后填；GitHub403，尚无CI/main记录） |
 | 依据 | 计划 第 7.3 节留桩清单“订阅点位、端上埋点上报”一行；m08 第 2.2、3.1 节；任务书 W1-04 第 7 节、W1-05 第 7 节 |

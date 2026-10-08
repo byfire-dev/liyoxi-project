@@ -19584,6 +19584,79 @@
         "x-permission": "flow.checklist.manage"
       }
     },
+    "/api/v1/admin/client-errors": {
+      "post": {
+        "operationId": "admin.clientError.create",
+        "requestBody": {
+          "content": {
+            "application/x-sentry-envelope": {
+              "schema": {
+                "$ref": "#/components/schemas/SentryEnvelope"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "type": "null"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "已收下，未处理"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "后台前端错误上报转发（同源）",
+        "x-auth": "optional",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "错误上报（A18）"
+      }
+    },
     "/api/v1/admin/delivery-plans/{deliveryPlanId}": {
       "get": {
         "operationId": "admin.deliveryPlan.get",

@@ -14,3 +14,10 @@ export { countUnread } from "./messages.scope.js";
 export type { MessageActor, UnreadMessageQuery } from "./messages.scope.js";
 export type { NotifySettingActor } from "./settings.js";
 export { registration } from "./register.js";
+
+export { createSubscribeResults, readSubscribePlan } from "./subscribe-results.js";
+export type {
+  SubscribeResults,
+  SubscribeResultsDeps,
+  SubscribePrincipal,
+} from "./subscribe-results.js";

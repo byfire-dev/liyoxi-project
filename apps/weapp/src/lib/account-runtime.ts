@@ -1,3 +1,4 @@
+import { createClientReporting } from "./client-reporting";
 import { SUBSCRIBE_POINT_KEYS } from "@liyoxi/contract/notify";
 import Taro from "@tarojs/taro";
 import { useSyncExternalStore } from "react";
@@ -96,6 +97,7 @@ export async function launchAccount(options?: {
   }
   rememberFirstTouch(storage, options);
   connectServer({
+    ...createClientReporting((path, options) => call(path, options)),
     fetchBootstrap: async () => bootstrapProjection(await account.bootstrap()),
     silentLogin: account.silentLogin,
     reloadMe: account.reloadMe,

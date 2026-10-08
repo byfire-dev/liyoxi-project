@@ -131,3 +131,5 @@ export { assembleProviders } from "./assembly/providers.js";
 export type { AssembleProvidersOptions } from "./assembly/providers.js";
 // W1-01a 后台登录的密钥文件的内容类型（loadEnv 读出来的形状；加载与自检在 security 的 auth-keys）
 export type { AuthKeysConfig } from "./env.js";
+
+export type { ClientErrorProjectsConfig } from "./env.js";
