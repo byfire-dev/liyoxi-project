@@ -185,6 +185,8 @@ it("严格本轮桥：实际 POST/copy/head/stored；错归属不触 Provider，
           },
         })
       ).items[0]!;
+      expect(registration.mode).toBe("post");
+      if (!registration.post) throw new Error("旧小文件用例应取得 post 凭据");
       const input = { scope: fixture.scope, artifact, fileId: registration.fileId, clientToken };
       owned.push(input);
       if (process.env.LYX_W119_BROWSER_POST === "1") {

@@ -287,6 +287,8 @@ export interface StsCredential {
   secretAccessKey: string;
   sessionToken: string;
   expiresAt: Date;
+  /** 云端签发起点；客户端避免以本机时间猜测签名生效时间。 */
+  startTime?: Date;
 }
 
 export interface ObjectHead {
@@ -294,11 +296,18 @@ export interface ObjectHead {
   size: number;
   mime?: string;
   etag?: string;
+  crc64?: string;
+  versionId?: string;
 }
 
 export interface StorageProvider extends ProviderBase {
   /** sts：能不能签发临时密钥（大文件分块上传要用）；versioning：桶有没有开版本控制 */
   readonly capabilities: { readonly sts: boolean; readonly versioning: boolean };
+  /** 物理桶名和地域；不含凭据，不是凭据发现链。 */
+  readonly uploadLocation?: {
+    readonly region: string;
+    readonly buckets: Readonly<Record<StorageBucket, string>>;
+  };
   /** 签名（写）：≤20MB 的预签名表单，直传到写入区。key 不以 incoming/ 开头即 rejected */
   presignPost(input: {
     bucket: StorageBucket;
@@ -349,6 +358,8 @@ export interface StorageProvider extends ProviderBase {
   }): Promise<ProviderResult<{ url: string; expiresAt: Date }>>;
   /** 删除。对象本来就不存在也算成功 */
   delete(input: ObjectRef): Promise<ProviderResult<void>>;
+  /** 尽力中止指定 incoming 对象的未完成分块；不得处理同前缀的其他对象。 */
+  abortMultipart(input: ObjectRef): Promise<ProviderResult<void>>;
 }
 
 // ---------- media：体检、转码、打包、视频审核（M0 只有方法位，任务书 第 11 节第 7 项） ----------
@@ -627,6 +638,7 @@ export const PROVIDER_METHODS = {
     "copy",
     "presignGet",
     "delete",
+    "abortMultipart",
   ],
   media: ["probe", "transcode", "pack", "audit"],
   ocr: ["recognizeBusinessLicense", "extractLicenseFields"],

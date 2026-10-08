@@ -77,6 +77,7 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
     },
     presignGet: { ...SAMPLE_REF, expiresSec: 900, disposition: "inline" },
     delete: SAMPLE_REF,
+    abortMultipart: SAMPLE_REF,
   },
   media: {
     probe: { src: SAMPLE_REF },

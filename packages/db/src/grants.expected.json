@@ -211,7 +211,9 @@
     "param_value": ["cancelled_at"]
   },
   "definerFunctions": {
-    "lyx_03_purge_auth_event": ["lyx_app"]
+    "lyx_03_purge_auth_event": ["lyx_app"],
+    "lyx_14_analytics_event_ensure_partition": ["lyx_app"],
+    "lyx_14_analytics_event_repartition_month": ["lyx_app"]
   },
   "views": []
 }
