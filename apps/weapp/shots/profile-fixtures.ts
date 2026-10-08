@@ -593,6 +593,33 @@ export function offlineProfile(scene: string) {
       q.contact.name = body!.name as string;
       q.contact.lockVersion++;
       response = q.contact;
+    } else if (path.startsWith("/m/qualification-docs/") && options?.method === "PATCH") {
+      const round = q.openRound!;
+      const doc = round.docs.find(
+        (item) => path === `/m/qualification-docs/${item.qualificationDocId}`,
+      );
+      if (!doc) throw new Error("证照核对演练未找到对应资料");
+      const update = body as Body<"m.qualificationDoc.update">;
+      if (update.lockVersion !== round.lockVersion) throw new Error("证照核对须使用当前轮次版本");
+      for (const [key, label] of [
+        ["address", "注册地址"],
+        ["businessScope", "经营范围"],
+      ] as const) {
+        const value = update.fields[key];
+        if (value !== undefined) {
+          doc.displayFields = doc.displayFields.filter((field) => field.key !== key);
+          doc.displayFields.push({ key, label, value });
+        }
+      }
+      if (update.fields.principalRole) doc.principalRole = update.fields.principalRole;
+      if (update.fields.subjectType) doc.subjectType = update.fields.subjectType;
+      doc.hasSubmittedFields = true;
+      round.lockVersion++;
+      response = {
+        qualificationSubmissionId: round.qualificationSubmissionId,
+        lockVersion: round.lockVersion,
+        doc,
+      };
     } else if (path === "/m/store-profile/qualification/submit") {
       if (scene === "cert-normal" && q.declaration.currentVersion === "1") {
         q.declaration.currentVersion = "2";
