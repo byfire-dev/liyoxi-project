@@ -71,7 +71,7 @@ DATABASE_URL=postgresql://liyoxi:lyx-local-dev@localhost:5442/lyx_migrate_check 
 
 ## 4. 首版迁移是怎么来的
 
-迁移文件由脚本机械拼出：`prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script` 的输出，接上 `docs/data-model/constraints/` 下的 00–15（文件名顺序）。语义一字不改，只加了注释：文件头、每个来源前的分隔行、四类语句前各一行 `-- lyx:allow <理由>`（D7 第 8.3 节第 5 条：`DROP`、`RENAME`、`ALTER … TYPE`、不带默认值的 `SET NOT NULL`）。
+首版迁移由脚本机械拼出：Prisma 从冻结 `docs/data-model/schema.prisma` 离线出 DDL，接上 `docs/data-model/constraints/` 下的 00–15（文件名顺序）。现行模型新增表不会改变首版输出。语义一字不改，只加了注释：文件头、每个来源前的分隔行、四类语句前各一行 `-- lyx:allow <理由>`（D7 第 8.3 节第 5 条：`DROP`、`RENAME`、`ALTER … TYPE`、不带默认值的 `SET NOT NULL`）。
 
 ```sh
 pnpm --filter @liyoxi/db migration:build --check   # 重拼的结果应与入库的文件逐字节相同；并列出带 lyx:allow 的语句
@@ -201,7 +201,7 @@ PGPASSWORD=lyx-local-dev psql -X -h localhost -p 5442 -U liyoxi -d postgres -c "
   - 加表：`tables` 里加一行（表名与 `lyx_app` 的表级权限，权限按字母序、逗号连接）。只增表另加进 `appendOnly`；触发器放行的例外列写进 `columnUpdate`。受限的表（不是全套读写的，或只增表）另在下限清单 `infra/ci/grants-floor.txt` 里加一行（见下）。
   - 加视图、物化视图、外部表：应用要查它，就在迁移里授 `SELECT`，并在 `views` 里登记名字；这类关系上应用最多只有查询。`lyx_readonly` 靠缺省授权自动带上，不用写。
   - 加以属主身份执行的函数（`SECURITY DEFINER`）：先收回 PUBLIC 的执行权，`definerFunctions` 里加一行，写明由谁执行。
-  - 加自增列：迁移里给背后的序列授 `USAGE`。序列按规则核对（全部只给 `lyx_app` 的 `USAGE`），不用登记；`src/grants.test.ts` 里另有一张自增列的清单（`SERIAL_COLUMNS`）与几处写死的数量（166 张表、16 张只增表、15 个序列、11 列），跟着改。
+  - 加自增列：迁移里给背后的序列授 `USAGE`。序列按规则核对（全部只给 `lyx_app` 的 `USAGE`），不用登记；`src/grants.test.ts` 里另有一张自增列的清单（`SERIAL_COLUMNS`）与当前表、只增表、序列及自增列的数量断言，跟着实际结构改。
   - `lyx_readonly` 不用写：缺省授权自动带上。
   - 改一张已有表的授权也是这两处一起改：新迁移，加上期望里那一行。只改期望而没有对应的迁移，权限测试就红。把一张表收紧成受限的，下限清单里加一行；放开一张受限的表，先走下面说的门禁 PR。
   - 不用改的：核对脚本（`infra/ci/db-verify-grants.mjs`、`db-grants-rules.mjs`）与它的三份用例（`infra/ci/test/db-verify-grants.test.ts`、`grants-floor.test.ts`、`db-verify-managed-hook.test.ts`）、两个反例。它们是门禁文件，改已有的行要走单独的门禁 PR；所以里面不写数量、不点名哪张表现在是什么权限：数量现查，要动手脚的表按权限集合从期望里现挑，动完之后“实际是什么”由期望算出来。加表、加函数、收紧或放开一张表的授权都不用动它们（2026-10-05 在克隆里模拟过收紧 `store` 的 `DELETE`：`infra/ci/` 下只往下限清单加了一行）。例外是 `file_object`：核对脚本自己点名它不给删除。`src/grants.expected.json` 与 `src/grants.test.ts` 不是门禁文件，随工作包 PR 改。
