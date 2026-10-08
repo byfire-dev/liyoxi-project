@@ -31,6 +31,7 @@ const result = await build({
     seed: "src/cli/seed.ts",
     "staff-bootstrap": "src/cli/staff-bootstrap.ts",
     "sms-init": "src/cli/sms-init.ts",
+    "alerts-ack": "src/cli/alerts-ack.ts",
   },
   outdir: "dist",
   bundle: true,

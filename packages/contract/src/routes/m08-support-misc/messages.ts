@@ -1,8 +1,20 @@
 // 商家端：客服、消息与通用接口 · messages（docs/api/m08-support-misc.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  MessageListQuerySchema,
+  MessageListResultSchema,
+  MessageSummarySchema,
+  MessageBatchReadBodySchema,
+  MessageBatchReadResultSchema,
+  MessageReadParamsSchema,
+  MessageReadResultSchema,
+} from "./messages.schemas.js";
 
-export const mMessageList = merchantMeta({
+export const mMessageList = merchantRoute({
+  request: { query: MessageListQuerySchema },
+  responses: { ...okResponse(MessageListResultSchema), ...errorResponses(400, 401, 403) },
   method: "get",
   path: "/m/messages",
   operationId: "m.message.list",
@@ -14,7 +26,14 @@ export const mMessageList = merchantMeta({
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
 });
 
-export const mMessageBatchRead = merchantMeta({
+export const mMessageBatchRead = merchantRoute({
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: MessageBatchReadBodySchema } },
+    },
+  },
+  responses: { ...okResponse(MessageBatchReadResultSchema), ...errorResponses(400, 401, 403, 409) },
   method: "post",
   path: "/m/messages/read",
   operationId: "m.message.batchRead",
@@ -25,7 +44,8 @@ export const mMessageBatchRead = merchantMeta({
   "x-idempotent": "required",
 });
 
-export const mMessageSummary = merchantMeta({
+export const mMessageSummary = merchantRoute({
+  responses: { ...okResponse(MessageSummarySchema), ...errorResponses(400, 401, 403) },
   method: "get",
   path: "/m/messages/summary",
   operationId: "m.message.summary",
@@ -37,7 +57,9 @@ export const mMessageSummary = merchantMeta({
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
 });
 
-export const mMessageRead = merchantMeta({
+export const mMessageRead = merchantRoute({
+  request: { params: MessageReadParamsSchema },
+  responses: { ...okResponse(MessageReadResultSchema), ...errorResponses(400, 401, 403, 404, 409) },
   method: "post",
   path: "/m/messages/{messageId}/read",
   operationId: "m.message.read",

@@ -51,19 +51,24 @@ import type { StorageProvider } from "../providers/types.js";
 
 启动日志里十二个接口各一行（`provider <接口名>: <状态>`），最后一行 `providers ready` 汇总。只打状态，不打任何配置值。
 
-启动失败只有一种：在 stg、prod 选了只限本地的驱动（控制台短信、本地 MinIO），抛 `ProviderConfigError`。
+在 stg、prod 选了只限本地的驱动（控制台短信、本地 MinIO），或只提供微信配置与运行时依赖的一半，抛 `ProviderConfigError`。
 
 ## 4. 选项与环境变量
 
-`createProviders` 现在认三个选项（`ProviderSettings`）：`sms.driver`（`console` / `tencent`，后者整组配置与注入模板读取）、`storage.driver`（`minio`，另可用 `storage.minio` 覆盖连接参数）、`esign.imageSeal`（图片章开关）。
+`createProviders` 的三个本地选项（`ProviderSettings`）为 `sms.driver`（`console` / `tencent`）、`storage.driver`（`minio`，另可用 `storage.minio` 覆盖连接参数）、`esign.imageSeal`（图片章开关）。
 
-W2-22 已经把短信 `SMS_SECRET_ID_FILE`、`SMS_SECRET_KEY_FILE`、`SMS_SDK_APP_ID`、`SMS_REGION` 接入唯一 `loadEnv`、`.env.example` 与 api/真实worker组合根。FILE-only、成组半配拒绝，未配保留原降级；env-example 门禁现按键集合核验，不再是早期固定6键的阻塞。存储/图片章仍是显式 ProviderSettings，未另开环境入口。短信初始化、九模板变量、保活、官方激活码偏差与外部未验见 [notify README](../notify/README.md)。短信 `unavailable` 的受理不明结果禁止自动重发；本Provider内部所有方法只请求一次。
+W2-21 增加 `settings.wechat { appid, secret }`，须同时提供借用的带前缀 Redis、时钟和关闭登记。运行时只从 `loadEnv().WECHAT` 注入；`WECHAT_APPID` 与三个 `*_FILE` 配置须完整成组。完整配置选择真实微信驱动，local/test、stg、prod 分别使用 develop、trial、release；初始化零 HTTP。全未配保留表中的本地假实现或未配置行为；显式 `RuntimeOptions.providers` 替身优先。运行时关闭先取消自有驱动在途请求，再关闭父 Redis；驱动不关闭借来的 Redis。密钥值与 openid 不进生效状态日志。
+
+本地存储地址通过 `MINIO_ENDPOINT`、`MINIO_PUBLIC_ENDPOINT` 从 `loadEnv().MINIO` 注入 API 和 worker，仅 local/test 可用；两项各自可选，未填沿用固定开发默认。只接受不含凭据、查询、片段与路径前缀的 HTTP(S) 根地址。图片章开关仍未提供环境变量入口。早期关于样例键数写死的限制已解除，当前 `infra/ci/test/env-example.test.ts` 动态核对 `loadEnv` 的键集合。
+
+W2-22 已经把短信 `SMS_SECRET_ID_FILE`、`SMS_SECRET_KEY_FILE`、`SMS_SDK_APP_ID`、`SMS_REGION` 接入唯一 `loadEnv`、`.env.example` 与 api/真实worker组合根。FILE-only、成组半配拒绝，未配保留原降级；env-example 门禁现按键集合核验，不再是早期固定6键的阻塞。短信初始化、九模板变量、保活、官方激活码偏差与外部未验见 [notify README](../notify/README.md)。短信 `unavailable` 的受理不明结果禁止自动重发；本Provider内部所有方法只请求一次。
 
 真实驱动的变量名由带来驱动的包登记，前缀按 D7 第 2.5 节（`WXPAY_*`、`COS_*`、`CI_*`、`WECOM_*`、`OCR_*`）；D7 没给前缀的用接口名大写（`SMS_*`、`MAIL_*` 等）。密钥类变量在任何环境只认 `*_FILE`；成组变量半配即启动失败（往 `kernel/env.ts` 的 `ENV_GROUPS` 里加组）。
 
 ## 5. 本地 MinIO
 
 - 连接参数是 `infra/compose/local.yml` 那套共享容器的固定开发值（`LOCAL_MINIO`），不是密钥；与 compose 文件是否一致由 `storage/minio.test.ts` 核对。
+- `endpoint` 用于服务端存储操作，`publicEndpoint` 用于客户端直传与签读；不配对外地址时沿用内部地址。真机地址与内部地址不同时分别构建 SDK 客户端，GET 的 Host 参与签名，代理必须保留 Host。不得签发后替换 URL 主机。局域网用法见 [整套环境](../../../../infra/stack/README.md) 第 4 节。
 - AWS SDK 缺省会去读环境变量与 `~/.aws` 下的文件找配置。驱动把这些选项全部写明，SDK 就不读那些文件；升级 AWS SDK 后要重查一遍（看有没有新增的这类选项）。
 - 四个桶：`lyx-local-secure`、`lyx-local-asset`、`lyx-local-media`、`lyx-local-pub`，都是私有桶。驱动第一次用到时建好，已有的不动；compose 里不另建桶。
 - 直传只能落在写入区 `incoming/`；入库是条件复制到正式区（对上源对象的 etag 才复制）。
@@ -97,3 +102,33 @@ fakes.wechatPay.failNext("createJsapiOrder");
 - 假微信：文本检测可切到“服务不可用”；图片审核直接放行。
 - 假媒体：体检给预置报告；转码、打包直接完成；视频审核直接放行。
 - 假存储：对象在内存里，不依赖 MinIO；到期与否按替身的时钟判。
+
+## 9. 通知发送结果协议（W2-17 前置 PR2）
+
+只有 `wechat.sendSubscribeMessage`、三个旧短信方法、`wecom.sendAppMessage`、`mail.send` 使用 `NotificationProviderResult<T>`，入参增加可选 `signal`。方法名、旧 `ok(value)` / `failed(reason,message)` 结果、邮件原 `value.messageId` 都兼容；通用 `ProviderResult` 和支付、存储等能力不变。
+
+通知失败可带 `notification: { acceptance, code }`，分类只取 `NOTIFICATION_FAILURE_CODES`；构造器 `notificationFailed` 对强转值、继承字段和额外字段同样做运行时验证。`acceptance='not_accepted'` 需驱动确有未受理证据；`unknown` 表示不能判断。旧通用失败没有这项证明，调用方必须视为受理未知；不能因为 `unavailable` 或 `rejected` 就重发。这项协议不决定重试、退款或派发状态。
+
+`notificationOk(value, providerMsgId?)` 保留旧 value；服务商标识可选，仅接受≤64字符的 ASCII 标识（字母数字开头，其余可含 `._:-`），不接受URL、正文或控制字符。没有实际标识就省略，成功也不代表终端到达。替身/local成功不会伪造此字段。
+
+通知替身增加 `failNotificationNext(method, detail, options?)`，仅允许本接口的通知发送方法；旧 `failNext` 原样不带受理证明。预取消不执行发送action；替身的 `delayNext` 沿旧语义在调用开始就执行action，仅压住应答，因此途中取消返回 `unknown/aborted`，不会撤销已记录发送。取消、正常释放或action程序错误均清除自己的等待项/监听器；不自动再调用。`signal.reason` 不进入结果或日志。
+
+未配置通知明确返回 `not_accepted/unconfigured`，预取消返回 `not_accepted/aborted`，不外呼。local微信/consoleSMS只在同步日志之前检查取消，保留已有local/test日志行为；它们没有真实外部请求。生产工厂/替身的原事务guard仍在最外层先执行，预取消也不能绕过正在存活的本层或祖先TX。
+
+真实驱动尚未在本包接入；未来驱动必须把signal传递至全部实际IO，并在返回取消前释放自有资源。该字段本身不能让不支持取消的旧驱动终止网络。这里没有新增HTTP/x01/队列/DDL/派发器、外部回执处理或真实短信，W2-17整体仍待PR1与本PR2实际main后由PR3集成。
+
+## 10. COS 四桶与短授权（W3-01）
+
+`storage.driver=cos` 与 `storage.cos`/transport 必须成对；构造零 HTTP。`COS_REGION`、四个 `COS_BUCKET_{SECURE,ASSET,MEDIA,PUB}` 是同账号的带 APPID 物理桶名。业务枚举仍为 secure/asset/media/pub。三角色只从≤4KiB JSON 普通 FILE 读 `{secretId,secretKey}`：API 配 signer+stsIssuer，worker 配独立 worker；中央装配只传入本入口角色。完整 COS 不与 MinIO 配置混选，半配启动拒绝，stg/prod 无本地回退。E4 的角色策略、四桶/CDN/CORS 和真实云联调仍需业主授权办理，没有调用真实云。
+
+COS 对象签名是 SHA1，STS JSON 是 TC3-HMAC-SHA256，二者不能混用。官方 canonical SHA1 中间向量与独立 Python 固定 TC3 向量均由公开假 key 验证；TC3 正文的 Policy 先做一次 RFC3986 URL 编码。小文件 post policy 固定 bucket/key/MIME/大小和签名身份/时段，最多10分钟；大文件 STS 最多30分钟，只允许 `incoming/<fileId>/` 下 Init/UploadPart/ListParts/Complete/Abort，不授正式区写/删、读其它文件或列桶。
+
+`abortMultipart` 是新增公开能力，方法清单、未配置、fake 和 MinIO 同步登记。取消只使用 exact object key 的 Abort 资源；列未完成上传另按官方 `cos:prefix` 的 string_equal 条件限定，列表返回再按完整 key 精确过滤。最多10页×100项、每响应64KiB，grant/list/abort 共用10秒总预算；不足或失败交原写入区补偿清扫，没有增加队列或自动重试。MinIO 明确 unsupported，保留原 post、小文件、备份 putObject 条件语义。
+
+所有固定 HTTPS origin 请求禁止重定向，单请求10秒，实际逐块读取协议正文≤64KiB；readPrefix 仍最多4096字节并带条件 ETag，二进制不做 UTF8 解码。HEAD 返回可选 CRC64/versionId，CRC 由服务端事实得出；copy 使用官方条件源 ETag，promote 再 HEAD 核大小、ETag 和确认时CRC。驱动 close 只取消/等待自有请求，不关闭借用资源；外层 TX 外呼守卫保持。
+
+实际 `apps/worker` 使用 `buildWorkerServices`：只将 COS worker 角色与业务时钟注入存储工厂，缺 worker 角色在任何绑定前拒绝，不借 API signer/issuer。`closeStorageDrivers` 等待本次装配的自有请求回收并允许重复关闭；实际 worker 的关停、自检成功和装配/自检失败路径均接入，不关闭借用数据库或队列。
+
+`putObject(ifAbsent)` 不使用 S3 的 If-None-Match/412：worker 先只读当前 bucket versioning；未知、Enabled、Suspended 或无读取权返回 unsupported。只有正式 VersioningConfiguration 无 Status 的未启用版本桶才用 `x-cos-forbid-overwrite:true`；仅409 FileAlreadyExists后核真实HEAD的SHA256、大小和contentIdentity，匹配才算重放。该原子保护依赖E4桶配置受控、写入途中不由外部管理员切换版本；真实桶配置尚未验。当前 `capabilities.versioning=false`，不会凭配置存在推定历史版本操作已可用；HEAD的实际versionId仅作为事实，不宣称已实现erase/restore。
+
+2026-10-08 查阅的 primary 来源（未访问云控制台/凭据发现链）：[COS 请求签名](https://cloud.tencent.com/document/product/436/7778)、[POST Object及签名策略](https://intl.cloud.tencent.com/document/product/436/14690)、[STS TC3 v3](https://cloud.tencent.com/document/api/1312/48202)、[GetFederationToken参数](https://cloud.tencent.com/document/api/1312/48195)、[COS授权条件cos:prefix](https://intl.cloud.tencent.com/zh/document/product/436/46205)、[PUT Object防覆盖与版本限制](https://intl.cloud.tencent.com/zh/document/product/436/7749)、[List Multipart Uploads](https://cloud.tencent.com/document/product/436/7736)、[官方SDK签名公式](https://github.com/TencentCloud/tencentcloud-sdk-nodejs/blob/master/src/common/sign.ts)。本地fake HTTP 验证协议、超限、拒绝、一次请求、条件读取和关闭，不代表四桶真实云验收。

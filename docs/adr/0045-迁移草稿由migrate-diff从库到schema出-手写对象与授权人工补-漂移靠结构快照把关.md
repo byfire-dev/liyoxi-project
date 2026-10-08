@@ -21,7 +21,7 @@
 1. 出下一版迁移的草稿，固定用“库 → schema”的 `prisma migrate diff`，只当草稿用，人工删改补全后入库。不用 `prisma migrate dev`（含 `--create-only`）、`migrate reset`、`db push`。
 2. 手写对象（CHECK、部分索引、表达式索引、排他约束、触发器、函数、分区）与授权，Prisma 不出、也不比：一律人工写进迁移。它们有没有被误伤，靠结构快照与约束清单比对（W0-06b）和权限测试、角色与授权的核对脚本（本包；两者共用一份期望 `packages/db/src/grants.expected.json`）把关，不靠 Prisma。
 3. 授权随迁移走：新表在建它的那个迁移里逐表授给 `lyx_app`；`lyx_readonly` 靠缺省授权自动带上。全部迁移由同一个账号执行：这是缺省授权成立的前提（第 3 节“谁来跑”一行）。
-4. V1.0 不建 `lyx_archiver`。建分区的函数建议改成“以属主身份执行”再授给 `lyx_app`，落地在 G2-C；本包不改函数。
+4. V1.0 不建 `lyx_archiver`。最初建议 G2-C 将建分区改成受限“以属主身份执行”；后续由 [W2-18 独立结构能力包](../plan/changes/W2-18-analytics-partition-capability.md) 落地，原两份迁移不改，worker 不持有迁移口令。
 
 ### 1. 出下一版迁移的固定做法
 
@@ -64,7 +64,9 @@
 ### 4. `lyx_archiver` 与建分区的函数
 
 - `lyx_archiver`：V1.0 不建。D7 第 2.5、7.5 节把它列为“分区归档”的角色，出处是 D4 的审计日志分区；而 D4 定稿时审计日志在 V1.0 不分区。埋点事件的归档是整分区 `DETACH` 再 `DROP`，那是属主才能做的 DDL，头一次发生在上线 25 个月之后（14 分组 第 2.9 节）。到真要归档时，由当时的结构变更包决定要不要这个角色。
-- 建分区：14 分组 第 2.9 节写周期任务 `analytics.partitions` “用迁移账号执行”，而 worker 拿不到迁移账号的口令（D7 第 7.5 节）。实测 `lyx_app` 调 `lyx_14_analytics_event_ensure_partition` 报 42501，原文是 `permission denied for schema public`：先卡在它在模式 `public` 上没有 `CREATE`；就算给了，下一层报 `must be owner of table analytics_event`（建分区要是父表的属主）。两层都不该放开。建议（落地在 G2-C，要改函数，走结构变更包）：把这个函数改成 `SECURITY DEFINER`，收回 PUBLIC 的执行权，只授给 `lyx_app`（并在 `grants.expected.json` 的 `definerFunctions` 里加一行）。函数只会建名字固定的月分区，参数只有一个日期；新分区的属主是函数的属主，也就是跑迁移的账号，`lyx_readonly` 的缺省授权照样生效。在那之前：首版迁移已预建到未来 3 个月（按建库那天算）；G2-C 落地前要更远的分区，由结构变更包在迁移里再调一次这个函数，迁移是以属主身份执行的。
+- 建分区：原 `lyx_app` 调用报 42501（`permission denied for schema public`），即使开放模式 CREATE 仍需父表属主；这两层权限保持关闭。新增迁移 `20261007230600_analytics_partition_capability` 将 `public.lyx_14_analytics_event_ensure_partition(date) → text` 改为 `SECURITY DEFINER`，补同样受限的 `public.lyx_14_analytics_event_repartition_month(date) → bigint`；两函数都先收回 PUBLIC 的执行权，只授 `lyx_app`，登记到 `grants.expected.json`。仅接受 0001–9999 年的有限公历月首，固定 `public` 关系/辅助函数与 `pg_catalog` 内置函数、安全 `search_path`，以固定 UTC/ISO 设置检查 Shanghai 边界；9999-12 的上界只在内部 timestamp 使用 10000 年，分区名仍四位年。函数属主与父表属主必须一致，因此新分区沿用该属主和 readonly 缺省 SELECT，应用对子表仍零权限。
+- 对象与原子性：父表 ACCESS EXCLUSIVE 锁串行建分区，已存在子表必须具有正确属主、唯一父关系、精确月界及启用且指向原函数 OID 的行级/清空防改触发器，不能仅凭名字跳过。普通 ensure 遇 default 当月行原样失败。受限重分区在同一函数语句/TX 中锁定 parent/default，仅暂时停用 default 的行级防改 trigger，完整行 DELETE RETURNING 到本次私有 temp，调用上述严格建分区能力后 INSERT 父表，按条数及完整行 EXCEPT ALL 检验后恢复 trigger 并删除自建 temp。调用者已有同名 temp 先拒绝；任何异常、约束/恢复失败或外层回滚都恢复全部 DDL、数据和 trigger，不吞异常，不碰 dedup、identity 或其他月。
+- 日期业务与部署：数据库不新增 `now()`/保留期规则；服务按注入时钟、原参数与授权确定允许月份，周期预建仍当前至未来 3 月。归档的 DETACH/DROP 不在这两条能力中。结构能力走独立迁移包；W2-18 只有实际合流后才消费，HTTP、cron、CLI、外部环境及整包退出另验，不能把本地结构测试当成整包或远端 CI 完成。
 
 ## 理由
 

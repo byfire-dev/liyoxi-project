@@ -19,6 +19,7 @@ import {
   useResource,
 } from "../private/ui";
 import { profileRuntime } from "../private/runtime";
+import { profileMissingLabel } from "../private/model";
 export default function Profile() {
   const storeId = useContextStore((s) => s.currentStoreId);
   const token = useSessionStore((s) => s.accessToken);
@@ -81,12 +82,16 @@ export default function Profile() {
               已完成 {data.completeness.requiredFilled}/{data.completeness.requiredTotal} 项必填资料
             </View>
           </Card>
-          <List>
+          <List className="profile-steps">
             {data.completeness.steps.map((step) => (
               <ListRow
                 key={step.step}
                 title={`${step.step} · ${STEP_NAMES[step.step - 1]}`}
-                description={step.missing.length ? `需补充 ${step.missing.length} 项` : "已完成"}
+                description={
+                  step.missing.length
+                    ? `需补充：${step.missing.map((item) => profileMissingLabel(item.item)).join("、")}`
+                    : "已完成"
+                }
                 value={
                   step.state === "completed"
                     ? "已完成"

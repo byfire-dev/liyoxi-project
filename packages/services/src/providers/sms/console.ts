@@ -2,7 +2,7 @@
 // 01 第 9 节“未配置时：控制台输出；提醒只剩站内与订阅消息”。
 // 日志走注入的 logger，不用 console（服务端禁 console.log）。
 
-import { failed, ok } from "../types.js";
+import { failed, notificationFailed, ok } from "../types.js";
 import type { ProviderLogger, SmsProvider } from "../types.js";
 
 export function createConsoleSms(deps: { logger: ProviderLogger }): SmsProvider {
@@ -16,15 +16,30 @@ export function createConsoleSms(deps: { logger: ProviderLogger }): SmsProvider 
     async checkBalance() {
       return failed("unsupported", "控制台短信没有真实套餐余量");
     },
-    async sendActivationCode({ phone, code }) {
+    async sendActivationCode({ phone, code, signal }) {
+      if (signal?.aborted)
+        return notificationFailed("rejected", "通知调用开始前已取消", {
+          acceptance: "not_accepted",
+          code: "aborted",
+        });
       logger.info({ provider: "sms", phone, code }, "[sms:console] 员工激活码");
       return ok(undefined);
     },
-    async sendSubscribeFallback({ phone, templateKey, params }) {
+    async sendSubscribeFallback({ phone, templateKey, params, signal }) {
+      if (signal?.aborted)
+        return notificationFailed("rejected", "通知调用开始前已取消", {
+          acceptance: "not_accepted",
+          code: "aborted",
+        });
       logger.info({ provider: "sms", phone, templateKey, params }, "[sms:console] 订阅消息的补发");
       return ok(undefined);
     },
-    async sendOncallAlert({ phones, title, content }) {
+    async sendOncallAlert({ phones, title, content, signal }) {
+      if (signal?.aborted)
+        return notificationFailed("rejected", "通知调用开始前已取消", {
+          acceptance: "not_accepted",
+          code: "aborted",
+        });
       logger.info({ provider: "sms", phones, title, content }, "[sms:console] 值班告警");
       return ok(undefined);
     },

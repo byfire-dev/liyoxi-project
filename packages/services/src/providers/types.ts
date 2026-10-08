@@ -49,6 +49,72 @@ export function failed(reason: ProviderFailureReason, message: string): Provider
   return { ok: false, reason, message };
 }
 
+/** 只用于通知发送；通用失败原因不足以证明外部是否受理，不据此自动重发。 */
+export const NOTIFICATION_FAILURE_CODES = [
+  "no_quota",
+  "user_refused",
+  "invalid_openid",
+  "template_invalid",
+  "field_mismatch",
+  "rate_limited",
+  "provider_rejected",
+  "unconfigured",
+  "unsupported",
+  "aborted",
+  "unknown_outcome",
+] as const;
+export interface NotificationFailureDetail {
+  readonly acceptance: "not_accepted" | "unknown";
+  readonly code: (typeof NOTIFICATION_FAILURE_CODES)[number];
+}
+export interface NotificationProviderFailure extends ProviderFailure {
+  /** 旧实现可不带；缺省表示受理情况未知，不是可重试证明。 */
+  readonly notification?: NotificationFailureDetail;
+}
+export interface NotificationProviderSuccess<T> extends ProviderSuccess<T> {
+  /** 服务商返回的标识，不代表终端到达。≤64 的 ASCII 标识；本地替身不伪造真实标识。 */
+  readonly providerMsgId?: string;
+}
+export type NotificationProviderResult<T> =
+  NotificationProviderSuccess<T> | NotificationProviderFailure;
+
+/** 入参强转也不能引入任意分类；message 沿旧契约，不承载原始 Provider 响应/敏感正文。 */
+export function notificationFailed(
+  reason: ProviderFailureReason,
+  message: string,
+  detail: NotificationFailureDetail,
+): NotificationProviderFailure {
+  if (
+    detail === null ||
+    typeof detail !== "object" ||
+    !Object.hasOwn(detail, "acceptance") ||
+    !Object.hasOwn(detail, "code") ||
+    !["not_accepted", "unknown"].includes(detail.acceptance) ||
+    !NOTIFICATION_FAILURE_CODES.includes(detail.code) ||
+    Reflect.ownKeys(detail).some((key) => key !== "acceptance" && key !== "code")
+  )
+    throw new TypeError("通知失败分类不合法");
+  return {
+    ...failed(reason, message),
+    notification: { acceptance: detail.acceptance, code: detail.code },
+  };
+}
+
+export function notificationOk<T>(
+  value: T,
+  providerMsgId?: string,
+): NotificationProviderSuccess<T> {
+  if (
+    providerMsgId !== undefined &&
+    (typeof providerMsgId !== "string" ||
+      providerMsgId.length > 64 ||
+      !/^[A-Za-z0-9]/.test(providerMsgId) ||
+      /[^A-Za-z0-9._:-]/.test(providerMsgId))
+  )
+    throw new TypeError("通知服务商标识不合法");
+  return { ...ok(value), ...(providerMsgId === undefined ? {} : { providerMsgId }) };
+}
+
 /**
  * 生效状态：真实驱动名，或下面三个固定值（任务书 第 11 节第 5 项）。
  *   local         只限 local、test 的落点：本地 MinIO、控制台短信、本地的假微信、媒体的小文件通道
@@ -93,14 +159,22 @@ export interface WechatProvider extends ProviderBase {
   /** 登录：用小程序端 wx.login 给的 code 换 openid */
   code2Session(input: { code: string }): Promise<ProviderResult<WechatSession>>;
   /** 手机号：用手机号组件给的 code 换手机号 */
-  getPhoneNumber(input: { code: string }): Promise<ProviderResult<{ phone: string }>>;
+  getPhoneNumber(input: { code: string }): Promise<
+    ProviderResult<{
+      phone: string;
+      /** 微信真实区号与纯号码；旧替身/调用方可继续只返回phone。 */
+      countryCode?: string;
+      purePhoneNumber?: string;
+    }>
+  >;
   /** 订阅消息 */
   sendSubscribeMessage(input: {
     openid: string;
     templateId: string;
     page?: string;
     data: Record<string, string>;
-  }): Promise<ProviderResult<void>>;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<void>>;
   /** 小程序码 */
   createMiniProgramCode(input: {
     scene: string;
@@ -213,6 +287,8 @@ export interface StsCredential {
   secretAccessKey: string;
   sessionToken: string;
   expiresAt: Date;
+  /** 云端签发起点；客户端避免以本机时间猜测签名生效时间。 */
+  startTime?: Date;
 }
 
 export interface ObjectHead {
@@ -220,11 +296,18 @@ export interface ObjectHead {
   size: number;
   mime?: string;
   etag?: string;
+  crc64?: string;
+  versionId?: string;
 }
 
 export interface StorageProvider extends ProviderBase {
   /** sts：能不能签发临时密钥（大文件分块上传要用）；versioning：桶有没有开版本控制 */
   readonly capabilities: { readonly sts: boolean; readonly versioning: boolean };
+  /** 物理桶名和地域；不含凭据，不是凭据发现链。 */
+  readonly uploadLocation?: {
+    readonly region: string;
+    readonly buckets: Readonly<Record<StorageBucket, string>>;
+  };
   /** 签名（写）：≤20MB 的预签名表单，直传到写入区。key 不以 incoming/ 开头即 rejected */
   presignPost(input: {
     bucket: StorageBucket;
@@ -275,6 +358,8 @@ export interface StorageProvider extends ProviderBase {
   }): Promise<ProviderResult<{ url: string; expiresAt: Date }>>;
   /** 删除。对象本来就不存在也算成功 */
   delete(input: ObjectRef): Promise<ProviderResult<void>>;
+  /** 尽力中止指定 incoming 对象的未完成分块；不得处理同前缀的其他对象。 */
+  abortMultipart(input: ObjectRef): Promise<ProviderResult<void>>;
 }
 
 // ---------- media：体检、转码、打包、视频审核（M0 只有方法位，任务书 第 11 节第 7 项） ----------
@@ -399,19 +484,25 @@ export interface SmsProvider extends ProviderBase {
   }): Promise<SmsSendResult>;
   checkBalance(input?: { signal?: AbortSignal }): Promise<ProviderResult<SmsBalance>>;
   /** 员工激活码 */
-  sendActivationCode(input: { phone: string; code: string }): Promise<ProviderResult<void>>;
+  sendActivationCode(input: {
+    phone: string;
+    code: string;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<void>>;
   /** 订阅消息的补发：订阅消息发不出去时改发短信 */
   sendSubscribeFallback(input: {
     phone: string;
     templateKey: string;
     params: Record<string, string>;
-  }): Promise<ProviderResult<void>>;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<void>>;
   /** 值班告警 */
   sendOncallAlert(input: {
     phones: string[];
     title: string;
     content: string;
-  }): Promise<ProviderResult<void>>;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<void>>;
 }
 
 // ---------- ocr：营业执照识别、行业许可证字段抽取 ----------
@@ -484,7 +575,8 @@ export interface WecomProvider extends ProviderBase {
     title: string;
     description: string;
     url?: string;
-  }): Promise<ProviderResult<void>>;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<void>>;
   /** “联系我”二维码 */
   createContactWay(input: {
     userId: string;
@@ -543,7 +635,8 @@ export interface MailProvider extends ProviderBase {
     subject: string;
     text: string;
     attachments?: MailAttachment[];
-  }): Promise<ProviderResult<{ messageId: string }>>;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<{ messageId: string }>>;
 }
 
 // ---------- 十二个接口的汇总 ----------
@@ -624,6 +717,7 @@ export const PROVIDER_METHODS = {
     "copy",
     "presignGet",
     "delete",
+    "abortMultipart",
   ],
   media: ["probe", "transcode", "pack", "audit"],
   ocr: ["recognizeBusinessLicense", "extractLicenseFields"],

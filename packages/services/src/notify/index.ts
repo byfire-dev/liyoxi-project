@@ -11,4 +11,18 @@ export type { SceneBinding, WxTemplateSlotKey } from "./seed-data.js";
 
 export { createSmsInit, smsTemplateReader, SmsInitSchema } from "./sms-init.js";
 export { createSmsHealth, bindSmsHealth } from "./sms-health.js";
+export { createNotifyMessages } from "./messages.js";
+export type { NotifyMessages, NotifyMessagesDeps } from "./messages.js";
+export { countUnread } from "./messages.scope.js";
+export type { MessageActor, UnreadMessageQuery } from "./messages.scope.js";
+export type { NotifySettingActor } from "./settings.js";
 export { registration } from "./register.js";
+
+export { createSubscribeResults, readSubscribePlan } from "./subscribe-results.js";
+export type {
+  SubscribeResults,
+  SubscribeResultsDeps,
+  SubscribePrincipal,
+} from "./subscribe-results.js";
+export { createWechatReceiptHandler } from "./wechat-receipts.js";
+export type { WechatReceiptHandler, WechatReceiptInput } from "./wechat-receipts.js";

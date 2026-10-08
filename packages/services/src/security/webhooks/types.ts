@@ -55,6 +55,13 @@ export interface WebhookSource {
   readonly escalateAfter?: 5;
   verify(input: WebhookRequest & { readonly now: Date }): Promise<WebhookVerification>;
   payload(event: VerifiedWebhook): WebhookPayload | null;
+  /**
+   * 仅 inbox；accept 所属事务内的有界、只读本地投影。
+   * 先验 payload 仍须合法；每次事务重试重新读取事实，不外呼或另开事务。
+   * 返回去敏的可恢复 JSON 对象；身份未匹配可使用对象内的 null 字段。
+   * 重放仍保持首次收件的载荷与举证；不增加跨领域锁或写业务状态。
+   */
+  projectPayload?(tx: Tx, event: VerifiedWebhook): Promise<WebhookPayload | null>;
   restore(row: WebhookStored): Promise<WebhookJson>;
   handle(
     tx: Tx,

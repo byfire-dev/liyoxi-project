@@ -5,6 +5,15 @@ import {
   smsTemplateReader,
 } from "./notify/index.js";
 import { keyringFromEnv } from "./security/index.js";
+import { bindAnalytics, createAnalyticsReceiver } from "./analytics/index.js";
+import type { AnalyticsReceiver } from "./analytics/index.js";
+import { createSubscribeResults, createWechatReceiptHandler } from "./notify/index.js";
+import { findWechatIdentityId, recentWechatOpenid } from "./identity/index.js";
+import type { SubscribeResults } from "./notify/index.js";
+import { createClientErrorForwarder } from "./ops/index.js";
+import type { ClientErrorForwarder } from "./ops/index.js";
+import { createFlowOps, createAlertActions } from "./ops/index.js";
+import type { FlowOps, AlertActions } from "./ops/index.js";
 import { createAuditRead } from "./audit/index.js";
 import { bindDelivery } from "./delivery/index.js";
 import { createOrderService, bindOrder, bindOrderStart } from "./order/index.js";
@@ -39,8 +48,11 @@ import {
   createLedger,
   createPayment,
   createFulfillment,
+  getNotifyPurchaseMode,
 } from "./billing/index.js";
 import type { BillingPurchase } from "./billing/index.js";
+import { createNotifyMessages } from "./notify/index.js";
+import type { NotifyMessages } from "./notify/index.js";
 import { staffBriefs } from "./staff/index.js";
 import { createDocs } from "./docs/index.js";
 import { createTenant } from "./tenant/index.js";
@@ -89,6 +101,7 @@ import {
   createPiiReveal,
   bindWebhooks,
   createWebhooks,
+  createWechatMessageSource,
 } from "./security/index.js";
 import type { Webhooks, WebhookSource } from "./security/index.js";
 import {
@@ -161,9 +174,13 @@ export interface RuntimeOptions {
 
 export interface Runtime {
   readonly smsInit: ReturnType<typeof createSmsInit>;
+  readonly analytics: AnalyticsReceiver;
+  readonly subscribeResults: SubscribeResults;
+  readonly clientErrors: ClientErrorForwarder;
   readonly webhooks: Webhooks;
   readonly order: OrderService;
   readonly billing: BillingPurchase;
+  readonly notifyMessages: NotifyMessages;
   readonly content: Content;
   readonly media: Media;
   /** 审批执行器与只读队列：api、worker 各自装配（移交表 64） */
@@ -206,6 +223,8 @@ export interface Runtime {
   readonly staffRoles: ReturnType<typeof createRoleManagement>;
   readonly staffSelfSecurity: ReturnType<typeof createStaffSelfSecurity>;
   readonly auditRead: ReturnType<typeof createAuditRead>;
+  readonly flowOps: FlowOps;
+  readonly alertActions: AlertActions;
   readonly piiReveal: ReturnType<typeof createPiiReveal>;
 }
 
@@ -216,6 +235,8 @@ export interface Runtime {
  */
 export function createRuntime(options: RuntimeOptions): Runtime {
   const { entry, env, version } = options;
+  if (env.COS && (entry === "worker" ? !env.COS.worker : !env.COS.signer || !env.COS.stsIssuer))
+    throw new TypeError("当前进程 COS 角色配置不完整");
   const clock = options.clock ?? systemClock;
   const logger =
     options.logger ?? createLogger({ svc: entry, env: env.APP_ENV, level: env.LOG_LEVEL, version });
@@ -258,6 +279,17 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     version,
     ...(options.healthCacheMs === undefined ? {} : { cacheMs: options.healthCacheMs }),
   });
+  const notifyMessages = createNotifyMessages({
+    tx,
+    clock,
+    config,
+    purchaseMode: getNotifyPurchaseMode,
+  });
+  const clientErrors = createClientErrorForwarder({
+    clock,
+    logger,
+    projects: env.CLIENT_ERROR_PROJECTS?.projects ?? [],
+  });
   const rateLimiter = createRateLimiter({
     store: redis,
     clock,
@@ -269,21 +301,61 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const assembly = assembleServices({ entry, appEnv: env.APP_ENV });
   // 违规上报端口（invariants.report）的实现在 ops，要连接、时钟与装配结果（W0-24）
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
+  const unbindAnalytics = bindAnalytics({ clock });
+  const wechatClosers: Array<() => Promise<void>> = [];
   const providers =
     options.providers ??
     assembleProviders({
       appEnv: env.APP_ENV,
       logger,
-      ...(env.SMS
-        ? {
-            settings: {
+      settings: {
+        ...(env.SMS
+          ? {
               sms: {
-                driver: "tencent",
+                driver: "tencent" as const,
                 tencent: {
                   config: env.SMS,
                   getTemplate: smsTemplateReader(prisma),
                   now: () => clock.now(),
                 },
+              },
+            }
+          : {}),
+        ...(env.MINIO ? { storage: { minio: env.MINIO } } : {}),
+        ...(env.COS
+          ? {
+              storage: {
+                driver: "cos" as const,
+                cos: {
+                  region: env.COS.region,
+                  buckets: env.COS.buckets,
+                  ...(entry === "worker"
+                    ? { worker: env.COS.worker }
+                    : { signer: env.COS.signer, stsIssuer: env.COS.stsIssuer }),
+                },
+              },
+            }
+          : {}),
+        ...(env.WECHAT ? { wechat: { appid: env.WECHAT.appid, secret: env.WECHAT.secret } } : {}),
+      },
+      ...(env.COS
+        ? {
+            storage: {
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => {
+                wechatClosers.push(close);
+              },
+            },
+          }
+        : {}),
+      ...(env.WECHAT
+        ? {
+            wechat: {
+              redis,
+              prefix: keyPrefix,
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => {
+                wechatClosers.push(close);
               },
             },
           }
@@ -305,16 +377,46 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         )
       : () => {};
   const events = createEvents({ assembly, clock, tx });
+  const wechatSources = env.WECHAT
+    ? [
+        createWechatMessageSource({
+          cryptoConfig: {
+            appid: env.WECHAT.appid,
+            token: env.WECHAT.messageToken,
+            encodingAESKey: env.WECHAT.messageEncodingAESKey,
+          },
+          logger,
+          findWechatIdentityId,
+          handleImage: (t, input, ctx) => media.applyWechatImageResult(t, input, ctx),
+          handleSubscription: createWechatReceiptHandler({ clock, logger }),
+        }),
+      ]
+    : [];
   const webhooks = createWebhooks({
     tx,
     clock,
     events,
-    sources: options.webhookSources,
+    sources: options.webhookSources ?? wechatSources,
     alerts: alertsOf(assembly),
   });
   const unbindWebhooks = bindWebhooks(webhooks);
   const timers = createTimers({ assembly });
   const flow = createFlow({ assembly, clock, events });
+  const reportingTenant = createTenant({ tx, clock, flow, assembly });
+  const analytics = createAnalyticsReceiver({
+    tx,
+    clock,
+    config,
+    tenant: reportingTenant,
+    alerts: alertsOf(assembly),
+  });
+  const subscribeResults = createSubscribeResults({
+    tx,
+    clock,
+    params: config.params,
+    alerts: alertsOf(assembly),
+    logger,
+  });
   const unbindOrder = bindOrder({ assembly, clock, flow });
   const mediaChannel = createQueueChannel({ redisUrl: env.REDIS_URL, prefix: `${keyPrefix}bull` });
   const media = createMedia({
@@ -325,6 +427,12 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     storage: providers.storage,
     channel: mediaChannel,
     videoMaxMb: () => config.params.get("upload.weapp_video_max_mb"),
+    wechatImage: {
+      appid: env.WECHAT?.appid,
+      provider: providers.wechat,
+      fallback: providers.media,
+      recentWechatOpenid,
+    },
   });
   const unbindContent = bindContent(assembly);
   const unbindPublish = bindPublish(assembly);
@@ -453,9 +561,13 @@ export function createRuntime(options: RuntimeOptions): Runtime {
 
   return {
     smsInit: createSmsInit({ tx, clock }),
+    analytics,
+    subscribeResults,
+    clientErrors,
     webhooks,
     order,
     billing,
+    notifyMessages,
     content,
     media,
     entry,
@@ -478,6 +590,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
+      await Promise.allSettled(wechatClosers.map((close) => close()));
+      await clientErrors.close();
       unbindOrderStart();
       unbindOrder();
       unbindBilling();
@@ -486,6 +600,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       unbindDelivery();
       unbindApprovalSla();
       unbindCalendarCoverage();
+      unbindAnalytics();
       unbindOps();
       unbindWebhooks();
       unbindSmsHealth();
@@ -495,6 +610,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     },
     flow,
     auditRead,
+    flowOps: createFlowOps({ tx, clock }),
+    alertActions: createAlertActions({ tx, clock }),
     piiReveal,
     get staffRoles() {
       staffRoles ??= createRoleManagement({ db: prisma, tx, clock, roles: this.staffAuth.roles });

@@ -151,6 +151,8 @@ export const AUDIT_TARGET_TYPES = [
   // 01：年度日历配置审计的自然键对象（W2-05）
   "work_calendar_day",
   "sms_template", // W2-22：短信初始化，template_key 写 target_key
+  "timer", // W2-23：失败定时器人工恢复/取消
+  "outbox_delivery", // W2-23：事件×订阅者复合键人工重投
 ] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 

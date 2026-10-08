@@ -45,6 +45,8 @@ await identity.isClientOutdated(clientVersion, flagContext);     // 版本门槛
 - **协议同意的门**：账号上的指纹等于当前指纹即放行，不查同意记录；不等时现算复核，没有待同意的才回写指纹。当前指纹在进程内至多缓存 60 秒，且不跨过下一个版本的生效时刻。
 - **版本门槛**：没带或写法不对的 `X-Client-Version` 按 `0.0.0` 算；最低版本是 `0.0.0`（开关的默认值）时都放行。
 
+微信手机号返回的 `countryCode` / `purePhoneNumber` 若存在，必须分别为 `86` / 归一化大陆号码；事实不一致在登录事务前拒绝，旧的只含 `phone` 替身仍可用。API 身份装配优先显式 AppID，其次运行时完整微信配置，未配本地沿用占位；`currentSessionOpenid(tx, principal, expectedAppid?)` 可校验当前会话身份的 AppID，内容检测不能跨小程序使用 openid。新增真实数据库区号与命名空间回归通过，外部真机登录仍待 E2 验收。
+
 ## 3. 跑用例
 
 ```sh
@@ -81,3 +83,9 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 此口不注销商家账号或改 user_session/portal_ticket，也没有成员生命周期调用方和 M6 登录、票据、下载入口。新真库测试直接准备授权表 fixture，只证明吊销能力；旧 sessions/logout 与 tenant 成员范围用例继续保留。
 
 定点命令见 [tenant 第 6 节](../tenant/README.md)，其中两条独立连接重复 12 轮，覆盖主体和 owner 两种范围，计数总和与真实撤销行数一致。
+
+## 7. 微信身份只读事实（W2-21）
+
+`findWechatIdentityId(tx, { appid, openid })` 只按唯一自然键返回身份 id，不叠加账号状态或静默登录开关。`recentWechatOpenid(tx, { merchantUserId, appid, now })` 在同一参数化 SELECT 中确认账号当前 active、AppID 一致、lastActiveAt 不早于注入 now 的两小时前；等号有效，按 lastActiveAt 降序、id 升序取一行。不按 lastLoginAt、silentLoginEnabled 或额外未来上界筛选。
+
+两个函数只使用调用方的真实事务，不加锁、不写表、不缓存、不外呼。返回的 openid 仅供内部 Provider 装配，禁止进入 HTTP DTO、日志或审计。本叶没有装配 WechatOpenIdPort、通知派发或微信 HTTP 接口；测试只使用虚构身份和真实隔离数据库。

@@ -1,13 +1,15 @@
-// 任务进程的服务装配（W0-23）：apps/worker 启动时调一次，拿到四个循环与两个队列消费者要调的用例函数。
-// 依据：D7 第 2.3 节规则 7、8，第 8.3 节“应用侧的数据库会话设置与连接池”；计划 第 5.1 节。
-// 应用层不引数据包（CLAUDE.md 第 6 节规则 5）：连接池在这里建，apps/worker 只把拿到的对象原样传回来。
-import { createPrismaClient } from "@liyoxi/db";
-import type { PrismaClient } from "@liyoxi/db";
-
 import { createConfig } from "../config/index.js";
 import { createSmsHealth, bindSmsHealth, smsTemplateReader } from "../notify/index.js";
 import { keyringFromEnv } from "../security/index.js";
-import type { Env } from "../kernel/index.js";
+// 任务进程的服务装配（W0-23）：apps/worker 启动时调一次，拿到四个循环与两个队列消费者要调的用例函数。
+// 依据：D7 第 2.3 节规则 7、8，第 8.3 节“应用侧的数据库会话设置与连接池”；计划 第 5.1 节。
+// 应用层不引数据包（CLAUDE.md 第 6 节规则 5）：连接池在这里建，apps/worker 只把拿到的对象原样传回来。
+import { bindAnalytics } from "../analytics/index.js";
+import { findWechatIdentityId, recentWechatOpenid } from "../identity/index.js";
+import { createWechatReceiptHandler } from "../notify/index.js";
+import { createPrismaClient } from "@liyoxi/db";
+import type { PrismaClient } from "@liyoxi/db";
+
 import { bindDelivery, reevaluateSweep } from "../delivery/index.js";
 import { createSla } from "../sla/index.js";
 import { bindContent } from "../content/index.js";
@@ -37,6 +39,7 @@ import type {
   BidxKeysConfig,
   Clock,
   DataKeysConfig,
+  Env,
   KernelViolation,
   QueueChannel,
 } from "../kernel/index.js";
@@ -52,7 +55,7 @@ import type {
   Timers,
 } from "../timers/index.js";
 import { bindOps } from "./binding.js";
-import { bindWebhooks, createWebhooks } from "../security/index.js";
+import { bindWebhooks, createWebhooks, createWechatMessageSource } from "../security/index.js";
 import type { WebhookSource } from "../security/index.js";
 import { createStartupChecks, runStartupChecks } from "./startup.js";
 
@@ -72,6 +75,10 @@ export function connectWorkerDatabase(connectionString: string): {
 }
 
 export interface WorkerServicesOptions {
+  readonly wechat?: {
+    readonly config: NonNullable<Env["WECHAT"]>;
+    readonly transport: NonNullable<Parameters<typeof assembleProviders>[0]["wechat"]>;
+  };
   readonly webhookSources?: readonly WebhookSource[];
   readonly appEnv: AppEnv;
   /** 业务连接池：connectWorkerDatabase 给的；用例传测试库的客户端 */
@@ -85,10 +92,12 @@ export interface WorkerServicesOptions {
   readonly report?: (violation: KernelViolation) => void;
   /** 进程的日志口：Provider 的生效状态、放行的自检项往这里记。不给即不记（用例） */
   readonly logger?: ProviderLogger;
-  /** loadEnv 的结果里那两份密钥（把 env 整个传进来即可）：启动自检用。没配就不给 */
+  /** loadEnv 的密钥与本地存储配置（把 env 整个传进来即可）：启动自检及 Provider 装配用。 */
   readonly keys?: {
     readonly DATA_KEYS?: DataKeysConfig;
     readonly BIDX_KEYS?: BidxKeysConfig;
+    readonly MINIO?: Env["MINIO"];
+    readonly COS?: Env["COS"];
     readonly SMS?: Env["SMS"];
   };
   /** 换掉十二个 Provider：只有用例会给（替身）。不给即 assembleProviders 按环境选实现 */
@@ -100,7 +109,10 @@ export interface WorkerServicesOptions {
 
 export interface WorkerServices {
   readonly closeSmsHealth?: () => void;
+  /** 只关闭本次装配创建的存储驱动；不关闭借用数据库、队列或 Redis。 */
+  readonly closeStorageDrivers?: () => Promise<void>;
   readonly closeWebhooks?: () => void;
+  readonly closeAnalytics?: () => void;
   reprocessWebhooks(beat?: () => void): Promise<number>;
   readonly closeOrder?: () => void;
   readonly closeBillingTimers?: () => void;
@@ -142,17 +154,39 @@ const silent: ProviderLogger = { info: () => {}, warn: () => {}, error: () => {}
  * 这里不连 Redis、不查库、不外呼：selfCheck 才查库。
  */
 export function buildWorkerServices(options: WorkerServicesOptions): WorkerServices {
+  const cos = options.keys?.COS;
+  if (cos && !cos.worker) throw new TypeError("COS worker入口缺少worker角色");
   const { assembly, prisma, channel } = options;
   const clock = options.clock ?? systemClock;
+  const storageClosers: Array<() => Promise<void>> = [];
+  let storageClosing: Promise<void> | undefined;
+  const closeStorageDrivers = (): Promise<void> =>
+    (storageClosing ??= Promise.all(storageClosers.map((close) => close())).then(() => undefined));
   const tx = createTxRunner({ prisma, appEnv: options.appEnv, report: options.report });
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const flow = createFlow({ assembly, clock, events });
+  const logger = options.logger ?? silent;
+  const wechatSources = options.wechat
+    ? [
+        createWechatMessageSource({
+          cryptoConfig: {
+            appid: options.wechat.config.appid,
+            token: options.wechat.config.messageToken,
+            encodingAESKey: options.wechat.config.messageEncodingAESKey,
+          },
+          logger,
+          findWechatIdentityId,
+          handleImage: (t, input, ctx) => media.applyWechatImageResult(t, input, ctx),
+          handleSubscription: createWechatReceiptHandler({ clock, logger }),
+        }),
+      ]
+    : [];
   const webhooks = createWebhooks({
     tx,
     clock,
     events,
-    sources: options.webhookSources,
+    sources: options.webhookSources ?? wechatSources,
     alerts: alertsOf(assembly),
   });
   const closeWebhooks = bindWebhooks(webhooks);
@@ -162,24 +196,48 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     flow,
     timers,
   });
-  const logger = options.logger ?? silent;
   const providers =
     options.providers ??
     assembleProviders({
       appEnv: options.appEnv,
       logger,
-      ...(options.keys?.SMS
-        ? {
-            settings: {
+      settings: {
+        ...(options.keys?.SMS
+          ? {
               sms: {
-                driver: "tencent",
+                driver: "tencent" as const,
                 tencent: {
                   config: options.keys.SMS,
                   getTemplate: smsTemplateReader(prisma),
                   now: () => clock.now(),
                 },
               },
+            }
+          : {}),
+        ...(options.keys?.MINIO ? { storage: { minio: options.keys.MINIO } } : {}),
+        ...(cos
+          ? {
+              storage: {
+                driver: "cos" as const,
+                cos: { region: cos.region, buckets: cos.buckets, worker: cos.worker },
+              },
+            }
+          : {}),
+        ...(options.wechat
+          ? { wechat: { appid: options.wechat.config.appid, secret: options.wechat.config.secret } }
+          : {}),
+      },
+      ...(cos
+        ? {
+            storage: {
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => storageClosers.push(close),
             },
+          }
+        : {}),
+      ...(options.wechat
+        ? {
+            wechat: options.wechat.transport,
           }
         : {}),
     });
@@ -196,7 +254,20 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
         options.keys?.DATA_KEYS && options.keys.BIDX_KEYS ? keyringFromEnv(options.keys) : null,
     }),
   );
-  const media = createMedia({ tx, clock, assembly, events, storage: providers.storage, channel });
+  const media = createMedia({
+    tx,
+    clock,
+    assembly,
+    events,
+    storage: providers.storage,
+    channel,
+    wechatImage: {
+      appid: options.wechat?.config.appid,
+      provider: providers.wechat,
+      fallback: providers.media,
+      recentWechatOpenid,
+    },
+  });
   const startupChecks = createStartupChecks({
     db: prisma,
     appEnv: options.appEnv,
@@ -206,6 +277,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const alerts = alertsOf(assembly);
   // ops 的周期任务与违规上报端口要连接、时钟与装配结果（W0-24）
   bindOps({ db: prisma, tx, clock, assembly });
+  const closeAnalytics = bindAnalytics({ clock });
   bindContent(assembly);
   const closePublish = bindPublish(assembly);
   const deliveryCore = {
@@ -235,7 +307,9 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const timing = { tx, assembly, registry: timers.registry, clock, alerts, channel };
   return {
     closeSmsHealth,
+    closeStorageDrivers,
     closeWebhooks,
+    closeAnalytics,
     reprocessWebhooks: (beat) => webhooks.scan(beat),
     closeOrder: () => {
       closeStart();

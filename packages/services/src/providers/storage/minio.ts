@@ -31,7 +31,10 @@ import type {
 } from "../types.js";
 
 export interface MinioConfig {
+  /** 服务端读写用的内部地址 */
   endpoint: string;
+  /** 客户端直传和签读用的地址；不配时沿用 endpoint */
+  publicEndpoint?: string;
   region: string;
   accessKey: string;
   secretKey: string;
@@ -89,26 +92,33 @@ function encodeKey(key: string): string {
 
 export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStorage {
   // 凡是 SDK 会去环境变量与 ~/.aws 下的文件里找缺省值的选项，这里都写明，SDK 就不会去读那些文件
-  const client = new S3Client({
-    endpoint: config.endpoint,
-    region: config.region,
-    forcePathStyle: true,
-    credentials: { accessKeyId: config.accessKey, secretAccessKey: config.secretKey },
-    defaultsMode: "standard",
-    authSchemePreference: [],
-    maxAttempts: 2,
-    retryMode: "standard",
-    requestHandler: { connectionTimeout: 2_000, requestTimeout: 10_000 },
-    requestChecksumCalculation: "WHEN_REQUIRED",
-    responseChecksumValidation: "WHEN_REQUIRED",
-    disableS3ExpressSessionAuth: true,
-    disableClockSkewCorrection: false,
-    sigv4aSigningRegionSet: [],
-    useArnRegion: false,
-    useDualstackEndpoint: false,
-    useFipsEndpoint: false,
-    userAgentAppId: "lyx-local",
-  });
+  const createClient = (endpoint: string) =>
+    new S3Client({
+      endpoint,
+      region: config.region,
+      forcePathStyle: true,
+      credentials: { accessKeyId: config.accessKey, secretAccessKey: config.secretKey },
+      defaultsMode: "standard",
+      authSchemePreference: [],
+      maxAttempts: 2,
+      retryMode: "standard",
+      requestHandler: { connectionTimeout: 2_000, requestTimeout: 10_000 },
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
+      disableS3ExpressSessionAuth: true,
+      disableClockSkewCorrection: false,
+      sigv4aSigningRegionSet: [],
+      useArnRegion: false,
+      useDualstackEndpoint: false,
+      useFipsEndpoint: false,
+      userAgentAppId: "lyx-local",
+    });
+  const client = createClient(config.endpoint);
+  // GET 的 Host 参与验签，必须用对外地址签发，不能在签发后改 URL。
+  const signingClient =
+    config.publicEndpoint && config.publicEndpoint !== config.endpoint
+      ? createClient(config.publicEndpoint)
+      : client;
   const nameOf = (bucket: StorageBucket) => config.buckets[bucket];
 
   async function createMissingBuckets(): Promise<ProviderResult<{ created: StorageBucket[] }>> {
@@ -163,14 +173,17 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
     configured: true,
     capabilities: { sts: false, versioning: false },
     ensureBuckets,
-    close: () => client.destroy(),
+    close: () => {
+      client.destroy();
+      if (signingClient !== client) signingClient.destroy();
+    },
 
     async presignPost({ bucket, key, mime, maxBytes, expiresSec }) {
       if (!key.startsWith(INCOMING_PREFIX)) {
         return failed("rejected", `直传只能写到写入区：键要以 ${INCOMING_PREFIX} 开头`);
       }
       return run("签发直传表单", async () => {
-        const { url, fields } = await createPresignedPost(client, {
+        const { url, fields } = await createPresignedPost(signingClient, {
           Bucket: nameOf(bucket),
           Key: key,
           Conditions: [
@@ -299,7 +312,7 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
             ? requestedDisposition
             : `${requestedDisposition ?? "attachment"}; filename*=UTF-8''${encodeURIComponent(downloadName)}`;
         const url = await getSignedUrl(
-          client,
+          signingClient,
           new GetObjectCommand({
             Bucket: nameOf(bucket),
             Key: key,
@@ -316,6 +329,9 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
         await client.send(new DeleteObjectCommand({ Bucket: nameOf(bucket), Key: key }));
         return ok(undefined);
       });
+    },
+    async abortMultipart() {
+      return failed("unsupported", "本地 MinIO 不提供 STS 分块通道");
     },
   };
 }

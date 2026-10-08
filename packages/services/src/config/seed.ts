@@ -15,6 +15,7 @@ import {
   SITE_CONFIG_SEEDS,
 } from "./seed-data.js";
 import type { DictItemSeed } from "./seed-data.js";
+import { seedMissingSellingPoints } from "./selling-point-seeds.js";
 
 const json = (value: unknown): Prisma.InputJsonValue => value as Prisma.InputJsonValue;
 const itemKey = (item: { dictTypeKey: string; code: string }): string =>
@@ -56,8 +57,8 @@ async function seedDicts(tx: Tx, { now }: SeedContext): Promise<SeedTableResult[
       }),
   });
 
-  // 按顺序发号的初始项只随类型一起播：类型已经在库里，它的顺序号归后台，种子不再往里插
-  //（不然会与后台已发出去的号相撞，或者插了却没推进 next_code_no）。固定编码的项缺了就补。
+  // 按顺序发号的初始项随新类型一起播；既有类型的顺序号归后台，避免撞已发码。
+  // 固定编码的项缺了就补；从未运营的空卖点类型在下方由持锁 helper 特例补齐并推进序号。
   const items = await insertMissing({
     table: "dict_item",
     rows: DICT_ITEM_SEEDS.filter(
@@ -83,6 +84,17 @@ async function seedDicts(tx: Tx, { now }: SeedContext): Promise<SeedTableResult[
         })),
       }),
   });
+  if (typesBefore.has("store_selling_point")) {
+    const sellingPoints = await seedMissingSellingPoints(tx, now);
+    return [
+      types,
+      {
+        ...items,
+        inserted: items.inserted + sellingPoints.inserted,
+        existing: items.existing + sellingPoints.existing,
+      },
+    ];
+  }
   return [types, items];
 }
 

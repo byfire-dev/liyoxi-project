@@ -36,3 +36,24 @@ export { registration } from "./register.js";
 // KF-1 启动自检：两个进程共用的清单与运行器（runStartupChecks 原在 runtime.ts，挪到这里，那边照旧转导出）
 export { createStartupChecks, runStartupChecks, StartupCheckError } from "./startup.js";
 export type { StartupCheck, StartupCheckDeps } from "./startup.js";
+export {
+  createClientErrorForwarder,
+  CLIENT_ERROR_MAX_BYTES,
+  CLIENT_ERROR_QUEUE_SIZE,
+} from "./client-errors.js";
+export type {
+  ClientErrorProject,
+  ClientErrorLogger,
+  ClientErrorForwarderOptions,
+  ClientErrorSnapshot,
+  ClientErrorForwarder,
+} from "./client-errors.js";
+export { createFlowOps, assertFlowOpsRead } from "./flow-ops.js";
+export type { FlowOps, FlowOpsActor, FlowOpsDeps } from "./flow-ops.js";
+export { createAlertActions } from "./alert-actions.js";
+export type {
+  AlertActions,
+  AlertCliCommand,
+  AlertCliInput,
+  AlertCliResult,
+} from "./alert-actions.js";
