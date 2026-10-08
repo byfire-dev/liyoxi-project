@@ -41,6 +41,40 @@ const tokenConflict = (index: number): never => {
   });
 };
 const credential = async (deps: BoundMediaDeps, file: FileRow) => {
+  if (file.uploadMode === "multipart") {
+    const grant = providerValue(
+      await deps.storage.issueSts({
+        bucket: file.incomingBucket as StorageBucket,
+        keyPrefix: `incoming/${file.id}/`,
+        durationSec: 1800,
+      }),
+    );
+    const location = deps.storage.uploadLocation;
+    if (!location || grant.expiresAt <= deps.clock.now())
+      throw new AppError("PROVIDER_UNAVAILABLE");
+    return {
+      fileId: file.id,
+      clientToken: file.clientToken!,
+      status: "pending" as const,
+      mode: "multipart" as const,
+      bucket: location.buckets[file.incomingBucket as StorageBucket],
+      region: location.region,
+      key: file.incomingKey!,
+      post: null,
+      sts: {
+        tmpSecretId: grant.accessKeyId,
+        tmpSecretKey: grant.secretAccessKey,
+        sessionToken: grant.sessionToken,
+        startTime: (grant.startTime ?? deps.clock.now()).toISOString(),
+        expiredTime: grant.expiresAt.toISOString(),
+      },
+      chunkSize: 8 * 1024 * 1024,
+      chunkParallel: 4,
+      expiresAt: grant.expiresAt.toISOString(),
+      uploadExpiresAt: file.uploadExpiresAt!.toISOString(),
+      credentialsLeft: 30 - file.stsIssued,
+    };
+  }
   const post = providerValue(
     await deps.storage.presignPost({
       bucket: file.incomingBucket as StorageBucket,
@@ -55,8 +89,11 @@ const credential = async (deps: BoundMediaDeps, file: FileRow) => {
     clientToken: file.clientToken!,
     status: "pending" as const,
     mode: "post" as const,
-    bucket: new URL(post.url).pathname.split("/").filter(Boolean).at(-1) ?? file.incomingBucket!,
-    region: "us-east-1",
+    bucket:
+      deps.storage.uploadLocation?.buckets[file.incomingBucket as StorageBucket] ??
+      new URL(post.url).pathname.split("/").filter(Boolean).at(-1) ??
+      file.incomingBucket!,
+    region: deps.storage.uploadLocation?.region ?? "us-east-1",
     key: file.incomingKey!,
     post: { url: post.url, fields: post.fields },
     sts: null,
@@ -67,6 +104,36 @@ const credential = async (deps: BoundMediaDeps, file: FileRow) => {
     credentialsLeft: 30 - file.stsIssued,
   };
 };
+function requireCredential(file: FileRow, now: Date) {
+  requirePending(file, now);
+  if (file.confirmingUntil && file.confirmingUntil > now) throw new AppError("CONFIRM_IN_PROGRESS");
+}
+async function reserveCredential(tx: Tx, deps: BoundMediaDeps, file: FileRow) {
+  requireCredential(file, deps.clock.now());
+  if (file.uploadMode !== "multipart") return file;
+  if (file.stsIssued >= 30) throw new AppError("UPLOAD_CREDENTIAL_LIMIT");
+  return tx.fileObject.update({
+    where: { id: file.id },
+    data: { stsIssued: { increment: 1 }, updatedAt: deps.clock.now() },
+  });
+}
+async function releaseKnownFailure(deps: BoundMediaDeps, file: FileRow, error: unknown) {
+  if (
+    file.uploadMode !== "multipart" ||
+    !(error instanceof AppError) ||
+    error.error !== "PROVIDER_UNAVAILABLE"
+  )
+    return;
+  const reason = (error.cause as { reason?: string } | undefined)?.reason;
+  if (!reason || !["rejected", "unsupported", "unconfigured"].includes(reason)) return;
+  await deps.tx.run(async (tx) => {
+    await lockRows(tx, "file_object", [file.id]);
+    await tx.fileObject.updateMany({
+      where: { id: file.id, stsIssued: { gt: 0 } },
+      data: { stsIssued: { decrement: 1 }, updatedAt: deps.clock.now() },
+    });
+  });
+}
 function existingKey(file: FileRow) {
   return {
     uploadActorType: file.uploadActorType,
@@ -129,6 +196,19 @@ export async function register(
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const files = await deps.tx.run(async (tx) => {
       const scope = await registerScope(tx, deps, actor, input);
+      const reusable = await tx.fileObject.findMany({
+        where: {
+          uploadActorType: actor.identity.actor.type,
+          uploadActorId: actor.identity.actor.id,
+          category: input.category,
+          status: "pending",
+          uploadBatchId: null,
+          storeId: scope.storeId,
+          clientToken: { in: validated.map((item) => item.clientToken) },
+        },
+        select: { id: true },
+      });
+      await lockRows(tx, "file_object", reusable.map((row) => row.id).sort());
       const result: FileRow[] = [];
       for (const item of validated) {
         const id = uuidv7();
@@ -144,7 +224,10 @@ export async function register(
           uploadActorType: actor.identity.actor.type,
           uploadActorId: actor.identity.actor.id,
           uploadClient: actor.identity.actor.client,
-          uploadMode: "post",
+          uploadMode:
+            deps.storage.capabilities.sts && item.declaredSize > 20n * 1024n * 1024n
+              ? "multipart"
+              : "post",
           clientToken: item.clientToken,
           uploadBatchId: null,
           status: "pending",
@@ -162,7 +245,8 @@ export async function register(
           sha256: null,
           moderationState: "none",
           moderationDetail: null,
-          stsIssued: 0,
+          stsIssued:
+            deps.storage.capabilities.sts && item.declaredSize > 20n * 1024n * 1024n ? 1 : 0,
           uploadExpiresAt: new Date(now.getTime() + 86_400_000),
           confirmingUntil: null,
           storedAt: null,
@@ -181,13 +265,24 @@ export async function register(
             existing.scopeType !== candidate.scopeType
           )
             tokenConflict(item.index);
-          requirePending(existing, now);
+          const current = await owned(tx, actor, existing.id);
+          result.push(await reserveCredential(tx, deps, current));
+          continue;
         }
         result.push(existing ?? candidate);
       }
       return result;
     });
-    const credentials = await Promise.all(files.map((file) => credential(deps, file)));
+    const credentials = await Promise.all(
+      files.map(async (file) => {
+        try {
+          return await credential(deps, file);
+        } catch (error) {
+          await releaseKnownFailure(deps, file, error);
+          throw error;
+        }
+      }),
+    );
     try {
       await deps.tx.run(async (tx) => {
         await registerScope(tx, deps, actor, input);
@@ -196,6 +291,7 @@ export async function register(
           const existing = await tx.fileObject.findFirst({ where: existingKey(file) });
           if (existing && existing.id !== file.id) throw new RegistrationRace();
           if (!existing) {
+            requireCredential(file, deps.clock.now());
             // skipDuplicates 是 INSERT ... ON CONFLICT DO NOTHING；任何竞争都使整批重新准备。
             const { moderationDetail: _detail, ...data } = file;
             const inserted = await tx.fileObject.createMany({ data: [data], skipDuplicates: true });
@@ -208,7 +304,7 @@ export async function register(
               existing.scopeType !== file.scopeType
             )
               tokenConflict(index);
-            requirePending(existing, deps.clock.now());
+            requireCredential(existing, deps.clock.now());
           }
         }
       }, options);
@@ -227,11 +323,23 @@ export async function refresh(
   options: MediaOptions = {},
 ) {
   const file = await deps.tx.run(async (tx) => {
+    await lockRows(tx, "file_object", [fileId]);
     const row = await owned(tx, actor, fileId);
-    requirePending(row, deps.clock.now());
-    return row;
+    return reserveCredential(tx, deps, row);
   }, options);
-  return credential(deps, file);
+  let result: Awaited<ReturnType<typeof credential>>;
+  try {
+    result = await credential(deps, file);
+  } catch (error) {
+    await releaseKnownFailure(deps, file, error);
+    throw error;
+  }
+  // The short credential is only returned after a fresh owned/scope/state check.
+  await deps.tx.run(async (tx) => {
+    await lockRows(tx, "file_object", [fileId]);
+    requireCredential(await owned(tx, actor, fileId), deps.clock.now());
+  });
+  return result;
 }
 export async function complete(
   deps: BoundMediaDeps,
@@ -246,7 +354,7 @@ export async function complete(
     admin ? adminView(tx, actor, file) : Promise.resolve(statusView(file));
   const view = await createThreePhaseRunner(deps).run<
     Awaited<ReturnType<typeof project>>,
-    string | null,
+    { etag: string; crc64?: string } | null,
     Intent
   >(
     {
@@ -288,9 +396,9 @@ export async function complete(
           throw new AppError("PROVIDER_UNAVAILABLE");
         if (!matchesMagic(file.ext, bytes))
           throw new AppError("UPLOAD_REJECTED", { details: { rejectReason: "bad_magic" } });
-        return head.etag;
+        return { etag: head.etag, ...(head.crc64 ? { crc64: head.crc64 } : {}) };
       },
-      settle: async (tx, etag, { marker }) => {
+      settle: async (tx, object, { marker }) => {
         await lockRows(tx, "file_object", [fileId]);
         const file = await owned(tx, actor, fileId);
         if (!marker) return project(tx, file);
@@ -299,7 +407,8 @@ export async function complete(
           data: {
             status: "promoting",
             confirmingUntil: null,
-            incomingEtag: etag,
+            incomingEtag: object?.etag ?? null,
+            incomingCrc64: object?.crc64 ?? null,
             updatedAt: deps.clock.now(),
           },
         });
@@ -393,18 +502,24 @@ export async function cancel(
   actor: MediaActor,
   fileId: string,
   options: MediaOptions = {},
+  admin = false,
 ) {
+  if (admin && !actor.staff) throw new AppError("NOT_FOUND");
   let incoming: { bucket: StorageBucket; key: string } | undefined;
+  let multipart = false;
+  const project = (tx: Tx, file: FileRow) =>
+    admin ? adminView(tx, actor, file) : Promise.resolve(statusView(file));
   const result = await deps.tx.run(async (tx) => {
     await lockRows(tx, "file_object", [fileId]);
     const file = await owned(tx, actor, fileId);
-    if (file.status === "expired") return statusView(file);
+    if (file.status === "expired") return project(tx, file);
     if (
       file.status !== "pending" ||
       (file.confirmingUntil && file.confirmingUntil > deps.clock.now())
     )
       throw new AppError("STATE_NOT_ALLOWED");
     incoming = { bucket: file.incomingBucket as StorageBucket, key: file.incomingKey! };
+    multipart = file.uploadMode === "multipart";
     await tx.fileObject.updateMany({
       where: { id: fileId, status: "pending" },
       data: {
@@ -414,9 +529,11 @@ export async function cancel(
         updatedAt: deps.clock.now(),
       },
     });
-    return statusView(await tx.fileObject.findUniqueOrThrow({ where: { id: fileId } }));
+    return project(tx, await tx.fileObject.findUniqueOrThrow({ where: { id: fileId } }));
   }, options);
   if (incoming && !options.idem?.replayed)
-    await deps.storage.delete(incoming).catch(() => undefined);
+    await (multipart ? deps.storage.abortMultipart(incoming) : deps.storage.delete(incoming)).catch(
+      () => undefined,
+    );
   return result;
 }

@@ -189,6 +189,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           services.closeDelivery?.();
           services.closeWebhooks?.();
           services.closeAnalytics?.();
+          await services.closeStorageDrivers?.();
         }
       })());
     },
