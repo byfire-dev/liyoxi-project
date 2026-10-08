@@ -4,12 +4,13 @@
 // 延迟：被延迟的调用在发起时就已经生效（外部侧已经收到并处理了），只是应答晚到。
 //       拨动时钟之后调 tick()，到点的应答才放行。
 // 失败：注入的失败不生效（外部侧没有处理），直接返回 { ok: false }。
+// 通知受理证明独立于本地 sent 记录：未知应答被取消仍不能证明未受理。
 
 import { failed, notificationFailed } from "../../providers/types.js";
 import type {
   NotificationFailureDetail,
   NotificationProviderResult,
-  ProviderFailure,
+  NotificationProviderFailure,
   ProviderFailureReason,
   ProviderLogger,
   ProviderResult,
@@ -83,7 +84,7 @@ export function createFakeCore<M extends string>(
   notificationMethods: readonly M[] = [],
 ): FakeCore<M> {
   const calls: Array<FakeCall<M>> = [];
-  const failures = new Map<M, ProviderFailure[]>();
+  const failures = new Map<M, NotificationProviderFailure[]>();
   const delays = new Map<M, number[]>();
   const held: Held[] = [];
 
@@ -104,11 +105,12 @@ export function createFakeCore<M extends string>(
     const failure = failures.get(method)?.shift();
     const delayMs = delays.get(method)?.shift();
     let outcome: Promise<ProviderResult<T>>;
-    let started = false;
+    let mayHaveBeenAccepted = false;
     if (failure !== undefined) {
+      mayHaveBeenAccepted = failure.notification?.acceptance !== "not_accepted";
       outcome = Promise.resolve(failure);
     } else {
-      started = true;
+      mayHaveBeenAccepted = true;
       // action 在发起调用的当下同步执行：返回之前外部侧的状态已经变了
       try {
         outcome = Promise.resolve(action());
@@ -140,8 +142,8 @@ export function createFakeCore<M extends string>(
       const onAbort = () =>
         finish(() =>
           resolve(
-            notificationFailed(started ? "unavailable" : "rejected", "通知调用已取消", {
-              acceptance: started ? "unknown" : "not_accepted",
+            notificationFailed(mayHaveBeenAccepted ? "unavailable" : "rejected", "通知调用已取消", {
+              acceptance: mayHaveBeenAccepted ? "unknown" : "not_accepted",
               code: "aborted",
             }),
           ),

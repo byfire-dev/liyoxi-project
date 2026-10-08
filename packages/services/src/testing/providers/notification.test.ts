@@ -156,6 +156,37 @@ describe("六个通知方法的取消与旧替身语义", () => {
     expect(fakes.sms.sent).toHaveLength(0);
   });
 
+  it.each(methods)("$provider.$method 失败延迟取消不能增加未受理证明", async (item) => {
+    for (const acceptance of ["unknown", "legacy", "not_accepted"] as const) {
+      const c = clock();
+      const fakes = createFakeProviders({ clock: c });
+      const { fake, send } = selected(fakes, item);
+      if (acceptance === "legacy") fake.failNext(item.method as never);
+      else
+        fake.failNotificationNext(item.method as never, {
+          acceptance,
+          code: acceptance === "unknown" ? "unknown_outcome" : "rate_limited",
+        });
+      fake.delayNext(item.method as never, 10_000);
+      const controller = new AbortController();
+      const pending = send(controller.signal);
+      expect(fake.pendingCalls()).toBe(1);
+      controller.abort();
+      await expect(pending).resolves.toMatchObject({
+        ok: false,
+        notification: {
+          acceptance: acceptance === "not_accepted" ? "not_accepted" : "unknown",
+          code: "aborted",
+        },
+      });
+      expect(fake.pendingCalls()).toBe(0);
+      expect(getEventListeners(controller.signal, "abort")).toHaveLength(0);
+      c.advance(10_000);
+      expect(tickFakes(fakes)).toBe(0);
+      expect(sentCount(fakes)).toBe(0);
+    }
+  });
+
   it("仅通知方法允许注入、控制次数有界、reset沿旧语义", async () => {
     const fakes = createFakeProviders();
     expect(() =>
