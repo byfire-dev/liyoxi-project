@@ -97,10 +97,15 @@ export const adminFileErase = adminMeta({
   "x-idempotent-reason": "状态迁移；多事务的三段式用例（C51）",
 });
 
-export const adminFileRefreshCredentials = adminMeta({
+export const adminFileRefreshCredentials = adminRoute({
   method: "post",
   path: "/admin/files/{fileId}/refresh-credentials",
   operationId: "admin.file.refreshCredentials",
+  request: { params: FileIdParamsSchema },
+  responses: {
+    ...okResponse(FileRegistrationSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
   summary: "续签直传临时密钥（大文件分块上传中途过期）",
   "x-permission": "assert-in-handler",
   "x-idempotent": "none",
@@ -117,10 +122,15 @@ export const adminFileRestore = adminMeta({
   "x-idempotent-reason": "状态迁移；三段式用例（先调外部、再开事务）",
 });
 
-export const adminFileCancel = adminMeta({
+export const adminFileCancel = adminRoute({
   method: "post",
   path: "/admin/files/{fileId}/cancel",
   operationId: "admin.file.cancel",
+  request: { params: FileIdParamsSchema },
+  responses: {
+    ...okResponse(AdminFileViewSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
   summary: "上传人本人取消未确认的上传登记（pending → expired，清空写入区键）",
   "x-permission": "assert-in-handler",
   "x-idempotent": "required",

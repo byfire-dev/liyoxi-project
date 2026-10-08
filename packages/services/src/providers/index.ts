@@ -10,6 +10,8 @@ import { createConsoleSms } from "./sms/console.js";
 import type { Redis } from "ioredis";
 import { createWechatDriver } from "./wechat/driver.js";
 import { createRedisTokenCache } from "./wechat/token.js";
+import { createCosStorage } from "./storage/cos.js";
+import type { CosConfig } from "./storage/cos.js";
 import { createMinioStorage, LOCAL_MINIO } from "./storage/minio.js";
 import type { MinioConfig } from "./storage/minio.js";
 import { guardProviders, PROVIDER_NAMES } from "./types.js";
@@ -58,7 +60,8 @@ export interface ProviderSettings {
   };
   storage?: {
     /** 显式选本地 MinIO。不写时：local、test 用本地 MinIO，stg、prod 为未配置 */
-    driver?: "minio";
+    driver?: "minio" | "cos";
+    cos?: CosConfig;
     /** 覆盖本地 MinIO 的连接参数；不写用 infra/compose/local.yml 那一套 */
     minio?: Partial<MinioConfig>;
   };
@@ -74,6 +77,11 @@ export interface CreateProvidersOptions {
   settings?: ProviderSettings;
   /** 外呼前钩子；缺省空转。W0-20 接上 kernel 的事务标记 */
   beforeCall?: BeforeProviderCall;
+  storage?: {
+    now: () => Date;
+    registerClose: (close: () => Promise<void>) => void;
+    fetchImpl?: typeof fetch;
+  };
   /** 借用进程连接；只登记本工厂创建的驱动的关闭函数。 */
   wechat?: {
     redis: Pick<Redis, "get" | "set" | "eval"> & { options: { keyPrefix?: string } };
@@ -118,9 +126,10 @@ function selectSms(
 
 function selectStorage(appEnv: ProviderAppEnv, settings: ProviderSettings): StorageProvider {
   const driver: string | undefined = settings.storage?.driver;
-  if (driver !== undefined && driver !== "minio") {
+  if (driver !== undefined && driver !== "minio" && driver !== "cos") {
     throw new ProviderConfigError("storage", "不认识的驱动；现在只有 minio");
   }
+  if (driver === "cos") return unconfiguredStorage;
   if (driver === "minio" && !isLocalEnv(appEnv)) {
     throw new ProviderConfigError("storage", `本地 MinIO 只限 local、test，${appEnv} 不能选它`);
   }
@@ -189,6 +198,11 @@ export function createProviders(options: CreateProvidersOptions): Providers {
   const local = isLocalEnv(appEnv);
   if ((settings.wechat === undefined) !== (options.wechat === undefined))
     throw new ProviderConfigError("wechat", "完整配置与运行时依赖须同时提供");
+  if (
+    (settings.storage?.cos === undefined) !== (options.storage === undefined) ||
+    (settings.storage?.driver === "cos" && !settings.storage.cos)
+  )
+    throw new ProviderConfigError("storage", "COS 完整配置与运行时依赖须同时提供");
 
   const chosen: Providers = {
     ...unconfiguredProviders,
@@ -217,6 +231,12 @@ export function createProviders(options: CreateProvidersOptions): Providers {
     );
     transport.registerClose(driver.close);
     chosen.wechat = driver.provider;
+  }
+  if (settings.storage?.cos && options.storage) {
+    if (settings.storage.driver !== "cos") throw new TypeError("COS 配置与驱动选择不一致");
+    const driver = createCosStorage(settings.storage.cos, options.storage);
+    chosen.storage = driver;
+    options.storage.registerClose(driver.close);
   }
 
   const providers = guardProviders(chosen, options.beforeCall ?? noop);
