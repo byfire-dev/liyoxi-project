@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createClientReporting } from "./client-reporting";
+import { createErrorReporter } from "./errors";
 import { createRequestLayer } from "./request";
 import type { WireRequest } from "./platform";
 import type { AnalyticsEventBatch } from "./track";
@@ -50,6 +51,75 @@ function setup(status = 200, mode: "ok" | "network" = "ok", baseUrl = "https://a
   return { calls: createClientReporting(layer.request), sent };
 }
 describe("W218中央request真实接线", () => {
+  it("未知拒绝对象经真实reporter和中央sender出站前丢弃请求体与凭据", async () => {
+    const { calls, sent } = setup(202);
+    const reporter = createErrorReporter({
+      clock: { now: () => 0, sleep: async () => {} },
+      uuid: () => id,
+      dsn: "https://public@errors.example.test/1",
+      sender: () => calls.sendClientError,
+      client: () => ({ platform: "ios", version: "1.0.0", envVersion: "trial" }),
+      getUserId: () => null,
+    });
+    const reason = {
+      request: {
+        body: { privateNote: "fictional-request-body" },
+        headers: { Authorization: "Bearer fictional-token" },
+      },
+      password: "fictional-password",
+      secret: "fictional-secret",
+    };
+    reporter.capture("unhandledrejection", reason);
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]?.url).toBe("https://api.example.test/api/v1/m/client-errors");
+    expect(sent[0]?.header["content-type"]).toBe("application/x-sentry-envelope");
+    const raw = String(sent[0]?.data);
+    const event: { exception: { values: { type: string; value: string }[] } } = JSON.parse(
+      raw.split("\n")[2] ?? "{}",
+    );
+    expect(event.exception.values).toEqual([{ type: "Error", value: "Unknown error" }]);
+    for (const secret of [
+      "fictional-request-body",
+      "fictional-password",
+      "fictional-secret",
+      "fictional-token",
+    ])
+      expect(raw).not.toContain(secret);
+  });
+
+  it("只取自有message数据属性；不执行getter、toJSON或循环对象序列化", async () => {
+    const { calls, sent } = setup(202);
+    let count = 0;
+    const reporter = createErrorReporter({
+      clock: { now: () => 0, sleep: async () => {} },
+      uuid: () => `00000000-0000-4000-8000-${String(++count).padStart(12, "0")}`,
+      dsn: "https://public@errors.example.test/1",
+      sender: () => calls.sendClientError,
+      client: () => ({ platform: "ios", version: "1.0.0", envVersion: "trial" }),
+      getUserId: () => null,
+    });
+    const getter = vi.fn(() => "fictional-getter-secret");
+    const toJSON = vi.fn(() => "fictional-json-secret");
+    const reason = Object.defineProperty({ toJSON }, "message", { get: getter });
+    Object.defineProperty(reason, "self", { value: reason, enumerable: true });
+    reporter.capture("unhandledrejection", reason);
+    reporter.capture("handler", {
+      message: "请求失败 lyxm_fictional",
+      password: "fictional-password",
+    });
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
+    expect(getter).not.toHaveBeenCalled();
+    expect(toJSON).not.toHaveBeenCalled();
+    const values = sent.map((request) => {
+      const event: { exception: { values: { value: string }[] } } = JSON.parse(
+        String(request.data).split("\n")[2] ?? "{}",
+      );
+      return event.exception.values[0]?.value;
+    });
+    expect(values).toEqual(["Unknown error", "请求失败 [token]"]);
+    expect(JSON.stringify(sent.map((request) => request.data))).not.toContain("fictional-password");
+  });
+
   it("信封原文字节、内容类型、会话头照传，202受理一次", async () => {
     const { calls, sent } = setup(202);
     const raw = '{"dsn":"https://public@example.test/1"}\n{"type":"event"}\n{"message":"中文"}';
