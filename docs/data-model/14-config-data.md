@@ -746,6 +746,8 @@ Banner 各有独立的时间窗与启停，保存即生效，到结束时间自�
 
 - `analytics.partitions`（每月 20 日的周期任务）调用 `lyx_14_analytics_event_ensure_partition`，预建未来 3 个月的分区（d6:1952）。由 lyx_app 调用受限 SECURITY DEFINER，不给 worker 迁移口令或直接 DDL 权限。服务按注入 clock 与现有参数确定允许月份，数据库仅校验结构日期，不新增 now/保留期业务规则。
 - 原始事件保留 25 个月（参数 `analytics.retention_months`）：到期整分区导出到对象存储后 `DETACH` 再 `DROP`，不逐行删除。
+- 后续独立结构迁移提供受限 `lyx_14_analytics_event_retire_partition(date,timestamptz,integer,bigint,text)`：固定月份、注入时钟、正式保留期 13–60、实际归档行数和 manifest SHA-256；结束边界不晚于时钟减保留期的完整北京时间月份才可退役。在父表独占锁内验证原完整结构/只增 guards 与行数，再原子 DETACH/DROP，无 CASCADE。服务须先验证完整对象归档，函数不外呼、不把参数哈希当对象存在证明；迟到数据导致行数失配即拒绝，不改旁侧表。业务任务只在能力实际合入 main 后消费，真实归档仍由 W2-18 PR2 验收。
+- 角色权限另有不可越过的最短年龄界：按数据库语句时间保留至少 13 个月，伪造未来业务时钟不能绕过；同现有 auth_event purge 的防未来用途，不替代注入时钟与实际业务保留参数。
 - 兜底分区有数据之后的修复（d6:1954-1965）：脚本 `ops analytics:repartition <YYYY-MM>` 按服务范围和环境授权调用 `lyx_14_analytics_event_repartition_month(date)`，只搬该月完整行，同一事务恢复 trigger；其他月、dedup、identity 不改。此能力由独立结构迁移包落地，W2-18 主包实际合流后才消费；不授任意 DDL，不改归档权限。
 
 **不变量**
