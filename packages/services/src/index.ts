@@ -12,6 +12,7 @@ export type {
   MessageActor,
   NotifySettingActor,
 } from "./notify/index.js";
+export type { NotifyQueueRef, NotifyQueueTask } from "./notify/index.js";
 // W0-14：敏感字段与审计。按模块名取用：security.sealPhone(…)、audit.record(…)
 export * as security from "./security/index.js";
 export * as audit from "./audit/index.js";

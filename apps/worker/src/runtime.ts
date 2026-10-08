@@ -14,6 +14,7 @@ import type {
   TimerRef,
   WorkerLease,
   WorkerServices,
+  NotifyQueueRef,
 } from "@liyoxi/services";
 
 import { DOMAIN_LOOPS } from "./domain-loops.js";
@@ -37,6 +38,7 @@ export const QUEUE_CONCURRENCY = {
   outbox_delivery: 4,
   timer_run: 4,
   promote: 2,
+  notify: 4,
 } as const satisfies Partial<Record<QueueId, number>>;
 export type WorkerQueue = keyof typeof QUEUE_CONCURRENCY;
 
@@ -90,6 +92,9 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
     ensure_recurring: loop("ensure_recurring", () => services.ensureRecurring()),
   };
   const consumers: Record<WorkerQueue, QueueConsumer> = {
+    notify: channel.consume<NotifyQueueRef>("notify", QUEUE_CONCURRENCY.notify, (ref) =>
+      services.notifyDeliver(ref),
+    ),
     outbox_delivery: channel.consume<DeliveryRef>(
       "outbox_delivery",
       QUEUE_CONCURRENCY.outbox_delivery,
@@ -170,7 +175,10 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
         active = false;
         try {
           // 一个关闭失败不能提前解绑：循环与全部消费者都收完后才清理绑定。
-          const loopResults = await Promise.allSettled(all.map((one) => one.stop()));
+          const loopResults = await Promise.allSettled([
+            services.closeNotify(),
+            ...all.map((one) => one.stop()),
+          ]);
           const queueResults = await Promise.allSettled(
             queues.map((one) => one.close(SHUTDOWN_WAIT_MS)),
           );

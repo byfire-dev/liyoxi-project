@@ -1,3 +1,8 @@
+import {
+  implementKeyed as notifyReaderImplementation,
+  notifyReadPort as currentNotifyReadPort,
+} from "../kernel/index.js";
+import { storeForNotify } from "./notify-facts.js";
 import { profilePiiFields } from "./pii-fields.js";
 import { approvalKindPort } from "../approval/index.js";
 import {
@@ -16,6 +21,8 @@ import { dictRef, snapshot } from "./repo.js";
 export const registration = defineRegistration("profile", {
   ports: [orderManagerPort, deliveryManagerPort, adminProfileFactsPort],
   portImplementations: [
+    notifyReaderImplementation(currentNotifyReadPort, "storeForNotify", storeForNotify),
+
     implementKeyed(dictReferencesPort, "profile", profileDictReferences),
     ...profilePiiFields,
     implementKeyed(approvalKindPort, "qualification", qualificationKind),

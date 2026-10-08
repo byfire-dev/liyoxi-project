@@ -136,6 +136,7 @@ describe("createRuntime", () => {
         "flow.state_columns",
         // W1-01a：后台登录的三把密钥，只有 api 进程查
         "security.auth_keys",
+        "notify.templates",
       ]);
       expect(runtime.assembly.entry).toBe("api");
       expect(await runtime.config.params.get("work.start")).toBe("09:00");

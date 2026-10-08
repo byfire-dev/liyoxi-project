@@ -1,1 +1,1 @@
-export {};
+export { registration } from "./register.js";

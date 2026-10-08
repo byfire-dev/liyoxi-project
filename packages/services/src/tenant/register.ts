@@ -1,3 +1,12 @@
+import {
+  implementKeyed as notifyReaderImplementation,
+  notifyReadPort as currentNotifyReadPort,
+} from "../kernel/index.js";
+import {
+  merchantRecipientsForNotify,
+  managerIdsForNotify,
+  noticeRecipientsPageForNotify,
+} from "./notify-facts.js";
 // tenant 模块的登记（W1-03）：
 //   端口     计费账户由 billing 实现；W2-10 PR1 的精准下载页授权吊销由 identity 实现。
 //   状态机   entity、store、entity_member 五条链的随迁列、活动流默认描述，与本包用到的十行迁移的守卫。
@@ -21,7 +30,20 @@ const check = (
 
 export const registration = defineRegistration("tenant", {
   ports: [billingAccountPort, membershipAuthorizationsPort],
-  portImplementations: [...machineImplementations()],
+  portImplementations: [
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "merchantRecipientsForNotify",
+      merchantRecipientsForNotify,
+    ),
+    notifyReaderImplementation(currentNotifyReadPort, "managerIdsForNotify", managerIdsForNotify),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "noticeRecipientsPageForNotify",
+      noticeRecipientsPageForNotify,
+    ),
+    ...machineImplementations(),
+  ],
   invariants: [
     check("tenant.I1", (tx) => findI1Violations(tx)),
     check("tenant.I7", (tx) => findI7Violations(tx)),

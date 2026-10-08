@@ -1,3 +1,7 @@
+import { createRuntimeNotify, createNotifyAssembly } from "./ops/notify-runtime.js";
+import type { NotifyDispatcherService } from "./notify/index.js";
+import { readAgreementNoticeLink } from "./docs/index.js";
+import { bindAgreementNoticeLink } from "./config/index.js";
 import { bindAnalytics, createAnalyticsReceiver } from "./analytics/index.js";
 import type { AnalyticsReceiver } from "./analytics/index.js";
 import { createSubscribeResults, createWechatReceiptHandler } from "./notify/index.js";
@@ -173,6 +177,7 @@ export interface Runtime {
   readonly order: OrderService;
   readonly billing: BillingPurchase;
   readonly notifyMessages: NotifyMessages;
+  readonly notify: NotifyDispatcherService;
   readonly content: Content;
   readonly media: Media;
   /** 审批执行器与只读队列：api、worker 各自装配（移交表 64） */
@@ -288,7 +293,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       ? {}
       : { commandTimeoutMs: options.rateLimitCommandTimeoutMs }),
   });
-  const assembly = assembleServices({ entry, appEnv: env.APP_ENV });
+  const notifyScope = createNotifyAssembly(assembleServices({ entry, appEnv: env.APP_ENV }));
+  const assembly = notifyScope.assembly;
   // 违规上报端口（invariants.report）的实现在 ops，要连接、时钟与装配结果（W0-24）
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
   const unbindAnalytics = bindAnalytics({ clock });
@@ -396,6 +402,20 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     timers,
     kinds: approval.kinds,
   });
+  const notify = createRuntimeNotify({
+    tx,
+    clock,
+    assembly,
+    appEnv: env.APP_ENV,
+    params: config.params,
+    providers,
+    logger,
+    keys: env,
+    keyring: options.billingKeyring,
+    appid: env.WECHAT?.appid,
+  });
+  notifyScope.attach(notify);
+  const unbindNoticeLink = bindAgreementNoticeLink(readAgreementNoticeLink);
   const configAdmin = createConfigAdmin({ tx, clock, assembly, config, staffBriefs });
   const calendarAdmin = createCalendarAdmin({ tx, clock, events });
   const unbindCalendarCoverage = bindCalendarCoverage({
@@ -498,6 +518,14 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     });
   }
 
+  startupChecks.push({
+    name: "notify.templates",
+    async run() {
+      await notify.validateConfiguration();
+      return [];
+    },
+  });
+
   return {
     analytics,
     subscribeResults,
@@ -506,6 +534,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     order,
     billing,
     notifyMessages,
+    notify,
     content,
     media,
     entry,
@@ -528,6 +557,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
+      await notifyScope.close();
+      unbindNoticeLink();
       await Promise.allSettled(wechatClosers.map((close) => close()));
       await clientErrors.close();
       unbindOrderStart();

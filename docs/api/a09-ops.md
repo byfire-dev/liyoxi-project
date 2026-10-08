@@ -556,6 +556,7 @@
 | `s.offline_overdue` | 下架逾期 | `takedown.escalated` | 交付主管与交付经理 | ✔ / ✔ | `publish.offline` | 播种 |
 | `s.copyright_expiring` | 版权即将到期 | 规则 R7 | 内容运营 | ✔（按人按日一条）/ ✔ | `drama.edit` | 播种 |
 | `s.approval_pending` | 待审批 | `approval.submitted` | 有决定权的员工 | ✔ / ✔ | `approval.mine` | 播种 |
+| `s.followup_due` | 跟进到期提醒 | 纯提醒 `followup_due`，到期日 09:00 起 | 当前 `follow_up.owner_staff_id`，仍待跟进 | ✔ / ✔ | `merchant.detail`（`entityId`） | W2-17 必要补登；03 分组 2.9、13 分组 2.1 |
 | `s.approval_decided` | 审批结果 | `approval.approved`、`approval.rejected` | 申请人 | ✔ / ✔ | `approval.mine` | 播种 |
 | `s.receipt_pending` | 对公凭证待确认 | `transfer.proof_submitted` | 财务 | ✔ / ✔ | `order.receipts` | 播种 |
 | `s.merchant_unreached` | 商家未触达 | 补发判定：订阅与短信都未送达（不经出站事件，13-notify-docs.md:439） | 该商家的交付经理 | ✔ / ✔ | `merchant.detail` | 播种 |

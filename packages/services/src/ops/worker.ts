@@ -1,9 +1,13 @@
+import { createRuntimeNotify, createNotifyAssembly } from "./notify-runtime.js";
+import { readAgreementNoticeLink } from "../docs/index.js";
+import { createConfig, bindAgreementNoticeLink } from "../config/index.js";
 // 任务进程的服务装配（W0-23）：apps/worker 启动时调一次，拿到四个循环与两个队列消费者要调的用例函数。
 // 依据：D7 第 2.3 节规则 7、8，第 8.3 节“应用侧的数据库会话设置与连接池”；计划 第 5.1 节。
 // 应用层不引数据包（CLAUDE.md 第 6 节规则 5）：连接池在这里建，apps/worker 只把拿到的对象原样传回来。
 import { bindAnalytics } from "../analytics/index.js";
 import { findWechatIdentityId, recentWechatOpenid } from "../identity/index.js";
 import { createWechatReceiptHandler } from "../notify/index.js";
+import type { NotifyQueueRef } from "../notify/index.js";
 import { createPrismaClient } from "@liyoxi/db";
 import type { PrismaClient } from "@liyoxi/db";
 
@@ -103,6 +107,9 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  notifyDeliver(ref: NotifyQueueRef): Promise<void>;
+  scanNotify(): Promise<number>;
+  closeNotify(): Promise<void>;
   readonly closeWebhooks?: () => void;
   readonly closeAnalytics?: () => void;
   reprocessWebhooks(beat?: () => void): Promise<number>;
@@ -146,7 +153,9 @@ const silent: ProviderLogger = { info: () => {}, warn: () => {}, error: () => {}
  * 这里不连 Redis、不查库、不外呼：selfCheck 才查库。
  */
 export function buildWorkerServices(options: WorkerServicesOptions): WorkerServices {
-  const { assembly, prisma, channel } = options;
+  const { prisma, channel } = options;
+  const notifyScope = createNotifyAssembly(options.assembly);
+  const assembly = notifyScope.assembly;
   const clock = options.clock ?? systemClock;
   const tx = createTxRunner({ prisma, appEnv: options.appEnv, report: options.report });
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
@@ -250,7 +259,37 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   // 扫描里出错过的主体（进程内的记忆）：下一轮排到正常的主体后面，不占着名额饿死别人
   const laggards = new Map<string, number>();
   const timing = { tx, assembly, registry: timers.registry, clock, alerts, channel };
+  const notify = createRuntimeNotify({
+    tx,
+    clock,
+    assembly,
+    appEnv: options.appEnv,
+    providers,
+    logger,
+    keys: options.keys,
+    appid: options.wechat?.config.appid,
+    params: createConfig({ db: prisma, clock, redis: null }).params,
+  });
+  notifyScope.attach(notify);
+  const unbindNoticeLink = bindAgreementNoticeLink(readAgreementNoticeLink);
+
   return {
+    notifyDeliver: (ref) => notify.deliver(ref),
+    scanNotify: () =>
+      notify.scan(async (ref) => {
+        if ("fanoutId" in ref)
+          await channel.enqueue("notify", `fan-${ref.fanoutId}-${ref.pageKey}`, {
+            fanoutId: ref.fanoutId,
+          });
+        else
+          await channel.enqueue("notify", `dlv-${ref.deliveryId}-${ref.attemptNo}`, {
+            deliveryId: ref.deliveryId,
+          });
+      }),
+    closeNotify: async () => {
+      await notifyScope.close();
+      unbindNoticeLink();
+    },
     closeWebhooks,
     closeAnalytics,
     reprocessWebhooks: (beat) => webhooks.scan(beat),
@@ -268,7 +307,10 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     events,
     timers,
     providers,
-    selfCheck: () => runStartupChecks(startupChecks),
+    selfCheck: async () => {
+      await runStartupChecks(startupChecks);
+      await notify.validateConfiguration();
+    },
     async relay(beat) {
       let total = 0;
       for (;;) {

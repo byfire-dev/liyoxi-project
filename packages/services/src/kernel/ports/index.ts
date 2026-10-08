@@ -9,6 +9,7 @@ export type { PortLogger } from "./log.js";
 export { notifyReadOf, notifyReadPort } from "./notify-read.js";
 export type { NotifyRead, NotifyReader } from "./notify-read.js";
 export { REMINDER_RULE_KEYS, remindersOf, remindersPort } from "./reminders.js";
+export type { TransactionConsentFact } from "./transaction-consent-facts.js";
 export type {
   ReminderQuery,
   ReminderRule,

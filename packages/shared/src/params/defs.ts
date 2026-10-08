@@ -270,6 +270,13 @@ export const PARAM_DEFS = [
     "测试发送的接收人",
     { default: [], check: checkTestRecipients, sensitivePaths: ["phone", "wxOpenid"] },
   ),
+  // D6 §2.4 默认一千；范围是 W2-17 批准的防误值宽边界，按 user/entity 二元接收人计数。
+  int("notify.fanout.batch", "规则公告每页主体接收人上限", {
+    default: 1000,
+    unit: "主体接收人",
+    min: 1,
+    max: 10000,
+  }),
 
   // ---- general（D6 第 4.2.1 节 general 一行）
   // 1–30，默认 7（10 分组 package_link.valid_days）

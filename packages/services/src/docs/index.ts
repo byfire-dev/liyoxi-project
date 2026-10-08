@@ -42,3 +42,6 @@ export {
 export type { PlaceholderFile, PlaceholderSeedDeps, PlaceholderSeedInput } from "./demo-seed.js";
 
 export { docsPiiFields } from "./pii-fields.js";
+export { readAgreementNoticeLink } from "./notice-link.js";
+
+export { findN5Violations } from "./transaction-invariant.js";
