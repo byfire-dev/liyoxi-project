@@ -32,7 +32,7 @@ export async function analyticsRetention(tx: Tx, now: Date) {
     throw new AppError("VALIDATION_FAILED");
   // 同退役能力的 PostgreSQL 月历减法；不以固定30天替代自然月。
   const rows = await tx.$queryRawUnsafe<Array<{ boundary: string }>>(
-    "SELECT to_char(($1::timestamptz - make_interval(months => $2::integer)) AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM') AS boundary",
+    "SELECT to_char(($1::timestamptz AT TIME ZONE 'Asia/Shanghai') - make_interval(months => $2::integer), 'YYYY-MM') AS boundary",
     now,
     months,
   );

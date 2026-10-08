@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { beforeEach, expect, it } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import type { PrismaClient } from "@liyoxi/db";
 import { createTxRunner, uuidv7 } from "../kernel/index.js";
 import {
@@ -404,4 +404,148 @@ it("owned scope关闭等待已进入的真实PUT，再拒绝退役；另一scope
     await Promise.all([first.close(), second.close()]);
     await result;
   }
+}, 120_000);
+
+it.each(["signal", "scope"] as const)(
+  "最终事务真实等待月锁时%s取消，归档对象保留且退役与审计回滚",
+  async (kind) => {
+    await ensure();
+    await insert();
+    const before = await rows(),
+      controller = new AbortController();
+    let release!: () => void, locked!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const started = new Promise<void>((resolve) => {
+      locked = resolve;
+    });
+    let blocker: Promise<void> | undefined;
+    const head = h.providers.storage.head.bind(h.providers.storage);
+    h.providers.storage.head = async (input) => {
+      const result = await head(input);
+      if (input.key.endsWith(".manifest.json")) {
+        blocker = tx.run(async (handle) => {
+          await handle.$executeRawUnsafe(
+            "SELECT pg_advisory_xact_lock(hashtextextended($1::text,0))",
+            `analytics.partitions:${MONTH}`,
+          );
+          locked();
+          await held;
+        });
+        await started;
+      }
+      return result;
+    };
+    const scope = createAnalyticsJobs(assembleForTest({ entry: "worker" }), {
+      tx,
+      clock,
+      appEnv: "test",
+      storage: () => h.providers.storage,
+    });
+    const task = scope.assembly.recurringJob("analytics.partitions")!.run({
+      scheduledFor: clock.now(),
+      runTx: (fn) => tx.run(fn),
+      signal: controller.signal,
+    });
+    const outcome = task.then(
+      () => "resolved",
+      () => "cancelled",
+    );
+    let close: Promise<void> | undefined;
+    try {
+      await started;
+      await vi.waitFor(
+        async () => {
+          const pending = await prisma.$queryRawUnsafe<Array<{ waiting: number }>>(
+            "SELECT count(*)::int AS waiting FROM pg_locks l JOIN pg_stat_activity a ON a.pid=l.pid WHERE l.locktype='advisory' AND NOT l.granted AND a.datname=current_database()",
+          );
+          expect(pending[0]?.waiting).toBeGreaterThanOrEqual(1);
+        },
+        { timeout: 10_000 },
+      );
+      expect(archiveBodies().lines).toEqual(before.map((row) => row.body));
+      if (kind === "scope") close = scope.close();
+      else controller.abort();
+      release();
+      const result = await outcome;
+      await close;
+      const relation = await prisma.$queryRawUnsafe<Array<{ name: string | null }>>(
+        "SELECT to_regclass($1)::text AS name",
+        `public.${analyticsPartitionName(MONTH)}`,
+      );
+      expect({
+        outcome: result,
+        rows: await rows(),
+        relation: relation[0]?.name,
+        audits: await prisma.auditLog.count({ where: { action: "analytics.partition.archive" } }),
+      }).toEqual({
+        outcome: "cancelled",
+        rows: before,
+        relation: analyticsPartitionName(MONTH),
+        audits: 0,
+      });
+    } finally {
+      release();
+      await Promise.allSettled([task, ...(blocker ? [blocker] : []), scope.close()]);
+    }
+  },
+  120_000,
+);
+
+it("退役SQL已真实执行后取消，事务末复核必须回滚DROP和同月审计", async () => {
+  await ensure();
+  await insert();
+  const before = await rows(),
+    controller = new AbortController();
+  let retiredInsideTransaction = false;
+  const task = service.maintain({
+    scheduledFor: clock.now(),
+    signal: controller.signal,
+    runTx: (fn) =>
+      tx.run((handle) =>
+        fn(
+          new Proxy(handle, {
+            get(target, key, receiver) {
+              if (key === "$queryRawUnsafe")
+                return async (query: string, ...args: unknown[]) => {
+                  const result = await target.$queryRawUnsafe(query, ...args);
+                  if (query.includes("lyx_14_analytics_event_retire_partition")) {
+                    const relation = await target.$queryRawUnsafe<Array<{ name: string | null }>>(
+                      "SELECT to_regclass($1)::text AS name",
+                      `public.${analyticsPartitionName(MONTH)}`,
+                    );
+                    expect(relation[0]?.name).toBeNull();
+                    retiredInsideTransaction = true;
+                    controller.abort();
+                  }
+                  return result;
+                };
+              return Reflect.get(target, key, receiver);
+            },
+          }),
+        ),
+      ),
+  });
+  const outcome = await task.then(
+    () => "resolved",
+    () => "cancelled",
+  );
+  const relation = await prisma.$queryRawUnsafe<Array<{ name: string | null }>>(
+    "SELECT to_regclass($1)::text AS name",
+    `public.${analyticsPartitionName(MONTH)}`,
+  );
+  expect(retiredInsideTransaction).toBe(true);
+  expect(archiveBodies().lines).toEqual(before.map((row) => row.body));
+  expect({
+    outcome,
+    rows: await rows(),
+    relation: relation[0]?.name,
+    audits: await prisma.auditLog.count({ where: { action: "analytics.partition.archive" } }),
+  }).toEqual({
+    outcome: "cancelled",
+    rows: before,
+    relation: analyticsPartitionName(MONTH),
+    audits: 0,
+  });
 }, 120_000);

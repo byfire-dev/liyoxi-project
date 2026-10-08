@@ -39,6 +39,13 @@ async function ensure(tx: Tx, month: string): Promise<void> {
   if (result[0]?.name !== analyticsPartitionName(month))
     throw new TypeError("analytics受限能力返回结果不合法");
 }
+/** 同月的短验证/退役事务串行；不在对象存储IO期间持有锁。 */
+async function lockArchiveMonth(tx: Tx, month: string): Promise<void> {
+  await tx.$executeRawUnsafe(
+    "SELECT pg_advisory_xact_lock(hashtextextended($1::text,0))",
+    `analytics.partitions:${month}`,
+  );
+}
 const meta = { requestId: null, ip: null, userAgent: null, authMethod: null, sessionId: null };
 
 export function createAnalyticsPartitions(deps: AnalyticsPartitionsDeps) {
@@ -76,10 +83,18 @@ export function createAnalyticsPartitions(deps: AnalyticsPartitionsDeps) {
       for (const month of eligible) {
         assertAnalyticsActive(ctx.signal);
         // 先用已合入cap验证完整结构与只增guards，不持父锁等待对象存储。
-        await runTx(async (tx) => {
+        const exists = await runTx(async (tx) => {
           assertAnalyticsActive(ctx.signal);
+          await lockArchiveMonth(tx, month);
+          const rows = await tx.$queryRawUnsafe<Array<{ exists: boolean }>>(
+            "SELECT to_regclass($1::text) IS NOT NULL AS exists",
+            `public.${analyticsPartitionName(month)}`,
+          );
+          if (!rows[0]?.exists) return false;
           await ensure(tx, month);
+          return true;
         });
+        if (!exists) continue;
         const archive = await archiveAnalyticsPartition({
           month,
           runTx,
@@ -88,9 +103,12 @@ export function createAnalyticsPartitions(deps: AnalyticsPartitionsDeps) {
         });
         const retired = await runTx(async (tx) => {
           assertAnalyticsActive(ctx.signal);
+          await lockArchiveMonth(tx, month);
+          assertAnalyticsActive(ctx.signal);
           const at = deps.clock.now(),
             { months, boundary } = await analyticsRetention(tx, at);
           if (month >= boundary) throw new AppError("STATE_NOT_ALLOWED");
+          assertAnalyticsActive(ctx.signal);
           const result = await tx.$queryRawUnsafe<Array<{ retired: boolean }>>(
             "SELECT public.lyx_14_analytics_event_retire_partition($1::date,$2::timestamptz,$3::integer,$4::bigint,$5::text) AS retired",
             `${month}-01`,
@@ -113,6 +131,8 @@ export function createAnalyticsPartitions(deps: AnalyticsPartitionsDeps) {
                 chunks: archive.chunks,
               },
             });
+          // DROP与同TX审计尚未提交；等待期间取消使两者一起回滚。
+          assertAnalyticsActive(ctx.signal);
           return result[0]?.retired === true;
         });
         if (retired) {

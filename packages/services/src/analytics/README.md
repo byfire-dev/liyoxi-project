@@ -10,17 +10,17 @@ W3-11 的 countBannerClicks(tx, ids) 只返回 banner_click 的真实 homeBanner
 
 `analytics.dedup_purge`真实登记每日04:10、job模式、P3漏跑、补最近一期。租期60秒、最多1次、完成期限30分钟是本包运行参数；既有job执行器负责续租与中止。处理器固定注入clock的实际执行时刻，每5000条开短事务清理receivedAt严格早于8天的去重行，直到不足5000条；signal取消后不开始下一批。摘要为`deleted/batches`。原始事件不删除。
 
-两个任务由`createAnalyticsJobs`为本runtime复制既有Assembly闭包，保持其他登记、端口及查找对象。没有全局clock绑定。raw登记未装配时受控失败，关闭本scope中止下一步并等待自身在途事务/外呼；另一scope仍可使用。API先等待analytics任务，再关Provider/库；worker同样等待自己的scope。
+两个任务由`createAnalyticsJobs`为本runtime复制既有Assembly闭包，保持其他登记、端口及查找对象。没有全局clock绑定。raw登记未装配时受控失败，关闭本scope中止下一步并等待自身在途事务/外呼；另一scope仍可使用。API并行等待analytics与通知各自任务，再关Provider/库；worker同样等待自己的scope。
 
 ## 月维护与真实归档
 
 `analytics.partitions`按北京时间每月20日00:00、job/P2运行，补最近一期，租期60秒、一次、完成期限1440分钟。00:00是原任务未指定时分时的实现选择。当前月与未来3个月按注入clock调用已合入的受限ensure函数，不向worker提供迁移身份或DDL授权。
 
-旧月按实际`analytics.retention_months`（默认25、13–60）选择完整到期月；先验证固定子分区结构，再用父表原有SELECT权限、真实子表OID及月份范围读取完整21列，不直接查无SELECT授权的新子表，也不读DEFAULT。每页128行，用`(occurred_at,id)`游标且时间保留微秒；每页短TX后外呼。单行SQL JSON超过64KiB时只返回长度并拒绝归档，保留原分区，不截断内容。
+旧月按实际`analytics.retention_months`（默认25、13–60）选择完整到期月，先转北京时间月历再减自然月；先验证固定子分区结构，再用父表原有SELECT权限、真实子表OID及月份范围读取完整21列，不直接查无SELECT授权的新子表，也不读DEFAULT。每页128行，用`(occurred_at,id)`游标且时间保留微秒；每页短TX后外呼。单行SQL JSON超过64KiB时只返回长度并拒绝归档，保留原分区，不截断内容。
 
 NDJSON按1MiB分块；内容SHA-256决定secure桶键`analytics/archive/YYYY-MM/<sha>.*`。每块有真实不可覆盖PUT、精确size/非空etag回执，再HEAD确认exists/size/同etag。每块索引包含前块索引的完整哈希与键；最后manifest保存总行数、块数和末索引。这条链可还原全月数据，元数据不随全月大小常驻内存。这里验证可信Provider的写入回执与HEAD一致性，不把etag当SHA、不声称完整远端重读或真实COS已验。
 
-最后短TX重新读取clock与正式保留期，调用已合入的受限退役函数；它在父表锁内核完整行数、结构和最短年龄界后原子DETACH/DROP，并同TX写月键审计。晚插入即使在导出游标之前，也会让完整行数不符而拒绝退役。并发归档者使用内容身份与不可覆盖键，只有一次退役/审计；失败、取消、配置不可用或行超限都保留数据库原文。失败留下的内容对象暂保留供调查，不自动扫桶删除。
+最后短TX重新读取clock与正式保留期，调用已合入的受限退役函数；它在父表锁内核完整行数、结构和最短年龄界后原子DETACH/DROP，并同TX写月键审计。晚插入即使在导出游标之前，也会让完整行数不符而拒绝退役。并发归档者使用内容身份与不可覆盖键，短验证/退役事务使用同月事务锁，已退役候选不重建，只有一次退役/审计；失败、取消、配置不可用或行超限都保留数据库原文。失败留下的内容对象暂保留供调查，不自动扫桶删除。
 
 ## 单月修复CLI
 
@@ -42,4 +42,4 @@ pnpm exec vitest run --project services packages/services/src/analytics/ --maxWo
 
 连接参数与会话隔离沿根CLAUDE的公开local/test支架；不读.env，不对共享业务库写fixture。
 
-PR1与两个独立受限数据库能力已实际进入本地main。PR2业务代码在独立分支验收与审查中；未使用真实云/密钥、未运行远端CI，未对生产容量或P95作结论。Air本地验证串行单worker，不降低正式保留期、生产批阈值或原并发断言。
+PR1与三项独立受限数据库能力已实际进入本地main。PR2业务代码在独立分支验收与审查中；未使用真实云/密钥、未运行远端CI，未对生产容量或P95作结论。Air本地验证串行单worker，不降低正式保留期、生产批阈值或原并发断言。
