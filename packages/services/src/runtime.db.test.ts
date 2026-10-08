@@ -12,7 +12,7 @@ import {
   createClock,
   fakeKeyEnv,
   SAMPLE_PROVIDER_INPUTS,
-  useTestDatabase,
+  useSeededDatabase,
   useTestRedis,
 } from "./testing/index.js";
 
@@ -20,7 +20,7 @@ import { bindCalendarCoverage } from "./sla/index.js";
 import { armRecurringSlot, claimTimers, runTimer } from "./timers/index.js";
 import type { TimerRunDeps } from "./timers/index.js";
 
-const db = useTestDatabase("services");
+const db = useSeededDatabase("services");
 const redis = useTestRedis();
 const TIMEOUT = { timeout: 60_000 };
 
@@ -136,6 +136,7 @@ describe("createRuntime", () => {
         "flow.state_columns",
         // W1-01a：后台登录的三把密钥，只有 api 进程查
         "security.auth_keys",
+        "notify.templates",
       ]);
       expect(runtime.assembly.entry).toBe("api");
       expect(await runtime.config.params.get("work.start")).toBe("09:00");

@@ -1,3 +1,8 @@
+import {
+  implementKeyed as notifyReaderImplementation,
+  notifyReadPort as currentNotifyReadPort,
+} from "../kernel/index.js";
+import { orderForNotify, orderConsentFacts } from "./notify-facts.js";
 import { chainKey, machinePort, rowKey } from "../flow/index.js";
 import {
   defineRegistration,
@@ -73,6 +78,15 @@ export const registration = defineRegistration("order", {
     },
   ],
   portImplementations: [
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "manualSubjectExists.order_item",
+      async (tx, id: string) =>
+        (await tx.orderItem.findUnique({ where: { id }, select: { id: true } })) !== null,
+    ),
+    notifyReaderImplementation(currentNotifyReadPort, "orderConsentFacts", orderConsentFacts),
+    notifyReaderImplementation(currentNotifyReadPort, "orderForNotify", orderForNotify),
+
     implement(orderSidePort, {
       applyConfirmedPlan: (tx, input) => applyConfirmedPlan(tx, boundOrder(), input),
       rederive: (tx, input) => rederive(tx, boundOrder(), input),

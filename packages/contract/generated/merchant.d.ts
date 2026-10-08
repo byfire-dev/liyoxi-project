@@ -7257,6 +7257,15 @@ export interface operations {
                                     route: "store.members";
                                 } | {
                                     params: {
+                                        /** Format: uuid */
+                                        storeAssetId: string;
+                                        /** Format: uuid */
+                                        storeId: string;
+                                    };
+                                    /** @enum {string} */
+                                    route: "asset.detail";
+                                } | {
+                                    params: {
                                         /** @enum {string} */
                                         key: "user" | "privacy" | "member" | "points" | "custom_license" | "ad_service";
                                     };

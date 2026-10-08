@@ -141,3 +141,4 @@ export { readHomeNotice } from "./notice-read.js";
 
 export { normalizeSiteNoticeLink, bindAgreementNoticeLink } from "./notify-facts.js";
 export type { AgreementNoticeLinkReader } from "./notify-facts.js";
+export { lockSiteNoticeForNotify } from "./notify-notice-lock.js";
