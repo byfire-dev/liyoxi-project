@@ -1,7 +1,7 @@
 // 仅本域 Banner 使用。主干尚无共用 DeepLink 表；取 d6 2.4/2.10 与 m08 2.1 已明确的键与参数。
 import { IdSchema, DateSchema } from "../../common/index.js";
 import { z } from "../../zod.js";
-const entry = <R extends string>(route: R, params: z.ZodType) =>
+const entry = <R extends string, P extends z.ZodType>(route: R, params: P) =>
   z.strictObject({ route: z.literal(route), params });
 const store = z.strictObject({ storeId: IdSchema });
 export const BannerPageJumpSchema = z.union([

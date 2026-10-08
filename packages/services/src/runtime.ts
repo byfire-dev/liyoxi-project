@@ -32,8 +32,11 @@ import {
   createLedger,
   createPayment,
   createFulfillment,
+  getNotifyPurchaseMode,
 } from "./billing/index.js";
 import type { BillingPurchase } from "./billing/index.js";
+import { createNotifyMessages } from "./notify/index.js";
+import type { NotifyMessages } from "./notify/index.js";
 import { staffBriefs } from "./staff/index.js";
 import { createDocs } from "./docs/index.js";
 import { createTenant } from "./tenant/index.js";
@@ -156,6 +159,7 @@ export interface Runtime {
   readonly webhooks: Webhooks;
   readonly order: OrderService;
   readonly billing: BillingPurchase;
+  readonly notifyMessages: NotifyMessages;
   readonly content: Content;
   readonly media: Media;
   /** 审批执行器与只读队列：api、worker 各自装配（移交表 64） */
@@ -249,6 +253,12 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     clock,
     version,
     ...(options.healthCacheMs === undefined ? {} : { cacheMs: options.healthCacheMs }),
+  });
+  const notifyMessages = createNotifyMessages({
+    tx,
+    clock,
+    config,
+    purchaseMode: getNotifyPurchaseMode,
   });
   const rateLimiter = createRateLimiter({
     store: redis,
@@ -413,6 +423,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     webhooks,
     order,
     billing,
+    notifyMessages,
     content,
     media,
     entry,

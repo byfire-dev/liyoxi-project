@@ -329,6 +329,61 @@
     "unreadMessageCount",
     "viewerRole"
   ],
+  "m.message.batchRead": [
+    "markedCount",
+    "summary",
+    "summary.byStore",
+    "summary.byStore[].storeId",
+    "summary.byStore[].unreadCount",
+    "summary.byTab",
+    "summary.byTab[].tab",
+    "summary.byTab[].unreadCount",
+    "summary.total"
+  ],
+  "m.message.list": [
+    "hasMore",
+    "items",
+    "items[].body",
+    "items[].category",
+    "items[].createdAt",
+    "items[].createdDate",
+    "items[].ctaText",
+    "items[].isRead",
+    "items[].link",
+    "items[].link.params",
+    "items[].link.params.storeId",
+    "items[].link.route",
+    "items[].messageId",
+    "items[].readAt",
+    "items[].storeId",
+    "items[].title",
+    "nextCursor"
+  ],
+  "m.message.read": [
+    "messageId",
+    "readAt"
+  ],
+  "m.message.summary": [
+    "byStore",
+    "byStore[].storeId",
+    "byStore[].unreadCount",
+    "byTab",
+    "byTab[].tab",
+    "byTab[].unreadCount",
+    "total"
+  ],
+  "m.notifySetting.list": [
+    "cooldownDays",
+    "items",
+    "items[].estRemaining",
+    "items[].lastAcceptAt",
+    "items[].sceneNames",
+    "items[].slotKey",
+    "items[].state",
+    "items[].title",
+    "items[].tmplId",
+    "maxPerAsk"
+  ],
   "m.session.create": [
     "me",
     "me.memberships",

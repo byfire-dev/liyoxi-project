@@ -64,3 +64,10 @@ export type {
 } from "./m1-types.js";
 
 export { configTestStaffBriefs, createConfigProfileFixture } from "./config-admin.js";
+export {
+  createNotifyMessageFixture,
+  changeNotifyMessageAccessFixture,
+  createNotifySessionFixture,
+  createNotifyQuotaFixture,
+  updateNotifySlotFixture,
+} from "./notify-messages.js";

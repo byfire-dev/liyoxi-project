@@ -33,6 +33,8 @@ import { meHandlers } from "./me.js";
 import { dictItemHandlers } from "./dict-items.js";
 import { billingHandlers } from "./billing.js";
 import { adminBillingHandlers } from "./admin/billing.js";
+import { messageHandlers } from "./messages.js";
+import { notifySettingHandlers } from "./notify-settings.js";
 
 export const HANDLERS: readonly HandlerEntry[] = [
   ...orderHandlers,
@@ -69,4 +71,6 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...deliveryHandlers,
   ...deliveryDownloadHandlers,
   ...adminProfileHandlers,
+  ...messageHandlers,
+  ...notifySettingHandlers,
 ];

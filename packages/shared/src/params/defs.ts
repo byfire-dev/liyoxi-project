@@ -245,6 +245,19 @@ export const PARAM_DEFS = [
   }),
   int("notify.sms.keepalive_days", "短信模板保活间隔", { default: 5, unit: "天", min: 1, max: 30 }),
   int("notify.wx.quota_cap", "订阅消息额度估计上限", { default: 1, unit: "条", min: 1, max: 20 }),
+  // D6 §2.9：拒绝后至少冷却七天；平台单次请求最多五个模板。
+  int("notify.wx.ask_cooldown_days", "拒绝订阅后的请求冷却", {
+    default: 7,
+    unit: "天",
+    min: 7,
+    max: 30,
+  }),
+  int("notify.wx.max_per_ask", "单次订阅请求的模板上限", {
+    default: 3,
+    unit: "个",
+    min: 1,
+    max: 5,
+  }),
   int("notify.wx.field_fail_streak", "订阅消息字段错误连续几条即停用槽位", {
     default: 5,
     unit: "条",

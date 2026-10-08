@@ -1,8 +1,11 @@
 // 商家端：客服、消息与通用接口 · notify-settings（docs/api/m08-support-misc.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import { NotifySettingListResultSchema } from "./notify-settings.schemas.js";
 
-export const mNotifySettingList = merchantMeta({
+export const mNotifySettingList = merchantRoute({
+  responses: { ...okResponse(NotifySettingListResultSchema), ...errorResponses(401) },
   method: "get",
   path: "/m/notify-settings",
   operationId: "m.notifySetting.list",
