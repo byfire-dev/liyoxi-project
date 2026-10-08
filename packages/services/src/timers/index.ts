@@ -70,3 +70,4 @@ export type {
 export { scanDue } from "./dispatch.js";
 export { runTimer, TIMER_BACKOFF_SEC } from "./run.js";
 export { JOB_BACKOFF_SEC, runJobTimer } from "./job-mode.js";
+export { recoverFailedTimer, countFailed } from "./manual-recovery.js";

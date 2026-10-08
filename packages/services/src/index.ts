@@ -279,7 +279,6 @@ export {
   countOrderItemsByPhase,
 } from "./order/index.js";
 export type { OrderActor, OrderDeps, OrderService, OrderStartBinding } from "./order/index.js";
-
 export {
   bindAnalytics,
   createAnalyticsReceiver,
@@ -304,4 +303,14 @@ export type {
   ClientErrorForwarderOptions,
   ClientErrorSnapshot,
   ClientErrorForwarder,
+} from "./ops/index.js";
+export { createFlowOps, assertFlowOpsRead, createAlertActions } from "./ops/index.js";
+export type {
+  FlowOps,
+  FlowOpsActor,
+  FlowOpsDeps,
+  AlertActions,
+  AlertCliCommand,
+  AlertCliInput,
+  AlertCliResult,
 } from "./ops/index.js";

@@ -62,6 +62,10 @@ describe("对象类型", () => {
       "work_calendar_day",
     ]);
     expect(isAuditTargetType("work_calendar_day")).toBe(true);
+    expect(isAuditTargetType("timer")).toBe(true);
+    expect(isAuditTargetType("outbox_delivery")).toBe(true);
+    expect(AUDIT_TARGET_TYPES.slice(-2)).toEqual(["timer", "outbox_delivery"]);
+    expect(isAuditTargetType("outbox_event")).toBe(false);
     expect(isAuditTargetType("ApprovalRequest")).toBe(false);
   });
 

@@ -60,3 +60,4 @@ export { createStaffSelfSecurity } from "./self-security.js";
 export type { StaffSelfSecurityDeps } from "./self-security.js";
 
 export { staffPiiFields } from "./pii-fields.js";
+export { loadCliStaffContext } from "./cli-context.js";

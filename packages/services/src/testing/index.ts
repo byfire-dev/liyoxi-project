@@ -71,3 +71,4 @@ export {
   createNotifyQuotaFixture,
   updateNotifySlotFixture,
 } from "./notify-messages.js";
+export { createFlowOpsCliSupport } from "./flow-ops-cli.js";

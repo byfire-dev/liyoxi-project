@@ -6,6 +6,7 @@ import { paramsRoute } from "../system/params";
 import { flagsRoute } from "../system/flags";
 import { checklistsRoute } from "../system/checklists";
 import { auditLogsRoute } from "../system/logs";
+import { flowOpsRoute } from "../system/flow-ops";
 
 export const systemRoutes = [
   staffRoute,
@@ -14,4 +15,5 @@ export const systemRoutes = [
   flagsRoute,
   checklistsRoute,
   auditLogsRoute,
+  flowOpsRoute,
 ] as const;
