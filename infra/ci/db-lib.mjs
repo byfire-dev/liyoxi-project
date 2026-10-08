@@ -294,14 +294,27 @@ export function countsOf(catalog) {
 }
 
 /** 计数表（Markdown）与对不上的地方。named：[[这个库叫什么, 它的系统目录], …] */
-export function countReport(named) {
+export function countReport(named, expectedCounts = EXPECTED_COUNTS) {
+  const keys = Object.keys(expectedCounts);
+  if (
+    keys.length !== Object.keys(EXPECTED_COUNTS).length ||
+    Object.keys(EXPECTED_COUNTS).some((key) => !Object.hasOwn(expectedCounts, key)) ||
+    Object.values(expectedCounts).some(
+      (pair) =>
+        !Array.isArray(pair) ||
+        pair.length !== 2 ||
+        pair.some((value) => !Number.isSafeInteger(value) || value < 0),
+    )
+  ) {
+    throw new Error("计数期望必须完整包含原七项，每项为两个非负整数");
+  }
   const lines = [
     `| 项 | 应为（逻辑表 / 含分区子表） | ${named.map(([name]) => name).join(" | ")} |`,
     `| --- | --- | ${named.map(() => "---").join(" | ")} |`,
   ];
   const problems = [];
   const counted = named.map(([name, catalog]) => [name, countsOf(catalog)]);
-  for (const [item, expected] of Object.entries(EXPECTED_COUNTS)) {
+  for (const [item, expected] of Object.entries(expectedCounts)) {
     const want = expected.join(" / ");
     const cells = counted.map(([name, counts]) => {
       const got = counts[item].join(" / ");
