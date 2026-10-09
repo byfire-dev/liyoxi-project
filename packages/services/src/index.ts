@@ -119,7 +119,12 @@ export type {
   DocsDeps,
   SignedAgreementViewer,
 } from "./docs/index.js";
-export { billingAccountPort, createTenant, membershipAuthorizationsPort } from "./tenant/index.js";
+export {
+  assertWithinQuota,
+  billingAccountPort,
+  createTenant,
+  membershipAuthorizationsPort,
+} from "./tenant/index.js";
 export type {
   ActiveMembership,
   BillingAccountOpener,
