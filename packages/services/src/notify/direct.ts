@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { dayRange, calendarDate } from "@liyoxi/shared/time";
 import { AppError, assertNotInTransaction, uuidv7 } from "../kernel/index.js";
 import type { NotifyDispatchDeps } from "./context.js";
 import type { NotificationProviderResult } from "../providers/types.js";
 import { sendVerdict } from "./policy.js";
+import { smsDayUsage } from "./sms-budget.js";
 
 const Input = z.strictObject({
   purpose: z.enum([
@@ -95,15 +95,9 @@ export function directSender(deps: NotifyDispatchDeps) {
               throw new AppError("RATE_LIMITED");
           }
         } else {
-          const range = dayRange(calendarDate(now));
           if (
-            (await tx.notificationDelivery.count({
-              where: {
-                channel: "sms",
-                targetRef: target.phoneRef,
-                callStartedAt: { gte: range.start, lt: range.end },
-              },
-            })) >= (await deps.params.get("notify.sms.daily_cap"))
+            (await smsDayUsage(tx, { targetRef: target.phoneRef, now })) >=
+            (await deps.params.get("notify.sms.daily_cap"))
           )
             throw new AppError("RATE_LIMITED");
         }

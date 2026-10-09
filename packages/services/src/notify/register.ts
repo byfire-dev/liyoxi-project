@@ -1,5 +1,4 @@
 import { defineRegistration, implementMerchantFacts, invariantNow } from "../kernel/index.js";
-import { boundSmsHealth } from "./sms-health.js";
 import { countUnread } from "./messages.scope.js";
 
 import { boundNotifyDispatcher } from "./service.js";
@@ -11,6 +10,9 @@ import {
   findNotifyN15Violations,
 } from "./invariants.js";
 import { boundNotifyAssembly } from "./service.js";
+const unboundSmsHealth = async () => {
+  throw new TypeError("短信健康任务需要本运行时装配");
+};
 export const registration = defineRegistration("notify", {
   subscribers: [
     {
@@ -38,7 +40,7 @@ export const registration = defineRegistration("notify", {
       deadlineMin: 60,
       missSeverity: "P3",
       catchUp: true,
-      run: (ctx) => boundSmsHealth().keepalive(ctx),
+      run: unboundSmsHealth,
     },
     {
       kind: "notify.sms_balance",
@@ -49,7 +51,7 @@ export const registration = defineRegistration("notify", {
       deadlineMin: 60,
       missSeverity: "P3",
       catchUp: true,
-      run: (ctx) => boundSmsHealth().balance(ctx),
+      run: unboundSmsHealth,
     },
     {
       kind: "notify.remind_scan",

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Prisma } from "@liyoxi/db";
 import { createTxRunner, uuidv7 } from "../kernel/index.js";
 import { createClock, useSeededDatabase } from "../testing/index.js";
 import { lockSmsBudget, smsDayUsage } from "./sms-budget.js";
@@ -12,9 +13,7 @@ async function setup() {
   const clock = createClock(new Date("2026-10-14T02:20:00.000Z"));
   const targetRef = "a".repeat(64);
   const now = clock.now();
-  const add = (
-    overrides: Partial<Parameters<typeof prisma.notificationDelivery.create>[0]["data"]>,
-  ) =>
+  const add = (overrides: Partial<Prisma.NotificationDeliveryUncheckedCreateInput>) =>
     prisma.notificationDelivery.create({
       data: {
         id: uuidv7(),

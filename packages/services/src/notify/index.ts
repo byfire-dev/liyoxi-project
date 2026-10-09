@@ -10,7 +10,8 @@ export {
 export type { SceneBinding, WxTemplateSlotKey } from "./seed-data.js";
 
 export { createSmsInit, smsTemplateReader, SmsInitSchema } from "./sms-init.js";
-export { createSmsHealth, bindSmsHealth } from "./sms-health.js";
+export { createSmsHealth } from "./sms-health.js";
+export type { SmsHealth } from "./sms-health.js";
 export { createNotifyMessages } from "./messages.js";
 export type { NotifyMessages, NotifyMessagesDeps } from "./messages.js";
 export { countUnread } from "./messages.scope.js";

@@ -1,5 +1,5 @@
 import { createConfig, bindAgreementNoticeLink } from "../config/index.js";
-import { createSmsHealth, bindSmsHealth, smsTemplateReader } from "../notify/index.js";
+import { createSmsHealth, smsTemplateReader } from "../notify/index.js";
 import { keyringFromEnv } from "../security/index.js";
 import { createRuntimeNotify, createNotifyAssembly } from "./notify-runtime.js";
 import { readAgreementNoticeLink } from "../docs/index.js";
@@ -111,7 +111,7 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
-  readonly closeSmsHealth?: () => void;
+  readonly closeSmsHealth?: () => Promise<void>;
   notifyDeliver(ref: NotifyQueueRef): Promise<void>;
   scanNotify(): Promise<number>;
   closeNotify(): Promise<void>;
@@ -249,19 +249,18 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
           }
         : {}),
     });
-  const closeSmsHealth = bindSmsHealth(
-    createSmsHealth({
-      db: prisma,
-      tx,
-      clock,
-      config: createConfig({ db: prisma, clock, redis: null }),
-      sms: providers.sms,
-      alerts: alertsOf(assembly),
-      env: options.appEnv,
-      keyring: () =>
-        options.keys?.DATA_KEYS && options.keys.BIDX_KEYS ? keyringFromEnv(options.keys) : null,
-    }),
-  );
+  const smsHealth = createSmsHealth({
+    db: prisma,
+    tx,
+    clock,
+    config: createConfig({ db: prisma, clock, redis: null }),
+    sms: providers.sms,
+    alerts: alertsOf(assembly),
+    env: options.appEnv,
+    keyring: () =>
+      options.keys?.DATA_KEYS && options.keys.BIDX_KEYS ? keyringFromEnv(options.keys) : null,
+  });
+  notifyScope.attachSmsHealth(smsHealth);
   const media = createMedia({
     tx,
     clock,
@@ -328,7 +327,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const unbindNoticeLink = bindAgreementNoticeLink(readAgreementNoticeLink);
 
   return {
-    closeSmsHealth,
+    closeSmsHealth: () => smsHealth.close(),
     notifyDeliver: (ref) => notify.deliver(ref),
     scanNotify: () =>
       notify.scan(async (ref) => {

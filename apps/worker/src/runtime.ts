@@ -196,7 +196,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           services.closePublish?.();
           services.closeDelivery?.();
           services.closeWebhooks?.();
-          services.closeSmsHealth?.();
+          await services.closeSmsHealth?.();
           services.closeAnalytics?.();
           await services.closeStorageDrivers?.();
         }

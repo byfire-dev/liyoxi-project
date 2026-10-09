@@ -1,9 +1,4 @@
-import {
-  createSmsInit,
-  createSmsHealth,
-  bindSmsHealth,
-  smsTemplateReader,
-} from "./notify/index.js";
+import { createSmsInit, createSmsHealth, smsTemplateReader } from "./notify/index.js";
 import { keyringFromEnv } from "./security/index.js";
 import type { NotifyDispatcherService } from "./notify/index.js";
 import { bindAgreementNoticeLink } from "./config/index.js";
@@ -377,21 +372,19 @@ export function createRuntime(options: RuntimeOptions): Runtime {
           }
         : {}),
     });
-  const unbindSmsHealth =
-    entry === "worker"
-      ? bindSmsHealth(
-          createSmsHealth({
-            db: prisma,
-            tx,
-            clock,
-            config,
-            sms: providers.sms,
-            alerts: alertsOf(assembly),
-            env: env.APP_ENV,
-            keyring: () => (env.DATA_KEYS && env.BIDX_KEYS ? keyringFromEnv(env) : null),
-          }),
-        )
-      : () => {};
+  if (entry === "worker")
+    notifyScope.attachSmsHealth(
+      createSmsHealth({
+        db: prisma,
+        tx,
+        clock,
+        config,
+        sms: providers.sms,
+        alerts: alertsOf(assembly),
+        env: env.APP_ENV,
+        keyring: () => (env.DATA_KEYS && env.BIDX_KEYS ? keyringFromEnv(env) : null),
+      }),
+    );
   const events = createEvents({ assembly, clock, tx });
   const wechatSources = env.WECHAT
     ? [
@@ -691,7 +684,6 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       unbindAnalytics();
       unbindOps();
       unbindWebhooks();
-      unbindSmsHealth();
       await mediaChannel.close();
       redis.disconnect();
       await prisma.$disconnect();

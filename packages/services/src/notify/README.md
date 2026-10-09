@@ -39,7 +39,7 @@ close 等待整次 delivery/direct 调用，包括认领、准备、结算和直
 
 实际锁顺序为：staff20 / merchant_user80 → 必需 approval_request30（员工路径） → wechat_identity90 → entity100 → entity_member120 → store130 → 实际业务对象递增 rank → 固定 verify_code 与实际 SMS 模板按 key 排序 → WX 槽位 → delivery → quota/lastOkAt。identity90 在任何实体/业务对象锁之前。T2/T3/scan/注销清理共用顺序；quota-only 平台回执不反取模板。fixed SMS anchor 不存在受控不发送。所有者、成员、待办版本和当前角色都读真实锁定事实，不以注释代替锁。
 
-场景关闭/待办已处理/归属失效取消且不补发；无配置、无额度、永久失败等只按正式回退原因补 SMS。通知短信同号码自然日上限、同场景折叠与企微 10 条/分钟均在真实 callStartedAt 记录上计数；费用限频或折叠不转交付经理。manager escalation 从原 notification 取得受支持真实 guard 引用，重读当前业务和经理，只有非人工 SMS 与订阅均未成功才生成员工待办。
+场景关闭/待办已处理/归属失效取消且不补发；无配置、无额度、永久失败等只按正式回退原因补 SMS。普通通知短信同号码自然日上限复用私有 smsDayUsage：本日真实 callStartedAt 调用，或本日 keepalive 的 sending/未开始/有效租约预约，互斥计数且终态不退款。同场景折叠与企微 10 条/分钟仍在真实 callStartedAt 记录上计数；费用限频或折叠不转交付经理。manager escalation 从原 notification 取得受支持真实 guard 引用，重读当前业务和经理，只有非人工 SMS 与订阅均未成功才生成员工待办。
 
 普通员工企微通知即使场景配置 immediate，也按当前工作日历及 work.start/work.end 顺延；仅正式 s.kf_response_overdue 可全天发送。站内消息不等待工作时段。组合根经 SLA 公开读口提供下一可工作时刻，T2 再读当前日历和参数；工作时段已变则清租约并恢复该次 attempt，未外呼且不扣发送额度。
 
@@ -49,7 +49,7 @@ API 的 awaited startupChecks 和 worker.selfCheck 检查真实场景行及已�
 
 通知检查依赖本次 db.connect 成功；断库仍只报告原连接失败，不重复报告配置读取失败。注册场景的种子行必须存在，整表未初始化不同于正式 unconfigured 空模板；启动兼容性测试使用既有完整种子支架，缺场景的配置守卫仍保留。
 
-`sendDirect` 是无场景的短信能力：敏感 phone/params 只活在调用栈，持久化只有 HMAC 引用与脱敏目标。验证码/激活码同手机号 60 秒 1 条、小时 5 条、日 10 条，普通通知自然日总上限读取参数；唯一 directKey 不重新调用 Provider。员工激活仍保留正式八字符协议，没有为了外部六位模板缩短。当前 W2-22 真 SMS 驱动未在本分支实际落地，不声称员工短信到达完成。
+`sendDirect` 是无场景的短信能力：敏感 phone/params 只活在调用栈，持久化只有 HMAC 引用与脱敏目标。验证码/激活码同手机号 60 秒 1 条、小时 5 条、日 10 条，普通通知自然日总上限读取参数；唯一 directKey 不重新调用 Provider。员工激活仍保留正式八字符协议，没有为了外部六位模板缩短。W2-22 恢复分支接腾讯驱动与真实结果协议，原八字符激活协议仍与腾讯验证码限制不兼容，具体见下文；不声称员工短信到达完成。
 
 ## 提醒与不变量
 
@@ -117,19 +117,26 @@ node apps/worker/dist/sms-init.js --config /run/config/sms-templates.json --staf
 | account_notice | notice | 无变量 |
 | ops_alert | notice | rule_name(64) |
 
-generic_todo 事项仅可选：样片确认、广告确认、成片交付、上线确认、资料审核、工单回复、积分变动、服务到期、下架确认、账号安全。未知/缺失/多余/继承字段、空值、控制字符、明确 URL 前缀或超长变量在外呼前拒绝，不截断变量。
+generic_todo 事项仅可选：样片确认、广告确认、成片交付、上线确认、资料审核、工单回复、积分变动、服务到期、下架确认、账号安全、付款成功、订购成功、方案确认、发票开具、成员变动、素材反馈、退款结果。原十项保留；后七项是恢复后实际十一种 generic 场景所需的有限增量。D6 §2.10 要求≤12字的固定枚举，并未定稿这十项具体值；本增量不修改冻结契约枚举。场景 SMS 只按稳定 notifySceneKey 映射，显示名不作变量；未知或未提供键、实际获批 maxLen 装不下完整事项时拒绝，不截断成另一值。未知/缺失/多余/继承字段、空值、控制字符、明确 URL 前缀或超长变量在外呼前拒绝，不截断变量。
 
-真实 sendTemplate 每次一个中国大陆号码；旧 sendOncallAlert 的多个号码走一次腾讯批量请求，200上限、禁止重复号码，部分受理返回失败且受理不明，不假称全部成功。只把 title 作为固定规则名，不把详细告警 content 填成额外变量。旧三方法输入/void结果保持兼容。
+| 实际 generic 场景 | 固定事项 |
+| --- | --- |
+| m.pay_success / m.order_submitted / m.plan_pending | 付款成功 / 订购成功 / 方案确认 |
+| m.delivered / m.verify_result / m.ticket_reply | 成片交付 / 上线确认 / 工单回复 |
+| m.invoice_issued / m.points_changed / m.member_changed | 发票开具 / 积分变动 / 成员变动 |
+| m.asset_feedback / m.refund_result | 素材反馈 / 退款结果 |
+
+真实 sendTemplate 每次一个中国大陆号码；旧 sendOncallAlert 的多个号码走一次腾讯批量请求，200上限、禁止重复号码，部分受理返回失败且受理不明，不假称全部成功。只把 title 作为固定规则名，不把详细告警 content 填成额外变量。旧三方法输入/void成功值保持兼容，并接实际主线 NotificationProviderResult/signal：预取消在模板读取和外呼前明确未受理，外层原 TX guard 先执行；目标已开始后的取消保留 unknown，迟到已完整解码的平台结果不被后来 abort 覆盖；不补发。
 
 原生 fetch/node:crypto，固定 sms.tencentcloudapi.com、SendSms、2021-01-11、TC3-HMAC-SHA256。外部每次10s×1，无内部重试（包括限流、5xx和读查询）。响应体256KiB上限；信号覆盖请求和流，取消会释放 reader 与 timer。Code=Ok、匹配号码、真实 RequestId/SerialNo 完整才认同步受理；超时/断连/内部异常或部分批量受理不能自动再发。外层 Error 和逐号码 SendStatus 的 InternalError 或缺码均按 unavailable/unknown；批内任一受理不明不会被后续明确拒绝覆盖，只有全部明确拒绝才为 not_accepted。服务商原 Message 与 PhoneNumber 不进入错误/日志；保留有限官方错误码与真实追踪号。
 
 ## 3. 两个日任务
 
-仅落地既有 `notify.sms_keepalive`、`notify.sms_balance`，每日10:20，job 模式，P3，单次，原 timer.result 保存受控摘要；不建 job_run。Worker真正 buildWorkerServices 与 services/runtime 两处接配置；关停只解绑本包挂点，原 siblings、循环和租约保留。
+仅落地既有 `notify.sms_keepalive`、`notify.sms_balance`，每日10:20，job 模式，P3，单次，原 timer.result 保存受控摘要；不建 job_run。Worker 的 buildWorkerServices 与 services/runtime worker 分支创建各自健康服务，经实际 createNotifyAssembly 的 copy 绑定这两个 job；数组与 kind lookup 指向同一闭包。没有全局最后绑定。close 先拒绝新工作、中止自身 I/O 并等待认领/最终结算，再关闭自己的连接；原 siblings、循环和租约保留。
 
 保活遵守全局 notify.sms.enabled、原 notify.window.start/end、notify.sms.keepalive_days、notify.sms.daily_cap 和 notify.test_recipients。只接受配置中启用员工的合法内部测试号；缺号、密钥、驱动、关闭开关或不在窗口均受控跳过。active notice 模板距上次同步成功（没有则距配置更新时间）达到间隔才候选，verify/disabled/pending_carrier/suspect 不发。测试值均固定；批准长度装不下测试值时跳过，不缩短。
 
-唯一键为 `sms_keepalive:<执行日Asia/Shanghai>:<template_key>`。每次认领在咨询锁内以即时执行日和 paramsAt 核对当时窗口、日cap、内部号、员工状态、模板和间隔。短事务认领 attempt1、30s lease、call_started_at=NULL、HMAC目标与 mask；发前守卫通过后，再按真实 id/attempt/status/有效 lease/未开始条件用短事务写即时 call_started_at，成功后立即事务外发一次。标记失败不调用；发前守卫失效取消。成功才更新对应未变的模板 lastOkAt；迟到结果不覆盖。自己至多100条/轮的过期sending区分未开始的 claim_exhausted 与已开始的 unknown_outcome，两种均不自动重发，同日唯一键保留。正文、验证码、手机号明文不入投递表。
+唯一键为 `sms_keepalive:<执行日Asia/Shanghai>:<template_key>`。每次认领按自然键排序锁既有 verify_code 与实际模板行，缺种子受控不发送，与普通 direct/场景 SMS 原技术锁协议相同；不新增咨询锁。以即时执行日和 paramsAt 核对当时窗口、日cap、内部号、员工状态、模板和间隔。有效未开始的本日预约已占同号日额度；过期认领不能 start，可释放其他发送名额，但同日唯一键仍保留。start/settle 仍各是独立短事务，按同模板排序→本 delivery 锁，再取真实当前时钟；start 复核原选中的 active 员工、内部号、配置、窗口与五日间隔。短事务认领 attempt1、30s lease、call_started_at=NULL、HMAC目标与 mask；发前守卫通过后，再按真实 id/attempt/status/有效 lease/未开始条件用短事务写即时 call_started_at，成功后立即事务外发一次。标记失败不调用；发前守卫失效取消。成功才更新对应未变的模板 lastOkAt；迟到结果不覆盖。自己至多100条/轮的过期sending区分未开始的 claim_exhausted 与已开始的 unknown_outcome，两种均不自动重发，同日唯一键保留。正文、验证码、手机号明文不入投递表。
 
 失效判断：30天内最近至多10个 call_started_at 非空的真实发送终态（成功、provider_rejected 或 unknown_outcome；不含发前守卫拒绝/claim_exhausted），非空即计算失败率，严格 >50% 或最新连续5失败触发 suspect/alerts.raise；0样本无比率，正好50%不触发比率，连续5仍可单独触发。窗口是实现选择，没有额外最低样本门槛。固定告警键 `notify.sms_suspect`，P3，dimension=templateKey，detail={templateKey,criterion:"5_consecutive_or_recent_gt_half"}。告警口使用既有端口；W2-24真实外部告警尚未合流时不声称外部告警完成。
 

@@ -486,14 +486,3 @@ export function createSmsHealth(deps: SmsHealthDeps) {
   };
 }
 export type SmsHealth = ReturnType<typeof createSmsHealth>;
-let binding: SmsHealth | undefined;
-export function bindSmsHealth(health: SmsHealth): () => void {
-  binding = health;
-  return () => {
-    if (binding === health) binding = undefined;
-  };
-}
-export function boundSmsHealth(): SmsHealth {
-  if (!binding) throw new TypeError("短信保活任务尚未装配");
-  return binding;
-}
