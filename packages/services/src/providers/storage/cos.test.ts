@@ -1,8 +1,8 @@
 import { createServer } from "node:http";
-import type { Server } from "node:http";
+import type { IncomingMessage, Server, ServerResponse } from "node:http";
 import type { Socket } from "node:net";
 import { createHash, createHmac } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { STORAGE_BUCKETS, withBeforeCall } from "../types.js";
 import { createCosStorage } from "./cos.js";
 import { cosAuthorization, cosPostPolicy, stsAuthorization } from "./cos-signature.js";
@@ -476,5 +476,293 @@ describe("COS 官方协议薄封装", () => {
     hangAccepted = undefined;
     expect(calls).toHaveLength(before + 1);
     mode = "normal";
+  });
+});
+
+// Each bounded-object case owns an isolated real HTTP endpoint; only the official
+// COS hostname is redirected by this injected transport, never by production code.
+async function withCosObjectServer(
+  respond: (request: IncomingMessage, response: ServerResponse) => void,
+  action: (
+    storage: ReturnType<typeof createCosStorage>,
+    liveSockets: Set<Socket>,
+    requests: Array<{ method: string; headers: Headers }>,
+  ) => Promise<void>,
+) {
+  const liveSockets = new Set<Socket>();
+  const requests: Array<{ method: string; headers: Headers }> = [];
+  const local = createServer(respond);
+  local.on("connection", (socket) => {
+    liveSockets.add(socket);
+    socket.once("close", () => liveSockets.delete(socket));
+  });
+  await new Promise<void>((resolve) => local.listen(0, "127.0.0.1", resolve));
+  const address = local.address();
+  if (!address || typeof address === "string") throw new Error("未取得 COS 本地协议测试端口");
+  const localStorage = createCosStorage(config, {
+    now,
+    fetchImpl: (input, init) => {
+      const url = new URL(String(input));
+      expect(url.origin).toBe("https://test-secure-1250000000.cos.ap-beijing.myqcloud.com");
+      expect(url.pathname).toBe("/files/virtual/bounded.pdf");
+      expect(url.search).toBe("");
+      expect(init?.redirect).toBe("error");
+      const headers = new Headers(init?.headers);
+      expect(headers.get("Authorization")).toContain("q-ak=publicfakeid");
+      requests.push({ method: init?.method ?? "GET", headers });
+      return fetch(`http://127.0.0.1:${address.port}${url.pathname}`, {
+        ...init,
+        headers: { ...Object.fromEntries(headers), Connection: "close" },
+      });
+    },
+  });
+  try {
+    await action(localStorage, liveSockets, requests);
+  } finally {
+    await localStorage.close();
+    local.closeAllConnections();
+    await new Promise<void>((resolve, reject) =>
+      local.close((error) => (error ? reject(error) : resolve())),
+    );
+    await vi.waitFor(() => expect(liveSockets.size).toBe(0), { timeout: 1_000 });
+  }
+}
+const boundedRef = { bucket: "secure", key: "files/virtual/bounded.pdf" } as const;
+function cosObjectHead(response: ServerResponse, size = "4", objectEtag = etag) {
+  if (size !== "missing") response.setHeader("Content-Length", size);
+  if (objectEtag) response.setHeader("ETag", objectEtag);
+  response.end();
+}
+
+describe("COS 完整有界对象读取：真实本地 HTTP", () => {
+  it("非法上限、对象引用与调用 etag 在网络前拒绝", async () => {
+    await withCosObjectServer(
+      (_request, response) => cosObjectHead(response),
+      async (storage, _sockets, requests) => {
+        for (const maxBytes of [0, -1, 1.5, Infinity, NaN, Number.MAX_SAFE_INTEGER + 1])
+          expect(await storage.readObject({ ...boundedRef, maxBytes })).toMatchObject({
+            ok: false,
+            reason: "rejected",
+          });
+        for (const key of ["", "files/../private.pdf", "files/invalid\\key"])
+          expect(await storage.readObject({ ...boundedRef, key, maxBytes: 4 })).toMatchObject({
+            ok: false,
+            reason: "rejected",
+          });
+        for (const ifMatchEtag of ["", " ", "private\nheader"])
+          expect(
+            await storage.readObject({ ...boundedRef, maxBytes: 4, ifMatchEtag }),
+          ).toMatchObject({ ok: false, reason: "rejected" });
+        expect(requests).toEqual([]);
+      },
+    );
+  });
+
+  it.each([
+    { size: "5", objectEtag: etag },
+    { size: "missing", objectEtag: etag },
+    { size: "9007199254740992", objectEtag: etag },
+    { size: "4", objectEtag: "" },
+    { size: "4", objectEtag: '"changed"' },
+  ])("HEAD $size/$objectEtag 不可信时只发 HEAD", async ({ size, objectEtag }) => {
+    await withCosObjectServer(
+      (_request, response) => cosObjectHead(response, size, objectEtag),
+      async (storage, _sockets, requests) => {
+        expect(
+          await storage.readObject({ ...boundedRef, maxBytes: 4, ifMatchEtag: etag }),
+        ).toMatchObject({ ok: false, reason: "rejected" });
+        expect(requests.map((request) => request.method)).toEqual(["HEAD"]);
+      },
+    );
+  });
+
+  it.each([0, 4])("完整读取 %s 字节，GET 使用 HEAD etag 且返回独立缓冲区", async (size) => {
+    const bytes = new Uint8Array([0xff, 0x00, 0x80, 0x41]).slice(0, size);
+    await withCosObjectServer(
+      (request, response) => {
+        if (request.method === "HEAD") cosObjectHead(response, String(size));
+        else response.writeHead(200, { ETag: etag, "Content-Length": String(size) }).end(bytes);
+      },
+      async (storage, _sockets, requests) => {
+        const result = await storage.readObject({ ...boundedRef, maxBytes: 4 });
+        expect(result).toEqual({ ok: true, value: bytes });
+        expect(requests.map((request) => request.method)).toEqual(["HEAD", "GET"]);
+        expect(requests[1]!.headers.get("If-Match")).toBe(etag);
+        expect(requests[1]!.headers.has("Range")).toBe(false);
+        expect(requests[1]!.headers.get("Authorization")).toContain("q-header-list=host;if-match");
+        if (!result.ok) throw new Error("未读取到真实 COS 对象字节");
+        if (size) {
+          result.value[0] = 0;
+          expect(bytes[0]).toBe(0xff);
+        }
+      },
+    );
+  });
+
+  it("HEAD 后对象更换的真实 412 拒绝，不重发且不暴露响应正文", async () => {
+    await withCosObjectServer(
+      (request, response) => {
+        if (request.method === "HEAD") cosObjectHead(response);
+        else response.writeHead(412).end("private-document-response");
+      },
+      async (storage, _sockets, requests) => {
+        const result = await storage.readObject({ ...boundedRef, maxBytes: 4 });
+        expect(result).toMatchObject({ ok: false, reason: "rejected" });
+        expect(JSON.stringify(result)).not.toContain("private-document-response");
+        expect(requests.map((request) => request.method)).toEqual(["HEAD", "GET"]);
+        expect(requests[1]!.headers.get("If-Match")).toBe(etag);
+      },
+    );
+  });
+
+  it.each(["etag", "size", "partial"])("GET %s 不匹配时取消未结束响应", async (mismatch) => {
+    await withCosObjectServer(
+      (request, response) => {
+        if (request.method === "HEAD") cosObjectHead(response);
+        else {
+          response.writeHead(mismatch === "partial" ? 206 : 200, {
+            ETag: mismatch === "etag" ? '"changed"' : etag,
+            ...(mismatch === "size" ? { "Content-Length": "5" } : {}),
+          });
+          response.write(new Uint8Array([1]));
+        }
+      },
+      async (storage, liveSockets) => {
+        expect(await storage.readObject({ ...boundedRef, maxBytes: 4 })).toMatchObject({
+          ok: false,
+          reason: "rejected",
+        });
+        await vi.waitFor(() => expect(liveSockets.size).toBe(0), { timeout: 1_000 });
+      },
+    );
+  });
+
+  it.each([4, 8])("实际流双重限界：HEAD=4/maxBytes=%s，超限立即回收 socket", async (maxBytes) => {
+    await withCosObjectServer(
+      (request, response) => {
+        if (request.method === "HEAD") cosObjectHead(response);
+        else {
+          response.writeHead(200, { ETag: etag });
+          response.write(new Uint8Array([1, 2, 3]));
+          response.write(new Uint8Array([4, 5]));
+        }
+      },
+      async (storage, liveSockets) => {
+        expect(await storage.readObject({ ...boundedRef, maxBytes })).toMatchObject({
+          ok: false,
+          reason: "rejected",
+          message: "对象实际大小超过读取上限或对象头声明",
+        });
+        await vi.waitFor(() => expect(liveSockets.size).toBe(0), { timeout: 1_000 });
+      },
+    );
+  });
+
+  it("无 GET 长度声明的真实短流不能返回不足 HEAD 的字节", async () => {
+    await withCosObjectServer(
+      (request, response) => {
+        if (request.method === "HEAD") cosObjectHead(response);
+        else {
+          response.writeHead(200, { ETag: etag });
+          response.write(new Uint8Array([1, 2]));
+          response.end();
+        }
+      },
+      async (storage) => {
+        expect(await storage.readObject({ ...boundedRef, maxBytes: 4 })).toMatchObject({
+          ok: false,
+          reason: "rejected",
+          message: "对象实际大小与对象头不一致",
+        });
+      },
+    );
+  });
+
+  it.each(["HEAD", "GET", "STREAM"])("%s 在途取消结束读取并关闭真实 socket", async (phase) => {
+    const controller = new AbortController();
+    let reached!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    await withCosObjectServer(
+      (request, response) => {
+        if (request.method === "HEAD") {
+          if (phase === "HEAD") reached();
+          else cosObjectHead(response);
+        } else if (phase === "GET") reached();
+        else {
+          response.writeHead(200, { ETag: etag });
+          response.write(new Uint8Array([1]), reached);
+        }
+      },
+      async (storage, liveSockets, requests) => {
+        const result = storage.readObject({
+          ...boundedRef,
+          maxBytes: 4,
+          signal: controller.signal,
+        });
+        await ready;
+        const start = performance.now();
+        controller.abort();
+        expect(await result).toMatchObject({
+          ok: false,
+          reason: "rejected",
+          message: "对象读取已取消",
+        });
+        expect(performance.now() - start).toBeLessThan(1_000);
+        await vi.waitFor(() => expect(liveSockets.size).toBe(0), { timeout: 1_000 });
+        expect(requests.map((request) => request.method)).toEqual(
+          phase === "HEAD" ? ["HEAD"] : ["HEAD", "GET"],
+        );
+      },
+    );
+  });
+
+  it("已取消与 wrapper guard 都先于 HEAD", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await withCosObjectServer(
+      (_request, response) => cosObjectHead(response),
+      async (storage, _sockets, requests) => {
+        expect(
+          await storage.readObject({ ...boundedRef, maxBytes: 4, signal: controller.signal }),
+        ).toMatchObject({ ok: false, reason: "rejected", message: "对象读取已取消" });
+        const guarded = withBeforeCall("storage", storage, () => {
+          throw new Error("tx guard");
+        });
+        await expect(guarded.readObject({ ...boundedRef, maxBytes: 4 })).rejects.toThrow(
+          "tx guard",
+        );
+        expect(requests).toEqual([]);
+      },
+    );
+  });
+
+  it("close 等待本次 GET 取消回收，关闭后不发新请求", async () => {
+    let reached!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    await withCosObjectServer(
+      (request, response) => {
+        if (request.method === "HEAD") cosObjectHead(response);
+        else {
+          response.writeHead(200, { ETag: etag });
+          response.write(new Uint8Array([1]), reached);
+        }
+      },
+      async (storage, liveSockets, requests) => {
+        const pending = storage.readObject({ ...boundedRef, maxBytes: 4 });
+        await ready;
+        await storage.close();
+        expect(await pending).toMatchObject({ ok: false });
+        await vi.waitFor(() => expect(liveSockets.size).toBe(0), { timeout: 1_000 });
+        expect(requests.map((request) => request.method)).toEqual(["HEAD", "GET"]);
+        expect(await storage.readObject({ ...boundedRef, maxBytes: 4 })).toMatchObject({
+          ok: false,
+        });
+        expect(requests).toHaveLength(2);
+      },
+    );
   });
 });

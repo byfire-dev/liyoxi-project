@@ -38,7 +38,7 @@ for (const entry of readdirSync(dist, { withFileTypes: true })) {
   if (entry.isFile() && /\.js(\.map)?$/.test(entry.name)) rmSync(`${dist}${entry.name}`);
 }
 
-const result = await build({
+const options = {
   absWorkingDir: root,
   entryPoints: { server: "src/server.ts", "check-env": "src/check-env.ts" },
   outdir,
@@ -62,10 +62,75 @@ const result = await build({
       },
     },
   ],
+};
+const result = await build(options);
+
+// A CPU thread needs the public conversion exports, not the services barrel's business side effects.
+// Verify the same binding chain before narrowing only this separate build's public import.
+function assertExports(path, target, names) {
+  const exports = [
+    ...readFileSync(path, "utf8").matchAll(/export\s*\{([^}]+)\}\s*from\s*["']([^"']+)["']/g),
+  ];
+  if (
+    names.some(
+      (name) =>
+        !exports.some(
+          (entry) =>
+            entry[2] === target &&
+            entry[1]
+              .split(",")
+              .map((item) => item.trim())
+              .includes(name),
+        ),
+    )
+  )
+    throw new Error("document public export binding changed");
+}
+const services = resolve(root, "../../packages/services/src");
+const names = ["createDocumentConverter", "runDocumentConversionWorker"];
+assertExports(`${services}/index.ts`, "./kernel/index.js", names);
+assertExports(`${services}/kernel/index.ts`, "./document-conversion/index.js", names);
+assertExports(`${services}/kernel/document-conversion/index.ts`, "./host.js", [names[0]]);
+assertExports(`${services}/kernel/document-conversion/index.ts`, "./worker.js", [names[1]]);
+const converter = await build({
+  ...options,
+  entryPoints: { "document-converter": "src/cli/document-converter.ts" },
+  splitting: false,
+  plugins: [
+    {
+      name: "isolated-public-document-entry",
+      setup(context) {
+        context.onResolve({ filter: /^@liyoxi\/services$/ }, (args) => {
+          if (args.importer !== resolve(root, "src/cli/document-converter.ts"))
+            throw new Error("unexpected isolated public import");
+          return { path: `${services}/kernel/document-conversion/index.ts` };
+        });
+      },
+    },
+    ...options.plugins,
+  ],
 });
+const converterExternal = new Set(
+  Object.values(converter.metafile.outputs).flatMap((output) =>
+    output.imports.filter((item) => item.external).map((item) => packageOf(item.path)),
+  ),
+);
+for (const name of ["mammoth", "sanitize-html", "pdfjs-dist", "@napi-rs/canvas"]) {
+  if (!converterExternal.has(name) || !(name in manifest.dependencies))
+    throw new Error(`document production dependency missing: ${name}`);
+}
+if (
+  Object.keys(converter.metafile.inputs).some((path) =>
+    /packages\/(?:db\/|services\/src\/(?:providers\/|runtime\.ts|assembly\.ts))/.test(path),
+  )
+)
+  throw new Error("document CPU build included business assembly");
 
 const used = new Set();
-for (const output of Object.values(result.metafile.outputs)) {
+for (const output of [
+  ...Object.values(result.metafile.outputs),
+  ...Object.values(converter.metafile.outputs),
+]) {
   for (const { path, external } of output.imports) {
     if (external && !isBuiltin(path)) used.add(packageOf(path));
   }
@@ -78,5 +143,8 @@ if (undeclared.length > 0) {
   );
   process.exit(1);
 }
-const files = Object.keys(result.metafile.outputs).filter((name) => name.endsWith(".js"));
+const files = [
+  ...Object.keys(result.metafile.outputs),
+  ...Object.keys(converter.metafile.outputs),
+].filter((name) => name.endsWith(".js"));
 console.log(`apps/api 构建完成：${files.length} 个文件，第三方包 ${used.size} 个，都已声明`);

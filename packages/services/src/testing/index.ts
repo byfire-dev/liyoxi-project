@@ -64,6 +64,15 @@ export type {
 } from "./m1-types.js";
 
 export { configTestStaffBriefs, createConfigProfileFixture } from "./config-admin.js";
+
+// W2-12：两个应用的真实转换产物共享虚构文件；仅测试入口可用。
+export {
+  docx as fictionalDocumentDocx,
+  pdf as fictionalDocumentPdf,
+  docxParts as fictionalDocumentParts,
+  zip as fictionalDocumentZip,
+  boundaryDocx as fictionalDocumentBoundaryDocx,
+} from "./document-fixtures.js";
 export {
   createNotifyMessageFixture,
   changeNotifyMessageAccessFixture,

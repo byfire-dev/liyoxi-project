@@ -37,7 +37,13 @@ let runtime: Runtime | undefined;
 try {
   const env = loadEnv();
   const redisKeyPrefix = testRedisKeyPrefix(env.APP_ENV, values["test-redis-prefix"]);
-  runtime = createRuntime({ entry: "api", env, version: VERSION, redisKeyPrefix });
+  runtime = createRuntime({
+    entry: "api",
+    env,
+    version: VERSION,
+    redisKeyPrefix,
+    documentWorkerUrl: new URL("./document-converter.js", import.meta.url),
+  });
   // 跳数、网段写错了在 createApp 里抛错，走下面的启动失败
   const trustedProxy = {
     hops:

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { Readable } from "node:stream";
 import { finished } from "node:stream/promises";
+import { disposeBody, readBoundedBody } from "./bounded-body.js";
 import {
   checkedStream,
   validStreamRead,
@@ -549,6 +550,73 @@ export function createCosStorage(
         if (input.ifMatchEtag && reply.headers.get("etag") !== input.ifMatchEtag)
           return failed("rejected", "COS 对象已变更");
         return ok(reply.bytes);
+      }),
+    readObject: (input) =>
+      run(async () => {
+        if (
+          !validRef(input) ||
+          !Number.isSafeInteger(input.maxBytes) ||
+          input.maxBytes < 1 ||
+          (input.ifMatchEtag !== undefined &&
+            (!textValue(input.ifMatchEtag) || !input.ifMatchEtag.trim()))
+        )
+          return BAD();
+        if (input.signal?.aborted) return failed("rejected", "对象读取已取消");
+        try {
+          return await transfer(input.signal ?? new AbortController().signal, async (signal) => {
+            const head = await signed(
+              input,
+              "HEAD",
+              readKey,
+              {},
+              {},
+              undefined,
+              undefined,
+              undefined,
+              signal,
+            );
+            if (head.status !== 200) return failure(head);
+            const length = head.headers.get("content-length");
+            const size = length === null ? NaN : Number(length);
+            const objectEtag = head.headers.get("etag");
+            if (
+              length === null ||
+              !/^[0-9]+$/.test(length) ||
+              !Number.isSafeInteger(size) ||
+              size < 0 ||
+              size > input.maxBytes ||
+              !textValue(objectEtag) ||
+              !objectEtag.trim() ||
+              (input.ifMatchEtag !== undefined && objectEtag !== input.ifMatchEtag)
+            )
+              return failed("rejected", "COS 对象大小或 etag 不合格");
+            if (signal.aborted) return failed("rejected", "对象读取已取消");
+            // Binary GET bypasses request()'s small text-response materialization.
+            const response = await streamFetch(
+              input,
+              "GET",
+              readKey,
+              { "If-Match": objectEtag },
+              signal,
+            );
+            if (response.status !== 200) {
+              await disposeBody(response.body);
+              return failure(response);
+            }
+            const actualLength = response.headers.get("content-length");
+            if (
+              response.headers.get("etag") !== objectEtag ||
+              (actualLength !== null &&
+                (!/^[0-9]+$/.test(actualLength) || Number(actualLength) !== size))
+            ) {
+              await disposeBody(response.body);
+              return failed("rejected", "COS 对象读取与对象头不一致");
+            }
+            return readBoundedBody(response.body, size, input.maxBytes, signal);
+          });
+        } catch {
+          return input.signal?.aborted ? failed("rejected", "对象读取已取消") : UNAVAILABLE();
+        }
       }),
     readTo: (input) => run(() => transfer(input.signal, (signal) => readTo(input, signal))),
     putStream: (input) =>

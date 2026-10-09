@@ -56,6 +56,7 @@ async function main(): Promise<void> {
   let services: WorkerServices | undefined;
   try {
     services = buildWorkerServices({
+      documentWorkerUrl: new URL("./document-converter.js", import.meta.url),
       appEnv: env.APP_ENV,
       prisma: database.prisma,
       assembly,
@@ -88,6 +89,7 @@ async function main(): Promise<void> {
     await Promise.allSettled([
       ...(services
         ? [
+            services.documentConverter?.close(),
             services.shutdownMediaJobs?.(),
             services.closeMediaDrivers?.(),
             services.closeStorageDrivers?.(),
@@ -111,6 +113,7 @@ async function main(): Promise<void> {
   };
   if (channel === undefined) {
     logger.info(summary, "装配与自检通过");
+    await services.documentConverter?.close();
     await services.shutdownMediaJobs?.();
     services.closeMediaJobs?.();
     await Promise.allSettled([services.closeMediaDrivers?.(), services.closeStorageDrivers?.()]);
@@ -133,6 +136,7 @@ async function main(): Promise<void> {
     logger.info({ signal }, "收到终止信号：停循环、收在途任务、让出租约");
     await Promise.allSettled(wechatClosers.map((close) => close()));
     await runtime.stop();
+    await services.documentConverter?.close();
     wechatRedis?.disconnect();
     await Promise.allSettled([channel.close(), lease.close(), database.close()]);
     process.exit(0);
