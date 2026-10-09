@@ -86,6 +86,8 @@ export type {
   FulfillStep,
 } from "./subscription/index.js";
 export { billingAccountOpener, billingMerchantFacts, openAccountForEntity } from "./ports.js";
+export { deletionGuard } from "./read/deletion-guard.js";
+export type { BillingDeletionGuardCounts } from "./read/deletion-guard.js";
 export {
   createPayment,
   openPaymentException,
