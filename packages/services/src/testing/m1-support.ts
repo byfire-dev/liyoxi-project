@@ -20,6 +20,7 @@ import { createClock } from "./clock.js";
 import { createProviderHarness } from "./data/provider-harness.js";
 import { createSeededDatabase } from "./data/seeded-db.js";
 import { fakeKeyEnv } from "./m1-fake-keys.js";
+import { createCodecDemoMasterPreparer } from "./demo-masters.js";
 import { installM1KnownMedia, m1Video } from "./m1-media.js";
 import { M1_PROFILE_DEFAULTS, seedM1ProfileDefaults } from "./m1-profile-defaults.js";
 import { readM1State } from "./m1-state.js";
@@ -174,6 +175,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
           appEnv: "test",
           billing: { assembly: apiRuntime.assembly, bizNo: apiRuntime.bizNo },
           notices: createNotices({ clock, events: apiRuntime.events }),
+          prepareMasters: createCodecDemoMasterPreparer({ ...apiRuntime, appEnv: "test" }),
           params: apiRuntime.config.params,
         });
         const baseline = await seedM1ProfileDefaults(apiRuntime);

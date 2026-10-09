@@ -73,3 +73,9 @@ export { createContentPricingAssembly } from "./content-pricing-runtime.js";
 
 export { createContentAdmin } from "./content-admin.js";
 export type { ContentAdmin, ContentAdminActor } from "./content-admin.js";
+
+export {
+  parseDemoMasterArgs,
+  readDemoMasterInput,
+  createDemoMasterInputPreparer,
+} from "./demo-masters-input.js";

@@ -1,3 +1,4 @@
+import { createCodecDemoMasterPreparer } from "@liyoxi/services/testing";
 import { beforeAll, describe, expect, it } from "vitest";
 import { HomeBannerMutationSchema, SiteConfigViewSchema, MallConfigSchema } from "@liyoxi/contract";
 import type { SiteConfigView, HomeBannerItem } from "@liyoxi/contract";
@@ -65,6 +66,13 @@ beforeAll(async () => {
       tx: app.runtime.tx,
       clock: app.clock,
       content: app.runtime.content,
+      prepareMasters: createCodecDemoMasterPreparer({
+        appEnv: "test",
+        tx: app.runtime.tx,
+        clock: app.clock,
+        media: app.runtime.media,
+        events: app.runtime.events,
+      }),
       media: app.runtime.media,
       appEnv: "test",
     },

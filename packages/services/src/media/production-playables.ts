@@ -51,10 +51,11 @@ export async function enqueueTrailer(
 ): Promise<readonly string[]> {
   if (!deps.production?.readTrailerFacts || !deps.production.setTrailerTarget)
     throw new AppError("PROVIDER_UNAVAILABLE");
-  const [drama, file, checked] = await Promise.all([
+  const [drama, file, checked, info] = await Promise.all([
     deps.production.readTrailerFacts(tx, input.dramaId),
     tx.fileObject.findUnique({ where: { id: input.fileId } }),
     tx.mediaCheck.findUnique({ where: { fileId: input.fileId } }),
+    tx.mediaInfo.findUnique({ where: { fileId: input.fileId } }),
   ]);
   if (
     !drama ||
@@ -62,10 +63,30 @@ export async function enqueueTrailer(
     file.status !== "stored" ||
     file.category !== "trailer_src" ||
     file.scopeType !== "platform" ||
-    file.moderationState === "block" ||
-    checked?.gate !== "pass"
+    file.moderationState === "block"
   )
-    throw new AppError("FILE_NOT_AVAILABLE");
+    throw new AppError("FILE_NOT_USABLE", {
+      details: {
+        fileIds: [input.fileId],
+        reason:
+          !file || file.status !== "stored"
+            ? "not_stored"
+            : file.moderationState === "block"
+              ? "blocked"
+              : "category_mismatch",
+      },
+    });
+  if (!checked)
+    throw new AppError("TRAILER_SOURCE_CHECKING", { details: { sourceFileId: input.fileId } });
+  if (
+    checked.profile !== "trailer_src" ||
+    checked.gate !== "pass" ||
+    !info?.durationMs ||
+    info.durationMs > 180000
+  )
+    throw new AppError("TRAILER_SOURCE_REJECTED", {
+      details: { reason: "rejected", failed: checked.hard },
+    });
   const { specVersion } = await deps.production.parameters(tx),
     now = deps.clock.now();
   if (!Number.isSafeInteger(specVersion) || specVersion < 1 || specVersion > 32767)
@@ -114,14 +135,25 @@ export async function enqueueTrailer(
     playable.ownerId !== drama.dramaId ||
     playable.ownerType !== "drama" ||
     playable.state === "retired"
-  )
+  ) {
+    if (playable.state === "retired")
+      throw new AppError("TRAILER_SOURCE_REJECTED", { details: { reason: "retired" } });
     throw new AppError("STATE_NOT_ALLOWED");
+  }
   await deps.production.setTrailerTarget(tx, {
     dramaId: drama.dramaId,
     playableAssetId: playable.id,
     staffId: input.staffId,
     now,
   });
+  if (existing)
+    return (
+      await tx.mediaJob.findMany({
+        where: { parentType: "playable_asset", parentId: playable.id, kind: "transcode_mp4" },
+        select: { id: true },
+        orderBy: { id: "asc" },
+      })
+    ).map((v) => v.id);
   const ids: string[] = [],
     nonce = randomBytes(8).toString("hex");
   for (const quality of ["sd", "hd"] as const) {
@@ -359,11 +391,60 @@ export async function retireDramaMedia(
   deps: BoundMediaDeps,
   tx: Tx,
   dramaId: string,
-  input: { scope: "trailer"; immediate: true },
+  input: { scope: "trailer"; immediate: true } | { scope: "masters" },
 ): Promise<{
   objectRefs: readonly ObjectRef[];
   cdnPending: true;
 }> {
+  if (input.scope === "masters") {
+    const masters = await tx.dramaEpisodeMaster.findMany({
+      where: { dramaId },
+      select: { id: true },
+    });
+    const refs = await tx.fileRef.findMany({
+      where: {
+        refType: "drama_episode_master",
+        refId: { in: masters.map((v) => v.id) },
+        role: "main",
+        state: "live",
+      },
+    });
+    await lockRows(
+      tx,
+      "file_object",
+      refs.map((v) => v.fileId),
+    );
+    const now = deps.clock.now(),
+      keep = new Date(now.getTime() + 90 * 86400000);
+    for (const ref of refs)
+      await tx.fileRef.update({
+        where: { id: ref.id },
+        data: {
+          state: "released",
+          releasedAt: now,
+          keepUntil: new Date(Math.max(keep.getTime(), ref.keepUntil?.getTime() ?? 0)),
+          updatedAt: now,
+        },
+      });
+    for (const id of new Set(refs.map((v) => v.fileId))) {
+      const remaining = await tx.fileRef.findMany({
+        where: { fileId: id },
+        select: { state: true, keepUntil: true },
+      });
+      await tx.fileObject.update({
+        where: { id },
+        data: {
+          purgeAfter: remaining.some((v) => v.state === "live")
+            ? null
+            : new Date(
+                Math.max(now.getTime(), ...remaining.map((v) => v.keepUntil?.getTime() ?? 0)),
+              ),
+          updatedAt: now,
+        },
+      });
+    }
+    return { objectRefs: [], cdnPending: true };
+  }
   if (input.scope !== "trailer" || input.immediate !== true)
     throw new AppError("VALIDATION_FAILED");
   const before = await tx.playableAsset.findMany({

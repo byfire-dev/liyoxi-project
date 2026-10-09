@@ -1,4 +1,9 @@
-import { createFactories, assembleForTest, createProviderHarness } from "../testing/index.js";
+import {
+  createFactories,
+  assembleForTest,
+  createProviderHarness,
+  createCodecDemoMasterPreparer,
+} from "../testing/index.js";
 import type { useSeededDatabase } from "../testing/index.js";
 import type { Clock } from "../kernel/index.js";
 import { createTxRunner } from "../kernel/index.js";
@@ -23,6 +28,7 @@ export async function buildContentTest(db: ReturnType<typeof useSeededDatabase>,
     staff = await createFactories({ db: prisma, clock }).staff({ staffRoleKey: "content_ops" });
   const unbind = bindContent(assembly);
   return {
+    prepareMasters: createCodecDemoMasterPreparer({ appEnv: "test", tx, clock, media, events }),
     unbind,
     prisma,
     tx,

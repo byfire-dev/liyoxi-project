@@ -15,7 +15,12 @@ export const contentFileRefs = [
   implementKeyed(fileRefTypePort, "drama_episode_master", {
     roles: { main: { categories: ["drama_master"], retentionDays: 180 } },
     readColumns: async (tx) =>
-      (await tx.dramaEpisodeMaster.findMany({ select: { id: true, fileId: true } })).map((row) => ({
+      (
+        await tx.dramaEpisodeMaster.findMany({
+          where: { drama: { archivedAt: null } },
+          select: { id: true, fileId: true },
+        })
+      ).map((row) => ({
         refId: row.id,
         fileId: row.fileId,
         role: "main",
