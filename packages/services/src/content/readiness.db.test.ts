@@ -109,3 +109,119 @@ it("缺集清单最多100但101集的实际总数与未就绪不能被截断伪�
     await h.close();
   }
 });
+
+async function trailerAsset(
+  h: Awaited<ReturnType<typeof lifecycleWorld>>,
+  dramaId: string,
+  state: "ready" | "processing" = "ready",
+) {
+  const file = await h.make.fileObject({
+    category: "trailer_src",
+    scopeType: "platform",
+    status: "stored",
+    bucket: "media",
+    mime: "video/mp4",
+    ext: "mp4",
+    moderationState: "pending",
+  });
+  const asset = await h.prisma.playableAsset.create({
+    data: {
+      id: uuidv7(),
+      kind: "trailer",
+      ownerType: "drama",
+      ownerId: dramaId,
+      sourceFileId: file.id,
+      state,
+      durationMs: 20000,
+      specVersion: 1,
+      readyAt: state === "ready" ? h.clock.now() : null,
+      createdAt: h.clock.now(),
+      updatedAt: h.clock.now(),
+    },
+  });
+  return { file, asset };
+}
+
+it("R1当前ready预告片的源文件晚到block时，就绪和启用后的L6必须阻断", async () => {
+  const h = await lifecycleWorld(db);
+  try {
+    const { drama } = await h.draft(1),
+      { file, asset } = await trailerAsset(h, drama.id);
+    await h.prisma.dramaTrailer.create({
+      data: {
+        dramaId: drama.id,
+        targetPlayableAssetId: asset.id,
+        currentPlayableAssetId: asset.id,
+        setByStaffId: h.employee.id,
+        setAt: h.clock.now(),
+        createdAt: h.clock.now(),
+        updatedAt: h.clock.now(),
+      },
+    });
+    await h.prisma.featureFlag.update({
+      where: { key: "weapp.video.trailer.enabled" },
+      data: { defaultValue: true },
+    });
+    const read = () => h.tx.run((tx) => h.content.mediaReadiness(tx, drama.id));
+    const check = () => h.tx.run((tx) => h.content.listingChecks(tx, drama.id));
+    expect((await read()).isTrailerReady).toBe(true);
+    expect((await check()).items.find((item) => item.code === "L6")).toMatchObject({
+      isOk: true,
+    });
+    await h.prisma.fileObject.update({
+      where: { id: file.id },
+      data: { moderationState: "block" },
+    });
+    expect((await read()).isTrailerReady).toBe(false);
+    expect((await check()).items.find((item) => item.code === "L6")).toMatchObject({
+      isOk: false,
+      severity: "block",
+    });
+    expect(await h.prisma.playableAsset.findUnique({ where: { id: asset.id } })).toMatchObject({
+      state: "ready",
+    });
+  } finally {
+    await h.close();
+  }
+});
+
+it("R1不同target不能污染旧current源判断，也不能用可用target掩盖旧current的block", async () => {
+  const h = await lifecycleWorld(db);
+  try {
+    const { drama } = await h.draft(1),
+      current = await trailerAsset(h, drama.id),
+      target = await trailerAsset(h, drama.id, "processing");
+    await h.prisma.dramaTrailer.create({
+      data: {
+        dramaId: drama.id,
+        targetPlayableAssetId: target.asset.id,
+        currentPlayableAssetId: current.asset.id,
+        setByStaffId: h.employee.id,
+        setAt: h.clock.now(),
+        createdAt: h.clock.now(),
+        updatedAt: h.clock.now(),
+      },
+    });
+    await h.prisma.fileObject.update({
+      where: { id: target.file.id },
+      data: { moderationState: "block" },
+    });
+    const read = () => h.tx.run((tx) => h.content.mediaReadiness(tx, drama.id));
+    expect((await read()).isTrailerReady).toBe(true);
+    await h.prisma.fileObject.update({
+      where: { id: target.file.id },
+      data: { moderationState: "pass" },
+    });
+    await h.prisma.fileObject.update({
+      where: { id: current.file.id },
+      data: { moderationState: "block" },
+    });
+    expect((await read()).isTrailerReady).toBe(false);
+    expect(await h.prisma.dramaTrailer.findUnique({ where: { dramaId: drama.id } })).toMatchObject({
+      targetPlayableAssetId: target.asset.id,
+      currentPlayableAssetId: current.asset.id,
+    });
+  } finally {
+    await h.close();
+  }
+});

@@ -29,7 +29,16 @@ export async function dramaMediaReadiness(tx: Tx, input: DramaReadinessInput, at
     }),
     tx.dramaTrailer.findUnique({
       where: { dramaId: input.dramaId },
-      include: { targetPlayableAsset: true, currentPlayableAsset: true },
+      include: {
+        targetPlayableAsset: true,
+        currentPlayableAsset: {
+          include: {
+            sourceFile: {
+              select: { status: true, category: true, scopeType: true, moderationState: true },
+            },
+          },
+        },
+      },
     }),
     tx.fileObject.findMany({
       where: {
@@ -74,6 +83,8 @@ export async function dramaMediaReadiness(tx: Tx, input: DramaReadinessInput, at
   for (let n = 1; n <= (input.totalEpisodes ?? 0); n++)
     if (!byEpisode.has(n) && missingEpisodeNos.length < 100) missingEpisodeNos.push(n);
   const target = pointer?.targetPlayableAsset;
+  const currentTrailer = pointer?.currentPlayableAsset;
+  const currentSource = currentTrailer?.sourceFile;
   const [sourceFile, sourceInfo] = await Promise.all([
     target ? tx.fileObject.findUnique({ where: { id: target.sourceFileId } }) : null,
     target ? tx.mediaInfo.findUnique({ where: { fileId: target.sourceFileId } }) : null,
@@ -97,12 +108,16 @@ export async function dramaMediaReadiness(tx: Tx, input: DramaReadinessInput, at
       input.episodeNos.length === input.totalEpisodes &&
       withCurrentMaster === input.totalEpisodes,
     isTrailerReady:
-      pointer?.currentPlayableAsset?.state === "ready" &&
-      pointer.currentPlayableAsset.kind === "trailer" &&
-      pointer.currentPlayableAsset.durationMs !== null &&
-      pointer.currentPlayableAsset.durationMs <= 180000 &&
-      pointer.currentPlayableAsset.ownerType === "drama" &&
-      pointer.currentPlayableAsset.ownerId === input.dramaId,
+      currentTrailer?.state === "ready" &&
+      currentTrailer.kind === "trailer" &&
+      currentTrailer.durationMs !== null &&
+      currentTrailer.durationMs <= 180000 &&
+      currentTrailer.ownerType === "drama" &&
+      currentTrailer.ownerId === input.dramaId &&
+      currentSource?.status === "stored" &&
+      currentSource.category === "trailer_src" &&
+      currentSource.scopeType === "platform" &&
+      currentSource.moderationState !== "block",
     trailer: pointer && target && sourceFile ? { pointer, target, sourceFile, sourceInfo } : null,
     openUploadBatches: batches,
   };

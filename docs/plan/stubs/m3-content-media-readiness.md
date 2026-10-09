@@ -12,4 +12,4 @@
 
 W3-09 改用真实当前母版、检查 gate、封面/预告片与在途批次事实。
 `content/readiness.db.test.ts`、`lifecycle.db.test.ts` 和 `subscribers.db.test.ts` 覆盖缺集、blocked、失败/迟到 target 与锁内上架复核；完整 content 目录 41 项本地通过。
-该回补不代表真实云、法务权利核验或 120 次实际媒体探针通过；本包最终门禁和独立审查仍进行中。
+显式合法 20 秒输入的单槽真实工具流水线与本包本地门禁已通过。唯一独审 R1 补齐 current 预告片源文件晚到 block 的复核，两个真实反例 RED→受影响完整 14 项通过；不把新 target 的源文件混作旧 current 事实。该回补不代表真实云、法务权利核验或 120 次实际媒体探针通过，主干合流仍待调度。
