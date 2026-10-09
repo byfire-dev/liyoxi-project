@@ -17,6 +17,9 @@ import { bindFileRefTypes } from "./invariants.js";
 import { createUploadBatches } from "./batches/service.js";
 import { createBatchWorkerHooks } from "./batches/worker.js";
 import { enqueueProbe, enqueueDerivation, productionFacts } from "./production.js";
+import { deliveryProductionFacts } from "./production/facts.js";
+import { prepareDeliveryProduction } from "./production/prepare.js";
+import type { ManualProductionInput } from "./production/prepare.js";
 import {
   enqueueTrailer,
   createProductionConvergence,
@@ -138,6 +141,24 @@ export function createMedia(options: MediaDeps) {
       input: Parameters<typeof enqueueTrailer>[2],
     ) => enqueueTrailer(deps, tx, input),
     productionFacts,
+    prepareDeliveryProduction: (
+      tx: Parameters<typeof prepareDeliveryProduction>[0],
+      inputs: readonly ManualProductionInput[],
+      beforeFiles?: () => Promise<void>,
+    ) =>
+      prepareDeliveryProduction(
+        tx,
+        {
+          clock: deps.clock,
+          enqueueProbe: (inner, fileId) => enqueueProbe(deps, inner, fileId),
+          awaitingRestamp: async (inner, fileId) =>
+            (await deliveryProductionFacts(deps, inner, fileId)).awaitingRestamp,
+        },
+        inputs,
+        beforeFiles,
+      ),
+    deliveryProductionFacts: (tx: Parameters<typeof deliveryProductionFacts>[1], fileId: string) =>
+      deliveryProductionFacts(deps, tx, fileId),
     assertUsableForModel,
     retireDramaMedia: (
       tx: Parameters<typeof retireDramaMedia>[1],

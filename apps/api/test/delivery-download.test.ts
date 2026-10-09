@@ -1,6 +1,12 @@
 // W1-16b 四条登录签发/详情；上游用真实账号核验、方案、QC及推包，已知媒体事实为明确测试替身。
 import { beforeAll, it, expect } from "vitest";
-import { createFactories, signInAsStaff } from "@liyoxi/services/testing";
+import {
+  createFactories,
+  signInAsStaff,
+  createDeliveryProductionTools,
+  finishDeliveryProductionForTest,
+  prepareDeliveryMasterForTest,
+} from "@liyoxi/services/testing";
 import type { SignedInStaff } from "@liyoxi/services/testing";
 import {
   createIdentityContext,
@@ -106,6 +112,10 @@ async function data(response: Response) {
 }
 beforeAll(async () => {
   api = await handle.start({
+    mediaProduction: (providers) => {
+      const external = createDeliveryProductionTools(providers);
+      return { config: external.env, tools: external.tools };
+    },
     rateLimitQuotas: {
       ...RATE_LIMIT_QUOTAS,
       "m.sign": [{ by: "user", limit: 8, windowSec: 3600 }],
@@ -259,6 +269,12 @@ async function checks(code: string) {
   };
 }
 async function knownFile(category: "sample_video" | "final_episode", episodeNo: number) {
+  const item = await prisma.orderItem.findUniqueOrThrow({ where: { id: itemId } });
+  await prepareDeliveryMasterForTest(api.runtime, {
+    dramaId: item.dramaId,
+    episodeNo,
+    staffId: admin.staff.id,
+  });
   const bytes = new Uint8Array(1234);
   bytes.set([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
   const registered = await data(
@@ -297,21 +313,12 @@ async function knownFile(category: "sample_video" | "final_episode", episodeNo: 
     where: { dedupeKey: `promote:${entry.fileId}` },
   });
   await api.runtime.media.promote({ jobId: job.id });
-  // 测试明确提供已知视频事实；生产M3体检与水印未在本包提前实现。
-  await prisma.mediaInfo.create({
-    data: {
-      fileId: entry.fileId,
-      kind: "video",
-      durationMs: 60000,
-      width: 1080,
-      height: 1920,
-      probeVersion: 1,
-      raw: { fixture: "known video metadata; M3 boundary" },
-      probedAt: api.clock.now(),
-      createdAt: api.clock.now(),
-      updatedAt: api.clock.now(),
-    },
-  });
+  await finishDeliveryProductionForTest(
+    api.runtime,
+    api.clock,
+    entry.fileId,
+    category === "sample_video",
+  );
   return entry.fileId;
 }
 const writes = () =>

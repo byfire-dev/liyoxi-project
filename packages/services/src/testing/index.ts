@@ -97,3 +97,10 @@ export { createOutputBatchToolsForTest, outputBatchInputFromProbe } from "./outp
 
 export { fullStaffWorld } from "./staff-full.js";
 export type { FullStaffWorld } from "./staff-full.js";
+
+export {
+  createDeliveryProductionTools,
+  finishDeliveryProductionForTest,
+  prepareDeliveryMasterForTest,
+} from "./delivery-production-tools.js";
+export type { DeliveryProductionTools } from "./delivery-production-tools.js";

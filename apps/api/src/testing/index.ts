@@ -25,7 +25,7 @@ import {
   loadEnv,
   security,
 } from "@liyoxi/services";
-import type { IdentityContextInput, Runtime } from "@liyoxi/services";
+import type { IdentityContextInput, Runtime, RuntimeOptions } from "@liyoxi/services";
 import {
   assertTestDatabaseUrl,
   createClock,
@@ -37,6 +37,7 @@ import {
 import type {
   AdjustableClock,
   FakeWechat,
+  FakeProviders,
   TestDatabase,
   TestRedis,
 } from "@liyoxi/services/testing";
@@ -53,6 +54,11 @@ import type { PipelineEntry, PipelineSlot } from "../routing/pipeline.js";
 import { HANDLERS } from "../routes/index.js";
 
 export interface TestApiOptions {
+  /** External media IO only; real production facts/handlers remain in the Runtime. */
+  readonly mediaProduction?: (providers: FakeProviders) => {
+    config: NonNullable<RuntimeOptions["env"]["MEDIA_PRODUCTION"]>;
+    tools: NonNullable<RuntimeOptions["mediaProductionTools"]>;
+  };
   readonly webhookSources?: readonly security.WebhookSource[];
   /** 处理器清单；缺省是生产的那份 */
   readonly handlers?: readonly HandlerEntry[];
@@ -132,10 +138,12 @@ export function useTestApi(): TestApiHandle {
       const logs: Record<string, unknown>[] = [];
       // 十二个 Provider 换成 W0-25 的替身支架（带“事务内不外呼”的钩子）：商家端登录取的就是运行时上的这个假微信
       const { providers } = createProviderHarness({ clock });
+      const production = options.mediaProduction?.(providers);
       const runtime = createRuntime({
         webhookSources: options.webhookSources,
         entry: "api",
-        env,
+        env: production ? { ...env, MEDIA_PRODUCTION: production.config } : env,
+        mediaProductionTools: production?.tools,
         version: "test",
         clock,
         redisKeyPrefix: redis.prefix,

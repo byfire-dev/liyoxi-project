@@ -1,4 +1,8 @@
-import { createContentPricingAssembly, createContentAdmin } from "./ops/index.js";
+import {
+  createDeliveryProductionAssembly,
+  createContentPricingAssembly,
+  createContentAdmin,
+} from "./ops/index.js";
 import type { ContentAdmin } from "./ops/index.js";
 import { createContentCopyright, createContentLicense, DramaPricePort } from "./content/index.js";
 import { createDramaPricing } from "./billing/index.js";
@@ -345,7 +349,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const mediaScope = createMediaAssembly(notifyScope.assembly);
   const staffScope = createStaffAssembly(mediaScope.assembly);
   const contentPricingScope = createContentPricingAssembly(staffScope.assembly);
-  const assembly = contentPricingScope.assembly;
+  const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
+  const assembly = deliveryProductionScope.assembly;
   // 违规上报端口（invariants.report）的实现在 ops，要连接、时钟与装配结果（W0-24）
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
   const wechatClosers: Array<() => Promise<void>> = [];
@@ -515,6 +520,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     },
   });
   mediaScope.attach(media.jobs);
+  deliveryProductionScope.attach({ clock, flow, media });
   const unbindContent = bindContent(assembly);
   const unbindPublish = bindPublish(assembly);
   const unbindDelivery = bindDelivery({
@@ -805,6 +811,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       ]);
       mediaScope.close();
       contentPricingScope.close();
+      deliveryProductionScope.close();
       await mediaProduction.close();
       unbindNoticeLink();
       await Promise.allSettled(wechatClosers.map((close) => close()));
