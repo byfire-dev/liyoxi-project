@@ -43,6 +43,7 @@ export interface M1Support {
     readonly videoCodec: string;
     readonly hasAudio: boolean;
   };
+  readonly productionVideo: M1Support["video"];
   seedDemo(): Promise<DemoSeedReport>;
   checklist(code: ChecklistCode): Promise<ChecklistTemplateView>;
   readState(ids: M1StateIds): ReturnType<typeof readM1State>;
@@ -59,6 +60,7 @@ export interface M1Support {
   drainEvents(): Promise<{ readonly expanded: number; readonly consumed: number }>;
   promote(fileId: string): Promise<void>;
   installKnownMedia(fileId: string, scope: M1MediaScope): Promise<void>;
+  finishProduction(fileId: string, scope: M1MediaScope): Promise<void>;
   fullInvariants(): Promise<InvariantRunResult>;
   close(): Promise<void>;
 }

@@ -1,4 +1,5 @@
 // Node 私有 helper：只读本轮 public-test context，窄 CLI 不接收生产服务配置或密钥路径。
+import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -49,16 +50,29 @@ export function managerLogin() {
   if (!f.managerRecoveryCodePR2) throw new Error("缺少独立经理恢复码");
   return { ...f.manager, recoveryCode: f.managerRecoveryCodePR2 };
 }
+export function deliveryVideo() {
+  const manifest = (
+    liveContext().fixtures as {
+      fixtures: {
+        w302: {
+          video: { path: string; size: number; sha256: string; probe: { durationMs: number } };
+        };
+      };
+    }
+  ).fixtures.w302.video;
+  const bytes = readFileSync(manifest.path);
+  if (
+    bytes.length !== manifest.size ||
+    createHash("sha256").update(bytes).digest("hex") !== manifest.sha256
+  )
+    throw new Error("本轮真实视频输入证明不一致");
+  return { manifest, bytes };
+}
 export function knownFile(artifact: Artifact) {
   return {
     name: `${deliveryFixture().scope.runId}-${artifact}.mp4`,
     mimeType: "video/mp4",
-    buffer: readFileSync(
-      new URL(
-        "../../../../packages/services/src/testing/admin-live/w119-known.mp4",
-        import.meta.url,
-      ),
-    ),
+    buffer: deliveryVideo().bytes,
   };
 }
 interface Upload {

@@ -5,11 +5,7 @@ import type { StaffContext } from "../authz/index.js";
 import { paramsAt } from "../config/index.js";
 import { AppError, lockRows, uuidv7 } from "../kernel/index.js";
 import type { IdentityContext, Tx } from "../kernel/index.js";
-import {
-  consumeFinalReleaseBatch,
-  ensureProductionStubs,
-  recordAdoptedStoreAssets,
-} from "../media/index.js";
+import { consumeFinalReleaseBatch, recordAdoptedStoreAssets } from "../media/index.js";
 import { staffBriefs } from "../staff/index.js";
 import type { DeliveryDeps } from "./context.js";
 import { lockTickets, ticketOf, iso } from "./repo.js";
@@ -23,6 +19,7 @@ import {
   unpaused,
 } from "./quality.js";
 import type { QualityInput } from "./quality.js";
+import { manualProductionContext } from "./production-context.js";
 import { qcView } from "./quality-views.js";
 import { reevaluate } from "./reevaluate.js";
 export async function episodeView(tx: Tx, e: EpisodeOutput) {
@@ -156,20 +153,23 @@ export async function registerEpisodes(
   if (samples.length !== adopted.length)
     throw new AppError("FILE_NOT_USABLE", { details: { fileIds: [], reason: "context_mismatch" } });
   const forcedByDrama = await dramaUsesAi(tx, t.orderItem.dramaId);
-  const files = items
-    .filter((r) => r.fileId)
-    .map((r) => ({
-      fileId: r.fileId!,
-      kind: "final" as const,
-      orderItemId: t.orderItemId,
-      episodeNo: r.episodeNo,
-      entityId: t.entityId,
-      storeId: t.storeId,
-      productionTier: t.orderItem.productionModel,
-      uploadedByStaffId: staff.staff.id,
-      forcedByDrama,
-    }));
-  const media = await ensureProductionStubs(tx, deps, files, async () => {
+  const files = await Promise.all(
+    items
+      .filter((r) => r.fileId)
+      .map(async (r) => ({
+        fileId: r.fileId!,
+        kind: "final" as const,
+        orderItemId: t.orderItemId,
+        episodeNo: r.episodeNo,
+        entityId: t.entityId,
+        storeId: t.storeId,
+        productionTier: t.orderItem.productionModel,
+        uploadedByStaffId: staff.staff.id,
+        forcedByDrama,
+        ...(await manualProductionContext(tx, t, staff.staff.id, r.episodeNo)),
+      })),
+  );
+  const media = await deps.media.prepareDeliveryProduction(tx, files, async () => {
     await recordAdoptedStoreAssets(tx, deps, ctx, {
       entityId: t.entityId,
       storeId: t.storeId,
@@ -355,7 +355,7 @@ export async function inspectEpisodes(
         details: { episodeOutputId: e.id, latestEpisodeOutputId: latest?.id },
       });
     if (four && e.uploadedByStaffId === staff.staff.id) throw new AppError("QC_SELF_INSPECTION");
-    const p = await productionReady(tx, e.fileId),
+    const p = await productionReady(tx, e.fileId, deps.media),
       exception = b.exceptions?.find((r) => r.episodeOutputId === e.id),
       q = await quality(
         tx,

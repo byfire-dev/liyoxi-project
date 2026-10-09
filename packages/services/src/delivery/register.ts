@@ -108,6 +108,15 @@ export const registration = defineRegistration("delivery", {
           : null;
     }),
   ],
+  subscribers: [
+    {
+      name: "delivery.onProductionChecked",
+      events: ["media.production.checked"],
+      handle: async () => {
+        throw new TypeError("交付制作运行时尚未绑定");
+      },
+    },
+  ],
   invariants: [
     ...DELIVERY_INVARIANT_CODES.map((code) => ({
       code: `delivery.${code}`,

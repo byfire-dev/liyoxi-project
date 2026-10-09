@@ -7,6 +7,7 @@ import {
   apiData,
   attachKnownMedia,
   deliveryFixture,
+  deliveryVideo,
   knownFile,
   managerLogin,
 } from "./live-delivery-fixture";
@@ -129,7 +130,9 @@ test("交付真实主路径：分配/方案确认/两人样片质检/保存留�
         page.request,
         `/api/v1/admin/delivery-tickets/${f.scope.ticketId}`,
       );
-      expect(ticket.currentSample.durationMs).toBe(artifact === "sample" ? 1000 : null);
+      expect(ticket.currentSample.durationMs).toBe(
+        artifact === "sample" ? deliveryVideo().manifest.probe.durationMs : null,
+      );
       if (artifact === "unknown_sample") {
         const templates = await apiData(
             managerPage.request,
@@ -198,7 +201,11 @@ test("交付真实主路径：分配/方案确认/两人样片质检/保存留�
     expect(new URL(download.url).searchParams.get("X-Amz-Expires")).toBe("900");
     const actual = await fetch(download.url);
     expect(actual.status).toBe(200);
-    expect((await actual.arrayBuffer()).byteLength).toBe(17947);
+    const sampleBytes = Buffer.from(await actual.arrayBuffer());
+    expect(sampleBytes.byteLength).toBe(Number(download.sizeBytes));
+    expect(createHash("sha256").update(sampleBytes).digest("hex")).not.toBe(
+      deliveryVideo().manifest.sha256,
+    );
     await apiData(
       page.request,
       `/api/v1/m/samples/${sample.sampleId}/confirm`,

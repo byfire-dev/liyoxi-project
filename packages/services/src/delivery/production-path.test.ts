@@ -16,17 +16,20 @@ import { useSeededDatabase } from "../testing/index.js";
 import { record } from "../audit/index.js";
 import type { IdentityContext, IdempotencyContext } from "../kernel/index.js";
 import { createIdempotencyContext, uuidv7 } from "../kernel/index.js";
-import { findI2Violations, findI14Violations, ensureProductionStubs } from "../media/index.js";
+import { findI2Violations, findI14Violations } from "../media/index.js";
 import { findDeliveryViolations } from "./invariants.js";
 import { createDelivery } from "./service.js";
-import { draft, harness } from "./__fixtures__/harness.js";
-import type { Harness } from "./__fixtures__/harness.js";
+import { draft } from "./__fixtures__/harness.js";
+import { productionHarness } from "./__fixtures__/production-tools.js";
+import type { ProductionHarness as Harness } from "./__fixtures__/production-tools.js";
 const db = useSeededDatabase("services");
 let h: Harness;
 beforeAll(async () => {
-  h = harness(await db.prisma());
+  h = productionHarness(await db.prisma());
 }, 120000);
-afterAll(() => h?.unbind());
+afterAll(async () => {
+  await h?.close();
+});
 async function ready() {
   const poster = await h.make.fileObject(),
     o = await h.order(true, 1, poster.id, 2),
@@ -69,6 +72,7 @@ async function file(
   used = false,
   onRegistered?: (fileId: string, clientToken: string) => Promise<void>,
 ) {
+  await h.master(o.items[0]!.dramaId, episodeNo, editor.row.id);
   const actor = { identity: editor.ctx, staff: editor.staff },
     bytes = new Uint8Array(1234),
     clientToken = uuidv7();
@@ -179,20 +183,7 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
   it("样片上传/独立质检/推送/证据确认，样片采用首集+成片次集、两级质检、真实授权与上线任务", async () => {
     const { o, editor, qc, id, item } = await ready(),
       f = await file(o, "sample_video", editor);
-    await h.prisma.mediaInfo.create({
-      data: {
-        fileId: f.id,
-        kind: "video",
-        durationMs: 60000,
-        width: 1080,
-        height: 1920,
-        probeVersion: 1,
-        raw: { fixture: "known fictional 60s video metadata; M3 subscriber boundary" },
-        probedAt: h.clock.now(),
-        createdAt: h.clock.now(),
-        updatedAt: h.clock.now(),
-      },
-    });
+    await h.finish(f.id, true);
     const sampleBody = { fileId: f.id, adSlots: [] };
     const s = await replay(
       "admin.deliveryTicket.sample.create",
@@ -284,6 +275,7 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
     expect(
       EpisodeGridSchema.parse(await h.delivery.episodes(qc.staff, id)).currentPassedCount,
     ).toBe(0);
+    await h.finish(second.id);
     const q = await checks("qc.episode"),
       epBody = {
         episodeOutputIds: made.items.map((e) => e.episodeOutputId),
@@ -449,7 +441,7 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
         });
     }
   });
-  it("缺真实 duration 时 QC 受控拒绝且历史/审核/事件/QC 均零新增；补元数据后可质检", async () => {
+  it("缺真实 duration 时 QC 受控拒绝且历史/审核/事件/QC 均零新增；实际probe后可质检", async () => {
     const { o, editor, qc, id } = await ready(),
       f = await file(o, "sample_video", editor),
       s = await h.delivery.sampleCreate(editor.ctx, editor.staff, id, {
@@ -470,20 +462,7 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
       status: "uploaded",
       durationMs: null,
     });
-    await h.prisma.mediaInfo.create({
-      data: {
-        fileId: f.id,
-        kind: "video",
-        durationMs: 60000,
-        width: 1080,
-        height: 1920,
-        probeVersion: 1,
-        raw: { fixture: "explicit M3 metadata substitute" },
-        probedAt: h.clock.now(),
-        createdAt: h.clock.now(),
-        updatedAt: h.clock.now(),
-      },
-    });
+    await h.finish(f.id, true);
     expect(
       await h.delivery.sampleInspect(qc.ctx, qc.staff, s.sampleId, await checks("qc.sample")),
     ).toMatchObject({ status: "qc_passed", durationMs: 60000 });
@@ -491,20 +470,7 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
   it("同工单新样片取代旧版本、批次真实提交换引用；两连接包质检及推送只迁移/建包一次", async () => {
     const { o, editor, qc, id, item } = await ready(),
       f = await file(o, "sample_video", editor);
-    await h.prisma.mediaInfo.create({
-      data: {
-        fileId: f.id,
-        kind: "video",
-        durationMs: 60000,
-        width: 1080,
-        height: 1920,
-        probeVersion: 1,
-        raw: { fixture: "known test metadata" },
-        probedAt: h.clock.now(),
-        createdAt: h.clock.now(),
-        updatedAt: h.clock.now(),
-      },
-    });
+    await h.finish(f.id, true);
     const first = await h.delivery.sampleCreate(editor.ctx, editor.staff, id, {
         fileId: f.id,
         adSlots: [],
@@ -574,13 +540,9 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
         },
       });
     for (const episodeNo of [1, 2]) {
-      const f = await h.make.fileObject({
-        category: "final_episode",
-        scopeType: "store",
-        entityId: o.entity.id,
-        storeId: o.store.id,
-        uploadBatchId: batch.id,
-      });
+      const f = await file(o, "final_episode", editor, episodeNo);
+      await h.finish(f.id);
+      await h.prisma.fileObject.update({ where: { id: f.id }, data: { uploadBatchId: batch.id } });
       await h.prisma.uploadBatchItem.create({
         data: {
           id: uuidv7(),
@@ -654,20 +616,7 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
   it("推送后播放开关关闭不改快照，GET 零写；原 weapp 确认需实际查看证据及明确勾选", async () => {
     const { o, editor, qc, id, item } = await ready(),
       f = await file(o, "sample_video", editor);
-    await h.prisma.mediaInfo.create({
-      data: {
-        fileId: f.id,
-        kind: "video",
-        durationMs: 60000,
-        width: 1080,
-        height: 1920,
-        probeVersion: 1,
-        raw: { fixture: "known fictional metadata" },
-        probedAt: h.clock.now(),
-        createdAt: h.clock.now(),
-        updatedAt: h.clock.now(),
-      },
-    });
+    await h.finish(f.id, true);
     let enabled = true;
     const delivery = createDelivery({ ...h.deps, samplePlayback: async () => enabled }),
       s = await delivery.sampleCreate(editor.ctx, editor.staff, id, { fileId: f.id, adSlots: [] });
@@ -723,20 +672,7 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
           where: { id: item.dramaId },
           data: { isAiGenerated: false },
         });
-        await h.prisma.mediaInfo.create({
-          data: {
-            fileId: nonAiSampleFile!,
-            kind: "video",
-            durationMs: 60000,
-            width: 1080,
-            height: 1920,
-            probeVersion: 1,
-            raw: { fixture: "explicit known metadata for non-AI stage transition" },
-            probedAt: h.clock.now(),
-            createdAt: h.clock.now(),
-            updatedAt: h.clock.now(),
-          },
-        });
+        await h.finish(nonAiSampleFile!, true);
         const healthy = await h.delivery.sampleCreate(editor.ctx, editor.staff, id, {
           fileId: nonAiSampleFile!,
           adSlots: [],
@@ -802,7 +738,7 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
             ]).toEqual(countsBefore);
           });
           const [bridged] = await h.tx.run((tx) =>
-            ensureProductionStubs(tx, h.deps, [
+            h.deps.media.prepareDeliveryProduction(tx, [
               {
                 fileId: f.id,
                 kind,
@@ -817,11 +753,11 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
             ]),
           );
           expect(bridged!.record).toMatchObject({
-            pipelineState: used || isAiGenerated ? "uploading" : "ready",
+            pipelineState: "uploading",
             aigcState: used || isAiGenerated ? "pending" : "not_required",
             aiUsage: { used: used || isAiGenerated, forcedByDrama: isAiGenerated },
           });
-          if (used || isAiGenerated) expect(bridged!.playable).toBeNull();
+          expect(await h.prisma.playableAsset.count({ where: { sourceFileId: f.id } })).toBe(0);
           if (kind === "sample" && !used && !isAiGenerated) nonAiSampleFile = f.id;
         }
       // 兼容既存 stored 文件缺制作留痕的分支，也必须读取真实所属 AI 剧目。
@@ -860,20 +796,7 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
   it("完整清单 fail 写一次 qc_failed，补传新版本；旧 metadata 与引用不删，AI 预判按真实 not_required", async () => {
     const { o, editor, qc, id } = await ready(),
       f = await file(o, "sample_video", editor);
-    await h.prisma.mediaInfo.create({
-      data: {
-        fileId: f.id,
-        kind: "video",
-        durationMs: 60000,
-        width: 1080,
-        height: 1920,
-        probeVersion: 1,
-        raw: { fixture: "known fictional metadata" },
-        probedAt: h.clock.now(),
-        createdAt: h.clock.now(),
-        updatedAt: h.clock.now(),
-      },
-    });
+    await h.finish(f.id, true);
     const s = await h.delivery.sampleCreate(editor.ctx, editor.staff, id, {
         fileId: f.id,
         adSlots: [],

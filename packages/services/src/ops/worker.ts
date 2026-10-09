@@ -1,3 +1,4 @@
+import { createDeliveryProductionAssembly } from "./delivery-production-runtime.js";
 import { createContentPricingAssembly } from "./content-pricing-runtime.js";
 import {
   createContent,
@@ -230,7 +231,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const mediaScope = createMediaAssembly(notifyScope.assembly);
   const staffScope = createStaffAssembly(mediaScope.assembly);
   const contentPricingScope = createContentPricingAssembly(staffScope.assembly);
-  const docsScope = createDocsAssembly(contentPricingScope.assembly);
+  const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
+  const docsScope = createDocsAssembly(deliveryProductionScope.assembly);
   const assembly = docsScope.assembly;
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
@@ -410,7 +412,12 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     media,
     sla: createSla({ clock, assembly }),
   };
-  const closeDelivery = bindDelivery(deliveryCore);
+  const unbindDelivery = bindDelivery(deliveryCore);
+  deliveryProductionScope.attach({ clock, flow, media });
+  const closeDelivery = () => {
+    deliveryProductionScope.close();
+    unbindDelivery();
+  };
   const delivery = { tx, subscribers: events.subscribers, channel, alerts };
   // 账本（W1-10）：每分钟扫描用它推进到点的主体
   const ledger = createLedger({ clock, events });

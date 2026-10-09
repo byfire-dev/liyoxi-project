@@ -19,4 +19,9 @@ export {
 } from "./reads.js";
 
 export { assignPublisher } from "./publisher-assignment.js";
+
+export { createProductionChecked } from "./production-checked.js";
+export type { ProductionCheckedDeps } from "./production-checked.js";
 export { countBlockingStoreTickets, countOnlineReleaseTicketsByEntity } from "./close-facts.js";
+
+export { productionReady } from "./quality.js";
