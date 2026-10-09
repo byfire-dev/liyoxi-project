@@ -503,6 +503,7 @@ async function main(args) {
         }),
       };
     } else if (
+      w120Pending.stage !== undefined ||
       !w120Pending.unknownMetadataRejectedWithoutWrites ||
       w120Pending.items?.length !== 2
     ) {
