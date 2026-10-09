@@ -268,7 +268,8 @@ export function createProbeHandler(deps: BoundMediaDeps): MediaJobHandler {
       const output = ProbeOutputSchema.parse(outcome.output),
         input = inputSchema.parse(job.input),
         facts = await readProductionWork(deps, tx, job.subjectId),
-        now = deps.clock.now();
+        now = job.finishedAt;
+      if (!now) throw new Error("媒体任务缺少已写完成时间");
       if (facts.file.sha256 !== null && facts.file.sha256 !== output.sourceSha256)
         throw new Error("媒体来源摘要不一致");
       await tx.fileObject.update({
