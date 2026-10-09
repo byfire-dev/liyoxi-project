@@ -303,6 +303,8 @@ export function createWechatDriver(
           },
         },
         (value) => imageResult(value.json),
+        true,
+        input.signal,
       );
     },
   };

@@ -28,3 +28,5 @@ export type {
   WechatSubscriptionEvent,
   WechatSubscriptionItem,
 } from "./wechat-message.js";
+
+export { createCiWebhookSource } from "./ci.js";

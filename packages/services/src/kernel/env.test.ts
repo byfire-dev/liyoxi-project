@@ -292,6 +292,10 @@ describe("成组变量成对校验", () => {
 
   it("登记的组：两份密钥文件（W0-14）与微信完整配置（W2-21）", () => {
     expect(ENV_GROUPS).toEqual([
+      {
+        name: "腾讯云短信",
+        keys: ["SMS_SECRET_ID_FILE", "SMS_SECRET_KEY_FILE", "SMS_SDK_APP_ID", "SMS_REGION"],
+      },
       { name: "字段加密与盲索引密钥", keys: ["DATA_KEYS_FILE", "BIDX_KEYS_FILE"] },
       {
         name: "微信小程序与唯一消息接收地址",
@@ -330,9 +334,12 @@ describe("成组变量成对校验", () => {
   });
 
   it("多个组各自判断；与别的问题一并列出", () => {
-    const cos: EnvGroup = { name: "对象存储", keys: ["COS_BUCKET", "COS_REGION"] };
-    const error = failure({ APP_ENV: "local", REDIS_URL, COS_REGION: "r" }, [pay, cos]);
-    expect(keysOf(error)).toEqual(["DATABASE_URL", "COS_BUCKET"]);
+    const cos: EnvGroup = {
+      name: "对象存储",
+      keys: ["TEST_STORAGE_BUCKET", "TEST_STORAGE_REGION"],
+    };
+    const error = failure({ APP_ENV: "local", REDIS_URL, TEST_STORAGE_REGION: "r" }, [pay, cos]);
+    expect(keysOf(error)).toEqual(["DATABASE_URL", "TEST_STORAGE_BUCKET"]);
   });
 });
 
@@ -350,11 +357,31 @@ describe("键名清单", () => {
       "DATA_KEYS_FILE",
       "BIDX_KEYS_FILE",
       "AUTH_KEYS_FILE",
+      "SMS_SECRET_ID_FILE",
+      "SMS_SECRET_KEY_FILE",
+      "SMS_SDK_APP_ID",
+      "SMS_REGION",
       "WECHAT_APPID",
       "WECHAT_SECRET_FILE",
       "WECHAT_MESSAGE_TOKEN_FILE",
       "WECHAT_MESSAGE_AES_KEY_FILE",
       "CLIENT_ERROR_PROJECTS_FILE",
+      "COS_REGION",
+      "COS_BUCKET_SECURE",
+      "COS_BUCKET_ASSET",
+      "COS_BUCKET_MEDIA",
+      "COS_BUCKET_PUB",
+      "COS_SIGNER_KEYS_FILE",
+      "COS_STS_ISSUER_KEYS_FILE",
+      "COS_WORKER_KEYS_FILE",
+      "CI_REGION",
+      "CI_BUCKET_SECURE",
+      "CI_BUCKET_ASSET",
+      "CI_BUCKET_MEDIA",
+      "CI_BUCKET_PUB",
+      "CI_WORKER_KEYS_FILE",
+      "CI_CALLBACK_KEY_FILE",
+      "CI_CALLBACK_ORIGIN",
     ]);
   });
 });
@@ -529,6 +556,61 @@ describe("后台登录的密钥文件", () => {
     expect(example.split("\n").filter((line) => line.startsWith("AUTH_KEYS"))).toEqual([
       "AUTH_KEYS_FILE=<文件路径>",
     ]);
+  });
+});
+
+// W222：公开虚构腾讯凭据，FILE-only 与部分配置拒绝。
+describe("腾讯短信成组环境配置", () => {
+  const base = { APP_ENV: "local", DATABASE_URL, REDIS_URL };
+  const idFile = fileWith("sms-id.txt", "AKIDEXAMPLE0000000");
+  const keyFile = fileWith("sms-key.txt", "SECRETKEYEXAMPLE0000000");
+  it("全组经文件加载；不配则省略SMS", () => {
+    expect(loadEnv(base).SMS).toBeUndefined();
+    expect(
+      loadEnv({
+        ...base,
+        SMS_SECRET_ID_FILE: idFile,
+        SMS_SECRET_KEY_FILE: keyFile,
+        SMS_SDK_APP_ID: "1400006666",
+        SMS_REGION: "ap-guangzhou",
+      }).SMS,
+    ).toEqual({
+      secretId: "AKIDEXAMPLE0000000",
+      secretKey: "SECRETKEYEXAMPLE0000000",
+      sdkAppId: "1400006666",
+      region: "ap-guangzhou",
+    });
+  });
+  it("半配及任何环境明文拒绝，错误不泄露内容或路径", () => {
+    const missing = failure({ ...base, SMS_SDK_APP_ID: "1400006666" });
+    expect(keysOf(missing)).toContain("SMS_SECRET_KEY_FILE");
+    const error = failure({ ...base, SMS_SECRET_KEY: "private-value", SMS_SECRET_ID_FILE: idFile });
+    expect(error.message).not.toContain("private-value");
+    expect(error.message).not.toContain(idFile);
+  });
+  it("密钥文件4KiB实际字节边界、目录和非法内容受控；失败不泄露路径/内容", () => {
+    const source = {
+      ...base,
+      SMS_SECRET_ID_FILE: idFile,
+      SMS_SECRET_KEY_FILE: keyFile,
+      SMS_SDK_APP_ID: "1400006666",
+      SMS_REGION: "ap-guangzhou",
+    };
+    const secret = "AKIDEXAMPLE0000000";
+    const padded = fileWith("sms-4096.txt", " ".repeat(4096 - secret.length) + secret);
+    expect(loadEnv({ ...source, SMS_SECRET_ID_FILE: padded }).SMS?.secretId).toBe(
+      "AKIDEXAMPLE0000000",
+    );
+    for (const path of [
+      temp,
+      fileWith("sms-4097.txt", " ".repeat(4097 - secret.length) + secret),
+      fileWith("sms-bad.txt", "private-marker-content!"),
+    ]) {
+      const error = failure({ ...source, SMS_SECRET_ID_FILE: path });
+      expect(keysOf(error)).toContain("SMS_SECRET_ID_FILE");
+      expect(error.message).not.toContain(path);
+      expect(error.message).not.toContain("private-marker-content");
+    }
   });
 });
 

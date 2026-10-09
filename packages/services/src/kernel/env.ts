@@ -48,6 +48,10 @@ export const ENV_KEYS: readonly string[] = [
   "DATA_KEYS_FILE",
   "BIDX_KEYS_FILE",
   "AUTH_KEYS_FILE",
+  "SMS_SECRET_ID_FILE",
+  "SMS_SECRET_KEY_FILE",
+  "SMS_SDK_APP_ID",
+  "SMS_REGION",
   "WECHAT_APPID",
   "WECHAT_SECRET_FILE",
   "WECHAT_MESSAGE_TOKEN_FILE",
@@ -61,6 +65,14 @@ export const ENV_KEYS: readonly string[] = [
   "COS_SIGNER_KEYS_FILE",
   "COS_STS_ISSUER_KEYS_FILE",
   "COS_WORKER_KEYS_FILE",
+  "CI_REGION",
+  "CI_BUCKET_SECURE",
+  "CI_BUCKET_ASSET",
+  "CI_BUCKET_MEDIA",
+  "CI_BUCKET_PUB",
+  "CI_WORKER_KEYS_FILE",
+  "CI_CALLBACK_KEY_FILE",
+  "CI_CALLBACK_ORIGIN",
 ];
 
 /** 数据加密密钥文件的内容：current 是当前 kid，keys 是 kid → base64 写的 32 字节 */
@@ -75,6 +87,13 @@ export interface AuthKeysConfig {
   readonly ticket: string;
   readonly device: string;
   readonly mfa: DataKeysConfig;
+}
+
+export interface SmsEnvConfig {
+  readonly secretId: string;
+  readonly secretKey: string;
+  readonly sdkAppId: string;
+  readonly region: string;
 }
 
 export interface WechatConfig {
@@ -103,12 +122,22 @@ export interface Env {
     readonly stsIssuer?: { readonly secretId: string; readonly secretKey: string };
     readonly worker?: { readonly secretId: string; readonly secretKey: string };
   };
+  readonly CI?: {
+    readonly callback: { readonly key: string; readonly origin: string };
+    readonly worker?: {
+      readonly region: string;
+      readonly buckets: Readonly<Record<"secure" | "asset" | "media" | "pub", string>>;
+      readonly secretId: string;
+      readonly secretKey: string;
+    };
+  };
   /** 数据加密密钥；两份密钥文件都没配时没有这一项 */
   readonly DATA_KEYS?: DataKeysConfig;
   /** 盲索引密钥；同上 */
   readonly BIDX_KEYS?: BidxKeysConfig;
   /** 后台登录的三把密钥；没配 AUTH_KEYS_FILE 时没有这一项 */
   readonly AUTH_KEYS?: AuthKeysConfig;
+  readonly SMS?: SmsEnvConfig;
   /** 整组未配置时没有此项；敏感字段只能从 FILE 读取。 */
   readonly WECHAT?: WechatConfig;
   readonly CLIENT_ERROR_PROJECTS?: ClientErrorProjectsConfig;
@@ -140,6 +169,10 @@ const WECHAT_GROUP: EnvGroup = {
   ],
 };
 export const ENV_GROUPS: readonly EnvGroup[] = [
+  {
+    name: "腾讯云短信",
+    keys: ["SMS_SECRET_ID_FILE", "SMS_SECRET_KEY_FILE", "SMS_SDK_APP_ID", "SMS_REGION"],
+  },
   { name: "字段加密与盲索引密钥", keys: ["DATA_KEYS_FILE", "BIDX_KEYS_FILE"] },
   WECHAT_GROUP,
 ];
@@ -351,6 +384,37 @@ function readKeyFile<T>(
   return undefined;
 }
 
+function readSmsSecret(
+  source: EnvSource,
+  key: "SMS_SECRET_ID" | "SMS_SECRET_KEY",
+  issues: EnvIssue[],
+): string | undefined {
+  if (read(source, key) !== undefined) issues.push({ key, reason: `任何环境密钥只认 ${key}_FILE` });
+  const file = read(source, `${key}_FILE`);
+  if (file === undefined) return undefined;
+  let fd: number | undefined;
+  try {
+    fd = openSync(file, "r");
+    const stat = fstatSync(fd);
+    if (!stat.isFile() || stat.size > 4096) throw new Error();
+    const bytes = Buffer.alloc(4097);
+    let length = 0;
+    while (length < bytes.length) {
+      const readLength = readSync(fd, bytes, length, bytes.length - length, null);
+      if (!readLength) break;
+      length += readLength;
+    }
+    if (length > 4096) throw new Error();
+    const value = bytes.subarray(0, length).toString("utf8").trim();
+    if (!/^[A-Za-z0-9_-]{16,128}$/.test(value)) throw new Error();
+    return value;
+  } catch {
+    issues.push({ key: `${key}_FILE`, reason: "文件无法读取或内容格式不合格" });
+    return undefined;
+  } finally {
+    if (fd !== undefined) closeSync(fd);
+  }
+}
 /** DSN 只作为 FILE 白名单/固定目的地；请求中的 URL 从不成为外呼目的地。 */
 function validErrorDsn(value: unknown): value is string {
   if (typeof value !== "string" || value !== value.trim() || value.includes("\\")) return false;
@@ -447,6 +511,93 @@ function readWechatFile(source: EnvSource, key: string, issues: EnvIssue[]): str
     }
   }
   return undefined;
+}
+
+function readCi(source: EnvSource, issues: EnvIssue[]): Env["CI"] {
+  const callbackKey = readWechatFile(source, "CI_CALLBACK_KEY", issues);
+  const workerText = readWechatFile(source, "CI_WORKER_KEYS", issues);
+  const fields = [
+    "CI_REGION",
+    "CI_BUCKET_SECURE",
+    "CI_BUCKET_ASSET",
+    "CI_BUCKET_MEDIA",
+    "CI_BUCKET_PUB",
+  ] as const;
+  const values = fields.map((key) => read(source, key));
+  const origin = read(source, "CI_CALLBACK_ORIGIN");
+  if (!callbackKey && !workerText && !origin && !values.some(Boolean)) return undefined;
+  if (
+    !callbackKey ||
+    Buffer.byteLength(callbackKey) < 32 ||
+    Buffer.byteLength(callbackKey) > 256 ||
+    !/^[\x21-\x7e]+$/.test(callbackKey)
+  )
+    issues.push({ key: "CI_CALLBACK_KEY_FILE", reason: "回调密钥须为32至256字节可见ASCII" });
+  try {
+    const parsed = new URL(origin ?? "");
+    if (
+      parsed.protocol !== "https:" ||
+      parsed.username ||
+      parsed.password ||
+      parsed.search ||
+      parsed.hash ||
+      parsed.pathname !== "/"
+    )
+      throw new Error();
+  } catch {
+    issues.push({
+      key: "CI_CALLBACK_ORIGIN",
+      reason: "须为固定HTTPS根origin，无用户信息/查询/片段",
+    });
+  }
+  let worker: NonNullable<Env["CI"]>["worker"];
+  if (workerText || values.some(Boolean)) {
+    for (const [index, key] of fields.entries())
+      if (!values[index]) issues.push({ key, reason: "CI worker地域与四桶须成组配置" });
+    if (!workerText)
+      issues.push({ key: "CI_WORKER_KEYS_FILE", reason: "CI worker须有独立角色FILE" });
+    const region = values[0];
+    if (region && !/^[a-z]+(?:-[a-z0-9]+){1,4}$/.test(region))
+      issues.push({ key: "CI_REGION", reason: "不是合法地域" });
+    for (const [index, value] of values.entries())
+      if (index > 0 && value && !/^[a-z0-9][a-z0-9-]{1,50}-[0-9]{5,20}$/.test(value))
+        issues.push({ key: fields[index]!, reason: "须为物理桶名" });
+    if (
+      new Set(
+        values
+          .slice(1)
+          .filter(Boolean)
+          .map((value) => value!.split("-").at(-1)),
+      ).size > 1
+    )
+      issues.push({ key: "CI_BUCKET_SECURE", reason: "四桶须同一账号" });
+    try {
+      const role: unknown = JSON.parse(workerText ?? "");
+      if (
+        !isRecord(role) ||
+        Object.keys(role).some((key) => key !== "secretId" && key !== "secretKey") ||
+        typeof role.secretId !== "string" ||
+        !/^[A-Za-z0-9_-]{1,128}$/.test(role.secretId) ||
+        typeof role.secretKey !== "string" ||
+        !/^[\x21-\x7e]{1,256}$/.test(role.secretKey)
+      )
+        throw new Error();
+      if (region && values[1] && values[2] && values[3] && values[4])
+        worker = {
+          region,
+          buckets: { secure: values[1], asset: values[2], media: values[3], pub: values[4] },
+          secretId: role.secretId,
+          secretKey: role.secretKey,
+        };
+    } catch {
+      issues.push({
+        key: "CI_WORKER_KEYS_FILE",
+        reason: "须为合法secretId/secretKey JSON普通文件",
+      });
+    }
+  }
+  if (!callbackKey || !origin) return undefined;
+  return { callback: { key: callbackKey, origin }, ...(worker ? { worker } : {}) };
 }
 
 function readCos(source: EnvSource, issues: EnvIssue[]): Env["COS"] {
@@ -601,9 +752,18 @@ export function loadEnv(
   const dataKeys = readKeyFile(source, "DATA_KEYS", issues, parseDataKeys);
   const bidxKeys = readKeyFile(source, "BIDX_KEYS", issues, parseBidxKeys);
   const authKeys = readKeyFile(source, "AUTH_KEYS", issues, parseAuthKeys);
+  const secretId = readSmsSecret(source, "SMS_SECRET_ID", issues);
+  const secretKey = readSmsSecret(source, "SMS_SECRET_KEY", issues);
+  const sdkAppId = read(source, "SMS_SDK_APP_ID");
+  const region = read(source, "SMS_REGION");
+  if (sdkAppId !== undefined && !/^\d{1,20}$/.test(sdkAppId))
+    issues.push({ key: "SMS_SDK_APP_ID", reason: "须为数字应用ID" });
+  if (region !== undefined && !/^ap-[a-z]+(?:-[a-z]+)*$/.test(region))
+    issues.push({ key: "SMS_REGION", reason: "须为腾讯云地域编码" });
   const wechat = readWechat(source, issues);
   const minio = readMinio(source, appEnv, issues);
   const cos = readCos(source, issues);
+  const ci = readCi(source, issues);
   const clientErrorProjects = readKeyFile(
     source,
     "CLIENT_ERROR_PROJECTS",
@@ -640,8 +800,12 @@ export function loadEnv(
     REDIS_URL,
     ...(minio ? { MINIO: minio } : {}),
     ...(cos ? { COS: cos } : {}),
+    ...(ci ? { CI: ci } : {}),
     ...(dataKeys && bidxKeys ? { DATA_KEYS: dataKeys, BIDX_KEYS: bidxKeys } : {}),
     ...(authKeys ? { AUTH_KEYS: authKeys } : {}),
+    ...(secretId && secretKey && sdkAppId && region
+      ? { SMS: { secretId, secretKey, sdkAppId, region } }
+      : {}),
     ...(wechat ? { WECHAT: wechat } : {}),
     ...(clientErrorProjects ? { CLIENT_ERROR_PROJECTS: clientErrorProjects } : {}),
   });

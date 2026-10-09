@@ -55,6 +55,7 @@ describe("类别编码", () => {
 
 describe("对象类型", () => {
   it("不重复，都过库里的格式 CHECK（小写蛇形）", () => {
+    expect(AUDIT_TARGET_TYPES.filter((name) => name === "sms_template")).toEqual(["sms_template"]);
     expect(new Set(AUDIT_TARGET_TYPES).size).toBe(AUDIT_TARGET_TYPES.length);
     for (const type of AUDIT_TARGET_TYPES) expect(type).toMatch(/^[a-z][a-z0-9_]*$/);
     expect(isAuditTargetType("approval_request")).toBe(true);
@@ -64,9 +65,11 @@ describe("对象类型", () => {
     expect(isAuditTargetType("work_calendar_day")).toBe(true);
     expect(isAuditTargetType("timer")).toBe(true);
     expect(isAuditTargetType("outbox_delivery")).toBe(true);
-    expect(AUDIT_TARGET_TYPES.slice(-3, -1)).toEqual(["timer", "outbox_delivery"]);
+    expect(AUDIT_TARGET_TYPES.slice(-4, -2)).toEqual(["timer", "outbox_delivery"]);
     expect(isAuditTargetType("analytics_event")).toBe(true);
-    expect(AUDIT_TARGET_TYPES.at(-1)).toBe("analytics_event");
+    expect(AUDIT_TARGET_TYPES.at(-2)).toBe("analytics_event");
+    expect(isAuditTargetType("media_job")).toBe(true);
+    expect(AUDIT_TARGET_TYPES.at(-1)).toBe("media_job");
     expect(isAuditTargetType("outbox_event")).toBe(false);
     expect(isAuditTargetType("ApprovalRequest")).toBe(false);
   });

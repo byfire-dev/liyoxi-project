@@ -191,6 +191,7 @@ export interface WechatProvider extends ProviderBase {
     openid: string;
     scene: WechatTextScene;
     mediaUrl: string;
+    signal?: AbortSignal;
   }): Promise<ProviderResult<ContentCheckOutcome>>;
 }
 
@@ -323,7 +324,7 @@ export interface StorageProvider extends ProviderBase {
     durationSec: number;
   }): Promise<ProviderResult<StsCredential>>;
   /** 读对象头。对象不存在不算失败：返回 exists 为 false */
-  head(input: ObjectRef): Promise<ProviderResult<ObjectHead>>;
+  head(input: ObjectRef & { signal?: AbortSignal }): Promise<ProviderResult<ObjectHead>>;
   /** 有界读取文件头；confirm 只需前 4KB，可绑定对象 etag。 */
   readPrefix(
     input: ObjectRef & { bytes: number; ifMatchEtag?: string },
@@ -345,6 +346,7 @@ export interface StorageProvider extends ProviderBase {
     ifMatchEtag: string;
     contentType: string;
     contentDisposition?: string;
+    signal?: AbortSignal;
   }): Promise<ProviderResult<{ etag: string }>>;
   /** 签名（读）：签发有时限的读地址 */
   presignGet(input: {
@@ -380,14 +382,31 @@ export interface MediaJob {
   processed: boolean;
 }
 
+export interface MediaRemoteJob {
+  readonly jobId: string;
+  readonly state: "submitted" | "running" | "succeeded" | "failed" | "canceled";
+  readonly processed: boolean;
+  readonly userData?: string;
+  /** 只含经驱动白名单解析的技术结果，禁止原始Operation/UserInfo/审核正文。 */
+  readonly output: {
+    readonly width?: number;
+    readonly height?: number;
+    readonly durationMs?: number;
+    readonly sizeBytes?: string;
+    readonly etag?: string;
+  };
+}
+
 export interface MediaProvider extends ProviderBase {
   /** 体检：分辨率、时长、编码、音轨。没有真正体检时 report 为 null */
   probe(input: {
     src: ObjectRef;
+    signal?: AbortSignal;
   }): Promise<ProviderResult<{ processed: boolean; report: MediaProbeReport | null }>>;
   /** 转码 */
   transcode(input: {
     src: ObjectRef;
+    signal?: AbortSignal;
     dst: ObjectRef;
     template: string;
     userData: string;
@@ -395,6 +414,7 @@ export interface MediaProvider extends ProviderBase {
   /** 打包：把同一个桶里的几个对象打成一个压缩包 */
   pack(input: {
     bucket: StorageBucket;
+    signal?: AbortSignal;
     items: Array<{ key: string; name: string }>;
     dstKey: string;
     userData: string;
@@ -402,14 +422,115 @@ export interface MediaProvider extends ProviderBase {
   /** 视频审核 */
   audit(input: {
     src: ObjectRef;
+    signal?: AbortSignal;
     scenes: string[];
     userData: string;
   }): Promise<ProviderResult<{ verdict: ContentVerdict; processed: boolean; jobId?: string }>>;
+  /** 旧临时实现可缺省，统一执行器须受控拒绝缺失能力。 */
+  describe?(input: {
+    jobId: string;
+    family: "media" | "file";
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<MediaRemoteJob>>;
+  find?(input: {
+    family: "media" | "file";
+    tag: string;
+    userData: string;
+    src?: ObjectRef;
+    createdAfter: Date;
+    createdBefore: Date;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<{ job: MediaRemoteJob | null; complete: boolean }>>;
+  cancel?(input: {
+    jobId: string;
+    family: "media" | "file";
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<void>>;
 }
 
 // ---------- sms：员工激活码、订阅消息的补发、值班告警 ----------
 
+export const SMS_TODO_ITEMS = [
+  "样片确认",
+  "广告确认",
+  "成片交付",
+  "上线确认",
+  "资料审核",
+  "工单回复",
+  "积分变动",
+  "服务到期",
+  "下架确认",
+  "账号安全",
+  "付款成功",
+  "订购成功",
+  "方案确认",
+  "发票开具",
+  "成员变动",
+  "素材反馈",
+  "退款结果",
+] as const;
+
+/** D6 §2.10 固定变量顺序/有限业务上限；业主批准长度只能进一步收窄。 */
+export const SMS_TEMPLATE_PARAMS: Readonly<
+  Record<string, readonly { name: string; maxLen: number }[]>
+> = {
+  verify_code: [{ name: "code", maxLen: 6 }],
+  review_result: [
+    { name: "result", maxLen: 12 },
+    { name: "reason", maxLen: 64 },
+  ],
+  sample_pending: [{ name: "item", maxLen: 12 }],
+  launch_remind: [
+    { name: "date", maxLen: 10 },
+    { name: "channel", maxLen: 20 },
+    { name: "drama", maxLen: 40 },
+  ],
+  plan_expiring: [
+    { name: "plan", maxLen: 40 },
+    { name: "expiry_date", maxLen: 10 },
+    { name: "points", maxLen: 12 },
+  ],
+  offline_remind: [
+    { name: "drama", maxLen: 40 },
+    { name: "offline_date", maxLen: 10 },
+  ],
+  generic_todo: [{ name: "item", maxLen: 12 }],
+  account_notice: [],
+  ops_alert: [{ name: "rule_name", maxLen: 64 }],
+};
+
+export interface SmsTemplateBinding {
+  readonly templateKey: string;
+  readonly kind: "verify" | "notice";
+  readonly providerTemplateId: string | null;
+  readonly signName: string | null;
+  readonly status: string;
+  readonly params: readonly { readonly name: string; readonly maxLen: number }[];
+}
+
+export type SmsSendResult =
+  | ProviderSuccess<{ requestId: string; providerMsgId: string }>
+  | (ProviderFailure & {
+      readonly providerCode?: string;
+      readonly requestId?: string;
+      /** unknown 禁止自动重发；同步成功也不代表已到达。 */
+      readonly acceptance?: "not_accepted" | "unknown";
+    });
+
+export interface SmsBalance {
+  /** 完整有效套餐剩余条数；当前驱动无完整性证据而不返回此值。 */
+  readonly remaining: number;
+  readonly observedAt: Date;
+}
+
 export interface SmsProvider extends ProviderBase {
+  sendTemplate(input: {
+    phone: string;
+    template: SmsTemplateBinding;
+    params: Readonly<Record<string, string>>;
+    signal?: AbortSignal;
+  }): Promise<SmsSendResult>;
+  checkBalance(input?: { signal?: AbortSignal }): Promise<ProviderResult<SmsBalance>>;
   /** 员工激活码 */
   sendActivationCode(input: {
     phone: string;
@@ -603,7 +724,7 @@ export const PROVIDER_NAMES = [
 
 /** 一个接口里的方法名：值是函数的键 */
 export type ProviderMethodName<P> = {
-  [K in keyof P]-?: P[K] extends (...args: never[]) => unknown ? K : never;
+  [K in keyof P]-?: NonNullable<P[K]> extends (...args: never[]) => unknown ? K : never;
 }[keyof P] &
   string;
 
@@ -628,7 +749,13 @@ export const PROVIDER_METHODS = {
     "createRefund",
     "fetchTradeBill",
   ],
-  sms: ["sendActivationCode", "sendSubscribeFallback", "sendOncallAlert"],
+  sms: [
+    "sendActivationCode",
+    "sendSubscribeFallback",
+    "sendOncallAlert",
+    "sendTemplate",
+    "checkBalance",
+  ],
   storage: [
     "presignPost",
     "issueSts",
@@ -640,7 +767,7 @@ export const PROVIDER_METHODS = {
     "delete",
     "abortMultipart",
   ],
-  media: ["probe", "transcode", "pack", "audit"],
+  media: ["probe", "transcode", "pack", "audit", "describe", "find", "cancel"],
   ocr: ["recognizeBusinessLicense", "extractLicenseFields"],
   asr: ["transcribe"],
   llm: ["tagAsset", "extractKeyPoints"],

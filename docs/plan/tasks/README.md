@@ -319,6 +319,7 @@ W1-23a交[分配表](../changes/W1-23-m2-m4-package-map.md)、M2共25本（01–
 | 移交方 | 接收方 | 内容与边界 |
 | --- | --- | --- |
 | W1-23a | W2-01/02 | 回调单机制与共用构件优先，供M3/M4接入；下游不重写框架/通用件 |
+| W2-22（进行中） | W2-03/17/24及业主 | 腾讯云TC3单次短信/严格九模板初始化/内部保活提供本地可验实现；真实激活8字母数字与官方验证码≤6数字不兼容，外呼前rejected，不改staff码/冻结种子，不假闭环。余额因未证完整套餐历史/权限及正式阈值而unsupported/noquery；外部签名模板/到达与E项待业主事实，告警只用既有alerts.raise。W2-24接固定P3键notify.sms_suspect（dimension=templateKey）与notify.sms_balance_unconfigured（无dimension、queried=false、无余额数字），有限detail见notify README；端口调用不代表外部到达。详见notify README/W222 status（官方文档获取2026-10-08） |
 | W1-23a | W2-03/17/22 | 激活码短信经注入端口，staff不直接同步导入notify；实际短信由driver接 |
 | W1-23a | W2-24 | PR1独立kernel.detach；PR2 actual后再probe/alerts，整包两PR齐才完成 |
 | W1-23a | W2-18/24、W2-27 | 错误转发与探针告警为代码包；环境接通分别等18与24第二PR，未真实部署不称已验 |

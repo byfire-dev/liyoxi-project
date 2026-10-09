@@ -1,3 +1,5 @@
+import { createSmsInit, createSmsHealth, smsTemplateReader } from "./notify/index.js";
+import { keyringFromEnv } from "./security/index.js";
 import {
   createAnalyticsJobs,
   createAnalyticsReceiver,
@@ -102,6 +104,7 @@ import type { Providers } from "./providers/types.js";
 import { createContent, bindContent } from "./content/index.js";
 import type { Content } from "./content/index.js";
 import { createMedia } from "./media/index.js";
+import { createMediaAssembly } from "./ops/index.js";
 import type { Media } from "./media/index.js";
 import { createRateLimiter } from "./rate-limit.js";
 import type { RateLimiter } from "./rate-limit.js";
@@ -112,6 +115,7 @@ import {
   bindWebhooks,
   createWebhooks,
   createWechatMessageSource,
+  createCiWebhookSource,
 } from "./security/index.js";
 import type { Webhooks, WebhookSource } from "./security/index.js";
 import {
@@ -183,6 +187,7 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly smsInit: ReturnType<typeof createSmsInit>;
   readonly analytics: AnalyticsReceiver;
   readonly analyticsPartitions: Pick<AnalyticsJobs, "repartition">;
   readonly subscribeResults: SubscribeResults;
@@ -247,6 +252,8 @@ export interface Runtime {
  */
 export function createRuntime(options: RuntimeOptions): Runtime {
   const { entry, env, version } = options;
+  if (entry === "worker" && env.CI && !env.CI.worker)
+    throw new TypeError("CI worker入口缺少worker角色");
   if (env.COS && (entry === "worker" ? !env.COS.worker : !env.COS.signer || !env.COS.stsIssuer))
     throw new TypeError("当前进程 COS 角色配置不完整");
   const clock = options.clock ?? systemClock;
@@ -317,7 +324,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     storage: () => providers.storage,
   });
   const notifyScope = createNotifyAssembly(analyticsScope.assembly);
-  const assembly = notifyScope.assembly;
+  const mediaScope = createMediaAssembly(notifyScope.assembly);
+  const assembly = mediaScope.assembly;
   // 违规上报端口（invariants.report）的实现在 ops，要连接、时钟与装配结果（W0-24）
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
   const wechatClosers: Array<() => Promise<void>> = [];
@@ -327,6 +335,30 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       appEnv: env.APP_ENV,
       logger,
       settings: {
+        ...(env.SMS
+          ? {
+              sms: {
+                driver: "tencent" as const,
+                tencent: {
+                  config: env.SMS,
+                  getTemplate: smsTemplateReader(prisma),
+                  now: () => clock.now(),
+                },
+              },
+            }
+          : {}),
+        ...(entry === "worker" && env.CI?.worker
+          ? {
+              media: {
+                ci: {
+                  region: env.CI.worker.region,
+                  buckets: env.CI.worker.buckets,
+                  worker: { secretId: env.CI.worker.secretId, secretKey: env.CI.worker.secretKey },
+                  callback: env.CI.callback,
+                },
+              },
+            }
+          : {}),
         ...(env.MINIO ? { storage: { minio: env.MINIO } } : {}),
         ...(env.COS
           ? {
@@ -344,6 +376,14 @@ export function createRuntime(options: RuntimeOptions): Runtime {
           : {}),
         ...(env.WECHAT ? { wechat: { appid: env.WECHAT.appid, secret: env.WECHAT.secret } } : {}),
       },
+      ...(entry === "worker" && env.CI?.worker
+        ? {
+            media: {
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => wechatClosers.push(close),
+            },
+          }
+        : {}),
       ...(env.COS
         ? {
             storage: {
@@ -367,6 +407,19 @@ export function createRuntime(options: RuntimeOptions): Runtime {
           }
         : {}),
     });
+  if (entry === "worker")
+    notifyScope.attachSmsHealth(
+      createSmsHealth({
+        db: prisma,
+        tx,
+        clock,
+        config,
+        sms: providers.sms,
+        alerts: alertsOf(assembly),
+        env: env.APP_ENV,
+        keyring: () => (env.DATA_KEYS && env.BIDX_KEYS ? keyringFromEnv(env) : null),
+      }),
+    );
   const events = createEvents({ assembly, clock, tx });
   const wechatSources = env.WECHAT
     ? [
@@ -387,7 +440,13 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     tx,
     clock,
     events,
-    sources: options.webhookSources ?? wechatSources,
+    sources: options.webhookSources ?? [
+      ...wechatSources,
+      createCiWebhookSource({
+        key: env.CI?.callback.key,
+        wake: (tx, input) => media.wakeCiJob(tx, input),
+      }),
+    ],
     alerts: alertsOf(assembly),
   });
   const unbindWebhooks = bindWebhooks(webhooks);
@@ -425,6 +484,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       recentWechatOpenid,
     },
   });
+  mediaScope.attach(media.jobs);
   const unbindContent = bindContent(assembly);
   const unbindPublish = bindPublish(assembly);
   const unbindDelivery = bindDelivery({
@@ -619,6 +679,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
 
   return {
+    smsInit: createSmsInit({ tx, clock }),
     analytics,
     subscribeResults,
     clientErrors,
@@ -650,7 +711,12 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
-      await Promise.allSettled([analyticsScope.close(), notifyScope.close()]);
+      await Promise.allSettled([
+        media.jobs.shutdown(),
+        analyticsScope.close(),
+        notifyScope.close(),
+      ]);
+      mediaScope.close();
       unbindNoticeLink();
       await Promise.allSettled(wechatClosers.map((close) => close()));
       await clientErrors.close();

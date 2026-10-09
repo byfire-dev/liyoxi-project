@@ -130,7 +130,11 @@ export const unconfiguredWechatPay: WechatPayProvider = {
 
 // ---------- sms：本地是控制台输出（sms/console.ts）；这里是连控制台都不许用时的实现 ----------
 
+const smsOff = unconfigured("短信", "提醒只剩站内与订阅消息");
+
 export const unconfiguredSms: SmsProvider = {
+  sendTemplate: smsOff,
+  checkBalance: smsOff,
   ...BASE,
   sendActivationCode: unconfiguredNotification("短信", "提醒只剩站内与订阅消息"),
   sendSubscribeFallback: unconfiguredNotification("短信", "提醒只剩站内与订阅消息"),
@@ -163,6 +167,9 @@ export const unconfiguredMedia: MediaProvider = {
   transcode: mediaOff,
   pack: mediaOff,
   audit: mediaOff,
+  describe: mediaOff,
+  find: mediaOff,
+  cancel: mediaOff,
 };
 
 /**
@@ -184,6 +191,15 @@ export function createLocalMedia(): MediaProvider {
     },
     async audit() {
       return ok({ verdict: "pass", processed: false });
+    },
+    async describe() {
+      return failed("unsupported", "本地媒体没有外部任务查询能力");
+    },
+    async find() {
+      return failed("unsupported", "本地媒体没有外部任务查找能力");
+    },
+    async cancel() {
+      return failed("unsupported", "本地媒体没有外部任务取消能力");
     },
   };
 }

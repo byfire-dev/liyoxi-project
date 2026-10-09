@@ -11,7 +11,7 @@ import { alertsOf } from "../kernel/index.js";
 import type { AppEnv, Assembly, Clock, TxRunner } from "../kernel/index.js";
 import { createNotifyDispatcher, findNotifyN15Violations } from "../notify/index.js";
 import { findN5Violations } from "../docs/index.js";
-import type { NotifyDispatchDeps } from "../notify/index.js";
+import type { NotifyDispatchDeps, SmsHealth } from "../notify/index.js";
 import { staffContextsForNotify, staffTargetForNotify } from "../staff/index.js";
 import { maskPhone } from "@liyoxi/shared/mask";
 import { addDays, calendarDate } from "@liyoxi/shared/time";
@@ -23,10 +23,15 @@ import type { Keyring } from "../security/index.js";
 /** Only these registrations acquire runtime dependencies; all other objects and ports are preserved. */
 export function createNotifyAssembly(base: Assembly) {
   let dispatcher: ReturnType<typeof createRuntimeNotify> | undefined;
+  let smsHealth: SmsHealth | undefined;
   let closed = false;
   const current = () => {
     if (closed || !dispatcher) throw new TypeError("本通知运行时尚未绑定或已经关闭");
     return dispatcher;
+  };
+  const currentSmsHealth = () => {
+    if (closed || !smsHealth) throw new TypeError("本短信健康运行时尚未绑定或已经关闭");
+    return smsHealth;
   };
   const subscribers = base.subscribers.map((item) =>
     item.name === "notify.onEvent"
@@ -54,7 +59,17 @@ export function createNotifyAssembly(base: Assembly) {
   const recurringJobs = base.recurringJobs.map((item) =>
     item.kind === "notify.remind_scan"
       ? { ...item, run: (ctx: Parameters<typeof item.run>[0]) => current().remindScan(ctx) }
-      : item,
+      : item.kind === "notify.sms_keepalive"
+        ? {
+            ...item,
+            run: (ctx: Parameters<typeof item.run>[0]) => currentSmsHealth().keepalive(ctx),
+          }
+        : item.kind === "notify.sms_balance"
+          ? {
+              ...item,
+              run: (ctx: Parameters<typeof item.run>[0]) => currentSmsHealth().balance(ctx),
+            }
+          : item,
   );
   const invariants = base.invariants.map((item) =>
     item.code === "notify.N15"
@@ -93,9 +108,13 @@ export function createNotifyAssembly(base: Assembly) {
       if (closed || dispatcher) throw new TypeError("通知运行时只能绑定一次");
       dispatcher = service;
     },
+    attachSmsHealth(service: SmsHealth) {
+      if (closed || smsHealth) throw new TypeError("短信健康运行时只能绑定一次");
+      smsHealth = service;
+    },
     async close() {
       closed = true;
-      await dispatcher?.close();
+      await Promise.all([dispatcher?.close(), smsHealth?.close()]);
     },
   };
 }

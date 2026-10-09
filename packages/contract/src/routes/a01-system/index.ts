@@ -94,3 +94,6 @@ export * from "./timers.js";
 export * from "./outbox-events.js";
 export * from "./outbox-deliveries.js";
 export * from "./webhook-events.js";
+
+export * from "./media-jobs.js";
+export * from "./media-jobs.schemas.js";

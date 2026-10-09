@@ -347,7 +347,7 @@ describe("W1-07 文件生命周期", { timeout: 60_000 }, () => {
       state: "queued",
       attemptNo: 1,
     });
-    clock.advance(30_001);
+    clock.advance(60_001);
     await media.promote({ jobId: queued.id });
     await media.promote({ jobId: queued.id });
     expect(await prisma.mediaJob.findUniqueOrThrow({ where: { id: queued.id } })).toMatchObject({
@@ -361,23 +361,38 @@ describe("W1-07 文件生命周期", { timeout: 60_000 }, () => {
     const job = await prisma.mediaJob.findUniqueOrThrow({
       where: { dedupeKey: `promote:${file.fileId}` },
     });
-    fake.storage.delayNext("copy", 31_000);
+    fake.storage.delayNext("copy", 301_000);
     const old = media.promote({ jobId: job.id });
-    while (fake.storage.pendingCalls() === 0)
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    clock.advance(30_001);
-    await media.promote({ jobId: job.id });
-    const winner = await prisma.mediaJob.findUniqueOrThrow({ where: { id: job.id } });
-    expect(winner).toMatchObject({ state: "succeeded", attemptNo: 2 });
-    clock.advance(1000);
-    fake.storage.tick();
-    await old;
-    expect(await prisma.mediaJob.findUniqueOrThrow({ where: { id: job.id } })).toEqual(winner);
-    expect(
-      await prisma.outboxEvent.count({
-        where: { eventType: "file.stored", aggregateId: file.fileId },
-      }),
-    ).toBe(1);
+    const secondWorker = createMedia({
+      tx,
+      clock,
+      assembly,
+      events: createEvents({ assembly, clock, tx }),
+      storage: fake.storage,
+      pollMs: 0,
+    });
+    try {
+      while (fake.storage.pendingCalls() === 0)
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      clock.advance(300_001);
+      await secondWorker.promote({ jobId: job.id });
+      const winner = await prisma.mediaJob.findUniqueOrThrow({ where: { id: job.id } });
+      expect(winner).toMatchObject({ state: "succeeded", attemptNo: 2 });
+      clock.advance(1000);
+      fake.storage.tick();
+      await old;
+      expect(await prisma.mediaJob.findUniqueOrThrow({ where: { id: job.id } })).toEqual(winner);
+      expect(
+        await prisma.outboxEvent.count({
+          where: { eventType: "file.stored", aggregateId: file.fileId },
+        }),
+      ).toBe(1);
+    } finally {
+      clock.advance(301_000);
+      fake.storage.tick();
+      await old;
+      await secondWorker.jobs.shutdown();
+    }
   });
   it("取消只允许 pending/expired，stored/rejected/promoting 不可取消", async () => {
     const first = await registered();

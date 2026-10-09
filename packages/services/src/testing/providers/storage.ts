@@ -153,16 +153,21 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
       }),
 
     head: (input) =>
-      core.run("head", input, (): ProviderResult<ObjectHead> => {
-        const stored = objects.get(slot(input));
-        if (!stored) return ok({ exists: false, size: 0 });
-        return ok({
-          exists: true,
-          size: stored.body.byteLength,
-          mime: stored.mime,
-          etag: stored.etag,
-        });
-      }),
+      core.run(
+        "head",
+        input,
+        (): ProviderResult<ObjectHead> => {
+          const stored = objects.get(slot(input));
+          if (!stored) return ok({ exists: false, size: 0 });
+          return ok({
+            exists: true,
+            size: stored.body.byteLength,
+            mime: stored.mime,
+            etag: stored.etag,
+          });
+        },
+        input.signal,
+      ),
 
     readPrefix: (input) =>
       core.run("readPrefix", input, () => {
@@ -196,18 +201,23 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
       }),
 
     copy: (input) =>
-      core.run("copy", input, () => {
-        const source = objects.get(slot(input.src));
-        if (!source) return failed("rejected", "源对象不存在");
-        if (source.etag !== input.ifMatchEtag) return failed("rejected", "源对象的 etag 对不上");
-        objects.set(slot(input.dst), {
-          body: new Uint8Array(source.body),
-          mime: input.contentType,
-          etag: source.etag,
-          contentDisposition: input.contentDisposition,
-        });
-        return ok({ etag: source.etag });
-      }),
+      core.run(
+        "copy",
+        input,
+        () => {
+          const source = objects.get(slot(input.src));
+          if (!source) return failed("rejected", "源对象不存在");
+          if (source.etag !== input.ifMatchEtag) return failed("rejected", "源对象的 etag 对不上");
+          objects.set(slot(input.dst), {
+            body: new Uint8Array(source.body),
+            mime: input.contentType,
+            etag: source.etag,
+            contentDisposition: input.contentDisposition,
+          });
+          return ok({ etag: source.etag });
+        },
+        input.signal,
+      ),
 
     presignGet: (input) =>
       core.run("presignGet", input, () => {

@@ -97,9 +97,14 @@ export function createFakeWechat(options: { clock?: FakeClock } = {}): FakeWecha
         return ok({ verdict: textVerdicts.shift() ?? "pass", traceId: `fake-trace-${traceSeq}` });
       }),
     checkImage: (input) =>
-      core.run("checkImage", input, () => {
-        traceSeq += 1;
-        return ok({ verdict: "pass", traceId: `fake-trace-${traceSeq}` });
-      }),
+      core.run(
+        "checkImage",
+        input,
+        () => {
+          traceSeq += 1;
+          return ok({ verdict: "pass", traceId: `fake-trace-${traceSeq}` });
+        },
+        input.signal,
+      ),
   };
 }

@@ -1,4 +1,3 @@
-import { calendarDate, dayRange } from "@liyoxi/shared/time";
 import { assertNotInTransaction, lockRows, notifyReadOf, isUuid } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 import type { Notification, NotificationDelivery, NotifyScene } from "@liyoxi/db";
@@ -8,6 +7,7 @@ import { addDelivery, smsNodeAllowed, currentNotificationFact, dispatchFact } fr
 import { FALLBACK_REASONS, notificationDueAt, sendVerdict, externalAllowed } from "./policy.js";
 import { NotifyFactSchema, specFor, UNREACHED_SPEC } from "./registry.js";
 import { renderWechat, renderSms } from "./render.js";
+import { smsDayUsage } from "./sms-budget.js";
 
 type Delivery = NotificationDelivery & { notification: Notification | null };
 interface Prepared {
@@ -370,14 +370,7 @@ async function prepare(tx: Tx, deps: NotifyDispatchDeps, id: string): Promise<Pr
       await terminal(tx, deps, d, "skipped", "no_target");
       return null;
     }
-    const range = dayRange(calendarDate(now));
-    const used = await tx.notificationDelivery.count({
-      where: {
-        channel: "sms",
-        targetRef: target.phoneRef,
-        callStartedAt: { gte: range.start, lt: range.end },
-      },
-    });
+    const used = await smsDayUsage(tx, { targetRef: target.phoneRef, now });
     if (used >= (await deps.params.get("notify.sms.daily_cap"))) {
       await terminal(tx, deps, d, "skipped", "rate_limited");
       return null;
@@ -407,6 +400,7 @@ async function prepare(tx: Tx, deps: NotifyDispatchDeps, id: string): Promise<Pr
       template.params,
       NotifyFactSchema.parse(n.vars),
       cfg.name,
+      n.notifySceneKey,
     );
     if (params === null) {
       await terminal(tx, deps, d, "skipped", "unconfigured");

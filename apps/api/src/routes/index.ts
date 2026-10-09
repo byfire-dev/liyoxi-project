@@ -1,3 +1,5 @@
+import { ciHookHandlers } from "./hooks/ci.js";
+import { adminMediaJobHandlers } from "./admin/media-jobs.js";
 import { analyticsEventHandlers } from "./analytics-events.js";
 import { wechatHookHandlers } from "./hooks/wechat.js";
 import { subscribeResultHandlers } from "./subscribe-results.js";
@@ -46,6 +48,8 @@ import { siteHandlers } from "./admin/site.js";
 
 export const HANDLERS: readonly HandlerEntry[] = [
   ...siteHandlers,
+  ...ciHookHandlers,
+  ...adminMediaJobHandlers,
   ...wechatHookHandlers,
   ...analyticsEventHandlers,
   ...subscribeResultHandlers,
