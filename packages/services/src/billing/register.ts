@@ -1,3 +1,6 @@
+import { implement as implementTenantCloseFacts } from "../kernel/index.js";
+import { billingCloseFactsPort } from "../tenant/index.js";
+import { deletionGuard } from "./read/deletion-guard.js";
 import { staffFollowUpPort } from "../kernel/index.js";
 import {
   implementKeyed as notifyReaderImplementation,
@@ -46,6 +49,7 @@ import { dramaPriceAdapter } from "./pricing/drama-price-port.js";
 
 export const registration = defineRegistration("billing", {
   portImplementations: [
+    implementTenantCloseFacts(billingCloseFactsPort, { deletionGuard }),
     implementKeyed(staffFollowUpPort, "subscription_term", async (tx, id) => {
       const row = await tx.subscriptionTerm.findUnique({
         where: { id },

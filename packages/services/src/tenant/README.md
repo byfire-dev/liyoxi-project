@@ -70,3 +70,9 @@ pnpm --filter @liyoxi/services exec vitest run src/tenant/
 只改该主体中尚未撤销的 portal_session；owner 范围再限定原授权人。已过期但未撤销的行仍计入，旧撤销证据不覆盖。不动商家登录会话、票据或授权归属。by_owner 门店归档仍允许老板下载，不由此触发全老板授权吊销。PR1 没接成员移除/主体关闭入口；17 接口主包和 M6 票据 producer 后续交付。
 
 `pnpm exec vitest run --project services packages/services/src/identity/portal-grants.db.test.ts packages/services/src/tenant/portal-grants.test.ts` 验证真实隔离、回滚、两连接重复计数、伴随表零变化和 api/worker 强制装配。
+
+## W2-10 关闭事实必需端口窄前置
+
+`CLOSE_FACTS_PORTS` 声明 billing/order/delivery/publish/profile/ad 六个固定无fallback单实现端口，各所属域注册已验证的公开只读计数函数。缺少任一实现时 API 与 worker 均拒绝装配，不能按无业务返回零。复用既有 definePort/implement，不增加内核机制或跨层反调。
+
+调用方在持主体、门店锁的同一事务使用 `readStoreCloseCounts(tx, assembly, storeId)` 取 m02 六类停用计数，或 `readEntityDeletionCounts(tx, assembly, entityId)` 取 m01/a03 共用六类注销/关闭计数。来源失败原样传播；不另开事务、不写库、不读上层内部表，不提前声称生命周期写侧/取消审批已交付。
