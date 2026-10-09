@@ -19,3 +19,4 @@ export {
 } from "./reads.js";
 
 export { assignPublisher } from "./publisher-assignment.js";
+export { countBlockingStoreTickets, countOnlineReleaseTicketsByEntity } from "./close-facts.js";

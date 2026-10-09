@@ -263,6 +263,8 @@ export {
   getTicketBriefsByOrder,
   getTicketTimeline,
   getPlanBriefByOrder,
+  countBlockingStoreTickets,
+  countOnlineReleaseTicketsByEntity,
 } from "./delivery/index.js";
 export type { DeliveryDownloads, DeliveryDownloadDeps } from "./delivery/index.js";
 export type {
