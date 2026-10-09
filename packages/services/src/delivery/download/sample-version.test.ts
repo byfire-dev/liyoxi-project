@@ -93,7 +93,7 @@ it("签名期间新版真实推送推进当前版，锁后拒绝旧地址且零a
   const downloads = createDeliveryDownloads({
     ...h.deps,
     media: {
-      ...h.media,
+      deliveryProductionFacts: h.media.deliveryProductionFacts,
       signDeliveryDownload: async (input) => {
         signed++;
         const address = await h.media.signDeliveryDownload(input);

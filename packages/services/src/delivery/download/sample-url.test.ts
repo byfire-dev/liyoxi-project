@@ -119,7 +119,7 @@ it("Provider失败和证据事务失败均零业务写，签名在业务事务�
       },
     },
     media: {
-      ...h.media,
+      deliveryProductionFacts: h.media.deliveryProductionFacts,
       signDeliveryDownload: async (input) => {
         expect(active).toBe(false);
         return h.media.signDeliveryDownload(input);
@@ -134,12 +134,14 @@ it("Provider失败和证据事务失败均零业务写，签名在业务事务�
 it("签后文件失效/撤销老板角色与门店归档均拒绝，旧版或playable未ready不签", async () => {
   const r = await sampleReady(h),
     before = await snapshot(h);
+  let invalidatedFileId: string | undefined;
   const invalidated = createDeliveryDownloads({
     ...h.deps,
     media: {
-      ...h.media,
+      deliveryProductionFacts: h.media.deliveryProductionFacts,
       signDeliveryDownload: async (input) => {
         const signed = await h.media.signDeliveryDownload(input);
+        invalidatedFileId = input.fileId;
         await h.prisma.fileObject.update({
           where: { id: input.fileId },
           data: { moderationState: "block" },
@@ -152,11 +154,15 @@ it("签后文件失效/撤销老板角色与门店归档均拒绝，旧版或pla
     error: "SAMPLE_PREVIEW_NOT_READY",
   });
   expect(await snapshot(h)).toEqual(before);
-  await h.prisma.fileObject.update({ where: { id: r.file.id }, data: { moderationState: "none" } });
+  if (!invalidatedFileId) throw new Error("签名后失效反例必须命中真实水印文件");
+  await h.prisma.fileObject.update({
+    where: { id: invalidatedFileId },
+    data: { moderationState: "none" },
+  });
   const revoked = createDeliveryDownloads({
     ...h.deps,
     media: {
-      ...h.media,
+      deliveryProductionFacts: h.media.deliveryProductionFacts,
       signDeliveryDownload: async (input) => {
         const signed = await h.media.signDeliveryDownload(input);
         await h.prisma.entityMember.update({

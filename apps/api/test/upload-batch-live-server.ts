@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { serve } from "@hono/node-server";
 import { createRuntime, loadEnv, runStartupChecks } from "@liyoxi/services";
+import { AdminFileViewSchema, FileRegistrationSchema, StaffMeSchema } from "@liyoxi/contract";
 import type { Env, RuntimeOptions } from "@liyoxi/services";
 import {
   createProviderHarness,
@@ -12,6 +13,7 @@ import {
   findOutputBatchLiveJobIds,
   consumeOutputBatchLiveChecked,
   prepareOutputBatchLiveMasters,
+  findAgreementLiveUploadJobIds,
 } from "@liyoxi/services/testing";
 import type { OutputBatchLiveInput } from "@liyoxi/services/testing";
 import { createApp } from "../src/app.js";
@@ -42,6 +44,7 @@ export async function startOutputBatchLiveServer(options: {
   inputs: OutputBatchLiveInput;
   image: string;
   version?: string;
+  documentWorkerUrl?: URL;
 }) {
   const runId = assertScope(options.env, options.prefix);
   const inputs = OutputBatchLiveInputSchema.parse(options.inputs);
@@ -54,6 +57,7 @@ export async function startOutputBatchLiveServer(options: {
     env: legacyEnv,
     version: options.version ?? "w302-private-live",
     redisKeyPrefix: options.prefix,
+    documentWorkerUrl: options.documentWorkerUrl,
   };
   const realOwner = createRuntime(base),
     harness = createProviderHarness();
@@ -72,9 +76,13 @@ export async function startOutputBatchLiveServer(options: {
   let masters: Awaited<ReturnType<typeof prepareOutputBatchLiveMasters>> | undefined;
   let relay: Awaited<ReturnType<typeof createOutputBatchMediaToolRelay>> | undefined;
   let cloud: ReturnType<typeof attachOutputBatchLiveCloud> | undefined;
+  const agreementFiles = new Map<string, string>();
+  const agreementPending = new Set<Promise<void>>();
+  let closing = false;
   let stopped: Promise<void> | undefined;
   const stop = () =>
     (stopped ??= (async () => {
+      closing = true;
       for (const api of apis) api.readiness.state = "draining";
       if (interval) clearInterval(interval);
       // Cancel executor IO before waiting for a pump which may itself be awaiting that IO.
@@ -82,6 +90,8 @@ export async function startOutputBatchLiveServer(options: {
         runtimes.map((runtime) => runtime.media.jobs.shutdown()),
       );
       await pending;
+      const agreementResults = await Promise.allSettled([...agreementPending]);
+      agreementFiles.clear();
       const servers = [apiServer, cosServer].filter((server) => server !== undefined);
       const serverResults = await Promise.allSettled(
         servers.map(async (server) => {
@@ -101,9 +111,14 @@ export async function startOutputBatchLiveServer(options: {
         runtimeResults.push(...(await Promise.allSettled([runtime.close()])));
       const relayResults = await Promise.allSettled([relay?.close()]);
       if (
-        [...jobResults, ...serverResults, ...inputResults, ...runtimeResults, ...relayResults].some(
-          (r) => r.status === "rejected",
-        )
+        [
+          ...jobResults,
+          ...agreementResults,
+          ...serverResults,
+          ...inputResults,
+          ...runtimeResults,
+          ...relayResults,
+        ].some((r) => r.status === "rejected")
       )
         throw new Error("W302 live resources did not fully close");
     })());
@@ -154,13 +169,86 @@ export async function startOutputBatchLiveServer(options: {
     const batchApi = createApp({ runtime: batch, handlers: HANDLERS });
     apis.push(batchApi);
     await runStartupChecks(batch.startupChecks);
+    const readAgreementData = async (request: Request, path: string) => {
+      const headers = new Headers(request.headers);
+      for (const key of ["content-length", "content-type", "transfer-encoding"])
+        headers.delete(key);
+      const response = await batchApi.app.fetch(
+        new Request(new URL(path, request.url), { headers }),
+      );
+      if (!response.ok) throw new Error("本轮协议上传身份或文件读取失败");
+      return ((await response.json()) as { data: unknown }).data;
+    };
+    const agreementFetch = async (
+      request: Request,
+      env?: Parameters<typeof batchApi.app.fetch>[1],
+    ) => {
+      const path = new URL(request.url).pathname;
+      const registering = request.method === "POST" && path === "/api/v1/admin/files";
+      const completing =
+        request.method === "POST"
+          ? /^\/api\/v1\/admin\/files\/([0-9a-f-]{36})\/complete$/.exec(path)?.[1]
+          : undefined;
+      const response = await batchApi.app.fetch(request, env);
+      if (!response.ok || closing || (!registering && !completing)) return response;
+      if (registering) {
+        const body = (await response.clone().json()) as { data: unknown };
+        const registration = FileRegistrationSchema.parse(body.data);
+        const file = AdminFileViewSchema.parse(
+          await readAgreementData(request, `/api/v1/admin/files/${registration.fileId}`),
+        );
+        if (
+          file.category !== "legal_doc" ||
+          file.scopeType !== "platform" ||
+          file.entityId !== null ||
+          file.storeId !== null ||
+          file.uploader.actorType !== "staff" ||
+          file.uploader.client !== "admin" ||
+          !["docx", "pdf"].includes(file.ext)
+        )
+          return response;
+        const me = StaffMeSchema.parse(await readAgreementData(request, "/api/v1/admin/auth/me"));
+        if (file.uploader.actorId !== me.staff.staffId) throw new Error("本轮协议上传归属不符");
+        if (agreementFiles.size >= 8 && !agreementFiles.has(registration.fileId))
+          throw new Error("本轮协议上传执行范围已满");
+        if (!closing) agreementFiles.set(registration.fileId, me.staff.staffId);
+      } else if (completing && agreementFiles.has(completing)) {
+        const expectedStaffId = agreementFiles.get(completing)!;
+        const work = (async () => {
+          const me = StaffMeSchema.parse(await readAgreementData(request, "/api/v1/admin/auth/me"));
+          if (me.staff.staffId !== expectedStaffId) throw new Error("本轮协议上传完成归属不符");
+          const ids = await findAgreementLiveUploadJobIds(batch, {
+            staffId: expectedStaffId,
+            fileIds: [completing],
+          });
+          for (const jobId of ids) {
+            if (closing) break;
+            await batch.media.promote({ jobId });
+          }
+          if (!closing) {
+            const file = AdminFileViewSchema.parse(
+              await readAgreementData(request, `/api/v1/admin/files/${completing}`),
+            );
+            if (["stored", "rejected", "expired", "deleting", "deleted"].includes(file.status))
+              agreementFiles.delete(completing);
+          }
+        })();
+        agreementPending.add(work);
+        try {
+          await work;
+        } finally {
+          agreementPending.delete(work);
+        }
+      }
+      return response;
+    };
     const apiOrigin = await new Promise<string>((resolve) => {
       apiServer = serve(
         {
           hostname: "127.0.0.1",
           port: 0,
           fetch: (request, env) => {
-            return batchApi.app.fetch(request, env);
+            return agreementFetch(request, env);
           },
         },
         ({ port }) => resolve(`http://127.0.0.1:${port}`),

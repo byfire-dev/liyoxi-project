@@ -243,16 +243,23 @@ export async function prepareDeliveryKnownMedia(runtime: Runtime, input: KnownMe
   });
   const proof = input.video ?? { size: KNOWN_VIDEO.bytes, sha256: KNOWN_VIDEO.sha256 };
   if (!file.etag) fail();
-  const actual = await runtime.providers.storage.readTo({
-    bucket: "media",
-    key: file.objectKey,
-    expectedSize: proof.size,
-    maxBytes: 200 * 1024 * 1024,
-    ifMatchEtag: file.etag,
-    sink: async () => {},
-  });
-  if (!actual.ok || actual.value.size !== proof.size || actual.value.sha256 !== proof.sha256)
-    fail();
+  const verification = new AbortController();
+  const timeout = setTimeout(() => verification.abort(), 10_000);
+  try {
+    const actual = await runtime.providers.storage.readTo({
+      bucket: "media",
+      key: file.objectKey,
+      expectedSize: proof.size,
+      maxBytes: 200 * 1024 * 1024,
+      ifMatchEtag: file.etag,
+      signal: verification.signal,
+      sink: async () => {},
+    });
+    if (!actual.ok || actual.value.size !== proof.size || actual.value.sha256 !== proof.sha256)
+      fail();
+  } finally {
+    clearTimeout(timeout);
+  }
   return { fileId: file.id, status: "stored", known: input.artifact !== "unknown_sample" };
 }
 /** An observation barrier only: QC/download keep the configured API Runtime's full guard. */

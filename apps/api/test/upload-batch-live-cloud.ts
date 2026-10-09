@@ -1,4 +1,5 @@
 // Task-private native-cloud double: sample bytes are rendered by the pinned codec, then re-probed.
+import { createHash } from "node:crypto";
 import type { Runtime, RuntimeOptions } from "@liyoxi/services";
 import type { createOutputBatchMediaToolRelay } from "./upload-batch-live-mediatool.js";
 type Storage = Runtime["providers"]["storage"];
@@ -95,7 +96,9 @@ export function attachOutputBatchLiveCloud(options: {
           return work.publish({
             name: "stamped.mp4",
             dst: input.dst,
-            contentIdentity: `${downloaded.value.sha256}:${proof.sha256}`,
+            contentIdentity: createHash("sha256")
+              .update(`${downloaded.value.sha256}:${proof.sha256}`)
+              .digest("hex"),
           });
         },
       );

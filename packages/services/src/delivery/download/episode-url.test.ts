@@ -209,7 +209,7 @@ it("签后授权撤销或文件失效/事务收尾失败，零日志且地址不
   const fail = createDeliveryDownloads({
     ...h.deps,
     media: {
-      ...h.media,
+      deliveryProductionFacts: h.media.deliveryProductionFacts,
       signDeliveryDownload: async () => {
         throw new Error("虚构签名器故障");
       },
@@ -220,7 +220,7 @@ it("签后授权撤销或文件失效/事务收尾失败，零日志且地址不
   const changed = createDeliveryDownloads({
     ...h.deps,
     media: {
-      ...h.media,
+      deliveryProductionFacts: h.media.deliveryProductionFacts,
       signDeliveryDownload: async (input) => {
         const signed = await h.media.signDeliveryDownload(input);
         await h.prisma.downloadGrant.update({
@@ -242,7 +242,7 @@ it("签后授权撤销或文件失效/事务收尾失败，零日志且地址不
   const blockedFile = createDeliveryDownloads({
     ...h.deps,
     media: {
-      ...h.media,
+      deliveryProductionFacts: h.media.deliveryProductionFacts,
       signDeliveryDownload: async (input) => {
         const signed = await h.media.signDeliveryDownload(input);
         await h.prisma.fileObject.update({
