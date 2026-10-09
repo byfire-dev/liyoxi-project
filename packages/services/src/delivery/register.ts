@@ -1,3 +1,6 @@
+import { implement as implementTenantCloseFacts } from "../kernel/index.js";
+import { deliveryCloseFactsPort } from "../tenant/index.js";
+import { countOnlineReleaseTicketsByEntity, countBlockingStoreTickets } from "./close-facts.js";
 import { staffWorkPort, staffFollowUpPort, implementKeyed } from "../kernel/index.js";
 import { deliveryStaffWork } from "./staff-work.js";
 import { remindersPort as currentReminders } from "../kernel/index.js";
@@ -30,6 +33,10 @@ import { deliveryFileRefs } from "./file-refs.js";
 export const registration = defineRegistration("delivery", {
   ports: [orderSidePort],
   portImplementations: [
+    implementTenantCloseFacts(deliveryCloseFactsPort, {
+      countOnlineReleaseTicketsByEntity,
+      countBlockingStoreTickets,
+    }),
     implementKeyed(staffFollowUpPort, "delivery_reissue", async (tx, id) => {
       const row = await tx.deliveryReissue.findUnique({
         where: { id },
