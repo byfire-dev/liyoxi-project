@@ -1,6 +1,6 @@
 // 构建产物可启动（任务书 W0-22 第 7 节第 5 条）：现打一份产物，用 node 把它起起来，探活通了再发 SIGTERM。
 // 产物里 @liyoxi/* 是内联的、第三方包留给运行时解析：少声明一个依赖，这里就起不来。
-// 起的是独立的进程：连本文件的测试库（迁移齐全），Redis 用共享的那份，只读不写。
+// 起的是独立的进程：连本文件的带真实种子测试库，满足通知启动自检；Redis 用共享的那份。
 // 产物打到 dist 下本次专用的目录里，跑完删掉：两轮测试同时跑（pnpm test:isolation）时各用各的。
 import { execFile, spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
@@ -11,11 +11,11 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { loadEnv } from "@liyoxi/services";
-import { useTestDatabase } from "@liyoxi/services/testing";
+import { useSeededDatabase } from "@liyoxi/services/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const db = useTestDatabase("api");
+const db = useSeededDatabase("api");
 const TIMEOUT = { timeout: 180_000 };
 /** 本次的输出目录：在本包之内，产物才解析得到 apps/api/node_modules 里的第三方包 */
 const out = `dist/test-build-${process.pid}-${Date.now().toString(36)}`;
