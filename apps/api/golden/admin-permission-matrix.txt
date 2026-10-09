@@ -2,6 +2,14 @@
 # 各栏：operationId | 模块要求（模块:view 或 edit；没有写 -）| 权限点（没有写 -）| 8 个角色各两格（非主管、主管）：1 放行，0 拒绝
 # 角色的先后：super_admin cs delivery_manager editor publisher content_ops channel_ops finance（按角色的代码默认配置算）
 # 不手改，用命令重写：LYX_UPDATE_GOLDEN=1 pnpm exec vitest run --project api test/admin-matrix.test.ts
+admin.agreement.agreementVersion.create | ops:edit | assert-in-handler | 11 00 00 00 00 11 00 00
+admin.agreement.get | ops:view | - | 11 00 00 00 00 11 00 00
+admin.agreement.list | ops:view | - | 11 00 00 00 00 11 00 00
+admin.agreementConsent.get | ops:view | - | 11 00 00 00 00 11 00 00
+admin.agreementConsent.list | ops:view | - | 11 00 00 00 00 11 00 00
+admin.agreementVersion.schedule | ops:edit | assert-in-handler | 11 00 00 00 00 11 00 00
+admin.agreementVersion.update | ops:edit | - | 11 00 00 00 00 11 00 00
+admin.agreementVersion.withdraw | ops:edit | - | 11 00 00 00 00 11 00 00
 admin.approval.get | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.approval.list | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.approval.summary | - | assert-in-handler | 11 11 11 11 11 11 11 11

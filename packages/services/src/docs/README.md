@@ -6,7 +6,7 @@
 
 | 文件 | 内容 |
 | --- | --- |
-| `service.ts` | `createDocs({ tx, clock })`：装配入口，给出下面全部函数 |
+| `service.ts` | `createDocs({ tx, clock, signPdf })`：装配入口；读取PDF需真实签名端口 |
 | `versions.ts` | 当前版本的唯一解析口径 |
 | `read.ts` | 协议清单、版本正文（两条公开接口的取数） |
 | `consents.ts` | `assertConsents`：同意记录的唯一写入口 |
@@ -22,7 +22,7 @@
 ## 2. 怎么用
 
 ```ts
-const docs = createDocs({ tx: runtime.tx, clock: runtime.clock }); // api、worker 启动时各建一次
+const docs = runtime.docs; // api、worker 各自组合根已注入真实文件签名端口
 
 await docs.listAgreements({ scene: "plan_purchase", limit: 20 }); // 用例函数：自己开事务
 await docs.getAgreementVersion(agreementVersionId); // 草稿、已撤回、不存在都是 NOT_FOUND
@@ -56,7 +56,7 @@ pnpm --filter @liyoxi/services exec vitest run src/docs/
 
 ## 4. 已知的限度
 
-- 版本正文通过注入的纯文件端口在事务外现签，并在签名前后读取真实可见性；未配置签名能力或文件不可用时受控失败，不返回空地址。PR2 源码尚待业务验收，不把本地实现当作真实法律正文已交。
+- 版本正文通过注入的纯文件端口在事务外现签，并在签名前后读取真实可见性；未配置签名能力或文件不可用时受控失败，不返回空地址。新服务/API核心验收与原文书、种子、PII、不变量、公开API、权限矩阵和worker目标回归已通过，最终类型/门禁仍待收口；不把代码验收当作真实法律正文已交。
 - 已签署协议里的 `bizTitle` 恒为 `null`：付款单的标题要经 billing 取，随 G4-C（留桩）。
 - `docs.N5` 已随 W2-17 PR3 接入：`billingConsentFacts`、`orderConsentFacts`、`adConsentFacts` 经既有 keyed 通知事实端口返回单据/签署人/时刻/协议键。docs 仅读自身版本与只增同意表；缺登记报受控检查错误，不能反向查询三张上层表。默认 API/worker 用本运行时 Assembly 的 full 不变量闭包，污染可以真实报告，其他未配置发送通道不令 N5 恒真。
 - `docs.N4` 的哈希一项只比“版本行的内容哈希”与“文件登记行上的哈希”，文件行没有哈希的不比；不读对象存储里的文件本身。
@@ -65,10 +65,10 @@ pnpm --filter @liyoxi/services exec vitest run src/docs/
 
 ## 5. W2-12 PR2 的实现边界
 
-后台四项写操作保留 required 幂等与原权限元数据。草稿以协议自然键串行，再锁版本与已排序文件行；正文 prepare 先取得真实 converter 容量才有界读 source/PDF，写事务重新验证当前归属、分类、状态、ETag、大小、哈希。转换成功不替代这次授权。`agreement_version` 是技术簿记，不新增 flow 或状态历史；安排与撤回通过现有 notices 公口在同一事务记录公告及原出站事件，提交后发出 agreement/site 缓存失效信号。法律可见性仍每次实时查库。
+后台四项写操作保留 required 幂等与原权限元数据。事务外prepare的失败只交给新执行的keyed回调，成功同键返回原DTO；update的当前状态/lockVersion守卫仍在原锁内执行，同键异载荷沿内核冲突规则。八条后台响应统一no-store。草稿以协议自然键串行，再锁版本与已排序文件行；正文 prepare 先取得真实 converter 容量才有界读 source/PDF，写事务重新验证当前归属、分类、状态、ETag、大小、哈希。转换成功不替代这次授权。`agreement_version` 是技术簿记，不新增 flow 或状态历史；安排与撤回通过现有 notices 公口在同一事务记录公告及原出站事件，提交后发出 agreement/site 缓存失效信号。法律可见性仍每次实时查库。
 
 `ops/docs-files.ts` 是 L4 文件桥，只消费 media 的公开口；不增加 docs→media 白名单。私有签名不落幂等结果或数据库，商家正文响应为 no-store。默认双文件用于安排生效；PDF-only 可保存草稿并对有界完整字节求真实 SHA，Word/PDF 文本不一致只返回真实警告。正式法务文本和审批不会由转换自动补齐。
 
-`docs.sweep` 每五分钟仅补 pending→active 与原 active→superseded、人数快照及审计；读路径到点即按唯一 currentVersions 解析。M5 授权书 queued 重投/渲染租约分支不在本包实现。摘要按前一北京时间自然日、seq 顺序、所有列求 SHA-256，secure 桶仅保存固定元数据且用 ifAbsent/内容身份防覆盖；次日重算。摘要不一致调用 evidence.consent_digest_mismatch（P1），对象不可读/写等能力故障调用 evidence.consent_digest_unavailable（P2），并使本次任务真实失败。告警事实落库沿独立 W224 前置，调用替身仅能证明端口调用；最终验收须在其 actual main 合流后核实。
+`docs.sweep` 每五分钟仅补 pending→active 与原 active→superseded、人数快照及审计；读路径到点即按唯一 currentVersions 解析。M5 授权书 queued 重投/渲染租约分支不在本包实现。摘要按前一北京时间自然日、seq 顺序、所有列求 SHA-256，secure 桶仅保存固定元数据且用 ifAbsent/内容身份防覆盖；次日重算。摘要不一致调用 evidence.consent_digest_mismatch（P1），对象不可读/写等能力故障调用 evidence.consent_digest_unavailable（P2），并使本次任务真实失败。告警事实落库沿已actual main的独立W224前置；实际API默认Assembly任务已验证P1-only摘要不一致与P2不可读取的真实alert_event行。调用替身仍只证明端口调用，不替代该组合根证据。
 
 两项 job 与不变量索引使用当前 API/worker Assembly 副本，关闭只取消和等待本实例已接受的任务；不设置全局最后绑定。测试支撑 docs-admin.ts 只布置虚构员工/合法 stored 输入/草稿事实。正文验收实际构建并启动 PR1 converter 产物；已有转换字段的 lifecycle fixture 只证明业务状态与引用，不冒充真实处理、云对象存储或法务验收。

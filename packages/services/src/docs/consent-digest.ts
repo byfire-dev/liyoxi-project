@@ -89,7 +89,7 @@ async function savedDigest(
 ): Promise<ConsentDigest | null> {
   check(signal);
   const ref = { bucket: "secure" as const, key: keyOf(day) },
-    head = provider(await deps.storage.head({...ref, ...(signal ? {signal} : {})}));
+    head = provider(await deps.storage.head({ ...ref, ...(signal ? { signal } : {}) }));
   if (!head.exists) return null;
   if (head.size < 1 || head.size > LIMIT) throw new AppError("FILE_NOT_AVAILABLE");
   check(signal);
@@ -97,7 +97,7 @@ async function savedDigest(
     await deps.storage.readObject({
       ...ref,
       maxBytes: LIMIT,
-      ...(signal ? {signal} : {}),
+      ...(signal ? { signal } : {}),
       ...(head.etag ? { ifMatchEtag: head.etag } : {}),
     }),
   );
@@ -123,6 +123,11 @@ async function savedDigest(
     throw new AppError("FILE_NOT_AVAILABLE");
   return value as ConsentDigest;
 }
+class ConsentDigestMismatch extends AppError {
+  constructor() {
+    super("FILE_NOT_AVAILABLE");
+  }
+}
 async function assertSame(deps: ConsentDigestDeps, actual: ConsentDigest, saved: ConsentDigest) {
   if (canonicalEvidence(actual) !== canonicalEvidence(saved)) {
     await deps.alerts.raise({
@@ -131,7 +136,7 @@ async function assertSame(deps: ConsentDigestDeps, actual: ConsentDigest, saved:
       severity: "P1",
       detail: { day: actual.day, rows: actual.rows },
     });
-    throw new AppError("FILE_NOT_AVAILABLE");
+    throw new ConsentDigestMismatch();
   }
 }
 export async function runConsentDigest(
@@ -183,12 +188,14 @@ export async function runConsentDigest(
       verifiedPrevious: previous !== null,
     };
   } catch (error) {
-    await deps.alerts.raise({
-      rule: "evidence.consent_digest_unavailable",
-      dimension: day,
-      severity: "P2",
-      detail: { day },
-    });
+    if (!(error instanceof ConsentDigestMismatch)) {
+      await deps.alerts.raise({
+        rule: "evidence.consent_digest_unavailable",
+        dimension: day,
+        severity: "P2",
+        detail: { day },
+      });
+    }
     throw error;
   }
 }

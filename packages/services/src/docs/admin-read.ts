@@ -1,3 +1,8 @@
+import {
+  AgreementListItemSchema,
+  AgreementSiteNoticeSchema,
+  AgreementConsentItemSchema,
+} from "@liyoxi/contract";
 import type {
   AgreementDetail,
   AgreementListItem,
@@ -121,19 +126,21 @@ export async function agreementRows(tx: Tx, now: Date): Promise<AgreementListIte
     v
       ? { agreementVersionId: v.id, versionLabel: versionLabel(v), effectiveAt: iso(v.effectiveAt) }
       : null;
-  return agreements.map((a) => ({
-    agreementKey: a.key,
-    name: a.name,
-    subjectKind: a.subjectKind,
-    consentMode: a.consentMode,
-    scenes: a.scenes,
-    signSceneLabel: a.signSceneLabel,
-    audienceLabel: a.audienceLabel,
-    sinceVersion: a.sinceVersion,
-    currentVersion: brief(current.get(a.key)),
-    pendingVersion: brief(upcoming.get(a.key)),
-    draftVersion: brief(draftMap.get(a.key)),
-  }));
+  return agreements.map((a) =>
+    AgreementListItemSchema.parse({
+      agreementKey: a.key,
+      name: a.name,
+      subjectKind: a.subjectKind,
+      consentMode: a.consentMode,
+      scenes: a.scenes,
+      signSceneLabel: a.signSceneLabel,
+      audienceLabel: a.audienceLabel,
+      sinceVersion: a.sinceVersion,
+      currentVersion: brief(current.get(a.key)),
+      pendingVersion: brief(upcoming.get(a.key)),
+      draftVersion: brief(draftMap.get(a.key)),
+    }),
+  );
 }
 export async function agreementDetail(
   tx: Tx,
@@ -209,8 +216,7 @@ export async function noticeView(
       ])
     ).map((s) => [s.staffId, s]),
   );
-  const link = n.link as { route: string; params?: Record<string, unknown> };
-  return {
+  return AgreementSiteNoticeSchema.parse({
     siteNoticeId: n.id,
     kind: n.kind,
     refId: n.refId,
@@ -221,7 +227,7 @@ export async function noticeView(
     announcedAt: n.announcedAt.toISOString(),
     leadDays: n.leadDays,
     shortNoticeReason: n.shortNoticeReason,
-    link,
+    link: n.link,
     isBarEnabled: n.barEnabled,
     status: n.status as AgreementSiteNotice["status"],
     displayState:
@@ -230,7 +236,7 @@ export async function noticeView(
     withdrawnBy: n.withdrawnByStaffId ? staffOf(map, n.withdrawnByStaffId) : null,
     withdrawnAt: iso(n.withdrawnAt),
     createdAt: n.createdAt.toISOString(),
-  };
+  });
 }
 const consentInclude = {
   agreementVersion: { include: { agreement: true } },
@@ -243,7 +249,7 @@ async function consentRow(tx: Tx, id: string) {
 }
 type Consent = Awaited<ReturnType<typeof consentRow>>;
 function consentItem(r: Consent): AgreementConsentItem {
-  return {
+  return AgreementConsentItemSchema.parse({
     agreementConsentId: r.id,
     consentNo: String(r.seq),
     agreementKey: r.agreementKey,
@@ -265,7 +271,7 @@ function consentItem(r: Consent): AgreementConsentItem {
     bizId: r.bizId,
     bizNo: r.bizNo,
     consentedAt: r.consentedAt.toISOString(),
-  };
+  });
 }
 export async function consentDetail(
   tx: Tx,
@@ -314,10 +320,19 @@ export async function consentList(
   );
   // 单侧日期补为有界自然日窗口；no不是索引键，不解除默认30日。
   const today = calendarDate(now);
-  const fromDay = q.consentedFrom ?? (q.consentedTo ? addDays(q.consentedTo, -29) : !indexed ? addDays(today, -29) : undefined);
+  const fromDay =
+    q.consentedFrom ??
+    (q.consentedTo ? addDays(q.consentedTo, -29) : !indexed ? addDays(today, -29) : undefined);
   const toDay = q.consentedTo ?? (q.consentedFrom ? today : !indexed ? today : undefined);
-  if (fromDay && toDay && (fromDay > toDay || dayRange(toDay).start.getTime() - dayRange(fromDay).start.getTime() > 365 * 86400000))
-    throw new AppError("VALIDATION_FAILED", { details: { fieldErrors: [{path: "consentedTo", message: "日期范围须为正序且至多366天"}] } });
+  if (
+    fromDay &&
+    toDay &&
+    (fromDay > toDay ||
+      dayRange(toDay).start.getTime() - dayRange(fromDay).start.getTime() > 365 * 86400000)
+  )
+    throw new AppError("VALIDATION_FAILED", {
+      details: { fieldErrors: [{ path: "consentedTo", message: "日期范围须为正序且至多366天" }] },
+    });
   const from = fromDay ? dayRange(fromDay).start : undefined;
   const to = toDay ? dayRange(toDay).end : undefined;
   const where = {

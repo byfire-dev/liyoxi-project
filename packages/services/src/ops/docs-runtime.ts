@@ -11,7 +11,7 @@ import type { DocsJobDeps } from "../docs/index.js";
 import { createNotices, paramsAt } from "../config/index.js";
 import type { Config } from "../config/index.js";
 import { staffBriefs } from "../staff/index.js";
-import { alertsOf } from "../kernel/index.js";
+import { alertsOf, invariantNow } from "../kernel/index.js";
 import type { Assembly, Clock, DocumentConverter, TxRunner } from "../kernel/index.js";
 import type { Events } from "../events/index.js";
 import type { Media } from "../media/index.js";
@@ -44,19 +44,21 @@ export function createDocsAssembly(base: Assembly) {
       : item,
   );
   const invariants = base.invariants.map((item) =>
-    item.code === "docs.N4"
+    item.code === "docs.N4" || item.code === "docs.N13"
       ? {
           ...item,
-          run: (tx: Parameters<typeof findN4Violations>[0]) =>
-            findN4Violations(tx, { now: current().clock.now() }),
+          run: (
+            tx: Parameters<typeof findN4Violations>[0],
+            _scope: Parameters<NonNullable<typeof item.run>>[1],
+            ctx: Parameters<NonNullable<typeof item.run>>[2],
+          ) => {
+            current();
+            return (item.code === "docs.N4" ? findN4Violations : findN13Violations)(tx, {
+              now: invariantNow(ctx),
+            });
+          },
         }
-      : item.code === "docs.N13"
-        ? {
-            ...item,
-            run: (tx: Parameters<typeof findN13Violations>[0]) =>
-              findN13Violations(tx, { now: current().clock.now() }),
-          }
-        : item,
+      : item,
   );
   const invariantIndex = new Map(invariants.map((item) => [item.code, item]));
   const index = new Map(recurringJobs.map((item) => [item.kind, item]));

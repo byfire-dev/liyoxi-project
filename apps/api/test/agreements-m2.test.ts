@@ -22,7 +22,7 @@ import {
   sampleStaffContext,
   signInAsStaff,
 } from "@liyoxi/services/testing";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { useTestApi } from "../src/testing/index.js";
 import type { TestApi } from "../src/testing/index.js";
 
@@ -171,6 +171,30 @@ describe("W212八条后台协议接口真实pipeline", () => {
     expect(((await again.json()) as Envelope<AgreementVersionMutationResult>).data).toEqual(
       changedDto,
     );
+    const unavailable = vi.spyOn(api.runtime.providers.storage, "readObject").mockResolvedValue({
+      ok: false,
+      reason: "unavailable",
+    });
+    try {
+      const saved = await patch();
+      expect(saved.status).toBe(200);
+      expect(((await saved.json()) as Envelope<AgreementVersionMutationResult>).data).toEqual(
+        changedDto,
+      );
+      const fresh = await call(
+        updatePath.replace("/api/v1", ""),
+        "PATCH",
+        {
+          ...update,
+          lockVersion: changedDto.version.lockVersion,
+        },
+        signed.headers,
+      );
+      expect(fresh.response.status).toBe(409);
+      expect(fresh.body.error).toBe("FILE_NOT_AVAILABLE");
+    } finally {
+      unavailable.mockRestore();
+    }
     const conflict = await call(
       `/admin/agreement-versions/${dto.version.agreementVersionId}`,
       "PATCH",
@@ -224,7 +248,10 @@ describe("W212八条后台协议接口真实pipeline", () => {
   });
   it("admin.agreementConsent.list / admin.agreementConsent.get：脱敏、固定device白名单与日期双端包含", async () => {
     const make = createFactories({ db: fixture.prisma, clock: api.clock });
-    const version = await make.agreementVersion({ agreementKey: "privacy" });
+    const version = await make.agreementVersion({
+      agreementKey: "privacy",
+      effectiveAt: new Date("2026-10-08T16:00:00.000Z"),
+    });
     const signed = await make.agreementConsent({
       agreementKey: "privacy",
       agreementVersionId: version.id,
@@ -262,7 +289,10 @@ describe("W212八条后台协议接口真实pipeline", () => {
   });
   it("索引六键与默认30天：单号不解除日期窗口，日期单侧补界且366天包含", async () => {
     const make = createFactories({ db: fixture.prisma, clock: api.clock });
-    const version = await make.agreementVersion({ agreementKey: "custom_license" });
+    const version = await make.agreementVersion({
+      agreementKey: "custom_license",
+      effectiveAt: new Date(api.clock.now().getTime() - 41 * 86400000),
+    });
     const old = await make.agreementConsent({
       agreementVersionId: version.id,
       consentedAt: new Date(api.clock.now().getTime() - 40 * 86400000),
@@ -332,5 +362,77 @@ describe("W212八条后台协议接口真实pipeline", () => {
     const next = ((await (await api.request(path)).json()) as Envelope<typeof first>).data;
     expect(next.pdf.url).not.toBe(first.pdf.url);
     expect(next.contentSha256).toBe(first.contentSha256);
+
+    // Invoke the default API-owned assembly, never a recording alert substitute.
+    const digestJob = api.runtime.assembly.recurringJob("evidence.consent_digest");
+    if (!digestJob) throw new Error("实际文书摘要任务没有装配");
+    const storage = api.runtime.providers.storage;
+    const day = "2026-10-06";
+    const ref = { bucket: "secure" as const, key: `evidence/consents/${day}.json` };
+    const run = () => digestJob.run({ scheduledFor: new Date("2026-10-06T16:40:00.000Z") });
+    await run();
+    const original = await storage.readObject({ ...ref, maxBytes: 4096 });
+    if (!original.ok) throw new Error("实际摘要回读失败");
+    const digest: unknown = JSON.parse(Buffer.from(original.value).toString("utf8"));
+    if (!digest || typeof digest !== "object" || Array.isArray(digest))
+      throw new Error("实际摘要结构不合法");
+    try {
+      expect(
+        (
+          await storage.putObject({
+            ...ref,
+            body: Buffer.from(JSON.stringify({ ...digest, sha256: "0".repeat(64) })),
+            contentType: "application/json",
+          })
+        ).ok,
+      ).toBe(true);
+      await expect(run()).rejects.toMatchObject({ error: "FILE_NOT_AVAILABLE" });
+      const rows = await fixture.prisma.alertEvent.findMany({
+        where: {
+          fingerprint: {
+            in: [
+              `evidence.consent_digest_mismatch:${day}`,
+              `evidence.consent_digest_unavailable:${day}`,
+            ],
+          },
+        },
+      });
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        rule: "evidence.consent_digest_mismatch",
+        severity: "P1",
+        occurrences: 1,
+        lastValue: { day, rows: 0 },
+      });
+    } finally {
+      expect(
+        (await storage.putObject({ ...ref, body: original.value, contentType: "application/json" }))
+          .ok,
+      ).toBe(true);
+    }
+    const unavailableDay = "2026-10-07";
+    expect(
+      (
+        await storage.putObject({
+          bucket: "secure",
+          key: `evidence/consents/${unavailableDay}.json`,
+          body: Buffer.from('{"phone":"never-log-this"'),
+          contentType: "application/json",
+        })
+      ).ok,
+    ).toBe(true);
+    await expect(
+      digestJob.run({ scheduledFor: new Date("2026-10-07T16:40:00.000Z") }),
+    ).rejects.toMatchObject({ error: "FILE_NOT_AVAILABLE" });
+    const unavailableFact = await fixture.prisma.alertEvent.findMany({
+      where: { fingerprint: `evidence.consent_digest_unavailable:${unavailableDay}` },
+    });
+    expect(unavailableFact).toHaveLength(1);
+    expect(unavailableFact[0]).toMatchObject({
+      severity: "P2",
+      occurrences: 1,
+      lastValue: { day: unavailableDay },
+    });
+    expect(JSON.stringify(unavailableFact)).not.toContain("never-log-this");
   });
 }, 60_000);

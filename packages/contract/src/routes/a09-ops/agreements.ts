@@ -60,4 +60,3 @@ import {
   AgreementVersionCreateBodySchema,
   AgreementVersionMutationResultSchema,
 } from "./agreement.schemas.js";
-export * from "./agreement.schemas.js";

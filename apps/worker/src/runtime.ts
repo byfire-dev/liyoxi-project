@@ -176,6 +176,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
       return (stopping ??= (async () => {
         keeper?.stop();
         active = false;
+        let docsFailure: PromiseRejectedResult | undefined;
         try {
           // 一个关闭失败不能提前解绑：循环与全部消费者都收完后才清理绑定。
           const mediaShutdown = services.shutdownMediaJobs?.();
@@ -197,6 +198,8 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
             ?.release()
             .catch((error: unknown) => logger.warn({ err: error }, "让出租约失败"));
         } finally {
+          const docsClosed = await Promise.allSettled([services.closeDocs()]);
+          const converterClosed = await Promise.allSettled([services.documentConverter?.close()]);
           services.closeBillingTimers?.();
           services.closeOrder?.();
           services.closePublish?.();
@@ -210,7 +213,11 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
             services.closeStorageDrivers?.(),
           ]);
           await services.closeAlertFacts?.();
+          docsFailure = [...docsClosed, ...converterClosed].find(
+            (result) => result.status === "rejected",
+          );
         }
+        if (docsFailure) throw docsFailure.reason;
       })());
     },
   };

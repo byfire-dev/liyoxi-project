@@ -19,7 +19,8 @@ function actor(...args: Parameters<typeof configActor>) {
   if (!ctx.meta) throw new TypeError("协议操作缺少审计请求上下文");
   return { ...ctx, meta: ctx.meta };
 }
-async function result<T>(fn: () => Promise<T>) {
+async function result<T>(c: Parameters<typeof ok>[0], fn: () => Promise<T>) {
+  c.header("Cache-Control", "no-store");
   try {
     return await fn();
   } catch (error) {
@@ -28,12 +29,15 @@ async function result<T>(fn: () => Promise<T>) {
 }
 export const adminAgreementHandlers = [
   defineAdminHandler(adminAgreementList, view, async (c, staff) =>
-    ok(c, await result(() => c.var.runtime.docsAdmin.list(actor(c, staff), c.req.valid("query")))),
+    ok(
+      c,
+      await result(c, () => c.var.runtime.docsAdmin.list(actor(c, staff), c.req.valid("query"))),
+    ),
   ),
   defineAdminHandler(adminAgreementGet, view, async (c, staff) =>
     ok(
       c,
-      await result(() =>
+      await result(c, () =>
         c.var.runtime.docsAdmin.get(actor(c, staff), c.req.valid("param").agreementKey),
       ),
     ),
@@ -41,7 +45,7 @@ export const adminAgreementHandlers = [
   defineAdminHandler(adminAgreementAgreementVersionCreate, edit, async (c, staff) =>
     ok(
       c,
-      await result(() =>
+      await result(c, () =>
         c.var.runtime.docsAdmin.createVersion(
           actor(c, staff),
           c.req.valid("param").agreementKey,
@@ -54,7 +58,7 @@ export const adminAgreementHandlers = [
   defineAdminHandler(adminAgreementVersionUpdate, edit, async (c, staff) =>
     ok(
       c,
-      await result(() =>
+      await result(c, () =>
         c.var.runtime.docsAdmin.updateVersion(
           actor(c, staff),
           c.req.valid("param").agreementVersionId,
@@ -67,7 +71,7 @@ export const adminAgreementHandlers = [
   defineAdminHandler(adminAgreementVersionSchedule, edit, async (c, staff) =>
     ok(
       c,
-      await result(() =>
+      await result(c, () =>
         c.var.runtime.docsAdmin.scheduleVersion(
           actor(c, staff),
           c.req.valid("param").agreementVersionId,
@@ -80,7 +84,7 @@ export const adminAgreementHandlers = [
   defineAdminHandler(adminAgreementVersionWithdraw, edit, async (c, staff) =>
     ok(
       c,
-      await result(() =>
+      await result(c, () =>
         c.var.runtime.docsAdmin.withdrawVersion(
           actor(c, staff),
           c.req.valid("param").agreementVersionId,
@@ -93,13 +97,15 @@ export const adminAgreementHandlers = [
   defineAdminHandler(adminAgreementConsentList, view, async (c, staff) =>
     ok(
       c,
-      await result(() => c.var.runtime.docsAdmin.consents(actor(c, staff), c.req.valid("query"))),
+      await result(c, () =>
+        c.var.runtime.docsAdmin.consents(actor(c, staff), c.req.valid("query")),
+      ),
     ),
   ),
   defineAdminHandler(adminAgreementConsentGet, view, async (c, staff) =>
     ok(
       c,
-      await result(() =>
+      await result(c, () =>
         c.var.runtime.docsAdmin.consent(actor(c, staff), c.req.valid("param").agreementConsentId),
       ),
     ),

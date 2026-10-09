@@ -97,6 +97,7 @@ export function createDocsAdminFixture(
       sha256: createHash("sha256").update(bytes).digest("hex"),
       uploadActorType: "staff",
       uploadActorId: actor.staff.staff.id,
+      uploadClient: "admin",
     });
   }
   // Domain lifecycle fixtures explicitly arrange already-converted draft facts. They do not

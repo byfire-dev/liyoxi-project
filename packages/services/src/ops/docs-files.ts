@@ -97,6 +97,8 @@ export function createDocsFiles(deps: {
         refId: input.versionId,
         role: input.role,
         keepUntil: input.keepUntil,
+        entityId: null,
+        storeId: null,
       });
     },
     signPdf: (input) =>

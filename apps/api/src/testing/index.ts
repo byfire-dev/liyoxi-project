@@ -145,7 +145,7 @@ export function useTestApi(): TestApiHandle {
         // 机器忙的时候 Redis 的一条命令也可能慢过 200 毫秒：放宽，免得用例里把慢当成断
         rateLimitCommandTimeoutMs: 5_000,
         providers,
-        documentConverterWorkerUrl: options.documentConverterWorkerUrl,
+        documentWorkerUrl: options.documentConverterWorkerUrl,
         logger: createLogger({
           svc: "api",
           env: env.APP_ENV,
