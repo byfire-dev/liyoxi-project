@@ -1,4 +1,11 @@
 export { createMedia } from "./runtime.js";
+export {
+  dramaMediaReadiness,
+  readCommittedDramaMasters,
+  readDramaPosterFileIds,
+  readDramaEvidenceRefs,
+} from "./drama-readiness.js";
+export type { DramaMediaReadiness, DramaReadinessInput } from "./drama-readiness.js";
 export type { MediaProductionDeps, MediaProductionConfig } from "./production-types.js";
 export type { Media } from "./runtime.js";
 export type {

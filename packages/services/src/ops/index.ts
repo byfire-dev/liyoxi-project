@@ -75,3 +75,8 @@ export { createContentAdmin } from "./content-admin.js";
 export type { ContentAdmin, ContentAdminActor } from "./content-admin.js";
 
 export { createDeliveryProductionAssembly } from "./delivery-production-runtime.js";
+export {
+  parseDemoMasterArgs,
+  readDemoMasterInput,
+  createDemoMasterInputPreparer,
+} from "./demo-masters-input.js";

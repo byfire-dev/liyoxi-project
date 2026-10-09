@@ -9,6 +9,7 @@
 // 本文件是包级文件，不属于任何一层：只引各模块的 index.ts。
 import { seedDemoContent } from "./content/index.js";
 import type { Content } from "./content/index.js";
+import type { ContentDemoDeps } from "./content/index.js";
 import { AGREEMENT_SEEDS, seedPlaceholderAgreementVersions } from "./docs/index.js";
 import { seedPlaceholderFiles } from "./media/index.js";
 import type { Media } from "./media/index.js";
@@ -31,6 +32,7 @@ export interface DemoSeedDeps {
   readonly appEnv: AppEnv;
   readonly media?: Media;
   readonly content?: Content;
+  readonly prepareMasters?: ContentDemoDeps["prepareMasters"];
   readonly notices?: Pick<Notices, "announce">;
   /** M1 演示核验现行开工延迟；参数写侧尚属 M2，不覆盖已有配置。 */
   readonly params?: Pick<Params, "get">;
@@ -140,6 +142,7 @@ export const DEMO_SEED_STEPS: readonly DemoSeedStep[] = [
           content: deps.content,
           media: deps.media,
           appEnv: deps.appEnv,
+          prepareMasters: deps.prepareMasters,
         },
         staffId,
       );

@@ -6,6 +6,7 @@ import {
   assembleForTest,
   createProviderHarness,
   createFactories,
+  createCodecDemoMasterPreparer,
 } from "../testing/index.js";
 import {
   createContent,
@@ -38,7 +39,17 @@ it("真实worker装配执行content全量七项，3部listed剧没有未绑定�
   const clear = bindContent(assembly);
   clear();
   try {
-    await seedDemoContent({ tx, clock, content, media, appEnv: "test" }, staff.id);
+    await seedDemoContent(
+      {
+        tx,
+        clock,
+        content,
+        media,
+        appEnv: "test",
+        prepareMasters: createCodecDemoMasterPreparer({ appEnv: "test", tx, clock, media, events }),
+      },
+      staff.id,
+    );
     const i1 = assembly.invariant("content.I1")!;
     await expect(tx.run((t) => i1.run!(t, {}, { now: clock.now() }))).rejects.toThrow("未绑定装配");
     worker = buildWorkerServices({

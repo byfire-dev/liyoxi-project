@@ -1,5 +1,7 @@
 import { staffWorkPort, staffFollowUpPort } from "../kernel/index.js";
 import { orderStaffWork } from "./staff-work.js";
+import { DramaUsagePort } from "../content/index.js";
+import { dramaUsage } from "./drama-usage.js";
 import {
   implementKeyed as notifyReaderImplementation,
   notifyReadPort as currentNotifyReadPort,
@@ -80,6 +82,7 @@ export const registration = defineRegistration("order", {
     },
   ],
   portImplementations: [
+    implement(DramaUsagePort, dramaUsage),
     implementKeyed(staffFollowUpPort, "order_item", async (tx, id) => {
       const row = await tx.orderItem.findUnique({
         where: { id },

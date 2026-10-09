@@ -69,7 +69,7 @@ export async function setTrailerTarget(
     asset.ownerType !== "drama" ||
     asset.ownerId !== input.dramaId ||
     asset.kind !== "trailer" ||
-    !["processing", "ready"].includes(asset.state)
+    !["processing", "ready", "failed"].includes(asset.state)
   )
     throw new AppError("STATE_NOT_ALLOWED");
   await tx.dramaTrailer.upsert({

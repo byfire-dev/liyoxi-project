@@ -1,3 +1,4 @@
+import { createCodecDemoMasterPreparer } from "@liyoxi/services/testing";
 import { runSeed, seedDemoContent } from "@liyoxi/services";
 import { createFactories } from "@liyoxi/services/testing";
 import { expect } from "vitest";
@@ -18,6 +19,13 @@ function prepare(api: TestApi) {
           tx: api.runtime.tx,
           clock: api.clock,
           content: api.runtime.content,
+          prepareMasters: createCodecDemoMasterPreparer({
+            appEnv: "test",
+            tx: api.runtime.tx,
+            clock: api.clock,
+            media: api.runtime.media,
+            events: api.runtime.events,
+          }),
           media: api.runtime.media,
           appEnv: "test",
         },

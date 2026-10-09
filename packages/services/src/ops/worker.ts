@@ -1,6 +1,11 @@
 import { createDeliveryProductionAssembly } from "./delivery-production-runtime.js";
 import { createContentPricingAssembly } from "./content-pricing-runtime.js";
-import { createContent, createContentLicense } from "../content/index.js";
+import {
+  createContent,
+  createContentLicense,
+  createContentMaintenance,
+  DramaUsagePort,
+} from "../content/index.js";
 import { createDramaPricing } from "../billing/index.js";
 import { staffBriefs } from "../staff/index.js";
 import { latestStaffWecomInviteKey } from "../audit/index.js";
@@ -392,7 +397,11 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const contentLicense = createContentLicense({ clock, flow, timers });
   const content = createContent({ clock, flow, media, assembly, events, license: contentLicense });
   const dramaPricing = createDramaPricing({ clock, content, staffBriefs, events, timers });
-  contentPricingScope.attach({ license: contentLicense, pricing: dramaPricing });
+  contentPricingScope.attach({
+    license: contentLicense,
+    pricing: dramaPricing,
+    maintenance: createContentMaintenance({ clock, usage: assembly.port(DramaUsagePort), media }),
+  });
   const closePublish = bindPublish(assembly);
   const deliveryCore = {
     tx,

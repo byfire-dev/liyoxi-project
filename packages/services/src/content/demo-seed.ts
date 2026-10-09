@@ -1,6 +1,6 @@
 import { calendarDate, daysInMonth, formatLocalDate, parseLocalDate } from "@liyoxi/shared/time";
 import { createIdentityContext } from "../kernel/index.js";
-import type { Clock, TxRunner, SeedTableResult, AppEnv } from "../kernel/index.js";
+import type { Clock, TxRunner, SeedTableResult, AppEnv, IdentityContext } from "../kernel/index.js";
 import { insertDictItemsMissing } from "../config/index.js";
 import type { DictItemSeed } from "../config/index.js";
 import type { Media } from "../media/index.js";
@@ -77,6 +77,12 @@ export interface ContentDemoDeps {
   readonly content: Content;
   readonly media: Pick<Media, "putSystemFile">;
   readonly appEnv: AppEnv;
+  readonly prepareMasters?: (input: {
+    dramaId: string;
+    totalEpisodes: number;
+    staffId: string;
+    identity: IdentityContext;
+  }) => Promise<void>;
 }
 export async function seedDemoContent(
   deps: ContentDemoDeps,
@@ -92,6 +98,25 @@ export async function seedDemoContent(
       Math.min(date.day, daysInMonth(date.year + 2, date.month)),
     ),
     ctx = createIdentityContext({ actor: { type: "staff", id: staffId, client: "cli" } });
+  // 缺少合法原片准备器时，必须在字典、文件和剧目写入之前拒绝；已有完整母版/已上架重复不需新输入。
+  if (!deps.prepareMasters) {
+    for (const seed of DEMO_DRAMAS) {
+      const ready = await deps.tx.run(async (tx) => {
+        const drama = await tx.drama.findFirst({
+          where: { title: seed.title },
+          orderBy: { id: "asc" },
+        });
+        return (
+          drama &&
+          (drama.status === "listed" ||
+            (drama.totalEpisodes === seed.episodes &&
+              (await deps.content.mediaReadiness(tx, drama.id)).mastersReady))
+        );
+      });
+      if (!ready)
+        throw new Error("演示短剧需要显式合法 --video/--probe-facts 原片输入；未写入演示内容");
+    }
+  }
   const dictionaries = await deps.tx.run((tx) => insertDictItemsMissing(tx, DEMO_DICT_ITEMS, now));
   const [scan, proof] = await Promise.all([
     deps.media.putSystemFile({
@@ -188,6 +213,16 @@ export async function seedDemoContent(
         proofFileIds: [proof.fileId],
       }),
     );
+    const ready = await deps.tx.run((tx) => deps.content.mediaReadiness(tx, id));
+    if (!ready.mastersReady) {
+      if (!deps.prepareMasters) throw new Error("演示短剧缺少经验证的原片输入准备能力");
+      await deps.prepareMasters({
+        dramaId: id,
+        totalEpisodes: seed.episodes,
+        staffId,
+        identity: ctx,
+      });
+    }
     await deps.tx.run((tx) => deps.content.list(tx, ctx, id));
   }
   return [dictionaries, { table: "drama", inserted, existing }];
