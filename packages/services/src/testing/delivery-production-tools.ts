@@ -18,11 +18,28 @@ type Video = { bytes: Uint8Array; label: string | null; width: number; height: n
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const jpeg = new Uint8Array([255, 216, 255, 217]);
 /** Codec/cloud IO doubles only; callers still execute real claims, checks, refs and subscribers. */
-export function createDeliveryProductionTools(providers: Pick<FakeProviders, "storage" | "media">) {
+export function createDeliveryProductionTools(
+  providers: Pick<FakeProviders, "storage" | "media">,
+  sourceReport?: ProbeReport,
+) {
   const paths = new Map<string, Video>(),
     objects = new Map<string, Omit<Video, "bytes">>();
   let failStamp = false;
   const report = (video: Video): ProbeReport => {
+    if (sourceReport) {
+      const measured = structuredClone(sourceReport);
+      measured.format.sizeBytes = video.bytes.length;
+      measured.aigc = video.label;
+      for (const stream of measured.streams)
+        if (stream.codecType === "video")
+          Object.assign(stream, {
+            width: video.width,
+            height: video.height,
+            displayWidth: video.width,
+            displayHeight: video.height,
+          });
+      return measured;
+    }
     const common = {
       profile: "High",
       pixFmt: "yuv420p",
@@ -129,8 +146,10 @@ export function createDeliveryProductionTools(providers: Pick<FakeProviders, "st
               bytes: object.body,
               ...(objects.get(`${input.bucket}/${input.key}`) ?? {
                 label: null,
-                width: 1080,
-                height: 1920,
+                width:
+                  sourceReport?.streams.find((s) => s.codecType === "video")?.displayWidth ?? 1080,
+                height:
+                  sourceReport?.streams.find((s) => s.codecType === "video")?.displayHeight ?? 1920,
               }),
             });
             return ok({ size: object.body.length, sha256: sha(object.body) });

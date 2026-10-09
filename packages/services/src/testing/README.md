@@ -234,3 +234,20 @@ APP_ENV=test DATABASE_URL=… REDIS_URL=… pnpm demo:m0          # 连接参数
 - 跑完删掉演示库与自己在 Redis 里的键（前缀 `lyx:test:demo<进程号>:0:`，只用 SCAN 加 UNLINK）。中途被打断留下的库用 `pnpm test:db:prune --all` 清（先确认没有别的会话在跑测试），或自己删那一个库。
 - 退出码：0 走通且各步与预期相符；1 有一步不符；2 环境变量缺、库或 Redis 连不上。连接串与口令不打印。
 - 入口是 `packages/services/scripts/demo-m0.ts`。每晚任务（`.github/workflows/nightly.yml`）末尾重放一遍；必过检查里不跑它，同一条链路的用例 `m0-chain.db.test.ts` 在 `pnpm test` 里。
+
+## M1 制作输入与外呼模型
+
+W3-07 的 `m1-production.mp4` 是本轮单次生成的固定色画面和440Hz音调：
+368254B、20秒、720×1280、H.264 High/yuv420p8、AAC双声道。
+字节 SHA256 为 `55290244d31b267a68d47cfe26e443f527b255d4254c759dd98bd10fd935bbc3`。
+同一固定镜像 `sha256:91a0ba46c7135164b5cae54ee329134c105d7bf5d08c5286232dbfd946a9310d`
+的公开 probe 实际读取 boxes、faststart 和 AIGC，原始响应保存在
+`m1-production.probe.json`，SHA256 为
+`2a4e68caa0a5aab10a433184a62c8ad47e674f7b133f6e59545a07a592026765`。
+加载时同时验证两摘要，不将旧2秒/noaudio素材投影为20秒；旧素材与 FACTS 不改。
+
+M1 购入的20集母片经真实公开批次/complete/promote/probe/commit，制作经同一完整
+Runtime 的公开任务、checked dispatcher、人工QC与签名下载。codec/cloud 为受控
+替身，固定报告不是运行时原生探测声明，替身水印也不是视觉验收；原生探测与叠加
+另有真实容器/浏览器证据。其他60/40集原演示模型不计媒体技术覆盖。财务种子的
+正式25小时历史由本轮 startedAt 描述，注入 clock 不变；通用运输守卫仍拒绝更早事件。

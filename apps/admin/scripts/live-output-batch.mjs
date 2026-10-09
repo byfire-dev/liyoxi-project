@@ -341,12 +341,8 @@ async function main(args) {
   });
   const image = values["mediatool-image"];
   const testFile = values["test-file"];
-  if (
-    testFile &&
-    testFile !== "test/e2e/live-output-batch.spec.ts" &&
-    testFile !== "test/e2e/live-delivery-flow.spec.ts"
-  )
-    throw new Error("Only the exact owned specs can be selected for an affected rerun");
+  if (testFile && testFile !== "test/e2e/live-output-batch.spec.ts")
+    throw new Error("Only the exact W302 spec can be selected for an affected rerun");
   if (!/^sha256:[a-f0-9]{64}$/.test(image ?? ""))
     throw new Error("--mediatool-image requires the exact verified original image ID");
   const original = localUrl("DATABASE_URL", ["postgres:", "postgresql:"]);
