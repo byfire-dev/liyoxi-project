@@ -3,10 +3,11 @@ import { DramaSnapshotSchema } from "@liyoxi/contract";
 import type { OrderCreateBody, DramaSnapshot } from "@liyoxi/contract";
 import { calendarDate, addDays } from "@liyoxi/shared/time";
 import { nthWorkdayAfter } from "@liyoxi/shared/workcal";
-import { AppError } from "../kernel/index.js";
+import { AppError, merchantFactsOf } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 import { assertProfileComplete, storeGate, industryOpen } from "../profile/index.js";
 import { getEntitlements } from "../billing/index.js";
+import { assertWithinQuota } from "../tenant/index.js";
 import { loadWorkCalendar, workHoursAt } from "../sla/index.js";
 import type { OrderActor, OrderDeps } from "./context.js";
 import { orderAccounts } from "./accounts.js";
@@ -58,6 +59,9 @@ export async function subscription(tx: Tx, entityId: string, at: Date) {
 export async function openIndustry(tx: Tx, storeId: string) {
   if (!(await industryOpen(tx, storeId))) throw new AppError("INDUSTRY_NOT_OPEN");
 }
+export function storeQuota(tx: Tx, deps: OrderDeps, entityId: string, at: Date) {
+  return assertWithinQuota(tx, { facts: merchantFactsOf(deps.assembly) }, at, entityId);
+}
 export async function profileChecks(tx: Tx, actor: OrderActor) {
   await assertProfileComplete(tx, actor.membership.storeId);
   const gate = await qualification(tx, actor.membership.storeId);
@@ -103,6 +107,7 @@ export async function submitChecks(
 ) {
   const gate = await profileChecks(tx, actor);
   await subscription(tx, actor.membership.entityId, at);
+  await storeQuota(tx, deps, actor.membership.entityId, at);
   const accounts = await orderAccounts(tx, actor.membership.storeId, input.channelAccountIds);
   const snapshots = await dramaSnapshots(
     tx,
