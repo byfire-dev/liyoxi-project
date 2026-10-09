@@ -1,3 +1,7 @@
+import { createContentPricingAssembly, createContentAdmin } from "./ops/index.js";
+import type { ContentAdmin } from "./ops/index.js";
+import { createContentCopyright, createContentLicense, DramaPricePort } from "./content/index.js";
+import { createDramaPricing } from "./billing/index.js";
 import { latestStaffWecomInviteKey } from "./audit/index.js";
 import { createSmsInit, createSmsHealth, smsTemplateReader } from "./notify/index.js";
 import { keyringFromEnv } from "./security/index.js";
@@ -104,6 +108,7 @@ import {
   createStartupChecks,
   createRuntimeNotify,
   createNotifyAssembly,
+  createAlertFactsAssembly,
 } from "./ops/index.js";
 import type { Health, StartupCheck } from "./ops/index.js";
 import type { Providers, ProductionMediaTools } from "./providers/types.js";
@@ -214,6 +219,7 @@ export interface Runtime {
   readonly notifyMessages: NotifyMessages;
   readonly notify: NotifyDispatcherService;
   readonly content: Content;
+  readonly contentAdmin: ContentAdmin;
   readonly media: Media;
   /** 审批执行器与只读队列：api、worker 各自装配（移交表 64） */
   readonly approval: Approval;
@@ -334,7 +340,15 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       ? {}
       : { commandTimeoutMs: options.rateLimitCommandTimeoutMs }),
   });
-  const analyticsScope = createAnalyticsJobs(assembleServices({ entry, appEnv: env.APP_ENV }), {
+  const alertFactsScope = createAlertFactsAssembly(
+    assembleServices({ entry, appEnv: env.APP_ENV }),
+    {
+      tx,
+      clock,
+      logger,
+    },
+  );
+  const analyticsScope = createAnalyticsJobs(alertFactsScope.assembly, {
     tx,
     clock,
     appEnv: env.APP_ENV,
@@ -343,7 +357,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const notifyScope = createNotifyAssembly(analyticsScope.assembly);
   const mediaScope = createMediaAssembly(notifyScope.assembly);
   const staffScope = createStaffAssembly(mediaScope.assembly);
-  const docsScope = createDocsAssembly(staffScope.assembly);
+  const contentPricingScope = createContentPricingAssembly(staffScope.assembly);
+  const docsScope = createDocsAssembly(contentPricingScope.assembly);
   const assembly = docsScope.assembly;
   const documentConverter = options.documentWorkerUrl
     ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
@@ -540,7 +555,27 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     events,
     sla: createSla({ clock, assembly }),
   });
-  const content = createContent({ clock, flow, media, assembly });
+  const contentLicense = createContentLicense({ clock, flow, timers });
+  const content = createContent({ clock, flow, media, assembly, events, license: contentLicense });
+  const dramaPricing = createDramaPricing({ clock, content, staffBriefs, events, timers });
+  contentPricingScope.attach({ license: contentLicense, pricing: dramaPricing });
+  const contentCopyright = createContentCopyright({
+    clock,
+    media,
+    events,
+    prices: assembly.port(DramaPricePort),
+    license: contentLicense,
+  });
+  const contentAdmin = createContentAdmin({
+    clock,
+    tx,
+    content,
+    staffBriefs,
+    pricing: (t, staff, id, at) => dramaPricing.detailPricing(t, staff, id, at),
+    copyright: contentCopyright,
+    pricingService: dramaPricing,
+    media,
+  });
   const bizNo = createBizNoIssuer({ clock, appEnv: env.APP_ENV });
   const sla = createSla({ clock, assembly });
   const approval = createApproval({ assembly, clock, flow, events, bizNo, sla, timers });
@@ -766,6 +801,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     notify,
     staffManagement,
     content,
+    contentAdmin,
     media,
     entry,
     env,
@@ -797,6 +833,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         notifyScope.close(),
       ]);
       mediaScope.close();
+      contentPricingScope.close();
       await mediaProduction.close();
       unbindNoticeLink();
       await Promise.allSettled(wechatClosers.map((close) => close()));
@@ -812,6 +849,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       unbindOps();
       unbindWebhooks();
       await mediaChannel.close();
+      await alertFactsScope.close();
       redis.disconnect();
       await prisma.$disconnect();
     },

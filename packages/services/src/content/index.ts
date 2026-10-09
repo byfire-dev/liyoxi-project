@@ -25,3 +25,11 @@ export {
   setTrailerTarget,
   installTrailerCurrent,
 } from "./media-facts.js";
+
+export { createContentCopyright } from "./copyright.js";
+export type { ContentCopyright } from "./copyright.js";
+export { createContentLicense } from "./license-expiry.js";
+export type { ContentLicense } from "./license-expiry.js";
+export { adminDramaDetail, copyrightRevisionView } from "./admin-read.js";
+export type { ContentAdminReadDeps } from "./admin-read.js";
+export { listDramasLicenseEndingOn } from "./reminder.js";

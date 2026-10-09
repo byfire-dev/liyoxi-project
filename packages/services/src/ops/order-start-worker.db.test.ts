@@ -46,7 +46,7 @@ it("独立worker实际relay/派发/消费两订阅者后真实扣减开工；重
       bizNo: createBizNoIssuer({ clock, appEnv: "test" }),
       ledger: createLedger({ clock, events }),
       config: createConfig({ db: prisma, clock, redis: null, report: () => {} }),
-      content: createContent({ clock, assembly, flow, media }),
+      content: createContent({ clock, assembly, flow, media, events }),
       docs: createDocs({ tx, clock }),
     });
   const queued: Array<{ eventId: string; subscriber: string; dispatchNo: number }> = [];

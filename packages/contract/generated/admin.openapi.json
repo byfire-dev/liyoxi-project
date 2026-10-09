@@ -434,6 +434,418 @@
         ],
         "type": "object"
       },
+      "AdminDramaDetail": {
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "shelve",
+                "delist",
+                "confirm-permit-recheck"
+              ],
+              "type": "string",
+              "x-open-enum": true
+            },
+            "type": "array"
+          },
+          "allowedPlacements": {
+            "items": {
+              "enum": [
+                "opening",
+                "ending",
+                "corner",
+                "mid_roll"
+              ],
+              "type": "string",
+              "x-open-enum": true
+            },
+            "type": "array"
+          },
+          "archivedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bodyEditPolicy": {
+            "enum": [
+              "undecided",
+              "allowed",
+              "forbidden"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "castNames": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "copyright": {
+            "$ref": "#/components/schemas/DramaCopyright"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "$ref": "#/components/schemas/StaffBrief"
+          },
+          "delistNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "delistReasonCode": {
+            "enum": [
+              "ops_strategy",
+              "rights_issue",
+              "content_revision",
+              "other",
+              "license_expired",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "delistedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dramaClass": {
+            "enum": [
+              "class_1",
+              "class_2",
+              "class_3",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "dramaId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "editability": {
+            "properties": {
+              "canEditContent": {
+                "type": "boolean"
+              },
+              "canManageMedia": {
+                "type": "boolean"
+              },
+              "canReprice": {
+                "type": "boolean"
+              },
+              "copyrightEditMode": {
+                "enum": [
+                  "direct",
+                  "revision",
+                  "locked"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              }
+            },
+            "required": [
+              "canEditContent",
+              "copyrightEditMode",
+              "canManageMedia",
+              "canReprice"
+            ],
+            "type": "object"
+          },
+          "episodeDurationSec": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "episodeSummary": {
+            "properties": {
+              "processing": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "total": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "withCurrentMaster": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "total",
+              "withCurrentMaster",
+              "processing"
+            ],
+            "type": "object"
+          },
+          "firstListedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "heatTier": {
+            "enum": [
+              "S",
+              "A",
+              "B",
+              "C",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "industries": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "isAiGenerated": {
+            "type": "boolean"
+          },
+          "isPermitRecheckRequired": {
+            "type": "boolean"
+          },
+          "listedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "listingChecks": {
+            "$ref": "#/components/schemas/ListingCheckResult"
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "manualBoost": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "openPlacementSlots": {
+            "items": {
+              "enum": [
+                "opening",
+                "ending",
+                "corner",
+                "mid_roll"
+              ],
+              "type": "string",
+              "x-open-enum": true
+            },
+            "type": "array"
+          },
+          "posterFileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "posterUrl": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SignedUrl"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "pricing": {
+            "$ref": "#/components/schemas/DramaPricing"
+          },
+          "producerName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "roles": {
+            "items": {
+              "properties": {
+                "actor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "desc": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "actor",
+                "desc"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "sellingTags": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "listed",
+              "delisted"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "statusChangedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "synopsis": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "targetAudience": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "totalEpisodes": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "trailer": {
+            "$ref": "#/components/schemas/TrailerBrief"
+          },
+          "trialEpisodeCount": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedBy": {
+            "$ref": "#/components/schemas/StaffBrief"
+          }
+        },
+        "required": [
+          "dramaId",
+          "title",
+          "status",
+          "archivedAt",
+          "statusChangedAt",
+          "firstListedAt",
+          "listedAt",
+          "delistedAt",
+          "delistReasonCode",
+          "delistNote",
+          "createdAt",
+          "createdBy",
+          "updatedAt",
+          "updatedBy",
+          "lockVersion",
+          "posterFileId",
+          "posterUrl",
+          "totalEpisodes",
+          "episodeDurationSec",
+          "genres",
+          "sellingTags",
+          "producerName",
+          "castNames",
+          "synopsis",
+          "roles",
+          "dramaClass",
+          "isAiGenerated",
+          "heatTier",
+          "manualBoost",
+          "industries",
+          "targetAudience",
+          "allowedPlacements",
+          "openPlacementSlots",
+          "trialEpisodeCount",
+          "isPermitRecheckRequired",
+          "bodyEditPolicy",
+          "copyright",
+          "trailer",
+          "episodeSummary",
+          "pricing",
+          "listingChecks",
+          "actions",
+          "editability"
+        ],
+        "type": "object"
+      },
+      "AdminDramaWriteResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AdminDramaDetail"
+          },
+          {
+            "properties": {
+              "replayed": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "replayed"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "AdminFileCreateBody": {
         "additionalProperties": false,
         "properties": {
@@ -5413,6 +5825,18 @@
         ],
         "type": "object"
       },
+      "ConfirmPermitRecheckBody": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "ConfirmTotpBody": {
         "properties": {
           "code": {
@@ -5441,6 +5865,229 @@
         },
         "required": [
           "code"
+        ],
+        "type": "object"
+      },
+      "CopyrightReplaceBody": {
+        "additionalProperties": false,
+        "properties": {
+          "canAdapt": {
+            "type": "boolean"
+          },
+          "canEditEmbed": {
+            "type": "boolean"
+          },
+          "canSublicense": {
+            "type": "boolean"
+          },
+          "hasNetworkRight": {
+            "type": "boolean"
+          },
+          "licenseEndDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "licenseStartDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "platforms": {
+            "items": {
+              "enum": [
+                "douyin",
+                "wechat_channels"
+              ],
+              "type": "string"
+            },
+            "maxItems": 2,
+            "type": "array"
+          },
+          "proofFileIds": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 10,
+            "type": "array"
+          },
+          "source": {
+            "enum": [
+              "own",
+              "licensed",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "territory": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "platforms",
+          "territory",
+          "hasNetworkRight",
+          "canSublicense",
+          "canEditEmbed",
+          "canAdapt",
+          "licenseStartDate",
+          "licenseEndDate",
+          "proofFileIds",
+          "lockVersion"
+        ],
+        "type": "object"
+      },
+      "CopyrightRevision": {
+        "properties": {
+          "changeKind": {
+            "enum": [
+              "initial",
+              "extend",
+              "shorten",
+              "scope_change",
+              "correction"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "$ref": "#/components/schemas/StaffBrief"
+          },
+          "dramaCopyrightRevisionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "newEndDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "prevEndDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "proofFiles": {
+            "items": {
+              "$ref": "#/components/schemas/DramaFileBrief"
+            },
+            "type": "array"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/DramaCopyrightSnapshot"
+          }
+        },
+        "required": [
+          "dramaCopyrightRevisionId",
+          "changeKind",
+          "snapshot",
+          "prevEndDate",
+          "newEndDate",
+          "reason",
+          "proofFiles",
+          "createdBy",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "CopyrightRevisionCreateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "changeKind": {
+            "enum": [
+              "extend",
+              "shorten",
+              "scope_change",
+              "correction"
+            ],
+            "type": "string"
+          },
+          "confirm": {
+            "additionalProperties": false,
+            "properties": {
+              "prevEndDate": {
+                "format": "date",
+                "type": "string"
+              }
+            },
+            "required": [
+              "prevEndDate"
+            ],
+            "type": "object"
+          },
+          "copyright": {
+            "$ref": "#/components/schemas/DramaCopyrightSnapshot"
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "revisionProofFileIds": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "lockVersion",
+          "changeKind",
+          "copyright",
+          "reason",
+          "revisionProofFileIds",
+          "confirm"
+        ],
+        "type": "object"
+      },
+      "CopyrightRevisionCreateResult": {
+        "properties": {
+          "drama": {
+            "$ref": "#/components/schemas/AdminDramaDetail"
+          },
+          "replayed": {
+            "type": "boolean"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/CopyrightRevision"
+          }
+        },
+        "required": [
+          "revision",
+          "drama",
+          "replayed"
         ],
         "type": "object"
       },
@@ -7867,6 +8514,930 @@
         ],
         "type": "object"
       },
+      "DramaCopyright": {
+        "properties": {
+          "canAdapt": {
+            "type": "boolean"
+          },
+          "canEditEmbed": {
+            "type": "boolean"
+          },
+          "canSublicense": {
+            "type": "boolean"
+          },
+          "currentRevisionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "editMode": {
+            "enum": [
+              "direct",
+              "revision",
+              "locked"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "hasNetworkRight": {
+            "type": "boolean"
+          },
+          "isExpiringSoon": {
+            "type": "boolean"
+          },
+          "licenseEndDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "licenseFlag": {
+            "enum": [
+              "license_ended",
+              "stopped",
+              "not_listed",
+              "orderable"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "licenseStartDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "platforms": {
+            "items": {
+              "enum": [
+                "douyin",
+                "wechat_channels"
+              ],
+              "type": "string",
+              "x-open-enum": true
+            },
+            "type": "array"
+          },
+          "proofFiles": {
+            "items": {
+              "$ref": "#/components/schemas/DramaFileBrief"
+            },
+            "type": "array"
+          },
+          "source": {
+            "enum": [
+              "own",
+              "licensed",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "stopOrderDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "territory": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "platforms",
+          "territory",
+          "hasNetworkRight",
+          "canSublicense",
+          "canEditEmbed",
+          "canAdapt",
+          "licenseStartDate",
+          "licenseEndDate",
+          "proofFiles",
+          "currentRevisionId",
+          "stopOrderDate",
+          "licenseFlag",
+          "isExpiringSoon",
+          "editMode",
+          "lockVersion"
+        ],
+        "type": "object"
+      },
+      "DramaCopyrightSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "canAdapt": {
+            "type": "boolean"
+          },
+          "canEditEmbed": {
+            "type": "boolean"
+          },
+          "canSublicense": {
+            "type": "boolean"
+          },
+          "hasNetworkRight": {
+            "type": "boolean"
+          },
+          "licenseEndDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "licenseStartDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platforms": {
+            "items": {
+              "enum": [
+                "douyin",
+                "wechat_channels"
+              ],
+              "type": "string"
+            },
+            "maxItems": 2,
+            "type": "array"
+          },
+          "proofFileIds": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 10,
+            "type": "array"
+          },
+          "source": {
+            "enum": [
+              "own",
+              "licensed",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "territory": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "platforms",
+          "territory",
+          "hasNetworkRight",
+          "canSublicense",
+          "canEditEmbed",
+          "canAdapt",
+          "licenseStartDate",
+          "licenseEndDate",
+          "proofFileIds"
+        ],
+        "type": "object"
+      },
+      "DramaFileBrief": {
+        "properties": {
+          "fileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "mime": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "moderationState": {
+            "enum": [
+              "none",
+              "pending",
+              "pass",
+              "review",
+              "block"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "originalName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sizeBytes": {
+            "pattern": "^[0-9]+$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "promoting",
+              "stored",
+              "rejected",
+              "expired",
+              "deleting",
+              "deleted"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "fileId",
+          "originalName",
+          "sizeBytes",
+          "mime",
+          "status",
+          "moderationState"
+        ],
+        "type": "object"
+      },
+      "DramaPriceCreateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "additionalProperties": false,
+            "properties": {
+              "currentPoints": {
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "currentPoints"
+            ],
+            "type": "object"
+          },
+          "customPoints": {
+            "minimum": 100,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "effectiveDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mode": {
+            "enum": [
+              "template",
+              "custom"
+            ],
+            "type": "string"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reasonCode": {
+            "enum": [
+              "quality",
+              "genre_fit",
+              "release_timing",
+              "license_remaining",
+              "restore_template"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "effectiveDate",
+          "reasonCode",
+          "confirm"
+        ],
+        "type": "object"
+      },
+      "DramaPriceCreateResult": {
+        "properties": {
+          "price": {
+            "$ref": "#/components/schemas/DramaPriceRow"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/DramaPriceRevision"
+          }
+        },
+        "required": [
+          "revision",
+          "price"
+        ],
+        "type": "object"
+      },
+      "DramaPriceNoteBody": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "DramaPricePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DramaPriceRow"
+            },
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pageSize": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "type": "object"
+      },
+      "DramaPriceRevision": {
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "withdraw"
+              ],
+              "type": "string",
+              "x-open-enum": true
+            },
+            "type": "array"
+          },
+          "cancelledAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "$ref": "#/components/schemas/StaffBrief"
+          },
+          "customPoints": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "dramaId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "dramaPriceRevisionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "dramaTitle": {
+            "type": "string"
+          },
+          "effectiveAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "template",
+              "custom"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "newPoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "prevPoints": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "reasonCode": {
+            "enum": [
+              "quality",
+              "genre_fit",
+              "release_timing",
+              "license_remaining",
+              "restore_template"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "effective",
+              "withdrawn"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "dramaPriceRevisionId",
+          "dramaId",
+          "dramaTitle",
+          "mode",
+          "customPoints",
+          "prevPoints",
+          "newPoints",
+          "effectiveAt",
+          "reasonCode",
+          "note",
+          "state",
+          "cancelledAt",
+          "createdBy",
+          "createdAt",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "DramaPriceRevisionPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DramaPriceRevision"
+            },
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pageSize": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "type": "object"
+      },
+      "DramaPriceRow": {
+        "properties": {
+          "archivedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "canCreatePriceRevision": {
+            "type": "boolean"
+          },
+          "currentRevision": {
+            "properties": {
+              "dramaPriceRevisionId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "effectiveAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "mode": {
+                "enum": [
+                  "template",
+                  "custom"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "note": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "reasonCode": {
+                "enum": [
+                  "quality",
+                  "genre_fit",
+                  "release_timing",
+                  "license_remaining",
+                  "restore_template"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              }
+            },
+            "required": [
+              "dramaPriceRevisionId",
+              "mode",
+              "reasonCode",
+              "note",
+              "effectiveAt"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "dramaId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "heatTier": {
+            "enum": [
+              "S",
+              "A",
+              "B",
+              "C",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "isExpiringSoon": {
+            "type": "boolean"
+          },
+          "licenseEndDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "licenseFlag": {
+            "enum": [
+              "orderable",
+              "stopped",
+              "license_ended",
+              "not_listed"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "listPricePoints": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "pendingRevision": {
+            "properties": {
+              "dramaPriceRevisionId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "effectiveAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "newPoints": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "dramaPriceRevisionId",
+              "newPoints",
+              "effectiveAt"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "planPrices": {
+            "items": {
+              "$ref": "#/components/schemas/PlanPrice"
+            },
+            "type": "array"
+          },
+          "priceLockReason": {
+            "enum": [
+              "stopped",
+              "license_ended",
+              "archived",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "priceMode": {
+            "enum": [
+              "template",
+              "custom",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "pricedSince": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "listed",
+              "delisted"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "stopOrderDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "templatePoints": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "dramaId",
+          "title",
+          "status",
+          "archivedAt",
+          "heatTier",
+          "templatePoints",
+          "listPricePoints",
+          "priceMode",
+          "currentRevision",
+          "pricedSince",
+          "pendingRevision",
+          "planPrices",
+          "licenseEndDate",
+          "stopOrderDate",
+          "licenseFlag",
+          "isExpiringSoon",
+          "canCreatePriceRevision",
+          "priceLockReason"
+        ],
+        "type": "object"
+      },
+      "DramaPriceSummary": {
+        "properties": {
+          "customPriced": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "listed": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "minLicenseMonths": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "ordersMonth": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "statRefreshedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "listed",
+          "customPriced",
+          "ordersMonth",
+          "statRefreshedAt",
+          "minLicenseMonths"
+        ],
+        "type": "object"
+      },
+      "DramaPricing": {
+        "properties": {
+          "currentRevision": {
+            "properties": {
+              "dramaPriceRevisionId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "effectiveAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "mode": {
+                "enum": [
+                  "template",
+                  "custom"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "reasonCode": {
+                "enum": [
+                  "quality",
+                  "genre_fit",
+                  "release_timing",
+                  "license_remaining",
+                  "restore_template"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              }
+            },
+            "required": [
+              "dramaPriceRevisionId",
+              "mode",
+              "reasonCode",
+              "effectiveAt"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "listPricePoints": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "pendingRevisions": {
+            "items": {
+              "properties": {
+                "dramaPriceRevisionId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "effectiveAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "newPoints": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "dramaPriceRevisionId",
+                "newPoints",
+                "effectiveAt"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "planPrices": {
+            "items": {
+              "$ref": "#/components/schemas/PlanPrice"
+            },
+            "type": "array"
+          },
+          "priceMode": {
+            "enum": [
+              "template",
+              "custom",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "templatePoints": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "tierTemplates": {
+            "items": {
+              "properties": {
+                "points": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "tier": {
+                  "enum": [
+                    "S",
+                    "A",
+                    "B",
+                    "C"
+                  ],
+                  "type": "string",
+                  "x-open-enum": true
+                }
+              },
+              "required": [
+                "tier",
+                "points"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "listPricePoints",
+          "priceMode",
+          "templatePoints",
+          "currentRevision",
+          "pendingRevisions",
+          "tierTemplates",
+          "planPrices"
+        ],
+        "type": "object"
+      },
       "EnrollTotpBody": {
         "properties": {
           "ticket": {
@@ -9862,6 +11433,87 @@
           "otherTasks",
           "revoke",
           "actions"
+        ],
+        "type": "object"
+      },
+      "ListingCheckResult": {
+        "properties": {
+          "evaluatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "isShelvable": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "fixTab": {
+                  "enum": [
+                    "basic",
+                    "commercial",
+                    "episodes",
+                    "license",
+                    "copyright",
+                    null
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "x-open-enum": true
+                },
+                "isOk": {
+                  "type": "boolean"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "severity": {
+                  "enum": [
+                    "block",
+                    "hint"
+                  ],
+                  "type": "string",
+                  "x-open-enum": true
+                }
+              },
+              "required": [
+                "code",
+                "label",
+                "severity",
+                "isOk",
+                "note",
+                "fixTab"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "passedCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "isShelvable",
+          "passedCount",
+          "total",
+          "evaluatedAt",
+          "items"
         ],
         "type": "object"
       },
@@ -12031,6 +13683,41 @@
         ],
         "type": "object"
       },
+      "PlanPrice": {
+        "properties": {
+          "discountBp": {
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "discountedPoints": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "planCode": {
+            "type": "string"
+          },
+          "planId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "planName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "planId",
+          "planCode",
+          "planName",
+          "discountBp",
+          "discountedPoints"
+        ],
+        "type": "object"
+      },
       "PoolMember": {
         "properties": {
           "city": {
@@ -12162,6 +13849,89 @@
         "required": [
           "url",
           "fields"
+        ],
+        "type": "object"
+      },
+      "PriceTierList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PriceTierRow"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "PriceTierRow": {
+        "properties": {
+          "batchId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "dramaCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "effectiveAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "points": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "priceTierRevisionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "templateDramaCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tier": {
+            "enum": [
+              "S",
+              "A",
+              "B",
+              "C"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "priceTierRevisionId",
+          "tier",
+          "points",
+          "effectiveAt",
+          "batchId",
+          "createdBy",
+          "createdAt",
+          "dramaCount",
+          "templateDramaCount"
         ],
         "type": "object"
       },
@@ -16788,6 +18558,108 @@
           "pendingExpiresAt"
         ],
         "type": "object"
+      },
+      "TrailerBrief": {
+        "properties": {
+          "coverUrl": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SignedUrl"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "currentPlayableId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "durationMs": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "height": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "readyAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "setAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "setBy": {
+            "$ref": "#/components/schemas/StaffBrief"
+          },
+          "sourceFile": {
+            "$ref": "#/components/schemas/DramaFileBrief"
+          },
+          "state": {
+            "enum": [
+              "processing",
+              "ready",
+              "failed",
+              "retired"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "targetPlayableId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "width": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "targetPlayableId",
+          "currentPlayableId",
+          "state",
+          "sourceFile",
+          "durationMs",
+          "width",
+          "height",
+          "coverUrl",
+          "error",
+          "setBy",
+          "setAt",
+          "readyAt"
+        ],
+        "type": [
+          "object",
+          "null"
+        ]
       },
       "TransferProofDetail": {
         "properties": {
@@ -25122,6 +26994,1106 @@
         "x-idempotent-reason": "纯查询（GET 不写库，A19）"
       }
     },
+    "/api/v1/admin/drama-price-revisions": {
+      "get": {
+        "operationId": "admin.dramaPriceRevision.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dramaId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "-effectiveAt",
+              "enum": [
+                "-effectiveAt",
+                "-createdAt"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DramaPriceRevisionPage"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "调价记录（含待生效、已撤销）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/drama-price-revisions/{dramaPriceRevisionId}/withdraw": {
+      "post": {
+        "operationId": "admin.dramaPriceRevision.withdraw",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dramaPriceRevisionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DramaPriceNoteBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DramaPriceRevision"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "撤销尚未生效的调价",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "billing.price.edit"
+      }
+    },
+    "/api/v1/admin/drama-prices": {
+      "get": {
+        "operationId": "admin.dramaPrice.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dramaId",
+            "required": false,
+            "schema": {
+              "maxLength": 2000,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "heatTier",
+            "required": false,
+            "schema": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "priceMode",
+            "required": false,
+            "schema": {
+              "enum": [
+                "template",
+                "custom"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isArchived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "heatTier,title",
+              "enum": [
+                "heatTier,title",
+                "heatTier",
+                "title",
+                "-listPricePoints",
+                "-pricedSince"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DramaPricePage"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "单剧积分价列表：等级、模板价、积分价、三个版本实扣、授权期、生效时间",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/drama-prices/summary": {
+      "get": {
+        "operationId": "admin.dramaPrice.summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dramaId",
+            "required": false,
+            "schema": {
+              "maxLength": 2000,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "heatTier",
+            "required": false,
+            "schema": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "priceMode",
+            "required": false,
+            "schema": {
+              "enum": [
+                "template",
+                "custom"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isArchived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DramaPriceSummary"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "单剧积分价页首计数：已上架、单剧调整、本月订购；页头上下文带最短可订月数",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/dramas/{dramaId}/confirm-permit-recheck": {
+      "post": {
+        "operationId": "admin.drama.confirmPermitRecheck",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dramaId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmPermitRecheckBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdminDramaWriteResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "替换原片后确认许可信息仍适用（清除待重新核验标记）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-redact-on-replay": [
+          "posterUrl",
+          "trailer.coverUrl"
+        ]
+      }
+    },
+    "/api/v1/admin/dramas/{dramaId}/copyright": {
+      "put": {
+        "operationId": "admin.drama.copyright.replace",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dramaId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyrightReplaceBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdminDramaWriteResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "草稿期保存版权信息（来源、平台与地域、四项权利、有效期、权属证明）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-redact-on-replay": [
+          "posterUrl",
+          "trailer.coverUrl"
+        ]
+      }
+    },
+    "/api/v1/admin/dramas/{dramaId}/drama-copyright-revisions": {
+      "post": {
+        "operationId": "admin.drama.dramaCopyrightRevision.create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dramaId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyrightRevisionCreateBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CopyrightRevisionCreateResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "上架后的版权变更（续期、缩短、范围变更、更正），须二次确认与依据文件",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "drama.copyright.revise",
+        "x-redact-on-replay": [
+          "drama.posterUrl",
+          "drama.trailer.coverUrl"
+        ]
+      }
+    },
+    "/api/v1/admin/dramas/{dramaId}/drama-price-revisions": {
+      "post": {
+        "operationId": "admin.drama.dramaPriceRevision.create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dramaId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DramaPriceCreateBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DramaPriceCreateResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "单剧调价：新积分价、生效时间（立即或指定日 00:00）、原因 + 备注；选剧单读取时显示“积分价已变动”（V1.0 不推送）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "billing.price.edit"
+      }
+    },
     "/api/v1/admin/feature-flags": {
       "get": {
         "operationId": "admin.featureFlag.list",
@@ -30534,6 +33506,89 @@
         "x-idempotent": "none",
         "x-idempotent-reason": "明文查看，结果含明文，不进幂等记录（A51）",
         "x-permission": "assert-in-handler"
+      }
+    },
+    "/api/v1/admin/price-tier-revisions": {
+      "get": {
+        "operationId": "admin.priceTierRevision.list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PriceTierList"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "S / A / B / C 等级模板价：当前值、适用剧目数、按模板定价剧目数",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
       }
     },
     "/api/v1/admin/qualification-submissions/{qualificationSubmissionId}": {

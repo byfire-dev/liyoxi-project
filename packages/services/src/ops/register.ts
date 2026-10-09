@@ -4,7 +4,8 @@
 //   invariant.quick  每 10 分钟，job，完成期限 30 分钟，漏跑 P2；出错不重试，下一期 10 分钟后就到。
 //   ops.retention    每小时整点，tx，漏跑 P3；补最近一期（停机跨过 0 点、1 点前恢复时每日项还轮得到）。
 // 探针、告警的实现与 ops.cert_check、backup.pgdump 随 G2-D。
-import { defineRegistration, implement, invariantsPort } from "../kernel/index.js";
+import { alertsPort, defineRegistration, implement, invariantsPort } from "../kernel/index.js";
+import { unboundAlertFacts } from "./alert-facts.js";
 import { reportingInvariants } from "./invariants/report.js";
 import { runScheduledInvariants, runScheduledRetention } from "./jobs.js";
 
@@ -40,5 +41,8 @@ export const registration = defineRegistration("ops", {
       run: runScheduledRetention,
     },
   ],
-  portImplementations: [implement(invariantsPort, reportingInvariants)],
+  portImplementations: [
+    implement(invariantsPort, reportingInvariants),
+    implement(alertsPort, unboundAlertFacts),
+  ],
 });

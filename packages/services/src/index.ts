@@ -331,3 +331,6 @@ export type { SiteAdmin, SiteAdminDeps } from "./config/index.js";
 
 export { createDocsAdmin } from "./docs/index.js";
 export type { AgreementActor, DocsAdminDeps, AgreementFilePort } from "./docs/index.js";
+export type { ContentAdmin, ContentAdminActor } from "./ops/index.js";
+export { createContentLicense } from "./content/index.js";
+export type { ContentLicense } from "./content/index.js";

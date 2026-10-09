@@ -86,6 +86,7 @@ async function main(): Promise<void> {
     await services.selfCheck();
   } catch (error) {
     // 自检或装配失败也回收本进程创建的资源；没有启动消费者，不借其它进程的连接。
+    await services?.closeAlertFacts?.();
     await Promise.allSettled([
       ...(services
         ? [
@@ -121,6 +122,7 @@ async function main(): Promise<void> {
     await Promise.allSettled([services.closeMediaDrivers?.(), services.closeStorageDrivers?.()]);
     await Promise.allSettled(wechatClosers.map((close) => close()));
     wechatRedis?.disconnect();
+    await services.closeAlertFacts?.();
     await database.close();
     return;
   }
