@@ -1,6 +1,7 @@
 import { readTargetActivity } from "./audit/index.js";
 import {
   createDeliveryProductionAssembly,
+  createDeliverySlaAssembly,
   createContentPricingAssembly,
   createContentAdmin,
 } from "./ops/index.js";
@@ -370,7 +371,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const staffScope = createStaffAssembly(mediaScope.assembly);
   const contentPricingScope = createContentPricingAssembly(staffScope.assembly);
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
-  const docsScope = createDocsAssembly(deliveryProductionScope.assembly);
+  const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
+  const docsScope = createDocsAssembly(deliverySlaScope.assembly);
   const assembly = docsScope.assembly;
   const documentConverter = options.documentWorkerUrl
     ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
@@ -470,6 +472,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       }),
     );
   const events = createEvents({ assembly, clock, tx });
+  deliverySlaScope.attach({ events, clock });
   const wechatSources = env.WECHAT
     ? [
         createWechatMessageSource({
@@ -854,6 +857,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       mediaScope.close();
       contentPricingScope.close();
       deliveryProductionScope.close();
+      deliverySlaScope.close();
       await mediaProduction.close();
       unbindNoticeLink();
       await Promise.allSettled(wechatClosers.map((close) => close()));

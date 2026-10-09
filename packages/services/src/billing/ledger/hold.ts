@@ -14,6 +14,7 @@ import type { DeductibleLot } from "@liyoxi/shared/alloc";
 import { AppError, uuidv7 } from "../../kernel/index.js";
 import type { IdentityContext, Tx } from "../../kernel/index.js";
 import { quoteHold } from "../pricing/quote.js";
+import { getEntitlements } from "../read/index.js";
 import type { HoldPricing } from "../pricing/quote.js";
 import type { LedgerClock } from "./context.js";
 import { findOperation, isRefundPending, reached, writeOperation } from "./operation.js";
@@ -121,6 +122,21 @@ export interface ReturnResult {
   /** 不予退回 */
   readonly forfeitedPoints: number;
   readonly replayed: boolean;
+}
+
+/** 取消明细保存的只读去向快照；不是执行结果，也不建立账本操作。 */
+export interface ReturnPreview {
+  readonly qty: number;
+  readonly backToOriginal: number;
+  readonly convertedToAddon: number;
+  readonly forfeited: number;
+  readonly lots: readonly {
+    readonly lotKind: string;
+    readonly expiresAt?: string;
+    readonly qty: number;
+    readonly route: "original" | "converted" | "forfeited";
+  }[];
+  readonly arbitrageHint: boolean;
 }
 
 const PURPOSE_OF = { drama: "order_item", ad: "ad", ad_revision: "ad_revision" } as const;
@@ -382,6 +398,7 @@ export async function capture(
 }
 
 interface ReturnPlan {
+  readonly lots: ReturnPreview["lots"][number][];
   readonly moves: BucketMove[];
   readonly conversions: Conversion[];
   readonly allocDeltas: NonNullable<HoldWrite["allocDeltas"]>[number][];
@@ -401,9 +418,16 @@ function planReturn(
   qty: number,
   from: "held" | "consumed",
   rule: "addon" | "forfeit",
-  { clock, account }: Entered,
+  {
+    clock,
+    account,
+  }: {
+    clock: Pick<LedgerClock, "now">;
+    account: Pick<Entered["account"], "currentSubscriptionTermId">;
+  },
 ): ReturnPlan {
   const plan: ReturnPlan = {
+    lots: [],
     moves: [],
     conversions: [],
     allocDeltas: [],
@@ -431,6 +455,12 @@ function planReturn(
       plan.moves.push({ lot: lotRef(lot), from, to: "expired", qty: take });
       plan.forfeited += take;
     }
+    plan.lots.push({
+      lotKind: lot.kind,
+      ...(lot.expiresAt ? { expiresAt: lot.expiresAt.toISOString() } : {}),
+      qty: take,
+      route: live ? "original" : rule === "addon" ? "converted" : "forfeited",
+    });
     plan.allocDeltas.push({
       allocNo: alloc.allocNo,
       returnedQty: live || rule === "addon" ? take : 0,
@@ -442,6 +472,46 @@ function planReturn(
     throw new LedgerError("guard", "退回数量超过分摊里还能退的", { pointHoldId: found.id, qty });
   }
   return plan;
+}
+
+/** D1 §7.5/11.1：同一退回算法，只读且不拿账户锁、不推进；调用方负责对象范围及写侧锁。 */
+export async function previewReturn(
+  tx: Tx,
+  input: { holdId: string; qty: number; reasonClass: ReturnReasonClass },
+  at: Date,
+): Promise<ReturnPreview> {
+  if (!Number.isFinite(at.getTime()) || !Number.isSafeInteger(input.qty) || input.qty < 0)
+    throw new LedgerError("guard", "预览时刻或数量无效");
+  const found = await loadHold(tx, input.holdId);
+  if (found.status === "released") throw new HoldStateError("refund", "not_captured", found);
+  if (found.status === "held" && input.qty !== found.qty)
+    throw new LedgerError("guard", "冻结中的取消只能全额释放");
+  if (input.qty > found.qty - found.returnedQty - found.forfeitedQty)
+    throw new HoldStateError("refund", "exceeds_refundable", found);
+  const snapshot = PricingSnapshotSchema.parse(found.pricingSnapshot);
+  const rule = snapshot.expiredTermRefund[input.reasonClass];
+  if (!rule) throw new LedgerError("guard", "未知退回原因类别");
+  const current = await getEntitlements(tx, found.entityId, at);
+  const plan = planReturn(found, input.qty, found.status === "held" ? "held" : "consumed", rule, {
+    clock: { now: at },
+    account: { currentSubscriptionTermId: current.term?.termId ?? null },
+  });
+  const term = await tx.subscriptionTerm.findUniqueOrThrow({
+    where: { id: found.subscriptionTermId },
+  });
+  const timeBeforeEnd = term.endsAt.getTime() - found.createdAt.getTime();
+  return {
+    qty: input.qty,
+    backToOriginal: plan.returned,
+    convertedToAddon: plan.converted,
+    forfeited: plan.forfeited,
+    lots: plan.lots,
+    arbitrageHint:
+      at >= term.endsAt &&
+      timeBeforeEnd > 0 &&
+      timeBeforeEnd < 7 * 24 * 60 * 60 * 1000 &&
+      plan.lots.some((lot) => lot.lotKind === "plan" && lot.route !== "original"),
+  };
 }
 
 /** 已登记的释放、退回：三个数量从那次操作的流水读回来 */
