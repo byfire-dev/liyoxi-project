@@ -26,11 +26,18 @@ export interface PreparedAgreementContent {
 }
 export interface AgreementFilePort {
   /** 已排序锁文件后重新验证当前权限/状态，prepare快照须完全一致。 */
-  assertFiles(tx: Tx, input: AgreementFileInput, claims?: readonly AgreementFileClaim[]): Promise<void>;
-  link(tx: Tx, input: {fileId: string; versionId: string; role: "source" | "pdf"}): Promise<void>;
-  release(tx: Tx, input: {fileId: string; versionId: string; role: "source" | "pdf"; keepUntil: Date}): Promise<void>;
+  assertFiles(
+    tx: Tx,
+    input: AgreementFileInput,
+    claims?: readonly AgreementFileClaim[],
+  ): Promise<void>;
+  link(tx: Tx, input: { fileId: string; versionId: string; role: "source" | "pdf" }): Promise<void>;
+  release(
+    tx: Tx,
+    input: { fileId: string; versionId: string; role: "source" | "pdf"; keepUntil: Date },
+  ): Promise<void>;
   /** 业务可见性由 docs 前后两次验证，Provider外呼只在TX外。 */
-  signPdf(input: {fileId: string}): Promise<{url: string; expiresAt: string}>;
+  signPdf(input: { fileId: string }): Promise<{ url: string; expiresAt: string }>;
   /** 内部先取得转换容量才读取对象；无文件不调用CPU/Storage。 */
   prepare(input: AgreementFileInput): Promise<PreparedAgreementContent>;
 }

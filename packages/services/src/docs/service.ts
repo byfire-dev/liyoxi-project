@@ -37,7 +37,7 @@ export interface DocsDeps {
   /** 业务时钟：“当前版本”按它解析，同意时间取它 */
   readonly clock: Clock;
   /** 仅TX外现签；未配置真实能力时受控失败，不返回占位地址。 */
-  readonly signPdf?: (input: {fileId: string}) => Promise<AgreementVersionDetail["pdf"]>;
+  readonly signPdf?: (input: { fileId: string }) => Promise<AgreementVersionDetail["pdf"]>;
 }
 
 /** 重新同意（m.agreementConsent.create）的入参：场景固定 reconsent、方式固定勾选 */
@@ -87,13 +87,14 @@ export function createDocs(deps: DocsDeps): Docs {
   return {
     listAgreements: (query) => read((tx) => listAgreements(tx, now(), query)),
     getAgreementVersion: async (id) => {
-      const first = await read(tx => getAgreementVersion(tx, now(), id));
+      const first = await read((tx) => getAgreementVersion(tx, now(), id));
       if (!first.pdfFileId || !deps.signPdf) throw new AppError("FILE_NOT_AVAILABLE");
-      const pdf = await deps.signPdf({fileId: first.pdfFileId});
-      const fresh = await read(tx => getAgreementVersion(tx, now(), id));
-      if (fresh.pdfFileId !== first.pdfFileId || fresh.contentSha256 !== first.contentSha256) throw new AppError("FILE_NOT_AVAILABLE");
-      const {pdfFileId: _pdfFileId, ...detail} = fresh;
-      return {...detail, pdf};
+      const pdf = await deps.signPdf({ fileId: first.pdfFileId });
+      const fresh = await read((tx) => getAgreementVersion(tx, now(), id));
+      if (fresh.pdfFileId !== first.pdfFileId || fresh.contentSha256 !== first.contentSha256)
+        throw new AppError("FILE_NOT_AVAILABLE");
+      const { pdfFileId: _pdfFileId, ...detail } = fresh;
+      return { ...detail, pdf };
     },
     reconsent: (ctx, input, options = {}) =>
       deps.tx.run(async (tx) => {

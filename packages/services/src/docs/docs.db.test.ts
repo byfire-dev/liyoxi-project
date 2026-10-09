@@ -150,7 +150,7 @@ describe("当前版本解析（验收 1）", () => {
       expect(new Date(detail.pdf.expiresAt).getTime()).toBe(clock.now().getTime() + 30 * 60_000);
       const fetched = fixture.providers.storage.fetch(detail.pdf.url);
       expect(fetched.status).toBe(200);
-      if (!fetched.body) throw new Error("现签PDF没有实际字节");
+      if (fetched.status !== 200) throw new Error("现签PDF没有实际字节");
       expect(createHash("sha256").update(fetched.body).digest("hex")).toBe(detail.contentSha256);
 
       await prisma.agreementVersion.update({

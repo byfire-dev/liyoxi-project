@@ -4,7 +4,8 @@
 //   已有就返回它的 id，不新建、不再发事件；新建时发出站事件 site_notice.announced。
 // W2-12补同事务撤回；保留原行与公告历史。
 // 第一个参数是事务句柄：公告与被公告的变更同一事务，变更回滚公告也没了。
-import type { EnumValue, SITE_NOTICE_KIND } from "@liyoxi/contract/enums";
+import { SITE_NOTICE_KIND } from "@liyoxi/contract/enums";
+import type { EnumValue } from "@liyoxi/contract/enums";
 
 import type { EmitContext, Events } from "../events/index.js";
 import { uuidv7 } from "../kernel/index.js";
@@ -72,10 +73,12 @@ export function createNotices(deps: NoticesDeps): Notices {
       });
       if (!changed.count) return { withdrawn: false };
       const notice = await tx.siteNotice.findUniqueOrThrow({ where: { id: input.siteNoticeId } });
+      const kind = SITE_NOTICE_KIND.values.find((value) => value === notice.kind);
+      if (!kind) throw new TypeError("公告类型不在正式枚举中");
       await deps.events.emit(tx, ctx, {
         type: "site_notice.withdrawn",
         aggregate: { type: "site_notice", id: notice.id },
-        payload: { v: 1, siteNoticeId: notice.id, kind: notice.kind, refId: notice.refId },
+        payload: { v: 1, siteNoticeId: notice.id, kind, refId: notice.refId },
       });
       return { withdrawn: true };
     },

@@ -174,6 +174,7 @@ describe("W212八条后台协议接口真实pipeline", () => {
     const unavailable = vi.spyOn(api.runtime.providers.storage, "readObject").mockResolvedValue({
       ok: false,
       reason: "unavailable",
+      message: "fictional object store unavailable",
     });
     try {
       const saved = await patch();

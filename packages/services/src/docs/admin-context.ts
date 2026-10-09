@@ -22,5 +22,6 @@ export function mayRevealConsents(actor: AgreementActor): boolean {
 
 export function assertAgreementView(actor: AgreementActor): void {
   assertAccess(actor.staff, { module: { module: "ops", need: "view" }, permission: null });
-  if (actor.identity.actor.type !== "staff" || actor.identity.actor.id !== actor.staff.staff.id) throw new AppError("PERMISSION_DENIED");
+  if (actor.identity.actor.type !== "staff" || actor.identity.actor.id !== actor.staff.staff.id)
+    throw new AppError("PERMISSION_DENIED");
 }

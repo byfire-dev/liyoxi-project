@@ -5,11 +5,31 @@ import { docsPiiFields } from "./pii-fields.js";
 import { defineRegistration, fileRefTypePort, implementKeyed } from "../kernel/index.js";
 import { findN13Violations, findN4Violations } from "./invariants.js";
 
-const unboundJob = async (): Promise<never> => { throw new TypeError("文书周期任务缺少当前运行时依赖"); };
+const unboundJob = async (): Promise<never> => {
+  throw new TypeError("文书周期任务缺少当前运行时依赖");
+};
 export const registration = defineRegistration("docs", {
   recurringJobs: [
-    {kind: "docs.sweep", schedule: {every: "minutes", minutes: 5}, mode: "job", leaseSec: 240, maxAttempts: 3, deadlineMin: 5, missSeverity: "P2", run: unboundJob},
-    {kind: "evidence.consent_digest", schedule: {every: "day", at: "00:40"}, mode: "job", leaseSec: 600, maxAttempts: 3, deadlineMin: 60, missSeverity: "P2", run: unboundJob},
+    {
+      kind: "docs.sweep",
+      schedule: { every: "minutes", minutes: 5 },
+      mode: "job",
+      leaseSec: 240,
+      maxAttempts: 3,
+      deadlineMin: 5,
+      missSeverity: "P2",
+      run: unboundJob,
+    },
+    {
+      kind: "evidence.consent_digest",
+      schedule: { every: "day", at: "00:40" },
+      mode: "job",
+      leaseSec: 600,
+      maxAttempts: 3,
+      deadlineMin: 60,
+      missSeverity: "P2",
+      run: unboundJob,
+    },
   ],
   portImplementations: [
     docsPiiFields,
@@ -52,7 +72,13 @@ export const registration = defineRegistration("docs", {
     }),
   ],
   invariants: [
-    { code: "docs.N5", severity: "P2", modes: ["full"], heal: "none", run: tx => boundN5Violations(tx) },
+    {
+      code: "docs.N5",
+      severity: "P2",
+      modes: ["full"],
+      heal: "none",
+      run: (tx) => boundN5Violations(tx),
+    },
     {
       code: "docs.N4",
       severity: "P2",
