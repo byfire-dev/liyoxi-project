@@ -45,6 +45,8 @@ export interface MediaJobHandler {
 
 export interface MediaConvergenceHandler {
   readonly parentType: MediaParentType;
+  /** Lock siblings at the same parent rank, before the runner acquires any job row. */
+  lockSiblings?(tx: Tx, parentId: string): Promise<void>;
   /** The implementation uses the same pure decision as normal result settlement. */
   converge(tx: Tx, parentId: string, now: Date): Promise<void>;
   needed(tx: Tx, job: MediaJob): Promise<boolean>;

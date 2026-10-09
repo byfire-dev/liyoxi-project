@@ -8,6 +8,15 @@
 // AWS SDK 只在本文件引入（任务书 第 11 节第 2 项）。
 
 import { createHash } from "node:crypto";
+import { Readable } from "node:stream";
+import { finished } from "node:stream/promises";
+import {
+  checkedStream,
+  validStreamRead,
+  validStreamWrite,
+  verifyReplay,
+  STREAM_TIMEOUT_MS,
+} from "./streams.js";
 import {
   CopyObjectCommand,
   CreateBucketCommand,
@@ -63,7 +72,7 @@ export interface MinioStorage extends StorageProvider {
   /** 建四个桶，已有的不动。各方法第一次用到时会自己调；露出来给初始化脚本与用例用 */
   ensureBuckets(): Promise<ProviderResult<{ created: StorageBucket[] }>>;
   /** 关掉连接 */
-  close(): void;
+  close(): Promise<void>;
 }
 
 function httpStatusOf(error: unknown): number | undefined {
@@ -92,7 +101,7 @@ function encodeKey(key: string): string {
 
 export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStorage {
   // 凡是 SDK 会去环境变量与 ~/.aws 下的文件里找缺省值的选项，这里都写明，SDK 就不会去读那些文件
-  const createClient = (endpoint: string) =>
+  const createClient = (endpoint: string, streaming = false) =>
     new S3Client({
       endpoint,
       region: config.region,
@@ -100,9 +109,12 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
       credentials: { accessKeyId: config.accessKey, secretAccessKey: config.secretKey },
       defaultsMode: "standard",
       authSchemePreference: [],
-      maxAttempts: 2,
+      maxAttempts: streaming ? 1 : 2,
       retryMode: "standard",
-      requestHandler: { connectionTimeout: 2_000, requestTimeout: 10_000 },
+      requestHandler: {
+        connectionTimeout: 2_000,
+        requestTimeout: streaming ? STREAM_TIMEOUT_MS : 10_000,
+      },
       requestChecksumCalculation: "WHEN_REQUIRED",
       responseChecksumValidation: "WHEN_REQUIRED",
       disableS3ExpressSessionAuth: true,
@@ -114,6 +126,33 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
       userAgentAppId: "lyx-local",
     });
   const client = createClient(config.endpoint);
+  const transferClient = createClient(config.endpoint, true);
+  const transfers = new Set<AbortController>();
+  const pendingTransfers = new Set<Promise<unknown>>();
+  let closed = false;
+  async function transfer<T>(
+    signal: AbortSignal,
+    action: (signal: AbortSignal) => Promise<ProviderResult<T>>,
+  ): Promise<ProviderResult<T>> {
+    if (closed || signal.aborted) return failed("unavailable", "对象传输已关闭或取消");
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    signal.addEventListener("abort", abort, { once: true });
+    transfers.add(controller);
+    const timer = setTimeout(abort, STREAM_TIMEOUT_MS);
+    const promise = action(controller.signal).catch((error: unknown) =>
+      toFailure(error, "对象流传输"),
+    );
+    pendingTransfers.add(promise);
+    try {
+      return await promise;
+    } finally {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", abort);
+      transfers.delete(controller);
+      pendingTransfers.delete(promise);
+    }
+  }
   // GET 的 Host 参与验签，必须用对外地址签发，不能在签发后改 URL。
   const signingClient =
     config.publicEndpoint && config.publicEndpoint !== config.endpoint
@@ -173,13 +212,63 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
     }
   }
 
+  async function readTo(
+    input: Parameters<StorageProvider["readTo"]>[0],
+    signal: AbortSignal,
+  ): ReturnType<StorageProvider["readTo"]> {
+    if (!validStreamRead(input)) return failed("rejected", "对象流读取参数不合格");
+    const ref = { Bucket: nameOf(input.bucket), Key: input.key };
+    const head = await transferClient.send(new HeadObjectCommand(ref), { abortSignal: signal });
+    if (head.ContentLength !== input.expectedSize || head.ETag !== input.ifMatchEtag)
+      return failed("rejected", "对象头与预期不一致");
+    const object = await transferClient.send(
+      new GetObjectCommand({ ...ref, IfMatch: input.ifMatchEtag }),
+      { abortSignal: signal },
+    );
+    const body = object.Body;
+    if (
+      !body ||
+      !(Symbol.asyncIterator in body) ||
+      object.ContentLength !== input.expectedSize ||
+      object.ETag !== input.ifMatchEtag
+    ) {
+      if (body && "destroy" in body) body.destroy();
+      return failed("rejected", "对象流声明不一致");
+    }
+    const abort = () => {
+      if ("destroy" in body) body.destroy();
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    let digest = "";
+    try {
+      for await (const chunk of checkedStream(
+        body as AsyncIterable<Uint8Array>,
+        input.expectedSize,
+        signal,
+        (value) => {
+          digest = value;
+        },
+      ))
+        await input.sink(chunk);
+      return ok({ size: input.expectedSize, sha256: digest });
+    } finally {
+      signal.removeEventListener("abort", abort);
+      abort();
+      if (body instanceof Readable) await finished(body).catch(() => undefined);
+    }
+  }
+
   return {
     status: "local",
     configured: true,
     capabilities: { sts: false, versioning: false },
     ensureBuckets,
-    close: () => {
+    close: async () => {
+      closed = true;
+      for (const controller of transfers) controller.abort();
+      await Promise.allSettled([...pendingTransfers]);
       client.destroy();
+      transferClient.destroy();
       if (signingClient !== client) signingClient.destroy();
     },
 
@@ -249,6 +338,95 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
           : ok(body);
       });
     },
+    readTo: (input) => transfer(input.signal, (signal) => readTo(input, signal)),
+    putStream: (input) =>
+      transfer(input.signal, async (signal) => {
+        if (
+          !validStreamWrite(input) ||
+          input.key.startsWith(INCOMING_PREFIX) ||
+          input.ifAbsent !== true
+        )
+          return failed("rejected", "对象流写入参数不合格");
+        let digest = "";
+        for await (const _chunk of checkedStream(
+          input.body(signal),
+          input.size,
+          signal,
+          (value) => {
+            digest = value;
+          },
+        )) {
+          /* hash only */
+        }
+        if (digest !== input.sha256) return failed("rejected", "对象流实际hash不一致");
+        const ref = { Bucket: nameOf(input.bucket), Key: input.key };
+        try {
+          const existing = await transferClient.send(new HeadObjectCommand(ref), {
+            abortSignal: signal,
+          });
+          return existing.ContentLength === input.size &&
+            existing.Metadata?.sha256 === digest &&
+            existing.Metadata?.["content-identity"] === input.contentIdentity &&
+            existing.ETag
+            ? verifyReplay(input, existing.ETag, signal, readTo)
+            : failed("rejected", "目标对象hash/归属不一致");
+        } catch (error) {
+          // HEAD only filters replay candidates. A missing target still requires atomic PUT.
+          if (httpStatusOf(error) !== 404) throw error;
+        }
+        let sentDigest = "";
+        const sourceController = new AbortController(),
+          bodySignal = AbortSignal.any([signal, sourceController.signal]);
+        const body = Readable.from(
+          checkedStream(input.body(bodySignal), input.size, bodySignal, (value) => {
+            if (value !== input.sha256) throw new Error("对象流发生变更");
+            sentDigest = value;
+          }),
+        );
+        const abort = () => {
+          sourceController.abort();
+          body.destroy(new Error("对象流写入取消"));
+        };
+        signal.addEventListener("abort", abort, { once: true });
+        try {
+          const result = await transferClient.send(
+            new PutObjectCommand({
+              ...ref,
+              Body: body,
+              ContentLength: input.size,
+              ContentType: input.contentType,
+              IfNoneMatch: "*",
+              Metadata: { sha256: input.sha256, "content-identity": input.contentIdentity },
+            }),
+            { abortSignal: signal },
+          );
+          await finished(body);
+          return result.ETag && sentDigest === input.sha256
+            ? ok({ etag: result.ETag, size: input.size })
+            : failed("rejected", "对象流无etag或完整hash");
+        } catch (error) {
+          if (![409, 412].includes(httpStatusOf(error) ?? 0)) throw error;
+          // A conditional rejection can arrive before the request source is exhausted.
+          // Finish its owned stream before reusing this transport for replay verification.
+          sourceController.abort();
+          body.destroy();
+          await finished(body).catch(() => undefined);
+          const head = await transferClient.send(new HeadObjectCommand(ref), {
+            abortSignal: signal,
+          });
+          return head.ContentLength === input.size &&
+            head.Metadata?.sha256 === input.sha256 &&
+            head.Metadata?.["content-identity"] === input.contentIdentity &&
+            head.ETag
+            ? verifyReplay(input, head.ETag, signal, readTo)
+            : failed("rejected", "目标对象hash/归属不一致");
+        } finally {
+          signal.removeEventListener("abort", abort);
+          sourceController.abort();
+          body.destroy();
+          await finished(body).catch(() => undefined);
+        }
+      }),
 
     async putObject({
       bucket,

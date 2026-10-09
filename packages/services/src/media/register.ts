@@ -18,6 +18,24 @@ export const registration = defineRegistration("media", {
 
     implementKeyed(fileRefTypePort, "playable_asset", mediaDeliveryRefTypes.playable_asset),
     implementKeyed(fileRefTypePort, "upload_batch", mediaDeliveryRefTypes.upload_batch),
+    implementKeyed(fileRefTypePort, "media_info", {
+      roles: { cover: { categories: ["video_cover"], retentionDays: 30 } },
+      readColumns: async (tx) =>
+        (await tx.mediaInfo.findMany({ where: { coverFileId: { not: null } } })).map((info) => ({
+          fileId: info.coverFileId!,
+          refId: info.fileId,
+          role: "cover",
+        })),
+    }),
+    implementKeyed(fileRefTypePort, "production_record", {
+      roles: {
+        source: { categories: ["sample_video", "final_episode", "ad_video"], retentionDays: 30 },
+      },
+      readColumns: async (tx) =>
+        (await tx.productionRecord.findMany({ where: { derivedFromFileId: { not: null } } })).map(
+          (record) => ({ fileId: record.derivedFromFileId!, refId: record.fileId, role: "source" }),
+        ),
+    }),
   ],
   invariants: [
     {

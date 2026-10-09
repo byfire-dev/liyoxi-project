@@ -10,6 +10,7 @@ export type { OrderSide } from "./ports.js";
 export { createTickets, prepareTicketAssignees } from "./create.js";
 export { reevaluate, reevaluateSweep } from "./reevaluate.js";
 export { authorizeBatchUpload, readBatchUploadFacts } from "./upload-batch-facts.js";
+export { readAdDurationFacts, readAdProductionKind } from "./media-facts.js";
 export {
   getTicketBriefByOrderItem,
   getTicketBriefsByOrder,

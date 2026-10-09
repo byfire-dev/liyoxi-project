@@ -79,7 +79,23 @@ complete仍是原三段式，在TX外读取HEAD/4KiB头、核声明大小与真�
 
 ProduceID新补标默认`lyx:{小写UUIDv7 fileId}`仅作后续任务移交；不改上游已有标识、不声称法务已确认。CI真实激活、cam角色授权、任务模板、回调到达及大文件性能未验；本机只验证公开假key、有限HTTP与自有隔离库。
 
-## 8. W3-02 批量上传（开发中）
+## 8. W3-04 制作处理器与真实技术事实
+
+在既有执行器登记 probe、restamp、transcode_mp4、watermark_sample、normalize 五个 handler，不新增 HTTP、页面、x01 或任务循环。只有存储真实 HEAD/条件流读取、隔离 mediatool 探测与 H1–H7/S1–S10 判定后才写 mediaInfo/check；没有原片、广告窗或当前制作上下文时拒绝。raw 只保留技术白名单，来源的 AI 七字段逐字保存；缺标才补写，并独立回读全部七字段，不改变来源 AI 声明。
+
+派生文件使用新 UUID/固定对象键、条件流写和真实 HEAD。对象先成功写入后，独立短事务登记无引用 stored 技术事实；当前父、attempt、lease 和完整 context 均有效时，收尾事务才建立引用、派生 productionRecord 与事件。来源引用保留30天；晚结果不会挂到当前业务父，只由既有无引用清扫规则回收。cover 使用 media_info/cover 引用，来源使用 production_record/source 引用；引用不绕过原分类和归属守卫。
+
+production_record 父先预锁已有样片350再制作记录360；属于批次时通过同事务注入的 batchLockSiblings 预锁，再领取 job400。playable 父与同短剧兄弟350排序预锁，重读新增成员则 BUSY 零写。handler current 在同事务一次排序锁全部源、派生、封面及旧引用文件410；不在文件锁后补拿业务父锁。批次原片无需伪建 productionRecord，真实检查后调用同事务 productionChecked；派生检查通过后才替换活动批次文件。
+
+预告片 SD480×854、HD720×1280 两个独立云任务都完成且通过产物回读才安装 current；target 变化的晚结果退役，失败保留旧预告。样片取真实门店 name，经 shared 清洗、截10字和北京时间日期生成完整正式文案；固定许可 Noto CJK 字体渲染透明720×96 PNG，再使用同桶固定临时对象的原生 Image 水印，样片输出720×1280。云任务成功状态不能代替重新下载、探测、七字段回读与对象确认。
+
+`MEDIA_PRODUCTION_FILE` 必须完整给工作根、根内 socket、AI主体五个配置值及六个模板标识；ProduceID 和 PropagateID 由实际文件/来源事实生成。缺配置受控失败，不自行补法务主体值。store/ad/drama/trailer 由组合根同事务公开事实注入，media 不直接读取同层 content 的私有表。local/test 工具测试注入保留真实领域事实与外呼守卫，生产环境拒绝注入。
+
+`productionFacts` 只回有限技术/检查/AI/派生/水印事实，不返回对象键、短签名或用户工具正文。`retireDramaMedia` 证明 DB retired、在途取消与专属引用即时释放，返回 objectRefs 和 `cdnPending:true`；真实公开 URL/CDN 清除尚未配置，不能声称停止播放。当前真实库15例、客户端小IO15和装配4例已通过；存储新增字节/元数据欺骗2反例先真实失败，完整修正后受影响14例和CI/配置6例均已通过，API/worker类型通过。新源镜像31例中30通过、1条原业主样本条件跳过；最长完整中文水印实际两行alpha均不触画布边缘。约199.8MiB五轮体检+封面最慢232ms，三轮补标七字段完整回读、最慢424ms，原沙箱与轮数/上限不变；这是Mac本机观察。同步实际main bfcf9817后的旧装配、必跑MinIO、新鲜类型、严格分层、双次官方生成/门禁与API/worker构建已通过，相关纯类型迁移的32例定点回归通过；真实云、法务与平台读标未验。
+
+正式审查指出的mediatool取消项已定点闭合：私有UNIX随机调用标识与102注册屏障防止取消先于登记；queued取消不spawn，running取消等待自己的子进程close后才释放槽位。调用者不把request.destroy当清理完成；原响应或固定cancel确认都不能验证时，沿原绝对期限返回不可用并保留工作目录。关闭A不取消、等待或删除B资源。真实旧镜像反例先失败，新源取消7例和原受影响38例通过；真实容器33例中32通过、原样片1条件跳过，原199.6MiB五轮最慢163ms/三补标最慢656ms通过，仍是本机观察，未调用真实云。
+
+## 9. W3-02 批量上传（开发中）
 
 `media.uploadBatches` 提供 create/get/start/refreshCredentials/update/complete/cancel/commit 八个用例。通过 L4 注入的用途公口读取真实剧目集数、工单范围及制作快照；media 不查 delivery 表。原片 commit 同事务生成新版本、交接引用并发出既有 `drama.masters_changed`，成片由交付公开用例消费批次。
 

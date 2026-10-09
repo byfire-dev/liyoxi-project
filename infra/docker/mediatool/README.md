@@ -91,13 +91,15 @@ mediatool:
 | `not_found`、`unknown_op` | 404 | 没有这个文件；没有这个操作 | `rejected` |
 | `demux_failed`、`remux_failed`、`no_frame`、`aigc_not_readable`、`output_too_large` | 422 | 解不开；重封装失败；抽不出帧；写入的标识读不回；ffprobe 的输出超过 4MB | `rejected` |
 | `busy` | 503 | 两个在跑、32 个在排队，满了 | `unavailable` |
-| `killed` | 503 | 子进程被系统杀掉（多半是容器内存见底） | `unavailable` |
+| `killed` | 503 | 本调用已取消，或子进程被系统杀掉 | `unavailable` |
 | `timeout` | 504 | 到了硬超时，进程组已杀 | `unavailable` |
 | `internal` | 500 | 服务自己出错 | `unavailable` |
 
 - 硬超时：`probe`、`poster` 各 30 秒，`stampAigc` 90 秒（含回读）。请求里的 `timeoutMs` 只能把它调短，最小 1 秒。
 - ffmpeg 的输入参数（`ops.mjs` 的 `inputArgs`）：`-protocol_whitelist file`、`-f <解复用器>`、`mov` 另加 `-enable_drefs 0 -use_absolute_path 0`、`-probesize` 与 `-analyzeduration` 各 5,000,000；路径一律带 `file:` 前缀。ffmpeg 另带 `-nostdin`；ffprobe 没有这个选项，它的标准输入接的是空设备。
 - 加标参数：`-map 0 -c copy -metadata AIGC=<JSON> -movflags +faststart+use_metadata_tags -f mp4`。先写到 `<outPath>.part`，回读一致再改名；不一致就删掉并报 `aigc_not_readable`。
+
+请求取消仍走同一私有 UNIX 套接字，不新增平台 HTTP 接口。调用者为每次调用生成随机标识，服务在登记后发 `102` 注册确认；取消请求只认本服务实例和该标识。排队中的调用被移除；运行中的调用杀掉自己的进程组，并等到子进程 `close` 后才释放槽位、返回原响应或取消确认。重复取消不会影响兄弟调用。调用者沿原绝对期限等待任一路真实完成确认；两路都不能确认时返回不可用，保留该调用的工作目录，`close()` 也报告清理未确认，避免在 ffmpeg 仍使用文件时假装清理成功。硬超时、两个运行槽位、32 项队列及沙箱约束保持原值。
 
 ## 5. 调用端
 
@@ -134,3 +136,11 @@ const probed = await mediatool.probe({ path: `${jobId}/in.mp4`, demuxers: ["mov"
 3. 结论补进 ADR；单独成 PR。
 
 Debian 给 ffmpeg 出安全更新后，旧版本会从仓库撤掉，镜像构建会在安装那一步失败。这是有意留的：版本要人来改，改了就要重跑验证。
+
+## 8. W3-04 固定中文字样 PNG
+
+仅增加 `POST /watermarkPng {outPath,text,timeoutMs?}`，固定720×96透明RGBA画布、28号字、完整两行正式样片文案与日期，最多10个门店字。唯一字体为随软件保留 OFL 许可证的 NotoSansCJKsc-Regular，版本、官方来源与固定 SHA 见[fonts/README.md](fonts/README.md)；运行前校验 SHA 和 cmap 覆盖，不以方框替代不支持的字。文本仅写本任务固定 textfile，expansion=none，不进入 shell/过滤器语法；没有任意字体路径或字体 URL。
+
+PNG 只写本任务 watermark.png，最多1MiB，30秒只能缩短；沿原并发2/排队32/无网络/只读根/非root/cap_drop ALL/pids128/1GB/CPU1。客户端独立校验 PNG CRC、尺寸、真实 RGBA/alpha、两行非空与边界不裁切，并将实际 SHA/大小绑定流式上传；不只相信服务声明。请求取消回收调用端自有 socket，服务端子进程仍沿原固定执行期与进程组清理，不宣称取消自动缩短 ffmpeg 的原预算。
+
+新容器用例沿原 verify/bench 运行器，只使用隔离自有生成 fixture；固定最长10字门店完整文案、危险路径/参数、字体缺字均有实际像素或拒绝断言。原约200MiB五轮 probe+poster 每轮合计≤10秒、三轮 stampAigc 的预算和沙箱检查保留。2026-10-09新源实际复测31例中30通过、1条原业主样本条件跳过；最长文案第一行alpha范围x88–631/y8–35、日期x325–395/y52–72，实际两行均未触画布边界。约199.8MiB五轮probe+poster最慢232ms、三轮stampAigc最慢424ms并完整回读七字段，原10000ms判据未变；仅Mac本机观察，真实云/平台与预发传输性能未验。

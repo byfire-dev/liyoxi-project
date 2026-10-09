@@ -1,4 +1,5 @@
 export { createMedia } from "./runtime.js";
+export type { MediaProductionDeps, MediaProductionConfig } from "./production-types.js";
 export type { Media } from "./runtime.js";
 export type {
   MediaActor,

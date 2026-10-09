@@ -153,4 +153,13 @@ export const HealthResponseSchema = z.discriminatedUnion("ok", [
   }),
   failure,
 ]);
+export const WatermarkPngResponseSchema = z.discriminatedUnion("ok", [
+  z.strictObject({
+    ok: z.literal(true),
+    sizeBytes: int.positive().max(1024 ** 2),
+    width: z.literal(720),
+    height: z.literal(96),
+  }),
+  failure,
+]);
 export type MediaToolHealth = { ffmpeg: string; ffprobe: string };

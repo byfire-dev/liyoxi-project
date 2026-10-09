@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 import { divRoundHalfUp } from "@liyoxi/shared/pricing";
 import { failed, ok } from "../types.js";
 import type { MediaProvider, MediaRemoteJob, ObjectRef, StorageBucket } from "../types.js";
-import { cosEncode, xmlEscape } from "../storage/cos-signature.js";
+import { cosEncode, cosAuthorization, xmlEscape } from "../storage/cos-signature.js";
 import { createCiHttp } from "./http.js";
 import type { CiConfig } from "./http.js";
 import { parseCiXml, ciChild, ciText } from "./xml.js";
@@ -152,9 +152,87 @@ export function createCiMedia(
         !data(input.userData)
       )
         return bad();
+      const watermarks = input.watermarks ?? [];
+      if (!Array.isArray(watermarks) || watermarks.length > 3) return bad();
+      if (watermarks.some((mark) => !mark || typeof mark !== "object" || Array.isArray(mark)))
+        return bad();
+      // Template parameters take priority over inline nodes in CI: never claim ignored inline marks were applied.
+      if (
+        watermarks.some((mark) => "templateId" in mark) &&
+        watermarks.some((mark) => !("templateId" in mark))
+      )
+        return bad();
+      const watermarkXml: string[] = [];
+      for (const mark of watermarks) {
+        if (
+          mark &&
+          Object.hasOwn(mark, "templateId") &&
+          "templateId" in mark &&
+          id(mark.templateId) &&
+          Object.keys(mark).length === 1
+        )
+          watermarkXml.push(
+            `<WatermarkTemplateId>${xmlEscape(mark.templateId)}</WatermarkTemplateId>`,
+          );
+        else if (
+          mark &&
+          "image" in mark &&
+          Object.keys(mark).length === 3 &&
+          object(mark.image) &&
+          Object.keys(mark.image).length === 2 &&
+          mark.image.bucket === input.src.bucket &&
+          /^ci-out\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/watermark-[a-f0-9]{64}\.png$/.test(
+            mark.image.key,
+          ) &&
+          mark.position === "Center" &&
+          Number.isInteger(mark.transparency) &&
+          mark.transparency >= 1 &&
+          mark.transparency <= 100
+        ) {
+          const host = `${config.buckets[input.src.bucket]}.cos.${config.region}.myqcloud.com`,
+            pathname = path(mark.image.key);
+          const start = Math.floor(options.now().getTime() / 1000),
+            auth = cosAuthorization({
+              key: config.worker,
+              method: "GET",
+              pathname,
+              headers: { host },
+              start,
+              end: start + 900,
+            });
+          // Only this fixed COS origin gets an ephemeral signature. The URL is never a persisted job field.
+          const url = `https://${host}${pathname}?${new URLSearchParams(auth).toString()}`;
+          watermarkXml.push(
+            `<Watermark><Type>Image</Type><Pos>Center</Pos><LocMode>Absolute</LocMode><Image><Url>${xmlEscape(url)}</Url><Mode>Original</Mode><Transparency>${mark.transparency}</Transparency></Image></Watermark>`,
+          );
+        } else if (
+          mark &&
+          "text" in mark &&
+          typeof mark.text === "string" &&
+          mark.text.length <= 64 &&
+          ["Center", "TopRight"].includes(mark.position) &&
+          Number.isInteger(mark.fontSize) &&
+          mark.fontSize >= 5 &&
+          mark.fontSize <= 100 &&
+          Number.isInteger(mark.transparency) &&
+          mark.transparency >= 1 &&
+          mark.transparency <= 100 &&
+          Object.keys(mark).length === 4
+        ) {
+          // Official Text.Text grammar, not the template Name grammar. Formal sample punctuation remains unchanged upstream.
+          if (!/^[\p{Script=Han}A-Za-z0-9_*-]+$/u.test(mark.text))
+            return failed(
+              "unsupported",
+              "正式水印文字不在当前CI原生Text字符范围，需授权图片模板能力",
+            );
+          watermarkXml.push(
+            `<Watermark><Type>Text</Type><Pos>${mark.position}</Pos><LocMode>Absolute</LocMode><Text><FontType>simhei.ttf</FontType><FontSize>${mark.fontSize}</FontSize><FontColor>0xFFFFFF</FontColor><Text>${xmlEscape(mark.text)}</Text><Transparency>${mark.transparency}</Transparency></Text></Watermark>`,
+          );
+        } else return bad();
+      }
       return submit(
         input.src.bucket,
-        `<Tag>Transcode</Tag><Input><Object>${xmlEscape(input.src.key)}</Object></Input><Operation><TemplateId>${xmlEscape(input.template)}</TemplateId><Output><Region>${xmlEscape(config.region)}</Region><Bucket>${xmlEscape(config.buckets[input.dst.bucket])}</Bucket><Object>${xmlEscape(input.dst.key)}</Object></Output><UserData>${input.userData}</UserData></Operation>`,
+        `<Tag>Transcode</Tag><Input><Object>${xmlEscape(input.src.key)}</Object></Input><Operation><TemplateId>${xmlEscape(input.template)}</TemplateId>${watermarkXml.join("")}<Output><Region>${xmlEscape(config.region)}</Region><Bucket>${xmlEscape(config.buckets[input.dst.bucket])}</Bucket><Object>${xmlEscape(input.dst.key)}</Object></Output><UserData>${input.userData}</UserData></Operation>`,
         input.userData,
         input.signal,
       );
