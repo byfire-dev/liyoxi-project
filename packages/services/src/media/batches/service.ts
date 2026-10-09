@@ -31,7 +31,7 @@ import {
   touchBatch,
   validateBatchFiles,
 } from "./helpers.js";
-import type { BatchRuntimeDeps } from "./types.js";
+import type { BatchRuntimeDeps } from "../context.js";
 
 const parsed = <T>(result: { success: boolean; data?: T }): T => {
   if (!result.success) throw new AppError("VALIDATION_FAILED");

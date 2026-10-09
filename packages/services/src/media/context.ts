@@ -59,6 +59,7 @@ export interface BoundMediaDeps extends MediaDeps {
   readonly refTypes: ReadonlyMap<string, FileRefType>;
   readonly guards: ReadonlyMap<string, FileCategoryGuard>;
 }
+export type BatchRuntimeDeps = BoundMediaDeps & { readonly batches: MediaBatchDeps };
 export interface UploadInput {
   readonly fileName: string;
   readonly sizeBytes: string;

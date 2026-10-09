@@ -10,8 +10,7 @@ import {
 import type { UploadCategory } from "@liyoxi/shared/uploads";
 import { AppError, lockRows, uuidv7 } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
-import type { BoundMediaDeps, MediaActor } from "../context.js";
-import type { BatchRuntimeDeps } from "./types.js";
+import type { BoundMediaDeps, BatchRuntimeDeps, MediaActor } from "../context.js";
 import { batchCoverage, activeExpiry, decideBatchState } from "./state.js";
 
 export const prefixOf = (batchId: string) => `incoming/b${batchId}/`;

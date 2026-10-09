@@ -2,7 +2,6 @@ import type { UploadBatch } from "@liyoxi/db";
 import type { StaffBrief } from "@liyoxi/contract";
 import type { StaffContext } from "../../authz/index.js";
 import type { Tx, IdentityContext } from "../../kernel/index.js";
-import type { BoundMediaDeps } from "../context.js";
 
 export interface BatchTargetFacts {
   expectedCount: number;
@@ -37,4 +36,3 @@ export interface MediaBatchDeps {
   ): Promise<readonly { episodeNo: number; dramaEpisodeMasterId: string; revNo: number }[]>;
   currentMaster(tx: Tx, batch: UploadBatch, episodeNo: number): Promise<string | null>;
 }
-export type BatchRuntimeDeps = BoundMediaDeps & { readonly batches: MediaBatchDeps };
