@@ -81,6 +81,17 @@ function HomeContent() {
         <View className="home-page__city">{home?.city?.name ?? "全国"}</View>
       </NavBar>
       <PageBody>
+        <Button
+          variant="secondary"
+          size="md"
+          icon="search"
+          block
+          onClick={() => {
+            void Taro.navigateTo({ url: "/sub/catalog/search/index?from=home" });
+          }}
+        >
+          搜索剧名、题材、主演
+        </Button>
         <List>
           <ListRow
             title="消息"
