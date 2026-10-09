@@ -18,6 +18,7 @@ import { dirname } from "node:path";
 import { LIMITS, poster, probe, stampAigc } from "./ops.mjs";
 import { RequestError, SOCKET_PATH } from "./paths.mjs";
 import { children, killGroup } from "./run.mjs";
+import { watermarkPng } from "./watermark.mjs";
 import { selfcheck } from "./selfcheck.mjs";
 
 const CONCURRENCY = 2;
@@ -25,7 +26,12 @@ const MAX_QUEUE = 32;
 const MAX_BODY_BYTES = 64 * 1024;
 
 /** @type {Record<string, (body: any) => Promise<object>>} */
-const OPS = { "/probe": probe, "/poster": poster, "/stampAigc": stampAigc };
+const OPS = {
+  "/probe": probe,
+  "/poster": poster,
+  "/stampAigc": stampAigc,
+  "/watermarkPng": watermarkPng,
+};
 
 /** 取 “ffmpeg version 5.1.9-0+deb12u1 …” 里的版本号 @param {string} bin */
 function versionOf(bin) {

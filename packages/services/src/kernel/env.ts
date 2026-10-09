@@ -69,6 +69,7 @@ export const ENV_KEYS: readonly string[] = [
   "CI_WORKER_KEYS_FILE",
   "CI_CALLBACK_KEY_FILE",
   "CI_CALLBACK_ORIGIN",
+  "MEDIA_PRODUCTION_FILE",
 ];
 
 /** 数据加密密钥文件的内容：current 是当前 kid，keys 是 kid → base64 写的 32 字节 */
@@ -98,6 +99,25 @@ export interface ClientErrorProjectsConfig {
 }
 
 export interface Env {
+  readonly MEDIA_PRODUCTION?: {
+    readonly workDir: string;
+    readonly socketPath: string;
+    readonly aigc: {
+      readonly Label: string;
+      readonly ContentProducer: string;
+      readonly ReservedCode1: string;
+      readonly ContentPropagator: string;
+      readonly ReservedCode2: string;
+    };
+    readonly templates: {
+      readonly normalize: string;
+      readonly sd: string;
+      readonly hd: string;
+      readonly sample: string;
+      readonly brand: string;
+      readonly ai: string;
+    };
+  };
   readonly APP_ENV: AppEnv;
   readonly LOG_LEVEL: LogLevel;
   readonly DATABASE_URL: string;
@@ -338,7 +358,7 @@ function parseAuthKeys(json: unknown): AuthKeysConfig | string {
 /** 按规则 5、6 取出一份密钥文件：只认 *_FILE；明文变量给了即报错 */
 function readKeyFile<T>(
   source: EnvSource,
-  key: "DATA_KEYS" | "BIDX_KEYS" | "AUTH_KEYS" | "CLIENT_ERROR_PROJECTS",
+  key: "DATA_KEYS" | "BIDX_KEYS" | "AUTH_KEYS" | "CLIENT_ERROR_PROJECTS" | "MEDIA_PRODUCTION",
   issues: EnvIssue[],
   parse: (json: unknown) => T | string,
 ): T | undefined {
@@ -386,6 +406,45 @@ function validErrorDsn(value: unknown): value is string {
     return false;
   }
 }
+function parseMediaProduction(json: unknown): NonNullable<Env["MEDIA_PRODUCTION"]> | string {
+  const text = z
+    .string()
+    .max(128)
+    .regex(/^[^\p{Cc}]*$/u);
+  const template = z
+    .string()
+    .min(1)
+    .max(128)
+    .regex(/^[A-Za-z0-9_-]+$/);
+  const schema = z.strictObject({
+    workDir: z.string().regex(/^\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+$/),
+    socketPath: z.string().min(1).max(512),
+    aigc: z.strictObject({
+      Label: text.min(1).max(16),
+      ContentProducer: text.min(1),
+      ReservedCode1: text,
+      ContentPropagator: text,
+      ReservedCode2: text,
+    }),
+    templates: z.strictObject({
+      normalize: template,
+      sd: template,
+      hd: template,
+      sample: template,
+      brand: template,
+      ai: template,
+    }),
+  });
+  const parsed = schema.safeParse(json);
+  if (
+    !parsed.success ||
+    !parsed.data.socketPath.startsWith(`${parsed.data.workDir}/.sock/`) ||
+    !/^[A-Za-z0-9._-]+$/.test(parsed.data.socketPath.slice(parsed.data.workDir.length + 7))
+  )
+    return "制作配置须为完整工作目录/同目录套接字/七字段主体口径/六模板映射；不得带任意路径";
+  return parsed.data;
+}
+
 function parseClientErrorProjects(json: unknown): ClientErrorProjectsConfig | string {
   if (
     !isRecord(json) ||
@@ -709,6 +768,7 @@ export function loadEnv(
   const minio = readMinio(source, appEnv, issues);
   const cos = readCos(source, issues);
   const ci = readCi(source, issues);
+  const mediaProduction = readKeyFile(source, "MEDIA_PRODUCTION", issues, parseMediaProduction);
   const clientErrorProjects = readKeyFile(
     source,
     "CLIENT_ERROR_PROJECTS",
@@ -746,6 +806,7 @@ export function loadEnv(
     ...(minio ? { MINIO: minio } : {}),
     ...(cos ? { COS: cos } : {}),
     ...(ci ? { CI: ci } : {}),
+    ...(mediaProduction ? { MEDIA_PRODUCTION: mediaProduction } : {}),
     ...(dataKeys && bidxKeys ? { DATA_KEYS: dataKeys, BIDX_KEYS: bidxKeys } : {}),
     ...(authKeys ? { AUTH_KEYS: authKeys } : {}),
     ...(wechat ? { WECHAT: wechat } : {}),

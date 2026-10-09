@@ -39,6 +39,8 @@ import {
 } from "./unconfigured.js";
 
 export * from "./types.js";
+export { createProductionMediaTools } from "./mediatool/production.js";
+export type { ProductionMediaTools } from "./mediatool/production.js";
 export { createConsoleSms } from "./sms/console.js";
 export { createMinioStorage, LOCAL_MINIO } from "./storage/minio.js";
 export type { MinioConfig, MinioStorage } from "./storage/minio.js";

@@ -134,3 +134,11 @@ const probed = await mediatool.probe({ path: `${jobId}/in.mp4`, demuxers: ["mov"
 3. 结论补进 ADR；单独成 PR。
 
 Debian 给 ffmpeg 出安全更新后，旧版本会从仓库撤掉，镜像构建会在安装那一步失败。这是有意留的：版本要人来改，改了就要重跑验证。
+
+## 8. W3-04 固定中文字样 PNG
+
+仅增加 `POST /watermarkPng {outPath,text,timeoutMs?}`，固定720×96透明RGBA画布、28号字、完整两行正式样片文案与日期，最多10个门店字。唯一字体为随软件保留 OFL 许可证的 NotoSansCJKsc-Regular，版本、官方来源与固定 SHA 见[fonts/README.md](fonts/README.md)；运行前校验 SHA 和 cmap 覆盖，不以方框替代不支持的字。文本仅写本任务固定 textfile，expansion=none，不进入 shell/过滤器语法；没有任意字体路径或字体 URL。
+
+PNG 只写本任务 watermark.png，最多1MiB，30秒只能缩短；沿原并发2/排队32/无网络/只读根/非root/cap_drop ALL/pids128/1GB/CPU1。客户端独立校验 PNG CRC、尺寸、真实 RGBA/alpha、两行非空与边界不裁切，并将实际 SHA/大小绑定流式上传；不只相信服务声明。请求取消回收调用端自有 socket，服务端子进程仍沿原固定执行期与进程组清理，不宣称取消自动缩短 ffmpeg 的原预算。
+
+新容器用例沿原 verify/bench 运行器，只使用隔离自有生成 fixture；固定最长10字门店完整文案、危险路径/参数、字体缺字均有实际像素或拒绝断言。原约200MiB五轮 probe+poster 每轮合计≤10秒、三轮 stampAigc 的预算和沙箱检查保留。当前新源镜像与这些实际渲染结果待串行窗口验证，未沿用旧 X-02 结果宣称通过。

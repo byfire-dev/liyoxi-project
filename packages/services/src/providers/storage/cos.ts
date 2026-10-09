@@ -1,4 +1,13 @@
 import { createHash } from "node:crypto";
+import { Readable } from "node:stream";
+import { finished } from "node:stream/promises";
+import {
+  checkedStream,
+  validStreamRead,
+  validStreamWrite,
+  verifyReplay,
+  STREAM_TIMEOUT_MS,
+} from "./streams.js";
 import { failed, INCOMING_PREFIX, ok, STORAGE_BUCKETS } from "../types.js";
 import type {
   ObjectRef,
@@ -42,7 +51,7 @@ const validSecret = (key: CosKey | undefined) =>
   key === undefined ||
   (/^[A-Za-z0-9_-]{1,128}$/.test(key.secretId) && /^[\x21-\x7e]{1,256}$/.test(key.secretKey));
 const objectPath = (key: string) => `/${key.split("/").map(cosEncode).join("/")}`;
-function failure(reply: HttpReply) {
+function failure(reply: Pick<HttpReply, "status">) {
   return failed(
     reply.status >= 500 || reply.status === 429 ? "unavailable" : "rejected",
     "COS 已拒绝请求",
@@ -196,6 +205,55 @@ export function createCosStorage(
       deadline,
     );
   }
+  async function transfer<T>(
+    signal: AbortSignal,
+    action: (signal: AbortSignal) => Promise<ProviderResult<T>>,
+  ): Promise<ProviderResult<T>> {
+    if (closed || signal.aborted) return UNAVAILABLE();
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    signal.addEventListener("abort", abort, { once: true });
+    active.add(controller);
+    const timer = setTimeout(abort, STREAM_TIMEOUT_MS);
+    try {
+      return await action(controller.signal);
+    } finally {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", abort);
+      active.delete(controller);
+    }
+  }
+  function streamFetch(
+    input: ObjectRef,
+    method: string,
+    key: CosKey,
+    headers: Record<string, string>,
+    signal: AbortSignal,
+    body?: Readable,
+  ) {
+    const hostname = host(input.bucket),
+      start = Math.floor(options.now().getTime() / 1000);
+    const authorization = cosAuthorization({
+      key,
+      method,
+      pathname: `/${input.key}`,
+      query: {},
+      headers: { ...headers, host: hostname },
+      start,
+      end: start + 600,
+    });
+    const init: RequestInit & { duplex?: "half" } = {
+      method,
+      headers: { ...headers, Authorization: authorization },
+      signal,
+      redirect: "error",
+    };
+    if (body) {
+      init.body = Readable.toWeb(body) as ReadableStream<Uint8Array>;
+      init.duplex = "half";
+    }
+    return fetchImpl(`https://${hostname}${objectPath(input.key)}`, init);
+  }
   async function grant(
     bucket: StorageBucket,
     keyPrefix: string,
@@ -297,6 +355,70 @@ export function createCosStorage(
       expiresAt: new Date(Number(expiry) * 1000),
     });
   }
+  async function readTo(
+    input: Parameters<StorageProvider["readTo"]>[0],
+    signal: AbortSignal,
+  ): ReturnType<StorageProvider["readTo"]> {
+    if (!validRef(input) || !validStreamRead(input)) return BAD();
+    const head = await signed(
+      input,
+      "HEAD",
+      readKey,
+      {},
+      {},
+      undefined,
+      undefined,
+      undefined,
+      signal,
+    );
+    if (head.status !== 200) return failure(head);
+    if (
+      head.headers.get("etag") !== input.ifMatchEtag ||
+      head.headers.get("content-length") !== String(input.expectedSize)
+    )
+      return failed("rejected", "COS对象头与预期不一致");
+    const response = await streamFetch(
+      input,
+      "GET",
+      readKey,
+      { "If-Match": input.ifMatchEtag },
+      signal,
+    );
+    const reader = response.body?.getReader();
+    const abort = () => {
+      void reader?.cancel().catch(() => undefined);
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    try {
+      if (response.status !== 200) return failure(response);
+      if (
+        !reader ||
+        response.headers.get("etag") !== input.ifMatchEtag ||
+        response.headers.get("content-length") !== String(input.expectedSize)
+      )
+        return failed("rejected", "COS对象流声明不一致");
+      const source = {
+        async *[Symbol.asyncIterator]() {
+          while (true) {
+            const chunk = await reader.read();
+            if (chunk.done) return;
+            yield chunk.value;
+          }
+        },
+      };
+      let digest = "";
+      for await (const chunk of checkedStream(source, input.expectedSize, signal, (value) => {
+        digest = value;
+      }))
+        await input.sink(chunk);
+      return ok({ size: input.expectedSize, sha256: digest });
+    } finally {
+      signal.removeEventListener("abort", abort);
+      await reader?.cancel().catch(() => undefined);
+      reader?.releaseLock();
+    }
+  }
+
   return {
     status: "cos",
     configured: true,
@@ -428,6 +550,129 @@ export function createCosStorage(
           return failed("rejected", "COS 对象已变更");
         return ok(reply.bytes);
       }),
+    readTo: (input) => run(() => transfer(input.signal, (signal) => readTo(input, signal))),
+    putStream: (input) =>
+      run(() =>
+        transfer(input.signal, async (signal) => {
+          if (
+            !validRef(input) ||
+            !validStreamWrite(input) ||
+            input.key.startsWith(INCOMING_PREFIX) ||
+            !textValue(input.contentType) ||
+            input.ifAbsent !== true
+          )
+            return BAD();
+          if (!config.worker) return OFF();
+          let digest = "";
+          for await (const _chunk of checkedStream(
+            input.body(signal),
+            input.size,
+            signal,
+            (value) => {
+              digest = value;
+            },
+          )) {
+            /* bounded actual hash */
+          }
+          if (digest !== input.sha256) return failed("rejected", "COS流实际hash不一致");
+          const versioning = await signed(
+            { bucket: input.bucket, key: "" },
+            "GET",
+            config.worker,
+            {},
+            { versioning: "" },
+            undefined,
+            undefined,
+            undefined,
+            signal,
+          );
+          if (
+            versioning.status !== 200 ||
+            !/^\s*(?:<\?xml[^?]*\?>\s*)?<VersioningConfiguration(?:\s+xmlns="[^"]*")?\s*(?:\/>|>\s*<\/VersioningConfiguration>)\s*$/.test(
+              versioning.text,
+            )
+          )
+            return failed("unsupported", "COS未确认该桶允许原子防覆盖");
+          let sentDigest = "";
+          const sourceController = new AbortController(),
+            bodySignal = AbortSignal.any([signal, sourceController.signal]);
+          const body = Readable.from(
+            checkedStream(input.body(bodySignal), input.size, bodySignal, (value) => {
+              if (value !== input.sha256) throw new Error("COS流内容已变更");
+              sentDigest = value;
+            }),
+          );
+          const abort = () => {
+            sourceController.abort();
+            body.destroy(new Error("COS流写入取消"));
+          };
+          signal.addEventListener("abort", abort, { once: true });
+          let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+          try {
+            const response = await streamFetch(
+              input,
+              "PUT",
+              config.worker,
+              {
+                "Content-Type": input.contentType,
+                "Content-Length": String(input.size),
+                "x-cos-meta-lyx-sha256": input.sha256,
+                "x-cos-meta-lyx-content-identity": input.contentIdentity,
+                "x-cos-forbid-overwrite": "true",
+              },
+              signal,
+              body,
+            );
+            reader = response.body?.getReader();
+            const parts: Uint8Array[] = [];
+            let length = 0;
+            if (reader)
+              while (true) {
+                const chunk = await reader.read();
+                if (chunk.done) break;
+                length += chunk.value.byteLength;
+                if (length > 64 * 1024) return UNAVAILABLE();
+                parts.push(chunk.value);
+              }
+            const text = Buffer.concat(parts).toString("utf8");
+            if (response.status === 409 && xmlField(text, "Code") === "FileAlreadyExists") {
+              sourceController.abort();
+              body.destroy();
+              await finished(body).catch(() => undefined);
+              const existing = await signed(
+                input,
+                "HEAD",
+                config.worker,
+                {},
+                {},
+                undefined,
+                undefined,
+                undefined,
+                signal,
+              );
+              return existing.status === 200 &&
+                existing.headers.get("content-length") === String(input.size) &&
+                existing.headers.get("x-cos-meta-lyx-sha256") === input.sha256 &&
+                existing.headers.get("x-cos-meta-lyx-content-identity") === input.contentIdentity &&
+                existing.headers.get("etag")
+                ? verifyReplay(input, existing.headers.get("etag")!, signal, readTo)
+                : failed("rejected", "COS目标hash/归属不一致");
+            }
+            if (response.status === 200) await finished(body);
+            if (response.status !== 200) return failure(response);
+            return sentDigest === input.sha256 && response.headers.get("etag")
+              ? ok({ etag: response.headers.get("etag")!, size: input.size })
+              : UNAVAILABLE();
+          } finally {
+            signal.removeEventListener("abort", abort);
+            sourceController.abort();
+            await reader?.cancel().catch(() => undefined);
+            reader?.releaseLock();
+            body.destroy();
+            await finished(body).catch(() => undefined);
+          }
+        }),
+      ),
     putObject: (input) =>
       run(async () => {
         if (

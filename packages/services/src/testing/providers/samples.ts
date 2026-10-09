@@ -80,6 +80,26 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
     presignGet: { ...SAMPLE_REF, expiresSec: 900, disposition: "inline" },
     delete: SAMPLE_REF,
     abortMultipart: SAMPLE_REF,
+    readTo: {
+      ...SAMPLE_REF,
+      expectedSize: 3,
+      maxBytes: 3,
+      ifMatchEtag: '"sample-etag"',
+      signal: new AbortController().signal,
+      sink: async () => undefined,
+    },
+    putStream: {
+      ...SAMPLE_REF,
+      body: async function* () {
+        yield new Uint8Array([1, 2, 3]);
+      },
+      size: 3,
+      sha256: "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+      contentIdentity: "1".repeat(64),
+      contentType: "video/mp4",
+      ifAbsent: true,
+      signal: new AbortController().signal,
+    },
   },
   media: {
     probe: { src: SAMPLE_REF },

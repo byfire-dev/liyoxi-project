@@ -133,3 +133,11 @@ COS 对象签名是 SHA1，STS JSON 是 TC3-HMAC-SHA256，二者不能混用。�
 ## 11. CI 媒体原语（W3-03）
 
 新增可选 `media.describe/find/cancel`，并在真实CI、unconfigured/local、替身与样例中完整登记；已有probe/transcode/pack/audit方法名称保留，只增可选signal。老adhoc替身缺新增方法时统一执行器保守等待回查，不构造none证据或假成功。四桶/FILE角色、官方REST与独立签名向量见[media/README.md](media/README.md)。Storage.head/copy、Wechat.checkImage只增可选caller signal；未传信号沿旧行为，MinIO带signal的HEAD/copy不走不可取消的建桶初始化，使用已存在桶。所有自有IO关闭与祖先TX guard保持。
+
+## 12. W3-04 有界对象流与原生图片水印
+
+Storage 只增 readTo/putStream，旧小对象接口及10秒协议预算保留。readTo 将预期大小、最大大小和 ETag 与真实 HEAD/IfMatch GET 绑定，逐块等待 sink 并核实际长度/SHA；putStream 的 body(signal) 可顺序重开，两次实际扫描分别核长度/SHA，写固定逻辑桶/对象键和 contentIdentity，HEAD 元数据、大小和非空 ETag 仅筛选已有候选；采纳前以该 ETag 条件 GET 完整读取，逐块核真实长度/SHA 与预扫描字节一致，避免请求元数据正确而已写字节错误被重放采纳。此校验沿同一外层180秒信号，不重置预算，每次候选重放增加一次 HEAD 和全量 GET 的明确成本。COS 仍核版本未启用并使用官方 forbid-overwrite；MinIO 仍用原子 IfNoneMatch。未知网络结果不当条件冲突或成功。
+
+流块最多1MiB、实现防御上限2GiB、独立传输预算180秒；媒体处理器仍保持正式200MiB/180秒和执行器原 hard timeout，不扩任务预算。来源、sink 和写入流均有 backpressure；取消和 close 等待自身 iterator/reader/Readable finally，未关闭借用兄弟 Storage、DB 或 Redis。workIO 只给任务内固定相对文件名，O_NOFOLLOW/普通文件检查、poster/PNG 已校验字节的 SHA/大小绑定阻止换文件；宿主工作文件核 hash 与驱动两次流扫描是三次顺序读取的明确成本。
+
+CI Image 水印仅允许与输入同桶的固定 ci-out/jobUUID/watermark-SHA.png，服务端构造15分钟 COS GET 短签名；没有任意 URL 输入，签名不进任务事实。原生 Text 的字符限制无法表达正式文案，因此保留文案并受控拒绝，不改标点或空格。模板与 inline 混用、跨桶图片、额外字段和超过3节点拒绝。2026-10-09查阅 primary：[Text 参数](https://intl.cloud.tencent.com/zh/document/product/1045/43639)、[Image 模式与同桶限制](https://intl.cloud.tencent.com/document/product/436/46873)、[SDK原生图片节点](https://cloud.tencent.com/document/product/460/77715)、[三节点上限](https://cloud.tencent.com/document/product/460/108706)、[模板优先级](https://cloud.tencent.com/document/product/436/119461)。独立 fake HTTP 仅证明协议与签名；真实云模板/图片执行另验。

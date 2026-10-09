@@ -114,7 +114,13 @@ export function createPromoteHandler(deps: BoundMediaDeps): MediaJobHandler {
           status: "stored",
           sizeBytes: BigInt(outcome.output.sizeBytes),
         });
-        return next ? [next] : [];
+        const probe = await deps.queueProbe?.(tx, {
+          ...file,
+          status: "stored",
+          etag: outcome.output.etag,
+          sizeBytes: BigInt(outcome.output.sizeBytes),
+        });
+        return [next, probe].filter((id): id is string => !!id);
       }
       if (job.state === "failed") {
         const reason =

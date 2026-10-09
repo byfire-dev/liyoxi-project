@@ -102,7 +102,7 @@ import type { Providers } from "./providers/types.js";
 import { createContent, bindContent } from "./content/index.js";
 import type { Content } from "./content/index.js";
 import { createMedia } from "./media/index.js";
-import { createMediaAssembly } from "./ops/index.js";
+import { createMediaAssembly, createRuntimeMediaProduction } from "./ops/index.js";
 import type { Media } from "./media/index.js";
 import { createRateLimiter } from "./rate-limit.js";
 import type { RateLimiter } from "./rate-limit.js";
@@ -157,7 +157,11 @@ export const DB_POOLS: Readonly<Record<AssemblyEntry, DbPoolSettings>> = {
   },
 };
 
+import type { ProductionMediaTools } from "./providers/index.js";
+
 export interface RuntimeOptions {
+  /** Only local/test external-tool substitution; production facts and handlers stay real. */
+  readonly mediaProductionTools?: ProductionMediaTools;
   readonly webhookSources?: readonly WebhookSource[];
   /** 仅测试/演示装配传假密钥；生产仍通过受控配置延迟加载。 */
   readonly billingKeyring?: Keyring;
@@ -441,7 +445,15 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
   const unbindOrder = bindOrder({ assembly, clock, flow });
   const mediaChannel = createQueueChannel({ redisUrl: env.REDIS_URL, prefix: `${keyPrefix}bull` });
+  const mediaProduction = createRuntimeMediaProduction(
+    env.MEDIA_PRODUCTION,
+    providers,
+    options.mediaProductionTools
+      ? { appEnv: env.APP_ENV, tools: options.mediaProductionTools }
+      : undefined,
+  );
   const media = createMedia({
+    ...(mediaProduction.production ? { production: mediaProduction.production } : {}),
     tx,
     clock,
     assembly,
@@ -688,6 +700,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         notifyScope.close(),
       ]);
       mediaScope.close();
+      await mediaProduction.close();
       unbindNoticeLink();
       await Promise.allSettled(wechatClosers.map((close) => close()));
       await clientErrors.close();

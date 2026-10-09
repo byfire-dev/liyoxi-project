@@ -12,6 +12,7 @@
 //   rejected     入参不合规、文件解不开、输出没通过上面的校验：重试也不会成
 
 import { constants } from "node:fs";
+import { createHash } from "node:crypto";
 import { lstat, open, realpath } from "node:fs/promises";
 import http from "node:http";
 import { join } from "node:path";
@@ -28,8 +29,10 @@ import {
   PosterResponseSchema,
   ProbeResponseSchema,
   StampResponseSchema,
+  WatermarkPngResponseSchema,
 } from "./schema.js";
 import type { MediaToolDemuxer, MediaToolHealth, ProbeReport } from "./schema.js";
+import { validWatermarkPng } from "./png.js";
 
 /** 共享目录在调用端容器里的挂载点，与套接字的位置（D5 第 6.6 节） */
 export const MEDIATOOL_WORK_DIR = "/work";
@@ -41,6 +44,7 @@ const HARD_TIMEOUT_MS = {
   poster: 30_000,
   stampAigc: 90_000,
   health: 5_000,
+  watermarkPng: 30_000,
 } as const;
 const QUEUE_ALLOWANCE_MS = 30_000;
 
@@ -83,6 +87,7 @@ export interface MediaToolClient {
     path: string;
     demuxers: readonly MediaToolDemuxer[];
     timeoutMs?: number;
+    signal?: AbortSignal;
   }): Promise<ProviderResult<ProbeReport>>;
   /** 抽 atMs 处的一帧存成 JPEG，写到 outPath（与输入同一个任务目录） */
   poster(input: {
@@ -91,6 +96,7 @@ export interface MediaToolClient {
     atMs: number;
     outPath: string;
     timeoutMs?: number;
+    signal?: AbortSignal;
   }): Promise<ProviderResult<PosterResult>>;
   /** 流拷贝重封装并写入 AIGC，再回读。aigcJson 用 aigcMetadataJson 生成。输入里已有标识会被覆盖：先体检再决定要不要调 */
   stampAigc(input: {
@@ -98,9 +104,16 @@ export interface MediaToolClient {
     outPath: string;
     aigcJson: string;
     timeoutMs?: number;
+    signal?: AbortSignal;
   }): Promise<ProviderResult<StampResult>>;
   /** 容器在不在、里面的 ffmpeg 是哪个版本 */
-  health(): Promise<ProviderResult<MediaToolHealth>>;
+  health(signal?: AbortSignal): Promise<ProviderResult<MediaToolHealth>>;
+  /** Fixed licensed font and RGBA canvas; text is never an ffmpeg expression. */
+  watermarkPng?(input: {
+    outPath: string;
+    text: string;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<{ sizeBytes: number; width: 720; height: 96; sha256: string }>>;
 }
 
 function isRelativeWorkPath(path: unknown): path is string {
@@ -137,8 +150,13 @@ function exchange(
   path: string,
   payload: unknown,
   timeoutMs: number,
+  signal?: AbortSignal,
 ): Promise<Exchange> {
   return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve(failed("unavailable", "mediatool调用已取消"));
+      return;
+    }
     const data = payload === undefined ? "" : JSON.stringify(payload);
     let settled = false;
     let responding = false;
@@ -146,6 +164,7 @@ function exchange(
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
       resolve(result);
       request.destroy();
     };
@@ -186,6 +205,8 @@ function exchange(
       () => settle(failed("unavailable", `mediatool 在 ${timeoutMs}ms 内没有应答`)),
       timeoutMs,
     );
+    const abort = () => settle(failed("unavailable", "mediatool调用已取消"));
+    signal?.addEventListener("abort", abort, { once: true });
     request.on("error", (err: NodeJS.ErrnoException) =>
       settle(
         failed(
@@ -196,7 +217,8 @@ function exchange(
         ),
       ),
     );
-    request.end(data);
+    if (signal?.aborted) abort();
+    else request.end(data);
   });
 }
 
@@ -277,7 +299,7 @@ export function createMediaToolClient(options: MediaToolClientOptions = {}): Med
       const body = { path: input.path, demuxers: input.demuxers, timeoutMs: input.timeoutMs };
       const result = interpret(
         ProbeResponseSchema,
-        await exchange(socketPath, "POST", "/probe", body, waitFor("probe")),
+        await exchange(socketPath, "POST", "/probe", body, waitFor("probe"), input.signal),
       );
       return result.ok ? ok(result.value.report) : result;
     },
@@ -295,7 +317,7 @@ export function createMediaToolClient(options: MediaToolClientOptions = {}): Med
       };
       const result = interpret(
         PosterResponseSchema,
-        await exchange(socketPath, "POST", "/poster", body, waitFor("poster")),
+        await exchange(socketPath, "POST", "/poster", body, waitFor("poster"), input.signal),
       );
       if (!result.ok) return result;
       const file = await regularFile(workDir, input.outPath);
@@ -336,7 +358,7 @@ export function createMediaToolClient(options: MediaToolClientOptions = {}): Med
       };
       const result = interpret(
         StampResponseSchema,
-        await exchange(socketPath, "POST", "/stampAigc", body, waitFor("stampAigc")),
+        await exchange(socketPath, "POST", "/stampAigc", body, waitFor("stampAigc"), input.signal),
       );
       if (!result.ok) return result;
       const { report } = result.value;
@@ -357,10 +379,47 @@ export function createMediaToolClient(options: MediaToolClientOptions = {}): Med
       return ok({ report, inputSizeBytes: source.sizeBytes, outputSizeBytes: product.sizeBytes });
     },
 
-    async health() {
+    async watermarkPng(input) {
+      if (
+        !isRelativeWorkPath(input.outPath) ||
+        !input.outPath.endsWith("/watermark.png") ||
+        typeof input.text !== "string" ||
+        Buffer.byteLength(input.text) > 256 ||
+        /[\p{Cc}\p{Cf}]/u.test(input.text)
+      )
+        return badPath("watermark");
+      const result = interpret(
+        WatermarkPngResponseSchema,
+        await exchange(
+          socketPath,
+          "POST",
+          "/watermarkPng",
+          { outPath: input.outPath, text: input.text },
+          waitFor("watermarkPng"),
+          input.signal,
+        ),
+      );
+      if (!result.ok) return result;
+      const file = await regularFile(workDir, input.outPath);
+      if ("ok" in file) return file;
+      try {
+        const bytes = await readCapped(file.abs, 1024 ** 2);
+        if (bytes.length !== result.value.sizeBytes || !validWatermarkPng(bytes))
+          return failed("rejected", "水印PNG结构或实际像素不合法");
+        return ok({
+          sizeBytes: bytes.length,
+          width: 720,
+          height: 96,
+          sha256: createHash("sha256").update(bytes).digest("hex"),
+        });
+      } catch {
+        return failed("rejected", "水印PNG读取失败");
+      }
+    },
+    async health(signal) {
       const result = interpret(
         HealthResponseSchema,
-        await exchange(socketPath, "GET", "/healthz", undefined, waitFor("health")),
+        await exchange(socketPath, "GET", "/healthz", undefined, waitFor("health"), signal),
       );
       return result.ok
         ? ok({ ffmpeg: result.value.ffmpeg, ffprobe: result.value.ffprobe })

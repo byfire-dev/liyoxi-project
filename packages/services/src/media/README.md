@@ -78,3 +78,17 @@ complete仍是原三段式，在TX外读取HEAD/4KiB头、核声明大小与真�
 新增3HTTP/3x01：后台页码列表默认failed且system≥view，DTO隐去input/output/leaseOwner与原始错误正文；人工retry要求media.job.retry及required幂等，仍需当前业务需要，复位attempt/deadline/error并只审计一次；CI自然幂等回调只验HMAC-SHA256(mediaJobId)，提取一个安全JobId，submitted且外部号匹配才提前nextRunAt，绝不采信回调状态。原W2-01 inline收件同TX，无载荷持久化。媒体/微信/对象IO新增可选signal，未传仍兼容原调用，外呼guard保持最外层。
 
 ProduceID新补标默认`lyx:{小写UUIDv7 fileId}`仅作后续任务移交；不改上游已有标识、不声称法务已确认。CI真实激活、cam角色授权、任务模板、回调到达及大文件性能未验；本机只验证公开假key、有限HTTP与自有隔离库。
+
+## 8. W3-04 制作处理器与真实技术事实
+
+在既有执行器登记 probe、restamp、transcode_mp4、watermark_sample、normalize 五个 handler，不新增 HTTP、页面、x01 或任务循环。只有存储真实 HEAD/条件流读取、隔离 mediatool 探测与 H1–H7/S1–S10 判定后才写 mediaInfo/check；没有原片、广告窗或当前制作上下文时拒绝。raw 只保留技术白名单，来源的 AI 七字段逐字保存；缺标才补写，并独立回读全部七字段，不改变来源 AI 声明。
+
+派生文件使用新 UUID/固定对象键、条件流写和真实 HEAD。对象先成功写入后，独立短事务登记无引用 stored 技术事实；当前父、attempt、lease 和完整 context 均有效时，收尾事务才建立引用、派生 productionRecord 与事件。来源引用保留30天；晚结果不会挂到当前业务父，只由既有无引用清扫规则回收。cover 使用 media_info/cover 引用，来源使用 production_record/source 引用；引用不绕过原分类和归属守卫。
+
+production_record 父先预锁已有样片350再制作记录360；属于批次时通过同事务注入的 batchLockSiblings 预锁，再领取 job400。playable 父与同短剧兄弟350排序预锁，重读新增成员则 BUSY 零写。handler current 在同事务一次排序锁全部源、派生、封面及旧引用文件410；不在文件锁后补拿业务父锁。批次原片无需伪建 productionRecord，真实检查后调用同事务 productionChecked；派生检查通过后才替换活动批次文件。
+
+预告片 SD480×854、HD720×1280 两个独立云任务都完成且通过产物回读才安装 current；target 变化的晚结果退役，失败保留旧预告。样片取真实门店 name，经 shared 清洗、截10字和北京时间日期生成完整正式文案；固定许可 Noto CJK 字体渲染透明720×96 PNG，再使用同桶固定临时对象的原生 Image 水印，样片输出720×1280。云任务成功状态不能代替重新下载、探测、七字段回读与对象确认。
+
+`MEDIA_PRODUCTION_FILE` 必须完整给工作根、根内 socket、AI主体五个配置值及六个模板标识；ProduceID 和 PropagateID 由实际文件/来源事实生成。缺配置受控失败，不自行补法务主体值。store/ad/drama/trailer 由组合根同事务公开事实注入，media 不直接读取同层 content 的私有表。local/test 工具测试注入保留真实领域事实与外呼守卫，生产环境拒绝注入。
+
+`productionFacts` 只回有限技术/检查/AI/派生/水印事实，不返回对象键、短签名或用户工具正文。`retireDramaMedia` 证明 DB retired、在途取消与专属引用即时释放，返回 objectRefs 和 `cdnPending:true`；真实公开 URL/CDN 清除尚未配置，不能声称停止播放。当前真实库15例、客户端小IO15和装配4例已通过；存储新增字节/元数据欺骗2反例先真实失败，完整修正后受影响14例和CI/配置6例均已通过，API/worker类型通过。新镜像/PNG真实像素与200MiB预算仍待验证，真实云、法务与平台读标未验。

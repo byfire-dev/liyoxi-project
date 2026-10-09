@@ -301,6 +301,10 @@ export interface ObjectHead {
   versionId?: string;
 }
 
+export type { MediaToolClient, PosterResult, StampResult } from "./mediatool/client.js";
+export type { ProbeReport, AigcLabel } from "./mediatool/schema.js";
+export type { MediaWorkspace, MediaWorkSession } from "./mediatool/work-io.js";
+
 export interface StorageProvider extends ProviderBase {
   /** sts：能不能签发临时密钥（大文件分块上传要用）；versioning：桶有没有开版本控制 */
   readonly capabilities: { readonly sts: boolean; readonly versioning: boolean };
@@ -329,6 +333,28 @@ export interface StorageProvider extends ProviderBase {
   readPrefix(
     input: ObjectRef & { bytes: number; ifMatchEtag?: string },
   ): Promise<ProviderResult<Uint8Array>>;
+  /** HEAD/If-Match绑定的有界流读取；等待sink消费并回收网络流才返回。 */
+  readTo(
+    input: ObjectRef & {
+      expectedSize: number;
+      maxBytes: number;
+      ifMatchEtag: string;
+      signal: AbortSignal;
+      sink: (chunk: Uint8Array) => Promise<void>;
+    },
+  ): Promise<ProviderResult<{ size: number; sha256: string }>>;
+  /** 正式区固定键的原子条件流写；真实逐块长度/hash核对，不缓存完整对象。 */
+  putStream(
+    input: ObjectRef & {
+      body: (signal: AbortSignal) => AsyncIterable<Uint8Array>;
+      size: number;
+      sha256: string;
+      contentIdentity: string;
+      contentType: string;
+      ifAbsent: true;
+      signal: AbortSignal;
+    },
+  ): Promise<ProviderResult<{ etag: string; size: number }>>;
   /** 系统文件写入正式区；只供服务端种子与系统生成文件，禁止端侧使用。 */
   putObject(
     input: ObjectRef & {
@@ -410,6 +436,16 @@ export interface MediaProvider extends ProviderBase {
     dst: ObjectRef;
     template: string;
     userData: string;
+    watermarks?: readonly (
+      | { readonly templateId: string }
+      | {
+          readonly text: string;
+          readonly position: "Center" | "TopRight";
+          readonly fontSize: number;
+          readonly transparency: number;
+        }
+      | { readonly image: ObjectRef; readonly position: "Center"; readonly transparency: number }
+    )[];
   }): Promise<ProviderResult<MediaJob>>;
   /** 打包：把同一个桶里的几个对象打成一个压缩包 */
   pack(input: {
@@ -680,6 +716,8 @@ export const PROVIDER_METHODS = {
     "presignGet",
     "delete",
     "abortMultipart",
+    "readTo",
+    "putStream",
   ],
   media: ["probe", "transcode", "pack", "audit", "describe", "find", "cancel"],
   ocr: ["recognizeBusinessLicense", "extractLicenseFields"],
