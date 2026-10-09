@@ -1,11 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Prisma } from "@liyoxi/db";
 import { STAFF_ROLE_DEFAULTS } from "@liyoxi/contract";
-import { useSeededDatabase } from "../testing/index.js";
+import { fullStaffWorld, useSeededDatabase } from "../testing/index.js";
 import { uuidv7 } from "../kernel/index.js";
 import { FULL_STAFF_CHECKS, findStaffViolations } from "./full-invariants.js";
-import { fullStaffWorld } from "./__fixtures__/full.js";
-import type { FullStaffWorld } from "./__fixtures__/full.js";
+import type { FullStaffWorld } from "../testing/index.js";
 const SLOW = 180_000;
 const db = useSeededDatabase("services", { label: "staffrules" });
 let w: FullStaffWorld;

@@ -17,8 +17,8 @@ import { assertAccess, hasPermission, satisfiesLevel, scopeCovers } from "../aut
 import type { StaffContext } from "../authz/index.js";
 import { AppError } from "../kernel/index.js";
 import type { IdentityContext, Tx, TxRunOptions } from "../kernel/index.js";
-import type { StaffManagementDeps } from "./management.js";
-import { lockStaffSet, staffAudit } from "./manage-full.js";
+import type { StaffManagementDeps } from "./management-deps.js";
+import { lockStaffSet, staffAudit } from "./management-shared.js";
 import { recommendedStaff, staffBriefs } from "./assignment.js";
 import type { AssignmentPool } from "./assignment.js";
 import { staffBriefOf } from "./me.js";

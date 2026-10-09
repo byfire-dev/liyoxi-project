@@ -12,69 +12,22 @@ import type {
   HandoverResult,
 } from "@liyoxi/contract";
 import type { Staff, Prisma } from "@liyoxi/db";
-import { record } from "../audit/index.js";
-import type { AuditAction } from "@liyoxi/contract";
 import { assertAccess, assertConfirm } from "../authz/index.js";
 import type { StaffContext } from "../authz/index.js";
 import { AppError, isUniqueViolation, lockRows } from "../kernel/index.js";
 import { issueStaffDisablePass, issueStaffEnablePass } from "./guards.js";
 import type { IdentityContext, Tx, TxRunOptions } from "../kernel/index.js";
 import { openField } from "../security/index.js";
-import type { StaffManagementDeps } from "./management.js";
+import type { StaffManagementDeps } from "./management-deps.js";
+import { locked, lockStaffSet, staffAudit } from "./management-shared.js";
 import { issueActivationCode } from "./activation.js";
 import type { IssuedActivation } from "./activation.js";
-import { lockStaff, hasActiveSuperAdmin } from "./repo.js";
+import { hasActiveSuperAdmin } from "./repo.js";
 import { revokeStaffSessions } from "./session.js";
 import { staffBriefOf } from "./me.js";
 import { openWork, transferWork, workSources } from "./work.js";
 
 type DetailReader = (tx: Tx, ctx: StaffContext, id: string) => Promise<StaffDetail>;
-export async function staffAudit(
-  tx: Tx,
-  actor: IdentityContext,
-  row: Staff,
-  action: AuditAction,
-  summary: string,
-  change?: { before: object; after: object; fields: readonly string[] },
-  meta?: Record<string, unknown>,
-) {
-  await record(
-    tx,
-    actor.actor,
-    {
-      requestId: actor.requestId,
-      ip: actor.ip,
-      userAgent: actor.userAgent,
-      sessionId: null,
-      authMethod: null,
-      ...(actor.actor.client === "cli" ? { jobName: "cli.staff_reissue_activation" } : {}),
-    },
-    {
-      stream: "ops",
-      category:
-        action === "sys.session.revoke" || action.includes("reset") || action === "sys.staff.unlock"
-          ? "account_security"
-          : "staff_authz",
-      action,
-      summary,
-      target: { type: "staff", id: row.id, label: row.name },
-      entityId: null,
-      storeId: null,
-      ...(change ?? { before: null, after: null, fields: [] }),
-      ...(meta ? { meta } : {}),
-    },
-  );
-}
-async function locked(tx: Tx, id: string) {
-  const row = await lockStaff(tx, id);
-  if (!row) throw new AppError("NOT_FOUND");
-  return row;
-}
-export async function lockStaffSet(tx: Tx, ids: readonly string[]) {
-  const rows = new Map<string, Staff>();
-  for (const id of [...new Set(ids)].sort()) rows.set(id, await locked(tx, id));
-  return rows;
-}
 const active = (row: Staff) => {
   if (row.status !== "active") throw new AppError("STATE_NOT_ALLOWED");
 };

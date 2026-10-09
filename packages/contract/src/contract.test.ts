@@ -382,13 +382,14 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
   //     加具名结构时再改组件清单（现在只有 DictRef、ErrorBody、SentryEnvelope）。
   // 这是预期替换，不算“删改已有黄金条目”。替换时把断言换成新的现状（条数、组件名），不要整条删掉。
   // 路由清单本身的条数、与路线图的对账在 src/routes/routes.test.ts 与 pnpm contract:docs-check。
-  it("路由都已登记：带结构的 187 条中商家端与后台路由进入各自文档，回调不进入客户端文档；其余还只有元数据，三份文档都有通用结构与错误体", async () => {
+  it("路由都已登记：带结构的 205 条中商家端与后台路由进入各自文档，回调不进入客户端文档；其余还只有元数据，三份文档都有通用结构与错误体", async () => {
     // W1-03：协议与主体门店 8 条；W1-04：商家会话与当前账号 6 条；W1-01a：后台登录链路 9 条；W1-01b：员工增查与角色只读 4 条；W1-06：审批与字典读侧 4 条；W1-04b：商家字典 1 条；W1-07：文件 9 条；W1-13：内容读侧4条；W1-08a：商家档案13条；W1-11b：付款13条；W1-08b：后台档案6条；W1-14：发布15条；W1-15a：报价与订购2条；W1-15b：选剧单与读侧12条；W1-16a PR1：工单与方案10条；PR2：样片成片包10条；W1-16b：登录逐集下载4条
-    // 最新 main 补 W3-01 两条后台文件操作与 W2-21 两条微信回调；W3-11 补站点/Banner/搜索 11 条。
+    // 最新 main 补 W3-01 两条后台文件操作与 W2-21 两条微信回调；W3-11 补站点/Banner/搜索 11 条；W2-03 补员工全量 18 条。
     expect(allRoutes.map((route) => route.operationId).sort()).toEqual([
       "admin.approval.get",
       "admin.approval.list",
       "admin.approval.summary",
+      "admin.assignmentPoolMember.list",
       "admin.auditLog.get",
       "admin.auditLog.list",
       "admin.auth.activate",
@@ -475,9 +476,26 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "admin.siteConfig.publish",
       "admin.siteConfig.revision.list",
       "admin.siteNotice.list",
+      "admin.staff.bindWecom",
       "admin.staff.create",
+      "admin.staff.disable",
+      "admin.staff.duty.update",
+      "admin.staff.enable",
       "admin.staff.get",
+      "admin.staff.handover",
+      "admin.staff.inviteWecom",
       "admin.staff.list",
+      "admin.staff.openWork.get",
+      "admin.staff.poolMembership.replace",
+      "admin.staff.reissueActivationCode",
+      "admin.staff.resetMfa",
+      "admin.staff.resetPassword",
+      "admin.staff.summary",
+      "admin.staff.unlock",
+      "admin.staff.update",
+      "admin.staffGroup.list",
+      "admin.staffSession.list",
+      "admin.staffSession.revoke",
       "admin.store.assignDeliveryManager",
       "admin.store.get",
       "admin.store.list",
@@ -574,7 +592,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "m.subscribeResult.create",
       "m.wallet.get",
     ]);
-    expect(allMetaOnlyRoutes).toHaveLength(477);
+    expect(allMetaOnlyRoutes).toHaveLength(459);
     expect(allRegistryOnly).toHaveLength(5);
     /** 各文档的 paths 条数与具名结构 */
     const expected: Record<string, { paths: number; schemas: string[] }> = {
@@ -707,8 +725,23 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
         ],
       },
       admin: {
-        paths: 98,
+        paths: 115,
         schemas: [
+          "ActivationDeliveryBody",
+          "HandoverBody",
+          "HandoverResult",
+          "OpenWorkSummary",
+          "PoolMemberList",
+          "StaffCounts",
+          "StaffDisableBody",
+          "StaffDutyBody",
+          "StaffGroupSummary",
+          "StaffPoolMembershipReplaceBody",
+          "StaffResetBody",
+          "StaffSessionView",
+          "StaffUnlockBody",
+          "StaffUpdateBody",
+          "StaffWecomBindBody",
           "FlowOpsNoteBody",
           "OutboxDeliveryPage",
           "OutboxDeliveryView",

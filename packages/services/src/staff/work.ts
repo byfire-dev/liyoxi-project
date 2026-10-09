@@ -6,8 +6,8 @@ import { paramsAt } from "../config/index.js";
 import { AppError, LOCK_ORDER, lockRows, uuidv7, actorColumns } from "../kernel/index.js";
 import type { IdentityContext, StaffWorkItem, StaffWorkSources, Tx } from "../kernel/index.js";
 import { workHoursAt } from "../sla/index.js";
-import { assignmentContactTimerKey } from "./sla.js";
-import type { StaffManagementDeps } from "./management.js";
+import { assignmentContactTimerKey } from "./management-shared.js";
+import type { StaffManagementDeps } from "./management-deps.js";
 import { staffBriefOf } from "./me.js";
 
 export function workSources(deps: Pick<StaffManagementDeps, "workSources">): StaffWorkSources {

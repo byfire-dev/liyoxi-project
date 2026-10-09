@@ -8,8 +8,8 @@ import {
   staffFollowUpPort,
 } from "../kernel/index.js";
 import type { Assembly, InvariantViolation, Tx } from "../kernel/index.js";
-import type { StaffManagementDeps } from "./management.js";
-import { lockStaffSet } from "./manage-full.js";
+import type { StaffManagementDeps } from "./management-deps.js";
+import { lockStaffSet } from "./management-shared.js";
 import { transferWork, workSources } from "./work.js";
 export const FULL_STAFF_CHECKS = [
   "I1",

@@ -245,9 +245,9 @@ describe("与 x01 对账（验收 1–4）", () => {
 });
 
 describe("归属表 docs/plan/x01-map.md 是生成物（验收 5）", () => {
-  it("一项一行，共 113 行；每项都有里程碑与所属模块", () => {
+  it("一项一行，共 114 行；每项都有里程碑与所属模块", () => {
     const rows = x01MapRows();
-    expect(rows).toHaveLength(34 + 24 + 25 + 11 + 8 + 7 + 4);
+    expect(rows).toHaveLength(34 + 24 + 25 + 11 + 8 + 7 + 5);
     for (const row of rows) {
       expect(MAP_CATEGORIES).toContain(row.category);
       expect(MILESTONES).toContain(row.milestone);

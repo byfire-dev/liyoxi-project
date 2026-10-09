@@ -1,22 +1,19 @@
-import { latestStaffWecomInviteKey } from "../../audit/index.js";
+import { latestStaffWecomInviteKey } from "../audit/index.js";
 import type { PrismaClient } from "@liyoxi/db";
 import type { StaffRoleKey } from "@liyoxi/contract";
-import { createConfig } from "../../config/index.js";
-import { createEvents } from "../../events/index.js";
-import { createFlow } from "../../flow/index.js";
-import { createIdentityContext, createTxRunner, staffWorkSourcesOf } from "../../kernel/index.js";
-import { createSla } from "../../sla/index.js";
-import { createTimers } from "../../timers/index.js";
-import { sendStaffWecomInvite } from "../../notify/index.js";
-import {
-  assembleForTest,
-  createClock,
-  createFactories,
-  sampleStaffContext,
-  TEST_KEYRING,
-} from "../../testing/index.js";
-import { createStaffAssembly } from "../runtime.js";
-import type { StaffManagementDeps } from "../management.js";
+import { createConfig } from "../config/index.js";
+import { createEvents } from "../events/index.js";
+import { createFlow } from "../flow/index.js";
+import { createIdentityContext, createTxRunner, staffWorkSourcesOf } from "../kernel/index.js";
+import { createSla } from "../sla/index.js";
+import { createTimers } from "../timers/index.js";
+import { sendStaffWecomInvite } from "../notify/index.js";
+import { assembleForTest } from "./assembly.js";
+import { createClock } from "./clock.js";
+import { createFactories, TEST_KEYRING } from "./data/index.js";
+import { sampleStaffContext } from "./approval.js";
+import { createStaffAssembly } from "../staff/index.js";
+import type { StaffManagementDeps } from "../staff/index.js";
 
 export async function fullStaffWorld(prisma: PrismaClient) {
   const clock = createClock();

@@ -1,6 +1,6 @@
 import type { Assembly } from "../kernel/index.js";
 import { createStaffManagement } from "./management.js";
-import type { StaffManagementDeps } from "./management.js";
+import type { StaffManagementDeps } from "./management-deps.js";
 import { findStaffViolations } from "./full-invariants.js";
 import { handleStaffSlaBreach, onStaffCalendarImported } from "./sla.js";
 

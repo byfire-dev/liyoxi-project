@@ -159,7 +159,7 @@ APP_ENV=local DATABASE_URL=… REDIS_URL=… DATA_KEYS_FILE=… BIDX_KEYS_FILE=�
 
 ## 9. 员工最小集（W1-01b）
 
-`createStaffManagement({ tx, clock, flow, config, keyring: () => keyring })` 提供 `create(ctx, identity, body, { idem })`、`list(ctx, query)`、`get(ctx, staffId)`、`roles(ctx)`。新增由调用方传入当前员工上下文与身份，内核事务同时写员工、状态历史、脱敏审计、`staff.created` 和激活码。M1 无论请求的下发方式都返回 `manual` 激活码一次；路由以 `activation.activationCode` 脱敏保存幂等结果，重放嵌套与外层的 `replayed` 一致。未开放渠道角色仅可暂不启用。
+`createStaffManagement({ tx, clock, flow, config, keyring: () => keyring })` 提供 `create(ctx, identity, body, { idem })`、`list(ctx, query)`、`get(ctx, staffId)`、`roles(ctx)`。新增由调用方传入当前员工上下文与身份，内核事务同时写员工、状态历史、脱敏审计、`staff.created` 和激活码。M1 交付时无论请求的下发方式都返回 `manual` 激活码一次；W2-03 已在提交后消费实际通知端口，驱动不支持时明确手动回退；路由以 `activation.activationCode` 脱敏保存幂等结果，重放嵌套与外层的 `replayed` 一致。未开放渠道角色仅可暂不启用。
 
 完整列表、详情、分类计数和角色成员按当前 DataScope 过滤；跨角色选人按所带池的真实读权展示安全列，phoneMask=null。动作按当前权限、本人/最后超级管理员/在办/角色状态计算。withLoad消费实例化的 StaffWorkSources；缺少要求的真实来源拒绝，不能伪造零值。
 
@@ -173,7 +173,7 @@ APP_ENV=local DATABASE_URL=… REDIS_URL=… DATA_KEYS_FILE=… BIDX_KEYS_FILE=�
 
 受限恢复命令 `pnpm staff:reissue-activation --staff-id UUID --confirm-staff-no 工号` 只接受唯一启用、仍未激活的引导超级管理员与已过期未用码；生产另需 `--allow-production`，真实生产执行由业主授权。原码撤销，新8位码只输出一次，仍24小时有效。它独立登记为staff_reissue_activation（M2），没有改原staff_bootstrap。
 
-新增真实用例位于management-full.db、work-assignment.db、invariants-full.db、sla-runtime.db、API staff-full与worker CLI文件；结果随本包验证更新。两项留桩须在真实验收通过后回补，旧staff.I8不重复实现。
+新用例位于management-full.db、work-assignment.db、invariants-full.db、sla-runtime.db、testing/staff-publisher.db、API staff-full与worker CLI文件。完整测试世界通过testing公共fullStaffWorld构建，避免staff测试同层调用notify或向上导入delivery；production私有management-deps/shared仅搬原类型、锁、审计及timer key，不更改公口或业务。最新同轮services五文件29项与根装配18项通过，API8/CLI3及原认证39、域18已有独立通过证据；新40项总体为多轮真实闭环，非同次全40。两项功能桩已回补，最终build/gates与唯一独审待本包收口；真实云短信/企微到达未验，旧staff.I8不重复实现。
 
 ## 10. 角色配置与本人安全（W2-04）
 

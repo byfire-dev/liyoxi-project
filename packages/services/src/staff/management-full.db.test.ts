@@ -5,11 +5,15 @@ import {
   StaffPoolMembershipReplaceBodySchema,
   StaffSessionListQuerySchema,
 } from "@liyoxi/contract";
-import { useSeededDatabase, signInAsStaff, sampleStaffContext } from "../testing/index.js";
+import {
+  fullStaffWorld,
+  useSeededDatabase,
+  signInAsStaff,
+  sampleStaffContext,
+} from "../testing/index.js";
 import { createIdentityContext } from "../kernel/index.js";
 import { issueActivationCode } from "./activation.js";
-import { fullStaffWorld } from "./__fixtures__/full.js";
-import type { FullStaffWorld } from "./__fixtures__/full.js";
+import type { FullStaffWorld } from "../testing/index.js";
 import { SLOW, nextPhone } from "./__fixtures__/staff.js";
 const db = useSeededDatabase("services");
 const superDb = useSeededDatabase("services", { label: "staffsupers" });

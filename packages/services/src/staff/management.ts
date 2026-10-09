@@ -18,12 +18,9 @@ import {
   scopeCovers,
 } from "../authz/index.js";
 import type { DataScope, StaffContext } from "../authz/index.js";
-import type { Config } from "../config/index.js";
-import type { Flow } from "../flow/index.js";
 import { AppError, isUniqueViolation, uuidv7 } from "../kernel/index.js";
-import type { Clock, IdentityContext, Tx, TxRunOptions, TxRunner } from "../kernel/index.js";
+import type { IdentityContext, Tx, TxRunOptions } from "../kernel/index.js";
 import { sealPhone, openField } from "../security/index.js";
-import type { Keyring } from "../security/index.js";
 import { issueActivationCode } from "./activation.js";
 import { recommendedStaff, staffBriefs } from "./assignment.js";
 import type { AssignmentPool } from "./assignment.js";
@@ -31,26 +28,9 @@ import { staffBriefOf } from "./me.js";
 import { createFullStaffManagement } from "./manage-full.js";
 import { createStaffLists } from "./manage-lists.js";
 import { workCounts, workSources } from "./work.js";
-import type { StaffWorkSources, StaffActivationSender } from "../kernel/index.js";
-import type { Media } from "../media/index.js";
-import type { Events } from "../events/index.js";
-import type { Sla } from "../sla/index.js";
-import type { Timers } from "../timers/index.js";
 
-export interface StaffManagementDeps {
-  tx: TxRunner;
-  clock: Clock;
-  flow: Pick<Flow, "transition">;
-  config: Pick<Config, "flags" | "dicts">;
-  keyring: () => Keyring;
-  workSources?: StaffWorkSources;
-  sendWecomInvite?: (input: { staffId: string; createdAt: Date }) => Promise<{ created: boolean }>;
-  sendActivation?: StaffActivationSender;
-  media?: Pick<Media, "link" | "release" | "signRead">;
-  events?: Pick<Events, "emit">;
-  sla?: Pick<Sla, "dueAt">;
-  timers?: Pick<Timers, "arm" | "cancel">;
-}
+export type { StaffManagementDeps } from "./management-deps.js";
+import type { StaffManagementDeps } from "./management-deps.js";
 const include = { staffRole: true, staffGroup: true, assignmentPoolMembers: true } as const;
 type Row = Prisma.StaffGetPayload<{ include: typeof include }>;
 const iso = (date: Date | null): string | null => date?.toISOString() ?? null;

@@ -1,9 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createIdentityContext, uuidv7 } from "../kernel/index.js";
-import { assembleForTest, useSeededDatabase } from "../testing/index.js";
+import { fullStaffWorld, assembleForTest, useSeededDatabase } from "../testing/index.js";
 import { createStaffAssembly } from "./runtime.js";
-import { fullStaffWorld } from "./__fixtures__/full.js";
-import type { FullStaffWorld } from "./__fixtures__/full.js";
+import type { FullStaffWorld } from "../testing/index.js";
 const SLOW = 180_000;
 const db = useSeededDatabase("services", { label: "staffsla" });
 let w: FullStaffWorld;
@@ -126,12 +125,10 @@ describe("员工联系时限与所属装配恢复", { timeout: SLOW }, () => {
     expect(after.slaSnapshot).toMatchObject({ calendarVersion: version });
     expect(await w.prisma.statusTransition.count()).toBe(historyCount);
     await w.tx.run((tx) =>
-      w.assembly
-        .subscriber("staff.onCalendarImported")!
-        .handle(tx, {
-          ...event,
-          payload: { ...event.payload, calendarVersion: Math.max(1, version - 1) },
-        }),
+      w.assembly.subscriber("staff.onCalendarImported")!.handle(tx, {
+        ...event,
+        payload: { ...event.payload, calendarVersion: Math.max(1, version - 1) },
+      }),
     );
     expect(
       (await w.prisma.assignmentHistory.findUniqueOrThrow({ where: { id: g.history.id } }))

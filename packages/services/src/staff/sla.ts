@@ -4,8 +4,8 @@ import { record } from "../audit/index.js";
 import { createIdentityContext } from "../kernel/index.js";
 import type { DeliveredEvent, FiredTimer, TimerOutcome, Tx } from "../kernel/index.js";
 import { currentCalendarVersion, lockCalendarImport, workHoursAt } from "../sla/index.js";
-import { lockStaffSet } from "./manage-full.js";
-import type { StaffManagementDeps } from "./management.js";
+import { assignmentContactTimerKey as keyOf, lockStaffSet } from "./management-shared.js";
+import type { StaffManagementDeps } from "./management-deps.js";
 
 const snapshotSchema = z.strictObject({
   policy: z.string().min(1),
@@ -14,7 +14,6 @@ const snapshotSchema = z.strictObject({
   calendarVersion: z.int().nonnegative(),
   computedAt: z.iso.datetime(),
 });
-const keyOf = (id: string) => `sla.breach:assignment_history:${id}`;
 
 /** This unranked history row follows its recipient staff lock; no business state machine is involved. */
 async function lockHistory(tx: Tx, id: string) {
@@ -170,4 +169,4 @@ export async function handleStaffSlaBreach(
   return "fired";
 }
 
-export const assignmentContactTimerKey = keyOf;
+export { assignmentContactTimerKey } from "./management-shared.js";
