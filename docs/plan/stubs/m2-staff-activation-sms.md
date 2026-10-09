@@ -12,4 +12,4 @@
 
 W2-03 在业务提交后通过真实实例通知端口下发，staff 不同层导入 notify。新增、补发与安全重置沿原 8 位字母数字、24 小时协议，幂等持久化与重放明文仍为 null。腾讯官方验证码模板只接受至多 6 位数字时，驱动在外呼前受控拒绝，员工用例明确手动回退，不改激活码协议、不宣称短信到达。
 
-代码与真实本地证据：[管理服务](../../../packages/services/src/staff/manage-full.ts)、[管理用例](../../../packages/services/src/staff/management-full.db.test.ts)、[HTTP 用例](../../../apps/api/test/staff-full.test.ts)；通知借用者在 runtime 与 ops/worker 的本 scope 装配。功能回补已真实验证，最终构建、门禁及独立审查仍见 [W2-03 状态](../status/W2-03.md)，真实签名/模板报备和发送到达未验。
+代码与真实本地证据：[管理服务](../../../packages/services/src/staff/manage-full.ts)、[管理用例](../../../packages/services/src/staff/management-full.db.test.ts)、[HTTP 用例](../../../apps/api/test/staff-full.test.ts)；通知借用者在 runtime 与 ops/worker 的本 scope 装配。功能回补已真实验证，本地构建与门禁已通过，待独立审查/主线合流，详见 [W2-03 状态](../status/W2-03.md)，真实签名/模板报备和发送到达未验。

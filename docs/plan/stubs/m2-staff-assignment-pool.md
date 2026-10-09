@@ -12,4 +12,4 @@
 
 W2-03 的城市命中与不限城市回退、客服当班、UUID 游标升序与回绕、同 TX 预准备重入均走真实员工与游标；只读推荐零游标写入。profile/order/delivery/publish/follow_up 的已落地在办量经 typed 公口取真实事实，发布专员由公开指派入口消费；禁用和改派在同 TX 持员工前置锁，再锁真实业务行。未实现的 M5 广告与 M7 客服来源由 W4-20/W2-31 后续登记，不注册恒零。
 
-真实证据：[轮询与原子移交](../../../packages/services/src/staff/work-assignment.db.test.ts)、[跨域公开消费](../../../packages/services/src/testing/staff-publisher.db.test.ts)、[原轮询兼容](../../../packages/services/src/staff/management.db.test.ts)、[API](../../../apps/api/test/staff-full.test.ts)。原认证并发、受影响域回归及完整 13 项不变量零违规已验证；最终构建、门禁和独立审查仍见 [本包状态](../status/W2-03.md)。
+真实证据：[轮询与原子移交](../../../packages/services/src/staff/work-assignment.db.test.ts)、[跨域公开消费](../../../packages/services/src/testing/staff-publisher.db.test.ts)、[原轮询兼容](../../../packages/services/src/staff/management.db.test.ts)、[API](../../../apps/api/test/staff-full.test.ts)。原认证并发、受影响域回归及完整 13 项不变量零违规已验证；本地构建与门禁已通过，待独立审查/主线合流，详见 [本包状态](../status/W2-03.md)。
