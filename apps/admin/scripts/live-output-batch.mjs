@@ -18,6 +18,7 @@ import { dirname, extname, join, resolve, sep } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { prepareLiveMedia } from "./live-media.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const ADMIN = join(ROOT, "apps/admin");
@@ -322,13 +323,14 @@ async function serveProduction(apiOrigin) {
   });
   return `http://127.0.0.1:${proxy.address().port}`;
 }
-async function main() {
+async function main(args) {
   if (
     !/^(24|26)\./.test(process.versions.node) ||
     (process.env.APP_ENV && process.env.APP_ENV !== "test")
   )
     throw new Error("W302 live requires Node24 (or nightly Node26) and APP_ENV=test");
   const { values } = parseArgs({
+    args,
     options: {
       video: { type: "string" },
       "resume-video": { type: "string" },
@@ -553,7 +555,18 @@ for (const signal of ["SIGINT", "SIGTERM"])
     interrupted = true;
     for (const child of children) terminate(child);
   });
-main().catch(() => {
-  console.error("W302 live failed; inspect the owned logs and Playwright artifacts");
-  process.exitCode = 1;
-});
+export async function runLiveOutputBatch(args = process.argv.slice(2)) {
+  const prepared = await prepareLiveMedia(args);
+  let passed = false;
+  try {
+    await main(prepared.args);
+    passed = true;
+  } finally {
+    prepared.close(passed);
+  }
+}
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url))
+  runLiveOutputBatch().catch((error) => {
+    console.error(`真实后台验收失败：${error.message}`);
+    process.exitCode = 1;
+  });
