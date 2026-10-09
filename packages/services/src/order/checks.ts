@@ -1,3 +1,4 @@
+import { assertAssetReferences } from "../media/index.js";
 // 报价与提交共用判定；报价收集业务拒绝，提交按同一顺序拒绝。
 import { DramaSnapshotSchema } from "@liyoxi/contract";
 import type { OrderCreateBody, DramaSnapshot } from "@liyoxi/contract";
@@ -122,7 +123,11 @@ export async function submitChecks(
     throw new AppError("ORDER_AD_INVALID", {
       details: { adId: input.adIds[0], reason: "not_in_store" },
     });
-  if (input.referenceStoreAssetIds?.length) invalid("referenceStoreAssetIds.0", "库里没有素材");
+  await assertAssetReferences(tx, {
+    entityId: actor.membership.entityId,
+    storeId: actor.membership.storeId,
+    ids: input.referenceStoreAssetIds ?? [],
+  });
   const earliest = await earliestLaunch(tx, at);
   if (input.expectedLaunchDate && input.expectedLaunchDate < earliest)
     throw new AppError("LAUNCH_DATE_TOO_EARLY", { details: { earliestLaunchDate: earliest } });

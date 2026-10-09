@@ -53,3 +53,5 @@ export {
   readEntityDeletionCounts,
 } from "./close-facts.js";
 export type { BillingCloseCounts, StoreCloseCounts, EntityDeletionCounts } from "./close-facts.js";
+
+export { readStoreAssetFacts, readAssetMerchantUploader } from "./media-facts.js";

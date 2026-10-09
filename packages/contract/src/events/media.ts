@@ -3,6 +3,46 @@ import { IdSchema } from "../common/index.js";
 import { z } from "../zod.js";
 const fileFact = z.object({ v: z.literal(1), fileId: IdSchema }).strict();
 export const payloads = {
+  "asset.processed": z.strictObject({
+    v: z.literal(1),
+    storeAssetId: IdSchema,
+    storeId: IdSchema,
+    entityId: IdSchema,
+  }),
+  "asset.review_needed": z.strictObject({
+    v: z.literal(1),
+    storeAssetId: IdSchema,
+    storeId: IdSchema,
+    dueAt: z.iso.datetime().optional(),
+  }),
+  "asset.reviewed": z.strictObject({
+    v: z.literal(1),
+    storeAssetId: IdSchema,
+    storeId: IdSchema,
+    usability: z.enum(["ready", "reference_only", "need_reshoot", "need_portrait_auth"]),
+    uploadActorType: z.enum(["merchant", "staff"]),
+    uploaderUserId: IdSchema.optional(),
+  }),
+  "asset.demand_created": z.strictObject({
+    v: z.literal(1),
+    storeAssetDemandId: IdSchema,
+    storeId: IdSchema,
+    notifyScope: z.enum(["owner_and_clerks", "owner_only"]),
+    dueDate: z.iso.date().optional(),
+  }),
+  "asset.feedback_submitted": z.strictObject({
+    v: z.literal(1),
+    storeAssetId: IdSchema,
+    storeId: IdSchema,
+    entityId: IdSchema,
+    actorRole: z.enum(["owner", "clerk"]),
+  }),
+  "asset.sla_breached": z.strictObject({
+    v: z.literal(1),
+    storeAssetId: IdSchema,
+    storeId: IdSchema,
+    dueAt: z.iso.datetime(),
+  }),
   "asset.adopted": z.strictObject({
     v: z.literal(1),
     storeAssetId: IdSchema,

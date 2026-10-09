@@ -1,3 +1,4 @@
+import { readOrderAssetReferences } from "../media/index.js";
 import { DramaSnapshotSchema, OrderDetailSchema } from "@liyoxi/contract";
 import type { OrderDetail } from "@liyoxi/contract";
 import { listOperationsByHold } from "../billing/index.js";
@@ -95,7 +96,7 @@ export async function detail(
     focus: await dictRefs(tx, "custom_focus", o.focusCodes),
     note: o.note,
     expectedLaunchDate: date(o.expectedLaunchDate),
-    referenceStoreAssetIds: [],
+    referenceStoreAssetIds: await readOrderAssetReferences(tx, o.id),
     pendingTodo: null,
     items: await Promise.all(
       o.orderItems.map(async (i) => {

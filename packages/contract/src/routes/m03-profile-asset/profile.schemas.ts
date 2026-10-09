@@ -1,3 +1,6 @@
+import { StoreAssetCardSchema } from "./store-assets.schemas.js";
+import { MediaFileViewSchema } from "./media-file.schemas.js";
+export { MediaFileViewSchema } from "./media-file.schemas.js";
 import { z } from "../../zod.js";
 import { DictRefSchema, IdSchema, InstantSchema, openEnum, orNull } from "../../common/index.js";
 import { QUALIFICATION_STATUS, STORE_PROFILE_MEDIA_MEDIA_GROUP } from "../../enums/index.js";
@@ -40,19 +43,6 @@ export const CompletenessSchema = z
       .length(4),
   })
   .openapi("Completeness");
-export const MediaFileViewSchema = z
-  .object({
-    fileId: IdSchema,
-    kind: openEnum(["image", "video", "audio", "document"]),
-    url: z.string().nullable(),
-    expiresAt: orNull(InstantSchema),
-    coverUrl: z.string().nullable(),
-    durationMs: z.int().nullable(),
-    displayWidth: z.int().nullable(),
-    displayHeight: z.int().nullable(),
-    moderationState: openEnum(["none", "pending", "pass", "review", "block"]),
-  })
-  .openapi("MediaFileView");
 export const AddressViewSchema = z
   .object({
     province: orNull(DictRefSchema),
@@ -270,7 +260,7 @@ const overview = {
   assets: z.object({
     total: z.int(),
     recent7dCount: z.int(),
-    recent: z.array(z.object({})).max(0),
+    recent: z.array(StoreAssetCardSchema).max(3),
   }),
 };
 export const StoreProfileOverviewClerkSchema = z.object({

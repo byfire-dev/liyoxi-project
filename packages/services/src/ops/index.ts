@@ -80,3 +80,5 @@ export {
   readDemoMasterInput,
   createDemoMasterInputPreparer,
 } from "./demo-masters-input.js";
+
+export { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./media-assets-runtime.js";

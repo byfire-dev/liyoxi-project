@@ -52,3 +52,10 @@ export { assertUsableForModel } from "./read.js";
 export { contextHash } from "./production.js";
 export { ProbeOutputSchema } from "./handlers/probe.js";
 export { DerivationOutputSchema } from "./handlers/restamp.js";
+
+export type { MediaAssetsDeps, AssetStoreFacts } from "./assets/types.js";
+export {
+  assertAssetReferences,
+  linkAssetReferences,
+  readOrderAssetReferences,
+} from "./assets/facts.js";
