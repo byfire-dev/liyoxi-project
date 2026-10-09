@@ -182,3 +182,11 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 主页截图由 `withPrivacy` 包选图，正式环境只用公共 `prepareTaroFile/createTaroUpload`，分类 `channel_screenshot`；最多3张，图片上限取公共 `UPLOAD_LIMITS.imageMaxMb`（5MB），通道由登记接口的 mode 决定。H5 截图的入库文件ID是显式离线替身，不是真实上传证据。订单交付入口由 W1-20 接通：方案取实际方案ID，剧目卡按本项阶段与时间线进入样片、成片、发布任务和上线记录；目标页写按钮仍按实时 GET 的 actions。广告、参考素材、视频、解绑、授权书及取消入口均不出。原支付结果状态保持。
 
 H5 仍缺少原生导航栏、胶囊与真实安全区；下拉/触底、订阅授权、隐私授权和微信文件直传须在 E16/E7 到位后手验。本域离线图不能当作真实接口或微信授权/上传证据。
+
+## 搜索页面（W3-13）
+
+首页和商城的搜索入口以 navigateTo 打开 `sub/catalog/search/index`，原商城分类、筛选、排序和游标保留；详情只传既有 dramaId。热词取已发布 `m.mallConfig.get`，不硬编码运营词。本机历史只在真实提交时记归一后的关键词，最多十条、去重置顶、可清空；使用唯一登记的 `lyx.searchHistory`，不上报或写服务端。
+
+输入去空白和中点、1–20 Unicode 码点。输入防抖300ms在页面私有 `SEARCH_DEBOUNCE_MS`，确认和热词/历史点击立即执行。query代次与现有contextRev/store/token共同保护首屏、更多、配置、错误和finally；换店/身份清结果与游标。三角色的价格与套餐、三字段匹配顺序、industry_fallback与totalApprox都取服务器真值，不按端上规则重算。接口未返回主演姓名，cast匹配仅显示“主演匹配”；标题/题材使用实际matchedFields切分Text高亮，禁止HTML。
+
+八态清单在 `shots/search-scenes.ts`，运行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --page sub/catalog/search/index` 或固定 `--scene search-idle/search-owner/search-clerk/search-guest/search-fallback/search-empty/search-error/search-more`（多态分别传多次参数）。产物 `shots/dist/png/search__<scene>.png` 为固定离线H5接线与交互证据，不能当真实API或微信真机验收。真实 mounted API 已以隔离库验证三角色配置/搜索/详情及实际换店晚响应；5条场景按首次4条通过、失效凭据定点1条通过分别记录。公开搜索的坏 token 按现有 optional-auth 返回游客字段；受保护 `/m/me` 的401触发中央恢复后，旧搜索响应不能写回，新游客资源重新查询。离线网络错误另行注入验证，不冒称后端故障。八态图与原首页/商城6场景分轮通过：原商城筛选/排序、搜索与详情往返保持；加载更多首次失败保留20条，重试同游标后24条去重。真机键盘、取消/确认、网络、原生导航与安全区、正式运营热词仍需外部手验。

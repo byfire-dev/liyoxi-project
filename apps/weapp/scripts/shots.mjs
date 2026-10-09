@@ -31,6 +31,7 @@ import {
   deliveryNavigationRegression,
 } from "../shots/delivery-regressions.mjs";
 import { orderRegression, publishRegression } from "../shots/order-regressions.mjs";
+import { searchEntryRegression, searchRegression } from "../shots/search-regressions.mjs";
 import {
   profileContactRegression,
   profileAuthorizationRegression,
@@ -91,6 +92,9 @@ const { DELIVERY_SCENES } = await import(
 const { MESSAGE_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/message-scenes.ts")).href
 );
+const { SEARCH_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/search-scenes.ts")).href
+);
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--no-build") build = false;
@@ -118,6 +122,7 @@ for (let index = 0; index < args.length; index += 1) {
         ...PUBLISH_SCENES,
         ...DELIVERY_SCENES,
         ...MESSAGE_SCENES,
+        ...SEARCH_SCENES,
       ].some((item) => item.name === name)
     )
       fail(`未知固定场景 ${name}`);
@@ -237,6 +242,19 @@ const targets = [
     }),
   ),
   ...(all
+    ? SEARCH_SCENES
+    : SEARCH_SCENES.filter(
+        (item) => wantedScenes.includes(item.name) || wanted.includes(item.route),
+      )
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}?lyxShot=${item.name}`,
+    file: `search__${item.name}`,
+    scene: item.name,
+    kind: "search",
+    fullPage: false,
+  })),
+  ...(all
     ? builtRoutes.filter(
         (route) =>
           !["pages/login/index", "pages/agreement/index", "pages/mine/index"].includes(route) &&
@@ -246,9 +264,10 @@ const targets = [
           !ORDER_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !PUBLISH_SCENES.some((item) => item.route === route) &&
           !DELIVERY_SCENES.some((item) => item.route.split("?")[0] === route) &&
-          !MESSAGE_SCENES.some((item) => item.route === route),
+          !MESSAGE_SCENES.some((item) => item.route === route) &&
+          !SEARCH_SCENES.some((item) => item.route === route),
       )
-    : wanted
+    : wanted.filter((route) => !SEARCH_SCENES.some((item) => item.route === route))
   ).map((route) => ({
     label: route,
     url: route,
@@ -348,6 +367,21 @@ async function shoot(target) {
                 ? "mine-guest"
                 : "mine-owner";
             globalThis.__LYX_CATALOG_SHOT__ = scene;
+            if (scene.startsWith("home-") || scene.startsWith("mall-"))
+              globalThis.__LYX_SEARCH_SHOT__ = scene.endsWith("clerk")
+                ? "search-clerk"
+                : scene.endsWith("guest")
+                  ? "search-guest"
+                  : "search-owner";
+          }
+          if (kind === "search") {
+            globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("clerk")
+              ? "mine-clerk"
+              : scene.endsWith("guest")
+                ? "mine-guest"
+                : "mine-owner";
+            globalThis.__LYX_SEARCH_SHOT__ = scene;
+            globalThis.__LYX_CATALOG_SHOT__ = scene;
           }
           if (kind === "order") globalThis.__LYX_ORDER_SHOT__ = scene;
           if (kind === "publish") globalThis.__LYX_PUBLISH_SHOT__ = scene;
@@ -391,15 +425,18 @@ async function shoot(target) {
                   ? "#order-ready"
                   : target.kind === "catalog"
                     ? "#catalog-ready"
-                    : target.kind === "message"
-                      ? target.scene === "messages-loading"
-                        ? ".messages-page .lyx-skeleton"
-                        : "#messages-ready"
-                      : target.kind === "delivery"
-                        ? "#delivery-ready"
-                        : "#account-ready",
+                    : target.kind === "search"
+                      ? "#search-ready"
+                      : target.kind === "message"
+                        ? target.scene === "messages-loading"
+                          ? ".messages-page .lyx-skeleton"
+                          : "#messages-ready"
+                        : target.kind === "delivery"
+                          ? "#delivery-ready"
+                          : "#account-ready",
         )
         .waitFor({ state: "visible", timeout: 15_000 });
+      if (target.kind === "search") await searchRegression(page, target.scene);
       if (target.kind === "publish" && target.scene === "accounts-bind") {
         await page.locator(".accounts-page .lyx-button").filter({ hasText: "绑定新账号" }).click();
         await page.locator(".accounts-page__form").waitFor({ state: "visible" });
@@ -647,6 +684,7 @@ async function shoot(target) {
           await page.getByText("证照不清晰", { exact: true }).waitFor({ state: "visible" });
       }
     }
+    if (target.kind === "catalog") await searchEntryRegression(page, target.scene);
     if (errors.length > 0) throw new Error(`页面报错：${errors[0]}`);
     if (target.fullPage) {
       // 页面上开着弹层时，等它的进场动画走完

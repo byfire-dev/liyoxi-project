@@ -90,7 +90,9 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     implemented: true,
   }),
   // sub/catalog（3 页）
-  page("sub/catalog/search/index", "sub/catalog", "搜索", "Search", "M03", "M3", "G3-B"),
+  page("sub/catalog/search/index", "sub/catalog", "搜索", "Search", "M03", "M3", "W3-13", {
+    implemented: true,
+  }),
   page("sub/catalog/trailer/index", "sub/catalog", "预告片模式", "Trailer", "M05", "V1.1", "—", {
     note: "V1.0 不做（规范 第 11 节）",
   }),
