@@ -40,9 +40,9 @@ PDF.js 6.3.289 的实际 types 不再接受旧 `isEvalSupported` 参数。检查
 
 两 CLI 源码只引用原 services 公开名称。正常 API/worker/seed/staff-bootstrap 构建保留原 resolver/external 行为；仅 converter 使用独立第二轮 build，将该入口的公开 import 定向到已经由 services/kernel 逐层公开转导的同一函数文件。build 先核实完整公开绑定链，并对两个结果都核验外部生产依赖。CPU 产物禁止带入业务装配、Provider 或 db 图，没有新增子路径、sideEffects 声明或层级豁免。worker converter 从原 11MiB 降为约 155KiB，主应用 bundle 保持原行为。
 
-四库 `mammoth@1.13.0`、`sanitize-html@2.17.7`、`pdfjs-dist@6.3.289`、`@napi-rs/canvas@1.0.9` 在 services/API/worker 三份清单共 12 处生产声明；`@types/sanitize-html@2.16.2` 仅 services dev。sanitize-html 用成熟且已修 GHSA-vccv-cmxp-4j9h 的版本，不等 2.18。新生产路径暴露 source-map-js 1.2.1 的 GHSA-68fv-2mgg-jv7q，必要安全伴随仅将这一个传递锁包升级为官方 1.2.2，四处既有锁边同步，不加 override/直接依赖或豁免。原 trust、minimumReleaseAge=10080、安装脚本白名单与审计门禁保持。
+四库 `mammoth@1.13.0`、`sanitize-html@2.17.7`、`pdfjs-dist@6.3.289`、`@napi-rs/canvas@1.0.9` 在 services/API/worker 三份清单共 12 处生产声明；`@types/sanitize-html@2.16.2` 仅 services dev。sanitize-html 用成熟且已修 GHSA-vccv-cmxp-4j9h 的版本，不等 2.18。新生产路径暴露 source-map-js 1.2.1 的 GHSA-68fv-2mgg-jv7q，其1.2.2及四处既有锁边已通过独立安全分支实际合入本地主干 44b5be61，再由本分支普通同步继承。本包当前差异不含该既有依赖升级，不加 override/直接依赖或豁免。原 trust、minimumReleaseAge=10080、安装脚本白名单与审计门禁保持。
 
-官方发行信息见[预拆记录](../../../../../docs/plan/changes/W2-12-document-capability-first.md)；[source-map-js 官方 registry](https://registry.npmjs.org/source-map-js)中 1.2.2 发布于 2026-09-30T14:08:09.382Z。新增的 40 个锁版本（含 native optional）通过实际 7 日门禁。实际 CI 生产审计命令 high/critical 均为 0，仍有 1 项 moderate；原全仓 raw audit 的旧开发依赖记录不等于本包生产门禁绿色或全仓漏洞为 0。
+官方发行信息见[预拆记录](../../../../../docs/plan/changes/W2-12-document-capability-first.md)；[source-map-js 官方 registry](https://registry.npmjs.org/source-map-js)中 1.2.2 发布于 2026-09-30T14:08:09.382Z。相对当前实际主干 1f851e0c 新增的39个锁版本（含 native optional）通过实际7日门禁。本地执行官方生产审计命令 high/critical 均为0，仍有1项 moderate；远端CI未执行。原全仓 raw audit 的旧开发依赖记录不等于全仓漏洞为0。
 
 ## 验收与限制
 
@@ -55,8 +55,10 @@ docker build -f infra/docker/server/Dockerfile --build-arg LYX_BUILD=w212-capabi
 node infra/docker/server/verify/document-conversion.mjs --image liyoxi/server:w212-document-capability
 ```
 
-数据库测试须配已迁移的本地测试连接和独占 session；不读取真实密钥。容器命令只启动并清理自有私有容器，不部署共享 Compose。host 先构造虚构文件，readonly bind 进容器；容量取得后才读取/transfer。API/worker 各自独占 Linux Node24 容器，320MiB memory/swap、根只读、/tmp64MiB、network none。最终源重建后的两产物分别通过 20+20MiB、I/O/CPU 取消、10 秒终止、主 host 恢复和 MessagePort 清理，cgroup peaks 156356608/155217920 字节；真实 inspect 的退出码均0、OOMKilled=false、资源形态符合，原第4轮绿色也保留。
+数据库测试须配已迁移的本地测试连接和独占 session；不读取真实密钥。容器命令只启动并清理自有私有容器，不部署共享 Compose。host 先构造虚构文件，readonly bind 进容器；容量取得后才读取/transfer。原固定提交 f78ed5a2 的 API/worker 各自独占 Linux Node24 容器，320MiB memory/swap、根只读、/tmp64MiB、network none。该轮两产物分别通过 20+20MiB、I/O/CPU 取消、10 秒终止、主 host 恢复和 MessagePort 清理，cgroup peaks 156356608/155217920 字节；真实 inspect 的退出码均0、OOMKilled=false、资源形态符合，原第4轮绿色也保留。当前九个纯 CPU 源文件与该固定提交逐 SHA 不变，因此保留该历史容器证据，不宣称本轮重建或验收当前完整服务镜像。
 
 前 3 轮失败日志保留：容器内生成大夹具造成 OOM；将两应用载入同一假父进程触顶；分开后旧完整业务 CPU bundle 的 worker 仍触顶。最终修正测试形态并缩小真实 CPU 子图，未扩容、收紧上传、人工 GC 或改变成功判据。128MiB JS heap/4MiB stack 不约束 native 内存，不能拿 heap 当容器保证。
 
-以上容器验收覆盖实际 converter 产物与 host，不宣称完整 API/worker 服务的容器启动/业务压力已经验收。既有 API 启动/探活/退出用例另行验证。正文没有真实网络调用、法律正文或自动法务勾选；E8 和 PR2 的权限、HTTP/cron、生命周期与两桩仍待办，PR1 还需独立审查、CI 和 actual 合入。
+普通同步当前实际主干后，两个真实独立 converter 产物和原 API 启动/探活/退出三文件6例、全 workspace 串行类型与必要门禁重新通过。原 Storage 六文件完整403例、严格 Provider 集合/替身、未配置 Provider 完整122例，以及 COS 原12例加新增20例隔离 HTTP 协议通过。COS 追加同一 readObject 端口，沿用真实签名、在途取消及关闭清理；原 readPrefix 保持。API 启动测试仅迁移到既有完整种子夹具；Provider golden 只追加当前主干已有的方法预期。
+
+原唯一独审511秒的1项 D/P1 是既有依赖升级混入业务差异；独立安全修复实际合入、普通同步及官方业务分类通过后关闭，0 P2，没有第二轮正式独审。新主干兼容伴随由作者验证，原独审不覆盖这些新增行。以上容器证据仅覆盖实际 converter 产物与 host，不宣称完整 API/worker 服务容量已验收。正文没有真实云调用、法律正文或自动法务勾选；W2-12 仍进行中，E8 和 PR2 八接口、两个 cron、生命周期与两桩仍待办，W2-16 继续等待整包完成。当前按授权本地合流，远端 PR/CI 未执行。
