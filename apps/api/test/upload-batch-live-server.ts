@@ -3,6 +3,7 @@ import { readFile, realpath } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { serve } from "@hono/node-server";
+import { AdminFileCreateBodySchema, FileRegistrationSchema } from "@liyoxi/contract";
 import { createRuntime, loadEnv, runStartupChecks } from "@liyoxi/services";
 import type { Env, RuntimeOptions } from "@liyoxi/services";
 import {
@@ -11,8 +12,12 @@ import {
   OutputBatchLiveInputSchema,
   findOutputBatchLiveJobIds,
   prepareOutputBatchLiveMasters,
+  ContentAdminLiveScopeSchema,
+  assertContentAdminLiveScope,
+  assertContentAdminLiveTargets,
+  findContentAdminLiveJobIds,
 } from "@liyoxi/services/testing";
-import type { OutputBatchLiveInput } from "@liyoxi/services/testing";
+import type { ContentAdminLiveScope, OutputBatchLiveInput } from "@liyoxi/services/testing";
 import { createApp } from "../src/app.js";
 import type { Api } from "../src/app.js";
 import { HANDLERS } from "../src/routes/index.js";
@@ -34,15 +39,32 @@ function assertScope(env: Env, prefix: string) {
   return runId;
 }
 
+/** Independent optional scope: the original W302 four-field schema remains strict. */
+export function parseOutputBatchLiveManifest(raw: unknown) {
+  if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w312" in raw) {
+    const { w312, ...original } = raw;
+    return {
+      inputs: OutputBatchLiveInputSchema.parse(original),
+      w312: ContentAdminLiveScopeSchema.parse(w312),
+    };
+  }
+  return { inputs: OutputBatchLiveInputSchema.parse(raw), w312: undefined };
+}
 export async function startOutputBatchLiveServer(options: {
   env: Env;
   prefix: string;
   inputs: OutputBatchLiveInput;
+  w312?: ContentAdminLiveScope;
   image: string;
   version?: string;
 }) {
   const runId = assertScope(options.env, options.prefix);
   const inputs = OutputBatchLiveInputSchema.parse(options.inputs);
+  const w312 =
+    options.w312 === undefined
+      ? undefined
+      : assertContentAdminLiveScope({ env: options.env }, options.w312);
+  const contentFiles = new Set<string>();
   if (inputs.current.runId !== runId || inputs.legacy.runId !== runId)
     throw new Error("W302 input scope differs from the exact database");
   // The old sample is an M1 fixture. Only the batch runtime enables actual production tools.
@@ -139,6 +161,7 @@ export async function startOutputBatchLiveServer(options: {
     };
     const batch = createRuntime({ ...borrowed, env: batchEnv, mediaProductionTools: tools });
     runtimes.push(batch);
+    if (w312) await assertContentAdminLiveTargets(batch, w312);
     masters = await prepareOutputBatchLiveMasters(legacy, inputs);
     const legacyApi = createApp({ runtime: legacy, handlers: HANDLERS });
     apis.push(legacyApi);
@@ -151,14 +174,44 @@ export async function startOutputBatchLiveServer(options: {
         {
           hostname: "127.0.0.1",
           port: 0,
-          fetch: (request, env) => {
+          fetch: async (request, env) => {
             const path = new URL(request.url).pathname;
-            const api = /^\/api\/v1\/admin\/(?:upload-batches|upload-batch-items)(?:\/|$)/.test(
-              path,
-            )
-              ? batchApi
-              : legacyApi;
-            return api.app.fetch(request, env);
+            let contentRegistration = false;
+            if (w312 && request.method === "POST" && path === "/api/v1/admin/files") {
+              const body = AdminFileCreateBodySchema.safeParse(
+                await request
+                  .clone()
+                  .json()
+                  .catch(() => undefined),
+              );
+              contentRegistration =
+                body.success &&
+                ["poster", "banner", "trailer_src", "drama_license_doc"].includes(
+                  body.data.category,
+                );
+              if (contentRegistration && contentFiles.size >= 100)
+                throw new Error("W312 observed file registrations exceeded the exact bound");
+            }
+            const fileId = /^\/api\/v1\/admin\/files\/([^/]+)(?:\/|$)/.exec(path)?.[1];
+            const dramaId = /^\/api\/v1\/admin\/dramas\/([^/]+)(?:\/|$)/.exec(path)?.[1];
+            const useBatch =
+              /^\/api\/v1\/admin\/(?:upload-batches|upload-batch-items)(?:\/|$)/.test(path) ||
+              contentRegistration ||
+              Boolean(w312 && fileId && contentFiles.has(fileId)) ||
+              Boolean(w312 && dramaId && w312.dramaIds.includes(dramaId));
+            const response = await (useBatch ? batchApi : legacyApi).app.fetch(request, env);
+            if (contentRegistration && response.ok) {
+              const value: unknown = await response.clone().json();
+              const parsed = FileRegistrationSchema.safeParse(
+                typeof value === "object" && value !== null && "data" in value
+                  ? value.data
+                  : undefined,
+              );
+              if (!parsed.success)
+                throw new Error("W312 registration response is not a real file registration");
+              contentFiles.add(parsed.data.fileId);
+            }
+            return response;
           },
         },
         ({ port }) => resolve(`http://127.0.0.1:${port}`),
@@ -174,8 +227,12 @@ export async function startOutputBatchLiveServer(options: {
     // Original 15s cadence; exact owned IDs, never the all-database scanPromote.
     interval = setInterval(() => {
       if (pending) return;
-      pending = findOutputBatchLiveJobIds(batch, inputs)
-        .then(async (ids) => {
+      pending = Promise.all([
+        findOutputBatchLiveJobIds(batch, inputs),
+        w312 ? findContentAdminLiveJobIds(batch, w312, [...contentFiles]) : Promise.resolve([]),
+      ])
+        .then(async (groups) => {
+          const ids = [...new Set(groups.flat())];
           for (let at = 0; at < ids.length; at += 2)
             await Promise.all(ids.slice(at, at + 2).map((jobId) => batch.media.promote({ jobId })));
         })
@@ -220,11 +277,12 @@ async function main() {
     runId = assertScope(env, values["test-redis-prefix"]);
   if (!path.includes(`/admin-live-${runId}/`) || !path.endsWith("/media-input.json"))
     throw new Error("Input manifest must be the exact owned temporary file");
-  const inputs = OutputBatchLiveInputSchema.parse(JSON.parse(await readFile(path, "utf8")));
+  const manifest = parseOutputBatchLiveManifest(JSON.parse(await readFile(path, "utf8")));
   const server = await startOutputBatchLiveServer({
     env,
     prefix: values["test-redis-prefix"],
-    inputs,
+    inputs: manifest.inputs,
+    w312: manifest.w312,
     image: values["mediatool-image"],
     version: process.env.LYX_BUILD ?? "w302-private-live",
   });

@@ -100,3 +100,12 @@ export type { FullStaffWorld } from "./staff-full.js";
 export { createCodecDemoMasterPreparer } from "./demo-masters.js";
 export { createDocsAdminFixture } from "./docs-admin.js";
 export { seedBillingDeletionFacts } from "./billing-deletion.js";
+
+// W3-12: exact owned content scope for the existing private live server.
+export {
+  ContentAdminLiveScopeSchema,
+  assertContentAdminLiveScope,
+  assertContentAdminLiveTargets,
+  findContentAdminLiveJobIds,
+} from "./admin-live/w312.fixture.js";
+export type { ContentAdminLiveScope } from "./admin-live/w312.fixture.js";
