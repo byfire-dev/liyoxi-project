@@ -3,9 +3,22 @@ import type { paths as AdminPaths } from "@liyoxi/contract/types/admin";
 import type { AdminApi } from "./api";
 import { newIdempotencyKey } from "./idempotency";
 
+export type MultipartUploadGrant = Pick<
+  FileRegistration,
+  | "fileId"
+  | "mode"
+  | "bucket"
+  | "region"
+  | "key"
+  | "post"
+  | "sts"
+  | "chunkSize"
+  | "chunkParallel"
+  | "expiresAt"
+> & { prefix?: string };
 export interface MultipartUploadPorts {
-  register(file: File, clientToken: string): Promise<FileRegistration>;
-  refresh(fileId: string): Promise<FileRegistration>;
+  register(file: File, clientToken: string): Promise<MultipartUploadGrant>;
+  refresh(fileId: string): Promise<MultipartUploadGrant>;
   complete(fileId: string, idempotencyKey?: string): Promise<{ fileId: string; status: string }>;
   get(fileId: string): Promise<{ fileId: string; status: string }>;
   cancel(fileId: string, idempotencyKey?: string): Promise<unknown>;
@@ -22,16 +35,18 @@ type Session = {
   completeKey: string;
   cancelKey: string;
   cancelRequested?: boolean;
-  grant?: FileRegistration;
+  grant?: MultipartUploadGrant;
   uploadId?: string;
   generation: number;
   controller: AbortController;
-  refresh?: Promise<FileRegistration>;
-  registering?: Promise<FileRegistration>;
+  refresh?: Promise<MultipartUploadGrant>;
+  registering?: Promise<MultipartUploadGrant>;
   running: boolean;
   completed?: boolean;
   completionAttempted?: boolean;
   confirmOnly?: boolean;
+  discover?: boolean;
+  restored?: boolean;
 };
 class MissingMultipartUpload extends Error {
   constructor() {
@@ -85,7 +100,8 @@ export function createMultipartUploadAdapter(options: MultipartUploadOptions) {
           value.key !== current.key ||
           value.bucket !== current.bucket ||
           value.region !== current.region ||
-          value.mode !== current.mode
+          value.mode !== current.mode ||
+          value.prefix !== current.prefix
         )
           throw new Error("上传凭据归属发生变化");
         session.grant = value;
@@ -107,10 +123,11 @@ export function createMultipartUploadAdapter(options: MultipartUploadOptions) {
     return hex(await cryptoApi.subtle.sign("HMAC", imported, new TextEncoder().encode(value)));
   }
   async function authorization(
-    current: FileRegistration,
+    current: MultipartUploadGrant,
     method: string,
     query: Record<string, string>,
     headers: Record<string, string>,
+    root = false,
   ) {
     if (!current.sts) throw new Error("未取得分块凭据");
     const canonical = (values: Record<string, string>) =>
@@ -121,7 +138,7 @@ export function createMultipartUploadAdapter(options: MultipartUploadOptions) {
     const signedHeaders = canonical(headers);
     const time = `${Math.floor(new Date(current.sts.startTime).getTime() / 1000)};${Math.floor(new Date(current.sts.expiredTime).getTime() / 1000)}`;
     const signKey = await hmac(current.sts.tmpSecretKey, time);
-    const string = `${method.toLowerCase()}\n/${current.key}\n${params.map(([k, v]) => `${k}=${v}`).join("&")}\n${signedHeaders.map(([k, v]) => `${k}=${v}`).join("&")}\n`;
+    const string = `${method.toLowerCase()}\n/${root ? "" : current.key}\n${params.map(([k, v]) => `${k}=${v}`).join("&")}\n${signedHeaders.map(([k, v]) => `${k}=${v}`).join("&")}\n`;
     const digest = hex(await cryptoApi.subtle.digest("SHA-1", new TextEncoder().encode(string)));
     return `q-sign-algorithm=sha1&q-ak=${current.sts.tmpSecretId}&q-sign-time=${time}&q-key-time=${time}&q-header-list=${signedHeaders.map(([k]) => k).join(";")}&q-url-param-list=${params.map(([k]) => k).join(";")}&q-signature=${await hmac(signKey, `sha1\n${time}\n${digest}\n`)}`;
   }
@@ -160,6 +177,7 @@ export function createMultipartUploadAdapter(options: MultipartUploadOptions) {
     query: Record<string, string>,
     body?: BodyInit,
     contentType?: string,
+    root = false,
   ) {
     check(session, generation);
     const current = await grant(session);
@@ -171,12 +189,22 @@ export function createMultipartUploadAdapter(options: MultipartUploadOptions) {
       !current.sts
     )
       throw new Error("上传目标不合格");
+    if (
+      root &&
+      (method !== "GET" ||
+        query.uploads !== "" ||
+        query.prefix !== current.prefix ||
+        !current.prefix ||
+        !/^incoming\/b[0-9a-f-]{36}\/$/.test(current.prefix) ||
+        !current.key.startsWith(current.prefix))
+    )
+      throw new Error("恢复查询不合格");
     const hostname = `${current.bucket}.cos.${current.region}.myqcloud.com`;
     const headers = {
       "x-cos-security-token": current.sts.sessionToken,
       ...(contentType ? { "Content-Type": contentType } : {}),
     };
-    const auth = await authorization(current, method, query, { ...headers, host: hostname });
+    const auth = await authorization(current, method, query, { ...headers, host: hostname }, root);
     check(session, generation);
     const controller = new AbortController();
     const abort = () => controller.abort();
@@ -186,7 +214,7 @@ export function createMultipartUploadAdapter(options: MultipartUploadOptions) {
       if (method === "POST" && query.uploadId && contentType === "application/xml")
         session.completionAttempted = true;
       const response = await fetchImpl(
-        `https://${hostname}/${current.key.split("/").map(encode).join("/")}?${new URLSearchParams(query)}`,
+        `https://${hostname}/${root ? "" : current.key.split("/").map(encode).join("/")}?${new URLSearchParams(query)}`,
         {
           method,
           headers: { ...headers, Authorization: auth },
@@ -216,6 +244,65 @@ export function createMultipartUploadAdapter(options: MultipartUploadOptions) {
     }
   }
 
+  async function discover(session: Session, generation: number) {
+    const key = session.grant!.key;
+    const prefix = session.grant!.prefix;
+    if (!prefix) throw new Error("缺少批次恢复范围");
+    let keyMarker = "",
+      uploadMarker = "";
+    const candidates = new Set<string>();
+    for (let page = 0; page < 10; page++) {
+      const result = await cloud(
+        session,
+        generation,
+        "GET",
+        {
+          uploads: "",
+          prefix,
+          "max-uploads": "1000",
+          ...(keyMarker ? { "key-marker": keyMarker, "upload-id-marker": uploadMarker } : {}),
+        },
+        undefined,
+        undefined,
+        true,
+      );
+      if (
+        field(result.text, "Bucket") !== session.grant!.bucket ||
+        field(result.text, "Prefix") !== prefix
+      )
+        throw new Error("恢复查询归属不一致");
+      const uploads = [...result.text.matchAll(/<Upload>([\s\S]*?)<\/Upload>/g)];
+      if (uploads.length > 1000) throw new Error("恢复列表超限");
+      for (const upload of uploads) {
+        const listedKey = field(upload[1]!, "Key");
+        if (!listedKey.startsWith(prefix)) throw new Error("恢复查询超出文件范围");
+        if (listedKey !== key) continue;
+        const uploadId = field(upload[1]!, "UploadId");
+        if (!/^[A-Za-z0-9_-]{1,512}$/.test(uploadId) || candidates.has(uploadId))
+          throw new Error("恢复上传标识不合格");
+        candidates.add(uploadId);
+        if (candidates.size > 1) throw new Error("存在多个上传记录，请替换文件后重新上传");
+      }
+      const truncated = field(result.text, "IsTruncated");
+      if (truncated === "false") break;
+      if (truncated !== "true" || page === 9) throw new Error("恢复列表超限");
+      const nextKey = field(result.text, "NextKeyMarker");
+      const nextUpload = field(result.text, "NextUploadIdMarker");
+      if (
+        !nextKey.startsWith(prefix) ||
+        !/^[A-Za-z0-9_-]{1,512}$/.test(nextUpload) ||
+        (nextKey === keyMarker && nextUpload === uploadMarker)
+      )
+        throw new Error("恢复游标不合格");
+      keyMarker = nextKey;
+      uploadMarker = nextUpload;
+    }
+    const candidate = [...candidates][0];
+    if (!candidate) throw new Error("resume_unknown：无法确认原上传结果，请替换文件后重新上传");
+    session.uploadId = candidate;
+    session.discover = false;
+  }
+
   async function multipart(
     file: File,
     session: Session,
@@ -228,6 +315,7 @@ export function createMultipartUploadAdapter(options: MultipartUploadOptions) {
     const count = Math.ceil(file.size / current.chunkSize);
     if (count < 1 || count > 10_000) throw new Error("文件分块数超限");
     const parts = new Map<number, string>();
+    if (session.discover) await discover(session, generation);
     if (!session.uploadId) {
       session.uploadId = field(
         (await cloud(session, generation, "POST", { uploads: "" })).text,
@@ -255,6 +343,12 @@ export function createMultipartUploadAdapter(options: MultipartUploadOptions) {
           const number = Number(field(part[1]!, "PartNumber"));
           if (!Number.isInteger(number) || number < 1 || number > count || parts.has(number))
             throw new Error("上传分块不合格");
+          if (
+            session.restored &&
+            Number(field(part[1]!, "Size")) !==
+              Math.min(current.chunkSize!, file.size - (number - 1) * current.chunkSize!)
+          )
+            throw new Error("原文件分块大小不一致，请替换文件后重新上传");
           const etag = field(part[1]!, "ETag");
           if (!/^"?[A-Za-z0-9-]{1,128}"?$/.test(etag)) throw new Error("上传分块校验失败");
           parts.set(number, etag);
@@ -307,7 +401,11 @@ export function createMultipartUploadAdapter(options: MultipartUploadOptions) {
       throw new Error("上传完成响应不合格");
   }
   return {
-    async upload(file: File, hooks: { onProgress: (percent: number) => void }) {
+    async upload(
+      file: File,
+      hooks: { onProgress: (percent: number) => void },
+      restore?: { grant: MultipartUploadGrant },
+    ) {
       if (closed || active.size >= 3) throw new Error("最多同时上传3个文件");
       let session = sessions.get(file);
       if (!session) {
@@ -318,6 +416,7 @@ export function createMultipartUploadAdapter(options: MultipartUploadOptions) {
           generation: 0,
           controller: new AbortController(),
           running: false,
+          ...(restore ? { grant: restore.grant, discover: true, restored: true } : {}),
         };
         sessions.set(file, session);
       }

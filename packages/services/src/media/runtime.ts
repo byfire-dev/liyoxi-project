@@ -12,6 +12,8 @@ import { createMediaJobs } from "./jobs/runner.js";
 import { uuidv7, lockRows } from "../kernel/index.js";
 import { readableByStaff } from "./access.js";
 import { bindFileRefTypes } from "./invariants.js";
+import { createUploadBatches } from "./batches/service.js";
+import { createBatchWorkerHooks } from "./batches/worker.js";
 import { enqueueProbe, enqueueDerivation, productionFacts } from "./production.js";
 import {
   enqueueTrailer,
@@ -24,6 +26,7 @@ import { createTranscodeHandler } from "./handlers/transcode.js";
 import { createWatermarkHandler } from "./handlers/watermark.js";
 import { createNormalizeHandler } from "./handlers/normalize.js";
 import type { BoundMediaDeps } from "./context.js";
+import type { MediaConvergenceHandler } from "./jobs/types.js";
 export function createMedia(options: MediaDeps) {
   const refTypes = options.assembly.portEntries(fileRefTypePort);
   const guards = options.assembly.portEntries(fileCategoryGuardPort);
@@ -42,8 +45,26 @@ export function createMedia(options: MediaDeps) {
     if (!Object.hasOwn(UPLOAD_CATEGORIES, key))
       throw new TypeError(`文件分类守卫登记不合格：${key}`);
   bindFileRefTypes(refTypes);
+  let batchWorker: ReturnType<typeof createBatchWorkerHooks> | undefined;
+  const batchHooks = () => (batchWorker ??= createBatchWorkerHooks(deps));
   const deps: BoundMediaDeps = {
     ...options,
+    production:
+      options.production && options.batches
+        ? {
+            ...options.production,
+            batchLockSiblings: (tx, batchId) => batchHooks().lockSiblings(tx, batchId),
+            batchNeedsJob: (tx, input) => batchHooks().needsJob(tx, input),
+            batchConverge: (tx, batchId) => batchHooks().converge(tx, batchId),
+            productionChecked: (tx, input) => batchHooks().checked(tx, input),
+          }
+        : options.production,
+    batchStored: options.batches ? (tx, fileId) => batchHooks().stored(tx, fileId) : undefined,
+    batchRejected: options.batches ? (tx, fileId) => batchHooks().rejected(tx, fileId) : undefined,
+    queueBatchProbe:
+      options.production && options.batches
+        ? (tx, fileId, batchId) => enqueueProbe(deps, tx, fileId, { parentBatchId: batchId })
+        : undefined,
     refTypes,
     guards,
     queueProbe: options.production
@@ -54,6 +75,21 @@ export function createMedia(options: MediaDeps) {
       : undefined,
   };
   const signRead = createSigner(deps);
+  let uploadBatches: ReturnType<typeof createUploadBatches> | undefined;
+  const batchConvergence: MediaConvergenceHandler[] = options.batches
+    ? [
+        {
+          parentType: "upload_batch",
+          lockSiblings: batchHooks().lockSiblings,
+          needed: (tx, job) =>
+            batchHooks().needsJob(tx, {
+              batchId: job.parentId!,
+              fileId: job.subjectId,
+            }),
+          converge: batchHooks().converge,
+        },
+      ]
+    : [];
   const jobs = createMediaJobs({
     tx: options.tx,
     clock: options.clock,
@@ -70,11 +106,17 @@ export function createMedia(options: MediaDeps) {
       ...(options.jobHandlers ?? []),
     ],
     convergenceHandlers: [
-      ...createProductionConvergence(deps),
+      ...createProductionConvergence(deps).filter(
+        (handler) => !options.batches || handler.parentType !== "upload_batch",
+      ),
+      ...batchConvergence,
       ...(options.jobConvergenceHandlers ?? []),
     ],
   });
   return {
+    get uploadBatches() {
+      return (uploadBatches ??= createUploadBatches(deps));
+    },
     enqueueProbe: (
       tx: Parameters<typeof enqueueProbe>[1],
       fileId: string,

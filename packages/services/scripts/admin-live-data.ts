@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 import { createPrismaClient } from "@liyoxi/db";
 import { assertTestDatabaseName, dropTestDatabase } from "@liyoxi/db/testing/standalone";
 import { Redis } from "ioredis";
+import { ZodError } from "zod";
 import { createRuntime } from "../src/runtime.js";
 import { createLogger } from "../src/logger.js";
 import { loadEnv } from "../src/kernel/env.js";
@@ -98,7 +99,22 @@ async function main() {
         default?: AdminLiveFixture;
       };
       if (typeof module.default !== "function") throw new Error("造数登记文件须导出 default 函数");
-      data[file.slice(0, -".fixture.ts".length)] = await module.default({ runtime, make });
+      try {
+        data[file.slice(0, -".fixture.ts".length)] = await module.default({ runtime, make });
+      } catch (error) {
+        if (error instanceof ZodError)
+          process.stderr.write(
+            `${JSON.stringify({
+              evt: "admin.live.fixture.invalid",
+              fixture: file,
+              issues: error.issues.slice(0, 12).map((issue) => ({
+                code: issue.code,
+                path: issue.path.slice(0, 8),
+              })),
+            })}\n`,
+          );
+        throw error;
+      }
     }
     process.stdout.write(`${JSON.stringify({ fixtures: data })}\n`);
   } finally {

@@ -15,8 +15,11 @@ import type { WechatProvider, MediaProvider, StorageProvider } from "../provider
 import type { MediaJobHandler, MediaConvergenceHandler } from "./jobs/types.js";
 import type { MediaProductionDeps } from "./production-types.js";
 import type { FileRefType } from "../kernel/index.js";
+import type { MediaBatchDeps } from "./batches/types.js";
+import type { AuditRequestMeta } from "../audit/index.js";
 export type FileRow = FileObject;
 export interface MediaActor {
+  readonly audit?: AuditRequestMeta;
   readonly identity: IdentityContext;
   readonly staff?: StaffContext;
   readonly merchant?: {
@@ -30,6 +33,7 @@ export interface FileCategoryGuard {
   registered?(tx: Tx, fileId: string, actor: MediaActor, input: RegisterInput): Promise<void>;
 }
 export interface MediaDeps {
+  readonly batches?: MediaBatchDeps;
   readonly production?: MediaProductionDeps;
   readonly jobOwnerId?: string;
   readonly jobHandlers?: readonly MediaJobHandler[];
@@ -53,10 +57,14 @@ export interface MediaDeps {
   };
 }
 export interface BoundMediaDeps extends MediaDeps {
+  readonly queueBatchProbe?: (tx: Tx, fileId: string, batchId: string) => Promise<string>;
+  readonly batchStored?: (tx: Tx, fileId: string) => Promise<void>;
+  readonly batchRejected?: (tx: Tx, fileId: string) => Promise<void>;
   readonly queueProbe?: (tx: Tx, file: FileRow) => Promise<string | null>;
   readonly refTypes: ReadonlyMap<string, FileRefType>;
   readonly guards: ReadonlyMap<string, FileCategoryGuard>;
 }
+export type BatchRuntimeDeps = BoundMediaDeps & { readonly batches: MediaBatchDeps };
 export interface UploadInput {
   readonly fileName: string;
   readonly sizeBytes: string;

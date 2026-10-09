@@ -94,3 +94,13 @@ production_record 父先预锁已有样片350再制作记录360；属于批次�
 `productionFacts` 只回有限技术/检查/AI/派生/水印事实，不返回对象键、短签名或用户工具正文。`retireDramaMedia` 证明 DB retired、在途取消与专属引用即时释放，返回 objectRefs 和 `cdnPending:true`；真实公开 URL/CDN 清除尚未配置，不能声称停止播放。当前真实库15例、客户端小IO15和装配4例已通过；存储新增字节/元数据欺骗2反例先真实失败，完整修正后受影响14例和CI/配置6例均已通过，API/worker类型通过。新源镜像31例中30通过、1条原业主样本条件跳过；最长完整中文水印实际两行alpha均不触画布边缘。约199.8MiB五轮体检+封面最慢232ms，三轮补标七字段完整回读、最慢424ms，原沙箱与轮数/上限不变；这是Mac本机观察。同步实际main bfcf9817后的旧装配、必跑MinIO、新鲜类型、严格分层、双次官方生成/门禁与API/worker构建已通过，相关纯类型迁移的32例定点回归通过；真实云、法务与平台读标未验。
 
 正式审查指出的mediatool取消项已定点闭合：私有UNIX随机调用标识与102注册屏障防止取消先于登记；queued取消不spawn，running取消等待自己的子进程close后才释放槽位。调用者不把request.destroy当清理完成；原响应或固定cancel确认都不能验证时，沿原绝对期限返回不可用并保留工作目录。关闭A不取消、等待或删除B资源。真实旧镜像反例先失败，新源取消7例和原受影响38例通过；真实容器33例中32通过、原样片1条件跳过，原199.6MiB五轮最慢163ms/三补标最慢656ms通过，仍是本机观察，未调用真实云。
+
+## 9. W3-02 批量上传
+
+`media.uploadBatches` 提供 create/get/start/refreshCredentials/update/complete/cancel/commit 八个用例。通过 L4 注入的用途公口读取真实剧目集数、工单范围及制作快照；media 不查 delivery 表。原片 commit 同事务生成新版本、交接引用并发出既有 `drama.masters_changed`，成片由交付公开用例消费批次。
+
+匹配保留已登记总集数；full 必须覆盖全部集号，partial 保留未选集。顺序建议须显式接受。修改严格三选一，替换先让出旧 pending token 与有效条目唯一键；被替换的历史仍可查询。批次活动将期限顺延 72 小时并同步 pending 文件，最晚为创建后 7 天。confirm 只经过真实 HEAD/头校验进入 promoting；拒收事实提交后再返回错误，不把直传完成当作体检完成。
+
+凭据只授权本批 `incoming/b{uploadBatchId}/`，30 分钟、8 MiB 块、文件并发 3、块并发 4；返回前后均复核本人及当前权限，不存凭据。批次 COS ListMultipartUploads 另用严格 `cos:prefix` 条件，原单文件授权不扩大。GET 不写业务行；权限变化后持有人仍可查看，但不能续签或变更。
+
+已普通同步包含 W3-04 的实际 main 并装配其真实处理器：批次父对象预锁、promote 入库/拒收通知及 productionChecked 在原结果事务内收敛；原片不伪造 productionRecord。新增四项公开执行器连库回归先真实失败、接线后完整通过；原批次目录、交付写侧、体检与 promote 租约九文件45项完整通过，接口七项的先前证据保留。真实容器20集ready、跨刷新续传与交付消费已通过：完整live旧21项通过、新批次输入方式失败；修正后定点auth+20集两项通过，严格核20个latest成片到ready文件ID对应且待质检current保持null。原两集制作/QC/保存/包质检证据保留，不混称重新跑全22项。原片编辑 UI 移交 W3-12；真实云断点、大文件与平台联调另验。

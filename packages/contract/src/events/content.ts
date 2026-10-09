@@ -16,6 +16,13 @@ export const dramaListedPayload = z.strictObject({
   transition: z.literal("drama.list"),
 });
 export const payloads = {
+  "drama.masters_changed": z.strictObject({
+    v: z.literal(1),
+    dramaId: IdSchema,
+    uploadBatchId: IdSchema,
+    episodeNos: z.array(z.int().positive()),
+    isContentChanged: z.boolean(),
+  }),
   "drama.created": dramaCreatedPayload,
   "drama.listed": dramaListedPayload,
 } as const;

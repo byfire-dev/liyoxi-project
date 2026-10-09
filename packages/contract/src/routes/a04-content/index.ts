@@ -21,3 +21,7 @@ export const A04_CONTENT = defineRouteDoc("a04-content", [
   uploadBatchItems,
   uploadBatches,
 ]);
+
+export * from "./upload-batches.js";
+export * from "./upload-batch-items.js";
+export * from "./upload-batches.schemas.js";

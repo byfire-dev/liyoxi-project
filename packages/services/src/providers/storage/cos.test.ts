@@ -278,11 +278,85 @@ describe("COS 官方协议薄封装", () => {
       "qcs::cos:ap-beijing:uid/1250000000:test-asset-1250000000/incoming/00000000-0000-7000-8000-000000000001/*",
     ]);
     expect(policy.statement[0]!.action).not.toContain("name/cos:PutObject");
+    expect(policy.statement).toHaveLength(1);
+    expect(policy.statement.flatMap((statement) => statement.action)).not.toContain(
+      "name/cos:ListMultipartUploads",
+    );
     mode = "stsDenied";
     expect(
       await storage.issueSts({ bucket: "asset", keyPrefix: "incoming/id/", durationSec: 1800 }),
     ).toMatchObject({ ok: false, reason: "rejected", message: "STS 未签发凭据" });
     mode = "normal";
+  });
+  it("批次STS仅追加exact incoming/bUUID/列表声明，bucket授权始终有精确prefix条件", async () => {
+    const keyPrefix = "incoming/b00000000-0000-7000-8000-000000000002/";
+    const before = calls.length;
+    expect(
+      await driver().issueSts({ bucket: "media", keyPrefix, durationSec: 1800 }),
+    ).toMatchObject({
+      ok: true,
+    });
+    expect(calls).toHaveLength(before + 1);
+    const body = JSON.parse(calls.at(-1)!.body) as { Policy: string };
+    expect(JSON.parse(decodeURIComponent(body.Policy))).toEqual({
+      version: "2.0",
+      statement: [
+        {
+          effect: "allow",
+          action: [
+            "name/cos:InitiateMultipartUpload",
+            "name/cos:UploadPart",
+            "name/cos:ListParts",
+            "name/cos:CompleteMultipartUpload",
+            "name/cos:AbortMultipartUpload",
+          ],
+          resource: [`qcs::cos:ap-beijing:uid/1250000000:test-media-1250000000/${keyPrefix}*`],
+        },
+        {
+          effect: "allow",
+          action: ["name/cos:ListMultipartUploads"],
+          resource: ["qcs::cos:ap-beijing:uid/1250000000:test-media-1250000000/*"],
+          condition: { string_equal: { "cos:prefix": keyPrefix } },
+        },
+      ],
+    });
+  });
+  it("非法批次prefix不能签全bucket列表；非UUID单文件prefix保留无列表权限", async () => {
+    const storage = driver();
+    const before = calls.length;
+    for (const keyPrefix of [
+      "",
+      "incoming/",
+      "incoming/*",
+      "incoming/b00000000-0000-7000-8000-000000000002/*",
+      "incoming/b00000000-0000-7000-8000-000000000002/../",
+      "incoming/b00000000-0000-7000-8000-000000000002/child/",
+    ])
+      expect(
+        await storage.issueSts({ bucket: "media", keyPrefix, durationSec: 1800 }),
+      ).toMatchObject({
+        ok: false,
+        reason: "rejected",
+      });
+    expect(calls).toHaveLength(before);
+    expect(
+      await storage.issueSts({
+        bucket: "media",
+        keyPrefix: "incoming/bnot-a-uuid/",
+        durationSec: 1800,
+      }),
+    ).toMatchObject({ ok: true });
+    const body = JSON.parse(calls.at(-1)!.body) as { Policy: string };
+    const policy = JSON.parse(decodeURIComponent(body.Policy)) as {
+      statement: Array<{ action: string[]; resource: string[] }>;
+    };
+    expect(policy.statement).toHaveLength(1);
+    expect(policy.statement[0]!.resource).toEqual([
+      "qcs::cos:ap-beijing:uid/1250000000:test-media-1250000000/incoming/bnot-a-uuid/*",
+    ]);
+    expect(policy.statement.flatMap((statement) => statement.action)).not.toContain(
+      "name/cos:ListMultipartUploads",
+    );
   });
   it("HEAD CRC/version、非UTF8文件头、IfMatch copy和正式区真实核对", async () => {
     const storage = driver();
