@@ -76,6 +76,7 @@
     "counts:report": "node infra/ci/four-counts.mjs",
     "test:fault": "vitest run concurrency.test property.test /fault/ /fault- /fault.test idempotency lease.test",
     "staff:bootstrap": "pnpm --filter @liyoxi/worker staff:bootstrap",
+    "staff:reissue-activation": "pnpm --filter @liyoxi/worker staff:reissue-activation",
     "db:seed:demo": "pnpm --filter @liyoxi/services seed:demo",
     "clerk:snapshot": "LYX_CLERK_UPDATE=1 vitest run --project api apps/api/test/clerk/clerk.test.ts",
     "admin:e2e:live": "pnpm --filter @liyoxi/admin e2e:live",

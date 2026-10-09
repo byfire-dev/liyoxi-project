@@ -192,6 +192,7 @@ erDiagram
 | `s.delivery_progress` | staff | 交付进度 | — |
 | `s.publish_progress` | staff | 发布待办 | — |
 | `s.merchant_changed` | staff | 商家变动 | — |
+| `s.wecom_invite` | staff | 企业微信绑定邀请 | W2-03 必要补登；active+invited 当前员工，站内-only，真实邀请审计 ID 去重 |
 | `s.followup_due` | staff | 跟进到期提醒 | W2-17 按既有跟进提醒请求补登；到期日 09:00、当前负责人、仍待跟进 |
 
 **不变量**：注册表里的每个键在本表有行（启动自检，d6:314）；`wx_template_slot_key` 所指槽位的字段名与场景 `wx()` 的返回一致（启动自检，同上）。

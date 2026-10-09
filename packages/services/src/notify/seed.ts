@@ -61,6 +61,7 @@ export const seed = defineSeed("notify", async (tx, { now }) => [
           return {
             sceneKey: row.key,
             audience: row.audience,
+            ...(row.key === "s.wecom_invite" ? { extEnabled: false } : {}),
             name: row.name,
             wxTemplateSlotKey: binding.wxTemplateSlotKey,
             smsPolicy: binding.smsPolicy,

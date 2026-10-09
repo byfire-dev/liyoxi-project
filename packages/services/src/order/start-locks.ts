@@ -1,7 +1,7 @@
 import { getTicketBriefsByOrder, prepareTicketAssignees } from "../delivery/index.js";
 import { AppError, lockRows } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
-import { pickNext } from "../staff/index.js";
+import { pickNext, prepareAssignmentPools } from "../staff/index.js";
 import type { OrderStartBinding } from "./start-binding.js";
 
 /** 两池与门店现有经理统一升序锁；锁后重核推荐，再调用真正的分配口重入已持锁。 */
@@ -11,23 +11,16 @@ export async function prepareStartStaff(
   stores: readonly { id: string; deliveryManagerId: string | null; cityCode: string | null }[],
   orderId?: string,
 ) {
-  const manager = await deps.recommendStaff(tx, "delivery_manager"),
-    publisher = orderId ? await deps.recommendStaff(tx, "publisher") : null;
-  await lockRows(
+  await prepareAssignmentPools(
     tx,
-    "staff",
-    [manager?.staffId, publisher?.staffId, ...stores.map((s) => s.deliveryManagerId)].filter(
-      (id): id is string => id !== null && id !== undefined,
-    ),
-    "share",
+    [
+      ...stores
+        .filter((s) => s.deliveryManagerId === null)
+        .map((s) => ({ pool: "delivery_manager" as const, scopeKey: s.cityCode ?? "all" })),
+      ...(orderId ? [{ pool: "publisher" as const, scopeKey: "all" }] : []),
+    ],
+    stores.flatMap((s) => (s.deliveryManagerId ? [s.deliveryManagerId] : [])),
   );
-  const currentManager = await deps.recommendStaff(tx, "delivery_manager"),
-    currentPublisher = orderId ? await deps.recommendStaff(tx, "publisher") : null;
-  if (
-    currentManager?.staffId !== manager?.staffId ||
-    currentPublisher?.staffId !== publisher?.staffId
-  )
-    throw new AppError("BUSY", { message: "人员分配池已变化，请重试" });
   const selected = new Map<string, string | null>();
   for (const store of stores) {
     if (store.deliveryManagerId) {
@@ -39,13 +32,11 @@ export async function prepareStartStaff(
       selected.set(store.id, store.deliveryManagerId);
     } else {
       const picked = await pickNext(tx, "delivery_manager", store.cityCode ?? "all");
-      if (picked?.staffId !== manager?.staffId) throw new AppError("BUSY");
       selected.set(store.id, picked?.staffId ?? null);
     }
   }
   if (orderId) {
-    const chosen = await prepareTicketAssignees(tx, orderId);
-    if (chosen.publisherId !== (publisher?.staffId ?? null)) throw new AppError("BUSY");
+    await prepareTicketAssignees(tx, orderId);
   }
   return selected;
 }

@@ -1,3 +1,5 @@
+import { staffWorkPort, staffFollowUpPort, implementKeyed } from "../kernel/index.js";
+import { deliveryStaffWork } from "./staff-work.js";
 import { remindersPort as currentReminders } from "../kernel/index.js";
 import {
   implementKeyed as notifyReaderImplementation,
@@ -28,6 +30,14 @@ import { deliveryFileRefs } from "./file-refs.js";
 export const registration = defineRegistration("delivery", {
   ports: [orderSidePort],
   portImplementations: [
+    implementKeyed(staffFollowUpPort, "delivery_reissue", async (tx, id) => {
+      const row = await tx.deliveryReissue.findUnique({
+        where: { id },
+        select: { entityId: true, storeId: true },
+      });
+      return row === null ? null : { entityId: row.entityId, storeId: row.storeId };
+    }),
+    implementKeyed(staffWorkPort, "delivery", deliveryStaffWork),
     notifyReaderImplementation(
       currentNotifyReadPort,
       "manualSubjectExists.delivery_ticket",

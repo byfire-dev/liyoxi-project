@@ -4,6 +4,7 @@ import { IdSchema } from "../common/scalars.js";
 import { STAFF_ROLE_KEY, STAFF_STATUS } from "../enums/staff.js";
 import { zodEnum } from "../enums/zod.js";
 import { z } from "../zod.js";
+import { ASSIGNMENT_HISTORY_SOURCE, ASSIGNMENT_HISTORY_REASON_CODE } from "../enums/index.js";
 
 /** staff.created：新增员工、命令行引导（03:217–219） */
 export const staffCreatedPayload = z.strictObject({
@@ -20,4 +21,36 @@ export const staffCreatedPayload = z.strictObject({
 
 export const payloads = {
   "staff.created": staffCreatedPayload,
+  "staff.enabled": z.strictObject({
+    v: z.literal(1),
+    staffId: IdSchema,
+    fromState: z.enum(["pending", "disabled"]),
+    toState: z.literal("active"),
+    transition: z.literal("staff.enable"),
+  }),
+  "staff.disabled": z.strictObject({
+    v: z.literal(1),
+    staffId: IdSchema,
+    handoverBatchId: IdSchema.optional(),
+    fromState: z.literal("active"),
+    toState: z.literal("disabled"),
+    transition: z.literal("staff.disable"),
+  }),
+  "assignment.transferred": z.strictObject({
+    v: z.literal(1),
+    batchId: IdSchema,
+    countsBySource: z.partialRecord(
+      z.enum(ASSIGNMENT_HISTORY_SOURCE.values),
+      z.int().nonnegative(),
+    ),
+    toStaffId: IdSchema,
+    reasonCode: z.enum(ASSIGNMENT_HISTORY_REASON_CODE.values),
+  }),
+  "assignment.sla_breached": z.strictObject({
+    v: z.literal(1),
+    assignmentHistoryId: IdSchema,
+    storeId: IdSchema.nullable(),
+    toStaffId: IdSchema,
+    contactDueAt: z.iso.datetime(),
+  }),
 } as const;

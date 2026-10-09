@@ -16,3 +16,5 @@ export {
   getTicketTimeline,
   getPlanBriefByOrder,
 } from "./reads.js";
+
+export { assignPublisher } from "./publisher-assignment.js";

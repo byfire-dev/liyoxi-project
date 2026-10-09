@@ -1,3 +1,5 @@
+import { staffWorkPort, staffFollowUpPort } from "../kernel/index.js";
+import { profileStaffWork } from "./staff-work.js";
 import {
   implementKeyed as notifyReaderImplementation,
   notifyReadPort as currentNotifyReadPort,
@@ -21,6 +23,14 @@ import { dictRef, snapshot } from "./repo.js";
 export const registration = defineRegistration("profile", {
   ports: [orderManagerPort, deliveryManagerPort, adminProfileFactsPort],
   portImplementations: [
+    implementKeyed(staffFollowUpPort, "store", async (tx, id) => {
+      const row = await tx.store.findUnique({
+        where: { id },
+        select: { entityId: true, id: true },
+      });
+      return row === null ? null : { entityId: row.entityId, storeId: row.id };
+    }),
+    implementKeyed(staffWorkPort, "profile", profileStaffWork),
     notifyReaderImplementation(currentNotifyReadPort, "storeForNotify", storeForNotify),
 
     implementKeyed(dictReferencesPort, "profile", profileDictReferences),

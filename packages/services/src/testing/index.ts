@@ -84,3 +84,6 @@ export {
 } from "./admin-live/w302.fixture.js";
 export type { OutputBatchLiveInput } from "./admin-live/w302.fixture.js";
 export { createBatchMediaForTest } from "./media-batches.js";
+
+export { fullStaffWorld } from "./staff-full.js";
+export type { FullStaffWorld } from "./staff-full.js";
