@@ -110,6 +110,7 @@ import {
   createStartupChecks,
   createRuntimeNotify,
   createNotifyAssembly,
+  createAlertFactsAssembly,
 } from "./ops/index.js";
 import type { Health, StartupCheck } from "./ops/index.js";
 import type { Providers, ProductionMediaTools } from "./providers/types.js";
@@ -339,7 +340,15 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       ? {}
       : { commandTimeoutMs: options.rateLimitCommandTimeoutMs }),
   });
-  const analyticsScope = createAnalyticsJobs(assembleServices({ entry, appEnv: env.APP_ENV }), {
+  const alertFactsScope = createAlertFactsAssembly(
+    assembleServices({ entry, appEnv: env.APP_ENV }),
+    {
+      tx,
+      clock,
+      logger,
+    },
+  );
+  const analyticsScope = createAnalyticsJobs(alertFactsScope.assembly, {
     tx,
     clock,
     appEnv: env.APP_ENV,
@@ -827,6 +836,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       unbindOps();
       unbindWebhooks();
       await mediaChannel.close();
+      await alertFactsScope.close();
       redis.disconnect();
       await prisma.$disconnect();
     },

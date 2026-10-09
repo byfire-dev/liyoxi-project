@@ -1,9 +1,10 @@
+import "./staff-access.css";
 import { statusToneByEnum } from "@liyoxi/shared/design/status-tone";
 import { appDateTimeFormat } from "@liyoxi/shared/format/datetime";
 import { useQuery } from "@tanstack/react-query";
 import { getRouteApi, useRouteContext } from "@tanstack/react-router";
 import { Alert, Button, Checkbox, Input, Modal, Select } from "antd";
-import { useContext, useState, type FormEvent } from "react";
+import { useContext, useEffect, useRef, useState, type FormEvent } from "react";
 
 import type { AppServices } from "../../app/services";
 import { FormField } from "../../components/FormField";
@@ -12,7 +13,7 @@ import { QueryTablePage, type QueryColumn, type QueryState } from "../../compone
 import { StatusTag } from "../../components/StatusTag";
 import { readFailure } from "../../lib/api-errors";
 import { AccessContext, Can } from "../../lib/permissions";
-import { DICT_QUERY, LIST_QUERY } from "../../lib/query";
+import { DETAIL_QUERY, DICT_QUERY, LIST_QUERY } from "../../lib/query";
 import { toListQuery, writeTableSearch } from "../../lib/table-search";
 
 import {
@@ -31,6 +32,8 @@ import {
   type StaffRow,
   type StaffResult,
 } from "./staff-model";
+import { StaffDrawer } from "./staff-detail";
+import { accessResult, actorScope } from "./staff-access";
 
 const route = getRouteApi("/sys/staff");
 const WECOM_LABELS: Record<string, string> = {
@@ -39,7 +42,10 @@ const WECOM_LABELS: Record<string, string> = {
   bound: "已绑定",
   unbound: "已解绑",
 };
-function staffColumns(roles: readonly Role[]): QueryColumn<StaffRow>[] {
+function staffColumns(
+  roles: readonly Role[],
+  open: (staffId: string) => void,
+): QueryColumn<StaffRow>[] {
   return [
     {
       key: "staff",
@@ -103,19 +109,47 @@ function staffColumns(roles: readonly Role[]): QueryColumn<StaffRow>[] {
         </div>
       ),
     },
-    { key: "actions", title: "操作", width: 56, align: "right", render: () => "—" },
+    {
+      key: "actions",
+      title: "操作",
+      width: 100,
+      align: "right",
+      render: (row) => (
+        <Button type="link" size="small" onClick={() => open(row.staffId)}>
+          查看 / 操作
+        </Button>
+      ),
+    },
   ];
 }
 
 export function StaffPage() {
+  const access = useContext(AccessContext);
+  return <StaffWorkspace key={actorScope(access)} />;
+}
+function StaffWorkspace() {
+  const scope = actorScope(useContext(AccessContext));
   const { services } = useRouteContext({ from: "__root__" });
   const navigate = route.useNavigate();
   const search = staffSearch(route.useSearch());
   const listQuery = toListQuery(search);
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<CreationView>();
+  const [staffId, setStaffId] = useState<string>();
+  const { q } = search;
+  const { roleKey, status } = search.filters;
+  const counts = useQuery({
+    queryKey: [...STAFF_LIST_KEY, scope, "summary", { q, roleKey, status }],
+    ...DETAIL_QUERY,
+    queryFn: async () =>
+      accessResult(
+        await services.api.client.GET("/api/v1/admin/staff/summary", {
+          params: { query: { q, roleKey, status } },
+        }),
+      ),
+  });
   const list = useQuery({
-    queryKey: [...STAFF_LIST_KEY, listQuery],
+    queryKey: [...STAFF_LIST_KEY, scope, listQuery],
     queryFn: async () => {
       const { data, response } = await services.api.client.GET("/api/v1/admin/staff", {
         params: { query: listQuery },
@@ -127,7 +161,7 @@ export function StaffPage() {
     ...LIST_QUERY,
   });
   const roles = useQuery({
-    queryKey: STAFF_ROLES_KEY,
+    queryKey: [...STAFF_ROLES_KEY, scope],
     queryFn: async () => {
       const { data, response } = await services.api.client.GET("/api/v1/admin/roles");
       if (!data) throw new Error((await readFailure(response)).message);
@@ -154,6 +188,32 @@ export function StaffPage() {
           </Can>
         }
       />
+      {counts.isError ? (
+        <Alert
+          type="error"
+          title={counts.error.message}
+          action={<Button onClick={() => void counts.refetch()}>重试计数</Button>}
+        />
+      ) : (
+        <section
+          className="lyx-card lyx-access-actions"
+          aria-label="员工计数"
+          aria-busy={counts.isPending}
+        >
+          {counts.data ? (
+            <>
+              <span>全部 {counts.data.total}</span>
+              <span>启用 {counts.data.byStatus.active}</span>
+              <span>待启用 {counts.data.byStatus.pending}</span>
+              <span>已禁用 {counts.data.byStatus.disabled}</span>
+              <span>待激活 {counts.data.pendingActivation}</span>
+              <span>已锁定 {counts.data.locked}</span>
+            </>
+          ) : (
+            "正在读取计数…"
+          )}
+        </section>
+      )}
       <QueryTablePage<StaffRow>
         label="员工账号"
         search={search}
@@ -177,13 +237,23 @@ export function StaffPage() {
             ],
           },
         ]}
-        columns={staffColumns(roles.data ?? [])}
+        columns={staffColumns(roles.data ?? [], setStaffId)}
+        onRowClick={(row) => setStaffId(row.staffId)}
         rowKey={(row) => row.staffId}
         query={query}
         refreshing={list.isFetching && list.status !== "pending"}
         onRetry={() => void list.refetch()}
         empty={{ title: "暂无员工", filteredTitle: "没有符合条件的员工" }}
       />
+      {staffId ? (
+        <StaffDrawer
+          key={staffId}
+          staffId={staffId}
+          services={services}
+          roles={roles.data ?? []}
+          close={() => setStaffId(undefined)}
+        />
+      ) : null}
       <Can action="sys.staff.manage">
         {creating ? (
           roles.data ? (
@@ -266,6 +336,13 @@ function CreateStaff({
     activateNow: true,
   });
   const [pending, setPending] = useState(false);
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   const [error, setError] = useState<string>();
   const [errors, setErrors] = useState<ReturnType<typeof staffBody>["errors"]>({});
   const [intent] = useState(() =>
@@ -297,12 +374,15 @@ function CreateStaff({
     void intent
       .submit(checked.body)
       .then((result) => {
-        if (result) onCreated(creationView(result));
+        if (alive.current && result) onCreated(creationView(result));
       })
-      .catch((cause: unknown) =>
-        setError(cause instanceof Error ? cause.message : "请求没有成功，请重试"),
-      )
-      .finally(() => setPending(false));
+      .catch((cause: unknown) => {
+        if (alive.current)
+          setError(cause instanceof Error ? cause.message : "请求没有成功，请重试");
+      })
+      .finally(() => {
+        if (alive.current) setPending(false);
+      });
   };
   return (
     <Modal
