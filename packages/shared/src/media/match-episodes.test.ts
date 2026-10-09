@@ -66,7 +66,7 @@ describe("batch episode matching", () => {
         (numbers, suffix) => {
           const names = numbers.map((n) => "E" + n + suffix + ".mp4");
           const forward = matchEpisodes(names, 100);
-          const reverse = matchEpisodes([...names].reverse(), 100).reverse();
+          const reverse = [...matchEpisodes([...names].reverse(), 100)].reverse();
           expect(reverse).toEqual(forward);
           expect(forward.map((item) => item.episodeNo)).toEqual(numbers);
           expect(new Set(forward.map((item) => item.episodeNo)).size).toBe(numbers.length);

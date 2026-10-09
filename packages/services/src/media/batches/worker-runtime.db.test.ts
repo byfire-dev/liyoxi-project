@@ -72,8 +72,9 @@ function report(width: number): ProbeReport {
 async function setup(width = 720) {
   const h = await batchHarness(await db.prisma(), (fake) => ({
     tool: {
-      probe: async () => {
+      probe: async (input) => {
         assertNotInTransaction("batch-probe");
+        expect(input.demuxers).toEqual(["mov"]);
         return ok(report(width));
       },
       poster: async () =>

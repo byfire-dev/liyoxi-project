@@ -36,6 +36,7 @@ export async function createOutputBatchLiveFixture({ runtime, make }: AdminLiveF
   const drama = await make.drama({
     title: `批次演练二十集-${scope.runId}`,
     totalEpisodes: 20,
+    dramaClass: "class_1",
     createdByStaffId: staff.uploader.id,
   });
   for (let episodeNo = 1; episodeNo <= 20; episodeNo++)

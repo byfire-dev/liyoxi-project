@@ -260,3 +260,42 @@ it("服务器替换新fileId/key后才允许新Init，旧拒收记录不被重�
   );
   uploader.close();
 });
+
+it("已确认promoting释放直传名额，入库等待仍保持真实状态且不伪造ready", async () => {
+  const { batch, api, files } = setup(4);
+  const stored = deferred<{ fileId: string; status: string }>();
+  vi.mocked(api.complete).mockImplementation(async (id) => {
+    const item = batch.items.find((row) => row.uploadBatchItemId === id)!;
+    return { ...item, fileStatus: "promoting" };
+  });
+  const fake = cloud(),
+    progress = vi.fn();
+  const uploader = createBatchUploader({
+    api,
+    current: () => batch,
+    now: () => batchNow,
+    fetchImpl: fake.fetchImpl,
+    fileStatus: async (fileId) => ({ ...(await stored.promise), fileId }),
+    onProgress: progress,
+    onSettled: vi.fn(),
+  });
+  uploader.attach(batch, files, true);
+  let settled = false;
+  const running = uploader.run().then(() => {
+    settled = true;
+  });
+  try {
+    await vi.waitFor(() => expect(api.complete).toHaveBeenCalledTimes(4));
+    expect(fake.calls.filter((call) => call.method === "PUT")).toHaveLength(4);
+    expect(settled).toBe(false);
+    expect(progress.mock.calls.filter((call) => call[1].busy === false)).toHaveLength(0);
+    expect(batch.state).toBe("uploading");
+    expect(api.commit).not.toHaveBeenCalled();
+  } finally {
+    stored.resolve({ fileId: "unused", status: "stored" });
+    await running;
+    uploader.close();
+  }
+  expect(settled).toBe(true);
+  expect(progress.mock.calls.filter((call) => call[1].busy === false)).toHaveLength(4);
+});

@@ -22,7 +22,12 @@ const xml = (text: string) =>
 const document = (body: string, status = 200, headers: Record<string, string> = {}) =>
   new Response(body, {
     status,
-    headers: { "Content-Type": "application/xml", "Access-Control-Allow-Origin": "*", ...headers },
+    headers: {
+      "Content-Type": "application/xml",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "ETag",
+      ...headers,
+    },
   });
 const rejected = (code: string, status = 403) =>
   document(`<Error><Code>${code}</Code></Error>`, status);
@@ -94,6 +99,8 @@ export function createOutputBatchCosStorage(options: {
     },
     head: (input) => (usesFake(input) ? fake.head(input) : real.head(input)),
     readPrefix: (input) => (usesFake(input) ? fake.readPrefix(input) : real.readPrefix(input)),
+    readTo: (input) => (usesFake(input) ? fake.readTo(input) : real.readTo(input)),
+    putStream: (input) => (usesFake(input) ? fake.putStream(input) : real.putStream(input)),
     presignGet: (input) => (usesFake(input) ? fake.presignGet(input) : real.presignGet(input)),
     delete: (input) => (usesFake(input) ? fake.delete(input) : real.delete(input)),
     async copy(input) {
@@ -233,6 +240,7 @@ export function createOutputBatchCosStorage(options: {
           offset += part.bytes.length;
         }
         const digest = fake.put({ bucket: "media", key }, bytes, "video/mp4");
+        owned.add(slot({ bucket: "media", key }));
         uploads.delete(uploadId);
         return document(
           `<CompleteMultipartUploadResult><ETag>${xml(digest)}</ETag></CompleteMultipartUploadResult>`,

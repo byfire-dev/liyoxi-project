@@ -195,7 +195,14 @@ export function createProbeHandler(deps: BoundMediaDeps): MediaJobHandler {
           return failure("MEDIA_SOURCE_CHANGED", downloaded.reason === "unavailable");
         const probed = await production.tool.probe({
           path: work.path("source.mp4"),
-          demuxers: ["mov", "mp3", "wav", "aac"],
+          demuxers:
+            facts.file.ext === "mp3"
+              ? ["mp3"]
+              : facts.file.ext === "wav"
+                ? ["wav"]
+                : facts.file.ext === "aac"
+                  ? ["aac"]
+                  : ["mov"],
           signal,
         });
         if (!probed.ok) return failure("MEDIA_PROBE_FAILED", probed.reason === "unavailable");

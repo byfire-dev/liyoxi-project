@@ -5,6 +5,7 @@ import { createHash, randomBytes } from "node:crypto";
 import {
   createReadStream,
   createWriteStream,
+  copyFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -14,6 +15,7 @@ import {
 } from "node:fs";
 import { createServer, request as httpRequest } from "node:http";
 import { dirname, extname, join, resolve, sep } from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
@@ -24,10 +26,12 @@ const id = randomBytes(8).toString("hex"),
 const prefix = `lyx:test:admin_live_${id}:`,
   temporary = join(ADMIN, "dist/tmp", `admin-live-${id}`);
 const appOut = `dist/admin-live-${id}`,
+  apiOut = `dist/w302-live-${id}`,
   stateFile = join(temporary, "state.json");
 const contextFile = join(temporary, "context.json"),
   inputFile = join(temporary, "media-input.json"),
-  children = new Set();
+  children = new Set(),
+  gracefulChildren = new Set();
 const logs = join(ADMIN, "dist/e2e-live-logs");
 let proxy,
   databaseRequested = false,
@@ -65,7 +69,8 @@ function localUrl(key, protocols) {
 function terminate(child, signal = "SIGTERM") {
   if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
   try {
-    process.kill(-child.pid, signal);
+    if (signal !== "SIGKILL" && gracefulChildren.has(child)) child.kill(signal);
+    else process.kill(-child.pid, signal);
   } catch (error) {
     if (error.code !== "ESRCH") throw error;
   }
@@ -148,23 +153,63 @@ function fixtureFile(source, label) {
   writeFileSync(path, bytes, { mode: 0o600 });
   return { path, size: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") };
 }
-function startApi(env) {
-  const child = start(
+async function buildApi(env) {
+  // Compile API-owned handlers with the real build constant. Workspace test helpers keep their
+  // package-local dependency resolution through the existing tsx loader.
+  const source = `
+    import { build } from "esbuild";
+    const result = await build({
+      entryPoints: ["test/upload-batch-live-server.ts"],
+      outfile: process.argv[1], bundle: true, format: "esm", platform: "node",
+      target: "node24", sourcemap: true, metafile: true, logLevel: "warning",
+      define: { __LYX_BUILD__: JSON.stringify(process.env.LYX_BUILD?.trim() || "dev") },
+      plugins: [{ name: "external-node-modules", setup(context) {
+        context.onResolve({ filter: /^[^./]/ }, (args) => ({ path: args.path, external: true }));
+      }}],
+    });
+    console.log("W302 private API bundle complete: " + Object.keys(result.metafile.outputs).length + " outputs");
+  `;
+  await run(
     "pnpm",
     [
       "--silent",
       "--filter",
-      "@liyoxi/services",
+      "@liyoxi/api",
       "exec",
-      "tsx",
-      join(ROOT, "apps/api/test/upload-batch-live-server.ts"),
+      "node",
+      "--input-type=module",
+      "--eval",
+      source,
+      `${apiOut}/server.js`,
+    ],
+    env,
+  );
+  copyFileSync(
+    join(ROOT, "apps/api/test/upload-batch-live-mediatool-helper.mjs"),
+    join(ROOT, "apps/api", apiOut, "upload-batch-live-mediatool-helper.mjs"),
+  );
+}
+function startApi(env, image) {
+  const loader = createRequire(join(ROOT, "packages/services/package.json")).resolve("tsx");
+  // A wrapper may relay a second signal before async shutdown finishes. Signal the actual
+  // server once so its existing job/relay shutdown can confirm termination and clean its scope.
+  const child = start(
+    process.execPath,
+    [
+      "--import",
+      loader,
+      join(ROOT, "apps/api", apiOut, "server.js"),
       "--test-redis-prefix",
       prefix,
       "--input-manifest",
       inputFile,
+      "--mediatool-image",
+      image,
     ],
     env,
+    join(ROOT, "packages/services"),
   );
+  gracefulChildren.add(child);
   const log = createWriteStream(join(logs, `w302-api-${id}.log`));
   child.stderr.on("data", (chunk) => log.write(chunk));
   child.once("close", () => log.end());
@@ -288,8 +333,16 @@ async function main() {
       video: { type: "string" },
       "resume-video": { type: "string" },
       "probe-facts": { type: "string" },
+      "mediatool-image": { type: "string" },
+      "test-file": { type: "string" },
     },
   });
+  const image = values["mediatool-image"];
+  const testFile = values["test-file"];
+  if (testFile && testFile !== "test/e2e/live-output-batch.spec.ts")
+    throw new Error("Only the exact W302 spec can be selected for an affected rerun");
+  if (!/^sha256:[a-f0-9]{64}$/.test(image ?? ""))
+    throw new Error("--mediatool-image requires the exact verified original image ID");
   const original = localUrl("DATABASE_URL", ["postgres:", "postgresql:"]);
   const redis = localUrl("REDIS_URL", ["redis:"]);
   mkdirSync(temporary, { recursive: true, mode: 0o700 });
@@ -323,20 +376,60 @@ async function main() {
     const probePath = realpathSync(values["probe-facts"]);
     if (!probePath.startsWith("/private/tmp/lyx-w302-") && !probePath.startsWith("/tmp/lyx-w302-"))
       throw new Error("Probe facts must be an owned W302 file");
-    const facts = JSON.parse(readFileSync(probePath, "utf8"));
-    for (const [actual, expected] of [
-      [video, facts.video],
-      [resumeVideo, facts.resumeVideo],
+    const facts = JSON.parse(readFileSync(probePath, "utf8")),
+      raw = {};
+    if (!Array.isArray(facts.results))
+      throw new Error("Actual generated-media manifest is missing");
+    for (const [label, actual] of [
+      ["video", video],
+      ["resumeVideo", resumeVideo],
     ]) {
-      if (
-        !expected ||
-        actual.size !== expected.size ||
-        actual.sha256 !== expected.sha256 ||
-        !expected.probe
-      )
+      const expected = facts.results.find(
+        (entry) => entry.sha256 === actual.sha256 && entry.size === actual.size,
+      );
+      if (!expected || !["standard-20s.mp4", "multipart-20s.mp4"].includes(expected.name))
         throw new Error("Actual video bytes differ from their verified probe facts");
-      actual.probe = expected.probe;
+      const reportPath = realpathSync(
+        join(dirname(probePath), `${expected.name}.probe-report.json`),
+      );
+      if (dirname(reportPath) !== dirname(probePath))
+        throw new Error("Actual probe report is outside its owned directory");
+      const bytes = readFileSync(reportPath),
+        report = JSON.parse(bytes.toString("utf8")).report;
+      if (!report) throw new Error("Actual tool report is missing");
+      raw[label] = { ...actual, report };
+      console.log(
+        JSON.stringify({
+          evt: "w302.input.proof",
+          label,
+          size: actual.size,
+          sha256: actual.sha256,
+          reportSha256: createHash("sha256").update(bytes).digest("hex"),
+        }),
+      );
     }
+    const rawFile = join(temporary, "input-probe-reports.json");
+    writeFileSync(rawFile, JSON.stringify(raw), { mode: 0o600 });
+    const projected = JSON.parse(
+      await run(
+        "pnpm",
+        [
+          "--silent",
+          "--filter",
+          "@liyoxi/services",
+          "exec",
+          "tsx",
+          "--input-type=module",
+          "--eval",
+          'import { readFileSync } from "node:fs"; import { outputBatchInputFromProbe } from "@liyoxi/services/testing"; const x=JSON.parse(readFileSync(process.argv[1],"utf8")); console.log(JSON.stringify({video:outputBatchInputFromProbe(x.video,x.video.report),resumeVideo:outputBatchInputFromProbe(x.resumeVideo,x.resumeVideo.report)}));',
+          rawFile,
+        ],
+        testEnv,
+        { capture: true },
+      ),
+    );
+    video.probe = projected.video.probe;
+    resumeVideo.probe = projected.resumeVideo.probe;
     databaseRequested = true;
     console.log(`W302 live owned database ${name}; Redis ${prefix}`);
     await run("pnpm", ["test:db:seeded", "--name", name], baseEnv);
@@ -388,7 +481,8 @@ async function main() {
     await run(process.execPath, ["scripts/check-build.mjs", appOut, "--app", "admin"], baseEnv, {
       cwd: ADMIN,
     });
-    const server = await startApi(testEnv);
+    await buildApi(baseEnv);
+    const server = await startApi(testEnv, image);
     if (!(await fetch(`${server.apiOrigin}/readyz`)).ok)
       throw new Error("The actual API is not ready");
     const origin = await serveProduction(server.apiOrigin);
@@ -406,7 +500,15 @@ async function main() {
     );
     await run(
       "pnpm",
-      ["--filter", "@liyoxi/admin", "exec", "playwright", "test", "--project", "live"],
+      [
+        "--filter",
+        "@liyoxi/admin",
+        "exec",
+        "playwright",
+        "test",
+        "--project=live",
+        ...(testFile ? [testFile] : []),
+      ],
       {
         ...toolEnv,
         LYX_ADMIN_LIVE: "1",
@@ -442,6 +544,7 @@ async function main() {
     } finally {
       rmSync(temporary, { recursive: true, force: true });
       rmSync(join(ADMIN, appOut), { recursive: true, force: true });
+      rmSync(join(ROOT, "apps/api", apiOut), { recursive: true, force: true });
     }
   }
 }

@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { linkSync, mkdirSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { expect, test, type Locator, type Page, type Route } from "@playwright/test";
-import type { UploadBatchDetail } from "@liyoxi/contract";
+import { EpisodeGridSchema, type UploadBatchDetail } from "@liyoxi/contract";
 import { liveContext, noHorizontalScroll, recordErrors } from "./live-context";
 import { orderShot } from "./live-order-fixture";
 
@@ -40,14 +41,29 @@ function fixture(): OutputFixture {
     throw new Error("Missing exact owned W302 fixture / Provider bridge");
   return f;
 }
-function video(file: MediaFixture, name: string) {
+function verifiedBytes(file: MediaFixture) {
   const bytes = readFileSync(file.path);
   if (
     bytes.length !== file.size ||
     createHash("sha256").update(bytes).digest("hex") !== file.sha256
   )
     throw new Error("Actual fixture bytes differ from recorded video evidence");
-  return { name, mimeType: "video/mp4", buffer: bytes };
+  return bytes;
+}
+function video(file: MediaFixture, name: string) {
+  return { name, mimeType: "video/mp4", buffer: verifiedBytes(file) };
+}
+function wholeBatchFiles(file: MediaFixture, runId: string) {
+  verifiedBytes(file);
+  const parent = dirname(file.path);
+  if (!parent.endsWith(`/admin-live-${runId}`)) throw new Error("Unowned batch selection");
+  const directory = join(parent, "batch-selection");
+  mkdirSync(directory, { mode: 0o700 });
+  return Array.from({ length: 20 }, (_, i) => {
+    const path = join(directory, `clip-${String.fromCharCode(65 + i)}.mp4`);
+    linkSync(file.path, path);
+    return path;
+  });
 }
 async function batchData(page: Page, id: string): Promise<UploadBatchDetail> {
   const response = await page.request.get(`/api/v1/admin/upload-batches/${id}`);
@@ -113,7 +129,7 @@ test("真实20集批次：服务器总数/人工顺序/刷新续传/体检ready/
   try {
     const me = await page.request.get("/api/v1/admin/auth/me");
     expect(me.status()).toBe(200);
-    expect((await me.json()).data.staff.id).toBe(f.scope.uploaderId);
+    expect((await me.json()).data.staff.staffId).toBe(f.scope.uploaderId);
     await page.goto(`/delivery/tickets/${f.ticketNo}?tab=episodes`);
     await page.getByRole("button", { name: "登记成片", exact: true }).click();
     let dialog = page.getByRole("dialog", { name: "登记成片", exact: true });
@@ -187,11 +203,7 @@ test("真实20集批次：服务器总数/人工顺序/刷新续传/体检ready/
     dialog = page.getByRole("dialog", { name: "登记成片", exact: true });
     await dialog
       .getByLabel("选择成片文件", { exact: true })
-      .setInputFiles(
-        Array.from({ length: 20 }, (_, i) =>
-          video(f.video, `clip-${String.fromCharCode(65 + i)}.mp4`),
-        ),
-      );
+      .setInputFiles(wholeBatchFiles(f.video, f.scope.runId));
     const batch = await create(page, dialog);
     expect(batch.expectedCount).toBe(20);
     expect(batch.aiUsage).toMatchObject({ used: false, declaredBy: f.scope.uploaderId });
@@ -228,13 +240,24 @@ test("真实20集批次：服务器总数/人工顺序/刷新续传/体检ready/
       `/api/v1/admin/delivery-tickets/${f.scope.ticketId}/episode-outputs`,
     );
     expect(outputs.status()).toBe(200);
-    const current = (await outputs.json()).data.episodes as {
-      episodeNo: number;
-      current: { fileId: string } | null;
-    }[];
-    expect(current).toHaveLength(20);
-    expect(current.every((row) => row.current?.fileId)).toBe(true);
-    expect(new Set(current.map((row) => row.episodeNo)).size).toBe(20);
+    const grid = EpisodeGridSchema.parse((await outputs.json()).data);
+    expect(grid.totalEpisodes).toBe(20);
+    expect(grid.currentPassedCount).toBe(0);
+    expect(grid.episodes).toHaveLength(20);
+    expect(grid.episodes.map((row) => [row.episodeNo, row.latest?.fileId])).toEqual(
+      [...ready.items]
+        .sort((a, b) => a.episodeNo! - b.episodeNo!)
+        .map((item) => [item.episodeNo, item.fileId]),
+    );
+    for (const row of grid.episodes) {
+      expect(row.current).toBeNull();
+      expect(row.latest).toMatchObject({
+        status: "uploaded",
+        isCurrent: false,
+        source: "manual_upload",
+        production: { pipelineState: "ready", gate: "pass" },
+      });
+    }
     await noHorizontalScroll(page, "真实20集批次消费");
     expect(errors).toEqual([]);
   } finally {

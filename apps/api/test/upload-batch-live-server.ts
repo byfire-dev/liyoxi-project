@@ -7,6 +7,7 @@ import { createRuntime, loadEnv, runStartupChecks } from "@liyoxi/services";
 import type { Env, RuntimeOptions } from "@liyoxi/services";
 import {
   createProviderHarness,
+  createOutputBatchToolsForTest,
   OutputBatchLiveInputSchema,
   findOutputBatchLiveJobIds,
   prepareOutputBatchLiveMasters,
@@ -16,6 +17,7 @@ import { createApp } from "../src/app.js";
 import type { Api } from "../src/app.js";
 import { HANDLERS } from "../src/routes/index.js";
 import { createOutputBatchCosStorage } from "./upload-batch-live-cos.js";
+import { createOutputBatchMediaToolRelay } from "./upload-batch-live-mediatool.js";
 
 function assertScope(env: Env, prefix: string) {
   const database = new URL(env.DATABASE_URL),
@@ -36,19 +38,20 @@ export async function startOutputBatchLiveServer(options: {
   env: Env;
   prefix: string;
   inputs: OutputBatchLiveInput;
-  /** Root binds the actually landed W304 public tool capability, not a ready-state fixture. */
-  configureRuntime?: (options: RuntimeOptions, inputs: OutputBatchLiveInput) => RuntimeOptions;
+  image: string;
+  version?: string;
 }) {
   const runId = assertScope(options.env, options.prefix);
   const inputs = OutputBatchLiveInputSchema.parse(options.inputs);
   if (inputs.current.runId !== runId || inputs.legacy.runId !== runId)
     throw new Error("W302 input scope differs from the exact database");
-  if (!options.configureRuntime)
-    throw new Error("W302 actual W304 tool boundary has not been configured");
+  // The old sample is an M1 fixture. Only the batch runtime enables actual production tools.
+  const { MEDIA_PRODUCTION: ignoredProduction, ...legacyEnv } = options.env;
+  void ignoredProduction;
   const base: RuntimeOptions = {
     entry: "api",
-    env: options.env,
-    version: "w302-private-live",
+    env: legacyEnv,
+    version: options.version ?? "w302-private-live",
     redisKeyPrefix: options.prefix,
   };
   const realOwner = createRuntime(base),
@@ -65,6 +68,7 @@ export async function startOutputBatchLiveServer(options: {
     cosServer: ReturnType<typeof serve> | undefined;
   let interval: ReturnType<typeof setInterval> | undefined, pending: Promise<void> | undefined;
   let masters: Awaited<ReturnType<typeof prepareOutputBatchLiveMasters>> | undefined;
+  let relay: Awaited<ReturnType<typeof createOutputBatchMediaToolRelay>> | undefined;
   let stopped: Promise<void> | undefined;
   const stop = () =>
     (stopped ??= (async () => {
@@ -90,8 +94,9 @@ export async function startOutputBatchLiveServer(options: {
       // Reverse construction order preserves the previously bound live scope until it closes.
       for (const runtime of [...[...runtimes].reverse(), realOwner])
         runtimeResults.push(...(await Promise.allSettled([runtime.close()])));
+      const relayResults = await Promise.allSettled([relay?.close()]);
       if (
-        [...jobResults, ...serverResults, ...inputResults, ...runtimeResults].some(
+        [...jobResults, ...serverResults, ...inputResults, ...runtimeResults, ...relayResults].some(
           (r) => r.status === "rejected",
         )
       )
@@ -101,7 +106,38 @@ export async function startOutputBatchLiveServer(options: {
     // Old single sample uses its actual M1 bridge, without W304 inspecting the 1s sample.
     const legacy = createRuntime(borrowed);
     runtimes.push(legacy);
-    const batch = createRuntime(options.configureRuntime(borrowed, inputs));
+    relay = await createOutputBatchMediaToolRelay({ runId, image: options.image });
+    const tools = createOutputBatchToolsForTest({
+      socketPath: relay.socketPath,
+      workDir: relay.workDir,
+      storage: cos.storage,
+      rememberDerived: cos.rememberDerived,
+      releaseDirectory: relay.releaseDirectory,
+      bindAttempt: relay.bindAttempt,
+    });
+    const batchEnv: Env = {
+      ...legacyEnv,
+      MEDIA_PRODUCTION: {
+        workDir: relay.workDir,
+        socketPath: relay.socketPath,
+        aigc: {
+          Label: "1",
+          ContentProducer: "fictional-w302-test",
+          ReservedCode1: "",
+          ContentPropagator: "fictional-w302-test",
+          ReservedCode2: "",
+        },
+        templates: {
+          normalize: "test_normalize",
+          sd: "test_sd",
+          hd: "test_hd",
+          sample: "test_sample",
+          brand: "test_brand",
+          ai: "test_ai",
+        },
+      },
+    };
+    const batch = createRuntime({ ...borrowed, env: batchEnv, mediaProductionTools: tools });
     runtimes.push(batch);
     masters = await prepareOutputBatchLiveMasters(legacy, inputs);
     const legacyApi = createApp({ runtime: legacy, handlers: HANDLERS });
@@ -153,7 +189,16 @@ export async function startOutputBatchLiveServer(options: {
           pending = undefined;
         });
     }, 15_000);
-    return { apiOrigin, cosOrigin, runtime: legacy, batchRuntime: batch, harness, cos, stop };
+    return {
+      apiOrigin,
+      cosOrigin,
+      runtime: legacy,
+      batchRuntime: batch,
+      harness,
+      cos,
+      stop,
+      toolResources: relay.resources,
+    };
   } catch (error) {
     await stop();
     throw error;
@@ -162,24 +207,34 @@ export async function startOutputBatchLiveServer(options: {
 
 async function main() {
   const { values } = parseArgs({
-    options: { "test-redis-prefix": { type: "string" }, "input-manifest": { type: "string" } },
+    options: {
+      "test-redis-prefix": { type: "string" },
+      "input-manifest": { type: "string" },
+      "mediatool-image": { type: "string" },
+    },
   });
-  if (!values["test-redis-prefix"] || !values["input-manifest"])
-    throw new Error("Missing owned Redis prefix or input manifest");
+  if (!values["test-redis-prefix"] || !values["input-manifest"] || !values["mediatool-image"])
+    throw new Error("Missing owned Redis prefix, input manifest or pinned image");
   const path = await realpath(values["input-manifest"]);
   const env = loadEnv(),
     runId = assertScope(env, values["test-redis-prefix"]);
   if (!path.includes(`/admin-live-${runId}/`) || !path.endsWith("/media-input.json"))
     throw new Error("Input manifest must be the exact owned temporary file");
   const inputs = OutputBatchLiveInputSchema.parse(JSON.parse(await readFile(path, "utf8")));
-  // Actual W304 tool injection is supplied only after its implementation reaches main.
   const server = await startOutputBatchLiveServer({
     env,
     prefix: values["test-redis-prefix"],
     inputs,
+    image: values["mediatool-image"],
+    version: process.env.LYX_BUILD ?? "w302-private-live",
   });
   process.stdout.write(
-    `${JSON.stringify({ evt: "w302.live.listening", apiOrigin: server.apiOrigin, cosOrigin: server.cosOrigin })}\n`,
+    `${JSON.stringify({
+      evt: "w302.live.listening",
+      apiOrigin: server.apiOrigin,
+      cosOrigin: server.cosOrigin,
+      toolResources: server.toolResources,
+    })}\n`,
   );
   for (const signal of ["SIGINT", "SIGTERM"] as const)
     process.once(signal, () => {
