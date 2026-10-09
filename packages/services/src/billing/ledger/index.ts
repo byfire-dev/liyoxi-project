@@ -5,6 +5,8 @@
 //   拿账户锁、取账本时钟 → advance → 按操作键查，已登记即返回第一次的结果 → 守卫 → 按写入顺序落库 → 自检 → 发事件
 // 账户与批次：进入（锁、时钟、推进）、月度发放、加购入账。冻结单一族（hold.ts）与调整、加购恢复（adjust.ts）在同一个骨架上。
 import type { LedgerTitleArgs } from "@liyoxi/contract";
+export { readCancelHoldFacts } from "./cancel-hold-facts.js";
+export type { CancelHoldFacts } from "./cancel-hold-facts.js";
 import type { PAY_CHANNEL, EnumValue } from "@liyoxi/contract/enums";
 
 import type { IdentityContext, Tx } from "../../kernel/index.js";

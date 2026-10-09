@@ -19,6 +19,8 @@ import {
   lockRows,
 } from "../kernel/index.js";
 import { orderManagerPort } from "../profile/index.js";
+import { QualificationImpactPort } from "../profile/index.js";
+import { previewFinalReject } from "./cancel-quote.js";
 import type { SyncStoreManager } from "../profile/index.js";
 import { orderSidePort } from "../delivery/index.js";
 import { boundOrder } from "./binding.js";
@@ -113,6 +115,7 @@ export const registration = defineRegistration("order", {
     }),
     implementMerchantFacts("order", orderMerchantFacts),
     implement(orderManagerPort, syncOrderManager),
+    implement(QualificationImpactPort, { previewFinalReject }),
     implementKeyed(machinePort, chainKey("drama_order", "status"), {
       companions: ["sub_status", "status_changed_at", "closed_at", "started_at"],
       guards: {
