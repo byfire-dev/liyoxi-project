@@ -40,6 +40,7 @@ export function SecurityDialog({
   const [message, setMessage] = useState<string>();
   const [pending, setPending] = useState(false);
   const [finished, setFinished] = useState(false);
+  const canClose = !recovery || saved;
   const locked = useRef(false),
     alive = useRef(true);
   const [intent] = useState(() => writeIntent(`self-${mode}`));
@@ -125,9 +126,10 @@ export function SecurityDialog({
           setEnrollment(undefined);
           setCode("");
           setRecovery(result.recoveryCodes ?? undefined);
+          setFinished(Boolean(result.replayed || !result.recoveryCodes));
           setMessage(
             result.replayed || !result.recoveryCodes
-              ? "本次是重放结果，恢复码不再展示；需要新的恢复码请重新绑定。"
+              ? "本次是重放结果，恢复码不再展示；请关闭弹层后重新绑定以获取新的恢复码。"
               : "新动态口令已生效，旧密钥和恢复码已失效。请保存下方一次性恢复码。",
           );
         }
@@ -147,7 +149,16 @@ export function SecurityDialog({
       </Modal>
     );
   return (
-    <Modal open title={titles[mode]} footer={null} destroyOnHidden onCancel={close}>
+    <Modal
+      open
+      title={titles[mode]}
+      footer={null}
+      destroyOnHidden
+      onCancel={canClose ? close : undefined}
+      closable={canClose}
+      mask={{ closable: canClose }}
+      keyboard={canClose}
+    >
       {message ? <Alert type="info" title={message} role="status" /> : null}
       <form aria-label={titles[mode]} className="lyx-auth-form" onSubmit={submit}>
         {mode === "password" ? (
@@ -255,9 +266,11 @@ export function SecurityDialog({
           </>
         )}
         <div className="lyx-confirm__footer">
-          <Button size="large" onClick={close}>
-            关闭
-          </Button>
+          {!recovery ? (
+            <Button size="large" onClick={close}>
+              关闭
+            </Button>
+          ) : null}
           {recovery ? (
             <Button size="large" type="primary" disabled={!saved} onClick={close}>
               已保存，关闭

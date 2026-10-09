@@ -257,6 +257,10 @@ test("真实启用激活、本人改密重绑恢复码、会话吊销与客服�
     const recovery = mfa.getByLabel("本人恢复码", { exact: true }).locator("code");
     await expect(recovery).toHaveCount(10);
     await expect(mfa.getByRole("button", { name: "已保存，关闭", exact: true })).toBeDisabled();
+    await expect(mfa.getByRole("button", { name: "关闭", exact: true })).toHaveCount(0);
+    await expect(mfa.locator(".ant-modal-close")).toHaveCount(0);
+    await personal.keyboard.press("Escape");
+    await expect(mfa).toBeVisible();
     await mfa.getByRole("checkbox", { name: "我已保存恢复码", exact: true }).check();
     await mfa.getByRole("button", { name: "已保存，关闭", exact: true }).click();
     const login = await personal.request.post("/api/v1/admin/auth/login", {
