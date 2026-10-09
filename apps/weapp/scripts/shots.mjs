@@ -88,6 +88,9 @@ const { PUBLISH_SCENES } = await import(
 const { DELIVERY_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/delivery-scenes.ts")).href
 );
+const { MESSAGE_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/message-scenes.ts")).href
+);
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--no-build") build = false;
@@ -114,6 +117,7 @@ for (let index = 0; index < args.length; index += 1) {
         ...ORDER_SCENES,
         ...PUBLISH_SCENES,
         ...DELIVERY_SCENES,
+        ...MESSAGE_SCENES,
       ].some((item) => item.name === name)
     )
       fail(`未知固定场景 ${name}`);
@@ -222,6 +226,16 @@ const targets = [
     kind: "delivery",
     fullPage: false,
   })),
+  ...(all ? MESSAGE_SCENES : MESSAGE_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
+    (item) => ({
+      label: item.name,
+      url: `${item.route}?lyxShot=${item.name}`,
+      file: `message__${item.name}`,
+      scene: item.name,
+      kind: "message",
+      fullPage: false,
+    }),
+  ),
   ...(all
     ? builtRoutes.filter(
         (route) =>
@@ -231,7 +245,8 @@ const targets = [
           !CATALOG_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !ORDER_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !PUBLISH_SCENES.some((item) => item.route === route) &&
-          !DELIVERY_SCENES.some((item) => item.route.split("?")[0] === route),
+          !DELIVERY_SCENES.some((item) => item.route.split("?")[0] === route) &&
+          !MESSAGE_SCENES.some((item) => item.route === route),
       )
     : wanted
   ).map((route) => ({
@@ -241,7 +256,9 @@ const targets = [
     fullPage: route === GALLERY_INDEX_ROUTE,
     ...(PROFILE_SCENES.some((item) => item.route === route)
       ? { scene: PROFILE_SCENES.find((item) => item.route === route)?.name, kind: "profile" }
-      : {}),
+      : route === "sub/service/messages/index"
+        ? { scene: "messages-owner", kind: "message" }
+        : {}),
   })),
   ...(all ? componentNames : wantedComponents).map((name) => ({
     label: `组件 ${name}`,
@@ -337,6 +354,15 @@ async function shoot(target) {
           if (kind === "delivery") globalThis.__LYX_DELIVERY_SHOT__ = scene;
           if (kind === "profile") globalThis.__LYX_PROFILE_SHOT__ = scene;
           if (kind === "billing") globalThis.__LYX_BILLING_SHOT__ = scene;
+          if (kind === "message") {
+            globalThis.__LYX_ACCOUNT_SHOT__ =
+              scene === "messages-no-store"
+                ? scene
+                : scene === "messages-clerk"
+                  ? "mine-clerk"
+                  : "mine-owner";
+            globalThis.__LYX_MESSAGE_SHOT__ = scene;
+          }
         },
         { scene: target.scene, kind: target.kind },
       );
@@ -365,14 +391,78 @@ async function shoot(target) {
                   ? "#order-ready"
                   : target.kind === "catalog"
                     ? "#catalog-ready"
-                    : target.kind === "delivery"
-                      ? "#delivery-ready"
-                      : "#account-ready",
+                    : target.kind === "message"
+                      ? target.scene === "messages-loading"
+                        ? ".messages-page .lyx-skeleton"
+                        : "#messages-ready"
+                      : target.kind === "delivery"
+                        ? "#delivery-ready"
+                        : "#account-ready",
         )
         .waitFor({ state: "visible", timeout: 15_000 });
       if (target.kind === "publish" && target.scene === "accounts-bind") {
         await page.locator(".accounts-page .lyx-button").filter({ hasText: "绑定新账号" }).click();
         await page.locator(".accounts-page__form").waitFor({ state: "visible" });
+      }
+      if (target.kind === "message") {
+        if (target.scene === "messages-loading") {
+          await expect(page.locator(".messages-page .lyx-skeleton")).toBeVisible();
+          await expect(page.getByText("暂无消息", { exact: true })).toHaveCount(0);
+        }
+        if (target.scene === "messages-error") {
+          await expect(page.getByText("网络异常，请检查网络后重试", { exact: true })).toBeVisible();
+          await expect(page.getByText("重新加载", { exact: true })).toBeVisible();
+          await expect(page.getByText("暂无消息", { exact: true })).toHaveCount(0);
+        }
+        if (target.scene === "messages-category") {
+          await page.locator(".lyx-filter-chips__item").filter({ hasText: "审核" }).click();
+          await expect(page.locator(".messages-page__row")).toHaveCount(1);
+          await expect(page.locator(".messages-page__row")).toContainText("门店审核通过");
+        }
+        if (target.scene === "messages-more") {
+          await page
+            .locator(".messages-page .lyx-button")
+            .filter({ hasText: "继续查看消息" })
+            .click();
+          await expect(page.locator(".messages-page__row")).toHaveCount(24);
+        }
+        if (target.scene === "messages-all-read") {
+          await page.locator(".messages-page__action").filter({ hasText: "全部已读" }).click();
+          await expect(page.locator(".messages-page__toolbar")).toContainText("未读 0 条");
+          const writes = await page.evaluate(() =>
+            globalThis.__LYX_MESSAGE_CALLS__.filter((call) => call.path === "/m/messages/read"),
+          );
+          if (
+            writes.length !== 2 ||
+            writes[0].key !== writes[1].key ||
+            writes[0].data.upToMessageId !== writes[1].data.upToMessageId
+          )
+            throw new Error("全读网络重试未保持同一边界/幂等键");
+        }
+        if (target.scene === "messages-empty")
+          await expect(page.getByText("暂无消息", { exact: true })).toBeVisible();
+        if (
+          target.scene === "messages-clerk" &&
+          (await page.locator(".messages-page__row").allTextContents()).some((text) =>
+            text.includes("积分变动"),
+          )
+        )
+          throw new Error("店员消息出现老板财务文案");
+        if (target.scene === "messages-no-store") {
+          const headers = await page.evaluate(() => globalThis.__LYX_MESSAGE_HEADERS__);
+          if (!headers.length || headers.some((item) => item.storeId !== undefined))
+            throw new Error("无店场景仍发送门店头");
+          await expect(page.getByText("账号安全提醒", { exact: true })).toBeVisible();
+        }
+        if (target.scene === "messages-unavailable") {
+          await page.locator(".messages-page__row").first().click();
+          await expect(
+            page.getByText("该内容暂不可访问，消息仍会保留", { exact: true }),
+          ).toBeVisible();
+          await page.locator(".messages-page__action").filter({ hasText: "订阅通知设置" }).click();
+          await expect(page.getByText("暂不可用", { exact: true })).toBeVisible();
+          await expect(page.locator(".lyx-sheet-popup")).toBeInViewport({ ratio: 1 });
+        }
       }
       if (target.kind === "delivery") {
         if (target.scene === "plan-change") {
