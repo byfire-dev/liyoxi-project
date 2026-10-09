@@ -334,9 +334,12 @@ describe("成组变量成对校验", () => {
   });
 
   it("多个组各自判断；与别的问题一并列出", () => {
-    const cos: EnvGroup = { name: "对象存储", keys: ["COS_BUCKET", "COS_REGION"] };
-    const error = failure({ APP_ENV: "local", REDIS_URL, COS_REGION: "r" }, [pay, cos]);
-    expect(keysOf(error)).toEqual(["DATABASE_URL", "COS_BUCKET"]);
+    const cos: EnvGroup = {
+      name: "对象存储",
+      keys: ["TEST_STORAGE_BUCKET", "TEST_STORAGE_REGION"],
+    };
+    const error = failure({ APP_ENV: "local", REDIS_URL, TEST_STORAGE_REGION: "r" }, [pay, cos]);
+    expect(keysOf(error)).toEqual(["DATABASE_URL", "TEST_STORAGE_BUCKET"]);
   });
 });
 
@@ -371,6 +374,14 @@ describe("键名清单", () => {
       "COS_SIGNER_KEYS_FILE",
       "COS_STS_ISSUER_KEYS_FILE",
       "COS_WORKER_KEYS_FILE",
+      "CI_REGION",
+      "CI_BUCKET_SECURE",
+      "CI_BUCKET_ASSET",
+      "CI_BUCKET_MEDIA",
+      "CI_BUCKET_PUB",
+      "CI_WORKER_KEYS_FILE",
+      "CI_CALLBACK_KEY_FILE",
+      "CI_CALLBACK_ORIGIN",
     ]);
   });
 });

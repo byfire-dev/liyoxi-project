@@ -1,8 +1,9 @@
 import { createServer } from "node:http";
 import type { Server } from "node:http";
 import type { Socket } from "node:net";
-import { afterEach, expect, it } from "vitest";
-import { createTencentSms } from "../providers/sms/tencent.js";
+import { afterEach, expect, it, vi } from "vitest";
+import { assembleProviders } from "../kernel/index.js";
+import type { Env } from "../kernel/index.js";
 import type { SmsTemplateBinding } from "../providers/types.js";
 import { SMS_TODO_ITEMS } from "../providers/types.js";
 import type { NotifyFact } from "./context.js";
@@ -29,6 +30,7 @@ const template: SmsTemplateBinding = {
 let server: Server | undefined;
 const sockets = new Set<Socket>();
 afterEach(async () => {
+  vi.unstubAllGlobals();
   const closed = Promise.all(
     [...sockets].map((socket) => new Promise<void>((resolve) => socket.once("close", resolve))),
   );
@@ -64,19 +66,27 @@ it("实际成片场景经render与真实Tencent驱动只发送固定事项，显
   await new Promise<void>((resolve) => server!.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   if (address === null || typeof address === "string") throw new Error("测试HTTP未就绪");
-  const sms = createTencentSms({
-    config: {
-      secretId: "AKIDEXAMPLE",
-      secretKey: "SECRETKEYEXAMPLE",
-      sdkAppId: "1400006666",
-      region: "ap-guangzhou",
-    },
-    getTemplate: async () => template,
-    fetch: (url, init) => {
-      expect(url).toBe("https://sms.tencentcloudapi.com/");
-      return fetch(`http://127.0.0.1:${address.port}/`, init);
-    },
+  const nativeFetch = globalThis.fetch;
+  vi.stubGlobal("fetch", (url: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    expect(url).toBe("https://sms.tencentcloudapi.com/");
+    return nativeFetch(`http://127.0.0.1:${address.port}/`, init);
   });
+  const config: NonNullable<Env["SMS"]> = {
+    secretId: "AKIDEXAMPLE",
+    secretKey: "SECRETKEYEXAMPLE",
+    sdkAppId: "1400006666",
+    region: "ap-guangzhou",
+  };
+  const sms = assembleProviders({
+    appEnv: "test",
+    logger: { info: () => {}, warn: () => {}, error: () => {} },
+    settings: {
+      sms: {
+        driver: "tencent",
+        tencent: { config, getTemplate: async () => template },
+      },
+    },
+  }).sms;
   // Test-first optional context: current JS ignores it and rejects the free display name.
   const params = renderSms("generic_todo", template.params, fact, "成片已交付", "m.delivered");
   expect(params).not.toBeNull();
