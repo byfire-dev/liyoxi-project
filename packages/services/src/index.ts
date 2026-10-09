@@ -217,6 +217,7 @@ export type {
 } from "./billing/index.js";
 
 export * as media from "./media/index.js";
+export { countBlockingStoreAds } from "./ad/index.js";
 export { createMedia } from "./media/index.js";
 export type { Media, MediaActor, MediaDeps, PromoteRef } from "./media/index.js";
 export { seedPlaceholderFinanceConfig, PLACEHOLDER_FINANCE } from "./billing/index.js";
