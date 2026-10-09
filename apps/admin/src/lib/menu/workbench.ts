@@ -36,7 +36,7 @@ const workbench: AdminModule = {
       kind: "no-board",
       skeleton: "query-table",
       inMenu: true,
-      note: "W2-06 独立菜单；只含实际已登记审批类型，M4、M5 在同页补领域入口",
+      note: "W2-06 独立菜单；只含实际已登记审批类型，M4、M5 各补一段领域入口",
     },
   ],
 };
