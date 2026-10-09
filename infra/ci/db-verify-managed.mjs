@@ -14,6 +14,8 @@ import { fileURLToPath } from "node:url";
 
 import { CATALOG_SQL, countReport, parseCatalog, pgEnv, psql } from "./db-lib.mjs";
 
+import { readSnapshot } from "./db-structure-lib.mjs";
+
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 const EXTENSIONS = ["btree_gist", "pg_trgm"];
 
@@ -97,7 +99,10 @@ if (deploy.status !== 0 || applied.length === 0) {
   console.log(`- 迁移建出的扩展：${installed.join("、") || "一个都没有"}`);
   if (installed.length !== EXTENSIONS.length) problems.push("两个扩展没有都建出来");
   // 读系统目录也走 query：迁移之后连接断了时，报错同样先抹掉连接信息
-  const counts = countReport([["这个库", parseCatalog(query(CATALOG_SQL).join("\n"))]]);
+  const counts = countReport(
+    [["这个库", parseCatalog(query(CATALOG_SQL).join("\n"))]],
+    readSnapshot().counts,
+  );
   console.log(`\n## 数量两组口径\n\n${counts.lines.join("\n")}`);
   problems.push(...counts.problems);
 }

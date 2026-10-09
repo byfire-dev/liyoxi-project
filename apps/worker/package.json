@@ -10,7 +10,8 @@
     "build": "node scripts/build.mjs",
     "start": "node dist/index.js",
     "redis:compat": "node scripts/build.mjs && node dist/redis-compat.js",
-    "staff:bootstrap": "node scripts/build.mjs && node dist/staff-bootstrap.js"
+    "staff:bootstrap": "node scripts/build.mjs && node dist/staff-bootstrap.js",
+    "staff:reissue-activation": "node scripts/build.mjs && node dist/staff-reissue-activation.js"
   },
   "dependencies": {
     "@liyoxi/contract": "workspace:*",

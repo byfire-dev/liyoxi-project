@@ -18,3 +18,15 @@ export { createWebhooks } from "./webhooks/runtime.js";
 export type * from "./webhooks/types.js";
 export { bindWebhooks } from "./webhooks/binding.js";
 export { registration } from "./register.js";
+export { retryDeadWebhook } from "./webhooks/manual-retry.js";
+
+export { createWechatMessageSource } from "./wechat-message.js";
+export type {
+  WechatMessageSourceOptions,
+  WechatImageCallback,
+  WechatSubscriptionCallback,
+  WechatSubscriptionEvent,
+  WechatSubscriptionItem,
+} from "./wechat-message.js";
+
+export { createCiWebhookSource } from "./ci.js";

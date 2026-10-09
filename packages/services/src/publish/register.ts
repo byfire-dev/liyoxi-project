@@ -1,3 +1,10 @@
+import { staffWorkPort, staffFollowUpPort } from "../kernel/index.js";
+import { publishStaffWork } from "./staff-work.js";
+import {
+  implementKeyed as notifyFactImplementation,
+  notifyReadPort as currentNotifyRead,
+} from "../kernel/index.js";
+import { accountNoticeFact, launchNoticeFact, launchLinkForItem } from "./notify-facts.js";
 import { approvalKindPort } from "../approval/index.js";
 import { hasPermission } from "../authz/index.js";
 import { fileCategoryGuardPort } from "../media/index.js";
@@ -19,6 +26,36 @@ import { channelAccountForNotify, launchTaskForNotify } from "./notify-read.js";
 export const registration = defineRegistration("publish", {
   ports: [launchChangedPort, launchHandlerPort],
   portImplementations: [
+    implementKeyed(staffFollowUpPort, "takedown_task", async (tx, id) => {
+      const row = await tx.takedownTask.findUnique({
+        where: { id },
+        select: { entityId: true, storeId: true },
+      });
+      return row === null ? null : { entityId: row.entityId, storeId: row.storeId };
+    }),
+    implementKeyed(staffFollowUpPort, "patrol_task", async (tx, id) => {
+      const row = await tx.patrolTask.findUnique({
+        where: { id },
+        select: { entityId: true, storeId: true },
+      });
+      return row === null ? null : { entityId: row.entityId, storeId: row.storeId };
+    }),
+    implementKeyed(staffWorkPort, "publish", publishStaffWork),
+    notifyFactImplementation(
+      currentNotifyRead,
+      "manualSubjectExists.takedown_task",
+      async (tx, id: string) =>
+        (await tx.takedownTask.findUnique({ where: { id }, select: { id: true } })) !== null,
+    ),
+    notifyFactImplementation(
+      currentNotifyRead,
+      "manualSubjectExists.patrol_task",
+      async (tx, id: string) =>
+        (await tx.patrolTask.findUnique({ where: { id }, select: { id: true } })) !== null,
+    ),
+    notifyFactImplementation(currentNotifyRead, "launchLinkForItem", launchLinkForItem),
+    notifyFactImplementation(currentNotifyRead, "accountNoticeFact", accountNoticeFact),
+    notifyFactImplementation(currentNotifyRead, "launchNoticeFact", launchNoticeFact),
     ...publishMachines,
     implementKeyed(approvalKindPort, "channel_account", accountKind),
     implementKeyed(approvalKindPort, "launch_link", launchKind),

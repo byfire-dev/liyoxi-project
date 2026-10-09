@@ -157,19 +157,20 @@ export function createM0Chain(options: M0ChainOptions): M0Chain {
   const clock = options.clock ?? createClock(new Date());
   const timerDelayMs = options.timerDelayMs ?? M0_CHAIN.timerDelayMs;
   const calls: M0ChainCalls = { subscriber: [], timer: [] };
-  const assembly = assembleForTest({
+  const baseAssembly = assembleForTest({
     entry: "worker",
     extra: [sampleFlowRegistration(), m0ChainRegistration(calls)],
   });
   const worker = buildWorkerServices({
     appEnv: "test",
     prisma,
-    assembly,
+    assembly: baseAssembly,
     channel: options.channel,
     clock,
     testEvents: SAMPLE_FLOW_EVENTS,
     timerCatalog: SAMPLE_TIMER_CATALOG,
   });
+  const assembly = worker.assembly;
   const tx = createTxRunner({ prisma, appEnv: "test" });
   const flow = createFlow({ assembly, clock, events: worker.events });
   let executions = 0;

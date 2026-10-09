@@ -9,7 +9,7 @@ import { createIdentityContext, lockRows, uuidv7 } from "../kernel/index.js";
 import { createTestStaffAuth, signInAsStaff, useSeededDatabase } from "../testing/index.js";
 import type { TestStaffAuth } from "../testing/index.js";
 import { nextPhone, SLOW } from "./__fixtures__/staff.js";
-import { pickNext, staffBriefs } from "./assignment.js";
+import { pickNext, prepareAssignmentPools, staffBriefs } from "./assignment.js";
 import { seedDemoStaff } from "./demo-seed.js";
 import { createStaffManagement } from "./management.js";
 import type { StaffManagementDeps } from "./management.js";
@@ -144,6 +144,10 @@ describe("员工分配与摘要边界", { timeout: SLOW }, () => {
     const demo = await seedDemoStaff({ ...harness, appEnv: "test" });
     const manager = demo.staff.find((member) => member.key === "delivery_manager")!;
     await harness.tx.run(async (tx) => {
+      await prepareAssignmentPools(tx, [
+        { pool: "delivery_manager", scopeKey: "440300" },
+        { pool: "delivery_manager", scopeKey: "510100" },
+      ]);
       expect(await pickNext(tx, "delivery_manager", "510100")).toMatchObject({
         staffId: manager.staffId,
       });
@@ -174,7 +178,18 @@ describe("员工分配与摘要边界", { timeout: SLOW }, () => {
       }),
     ).rejects.toThrow(/加锁顺序反了/);
     const snapshot = await prisma.assignmentCursor.count();
-    expect(snapshot).toBe(0);
+    expect(snapshot).toBe(4);
+    const cursors = await prisma.assignmentCursor.findMany({
+      orderBy: [{ pool: "asc" }, { scopeKey: "asc" }],
+      select: { pool: true, scopeKey: true, lastStaffId: true },
+    });
+    expect(cursors.map(({ pool, scopeKey }) => ({ pool, scopeKey }))).toEqual([
+      { pool: "cs", scopeKey: "all" },
+      { pool: "delivery_manager", scopeKey: "440300" },
+      { pool: "delivery_manager", scopeKey: "510100" },
+      { pool: "delivery_manager", scopeKey: "all" },
+    ]);
+    expect(cursors[0]?.lastStaffId).toBeNull();
     expect(await prisma.assignmentHistory.count()).toBe(0);
   });
 });

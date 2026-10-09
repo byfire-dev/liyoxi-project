@@ -13,17 +13,17 @@
 
 | 端 | 登记 | V1.0 应实现 | 已实现 | 未实现 | V1.1 只登记 | 入口隐藏 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 运营管理后台 | 80 | 67 | 19 | 48 | 13 | 2 |
+| 运营管理后台 | 80 | 67 | 24 | 43 | 13 | 2 |
 | 电脑端下载页 | 8 | 7 | 0 | 7 | 1 | 0 |
-| 商家端小程序 | 49 | 48 | 25 | 23 | 1 | 0 |
+| 商家端小程序 | 49 | 48 | 27 | 21 | 1 | 0 |
 
 应实现未实现页面数，按里程碑：
 
 | 端 | M1 | M2 | M3 | M4 | M5 | M6 | M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 运营管理后台 | 0 | 11 | 6 | 14 | 1 | 4 | 12 |
+| 运营管理后台 | 0 | 6 | 6 | 14 | 1 | 4 | 12 |
 | 电脑端下载页 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
-| 商家端小程序 | 0 | 8 | 5 | 4 | 3 | 1 | 2 |
+| 商家端小程序 | 0 | 7 | 4 | 4 | 3 | 1 | 2 |
 
 “入口隐藏”的页面照做、外壳不给入口（规范 第 14 节第 12 项），计入应实现，不算留桩。
 
@@ -85,8 +85,8 @@
 | 运营 | 公告与常见问题 | `/ops/notice` | OpsNotice | — | 是 | `release.notice_faq` | V1.1 | — | 否 |
 | 系统 | 员工账号 | `/sys/staff` | SysStaff | 筛选表格 | 是 | — | M1 | W1-02 | 是 |
 | 系统 | 角色权限 | `/sys/roles` | SysRoles | 主从页 | 是 | — | M2 | G2-A | 否 |
-| 系统 | 数据字典 | `/sys/dict` | SysDict | 主从页 | 是 | — | M2 | G2-A | 否 |
-| 系统 | 参数配置 | `/sys/params` | SysParams | 配置页 | 是 | — | M2 | G2-A | 否 |
+| 系统 | 数据字典 | `/sys/dict` | SysDict | 主从页 | 是 | — | M2 | W2-07 | 是 |
+| 系统 | 参数配置 | `/sys/params` | SysParams | 配置页 | 是 | — | M2 | W2-07 | 是 |
 | 系统 | 操作日志 | `/sys/logs` | SysLogs | 主从页 | 是 | — | M2 | W2-08 | 是 |
 | 渠道 | 服务商列表 | `/partners` | Partners | — | 是 | `release.partner` | V1.1 | — | 否 |
 | 渠道 | 入驻审核 | `/partners/review` | PartnerReview | — | 是 | `release.partner` | V1.1 | — | 否 |
@@ -108,9 +108,9 @@
 | 财务 | 受控财务配置 | `/finance/settings` | 配置页 | 页面内 | M4 | G4-C | 否 | 无画板页：地址与是否进菜单文档没写，先按登记值；页面包实现时定，并把 inMenu 改过来 |
 | 运营 | 发送日志与重发 | `/ops/notify-logs` | 筛选表格 | 页面内 | M7 | G7-A | 否 | 无画板页：地址与是否进菜单文档没写，先按登记值；页面包实现时定，并把 inMenu 改过来 |
 | 运营 | 通道配置 | `/ops/channels` | 配置页 | 页面内 | M7 | G7-A | 否 | 无画板页：地址与是否进菜单文档没写，先按登记值；页面包实现时定，并把 inMenu 改过来 |
-| 系统 | 开关管理 | `/sys/flags` | 筛选表格 | 页面内 | M2 | G2-A | 否 | 无画板页：地址照 D7 第 5.2 节；是否进菜单文档没写，页面包实现时定，并把 inMenu 改过来 |
-| 系统 | 清单模板管理 | `/sys/checklists` | 筛选表格 | 页面内 | M2 | G2-A | 否 | 无画板页：地址与是否进菜单文档没写，先按登记值；页面包实现时定，并把 inMenu 改过来 |
-| 系统 | 流程运维 | `/sys/flow-ops` | 筛选表格 | 页面内 | M2 | G2-D | 否 | 无画板页：地址与是否进菜单文档没写，先按登记值；页面包实现时定，并把 inMenu 改过来。M3 的 G3-A 在本页接入媒体任务 |
+| 系统 | 开关管理 | `/sys/flags` | 筛选表格 | 页面内 | M2 | W2-07 | 是 | 独立配置页，保留参数页下级入口；权限满足后从参数配置进入 |
+| 系统 | 清单模板管理 | `/sys/checklists` | 筛选表格 | 页面内 | M2 | W2-07 | 是 | 独立配置页，保留参数页下级入口；权限满足后从参数配置进入 |
+| 系统 | 流程运维 | `/sys/flow-ops` | 筛选表格 | 菜单 | M2 | W2-23 | 是 | 无画板页：三个传输资源页签；M3 的 W3-08 在本页接入媒体任务 |
 | 系统 | 文件清除放行 | `/sys/file-purges` | 筛选表格 | 页面内 | M3 | G3-A | 否 | 无画板页：地址与是否进菜单文档没写，先按登记值；页面包实现时定，并把 inMenu 改过来 |
 | 系统 | 系统健康 | `/sys/health` | 筛选表格 | 页面内 | M7 | G7-B | 否 | 无画板页：地址照 D7 第 5.2 节；是否进菜单文档没写，页面包实现时定，并把 inMenu 改过来 |
 | — | 导出记录抽屉 | — | 弹层或抽屉 | 页面内 | M7 | G7-B | 否 |  |
@@ -163,7 +163,7 @@
 | 主包 | 我的 | `pages/mine/index` | Mine | M32 | W1-05 | M1 | 是 |  |
 | 主包 | 登录 | `pages/login/index` | Login | M01 | W1-05 | M1 | 是 |  |
 | 主包 | 协议正文 | `pages/agreement/index` | — | — | W1-05 | M1 | 是 | 新增页：登录前可读 |
-| `sub/catalog` | 搜索 | `sub/catalog/search/index` | Search | M03 | G3-B | M3 | 否 |  |
+| `sub/catalog` | 搜索 | `sub/catalog/search/index` | Search | M03 | W3-13 | M3 | 是 |  |
 | `sub/catalog` | 预告片模式 | `sub/catalog/trailer/index` | Trailer | M05 | — | V1.0 不做 | 否 | V1.0 不做（规范 第 11 节） |
 | `sub/catalog` | 短剧详情 | `sub/catalog/detail/index` | Detail | M06 | W1-18 | M1 | 是 |  |
 | `sub/order` | 确认订购 | `sub/order/checkout/index` | Checkout | M09 | W1-18 | M1 | 是 |  |
@@ -201,7 +201,7 @@
 | `sub/ad` | 广告详情 | `sub/ad/ad-detail/index` | AdDetail | M19 | G5-B | M5 | 否 |  |
 | `sub/service` | 客服中心 | `sub/service/service/index` | Service | M29 | G7-A | M7 | 否 | 含 M30 弹层 |
 | `sub/service` | 工单 | `sub/service/ticket/index` | Ticket、TicketDone | M31 | G7-A | M7 | 否 | 一页两态 |
-| `sub/service` | 消息 | `sub/service/messages/index` | Messages | M36 | G2-C | M2 | 否 |  |
+| `sub/service` | 消息 | `sub/service/messages/index` | Messages | M36 | W2-19 | M2 | 是 |  |
 | `sub/service` | 设置 | `sub/service/settings/index` | — | — | G2-B | M2 | 否 | 新增页：退出登录、注销、隐私协议、通知设置、已授权的电脑 |
 | `sub/member` | 成员 | `sub/member/members/index` | Members | M53 | G2-B | M2 | 否 |  |
 | `sub/member` | 邀请店员 | `sub/member/invite/index` | Invite | M54 | G2-B | M2 | 否 |  |

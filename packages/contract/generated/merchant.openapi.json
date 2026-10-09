@@ -338,6 +338,670 @@
         ],
         "type": "object"
       },
+      "AnalyticsEventBatch": {
+        "additionalProperties": false,
+        "properties": {
+          "anonymousId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "clientVersion": {
+            "maxLength": 16,
+            "type": "string"
+          },
+          "events": {
+            "description": "逐条按 ClientAnalyticsEvent 校验；坏事件计入 rejected，其余照常接收",
+            "items": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "eventId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "name": {
+                      "enum": [
+                        "app_launch"
+                      ],
+                      "type": "string"
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "props": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "channelCode": {
+                          "pattern": "^[A-Za-z0-9_-]{1,16}$",
+                          "type": "string"
+                        },
+                        "hasInvitation": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "hasInvitation"
+                      ],
+                      "type": "object"
+                    },
+                    "storeId": {
+                      "format": "uuid",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "eventId",
+                    "occurredAt",
+                    "name",
+                    "props"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "eventId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "name": {
+                      "enum": [
+                        "profile_step_save"
+                      ],
+                      "type": "string"
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "props": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "durationMs": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "step": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                1
+                              ],
+                              "type": "number"
+                            },
+                            {
+                              "enum": [
+                                2
+                              ],
+                              "type": "number"
+                            },
+                            {
+                              "enum": [
+                                3
+                              ],
+                              "type": "number"
+                            },
+                            {
+                              "enum": [
+                                4
+                              ],
+                              "type": "number"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "step",
+                        "durationMs"
+                      ],
+                      "type": "object"
+                    },
+                    "storeId": {
+                      "format": "uuid",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "eventId",
+                    "occurredAt",
+                    "name",
+                    "props"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "eventId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "name": {
+                      "enum": [
+                        "store_switch"
+                      ],
+                      "type": "string"
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "props": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "fromPage": {
+                          "pattern": "^[A-Za-z0-9_-]{1,16}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "fromPage"
+                      ],
+                      "type": "object"
+                    },
+                    "storeId": {
+                      "format": "uuid",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "eventId",
+                    "occurredAt",
+                    "name",
+                    "props"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "eventId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "name": {
+                      "enum": [
+                        "mall_view"
+                      ],
+                      "type": "string"
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "props": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "category": {
+                          "pattern": "^[A-Za-z0-9_-]{1,16}$",
+                          "type": "string"
+                        },
+                        "filters": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "episodes": {
+                              "pattern": "^[A-Za-z0-9_-]{1,16}$",
+                              "type": "string"
+                            },
+                            "genre": {
+                              "pattern": "^[A-Za-z0-9_-]{1,16}$",
+                              "type": "string"
+                            },
+                            "industry": {
+                              "pattern": "^[A-Za-z0-9_-]{1,16}$",
+                              "type": "string"
+                            },
+                            "price": {
+                              "pattern": "^[A-Za-z0-9_-]{1,16}$",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "mode": {
+                          "enum": [
+                            "list",
+                            "trailer"
+                          ],
+                          "type": "string"
+                        },
+                        "sort": {
+                          "enum": [
+                            "composite",
+                            "heat",
+                            "price_asc",
+                            "price_desc",
+                            "newest"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "mode"
+                      ],
+                      "type": "object"
+                    },
+                    "storeId": {
+                      "format": "uuid",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "eventId",
+                    "occurredAt",
+                    "name",
+                    "props"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "eventId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "name": {
+                      "enum": [
+                        "trailer_play"
+                      ],
+                      "type": "string"
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "props": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "dramaId": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "finished": {
+                          "type": "boolean"
+                        },
+                        "playMs": {
+                          "maximum": 3600000,
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "dramaId",
+                        "playMs",
+                        "finished"
+                      ],
+                      "type": "object"
+                    },
+                    "storeId": {
+                      "format": "uuid",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "eventId",
+                    "occurredAt",
+                    "name",
+                    "props"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "eventId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "name": {
+                      "enum": [
+                        "drama_detail_view"
+                      ],
+                      "type": "string"
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "props": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "dramaId": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "fromPage": {
+                          "pattern": "^[A-Za-z0-9_-]{1,16}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "dramaId",
+                        "fromPage"
+                      ],
+                      "type": "object"
+                    },
+                    "storeId": {
+                      "format": "uuid",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "eventId",
+                    "occurredAt",
+                    "name",
+                    "props"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "eventId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "name": {
+                      "enum": [
+                        "share_click"
+                      ],
+                      "type": "string"
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "props": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "dramaId": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "page": {
+                          "pattern": "^[A-Za-z0-9_-]{1,16}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "page"
+                      ],
+                      "type": "object"
+                    },
+                    "storeId": {
+                      "format": "uuid",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "eventId",
+                    "occurredAt",
+                    "name",
+                    "props"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "eventId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "name": {
+                      "enum": [
+                        "banner_click"
+                      ],
+                      "type": "string"
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "props": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "homeBannerId": {
+                          "format": "uuid",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "homeBannerId"
+                      ],
+                      "type": "object"
+                    },
+                    "storeId": {
+                      "format": "uuid",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "eventId",
+                    "occurredAt",
+                    "name",
+                    "props"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "eventId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "name": {
+                      "enum": [
+                        "playback_fallback"
+                      ],
+                      "type": "string"
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "props": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "fromQuality": {
+                          "enum": [
+                            "hd",
+                            "sd"
+                          ],
+                          "type": "string"
+                        },
+                        "network": {
+                          "enum": [
+                            "wifi",
+                            "5g",
+                            "4g",
+                            "3g",
+                            "2g",
+                            "none",
+                            "unknown"
+                          ],
+                          "type": "string"
+                        },
+                        "playableId": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "sdkVersion": {
+                          "pattern": "^\\d+(\\.\\d+){0,3}$",
+                          "type": "string"
+                        },
+                        "toQuality": {
+                          "enum": [
+                            "hd",
+                            "sd"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "playableId",
+                        "network",
+                        "fromQuality",
+                        "toQuality"
+                      ],
+                      "type": "object"
+                    },
+                    "storeId": {
+                      "format": "uuid",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "eventId",
+                    "occurredAt",
+                    "name",
+                    "props"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "eventId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "name": {
+                      "enum": [
+                        "trailer_first_frame"
+                      ],
+                      "type": "string"
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "props": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "firstFrameMs": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "network": {
+                          "enum": [
+                            "wifi",
+                            "5g",
+                            "4g",
+                            "3g",
+                            "2g",
+                            "none",
+                            "unknown"
+                          ],
+                          "type": "string"
+                        },
+                        "playableId": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "quality": {
+                          "enum": [
+                            "hd",
+                            "sd"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "playableId",
+                        "firstFrameMs",
+                        "network",
+                        "quality"
+                      ],
+                      "type": "object"
+                    },
+                    "storeId": {
+                      "format": "uuid",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "eventId",
+                    "occurredAt",
+                    "name",
+                    "props"
+                  ],
+                  "type": "object"
+                },
+                {},
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "type": "array"
+          },
+          "platform": {
+            "enum": [
+              "ios",
+              "android",
+              "harmony",
+              "windows",
+              "mac",
+              "devtools"
+            ],
+            "type": "string"
+          },
+          "scene": {
+            "type": "integer"
+          },
+          "sentAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "sessionId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sentAt",
+          "anonymousId",
+          "sessionId",
+          "clientVersion",
+          "platform",
+          "events"
+        ],
+        "type": "object"
+      },
+      "AnalyticsIngestResult": {
+        "properties": {
+          "accepted": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "dropped": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "duplicated": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "rejected": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "accepted",
+          "duplicated",
+          "rejected",
+          "dropped"
+        ],
+        "type": "object"
+      },
       "Attribution": {
         "properties": {
           "channelCode": {
@@ -6074,7 +6738,50 @@
             "type": "array"
           },
           "noticeBar": {
-            "type": "null"
+            "properties": {
+              "effectiveAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "link": {
+                "properties": {
+                  "params": {
+                    "additionalProperties": {},
+                    "type": "object"
+                  },
+                  "route": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "route",
+                  "params"
+                ],
+                "type": "object"
+              },
+              "siteNoticeId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "siteNoticeId",
+              "title",
+              "summary",
+              "effectiveAt",
+              "link"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
           },
           "recommend": {
             "properties": {
@@ -15487,6 +16194,91 @@
         ],
         "type": "object"
       },
+      "SubscribeResultBody": {
+        "additionalProperties": false,
+        "properties": {
+          "point": {
+            "enum": [
+              "profile_submit",
+              "pay_success",
+              "transfer_submit",
+              "order_submit",
+              "plan_confirm",
+              "ad_submit",
+              "ad_confirm",
+              "sample_confirm",
+              "package_download",
+              "link_submit",
+              "offline_confirm",
+              "ticket_submit",
+              "ticket_reply",
+              "invoice_apply",
+              "renew_enter",
+              "member_invite",
+              "member_join",
+              "asset_upload",
+              "notify_settings"
+            ],
+            "type": "string"
+          },
+          "reportId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "result": {
+                  "enum": [
+                    "accept",
+                    "reject",
+                    "ban",
+                    "filter"
+                  ],
+                  "type": "string"
+                },
+                "tmplId": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tmplId",
+                "result"
+              ],
+              "type": "object"
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "reportId",
+          "point",
+          "results"
+        ],
+        "type": "object"
+      },
+      "SubscribeResultOutcome": {
+        "properties": {
+          "appliedCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "ignoredCount": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "appliedCount",
+          "ignoredCount"
+        ],
+        "type": "object"
+      },
       "UserNotice": {
         "properties": {
           "kind": {
@@ -16463,6 +17255,90 @@
         "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
       }
     },
+    "/api/v1/m/analytics-events": {
+      "post": {
+        "operationId": "m.analyticsEvent.batchCreate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyticsEventBatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AnalyticsIngestResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "埋点批量上报 {sentAt, anonymousId, sessionId, clientVersion, platform, scene?, events[1–50]: {eventId, name, occurredAt, storeId?, props}}；端上只报 app_launch、profile_step_save、store_switch、mall_view、trailer_play、drama_detail_view、share_click 与扩展事件 banner_click、playback_fallback、trailer_first_frame，各事件 props schema 见 m08 2.11",
+        "x-auth": "optional",
+        "x-clerk-view": "same",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "埋点：事件按 event_id 在 analytics_event_dedup 去重，不经幂等记录（A18、C47）"
+      }
+    },
     "/api/v1/m/bootstrap": {
       "get": {
         "operationId": "m.bootstrap.get",
@@ -17343,6 +18219,80 @@
         "x-idempotent": "required"
       }
     },
+    "/api/v1/m/client-errors": {
+      "post": {
+        "operationId": "m.clientError.create",
+        "requestBody": {
+          "content": {
+            "application/x-sentry-envelope": {
+              "schema": {
+                "$ref": "#/components/schemas/SentryEnvelope"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "type": "null"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "已收下，未处理"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "小程序错误上报转发（Sentry envelope，≤200KB、白名单、限流，立即 202）",
+        "x-auth": "optional",
+        "x-clerk-view": "same",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "错误上报（A18、C47）"
+      }
+    },
     "/api/v1/m/delivery-plans/{deliveryPlanId}": {
       "get": {
         "operationId": "m.deliveryPlan.get",
@@ -18038,6 +18988,332 @@
           }
         },
         "summary": "商城列表：?q=（关键词）、genreCodes（题材）、industryCodes（适配行业）、集数、积分价区间、排序、分页（20/页）；老板另返回按当前套餐算的实扣积分",
+        "x-auth": "optional",
+        "x-capability": "catalog.read",
+        "x-clerk-view": "trimmed",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/dramas/search": {
+      "get": {
+        "operationId": "m.drama.search",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 2048,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "oneOf": [
+                        {
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/DramaPageOwner"
+                            },
+                            {
+                              "properties": {
+                                "fallbackIndustry": {
+                                  "properties": {
+                                    "code": {
+                                      "type": "string"
+                                    },
+                                    "keywordCategoryName": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "code",
+                                    "name",
+                                    "keywordCategoryName"
+                                  ],
+                                  "type": [
+                                    "object",
+                                    "null"
+                                  ]
+                                },
+                                "items": {
+                                  "items": {
+                                    "allOf": [
+                                      {
+                                        "$ref": "#/components/schemas/DramaCard"
+                                      },
+                                      {
+                                        "properties": {
+                                          "matchedFields": {
+                                            "items": {
+                                              "enum": [
+                                                "title",
+                                                "genre",
+                                                "cast"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          }
+                                        },
+                                        "required": [
+                                          "matchedFields"
+                                        ],
+                                        "type": "object"
+                                      }
+                                    ]
+                                  },
+                                  "type": "array"
+                                },
+                                "mode": {
+                                  "enum": [
+                                    "match",
+                                    "industry_fallback"
+                                  ],
+                                  "type": "string"
+                                },
+                                "totalApprox": {
+                                  "maximum": 999,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "mode",
+                                "fallbackIndustry",
+                                "totalApprox"
+                              ],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        {
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/DramaPageClerk"
+                            },
+                            {
+                              "properties": {
+                                "fallbackIndustry": {
+                                  "properties": {
+                                    "code": {
+                                      "type": "string"
+                                    },
+                                    "keywordCategoryName": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "code",
+                                    "name",
+                                    "keywordCategoryName"
+                                  ],
+                                  "type": [
+                                    "object",
+                                    "null"
+                                  ]
+                                },
+                                "items": {
+                                  "items": {
+                                    "allOf": [
+                                      {
+                                        "$ref": "#/components/schemas/DramaCardForClerk"
+                                      },
+                                      {
+                                        "properties": {
+                                          "matchedFields": {
+                                            "items": {
+                                              "enum": [
+                                                "title",
+                                                "genre",
+                                                "cast"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          }
+                                        },
+                                        "required": [
+                                          "matchedFields"
+                                        ],
+                                        "type": "object"
+                                      }
+                                    ]
+                                  },
+                                  "type": "array"
+                                },
+                                "mode": {
+                                  "enum": [
+                                    "match",
+                                    "industry_fallback"
+                                  ],
+                                  "type": "string"
+                                },
+                                "totalApprox": {
+                                  "maximum": 999,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "mode",
+                                "fallbackIndustry",
+                                "totalApprox"
+                              ],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        {
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/DramaPageGuest"
+                            },
+                            {
+                              "properties": {
+                                "fallbackIndustry": {
+                                  "properties": {
+                                    "code": {
+                                      "type": "string"
+                                    },
+                                    "keywordCategoryName": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "code",
+                                    "name",
+                                    "keywordCategoryName"
+                                  ],
+                                  "type": [
+                                    "object",
+                                    "null"
+                                  ]
+                                },
+                                "items": {
+                                  "items": {
+                                    "allOf": [
+                                      {
+                                        "$ref": "#/components/schemas/DramaCardForClerk"
+                                      },
+                                      {
+                                        "properties": {
+                                          "matchedFields": {
+                                            "items": {
+                                              "enum": [
+                                                "title",
+                                                "genre",
+                                                "cast"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          }
+                                        },
+                                        "required": [
+                                          "matchedFields"
+                                        ],
+                                        "type": "object"
+                                      }
+                                    ]
+                                  },
+                                  "type": "array"
+                                },
+                                "mode": {
+                                  "enum": [
+                                    "match",
+                                    "industry_fallback"
+                                  ],
+                                  "type": "string"
+                                },
+                                "totalApprox": {
+                                  "maximum": 999,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "mode",
+                                "fallbackIndustry",
+                                "totalApprox"
+                              ],
+                              "type": "object"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          }
+        },
+        "summary": "搜索（?q=）：按剧名、题材、主演匹配，剧名命中在前；未命中且关键词属于某品类时按适配行业兜底，返回 mode: match | industry_fallback",
         "x-auth": "optional",
         "x-capability": "catalog.read",
         "x-clerk-view": "trimmed",
@@ -19792,6 +21068,1449 @@
         "x-auth": "member",
         "x-capability": "me.*",
         "x-clerk-view": "trimmed",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/messages": {
+      "get": {
+        "operationId": "m.message.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "order",
+                "delivery",
+                "launch",
+                "plan_points",
+                "review",
+                "store",
+                "service"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "items": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "body": {
+                                "maxLength": 200,
+                                "type": "string"
+                              },
+                              "category": {
+                                "enum": [
+                                  "order",
+                                  "delivery",
+                                  "launch",
+                                  "plan_points",
+                                  "review",
+                                  "store",
+                                  "service",
+                                  "system"
+                                ],
+                                "type": "string",
+                                "x-open-enum": true
+                              },
+                              "createdAt": {
+                                "format": "date-time",
+                                "type": "string"
+                              },
+                              "createdDate": {
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "ctaText": {
+                                "anyOf": [
+                                  {
+                                    "maxLength": 12,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "isRead": {
+                                "type": "boolean"
+                              },
+                              "link": {
+                                "anyOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "orderId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          },
+                                          "storeId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "orderId",
+                                          "storeId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "order.detail"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "orderItemId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          },
+                                          "storeId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "orderItemId",
+                                          "storeId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "delivery.sample"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "deliveryPlanId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          },
+                                          "storeId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "deliveryPlanId",
+                                          "storeId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "delivery.plan"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "date": {
+                                            "format": "date",
+                                            "type": "string"
+                                          },
+                                          "launchTaskId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          },
+                                          "storeId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "launchTaskId",
+                                          "storeId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "publish.task"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "storeId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          },
+                                          "takedownTaskId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "takedownTaskId",
+                                          "storeId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "offline.task"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "serviceTicketId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          },
+                                          "storeId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "serviceTicketId",
+                                          "storeId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "ticket.detail"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "channelAccountId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          },
+                                          "storeId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "channelAccountId",
+                                          "storeId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "account.detail"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "storeAssetDemandId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          },
+                                          "storeId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "storeAssetDemandId",
+                                          "storeId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "asset.demand"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {},
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "wallet.home"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "storeId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "storeId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "cart.list"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "adId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          },
+                                          "storeId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "adId",
+                                          "storeId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "ad.detail"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "storeId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "storeId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "profile.review"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "storeId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "storeId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "store.members"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "storeAssetId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          },
+                                          "storeId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "storeAssetId",
+                                          "storeId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "asset.detail"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "key": {
+                                            "enum": [
+                                              "user",
+                                              "privacy",
+                                              "member",
+                                              "points",
+                                              "custom_license",
+                                              "ad_service"
+                                            ],
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "key"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "agreement.view"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "paymentOrderId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "paymentOrderId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "payment.result"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "paymentOrderId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "paymentOrderId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "payment.detail"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {},
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "points.ledger"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {},
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "messages.list"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  }
+                                ]
+                              },
+                              "messageId": {
+                                "format": "uuid",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                "type": "string"
+                              },
+                              "readAt": {
+                                "anyOf": [
+                                  {
+                                    "format": "date-time",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "storeId": {
+                                "anyOf": [
+                                  {
+                                    "format": "uuid",
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "title": {
+                                "maxLength": 40,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "messageId",
+                              "category",
+                              "title",
+                              "body",
+                              "ctaText",
+                              "link",
+                              "storeId",
+                              "isRead",
+                              "readAt",
+                              "createdAt",
+                              "createdDate"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "nextCursor": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "nextCursor",
+                        "hasMore"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "站内消息（?tab=&cursor=，游标分页）：分类、标题、正文、按钮文案、深链、未读标记；按今天/昨天/日期分组",
+        "x-auth": "user",
+        "x-capability": "assert-in-handler",
+        "x-clerk-view": "same",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/messages/read": {
+      "post": {
+        "operationId": "m.message.batchRead",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "tab": {
+                    "default": "all",
+                    "enum": [
+                      "all",
+                      "order",
+                      "delivery",
+                      "launch",
+                      "plan_points",
+                      "review",
+                      "store",
+                      "service"
+                    ],
+                    "type": "string"
+                  },
+                  "upToMessageId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "upToMessageId"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "markedCount": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "summary": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "byStore": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "storeId": {
+                                    "format": "uuid",
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  },
+                                  "unreadCount": {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "storeId",
+                                  "unreadCount"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array"
+                            },
+                            "byTab": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "tab": {
+                                    "enum": [
+                                      "all",
+                                      "order",
+                                      "delivery",
+                                      "launch",
+                                      "plan_points",
+                                      "review",
+                                      "store",
+                                      "service"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "unreadCount": {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "tab",
+                                  "unreadCount"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array"
+                            },
+                            "total": {
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "byTab",
+                            "byStore"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "markedCount",
+                        "summary"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "全部已读 {tab?, upToMessageId} → {markedCount, summary}",
+        "x-auth": "user",
+        "x-capability": "assert-in-handler",
+        "x-clerk-view": "same",
+        "x-idempotent": "required"
+      }
+    },
+    "/api/v1/m/messages/summary": {
+      "get": {
+        "operationId": "m.message.summary",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "byStore": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "storeId": {
+                                "format": "uuid",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                "type": "string"
+                              },
+                              "unreadCount": {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "storeId",
+                              "unreadCount"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "byTab": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "tab": {
+                                "enum": [
+                                  "all",
+                                  "order",
+                                  "delivery",
+                                  "launch",
+                                  "plan_points",
+                                  "review",
+                                  "store",
+                                  "service"
+                                ],
+                                "type": "string"
+                              },
+                              "unreadCount": {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "tab",
+                              "unreadCount"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "total",
+                        "byTab",
+                        "byStore"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "未读计数：total、byTab（数组 [{tab, unreadCount}]，tab 取值与列表一致）、byStore（[{storeId, unreadCount}]）",
+        "x-auth": "user",
+        "x-capability": "assert-in-handler",
+        "x-clerk-view": "same",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/messages/{messageId}/read": {
+      "post": {
+        "operationId": "m.message.read",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "messageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "messageId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "readAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "messageId",
+                        "readAt"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "标记单条已读（点击消息跳转时）",
+        "x-auth": "user",
+        "x-capability": "assert-in-handler",
+        "x-clerk-view": "same",
+        "x-idempotent": "required"
+      }
+    },
+    "/api/v1/m/notify-settings": {
+      "get": {
+        "operationId": "m.notifySetting.list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "cooldownDays": {
+                          "maximum": 30,
+                          "minimum": 7,
+                          "type": "integer"
+                        },
+                        "items": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "estRemaining": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "lastAcceptAt": {
+                                "anyOf": [
+                                  {
+                                    "format": "date-time",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "sceneNames": {
+                                "items": {
+                                  "type": "string"
+                                },
+                                "type": "array"
+                              },
+                              "slotKey": {
+                                "type": "string"
+                              },
+                              "state": {
+                                "enum": [
+                                  "on",
+                                  "off",
+                                  "rejected",
+                                  "banned",
+                                  "unavailable"
+                                ],
+                                "type": "string",
+                                "x-open-enum": true
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "tmplId": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "slotKey",
+                              "title",
+                              "sceneNames",
+                              "tmplId",
+                              "state",
+                              "estRemaining",
+                              "lastAcceptAt"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "maxPerAsk": {
+                          "maximum": 5,
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "cooldownDays",
+                        "maxPerAsk"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          }
+        },
+        "summary": "通知设置：各类订阅消息（审核结果、付款结果、到期提醒、交付进度、待办提醒、工单回复、开票结果等槽位）的当前状态与可请求的模板 id",
+        "x-auth": "user",
+        "x-clerk-view": "same",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
       }
@@ -25108,6 +27827,99 @@
         "x-clerk-view": "trimmed",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/subscribe-results": {
+      "post": {
+        "operationId": "m.subscribeResult.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscribeResultBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SubscribeResultOutcome"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "订阅消息授权结果上报：{reportId, point, results: [{tmplId, accept|reject|ban|filter}]}",
+        "x-auth": "user",
+        "x-clerk-view": "same",
+        "x-idempotent": "required"
       }
     },
     "/api/v1/m/wallet": {

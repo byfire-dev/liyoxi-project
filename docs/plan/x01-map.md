@@ -10,13 +10,13 @@
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | M0 | 0 | 0 | 3 | 4 | 2 | 0 | 0 | 9 |
 | M1 | 2 | 2 | 1 | 2 | 1 | 0 | 1 | 9 |
-| M2 | 9 | 3 | 10 | 3 | 1 | 1 | 2 | 29 |
+| M2 | 9 | 3 | 10 | 3 | 1 | 1 | 3 | 30 |
 | M3 | 6 | 3 | 3 | 1 | 1 | 2 | 0 | 16 |
 | M4 | 6 | 4 | 5 | 0 | 0 | 2 | 1 | 18 |
 | M5 | 5 | 4 | 0 | 1 | 1 | 0 | 0 | 11 |
 | M6 | 2 | 5 | 1 | 0 | 1 | 0 | 0 | 9 |
 | M7 | 4 | 3 | 2 | 0 | 1 | 2 | 0 | 12 |
-| 合计 | 34 | 24 | 25 | 11 | 8 | 7 | 4 | 113 |
+| 合计 | 34 | 24 | 25 | 11 | 8 | 7 | 5 | 114 |
 
 定时器按“kind × 主体”计行：同一个 kind 有几种主体就有几行（`sla.breach` 有 7 行）。
 
@@ -71,6 +71,7 @@
 | 回调 | `hooks.wechat.message.receive` | security | M2 |
 | 命令行 | `cli.alerts.ack / 关闭告警、重置死信回调`（`alerts_ack`） | ops | M2 |
 | 命令行 | `ops analytics:repartition <YYYY-MM>`（`analytics_repartition`） | analytics | M2 |
+| 命令行 | `staff:reissue-activation`（`staff_reissue_activation`） | staff | M2 |
 | 订阅者 | `billing.onTierChanged` | billing | M3 |
 | 订阅者 | `content.onMastersChanged` | content | M3 |
 | 订阅者 | `content.onTrailerReady` | content | M3 |

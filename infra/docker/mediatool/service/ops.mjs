@@ -63,8 +63,9 @@ function inputArgs(demuxer, abs) {
  * 这次调用还剩多少毫秒；到点即抛。一次调用里的几个子进程共用一个期限。
  * @param {number} capMs
  * @param {unknown} requested
+ * @param {AbortSignal} [signal]
  */
-function deadline(capMs, requested) {
+function deadline(capMs, requested, signal) {
   let total = capMs;
   if (requested !== undefined) {
     if (!Number.isInteger(requested) || Number(requested) < LIMITS.minTimeoutMs) {
@@ -73,11 +74,14 @@ function deadline(capMs, requested) {
     total = Math.min(capMs, Number(requested));
   }
   const end = Date.now() + total;
-  return () => {
+  const left = () => {
+    if (signal?.aborted) throw new RequestError("killed", "调用已取消", 503);
     const left = end - Date.now();
     if (left <= 0) throw new RequestError("timeout", "超过硬超时", 504);
     return left;
   };
+  left.signal = signal;
+  return left;
 }
 
 /** @param {string} stderr */
@@ -86,13 +90,15 @@ const tailOf = (stderr) => stderr.trim().replace(/\s+/g, " ").slice(-300);
 /**
  * @param {string} bin
  * @param {string[]} args
- * @param {() => number} left
+ * @param {(() => number) & { signal?: AbortSignal }} left
  */
 async function tool(bin, args, left) {
   const result = await run(bin, args, {
     timeoutMs: left(),
     maxStdoutBytes: LIMITS.maxReportBytes,
+    signal: left.signal,
   });
+  if (result.aborted) throw new RequestError("killed", "调用已取消，进程组已退出", 503);
   if (result.timedOut) throw new RequestError("timeout", `${bin} 超过硬超时，已杀掉进程组`, 504);
   if (result.overflow) throw new RequestError("output_too_large", `${bin} 的输出超过 4MB`, 422);
   // 不是本服务杀的，却死于信号：多半是容器内存见底，被内核挑中
@@ -205,7 +211,7 @@ function reportOf(demuxer, raw, boxes, sizeBytes) {
  * @param {string} abs
  * @param {number} sizeBytes
  * @param {(keyof typeof DEMUXERS)[]} demuxers 依次尝试，第一个解得开的算数
- * @param {() => number} left
+ * @param {(() => number) & { signal?: AbortSignal }} left
  */
 async function probeFile(abs, sizeBytes, demuxers, left) {
   let reason = "";
@@ -247,9 +253,9 @@ async function outputPair(outPath, input) {
 
 // ---------- 三个操作 ----------
 
-/** @param {any} body */
-export async function probe(body) {
-  const left = deadline(LIMITS.probeTimeoutMs, body.timeoutMs);
+/** @param {any} body @param {AbortSignal} [signal] */
+export async function probe(body, signal) {
+  const left = deadline(LIMITS.probeTimeoutMs, body.timeoutMs, signal);
   const list = Array.isArray(body.demuxers) ? body.demuxers : [];
   if (list.length < 1 || list.length > 3) {
     throw new RequestError("bad_request", "demuxers 要给 1–3 个");
@@ -263,9 +269,10 @@ export async function probe(body) {
  * 抽 atMs 处的一帧存成 JPEG（宽不超过 1080，带旋转元数据的按旋转后出图）。
  * 片子比 atMs 短时抽不到帧，退回抽第一帧；第 0 秒不写 -ss。
  * @param {any} body
+ * @param {AbortSignal} [signal]
  */
-export async function poster(body) {
-  const left = deadline(LIMITS.posterTimeoutMs, body.timeoutMs);
+export async function poster(body, signal) {
+  const left = deadline(LIMITS.posterTimeoutMs, body.timeoutMs, signal);
   const demuxer = demuxerOf(body.demuxer);
   if (!Number.isInteger(body.atMs) || body.atMs < 0 || body.atMs > 86_400_000) {
     throw new RequestError("bad_request", "atMs 要是 0 到一天之内的整数毫秒");
@@ -297,6 +304,7 @@ export async function poster(body) {
         // 越过片尾的 -ss 会正常退出却一帧不出：换下一个时间点
         if (sizeBytes === 0) break;
         if (sizeBytes > LIMITS.maxPosterBytes) continue;
+        left();
         await rename(part, out);
         return { sizeBytes, atMs };
       }
@@ -312,9 +320,10 @@ export async function poster(body) {
  * -movflags 里的 use_metadata_tags 不能少：不带它，mp4 封装器会把非标准的键静默丢掉。
  * 回读到的与写入的不一致即失败，并删掉产物。输入里已有标识时会被覆盖：要不要加标由调用端先体检再定。
  * @param {any} body
+ * @param {AbortSignal} [signal]
  */
-export async function stampAigc(body) {
-  const left = deadline(LIMITS.stampTimeoutMs, body.timeoutMs);
+export async function stampAigc(body, signal) {
+  const left = deadline(LIMITS.stampTimeoutMs, body.timeoutMs, signal);
   const aigcJson = body.aigcJson;
   if (
     typeof aigcJson !== "string" ||
@@ -350,6 +359,7 @@ export async function stampAigc(body) {
     if (report.aigc !== aigcJson) {
       throw new RequestError("aigc_not_readable", "写入的 AIGC 读不回来", 422);
     }
+    left();
     await rename(part, out);
     return { report, inputSizeBytes: input.sizeBytes, outputSizeBytes };
   } finally {

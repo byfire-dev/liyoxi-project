@@ -44,3 +44,6 @@ export { currentSessionOpenid } from "./current-openid.js";
 
 export { identityPiiFields } from "./pii-fields.js";
 export { membershipAuthorizations, revokePortalGrants } from "./portal-grants.js";
+export { findWechatIdentityId, recentWechatOpenid } from "./wechat-lookup.js";
+
+export { merchantTargetForNotify, wechatTargetForNotify } from "./notify-facts.js";

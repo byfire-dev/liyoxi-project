@@ -15,7 +15,7 @@
 // 后续包加变量：在这里加键与校验，同 PR 改 .env.example（node infra/ci/check-env-example.mjs 核对键集合）。
 // 本文件不写相对导入：infra/ci/check-env-example.mjs 用 Node 自带的类型擦除直接加载它。
 
-import { readFileSync } from "node:fs";
+import { closeSync, constants, fstatSync, openSync, readFileSync, readSync } from "node:fs";
 
 import { z } from "zod";
 
@@ -43,9 +43,37 @@ export const ENV_KEYS: readonly string[] = [
   "DATABASE_URL_FILE",
   "REDIS_URL",
   "REDIS_URL_FILE",
+  "MINIO_ENDPOINT",
+  "MINIO_PUBLIC_ENDPOINT",
   "DATA_KEYS_FILE",
   "BIDX_KEYS_FILE",
   "AUTH_KEYS_FILE",
+  "SMS_SECRET_ID_FILE",
+  "SMS_SECRET_KEY_FILE",
+  "SMS_SDK_APP_ID",
+  "SMS_REGION",
+  "WECHAT_APPID",
+  "WECHAT_SECRET_FILE",
+  "WECHAT_MESSAGE_TOKEN_FILE",
+  "WECHAT_MESSAGE_AES_KEY_FILE",
+  "CLIENT_ERROR_PROJECTS_FILE",
+  "COS_REGION",
+  "COS_BUCKET_SECURE",
+  "COS_BUCKET_ASSET",
+  "COS_BUCKET_MEDIA",
+  "COS_BUCKET_PUB",
+  "COS_SIGNER_KEYS_FILE",
+  "COS_STS_ISSUER_KEYS_FILE",
+  "COS_WORKER_KEYS_FILE",
+  "CI_REGION",
+  "CI_BUCKET_SECURE",
+  "CI_BUCKET_ASSET",
+  "CI_BUCKET_MEDIA",
+  "CI_BUCKET_PUB",
+  "CI_WORKER_KEYS_FILE",
+  "CI_CALLBACK_KEY_FILE",
+  "CI_CALLBACK_ORIGIN",
+  "MEDIA_PRODUCTION_FILE",
 ];
 
 /** 数据加密密钥文件的内容：current 是当前 kid，keys 是 kid → base64 写的 32 字节 */
@@ -62,17 +90,77 @@ export interface AuthKeysConfig {
   readonly mfa: DataKeysConfig;
 }
 
+export interface SmsEnvConfig {
+  readonly secretId: string;
+  readonly secretKey: string;
+  readonly sdkAppId: string;
+  readonly region: string;
+}
+
+export interface WechatConfig {
+  readonly appid: string;
+  readonly secret: string;
+  readonly messageToken: string;
+  readonly messageEncodingAESKey: string;
+}
+
+/** 上报项目白名单与固定上游；只能来自 CLIENT_ERROR_PROJECTS_FILE。 */
+export interface ClientErrorProjectsConfig {
+  readonly projects: readonly { readonly dsn: string; readonly upstreamDsn?: string }[];
+}
+
 export interface Env {
+  readonly MEDIA_PRODUCTION?: {
+    readonly workDir: string;
+    readonly socketPath: string;
+    readonly aigc: {
+      readonly Label: string;
+      readonly ContentProducer: string;
+      readonly ReservedCode1: string;
+      readonly ContentPropagator: string;
+      readonly ReservedCode2: string;
+    };
+    readonly templates: {
+      readonly normalize: string;
+      readonly sd: string;
+      readonly hd: string;
+      readonly sample: string;
+      readonly brand: string;
+      readonly ai: string;
+    };
+  };
   readonly APP_ENV: AppEnv;
   readonly LOG_LEVEL: LogLevel;
   readonly DATABASE_URL: string;
   readonly REDIS_URL: string;
+  /** 本地 MinIO 的服务端地址与客户端签名地址；独立可选，只允许 local、test。 */
+  readonly MINIO?: { readonly endpoint?: string; readonly publicEndpoint?: string };
+  readonly COS?: {
+    readonly region: string;
+    readonly buckets: Readonly<Record<"secure" | "asset" | "media" | "pub", string>>;
+    readonly signer?: { readonly secretId: string; readonly secretKey: string };
+    readonly stsIssuer?: { readonly secretId: string; readonly secretKey: string };
+    readonly worker?: { readonly secretId: string; readonly secretKey: string };
+  };
+  readonly CI?: {
+    readonly callback: { readonly key: string; readonly origin: string };
+    readonly worker?: {
+      readonly region: string;
+      readonly buckets: Readonly<Record<"secure" | "asset" | "media" | "pub", string>>;
+      readonly secretId: string;
+      readonly secretKey: string;
+    };
+  };
   /** 数据加密密钥；两份密钥文件都没配时没有这一项 */
   readonly DATA_KEYS?: DataKeysConfig;
   /** 盲索引密钥；同上 */
   readonly BIDX_KEYS?: BidxKeysConfig;
   /** 后台登录的三把密钥；没配 AUTH_KEYS_FILE 时没有这一项 */
   readonly AUTH_KEYS?: AuthKeysConfig;
+  readonly SMS?: SmsEnvConfig;
+  /** 整组未配置时没有此项；敏感字段只能从 FILE 读取。 */
+  readonly WECHAT?: WechatConfig;
+  readonly CLIENT_ERROR_PROJECTS?: ClientErrorProjectsConfig;
 }
 
 export type EnvSource = Readonly<Record<string, string | undefined>>;
@@ -91,8 +179,22 @@ export interface EnvGroup {
 }
 
 /** 成组变量的登记处；后续包加变量时往这里加组 */
+const WECHAT_GROUP: EnvGroup = {
+  name: "微信小程序与唯一消息接收地址",
+  keys: [
+    "WECHAT_APPID",
+    "WECHAT_SECRET_FILE",
+    "WECHAT_MESSAGE_TOKEN_FILE",
+    "WECHAT_MESSAGE_AES_KEY_FILE",
+  ],
+};
 export const ENV_GROUPS: readonly EnvGroup[] = [
+  {
+    name: "腾讯云短信",
+    keys: ["SMS_SECRET_ID_FILE", "SMS_SECRET_KEY_FILE", "SMS_SDK_APP_ID", "SMS_REGION"],
+  },
   { name: "字段加密与盲索引密钥", keys: ["DATA_KEYS_FILE", "BIDX_KEYS_FILE"] },
+  WECHAT_GROUP,
 ];
 
 export class EnvError extends Error {
@@ -110,6 +212,51 @@ export class EnvError extends Error {
 function read(source: EnvSource, key: string): string | undefined {
   const value = source[key]?.trim();
   return value === undefined || value === "" ? undefined : value;
+}
+
+/** 保持端点为根 URL，避免 URL 解析器把路径、反斜杠或控制字符静默归一化。 */
+function isMinioEndpoint(value: string): boolean {
+  if (!/^https?:\/\/[^/?#@\\\s\p{Cc}]+\/?$/iu.test(value)) return false;
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      url.hostname.length > 0 &&
+      url.username === "" &&
+      url.password === "" &&
+      url.pathname === "/" &&
+      url.search === "" &&
+      url.hash === ""
+    );
+  } catch {
+    return false;
+  }
+}
+
+function readMinio(
+  source: EnvSource,
+  appEnv: string | undefined,
+  issues: EnvIssue[],
+): Env["MINIO"] {
+  const config: { endpoint?: string; publicEndpoint?: string } = {};
+  for (const [key, field] of [
+    ["MINIO_ENDPOINT", "endpoint"],
+    ["MINIO_PUBLIC_ENDPOINT", "publicEndpoint"],
+  ] as const) {
+    const value = read(source, key);
+    if (value === undefined) continue;
+    if (!PLAINTEXT_ENVS.includes(appEnv ?? "")) {
+      issues.push({ key, reason: "只允许在 local、test 环境配置" });
+    } else if (!isMinioEndpoint(value)) {
+      issues.push({
+        key,
+        reason: "须为 http(s) 根 URL，不接受账号、密码、路径、查询、片段或反斜杠",
+      });
+    } else {
+      config[field] = value;
+    }
+  }
+  return Object.keys(config).length > 0 ? Object.freeze(config) : undefined;
 }
 
 /**
@@ -227,7 +374,7 @@ function parseAuthKeys(json: unknown): AuthKeysConfig | string {
 /** 按规则 5、6 取出一份密钥文件：只认 *_FILE；明文变量给了即报错 */
 function readKeyFile<T>(
   source: EnvSource,
-  key: "DATA_KEYS" | "BIDX_KEYS" | "AUTH_KEYS",
+  key: "DATA_KEYS" | "BIDX_KEYS" | "AUTH_KEYS" | "CLIENT_ERROR_PROJECTS" | "MEDIA_PRODUCTION",
   issues: EnvIssue[],
   parse: (json: unknown) => T | string,
 ): T | undefined {
@@ -257,12 +404,373 @@ function readKeyFile<T>(
   return undefined;
 }
 
+function readSmsSecret(
+  source: EnvSource,
+  key: "SMS_SECRET_ID" | "SMS_SECRET_KEY",
+  issues: EnvIssue[],
+): string | undefined {
+  if (read(source, key) !== undefined) issues.push({ key, reason: `任何环境密钥只认 ${key}_FILE` });
+  const file = read(source, `${key}_FILE`);
+  if (file === undefined) return undefined;
+  let fd: number | undefined;
+  try {
+    fd = openSync(file, "r");
+    const stat = fstatSync(fd);
+    if (!stat.isFile() || stat.size > 4096) throw new Error();
+    const bytes = Buffer.alloc(4097);
+    let length = 0;
+    while (length < bytes.length) {
+      const readLength = readSync(fd, bytes, length, bytes.length - length, null);
+      if (!readLength) break;
+      length += readLength;
+    }
+    if (length > 4096) throw new Error();
+    const value = bytes.subarray(0, length).toString("utf8").trim();
+    if (!/^[A-Za-z0-9_-]{16,128}$/.test(value)) throw new Error();
+    return value;
+  } catch {
+    issues.push({ key: `${key}_FILE`, reason: "文件无法读取或内容格式不合格" });
+    return undefined;
+  } finally {
+    if (fd !== undefined) closeSync(fd);
+  }
+}
+/** DSN 只作为 FILE 白名单/固定目的地；请求中的 URL 从不成为外呼目的地。 */
+function validErrorDsn(value: unknown): value is string {
+  if (typeof value !== "string" || value !== value.trim() || value.includes("\\")) return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      !!url.hostname &&
+      /^[A-Za-z0-9_-]+$/.test(url.username) &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      /^\/(?:[A-Za-z0-9_-]+\/)*[0-9]+$/.test(url.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+function parseMediaProduction(json: unknown): NonNullable<Env["MEDIA_PRODUCTION"]> | string {
+  const text = z
+    .string()
+    .max(128)
+    .regex(/^[^\p{Cc}]*$/u);
+  const template = z
+    .string()
+    .min(1)
+    .max(128)
+    .regex(/^[A-Za-z0-9_-]+$/);
+  const schema = z.strictObject({
+    workDir: z.string().regex(/^\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+$/),
+    socketPath: z.string().min(1).max(512),
+    aigc: z.strictObject({
+      Label: text.min(1).max(16),
+      ContentProducer: text.min(1),
+      ReservedCode1: text,
+      ContentPropagator: text,
+      ReservedCode2: text,
+    }),
+    templates: z.strictObject({
+      normalize: template,
+      sd: template,
+      hd: template,
+      sample: template,
+      brand: template,
+      ai: template,
+    }),
+  });
+  const parsed = schema.safeParse(json);
+  if (
+    !parsed.success ||
+    !parsed.data.socketPath.startsWith(`${parsed.data.workDir}/.sock/`) ||
+    !/^[A-Za-z0-9._-]+$/.test(parsed.data.socketPath.slice(parsed.data.workDir.length + 7))
+  )
+    return "制作配置须为完整工作目录/同目录套接字/七字段主体口径/六模板映射；不得带任意路径";
+  return parsed.data;
+}
+
+function parseClientErrorProjects(json: unknown): ClientErrorProjectsConfig | string {
+  if (
+    !isRecord(json) ||
+    Object.keys(json).some((key) => key !== "projects") ||
+    !Array.isArray(json.projects) ||
+    json.projects.length < 1 ||
+    json.projects.length > 3
+  )
+    return "文件内容须为 { projects: [项目] }，项目1–3个";
+  const seen = new Set<string>();
+  const projects: { dsn: string; upstreamDsn?: string }[] = [];
+  for (const project of json.projects) {
+    if (
+      !isRecord(project) ||
+      Object.keys(project).some((key) => key !== "dsn" && key !== "upstreamDsn") ||
+      !validErrorDsn(project.dsn) ||
+      (project.upstreamDsn !== undefined && !validErrorDsn(project.upstreamDsn))
+    )
+      return "每个项目须给合法HTTPS DSN（公钥、数字项目），固定上游可选；不得含密码、查询或片段";
+    if (seen.has(project.dsn)) return "项目白名单不得重复";
+    seen.add(project.dsn);
+    projects.push({
+      dsn: project.dsn,
+      ...(project.upstreamDsn === undefined ? {} : { upstreamDsn: project.upstreamDsn }),
+    });
+  }
+  return { projects };
+}
+
 function hasProtocol(value: string, protocols: readonly string[]): boolean {
   try {
     return protocols.includes(new URL(value).protocol);
   } catch {
     return false;
   }
+}
+
+/** 微信敏感文本文件最多4KiB；只接受普通文件，所有诊断均不含路径/内容。 */
+function readWechatFile(source: EnvSource, key: string, issues: EnvIssue[]): string | undefined {
+  if (read(source, key) !== undefined)
+    issues.push({ key, reason: `敏感项只认 ${key}_FILE，任何环境都不接受明文` });
+  const fileKey = `${key}_FILE`;
+  const path = read(source, fileKey);
+  if (path === undefined) return undefined;
+  let fd: number | undefined;
+  try {
+    fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK);
+    const stat = fstatSync(fd);
+    if (!stat.isFile() || stat.size > 4096) {
+      issues.push({ key: fileKey, reason: "须为不超过4KiB的普通文本文件" });
+      return undefined;
+    }
+    const bytes = Buffer.alloc(4097);
+    let offset = 0;
+    while (offset < bytes.length) {
+      const count = readSync(fd, bytes, offset, bytes.length - offset, null);
+      if (count === 0) break;
+      offset += count;
+    }
+    if (offset > 4096) {
+      issues.push({ key: fileKey, reason: "文件内容超过4KiB" });
+      return undefined;
+    }
+    const value = bytes.subarray(0, offset).toString("utf8").trim();
+    if (value) return value;
+    issues.push({ key: fileKey, reason: "文件内容不能为空" });
+  } catch {
+    issues.push({ key: fileKey, reason: "所指的普通文本文件读不了" });
+  } finally {
+    if (fd !== undefined) {
+      try {
+        closeSync(fd);
+      } catch {
+        issues.push({ key: fileKey, reason: "配置文件关闭失败" });
+      }
+    }
+  }
+  return undefined;
+}
+
+function readCi(source: EnvSource, issues: EnvIssue[]): Env["CI"] {
+  const callbackKey = readWechatFile(source, "CI_CALLBACK_KEY", issues);
+  const workerText = readWechatFile(source, "CI_WORKER_KEYS", issues);
+  const fields = [
+    "CI_REGION",
+    "CI_BUCKET_SECURE",
+    "CI_BUCKET_ASSET",
+    "CI_BUCKET_MEDIA",
+    "CI_BUCKET_PUB",
+  ] as const;
+  const values = fields.map((key) => read(source, key));
+  const origin = read(source, "CI_CALLBACK_ORIGIN");
+  if (!callbackKey && !workerText && !origin && !values.some(Boolean)) return undefined;
+  if (
+    !callbackKey ||
+    Buffer.byteLength(callbackKey) < 32 ||
+    Buffer.byteLength(callbackKey) > 256 ||
+    !/^[\x21-\x7e]+$/.test(callbackKey)
+  )
+    issues.push({ key: "CI_CALLBACK_KEY_FILE", reason: "回调密钥须为32至256字节可见ASCII" });
+  try {
+    const parsed = new URL(origin ?? "");
+    if (
+      parsed.protocol !== "https:" ||
+      parsed.username ||
+      parsed.password ||
+      parsed.search ||
+      parsed.hash ||
+      parsed.pathname !== "/"
+    )
+      throw new Error();
+  } catch {
+    issues.push({
+      key: "CI_CALLBACK_ORIGIN",
+      reason: "须为固定HTTPS根origin，无用户信息/查询/片段",
+    });
+  }
+  let worker: NonNullable<Env["CI"]>["worker"];
+  if (workerText || values.some(Boolean)) {
+    for (const [index, key] of fields.entries())
+      if (!values[index]) issues.push({ key, reason: "CI worker地域与四桶须成组配置" });
+    if (!workerText)
+      issues.push({ key: "CI_WORKER_KEYS_FILE", reason: "CI worker须有独立角色FILE" });
+    const region = values[0];
+    if (region && !/^[a-z]+(?:-[a-z0-9]+){1,4}$/.test(region))
+      issues.push({ key: "CI_REGION", reason: "不是合法地域" });
+    for (const [index, value] of values.entries())
+      if (index > 0 && value && !/^[a-z0-9][a-z0-9-]{1,50}-[0-9]{5,20}$/.test(value))
+        issues.push({ key: fields[index]!, reason: "须为物理桶名" });
+    if (
+      new Set(
+        values
+          .slice(1)
+          .filter(Boolean)
+          .map((value) => value!.split("-").at(-1)),
+      ).size > 1
+    )
+      issues.push({ key: "CI_BUCKET_SECURE", reason: "四桶须同一账号" });
+    try {
+      const role: unknown = JSON.parse(workerText ?? "");
+      if (
+        !isRecord(role) ||
+        Object.keys(role).some((key) => key !== "secretId" && key !== "secretKey") ||
+        typeof role.secretId !== "string" ||
+        !/^[A-Za-z0-9_-]{1,128}$/.test(role.secretId) ||
+        typeof role.secretKey !== "string" ||
+        !/^[\x21-\x7e]{1,256}$/.test(role.secretKey)
+      )
+        throw new Error();
+      if (region && values[1] && values[2] && values[3] && values[4])
+        worker = {
+          region,
+          buckets: { secure: values[1], asset: values[2], media: values[3], pub: values[4] },
+          secretId: role.secretId,
+          secretKey: role.secretKey,
+        };
+    } catch {
+      issues.push({
+        key: "CI_WORKER_KEYS_FILE",
+        reason: "须为合法secretId/secretKey JSON普通文件",
+      });
+    }
+  }
+  if (!callbackKey || !origin) return undefined;
+  return { callback: { key: callbackKey, origin }, ...(worker ? { worker } : {}) };
+}
+
+function readCos(source: EnvSource, issues: EnvIssue[]): Env["COS"] {
+  const fields = [
+    "COS_REGION",
+    "COS_BUCKET_SECURE",
+    "COS_BUCKET_ASSET",
+    "COS_BUCKET_MEDIA",
+    "COS_BUCKET_PUB",
+  ] as const;
+  const roles: {
+    signer?: { secretId: string; secretKey: string };
+    stsIssuer?: { secretId: string; secretKey: string };
+    worker?: { secretId: string; secretKey: string };
+  } = {};
+  for (const [key, role] of [
+    ["COS_SIGNER_KEYS", "signer"],
+    ["COS_STS_ISSUER_KEYS", "stsIssuer"],
+    ["COS_WORKER_KEYS", "worker"],
+  ] as const) {
+    const content = readWechatFile(source, key, issues);
+    if (content === undefined) continue;
+    try {
+      const parsed: unknown = JSON.parse(content);
+      if (
+        !isRecord(parsed) ||
+        Object.keys(parsed).some((field) => field !== "secretId" && field !== "secretKey") ||
+        typeof parsed.secretId !== "string" ||
+        !/^[A-Za-z0-9_-]{1,128}$/.test(parsed.secretId) ||
+        typeof parsed.secretKey !== "string" ||
+        !/^[\x21-\x7e]{1,256}$/.test(parsed.secretKey)
+      )
+        throw new Error("shape");
+      roles[role] = { secretId: parsed.secretId, secretKey: parsed.secretKey };
+    } catch {
+      issues.push({ key: `${key}_FILE`, reason: "须为合法的 secretId/secretKey JSON 普通文件" });
+    }
+  }
+  const values = fields.map((key) => read(source, key));
+  if (!values.some((value) => value !== undefined) && !Object.keys(roles).length) return undefined;
+  for (const [index, key] of fields.entries())
+    if (values[index] === undefined) issues.push({ key, reason: "COS 地域和四桶须完整配置" });
+  const region = values[0];
+  if (region && !/^[a-z]+(?:-[a-z0-9]+){1,4}$/.test(region))
+    issues.push({ key: "COS_REGION", reason: "不是合法的 COS 地域标识" });
+  const buckets = { secure: values[1], asset: values[2], media: values[3], pub: values[4] };
+  for (const [index, value] of values.entries())
+    if (index > 0 && value && !/^[a-z0-9][a-z0-9-]{1,50}-[0-9]{5,20}$/.test(value))
+      issues.push({ key: fields[index]!, reason: "须为带账号后缀的物理桶名" });
+  if (
+    new Set(
+      values
+        .slice(1)
+        .filter((value) => value !== undefined)
+        .map((value) => value!.split("-").at(-1)),
+    ).size > 1
+  )
+    issues.push({ key: "COS_BUCKET_SECURE", reason: "四桶须属于同一账号" });
+  if (!roles.worker && (!roles.signer || !roles.stsIssuer))
+    issues.push({
+      key: "COS_SIGNER_KEYS_FILE",
+      reason: "API 须完整配置 signer 与 STS issuer；worker 须有独立角色",
+    });
+  if (
+    Object.keys(roles).length &&
+    (read(source, "MINIO_ENDPOINT") || read(source, "MINIO_PUBLIC_ENDPOINT"))
+  )
+    issues.push({ key: "COS_REGION", reason: "COS 与 MinIO 不能同时选择" });
+  if (!region || !buckets.secure || !buckets.asset || !buckets.media || !buckets.pub)
+    return undefined;
+  return {
+    region,
+    buckets: {
+      secure: buckets.secure,
+      asset: buckets.asset,
+      media: buckets.media,
+      pub: buckets.pub,
+    },
+    ...roles,
+  };
+}
+
+function readWechat(source: EnvSource, issues: EnvIssue[]): WechatConfig | undefined {
+  const appid = read(source, "WECHAT_APPID");
+  const secret = readWechatFile(source, "WECHAT_SECRET", issues);
+  const messageToken = readWechatFile(source, "WECHAT_MESSAGE_TOKEN", issues);
+  const messageEncodingAESKey = readWechatFile(source, "WECHAT_MESSAGE_AES_KEY", issues);
+  const ascii = (value: string | undefined, maximum: number) =>
+    value === undefined || (value.length <= maximum && /^[\x21-\x7e]+$/.test(value));
+  if (appid !== undefined && !/^[A-Za-z0-9_-]{1,128}$/.test(appid))
+    issues.push({ key: "WECHAT_APPID", reason: "须为1至128个字母、数字、下划线或短横线" });
+  if (!ascii(secret, 256))
+    issues.push({ key: "WECHAT_SECRET_FILE", reason: "须为1至256个可见ASCII字符" });
+  if (!ascii(messageToken, 128))
+    issues.push({ key: "WECHAT_MESSAGE_TOKEN_FILE", reason: "须为1至128个可见ASCII字符" });
+  if (
+    messageEncodingAESKey !== undefined &&
+    (!/^[A-Za-z0-9+/]{43}$/.test(messageEncodingAESKey) ||
+      Buffer.from(messageEncodingAESKey + "=", "base64").length !== 32 ||
+      Buffer.from(messageEncodingAESKey + "=", "base64").toString("base64") !==
+        messageEncodingAESKey + "=")
+  )
+    issues.push({
+      key: "WECHAT_MESSAGE_AES_KEY_FILE",
+      reason: "须为规范43字符base64编码的32字节密钥",
+    });
+  if (
+    appid === undefined ||
+    secret === undefined ||
+    messageToken === undefined ||
+    messageEncodingAESKey === undefined
+  )
+    return undefined;
+  return Object.freeze({ appid, secret, messageToken, messageEncodingAESKey });
 }
 
 const EnvSchema = z.object({
@@ -303,12 +811,34 @@ export function loadEnv(
   const dataKeys = readKeyFile(source, "DATA_KEYS", issues, parseDataKeys);
   const bidxKeys = readKeyFile(source, "BIDX_KEYS", issues, parseBidxKeys);
   const authKeys = readKeyFile(source, "AUTH_KEYS", issues, parseAuthKeys);
+  const secretId = readSmsSecret(source, "SMS_SECRET_ID", issues);
+  const secretKey = readSmsSecret(source, "SMS_SECRET_KEY", issues);
+  const sdkAppId = read(source, "SMS_SDK_APP_ID");
+  const region = read(source, "SMS_REGION");
+  if (sdkAppId !== undefined && !/^\d{1,20}$/.test(sdkAppId))
+    issues.push({ key: "SMS_SDK_APP_ID", reason: "须为数字应用ID" });
+  if (region !== undefined && !/^ap-[a-z]+(?:-[a-z]+)*$/.test(region))
+    issues.push({ key: "SMS_REGION", reason: "须为腾讯云地域编码" });
+  const wechat = readWechat(source, issues);
+  const minio = readMinio(source, appEnv, issues);
+  const cos = readCos(source, issues);
+  const ci = readCi(source, issues);
+  const mediaProduction = readKeyFile(source, "MEDIA_PRODUCTION", issues, parseMediaProduction);
+  const clientErrorProjects = readKeyFile(
+    source,
+    "CLIENT_ERROR_PROJECTS",
+    issues,
+    parseClientErrorProjects,
+  );
   if (!parsed.success) {
     for (const issue of parsed.error.issues) {
       issues.push({ key: issue.path.join("."), reason: issue.message });
     }
   }
-  issues.push(...groupIssues(source, options.groups ?? ENV_GROUPS));
+  const groups = options.groups ?? ENV_GROUPS;
+  issues.push(
+    ...groupIssues(source, groups.includes(WECHAT_GROUP) ? groups : [...groups, WECHAT_GROUP]),
+  );
 
   if (issues.length > 0 || !parsed.success) {
     const order = (issue: EnvIssue) => {
@@ -328,7 +858,16 @@ export function loadEnv(
     LOG_LEVEL,
     DATABASE_URL,
     REDIS_URL,
+    ...(minio ? { MINIO: minio } : {}),
+    ...(cos ? { COS: cos } : {}),
+    ...(ci ? { CI: ci } : {}),
+    ...(mediaProduction ? { MEDIA_PRODUCTION: mediaProduction } : {}),
     ...(dataKeys && bidxKeys ? { DATA_KEYS: dataKeys, BIDX_KEYS: bidxKeys } : {}),
     ...(authKeys ? { AUTH_KEYS: authKeys } : {}),
+    ...(secretId && secretKey && sdkAppId && region
+      ? { SMS: { secretId, secretKey, sdkAppId, region } }
+      : {}),
+    ...(wechat ? { WECHAT: wechat } : {}),
+    ...(clientErrorProjects ? { CLIENT_ERROR_PROJECTS: clientErrorProjects } : {}),
   });
 }

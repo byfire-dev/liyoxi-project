@@ -12,6 +12,15 @@ const proofReleasable = async (tx: Tx, id: string) => {
   return !!row && (row.firstListedAt === null || row.archivedAt !== null);
 };
 export const contentFileRefs = [
+  implementKeyed(fileRefTypePort, "drama_episode_master", {
+    roles: { main: { categories: ["drama_master"], retentionDays: 180 } },
+    readColumns: async (tx) =>
+      (await tx.dramaEpisodeMaster.findMany({ select: { id: true, fileId: true } })).map((row) => ({
+        refId: row.id,
+        fileId: row.fileId,
+        role: "main",
+      })),
+  }),
   implementKeyed(fileRefTypePort, "drama", {
     roles: { poster: { categories: ["poster"], retentionDays: 90, canRelease: dramaReleasable } },
     readColumns: async (tx) =>

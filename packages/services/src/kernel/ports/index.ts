@@ -9,6 +9,7 @@ export type { PortLogger } from "./log.js";
 export { notifyReadOf, notifyReadPort } from "./notify-read.js";
 export type { NotifyRead, NotifyReader } from "./notify-read.js";
 export { REMINDER_RULE_KEYS, remindersOf, remindersPort } from "./reminders.js";
+export type { TransactionConsentFact } from "./transaction-consent-facts.js";
 export type {
   ReminderQuery,
   ReminderRule,
@@ -50,3 +51,29 @@ export { dictReferencesPort, dictReferencesOf } from "./dict-references.js";
 export type { DictReferenceSource } from "./dict-references.js";
 export { piiFieldsPort, piiFieldsOf, implementPiiFields } from "./pii-fields.js";
 export type { PiiFactDb, PiiFieldQuery, PiiFieldFact, PiiFieldProvider } from "./pii-fields.js";
+
+export { subscribePlanOf, subscribePlanPort } from "./subscribe-plan.js";
+export type { SubscribePlanQuery, SubscribePlanReader } from "./subscribe-plan.js";
+
+export { catalogRefPort, catalogRefsOf } from "./catalog-refs.js";
+export type { CatalogRef, CatalogRefs } from "./catalog-refs.js";
+
+export {
+  staffWorkPort,
+  staffFollowUpPort,
+  staffWorkSourcesOf,
+  STAFF_WORK_OWNERS,
+} from "./staff-work.js";
+export type {
+  StaffWorkSource,
+  StaffWorkSources,
+  StaffWorkOwner,
+  StaffWorkItem,
+  StaffWorkQuery,
+  StaffWorkReassignment,
+  StaffWorkSourceKey,
+  StaffWorkSubjectType,
+  StaffActivationSender,
+  StaffFollowUpSubject,
+  StaffFollowUpReader,
+} from "./staff-work.js";

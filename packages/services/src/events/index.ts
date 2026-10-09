@@ -45,3 +45,4 @@ export type {
   DispatchOptions,
   DispatchResult,
 } from "./dispatch.js";
+export { retryDeadDelivery, countDead } from "./manual-retry.js";

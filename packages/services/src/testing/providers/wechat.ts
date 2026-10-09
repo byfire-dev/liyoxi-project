@@ -9,7 +9,7 @@ import type {
   WechatSession,
 } from "../../providers/types.js";
 import { createFakeCore, systemClock } from "./base.js";
-import type { FakeClock, FakeControl } from "./base.js";
+import type { FakeClock, FakeControl, FakeNotificationControl } from "./base.js";
 
 type Method = ProviderMethodName<WechatProvider>;
 
@@ -20,7 +20,8 @@ export interface FakeSubscribeMessage {
   data: Record<string, string>;
 }
 
-export interface FakeWechat extends WechatProvider, FakeControl<Method> {
+export interface FakeWechat
+  extends FakeNotificationControl<"sendSubscribeMessage">, WechatProvider, FakeControl<Method> {
   /** 预置：wx.login 的 code → 会话。没预置的 code 返回 rejected */
   readonly sessions: Map<string, WechatSession>;
   /** 预置：手机号组件的 code → 手机号。没预置的 code 返回 rejected */
@@ -37,7 +38,7 @@ export interface FakeWechat extends WechatProvider, FakeControl<Method> {
 }
 
 export function createFakeWechat(options: { clock?: FakeClock } = {}): FakeWechat {
-  const core = createFakeCore<Method>(options.clock ?? systemClock);
+  const core = createFakeCore<Method>(options.clock ?? systemClock, ["sendSubscribeMessage"]);
   const sessions = new Map<string, WechatSession>();
   const phones = new Map<string, string>();
   const subscribeMessages: FakeSubscribeMessage[] = [];
@@ -49,6 +50,7 @@ export function createFakeWechat(options: { clock?: FakeClock } = {}): FakeWecha
     status: "fake",
     configured: true,
     ...core.control,
+    ...core.notificationControl,
     sessions,
     phones,
     subscribeMessages,
@@ -70,10 +72,17 @@ export function createFakeWechat(options: { clock?: FakeClock } = {}): FakeWecha
           : ok({ phone });
       }),
     sendSubscribeMessage: (input) =>
-      core.run("sendSubscribeMessage", input, () => {
-        subscribeMessages.push({ ...input, data: { ...input.data } });
-        return ok(undefined);
-      }),
+      core.runNotification(
+        "sendSubscribeMessage",
+        input,
+        () => {
+          const message = { ...input };
+          delete message.signal;
+          subscribeMessages.push({ ...message, data: { ...input.data } });
+          return ok(undefined);
+        },
+        input.signal,
+      ),
     createMiniProgramCode: (input) =>
       core.run("createMiniProgramCode", input, () =>
         ok({
@@ -88,9 +97,14 @@ export function createFakeWechat(options: { clock?: FakeClock } = {}): FakeWecha
         return ok({ verdict: textVerdicts.shift() ?? "pass", traceId: `fake-trace-${traceSeq}` });
       }),
     checkImage: (input) =>
-      core.run("checkImage", input, () => {
-        traceSeq += 1;
-        return ok({ verdict: "pass", traceId: `fake-trace-${traceSeq}` });
-      }),
+      core.run(
+        "checkImage",
+        input,
+        () => {
+          traceSeq += 1;
+          return ok({ verdict: "pass", traceId: `fake-trace-${traceSeq}` });
+        },
+        input.signal,
+      ),
   };
 }

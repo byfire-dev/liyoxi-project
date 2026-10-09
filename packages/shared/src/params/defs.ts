@@ -245,6 +245,19 @@ export const PARAM_DEFS = [
   }),
   int("notify.sms.keepalive_days", "短信模板保活间隔", { default: 5, unit: "天", min: 1, max: 30 }),
   int("notify.wx.quota_cap", "订阅消息额度估计上限", { default: 1, unit: "条", min: 1, max: 20 }),
+  // D6 §2.9：拒绝后至少冷却七天；平台单次请求最多五个模板。
+  int("notify.wx.ask_cooldown_days", "同一点位拒绝订阅后的本地冷却天数", {
+    default: 7,
+    unit: "天",
+    min: 7,
+    max: 30,
+  }),
+  int("notify.wx.max_per_ask", "每次授权请求的模板数上限", {
+    default: 3,
+    unit: "个",
+    min: 1,
+    max: 5,
+  }),
   int("notify.wx.field_fail_streak", "订阅消息字段错误连续几条即停用槽位", {
     default: 5,
     unit: "条",
@@ -257,6 +270,13 @@ export const PARAM_DEFS = [
     "测试发送的接收人",
     { default: [], check: checkTestRecipients, sensitivePaths: ["phone", "wxOpenid"] },
   ),
+  // D6 §2.4 默认一千；范围是 W2-17 批准的防误值宽边界，按 user/entity 二元接收人计数。
+  int("notify.fanout.batch", "规则公告每页主体接收人上限", {
+    default: 1000,
+    unit: "主体接收人",
+    min: 1,
+    max: 10000,
+  }),
 
   // ---- general（D6 第 4.2.1 节 general 一行）
   // 1–30，默认 7（10 分组 package_link.valid_days）

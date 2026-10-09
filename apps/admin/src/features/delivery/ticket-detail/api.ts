@@ -1,6 +1,7 @@
 import type { operations } from "@liyoxi/contract/types/admin";
 import type { AppServices } from "../../../app/services";
 import { readFailure } from "../../../lib/api-errors";
+import { createBatchApi } from "./batch-api";
 type Body<K extends keyof operations> = operations[K] extends {
   requestBody: { content: { "application/json": infer T } };
 }
@@ -28,6 +29,7 @@ async function unwrap<T>(result: { data?: { data: T }; response: Response }): Pr
 export function createTicketDetailApi(services: Pick<AppServices, "api">) {
   const c = services.api.client;
   return {
+    batches: createBatchApi(services),
     find: (ticketNo: string) =>
       c
         .GET("/api/v1/admin/delivery-tickets", {

@@ -1,7 +1,7 @@
 // config 的种子数据（W0-21）：22 类字典与初始项、9 套清单模板的首版、站点配置初始版。
 // 开关不在这里：直接取契约的 FLAGS。参数值不播种：库里没有的键取代码默认值（14 分组 第 2.3 节）。
 // 出处：14 分组 第 2.1、2.4、2.8 节；清单条目取 D3 第 10.2、11–15 节与后台原型（任务书 第 2 节）。
-// 这里的值是上线初始值，之后由后台维护；改这里不会改动已经播过的库（没有才插）。
+// 这里的值是上线初始值，之后由后台维护；现有行不覆盖，仅从未运营的空卖点类型允许安全补齐。
 import type {
   ChecklistItem,
   EnumValue,
@@ -282,6 +282,15 @@ export const SYSTEM_DICT_ITEMS: readonly DictItemSeed[] = [
   ),
 ];
 
+/** 通用候选只供商家自行选择，不代填门店卖点；空品类集合表示适用全部品类。 */
+export const STORE_SELLING_POINT_SEEDS: readonly DictItemSeed[] = sequential(
+  "store_selling_point",
+  ["品质服务", "环境舒适", "位置便利", "性价比高"].map((name) => ({
+    name,
+    ext: { categoryCodes: [] },
+  })),
+);
+
 /** 全部初始项。上级排在下级前面（同类型内的自引用外键） */
 export const DICT_ITEM_SEEDS: readonly DictItemSeed[] = [
   ...rejectReasonItems(),
@@ -291,6 +300,7 @@ export const DICT_ITEM_SEEDS: readonly DictItemSeed[] = [
   ...sequential("ad_promo_point", ["品牌露出", "优惠活动", "团购", "主推服务", "到店引导"]),
   ...sequential("reissue_reason", ["错别字", "广告版本", "AI 标识", "画面问题", "其他"]),
   ...sequential("express_company", ["顺丰速运", "中国邮政 EMS", "京东快递"]),
+  ...STORE_SELLING_POINT_SEEDS,
   fixed("permit_type", "food_business", "食品经营许可证", { ext: { ...FOOD_BUSINESS_EXT } }),
   fixed("asset_tag", "brand_story", "品牌故事", { ext: { dimension: "content" } }),
   ...SYSTEM_DICT_ITEMS,

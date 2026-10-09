@@ -1,0 +1,169 @@
+import { describe, expect, it, vi } from "vitest";
+import { createClientReporting } from "./client-reporting";
+import { createErrorReporter } from "./errors";
+import { createRequestLayer } from "./request";
+import type { WireRequest } from "./platform";
+import type { AnalyticsEventBatch } from "./track";
+const id = "00000000-0000-4000-8000-000000000001";
+const batch: AnalyticsEventBatch = {
+  sentAt: "2026-10-08T00:00:00.000Z",
+  anonymousId: id,
+  sessionId: id,
+  platform: "ios",
+  clientVersion: "1.0.0",
+  events: [
+    {
+      eventId: id,
+      name: "app_launch",
+      occurredAt: "2026-10-08T00:00:00.000Z",
+      props: { hasInvitation: false },
+    },
+  ],
+};
+function setup(status = 200, mode: "ok" | "network" = "ok", baseUrl = "https://api.example.test") {
+  const sent: WireRequest[] = [];
+  const layer = createRequestLayer({
+    baseUrl,
+    send: async (request) => {
+      sent.push(request);
+      if (mode === "network") throw new Error("fake network");
+      return {
+        statusCode: status,
+        header: {},
+        data:
+          status < 400
+            ? { code: 0, message: "ok", data: null }
+            : {
+                error: `HTTP_${status}`,
+                message: "fake",
+                code: 1,
+                requestId: id,
+                retryable: status >= 500,
+              },
+      };
+    },
+    clock: { now: () => 0, sleep: async () => {} },
+    uuid: () => id,
+    client: () => ({ platform: "ios", version: "1.0.0", envVersion: "trial" }),
+    getToken: () => "fake-session",
+    getStoreId: () => null,
+  });
+  return { calls: createClientReporting(layer.request), sent };
+}
+describe("W218中央request真实接线", () => {
+  it("未知拒绝对象经真实reporter和中央sender出站前丢弃请求体与凭据", async () => {
+    const { calls, sent } = setup(202);
+    const reporter = createErrorReporter({
+      clock: { now: () => 0, sleep: async () => {} },
+      uuid: () => id,
+      dsn: "https://public@errors.example.test/1",
+      sender: () => calls.sendClientError,
+      client: () => ({ platform: "ios", version: "1.0.0", envVersion: "trial" }),
+      getUserId: () => null,
+    });
+    const reason = {
+      request: {
+        body: { privateNote: "fictional-request-body" },
+        headers: { Authorization: "Bearer fictional-token" },
+      },
+      password: "fictional-password",
+      secret: "fictional-secret",
+    };
+    reporter.capture("unhandledrejection", reason);
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]?.url).toBe("https://api.example.test/api/v1/m/client-errors");
+    expect(sent[0]?.header["content-type"]).toBe("application/x-sentry-envelope");
+    const raw = String(sent[0]?.data);
+    const event: { exception: { values: { type: string; value: string }[] } } = JSON.parse(
+      raw.split("\n")[2] ?? "{}",
+    );
+    expect(event.exception.values).toEqual([{ type: "Error", value: "Unknown error" }]);
+    for (const secret of [
+      "fictional-request-body",
+      "fictional-password",
+      "fictional-secret",
+      "fictional-token",
+    ])
+      expect(raw).not.toContain(secret);
+  });
+
+  it("只取自有message数据属性；不执行getter、toJSON或循环对象序列化", async () => {
+    const { calls, sent } = setup(202);
+    let count = 0;
+    const reporter = createErrorReporter({
+      clock: { now: () => 0, sleep: async () => {} },
+      uuid: () => `00000000-0000-4000-8000-${String(++count).padStart(12, "0")}`,
+      dsn: "https://public@errors.example.test/1",
+      sender: () => calls.sendClientError,
+      client: () => ({ platform: "ios", version: "1.0.0", envVersion: "trial" }),
+      getUserId: () => null,
+    });
+    const getter = vi.fn(() => "fictional-getter-secret");
+    const toJSON = vi.fn(() => "fictional-json-secret");
+    const reason = Object.defineProperty({ toJSON }, "message", { get: getter });
+    Object.defineProperty(reason, "self", { value: reason, enumerable: true });
+    reporter.capture("unhandledrejection", reason);
+    reporter.capture("handler", {
+      message: "请求失败 lyxm_fictional",
+      password: "fictional-password",
+    });
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
+    expect(getter).not.toHaveBeenCalled();
+    expect(toJSON).not.toHaveBeenCalled();
+    const values = sent.map((request) => {
+      const event: { exception: { values: { value: string }[] } } = JSON.parse(
+        String(request.data).split("\n")[2] ?? "{}",
+      );
+      return event.exception.values[0]?.value;
+    });
+    expect(values).toEqual(["Unknown error", "请求失败 [token]"]);
+    expect(JSON.stringify(sent.map((request) => request.data))).not.toContain("fictional-password");
+  });
+
+  it("信封原文字节、内容类型、会话头照传，202受理一次", async () => {
+    const { calls, sent } = setup(202);
+    const raw = '{"dsn":"https://public@example.test/1"}\n{"type":"event"}\n{"message":"中文"}';
+    await calls.sendClientError(raw);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.url).toBe("https://api.example.test/api/v1/m/client-errors");
+    expect(sent[0]?.data).toBe(raw);
+    expect(sent[0]?.header["content-type"]).toBe("application/x-sentry-envelope");
+    expect(sent[0]?.header.Authorization).toBe("Bearer fake-session");
+    expect(sent[0]?.header["Idempotency-Key"]).toBeUndefined();
+  });
+  it("真实四种订阅结果与reportId/幂等键照传，不能变成统一accept", async () => {
+    const { calls, sent } = setup();
+    const body = {
+      reportId: id,
+      point: "profile_submit" as const,
+      results: ["accept", "reject", "ban", "filter"].map((result, n) => ({
+        tmplId: `realconfigured${n}`,
+        result: result as "accept" | "reject" | "ban" | "filter",
+      })),
+    };
+    await calls.reportSubscribeResult(body, `subscribeReport:${id}`);
+    expect(sent[0]?.data).toEqual(body);
+    expect(sent[0]?.header["Idempotency-Key"]).toBe(`subscribeReport:${id}`);
+    expect(sent[0]?.header["content-type"]).toBe("application/json");
+  });
+  for (const status of [400, 401, 403, 413, 429])
+    it(`${status}丢弃且不在adapter另重发`, async () => {
+      const { calls, sent } = setup(status);
+      expect(await calls.sendAnalytics(batch)).toBe("drop");
+      expect(sent).toHaveLength(1);
+    });
+  for (const status of [500, 503])
+    it(`${status}交还队列retry`, async () => {
+      const { calls, sent } = setup(status);
+      expect(await calls.sendAnalytics(batch)).toBe("retry");
+      expect(sent).toHaveLength(1);
+    });
+  it("网络失败retry；未配基址不外呼并受控drop", async () => {
+    const network = setup(200, "network");
+    expect(await network.calls.sendAnalytics(batch)).toBe("retry");
+    expect(network.sent).toHaveLength(1);
+    const missing = setup(200, "ok", "");
+    expect(await missing.calls.sendAnalytics(batch)).toBe("drop");
+    expect(missing.sent).toEqual([]);
+  });
+});

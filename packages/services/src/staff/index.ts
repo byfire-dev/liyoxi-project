@@ -51,8 +51,9 @@ export type {
 } from "./demo-seed.js";
 export { BOOTSTRAP_JOB } from "./bootstrap.js";
 export { createStaffManagement } from "./management.js";
+export { createStaffAssembly } from "./runtime.js";
 export type { StaffManagementDeps } from "./management.js";
-export { pickNext, recommendedStaff, staffBriefs } from "./assignment.js";
+export { pickNext, recommendedStaff, staffBriefs, prepareAssignmentPools } from "./assignment.js";
 export type { AssignmentPool } from "./assignment.js";
 export { createRoleManagement, roleDefaults } from "./role-management.js";
 export type { RoleManagementDeps } from "./role-management.js";
@@ -60,3 +61,6 @@ export { createStaffSelfSecurity } from "./self-security.js";
 export type { StaffSelfSecurityDeps } from "./self-security.js";
 
 export { staffPiiFields } from "./pii-fields.js";
+export { loadCliStaffContext } from "./cli-context.js";
+
+export { staffContextsForNotify, staffTargetForNotify } from "./notify-facts.js";

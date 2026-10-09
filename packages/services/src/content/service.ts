@@ -392,6 +392,10 @@ export function createContent(deps: ContentDeps) {
           typeof priceMap.get(row.id) === "object"
             ? (priceMap.get(row.id) as { points: number }).points
             : null,
+        priceVersion:
+          typeof priceMap.get(row.id) === "object"
+            ? (priceMap.get(row.id) as { source: object }).source
+            : null,
         licenseEndDate: dateOf(row.dramaCopyrights[0]?.licenseEndDate ?? null),
         usableUntilDate: dateOf(row.dramaCopyrights[0]?.licenseEndDate ?? null),
       }));

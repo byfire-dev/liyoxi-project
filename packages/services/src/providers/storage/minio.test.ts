@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { createServer, request as proxyRequest } from "node:http";
 import { fileURLToPath } from "node:url";
 
 import { afterAll, describe, expect, it } from "vitest";
@@ -105,6 +106,63 @@ live("初始化时建四个桶", () => {
 });
 
 live("五步连通，四个桶都可用", () => {
+  it("外部直传与签读走保留 Host 的代理，服务端仍走内部地址", async () => {
+    const proxy = createServer((incoming, outgoing) => {
+      const upstream = proxyRequest(
+        `${LOCAL_MINIO.endpoint}${incoming.url ?? "/"}`,
+        { method: incoming.method, headers: incoming.headers },
+        (response) => {
+          outgoing.writeHead(response.statusCode ?? 502, response.headers);
+          response.pipe(outgoing);
+        },
+      );
+      upstream.on("error", () => outgoing.destroy());
+      incoming.pipe(upstream);
+    });
+    await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+    const address = proxy.address();
+    if (!address || typeof address === "string") throw new Error("代理没有监听端口");
+    const publicEndpoint = `http://127.0.0.1:${address.port}`;
+    const external = createMinioStorage({ ...LOCAL_MINIO, publicEndpoint });
+    const ref = { bucket: "asset" as const, key: `${INCOMING_PREFIX}${runId}/external.bin` };
+    const dst = { bucket: "asset" as const, key: `files/${runId}/external.bin` };
+    created.push(ref, dst);
+    try {
+      const body = bytesOf("手机照片代理验签");
+      const post = await external.presignPost({
+        ...ref,
+        mime: MIME,
+        maxBytes: 1024,
+        expiresSec: 60,
+      });
+      if (!post.ok) throw new Error(post.message);
+      expect(new URL(post.value.url).origin).toBe(publicEndpoint);
+      expect((await upload(post.value, body)).status).toBe(204);
+      const head = await external.head(ref);
+      if (!head.ok || !head.value.etag) throw new Error("内部地址没读到上传对象");
+      expect(
+        await external.copy({ src: ref, dst, ifMatchEtag: head.value.etag, contentType: MIME }),
+      ).toMatchObject({
+        ok: true,
+      });
+      const signed = await external.presignGet({ ...dst, expiresSec: 60 });
+      if (!signed.ok) throw new Error(signed.message);
+      expect(new URL(signed.value.url).origin).toBe(publicEndpoint);
+      const read = await fetch(signed.value.url);
+      expect(read.status).toBe(200);
+      expect(new Uint8Array(await read.arrayBuffer())).toEqual(body);
+      // GET 的 Host 在签名中：签完再换内部 Host 必须验签失败。
+      const tampered = new URL(signed.value.url);
+      tampered.host = new URL(LOCAL_MINIO.endpoint).host;
+      expect((await fetch(tampered)).status).toBe(403);
+    } finally {
+      external.close();
+      await new Promise<void>((resolve, reject) =>
+        proxy.close((error) => (error ? reject(error) : resolve())),
+      );
+    }
+  });
+
   it.each(STORAGE_BUCKETS)(
     "%s 桶：表单直传到 incoming/ → 读对象头 → 条件复制到正式区 → 签发读地址 → 删除",
     async (bucket) => {

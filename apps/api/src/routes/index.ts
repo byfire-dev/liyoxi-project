@@ -1,3 +1,11 @@
+import { ciHookHandlers } from "./hooks/ci.js";
+import { adminMediaJobHandlers } from "./admin/media-jobs.js";
+import { analyticsEventHandlers } from "./analytics-events.js";
+import { wechatHookHandlers } from "./hooks/wechat.js";
+import { subscribeResultHandlers } from "./subscribe-results.js";
+import { clientErrorHandlers } from "./client-errors.js";
+import { adminClientErrorHandlers } from "./admin/client-errors.js";
+import { adminFlowOpsHandlers } from "./admin/flow-ops.js";
 import { adminDictTypeHandlers } from "./admin/dict-types.js";
 import { adminDictItemHandlers } from "./admin/dict-items.js";
 import { adminParamValueHandlers } from "./admin/param-values.js";
@@ -15,6 +23,7 @@ import { profileHandlers } from "./profile.js";
 import { mallHandlers } from "./mall.js";
 import { merchantFileHandlers } from "./files.js";
 import { adminFileHandlers } from "./admin/files.js";
+import { adminUploadBatchHandlers } from "./admin/upload-batches.js";
 import type { HandlerEntry } from "../routing/define.js";
 
 import { adminApprovalHandlers } from "./admin/approvals.js";
@@ -33,14 +42,28 @@ import { meHandlers } from "./me.js";
 import { dictItemHandlers } from "./dict-items.js";
 import { billingHandlers } from "./billing.js";
 import { adminBillingHandlers } from "./admin/billing.js";
+import { messageHandlers } from "./messages.js";
+import { notifySettingHandlers } from "./notify-settings.js";
+
+import { siteHandlers } from "./admin/site.js";
 
 export const HANDLERS: readonly HandlerEntry[] = [
+  ...siteHandlers,
+  ...ciHookHandlers,
+  ...adminMediaJobHandlers,
+  ...wechatHookHandlers,
+  ...analyticsEventHandlers,
+  ...subscribeResultHandlers,
+  ...clientErrorHandlers,
+  ...adminClientErrorHandlers,
+  ...adminFlowOpsHandlers,
   ...orderHandlers,
   // W1-03：协议清单与版本正文（两条公开路由）
   ...agreementHandlers,
   ...mallHandlers,
   ...merchantFileHandlers,
   ...adminFileHandlers,
+  ...adminUploadBatchHandlers,
   // W1-04：静默登录、手机号登录、退出、当前账号
   ...sessionHandlers,
   // W1-01a：后台登录、激活、再验证、当前员工、退出（九条）
@@ -69,4 +92,6 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...deliveryHandlers,
   ...deliveryDownloadHandlers,
   ...adminProfileHandlers,
+  ...messageHandlers,
+  ...notifySettingHandlers,
 ];

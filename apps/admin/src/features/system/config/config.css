@@ -1,0 +1,102 @@
+.lyx-config-list {
+  padding: var(--lyx-space-16);
+  min-width: 0;
+}
+.lyx-config-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--lyx-space-12);
+  flex-wrap: wrap;
+  margin-block: var(--lyx-space-12);
+}
+.lyx-config-actions .ant-input-search {
+  max-width: 220px;
+}
+.lyx-config-help {
+  color: var(--lyx-color-text-secondary);
+  font-size: var(--lyx-font-size-body);
+  overflow-wrap: anywhere;
+}
+.lyx-config-dict-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lyx-config-dict-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: var(--lyx-space-12) var(--lyx-space-16);
+  gap: var(--lyx-space-16);
+  border: 0;
+  border-block-end: 1px solid var(--lyx-color-border);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: start;
+  font: inherit;
+}
+.lyx-config-dict-item[aria-pressed="true"] {
+  background: var(--lyx-color-primary-bg-subtle);
+}
+.lyx-config-dict-item strong,
+.lyx-config-dict-item .lyx-config-help {
+  display: block;
+}
+.lyx-config-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--lyx-space-16);
+}
+.lyx-config-param {
+  min-width: 0;
+  border-block-end: 1px solid var(--lyx-color-border);
+  padding-block-end: var(--lyx-space-16);
+}
+.lyx-config-pending {
+  padding: var(--lyx-space-12);
+  background: var(--lyx-color-bg-subtle);
+  border-radius: var(--lyx-radius-md);
+  overflow-wrap: anywhere;
+}
+.lyx-config-calendar {
+  padding: var(--lyx-space-16);
+  margin-block-start: var(--lyx-space-16);
+}
+.lyx-config-calendar table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.lyx-config-calendar th,
+.lyx-config-calendar td {
+  padding: var(--lyx-space-8);
+  border-block-end: 1px solid var(--lyx-color-border);
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.lyx-config-rule {
+  margin: 0;
+  padding: var(--lyx-space-12);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--lyx-font-size-body);
+}
+.lyx-config-items {
+  display: grid;
+  gap: var(--lyx-space-16);
+}
+.lyx-config-item {
+  padding: var(--lyx-space-12);
+  border: 1px solid var(--lyx-color-border);
+  border-radius: var(--lyx-radius-md);
+}
+.lyx-config-item .ant-checkbox-wrapper {
+  margin-inline-start: 0;
+}
+@media (max-width: 1100px) {
+  .lyx-config-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
