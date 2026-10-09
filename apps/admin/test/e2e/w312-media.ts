@@ -40,8 +40,9 @@ const inputSchema = z.strictObject({
 /** The runner copies the actual fixed 20s input to this run's owned directory. */
 export function contentVideo(name: string) {
   const f = contentFixture();
+  // This reader needs byte identity only; the runner validates the full strict input and probe.
   const input = z
-    .object({ fixtures: z.object({ w302: z.object({ video: inputSchema }) }) })
+    .object({ fixtures: z.object({ w302: z.object({ video: z.object(inputSchema.shape) }) }) })
     .parse(liveContext().fixtures).fixtures.w302.video;
   if (!input.path.includes(`/admin-live-${f.scope.runId}/`))
     throw new Error("Unowned content input");

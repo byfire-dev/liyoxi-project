@@ -437,10 +437,7 @@ test("W312 Banner 真实图片上传、编辑停用、完整排序与过期集�
     await end.fill(`${day} 10:00`);
     await end.press("Enter");
     await end.press("Tab");
-    const dateConfirm = page
-      .locator(".ant-picker-dropdown:visible")
-      .getByRole("button", { name: /^确\s*定$/ });
-    if (await dateConfirm.count()) await dateConfirm.click();
+    await expect(page.locator(".ant-picker-dropdown:visible")).toHaveCount(0);
     await expect(editor.getByText(/当前时间窗：.*09:00.*10:00/)).toBeVisible();
     await page.screenshot({
       path: "dist/e2e-shots/w312-banner-create-1366.png",
