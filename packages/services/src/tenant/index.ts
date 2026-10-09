@@ -41,3 +41,15 @@ export { findVerifiedEntityByUsccBidx } from "./uscc.js";
 export { clearDraftStoreName } from "./qualification.js";
 export { noticeRecipientsPageForNotify } from "./notify-facts.js";
 export { readStoreMediaFacts } from "./media-facts.js";
+export {
+  billingCloseFactsPort,
+  orderCloseFactsPort,
+  deliveryCloseFactsPort,
+  publishCloseFactsPort,
+  profileCloseFactsPort,
+  adCloseFactsPort,
+  CLOSE_FACTS_PORTS,
+  readStoreCloseCounts,
+  readEntityDeletionCounts,
+} from "./close-facts.js";
+export type { BillingCloseCounts, StoreCloseCounts, EntityDeletionCounts } from "./close-facts.js";
