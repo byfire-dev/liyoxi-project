@@ -39,3 +39,8 @@ export * from "./drama-pricing.schemas.js";
 export * from "./upload-batches.js";
 export * from "./upload-batch-items.js";
 export * from "./upload-batches.schemas.js";
+
+export * from "./drama-lifecycle.schemas.js";
+export * from "./dramas.js";
+export * from "./drama-episodes.js";
+export * from "./drama-permits.js";

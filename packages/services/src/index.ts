@@ -332,3 +332,9 @@ export type { SiteAdmin, SiteAdminDeps } from "./config/index.js";
 export type { ContentAdmin, ContentAdminActor } from "./ops/index.js";
 export { createContentLicense } from "./content/index.js";
 export type { ContentLicense } from "./content/index.js";
+
+export {
+  parseDemoMasterArgs,
+  readDemoMasterInput,
+  createDemoMasterInputPreparer,
+} from "./ops/index.js";

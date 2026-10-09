@@ -23,13 +23,17 @@ const binding: MachineBinding = {
         ? "content.drama.create"
         : facts.event === "drama.license_expire"
           ? "content.drama.license_expire"
-          : "content.drama.list",
+          : facts.event === "drama.delist"
+            ? "content.drama.delist"
+            : "content.drama.list",
     summary:
       facts.event === "drama.create"
         ? "创建短剧草稿"
         : facts.event === "drama.license_expire"
           ? "授权到期，系统下架"
-          : "通过上架校验，上架至短剧商城",
+          : facts.event === "drama.delist"
+            ? "下架短剧"
+            : "通过上架校验，上架至短剧商城",
   }),
   guards: {
     [rowKey("05:146", "drama.license_expire")]: async (tx, facts) => {
@@ -39,6 +43,14 @@ const binding: MachineBinding = {
     [rowKey("05:144", "drama.list")]: async (tx, facts) => {
       const args = facts.args as { prices?: DramaPrices } | undefined;
       if (!args?.prices) throw new Error("drama.list 缺少本次装配的 DramaPricePort");
+      assertListing(await listingChecks(tx, facts.subjectId, facts.now, args.prices));
+      return true;
+    },
+    [rowKey("05:147", "drama.relist")]: async (tx, facts) => {
+      const args = facts.args as { prices?: DramaPrices } | undefined;
+      if (!args?.prices) throw new Error("drama.relist 缺少本次装配的 DramaPricePort");
+      const drama = await tx.drama.findUnique({ where: { id: facts.subjectId } });
+      if (!drama || drama.archivedAt) return false;
       assertListing(await listingChecks(tx, facts.subjectId, facts.now, args.prices));
       return true;
     },
