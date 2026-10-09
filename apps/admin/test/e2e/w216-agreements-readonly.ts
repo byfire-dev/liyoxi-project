@@ -273,7 +273,7 @@ export function registerAgreementPermissionsTest() {
           await expect(
             editor.locator(".lyx-upload").nth(index).locator(".ant-upload-list-item-done"),
           ).toBeVisible();
-          const fileFact = await api<components["schemas"]["FileBrief"]>(
+          const fileFact = await api<components["schemas"]["AdminFileView"]>(
             page,
             `/files/${ids[index]}`,
           );
