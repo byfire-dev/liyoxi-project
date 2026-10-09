@@ -144,6 +144,18 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 
 组件预览的图同样是 H5 近似：原生的输入框、多行输入、开关、弹层在微信里的样子，以及点击区、按下态、弹层正文的内部滚动，以真机为准（W0-29 看样时看）。
 
+## 消息页与未读角标（W2-19）
+
+`sub/service/messages/index` 使用原生导航，固定八类页签，默认 all/20；游标不解码，续页按 messageId 去重，下拉刷新替换。首页与我的消息入口只显示服务端 summary 的未读真值；无门店时仍能读账号通知。token、contextRev、门店、账号、成员角色和可进门店变化时清除本页缓存及旧角标，旧成功和旧错误均不能回写。消息标题、正文与金额取真实服务端 DTO，店员文案不在页面重造。
+
+单读和全读都按实际 required 契约保留同次意图的键；全读固定首次列表顶部 upToMessageId 与 tab，重试不把新到消息纳入旧意图。成功后读取真实列表/summary，失败不乐观减计数。点击先确认 read 成功，再进入已落地且当前角色允许的目标；跨店提示先切店，未来客服/广告/积分明细目标提示不可访问。协议目标以服务端固定 key 查询现有协议列表，取得真实 currentVersionId 后进入已交付正文页。转账驳回的 payment.detail 与 payment.result 复用已落地付款页、原 owner 准入和真实付款资源 GET，不扩权限。
+
+本页底部订阅设置 Sheet 展示 on/off/rejected/banned/unavailable。选择按钮直接同步调用既有 withSubscribe("notify_settings")，模板与槽位来自已在内存中的 bootstrap；真实 accept/reject/ban/filter 由 W2-18 接线报告，页面不伪造授权或额度。报告成功后经该次点击的可选回调再次读取当前设置；旧 GET 不能覆盖新请求结果，切换 scope 或卸载后不回写。原业务 handler 不等待上报、afterReport 仍刷新 bootstrap，报告或当前页回调失败不产生未处理拒绝。未配置仍保留站内消息和不可用状态。
+
+十态固定场景在 `shots/message-scenes.ts`、`shots/message-fixtures.ts`，运行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene messages-owner --scene messages-clerk --scene messages-category --scene messages-more --scene messages-all-read --scene messages-empty --scene messages-no-store --scene messages-unavailable --scene messages-loading --scene messages-error`；PNG 为 `shots/dist/png/message__<scene>.png`。无店模式使用真实空 memberships/currentStoreId，经中央 RequestLayer 的假 send 记录缺少 X-Store-Id；这仍是离线接口接线证据，不代表真实 API/微信平台结果。原截图场景、外发网络、console.error/pageerror 守卫保持。
+
+真机清单（尚未执行）：已授权测试号检查原生导航/安全区、横向页签的 44px 点击区、下拉与触底、切店/切账号后无旧内容、老板降店员后无老板专属消息；单读/全读后的入口角标；实际模板授权 accept/reject/ban 与后端额度相符。H5 截图不能代替上述验收，W2-30 合流演示另行登记。
+
 
 ## 首页与商城四页（W1-18 PR1）
 

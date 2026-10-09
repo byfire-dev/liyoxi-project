@@ -245,7 +245,9 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
       note: "一页两态",
     },
   ),
-  page("sub/service/messages/index", "sub/service", "消息", "Messages", "M36", "M2", "G2-C"),
+  page("sub/service/messages/index", "sub/service", "消息", "Messages", "M36", "M2", "W2-19", {
+    implemented: true,
+  }),
   page("sub/service/settings/index", "sub/service", "设置", null, null, "M2", "G2-B", {
     note: "新增页：退出登录、注销、隐私协议、通知设置、已授权的电脑",
   }),
