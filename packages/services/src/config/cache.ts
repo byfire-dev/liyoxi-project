@@ -10,7 +10,14 @@ import type { Clock } from "../kernel/index.js";
 
 import type { ConfigReport } from "./types.js";
 
-export const CONFIG_NAMESPACES = ["dict", "param", "site", "flag", "checklist"] as const;
+export const CONFIG_NAMESPACES = [
+  "dict",
+  "param",
+  "site",
+  "flag",
+  "checklist",
+  "agreement",
+] as const;
 export type ConfigNamespace = (typeof CONFIG_NAMESPACES)[number];
 
 /** 两次探测版本号的最短间隔 */

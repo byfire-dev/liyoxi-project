@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createClock } from "../testing/index.js";
 
 import {
+  CONFIG_NAMESPACES,
   createConfigCache,
   HARD_EXPIRE_MS,
   PROBE_INTERVAL_MS,
@@ -59,6 +60,28 @@ afterEach(() => {
 });
 
 describe("版本号缓存（D6 第 4.6 节）", () => {
+  it("协议配置追加独立命名空间，保留原完整集合", () => {
+    expect(CONFIG_NAMESPACES).toEqual(["dict", "param", "site", "flag", "checklist", "agreement"]);
+  });
+
+  it("协议写后信号让另一实例重读，站点版本与缓存保持独立", async () => {
+    const { cache, clock, store } = setup();
+    const peer = createConfigCache({ clock, redis: store });
+    let value = "旧版";
+    const load = () => Promise.resolve({ data: value });
+    expect(await peer.read("agreement", load)).toBe("旧版");
+    expect(await peer.read("site", load)).toBe("旧版");
+    value = "新版";
+    await cache.bump("agreement");
+    expect(await cache.version("agreement")).toBe(1);
+    expect(await cache.version("site")).toBe(0);
+    expect(await peer.read("agreement", load)).toBe("旧版");
+    clock.advance(PROBE_INTERVAL_MS);
+    expect(await peer.read("agreement", load)).toBe("新版");
+    expect(await peer.read("site", load)).toBe("旧版");
+    expect(versionKey("agreement", "lyx:test:")).toBe("lyx:test:cfg:ver:agreement");
+  });
+
   it("探测间隔内不碰 Redis；版本号没变不重读库", async () => {
     const { cache, clock, load, loads, state } = setup();
     expect(await cache.read("param", load())).toBe("第 1 次装载");
