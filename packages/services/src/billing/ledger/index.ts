@@ -52,6 +52,8 @@ export type {
   ReturnReasonClass,
   ReturnResult,
 } from "./hold.js";
+export { previewReturn } from "./hold.js";
+export type { ReturnPreview } from "./hold.js";
 export { HoldStateError, LEDGER_STEPS, LedgerError } from "./types.js";
 export type { Db, HoldStatus, LedgerDeps, LedgerRefusal, LedgerStep } from "./types.js";
 
