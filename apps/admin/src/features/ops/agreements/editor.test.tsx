@@ -38,16 +38,19 @@ const version: Version = {
   updatedAt: "2026-10-01T00:00:00.000Z",
   actions: ["edit", "schedule"],
 };
-const converted = (v: Version) => ({
+const converted = (v: Version): Awaited<ReturnType<AgreementApi["update"]>> => ({
   version: v,
   contentHtml: "<p>虚构正文</p>",
   conversion: { state: "converted" as const, warnings: [] },
 });
 function ports() {
   return {
-    create: vi.fn(async () => converted(version)),
-    update: vi.fn(async () => converted({ ...version, lockVersion: 5 })),
-    schedule: vi.fn(async () => ({ version: { ...version, status: "pending" }, siteNotice: null })),
+    create: vi.fn<AgreementApi["create"]>(async () => converted(version)),
+    update: vi.fn<AgreementApi["update"]>(async () => converted({ ...version, lockVersion: 5 })),
+    schedule: vi.fn<AgreementApi["schedule"]>(async () => ({
+      version: { ...version, status: "pending" },
+      siteNotice: null,
+    })),
   } satisfies Pick<AgreementApi, "create" | "update" | "schedule">;
 }
 describe("W216 草稿提交", () => {

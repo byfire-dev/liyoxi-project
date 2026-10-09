@@ -2,15 +2,10 @@ import type { components, operations } from "@liyoxi/contract/types/admin";
 import type { AppServices } from "../../../app/services";
 import { readFailure, type ApiFailure } from "../../../lib/api-errors";
 
-export type AgreementItem = components["schemas"]["AgreementListItem"];
-export type AgreementDetail = components["schemas"]["AgreementDetail"];
-export type Version = components["schemas"]["AgreementVersionItem"];
 export type CreateBody = components["schemas"]["AgreementVersionCreateBody"];
 export type UpdateBody = components["schemas"]["AgreementVersionUpdateBody"];
 export type ScheduleBody = components["schemas"]["AgreementVersionScheduleBody"];
 export type WithdrawBody = components["schemas"]["AgreementVersionWithdrawBody"];
-export type ConsentItem = components["schemas"]["AgreementConsentItem"];
-export type ConsentDetail = components["schemas"]["AgreementConsentDetail"];
 export type ConsentQuery = NonNullable<
   operations["admin.agreementConsent.list"]["parameters"]["query"]
 >;
@@ -42,7 +37,7 @@ export function createAgreementApi({ api }: Pick<AppServices, "api">) {
     list: (signal?: AbortSignal) =>
       c
         .GET("/api/v1/admin/agreements", {
-          params: { query: { page: "1", pageSize: "20" } },
+          params: { query: { page: 1, pageSize: 20 } },
           signal,
         })
         .then(unwrap),
@@ -104,3 +99,10 @@ export function createAgreementApi({ api }: Pick<AppServices, "api">) {
   };
 }
 export type AgreementApi = ReturnType<typeof createAgreementApi>;
+
+// Match the central client response projection, including its future enum representation.
+export type AgreementItem = Awaited<ReturnType<AgreementApi["list"]>>["items"][number];
+export type AgreementDetail = Awaited<ReturnType<AgreementApi["get"]>>;
+export type Version = AgreementDetail["versions"][number];
+export type ConsentItem = Awaited<ReturnType<AgreementApi["consents"]>>["items"][number];
+export type ConsentDetail = Awaited<ReturnType<AgreementApi["consent"]>>;

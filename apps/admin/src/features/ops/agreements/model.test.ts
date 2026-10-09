@@ -72,27 +72,40 @@ function version(status = "draft"): Version {
 }
 function api() {
   return {
-    list: vi.fn(async () => ({ items: [detail()], page: 1, pageSize: 20, total: 1 })),
-    get: vi.fn(async (key: string) => detail(key)),
-    create: vi.fn(async () => ({
+    list: vi.fn<AgreementApi["list"]>(async () => ({
+      items: [detail()],
+      page: 1,
+      pageSize: 20,
+      total: 1,
+    })),
+    get: vi.fn<AgreementApi["get"]>(async (key: string) => detail(key)),
+    create: vi.fn<AgreementApi["create"]>(async () => ({
       version: version(),
       contentHtml: null,
       conversion: { state: "unchanged" as const, warnings: [] },
     })),
-    update: vi.fn(async () => ({
+    update: vi.fn<AgreementApi["update"]>(async () => ({
       version: version(),
       contentHtml: null,
       conversion: { state: "unchanged" as const, warnings: [] },
     })),
-    schedule: vi.fn(async () => ({ version: version("pending"), siteNotice: null })),
-    withdraw: vi.fn(async () => ({
+    schedule: vi.fn<AgreementApi["schedule"]>(async () => ({
+      version: version("pending"),
+      siteNotice: null,
+    })),
+    withdraw: vi.fn<AgreementApi["withdraw"]>(async () => ({
       withdrawn: version("withdrawn"),
       newDraft: null,
       siteNotice: null,
     })),
-    consents: vi.fn(async () => ({ items: [], page: 1, pageSize: 20, total: 0 })),
-    consent: vi.fn(),
-    download: vi.fn(),
+    consents: vi.fn<AgreementApi["consents"]>(async () => ({
+      items: [],
+      page: 1,
+      pageSize: 20,
+      total: 0,
+    })),
+    consent: vi.fn<AgreementApi["consent"]>(),
+    download: vi.fn<AgreementApi["download"]>(),
   } satisfies AgreementApi;
 }
 
@@ -137,7 +150,7 @@ describe("W216 typed API与工作区", () => {
       "schedule-intent",
     );
     await client.withdraw(id, {}, "withdraw-intent");
-    await client.consents({ entityId: id, page: "2", pageSize: "20" });
+    await client.consents({ entityId: id, page: 2, pageSize: 20 });
     await client.consent(other);
     expect(requests.map((r) => new URL(r.url).pathname)).toEqual([
       "/api/v1/admin/agreements",

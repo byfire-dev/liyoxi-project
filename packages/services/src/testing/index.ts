@@ -98,3 +98,4 @@ export { createOutputBatchToolsForTest, outputBatchInputFromProbe } from "./outp
 export { fullStaffWorld } from "./staff-full.js";
 export type { FullStaffWorld } from "./staff-full.js";
 export { createDocsAdminFixture } from "./docs-admin.js";
+export { findAgreementLiveUploadJobIds } from "./admin-live/agreements-m2-upload.js";

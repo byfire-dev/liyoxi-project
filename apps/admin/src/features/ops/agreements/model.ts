@@ -61,7 +61,7 @@ export function agreementSearch(raw: Readonly<Record<string, unknown>>): Agreeme
 export function consentQuery(search: AgreementSearch) {
   const copy = { ...search };
   delete copy.tab;
-  return copy;
+  return AdminAgreementConsentListQuerySchema.parse(copy);
 }
 export function phaseLabel(version: Pick<Version, "displayStatus">): string {
   const labels: Record<string, string> = {
@@ -112,7 +112,7 @@ export function failureText(error: unknown): string {
 }
 export function failureDetails(error: unknown): Record<string, unknown> {
   const details = error instanceof AgreementFailure ? error.failure.body?.details : undefined;
-  return details && typeof details === "object" && !Array.isArray(details) ? details : {};
+  return details && typeof details === "object" && !Array.isArray(details) ? { ...details } : {};
 }
 interface Snapshot {
   selected?: string;

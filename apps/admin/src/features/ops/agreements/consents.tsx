@@ -1,4 +1,4 @@
-import { AGREEMENT_CONSENT_SCENE } from "@liyoxi/contract";
+import { AGREEMENT_CONSENT_SCENE, AdminAgreementConsentListQuerySchema } from "@liyoxi/contract";
 import { appDateTimeFormat } from "@liyoxi/shared/format/datetime";
 import { maskPhone, maskUscc } from "@liyoxi/shared/mask";
 import { useQuery } from "@tanstack/react-query";
@@ -73,8 +73,18 @@ function ConsentFilters({
       setError("日期须为正序且最多366天");
       return;
     }
+    const candidate = Object.fromEntries(
+      CONSENT_KEYS.flatMap((key) => {
+        const value = fields[key]?.trim();
+        return value ? [[key, value]] : [];
+      }),
+    );
+    if (!AdminAgreementConsentListQuerySchema.safeParse(candidate).success) {
+      setError("筛选条件无效，请核对编号、对象ID与日期");
+      return;
+    }
     setError(undefined);
-    onChange(agreementSearch({ ...fields, tab: "evidence", page: "1" }));
+    onChange(agreementSearch({ ...candidate, tab: "evidence", page: "1" }));
   }
   return (
     <section aria-label="同意记录筛选" className="lyx-agreement-filters">

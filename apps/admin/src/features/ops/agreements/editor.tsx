@@ -130,12 +130,7 @@ export function HtmlPreview({
   html: string | null;
   title?: string;
 }) {
-  if (!html)
-    return (
-      <p className="lyx-agreement-muted">
-        暂无转换正文，请上传经审核的 Word 与 PDF 文件。E8 真实正文及法律审核尚待完成。
-      </p>
-    );
+  if (!html) return <p className="lyx-agreement-muted">请先上传经法务审核的协议正文。</p>;
   const source = `<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><style>body{font:14px/1.8 sans-serif;padding:16px;overflow-wrap:anywhere}img{max-width:100%}</style>${html}`;
   return (
     <iframe
@@ -200,6 +195,7 @@ export function AgreementEditor({
   onSaved: (warnings?: string[]) => void;
 }) {
   const [fields, setFields] = useState(() => initialFields(version));
+  const [dateEpoch, setDateEpoch] = useState(0);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState<unknown>(),
     [preview, setPreview] = useState<string | null>(null);
@@ -310,7 +306,11 @@ export function AgreementEditor({
         </Space>
       }
     >
-      <Alert type="info" showIcon title="此处上传正文文件；E8 真实正文与法务审定是独立外部事项" />
+      <Alert
+        type="info"
+        showIcon
+        title="请上传经法务审核的Word正文和PDF签署文件；确认审核后才能安排生效"
+      />
       {error ? (
         <>
           <Problem error={error} />
@@ -339,12 +339,29 @@ export function AgreementEditor({
         </FormField>
         <FormField label="生效日期（北京时间）">
           {(props) => (
-            <DatePicker
-              {...props}
-              disabled={busy}
-              placeholder={fields.date || "请选择日期"}
-              onChange={(_date, text) => set("date", typeof text === "string" ? text : "")}
-            />
+            <div
+              onKeyDownCapture={(event) => {
+                if (
+                  (event.key === "Delete" || event.key === "Backspace") &&
+                  event.target instanceof HTMLInputElement &&
+                  !event.target.value
+                )
+                  set("date", "");
+              }}
+            >
+              <DatePicker
+                key={dateEpoch}
+                {...props}
+                disabled={busy}
+                placeholder={fields.date || "请选择日期"}
+                onInput={(event) => {
+                  if (event.target instanceof HTMLInputElement && !event.target.value)
+                    set("date", "");
+                }}
+                onChange={(_date, text) => set("date", typeof text === "string" ? text : "")}
+              />
+              <p className="lyx-agreement-muted">当前生效日期：{fields.date || "未设置"}</p>
+            </div>
           )}
         </FormField>
         <FormField label="生效时刻（北京时间）">
@@ -358,6 +375,16 @@ export function AgreementEditor({
             />
           )}
         </FormField>
+        <Button
+          size="small"
+          disabled={busy || !fields.date}
+          onClick={() => {
+            set("date", "");
+            setDateEpoch((current) => current + 1);
+          }}
+        >
+          清除生效日期
+        </Button>
         <div className="lyx-agreement-files">
           <section>
             <h3>Word 正文</h3>
