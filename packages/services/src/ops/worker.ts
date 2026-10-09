@@ -1,3 +1,4 @@
+import { latestStaffWecomInviteKey } from "../audit/index.js";
 import { createConfig, bindAgreementNoticeLink } from "../config/index.js";
 import { createSmsHealth, smsTemplateReader } from "../notify/index.js";
 import { keyringFromEnv } from "../security/index.js";
@@ -18,7 +19,9 @@ import { createSla } from "../sla/index.js";
 import { bindContent } from "../content/index.js";
 import { bindOrder, bindOrderStart } from "../order/index.js";
 import { assignDeliveryManager } from "../profile/index.js";
-import { recommendedStaff } from "../staff/index.js";
+import { recommendedStaff, createStaffAssembly } from "../staff/index.js";
+import { staffWorkSourcesOf } from "../kernel/index.js";
+import { sendStaffWecomInvite } from "../notify/index.js";
 import { createTenant } from "../tenant/index.js";
 import { bindPublish } from "../publish/index.js";
 import { createMedia } from "../media/index.js";
@@ -128,6 +131,7 @@ export interface WorkerServices {
   readonly closeStorageDrivers?: () => Promise<void>;
   readonly closeMediaDrivers?: () => Promise<void>;
   readonly closeMediaJobs?: () => void;
+  readonly closeStaff?: () => Promise<void>;
   readonly shutdownMediaJobs?: () => Promise<void>;
   readonly pauseMediaJobs?: () => Promise<void>;
   readonly resumeMediaJobs?: () => void;
@@ -197,7 +201,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   });
   const notifyScope = createNotifyAssembly(analyticsScope.assembly);
   const mediaScope = createMediaAssembly(notifyScope.assembly);
-  const assembly = mediaScope.assembly;
+  const staffScope = createStaffAssembly(mediaScope.assembly);
+  const assembly = staffScope.assembly;
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const flow = createFlow({ assembly, clock, events });
@@ -382,6 +387,35 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     params: createConfig({ db: prisma, clock, redis: null }).params,
   });
   notifyScope.attach(notify);
+  staffScope.attach({
+    tx,
+    clock,
+    flow,
+    config: createConfig({ db: prisma, clock, redis: null }),
+    keyring: () => keyringFromEnv(options.keys ?? {}),
+    workSources: staffWorkSourcesOf(assembly),
+    media,
+    events,
+    sla: deliveryCore.sla,
+    timers,
+    sendActivation: (input) =>
+      notify.sendDirect({
+        purpose: "staff_activation",
+        templateKey: "verify_code",
+        phone: input.phone,
+        params: { code: input.code },
+        directKey: `staff-activation:${input.activationId}`,
+      }),
+    sendWecomInvite: (input) =>
+      tx.run(async (t) =>
+        sendStaffWecomInvite(t, {
+          staffId: input.staffId,
+          invitationKey:
+            (await latestStaffWecomInviteKey(t, input.staffId)) ?? input.createdAt.toISOString(),
+          now: clock.now(),
+        }),
+      ),
+  });
   const unbindNoticeLink = bindAgreementNoticeLink(readAgreementNoticeLink);
 
   return {
@@ -405,6 +439,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     closeStorageDrivers,
     closeMediaDrivers,
     closeMediaJobs,
+    closeStaff: () => staffScope.close(),
     shutdownMediaJobs: () => media.jobs.shutdown(),
     pauseMediaJobs: () => media.jobs.pause(),
     resumeMediaJobs: () => media.jobs.resume(),

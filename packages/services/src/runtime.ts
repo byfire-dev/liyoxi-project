@@ -1,3 +1,4 @@
+import { latestStaffWecomInviteKey } from "./audit/index.js";
 import { createSmsInit, createSmsHealth, smsTemplateReader } from "./notify/index.js";
 import { keyringFromEnv } from "./security/index.js";
 import {
@@ -54,7 +55,9 @@ import {
 import type { BillingPurchase } from "./billing/index.js";
 import { createNotifyMessages } from "./notify/index.js";
 import type { NotifyMessages } from "./notify/index.js";
-import { staffBriefs } from "./staff/index.js";
+import { staffBriefs, createStaffAssembly } from "./staff/index.js";
+import { staffWorkSourcesOf } from "./kernel/index.js";
+import { sendStaffWecomInvite } from "./notify/index.js";
 import { createDocs, readAgreementNoticeLink } from "./docs/index.js";
 import { createTenant } from "./tenant/index.js";
 import { createSla, createCalendarAdmin, bindCalendarCoverage } from "./sla/index.js";
@@ -124,7 +127,7 @@ import {
   createRoleManagement,
   createStaffSelfSecurity,
 } from "./staff/index.js";
-import type { StaffAuth } from "./staff/index.js";
+import type { StaffAuth, createStaffManagement } from "./staff/index.js";
 import { createTimers } from "./timers/index.js";
 import type { Timers } from "./timers/index.js";
 
@@ -241,6 +244,7 @@ export interface Runtime {
    * 第一次取时才加载密钥并装配；三份密钥文件（DATA_KEYS_FILE、BIDX_KEYS_FILE、AUTH_KEYS_FILE）没配全即抛 SecurityError
    */
   readonly staffAuth: StaffAuth;
+  readonly staffManagement: ReturnType<typeof createStaffManagement>;
   readonly staffRoles: ReturnType<typeof createRoleManagement>;
   readonly staffSelfSecurity: ReturnType<typeof createStaffSelfSecurity>;
   readonly auditRead: ReturnType<typeof createAuditRead>;
@@ -329,7 +333,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
   const notifyScope = createNotifyAssembly(analyticsScope.assembly);
   const mediaScope = createMediaAssembly(notifyScope.assembly);
-  const assembly = mediaScope.assembly;
+  const staffScope = createStaffAssembly(mediaScope.assembly);
+  const assembly = staffScope.assembly;
   // 违规上报端口（invariants.report）的实现在 ops，要连接、时钟与装配结果（W0-24）
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
   const wechatClosers: Array<() => Promise<void>> = [];
@@ -533,6 +538,35 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     appid: env.WECHAT?.appid,
   });
   notifyScope.attach(notify);
+  const staffManagement = staffScope.attach({
+    tx,
+    clock,
+    flow,
+    config,
+    keyring: () => keyringFromEnv(env),
+    workSources: staffWorkSourcesOf(assembly),
+    media,
+    events,
+    sla,
+    timers,
+    sendActivation: (input) =>
+      notify.sendDirect({
+        purpose: "staff_activation",
+        templateKey: "verify_code",
+        phone: input.phone,
+        params: { code: input.code },
+        directKey: `staff-activation:${input.activationId}`,
+      }),
+    sendWecomInvite: (input) =>
+      tx.run(async (t) =>
+        sendStaffWecomInvite(t, {
+          staffId: input.staffId,
+          invitationKey:
+            (await latestStaffWecomInviteKey(t, input.staffId)) ?? input.createdAt.toISOString(),
+          now: clock.now(),
+        }),
+      ),
+  });
   const unbindNoticeLink = bindAgreementNoticeLink(readAgreementNoticeLink);
   const configAdmin = createConfigAdmin({ tx, clock, assembly, config, staffBriefs });
   const siteAdmin = createSiteAdmin({
@@ -700,6 +734,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     billing,
     notifyMessages,
     notify,
+    staffManagement,
     content,
     media,
     entry,
@@ -724,6 +759,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     startupChecks,
     async close() {
       await Promise.allSettled([
+        staffScope.close(),
         media.jobs.shutdown(),
         analyticsScope.close(),
         notifyScope.close(),

@@ -617,6 +617,7 @@ BullMQ 只是执行通道：任务一律 `attempts: 1`，重试、到期、租�
 | 命令 | 出处 | 做什么 |
 | --- | --- | --- |
 | `staff:bootstrap` | 03:217；d4:1040 | 建第一位超级管理员（staff → active） |
+| `staff:reissue-activation` | W2-03；tasks README 第5.2节 | 仅补发仍未激活的首位超级管理员已过期的激活码；必须确认工号，生产另需显式授权，不改员工状态 |
 | `refund:abandon-txn` | 08:668；d2:937 | 两人确认放弃异常退款交易（refund_txn abnormal → abandoned），驱动 08:532 |
 | `ops analytics:repartition <YYYY-MM>` | 14:748 | 兜底分区搬迁（应用角色调用受限函数，服务校验操作者与环境） |
 | `cli.alerts.ack / 关闭告警、重置死信回调` | 15:120、260 | 以 `--staff` 指定的员工身份写 alert_event、webhook_event 与审计（client = cli） |

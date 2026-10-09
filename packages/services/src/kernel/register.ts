@@ -14,6 +14,8 @@ import {
   remindersPort,
   trackPort,
   catalogRefPort,
+  staffWorkPort,
+  staffFollowUpPort,
 } from "./ports/index.js";
 
 export const registration = defineRegistration("kernel", {
@@ -28,6 +30,8 @@ export const registration = defineRegistration("kernel", {
     remindersPort,
     merchantFactsPort,
     piiFieldsPort,
+    staffWorkPort,
+    staffFollowUpPort,
   ],
   // 幂等行的过期清理（W0-24 登记；01 分组 第 2.1 节，15 分组 第 5.3 节）：每小时一轮，由 ops.retention 调度
   cleanups: [

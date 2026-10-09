@@ -203,6 +203,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           services.closeDelivery?.();
           services.closeWebhooks?.();
           services.closeMediaJobs?.();
+          await services.closeStaff?.();
           await Promise.allSettled([
             services.closeSmsHealth?.(),
             services.closeMediaDrivers?.(),

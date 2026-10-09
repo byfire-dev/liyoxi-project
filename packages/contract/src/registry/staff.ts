@@ -11,5 +11,8 @@ export const registry = defineRegistry("staff", {
   ],
   subscribers: [subscriber("staff.onCalendarImported", "M2")],
   timers: [timer("sla.breach", "assignment_history", "M2")],
-  commands: [command("staff_bootstrap", "staff:bootstrap", "M1")],
+  commands: [
+    command("staff_bootstrap", "staff:bootstrap", "M1"),
+    command("staff_reissue_activation", "staff:reissue-activation", "M2"),
+  ],
 });

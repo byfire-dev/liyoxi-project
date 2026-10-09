@@ -1,3 +1,5 @@
+import { staffWorkPort, staffFollowUpPort } from "../kernel/index.js";
+import { orderStaffWork } from "./staff-work.js";
 import {
   implementKeyed as notifyReaderImplementation,
   notifyReadPort as currentNotifyReadPort,
@@ -78,6 +80,14 @@ export const registration = defineRegistration("order", {
     },
   ],
   portImplementations: [
+    implementKeyed(staffFollowUpPort, "order_item", async (tx, id) => {
+      const row = await tx.orderItem.findUnique({
+        where: { id },
+        select: { entityId: true, storeId: true },
+      });
+      return row === null ? null : { entityId: row.entityId, storeId: row.storeId };
+    }),
+    implementKeyed(staffWorkPort, "order", orderStaffWork),
     notifyReaderImplementation(
       currentNotifyReadPort,
       "manualSubjectExists.order_item",

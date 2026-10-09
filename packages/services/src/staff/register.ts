@@ -1,3 +1,7 @@
+import { staffWorkPort, fileRefTypePort } from "../kernel/index.js";
+import { FULL_STAFF_CHECKS, findStaffViolations } from "./full-invariants.js";
+import { acceptsStaffDisablePass, acceptsStaffEnablePass } from "./guards.js";
+import { staffFollowUpWork } from "./work-source.js";
 import {
   implementKeyed as notifyFactImplementation,
   notifyReadPort as currentNotifyRead,
@@ -45,6 +49,20 @@ export const staffStatusBinding: MachineBinding = {
       ),
     [rowKey("03:219", "staff.create")]: (_tx, facts) =>
       Promise.resolve(facts.ctx.actor.type === "staff"),
+    [rowKey("03:220", "staff.enable")]: (tx, facts) =>
+      Promise.resolve(
+        facts.ctx.actor.type === "staff" && acceptsStaffEnablePass(tx, facts.subjectId, facts.args),
+      ),
+    [rowKey("03:221", "staff.disable")]: (tx, facts) =>
+      Promise.resolve(
+        facts.ctx.actor.type === "staff" &&
+          facts.ctx.actor.id !== facts.subjectId &&
+          acceptsStaffDisablePass(tx, facts.subjectId, facts.args),
+      ),
+    [rowKey("03:222", "staff.enable")]: (tx, facts) =>
+      Promise.resolve(
+        facts.ctx.actor.type === "staff" && acceptsStaffEnablePass(tx, facts.subjectId, facts.args),
+      ),
   },
 };
 
@@ -113,8 +131,35 @@ async function findRoleSetViolations(tx: Tx): Promise<InvariantViolation[]> {
 export const registration = defineRegistration("staff", {
   invariants: [
     { code: "staff.I8", severity: "P2", modes: ["full"], heal: "none", run: findRoleSetViolations },
+    ...FULL_STAFF_CHECKS.map((code) => ({
+      code: `staff.${code}`,
+      severity: "P2" as const,
+      modes: ["full"] as const,
+      heal: code === "I10" ? ("heal_and_alert" as const) : ("none" as const),
+      run: (tx: Tx) => findStaffViolations(tx, code),
+    })),
+  ],
+  subscribers: [
+    {
+      name: "staff.onCalendarImported",
+      events: ["calendar.imported"],
+      handle: async () => {
+        throw new TypeError("员工日历运行时尚未装配");
+      },
+    },
   ],
   portImplementations: [
+    implementKeyed(fileRefTypePort, "staff", {
+      roles: { wecom_qr: { categories: ["wecom_qr"], retentionDays: 7 } },
+      readColumns: async (tx) =>
+        (
+          await tx.staff.findMany({
+            where: { wecomQrFileId: { not: null } },
+            select: { id: true, wecomQrFileId: true },
+          })
+        ).map((row) => ({ fileId: row.wecomQrFileId!, refId: row.id, role: "wecom_qr" })),
+    }),
+    implementKeyed(staffWorkPort, "staff", staffFollowUpWork),
     notifyFactImplementation(currentNotifyRead, "activeStaffForNotify", activeStaffForNotify),
     notifyFactImplementation(currentNotifyRead, "followUpForNotify", followUpForNotify),
     notifyFactImplementation(currentNotifyRead, "followUpsDueForNotify", followUpsDueForNotify),
