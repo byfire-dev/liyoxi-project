@@ -206,11 +206,11 @@ it("调用方事务里可见实际未提交退回，外层失败时流水及预�
   expect(await preview(held.pointHoldId, 90)).toMatchObject({ backToOriginal: 90 });
 });
 
-it("套利提示按北京时间严格不足七天且已过原周期，零数量不提示", async () => {
+it("套利提示按真实期限严格不足七天且已过原周期，零数量不提示", async () => {
   const who = await setup();
-  h.clock.set(at("2026-01-28T12:00:00")); // 原周期止日02-04：恰七天
+  h.clock.set(new Date(who.term.endsAt.getTime() - 7 * 24 * 60 * 60 * 1000));
   const seven = await holdDrama(h, who);
-  h.clock.set(at("2026-01-29T12:00:00"));
+  h.clock.set(new Date(h.clock.now().getTime() + 1)); // 比七天少一毫秒
   const six = await holdDrama(h, who);
   await captureHold(h, six.pointHoldId);
   expect(await preview(six.pointHoldId, 90)).toMatchObject({ arbitrageHint: false });

@@ -10,7 +10,6 @@ import type { EnumValue, POINT_HOLD_PURPOSE, RETURN_REASON_CLASS } from "@liyoxi
 import type { LedgerOperation, PointHold, PointHoldAlloc, PointLot, Prisma } from "@liyoxi/db";
 import { allocate, orderLotsForDeduction, PointsInsufficientError } from "@liyoxi/shared/alloc";
 import type { DeductibleLot } from "@liyoxi/shared/alloc";
-import { calendarDate, diffDays } from "@liyoxi/shared/time";
 
 import { AppError, uuidv7 } from "../../kernel/index.js";
 import type { IdentityContext, Tx } from "../../kernel/index.js";
@@ -500,10 +499,7 @@ export async function previewReturn(
   const term = await tx.subscriptionTerm.findUniqueOrThrow({
     where: { id: found.subscriptionTermId },
   });
-  const daysBeforeEnd = diffDays(
-    term.endDate.toISOString().slice(0, 10),
-    calendarDate(found.createdAt),
-  );
+  const timeBeforeEnd = term.endsAt.getTime() - found.createdAt.getTime();
   return {
     qty: input.qty,
     backToOriginal: plan.returned,
@@ -512,8 +508,8 @@ export async function previewReturn(
     lots: plan.lots,
     arbitrageHint:
       at >= term.endsAt &&
-      daysBeforeEnd >= 0 &&
-      daysBeforeEnd < 7 &&
+      timeBeforeEnd > 0 &&
+      timeBeforeEnd < 7 * 24 * 60 * 60 * 1000 &&
       plan.lots.some((lot) => lot.lotKind === "plan" && lot.route !== "original"),
   };
 }
