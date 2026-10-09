@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { expect, test, type Browser, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Browser, type Locator, type Page, type Route } from "@playwright/test";
 import {
   AdminDramaDetailSchema,
   AdminDramaWriteResultSchema,
@@ -63,6 +63,50 @@ async function select(dialog: Locator, name: string, value: string) {
     .getByTitle(value, { exact: true })
     .click();
   await dialog.page().keyboard.press("Escape");
+}
+
+/** Only this case's real cloud IO is forwarded to its existing signed, owned receiver. */
+async function routeContentCloud(page: Page) {
+  const f = contentFixture();
+  const bridge = z
+    .object({
+      fixtures: z.object({
+        w302: z.object({ scope: z.object({ runId: z.string() }), bridgeOrigin: z.url() }),
+      }),
+    })
+    .parse(liveContext().fixtures).fixtures.w302;
+  const origin = new URL(bridge.bridgeOrigin);
+  if (
+    bridge.scope.runId !== f.scope.runId ||
+    origin.protocol !== "http:" ||
+    origin.hostname !== "127.0.0.1" ||
+    !origin.port ||
+    origin.pathname !== "/" ||
+    origin.username ||
+    origin.password ||
+    origin.search ||
+    origin.hash
+  )
+    throw new Error("Content cloud bridge is outside this exact owned run");
+  const patterns = [
+    "https://test-media-1250000000.cos.ap-test-1.myqcloud.com/**",
+    "https://fake-storage.invalid/**",
+  ];
+  const forward = async (route: Route) => {
+    const original = new URL(route.request().url()),
+      target = new URL(origin);
+    target.pathname =
+      original.hostname === "fake-storage.invalid"
+        ? `/fake-read${original.pathname}`
+        : original.pathname;
+    target.search = original.search;
+    const response = await route.fetch({ url: target.toString() });
+    await route.fulfill({ response });
+  };
+  for (const pattern of patterns) await page.route(pattern, forward);
+  return async () => {
+    for (const pattern of patterns) await page.unroute(pattern, forward);
+  };
 }
 
 /** Real focus first; headless fallback only controls the visibility dependency, never query data. */
@@ -238,143 +282,155 @@ test("W312 五页内容主流程：真实原片批次、许可版权源文件、
   const f = contentFixture(),
     errors = recordErrors(page),
     base = `/api/v1/admin/dramas/${f.dramaId}`;
-  await page.goto(`/dramas/${f.dramaId}?tab=basic`);
-  await page.getByRole("button", { name: "编辑基础信息", exact: true }).click();
-  const basic = page.getByRole("dialog", { name: "编辑基础信息", exact: true });
-  await basic.locator('input[type="file"]').setInputFiles(syntheticImage("虚构封面.png"));
-  await expect(basic.getByText("已引用封面文件", { exact: true })).toBeVisible({
-    timeout: 120_000,
-  });
-  const dictResponse = await page.request.get("/api/v1/admin/dict-items?typeKey=genre");
-  expect(dictResponse.status()).toBe(200);
-  const genre = DictItemListSchema.parse((await dictResponse.json()).data).items.find(
-    (v) => v.isEnabled,
-  );
-  expect(genre).toBeDefined();
-  await select(basic, "题材", genre!.name);
-  await basic.getByRole("textbox", { name: "出品方", exact: true }).fill("隔离虚构出品方");
-  await viewportShots(page, info, "w312-drama-basic-dialog");
-  await saveDialog(page, basic, `${base}/basic`, "PATCH");
-  await viewportShots(page, info, "w312-drama-edit");
+  const stopCloud = await routeContentCloud(page);
+  try {
+    await page.goto(`/dramas/${f.dramaId}?tab=basic`);
+    await page.getByRole("button", { name: "编辑基础信息", exact: true }).click();
+    const basic = page.getByRole("dialog", { name: "编辑基础信息", exact: true });
+    await basic.locator('input[type="file"]').setInputFiles(syntheticImage("虚构封面.png"));
+    await expect(basic.getByText("已引用封面文件", { exact: true })).toBeVisible({
+      timeout: 120_000,
+    });
+    const dictResponse = await page.request.get("/api/v1/admin/dict-items?typeKey=genre");
+    expect(dictResponse.status()).toBe(200);
+    const genre = DictItemListSchema.parse((await dictResponse.json()).data).items.find(
+      (v) => v.isEnabled,
+    );
+    expect(genre).toBeDefined();
+    await select(basic, "题材", genre!.name);
+    await basic.getByRole("textbox", { name: "出品方", exact: true }).fill("隔离虚构出品方");
+    await viewportShots(page, info, "w312-drama-basic-dialog");
+    await saveDialog(page, basic, `${base}/basic`, "PATCH");
+    await viewportShots(page, info, "w312-drama-edit");
 
-  await page.getByRole("tab", { name: "原片 / 剧集", exact: true }).click();
-  await page.getByRole("button", { name: "上传 / 替换原片", exact: true }).click();
-  const batchDialog = page.getByRole("dialog", { name: "上传 / 替换原片", exact: true });
-  await batchDialog
-    .getByLabel("选择原片文件", { exact: true })
-    .setInputFiles([contentVideo("第1集.mp4"), contentVideo("第2集.mp4")]);
-  const createdWait = writeResponse(page, "POST", "/api/v1/admin/upload-batches");
-  await batchDialog.getByRole("button", { name: "建立批次并核对集号", exact: true }).click();
-  const createdResponse = await createdWait;
-  expect(createdResponse.status()).toBe(200);
-  const created = UploadBatchDetailSchema.parse((await createdResponse.json()).data);
-  expect(created).toMatchObject({ purpose: "drama_master", targetId: f.dramaId, expectedCount: 2 });
-  expect(created.coverage.missingEpisodeNos).toEqual([]);
-  expect(created.coverage.duplicateEpisodeNos).toEqual([]);
-  const sequence = batchDialog.getByRole("checkbox", { name: "我已逐集核对顺序建议", exact: true });
-  if (await sequence.count()) await sequence.check();
-  await batchDialog.getByRole("button", { name: "确认匹配并开始", exact: true }).click();
-  await batchDialog.getByRole("button", { name: "上传 / 继续上传", exact: true }).click();
-  await expect
-    .poll(
-      async () => {
-        const response = await page.request.get(
-          `/api/v1/admin/upload-batches/${created.uploadBatchId}`,
-        );
-        expect(response.status()).toBe(200);
-        return UploadBatchDetailSchema.parse((await response.json()).data).counts.uploaded;
-      },
-      { timeout: 120_000 },
-    )
-    .toBe(2);
-  await batchDialog
-    .locator(".lyx-confirm__footer")
-    .getByRole("button", { name: "关闭", exact: true })
-    .click();
-  await page.reload();
-  await page.getByRole("button", { name: "上传 / 替换原片", exact: true }).click();
-  const reopened = page.getByRole("dialog", { name: "上传 / 替换原片", exact: true });
-  await reopened.getByRole("combobox", { name: "恢复已有原片批次", exact: true }).click();
-  await page
-    .locator(".ant-select-dropdown:visible")
-    .getByRole("option")
-    .filter({ hasText: "·" })
-    .click();
-  await expect(reopened.getByRole("button", { name: "提交原片批次", exact: true })).toBeVisible({
-    timeout: 120_000,
-  });
-  await viewportShots(page, info, "w312-master-ready");
-  const committedWait = writeResponse(
-    page,
-    "POST",
-    `/api/v1/admin/upload-batches/${created.uploadBatchId}/commit`,
-  );
-  await reopened.getByRole("button", { name: "提交原片批次", exact: true }).click();
-  expect((await committedWait).status()).toBe(200);
-  await expect(reopened).toBeHidden();
-  const readinessResponse = await page.request.get(`${base}/media-readiness`);
-  expect(readinessResponse.status()).toBe(200);
-  expect(
-    MediaReadinessSchema.parse((await readinessResponse.json()).data).masters.withCurrentMaster,
-  ).toBe(2);
+    await page.getByRole("tab", { name: "原片 / 剧集", exact: true }).click();
+    await page.getByRole("button", { name: "上传 / 替换原片", exact: true }).click();
+    const batchDialog = page.getByRole("dialog", { name: "上传 / 替换原片", exact: true });
+    await batchDialog
+      .getByLabel("选择原片文件", { exact: true })
+      .setInputFiles([contentVideo("第1集.mp4"), contentVideo("第2集.mp4")]);
+    const createdWait = writeResponse(page, "POST", "/api/v1/admin/upload-batches");
+    await batchDialog.getByRole("button", { name: "建立批次并核对集号", exact: true }).click();
+    const createdResponse = await createdWait;
+    expect(createdResponse.status()).toBe(200);
+    const created = UploadBatchDetailSchema.parse((await createdResponse.json()).data);
+    expect(created).toMatchObject({
+      purpose: "drama_master",
+      targetId: f.dramaId,
+      expectedCount: 2,
+    });
+    expect(created.coverage.missingEpisodeNos).toEqual([]);
+    expect(created.coverage.duplicateEpisodeNos).toEqual([]);
+    const sequence = batchDialog.getByRole("checkbox", {
+      name: "我已逐集核对顺序建议",
+      exact: true,
+    });
+    if (await sequence.count()) await sequence.check();
+    await batchDialog.getByRole("button", { name: "确认匹配并开始", exact: true }).click();
+    await batchDialog.getByRole("button", { name: "上传 / 继续上传", exact: true }).click();
+    await expect
+      .poll(
+        async () => {
+          const response = await page.request.get(
+            `/api/v1/admin/upload-batches/${created.uploadBatchId}`,
+          );
+          expect(response.status()).toBe(200);
+          return UploadBatchDetailSchema.parse((await response.json()).data).counts.uploaded;
+        },
+        { timeout: 120_000 },
+      )
+      .toBe(2);
+    await batchDialog
+      .locator(".lyx-confirm__footer")
+      .getByRole("button", { name: "关闭", exact: true })
+      .click();
+    await page.reload();
+    await page.getByRole("button", { name: "上传 / 替换原片", exact: true }).click();
+    const reopened = page.getByRole("dialog", { name: "上传 / 替换原片", exact: true });
+    await reopened.getByRole("combobox", { name: "恢复已有原片批次", exact: true }).click();
+    await page
+      .locator(".ant-select-dropdown:visible")
+      .getByRole("option")
+      .filter({ hasText: "·" })
+      .click();
+    await expect(reopened.getByRole("button", { name: "提交原片批次", exact: true })).toBeVisible({
+      timeout: 120_000,
+    });
+    await viewportShots(page, info, "w312-master-ready");
+    const committedWait = writeResponse(
+      page,
+      "POST",
+      `/api/v1/admin/upload-batches/${created.uploadBatchId}/commit`,
+    );
+    await reopened.getByRole("button", { name: "提交原片批次", exact: true }).click();
+    expect((await committedWait).status()).toBe(200);
+    await expect(reopened).toBeHidden();
+    const readinessResponse = await page.request.get(`${base}/media-readiness`);
+    expect(readinessResponse.status()).toBe(200);
+    expect(
+      MediaReadinessSchema.parse((await readinessResponse.json()).data).masters.withCurrentMaster,
+    ).toBe(2);
 
-  await page.getByRole("tab", { name: "许可信息", exact: true }).click();
-  await page.getByRole("button", { name: "新增许可", exact: true }).click();
-  const permit = page.getByRole("dialog", { name: "新增许可", exact: true });
-  await select(permit, "编号类型", "节目编号");
-  await permit
-    .getByRole("textbox", { name: "许可编号", exact: true })
-    .fill(`W312TEST${f.scope.runId.slice(0, 6)}`);
-  await permit.locator('input[type="file"]').setInputFiles(syntheticImage("虚构许可扫描件.png"));
-  await expect(permit.getByRole("button", { name: "本次上传扫描件", exact: true })).toBeVisible({
-    timeout: 120_000,
-  });
-  await saveDialog(page, permit, `${base}/permits`, "POST");
-  const permitsResponse = await page.request.get(`${base}/permits`);
-  expect(permitsResponse.status()).toBe(200);
-  const permits = DramaPermitListResultSchema.parse((await permitsResponse.json()).data);
-  expect(permits.items).toHaveLength(1);
-  expect(permits.items[0]!.scanFiles).toHaveLength(1);
-  await page.getByRole("tab", { name: "版权信息", exact: true }).click();
-  await page.getByRole("button", { name: "编辑版权信息", exact: true }).click();
-  const copyright = page.getByRole("dialog", { name: "保存版权信息", exact: true });
-  await copyright.locator('input[type="file"]').setInputFiles(syntheticImage("虚构版权证明.png"));
-  await expect(copyright.getByRole("button", { name: "本次上传证明", exact: true })).toBeVisible({
-    timeout: 120_000,
-  });
-  await saveDialog(page, copyright, `${base}/copyright`, "PUT");
-  await page.getByRole("tab", { name: "基础信息", exact: true }).click();
-  await page.getByRole("button", { name: "上传预告片", exact: true }).click();
-  const trailer = page.getByRole("dialog", { name: "上传目标预告片", exact: true });
-  await trailer.locator('input[type="file"]').setInputFiles(contentVideo("虚构预告片.mp4"));
-  await expect(trailer.getByRole("button", { name: "设置并转换", exact: true })).toBeEnabled({
-    timeout: 120_000,
-  });
-  await saveDialog(page, trailer, `${base}/trailer`, "PUT", "设置并转换");
-  await expect
-    .poll(async () => (await detail(page)).trailer?.state, { timeout: 120_000 })
-    .toBe("ready");
-  await page.getByRole("button", { name: "刷新详情", exact: true }).click();
-  await page.getByRole("button", { name: "预览目标源文件", exact: true }).click();
-  await expect(page.locator(".content-source-preview video")).toBeVisible();
-  await page.getByRole("button", { name: "刷新播放签名", exact: true }).click();
-  const checksResponse = await page.request.get(`${base}/listing-checks`);
-  expect(checksResponse.status()).toBe(200);
-  const checks = ListingCheckResultSchema.parse((await checksResponse.json()).data);
-  expect(checks.items).toHaveLength(14);
-  expect(checks.isShelvable).toBe(true);
-  await page.getByRole("button", { name: "上架", exact: true }).click();
-  const listing = page.getByRole("dialog", { name: "核对并上架", exact: true });
-  await expect(listing.locator(".content-checks li")).toHaveCount(14);
-  await listing.getByRole("checkbox").check();
-  await saveDialog(page, listing, `${base}/shelve`, "POST", "确认上架");
-  expect((await detail(page)).status).toBe("listed");
-  await page.getByRole("button", { name: "下架", exact: true }).click();
-  const delisting = page.getByRole("dialog", { name: "下架短剧", exact: true });
-  await delisting.getByRole("checkbox").check();
-  await saveDialog(page, delisting, `${base}/delist`, "POST", "确认下架");
-  expect((await detail(page)).status).toBe("delisted");
-  expect(errors).toEqual([]);
+    await page.getByRole("tab", { name: "许可信息", exact: true }).click();
+    await page.getByRole("button", { name: "新增许可", exact: true }).click();
+    const permit = page.getByRole("dialog", { name: "新增许可", exact: true });
+    await select(permit, "编号类型", "节目编号");
+    await permit
+      .getByRole("textbox", { name: "许可编号", exact: true })
+      .fill(`W312TEST${f.scope.runId.slice(0, 6)}`);
+    await permit.locator('input[type="file"]').setInputFiles(syntheticImage("虚构许可扫描件.png"));
+    await expect(permit.getByRole("button", { name: "本次上传扫描件", exact: true })).toBeVisible({
+      timeout: 120_000,
+    });
+    await saveDialog(page, permit, `${base}/permits`, "POST");
+    const permitsResponse = await page.request.get(`${base}/permits`);
+    expect(permitsResponse.status()).toBe(200);
+    const permits = DramaPermitListResultSchema.parse((await permitsResponse.json()).data);
+    expect(permits.items).toHaveLength(1);
+    expect(permits.items[0]!.scanFiles).toHaveLength(1);
+    await page.getByRole("tab", { name: "版权信息", exact: true }).click();
+    await page.getByRole("button", { name: "编辑版权信息", exact: true }).click();
+    const copyright = page.getByRole("dialog", { name: "保存版权信息", exact: true });
+    await copyright.locator('input[type="file"]').setInputFiles(syntheticImage("虚构版权证明.png"));
+    await expect(copyright.getByRole("button", { name: "本次上传证明", exact: true })).toBeVisible({
+      timeout: 120_000,
+    });
+    await saveDialog(page, copyright, `${base}/copyright`, "PUT");
+    await page.getByRole("tab", { name: "基础信息", exact: true }).click();
+    await page.getByRole("button", { name: "上传预告片", exact: true }).click();
+    const trailer = page.getByRole("dialog", { name: "上传目标预告片", exact: true });
+    await trailer.locator('input[type="file"]').setInputFiles(contentVideo("虚构预告片.mp4"));
+    await expect(trailer.getByRole("button", { name: "设置并转换", exact: true })).toBeEnabled({
+      timeout: 120_000,
+    });
+    await saveDialog(page, trailer, `${base}/trailer`, "PUT", "设置并转换");
+    await expect
+      .poll(async () => (await detail(page)).trailer?.state, { timeout: 120_000 })
+      .toBe("ready");
+    await page.getByRole("button", { name: "刷新详情", exact: true }).click();
+    await page.getByRole("button", { name: "预览目标源文件", exact: true }).click();
+    await expect(page.locator(".content-source-preview video")).toBeVisible();
+    await page.getByRole("button", { name: "刷新播放签名", exact: true }).click();
+    const checksResponse = await page.request.get(`${base}/listing-checks`);
+    expect(checksResponse.status()).toBe(200);
+    const checks = ListingCheckResultSchema.parse((await checksResponse.json()).data);
+    expect(checks.items).toHaveLength(14);
+    expect(checks.isShelvable).toBe(true);
+    await page.getByRole("button", { name: "上架", exact: true }).click();
+    const listing = page.getByRole("dialog", { name: "核对并上架", exact: true });
+    await expect(listing.locator(".content-checks li")).toHaveCount(14);
+    await listing.getByRole("checkbox").check();
+    await saveDialog(page, listing, `${base}/shelve`, "POST", "确认上架");
+    expect((await detail(page)).status).toBe("listed");
+    await page.getByRole("button", { name: "下架", exact: true }).click();
+    const delisting = page.getByRole("dialog", { name: "下架短剧", exact: true });
+    await delisting.getByRole("checkbox").check();
+    await saveDialog(page, delisting, `${base}/delist`, "POST", "确认下架");
+    expect((await detail(page)).status).toBe("delisted");
+    expect(errors).toEqual([]);
+  } finally {
+    await stopCloud();
+  }
 });
 
 test("W312 基础编辑固定CAS：真实刷新不把旧草稿变成新版本覆盖", async ({ page }, info) => {

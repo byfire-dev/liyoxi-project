@@ -203,7 +203,11 @@ test("W312 首页真实草稿与发布分离、独立键、历史复制为新发
     ).toHaveValue(String(initial.recommendCount));
     const rollbackSave = writeResponse(page, "home_recommend", "draft"),
       rollbackPublish = writeResponse(page, "home_recommend", "publish");
-    await form.getByRole("button", { name: "保存并发布", exact: true }).click();
+    const submit = form.locator(".lyx-config-page__footer").getByRole("button");
+    await expect(submit).toHaveText("保存并发布");
+    await expect(submit).toBeEnabled();
+    await expect(form).toHaveAttribute("aria-busy", "false");
+    await submit.click();
     const rollbackSavedResponse = await rollbackSave,
       rollbackSaved = await successful(rollbackSavedResponse);
     const rollbackResponse = await rollbackPublish,
