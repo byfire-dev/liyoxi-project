@@ -2,8 +2,14 @@
 import { beforeAll, it, expect } from "vitest";
 import { ChecklistItemsSchema } from "@liyoxi/contract";
 import { audit, createIdentityContext, runSeed, uuidv7 } from "@liyoxi/services";
-import { createFactories, signInAsStaff } from "@liyoxi/services/testing";
-import type { SignedInStaff } from "@liyoxi/services/testing";
+import {
+  createFactories,
+  signInAsStaff,
+  createDeliveryProductionTools,
+  finishDeliveryProductionForTest,
+  prepareDeliveryMasterForTest,
+} from "@liyoxi/services/testing";
+import type { SignedInStaff, FakeStorage } from "@liyoxi/services/testing";
 import { useTestApi } from "../src/testing/index.js";
 import type { TestApi } from "../src/testing/index.js";
 import { seedUserAgreements, signInAsMerchant } from "../src/testing/merchant.js";
@@ -95,7 +101,12 @@ async function checks(code: string) {
   };
 }
 beforeAll(async () => {
-  api = await handle.start();
+  api = await handle.start({
+    mediaProduction: (providers) => {
+      const external = createDeliveryProductionTools(providers);
+      return { config: external.env, tools: external.tools };
+    },
+  });
   prisma = await handle.db.prisma();
   make = createFactories({ db: prisma, clock: api.clock });
   await runSeed({ tx: api.runtime.tx, clock: api.clock });
@@ -129,6 +140,12 @@ beforeAll(async () => {
       dramaSnapshot: { title: "虚构API验收剧", posterFileId: poster.id },
     });
   item = i.id;
+  for (const episodeNo of [1, 2])
+    await prepareDeliveryMasterForTest(api.runtime, prisma, {
+      dramaId: i.dramaId,
+      episodeNo,
+      staffId: editor.staff.id,
+    });
   await prisma.drama.update({ where: { id: i.dramaId }, data: { synopsis: "虚构验收简介" } });
   const t = await make.deliveryTicket({ orderItemId: item, step: "sample_making" });
   ticket = t.id;
@@ -157,23 +174,19 @@ beforeAll(async () => {
       uploadActorId: editor.staff.id,
       uploadClient: "admin",
     });
-    if (category === "sample_video") {
-      first = f.id;
-      await prisma.mediaInfo.create({
-        data: {
-          fileId: f.id,
-          kind: "video",
-          durationMs: 60000,
-          width: 1080,
-          height: 1920,
-          probeVersion: 1,
-          raw: { fixture: "explicit known video metadata; no production probe claim" },
-          probedAt: api.clock.now(),
-          createdAt: api.clock.now(),
-          updatedAt: api.clock.now(),
-        },
-      });
-    } else second = f.id;
+    const bytes = new Uint8Array(1234);
+    bytes.set([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70]);
+    const etag = (api.runtime.providers.storage as FakeStorage).put(
+      { bucket: "media", key: f.objectKey },
+      bytes,
+      "video/mp4",
+    );
+    await prisma.fileObject.update({
+      where: { id: f.id },
+      data: { sizeBytes: bytes.length, declaredSize: bytes.length, etag },
+    });
+    if (category === "sample_video") first = f.id;
+    else second = f.id;
   }
 }, 180000);
 it("十 API 真实状态/角色/范围/两读 no-store；包 guard 为真实缺账号而非默认 INTERNAL", async () => {
@@ -188,6 +201,7 @@ it("十 API 真实状态/角色/范围/两读 no-store；包 guard 为真实缺�
       await req("admin.deliveryTicket.sample.create", createBody, editor.headers, key),
     );
   sample = created.sampleId as string;
+  await finishDeliveryProductionForTest(api.runtime, api.clock, first, true);
   expect(created).toMatchObject({
     status: "uploaded",
     preview: { url: expect.any(String) },
@@ -297,6 +311,7 @@ it("十 API 真实状态/角色/范围/两读 no-store；包 guard 为真实缺�
       ),
     ),
     items = ep.items as Array<{ episodeOutputId: string }>;
+  await finishDeliveryProductionForTest(api.runtime, api.clock, second);
   const c = await checks("qc.episode");
   expect(
     await data(
@@ -371,19 +386,21 @@ it("C18 播放开启时首次确认含真实签名播放地址且 no-store，重
       updatedAt: api.clock.now(),
     },
   });
-  await prisma.mediaInfo.create({
-    data: {
-      fileId: f.id,
-      kind: "video",
-      durationMs: 60000,
-      width: 1080,
-      height: 1920,
-      probeVersion: 1,
-      raw: { fixture: "explicit known video metadata for C18 confirmation" },
-      probedAt: api.clock.now(),
-      createdAt: api.clock.now(),
-      updatedAt: api.clock.now(),
-    },
+  await prepareDeliveryMasterForTest(api.runtime, prisma, {
+    dramaId: i.dramaId,
+    episodeNo: 1,
+    staffId: editor.staff.id,
+  });
+  const bytes = new Uint8Array(1234);
+  bytes.set([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70]);
+  const etag = (api.runtime.providers.storage as FakeStorage).put(
+    { bucket: "media", key: f.objectKey },
+    bytes,
+    "video/mp4",
+  );
+  await prisma.fileObject.update({
+    where: { id: f.id },
+    data: { sizeBytes: bytes.length, declaredSize: bytes.length, etag },
   });
   ticket = t.id;
   item = i.id;
@@ -396,6 +413,7 @@ it("C18 播放开启时首次确认含真实签名播放地址且 no-store，重
       ),
     )
   ).sampleId as string;
+  await finishDeliveryProductionForTest(api.runtime, api.clock, f.id, true);
   await privateData(await req("admin.sample.inspect", await checks("qc.sample")));
   expect(await privateData(await req("admin.sample.push", {}))).toMatchObject({
     previewChannels: ["weapp"],

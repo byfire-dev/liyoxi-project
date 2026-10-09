@@ -9,14 +9,20 @@ import { assembleForTest } from "./assembly.js";
 import { createFactories } from "./data/index.js";
 import { SAMPLE_EVENTS, sampleSystemContext } from "./events.js";
 import { createM1Support } from "./m1-support.js";
+import { createClock } from "./clock.js";
 import { m1Transport } from "./m1-transport.js";
 import type { M1Support } from "./m1-types.js";
 
 let support: M1Support;
 beforeAll(async () => {
+  const clock = createClock(),
+    originalNow = clock.now();
   support = await createM1Support({
+    clock,
     runId: process.env.LYX_TEST_SESSION ?? randomBytes(6).toString("hex"),
   });
+  expect(support.clock).toBe(clock);
+  expect(clock.now()).toEqual(originalNow);
   process.stdout.write(`M1 drain owned: ${support.databaseName};${support.redisPrefix}\n`);
 }, 90_000);
 afterAll(async () => {
@@ -38,7 +44,10 @@ async function createMerchants(count: number) {
   }
 }
 
-function sampleTransport(registrations: readonly ModuleRegistration[]) {
+function sampleTransport(
+  registrations: readonly ModuleRegistration[],
+  startedAt = support.clock.now(),
+) {
   const assembly = assembleForTest({ entry: "api", extra: registrations });
   const events = createEvents({
     assembly,
@@ -53,7 +62,7 @@ function sampleTransport(registrations: readonly ModuleRegistration[]) {
       expect(runtime.env.APP_ENV).toBe("test");
       expect(new URL(runtime.env.DATABASE_URL).pathname).toBe(`/${support.databaseName}`);
     },
-    support.clock.now(),
+    startedAt,
   );
   return { events, transport };
 }
@@ -208,4 +217,52 @@ it("real retry backoff and exhausted leases remain refusals rather than drained"
   );
   expect(dead).toMatchObject({ status: "dead", attempts: 10 });
   await expect(sample.transport.drainEvents()).rejects.toThrow("尚未虚拟到期");
+});
+
+it("本轮财务种子 25h 历史边界正常消费，边界前 1ms 仍拒绝", async () => {
+  const businessNow = support.clock.now();
+  const startedAt = new Date(businessNow.getTime() - 25 * 3_600_000);
+  const handled: string[] = [];
+  const sample = sampleTransport(
+    [
+      defineRegistration("lyxtest_m1history", {
+        subscribers: [
+          {
+            name: "lyxtest.onPlacedHistory",
+            events: ["lyxtest.order.placed"],
+            handle: async (_tx, event) => {
+              handled.push(event.id);
+            },
+          },
+        ],
+      }),
+    ],
+    startedAt,
+  );
+  try {
+    support.clock.set(startedAt);
+    const boundaryId = await placed(sample.events);
+    support.clock.set(businessNow);
+    expect(await sample.transport.drainEvents()).toEqual({ expanded: 1, consumed: 1 });
+    expect(handled).toEqual([boundaryId]);
+    support.clock.set(new Date(startedAt.getTime() - 1));
+    const outsideId = await placed(sample.events);
+    support.clock.set(businessNow);
+    await expect(sample.transport.drainEvents()).rejects.toThrow("不属于本轮业务范围");
+    expect(handled).toEqual([boundaryId]);
+    expect(
+      await support.runtime.tx.run((tx) =>
+        tx.outboxDelivery.findUniqueOrThrow({
+          where: {
+            outboxEventId_subscriber: {
+              outboxEventId: outsideId,
+              subscriber: "lyxtest.onPlacedHistory",
+            },
+          },
+        }),
+      ),
+    ).toMatchObject({ status: "leased", attempts: 0 });
+  } finally {
+    support.clock.set(businessNow);
+  }
 });

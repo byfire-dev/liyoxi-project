@@ -424,7 +424,13 @@ export async function ticketCard(tx: Tx, t: TicketRow, staff: StaffContext, now:
   };
 }
 export { qcView } from "./quality-views.js";
-export async function ticketDetail(tx: Tx, t: TicketRow, staff: StaffContext, now: Date) {
+export async function ticketDetail(
+  tx: Tx,
+  deps: DeliveryDeps,
+  t: TicketRow,
+  staff: StaffContext,
+  now: Date,
+) {
   const card = await ticketCard(tx, t, staff, now),
     item = t.orderItem,
     shot = snapshot(item.dramaSnapshot),
@@ -622,7 +628,7 @@ export async function ticketDetail(tx: Tx, t: TicketRow, staff: StaffContext, no
         }
       : null,
     ads: [], // 广告制作展示由 M5 接管；M1 没有广告写入口。
-    currentSample: currentSample ? await adminSampleView(tx, t, currentSample, staff) : null,
+    currentSample: currentSample ? await adminSampleView(tx, deps, t, currentSample, staff) : null,
     samples: samples.map((s) => ({
       sampleId: s.id,
       versionNo: s.versionNo,

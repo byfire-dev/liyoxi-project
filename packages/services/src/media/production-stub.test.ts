@@ -9,7 +9,7 @@ beforeAll(async () => {
   h = harness(await db.prisma());
 }, 120000);
 afterAll(() => h?.unbind());
-it("同步桥只处理本上下文人工无AI；错上下文、拒收、AI pending、真实派生保持原结论", async () => {
+it("真实准备只排异步体检；错上下文、拒收、AI pending、真实派生保持原结论", async () => {
   const o = await h.order(true),
     staff = await h.staff(),
     item = o.items[0]!;
@@ -34,9 +34,20 @@ it("同步桥只处理本上下文人工无AI；错上下文、拒收、AI pendi
   };
   const good = await input();
   await h.tx.run((tx) => declareManualProduction(tx, h.clock, good));
-  expect((await h.tx.run((tx) => ensureProductionStubs(tx, h.deps, [good])))[0]).toMatchObject({
-    record: { pipelineState: "ready", aigcState: "not_required" },
-    playable: { state: "ready", durationMs: null, width: null, height: null },
+  const [prepared] = await h.tx.run((tx) => ensureProductionStubs(tx, h.deps, [good]));
+  expect(prepared).toMatchObject({
+    record: { pipelineState: "uploading", aigcState: "not_required" },
+  });
+  expect(prepared).not.toHaveProperty("playable");
+  expect(await h.prisma.playableAsset.count({ where: { sourceFileId: good.fileId } })).toBe(0);
+  expect(
+    await h.prisma.mediaJob.findFirst({ where: { subjectId: good.fileId, kind: "probe" } }),
+  ).toMatchObject({
+    state: "queued",
+    subjectType: "file_object",
+    provider: "mediatool",
+    mode: "local",
+    input: { fileId: good.fileId },
   });
   for (const state of ["rejected", "ai_pending", "normalized"]) {
     const i = await input();

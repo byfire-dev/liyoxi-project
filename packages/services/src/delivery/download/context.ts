@@ -4,6 +4,6 @@ export interface DeliveryDownloadDeps {
   readonly tx: TxRunner;
   readonly clock: Clock;
   readonly assembly: Assembly;
-  readonly media: Pick<Media, "signDeliveryDownload">;
+  readonly media: Pick<Media, "signDeliveryDownload" | "deliveryProductionFacts">;
   readonly samplePlayback?: (entityId: string) => Promise<boolean>;
 }

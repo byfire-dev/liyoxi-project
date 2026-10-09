@@ -1,7 +1,9 @@
-// 只在 W119B 本轮隔离 live 库，对已上传文件调用实际 promote 并后置固定 known MP4 事实。
+// 仅核本轮已上传文件的归属与实际字节；技术结论由统一 Runtime 的真实 handler 产生。
 import { readFile, realpath } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
+import { createHash } from "node:crypto";
+import { OutputBatchLiveInputSchema } from "../src/testing/admin-live/w302.fixture.js";
 import { parseArgs } from "node:util";
 import { z } from "zod";
 import { createRuntime } from "../src/runtime.js";
@@ -13,6 +15,7 @@ import {
   assertDeliveryScope,
   cleanupDeliveryFile,
   prepareDeliveryKnownMedia,
+  waitForDeliveryProduction,
 } from "../src/testing/admin-live/delivery-known-media.js";
 const root = fileURLToPath(new URL("../../../apps/admin/dist/tmp/", import.meta.url));
 async function main() {
@@ -72,7 +75,29 @@ async function main() {
     }),
   });
   try {
-    const input = { scope, artifact, fileId, clientToken };
+    const manifest = OutputBatchLiveInputSchema.parse(
+      JSON.parse(
+        await readFile(resolve(root, `admin-live-${scope.runId}`, "media-input.json"), "utf8"),
+      ),
+    );
+    if (JSON.stringify(manifest.legacy) !== JSON.stringify(scope))
+      throw new Error("真实视频输入与本轮交付 scope 不同");
+    const path = await realpath(manifest.video.path);
+    if (path !== resolve(root, `admin-live-${scope.runId}`, "video.mp4"))
+      throw new Error("视频不属于本轮自有目录");
+    const bytes = await readFile(path);
+    if (
+      bytes.length !== manifest.video.size ||
+      createHash("sha256").update(bytes).digest("hex") !== manifest.video.sha256
+    )
+      throw new Error("本轮视频实际字节与输入证明不一致");
+    const video = {
+      size: bytes.length,
+      sha256: manifest.video.sha256,
+      md5: createHash("md5").update(bytes).digest("hex"),
+    };
+    const input = { scope, artifact, fileId, clientToken, video };
+    if (!values.cleanup) await waitForDeliveryProduction(runtime, input);
     const result = values.cleanup
       ? await cleanupDeliveryFile(runtime, input)
       : await prepareDeliveryKnownMedia(runtime, input);

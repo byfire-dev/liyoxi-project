@@ -78,6 +78,26 @@ export async function runM1Chain({
   const actors = await step("后台真实引导、激活、登录与二次验证", async () => {
     const admin = await bootstrapM1Admin(api);
     const seeded = await support.seedDemo();
+    // staff.I6 requires an active lead in every nonempty group, including the bootstrap group.
+    const members = (await call("admin.staff.list", admin.headers, { query: { limit: 100 } }))
+      .items;
+    for (const groupId of new Set(
+      members.flatMap((member) => (member.staffGroup ? [member.staffGroup.staffGroupId] : [])),
+    )) {
+      const group = members.filter((member) => member.staffGroup?.staffGroupId === groupId);
+      if (group.some((member) => member.status === "active" && member.isLead)) continue;
+      const candidate = group.find((member) => member.status === "active");
+      assert.ok(candidate, "M1 非空员工组必须有真实启用成员可担任主管");
+      const detail = await call("admin.staff.get", admin.headers, {
+        params: { staffId: candidate.staffId },
+      });
+      const updated = await call("admin.staff.update", admin.headers, {
+        params: { staffId: candidate.staffId },
+        body: { isLead: true, lockVersion: detail.lockVersion, ackNoLead: false },
+      });
+      assert.equal(updated.isLead, true);
+      assert.equal(updated.staffGroup?.staffGroupId, groupId);
+    }
     const manager = seeded.staff.find((s) => s.key === "delivery_manager");
     assert.ok(manager?.activation, "干净演示库必须产出交付经理激活码");
     const reviewer = await activateM1Staff(api, {
@@ -451,14 +471,32 @@ export async function runM1Chain({
       results: template.items.map((item) => ({ key: item.key, result: "pass" as const })),
     };
   }
-  async function productionFile(category: M1MediaScope["category"], episodeNo: number) {
+  async function finishProduction(
+    fileId: string,
+    category: M1MediaScope["category"],
+    episodeNo: number,
+  ) {
+    await support.promote(fileId);
+    await support.finishProduction(fileId, {
+      ...scope,
+      uploaderId: actors.admin.staffId,
+      category,
+      episodeNo,
+    });
+    assert.equal((await call("admin.file.get", admin, { params: { fileId } })).status, "stored");
+  }
+  async function productionFile(
+    category: M1MediaScope["category"],
+    episodeNo: number,
+    finish = true,
+  ) {
     const file = await call("admin.file.create", admin, {
       body: {
         category,
         storeId: owner.storeId,
         fileName: `m1-${support.runId}-${category}-${episodeNo}.mp4`,
         mime: "video/mp4",
-        sizeBytes: String(support.video.sizeBytes),
+        sizeBytes: String(support.productionVideo.sizeBytes),
         clientToken: randomUUID(),
         production: {
           kind: category === "sample_video" ? "sample" : "final",
@@ -468,19 +506,9 @@ export async function runM1Chain({
         },
       },
     });
-    upload(file, support.video.bytes);
+    upload(file, support.productionVideo.bytes);
     await call("admin.file.complete", admin, { body: {}, params: { fileId: file.fileId } });
-    await support.promote(file.fileId);
-    await support.installKnownMedia(file.fileId, {
-      ...scope,
-      uploaderId: actors.admin.staffId,
-      category,
-      episodeNo,
-    });
-    assert.equal(
-      (await call("admin.file.get", admin, { params: { fileId: file.fileId } })).status,
-      "stored",
-    );
+    if (finish) await finishProduction(file.fileId, category, episodeNo);
     return file.fileId;
   }
   const sampleId = await step("交付方案推送确认，双人样片质检与实际签名保存后确认", async () => {
@@ -530,7 +558,7 @@ export async function runM1Chain({
     const actual = support.providers.storage.fetch(signed.url);
     assert.equal(actual.status, 200);
     if (actual.status !== 200) throw new Error("实际样片签名不能读取");
-    assert.deepEqual(actual.body, support.video.bytes);
+    assert.deepEqual(actual.body, support.productionVideo.bytes);
     await call("m.sample.confirm", headers, {
       params: sampleParams,
       body: { versionNo: sample.versionNo, viewedVia: "album", hasViewed: true },
@@ -551,7 +579,7 @@ export async function runM1Chain({
           const episodeNo = firstEpisode + offset;
           return {
             episodeNo,
-            fileId: await productionFile("final_episode", episodeNo),
+            fileId: await productionFile("final_episode", episodeNo, false),
             variant: "common" as const,
           };
         }),
@@ -563,7 +591,11 @@ export async function runM1Chain({
           "二十集文件上传失败",
         );
       for (const result of batch) {
-        if (result.status === "fulfilled") items.push(result.value);
+        if (result.status === "fulfilled") {
+          // Four uploads remain concurrent; the fixture drives the bounded executor and dispatcher in order.
+          await finishProduction(result.value.fileId, "final_episode", result.value.episodeNo);
+          items.push(result.value);
+        }
       }
     }
     const registered = await call("admin.deliveryTicket.episodeOutput.create", admin, {
@@ -610,7 +642,7 @@ export async function runM1Chain({
       const fetched = support.providers.storage.fetch(download.url);
       assert.equal(fetched.status, 200);
       if (fetched.status !== 200) throw new Error("实际成片签名不能读取");
-      assert.deepEqual(fetched.body, support.video.bytes);
+      assert.deepEqual(fetched.body, support.productionVideo.bytes);
       assert.ok(fetched.contentDisposition?.startsWith("attachment;"));
     }
     const tasks = await call("m.launchTask.list", headers, {
