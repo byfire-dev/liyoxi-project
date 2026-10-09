@@ -8,6 +8,7 @@ import {
 } from "@liyoxi/shared/uploads";
 import { AppError, createIdentityContext, uuidv7 } from "../kernel/index.js";
 import type { BoundMediaDeps, SystemFileInput } from "./context.js";
+import { queueModeration } from "./handlers/moderation/queue.js";
 import { emitFile, providerValue } from "./upload.js";
 export async function putSystemFile(deps: BoundMediaDeps, input: SystemFileInput) {
   const definition = UPLOAD_CATEGORIES[input.category];
@@ -123,6 +124,7 @@ export async function putSystemFile(deps: BoundMediaDeps, input: SystemFileInput
         file,
         "file.stored",
       );
+    if (inserted.count === 1) await queueModeration(tx, deps, file);
     return { fileId: file.id, sha256, created: inserted.count === 1 };
   });
 }
