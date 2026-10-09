@@ -91,7 +91,13 @@ it("同一调用方事务可见未提交草稿门店，超额错误使新增门�
   await expect(
     h.tx.run(async (tx) => {
       await tx.store.create({
-        data: { id, entityId: m.entity.id, createdAt: h.clock.now(), updatedAt: h.clock.now() },
+        data: {
+          id,
+          entityId: m.entity.id,
+          lifecycle: "active",
+          createdAt: h.clock.now(),
+          updatedAt: h.clock.now(),
+        },
       });
       await tenant.assertWithinQuota(tx, m.entity.id);
     }),

@@ -77,4 +77,4 @@ pnpm --filter @liyoxi/services exec vitest run src/tenant/
 
 调用方在持主体、门店锁的同一事务使用 `readStoreCloseCounts(tx, assembly, storeId)` 取 m02 六类停用计数，或 `readEntityDeletionCounts(tx, assembly, entityId)` 取 m01/a03 共用六类注销/关闭计数。来源失败原样传播；不另开事务、不写库、不读上层内部表，不提前声称生命周期写侧/取消审批已交付。
 
-W2-10 的 `assertWithinQuota` 复用现有额度口径与调用方事务，只在门店超额时返回 `QUOTA_EXCEEDED` 及真实三个数字；成员超额不拦已有订剧。order 报价与提交（含 hold 后复核）消费同一公开判定。当前源码检查点尚待本轮实际验证和独审，完整生命周期仍开发中。
+W2-10 的 `assertWithinQuota` 复用现有额度口径与调用方事务，只在门店超额时返回 `QUOTA_EXCEEDED` 及真实三个数字；成员超额不拦已有订剧。order 报价与提交（含 hold 后复核）消费同一公开判定。新增真实DB6项与原submit/quote/tenant20项同轮26G，services类型和依赖检查通过；唯一独审和合流待执行，完整生命周期仍开发中。
