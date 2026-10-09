@@ -54,7 +54,7 @@ async function draftFields(page: Page) {
 }
 async function confirm(page: Page, title: string, checkbox: string) {
   const dialog = page.getByRole("dialog", { name: title, exact: true });
-  const submit = dialog.getByRole("button", { name: "确认操作", exact: true });
+  const submit = dialog.getByRole("button", { name: "确认", exact: true });
   await expect(submit).toBeDisabled();
   await dialog.getByRole("checkbox", { name: checkbox, exact: true }).check();
   await submit.click();
