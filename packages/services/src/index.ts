@@ -300,6 +300,14 @@ export {
   countOrderItemsByPhase,
 } from "./order/index.js";
 export type { OrderActor, OrderDeps, OrderService, OrderStartBinding } from "./order/index.js";
+export {
+  quoteOrderCancel,
+  quoteAdCancel,
+  previewFinalReject,
+  revalidateCancel,
+} from "./order/index.js";
+export { QualificationImpactPort } from "./profile/index.js";
+export type { QualificationImpact } from "./profile/index.js";
 
 export { createDocumentConverter, runDocumentConversionWorker } from "./kernel/index.js";
 export type {

@@ -61,3 +61,27 @@ b 目标验收：`cart.test.ts`（两独立真连接49→50/51、P/S、自然重
 组合根绑定 `OrderStartBinding` 的真实公开依赖，关闭时解除本作用域；未绑定明确 INTERNAL。通知取数仍调 `orderForNotify` 空端口；正式 x01 的 `order.started` 下游为 docs/notify，授权书 M5、通知 M2；未登记的直记埋点不自造，M7 接收方再按正式事件目录接线。
 
 `start.concurrency.test.ts` 用 3 条 max=1 的独立连接、实际 backend PID 和事务栅栏重复 20 轮：真实 skipped → 补偿同键复活后，重复定时器执行与资质订阅者并发，整单每项仅扣减/建工单/迁移一次。`start.fault.test.ts` 由子进程真实 capture 后停在断点，父进程发 SIGKILL；父连接在断点上看不到未提交写，连接死后整笔回滚，同条消息重试只扣减一次。既有 a 的状态推导与读侧验收不重复改写。
+# 取消只读前置（W210 所属准备）
+
+`quoteOrderCancel` / `quoteAdCancel` 接受员工数据范围、原始输入与注入时刻；
+`previewFinalReject` 接受已由 profile 鉴权的 entity/store，且是无 fallback 的
+`QualificationImpactPort.previewFinalReject` 真实实现。三者不拿业务行/账户锁，
+不 advance、不写账本、timer、审计、快照或缓存。数量使用原计价快照和统一 HALF_UP，
+去向全部调用 billing.previewReturn；超次广告修改不纳入取消目标。
+
+`revalidateCancel` 只返回 `{ at, ok, diffs }`，不写 recheck_log、不代审批。
+写调用者必须在同一 Tx 预锁全部申请和全部拥有者目标的 union：approval30 →
+cancel_request50 → line60 → 资格轮次65（涉及时）→ entity100 → store130 →
+profile135（需要时）→ drama140 → ad150 → 所有order160 → 所有item170 →
+所有ticket180 → account190（涉及时）→ plan200及真实后继子对象 → file410 →
+唯一主体 billing_account420 最后；每表主键升序。先读取候选图、再预锁、再重读；
+候选/指针/hold关系/精确暂停cause/plan/cover新增或变化整笔拒绝重试，不能高锁后补低锁。
+live 使用申请固定终止日，允许服务中进入到期下架，不比较今天；步骤1–9必须持本审批
+active cancel_review，其他申请或 plan_amendment 不算。返回失败后，正式入口自行在
+独立小事务持正确锁写最近一次复核日志，原审批/执行事务不迁移。
+
+未来关闭复用 delivery 的精确暂停释放（最后暂停恢复真实阶段 SLA、原求值和订单回调）、
+ad 清指针、order 重新推导与 order.start 复活。真实执行还需要 ticket terminate、
+发布/下架/下载授权/文件等完整拥有者出口，账户锁后不能首次获取低序对象或 timer 主体锁。
+本片没有 cancel kind、提交/审批/执行/终局 producer、免审批路径、HTTP 或新配置，
+不代表 W210 整包关闭收尾已完成。
