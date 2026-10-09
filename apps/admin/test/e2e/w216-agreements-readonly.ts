@@ -211,13 +211,13 @@ export function registerAgreementPermissionsTest() {
       const data = (
         liveContext().fixtures as {
           fixtures: {
-            "agreements-m2": {
+            "x-agreements-m2": {
               noticeAgreementKey: string;
               files: { name: string; mime: string; base64: string; size: number; sha256: string }[];
             };
           };
         }
-      ).fixtures["agreements-m2"];
+      ).fixtures["x-agreements-m2"];
       await page.goto(`/ops/agreements?agreementKey=${data.noticeAgreementKey}`);
       await page.getByRole("button", { name: "新建草稿", exact: true }).click();
       let editor = page.getByRole("dialog", { name: "新建协议草稿", exact: true });

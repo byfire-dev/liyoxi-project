@@ -3,7 +3,8 @@ import { createIdentityContext, uuidv7 } from "../../kernel/index.js";
 import { docx, pdf } from "../document-fixtures.js";
 import type { AdminLiveFixture } from "./context.js";
 
-/** Fictional signing inputs only. New browser versions/files still use the actual eight APIs. */
+/** Runs after qualification's real version inputs; normal seed contains only the agreement list.
+ * Fictional signing inputs only. Browser versions/files still use the actual eight APIs. */
 const fixture: AdminLiveFixture = async ({ runtime, make }) => {
   const versions = await runtime.tx.run((tx) => runtime.docs.currentVersions(tx));
   const userVersion = versions.get("user"),
@@ -21,7 +22,7 @@ const fixture: AdminLiveFixture = async ({ runtime, make }) => {
     });
     const result = await runtime.tx.run((tx) =>
       runtime.docs.assertConsents(tx, identity, {
-        scene: "login",
+        scene: "reconsent",
         consents: [
           { agreementKey: "user", agreementVersionId: userVersion.id },
           { agreementKey: "privacy", agreementVersionId: privacyVersion.id },

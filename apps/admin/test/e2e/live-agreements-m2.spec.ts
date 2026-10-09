@@ -19,7 +19,9 @@ interface Fixture {
   legalStatus: "fictional_only";
 }
 const fixture = () =>
-  (liveContext().fixtures as { fixtures: { "agreements-m2": Fixture } }).fixtures["agreements-m2"];
+  (liveContext().fixtures as { fixtures: { "x-agreements-m2": Fixture } }).fixtures[
+    "x-agreements-m2"
+  ];
 function response(page: Page, method: string, path: string) {
   return page.waitForResponse(
     (r) => r.request().method() === method && new URL(r.url()).pathname === `/api/v1/admin/${path}`,
@@ -214,7 +216,7 @@ test("W216 真实同意记录分页/筛选与历史脱敏证据；已生效有�
   const data = fixture(),
     errors = recordErrors(page);
   const initial = response(page, "GET", "agreement-consents");
-  await page.goto("/ops/agreements?tab=evidence&agreementKey=user&pageSize=10");
+  await page.goto("/ops/agreements?tab=evidence&agreementKey=user&scene=reconsent&pageSize=10");
   const first = await initial;
   expect(first.status()).toBe(200);
   expect(first.headers()["cache-control"]).toBe("no-store");
