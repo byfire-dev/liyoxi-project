@@ -223,6 +223,8 @@ export type {
 
 export * as media from "./media/index.js";
 export { countBlockingStoreAds } from "./ad/index.js";
+export { clearAdCancelRequestPointers } from "./ad/index.js";
+export type { AdCancelPointersInput } from "./ad/index.js";
 export { readStoreCloseCounts, readEntityDeletionCounts } from "./tenant/index.js";
 export { createMedia } from "./media/index.js";
 export type { Media, MediaActor, MediaDeps, PromoteRef } from "./media/index.js";
