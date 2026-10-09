@@ -110,7 +110,24 @@ export const registration = defineRegistration("billing", {
     implementMerchantFacts("billing", billingMerchantFacts),
     ...purchaseMachineBindings.map(({ key, binding }) => implementKeyed(machinePort, key, binding)),
   ],
-  timerHandlers: [{ kind: "po.transfer_ttl", handle: handleTransferTtl }],
+  subscribers: [
+    {
+      name: "billing.onTierChanged",
+      events: ["drama.tier_changed"],
+      handle: async () => {
+        throw new TypeError("版权计价运行时尚未绑定");
+      },
+    },
+  ],
+  timerHandlers: [
+    { kind: "po.transfer_ttl", handle: handleTransferTtl },
+    {
+      kind: "pricing.drama_price_effective",
+      handle: async () => {
+        throw new TypeError("版权计价运行时尚未绑定");
+      },
+    },
+  ],
   invariants: [
     ...billingInvariants,
     ...subscriptionInvariants,

@@ -66,3 +66,8 @@ export { createRuntimeMediaProduction } from "./media-production-runtime.js";
 export { createAlertFacts } from "./alert-facts.js";
 export type { AlertFacts, AlertFactsDeps } from "./alert-facts.js";
 export { createAlertFactsAssembly } from "./alert-facts-runtime.js";
+
+export { createContentPricingAssembly } from "./content-pricing-runtime.js";
+
+export { createContentAdmin } from "./content-admin.js";
+export type { ContentAdmin, ContentAdminActor } from "./content-admin.js";

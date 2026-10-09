@@ -1,3 +1,5 @@
+import { adminDramaHandlers } from "./admin/dramas.js";
+import { adminDramaPricingHandlers } from "./admin/drama-pricing.js";
 import { ciHookHandlers } from "./hooks/ci.js";
 import { adminMediaJobHandlers } from "./admin/media-jobs.js";
 import { analyticsEventHandlers } from "./analytics-events.js";
@@ -56,6 +58,8 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...subscribeResultHandlers,
   ...clientErrorHandlers,
   ...adminClientErrorHandlers,
+  ...adminDramaHandlers,
+  ...adminDramaPricingHandlers,
   ...adminFlowOpsHandlers,
   ...orderHandlers,
   // W1-03：协议清单与版本正文（两条公开路由）

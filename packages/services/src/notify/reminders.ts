@@ -1,12 +1,12 @@
 import { addDays, atMinuteOfDay, calendarDate, dayRange, minuteOfDay } from "@liyoxi/shared/time";
-import { IdSchema } from "@liyoxi/contract";
+import { IdSchema, DateSchema, z } from "@liyoxi/contract";
 import { notifyReadOf, remindersOf } from "../kernel/index.js";
 import type { RecurringRunContext, Tx } from "../kernel/index.js";
 import type { NotifyDispatchDeps } from "./context.js";
 import { currentNotificationFact, dispatchFact } from "./dispatch.js";
-import { EVENT_SCENES, FOLLOWUP_SPEC } from "./registry.js";
+import { EVENT_SCENES, FOLLOWUP_SPEC, COPYRIGHT_SPEC } from "./registry.js";
 
-/** Only R4 and existing staff facts are implemented; future business scanners remain unregistered. */
+/** Real R4/R7 and staff facts; no placeholder future business scanners. */
 export async function remindScan(deps: NotifyDispatchDeps, context: RecurringRunContext) {
   const run = context.runTx ?? deps.tx.run;
   const now = deps.clock.now();
@@ -33,6 +33,55 @@ export async function remindScan(deps: NotifyDispatchDeps, context: RecurringRun
       if (!fact) return 0;
       targets++;
       return dispatchFact(tx, deps, spec, fact, { node: "R1", rule: "R4" });
+    });
+  }
+  const copyrightNode = 9 * 60 + 5,
+    minute = minuteOfDay(now);
+  if (
+    reminders.has("R7") &&
+    minute >= copyrightNode &&
+    minute <= copyrightNode + grace * 60 &&
+    deps.copyrightRecipients
+  ) {
+    const date = calendarDate(now),
+      end = addDays(date, await deps.params.get("remind.copyright.days"));
+    const shape = z.strictObject({
+      dramaId: IdSchema,
+      title: z.string().refine((value) => [...value].length <= 20),
+      licenseEndDate: DateSchema,
+    });
+    notifications += await run(async (tx) => {
+      const dramas = (await reminders.targets(tx, "R7", { date: end })).map((row) =>
+        shape.parse(row),
+      );
+      if (!dramas.length || context.signal?.aborted) return 0;
+      const staffIds = await deps.copyrightRecipients!(tx);
+      let made = 0;
+      const summary = `${dramas.length}部短剧的授权将于${end}结束：${dramas.map((row) => row.title).join("、")}`;
+      for (const staffId of staffIds) {
+        if (context.signal?.aborted) break;
+        targets++;
+        made += await dispatchFact(
+          tx,
+          deps,
+          COPYRIGHT_SPEC,
+          {
+            bizType: "staff",
+            bizId: staffId,
+            entityId: null,
+            storeId: null,
+            status: "copyright_expiring",
+            version: 0,
+            name: "版权到期提醒",
+            targetDate: date,
+            staffIds: [staffId],
+            quantity: dramas.length,
+            summary: summary.slice(0, 200),
+          },
+          { node: "N0", rule: "R7" },
+        );
+      }
+      return made;
     });
   }
   const read = notifyReadOf(deps.assembly);

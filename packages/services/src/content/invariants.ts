@@ -1,8 +1,9 @@
-import { calendarDate } from "@liyoxi/shared/time";
+import { addDays, calendarDate, dayRange } from "@liyoxi/shared/time";
 import { paramsAt } from "../config/index.js";
 import type { InvariantRegistration, InvariantViolation, Tx } from "../kernel/index.js";
 import { boundContentPrices } from "./binding.js";
 import { listingChecks, dateOf } from "./checks.js";
+import { licenseTimerKey } from "./license-expiry.js";
 const violation = (id: string, detail: Record<string, unknown>): InvariantViolation => ({
   subject: { type: "drama", id },
   detail,
@@ -47,6 +48,25 @@ export async function findContentViolations(
           licenseEndDate: dateOf(row.dramaCopyrights[0]?.licenseEndDate ?? null),
         }),
       );
+    if (code === "I3" && row.status === "listed") {
+      const end = dateOf(row.dramaCopyrights[0]?.licenseEndDate ?? null);
+      if (end && calendarDate(at) <= end) {
+        const active = await tx.timer.findMany({
+          where: {
+            kind: "content.license_end",
+            subjectType: "drama",
+            subjectId: row.id,
+            status: { in: ["scheduled", "dispatched"] },
+          },
+        });
+        if (
+          active.length !== 1 ||
+          active[0]?.dedupeKey !== licenseTimerKey(row.id, end) ||
+          active[0].fireAt.getTime() !== dayRange(addDays(end, 1)).start.getTime()
+        )
+          result.push(violation(row.id, { licenseEndDate: end }));
+      }
+    }
     if (code === "I4" && row.firstListedAt) {
       const c = row.dramaCopyrights[0],
         latest = await tx.dramaCopyrightRevision.findFirst({
@@ -118,6 +138,7 @@ export async function findContentViolations(
 export const contentInvariants: readonly InvariantRegistration[] = [
   "I1",
   "I2",
+  "I3",
   "I4",
   "I5",
   "I6",

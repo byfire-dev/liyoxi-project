@@ -11,3 +11,13 @@ export {
 
 export { MediaJobListQuerySchema } from "../routes/a01-system/media-jobs.schemas.js";
 export type { MediaJobListQuery } from "../routes/a01-system/media-jobs.schemas.js";
+
+export {
+  DramaPriceListQuerySchema,
+  DramaPriceSummaryQuerySchema,
+  DramaPriceRevisionListQuerySchema,
+} from "../routes/a04-content/drama-pricing.schemas.js";
+export type {
+  DramaPriceListQuery,
+  DramaPriceRevisionListQuery,
+} from "../routes/a04-content/drama-pricing.schemas.js";
