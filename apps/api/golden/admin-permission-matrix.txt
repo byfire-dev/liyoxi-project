@@ -116,5 +116,13 @@ admin.transferProof.get | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.transferProof.list | order:view | - | 11 11 11 00 00 11 11 11
 admin.transferProof.reject | - | finance.receipt.reject | 11 00 00 00 00 00 00 11
 admin.transferProof.summary | order:view | - | 11 11 11 00 00 11 11 11
+admin.uploadBatch.cancel | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.uploadBatch.commit | drama:view | drama.media.manage | 11 00 00 00 00 11 00 00
+admin.uploadBatch.create | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.uploadBatch.get | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.uploadBatch.refreshCredentials | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.uploadBatch.start | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.uploadBatchItem.complete | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.uploadBatchItem.update | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.webhookEvent.list | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.webhookEvent.retry | - | flow.ops.manage | 11 00 00 00 00 00 00 00
