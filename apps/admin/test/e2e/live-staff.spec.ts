@@ -131,3 +131,6 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
 // W223 后置：原员工验收全部完成后才创建自己的只读员工；不污染旧数量/筛选事实。
 import { registerFlowOpsReadonlyTest } from "./w223-flow-ops-readonly";
 registerFlowOpsReadonlyTest();
+
+import { registerW206CreatedActivationTest } from "./w206-created-activation";
+registerW206CreatedActivationTest();
