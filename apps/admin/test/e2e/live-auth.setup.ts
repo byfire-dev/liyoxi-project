@@ -77,8 +77,9 @@ test("激活设密 → 绑定口令 → 保存恢复码 → 菜单 → 退出 �
   await expect(page.getByRole("menuitem", { name: "渠道", exact: true })).toHaveCount(0);
   await noHorizontalScroll(page, "真实菜单");
   await menu.click();
-  await expect(page.getByRole("menuitem", { name: "修改密码" })).toHaveCount(0);
-  await expect(page.getByRole("menuitem", { name: "动态口令设置" })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "修改密码" })).toBeVisible();
+  expect(me.permissions).toContain("self.mfa.reset");
+  await expect(page.getByRole("menuitem", { name: "动态口令设置" })).toBeVisible();
   await page.getByRole("menuitem", { name: "退出登录" }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto(`/login?redirect=${encodeURIComponent(destination)}`);
