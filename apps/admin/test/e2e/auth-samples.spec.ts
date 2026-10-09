@@ -56,8 +56,9 @@ test("再验证共用一个弹层、重放保留幂等键；403、404和用户�
   expect(backend.received.filter((item) => item.path.endsWith("/auth/step-up"))).toHaveLength(1);
   await page.getByRole("button", { name: "用户菜单" }).click();
   await expect(page.getByRole("menuitem", { name: "退出登录" })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "修改密码" })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "修改密码" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "动态口令设置" })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "绑定企业微信" })).toBeVisible();
   await shot(page, "auth-09-user-menu");
   await page.keyboard.press("Escape");
   await page.evaluate(() => localStorage.setItem("lyx.dev.role", "service"));

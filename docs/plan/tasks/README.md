@@ -225,6 +225,13 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 | --- | --- |
 | W2-30 | 四页为 `/sys/dict`、`/sys/params`、`/sys/flags`、`/sys/checklists`；后两页保留参数页子入口与实际权限。合流演示要区分参数当前 `rev`/CAS `latestRev`/预约列表；409 保留草稿、显式核对再确认。日历只提交 `{year}`，演示 2026 内置导入及重复 changedDays 空；缺内置年实际 fieldErrors.path 为 `days`。清单草稿修订是先退役旧草稿再创建的两个提交，失败/历史按事实显示，不能承诺旧业务快照自动升级。真实浏览器前置复用原财务配置提议员工，finance 只增加 system 查看等级，不新增员工或编辑权限。 |
 
+### 5.5 W2-06 页面增量移交（本地验收完成）
+
+| 接收方 | 实际范围与接入要求 |
+| --- | --- |
+| W2-30 | 两新页 system.roles、approval.mine，旧 system.staff/shell.user_menu 不重复计页；原纯测 89、样例 16、完整 live 31 及类型/门禁通过。唯一正式审查 534.498 秒的原 0 P1/2 P2/0 D 保留，两项作者定点闭环后原 31+新增焦点/CAS 例同轮 32/32 通过；真实 Modal 新 12 图及旧证据分别保留，交接时待实际 main 合流。保持真实 actions/权限交集、打开快照的版本冲突重新核对、在办确认与一次性码清理；限定 visibility 探针与物理切窗/有头未验边界见 W2-06 状态。 |
+| W4-18、W4-20 拆出的 M5 页面包 | 在既有 `/approvals` 追加实际注册类型与领域授权入口。当前 finance_config_change 五资源无 schema/handler，保持只读详情；未来未落地类型不作占位菜单或通用执行动作。 |
+
 ## 6. 任务书加的前置（计划依赖列没有）
 
 写任务书时查实的三处。已由一条计划小改补进计划 第 7.2 节依赖列与第 12 节（[changes/W0-04-post-kickoff-fixes.md](../changes/W0-04-post-kickoff-fixes.md)）。下表留作出处，“怎么办”一栏照旧有效（默认，W0-04 定）。

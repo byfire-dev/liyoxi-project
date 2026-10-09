@@ -151,14 +151,14 @@ export async function startOutputBatchLiveServer(options: {
         {
           hostname: "127.0.0.1",
           port: 0,
-          fetch: (request) => {
+          fetch: (request, env) => {
             const path = new URL(request.url).pathname;
             const api = /^\/api\/v1\/admin\/(?:upload-batches|upload-batch-items)(?:\/|$)/.test(
               path,
             )
               ? batchApi
               : legacyApi;
-            return api.app.fetch(request);
+            return api.app.fetch(request, env);
           },
         },
         ({ port }) => resolve(`http://127.0.0.1:${port}`),

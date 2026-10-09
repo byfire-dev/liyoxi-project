@@ -43,6 +43,30 @@ test.beforeAll(async () => {
               response.end();
             });
           });
+          vite.middlewares.use("/__production_cos", (request, response) => {
+            const url = new URL(request.url ?? "/", origin);
+            const method = request.method;
+            if (method === "POST" && url.searchParams.has("uploadId")) posts++;
+            request.resume();
+            request.on("end", () => {
+              response.setHeader("Content-Type", "application/xml");
+              if (method === "POST" && url.searchParams.has("uploads"))
+                response.end(
+                  "<InitiateMultipartUploadResult><UploadId>probe-upload</UploadId></InitiateMultipartUploadResult>",
+                );
+              else if (method === "PUT" && url.searchParams.has("partNumber")) {
+                response.setHeader("ETag", '"probe-part"');
+                response.end();
+              } else if (method === "POST" && url.searchParams.has("uploadId"))
+                response.end(
+                  "<CompleteMultipartUploadResult><ETag>probe-complete</ETag></CompleteMultipartUploadResult>",
+                );
+              else {
+                response.statusCode = 405;
+                response.end();
+              }
+            });
+          });
         },
       },
     ],
@@ -91,7 +115,11 @@ const media = {
 async function startUpload(page: Page, kind: "sample" | "episode") {
   const count = (await snapshot(page)).registrations.length;
   await page.locator('input[type="file"]').setInputFiles(media);
-  if (kind === "episode") await page.getByRole("button", { name: "上传文件", exact: true }).click();
+  if (kind === "episode") {
+    await page.getByRole("radio", { name: "部分集", exact: true }).check();
+    await page.getByRole("button", { name: "创建批次并核对", exact: true }).click();
+    await page.getByRole("button", { name: "确认匹配并开始上传", exact: true }).click();
+  }
   await expect.poll(async () => (await snapshot(page)).registrations.length).toBe(count + 1);
   return count;
 }
@@ -101,7 +129,7 @@ async function completeUpload(page: Page, index: number, kind: "sample" | "episo
   await expect.poll(() => posts).toBe(before + 1);
   await expect
     .poll(async () => (await snapshot(page)).completed)
-    .toContain(`uploaded-file-${index + 1}`);
+    .toContain((await snapshot(page)).registrations[index]!.fileId);
   await expect(
     page.getByRole("button", {
       name: kind === "sample" ? "登记样片" : "登记成片文件",
@@ -134,7 +162,7 @@ test("样片或同 key 清单版本更新清除旧结论，预览 URL 更新保�
   await expect.poll(async () => (await snapshot(page)).sent.length).toBe(1);
   expect((await snapshot(page)).sent[0]).toMatchObject({
     method: "inspectSample",
-    id: "sample-2",
+    id: "00000000-0000-7000-8000-000000000913",
     body: { checklistVersionNo: 2, results: [{ key: "picture", result: "pass" }] },
   });
   await clean();
@@ -162,7 +190,7 @@ test("剧集新输出重新选择实际目标并清除旧默认结论与单集�
   await expect.poll(async () => (await snapshot(page)).sent.length).toBe(1);
   expect((await snapshot(page)).sent[0]).toMatchObject({
     method: "inspectEpisodes",
-    id: "ticket-1",
+    id: "00000000-0000-7000-8000-000000000901",
     body: { episodeOutputIds: ["output-1-2", "output-2-2"], exceptions: [] },
   });
   await clean();
@@ -174,9 +202,11 @@ for (const kind of ["sample", "episode"] as const) {
     const index = await startUpload(page, kind);
     await change(page, "preview");
     // 检查 React 已渲染更新后同一请求仍活着，而不是只读到更新前的 signal。
-    await expect(
-      page.getByRole("checkbox", { name: "制作中使用了 AI 工具", exact: true }),
-    ).toBeDisabled();
+    if (kind === "sample")
+      await expect(
+        page.getByRole("checkbox", { name: "制作中使用了 AI 工具", exact: true }),
+      ).toBeDisabled();
+    else await expect(page.getByRole("button", { name: "修改集号", exact: true })).toBeDisabled();
     await page.evaluate(() => new Promise(requestAnimationFrame));
     expect((await snapshot(page)).registrations[index]!.aborted).toBe(false);
     await completeUpload(page, index, kind);
@@ -186,7 +216,7 @@ for (const kind of ["sample", "episode"] as const) {
     await expect.poll(async () => (await snapshot(page)).sent.length).toBe(1);
     expect((await snapshot(page)).sent[0]).toMatchObject({
       method: kind === "sample" ? "sample" : "registerEpisodes",
-      id: "ticket-1",
+      id: "00000000-0000-7000-8000-000000000901",
     });
     await clean();
   });
@@ -205,16 +235,22 @@ for (const kind of ["sample", "episode"] as const) {
         page.getByRole("checkbox", { name: "制作中使用了 AI 工具", exact: true }),
       ).toBeEnabled();
       if (kind === "episode")
-        await expect(page.getByRole("button", { name: "上传文件", exact: true })).toHaveCount(0);
+        await expect(
+          page.getByRole("button", { name: "上传所选文件 / 重试", exact: true }),
+        ).toHaveCount(0);
       const newIndex = await startUpload(page, kind);
       const before = posts;
       await page.evaluate((index) => window.productionLifecycle.release(index), index);
       await page.evaluate(() => new Promise(requestAnimationFrame));
       expect(posts).toBe(before);
-      expect((await snapshot(page)).completed).not.toContain(`uploaded-file-${index + 1}`);
-      await expect(
-        page.getByRole("checkbox", { name: "制作中使用了 AI 工具", exact: true }),
-      ).toBeDisabled();
+      expect((await snapshot(page)).completed).not.toContain(
+        (await snapshot(page)).registrations[index]!.fileId,
+      );
+      if (kind === "sample")
+        await expect(
+          page.getByRole("checkbox", { name: "制作中使用了 AI 工具", exact: true }),
+        ).toBeDisabled();
+      else await expect(page.getByRole("button", { name: "修改集号", exact: true })).toBeDisabled();
       await completeUpload(page, newIndex, kind);
       await page.evaluate(() => window.productionLifecycle.close());
       await expect(page.getByRole("dialog")).toHaveCount(0);

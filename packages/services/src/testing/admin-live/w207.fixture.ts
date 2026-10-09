@@ -92,7 +92,12 @@ const fixture: AdminLiveFixture = async ({ runtime, make }) => {
   return {
     industry: { id: industry.dictItemId, code: industry.code, name: industry.name },
     free: { id: free.dictItemId, code: free.code, name: free.name },
-    viewer: { phone, password, recoveryCode: signed.recoveryCodes[0] },
+    viewer: {
+      phone,
+      password,
+      recoveryCode: signed.recoveryCodes[0],
+      w206RecoveryCode: signed.recoveryCodes[1],
+    },
     year: 2026,
     checklistCode: "patrol.check",
     flagKey: "release.partner",

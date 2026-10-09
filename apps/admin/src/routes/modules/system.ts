@@ -1,6 +1,7 @@
 // 系统模块的路由清单。页面包把自己的路由文件放在 src/routes/system/ 下，在这里加一行；
 // 一个模块一个清单，别的模块不用动（计划 第 9.3 节）。写法见 apps/admin/README.md“加一个页面”。
 import { staffRoute } from "../system/staff";
+import { rolesRoute } from "../system/roles";
 import { dictRoute } from "../system/dict";
 import { paramsRoute } from "../system/params";
 import { flagsRoute } from "../system/flags";
@@ -10,6 +11,7 @@ import { flowOpsRoute } from "../system/flow-ops";
 
 export const systemRoutes = [
   staffRoute,
+  rolesRoute,
   dictRoute,
   paramsRoute,
   flagsRoute,
