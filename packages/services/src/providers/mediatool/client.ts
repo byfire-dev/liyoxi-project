@@ -20,7 +20,7 @@ import { join } from "node:path";
 import type { z } from "zod";
 
 import { failed, ok } from "../types.js";
-import type { ProviderFailure, ProviderResult } from "../types.js";
+import type { MediaToolClient, ProviderFailure, ProviderResult } from "../types.js";
 import {
   AigcLabelSchema,
   HealthResponseSchema,
@@ -31,7 +31,6 @@ import {
   StampResponseSchema,
   WatermarkPngResponseSchema,
 } from "./schema.js";
-import type { MediaToolDemuxer, MediaToolHealth, ProbeReport } from "./schema.js";
 import { validWatermarkPng } from "./png.js";
 
 /** 共享目录在调用端容器里的挂载点，与套接字的位置（D5 第 6.6 节） */
@@ -63,58 +62,7 @@ export interface MediaToolClientOptions {
   responseTimeoutMs?: number;
 }
 
-export interface PosterResult {
-  /** 校验过的封面字节。上传用这一份，不要回头再按路径读文件 */
-  bytes: Uint8Array;
-  sizeBytes: number;
-  width: number;
-  height: number;
-  /** 实际抽的时间点：片子比要求的时间点短时退回 0 */
-  atMs: number;
-}
-
-export interface StampResult {
-  /** 回读加标产物得到的体检报告，report.aigc 已核对与写入的相同 */
-  report: ProbeReport;
-  /** 调用端自己量的大小 */
-  inputSizeBytes: number;
-  outputSizeBytes: number;
-}
-
-export interface MediaToolClient {
-  /** 体检：媒体信息、顶层 box 顺序、AIGC 标签。demuxers 依次尝试 */
-  probe(input: {
-    path: string;
-    demuxers: readonly MediaToolDemuxer[];
-    timeoutMs?: number;
-    signal?: AbortSignal;
-  }): Promise<ProviderResult<ProbeReport>>;
-  /** 抽 atMs 处的一帧存成 JPEG，写到 outPath（与输入同一个任务目录） */
-  poster(input: {
-    path: string;
-    demuxer: MediaToolDemuxer;
-    atMs: number;
-    outPath: string;
-    timeoutMs?: number;
-    signal?: AbortSignal;
-  }): Promise<ProviderResult<PosterResult>>;
-  /** 流拷贝重封装并写入 AIGC，再回读。aigcJson 用 aigcMetadataJson 生成。输入里已有标识会被覆盖：先体检再决定要不要调 */
-  stampAigc(input: {
-    path: string;
-    outPath: string;
-    aigcJson: string;
-    timeoutMs?: number;
-    signal?: AbortSignal;
-  }): Promise<ProviderResult<StampResult>>;
-  /** 容器在不在、里面的 ffmpeg 是哪个版本 */
-  health(signal?: AbortSignal): Promise<ProviderResult<MediaToolHealth>>;
-  /** Fixed licensed font and RGBA canvas; text is never an ffmpeg expression. */
-  watermarkPng?(input: {
-    outPath: string;
-    text: string;
-    signal?: AbortSignal;
-  }): Promise<ProviderResult<{ sizeBytes: number; width: 720; height: 96; sha256: string }>>;
-}
+export type { MediaToolClient, PosterResult, StampResult } from "../types.js";
 
 function isRelativeWorkPath(path: unknown): path is string {
   if (typeof path !== "string" || path.length === 0 || path.length > 512) return false;

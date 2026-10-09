@@ -2,29 +2,9 @@ import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, mkdir, mkdtemp, open, realpath, rm } from "node:fs/promises";
 import { basename, isAbsolute, join } from "node:path";
-import type { ObjectRef, ProviderResult, StorageProvider } from "../types.js";
+import type { StorageProvider, MediaWorkspace, MediaWorkSession } from "../types.js";
 import { failed, ok } from "../types.js";
-export interface MediaWorkSession {
-  readonly path: (name: "source.mp4" | "stamped.mp4" | "poster.jpg" | "watermark.png") => string;
-  download(
-    input: ObjectRef & { size: number; etag: string },
-  ): Promise<ProviderResult<{ size: number; sha256: string }>>;
-  publish(input: {
-    name: "stamped.mp4" | "source.mp4" | "poster.jpg" | "watermark.png";
-    dst: ObjectRef;
-    contentIdentity: string;
-    expectedSha256?: string;
-    expectedSize?: number;
-  }): Promise<ProviderResult<{ size: number; sha256: string; etag: string }>>;
-}
-export interface MediaWorkspace {
-  run<T>(
-    job: { id: string; attemptNo: number },
-    signal: AbortSignal,
-    action: (work: MediaWorkSession) => Promise<T>,
-  ): Promise<T>;
-  close(): Promise<void>;
-}
+export type { MediaWorkspace, MediaWorkSession } from "../types.js";
 /** Only this Provider owns host filesystem paths; domain sees relative job paths. */
 export function createMediaWorkspace(options: {
   workDir: string;

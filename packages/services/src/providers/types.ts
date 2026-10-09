@@ -8,7 +8,9 @@
 //   3. 每个接口带 status（生效状态）与 configured（这项能力现在能不能用）。
 //   4. 金额一律整数分，字段名以 Fen 结尾。
 //   5. 加方法时三处一起改，少一处即编译失败：接口、PROVIDER_METHODS、未配置实现与替身。
-// 本文件不引任何别的文件。
+// 本文件只从无反向依赖的 mediatool 结构文件引纯类型，不依赖客户端或工作区实现。
+
+import type { MediaToolDemuxer, MediaToolHealth, ProbeReport } from "./mediatool/schema.js";
 
 // ---------- 通用 ----------
 
@@ -301,9 +303,87 @@ export interface ObjectHead {
   versionId?: string;
 }
 
-export type { MediaToolClient, PosterResult, StampResult } from "./mediatool/client.js";
 export type { ProbeReport, AigcLabel } from "./mediatool/schema.js";
-export type { MediaWorkspace, MediaWorkSession } from "./mediatool/work-io.js";
+
+export interface PosterResult {
+  /** 校验过的封面字节。上传用这一份，不要回头再按路径读文件 */
+  bytes: Uint8Array;
+  sizeBytes: number;
+  width: number;
+  height: number;
+  /** 实际抽的时间点：片子比要求的时间点短时退回 0 */
+  atMs: number;
+}
+
+export interface StampResult {
+  /** 回读加标产物得到的体检报告，report.aigc 已核对与写入的相同 */
+  report: ProbeReport;
+  /** 调用端自己量的大小 */
+  inputSizeBytes: number;
+  outputSizeBytes: number;
+}
+
+export interface MediaToolClient {
+  /** 体检：媒体信息、顶层 box 顺序、AIGC 标签。demuxers 依次尝试 */
+  probe(input: {
+    path: string;
+    demuxers: readonly MediaToolDemuxer[];
+    timeoutMs?: number;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<ProbeReport>>;
+  /** 抽 atMs 处的一帧存成 JPEG，写到 outPath（与输入同一个任务目录） */
+  poster(input: {
+    path: string;
+    demuxer: MediaToolDemuxer;
+    atMs: number;
+    outPath: string;
+    timeoutMs?: number;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<PosterResult>>;
+  /** 流拷贝重封装并写入 AIGC，再回读。aigcJson 用 aigcMetadataJson 生成。输入里已有标识会被覆盖：先体检再决定要不要调 */
+  stampAigc(input: {
+    path: string;
+    outPath: string;
+    aigcJson: string;
+    timeoutMs?: number;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<StampResult>>;
+  /** 容器在不在、里面的 ffmpeg 是哪个版本 */
+  health(signal?: AbortSignal): Promise<ProviderResult<MediaToolHealth>>;
+  /** Fixed licensed font and RGBA canvas; text is never an ffmpeg expression. */
+  watermarkPng?(input: {
+    outPath: string;
+    text: string;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<{ sizeBytes: number; width: 720; height: 96; sha256: string }>>;
+}
+
+export interface MediaWorkSession {
+  readonly path: (name: "source.mp4" | "stamped.mp4" | "poster.jpg" | "watermark.png") => string;
+  download(
+    input: ObjectRef & { size: number; etag: string },
+  ): Promise<ProviderResult<{ size: number; sha256: string }>>;
+  publish(input: {
+    name: "stamped.mp4" | "source.mp4" | "poster.jpg" | "watermark.png";
+    dst: ObjectRef;
+    contentIdentity: string;
+    expectedSha256?: string;
+    expectedSize?: number;
+  }): Promise<ProviderResult<{ size: number; sha256: string; etag: string }>>;
+}
+export interface MediaWorkspace {
+  run<T>(
+    job: { id: string; attemptNo: number },
+    signal: AbortSignal,
+    action: (work: MediaWorkSession) => Promise<T>,
+  ): Promise<T>;
+  close(): Promise<void>;
+}
+export interface ProductionMediaTools {
+  readonly client: MediaToolClient;
+  readonly workspace: MediaWorkspace;
+  close(): Promise<void>;
+}
 
 export interface StorageProvider extends ProviderBase {
   /** sts：能不能签发临时密钥（大文件分块上传要用）；versioning：桶有没有开版本控制 */

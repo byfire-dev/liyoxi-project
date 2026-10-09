@@ -4,14 +4,10 @@ import { failed } from "../types.js";
 import type {
   BeforeProviderCall,
   MediaToolClient,
-  MediaWorkspace,
+  ProductionMediaTools,
   StorageProvider,
 } from "../types.js";
-export interface ProductionMediaTools {
-  readonly client: MediaToolClient;
-  readonly workspace: MediaWorkspace;
-  close(): Promise<void>;
-}
+export type { ProductionMediaTools } from "../types.js";
 /** Composition-only factory. Guards remain before validation/pre-abort and socket/file I/O. */
 export function createProductionMediaTools(options: {
   workDir: string;

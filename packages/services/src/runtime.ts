@@ -103,7 +103,7 @@ import {
   createNotifyAssembly,
 } from "./ops/index.js";
 import type { Health, StartupCheck } from "./ops/index.js";
-import type { Providers } from "./providers/types.js";
+import type { Providers, ProductionMediaTools } from "./providers/types.js";
 import { createContent, bindContent } from "./content/index.js";
 import type { Content } from "./content/index.js";
 import { createMedia } from "./media/index.js";
@@ -161,8 +161,6 @@ export const DB_POOLS: Readonly<Record<AssemblyEntry, DbPoolSettings>> = {
     idleInTransactionSessionTimeoutMs: 60_000,
   },
 };
-
-import type { ProductionMediaTools } from "./providers/index.js";
 
 export interface RuntimeOptions {
   /** Only local/test external-tool substitution; production facts and handlers stay real. */

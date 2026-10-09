@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createTxRunner, uuidv7 } from "../kernel/index.js";
 import type { Env } from "../kernel/index.js";
-import type { ProductionMediaTools } from "../providers/index.js";
+import type { ProductionMediaTools } from "../providers/types.js";
 import { failed } from "../providers/types.js";
 import { createFakeProviders, useTestDatabase } from "../testing/index.js";
 import { createRuntimeMediaProduction } from "./media-production-runtime.js";
