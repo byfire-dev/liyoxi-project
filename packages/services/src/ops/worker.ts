@@ -41,7 +41,13 @@ import type {
   Events,
   TestEventDefinition,
 } from "../events/index.js";
-import { alertsOf, assembleProviders, createTxRunner, systemClock } from "../kernel/index.js";
+import {
+  alertsOf,
+  assembleProviders,
+  createDocumentConverter,
+  createTxRunner,
+  systemClock,
+} from "../kernel/index.js";
 import type {
   AppEnv,
   Assembly,
@@ -89,6 +95,7 @@ export function connectWorkerDatabase(connectionString: string): {
 }
 
 export interface WorkerServicesOptions {
+  readonly documentWorkerUrl?: URL;
   readonly wechat?: {
     readonly config: NonNullable<Env["WECHAT"]>;
     readonly transport: NonNullable<Parameters<typeof assembleProviders>[0]["wechat"]>;
@@ -124,6 +131,7 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  readonly documentConverter: ReturnType<typeof createDocumentConverter> | null;
   readonly closeSmsHealth?: () => Promise<void>;
   notifyDeliver(ref: NotifyQueueRef): Promise<void>;
   scanNotify(): Promise<number>;
@@ -184,6 +192,9 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   if (ci && !ci.worker) throw new TypeError("CI worker入口缺少worker角色");
   if (cos && !cos.worker) throw new TypeError("COS worker入口缺少worker角色");
   const { prisma, channel } = options;
+  const documentConverter = options.documentWorkerUrl
+    ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
+    : null;
   const clock = options.clock ?? systemClock;
   const mediaClosers: Array<() => Promise<void>> = [];
   let mediaClosing: Promise<void> | undefined;
@@ -422,6 +433,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const unbindNoticeLink = bindAgreementNoticeLink(readAgreementNoticeLink);
 
   return {
+    documentConverter,
     closeSmsHealth: () => smsHealth.close(),
     notifyDeliver: (ref) => notify.deliver(ref),
     scanNotify: () =>

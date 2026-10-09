@@ -413,6 +413,10 @@ export interface StorageProvider extends ProviderBase {
   readPrefix(
     input: ObjectRef & { bytes: number; ifMatchEtag?: string },
   ): Promise<ProviderResult<Uint8Array>>;
+  /** 完整有界读取：HEAD 与 GET 绑定同一 etag，实际流不能超过 maxBytes；可取消。 */
+  readObject(
+    input: ObjectRef & { maxBytes: number; ifMatchEtag?: string; signal?: AbortSignal },
+  ): Promise<ProviderResult<Uint8Array>>;
   /** HEAD/If-Match绑定的有界流读取；等待sink消费并回收网络流才返回。 */
   readTo(
     input: ObjectRef & {
@@ -919,6 +923,7 @@ export const PROVIDER_METHODS = {
     "issueSts",
     "head",
     "readPrefix",
+    "readObject",
     "putObject",
     "copy",
     "presignGet",

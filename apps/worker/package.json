@@ -17,8 +17,12 @@
     "@liyoxi/contract": "workspace:*",
     "@liyoxi/services": "workspace:*",
     "@liyoxi/shared": "workspace:*",
+    "@napi-rs/canvas": "1.0.9",
     "bullmq": "6.3.9",
-    "ioredis": "6.0.0"
+    "ioredis": "6.0.0",
+    "mammoth": "1.13.0",
+    "pdfjs-dist": "6.3.289",
+    "sanitize-html": "2.17.7"
   },
   "devDependencies": {
     "esbuild": "0.28.2"

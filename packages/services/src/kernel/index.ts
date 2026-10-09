@@ -132,4 +132,15 @@ export type { AssembleProvidersOptions } from "./assembly/providers.js";
 // W1-01a 后台登录的密钥文件的内容类型（loadEnv 读出来的形状；加载与自检在 security 的 auth-keys）
 export type { AuthKeysConfig } from "./env.js";
 
+// W2-12 PR1: local bounded document computation; not an external Provider category.
+export {
+  createDocumentConverter,
+  runDocumentConversionWorker,
+} from "./document-conversion/index.js";
+export type {
+  DocumentConversionRequest,
+  DocumentConversionResult,
+  DocumentConverter,
+  DocumentInput,
+} from "./document-conversion/index.js";
 export type { ClientErrorProjectsConfig } from "./env.js";
