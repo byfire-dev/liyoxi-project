@@ -10,6 +10,8 @@ export function createMediaWorkspace(options: {
   workDir: string;
   storage: StorageProvider;
   beforeCall: () => void;
+  registerCleanup?: (directory: string) => void;
+  beforeCleanup?: (directory: string) => Promise<void>;
 }): MediaWorkspace {
   if (!isAbsolute(options.workDir) || options.workDir === "/" || options.workDir.includes("\0"))
     throw new TypeError("媒体工作目录不合格");
@@ -43,6 +45,7 @@ export function createMediaWorkspace(options: {
           throw new Error("媒体工作目录非可信目录");
         const directory = await mkdtemp(join(root, `${job.id}-${job.attemptNo}-`));
         const relative = basename(directory);
+        options.registerCleanup?.(relative);
         const path = (name: "source.mp4" | "stamped.mp4" | "poster.jpg" | "watermark.png") =>
           `${relative}/${name}`;
         const regular = async (
@@ -161,6 +164,7 @@ export function createMediaWorkspace(options: {
             },
           });
         } finally {
+          await options.beforeCleanup?.(relative);
           await rm(directory, { recursive: true, force: true });
         }
       };

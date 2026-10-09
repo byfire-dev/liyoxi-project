@@ -32,8 +32,9 @@ function covers(font, text) {
   }
   return false;
 }
-/** @param {any} body */
-export async function watermarkPng(body) {
+/** @param {any} body @param {AbortSignal} [signal] */
+export async function watermarkPng(body, signal) {
+  if (signal?.aborted) throw new RequestError("killed", "调用已取消", 503);
   if (
     Object.keys(body).some((key) => !["outPath", "text", "timeoutMs"].includes(key)) ||
     typeof body.text !== "string" ||
@@ -102,13 +103,15 @@ export async function watermarkPng(body) {
         "1",
         `file:${part}`,
       ],
-      { timeoutMs: timeout, maxStdoutBytes: 0 },
+      { timeoutMs: timeout, maxStdoutBytes: 0, signal },
     );
+    if (result.aborted) throw new RequestError("killed", "水印渲染已取消，进程组已退出", 503);
     if (result.timedOut) throw new RequestError("timeout", "水印渲染超时", 504);
     if (result.code !== 0 || result.overflow) throw new RequestError("killed", "水印渲染失败", 503);
     const sizeBytes = (await stat(part)).size;
     if (sizeBytes < 33 || sizeBytes > 1024 ** 2)
       throw new RequestError("too_large", "水印产物超限", 422);
+    if (signal?.aborted) throw new RequestError("killed", "调用已取消", 503);
     await rename(part, out);
     return { sizeBytes, width: 720, height: 96 };
   } finally {

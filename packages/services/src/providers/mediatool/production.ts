@@ -15,7 +15,18 @@ export function createProductionMediaTools(options: {
   storage: StorageProvider;
   beforeCall: BeforeProviderCall;
 }): ProductionMediaTools {
-  const raw = createMediaToolClient({ workDir: options.workDir, socketPath: options.socketPath });
+  const cleanup = new Map<string, Promise<boolean>[]>();
+  let cleanupUnconfirmed = false;
+  const raw = createMediaToolClient({
+    workDir: options.workDir,
+    socketPath: options.socketPath,
+    observeCleanup(directory, completion) {
+      cleanup.get(directory)?.push(completion);
+      void completion.then((confirmed) => {
+        if (!confirmed) cleanupUnconfirmed = true;
+      });
+    },
+  });
   const pending = new Set<Promise<unknown>>(),
     active = new Set<AbortController>();
   let closed = false;
@@ -52,6 +63,17 @@ export function createProductionMediaTools(options: {
     workDir: options.workDir,
     storage: options.storage,
     beforeCall: () => options.beforeCall({ provider: "media", method: "probe" }),
+    registerCleanup(directory) {
+      cleanup.set(directory, []);
+    },
+    async beforeCleanup(directory) {
+      const complete = await Promise.all(cleanup.get(directory) ?? []);
+      cleanup.delete(directory);
+      if (complete.some((confirmed) => !confirmed)) {
+        cleanupUnconfirmed = true;
+        throw new Error("媒体调用清理未确认；保留自有工作目录");
+      }
+    },
   });
   return {
     client,
@@ -61,6 +83,7 @@ export function createProductionMediaTools(options: {
       for (const controller of active) controller.abort();
       await workspace.close();
       await Promise.allSettled([...pending]);
+      if (cleanupUnconfirmed) throw new Error("媒体调用清理未确认");
     },
   };
 }

@@ -91,13 +91,15 @@ mediatool:
 | `not_found`、`unknown_op` | 404 | 没有这个文件；没有这个操作 | `rejected` |
 | `demux_failed`、`remux_failed`、`no_frame`、`aigc_not_readable`、`output_too_large` | 422 | 解不开；重封装失败；抽不出帧；写入的标识读不回；ffprobe 的输出超过 4MB | `rejected` |
 | `busy` | 503 | 两个在跑、32 个在排队，满了 | `unavailable` |
-| `killed` | 503 | 子进程被系统杀掉（多半是容器内存见底） | `unavailable` |
+| `killed` | 503 | 本调用已取消，或子进程被系统杀掉 | `unavailable` |
 | `timeout` | 504 | 到了硬超时，进程组已杀 | `unavailable` |
 | `internal` | 500 | 服务自己出错 | `unavailable` |
 
 - 硬超时：`probe`、`poster` 各 30 秒，`stampAigc` 90 秒（含回读）。请求里的 `timeoutMs` 只能把它调短，最小 1 秒。
 - ffmpeg 的输入参数（`ops.mjs` 的 `inputArgs`）：`-protocol_whitelist file`、`-f <解复用器>`、`mov` 另加 `-enable_drefs 0 -use_absolute_path 0`、`-probesize` 与 `-analyzeduration` 各 5,000,000；路径一律带 `file:` 前缀。ffmpeg 另带 `-nostdin`；ffprobe 没有这个选项，它的标准输入接的是空设备。
 - 加标参数：`-map 0 -c copy -metadata AIGC=<JSON> -movflags +faststart+use_metadata_tags -f mp4`。先写到 `<outPath>.part`，回读一致再改名；不一致就删掉并报 `aigc_not_readable`。
+
+请求取消仍走同一私有 UNIX 套接字，不新增平台 HTTP 接口。调用者为每次调用生成随机标识，服务在登记后发 `102` 注册确认；取消请求只认本服务实例和该标识。排队中的调用被移除；运行中的调用杀掉自己的进程组，并等到子进程 `close` 后才释放槽位、返回原响应或取消确认。重复取消不会影响兄弟调用。调用者沿原绝对期限等待任一路真实完成确认；两路都不能确认时返回不可用，保留该调用的工作目录，`close()` 也报告清理未确认，避免在 ffmpeg 仍使用文件时假装清理成功。硬超时、两个运行槽位、32 项队列及沙箱约束保持原值。
 
 ## 5. 调用端
 

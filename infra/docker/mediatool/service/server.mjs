@@ -9,6 +9,7 @@
 //   GET  /selfcheck  容器自查（见 selfcheck.mjs）
 // 没办成：{ ok: false, error: { code, message } }，HTTP 状态码 4xx / 5xx。
 // 路径只认共享目录 /work 下的相对路径；本服务不取任何远端内容。同时最多跑两个操作，其余排队。
+import { randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
@@ -24,8 +25,9 @@ import { selfcheck } from "./selfcheck.mjs";
 const CONCURRENCY = 2;
 const MAX_QUEUE = 32;
 const MAX_BODY_BYTES = 64 * 1024;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-/** @type {Record<string, (body: any) => Promise<object>>} */
+/** @type {Record<string, (body: any, signal?: AbortSignal) => Promise<object>>} */
 const OPS = {
   "/probe": probe,
   "/poster": poster,
@@ -41,26 +43,50 @@ function versionOf(bin) {
 const versions = { ffmpeg: versionOf("ffmpeg"), ffprobe: versionOf("ffprobe") };
 
 const stats = { running: 0, queued: 0, peakRunning: 0, completed: 0, failed: 0 };
-/** @type {(() => void)[]} */
+/** @type {{ grant: () => void, cancel: () => void }[]} */
 const waiting = [];
+const instanceId = randomUUID();
+/** Active operations only; bounded by the existing two slots plus 32 waiters. */
+/** @type {Map<string, {controller: AbortController, done: Promise<void>}>} */
+const calls = new Map();
+const cancelled = () => new RequestError("killed", "调用已取消", 503);
 
-/** 占一个并发名额；满了就排队，排队也满了就拒绝 */
-function acquire() {
+/** @param {AbortSignal} signal */
+function acquire(signal) {
+  if (signal.aborted) return Promise.reject(cancelled());
   if (stats.running < CONCURRENCY) {
     stats.running += 1;
     stats.peakRunning = Math.max(stats.peakRunning, stats.running);
     return Promise.resolve();
   }
   if (waiting.length >= MAX_QUEUE) throw new RequestError("busy", "排队已满，稍后再试", 503);
-  stats.queued = waiting.length + 1;
-  return new Promise((/** @type {(value?: undefined) => void} */ resolve) => waiting.push(resolve));
+  return new Promise((resolve, reject) => {
+    const detach = () => signal.removeEventListener("abort", ticket.cancel);
+    const ticket = {
+      grant: () => {
+        detach();
+        resolve(undefined);
+      },
+      cancel: () => {
+        const index = waiting.indexOf(ticket);
+        if (index === -1) return;
+        waiting.splice(index, 1);
+        stats.queued = waiting.length;
+        detach();
+        reject(cancelled());
+      },
+    };
+    waiting.push(ticket);
+    stats.queued = waiting.length;
+    signal.addEventListener("abort", ticket.cancel, { once: true });
+    if (signal.aborted) ticket.cancel();
+  });
 }
 
-/** 名额直接交给排在最前面的，没有人排队才释放 */
 function release() {
   const next = waiting.shift();
   stats.queued = waiting.length;
-  if (next) next();
+  if (next) next.grant();
   else stats.running -= 1;
 }
 
@@ -109,53 +135,118 @@ async function otherProcesses() {
   return procs;
 }
 
-/** @param {http.IncomingMessage} req */
-async function handle(req) {
+/** @param {http.IncomingMessage} req @param {http.ServerResponse} res @param {AbortController} controller */
+async function handle(req, res, controller) {
   if (req.method === "GET" && req.url === "/healthz") {
     const limits = { ...LIMITS, concurrency: CONCURRENCY, maxQueue: MAX_QUEUE };
     return { service: "mediatool", ...versions, limits, stats, procs: await otherProcesses() };
   }
   if (req.method === "GET" && req.url === "/selfcheck") return { sandbox: await selfcheck() };
+  if (req.method === "POST" && req.url === "/cancel") {
+    const body = await readBody(req);
+    if (
+      Object.keys(body).length !== 2 ||
+      body.instanceId !== instanceId ||
+      typeof body.requestId !== "string" ||
+      !UUID.test(body.requestId)
+    )
+      throw new RequestError("bad_request", "取消凭据不合规");
+    const call = calls.get(body.requestId);
+    if (call) {
+      call.controller.abort();
+      await call.done;
+    }
+    return { requestId: body.requestId, instanceId, done: true };
+  }
   const op = req.method === "POST" && req.url ? OPS[req.url] : undefined;
   if (!op) throw new RequestError("unknown_op", "没有这个操作", 404);
   const body = await readBody(req);
-  await acquire();
+  if (controller.signal.aborted) throw cancelled();
+  const requestId = req.headers["x-lyx-call-id"];
+  if (
+    requestId !== undefined &&
+    (typeof requestId !== "string" || !UUID.test(requestId) || calls.has(requestId))
+  )
+    throw new RequestError("bad_request", "调用标识不合规");
+  if (calls.size >= CONCURRENCY + MAX_QUEUE)
+    throw new RequestError("busy", "排队已满，稍后再试", 503);
+  /** @type {() => void} */
+  let done = () => undefined;
+  /** @type {Promise<void>} */
+  const completed = new Promise((resolve) => {
+    done = () => resolve();
+  });
+  let acquired = false;
   try {
-    return await op(body);
+    if (requestId) {
+      calls.set(requestId, { controller, done: completed });
+      // Registration precedes the acknowledgement, so cancellation needs no tombstone/retry.
+      res.writeInformation(102, { "x-lyx-call-id": requestId, "x-lyx-instance": instanceId });
+    }
+    await acquire(controller.signal);
+    acquired = true;
+    if (controller.signal.aborted) throw cancelled();
+    return await op(body, controller.signal);
   } finally {
-    release();
+    if (acquired) release();
+    if (requestId) calls.delete(requestId);
+    done();
   }
 }
 
 const server = http.createServer((req, res) => {
   const started = Date.now();
+  const controller = new AbortController();
+  const disconnected = () => {
+    if (!res.writableFinished) controller.abort();
+  };
+  res.on("close", disconnected);
+  req.on("error", disconnected);
   /** @param {number} status @param {object} payload */
   const send = (status, payload) => {
+    if (res.destroyed) return;
     const text = JSON.stringify(payload);
     res.writeHead(status, {
       "content-type": "application/json; charset=utf-8",
       "content-length": Buffer.byteLength(text),
+      "x-lyx-call-id":
+        typeof req.headers["x-lyx-call-id"] === "string" && UUID.test(req.headers["x-lyx-call-id"])
+          ? req.headers["x-lyx-call-id"]
+          : "",
+      "x-lyx-instance": instanceId,
+      "x-lyx-complete": "1",
     });
     res.end(text);
-    // 一次调用一行日志。容器里没有任何密钥，路径都在 /work 下
-    const line = { at: new Date().toISOString(), op: req.url, status, ms: Date.now() - started };
-    if (req.url !== "/healthz") console.log(JSON.stringify(line));
+    if (req.url !== "/healthz")
+      console.log(
+        JSON.stringify({
+          at: new Date().toISOString(),
+          op: req.url,
+          status,
+          ms: Date.now() - started,
+        }),
+      );
   };
-  handle(req).then(
-    (result) => {
-      stats.completed += 1;
-      send(200, { ok: true, ...result });
-    },
-    (err) => {
-      stats.failed += 1;
-      if (err instanceof RequestError) {
-        send(err.status, { ok: false, error: { code: err.code, message: err.message } });
-      } else {
-        console.error(err);
-        send(500, { ok: false, error: { code: "internal", message: "内部错误" } });
-      }
-    },
-  );
+  handle(req, res, controller)
+    .then(
+      (result) => {
+        stats.completed += 1;
+        send(200, { ok: true, ...result });
+      },
+      (err) => {
+        stats.failed += 1;
+        if (err instanceof RequestError)
+          send(err.status, { ok: false, error: { code: err.code, message: err.message } });
+        else {
+          console.error(err);
+          send(500, { ok: false, error: { code: "internal", message: "内部错误" } });
+        }
+      },
+    )
+    .finally(() => {
+      res.removeListener("close", disconnected);
+      req.removeListener("error", disconnected);
+    });
 });
 
 // 产物与套接字不给“其他人”权限（套接字的权限在建它的时候由 umask 定）：共享目录由同一个用户（或同组）的调用端读写
