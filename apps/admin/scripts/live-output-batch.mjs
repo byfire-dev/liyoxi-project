@@ -155,6 +155,12 @@ function fixtureFile(source, label) {
   return { path, size: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") };
 }
 async function buildApi(env) {
+  // Build the real document CPU worker before the private bundle replaces server.js.
+  await run(process.execPath, ["scripts/build.mjs", "--outdir", apiOut], env, {
+    cwd: join(ROOT, "apps/api"),
+  });
+  if (!existsSync(join(ROOT, "apps/api", apiOut, "document-converter.js")))
+    throw new Error("The actual document converter build artifact is missing");
   // Compile API-owned handlers with the real build constant. Workspace test helpers keep their
   // package-local dependency resolution through the existing tsx loader.
   const source = `
