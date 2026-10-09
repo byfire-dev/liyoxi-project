@@ -11,6 +11,7 @@ import { contextHash } from "../../media/production.js";
 import type { Runtime } from "../../runtime.js";
 import { createFactories } from "../data/factories/index.js";
 import type { AdminLiveFixture, AdminLiveFixtureContext } from "./context.js";
+import { W120PendingSchema } from "./w120-media.js";
 import {
   assertDeliveryLiveEnvironment,
   assertDeliveryScope,
@@ -137,6 +138,7 @@ export const OutputBatchLiveInputSchema = z.strictObject({
   legacy: DeliveryLiveScopeSchema,
   video: OutputBatchVideoInputSchema,
   resumeVideo: OutputBatchVideoInputSchema,
+  w120: W120PendingSchema.optional(),
 });
 export type OutputBatchLiveInput = z.infer<typeof OutputBatchLiveInputSchema>;
 
@@ -144,11 +146,17 @@ async function inputTargets(runtime: Runtime, input: OutputBatchLiveInput) {
   const actual = assertDeliveryLiveEnvironment(runtime.env);
   const { dramaId, ...currentScope } = input.current;
   for (const scope of [currentScope, input.legacy]) assertDeliveryScope(runtime.env, scope);
+  for (const pending of input.w120?.items ?? []) {
+    const { dramaId: ignored, ...scope } = pending.scope;
+    void ignored;
+    assertDeliveryScope(runtime.env, scope);
+  }
   return runtime.tx.run(async (tx) => {
     const rows = [];
     for (const [scope, expected] of [
       [input.current, 20],
       [input.legacy, 2],
+      ...(input.w120?.items.map((p) => [p.scope, 2] as const) ?? []),
     ] as const) {
       const item = await tx.orderItem.findUniqueOrThrow({
         where: { id: scope.itemId },
@@ -176,10 +184,13 @@ async function inputTargets(runtime: Runtime, input: OutputBatchLiveInput) {
         scope.runId !== actual.runId ||
         !item.drama.title.endsWith(`-${actual.runId}`)
       )
-        throw new Error("W302 input target does not belong to the exact two owned fixtures");
+        throw new Error("W302 input target does not belong to the exact owned fixtures");
       rows.push({ dramaId: item.dramaId, count: expected, staffId: uploader.id, scope });
     }
-    if (rows[0]?.dramaId !== dramaId || rows[0]?.dramaId === rows[1]?.dramaId)
+    if (
+      rows[0]?.dramaId !== dramaId ||
+      new Set(rows.map((row) => row.dramaId)).size !== rows.length
+    )
       throw new Error("W302 input dramas are inconsistent");
     return rows;
   });

@@ -14,6 +14,7 @@ import {
   consumeOutputBatchLiveChecked,
   prepareOutputBatchLiveMasters,
   findAgreementLiveUploadJobIds,
+  finishW120LiveFixture,
 } from "@liyoxi/services/testing";
 import type { OutputBatchLiveInput } from "@liyoxi/services/testing";
 import { createApp } from "../src/app.js";
@@ -102,6 +103,13 @@ export async function startOutputBatchLiveServer(options: {
         }),
       );
       const inputResults = await Promise.allSettled([masters?.cleanup()]);
+      const pngResults = await Promise.allSettled(
+        [...renderedPng.keys()].map(async (slot) => {
+          if (!slot.startsWith("media/ci-out/")) throw new Error("Rendered PNG ownership mismatch");
+          const result = await cos.storage.delete({ bucket: "media", key: slot.slice(6) });
+          if (!result.ok) throw new Error("Rendered PNG cleanup failed");
+        }),
+      );
       cloud?.close();
       renderedPng.clear();
       cos.close();
@@ -116,6 +124,7 @@ export async function startOutputBatchLiveServer(options: {
           ...agreementResults,
           ...serverResults,
           ...inputResults,
+          ...pngResults,
           ...runtimeResults,
           ...relayResults,
         ].some((r) => r.status === "rejected")
@@ -160,12 +169,19 @@ export async function startOutputBatchLiveServer(options: {
       storage: cos.storage,
       tools,
       relay,
-      storeIds: [inputs.current.storeId, inputs.legacy.storeId],
+      storeIds: [
+        inputs.current.storeId,
+        inputs.legacy.storeId,
+        ...(inputs.w120?.items.map((p) => p.scope.storeId) ?? []),
+      ],
       pngProof: (ref) => renderedPng.get(`${ref.bucket}/${ref.key}`),
     });
     const batch = createRuntime({ ...borrowed, env: batchEnv, mediaProductionTools: tools });
     runtimes.push(batch);
     masters = await prepareOutputBatchLiveMasters(batch, inputs);
+    const w120 = inputs.w120
+      ? await finishW120LiveFixture(batch, inputs.w120, inputs.video)
+      : undefined;
     const batchApi = createApp({ runtime: batch, handlers: HANDLERS });
     apis.push(batchApi);
     await runStartupChecks(batch.startupChecks);
@@ -289,6 +305,7 @@ export async function startOutputBatchLiveServer(options: {
       cos,
       stop,
       toolResources: relay.resources,
+      w120,
     };
   } catch (error) {
     await stop();
@@ -325,6 +342,7 @@ async function main() {
       apiOrigin: server.apiOrigin,
       cosOrigin: server.cosOrigin,
       toolResources: server.toolResources,
+      w120: server.w120,
     })}\n`,
   );
   for (const signal of ["SIGINT", "SIGTERM"] as const)

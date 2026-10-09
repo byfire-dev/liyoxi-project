@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import fc from "fast-check";
 import { ChecklistItemsSchema } from "@liyoxi/contract";
 import { uuidv7 } from "../kernel/index.js";
 import { useSeededDatabase } from "../testing/index.js";
@@ -296,5 +297,75 @@ describe("delivery.onProductionChecked真实当前事实", { timeout: 60_000 }, 
         where: { subjectId: s.sampleId, event: "sample.check_rejected" },
       }),
     ).toBe(1);
+  });
+  it("真实checked事件排列与重复不回退旧版本，只采用当前派生且不自动QC", async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.shuffledSubarray([0, 1, 2, 3], { minLength: 4, maxLength: 4 }),
+        async (order) => {
+          // Each round has its own valid DB facts; codec doubles never stand for native rendering.
+          const f = await setup(true),
+            old = await sample(f),
+            current = await sample(f);
+          const oldRow = await h.prisma.sample.findUniqueOrThrow({ where: { id: old.sampleId } });
+          expect(oldRow.status).toBe("superseded");
+          await h.probe(f.fileId);
+          const original = await h.checked(f.fileId),
+            task = await restamp(f.fileId);
+          await h.media.jobs.run({ jobId: task.id });
+          const completed = await h.prisma.mediaJob.findUniqueOrThrow({ where: { id: task.id } });
+          expect(completed.state).toBe("succeeded");
+          const derivedId = (completed.output as { fileId: string }).fileId;
+          await h.probe(derivedId);
+          const derived = await h.checked(derivedId);
+          const wrong = {
+            ...derived,
+            id: uuidv7(),
+            payload: { ...derived.payload, orderItemId: uuidv7() },
+          };
+          const events = [original, derived, derived, wrong];
+          const before = await h.tx.run((tx) => h.counts(tx, current.sampleId));
+          let adopted: typeof oldRow | undefined;
+          for (const index of order) {
+            await h.consume(events[index]!);
+            const now = await h.prisma.sample.findUniqueOrThrow({
+              where: { id: current.sampleId },
+            });
+            if (adopted) expect(now).toEqual(adopted);
+            if (index === 1 || index === 2) adopted = now;
+            expect(
+              await h.prisma.sample.findUniqueOrThrow({ where: { id: old.sampleId } }),
+            ).toEqual(oldRow);
+            expect(now).toMatchObject({
+              status: "uploaded",
+              uploadedByStaffId: f.editor.row.id,
+              qcRecordId: null,
+            });
+          }
+          expect(adopted).toMatchObject({ fileId: derivedId, durationMs: 60_000 });
+          expect(
+            await h.prisma.fileRef.count({
+              where: {
+                fileId: derivedId,
+                refType: "sample",
+                refId: current.sampleId,
+                state: "live",
+              },
+            }),
+          ).toBe(1);
+          expect(
+            await h.prisma.fileRef.findFirstOrThrow({
+              where: { fileId: f.fileId, refType: "sample", refId: current.sampleId },
+            }),
+          ).toMatchObject({
+            state: "released",
+            keepUntil: new Date(h.clock.now().getTime() + 30 * 86_400_000),
+          });
+          expect(await h.tx.run((tx) => h.counts(tx, current.sampleId))).toEqual(before);
+          expect(await h.prisma.qcRecord.count({ where: { targetId: current.sampleId } })).toBe(0);
+        },
+      ),
+      { numRuns: 8, endOnFailure: true },
+    );
   });
 });
