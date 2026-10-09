@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { uuidv7 } from "../../kernel/index.js";
 import { useSeededDatabase } from "../../testing/index.js";
-import { harness } from "../__fixtures__/harness.js";
-import type { Harness } from "../__fixtures__/harness.js";
+import { productionHarness as harness } from "../__fixtures__/production-tools.js";
+import type { ProductionHarness as Harness } from "../__fixtures__/production-tools.js";
 import { createDeliveryDownloads } from "./index.js";
 import { checks, meta, sampleReady, snapshot } from "./__fixtures__/harness.js";
 const db = useSeededDatabase("services");
@@ -10,7 +10,9 @@ let h: Harness;
 beforeAll(async () => {
   h = harness(await db.prisma());
 }, 120000);
-afterAll(() => h?.unbind());
+afterAll(async () => {
+  await h?.close();
+});
 async function pushReplacement(r: Awaited<ReturnType<typeof sampleReady>>) {
   // 合成修改写口属于M5；只造其合法已完成前置，不冒充该写口已实现。
   // 之后的新版本创建、独立QC与推送均走既有真实a用例，保留旧change_requested决定。
@@ -91,6 +93,7 @@ it("签名期间新版真实推送推进当前版，锁后拒绝旧地址且零a
   const downloads = createDeliveryDownloads({
     ...h.deps,
     media: {
+      ...h.media,
       signDeliveryDownload: async (input) => {
         signed++;
         const address = await h.media.signDeliveryDownload(input);

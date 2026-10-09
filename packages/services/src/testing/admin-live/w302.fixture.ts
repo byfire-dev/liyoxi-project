@@ -6,6 +6,8 @@ import { z } from "zod";
 import { DramaSnapshotSchema } from "@liyoxi/contract";
 import { addDays, calendarDate } from "@liyoxi/shared/time";
 import { uuidv7 } from "../../kernel/index.js";
+import type { Tx } from "../../kernel/index.js";
+import { contextHash } from "../../media/production.js";
 import type { Runtime } from "../../runtime.js";
 import { createFactories } from "../data/factories/index.js";
 import type { AdminLiveFixture, AdminLiveFixtureContext } from "./context.js";
@@ -296,6 +298,79 @@ export async function prepareOutputBatchLiveMasters(runtime: Runtime, raw: unkno
   }
 }
 
+/** Only this run's non-unknown manual inputs and their matching derived contexts. */
+async function legacyProductionFiles(tx: Tx, input: OutputBatchLiveInput) {
+  const scope = input.legacy;
+  const rows = await tx.productionRecord.findMany({
+    where: { orderItemId: scope.itemId, variant: "common", kind: { in: ["sample", "final"] } },
+    include: { file: true },
+    take: 100,
+  });
+  const roots = rows.filter(
+    (r) =>
+      r.source === "manual_upload" &&
+      r.derivedFromFileId === null &&
+      r.uploadedByStaffId === scope.uploaderId &&
+      r.file.uploadActorType === "staff" &&
+      r.file.uploadActorId === scope.uploaderId &&
+      r.file.uploadClient === "admin" &&
+      r.file.uploadBatchId === null &&
+      r.file.entityId === scope.entityId &&
+      r.file.storeId === scope.storeId &&
+      r.file.createdAt >= new Date(scope.startedAt) &&
+      ["sample", "final_1", "final_2"].some(
+        (a) => r.file.originalName === `${scope.runId}-${a}.mp4`,
+      ),
+  );
+  return rows.filter(
+    (r) =>
+      roots.includes(r) ||
+      roots.some(
+        (source) =>
+          r.derivedFromFileId === source.fileId &&
+          ["normalized", "restamped"].includes(r.source) &&
+          r.file.entityId === source.file.entityId &&
+          r.file.storeId === source.file.storeId &&
+          r.file.category === source.file.category &&
+          contextHash(r) === contextHash(source),
+      ),
+  );
+}
+/** Real outbox input, same registered subscriber and business idempotence; no delivery ACK is forged. */
+export async function consumeOutputBatchLiveChecked(runtime: Runtime, raw: unknown) {
+  const input = OutputBatchLiveInputSchema.parse(raw);
+  await inputTargets(runtime, input);
+  const subscriber = runtime.assembly.subscriber("delivery.onProductionChecked");
+  if (!subscriber) throw new Error("W307 checked subscriber is not registered");
+  const ids = await runtime.tx.run(async (tx) => {
+    const files = await legacyProductionFiles(tx, input);
+    return tx.outboxEvent.findMany({
+      where: {
+        eventType: "media.production.checked",
+        aggregateType: "production_record",
+        aggregateId: { in: files.map((f) => f.fileId) },
+        entityId: input.legacy.entityId,
+        storeId: input.legacy.storeId,
+        occurredAt: { gte: new Date(input.legacy.startedAt) },
+      },
+      orderBy: { seq: "asc" },
+      take: 100,
+      select: { id: true },
+    });
+  });
+  for (const { id } of ids)
+    await runtime.tx.run(async (tx) => {
+      const event = await tx.outboxEvent.findUniqueOrThrow({ where: { id } });
+      const files = await legacyProductionFiles(tx, input);
+      if (!files.some((f) => f.fileId === event.aggregateId)) return;
+      await subscriber.handle(tx, {
+        id: event.id,
+        type: event.eventType,
+        payload: event.payload as Readonly<Record<string, unknown>>,
+      });
+    });
+}
+
 /** Own test database, exact two targets; the production runner retains all claim/lease guards. */
 export async function findOutputBatchLiveJobIds(runtime: Runtime, raw: unknown) {
   const input = OutputBatchLiveInputSchema.parse(raw);
@@ -312,10 +387,11 @@ export async function findOutputBatchLiveJobIds(runtime: Runtime, raw: unknown) 
       },
       select: { id: true },
     });
+    const legacy = await legacyProductionFiles(tx, input);
     const jobs = await tx.mediaJob.findMany({
       where: {
         subjectType: "file_object",
-        subjectId: { in: files.map((f) => f.id) },
+        subjectId: { in: [...files.map((f) => f.id), ...legacy.map((f) => f.fileId)] },
         state: { in: ["queued", "running", "submitting", "submitted"] },
         nextRunAt: { lte: runtime.clock.now() },
       },

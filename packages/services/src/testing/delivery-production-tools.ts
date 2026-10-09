@@ -1,3 +1,4 @@
+import type { PrismaClient } from "@liyoxi/db";
 import { createHash } from "node:crypto";
 import { assertNotInTransaction, uuidv7 } from "../kernel/index.js";
 import type { Env } from "../kernel/index.js";
@@ -230,10 +231,12 @@ export async function finishDeliveryProductionForTest(
 ) {
   const jobId = await runtime.tx.run((tx) => runtime.media.enqueueProbe(tx, fileId));
   await runtime.media.jobs.run({ jobId });
-  const event = await runtime.db.prisma.outboxEvent.findFirstOrThrow({
-    where: { eventType: "media.production.checked", aggregateId: fileId },
-    orderBy: { id: "desc" },
-  });
+  const event = await runtime.tx.run((tx) =>
+    tx.outboxEvent.findFirstOrThrow({
+      where: { eventType: "media.production.checked", aggregateId: fileId },
+      orderBy: { id: "desc" },
+    }),
+  );
   const subscriber = runtime.assembly.subscriber("delivery.onProductionChecked");
   if (!subscriber) throw new TypeError("Delivery production subscriber is absent");
   await runtime.tx.run((tx) =>
@@ -244,9 +247,11 @@ export async function finishDeliveryProductionForTest(
     }),
   );
   if (watermark) {
-    const job = await runtime.db.prisma.mediaJob.findFirstOrThrow({
-      where: { subjectId: fileId, kind: "watermark_sample" },
-    });
+    const job = await runtime.tx.run((tx) =>
+      tx.mediaJob.findFirstOrThrow({
+        where: { subjectId: fileId, kind: "watermark_sample" },
+      }),
+    );
     await runtime.media.jobs.run({ jobId: job.id });
     clock.advance(5000);
     await runtime.media.jobs.run({ jobId: job.id });
@@ -255,10 +260,10 @@ export async function finishDeliveryProductionForTest(
 /** Master input fixture; its technical facts are produced by the real probe handler too. */
 export async function prepareDeliveryMasterForTest(
   runtime: Runtime,
+  prisma: PrismaClient,
   input: { dramaId: string; episodeNo: number; staffId: string },
 ) {
-  const prisma = runtime.db.prisma,
-    now = runtime.clock.now();
+  const now = runtime.clock.now();
   const old = await prisma.dramaEpisodeMaster.findFirst({
     where: { dramaId: input.dramaId, episodeNo: input.episodeNo, isCurrent: true },
   });
@@ -282,20 +287,31 @@ export async function prepareDeliveryMasterForTest(
   await prisma.fileObject.update({ where: { id: file.id }, data: { etag } });
   const jobId = await runtime.tx.run((tx) => runtime.media.enqueueProbe(tx, file.id));
   await runtime.media.jobs.run({ jobId });
-  return prisma.dramaEpisodeMaster.create({
-    data: {
-      id: uuidv7(),
-      dramaId: input.dramaId,
-      episodeNo: input.episodeNo,
-      revNo: 1,
+  return runtime.tx.run(async (tx) => {
+    const master = await tx.dramaEpisodeMaster.create({
+      data: {
+        id: uuidv7(),
+        dramaId: input.dramaId,
+        episodeNo: input.episodeNo,
+        revNo: 1,
+        fileId: file.id,
+        state: "ready",
+        isCurrent: true,
+        durationMs: 60_000,
+        createdByStaffId: input.staffId,
+        activatedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    await runtime.media.link(tx, {
       fileId: file.id,
-      state: "ready",
-      isCurrent: true,
-      durationMs: 60_000,
-      createdByStaffId: input.staffId,
-      activatedAt: now,
-      createdAt: now,
-      updatedAt: now,
-    },
+      entityId: null,
+      storeId: null,
+      refType: "drama_episode_master",
+      refId: master.id,
+      role: "main",
+    });
+    return master;
   });
 }

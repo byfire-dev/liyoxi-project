@@ -114,21 +114,32 @@ export function productionHarness(prisma: PrismaClient) {
       const etag = h.fake.storage.put({ bucket: "media", key: file.objectKey }, bytes, "video/mp4");
       await prisma.fileObject.update({ where: { id: file.id }, data: { etag } });
       await probe(file.id);
-      return prisma.dramaEpisodeMaster.create({
-        data: {
-          id: uuidv7(),
-          dramaId,
-          episodeNo,
-          revNo: 1,
+      return h.tx.run(async (tx) => {
+        const master = await tx.dramaEpisodeMaster.create({
+          data: {
+            id: uuidv7(),
+            dramaId,
+            episodeNo,
+            revNo: 1,
+            fileId: file.id,
+            state: "ready",
+            isCurrent: true,
+            durationMs: 60_000,
+            createdByStaffId: staffId,
+            activatedAt: h.clock.now(),
+            createdAt: h.clock.now(),
+            updatedAt: h.clock.now(),
+          },
+        });
+        await h.media.link(tx, {
           fileId: file.id,
-          state: "ready",
-          isCurrent: true,
-          durationMs: 60_000,
-          createdByStaffId: staffId,
-          activatedAt: h.clock.now(),
-          createdAt: h.clock.now(),
-          updatedAt: h.clock.now(),
-        },
+          entityId: null,
+          storeId: null,
+          refType: "drama_episode_master",
+          refId: master.id,
+          role: "main",
+        });
+        return master;
       });
     },
     async close() {

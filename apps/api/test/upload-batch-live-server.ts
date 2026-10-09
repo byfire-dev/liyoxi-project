@@ -10,6 +10,7 @@ import {
   createOutputBatchToolsForTest,
   OutputBatchLiveInputSchema,
   findOutputBatchLiveJobIds,
+  consumeOutputBatchLiveChecked,
   prepareOutputBatchLiveMasters,
 } from "@liyoxi/services/testing";
 import type { OutputBatchLiveInput } from "@liyoxi/services/testing";
@@ -18,6 +19,7 @@ import type { Api } from "../src/app.js";
 import { HANDLERS } from "../src/routes/index.js";
 import { createOutputBatchCosStorage } from "./upload-batch-live-cos.js";
 import { createOutputBatchMediaToolRelay } from "./upload-batch-live-mediatool.js";
+import { attachOutputBatchLiveCloud } from "./upload-batch-live-cloud.js";
 
 function assertScope(env: Env, prefix: string) {
   const database = new URL(env.DATABASE_URL),
@@ -45,7 +47,6 @@ export async function startOutputBatchLiveServer(options: {
   const inputs = OutputBatchLiveInputSchema.parse(options.inputs);
   if (inputs.current.runId !== runId || inputs.legacy.runId !== runId)
     throw new Error("W302 input scope differs from the exact database");
-  // The old sample is an M1 fixture. Only the batch runtime enables actual production tools.
   const { MEDIA_PRODUCTION: ignoredProduction, ...legacyEnv } = options.env;
   void ignoredProduction;
   const base: RuntimeOptions = {
@@ -64,11 +65,13 @@ export async function startOutputBatchLiveServer(options: {
   const borrowed = { ...base, providers: { ...harness.providers, storage: cos.storage } };
   const runtimes: ReturnType<typeof createRuntime>[] = [];
   const apis: Api[] = [];
+  const renderedPng = new Map<string, { sha256: string; size: number }>();
   let apiServer: ReturnType<typeof serve> | undefined,
     cosServer: ReturnType<typeof serve> | undefined;
   let interval: ReturnType<typeof setInterval> | undefined, pending: Promise<void> | undefined;
   let masters: Awaited<ReturnType<typeof prepareOutputBatchLiveMasters>> | undefined;
   let relay: Awaited<ReturnType<typeof createOutputBatchMediaToolRelay>> | undefined;
+  let cloud: ReturnType<typeof attachOutputBatchLiveCloud> | undefined;
   let stopped: Promise<void> | undefined;
   const stop = () =>
     (stopped ??= (async () => {
@@ -89,6 +92,8 @@ export async function startOutputBatchLiveServer(options: {
         }),
       );
       const inputResults = await Promise.allSettled([masters?.cleanup()]);
+      cloud?.close();
+      renderedPng.clear();
       cos.close();
       const runtimeResults: PromiseSettledResult<void>[] = [];
       // Reverse construction order preserves the previously bound live scope until it closes.
@@ -103,15 +108,13 @@ export async function startOutputBatchLiveServer(options: {
         throw new Error("W302 live resources did not fully close");
     })());
   try {
-    // Old single sample uses its actual M1 bridge, without W304 inspecting the 1s sample.
-    const legacy = createRuntime(borrowed);
-    runtimes.push(legacy);
     relay = await createOutputBatchMediaToolRelay({ runId, image: options.image });
     const tools = createOutputBatchToolsForTest({
       socketPath: relay.socketPath,
       workDir: relay.workDir,
       storage: cos.storage,
       rememberDerived: cos.rememberDerived,
+      rememberRenderedPng: (ref, proof) => renderedPng.set(`${ref.bucket}/${ref.key}`, proof),
       releaseDirectory: relay.releaseDirectory,
       bindAttempt: relay.bindAttempt,
     });
@@ -137,14 +140,19 @@ export async function startOutputBatchLiveServer(options: {
         },
       },
     };
+    cloud = attachOutputBatchLiveCloud({
+      media: harness.providers.media,
+      storage: cos.storage,
+      tools,
+      relay,
+      storeIds: [inputs.current.storeId, inputs.legacy.storeId],
+      pngProof: (ref) => renderedPng.get(`${ref.bucket}/${ref.key}`),
+    });
     const batch = createRuntime({ ...borrowed, env: batchEnv, mediaProductionTools: tools });
     runtimes.push(batch);
-    masters = await prepareOutputBatchLiveMasters(legacy, inputs);
-    const legacyApi = createApp({ runtime: legacy, handlers: HANDLERS });
-    apis.push(legacyApi);
+    masters = await prepareOutputBatchLiveMasters(batch, inputs);
     const batchApi = createApp({ runtime: batch, handlers: HANDLERS });
     apis.push(batchApi);
-    await runStartupChecks(legacy.startupChecks);
     await runStartupChecks(batch.startupChecks);
     const apiOrigin = await new Promise<string>((resolve) => {
       apiServer = serve(
@@ -152,13 +160,7 @@ export async function startOutputBatchLiveServer(options: {
           hostname: "127.0.0.1",
           port: 0,
           fetch: (request, env) => {
-            const path = new URL(request.url).pathname;
-            const api = /^\/api\/v1\/admin\/(?:upload-batches|upload-batch-items)(?:\/|$)/.test(
-              path,
-            )
-              ? batchApi
-              : legacyApi;
-            return api.app.fetch(request, env);
+            return batchApi.app.fetch(request, env);
           },
         },
         ({ port }) => resolve(`http://127.0.0.1:${port}`),
@@ -178,6 +180,7 @@ export async function startOutputBatchLiveServer(options: {
         .then(async (ids) => {
           for (let at = 0; at < ids.length; at += 2)
             await Promise.all(ids.slice(at, at + 2).map((jobId) => batch.media.promote({ jobId })));
+          await consumeOutputBatchLiveChecked(batch, inputs);
         })
         .catch((error: unknown) =>
           batch.logger.error(
@@ -192,7 +195,7 @@ export async function startOutputBatchLiveServer(options: {
     return {
       apiOrigin,
       cosOrigin,
-      runtime: legacy,
+      runtime: batch,
       batchRuntime: batch,
       harness,
       cos,

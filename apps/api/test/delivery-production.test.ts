@@ -141,7 +141,7 @@ beforeAll(async () => {
     });
   item = i.id;
   for (const episodeNo of [1, 2])
-    await prepareDeliveryMasterForTest(api.runtime, {
+    await prepareDeliveryMasterForTest(api.runtime, prisma, {
       dramaId: i.dramaId,
       episodeNo,
       staffId: editor.staff.id,
@@ -386,7 +386,7 @@ it("C18 播放开启时首次确认含真实签名播放地址且 no-store，重
       updatedAt: api.clock.now(),
     },
   });
-  await prepareDeliveryMasterForTest(api.runtime, {
+  await prepareDeliveryMasterForTest(api.runtime, prisma, {
     dramaId: i.dramaId,
     episodeNo: 1,
     staffId: editor.staff.id,

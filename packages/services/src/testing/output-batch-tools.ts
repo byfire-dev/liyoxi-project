@@ -17,13 +17,29 @@ export function createOutputBatchToolsForTest(options: {
   rememberDerived(source: Ref, destination: Ref): void;
   bindAttempt(directory: string, signal: AbortSignal): () => void;
   releaseDirectory(directory: string): Promise<void>;
+  rememberRenderedPng(ref: Ref, proof: { sha256: string; size: number }): void;
 }): ProductionMediaTools {
   const tools = createProductionMediaTools({
     ...options,
     beforeCall: () => assertNotInTransaction("mediatool"),
   });
+  const generatedPng = new Map<string, { sha256: string; size: number }>();
   return {
     ...tools,
+    client: {
+      ...tools.client,
+      watermarkPng: tools.client.watermarkPng
+        ? async (input) => {
+            const result = await tools.client.watermarkPng!(input);
+            if (result.ok)
+              generatedPng.set(input.outPath, {
+                sha256: result.value.sha256,
+                size: result.value.sizeBytes,
+              });
+            return result;
+          }
+        : undefined,
+    },
     workspace: {
       run: (job, signal, action) =>
         tools.workspace.run(job, signal, async (work) => {
@@ -37,10 +53,32 @@ export function createOutputBatchToolsForTest(options: {
               if (result.ok) source = { bucket: input.bucket, key: input.key };
               return result;
             },
-            publish(input) {
-              if (!source) throw new Error("W302 output lacks an actual downloaded source");
-              options.rememberDerived(source, input.dst);
-              return work.publish(input);
+            async publish(input) {
+              if (!source) {
+                const proof = generatedPng.get(work.path("watermark.png"));
+                const digest = /^ci-out\/[0-9a-f-]{36}\/watermark-([a-f0-9]{64})\.png$/.exec(
+                  input.dst.key,
+                )?.[1];
+                if (
+                  input.name !== "watermark.png" ||
+                  input.dst.bucket !== "media" ||
+                  !input.dst.key.startsWith(`ci-out/${job.id}/`) ||
+                  !proof ||
+                  proof.sha256 !== input.expectedSha256 ||
+                  proof.size !== input.expectedSize ||
+                  digest !== input.contentIdentity
+                )
+                  throw new Error(
+                    "W302 output lacks an actual downloaded source or exact rendered PNG proof",
+                  );
+              } else options.rememberDerived(source, input.dst);
+              const result = await work.publish(input);
+              if (result.ok && input.name === "watermark.png")
+                options.rememberRenderedPng(input.dst, {
+                  sha256: result.value.sha256,
+                  size: result.value.size,
+                });
+              return result;
             },
           };
           try {
@@ -49,6 +87,7 @@ export function createOutputBatchToolsForTest(options: {
             try {
               await options.releaseDirectory(directory);
             } finally {
+              generatedPng.delete(work.path("watermark.png"));
               unbind();
             }
           }

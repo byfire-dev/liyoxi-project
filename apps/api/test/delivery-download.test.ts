@@ -270,7 +270,7 @@ async function checks(code: string) {
 }
 async function knownFile(category: "sample_video" | "final_episode", episodeNo: number) {
   const item = await prisma.orderItem.findUniqueOrThrow({ where: { id: itemId } });
-  await prepareDeliveryMasterForTest(api.runtime, {
+  await prepareDeliveryMasterForTest(api.runtime, prisma, {
     dramaId: item.dramaId,
     episodeNo,
     staffId: admin.staff.id,

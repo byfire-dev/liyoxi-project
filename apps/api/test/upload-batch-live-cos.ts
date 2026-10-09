@@ -115,10 +115,9 @@ export function createOutputBatchCosStorage(options: {
   return {
     storage,
     requests: () => requests.map((r) => ({ ...r })),
-    /** A derived destination may be registered only from an already owned source object. */
+    /** Actual workspace downloads establish provenance. Real MinIO inputs retain real outputs. */
     rememberDerived(source: Ref, destination: Ref) {
-      if (!owned.has(slot(source))) throw new Error("Derived fixture lacks owned provenance");
-      owned.add(slot(destination));
+      if (owned.has(slot(source))) owned.add(slot(destination));
     },
     close() {
       closed = true;

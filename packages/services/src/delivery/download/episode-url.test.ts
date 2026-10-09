@@ -4,8 +4,8 @@ import { endOfDay } from "@liyoxi/shared/time";
 import { assembleForTest, useSeededDatabase } from "../../testing/index.js";
 import { defineRegistration, implement, trackPort } from "../../kernel/index.js";
 import type { TrackEvent } from "../../kernel/index.js";
-import { harness } from "../__fixtures__/harness.js";
-import type { Harness } from "../__fixtures__/harness.js";
+import { productionHarness as harness } from "../__fixtures__/production-tools.js";
+import type { ProductionHarness as Harness } from "../__fixtures__/production-tools.js";
 import { createDeliveryDownloads } from "./index.js";
 import { meta, packageReady, snapshot } from "./__fixtures__/harness.js";
 const db = useSeededDatabase("services");
@@ -13,7 +13,9 @@ let h: Harness;
 beforeAll(async () => {
   h = harness(await db.prisma());
 }, 120000);
-afterAll(() => h?.unbind());
+afterAll(async () => {
+  await h?.close();
+});
 it("三次签发三条独立下载行、样片首集900秒、同日去重键一致/次日不同，零状态事件", async () => {
   const r = await packageReady(h),
     tracks: TrackEvent[] = [];
@@ -207,6 +209,7 @@ it("签后授权撤销或文件失效/事务收尾失败，零日志且地址不
   const fail = createDeliveryDownloads({
     ...h.deps,
     media: {
+      ...h.media,
       signDeliveryDownload: async () => {
         throw new Error("虚构签名器故障");
       },
@@ -217,6 +220,7 @@ it("签后授权撤销或文件失效/事务收尾失败，零日志且地址不
   const changed = createDeliveryDownloads({
     ...h.deps,
     media: {
+      ...h.media,
       signDeliveryDownload: async (input) => {
         const signed = await h.media.signDeliveryDownload(input);
         await h.prisma.downloadGrant.update({
@@ -238,6 +242,7 @@ it("签后授权撤销或文件失效/事务收尾失败，零日志且地址不
   const blockedFile = createDeliveryDownloads({
     ...h.deps,
     media: {
+      ...h.media,
       signDeliveryDownload: async (input) => {
         const signed = await h.media.signDeliveryDownload(input);
         await h.prisma.fileObject.update({

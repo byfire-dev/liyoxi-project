@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { DownloadUrlSchema } from "@liyoxi/contract";
 import { useSeededDatabase } from "../../testing/index.js";
-import { harness } from "../__fixtures__/harness.js";
-import type { Harness } from "../__fixtures__/harness.js";
+import { productionHarness as harness } from "../__fixtures__/production-tools.js";
+import type { ProductionHarness as Harness } from "../__fixtures__/production-tools.js";
 import { createDeliveryDownloads } from "./index.js";
 import { meta, sampleReady, snapshot } from "./__fixtures__/harness.js";
 const db = useSeededDatabase("services");
@@ -10,7 +10,9 @@ let h: Harness;
 beforeAll(async () => {
   h = harness(await db.prisma());
 }, 120000);
-afterAll(() => h?.unbind());
+afterAll(async () => {
+  await h?.close();
+});
 it("真实上传/质检/推送后，签发两次各留访问证据，首次时间不覆盖且原a确认可消费", async () => {
   const r = await sampleReady(h),
     { o, sample, a, downloads } = r;
@@ -117,6 +119,7 @@ it("Provider失败和证据事务失败均零业务写，签名在业务事务�
       },
     },
     media: {
+      ...h.media,
       signDeliveryDownload: async (input) => {
         expect(active).toBe(false);
         return h.media.signDeliveryDownload(input);
@@ -134,6 +137,7 @@ it("签后文件失效/撤销老板角色与门店归档均拒绝，旧版或pla
   const invalidated = createDeliveryDownloads({
     ...h.deps,
     media: {
+      ...h.media,
       signDeliveryDownload: async (input) => {
         const signed = await h.media.signDeliveryDownload(input);
         await h.prisma.fileObject.update({
@@ -152,6 +156,7 @@ it("签后文件失效/撤销老板角色与门店归档均拒绝，旧版或pla
   const revoked = createDeliveryDownloads({
     ...h.deps,
     media: {
+      ...h.media,
       signDeliveryDownload: async (input) => {
         const signed = await h.media.signDeliveryDownload(input);
         await h.prisma.entityMember.update({

@@ -89,6 +89,7 @@ export {
   createOutputBatchLiveFixture,
   prepareOutputBatchLiveMasters,
   findOutputBatchLiveJobIds,
+  consumeOutputBatchLiveChecked,
   OutputBatchLiveInputSchema,
 } from "./admin-live/w302.fixture.js";
 export type { OutputBatchLiveInput } from "./admin-live/w302.fixture.js";
