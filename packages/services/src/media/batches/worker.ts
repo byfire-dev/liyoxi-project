@@ -3,7 +3,7 @@ import { AppError } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
 import type { BoundMediaDeps } from "../context.js";
 import { link, release } from "../refs.js";
-import { batchOf, categoryOfBatch, convergeBatch } from "./helpers.js";
+import { batchOf, categoryOfBatch, convergeBatch, lockBatchRecords } from "./helpers.js";
 
 /** The job runner holds production360, batch380, job400 and every changed file410. */
 async function activeFile(tx: Tx, batchId: string, fileId: string, now: Date) {
@@ -77,6 +77,7 @@ export function createBatchWorkerHooks(deps: BoundMediaDeps) {
     role: "main",
   });
   return {
+    lockSiblings: lockBatchRecords,
     needsJob: async (tx: Tx, input: { batchId: string; fileId: string }) =>
       (await activeFile(tx, input.batchId, input.fileId, deps.clock.now())) !== null,
     converge: async (tx: Tx, batchId: string) => {
@@ -130,6 +131,7 @@ export function createBatchWorkerHooks(deps: BoundMediaDeps) {
       if (
         current.file.status !== "stored" ||
         check?.gate !== input.gate ||
+        check.profile !== (current.batch.purpose === "drama_master" ? "master" : "final") ||
         (current.record?.derivedFromFileId ?? null) !== input.derivedFromFileId ||
         (input.gate === "pass" &&
           current.record &&

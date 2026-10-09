@@ -17,6 +17,8 @@ import {
 } from "../../testing/index.js";
 import { createMedia } from "../index.js";
 import type { Media, MediaActor } from "../index.js";
+import { fileCategoryGuardPort, fileRefTypePort } from "../ports.js";
+import { createBatchWorkerHooks } from "./worker.js";
 
 export const MP4_HEADER = new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112]);
 export const batchDraft = (name: string, token = uuidv7()) => ({
@@ -80,5 +82,14 @@ export async function batchHarness(prisma: PrismaClient) {
     const draft = body(files, scope);
     return media.uploadBatches.create(actor, draft, options("create", draft, key));
   };
-  return { prisma, clock, make, tx, fake, media, actor, drama, body, options, create };
+  const worker = createBatchWorkerHooks({
+    tx,
+    clock,
+    assembly,
+    events,
+    storage: fake.storage,
+    refTypes: assembly.portEntries(fileRefTypePort),
+    guards: assembly.portEntries(fileCategoryGuardPort),
+  });
+  return { prisma, clock, make, tx, fake, media, worker, actor, drama, body, options, create };
 }

@@ -26,6 +26,7 @@ const prefix = `lyx:test:admin_live_${id}:`,
 const appOut = `dist/admin-live-${id}`,
   stateFile = join(temporary, "state.json");
 const contextFile = join(temporary, "context.json"),
+  inputFile = join(temporary, "media-input.json"),
   children = new Set();
 const logs = join(ADMIN, "dist/e2e-live-logs");
 let proxy,
@@ -159,6 +160,8 @@ function startApi(env) {
       join(ROOT, "apps/api/test/upload-batch-live-server.ts"),
       "--test-redis-prefix",
       prefix,
+      "--input-manifest",
+      inputFile,
     ],
     env,
   );
@@ -281,7 +284,11 @@ async function main() {
   )
     throw new Error("W302 live requires Node24 (or nightly Node26) and APP_ENV=test");
   const { values } = parseArgs({
-    options: { video: { type: "string" }, "resume-video": { type: "string" } },
+    options: {
+      video: { type: "string" },
+      "resume-video": { type: "string" },
+      "probe-facts": { type: "string" },
+    },
   });
   const original = localUrl("DATABASE_URL", ["postgres:", "postgresql:"]);
   const redis = localUrl("REDIS_URL", ["redis:"]);
@@ -307,8 +314,29 @@ async function main() {
   try {
     const video = fixtureFile(values.video, "video"),
       resumeVideo = fixtureFile(values["resume-video"], "resume-video");
-    if (resumeVideo.size <= 8 * 1024 * 1024)
-      throw new Error("The legal resume fixture must exceed the unchanged 8MiB chunk size");
+    if (resumeVideo.size <= 20 * 1024 * 1024)
+      throw new Error(
+        "The legal resume fixture must exceed the unchanged 20MiB multipart threshold",
+      );
+    if (!values["probe-facts"])
+      throw new Error("--probe-facts requires actual verified two-video probe JSON");
+    const probePath = realpathSync(values["probe-facts"]);
+    if (!probePath.startsWith("/private/tmp/lyx-w302-") && !probePath.startsWith("/tmp/lyx-w302-"))
+      throw new Error("Probe facts must be an owned W302 file");
+    const facts = JSON.parse(readFileSync(probePath, "utf8"));
+    for (const [actual, expected] of [
+      [video, facts.video],
+      [resumeVideo, facts.resumeVideo],
+    ]) {
+      if (
+        !expected ||
+        actual.size !== expected.size ||
+        actual.sha256 !== expected.sha256 ||
+        !expected.probe
+      )
+        throw new Error("Actual video bytes differ from their verified probe facts");
+      actual.probe = expected.probe;
+    }
     databaseRequested = true;
     console.log(`W302 live owned database ${name}; Redis ${prefix}`);
     await run("pnpm", ["test:db:seeded", "--name", name], baseEnv);
@@ -336,6 +364,11 @@ async function main() {
         testEnv,
         { capture: true },
       ),
+    );
+    writeFileSync(
+      inputFile,
+      `${JSON.stringify({ current: fixtures.fixtures.w302.scope, legacy: fixtures.fixtures["zz-delivery-flow"].scope, video, resumeVideo })}\n`,
+      { mode: 0o600 },
     );
     await run(
       "pnpm",

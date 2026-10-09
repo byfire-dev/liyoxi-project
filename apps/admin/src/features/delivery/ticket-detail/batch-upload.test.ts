@@ -20,7 +20,7 @@ function setup(count = 1) {
     start: vi.fn(async () => batch),
     refresh: vi.fn(async () => batchCredentials()),
     update: vi.fn(async () => batch),
-    complete: vi.fn(async (id) => {
+    complete: vi.fn(async (id): Promise<Awaited<ReturnType<BatchApi["complete"]>>> => {
       const item = batch.items.find((row) => row.uploadBatchItemId === id);
       if (!item) throw new Error("fixture item missing");
       return { ...item, fileStatus: "stored", state: "uploaded" };

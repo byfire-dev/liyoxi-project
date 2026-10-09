@@ -4,7 +4,7 @@ import { FormField } from "../../../components/FormField";
 import { UploadField } from "../../../components/UploadField";
 import { Can } from "../../../lib/permissions";
 import type { DetailApi, FileBody, Ticket } from "./api";
-import { BatchUploadModal } from "./batch-upload";
+import { BatchUploadModal } from "./batch-upload-modal";
 import { createProductionUpload, productionUploadRule } from "./upload";
 import { useDeliveryWrite } from "./write";
 type AiUsage = NonNullable<FileBody["production"]>["aiUsage"];

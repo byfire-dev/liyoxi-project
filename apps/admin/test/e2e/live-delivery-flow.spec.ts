@@ -214,12 +214,18 @@ test("交付真实主路径：分配/方案确认/两人样片质检/保存留�
     const episodes = page.getByRole("dialog", { name: "登记成片", exact: true });
     const batchContext = liveContext().fixtures as {
       w302BridgeOrigin: string;
-      fixtures: { w302: { video: { path: string; sha256: string; size: number } } };
+      fixtures: {
+        w302: {
+          video: { path: string; sha256: string; size: number; probe: { durationMs: number } };
+        };
+      };
     };
     const bridgeOrigin = new URL(batchContext.w302BridgeOrigin);
     expect(bridgeOrigin.protocol).toBe("http:");
     expect(bridgeOrigin.hostname).toBe("127.0.0.1");
     const rawVideo = readFileSync(batchContext.fixtures.w302.video.path);
+    expect(batchContext.fixtures.w302.video.probe.durationMs).toBeGreaterThanOrEqual(20_000);
+    expect(batchContext.fixtures.w302.video.probe.durationMs).toBeLessThan(1_200_000);
     expect(rawVideo.length).toBe(batchContext.fixtures.w302.video.size);
     expect(createHash("sha256").update(rawVideo).digest("hex")).toBe(
       batchContext.fixtures.w302.video.sha256,
@@ -325,8 +331,8 @@ test("交付真实主路径：分配/方案确认/两人样片质检/保存留�
         ],
       ),
     ).toEqual([
-      [1000, manager.id],
-      [1000, manager.id],
+      [batchContext.fixtures.w302.video.probe.durationMs, manager.id],
+      [batchContext.fixtures.w302.video.probe.durationMs, manager.id],
     ]);
     await expect(managerPage.getByRole("button", { name: "推送成片包", exact: true })).toHaveCount(
       0,

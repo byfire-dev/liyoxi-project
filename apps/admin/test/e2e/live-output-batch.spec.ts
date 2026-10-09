@@ -71,7 +71,7 @@ test("真实20集批次：服务器总数/人工顺序/刷新续传/体检ready/
   test.setTimeout(180_000);
   const f = fixture(),
     errors = recordErrors(page);
-  expect(f.resumeVideo.size).toBeGreaterThan(8 * 1024 * 1024);
+  expect(f.resumeVideo.size).toBeGreaterThan(20 * 1024 * 1024);
   let holdParts = false;
   let release!: (continueRequest: boolean) => void;
   let held = Promise.resolve(true);

@@ -237,7 +237,12 @@ export function BatchUploadModal({ ticket, api, onClose, onRefresh }: Props) {
       createBatchSession({
         api: api.batches,
         targetId: ticket.orderItemId,
-        fileStatus: api.fileStatus,
+        fileStatus: async (id, signal) => {
+          const file = await api.fileStatus(id, signal);
+          if (file.fileId !== id || typeof file.status !== "string")
+            throw new Error("文件状态响应不合格");
+          return { fileId: file.fileId, status: file.status };
+        },
       }),
     [api, ticket.orderItemId],
   );

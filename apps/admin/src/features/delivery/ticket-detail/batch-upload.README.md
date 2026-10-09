@@ -12,4 +12,11 @@ W3-02 在既有“登记成片”弹层内选择多个视频、读取服务器�
 
 当前测试使用虚构服务端 DTO、原中央客户端及受控 COS 假 HTTP；不包含真实云凭据、外部上传或平台到达结论。完整 W3-02 的 20 集实际 worker→体检→ready→交付消费证据由同包集成验收提供；本叶不能用 fixture ready 计作该全链通过。
 
-本包私有完整 live 入口为 `node apps/admin/scripts/live-output-batch.mjs --video <已验证的合法标准视频.mp4> --resume-video <已验证且大于8MiB的合法视频.mp4>`。它建立本轮测试库/Redis 前缀，使用生产 handlers 和完整 middleware；只在 Provider HTTP 边界接本机假 COS，实际分片拼接写同 scope 的 FakeStorage，旧样片与签读保存保留真实本机 MinIO。旧制作 live 的两个成片改走真实批次，原 QC、包质检与样片保存断言保留；新 case 核服务器 20 集、人工顺序、实际已存 part 的跨刷新恢复、真实体检 ready 和交付消费。通用 live 脚本没有这个边界，不能把其默认运行与本私有入口混称。这里是验收源与装配设计，实际 W3-04 处理器、合法媒体、完整 live 结果仍待同包集成后记录；没有直接写 mediaInfo/check/ready 的支撑。
+本包私有完整 live 入口为 `node apps/admin/scripts/live-output-batch.mjs --video <已验证的合法标准视频.mp4> --resume-video <已验证且大于20MiB的合法视频.mp4> --probe-facts </tmp/lyx-w302-本轮真实探测.json>`。它建立本轮测试库/Redis 前缀，使用生产 handlers 和完整 middleware；只在 Provider HTTP 边界接本机假 COS，实际分片拼接写同 scope 的 FakeStorage，旧样片与签读保存保留真实本机 MinIO。旧制作 live 的两个成片改走真实批次，原 QC、包质检与样片保存断言保留；新 case 核服务器 20 集、人工顺序、实际已存 part 的跨刷新恢复、真实体检 ready 和交付消费。通用 live 脚本没有这个边界，不能把其默认运行与本私有入口混称。这里是验收源与装配设计，实际 W3-04 处理器、合法媒体、完整 live 结果仍待同包集成后记录；没有直接写最终成片 mediaInfo/check/job/ready 的支撑。
+
+
+私有验收的两份成片必须真实满足 20 秒≤时长<20分钟、9:16且至少720×1280、H.264 High/Main、单条AAC音轨；续传片真实大于20MiB，跨过既有multipart阈值；真实编码字节不得padding，8MiB分片/四分片并发不变。`--probe-facts` 明确提供 `{video:{size,sha256,probe},resumeVideo:{size,sha256,probe}}`，probe为已记录实际ffprobe映射的完整媒体事实；服务端支撑核对本轮绝对路径及字节hash/size。输入母片仅补两实际scope（新20集、旧2集）的已存在版权原片事实，真实PUT到本机MinIO、记录输入探测结果并登记引用。这个fixture不替最终上传文件做体检，不直接写最终ready；不把它计作W304 worker验证。
+
+旧single sample的17947字节、1秒及签读/保存证据保留原无production工具的Runtime；批次八接口使用独立配置实际W304工具的Runtime。两者借同一本机对象存储但各自拥有业务装配；私有pump仅按本轮两个真实target的batch文件查due jobId，再经原`media.promote({jobId})`执行全部正式租约/守卫/收尾，每15秒一轮、每轮最多原20个due IDs且每2个一组等真实执行完成，从不调用全库scan/busy-scan、不推进业务时钟或放宽60秒ready断言。旧两集成片时长投影使用真实20秒夹具探测值，其余QC/包/保存断言不变。W304实际public工具未装配时私有server明确拒绝启动，不能将仅写好验收源称完整链路已过。派生任务归属仍须上游actualmain接线时核对。
+
+母片提交只发正式`drama.masters_changed`事件；未来W3-09拥有`content.onMastersChanged`回填消费者。本包输入fixture可据真实已存在母片时长补其episode输入，不在生产提前实现未来subscriber。
