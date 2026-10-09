@@ -635,6 +635,28 @@ it("manual-null uses the original snapshot; explicit full deduction is real qty-
   expect(first).toMatchObject({ needsManualDeduct: true });
   expect(first.lines[0]).toMatchObject({ ratioBp: null, isManualDeduct: true, deductPoints: 0 });
   const amount = o.items[0]!.chargePoints;
+  await expect(
+    h.tx.run((tx) =>
+      quoteOrderCancel(
+        tx,
+        {
+          scope: SYSTEM_SCOPE,
+          orderId: o.out.orderId,
+          body: {
+            reasonCode: "merchant_request",
+            manualDeducts: [
+              {
+                orderItemId: o.items[0]!.id.toUpperCase(),
+                deductPoints: amount,
+                deductNote: "依据",
+              },
+            ],
+          },
+        },
+        h.clock.now(),
+      ),
+    ),
+  ).rejects.toThrow("小写");
   const q = await h.tx.run((tx) =>
     quoteOrderCancel(
       tx,
@@ -645,7 +667,7 @@ it("manual-null uses the original snapshot; explicit full deduction is real qty-
           reasonCode: "merchant_request",
           manualDeducts: [
             {
-              orderItemId: o.items[0]!.id.toUpperCase(),
+              orderItemId: o.items[0]!.id,
               deductPoints: amount,
               deductNote: "制作成本依据",
             },
@@ -812,7 +834,12 @@ it("state advancement and pointer removal fail visibly", async () => {
   expect((await check(r)).diffs.some((d) => d.field === "stepAtSubmit")).toBe(true);
   await h.prisma.dramaOrder.update({
     where: { id: o.out.orderId },
-    data: { status: "producing", subStatus: "sample_making", openCancelRequestId: null },
+    data: {
+      status: "producing",
+      subStatus: "sample_making",
+      startedAt: h.clock.now(),
+      openCancelRequestId: null,
+    },
   });
   expect((await check(r)).diffs.some((d) => d.field === "openCancelRequestId")).toBe(true);
 });
