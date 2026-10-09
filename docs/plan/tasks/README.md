@@ -229,7 +229,7 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 
 | 接收方 | 实际范围与接入要求 |
 | --- | --- |
-| W2-30 | 两新页 system.roles、approval.mine，旧 system.staff/shell.user_menu 不重复计页；原纯测 89、样例 16、同轮完整 live 31 及最终类型/门禁通过，12 图与日期键盘证据见 W2-06 状态和交接，交接时尚待独立审查及实际 main 合流。保持真实 actions/权限交集、版本冲突重新核对、在办确认与一次性码清理。 |
+| W2-30 | 两新页 system.roles、approval.mine，旧 system.staff/shell.user_menu 不重复计页；原纯测 89、样例 16、完整 live 31 及类型/门禁通过。唯一正式审查 534.498 秒的原 0 P1/2 P2/0 D 保留，两项作者定点闭环后原 31+新增焦点/CAS 例同轮 32/32 通过；真实 Modal 新 12 图及旧证据分别保留，交接时待实际 main 合流。保持真实 actions/权限交集、打开快照的版本冲突重新核对、在办确认与一次性码清理；限定 visibility 探针与物理切窗/有头未验边界见 W2-06 状态。 |
 | W4-18、W4-20 拆出的 M5 页面包 | 在既有 `/approvals` 追加实际注册类型与领域授权入口。当前 finance_config_change 五资源无 schema/handler，保持只读详情；未来未落地类型不作占位菜单或通用执行动作。 |
 
 ## 6. 任务书加的前置（计划依赖列没有）
