@@ -613,4 +613,99 @@ describe("统一媒体事实执行器", { timeout: 30_000 }, () => {
     await jobs.pause();
     await resumed;
   });
+  it("在途父needed失效但handler.current仍true时取消且不覆盖父赢家", async () => {
+    const p = await parent(),
+      row = await job({ parentType: "playable_asset", parentId: p.id });
+    let release!: () => void,
+      entered = false;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const successFinish = vi.fn();
+    const jobs = runner(
+      handler({
+        execute: async () => {
+          entered = true;
+          await held;
+          return success();
+        },
+        finish: async (_t, _job, outcome) => {
+          if (outcome.state === "succeeded") successFinish();
+        },
+      }),
+      {
+        convergenceHandlers: [
+          {
+            parentType: "playable_asset",
+            needed: async (t, j) =>
+              (await t.playableAsset.findUniqueOrThrow({ where: { id: j.parentId! } })).state ===
+              "processing",
+            converge: async () => {},
+          },
+        ],
+      },
+    );
+    const call = jobs.run({ jobId: row.id });
+    try {
+      await vi.waitFor(() => expect(entered).toBe(true));
+      expect((await db.mediaJob.findUniqueOrThrow({ where: { id: row.id } })).state).toBe(
+        "running",
+      );
+      const winner = await db.playableAsset.update({
+        where: { id: p.id },
+        data: { state: "ready", readyAt: clock.now(), updatedAt: clock.now() },
+      });
+      release();
+      await call;
+      expect(await db.mediaJob.findUniqueOrThrow({ where: { id: row.id } })).toMatchObject({
+        state: "canceled",
+        output: null,
+        leaseOwner: null,
+      });
+      expect(successFinish).not.toHaveBeenCalled();
+      expect(await db.playableAsset.findUniqueOrThrow({ where: { id: p.id } })).toEqual(winner);
+    } finally {
+      release();
+      await call;
+    }
+  });
+  it("deadline过期父needed已失效而current仍true时取消而非失败副作用", async () => {
+    const p = await parent();
+    const row = await job({
+      parentType: "playable_asset",
+      parentId: p.id,
+      deadlineAt: new Date(clock.now().getTime() - 1),
+    });
+    const failedFinish = vi.fn();
+    const jobs = runner(
+      handler({
+        finish: async (_t, _j, outcome) => {
+          if (outcome.state === "failed") failedFinish();
+        },
+      }),
+      {
+        convergenceHandlers: [
+          {
+            parentType: "playable_asset",
+            needed: async (t, j) =>
+              (await t.playableAsset.findUniqueOrThrow({ where: { id: j.parentId! } })).state ===
+              "processing",
+            converge: async () => {},
+          },
+        ],
+      },
+    );
+    const winner = await db.playableAsset.update({
+      where: { id: p.id },
+      data: { state: "ready", readyAt: clock.now(), updatedAt: clock.now() },
+    });
+    expect(await tx.run((t) => jobs.expire(t, row.id, clock.now()))).toBe(true);
+    expect(await db.mediaJob.findUniqueOrThrow({ where: { id: row.id } })).toMatchObject({
+      state: "canceled",
+      errorCode: null,
+      leaseOwner: null,
+    });
+    expect(failedFinish).not.toHaveBeenCalled();
+    expect(await db.playableAsset.findUniqueOrThrow({ where: { id: p.id } })).toEqual(winner);
+  });
 });

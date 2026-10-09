@@ -6,7 +6,7 @@ import {
   createIdentityContext,
   uuidv7,
 } from "@liyoxi/services";
-import type { Env } from "@liyoxi/services";
+import type { Env, QueueChannel } from "@liyoxi/services";
 import {
   assembleForTest,
   createClock,
@@ -58,7 +58,7 @@ async function close(one: ReturnType<typeof buildWorkerServices>) {
   one.closePublish?.();
   one.closeDelivery?.();
   one.closeWebhooks?.();
-  one.closeAnalytics?.();
+  await one.closeAnalytics?.();
   await Promise.all([one.closeMediaDrivers?.(), one.closeStorageDrivers?.()]);
 }
 afterEach(async () => {
@@ -149,7 +149,7 @@ describe("W303真实worker媒体装配与恢复", () => {
     expect(DOMAIN_LOOPS.filter((one) => one.name === "media_job_run")).toHaveLength(1);
     expect(runtime.domainLoops["media_job_run"]?.intervalMs).toBe(15_000);
     expect(QUEUE_CONCURRENCY.media_job).toBe(10);
-    expect(runtime.consumers).not.toHaveProperty("promote");
+    expect(runtime.consumers).toHaveProperty("promote");
     const make = createFactories({ db: prisma, clock }),
       user = await make.merchantUser(),
       entity = await make.entity({ createdByUserId: user.id }),
@@ -220,5 +220,36 @@ describe("W303真实worker媒体装配与恢复", () => {
       await runtime.stop();
       await media.jobs.shutdown();
     }
+  });
+  it("遗留promote仅转入canonical队列；坏载荷与转发失败不吞错且关闭所有消费者", async () => {
+    const services = build();
+    const handlers = new Map<string, (raw: unknown) => Promise<unknown>>();
+    const close = vi.fn(async () => {});
+    const enqueue = vi.fn(async () => {});
+    const compatibility: QueueChannel = {
+      enqueue,
+      downForMs: () => 0,
+      ping: async () => true,
+      close: async () => {},
+      consume: (name, _concurrency, handler) => {
+        handlers.set(name, handler as (raw: unknown) => Promise<unknown>);
+        return { start() {}, pause: async () => {}, close };
+      },
+    };
+    const runtime = createWorkerRuntime({ services, channel: compatibility, logger: silentLogger });
+    runtimes.push(runtime);
+    const legacy = handlers.get("promote")!;
+    const jobId = uuidv7();
+    await expect(legacy({ jobId, extra: "private-fixture" })).rejects.toThrow(
+      "历史媒体队列参数不合法",
+    );
+    expect(enqueue).not.toHaveBeenCalled();
+    enqueue.mockRejectedValueOnce(new Error("canonical enqueue unavailable"));
+    await expect(legacy({ jobId })).rejects.toThrow("canonical enqueue unavailable");
+    await legacy({ jobId });
+    expect(enqueue).toHaveBeenLastCalledWith("media_job", `media-${jobId}`, { jobId });
+    await runtime.stop();
+    expect(close).toHaveBeenCalledTimes(5);
+    expect(await channel.ping()).toBe(true);
   });
 });

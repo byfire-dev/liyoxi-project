@@ -408,3 +408,34 @@ it("other provider, mode and dedupe tasks are not claimed by this narrow consume
     "pending",
   );
 });
+
+it("unprocessed CI result remains manually retryable with three attempts and scan never resends it", async () => {
+  const id = await stored();
+  recent.mockResolvedValueOnce(null);
+  await submit(id);
+  const ci = await prisma.mediaJob.update({
+    where: { dedupeKey: `audit_image:${id}:v1` },
+    data: { maxAttempts: 3 },
+  });
+  const file = await prisma.fileObject.findUniqueOrThrow({ where: { id } });
+  audit.mockImplementation(async (input) => {
+    await fake.media.audit(input);
+    return ok({ verdict: "pass", processed: false });
+  });
+  await media.promote({ jobId: ci.id });
+  const failed = await prisma.mediaJob.findUniqueOrThrow({ where: { id: ci.id } });
+  expect(failed).toMatchObject({
+    state: "failed",
+    attemptNo: 1,
+    maxAttempts: 3,
+    errorCode: "CI_IMAGE_UNAVAILABLE",
+    isRetryable: true,
+  });
+  await media.scanPromote();
+  await media.jobs.shutdown();
+  expect(await prisma.mediaJob.findUniqueOrThrow({ where: { id: ci.id } })).toEqual(failed);
+  expect(audit.mock.calls.filter(([input]) => input.src.key === file.objectKey)).toHaveLength(1);
+  expect((await prisma.fileObject.findUniqueOrThrow({ where: { id } })).moderationState).toBe(
+    "pending",
+  );
+});

@@ -108,13 +108,16 @@ async function fallback(
   });
   return next.id;
 }
+const claimsFileAudit = (job: MediaJob): boolean =>
+  job.subjectType === "file_object" &&
+  job.parentId === null &&
+  job.dedupeKey === `${job.kind}:${job.subjectId}:v1`;
 const currentFile = (job: MediaJob, file: FileRow | null): file is FileRow => {
   const src = (job.input as { src?: { bucket?: unknown; key?: unknown } })?.src;
   return (
     file !== null &&
-    job.subjectType === "file_object" &&
-    job.parentId === null &&
-    job.dedupeKey === `${job.kind}:${file.id}:v1` &&
+    claimsFileAudit(job) &&
+    file.id === job.subjectId &&
     (job.kind === "audit_image_wx"
       ? job.provider === "wechat" && job.mode === "remote"
       : job.kind === "audit_image" && job.mode === "local") &&
@@ -162,6 +165,7 @@ export function createWechatImageHandlers(deps: BoundMediaDeps): readonly MediaJ
     kind: "audit_image_wx",
     provider: "wechat",
     mode: "remote",
+    claims: claimsFileAudit,
     validInput: auditInput,
     validOutput: () => false,
     current,
@@ -226,6 +230,7 @@ export function createWechatImageHandlers(deps: BoundMediaDeps): readonly MediaJ
     kind: "audit_image",
     provider: binding.fallback.status,
     mode: "local",
+    claims: claimsFileAudit,
     validInput: auditInput,
     validOutput: auditOutput,
     current,
@@ -242,7 +247,10 @@ export function createWechatImageHandlers(deps: BoundMediaDeps): readonly MediaJ
         !result.value.processed ||
         !["pass", "review", "block"].includes(result.value.verdict)
       )
-        return { state: "failed", failure: { code: "CI_IMAGE_UNAVAILABLE", retryable: false } };
+        return {
+          state: "failed",
+          failure: { code: "CI_IMAGE_UNAVAILABLE", retryable: true, automaticRetry: false },
+        };
       return { state: "succeeded", output: { verdict: result.value.verdict } };
     },
     finish: async (tx, job, outcome) => {

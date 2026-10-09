@@ -101,8 +101,10 @@ pnpm --filter @liyoxi/worker exec vitest run test/fault/redis-flush.test.ts   # 
 
 ## 6. W3-03 媒体执行接手
 
-实际worker从`buildWorkerServices`装配CI worker角色与时钟，缺worker角色拒绝，未配保留原降级，不借API角色或凭据发现链。原promote消费者及其30秒补偿已迁到登记media_job_run/media_job；旧promote冻结登记名保留为历史，运行时不双重扫描。领域scan只等短事务认领，长IO持有于本机执行器，因而不占用扫描轮次或绕过原watchdog。降级pause取消自己的IO且可恢复，SIGTERM永久shutdown收尾；同任务双入口不覆盖owned持有。实际close取消CI自有请求并等待资源回收，原COS/Wechat及DB/Redis生命周期保持。
+实际worker从`buildWorkerServices`装配CI worker角色与时钟，缺worker角色拒绝，未配保留原降级，不借API角色或凭据发现链。原promote的执行与30秒补偿扫描已迁到登记media_job_run/media_job；升级兼容消费者仍接受严格的历史{jobId}，仅转发到同一个media_job通道，转发失败沿原队列重试。生产只发布media_job，历史消费者不另行认领、执行或扫描，仍由唯一执行器共享local2/remote8预算与租约。五个当前消费者统一关闭后才让出租约。领域scan只等短事务认领，长IO持有于本机执行器，因而不占用扫描轮次或绕过原watchdog。降级pause取消自己的IO且可恢复，SIGTERM永久shutdown收尾；同任务双入口不覆盖owned持有。实际close取消CI自有请求并等待资源回收，原COS/Wechat及DB/Redis生命周期保持。
 
 ## 7. M2 通知调度
 
 `notify_scan` 只调公开 worker 服务的 `scanNotify`，入既有 `notify` 队列，消费者调三事务的 `notifyDeliver`。每个 API/worker 有自己的通知 Assembly 闭包及 Provider/clock，静态通知订阅者、remind_scan、N15/N5 指向该 scope。关停先通知 close 取消在途外呼，同时停止循环，随后收消费者再让出租约；单个失败不提前解绑其他根。默认未配置通道仍写真实站内事实，不能把假 Provider 或未配置受控降级写成真实平台到达。未来提醒与通道归属见 [通知域](../../packages/services/src/notify/README.md)。
+
+媒体I10/I11通过本worker的assembly闭包绑定自有MediaJobs；API与worker共存不读取模块global latest。closeMediaJobs仅关闭自己的绑定；完整shutdown仍先等待自有IO，借用连接与兄弟runtime不受影响。

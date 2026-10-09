@@ -101,7 +101,8 @@ import type { Health, StartupCheck } from "./ops/index.js";
 import type { Providers } from "./providers/types.js";
 import { createContent, bindContent } from "./content/index.js";
 import type { Content } from "./content/index.js";
-import { createMedia, bindMediaJobs } from "./media/index.js";
+import { createMedia } from "./media/index.js";
+import { createMediaAssembly } from "./ops/index.js";
 import type { Media } from "./media/index.js";
 import { createRateLimiter } from "./rate-limit.js";
 import type { RateLimiter } from "./rate-limit.js";
@@ -320,7 +321,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     storage: () => providers.storage,
   });
   const notifyScope = createNotifyAssembly(analyticsScope.assembly);
-  const assembly = notifyScope.assembly;
+  const mediaScope = createMediaAssembly(notifyScope.assembly);
+  const assembly = mediaScope.assembly;
   // 违规上报端口（invariants.report）的实现在 ops，要连接、时钟与装配结果（W0-24）
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
   const wechatClosers: Array<() => Promise<void>> = [];
@@ -454,7 +456,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       recentWechatOpenid,
     },
   });
-  const unbindMediaJobs = bindMediaJobs(media.jobs);
+  mediaScope.attach(media.jobs);
   const unbindContent = bindContent(assembly);
   const unbindPublish = bindPublish(assembly);
   const unbindDelivery = bindDelivery({
@@ -685,7 +687,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         analyticsScope.close(),
         notifyScope.close(),
       ]);
-      unbindMediaJobs();
+      mediaScope.close();
       unbindNoticeLink();
       await Promise.allSettled(wechatClosers.map((close) => close()));
       await clientErrors.close();

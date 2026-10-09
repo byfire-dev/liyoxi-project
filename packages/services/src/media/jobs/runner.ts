@@ -63,6 +63,10 @@ export function createMediaJobs(options: MediaJobsOptions) {
   const inFlight = new Map<string, { controller: AbortController; promise: Promise<void> }>();
   const ctx = createIdentityContext({ actor: { type: "system", job: "media_job_run" } });
 
+  async function parentNeeded(tx: Tx, job: MediaJob) {
+    const parent = job.parentType ? convergence.get(job.parentType as "store_asset") : undefined;
+    return !parent || (await parent.needed(tx, job));
+  }
   async function converge(tx: Tx, job: MediaJob) {
     if (job.parentId && job.parentType)
       await convergence
@@ -74,6 +78,7 @@ export function createMediaJobs(options: MediaJobsOptions) {
     const retry =
       outcome.state === "failed" &&
       outcome.failure.retryable &&
+      outcome.failure.automaticRetry !== false &&
       job.attemptNo < job.maxAttempts &&
       job.deadlineAt > now;
     const state = outcome.state === "pending" ? "submitted" : retry ? "queued" : outcome.state;
@@ -150,7 +155,9 @@ export function createMediaJobs(options: MediaJobsOptions) {
       const budget = jobBudget(job.kind);
       if (
         handler &&
-        (handler.mode !== job.mode || (handler.provider && handler.provider !== job.provider))
+        (handler.mode !== job.mode ||
+          (handler.provider && handler.provider !== job.provider) ||
+          (handler.claims && !handler.claims(job)))
       )
         return null;
       if (!handler || !budget || !handler.validInput(job.input)) {
@@ -243,6 +250,10 @@ export function createMediaJobs(options: MediaJobsOptions) {
         job.nextRunAt <= now
       )
         return [];
+      if (!(await parentNeeded(tx, job))) {
+        canceled = job;
+        return finish(tx, job, { state: "canceled" }, claimed.handler);
+      }
       if (stopping && aborted && job.state === "running") {
         await tx.mediaJob.update({
           where: { id: job.id },
@@ -411,7 +422,7 @@ export function createMediaJobs(options: MediaJobsOptions) {
       handler.mode === job.mode &&
       (!handler.provider || handler.provider === job.provider) &&
       handler.validInput(job.input);
-    const current = valid && (await handler.current(tx, job));
+    const current = valid && (await parentNeeded(tx, job)) && (await handler.current(tx, job));
     await finish(
       tx,
       job,

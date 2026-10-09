@@ -7,7 +7,9 @@ import { defineRegistration, implementKeyed, invariantNow } from "../kernel/inde
 import { fileCategoryGuardPort, fileRefTypePort } from "./ports.js";
 import { findI2Violations, findI14Violations } from "./invariants.js";
 import { mediaDeliveryRefTypes } from "./production-stub.js";
-import { boundMediaJobs } from "./jobs/binding.js";
+const unboundMediaJobs = (): never => {
+  throw new Error("媒体执行器未绑定实际运行时");
+};
 import { findI10Violations, findI11Violations } from "./jobs/invariants.js";
 export const registration = defineRegistration("media", {
   ports: [fileRefTypePort, fileCategoryGuardPort],
@@ -23,14 +25,14 @@ export const registration = defineRegistration("media", {
       severity: "P2",
       modes: ["quick", "full"],
       heal: "heal_only",
-      run: (tx, scope, ctx) => findI10Violations(tx, scope, invariantNow(ctx), boundMediaJobs),
+      run: (tx, scope, ctx) => findI10Violations(tx, scope, invariantNow(ctx), unboundMediaJobs),
     },
     {
       code: "media.I11",
       severity: "P2",
       modes: ["quick", "full"],
       heal: "heal_only",
-      run: (tx, scope, ctx) => findI11Violations(tx, scope, invariantNow(ctx), boundMediaJobs),
+      run: (tx, scope, ctx) => findI11Violations(tx, scope, invariantNow(ctx), unboundMediaJobs),
     },
     {
       code: "media.I2",

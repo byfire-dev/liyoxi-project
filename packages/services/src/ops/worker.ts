@@ -19,7 +19,8 @@ import { assignDeliveryManager } from "../profile/index.js";
 import { recommendedStaff } from "../staff/index.js";
 import { createTenant } from "../tenant/index.js";
 import { bindPublish } from "../publish/index.js";
-import { createMedia, bindMediaJobs } from "../media/index.js";
+import { createMedia } from "../media/index.js";
+import { createMediaAssembly } from "./media-runtime.js";
 import type { PromoteRef } from "../media/index.js";
 import { advanceDueAccounts, createLedger, bindBillingTimers } from "../billing/index.js";
 import { createFlow } from "../flow/index.js";
@@ -189,7 +190,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     storage: () => providers.storage,
   });
   const notifyScope = createNotifyAssembly(analyticsScope.assembly);
-  const assembly = notifyScope.assembly;
+  const mediaScope = createMediaAssembly(notifyScope.assembly);
+  const assembly = mediaScope.assembly;
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const flow = createFlow({ assembly, clock, events });
@@ -296,7 +298,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       recentWechatOpenid,
     },
   });
-  const closeMediaJobs = bindMediaJobs(media.jobs);
+  mediaScope.attach(media.jobs);
+  const closeMediaJobs = () => mediaScope.close();
   const startupChecks = createStartupChecks({
     db: prisma,
     appEnv: options.appEnv,

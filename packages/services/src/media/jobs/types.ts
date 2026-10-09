@@ -6,7 +6,11 @@ export type MediaJobKind = EnumValue<typeof MEDIA_JOB_KIND>;
 export type MediaParentType = EnumValue<typeof MEDIA_JOB_PARENT_TYPE>;
 export type JobJson =
   null | boolean | number | string | readonly JobJson[] | { readonly [key: string]: JobJson };
-export type JobFailure = { readonly code: string; readonly retryable: boolean };
+export type JobFailure = {
+  readonly code: string;
+  readonly retryable: boolean;
+  readonly automaticRetry?: false;
+};
 export type JobOutcome =
   | { readonly state: "succeeded"; readonly output: JobJson }
   | { readonly state: "failed"; readonly failure: JobFailure }
@@ -19,6 +23,7 @@ export interface MediaJobHandler {
   readonly kind: MediaJobKind;
   readonly mode: "local" | "remote";
   readonly provider?: string;
+  claims?(job: MediaJob): boolean;
   validInput(input: unknown): boolean;
   validOutput(output: unknown): boolean;
   current(tx: Tx, job: MediaJob): Promise<boolean>;

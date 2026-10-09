@@ -34,5 +34,6 @@ export type {
 } from "./jobs/types.js";
 export type { RemoteMediaHandlerOptions, RemoteMediaSubmission } from "./jobs/remote.js";
 
-export { bindMediaJobs } from "./jobs/binding.js";
+export type { MediaJobs } from "./jobs/runner.js";
+export { findI10Violations, findI11Violations } from "./jobs/invariants.js";
 export { decideMediaConvergence, systemProduceId } from "./jobs/convergence.js";

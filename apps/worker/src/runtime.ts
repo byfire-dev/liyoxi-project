@@ -7,6 +7,7 @@
 //   关停     → 停续约与看门狗 → 停循环（等在途的一轮）→ 关消费者（等在途任务，至多 30 秒）→ 让出租约
 // 循环都按“可多实例并行”写（认领用 SKIP LOCKED），单活只是省资源：不给租约时本实例直接干活（双实例的用例这么跑）。
 import type { LoopId, QueueId } from "@liyoxi/contract/registry";
+import { z } from "@liyoxi/contract";
 import type {
   DeliveryRef,
   QueueChannel,
@@ -38,9 +39,11 @@ export const QUEUE_CONCURRENCY = {
   outbox_delivery: 4,
   timer_run: 4,
   media_job: 10,
+  promote: 2,
   notify: 4,
 } as const satisfies Partial<Record<QueueId, number>>;
 export type WorkerQueue = keyof typeof QUEUE_CONCURRENCY;
+const legacyPromoteRef = z.object({ jobId: z.uuid() }).strict();
 
 /** 关停时等在途任务的上限 */
 export const SHUTDOWN_WAIT_MS = 30_000;
@@ -103,6 +106,11 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
     media_job: channel.consume<{ jobId: string }>("media_job", QUEUE_CONCURRENCY.media_job, (ref) =>
       services.promoteFile(ref),
     ),
+    promote: channel.consume<unknown>("promote", QUEUE_CONCURRENCY.promote, async (raw) => {
+      const ref = legacyPromoteRef.safeParse(raw);
+      if (!ref.success) throw new Error("历史媒体队列参数不合法");
+      return channel.enqueue("media_job", `media-${ref.data.jobId}`, ref.data);
+    }),
     timer_run: channel.consume<TimerRef>(
       "timer_run",
       QUEUE_CONCURRENCY.timer_run,
