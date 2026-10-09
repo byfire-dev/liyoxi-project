@@ -1,4 +1,11 @@
 export { createMedia } from "./runtime.js";
+export {
+  dramaMediaReadiness,
+  readCommittedDramaMasters,
+  readDramaPosterFileIds,
+  readDramaEvidenceRefs,
+} from "./drama-readiness.js";
+export type { DramaMediaReadiness, DramaReadinessInput } from "./drama-readiness.js";
 export type { MediaProductionDeps, MediaProductionConfig } from "./production-types.js";
 export type { Media } from "./runtime.js";
 export type {
@@ -18,8 +25,8 @@ export { registration } from "./register.js";
 export type { MediaBatchDeps, BatchTargetFacts } from "./batches/types.js";
 
 export { seedPlaceholderFiles, placeholderPdf } from "./demo-seed.js";
-export { declareManualProduction, ensureProductionStubs } from "./production-stub.js";
-export type { ManualProductionInput } from "./production-stub.js";
+export { declareManualProduction } from "./production/prepare.js";
+export type { ManualProductionInput } from "./production/prepare.js";
 export { consumeFinalReleaseBatch, recordAdoptedStoreAssets } from "./delivery-write.js";
 export type { FinalBatchItem, MediaDeliveryTarget } from "./delivery-write.js";
 
@@ -41,3 +48,7 @@ export { findI10Violations, findI11Violations } from "./jobs/invariants.js";
 export { decideMediaConvergence, systemProduceId } from "./jobs/convergence.js";
 
 export { assertUsableForModel } from "./read.js";
+
+export { contextHash } from "./production.js";
+export { ProbeOutputSchema } from "./handlers/probe.js";
+export { DerivationOutputSchema } from "./handlers/restamp.js";

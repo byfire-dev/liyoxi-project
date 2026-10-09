@@ -89,6 +89,7 @@ export {
   createOutputBatchLiveFixture,
   prepareOutputBatchLiveMasters,
   findOutputBatchLiveJobIds,
+  consumeOutputBatchLiveChecked,
   OutputBatchLiveInputSchema,
 } from "./admin-live/w302.fixture.js";
 export type { OutputBatchLiveInput } from "./admin-live/w302.fixture.js";
@@ -97,6 +98,19 @@ export { createOutputBatchToolsForTest, outputBatchInputFromProbe } from "./outp
 
 export { fullStaffWorld } from "./staff-full.js";
 export type { FullStaffWorld } from "./staff-full.js";
+
+export {
+  createDeliveryProductionTools,
+  finishDeliveryProductionForTest,
+  prepareDeliveryMasterForTest,
+} from "./delivery-production-tools.js";
+export type { DeliveryProductionTools } from "./delivery-production-tools.js";
+export { createCodecDemoMasterPreparer } from "./demo-masters.js";
 export { createDocsAdminFixture } from "./docs-admin.js";
 export { findAgreementLiveUploadJobIds } from "./admin-live/agreements-m2-upload.js";
 export { seedBillingDeletionFacts } from "./billing-deletion.js";
+
+export { finishW120LiveFixture } from "./admin-live/w120.fixture.js";
+
+export { createMediaProductionHarness } from "./media-production-harness.js";
+export type { MediaProductionHarness } from "./media-production-harness.js";

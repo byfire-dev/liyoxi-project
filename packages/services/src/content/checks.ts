@@ -4,6 +4,7 @@ import { AppError } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 import { paramsAt } from "../config/index.js";
 import type { DramaPrices } from "./ports.js";
+import { dramaMediaReadiness } from "../media/index.js";
 
 export const dateOf = (date: Date | null): string | null =>
   date?.toISOString().slice(0, 10) ?? null;
@@ -43,12 +44,12 @@ export interface ListingChecks {
   items: ListingItem[];
   evaluatedAt: string;
 }
-/** M1 媒体就绪留桩：原片按就绪；预告片尚未就绪。M3 替换为媒体端口。 */
 export interface MediaReadiness {
   mastersReady: boolean;
   trailerReady: boolean;
+  usableDocumentFileIds?: readonly string[];
 }
-export const mediaReadiness = (): MediaReadiness => ({ mastersReady: true, trailerReady: false });
+export const mediaReadiness = (): MediaReadiness => ({ mastersReady: false, trailerReady: false });
 export async function listingChecks(
   tx: Tx,
   id: string,
@@ -56,6 +57,20 @@ export async function listingChecks(
   prices: DramaPrices,
 ): Promise<ListingChecks> {
   const facts = await dramaFacts(tx, id);
+  const media = await dramaMediaReadiness(
+    tx,
+    {
+      dramaId: id,
+      totalEpisodes: facts.drama.totalEpisodes,
+      posterFileId: facts.drama.posterFileId,
+      episodeNos: facts.episodes.map((episode) => episode.episodeNo),
+      documentFileIds: [
+        ...facts.permits.flatMap((v) => v.scanFileIds),
+        ...(facts.copyright?.proofFileIds ?? []),
+      ],
+    },
+    at,
+  );
   const [priceMap, months, params, flag] = await Promise.all([
     prices.priceAt(tx, [id], at),
     prices.minLicenseMonths(tx, at),
@@ -71,6 +86,11 @@ export async function listingChecks(
     minLicenseMonths: months,
     openSlots: params["content.placement.open_slots"],
     trailerBlocking: flag?.defaultValue === true,
+    media: {
+      mastersReady: media.mastersReady,
+      trailerReady: media.isTrailerReady,
+      usableDocumentFileIds: media.usableDocumentFileIds,
+    },
   });
 }
 export function evaluateListing(
@@ -104,7 +124,14 @@ export function evaluateListing(
     row(
       "L1",
       "必备许可及扫描件齐全",
-      required.length > 0 && required.some((item) => item.scanFileIds.length > 0),
+      required.length > 0 &&
+        required.some(
+          (item) =>
+            item.scanFileIds.length > 0 &&
+            item.scanFileIds.every(
+              (id) => !ready.usableDocumentFileIds || ready.usableDocumentFileIds.includes(id),
+            ),
+        ),
       "license",
     ),
     row(
@@ -115,7 +142,10 @@ export function evaluateListing(
         !!c.territory?.trim() &&
         !!c.licenseStartDate &&
         !!end &&
-        c.proofFileIds.length > 0,
+        c.proofFileIds.length > 0 &&
+        c.proofFileIds.every(
+          (id) => !ready.usableDocumentFileIds || ready.usableDocumentFileIds.includes(id),
+        ),
       "copyright",
     ),
     row(
@@ -150,6 +180,8 @@ export function evaluateListing(
         d.genreCodes.length > 0 &&
         !!d.synopsis?.trim() &&
         poster?.status === "stored" &&
+        poster.category === "poster" &&
+        poster.scopeType === "platform" &&
         poster.moderationState !== "block",
       "basic",
     ),

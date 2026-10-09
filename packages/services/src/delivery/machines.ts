@@ -129,6 +129,7 @@ export const deliveryMachines = [
     ],
     guards: guards([
       ["10:640", "sample.uploaded"],
+      ["10:641", "sample.check_rejected"],
       ["10:642", "sample.qc_failed"],
       ["10:643", "sample.qc_passed"],
       ["10:644", "sample.pushed"],

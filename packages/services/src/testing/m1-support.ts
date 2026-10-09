@@ -20,10 +20,17 @@ import { createClock } from "./clock.js";
 import { createProviderHarness } from "./data/provider-harness.js";
 import { createSeededDatabase } from "./data/seeded-db.js";
 import { fakeKeyEnv } from "./m1-fake-keys.js";
+import { createCodecDemoMasterPreparer } from "./demo-masters.js";
 import { installM1KnownMedia, m1Video } from "./m1-media.js";
 import { M1_PROFILE_DEFAULTS, seedM1ProfileDefaults } from "./m1-profile-defaults.js";
 import { readM1State } from "./m1-state.js";
 import { m1Transport } from "./m1-transport.js";
+import { createDeliveryProductionTools } from "./delivery-production-tools.js";
+import {
+  m1ProductionVideo,
+  createM1ProductionMasterPreparer,
+  finishM1Production,
+} from "./m1-production.js";
 import type { M1Support, M1SupportOptions } from "./m1-types.js";
 
 const localUrl = (url: string, protocols: readonly string[]) => {
@@ -50,11 +57,13 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
   const ownerKey = `${redisPrefix}m1.owner`;
   let redis: Redis | undefined;
   let ownRedisOwner = false;
-  const clock = options.clock ?? createClock(),
-    startedAt = clock.now();
+  const clock = options.clock ?? createClock();
+  // billing/demo-seed 的正式财务种子回溯 25h；只定义本轮历史，不拨动业务或自定义时钟。
+  const startedAt = new Date(clock.now().getTime() - 25 * 3_600_000);
   let ownDatabase = false;
   let ownRedisScope = false;
   let runtime: Awaited<ReturnType<typeof createRuntime>> | undefined;
+  let productionTools: ReturnType<typeof createDeliveryProductionTools> | undefined;
   let db: ReturnType<typeof createPrismaClient> | undefined;
   let closed = false;
   const clearRedis = async () => {
@@ -83,6 +92,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
     try {
       for (const action of [
         () => runtime?.close(),
+        () => productionTools?.tools.close(),
         () => db?.$disconnect(),
         async () => {
           if (ownDatabase) await dropTestDatabase(databaseName);
@@ -130,9 +140,12 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
     const env = { ...base, ...fakeKeyEnv(), DATABASE_URL: databaseUrl };
     const { providers } = createProviderHarness({ clock });
     providers.storage.capabilities.sts = false;
+    const productionInput = await m1ProductionVideo();
+    productionTools = createDeliveryProductionTools(providers, productionInput.report);
     runtime = createRuntime({
       entry: "api",
-      env,
+      env: { ...env, MEDIA_PRODUCTION: productionTools.env },
+      mediaProductionTools: productionTools.tools,
       version: "m1-test",
       clock,
       redisKeyPrefix: redisPrefix,
@@ -163,6 +176,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
       clock,
       providers,
       video,
+      productionVideo: productionInput.video,
       profileDefaults: M1_PROFILE_DEFAULTS,
       async seedDemo() {
         assertOwned();
@@ -174,6 +188,12 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
           appEnv: "test",
           billing: { assembly: apiRuntime.assembly, bizNo: apiRuntime.bizNo },
           notices: createNotices({ clock, events: apiRuntime.events }),
+          prepareMasters: createM1ProductionMasterPreparer(
+            apiRuntime,
+            providers,
+            productionInput.video,
+            createCodecDemoMasterPreparer({ ...apiRuntime, appEnv: "test" }),
+          ),
           params: apiRuntime.config.params,
         });
         const baseline = await seedM1ProfileDefaults(apiRuntime);
@@ -218,9 +238,42 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
         assertOwned();
         return installM1KnownMedia(apiRuntime, providers, runId, fileId, scope);
       },
-      fullInvariants() {
+      finishProduction(fileId, scope) {
         assertOwned();
-        return runInvariants(apiRuntime, { mode: "full", trigger: "manual" });
+        return finishM1Production(
+          apiRuntime,
+          providers,
+          clock,
+          productionInput.video,
+          fileId,
+          scope,
+          () => transport.drainEvents(),
+        );
+      },
+      async fullInvariants() {
+        assertOwned();
+        const report = await runInvariants(apiRuntime, { mode: "full", trigger: "manual" });
+        if (report.violationsFound > 0) {
+          const rows = await readDb.invariantViolation.groupBy({
+            by: ["code", "subjectType"],
+            where: { invariantRunId: report.runId },
+            _count: { _all: true },
+            orderBy: [{ code: "asc" }, { subjectType: "asc" }],
+            take: 100,
+          });
+          process.stdout.write(
+            `M1 全域失败摘要：${JSON.stringify({
+              checksRun: report.checksRun,
+              errors: report.errors.length,
+              counts: rows.map((row) => ({
+                code: row.code,
+                subjectType: row.subjectType,
+                count: row._count._all,
+              })),
+            })}\n`,
+          );
+        }
+        return report;
       },
       close,
     };

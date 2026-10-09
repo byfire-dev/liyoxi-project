@@ -28,6 +28,7 @@ const sample = {
 };
 export const payloads = {
   "sample.uploaded": z.strictObject(sample),
+  "sample.check_rejected": z.strictObject(sample),
   "sample.superseded": z.strictObject(sample),
   "sample.qc_passed": z.strictObject(sample),
   "sample.qc_failed": z.strictObject(sample),

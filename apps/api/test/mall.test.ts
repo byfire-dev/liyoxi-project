@@ -1,3 +1,4 @@
+import { createCodecDemoMasterPreparer } from "@liyoxi/services/testing";
 import { beforeAll, it, expect } from "vitest";
 import { MallConfigSchema } from "@liyoxi/contract";
 import { createIdentityContext, runSeed, seedDemoContent, uuidv7 } from "@liyoxi/services";
@@ -58,6 +59,13 @@ beforeAll(async () => {
       tx: api.runtime.tx,
       clock: api.clock,
       content: api.runtime.content,
+      prepareMasters: createCodecDemoMasterPreparer({
+        appEnv: "test",
+        tx: api.runtime.tx,
+        clock: api.clock,
+        media: api.runtime.media,
+        events: api.runtime.events,
+      }),
       media: api.runtime.media,
       appEnv: "test",
     },

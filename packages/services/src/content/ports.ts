@@ -19,3 +19,22 @@ export interface DramaPrices {
   minLicenseMonths(tx: Tx, at: Date): Promise<number>;
 }
 export const DramaPricePort = definePort<DramaPrices>("content.drama_price");
+
+export interface DramaUsage {
+  stats(
+    tx: Tx,
+    ids: readonly string[],
+    at: Date,
+  ): Promise<
+    Map<
+      string,
+      {
+        orders30d: number;
+        ordersMtd: number;
+        liveItems: number;
+      }
+    >
+  >;
+  hasOpenItems(tx: Tx, dramaId: string): Promise<boolean>;
+}
+export const DramaUsagePort = definePort<DramaUsage>("content.drama_usage");

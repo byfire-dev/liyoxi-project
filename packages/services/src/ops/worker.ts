@@ -1,5 +1,11 @@
+import { createDeliveryProductionAssembly } from "./delivery-production-runtime.js";
 import { createContentPricingAssembly } from "./content-pricing-runtime.js";
-import { createContent, createContentLicense } from "../content/index.js";
+import {
+  createContent,
+  createContentLicense,
+  createContentMaintenance,
+  DramaUsagePort,
+} from "../content/index.js";
 import { createDramaPricing } from "../billing/index.js";
 import { staffBriefs } from "../staff/index.js";
 import { latestStaffWecomInviteKey } from "../audit/index.js";
@@ -225,7 +231,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const mediaScope = createMediaAssembly(notifyScope.assembly);
   const staffScope = createStaffAssembly(mediaScope.assembly);
   const contentPricingScope = createContentPricingAssembly(staffScope.assembly);
-  const docsScope = createDocsAssembly(contentPricingScope.assembly);
+  const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
+  const docsScope = createDocsAssembly(deliveryProductionScope.assembly);
   const assembly = docsScope.assembly;
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
@@ -390,7 +397,11 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const contentLicense = createContentLicense({ clock, flow, timers });
   const content = createContent({ clock, flow, media, assembly, events, license: contentLicense });
   const dramaPricing = createDramaPricing({ clock, content, staffBriefs, events, timers });
-  contentPricingScope.attach({ license: contentLicense, pricing: dramaPricing });
+  contentPricingScope.attach({
+    license: contentLicense,
+    pricing: dramaPricing,
+    maintenance: createContentMaintenance({ clock, usage: assembly.port(DramaUsagePort), media }),
+  });
   const closePublish = bindPublish(assembly);
   const deliveryCore = {
     tx,
@@ -401,7 +412,12 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     media,
     sla: createSla({ clock, assembly }),
   };
-  const closeDelivery = bindDelivery(deliveryCore);
+  const unbindDelivery = bindDelivery(deliveryCore);
+  deliveryProductionScope.attach({ clock, flow, media });
+  const closeDelivery = () => {
+    deliveryProductionScope.close();
+    unbindDelivery();
+  };
   const delivery = { tx, subscribers: events.subscribers, channel, alerts };
   // 账本（W1-10）：每分钟扫描用它推进到点的主体
   const ledger = createLedger({ clock, events });

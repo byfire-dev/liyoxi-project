@@ -11,7 +11,14 @@ import type { AdsUsed, Slots } from "./samples.js";
 import { qcView } from "./quality-views.js";
 const brief = async (tx: Tx, id: string | null) =>
   id ? ((await staffBriefs(tx, [id]))[0] ?? null) : null;
-export async function adminSampleView(tx: Tx, t: TicketRow, s: Sample, staff: StaffContext) {
+export async function adminSampleView(
+  tx: Tx,
+  deps: DeliveryDeps,
+  t: TicketRow,
+  s: Sample,
+  staff: StaffContext,
+) {
+  const actual = await deps.media.deliveryProductionFacts(tx, s.fileId);
   const production = await tx.productionRecord.findUnique({ where: { fileId: s.fileId } }),
     check = await tx.mediaCheck.findUnique({ where: { fileId: s.fileId } }),
     p = await tx.playableAsset.findFirst({
@@ -37,12 +44,17 @@ export async function adminSampleView(tx: Tx, t: TicketRow, s: Sample, staff: St
   if (!t.pauseCount && t.step === "sample_making") {
     if (
       s.status === "uploaded" &&
-      production?.pipelineState === "ready" &&
+      actual.ready &&
       s.uploadedByStaffId !== staff.staff.id &&
       hasPermission(staff, "delivery.sample.qc")
     )
       actions.push("inspect");
-    if (s.status === "qc_passed" && hasPermission(staff, "delivery.sample.push"))
+    if (
+      s.status === "qc_passed" &&
+      actual.ready &&
+      actual.playable &&
+      hasPermission(staff, "delivery.sample.push")
+    )
       actions.push("push");
   }
   return {
@@ -128,18 +140,7 @@ export async function merchantSampleView(tx: Tx, deps: DeliveryDeps, t: TicketRo
   const e = await sampleEvidence(tx, deps, t, s),
     qc = s.qcRecordId ? await tx.qcRecord.findUnique({ where: { id: s.qcRecordId } }) : null,
     q = await qcView(tx, qc);
-  const p = await tx.playableAsset.findFirst({
-      where: {
-        kind: "sample",
-        sourceFileId: s.fileId,
-        ownerType: "order_item",
-        ownerId: t.orderItemId,
-        entityId: t.entityId,
-        storeId: t.storeId,
-        state: "ready",
-      },
-      orderBy: { specVersion: "desc" },
-    }),
+  const p = (await deps.media.deliveryProductionFacts(tx, s.fileId)).playable,
     info = await tx.mediaInfo.findUnique({ where: { fileId: s.fileId } });
   // 地址在事务结束后签；传给签发器的内部 file id 不放入返回 DTO。
   return {
@@ -231,7 +232,7 @@ export async function signMerchantSample(
         await deps.media.signRead({ fileId: files.poster, audience: "merchant" })
       ).url;
     for (const r of files.renditions) {
-      // 未探测的同步水印桩不捏造像素；播放档须有真实尺寸才出 sources。
+      // 商家仅签真实水印任务完成且读回验证的 rendition。
       if (r.width === null || r.height === null) continue;
       const s = await deps.media.signRead({ fileId: r.fileId, audience: "merchant" });
       view.playable.sources.push({

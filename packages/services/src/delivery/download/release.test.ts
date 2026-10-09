@@ -4,8 +4,8 @@ import { ownTaskScope, SYSTEM_SCOPE } from "../../authz/index.js";
 import { findI2Violations, findI14Violations } from "../../media/index.js";
 import { uuidv7 } from "../../kernel/index.js";
 import { useSeededDatabase } from "../../testing/index.js";
-import { harness } from "../__fixtures__/harness.js";
-import type { Harness } from "../__fixtures__/harness.js";
+import { productionHarness as harness } from "../__fixtures__/production-tools.js";
+import type { ProductionHarness as Harness } from "../__fixtures__/production-tools.js";
 import { findDeliveryViolations } from "../invariants.js";
 import { packageReady, sampleReady, snapshot, meta } from "./__fixtures__/harness.js";
 const db = useSeededDatabase("services");
@@ -13,7 +13,9 @@ let h: Harness;
 beforeAll(async () => {
   h = harness(await db.prisma());
 }, 120000);
-afterAll(() => h?.unbind());
+afterAll(async () => {
+  await h?.close();
+});
 it("两GET零写，真实清单/授权/空保存进度、后台任务范围和最新关闭包", async () => {
   const r = await packageReady(h),
     before = await snapshot(h);

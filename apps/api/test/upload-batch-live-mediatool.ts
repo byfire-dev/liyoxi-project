@@ -1,6 +1,6 @@
 // Task-private host501 ↔ sandbox1000 byte transport. No media result is fabricated here.
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { chmod, lstat, mkdir, mkdtemp, open, readFile, realpath, rm } from "node:fs/promises";
 import http from "node:http";
@@ -65,6 +65,10 @@ export async function createOutputBatchMediaToolRelay(options: { runId: string; 
   const directories = new Set<string>(),
     copied = new Map<string, { size: number; sha256: string }>();
   const attempts = new Map<string, AbortSignal>();
+  const renderControllers = new Set<AbortController>();
+  let renderTail: Promise<void> = Promise.resolve(),
+    renderPeak = 0,
+    rendering = 0;
   let closed = false,
     uncertain = false,
     created = false,
@@ -222,9 +226,13 @@ export async function createOutputBatchMediaToolRelay(options: { runId: string; 
     }
     return { handle, before, absolute };
   };
-  const transferInput = async (path: string, signal: AbortSignal) => {
+  const transferInput = async (path: string, signal: AbortSignal, generatedPng = false) => {
     const { name } = relative(path);
-    if (name !== "source.mp4" && (name !== "stamped.mp4" || !copied.has(path)))
+    if (
+      name !== "source.mp4" &&
+      !(generatedPng && name === "watermark.png") &&
+      (name !== "stamped.mp4" || !copied.has(path))
+    )
       throw new Error("W302 input lacks original output provenance");
     const file = await hostFile(path);
     const hash = createHash("sha256"),
@@ -580,9 +588,152 @@ export async function createOutputBatchMediaToolRelay(options: { runId: string; 
     for (const [id] of ownedCalls) calls.delete(id);
     for (const path of copied.keys()) if (path.startsWith(`${directory}/`)) copied.delete(path);
   };
+  // Private live codec only. The original four mediatool operations and their IPC stay intact.
+  const renderSample = (input: {
+    path: string;
+    outPath: string;
+    png: Uint8Array;
+    signal: AbortSignal;
+  }) => {
+    const controller = new AbortController(),
+      previous = renderTail;
+    renderControllers.add(controller);
+    const signal = AbortSignal.any([input.signal, controller.signal]);
+    const operation = (async () => {
+      await previous;
+      signal.throwIfAborted();
+      if (closed) throw new Error("W302 relay closed");
+      const source = relative(input.path),
+        output = relative(input.outPath);
+      if (
+        source.name !== "source.mp4" ||
+        output.name !== "stamped.mp4" ||
+        source.directory !== output.directory ||
+        input.png.length < 8 ||
+        input.png.length > 1024 * 1024 ||
+        Buffer.from(input.png.subarray(0, 8)).toString("hex") !== "89504e470d0a1a0a"
+      )
+        throw new Error("W302 sample render scope rejected");
+      const directory = source.directory,
+        pngPath = `${directory}/watermark.png`;
+      directories.add(directory);
+      const png = await open(
+        join(workDir, pngPath),
+        constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW | constants.O_WRONLY,
+        0o600,
+      );
+      try {
+        await png.writeFile(input.png);
+        await png.sync();
+      } finally {
+        await png.close();
+      }
+      await transferInput(source.path, signal);
+      await transferInput(pngPath, signal, true);
+      const name = `lyx-w307-render-${options.runId}-${randomUUID()}`;
+      let execution: ReturnType<typeof start> | undefined, removal: Promise<string> | undefined;
+      const remove = () => (removal ??= command(["rm", "--force", name]));
+      const abort = () => {
+        void remove().catch(() => undefined);
+      };
+      rendering++;
+      renderPeak = Math.max(renderPeak, rendering);
+      try {
+        await command([
+          "create",
+          "--name",
+          name,
+          "--label",
+          `lyx.w302.run=${options.runId}`,
+          "--network",
+          "none",
+          "--read-only",
+          "--user",
+          "1000:1000",
+          "--cap-drop",
+          "ALL",
+          "--security-opt",
+          "no-new-privileges:true",
+          "--pids-limit",
+          "128",
+          "--memory",
+          "1g",
+          "--cpus",
+          "1",
+          "--tmpfs",
+          "/tmp:rw,noexec,nosuid,size=64m",
+          "--mount",
+          `type=volume,source=${volume},target=/work`,
+          "--entrypoint",
+          "ffmpeg",
+          options.image,
+          "-nostdin",
+          "-v",
+          "error",
+          "-threads",
+          "1",
+          "-filter_complex_threads",
+          "1",
+          "-i",
+          `/work/${source.path}`,
+          "-loop",
+          "1",
+          "-i",
+          `/work/${pngPath}`,
+          "-filter_complex",
+          "[0:v]scale=720:1280[base];[1:v]format=rgba,colorchannelmixer=aa=0.7[mark];[base][mark]overlay=(W-w)/2:(H-h)/2:shortest=1[out]",
+          "-map",
+          "[out]",
+          "-map",
+          "0:a:0",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "veryfast",
+          "-profile:v",
+          "high",
+          "-pix_fmt",
+          "yuv420p",
+          "-threads",
+          "1",
+          "-c:a",
+          "copy",
+          "-movflags",
+          "+faststart",
+          "-n",
+          `/work/${output.path}`,
+        ]);
+        // Cancellation is registered only after create confirms this exact owned container.
+        signal.addEventListener("abort", abort, { once: true });
+        signal.throwIfAborted();
+        execution = start(["start", "--attach", name]);
+        execution.child.stdin.end();
+        execution.child.stdout.resume();
+        await execution.completion;
+        signal.throwIfAborted();
+        await transferOutput(output.path, FILE_LIMIT, signal);
+      } finally {
+        signal.removeEventListener("abort", abort);
+        try {
+          await remove();
+        } catch {
+          uncertain = true;
+        }
+        if (execution) await execution.completion.catch(() => undefined);
+        rendering--;
+      }
+    })();
+    renderTail = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return operation.finally(() => renderControllers.delete(controller));
+  };
   const close = () =>
     (stopping ??= (async () => {
       closed = true;
+      for (const controller of renderControllers) controller.abort();
+      await renderTail;
       await Promise.allSettled(
         [...calls].map(async ([id, call]) => {
           if (!call.confirmed) await cancelCall(id, call);
@@ -703,8 +854,19 @@ export async function createOutputBatchMediaToolRelay(options: { runId: string; 
       socketPath,
       bindAttempt,
       releaseDirectory,
+      renderSample,
       close,
-      resources: { root, container, volume, image: options.image },
+      resources: {
+        root,
+        container,
+        volume,
+        image: options.image,
+        renderState: () => ({
+          active: rendering,
+          peak: renderPeak,
+          pending: renderControllers.size,
+        }),
+      },
     };
   } catch (error) {
     await close();

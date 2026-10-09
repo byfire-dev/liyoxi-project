@@ -1,6 +1,17 @@
-import { createContentPricingAssembly, createContentAdmin } from "./ops/index.js";
+import { readTargetActivity } from "./audit/index.js";
+import {
+  createDeliveryProductionAssembly,
+  createContentPricingAssembly,
+  createContentAdmin,
+} from "./ops/index.js";
 import type { ContentAdmin } from "./ops/index.js";
-import { createContentCopyright, createContentLicense, DramaPricePort } from "./content/index.js";
+import {
+  createContentCopyright,
+  createContentLicense,
+  createContentMaintenance,
+  DramaPricePort,
+  DramaUsagePort,
+} from "./content/index.js";
 import { createDramaPricing } from "./billing/index.js";
 import { latestStaffWecomInviteKey } from "./audit/index.js";
 import { createSmsInit, createSmsHealth, smsTemplateReader } from "./notify/index.js";
@@ -358,7 +369,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const mediaScope = createMediaAssembly(notifyScope.assembly);
   const staffScope = createStaffAssembly(mediaScope.assembly);
   const contentPricingScope = createContentPricingAssembly(staffScope.assembly);
-  const docsScope = createDocsAssembly(contentPricingScope.assembly);
+  const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
+  const docsScope = createDocsAssembly(deliveryProductionScope.assembly);
   const assembly = docsScope.assembly;
   const documentConverter = options.documentWorkerUrl
     ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
@@ -532,6 +544,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     },
   });
   mediaScope.attach(media.jobs);
+  deliveryProductionScope.attach({ clock, flow, media });
   const docsServices = createRuntimeDocs({
     tx,
     clock,
@@ -558,7 +571,11 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const contentLicense = createContentLicense({ clock, flow, timers });
   const content = createContent({ clock, flow, media, assembly, events, license: contentLicense });
   const dramaPricing = createDramaPricing({ clock, content, staffBriefs, events, timers });
-  contentPricingScope.attach({ license: contentLicense, pricing: dramaPricing });
+  contentPricingScope.attach({
+    license: contentLicense,
+    pricing: dramaPricing,
+    maintenance: createContentMaintenance({ clock, usage: assembly.port(DramaUsagePort), media }),
+  });
   const contentCopyright = createContentCopyright({
     clock,
     media,
@@ -570,7 +587,9 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     clock,
     tx,
     content,
+    prices: assembly.port(DramaPricePort),
     staffBriefs,
+    activity: readTargetActivity,
     pricing: (t, staff, id, at) => dramaPricing.detailPricing(t, staff, id, at),
     copyright: contentCopyright,
     pricingService: dramaPricing,
@@ -834,6 +853,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       ]);
       mediaScope.close();
       contentPricingScope.close();
+      deliveryProductionScope.close();
       await mediaProduction.close();
       unbindNoticeLink();
       await Promise.allSettled(wechatClosers.map((close) => close()));

@@ -13,6 +13,7 @@ import {
 } from "../../kernel/index.js";
 import type { InvariantReport, Tx } from "../../kernel/index.js";
 import { createMedia } from "../../media/index.js";
+import type { MediaProductionDeps } from "../../media/index.js";
 import { bindPublish, createPublish } from "../../publish/index.js";
 import { ChecklistItemsSchema, COMPARE_FIELDS } from "@liyoxi/contract";
 import { createProfile } from "../../profile/index.js";
@@ -32,7 +33,15 @@ import { orderSidePort } from "../ports.js";
 import type { OrderSide } from "../ports.js";
 import { createDelivery } from "../service.js";
 import type { DeliveryViewer } from "../context.js";
-export function harness(prisma: PrismaClient, apply = true) {
+export function harness(
+  prisma: PrismaClient,
+  apply = true,
+  production?: (input: {
+    prisma: PrismaClient;
+    clock: ReturnType<typeof createClock>;
+    fake: ReturnType<typeof createFakeProviders>;
+  }) => MediaProductionDeps,
+) {
   const clock = createClock(),
     tx = createTxRunner({ prisma, appEnv: "test" }),
     reports: InvariantReport[] = [],
@@ -129,7 +138,14 @@ export function harness(prisma: PrismaClient, apply = true) {
       events,
       bizNo: createBizNoIssuer({ clock, appEnv: "test" }),
     });
-  const media = createMedia({ tx, clock, assembly, events, storage: fake.storage });
+  const media = createMedia({
+    tx,
+    clock,
+    assembly,
+    events,
+    storage: fake.storage,
+    production: production?.({ prisma, clock, fake }),
+  });
   const profile = createProfile({
     tx,
     clock,

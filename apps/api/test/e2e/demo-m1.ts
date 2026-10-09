@@ -1,5 +1,14 @@
 // W1-21：与接口测试共用主路径。缺省只在本轮新测试库运行；--stack 只播种手验库。
-import { createNotices, createRuntime, loadEnv, runDemoSeed, security } from "@liyoxi/services";
+import {
+  createNotices,
+  createRuntime,
+  loadEnv,
+  runDemoSeed,
+  security,
+  parseDemoMasterArgs,
+  readDemoMasterInput,
+  createDemoMasterInputPreparer,
+} from "@liyoxi/services";
 import { createM1Support } from "@liyoxi/services/testing";
 
 import { createM1Api } from "./in-process.js";
@@ -9,7 +18,10 @@ const say = (message: string): void => {
   process.stdout.write(`${message}\n`);
 };
 
-async function seedStack(): Promise<void> {
+async function seedStack(args: readonly string[]): Promise<void> {
+  const parsed = parseDemoMasterArgs(args);
+  if (parsed === "help") throw new Error("M1 --stack 输入只接受 --video 与 --probe-facts");
+  const masterInput = parsed ? await readDemoMasterInput(parsed) : undefined;
   const env = loadEnv();
   const target = new URL(env.DATABASE_URL);
   if (
@@ -36,6 +48,9 @@ async function seedStack(): Promise<void> {
       appEnv: env.APP_ENV,
       media: runtime.media,
       content: runtime.content,
+      prepareMasters: masterInput
+        ? createDemoMasterInputPreparer(runtime, masterInput, new AbortController().signal)
+        : undefined,
       notices: createNotices({ clock: runtime.clock, events: runtime.events }),
       billing: { assembly: runtime.assembly, bizNo: runtime.bizNo },
       params: runtime.config.params,
@@ -55,14 +70,16 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.length === 1 && args[0] === "--help") {
     say("pnpm demo:m1：新隔离库重放七段接口主路径，结束后仅清理本轮资源。");
-    say("pnpm demo:m1 --stack：只为本机 lyx_stack 播种，保留已有数据供手验。");
+    say(
+      "pnpm demo:m1 --stack --video /absolute/master.mp4 --probe-facts /absolute/manifest.json：只为本机 lyx_stack 播种；新增内容要求合法原片输入。",
+    );
     return;
   }
-  if (args.length > 1 || (args.length === 1 && args[0] !== "--stack")) {
+  if (args.length && args[0] !== "--stack") {
     throw new Error("M1 演示只接受 --stack 或 --help");
   }
   if (args[0] === "--stack") {
-    await seedStack();
+    await seedStack(args.slice(1));
     return;
   }
   const support = await createM1Support({});

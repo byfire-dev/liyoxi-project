@@ -3,7 +3,8 @@ import type { Prisma, Sample } from "@liyoxi/db";
 import type { StaffContext } from "../authz/index.js";
 import { AppError, lockRows, uuidv7 } from "../kernel/index.js";
 import type { IdentityContext, Tx } from "../kernel/index.js";
-import { ensureProductionStubs } from "../media/index.js";
+import { manualProductionContext } from "./production-context.js";
+import { productionEvidence } from "./production-guard.js";
 import type { DeliveryDeps, DeliveryViewer } from "./context.js";
 import { checked } from "./machines.js";
 import { assertOwner, lockTickets, ticketOf } from "./repo.js";
@@ -119,7 +120,7 @@ export async function createSample(
     "sample",
     old.map((s) => s.id),
   );
-  const production = await ensureProductionStubs(tx, deps, [
+  const production = await deps.media.prepareDeliveryProduction(tx, [
     {
       fileId: b.fileId,
       kind: "sample",
@@ -130,6 +131,7 @@ export async function createSample(
       productionTier: t.orderItem.productionModel,
       uploadedByStaffId: staff.staff.id,
       forcedByDrama: await dramaUsesAi(tx, t.orderItem.dramaId),
+      ...(await manualProductionContext(tx, t, staff.staff.id, 1)),
     },
   ]);
   const { file, record } = production[0]!;
@@ -240,7 +242,7 @@ export async function inspectSample(
         gate: null,
       },
     });
-  const p = await productionReady(tx, s.fileId),
+  const p = await productionReady(tx, s.fileId, deps.media),
     q = await quality(tx, "qc.sample", b, p.aigcState),
     r = await insertQuality(tx, deps, t, staff.staff.id, "sample", id, q);
   await moveSample(
@@ -287,6 +289,7 @@ export async function pushSample(
     throw new AppError("AD_CHANGED", { details: { adIds: [...new Set(changed)] } });
   if (b.includeWecom && !s.offlineSentAt && !b.markWecomSent)
     throw new AppError("PREVIEW_OFFLINE_NOT_SENT");
+  await productionEvidence(tx, deps.media, s.fileId, true);
   const enabled = (await deps.samplePlayback?.(t.entityId)) ?? false,
     now = deps.clock.now(),
     channels = enabled ? ["weapp"] : ["album", "portal"];

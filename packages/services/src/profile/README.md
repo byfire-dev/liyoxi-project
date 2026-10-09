@@ -31,3 +31,5 @@ API 的响应沿既有 `respondByRole` 以本请求会员角色裁剪，写路�
 本域 m03 对 named schema 的可空引用改用 common.orNull，避免生成器把 DictRef、MediaFileView 等组件污染为可空或空对象交集；源 schema 行为不变，非空字典/null与媒体必有字段有真实类型消费者回归。没有改全局生成器、内核、DDL、锁序常量、依赖或 layers。
 
 W3-05 的 `profile.onFileModerated` 只回读当前文件和 logo/媒体/服务图片引用，按 store_profile UUID 排序锁后复用 refreshCompleteness 重算现有三列缓存，时间取当前 file.updatedAt。乱序 pass 事件不能把已 block 文件恢复为可用；审批状态、档案 lockVersion 和其他字段保持原业务写入口。
+
+W2-10 的门店停用窄前置公开 `countQualificationSubmissionsInReview(tx, storeId)` 与 `countUnverifiedPrimaryStore(tx, storeId)`。前者只计已提交且未关闭的全部三种资质轮次，后者只计主体认证结论不是 verified 的首店；复用调用方事务，只读无副作用。完整 StoreCloseGuard 必需端口装配及生命周期写侧仍由 W2-10 主包完成，不把缺装配当作零。

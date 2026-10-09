@@ -7,7 +7,7 @@ export const dramaCreatedPayload = z.strictObject({
   toState: z.literal("draft"),
   transition: z.literal("drama.create"),
 });
-export const dramaListedPayload = z.strictObject({
+const firstDramaListedPayload = z.strictObject({
   v: z.literal(1),
   dramaId: IdSchema,
   isRelist: z.literal(false),
@@ -15,6 +15,17 @@ export const dramaListedPayload = z.strictObject({
   toState: z.literal("listed"),
   transition: z.literal("drama.list"),
 });
+export const dramaListedPayload = z.union([
+  firstDramaListedPayload,
+  z.strictObject({
+    v: z.literal(1),
+    dramaId: IdSchema,
+    isRelist: z.literal(true),
+    fromState: z.literal("delisted"),
+    toState: z.literal("listed"),
+    transition: z.literal("drama.relist"),
+  }),
+]);
 export const dramaTierChangedPayload = z.strictObject({
   v: z.literal(1),
   dramaId: IdSchema,
@@ -51,6 +62,12 @@ export const dramaDelistedPayload = z.strictObject({
   transition: z.enum(["drama.delist", "drama.license_expire"]),
 });
 export const payloads = {
+  "drama.permit_changed": z.strictObject({
+    v: z.literal(1),
+    dramaId: IdSchema,
+    dramaPermitId: IdSchema,
+    platform: z.enum(["all", "douyin", "wechat_channels"]),
+  }),
   "drama.masters_changed": z.strictObject({
     v: z.literal(1),
     dramaId: IdSchema,

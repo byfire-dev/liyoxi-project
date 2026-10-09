@@ -12,7 +12,14 @@ let h: Awaited<ReturnType<typeof buildContentTest>>;
 beforeAll(async () => {
   h = await buildContentTest(db, clock);
   await seedDemoContent(
-    { tx: h.tx, clock, content: h.content, media: h.media, appEnv: "test" },
+    {
+      tx: h.tx,
+      clock,
+      content: h.content,
+      media: h.media,
+      prepareMasters: h.prepareMasters,
+      appEnv: "test",
+    },
     h.staff.id,
   );
 }, 180000);

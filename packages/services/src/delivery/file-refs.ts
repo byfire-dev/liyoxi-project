@@ -4,6 +4,7 @@ import { AppError, implementKeyed, fileRefTypePort } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 import { declareManualProduction, fileCategoryGuardPort } from "../media/index.js";
 import type { FileCategoryGuard } from "../media/index.js";
+import { manualProductionContext } from "./production-context.js";
 import { boundDelivery } from "./binding.js";
 import { ticketOf } from "./repo.js";
 import { invalid, unpaused, dramaUsesAi } from "./quality.js";
@@ -64,7 +65,13 @@ function guard(kind: "sample" | "final"): FileCategoryGuard {
         storeId: t.storeId,
         productionTier: t.orderItem.productionModel,
         uploadedByStaffId: staff.staff.id,
-        dramaEpisodeMasterId: p.dramaEpisodeMasterId,
+        ...(await manualProductionContext(
+          tx,
+          t,
+          staff.staff.id,
+          p.episodeNo!,
+          p.dramaEpisodeMasterId,
+        )),
         aiUsage: p.aiUsage,
         forcedByDrama: await dramaUsesAi(tx, t.orderItem.dramaId),
       });
