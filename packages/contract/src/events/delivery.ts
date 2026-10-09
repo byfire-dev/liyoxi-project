@@ -1,5 +1,6 @@
 import { z } from "../zod.js";
 import { IdSchema } from "../common/index.js";
+import { DELIVERY_TICKET_PAUSE_REASON, DELIVERY_TICKET_STEP } from "../enums/index.js";
 const transition = {
   fromState: z.union([z.string(), z.null()]),
   toState: z.string(),
@@ -58,6 +59,21 @@ export const payloads = {
     deliveryManagerId: z.union([IdSchema, z.null()]),
   }),
   "ticket.assigned": z.strictObject({ ...ticket, deliveryManagerId: IdSchema }),
+  "ticket.resumed": z.strictObject({
+    v: z.literal(1),
+    deliveryTicketId: IdSchema,
+    orderItemId: IdSchema,
+    reason: z.enum(DELIVERY_TICKET_PAUSE_REASON.values),
+    refId: IdSchema,
+    ...transition,
+  }),
+  "ticket.sla_breached": z.strictObject({
+    v: z.literal(1),
+    deliveryTicketId: IdSchema,
+    deliveryTicketStageId: IdSchema,
+    step: z.enum(DELIVERY_TICKET_STEP.values),
+    dueAt: z.iso.datetime(),
+  }),
   "ticket.step_changed": z.strictObject({
     ...ticket,
     orderItemId: IdSchema,
