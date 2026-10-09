@@ -322,10 +322,12 @@ export async function finishW120LiveFixture(
   runtime: Runtime,
   raw: unknown,
   video: { path: string; sha256: string; size: number },
+  signal?: AbortSignal,
 ) {
   const input = W120PendingSchema.parse(raw);
   const { tx, clock, assembly, flow } = runtime;
-  const media = await createW120Media(runtime, video, input);
+  signal?.throwIfAborted();
+  const media = await createW120Media(runtime, video, input, signal);
   const tenant = createTenant({ tx, clock, assembly, flow });
   const profile = createProfile({
     ...runtime,
@@ -357,6 +359,7 @@ export async function finishW120LiveFixture(
   const items = [];
   try {
     for (const pending of input.items) {
+      signal?.throwIfAborted();
       const scope = pending.scope,
         ticketId = scope.ticketId,
         item = { id: scope.itemId };
@@ -419,6 +422,7 @@ export async function finishW120LiveFixture(
       if (JSON.stringify(await business()) !== before)
         throw new Error("W120 未知元数据 QC 失败产生业务写入");
       await media.finish(sampleFile, true);
+      signal?.throwIfAborted();
       runtime.logger.info(
         { evt: "w120.actual_media", outcome: pending.outcome, stage: "sample_qc" },
         "本轮真实样片已完成制作",
@@ -432,7 +436,7 @@ export async function finishW120LiveFixture(
         sessionId: null,
         authMethod: null,
       });
-      const physical = await fetch(signed.url),
+      const physical = await fetch(signed.url, { signal }),
         proof = await media.downloadFacts(sampleFile, true);
       const downloaded = new Uint8Array(await physical.arrayBuffer());
       if (
@@ -485,6 +489,14 @@ export async function finishW120LiveFixture(
       unknownMetadataRejectedWithoutWrites: true,
     };
   } catch (error) {
+    runtime.logger.error(
+      {
+        evt: "w120.actual_media.failed",
+        error: error instanceof AppError ? error.error : "FIXTURE_PREPARATION_FAILED",
+        aborted: signal?.aborted === true,
+      },
+      "本轮实际制作未完成",
+    );
     await media.cleanup();
     throw error;
   }

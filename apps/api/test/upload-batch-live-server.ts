@@ -46,6 +46,7 @@ export async function startOutputBatchLiveServer(options: {
   image: string;
   version?: string;
   documentWorkerUrl?: URL;
+  signal?: AbortSignal;
 }) {
   const runId = assertScope(options.env, options.prefix);
   const inputs = OutputBatchLiveInputSchema.parse(options.inputs);
@@ -81,6 +82,14 @@ export async function startOutputBatchLiveServer(options: {
   const agreementPending = new Set<Promise<void>>();
   let closing = false;
   let stopped: Promise<void> | undefined;
+  let startupCancellation: Promise<PromiseSettledResult<void>[]> | undefined;
+  const cancelStartup = () => {
+    closing = true;
+    startupCancellation ??= Promise.allSettled(
+      runtimes.map((runtime) => runtime.media.jobs.pause()),
+    );
+  };
+  options.signal?.addEventListener("abort", cancelStartup, { once: true });
   const stop = () =>
     (stopped ??= (async () => {
       closing = true;
@@ -90,7 +99,7 @@ export async function startOutputBatchLiveServer(options: {
       const jobResults = await Promise.allSettled(
         runtimes.map((runtime) => runtime.media.jobs.shutdown()),
       );
-      await pending;
+      const pumpResults = await Promise.allSettled([pending]);
       const agreementResults = await Promise.allSettled([...agreementPending]);
       agreementFiles.clear();
       const servers = [apiServer, cosServer].filter((server) => server !== undefined);
@@ -110,9 +119,11 @@ export async function startOutputBatchLiveServer(options: {
           if (!result.ok) throw new Error("Rendered PNG cleanup failed");
         }),
       );
-      cloud?.close();
+      const transportResults = await Promise.allSettled([
+        Promise.resolve().then(() => cloud?.close()),
+        Promise.resolve().then(() => cos.close()),
+      ]);
       renderedPng.clear();
-      cos.close();
       const runtimeResults: PromiseSettledResult<void>[] = [];
       // Reverse construction order preserves the previously bound live scope until it closes.
       for (const runtime of [...[...runtimes].reverse(), realOwner])
@@ -121,10 +132,12 @@ export async function startOutputBatchLiveServer(options: {
       if (
         [
           ...jobResults,
+          ...pumpResults,
           ...agreementResults,
           ...serverResults,
           ...inputResults,
           ...pngResults,
+          ...transportResults,
           ...runtimeResults,
           ...relayResults,
         ].some((r) => r.status === "rejected")
@@ -132,7 +145,9 @@ export async function startOutputBatchLiveServer(options: {
         throw new Error("W302 live resources did not fully close");
     })());
   try {
+    options.signal?.throwIfAborted();
     relay = await createOutputBatchMediaToolRelay({ runId, image: options.image });
+    options.signal?.throwIfAborted();
     const tools = createOutputBatchToolsForTest({
       socketPath: relay.socketPath,
       workDir: relay.workDir,
@@ -179,12 +194,15 @@ export async function startOutputBatchLiveServer(options: {
     const batch = createRuntime({ ...borrowed, env: batchEnv, mediaProductionTools: tools });
     runtimes.push(batch);
     masters = await prepareOutputBatchLiveMasters(batch, inputs);
+    options.signal?.throwIfAborted();
     const w120 = inputs.w120
-      ? await finishW120LiveFixture(batch, inputs.w120, inputs.video)
+      ? await finishW120LiveFixture(batch, inputs.w120, inputs.video, options.signal)
       : undefined;
+    options.signal?.throwIfAborted();
     const batchApi = createApp({ runtime: batch, handlers: HANDLERS });
     apis.push(batchApi);
     await runStartupChecks(batch.startupChecks);
+    options.signal?.throwIfAborted();
     const readAgreementData = async (request: Request, path: string) => {
       const headers = new Headers(request.headers);
       for (const key of ["content-length", "content-type", "transfer-encoding"])
@@ -270,12 +288,14 @@ export async function startOutputBatchLiveServer(options: {
         ({ port }) => resolve(`http://127.0.0.1:${port}`),
       );
     });
+    options.signal?.throwIfAborted();
     const cosOrigin = await new Promise<string>((resolve) => {
       cosServer = serve(
         { fetch: (request) => cos.fetch(request), hostname: "127.0.0.1", port: 0 },
         ({ port }) => resolve(`http://127.0.0.1:${port}`),
       );
     });
+    options.signal?.throwIfAborted();
     for (const api of apis) api.readiness.state = "ready";
     // Original 15s cadence; exact owned IDs, never the all-database scanPromote.
     interval = setInterval(() => {
@@ -308,8 +328,15 @@ export async function startOutputBatchLiveServer(options: {
       w120,
     };
   } catch (error) {
-    await stop();
+    // The current startup await settles before cleanup, including relay creation before assignment.
+    try {
+      await startupCancellation;
+    } finally {
+      await stop();
+    }
     throw error;
+  } finally {
+    options.signal?.removeEventListener("abort", cancelStartup);
   }
 }
 
@@ -329,29 +356,39 @@ async function main() {
   if (!path.includes(`/admin-live-${runId}/`) || !path.endsWith("/media-input.json"))
     throw new Error("Input manifest must be the exact owned temporary file");
   const inputs = OutputBatchLiveInputSchema.parse(JSON.parse(await readFile(path, "utf8")));
-  const server = await startOutputBatchLiveServer({
-    env,
-    prefix: values["test-redis-prefix"],
-    inputs,
-    image: values["mediatool-image"],
-    version: process.env.LYX_BUILD ?? "w302-private-live",
-  });
-  process.stdout.write(
-    `${JSON.stringify({
-      evt: "w302.live.listening",
-      apiOrigin: server.apiOrigin,
-      cosOrigin: server.cosOrigin,
-      toolResources: server.toolResources,
-      w120: server.w120,
-    })}\n`,
-  );
-  for (const signal of ["SIGINT", "SIGTERM"] as const)
-    process.once(signal, () => {
+  const controller = new AbortController();
+  let server: Awaited<ReturnType<typeof startOutputBatchLiveServer>> | undefined;
+  const cancel = () => {
+    controller.abort();
+    if (server)
       void server.stop().then(
         () => process.exit(0),
         () => process.exit(1),
       );
+  };
+  for (const signal of ["SIGINT", "SIGTERM"] as const) process.once(signal, cancel);
+  try {
+    server = await startOutputBatchLiveServer({
+      env,
+      prefix: values["test-redis-prefix"],
+      inputs,
+      image: values["mediatool-image"],
+      version: process.env.LYX_BUILD ?? "w302-private-live",
+      signal: controller.signal,
     });
+    process.stdout.write(
+      `${JSON.stringify({
+        evt: "w302.live.listening",
+        apiOrigin: server.apiOrigin,
+        cosOrigin: server.cosOrigin,
+        toolResources: server.toolResources,
+        w120: server.w120,
+      })}\n`,
+    );
+  } catch (error) {
+    for (const signal of ["SIGINT", "SIGTERM"] as const) process.removeListener(signal, cancel);
+    throw error;
+  }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
   void main().catch(() => {

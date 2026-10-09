@@ -44,6 +44,7 @@ export async function createW120Media(
   runtime: Runtime,
   video: { path: string; sha256: string; size: number },
   input: z.infer<typeof W120PendingSchema>,
+  signal?: AbortSignal,
 ) {
   const actual = assertDeliveryLiveEnvironment(runtime.env),
     path = await realpath(video.path);
@@ -125,7 +126,69 @@ export async function createW120Media(
     const subscriber = runtime.assembly.subscriber("delivery.onProductionChecked");
     guard(subscriber);
     const deadline = performance.now() + 60_000;
+    let previous = "",
+      nextReportAt = 0;
+    const report = async (force = false) => {
+      const tick = performance.now();
+      if (!force && !signal?.aborted && tick < nextReportAt) return;
+      nextReportAt = tick + 1000;
+      const snapshot = await runtime.tx.run(async (tx) => {
+        const now = runtime.clock.now();
+        const jobs = await tx.mediaJob.findMany({
+          where: {
+            subjectType: "file_object",
+            subjectId: fileId,
+            kind: { in: ["probe", "watermark_sample"] },
+          },
+          take: 8,
+          orderBy: { id: "asc" },
+          select: {
+            kind: true,
+            state: true,
+            mode: true,
+            provider: true,
+            attemptNo: true,
+            errorCode: true,
+            nextRunAt: true,
+            deadlineAt: true,
+          },
+        });
+        const check = await tx.mediaCheck.findUnique({ where: { fileId }, select: { gate: true } });
+        const record = await tx.productionRecord.findUnique({
+          where: { fileId },
+          select: { pipelineState: true, aigcState: true },
+        });
+        const asset = await tx.playableAsset.findFirst({
+          where: { sourceFileId: fileId, kind: "sample" },
+          select: { state: true },
+        });
+        const facts = await runtime.media.deliveryProductionFacts(tx, fileId);
+        return {
+          jobs: jobs.map(({ nextRunAt, deadlineAt, errorCode, ...job }) => ({
+            ...job,
+            due: nextRunAt <= now,
+            unexpired: deadlineAt > now,
+            errorCode: errorCode && /^[A-Z0-9_]{1,100}$/.test(errorCode) ? errorCode : null,
+          })),
+          gate: check?.gate ?? null,
+          record,
+          asset: asset?.state ?? null,
+          valid: facts.valid,
+          ready: facts.ready,
+          playable: !!facts.playable,
+        };
+      });
+      const signature = JSON.stringify(snapshot);
+      if (signature !== previous)
+        runtime.logger.info(
+          { evt: "w120.production.state", watermarked, ...snapshot },
+          "本轮实际制作状态",
+        );
+      previous = signature;
+    };
     do {
+      await report();
+      signal?.throwIfAborted();
       const jobs = await runtime.tx.run((tx) =>
         tx.mediaJob.findMany({
           where: {
@@ -142,6 +205,8 @@ export async function createW120Media(
         }),
       );
       for (const job of jobs) await runtime.media.jobs.run({ jobId: job.id });
+      if (jobs.length) await report(true);
+      signal?.throwIfAborted();
       await runtime.tx.run(async (tx) => {
         const events = await tx.outboxEvent.findMany({
           where: {
@@ -160,7 +225,10 @@ export async function createW120Media(
           });
       });
       const facts = await runtime.tx.run((tx) => runtime.media.deliveryProductionFacts(tx, fileId));
-      if (facts.ready && (!watermarked || facts.playable)) return;
+      if (facts.ready && (!watermarked || facts.playable)) {
+        await report(true);
+        return;
+      }
       const terminal = await runtime.tx.run((tx) =>
         tx.mediaJob.count({
           where: {
@@ -187,6 +255,7 @@ export async function createW120Media(
       category: "sample_video" | "final_episode",
       episodeNo: number,
     ) {
+      signal?.throwIfAborted();
       guard(
         input.items.some(
           (p) =>
@@ -226,15 +295,19 @@ export async function createW120Media(
       const form = new FormData();
       for (const [key, value] of Object.entries(entry.post.fields)) form.append(key, value);
       form.append("file", new Blob([bytes], { type: "video/mp4" }), `W120_第${episodeNo}集.mp4`);
-      guard((await fetch(url, { method: "POST", body: form })).ok);
+      guard((await fetch(url, { method: "POST", body: form, signal })).ok);
+      signal?.throwIfAborted();
       await runtime.media.completeAdmin(actor, entry.fileId);
+      runtime.logger.info({ evt: "w120.upload.stage", stage: "promoting" }, "本轮真实上传阶段");
       const job = await runtime.tx.run((tx) =>
         tx.mediaJob.findUniqueOrThrow({ where: { dedupeKey: `promote:${entry.fileId}` } }),
       );
       guard(job.kind === "promote" && job.subjectId === entry.fileId && job.state === "queued");
       await runtime.media.promote({ jobId: job.id });
+      signal?.throwIfAborted();
       const stored = await file(entry.fileId);
       guard(stored.status === "stored" && stored.sizeBytes === BigInt(bytes.length));
+      runtime.logger.info({ evt: "w120.upload.stage", stage: "stored" }, "本轮真实上传阶段");
       return entry.fileId;
     },
     cleanup: async () => {
@@ -305,7 +378,7 @@ async function cleanupObjects(runtime: Runtime, runId: string, ids: string[]) {
             target.bucket === "media" &&
             target.entityId === f.entityId &&
             target.storeId === f.storeId &&
-            target.objectKey === `ci-out/${job.id}/output.mp4`,
+            target.objectKey === `sample/${asset.id}/${target.id}.mp4`,
         );
         result.push({ bucket: "media", key: target.objectKey });
       }
