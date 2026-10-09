@@ -462,7 +462,7 @@ async function main(args) {
     );
     writeFileSync(
       inputFile,
-      `${JSON.stringify({ current: fixtures.fixtures.w302.scope, legacy: fixtures.fixtures["zz-delivery-flow"].scope, w120: fixtures.fixtures.w120, video, resumeVideo })}\n`,
+      `${JSON.stringify({ current: fixtures.fixtures.w302.scope, legacy: fixtures.fixtures["zz-delivery-flow"].scope, w120: fixtures.fixtures.w120, w312: fixtures.fixtures.w312, video, resumeVideo })}\n`,
       { mode: 0o600 },
     );
     await run(
