@@ -29,3 +29,5 @@ API 的响应沿既有 `respondByRole` 以本请求会员角色裁剪，写路�
 后台首次指派显式 allowArchived；既有商家/系统调用仍默认拒绝归档。锁目标staff20共享、门店130后校验原经理为空，再调用两个同步端口，最后 tenant 写门店及唯一ops审计。同步端口 Promise<void | number> 兼容旧空实现：void记0，实际实现必须返回本次改写数量；响应 synced 与审计 meta.synced 同值，note只写reason_text。同步端口应按明确 input.staffId 写入，调用时门店行已锁、deliveryManager列尚未更新；不得借旧列替代输入。下游新增锁须高于已持store130，order160/delivery180保持原锁序；任何端口失败整事务回滚。W1-15/W1-16a 回补同时补真实数量。
 
 本域 m03 对 named schema 的可空引用改用 common.orNull，避免生成器把 DictRef、MediaFileView 等组件污染为可空或空对象交集；源 schema 行为不变，非空字典/null与媒体必有字段有真实类型消费者回归。没有改全局生成器、内核、DDL、锁序常量、依赖或 layers。
+
+W3-05 的 `profile.onFileModerated` 只回读当前文件和 logo/媒体/服务图片引用，按 store_profile UUID 排序锁后复用 refreshCompleteness 重算现有三列缓存，时间取当前 file.updatedAt。乱序 pass 事件不能把已 block 文件恢复为可用；审批状态、档案 lockVersion 和其他字段保持原业务写入口。

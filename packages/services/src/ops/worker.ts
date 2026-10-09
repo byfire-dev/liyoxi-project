@@ -342,6 +342,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     events,
     storage: providers.storage,
     channel,
+    moderation: providers.media,
     wechatImage: {
       appid: options.wechat?.config.appid,
       provider: providers.wechat,

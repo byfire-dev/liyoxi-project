@@ -46,6 +46,7 @@ export interface MediaDeps {
   readonly channel?: Pick<QueueChannel, "enqueue">;
   readonly videoMaxMb?: () => Promise<number>;
   readonly pollMs?: number;
+  readonly moderation?: MediaProvider;
   readonly wechatImage?: {
     readonly appid?: string;
     readonly provider: Pick<WechatProvider, "checkImage" | "configured">;

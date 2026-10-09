@@ -507,6 +507,21 @@ export interface MediaRemoteJob {
   };
 }
 
+/** CI moderation projection. No recognized text, URLs, snapshots, or raw provider objects. */
+export interface MediaAuditResult {
+  readonly verdict: Exclude<ContentVerdict, "pending">;
+  readonly processed: boolean;
+  readonly labels?: readonly string[];
+}
+export interface MediaAuditJob {
+  readonly jobId: string;
+  readonly dataId: string;
+  readonly state: "submitted" | "running" | "succeeded" | "failed";
+  readonly processed: boolean;
+  readonly verdict?: Exclude<ContentVerdict, "pending">;
+  readonly labels?: readonly string[];
+}
+
 export interface MediaProvider extends ProviderBase {
   /** 体检：分辨率、时长、编码、音轨。没有真正体检时 report 为 null */
   probe(input: {
@@ -539,13 +554,40 @@ export interface MediaProvider extends ProviderBase {
     dstKey: string;
     userData: string;
   }): Promise<ProviderResult<MediaJob>>;
-  /** 视频审核 */
+  /** 同步图片审核；保留原方法名，视频走 auditVideo。 */
   audit(input: {
     src: ObjectRef;
     signal?: AbortSignal;
     scenes: string[];
     userData: string;
-  }): Promise<ProviderResult<{ verdict: ContentVerdict; processed: boolean; jobId?: string }>>;
+  }): Promise<
+    ProviderResult<{
+      verdict: ContentVerdict;
+      processed: boolean;
+      jobId?: string;
+      labels?: readonly string[];
+    }>
+  >;
+  /** 同步审核真实 UTF-8 文本，驱动只返回有限结论，不返回正文。 */
+  auditText(input: {
+    bucket: StorageBucket;
+    text: string;
+    userData: string;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<MediaAuditResult>>;
+  /** 异步视频审核。未知提交不得自动重发。 */
+  auditVideo(input: {
+    src: ObjectRef;
+    userData: string;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<MediaAuditJob>>;
+  /** 精确查询已知审核 JobId，并核对实际 Object/DataId。 */
+  describeAudit(input: {
+    src: ObjectRef;
+    jobId: string;
+    userData: string;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<MediaAuditJob>>;
   /** 旧临时实现可缺省，统一执行器须受控拒绝缺失能力。 */
   describe?(input: {
     jobId: string;
@@ -890,7 +932,18 @@ export const PROVIDER_METHODS = {
     "readTo",
     "putStream",
   ],
-  media: ["probe", "transcode", "pack", "audit", "describe", "find", "cancel"],
+  media: [
+    "probe",
+    "transcode",
+    "pack",
+    "audit",
+    "describe",
+    "find",
+    "cancel",
+    "auditText",
+    "auditVideo",
+    "describeAudit",
+  ],
   ocr: ["recognizeBusinessLicense", "extractLicenseFields"],
   asr: ["transcribe"],
   llm: ["tagAsset", "extractKeyPoints"],

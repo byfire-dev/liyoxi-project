@@ -130,6 +130,9 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
       userData: "sample-job:2",
     },
     audit: { src: SAMPLE_REF, scenes: ["porn", "politics"], userData: "sample-job:3" },
+    auditText: { bucket: "asset", text: "虚构审核文本", userData: "sample-job:3" },
+    auditVideo: { src: SAMPLE_REF, userData: "sample-job:3" },
+    describeAudit: { src: SAMPLE_REF, jobId: "fake-audit-1", userData: "sample-job:3" },
     describe: { jobId: "fake-job-1", family: "media" },
     find: {
       family: "media",
