@@ -3,7 +3,8 @@
 // 只提供存储原语（03 第 5.2 节）：预签名表单直传到写入区 incoming/、读对象头、条件复制到正式区、
 // 签发读地址、删除。文件登记、入库、引用不在这里（W1-07）。没有临时密钥、没有版本控制：
 // 分块上传、续传在 MinIO 上测不到，真实驱动在 G3-A。
-// 四个桶在第一次用到时建好（已有的不动），所以工厂构建时不连网：MinIO 没起来也不影响启动，
+// 旧方法第一次用到时建四个桶（已有的不动）；完整读取直接读既有对象，可取消 HEAD/GET。
+// 工厂构建时不连网：MinIO 没起来也不影响启动，
 // 调用时返回 unavailable。
 // AWS SDK 只在本文件引入（任务书 第 11 节第 2 项）。
 
@@ -38,6 +39,7 @@ import type {
   StorageBucket,
   StorageProvider,
 } from "../types.js";
+import { disposeBody, readBoundedBody } from "./bounded-body.js";
 
 export interface MinioConfig {
   /** 服务端读写用的内部地址 */
@@ -427,6 +429,42 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
           await finished(body).catch(() => undefined);
         }
       }),
+
+    async readObject({ bucket, key, maxBytes, ifMatchEtag, signal }) {
+      if (!Number.isSafeInteger(maxBytes) || maxBytes < 1)
+        return failed("rejected", "完整对象读取上限必须是有限正整数");
+      if (signal?.aborted) return failed("rejected", "对象读取已取消");
+      try {
+        // 不等共享建桶 Promise：读取的是已存在的对象，signal 覆盖本次所有网络请求。
+        const head = await client.send(
+          new HeadObjectCommand({ Bucket: nameOf(bucket), Key: key }),
+          { abortSignal: signal },
+        );
+        const size = head.ContentLength;
+        if (size === undefined || !Number.isSafeInteger(size) || size < 0 || size > maxBytes)
+          return failed("rejected", "对象大小无效或超过读取上限");
+        if (!head.ETag || !head.ETag.trim()) return failed("rejected", "对象头未返回可信 etag");
+        if (ifMatchEtag !== undefined && head.ETag !== ifMatchEtag)
+          return failed("rejected", "源对象的 etag 对不上");
+        if (signal?.aborted) return failed("rejected", "对象读取已取消");
+        const result = await client.send(
+          new GetObjectCommand({ Bucket: nameOf(bucket), Key: key, IfMatch: head.ETag }),
+          { abortSignal: signal },
+        );
+        if (
+          result.ETag !== head.ETag ||
+          (result.ContentLength !== undefined && result.ContentLength !== size)
+        ) {
+          await disposeBody(result.Body);
+          return failed("rejected", "对象读取与对象头不一致");
+        }
+        return await readBoundedBody(result.Body, size, maxBytes, signal);
+      } catch (error) {
+        return signal?.aborted
+          ? failed("rejected", "对象读取已取消")
+          : toFailure(error, "完整读取对象");
+      }
+    },
 
     async putObject({
       bucket,

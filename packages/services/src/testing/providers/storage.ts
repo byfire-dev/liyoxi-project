@@ -202,6 +202,18 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
           return failed("rejected", "源对象不存在或 etag 对不上");
         return ok(stored.body.slice(0, input.bytes));
       }),
+    readObject: (input) =>
+      core.run("readObject", input, () => {
+        if (!Number.isSafeInteger(input.maxBytes) || input.maxBytes < 1)
+          return failed("rejected", "完整对象读取上限必须是有限正整数");
+        if (input.signal?.aborted) return failed("rejected", "对象读取已取消");
+        const stored = objects.get(slot(input));
+        if (!stored || (input.ifMatchEtag !== undefined && stored.etag !== input.ifMatchEtag))
+          return failed("rejected", "源对象不存在或 etag 对不上");
+        if (stored.body.byteLength > input.maxBytes)
+          return failed("rejected", "对象大小超过读取上限");
+        return ok(new Uint8Array(stored.body));
+      }),
     putObject: (input) =>
       core.run("putObject", input, () => {
         const existing = objects.get(slot(input));

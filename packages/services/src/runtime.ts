@@ -82,6 +82,7 @@ import {
   alertsOf,
   piiFieldsOf,
   assembleProviders,
+  createDocumentConverter,
   createBizNoIssuer,
   createTxRunner,
   createQueueChannel,
@@ -171,6 +172,7 @@ export const DB_POOLS: Readonly<Record<AssemblyEntry, DbPoolSettings>> = {
 };
 
 export interface RuntimeOptions {
+  readonly documentWorkerUrl?: URL;
   /** Only local/test external-tool substitution; production facts and handlers stay real. */
   readonly mediaProductionTools?: ProductionMediaTools;
   readonly webhookSources?: readonly WebhookSource[];
@@ -200,6 +202,7 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly documentConverter: ReturnType<typeof createDocumentConverter> | null;
   readonly smsInit: ReturnType<typeof createSmsInit>;
   readonly analytics: AnalyticsReceiver;
   readonly analyticsPartitions: Pick<AnalyticsJobs, "repartition">;
@@ -754,7 +757,11 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     },
   });
 
+  const documentConverter = options.documentWorkerUrl
+    ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
+    : null;
   return {
+    documentConverter,
     smsInit: createSmsInit({ tx, clock }),
     analytics,
     subscribeResults,
@@ -789,6 +796,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
+      await documentConverter?.close();
       await Promise.allSettled([
         staffScope.close(),
         media.jobs.shutdown(),

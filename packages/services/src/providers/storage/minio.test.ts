@@ -267,6 +267,61 @@ live("条件复制", () => {
   });
 });
 
+live("完整对象有界读取", () => {
+  it("真实 MinIO 的 HEAD、IfMatch 完整读取、独立字节、大小边界与 etag 变更", async () => {
+    const ref = { bucket: "secure", key: `files/${runId}/bounded.pdf` } as const;
+    const body = bytesOf("真实完整文档字节");
+    created.push(ref);
+    const written = await storage.putObject({ ...ref, body, contentType: MIME });
+    if (!written.ok) throw new Error(written.message);
+    const input = { ...ref, maxBytes: body.byteLength, ifMatchEtag: written.value.etag };
+    const read = await storage.readObject(input);
+    expect(read).toEqual({ ok: true, value: body });
+    if (!read.ok) throw new Error(read.message);
+    read.value[0] = 0;
+    expect(await storage.readObject({ ...ref, maxBytes: body.byteLength })).toEqual({
+      ok: true,
+      value: body,
+    });
+    expect(await storage.readObject({ ...input, maxBytes: body.byteLength - 1 })).toMatchObject({
+      ok: false,
+      reason: "rejected",
+    });
+    expect(
+      await storage.putObject({ ...ref, body: bytesOf("变更后"), contentType: MIME }),
+    ).toMatchObject({ ok: true });
+    expect(await storage.readObject(input)).toMatchObject({ ok: false, reason: "rejected" });
+    expect(await storage.readObject({ ...input, key: `${ref.key}/missing` })).toMatchObject({
+      ok: false,
+      reason: "rejected",
+    });
+  });
+
+  it("空对象可完整读取；旧 readPrefix 4096 上限与条件读取保持", async () => {
+    const ref = { bucket: "secure", key: `files/${runId}/empty.bin` } as const;
+    created.push(ref);
+    expect(
+      await storage.putObject({ ...ref, body: new Uint8Array(), contentType: MIME }),
+    ).toMatchObject({ ok: true });
+    expect(await storage.readObject({ ...ref, maxBytes: 1 })).toEqual({
+      ok: true,
+      value: new Uint8Array(),
+    });
+    const big = { ...ref, key: `files/${runId}/prefix.bin` };
+    created.push(big);
+    const body = new Uint8Array(4097).fill(7);
+    const written = await storage.putObject({ ...big, body, contentType: MIME });
+    if (!written.ok) throw new Error(written.message);
+    expect(
+      await storage.readPrefix({ ...big, bytes: 4096, ifMatchEtag: written.value.etag }),
+    ).toEqual({ ok: true, value: body.slice(0, 4096) });
+    expect(await storage.readPrefix({ ...big, bytes: 4097 })).toMatchObject({
+      ok: false,
+      reason: "rejected",
+    });
+  });
+});
+
 live("读地址", () => {
   it("给了下载文件名：按附件下载", async () => {
     const { key } = await put("secure", "named.bin", bytesOf("授权书"));
