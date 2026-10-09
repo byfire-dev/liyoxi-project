@@ -28,6 +28,7 @@ import { createMedia } from "../media/index.js";
 import { createMediaAssembly } from "./media-runtime.js";
 import { createRuntimeMediaBatches } from "./media-batches-runtime.js";
 import { createRuntimeMediaProduction } from "./media-production-runtime.js";
+import { createAlertFactsAssembly } from "./alert-facts-runtime.js";
 import type { PromoteRef } from "../media/index.js";
 import { advanceDueAccounts, createLedger, bindBillingTimers } from "../billing/index.js";
 import { createFlow } from "../flow/index.js";
@@ -133,6 +134,7 @@ export interface WorkerServicesOptions {
 export interface WorkerServices {
   readonly documentConverter: ReturnType<typeof createDocumentConverter> | null;
   readonly closeSmsHealth?: () => Promise<void>;
+  readonly closeAlertFacts?: () => Promise<void>;
   notifyDeliver(ref: NotifyQueueRef): Promise<void>;
   scanNotify(): Promise<number>;
   closeNotify(): Promise<void>;
@@ -205,7 +207,9 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const closeStorageDrivers = (): Promise<void> =>
     (storageClosing ??= Promise.all(storageClosers.map((close) => close())).then(() => undefined));
   const tx = createTxRunner({ prisma, appEnv: options.appEnv, report: options.report });
-  const analyticsScope = createAnalyticsJobs(options.assembly, {
+  const logger = options.logger ?? silent;
+  const alertFactsScope = createAlertFactsAssembly(options.assembly, { tx, clock, logger });
+  const analyticsScope = createAnalyticsJobs(alertFactsScope.assembly, {
     tx,
     clock,
     appEnv: options.appEnv,
@@ -218,7 +222,6 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const flow = createFlow({ assembly, clock, events });
-  const logger = options.logger ?? silent;
   const wechatSources = options.wechat
     ? [
         createWechatMessageSource({
@@ -435,6 +438,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   return {
     documentConverter,
     closeSmsHealth: () => smsHealth.close(),
+    closeAlertFacts: () => alertFactsScope.close(),
     notifyDeliver: (ref) => notify.deliver(ref),
     scanNotify: () =>
       notify.scan(async (ref) => {

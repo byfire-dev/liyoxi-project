@@ -63,3 +63,6 @@ export { createNotifyAssembly, createRuntimeNotify } from "./notify-runtime.js";
 export { createMediaAssembly } from "./media-runtime.js";
 export { createRuntimeMediaBatches } from "./media-batches-runtime.js";
 export { createRuntimeMediaProduction } from "./media-production-runtime.js";
+export { createAlertFacts } from "./alert-facts.js";
+export type { AlertFacts, AlertFactsDeps } from "./alert-facts.js";
+export { createAlertFactsAssembly } from "./alert-facts-runtime.js";
