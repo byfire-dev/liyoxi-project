@@ -295,7 +295,10 @@ test("W312 商城严格权重路径、合法热词、真实草稿发布与三视
     await expect(
       history.getByRole("cell", { name: `${original.published.revNo} · 已归档`, exact: true }),
     ).toBeVisible();
-    await history.getByRole("button", { name: "关闭", exact: true }).click();
+    await history
+      .locator(".lyx-confirm__footer")
+      .getByRole("button", { name: "关闭", exact: true })
+      .click();
     expect(errors).toEqual([]);
   } finally {
     await restore(page, "mall", initial);
@@ -432,6 +435,7 @@ test("W312 Banner 真实图片上传、编辑停用、完整排序与过期集�
     await start.fill(`${day} 09:00`);
     await start.press("Tab");
     await end.fill(`${day} 10:00`);
+    await end.press("Enter");
     await end.press("Tab");
     const dateConfirm = page
       .locator(".ant-picker-dropdown:visible")

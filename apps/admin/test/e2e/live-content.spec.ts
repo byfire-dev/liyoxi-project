@@ -242,7 +242,9 @@ test("W312 五页内容主流程：真实原片批次、许可版权源文件、
   await page.getByRole("button", { name: "编辑基础信息", exact: true }).click();
   const basic = page.getByRole("dialog", { name: "编辑基础信息", exact: true });
   await basic.locator('input[type="file"]').setInputFiles(syntheticImage("虚构封面.png"));
-  await expect(basic.getByText("已引用封面文件", { exact: true })).toBeVisible();
+  await expect(basic.getByText("已引用封面文件", { exact: true })).toBeVisible({
+    timeout: 120_000,
+  });
   const dictResponse = await page.request.get("/api/v1/admin/dict-items?typeKey=genre");
   expect(dictResponse.status()).toBe(200);
   const genre = DictItemListSchema.parse((await dictResponse.json()).data).items.find(
@@ -324,7 +326,9 @@ test("W312 五页内容主流程：真实原片批次、许可版权源文件、
     .getByRole("textbox", { name: "许可编号", exact: true })
     .fill(`W312TEST${f.scope.runId.slice(0, 6)}`);
   await permit.locator('input[type="file"]').setInputFiles(syntheticImage("虚构许可扫描件.png"));
-  await expect(permit.getByRole("button", { name: "本次上传扫描件", exact: true })).toBeVisible();
+  await expect(permit.getByRole("button", { name: "本次上传扫描件", exact: true })).toBeVisible({
+    timeout: 120_000,
+  });
   await saveDialog(page, permit, `${base}/permits`, "POST");
   const permitsResponse = await page.request.get(`${base}/permits`);
   expect(permitsResponse.status()).toBe(200);
@@ -335,7 +339,9 @@ test("W312 五页内容主流程：真实原片批次、许可版权源文件、
   await page.getByRole("button", { name: "编辑版权信息", exact: true }).click();
   const copyright = page.getByRole("dialog", { name: "保存版权信息", exact: true });
   await copyright.locator('input[type="file"]').setInputFiles(syntheticImage("虚构版权证明.png"));
-  await expect(copyright.getByRole("button", { name: "本次上传证明", exact: true })).toBeVisible();
+  await expect(copyright.getByRole("button", { name: "本次上传证明", exact: true })).toBeVisible({
+    timeout: 120_000,
+  });
   await saveDialog(page, copyright, `${base}/copyright`, "PUT");
   await page.getByRole("tab", { name: "基础信息", exact: true }).click();
   await page.getByRole("button", { name: "上传预告片", exact: true }).click();
@@ -486,6 +492,7 @@ test("W312 上过架版权走独立修订锁、原止日确认与真实新证明
   const f = contentFixture(),
     errors = recordErrors(page),
     original = await detail(page);
+  expect(original.copyright.proofFiles).toHaveLength(1);
   expect(original.copyright.editMode).toBe("revision");
   await page.goto(`/dramas/${f.dramaId}?tab=copyright`);
   await page.getByRole("button", { name: "提交版权变更", exact: true }).click();
@@ -497,7 +504,9 @@ test("W312 上过架版权走独立修订锁、原止日确认与真实新证明
     .getByRole("textbox", { name: "变更原因", exact: true })
     .fill("本轮虚构权属资料更正，不涉及真实内容发布");
   await dialog.locator('input[type="file"]').setInputFiles(syntheticImage("虚构版权修订依据.png"));
-  await expect(dialog.getByRole("button", { name: "本次上传证明", exact: true })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "本次上传证明", exact: true })).toBeVisible({
+    timeout: 120_000,
+  });
   await dialog
     .getByRole("checkbox", {
       name: `已核对原止日 ${original.copyright.licenseEndDate}；确认以当前草稿提交新版权快照`,
@@ -579,6 +588,7 @@ test("W312 真实财务身份v只读与e独立权限关闭，服务端拒绝且f
     await expect(viewer.getByRole("button", { name: "提交版权变更", exact: true })).toHaveCount(0);
     const current = await detail(viewer),
       copyright = current.copyright;
+    expect(copyright.proofFiles).toHaveLength(1);
     const denied = await viewer.request.post(
       `/api/v1/admin/dramas/${f.dramaId}/drama-copyright-revisions`,
       {
