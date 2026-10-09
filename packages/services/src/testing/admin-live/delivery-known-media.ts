@@ -5,9 +5,7 @@ import { z } from "zod";
 import type { Runtime } from "../../runtime.js";
 import type { Env, Tx } from "../../kernel/index.js";
 import { lockRows } from "../../kernel/index.js";
-import { contextHash } from "../../media/production.js";
-import { ProbeOutputSchema } from "../../media/handlers/probe.js";
-import { DerivationOutputSchema } from "../../media/handlers/restamp.js";
+import { contextHash, ProbeOutputSchema, DerivationOutputSchema } from "../../media/index.js";
 
 const uuid = z.string().uuid();
 export const DeliveryLiveScopeSchema = z.strictObject({

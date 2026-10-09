@@ -48,3 +48,7 @@ export { findI10Violations, findI11Violations } from "./jobs/invariants.js";
 export { decideMediaConvergence, systemProduceId } from "./jobs/convergence.js";
 
 export { assertUsableForModel } from "./read.js";
+
+export { contextHash } from "./production.js";
+export { ProbeOutputSchema } from "./handlers/probe.js";
+export { DerivationOutputSchema } from "./handlers/restamp.js";

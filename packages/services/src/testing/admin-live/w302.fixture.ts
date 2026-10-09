@@ -7,7 +7,7 @@ import { DramaSnapshotSchema } from "@liyoxi/contract";
 import { addDays, calendarDate } from "@liyoxi/shared/time";
 import { uuidv7 } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
-import { contextHash } from "../../media/production.js";
+import { contextHash } from "../../media/index.js";
 import type { Runtime } from "../../runtime.js";
 import { createFactories } from "../data/factories/index.js";
 import type { AdminLiveFixture, AdminLiveFixtureContext } from "./context.js";

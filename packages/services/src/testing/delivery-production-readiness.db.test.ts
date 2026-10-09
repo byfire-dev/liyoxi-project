@@ -1,9 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { useSeededDatabase } from "../../testing/index.js";
-import { productionReady } from "../../delivery/quality.js";
-import { declareManualProduction, ensureProductionStubs } from "../production-stub.js";
-import { harness } from "../__fixtures__/production.js";
-import type { Harness } from "../__fixtures__/production.js";
+import { useSeededDatabase, createMediaProductionHarness as harness } from "./index.js";
+import type { MediaProductionHarness as Harness } from "./index.js";
+import { productionReady } from "../delivery/index.js";
+import { declareManualProduction } from "../media/index.js";
 
 const db = useSeededDatabase("services");
 let h: Harness;
@@ -57,7 +56,7 @@ describe("交付制作事实不能由同步桥或孤立ready代替", () => {
   });
   it("登记stored人工文件只排真实probe，不能生成ready原片播放资产", async () => {
     const { file, input } = await source();
-    await h.tx.run((tx) => ensureProductionStubs(tx, h.deps, [input]));
+    await h.tx.run((tx) => h.deps.media.prepareDeliveryProduction(tx, [input]));
     expect(
       (await h.prisma.productionRecord.findUniqueOrThrow({ where: { fileId: file.id } }))
         .pipelineState,

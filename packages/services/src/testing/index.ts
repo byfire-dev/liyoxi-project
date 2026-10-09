@@ -111,3 +111,6 @@ export { findAgreementLiveUploadJobIds } from "./admin-live/agreements-m2-upload
 export { seedBillingDeletionFacts } from "./billing-deletion.js";
 
 export { finishW120LiveFixture } from "./admin-live/w120.fixture.js";
+
+export { createMediaProductionHarness } from "./media-production-harness.js";
+export type { MediaProductionHarness } from "./media-production-harness.js";
