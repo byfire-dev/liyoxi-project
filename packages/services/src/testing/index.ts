@@ -97,5 +97,6 @@ export { createOutputBatchToolsForTest, outputBatchInputFromProbe } from "./outp
 
 export { fullStaffWorld } from "./staff-full.js";
 export type { FullStaffWorld } from "./staff-full.js";
+export { createCodecDemoMasterPreparer } from "./demo-masters.js";
 export { createDocsAdminFixture } from "./docs-admin.js";
 export { seedBillingDeletionFacts } from "./billing-deletion.js";

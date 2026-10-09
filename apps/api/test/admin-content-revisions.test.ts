@@ -1,3 +1,4 @@
+import { createCodecDemoMasterPreparer } from "@liyoxi/services/testing";
 // W310 nine real routes, including required replay/C50 and read-only pricing metadata.
 import { beforeAll, expect, it } from "vitest";
 import { createIdentityContext, runSeed, seedDemoContent, uuidv7 } from "@liyoxi/services";
@@ -312,6 +313,13 @@ it("商城60秒home缓存跨午夜价格边界与热度事件，实际SQL priceV
       tx: app.runtime.tx,
       clock: app.clock,
       content: app.runtime.content,
+      prepareMasters: createCodecDemoMasterPreparer({
+        appEnv: "test",
+        tx: app.runtime.tx,
+        clock: app.clock,
+        media: app.runtime.media,
+        events: app.runtime.events,
+      }),
       media: app.runtime.media,
       appEnv: "test",
     },

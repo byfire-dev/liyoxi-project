@@ -17,7 +17,14 @@ it(
   "真实服务种子两次：3上架、版权修订/引用/状态历史/审计/事件恰好一次、不变量全过",
   { timeout: 180000 },
   async () => {
-    const deps = { tx: h.tx, clock, content: h.content, media: h.media, appEnv: "test" as const };
+    const deps = {
+      tx: h.tx,
+      clock,
+      content: h.content,
+      media: h.media,
+      prepareMasters: h.prepareMasters,
+      appEnv: "test" as const,
+    };
     const first = await seedDemoContent(deps, h.staff.id);
     expect(first.find((row) => row.table === "drama")?.inserted).toBe(3);
     expect((await seedDemoContent(deps, h.staff.id)).every((row) => row.inserted === 0)).toBe(true);
@@ -147,4 +154,32 @@ it("L1–L14 各条件与严重度；草稿上架失败指出阻断项且不写�
   expect(
     await h.prisma.statusTransition.count({ where: { machine: "drama", subjectId: draft.id } }),
   ).toBe(1);
+});
+
+it("未提供合法原片准备器的首次种子在内容写入前受控失败；没有伪L10默认", async () => {
+  // 此文件已有三剧；临时隔离其标题后检查第四次运行不写任何新内容/文件/字典。
+  const dramas = await h.prisma.drama.findMany({ select: { id: true, title: true } });
+  for (const row of dramas)
+    await h.prisma.drama.update({ where: { id: row.id }, data: { title: `isolated-${row.id}` } });
+  const before = [
+    await h.prisma.drama.count(),
+    await h.prisma.fileObject.count(),
+    await h.prisma.dictItem.count(),
+  ];
+  try {
+    await expect(
+      seedDemoContent(
+        { tx: h.tx, clock, content: h.content, media: h.media, appEnv: "test" },
+        h.staff.id,
+      ),
+    ).rejects.toThrow("未写入演示内容");
+    expect([
+      await h.prisma.drama.count(),
+      await h.prisma.fileObject.count(),
+      await h.prisma.dictItem.count(),
+    ]).toEqual(before);
+  } finally {
+    for (const row of dramas)
+      await h.prisma.drama.update({ where: { id: row.id }, data: { title: row.title } });
+  }
 });
