@@ -104,3 +104,9 @@ production_record 父先预锁已有样片350再制作记录360；属于批次�
 凭据只授权本批 `incoming/b{uploadBatchId}/`，30 分钟、8 MiB 块、文件并发 3、块并发 4；返回前后均复核本人及当前权限，不存凭据。批次 COS ListMultipartUploads 另用严格 `cos:prefix` 条件，原单文件授权不扩大。GET 不写业务行；权限变化后持有人仍可查看，但不能续签或变更。
 
 已普通同步包含 W3-04 的实际 main 并装配其真实处理器：批次父对象预锁、promote 入库/拒收通知及 productionChecked 在原结果事务内收敛；原片不伪造 productionRecord。新增四项公开执行器连库回归先真实失败、接线后完整通过；原批次目录、交付写侧、体检与 promote 租约九文件45项完整通过，接口七项的先前证据保留。真实容器20集ready、跨刷新续传与交付消费已通过：完整live旧21项通过、新批次输入方式失败；修正后定点auth+20集两项通过，严格核20个latest成片到ready文件ID对应且待质检current保持null。原两集制作/QC/保存/包质检证据保留，不混称重新跑全22项。原片编辑 UI 移交 W3-12；真实云断点、大文件与平台联调另验。
+
+## 10. W3-12 后台内容与站点文件前置
+
+既有 `banner`、`trailer_src`、`drama_license_doc` 按 a01 第2.17节开放后台登记：分别要求 ops 编辑、`drama.media.manage`、drama 编辑或 `drama.copyright.revise`。三类均限定平台归属；不接受主体、门店或代传范围。原片仍只能经过批次，系统派生类别仍不能通用登记。
+
+Banner 和预告片源按正式矩阵允许员工签发短时读地址；版权证明仍要求 drama 查看并逐次记录 access 审计。文件必须已入库且未被拦截。后台预告片源预览走既有 `admin.file.downloadUrls`（a04 第3.22节），不新增可播放资产接口。接口用例使用真实鉴权、隔离库和完整登记/完成/promote链，存储为 FakeStorage；这些边界用例不代替 W3-12 实际媒体制作与浏览器上传验收。
