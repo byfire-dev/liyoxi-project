@@ -60,18 +60,18 @@ it("真实worker装配执行content全量七项，3部listed剧没有未绑定�
       errors: [],
     });
   } finally {
-    await Promise.all([media.jobs.shutdown(), worker?.shutdownMediaJobs()]);
+    await Promise.all([media.jobs.shutdown(), worker?.shutdownMediaJobs?.()]);
     await worker?.closeNotify();
-    await worker?.closeAnalytics();
-    await worker?.closeStaff();
-    worker?.closeSmsHealth();
-    worker?.closeMediaJobs();
-    worker?.closeWebhooks();
-    worker?.closeOrder();
-    worker?.closeBillingTimers();
-    worker?.closeDelivery();
-    worker?.closePublish();
-    await Promise.all([worker?.closeMediaDrivers(), worker?.closeStorageDrivers()]);
+    await worker?.closeAnalytics?.();
+    await worker?.closeStaff?.();
+    await worker?.closeSmsHealth?.();
+    worker?.closeMediaJobs?.();
+    worker?.closeWebhooks?.();
+    worker?.closeOrder?.();
+    worker?.closeBillingTimers?.();
+    worker?.closeDelivery?.();
+    worker?.closePublish?.();
+    await Promise.all([worker?.closeMediaDrivers?.(), worker?.closeStorageDrivers?.()]);
     clear();
   }
 }, 180000);
