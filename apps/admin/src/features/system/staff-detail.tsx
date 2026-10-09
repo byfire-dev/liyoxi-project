@@ -274,7 +274,7 @@ function DutyButton({
 function StaffCommand({
   action,
   services,
-  staff,
+  staff: currentStaff,
   roles,
   close,
   refresh,
@@ -291,6 +291,8 @@ function StaffCommand({
   conflict: () => void;
 }) {
   const scope = actorScope(useContext(AccessContext));
+  // 一次打开的草稿、确认回显和 CAS 必须来自同一快照；背景刷新不替换它。
+  const [staff] = useState(currentStaff);
   const [draft, setDraft] = useState(() => commandDraft(staff));
   const [confirming, setConfirming] = useState(false),
     [message, setMessage] = useState<string>();

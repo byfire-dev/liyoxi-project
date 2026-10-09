@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { expect, type Page, type Response } from "@playwright/test";
 import { liveContext, noHorizontalScroll } from "./live-context";
 
@@ -107,10 +107,71 @@ export async function confirm(page: Page, title: string, staffNo?: number) {
   await dialog.getByRole("button", { name: "确认", exact: true }).click();
   await expect(dialog).toHaveCount(0);
 }
-export async function shot(page: Page, name: string) {
+export async function shot(page: Page, name: string, dialogTitle?: string) {
   await noHorizontalScroll(page, name);
   mkdirSync("dist/e2e-shots", { recursive: true });
+  const dialog = dialogTitle
+    ? page.getByRole("dialog", { name: dialogTitle, exact: true })
+    : page.locator('.ant-modal[role="dialog"]');
+  const hasDialog = dialogTitle !== undefined || (await dialog.count()) > 0;
+  const geometry = () =>
+    dialog.evaluate((element) => {
+      const content = element.querySelector(".ant-modal-container") ?? element;
+      const box = content.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      const hit = document.elementFromPoint(
+        box.x + box.width / 2,
+        box.y + Math.min(box.height / 2, 40),
+      );
+      return {
+        box: { x: box.x, y: box.y, width: box.width, height: box.height },
+        opacity: style.opacity,
+        transform: style.transform,
+        visibility: style.visibility,
+        display: style.display,
+        className: element.className,
+        hitInside: hit !== null && element.contains(hit),
+      };
+    });
+  const observations: { phase: string; geometry: Awaited<ReturnType<typeof geometry>> }[] = [];
+  const record = async (phase: string) => {
+    observations.push({ phase, geometry: await geometry() });
+    // 只记布局与样式，不写弹窗内容、表单值或凭据。
+    writeFileSync(`dist/e2e-shots/${name}.geometry.json`, JSON.stringify(observations, null, 2));
+  };
+  if (hasDialog) {
+    await expect(dialog).toHaveCount(1);
+    await record("before-resize");
+  }
   await page.setViewportSize({ width: 1440, height: 900 });
+  if (hasDialog) {
+    await record("after-resize");
+    await expect(dialog).toBeVisible();
+    await expect(dialog).not.toHaveClass(/ant-zoom-(appear|enter)/);
+    await expect
+      .poll(async () => {
+        const before = await geometry();
+        await page.evaluate(
+          () =>
+            new Promise<void>((resolve) => {
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+            }),
+        );
+        const after = await geometry();
+        return (
+          JSON.stringify(before.box) === JSON.stringify(after.box) &&
+          after.box.width > 0 &&
+          after.box.height > 0 &&
+          after.opacity === "1" &&
+          after.transform === "none" &&
+          after.visibility === "visible" &&
+          after.display !== "none" &&
+          after.hitInside
+        );
+      })
+      .toBe(true);
+    await record("stable-before-screenshot");
+  }
   await page.screenshot({
     path: `dist/e2e-shots/${name}.png`,
     animations: "disabled",
@@ -121,6 +182,7 @@ export async function shot(page: Page, name: string) {
       page.locator(".lyx-recovery-codes"),
     ],
   });
+  if (hasDialog) await record("after-screenshot");
   await page.setViewportSize({ width: 1366, height: 768 });
 }
 export function totp(secret: string) {

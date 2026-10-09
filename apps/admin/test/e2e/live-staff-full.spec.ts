@@ -167,7 +167,7 @@ test("真实在办预览、其他必填说明与禁用移交，末恢复原启�
     await expect(confirmation).toContainText(String(work.total));
     await expect(confirmation).toContainText(fixture.recipient.name);
     await expect(confirmation.getByRole("button", { name: "确认", exact: true })).toBeDisabled();
-    await shot(page, "w206-staff-handover");
+    await shot(page, "w206-staff-handover", "禁用员工");
     await confirm(page, "禁用员工", fixture.cs.staffNo);
     expect((await detail(page, fixture.cs.id)).status).toBe("disabled");
     expect((await api<Work>(page, `/staff/${fixture.cs.id}/open-work`)).total).toBe(0);
@@ -341,7 +341,7 @@ test("真实启用激活、本人改密重绑恢复码、会话吊销与客服�
     await page.getByRole("button", { name: "在线会话", exact: true }).click();
     const sessions = page.getByRole("dialog", { name: "在线会话", exact: true });
     await expect(sessions.getByRole("button", { name: "强制下线", exact: true })).toHaveCount(1);
-    await shot(page, "w206-staff-sessions");
+    await shot(page, "w206-staff-sessions", "在线会话");
     await sessions.getByRole("button", { name: "强制下线", exact: true }).click();
     const revoke = page.getByRole("dialog", { name: "强制下线", exact: true });
     await revoke.getByRole("checkbox", { name: "我已核对需要吊销的会话", exact: true }).check();
@@ -391,5 +391,200 @@ test("真实启用激活、本人改密重绑恢复码、会话吊销与客服�
         confirm: { staffNo: fixture.editor.staffNo, openWorkCount: 0 },
       });
     }
+  }
+});
+
+test("员工编辑返回焦点真实刷新详情，旧草稿仍按打开版本409后重新核对", async ({ page }) => {
+  const fixture = w206(),
+    errors = recordExpectedConflictErrors(page);
+  const original = await detail(page, fixture.manager.id);
+  const path = `/api/v1/admin/staff/${fixture.manager.id}`;
+  const descriptor = await page.evaluateHandle(() =>
+    Object.getOwnPropertyDescriptor(document, "visibilityState"),
+  );
+  const background = await page.context().newPage();
+  let visibilityProbe = false;
+  let restoreFetch: (() => Promise<void>) | undefined;
+  const restoreVisibility = async () => {
+    if (visibilityProbe)
+      await page.evaluate((saved) => {
+        if (saved) Object.defineProperty(document, "visibilityState", saved);
+        else Reflect.deleteProperty(document, "visibilityState");
+        document.dispatchEvent(new Event("visibilitychange", { bubbles: true }));
+      }, descriptor);
+  };
+  try {
+    await page.bringToFront();
+    await openStaff(page, fixture.manager.name);
+    // Chromium未在协议事件中保留Request.clone的流式正文；旁读克隆，不改变实际fetch。
+    const capture = await page.evaluateHandle((targetPath) => {
+      const originalFetch = window.fetch;
+      const state = {
+        requests: 0,
+        values: [] as { lockVersion: number; name: string; displayName: string }[],
+        errors: [] as string[],
+      };
+      window.fetch = (input, init) => {
+        if (
+          input instanceof Request &&
+          input.method === "PATCH" &&
+          new URL(input.url).origin === location.origin &&
+          new URL(input.url).pathname === targetPath
+        ) {
+          state.requests++;
+          try {
+            void input
+              .clone()
+              .json()
+              .then(
+                (body: unknown) => {
+                  if (
+                    typeof body === "object" &&
+                    body !== null &&
+                    "lockVersion" in body &&
+                    typeof body.lockVersion === "number" &&
+                    "name" in body &&
+                    typeof body.name === "string" &&
+                    "displayName" in body &&
+                    typeof body.displayName === "string"
+                  ) {
+                    state.values.push({
+                      lockVersion: body.lockVersion,
+                      name: body.name,
+                      displayName: body.displayName,
+                    });
+                  } else state.errors.push("unexpected observed field types");
+                },
+                () => state.errors.push("clone JSON read failed"),
+              );
+          } catch {
+            state.errors.push("Request clone failed");
+          }
+        }
+        return originalFetch.call(window, input, init);
+      };
+      return {
+        state,
+        restore: () => {
+          window.fetch = originalFetch;
+        },
+      };
+    }, path);
+    restoreFetch = async () => {
+      await capture.evaluate((value) => value.restore());
+      await capture.dispose();
+    };
+    await page.getByRole("button", { name: "编辑员工", exact: true }).click();
+    const edit = page.getByRole("dialog", { name: "编辑员工", exact: true });
+    await edit.getByRole("textbox", { name: "姓名", exact: true }).fill("焦点旧草稿");
+    await edit.getByRole("textbox", { name: "对外称呼", exact: true }).fill("旧稿称呼");
+    await background.goto("about:blank");
+    await background.bringToFront();
+    const browserHidden = await page.evaluate(() => document.visibilityState === "hidden");
+    if (!browserHidden) {
+      visibilityProbe = true;
+      await page.evaluate(() => {
+        Object.defineProperty(document, "visibilityState", {
+          configurable: true,
+          get: () => "hidden",
+        });
+        document.dispatchEvent(new Event("visibilitychange", { bubbles: true }));
+      });
+    }
+    const mode = browserHidden
+      ? "浏览器真实tab隐藏/恢复"
+      : "headless未隐藏tab：限定visibility依赖探针，非物理切窗";
+    test.info().annotations.push({ type: "w206-focus-mode", description: mode });
+    await write(page, `/staff/${fixture.manager.id}`, "PATCH", {
+      name: "焦点服务端",
+      displayName: "服务端称呼",
+      lockVersion: original.lockVersion,
+    });
+    const changed = await detail(page, fixture.manager.id);
+    expect(changed.lockVersion).toBeGreaterThan(original.lockVersion);
+    const refetch = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" && new URL(response.url()).pathname === path,
+    );
+    await page.bringToFront();
+    await restoreVisibility();
+    const refreshed = await refetch;
+    expect(refreshed.status()).toBe(200);
+    expect(((await refreshed.json()) as { data: Detail }).data.lockVersion).toBe(
+      changed.lockVersion,
+    );
+    // 确认查询结果已进入当前详情组件；仅收到HTTP响应不足以证明prop已刷新。
+    await expect(
+      page
+        .getByRole("dialog", { name: "员工详情", exact: true })
+        .getByText(`焦点服务端 / ${fixture.manager.staffNo}`, { exact: true }),
+    ).toBeVisible();
+    await expect(edit.getByRole("textbox", { name: "姓名", exact: true })).toHaveValue(
+      "焦点旧草稿",
+    );
+    await expect(edit.getByRole("textbox", { name: "对外称呼", exact: true })).toHaveValue(
+      "旧稿称呼",
+    );
+    await edit.getByRole("button", { name: "核对并继续", exact: true }).click();
+    await expect(edit).toContainText(`${original.name} / ${fixture.manager.staffNo}`);
+    const patch = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" && new URL(response.url()).pathname === path,
+    );
+    await confirm(page, "编辑员工");
+    const conflicted = await patch;
+    await expect.poll(() => capture.evaluate((value) => value.state.values.length)).toBe(1);
+    const captured = await capture.evaluate((value) => value.state);
+    expect(captured.requests).toBe(1);
+    expect(captured.errors).toEqual([]);
+    const submitted = captured.values[0]!;
+    expect(submitted).toMatchObject({
+      lockVersion: original.lockVersion,
+      name: "焦点旧草稿",
+      displayName: "旧稿称呼",
+    });
+    expect(conflicted.status()).toBe(409);
+    errors.allow(conflicted, path);
+    await expect(
+      page.getByText("内容已变化，已重新读取。请打开操作并核对最新版本及在办量。", { exact: true }),
+    ).toBeVisible();
+    expect(await detail(page, fixture.manager.id)).toMatchObject({
+      name: "焦点服务端",
+      displayName: "服务端称呼",
+      lockVersion: changed.lockVersion,
+    });
+    await page.getByRole("button", { name: "编辑员工", exact: true }).click();
+    await expect(edit.getByRole("textbox", { name: "姓名", exact: true })).toHaveValue(
+      "焦点服务端",
+    );
+    await expect(edit.getByRole("textbox", { name: "对外称呼", exact: true })).toHaveValue(
+      "服务端称呼",
+    );
+    await edit.getByRole("button", { name: "取消", exact: true }).click();
+    expect(errors.unexpected()).toEqual([]);
+    const info = test.info();
+    await info.attach("w206-focus-version-proof", {
+      contentType: "application/json",
+      body: Buffer.from(
+        JSON.stringify({
+          mode,
+          openedVersion: original.lockVersion,
+          refreshedVersion: changed.lockVersion,
+          submittedVersion: submitted.lockVersion,
+          status: conflicted.status(),
+        }),
+      ),
+    });
+  } finally {
+    await restoreFetch?.();
+    await restoreVisibility();
+    await descriptor.dispose();
+    await background.close();
+    const current = await detail(page, fixture.manager.id);
+    await write(page, `/staff/${fixture.manager.id}`, "PATCH", {
+      name: original.name,
+      displayName: original.displayName,
+      lockVersion: current.lockVersion,
+    });
   }
 });
