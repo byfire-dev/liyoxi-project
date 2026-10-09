@@ -1,5 +1,8 @@
 import { expect, it } from "vitest";
-import { assertContentAdminLiveScope } from "@liyoxi/services/testing";
+import {
+  assertContentAdminLiveScope,
+  parseOutputBatchLiveManifest as parseSharedManifest,
+} from "@liyoxi/services/testing";
 import { parseOutputBatchLiveManifest } from "./upload-batch-live-server.js";
 
 const runId = "1234567890abcdef",
@@ -61,6 +64,8 @@ const original = {
   resumeVideo: video,
 };
 it("without W312 the original strict four-field manifest remains unchanged", () => {
+  // The API and old delivery CLI use this identical public testing adapter.
+  expect(parseOutputBatchLiveManifest).toBe(parseSharedManifest);
   expect(parseOutputBatchLiveManifest(original)).toEqual({ inputs: original, w312: undefined });
   expect(() => parseOutputBatchLiveManifest({ ...original, unexpected: true })).toThrow();
 });
@@ -88,6 +93,10 @@ it("W312 is independently parsed and stripped before the original strict manifes
     }),
   ).toThrow();
   expect(() => parseOutputBatchLiveManifest({ ...original, w312: undefined })).toThrow();
+  expect(() => parseSharedManifest({ ...original, w312: null })).toThrow();
+  expect(() =>
+    parseSharedManifest({ ...original, w312: { ...content, expectedDraftCount: 12 } }),
+  ).toThrow();
 });
 it("W312 cannot broaden the original current or legacy target contract", () => {
   expect(() =>

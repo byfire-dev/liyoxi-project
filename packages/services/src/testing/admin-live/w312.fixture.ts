@@ -5,6 +5,7 @@ import { createIdentityContext, uuidv7 } from "../../kernel/index.js";
 import type { Runtime } from "../../runtime.js";
 import type { AdminLiveFixture } from "./context.js";
 import { assertDeliveryLiveEnvironment } from "./delivery-known-media.js";
+import { OutputBatchLiveInputSchema } from "./w302.fixture.js";
 
 /** Scope only. No ready files, masters, checks, listed state or terminal jobs are seeded. */
 export const ContentAdminLiveScopeSchema = z.strictObject({
@@ -20,6 +21,24 @@ export const ContentAdminLiveScopeSchema = z.strictObject({
     .refine((ids) => new Set(ids).size === ids.length),
 });
 export type ContentAdminLiveScope = z.infer<typeof ContentAdminLiveScopeSchema>;
+const contentManifestSchema = z.strictObject({
+  scope: ContentAdminLiveScopeSchema,
+  dramaId: z.uuid(),
+  title: z.string(),
+  query: z.string(),
+  expectedDraftCount: z.literal(13),
+});
+/** Independent optional fixture: the original W302 schema remains strict. */
+export function parseOutputBatchLiveManifest(raw: unknown) {
+  if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w312" in raw) {
+    const { w312, ...original } = raw;
+    return {
+      inputs: OutputBatchLiveInputSchema.parse(original),
+      w312: contentManifestSchema.parse(w312).scope,
+    };
+  }
+  return { inputs: OutputBatchLiveInputSchema.parse(raw), w312: undefined };
+}
 export function assertContentAdminLiveScope(
   runtime: { env: Pick<Runtime["env"], "APP_ENV" | "DATABASE_URL" | "REDIS_URL"> },
   raw: unknown,
@@ -150,6 +169,11 @@ const fixture: AdminLiveFixture = async ({ runtime }) => {
       userAgent: "lyxtest W312 content fixture",
     }),
   };
+  // Public dictionary write; no ready content or media state is seeded.
+  await runtime.configAdmin.createDictItem(actor, {
+    typeKey: "genre",
+    name: `页面题材${owned.runId.slice(0, 6)}`,
+  });
   const prefix = `页面${owned.runId.slice(0, 6)}-`;
   const main = await runtime.contentAdmin.create(actor, { title: `${prefix}内容` });
   const basic = await runtime.contentAdmin.basic(actor, main.dramaId, {

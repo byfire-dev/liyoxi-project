@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync } from "node:fs";
 import { deflateSync } from "node:zlib";
-import { expect, type Page, type TestInfo } from "@playwright/test";
+import { expect, type Page, type Response, type TestInfo } from "@playwright/test";
 import { z } from "@liyoxi/contract";
 import { liveContext } from "./live-context";
 
@@ -120,7 +120,13 @@ export async function viewportShots(page: Page, info: TestInfo, stem: string) {
         content: content ? [content.scrollWidth, content.clientWidth] : null,
       };
     });
-    expect(widths.root[0], `${stem} ${viewport.width} root`).toBeLessThanOrEqual(widths.root[1]!);
+    if (viewport.width >= 1366)
+      expect(widths.root[0], `${stem} ${viewport.width} root`).toBeLessThanOrEqual(widths.root[1]!);
+    else
+      info.annotations.push({
+        type: "below-supported-viewport",
+        description: `${stem}: 1280 viewport, document ${widths.root[0]}px; frozen shell minimum 1366px (design-spec §5.1).`,
+      });
     if (widths.content)
       expect(widths.content[0], `${stem} ${viewport.width} content`).toBeLessThanOrEqual(
         widths.content[1]!,
@@ -130,4 +136,119 @@ export async function viewportShots(page: Page, info: TestInfo, stem: string) {
     await info.attach(`${stem}-${viewport.width}`, { path, contentType: "image/png" });
   }
   await page.setViewportSize({ width: 1366, height: 768 });
+}
+
+// Memory-only observation of these non-secret site writes; no routing or response mocks.
+type SiteWriteEvent = {
+  key: string;
+  kind: "body" | "forward" | "error";
+  body?: unknown;
+  error?: string;
+};
+declare global {
+  interface Window {
+    __w312SiteWrite: (event: SiteWriteEvent) => Promise<void>;
+    __w312RestoreSiteWrite?: () => void;
+  }
+}
+type SiteWriteRecord = { body?: unknown; read: boolean; forwarded: number };
+const siteWrites = new WeakMap<Page, { records: Map<string, SiteWriteRecord>; errors: string[] }>();
+export async function startSiteWriteObserver(page: Page) {
+  const state: { records: Map<string, SiteWriteRecord>; errors: string[] } = {
+    records: new Map(),
+    errors: [],
+  };
+  siteWrites.set(page, state);
+  await page.exposeFunction("__w312SiteWrite", (event: SiteWriteEvent) => {
+    if (!event.key || (!state.records.has(event.key) && state.records.size >= 100))
+      throw new Error("Missing or unbounded site write key");
+    const record = state.records.get(event.key) ?? { read: false, forwarded: 0 };
+    state.records.set(event.key, record);
+    if (event.kind === "body") {
+      if (record.read) state.errors.push("Repeated clone for one write key");
+      record.body = event.body;
+      record.read = true;
+    } else if (event.kind === "forward") record.forwarded++;
+    else state.errors.push(event.error ?? "Request clone failed");
+  });
+  await page.addInitScript(() => {
+    const originalFetch = window.fetch;
+    window.__w312RestoreSiteWrite = () => {
+      window.fetch = originalFetch;
+    };
+    window.fetch = function (this: Window, input, init) {
+      let key: string | undefined;
+      if (input instanceof Request) {
+        const url = new URL(input.url);
+        const allowed =
+          url.origin === location.origin &&
+          ((input.method === "POST" &&
+            /^\/api\/v1\/admin\/site-configs\/(home_recommend|mall)\/publish$/.test(
+              url.pathname,
+            )) ||
+            (["POST", "PATCH"].includes(input.method) &&
+              /^\/api\/v1\/admin\/home-banners(?:\/(?:[a-f0-9-]{36}|reorder))?$/.test(
+                url.pathname,
+              )) ||
+            (input.method === "POST" && url.pathname === "/api/v1/admin/files"));
+        if (allowed) {
+          key = input.headers.get("Idempotency-Key") ?? "";
+          const identity = `${input.method} ${url.pathname} ${key}`;
+          key = identity;
+          if (init !== undefined || !input.headers.get("Idempotency-Key"))
+            void window.__w312SiteWrite({
+              key,
+              kind: "error",
+              error: "Unexpected request override or missing idempotency key",
+            });
+          try {
+            void input
+              .clone()
+              .json()
+              .then(
+                (body: unknown) => window.__w312SiteWrite({ key: identity, kind: "body", body }),
+                () =>
+                  window.__w312SiteWrite({
+                    key: identity,
+                    kind: "error",
+                    error: "Request clone JSON failed",
+                  }),
+              );
+          } catch {
+            void window.__w312SiteWrite({ key, kind: "error", error: "Request clone failed" });
+          }
+        }
+      }
+      // Exactly one call with the original arguments; return its original Promise unchanged.
+      const result = originalFetch.call(this, input, init);
+      if (key) void window.__w312SiteWrite({ key, kind: "forward" });
+      return result;
+    };
+  });
+}
+export async function siteWriteBody(page: Page, response: Response): Promise<unknown> {
+  const state = siteWrites.get(page);
+  if (!state) throw new Error("Site write observer is not installed");
+  const request = response.request(),
+    id = request.headers()["idempotency-key"];
+  expect(id, "Real response must retain its request idempotency key").toBeTruthy();
+  const key = `${request.method()} ${new URL(response.url()).pathname} ${id}`;
+  await expect.poll(() => state.records.get(key)?.read === true).toBe(true);
+  const record = state.records.get(key);
+  expect(record?.forwarded, "Original fetch invoked once for this exact request key").toBe(1);
+  expect(state.errors, "Request clones must succeed without affecting the real fetch").toEqual([]);
+  return record?.body;
+}
+export async function stopSiteWriteObserver(page: Page) {
+  const state = siteWrites.get(page);
+  try {
+    await page.evaluate(() => window.__w312RestoreSiteWrite?.());
+    expect(state?.errors ?? []).toEqual([]);
+    for (const record of state?.records.values() ?? []) {
+      expect(record.read, "Every observed request clone completed").toBe(true);
+      expect(record.forwarded, "Every real request was forwarded exactly once").toBe(1);
+    }
+  } finally {
+    siteWrites.delete(page);
+  }
 }

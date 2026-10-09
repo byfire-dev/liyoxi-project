@@ -113,6 +113,7 @@ export { seedBillingDeletionFacts } from "./billing-deletion.js";
 // W3-12: exact owned content scope for the existing private live server.
 export {
   ContentAdminLiveScopeSchema,
+  parseOutputBatchLiveManifest,
   assertContentAdminLiveScope,
   assertContentAdminLiveTargets,
   findContentAdminLiveJobIds,

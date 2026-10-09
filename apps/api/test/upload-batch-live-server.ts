@@ -9,7 +9,6 @@ import {
   AdminFileViewSchema,
   FileRegistrationSchema,
   StaffMeSchema,
-  z,
 } from "@liyoxi/contract";
 import type { Env, RuntimeOptions } from "@liyoxi/services";
 import {
@@ -19,7 +18,7 @@ import {
   findOutputBatchLiveJobIds,
   consumeOutputBatchLiveChecked,
   prepareOutputBatchLiveMasters,
-  ContentAdminLiveScopeSchema,
+  parseOutputBatchLiveManifest,
   assertContentAdminLiveScope,
   assertContentAdminLiveTargets,
   findContentAdminLiveJobIds,
@@ -49,24 +48,7 @@ function assertScope(env: Env, prefix: string) {
   return runId;
 }
 
-const contentManifestSchema = z.strictObject({
-  scope: ContentAdminLiveScopeSchema,
-  dramaId: z.uuid(),
-  title: z.string(),
-  query: z.string(),
-  expectedDraftCount: z.literal(13),
-});
-/** Independent optional fixture: the original W302 schema remains strict. */
-export function parseOutputBatchLiveManifest(raw: unknown) {
-  if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w312" in raw) {
-    const { w312, ...original } = raw;
-    return {
-      inputs: OutputBatchLiveInputSchema.parse(original),
-      w312: contentManifestSchema.parse(w312).scope,
-    };
-  }
-  return { inputs: OutputBatchLiveInputSchema.parse(raw), w312: undefined };
-}
+export { parseOutputBatchLiveManifest } from "@liyoxi/services/testing";
 export async function startOutputBatchLiveServer(options: {
   env: Env;
   prefix: string;

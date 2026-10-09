@@ -6,13 +6,21 @@ import {
   HomeBannerMutationSchema,
   HomeBannerPageSchema,
   HomeBannerReorderResultSchema,
+  HomeBannerReorderBodySchema,
   SiteConfigViewSchema,
   type HomeBannerCreateBody,
   type HomeBannerItem,
   type SiteConfigView,
 } from "@liyoxi/contract";
 import { liveContext, recordErrors } from "./live-context";
-import { contentFixture, syntheticImage, viewportShots } from "./w312-media";
+import {
+  contentFixture,
+  syntheticImage,
+  viewportShots,
+  startSiteWriteObserver,
+  siteWriteBody,
+  stopSiteWriteObserver,
+} from "./w312-media";
 
 type ConfigKey = "home_recommend" | "mall";
 function headers(action: string) {
@@ -122,8 +130,12 @@ async function cleanupBanners(page: Page, owned: string[], baseline: HomeBannerI
     ...currentIds.filter((id) => !baselineIds.includes(id)),
   ]);
 }
-test.beforeEach(() => {
+test.beforeEach(async ({ page }) => {
   mkdirSync("dist/e2e-shots", { recursive: true });
+  await startSiteWriteObserver(page);
+});
+test.afterEach(async ({ page }) => {
+  await stopSiteWriteObserver(page);
 });
 
 test("W312 首页真实草稿与发布分离、独立键、历史复制为新发布版", async ({ page }, info) => {
@@ -159,7 +171,7 @@ test("W312 首页真实草稿与发布分离、独立键、历史复制为新发
     await page.getByRole("button", { name: "仅发布已存草稿", exact: true }).click();
     const publishResponse = await publishWait,
       published = await successful(publishResponse);
-    expect(publishResponse.request().postDataJSON()).toEqual({
+    expect(await siteWriteBody(page, publishResponse)).toEqual({
       lockVersion: saved.draft!.lockVersion,
       baseRevNo: original.published.revNo,
     });
@@ -196,7 +208,7 @@ test("W312 首页真实草稿与发布分离、独立键、历史复制为新发
       rollbackSaved = await successful(rollbackSavedResponse);
     const rollbackResponse = await rollbackPublish,
       rollback = await successful(rollbackResponse);
-    expect(rollbackResponse.request().postDataJSON()).toEqual({
+    expect(await siteWriteBody(page, rollbackResponse)).toEqual({
       lockVersion: rollbackSaved.draft!.lockVersion,
       baseRevNo: published.published.revNo,
     });
@@ -261,7 +273,7 @@ test("W312 商城严格权重路径、合法热词、真实草稿发布与三视
     await page.getByRole("button", { name: "仅发布已存草稿", exact: true }).click();
     const publishedResponse = await publishWait,
       published = await successful(publishedResponse);
-    expect(publishedResponse.request().postDataJSON()).toEqual({
+    expect(await siteWriteBody(page, publishedResponse)).toEqual({
       lockVersion: saved.draft!.lockVersion,
       baseRevNo: original.published.revNo,
     });
@@ -388,7 +400,7 @@ test("W312 Banner 真实图片上传、编辑停用、完整排序与过期集�
     await editor.locator('input[type="file"]').setInputFiles(syntheticImage("w312-banner.png"));
     const registration = await registrationWait;
     expect(registration.status()).toBe(200);
-    expect(registration.request().postDataJSON()).toMatchObject({
+    expect(await siteWriteBody(page, registration)).toMatchObject({
       category: "banner",
       fileName: "w312-banner.png",
     });
@@ -478,7 +490,7 @@ test("W312 Banner 真实图片上传、编辑停用、完整排序与过期集�
     const editedResponse = await editWait;
     expect(editedResponse.status()).toBe(200);
     const edited = HomeBannerMutationSchema.parse((await editedResponse.json()).data);
-    expect(editedResponse.request().postDataJSON()).toMatchObject({
+    expect(await siteWriteBody(page, editedResponse)).toMatchObject({
       lockVersion: first.lockVersion,
       imageFileId,
       title: editedTitle,
@@ -497,7 +509,7 @@ test("W312 Banner 真实图片上传、编辑停用、完整排序与过期集�
     await page.keyboard.press("Enter");
     const disabledResponse = await disableWait;
     expect(disabledResponse.status()).toBe(200);
-    expect(disabledResponse.request().postDataJSON()).toEqual({
+    expect(await siteWriteBody(page, disabledResponse)).toEqual({
       lockVersion: edited.lockVersion,
       isEnabled: false,
     });
@@ -514,7 +526,9 @@ test("W312 Banner 真实图片上传、编辑停用、完整排序与过期集�
       .dragTo(banners.getByRole("button", { name: `拖动排序 ${editedTitle}`, exact: true }));
     const orderedResponse = await firstOrderWait;
     expect(orderedResponse.status()).toBe(200);
-    const submitted = orderedResponse.request().postDataJSON().homeBannerIds as string[];
+    const submitted = HomeBannerReorderBodySchema.parse(
+      await siteWriteBody(page, orderedResponse),
+    ).homeBannerIds;
     expect([...submitted].sort()).toEqual(allBefore.map((item) => item.homeBannerId).sort());
     expect(submitted.slice(0, 2)).toEqual([second.homeBannerId, first.homeBannerId]);
     expect(
@@ -551,7 +565,9 @@ test("W312 Banner 真实图片上传、编辑停用、完整排序与过期集�
     expect(retry.request().headers()["idempotency-key"]).not.toBe(
       stale.request().headers()["idempotency-key"],
     );
-    const retryIds = retry.request().postDataJSON().homeBannerIds as string[];
+    const retryIds = HomeBannerReorderBodySchema.parse(
+      await siteWriteBody(page, retry),
+    ).homeBannerIds;
     expect([...retryIds].sort()).toEqual(current.map((item) => item.homeBannerId).sort());
     expect(retryIds).toEqual(expect.arrayContaining(owned));
     await expect(banners.getByText("Banner 顺序已保存", { exact: true })).toBeVisible();
