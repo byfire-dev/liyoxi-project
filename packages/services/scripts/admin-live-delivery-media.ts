@@ -97,10 +97,10 @@ async function main() {
       md5: createHash("md5").update(bytes).digest("hex"),
     };
     const input = { scope, artifact, fileId, clientToken, video };
+    if (!values.cleanup) await waitForDeliveryProduction(runtime, input);
     const result = values.cleanup
       ? await cleanupDeliveryFile(runtime, input)
       : await prepareDeliveryKnownMedia(runtime, input);
-    if (!values.cleanup) await waitForDeliveryProduction(runtime, input);
     process.stdout.write(`${JSON.stringify(result)}\n`);
   } finally {
     await runtime.close();
