@@ -32,7 +32,7 @@ export interface MerchantDeps {
   readonly keyring?: security.Keyring;
   /** 另给一个微信能力顶掉运行时上的那一个；一般不用给：用例的替身经 createRuntime 的 providers 给 */
   readonly wechat?: Pick<WechatProvider, "code2Session" | "getPhoneNumber">;
-  /** 本小程序的 appid；不给即占位值 */
+  /** 本小程序的 appid；不给用运行时配置，本地未配置时用占位值 */
   readonly appid?: string;
 }
 
@@ -61,6 +61,7 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
   const docs = docsOf(runtime);
   const tenant = createTenant({ tx, clock, flow, assembly });
   let keyring = deps.keyring;
+  const appid = deps.appid ?? runtime.env.WECHAT?.appid ?? PLACEHOLDER_WEAPP_APPID;
   const identity = createIdentity({
     tx,
     clock,
@@ -72,7 +73,7 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
     config,
     keyring: () => (keyring ??= security.loadKeyring(runtime.env)),
     wechat: deps.wechat ?? runtime.providers.wechat,
-    appid: deps.appid ?? PLACEHOLDER_WEAPP_APPID,
+    appid,
   });
   const profile = createProfile({
     tx,
@@ -84,7 +85,8 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
     media: runtime.media,
     keyring: () => (keyring ??= security.loadKeyring(runtime.env)),
     wechat: runtime.providers.wechat,
-    currentOpenid: (principal) => tx.run((handle) => currentSessionOpenid(handle, principal)),
+    currentOpenid: (principal) =>
+      tx.run((handle) => currentSessionOpenid(handle, principal, appid)),
   });
   const services: MerchantServices = { docs, tenant, identity, profile };
   built.set(runtime, services);

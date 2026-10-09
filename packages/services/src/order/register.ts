@@ -1,3 +1,10 @@
+import { staffWorkPort, staffFollowUpPort } from "../kernel/index.js";
+import { orderStaffWork } from "./staff-work.js";
+import {
+  implementKeyed as notifyReaderImplementation,
+  notifyReadPort as currentNotifyReadPort,
+} from "../kernel/index.js";
+import { orderForNotify, orderConsentFacts } from "./notify-facts.js";
 import { chainKey, machinePort, rowKey } from "../flow/index.js";
 import {
   defineRegistration,
@@ -73,6 +80,23 @@ export const registration = defineRegistration("order", {
     },
   ],
   portImplementations: [
+    implementKeyed(staffFollowUpPort, "order_item", async (tx, id) => {
+      const row = await tx.orderItem.findUnique({
+        where: { id },
+        select: { entityId: true, storeId: true },
+      });
+      return row === null ? null : { entityId: row.entityId, storeId: row.storeId };
+    }),
+    implementKeyed(staffWorkPort, "order", orderStaffWork),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "manualSubjectExists.order_item",
+      async (tx, id: string) =>
+        (await tx.orderItem.findUnique({ where: { id }, select: { id: true } })) !== null,
+    ),
+    notifyReaderImplementation(currentNotifyReadPort, "orderConsentFacts", orderConsentFacts),
+    notifyReaderImplementation(currentNotifyReadPort, "orderForNotify", orderForNotify),
+
     implement(orderSidePort, {
       applyConfirmedPlan: (tx, input) => applyConfirmedPlan(tx, boundOrder(), input),
       rederive: (tx, input) => rederive(tx, boundOrder(), input),

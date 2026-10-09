@@ -51,6 +51,7 @@ function etagOf(body: Uint8Array): string {
 }
 
 const slot = (ref: ObjectRef) => `${ref.bucket}/${ref.key}`;
+const boundedSize = (n: number) => Number.isSafeInteger(n) && n > 0 && n <= 2 * 1024 ** 3;
 
 export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStorage {
   const clock = options.clock ?? systemClock;
@@ -74,6 +75,29 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
   const expiry = (seconds: number) => new Date(clock.now().getTime() + seconds * 1000);
   const expired = (at: Date) => clock.now().getTime() > at.getTime();
 
+  async function streamRun<T>(
+    method: "readTo" | "putStream",
+    input: unknown,
+    signal: AbortSignal,
+    action: () => Promise<ProviderResult<T>>,
+  ): Promise<ProviderResult<T>> {
+    let running: Promise<ProviderResult<T>> | undefined;
+    try {
+      return await core.run(
+        method,
+        input,
+        () => {
+          running = action();
+          return running;
+        },
+        signal,
+      );
+    } finally {
+      // A canceled fake response must not outlive the source/sink's actual finally cleanup.
+      if (running) await running.catch(() => {});
+    }
+  }
+
   function put(ref: ObjectRef, body: Uint8Array, mime: string): string {
     const stored = { body: new Uint8Array(body), mime, etag: etagOf(body) };
     objects.set(slot(ref), stored);
@@ -84,6 +108,15 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
     status: "fake",
     configured: true,
     capabilities: { sts: true, versioning: false },
+    uploadLocation: {
+      region: "ap-test-1",
+      buckets: {
+        secure: "test-secure-1250000000",
+        asset: "test-asset-1250000000",
+        media: "test-media-1250000000",
+        pub: "test-pub-1250000000",
+      },
+    },
     ...core.control,
     objects,
     put,
@@ -139,20 +172,26 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
           secretAccessKey: `${token}-secret`,
           sessionToken: `${token}-session`,
           expiresAt: expiry(input.durationSec),
+          startTime: clock.now(),
         });
       }),
 
     head: (input) =>
-      core.run("head", input, (): ProviderResult<ObjectHead> => {
-        const stored = objects.get(slot(input));
-        if (!stored) return ok({ exists: false, size: 0 });
-        return ok({
-          exists: true,
-          size: stored.body.byteLength,
-          mime: stored.mime,
-          etag: stored.etag,
-        });
-      }),
+      core.run(
+        "head",
+        input,
+        (): ProviderResult<ObjectHead> => {
+          const stored = objects.get(slot(input));
+          if (!stored) return ok({ exists: false, size: 0 });
+          return ok({
+            exists: true,
+            size: stored.body.byteLength,
+            mime: stored.mime,
+            etag: stored.etag,
+          });
+        },
+        input.signal,
+      ),
 
     readPrefix: (input) =>
       core.run("readPrefix", input, () => {
@@ -186,18 +225,23 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
       }),
 
     copy: (input) =>
-      core.run("copy", input, () => {
-        const source = objects.get(slot(input.src));
-        if (!source) return failed("rejected", "源对象不存在");
-        if (source.etag !== input.ifMatchEtag) return failed("rejected", "源对象的 etag 对不上");
-        objects.set(slot(input.dst), {
-          body: new Uint8Array(source.body),
-          mime: input.contentType,
-          etag: source.etag,
-          contentDisposition: input.contentDisposition,
-        });
-        return ok({ etag: source.etag });
-      }),
+      core.run(
+        "copy",
+        input,
+        () => {
+          const source = objects.get(slot(input.src));
+          if (!source) return failed("rejected", "源对象不存在");
+          if (source.etag !== input.ifMatchEtag) return failed("rejected", "源对象的 etag 对不上");
+          objects.set(slot(input.dst), {
+            body: new Uint8Array(source.body),
+            mime: input.contentType,
+            etag: source.etag,
+            contentDisposition: input.contentDisposition,
+          });
+          return ok({ etag: source.etag });
+        },
+        input.signal,
+      ),
 
     presignGet: (input) =>
       core.run("presignGet", input, () => {
@@ -217,6 +261,79 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
       core.run("delete", input, () => {
         objects.delete(slot(input));
         return ok(undefined);
+      }),
+    abortMultipart: (input) =>
+      core.run("abortMultipart", input, () =>
+        input.key.startsWith(INCOMING_PREFIX)
+          ? ok(undefined)
+          : failed("rejected", "中止分块只允许写入区对象"),
+      ),
+    readTo: (input) =>
+      streamRun("readTo", input, input.signal, async () => {
+        const stored = objects.get(slot(input));
+        if (
+          !boundedSize(input.expectedSize) ||
+          !boundedSize(input.maxBytes) ||
+          input.expectedSize > input.maxBytes ||
+          !stored ||
+          stored.etag !== input.ifMatchEtag ||
+          stored.body.byteLength !== input.expectedSize
+        )
+          return failed("rejected", "替身对象流与预期不一致");
+        for (let i = 0; i < stored.body.length; i += 64 * 1024) {
+          if (input.signal.aborted) return failed("unavailable", "替身对象流已取消");
+          await input.sink(stored.body.subarray(i, i + 64 * 1024));
+        }
+        return ok({
+          size: stored.body.length,
+          sha256: createHash("sha256").update(stored.body).digest("hex"),
+        });
+      }),
+    putStream: (input) =>
+      streamRun("putStream", input, input.signal, async () => {
+        if (
+          !boundedSize(input.size) ||
+          !/^[a-f0-9]{64}$/.test(input.sha256) ||
+          !/^[a-f0-9]{64}$/.test(input.contentIdentity) ||
+          input.ifAbsent !== true ||
+          input.key.startsWith(INCOMING_PREFIX)
+        )
+          return failed("rejected", "替身对象流参数不合格");
+        const parts: Uint8Array[] = [],
+          hash = createHash("sha256");
+        let length = 0;
+        for await (const part of input.body(input.signal)) {
+          if (input.signal.aborted) return failed("unavailable", "替身对象流已取消");
+          if (
+            !(part instanceof Uint8Array) ||
+            part.byteLength > 1024 ** 2 ||
+            length + part.byteLength > input.size
+          )
+            return failed("rejected", "替身对象流超限");
+          length += part.byteLength;
+          hash.update(part);
+          parts.push(new Uint8Array(part));
+        }
+        const digest = hash.digest("hex");
+        if (input.signal.aborted || length !== input.size)
+          return failed("rejected", "替身对象流长度不一致");
+        if (digest !== input.sha256) return failed("rejected", "替身对象流hash不一致");
+        const existing = objects.get(slot(input));
+        if (existing)
+          return existing.contentIdentity === input.contentIdentity &&
+            existing.body.byteLength === input.size &&
+            createHash("sha256").update(existing.body).digest("hex") === input.sha256
+            ? ok({ etag: existing.etag, size: input.size })
+            : failed("rejected", "替身目标归属不一致");
+        const body = new Uint8Array(input.size);
+        let offset = 0;
+        for (const part of parts) {
+          body.set(part, offset);
+          offset += part.length;
+        }
+        const etag = put(input, body, input.contentType);
+        objects.get(slot(input))!.contentIdentity = input.contentIdentity;
+        return ok({ etag, size: input.size });
       }),
   };
   return fake;

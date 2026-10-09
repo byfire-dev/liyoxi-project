@@ -1,5 +1,5 @@
-// 狸有戏数据库结构（W0-05 由 docs/data-model/schema.prisma 迁入，模型一字未改）。
-// 与底稿只差两处：本段文件头注释、generator 的输出目录。pnpm db:catalog-diff 的第一步核对这一点。
+// 狸有戏现行数据库结构；首版 166 张模型从冻结底稿迁入，后续独立迁移增 notification_fanout。
+// 冻结底稿只用于首版等价证明；现行结构经迁移快照与库→schema 差异检查核对。
 // 按分组分段（// ===== 分组 =====），每段对应 docs/data-model/<分组>.md。
 // 手写约束（CHECK、部分唯一索引、排他约束、触发器）不在本文件里：首版迁移 prisma/migrations/ 由本文件
 // 的建表语句接上 docs/data-model/constraints/ 拼出（scripts/build-init-migration.mjs）。结构以迁移为准。
@@ -7602,6 +7602,7 @@ model NotifyScene {
   /// 最近修改人
   updatedByStaff Staff?          @relation(fields: [updatedByStaffId], references: [id], onDelete: Restrict, map: "fk_notify_scene_updated_by_staff_id")
   notifications  Notification[]
+  notificationFanouts NotificationFanout[]
 
   @@index([wxTemplateSlotKey], map: "ix_notify_scene_wx_template_slot_key")
   @@index([smsTemplateKey], map: "ix_notify_scene_sms_template_key")
@@ -7716,6 +7717,32 @@ model Notification {
   @@index([entityId], map: "ix_notification_entity_id")
   @@index([storeId], map: "ix_notification_store_id")
   @@map("notification")
+}
+
+/// 公告通知的持久化分页任务，notify L1；仅进度 CAS，不写业务状态历史。
+model NotificationFanout {
+  id                   String    @id(map: "pk_notification_fanout") @db.Uuid
+  /// 只存事件 id；与 notification.sourceOutboxEventId 相同，不引用保留期未定的 outbox。
+  sourceOutboxEventId   String    @map("source_outbox_event_id") @db.Uuid
+  notifySceneKey       String    @map("notify_scene_key")
+  siteNoticeId         String    @map("site_notice_id") @db.Uuid
+  /// (merchant_user_id, entity_id) 有序二元 keyset；只是进度，不是接收人外键。
+  cursorMerchantUserId String?   @map("cursor_merchant_user_id") @db.Uuid
+  cursorEntityId       String?   @map("cursor_entity_id") @db.Uuid
+  status               String    @default("pending")
+  dueAt                DateTime  @map("due_at") @db.Timestamptz(3)
+  attemptNo            Int       @default(0) @map("attempt_no")
+  leaseUntil           DateTime? @map("lease_until") @db.Timestamptz(3)
+  finishedAt           DateTime? @map("finished_at") @db.Timestamptz(3)
+  createdAt            DateTime  @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime  @map("updated_at") @db.Timestamptz(3)
+
+  notifyScene NotifyScene @relation(fields: [notifySceneKey], references: [sceneKey], onDelete: Restrict, map: "fk_notification_fanout_notify_scene_key")
+  siteNotice  SiteNotice  @relation(fields: [siteNoticeId], references: [id], onDelete: Restrict, map: "fk_notification_fanout_site_notice_id")
+
+  @@unique([notifySceneKey, siteNoticeId], map: "uq_notification_fanout_scene_notice")
+  @@index([siteNoticeId], map: "ix_notification_fanout_site_notice_id")
+  @@map("notification_fanout")
 }
 
 /// 投递：通知在某个通道上的一次发送；同时是到期任务、发送日志与成功率数据源；验证码等直发也借用本表
@@ -8461,6 +8488,7 @@ model SiteNotice {
   planRevisions      PlanRevision[]
   billingParams      BillingParam[]
   agreementVersions  AgreementVersion[]
+  notificationFanouts NotificationFanout[]
 
   // (kind, ref_id) 只在 announced 的行里唯一（撤回后可再次公告），部分唯一索引在 SQL 里：uq_site_notice_kind_ref_id_announced
   @@map("site_notice")

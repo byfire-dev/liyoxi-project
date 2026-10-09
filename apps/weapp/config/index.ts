@@ -39,6 +39,8 @@ export default defineConfig<"vite">(async (merge) => {
       ],
     },
     mini: {
+      // Taro 4.2.1 的开发构建别名会把 zustand/react 误指向 React，导致所有页面启动失败。
+      debugReact: true,
       postcss: {
         // NutUI 内部已按 375 处理，跳过它的选择器
         pxtransform: { enable: true, config: { selectorBlackList: ["nut-"] } },

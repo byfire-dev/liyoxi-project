@@ -6,7 +6,16 @@
 // mail 在 G4-B；esign 在 G5-B；wecom 在 G7-A；invoice 属 V1.1）：下面各 select* 函数里留了位置，由那些包填。
 // 领域模块不引本文件，只引 ./types.ts；驱动只在装配处（kernel）经本文件引入（D7 第 2.2 节 D8）。
 
+import { createTencentSms } from "./sms/tencent.js";
+import type { TencentSmsOptions } from "./sms/tencent.js";
 import { createConsoleSms } from "./sms/console.js";
+import type { Redis } from "ioredis";
+import { createWechatDriver } from "./wechat/driver.js";
+import { createRedisTokenCache } from "./wechat/token.js";
+import { createCiMedia } from "./media/ci.js";
+import type { CiConfig } from "./media/ci.js";
+import { createCosStorage } from "./storage/cos.js";
+import type { CosConfig } from "./storage/cos.js";
 import { createMinioStorage, LOCAL_MINIO } from "./storage/minio.js";
 import type { MinioConfig } from "./storage/minio.js";
 import { guardProviders, PROVIDER_NAMES } from "./types.js";
@@ -32,6 +41,8 @@ import {
 } from "./unconfigured.js";
 
 export * from "./types.js";
+export { createProductionMediaTools } from "./mediatool/production.js";
+export type { ProductionMediaTools } from "./types.js";
 export { createConsoleSms } from "./sms/console.js";
 export { createMinioStorage, LOCAL_MINIO } from "./storage/minio.js";
 export type { MinioConfig, MinioStorage } from "./storage/minio.js";
@@ -48,13 +59,17 @@ export {
  * 它们从哪些环境变量来、怎样并进 loadEnv 与 .env.example，本包没有做，原因见 README.md“环境变量”一节。
  */
 export interface ProviderSettings {
+  wechat?: { appid: string; secret: string };
+  media?: { ci: CiConfig };
   sms?: {
     /** 显式选控制台短信。不写时：local、test 用控制台输出，stg、prod 为未配置 */
-    driver?: "console";
+    driver?: "console" | "tencent";
+    tencent?: TencentSmsOptions;
   };
   storage?: {
     /** 显式选本地 MinIO。不写时：local、test 用本地 MinIO，stg、prod 为未配置 */
-    driver?: "minio";
+    driver?: "minio" | "cos";
+    cos?: CosConfig;
     /** 覆盖本地 MinIO 的连接参数；不写用 infra/compose/local.yml 那一套 */
     minio?: Partial<MinioConfig>;
   };
@@ -70,6 +85,24 @@ export interface CreateProvidersOptions {
   settings?: ProviderSettings;
   /** 外呼前钩子；缺省空转。W0-20 接上 kernel 的事务标记 */
   beforeCall?: BeforeProviderCall;
+  media?: {
+    now: () => Date;
+    registerClose: (close: () => Promise<void>) => void;
+    fetchImpl?: typeof fetch;
+  };
+  storage?: {
+    now: () => Date;
+    registerClose: (close: () => Promise<void>) => void;
+    fetchImpl?: typeof fetch;
+  };
+  /** 借用进程连接；只登记本工厂创建的驱动的关闭函数。 */
+  wechat?: {
+    redis: Pick<Redis, "get" | "set" | "eval"> & { options: { keyPrefix?: string } };
+    prefix: string;
+    now: () => Date;
+    registerClose: (close: () => Promise<void>) => void;
+    fetchImpl?: typeof fetch;
+  };
 }
 
 /** 选项与环境对不上：启动即失败。message 只写接口名与原因，不带任何配置值 */
@@ -94,21 +127,34 @@ function selectSms(
   logger: ProviderLogger,
 ): SmsProvider {
   const driver: string | undefined = settings.sms?.driver;
-  if (driver !== undefined && driver !== "console") {
-    throw new ProviderConfigError("sms", "不认识的驱动；现在只有 console");
+  if (driver !== undefined && driver !== "console" && driver !== "tencent") {
+    throw new ProviderConfigError("sms", "不认识的驱动；只接受 console、tencent");
   }
   if (driver === "console" && !isLocalEnv(appEnv)) {
     throw new ProviderConfigError("sms", `控制台短信只限 local、test，${appEnv} 不能选它`);
   }
-  // 真实驱动（腾讯云短信）的位置：G2-D
+  if (driver === "tencent") {
+    const config = settings.sms?.tencent;
+    if (
+      !config ||
+      !/^[A-Za-z0-9_-]{1,128}$/.test(config.config.secretId) ||
+      !/^[A-Za-z0-9_-]{1,128}$/.test(config.config.secretKey) ||
+      !/^\d{1,20}$/.test(config.config.sdkAppId) ||
+      !/^ap-[a-z]+(?:-[a-z]+)*$/.test(config.config.region)
+    ) {
+      throw new ProviderConfigError("sms", "腾讯云配置须成组且格式合法");
+    }
+    return createTencentSms(config);
+  }
   return isLocalEnv(appEnv) ? createConsoleSms({ logger }) : unconfiguredSms;
 }
 
 function selectStorage(appEnv: ProviderAppEnv, settings: ProviderSettings): StorageProvider {
   const driver: string | undefined = settings.storage?.driver;
-  if (driver !== undefined && driver !== "minio") {
+  if (driver !== undefined && driver !== "minio" && driver !== "cos") {
     throw new ProviderConfigError("storage", "不认识的驱动；现在只有 minio");
   }
+  if (driver === "cos") return unconfiguredStorage;
   if (driver === "minio" && !isLocalEnv(appEnv)) {
     throw new ProviderConfigError("storage", `本地 MinIO 只限 local、test，${appEnv} 不能选它`);
   }
@@ -175,7 +221,16 @@ export function createProviders(options: CreateProvidersOptions): Providers {
   const { appEnv, logger } = options;
   const settings = options.settings ?? {};
   const local = isLocalEnv(appEnv);
+  if ((settings.wechat === undefined) !== (options.wechat === undefined))
+    throw new ProviderConfigError("wechat", "完整配置与运行时依赖须同时提供");
+  if (
+    (settings.storage?.cos === undefined) !== (options.storage === undefined) ||
+    (settings.storage?.driver === "cos" && !settings.storage.cos)
+  )
+    throw new ProviderConfigError("storage", "COS 完整配置与运行时依赖须同时提供");
 
+  if ((settings.media === undefined) !== (options.media === undefined))
+    throw new ProviderConfigError("media", "CI配置与自有生命周期须同时提供");
   const chosen: Providers = {
     ...unconfiguredProviders,
     // 真实驱动的位置：wechat 在 G2-D；media（数据万象）在 G3-A
@@ -188,6 +243,34 @@ export function createProviders(options: CreateProvidersOptions): Providers {
     // 真实驱动没到之前一律未配置
   };
 
+  if (settings.wechat && options.wechat) {
+    const transport = options.wechat;
+    const driver = createWechatDriver(
+      {
+        ...settings.wechat,
+        releaseChannel: local ? "develop" : appEnv === "stg" ? "trial" : "release",
+      },
+      {
+        cache: createRedisTokenCache(transport.redis, transport.prefix),
+        now: transport.now,
+        fetchImpl: transport.fetchImpl,
+      },
+    );
+    transport.registerClose(driver.close);
+    chosen.wechat = driver.provider;
+  }
+  if (settings.storage?.cos && options.storage) {
+    if (settings.storage.driver !== "cos") throw new TypeError("COS 配置与驱动选择不一致");
+    const driver = createCosStorage(settings.storage.cos, options.storage);
+    chosen.storage = driver;
+    options.storage.registerClose(driver.close);
+  }
+
+  if (settings.media && options.media) {
+    const driver = createCiMedia(settings.media.ci, options.media);
+    chosen.media = driver.provider;
+    options.media.registerClose(driver.close);
+  }
   const providers = guardProviders(chosen, options.beforeCall ?? noop);
   logProviderStatus(logger, providers);
   return providers;

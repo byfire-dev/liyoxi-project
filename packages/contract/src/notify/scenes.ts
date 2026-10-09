@@ -98,6 +98,8 @@ export const NOTIFY_SCENES = [
   scene("s.delivery_progress", "交付进度"),
   scene("s.publish_progress", "发布待办"),
   scene("s.merchant_changed", "商家变动"),
+  scene("s.followup_due", "跟进到期提醒"),
+  scene("s.wecom_invite", "企业微信绑定邀请"),
 ] as const;
 
 /** 已登记的场景键 */

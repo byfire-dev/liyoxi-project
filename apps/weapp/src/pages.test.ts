@@ -42,6 +42,7 @@ describe("页面清单", () => {
       "pages/mine/index",
       "pages/login/index",
       "pages/agreement/index",
+      "sub/catalog/search/index",
       "sub/catalog/detail/index",
       "sub/order/checkout/index",
       "sub/order/result/index",
@@ -61,6 +62,7 @@ describe("页面清单", () => {
       "sub/profile/service/index",
       "sub/profile/cert/index",
       "sub/profile/review/index",
+      "sub/service/messages/index",
     ]);
     expect(built.filter((page) => page.implemented).map((page) => page.route)).toEqual([
       "pages/home/index",
@@ -69,6 +71,7 @@ describe("页面清单", () => {
       "pages/mine/index",
       "pages/login/index",
       "pages/agreement/index",
+      "sub/catalog/search/index",
       "sub/catalog/detail/index",
       "sub/order/checkout/index",
       "sub/order/result/index",
@@ -88,6 +91,7 @@ describe("页面清单", () => {
       "sub/profile/service/index",
       "sub/profile/cert/index",
       "sub/profile/review/index",
+      "sub/service/messages/index",
     ]);
     expect(
       built.filter((page) => page.placeholder).every((page) => page.tab && !page.implemented),
@@ -114,7 +118,7 @@ describe("由清单拼出全局配置", () => {
         "pages/agreement/index",
       ],
       subPackages: [
-        { root: "sub/catalog", pages: ["detail/index"] },
+        { root: "sub/catalog", pages: ["search/index", "detail/index"] },
         {
           root: "sub/order",
           pages: [
@@ -140,6 +144,7 @@ describe("由清单拼出全局配置", () => {
             "review/index",
           ],
         },
+        { root: "sub/service", pages: ["messages/index"] },
       ],
       preloadRule: {
         "pages/home/index": { network: "all", packages: ["sub/catalog", "sub/order"] },
@@ -164,7 +169,7 @@ describe("由清单拼出全局配置", () => {
     );
     const routes = buildRoutes(pages);
     expect(routes.subPackages).toEqual([
-      { root: "sub/catalog", pages: ["detail/index"] },
+      { root: "sub/catalog", pages: ["search/index", "detail/index"] },
       {
         root: "sub/order",
         pages: [
@@ -189,6 +194,7 @@ describe("由清单拼出全局配置", () => {
           "review/index",
         ],
       },
+      { root: "sub/service", pages: ["messages/index"] },
     ]);
     expect(routes.preloadRule).toEqual({
       "pages/home/index": { network: "all", packages: ["sub/catalog", "sub/order"] },

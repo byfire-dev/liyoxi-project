@@ -1,4 +1,4 @@
-import { defineRegistration, implementKeyed } from "../kernel/index.js";
+import { defineRegistration, implementKeyed, implement, catalogRefPort } from "../kernel/index.js";
 import { DramaPricePort } from "./ports.js";
 import { contentMachine } from "./machines.js";
 import { contentFileRefs } from "./file-refs.js";
@@ -7,6 +7,7 @@ export const registration = defineRegistration("content", {
   ports: [DramaPricePort],
   portImplementations: [
     implementKeyed(dictReferencesPort, "content", contentDictReferences),
+    implement(catalogRefPort, contentCatalogRefs),
     contentMachine,
     ...contentFileRefs,
   ],
@@ -15,3 +16,5 @@ export const registration = defineRegistration("content", {
 
 import { dictReferencesPort } from "../kernel/index.js";
 import { contentDictReferences } from "./dict-references.js";
+
+import { contentCatalogRefs } from "./catalog-refs.js";

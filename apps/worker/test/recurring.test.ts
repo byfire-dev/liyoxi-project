@@ -8,6 +8,7 @@ import {
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { recurringTable } from "../src/recurring.js";
+import { DOMAIN_LOOPS } from "../src/domain-loops.js";
 import { LOOP_INTERVALS_MS, QUEUE_CONCURRENCY } from "../src/runtime.js";
 import { createHarness, SLOW } from "./support/harness.js";
 import type { Harness } from "./support/harness.js";
@@ -36,9 +37,30 @@ describe("循环与队列的登记", () => {
     for (const name of Object.keys(LOOP_INTERVALS_MS)) expect(loops).toContain(name);
     const queues = new Set<string>(QUEUES.map((queue) => queue.id));
     for (const name of Object.keys(QUEUE_CONCURRENCY)) expect(queues).toContain(name);
-    expect(QUEUE_CONCURRENCY).toEqual({ outbox_delivery: 4, timer_run: 4, promote: 2 });
+    expect(QUEUE_CONCURRENCY).toEqual({
+      outbox_delivery: 4,
+      timer_run: 4,
+      media_job: 10,
+      promote: 2,
+      notify: 4,
+    });
   });
 });
+
+it(
+  "notify扫描按正式5秒登记并装配真实notify队列消费者",
+  async () => {
+    expect(DOMAIN_LOOPS.find((loop) => loop.name === "notify_scan")).toMatchObject({
+      name: "notify_scan",
+      intervalMs: 5000,
+    });
+    const worker = await h.instance();
+    expect(worker.runtime.domainLoops["notify_scan"]).toMatchObject({ name: "notify_scan" });
+    expect(worker.runtime.consumers.notify).toBeDefined();
+    expect(QUEUE_CONCURRENCY.notify).toBe(4);
+  },
+  SLOW,
+);
 
 describe("周期补登记（验收 10）", () => {
   it(

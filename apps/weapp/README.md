@@ -110,13 +110,15 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 
 ## 账户与服务端接线
 
-请求层与四个封装都写成不依赖小程序运行时的模块（接口在 `src/lib/platform.ts`，真实实现在 `platform.taro.ts`），服务端调用经 `src/lib/server.ts` 的 `connectServer({ … })` 接入。`account-runtime.ts` 接上引导、静默登录、重拉账号、协议同意与版本提示五个调用；11条账户接口都经生成契约类型与中央 `runtime.request` 调用。订阅结果、埋点与错误上报的接收调用仍未接，封装照调并登记留桩。
+请求层与四个封装都写成不依赖小程序运行时的模块（接口在 `src/lib/platform.ts`，真实实现在 `platform.taro.ts`），服务端调用经 `src/lib/server.ts` 的 `connectServer({ … })` 接入。`account-runtime.ts` 接上引导、静默登录、重拉账号、协议同意与版本提示五个调用；11条账户接口都经生成契约类型与中央 `runtime.request` 调用。W2-18 PR1的`client-reporting.ts`补订阅结果、埋点与错误上报三调用，均用生成operation类型与同一个中央request。
 
 | 调用 | 接口 | 由谁接 |
 | --- | --- | --- |
 | `fetchBootstrap`、`silentLogin`、`reloadMe`、`askConsent`、`showUpdatePrompt` | `m.bootstrap.get`、`m.session.create`、`m.me.get`、协议同意 | W1-05②已接（后端 W1-04 / W1-04b） |
-| `reportSubscribeResult`、`sendAnalytics` | `m.subscribeResult.create`、`m.analyticsEvent.batchCreate` | G2-C |
-| `sendClientError` | `m.clientError.create` | 该接口落地的包 |
+| `reportSubscribeResult`、`sendAnalytics` | `m.subscribeResult.create`、`m.analyticsEvent.batchCreate` | W2-18 PR1实际接线 |
+| `sendClientError` | `m.clientError.create` | W2-18 PR1实际接线 |
+
+订阅保留真实accept/reject/ban/filter与原精确幂等键；埋点网络/5xx交回原队列重试，4xx/未配丢弃，不增加adapter重试。信封以原文与`application/x-sentry-envelope`传输，不JSON重编码。未配`API_BASE_URL`不装配埋点/错误发送器，保留本地开发降级；公开DSN构建变量为`WEAPP_SENTRY_DSN`，空值沿原封装关闭采集。DSN仅含公开项目key；真实项目与服务端FILE白名单按W2-27移交，尚未验证真实平台收件或微信授权。`pnpm --filter @liyoxi/weapp test`中的client-reporting用例真实经过中央request，覆盖原文字节/头、四结果、网络/5xx与4xx分支。
 
 ## 账户流程（W1-05②）
 
@@ -141,6 +143,18 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 `pnpm weapp:shots` 截的是 Taro 的 H5 构建，是近似，不是小程序的渲染层：原生导航栏在 H5 下不出现（没有标题栏与胶囊），标签栏是 Taro 的 H5 仿制件，高度与字体都与微信不同；自绘导航取不到胶囊位置，用的是兜底值；H5 下页面底色没有铺满，内容区是白的。真机上的样子以微信开发者工具与手机为准。
 
 组件预览的图同样是 H5 近似：原生的输入框、多行输入、开关、弹层在微信里的样子，以及点击区、按下态、弹层正文的内部滚动，以真机为准（W0-29 看样时看）。
+
+## 消息页与未读角标（W2-19）
+
+`sub/service/messages/index` 使用原生导航，固定八类页签，默认 all/20；游标不解码，续页按 messageId 去重，下拉刷新替换。首页与我的消息入口只显示服务端 summary 的未读真值；无门店时仍能读账号通知。token、contextRev、门店、账号、成员角色和可进门店变化时清除本页缓存及旧角标，旧成功和旧错误均不能回写。消息标题、正文与金额取真实服务端 DTO，店员文案不在页面重造。
+
+单读和全读都按实际 required 契约保留同次意图的键；全读固定首次列表顶部 upToMessageId 与 tab，重试不把新到消息纳入旧意图。成功后读取真实列表/summary，失败不乐观减计数。点击先确认 read 成功，再进入已落地且当前角色允许的目标；跨店提示先切店，未来客服/广告/积分明细目标提示不可访问。协议目标以服务端固定 key 查询现有协议列表，取得真实 currentVersionId 后进入已交付正文页。转账驳回的 payment.detail 与 payment.result 复用已落地付款页、原 owner 准入和真实付款资源 GET，不扩权限。
+
+本页底部订阅设置 Sheet 展示 on/off/rejected/banned/unavailable。选择按钮直接同步调用既有 withSubscribe("notify_settings")，模板与槽位来自已在内存中的 bootstrap；真实 accept/reject/ban/filter 由 W2-18 接线报告，页面不伪造授权或额度。报告成功后经该次点击的可选回调再次读取当前设置；旧 GET 不能覆盖新请求结果，切换 scope 或卸载后不回写。原业务 handler 不等待上报、afterReport 仍刷新 bootstrap，报告或当前页回调失败不产生未处理拒绝。未配置仍保留站内消息和不可用状态。
+
+十态固定场景在 `shots/message-scenes.ts`、`shots/message-fixtures.ts`，运行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene messages-owner --scene messages-clerk --scene messages-category --scene messages-more --scene messages-all-read --scene messages-empty --scene messages-no-store --scene messages-unavailable --scene messages-loading --scene messages-error`；PNG 为 `shots/dist/png/message__<scene>.png`。无店模式使用真实空 memberships/currentStoreId，经中央 RequestLayer 的假 send 记录缺少 X-Store-Id；这仍是离线接口接线证据，不代表真实 API/微信平台结果。原截图场景、外发网络、console.error/pageerror 守卫保持。
+
+真机清单（尚未执行）：已授权测试号检查原生导航/安全区、横向页签的 44px 点击区、下拉与触底、切店/切账号后无旧内容、老板降店员后无老板专属消息；单读/全读后的入口角标；实际模板授权 accept/reject/ban 与后端额度相符。H5 截图不能代替上述验收，W2-30 合流演示另行登记。
 
 
 ## 首页与商城四页（W1-18 PR1）
@@ -168,3 +182,11 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 主页截图由 `withPrivacy` 包选图，正式环境只用公共 `prepareTaroFile/createTaroUpload`，分类 `channel_screenshot`；最多3张，图片上限取公共 `UPLOAD_LIMITS.imageMaxMb`（5MB），通道由登记接口的 mode 决定。H5 截图的入库文件ID是显式离线替身，不是真实上传证据。订单交付入口由 W1-20 接通：方案取实际方案ID，剧目卡按本项阶段与时间线进入样片、成片、发布任务和上线记录；目标页写按钮仍按实时 GET 的 actions。广告、参考素材、视频、解绑、授权书及取消入口均不出。原支付结果状态保持。
 
 H5 仍缺少原生导航栏、胶囊与真实安全区；下拉/触底、订阅授权、隐私授权和微信文件直传须在 E16/E7 到位后手验。本域离线图不能当作真实接口或微信授权/上传证据。
+
+## 搜索页面（W3-13）
+
+首页和商城的搜索入口以 navigateTo 打开 `sub/catalog/search/index`，原商城分类、筛选、排序和游标保留；详情只传既有 dramaId。热词取已发布 `m.mallConfig.get`，不硬编码运营词。本机历史只在真实提交时记归一后的关键词，最多十条、去重置顶、可清空；使用唯一登记的 `lyx.searchHistory`，不上报或写服务端。
+
+输入去空白和中点、1–20 Unicode 码点。输入防抖300ms在页面私有 `SEARCH_DEBOUNCE_MS`，确认和热词/历史点击立即执行。query代次与现有contextRev/store/token共同保护首屏、更多、配置、错误和finally；换店/身份清结果与游标。三角色的价格与套餐、三字段匹配顺序、industry_fallback与totalApprox都取服务器真值，不按端上规则重算。接口未返回主演姓名，cast匹配仅显示“主演匹配”；标题/题材使用实际matchedFields切分Text高亮，禁止HTML。
+
+八态清单在 `shots/search-scenes.ts`，运行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --page sub/catalog/search/index` 或固定 `--scene search-idle/search-owner/search-clerk/search-guest/search-fallback/search-empty/search-error/search-more`（多态分别传多次参数）。产物 `shots/dist/png/search__<scene>.png` 为固定离线H5接线与交互证据，不能当真实API或微信真机验收。真实 mounted API 已以隔离库验证三角色配置/搜索/详情及实际换店晚响应；5条场景按首次4条通过、失效凭据定点1条通过分别记录。公开搜索的坏 token 按现有 optional-auth 返回游客字段；受保护 `/m/me` 的401触发中央恢复后，旧搜索响应不能写回，新游客资源重新查询。离线网络错误另行注入验证，不冒称后端故障。八态图与原首页/商城6场景分轮通过：原商城筛选/排序、搜索与详情往返保持；加载更多首次失败保留20条，重试同游标后24条去重。真机键盘、取消/确认、网络、原生导航与安全区、正式运营热词仍需外部手验。

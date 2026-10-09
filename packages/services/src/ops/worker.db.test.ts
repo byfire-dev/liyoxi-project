@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { createTxRunner, KernelViolation } from "../kernel/index.js";
 import type { TxRunner } from "../kernel/index.js";
-import { assembleForTest, SAMPLE_PROVIDER_INPUTS, useTestDatabase } from "../testing/index.js";
+import { assembleForTest, SAMPLE_PROVIDER_INPUTS, useSeededDatabase } from "../testing/index.js";
 import { StartupCheckError } from "./startup.js";
 import { buildWorkerServices } from "./worker.js";
 import type { WorkerServicesOptions } from "./worker.js";
@@ -12,7 +12,7 @@ import type { WorkerServicesOptions } from "./worker.js";
 // “事务内不调外部服务”在真实装配里有人拦。循环与队列的用例在 apps/worker/test。
 
 const SLOW = 120_000;
-const db = useTestDatabase("services");
+const db = useSeededDatabase("services");
 let prisma: PrismaClient;
 let tx: TxRunner;
 

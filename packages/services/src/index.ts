@@ -4,6 +4,15 @@ export type { AssembleServicesOptions } from "./assembly.js";
 export { AssemblyError } from "./kernel/index.js";
 export type { Assembly, AssemblyEntry, AssemblyIssue } from "./kernel/index.js";
 // @liyoxi/services 的包入口：应用层只从这里取业务能力。各包只在末尾加自己的导出行。
+export { createNotifyMessages, countUnread } from "./notify/index.js";
+export type {
+  NotifyMessages,
+  NotifyMessagesDeps,
+  UnreadMessageQuery,
+  MessageActor,
+  NotifySettingActor,
+} from "./notify/index.js";
+export type { NotifyQueueRef, NotifyQueueTask } from "./notify/index.js";
 // W0-14：敏感字段与审计。按模块名取用：security.sealPhone(…)、audit.record(…)
 export * as security from "./security/index.js";
 export * as audit from "./audit/index.js";
@@ -271,3 +280,44 @@ export {
   countOrderItemsByPhase,
 } from "./order/index.js";
 export type { OrderActor, OrderDeps, OrderService, OrderStartBinding } from "./order/index.js";
+
+export * as notify from "./notify/index.js";
+export {
+  createAnalyticsJobs,
+  createAnalyticsReceiver,
+  analyticsDayStart,
+  purgeAnalyticsDedup,
+} from "./analytics/index.js";
+export type {
+  AnalyticsJobs,
+  AnalyticsReceiver,
+  AnalyticsReceiverDeps,
+  AnalyticsRequest,
+} from "./analytics/index.js";
+export { createSubscribeResults, readSubscribePlan } from "./notify/index.js";
+export type { SubscribeResults, SubscribeResultsDeps, SubscribePrincipal } from "./notify/index.js";
+export {
+  createClientErrorForwarder,
+  CLIENT_ERROR_MAX_BYTES,
+  CLIENT_ERROR_QUEUE_SIZE,
+} from "./ops/index.js";
+export type {
+  ClientErrorProject,
+  ClientErrorLogger,
+  ClientErrorForwarderOptions,
+  ClientErrorSnapshot,
+  ClientErrorForwarder,
+} from "./ops/index.js";
+export { createFlowOps, assertFlowOpsRead, createAlertActions } from "./ops/index.js";
+export type {
+  FlowOps,
+  FlowOpsActor,
+  FlowOpsDeps,
+  AlertActions,
+  AlertCliCommand,
+  AlertCliInput,
+  AlertCliResult,
+} from "./ops/index.js";
+
+export { createSiteAdmin } from "./config/index.js";
+export type { SiteAdmin, SiteAdminDeps } from "./config/index.js";

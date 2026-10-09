@@ -204,6 +204,9 @@ export function offlineAccountRequest(scene: string): RequestLayer["request"] {
   let accepted = false;
   let second = false;
   const clerk = scene === "mine-clerk";
+  const noStore = scene === "messages-no-store";
+  const me = () =>
+    noStore ? { ...makeMe(), memberships: [] } : makeMe(clerk, scene === "reconsent" && !accepted);
   const guest = scene.startsWith("login") || scene === "mine-guest" || scene === "agreement";
   return async <T>(path: string, options?: Parameters<RequestLayer["request"]>[1]): Promise<T> => {
     let data: unknown;
@@ -214,13 +217,14 @@ export function offlineAccountRequest(scene: string): RequestLayer["request"] {
         : {
             needPhone: false,
             token: "lyxm_offline",
-            me: makeMe(clerk, scene === "reconsent" && !accepted),
+            me: me(),
           };
     else if (path.startsWith("/m/agreements?")) data = agreements;
     else if (path.startsWith("/m/agreement-versions/")) data = agreement;
-    else if (path === "/m/me") data = makeMe(clerk, scene === "reconsent" && !accepted);
-    else if (path === "/m/me/overview") data = makeOverview(clerk, second);
-    else if (path === "/m/stores") data = makeStores(clerk);
+    else if (path === "/m/me") data = me();
+    else if (path === "/m/me/overview") data = noStore ? null : makeOverview(clerk, second);
+    else if (path === "/m/stores")
+      data = noStore ? { viewerRole: "clerk", entity: null, items: [] } : makeStores(clerk);
     else if (path === "/m/agreement-consents") {
       accepted = true;
       data = { pendingConsents: [], consents: [] };

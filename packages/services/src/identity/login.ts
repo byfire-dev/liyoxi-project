@@ -353,9 +353,13 @@ export async function phoneLogin(
   );
   const openidSnapshot = openidHmac(deps.keyring(), deps.appid, session.openid);
   await options.onOpenid?.(openidSnapshot.toString("hex"));
-  const { phone: rawPhone } = await exchange(deps.wechat.getPhoneNumber({ code: input.phoneCode }));
+  const {
+    phone: rawPhone,
+    countryCode,
+    purePhoneNumber,
+  } = await exchange(deps.wechat.getPhoneNumber({ code: input.phoneCode }));
   // 区号看原串：带别的国际前缀的不能归一化之后再按长相判（phone.ts）
-  const phone = mainlandMobileOf(rawPhone);
+  const phone = mainlandMobileOf(rawPhone, countryCode, purePhoneNumber);
   if (phone === null) throw new AppError("PHONE_REGION_UNSUPPORTED");
   const dormantDays = await deps.config.params.get("auth.dormant_days");
   const scene = input.consentScene ?? "login";

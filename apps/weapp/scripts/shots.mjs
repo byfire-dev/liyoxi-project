@@ -25,17 +25,21 @@ import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 import {
   deliveryRegression,
   deliveryNavigationRegression,
 } from "../shots/delivery-regressions.mjs";
 import { orderRegression, publishRegression } from "../shots/order-regressions.mjs";
+import { searchEntryRegression, searchRegression } from "../shots/search-regressions.mjs";
 import {
   profileContactRegression,
   profileAuthorizationRegression,
   profileContextRegression,
   profileEditRegression,
+  profilePageReady,
+  profileMissingRegression,
+  profileCertificateSheetRegression,
 } from "../shots/profile-regressions.mjs";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -85,6 +89,12 @@ const { PUBLISH_SCENES } = await import(
 const { DELIVERY_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/delivery-scenes.ts")).href
 );
+const { MESSAGE_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/message-scenes.ts")).href
+);
+const { SEARCH_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/search-scenes.ts")).href
+);
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--no-build") build = false;
@@ -111,6 +121,8 @@ for (let index = 0; index < args.length; index += 1) {
         ...ORDER_SCENES,
         ...PUBLISH_SCENES,
         ...DELIVERY_SCENES,
+        ...MESSAGE_SCENES,
+        ...SEARCH_SCENES,
       ].some((item) => item.name === name)
     )
       fail(`未知固定场景 ${name}`);
@@ -219,6 +231,29 @@ const targets = [
     kind: "delivery",
     fullPage: false,
   })),
+  ...(all ? MESSAGE_SCENES : MESSAGE_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
+    (item) => ({
+      label: item.name,
+      url: `${item.route}?lyxShot=${item.name}`,
+      file: `message__${item.name}`,
+      scene: item.name,
+      kind: "message",
+      fullPage: false,
+    }),
+  ),
+  ...(all
+    ? SEARCH_SCENES
+    : SEARCH_SCENES.filter(
+        (item) => wantedScenes.includes(item.name) || wanted.includes(item.route),
+      )
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}?lyxShot=${item.name}`,
+    file: `search__${item.name}`,
+    scene: item.name,
+    kind: "search",
+    fullPage: false,
+  })),
   ...(all
     ? builtRoutes.filter(
         (route) =>
@@ -228,9 +263,11 @@ const targets = [
           !CATALOG_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !ORDER_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !PUBLISH_SCENES.some((item) => item.route === route) &&
-          !DELIVERY_SCENES.some((item) => item.route.split("?")[0] === route),
+          !DELIVERY_SCENES.some((item) => item.route.split("?")[0] === route) &&
+          !MESSAGE_SCENES.some((item) => item.route === route) &&
+          !SEARCH_SCENES.some((item) => item.route === route),
       )
-    : wanted
+    : wanted.filter((route) => !SEARCH_SCENES.some((item) => item.route === route))
   ).map((route) => ({
     label: route,
     url: route,
@@ -238,7 +275,9 @@ const targets = [
     fullPage: route === GALLERY_INDEX_ROUTE,
     ...(PROFILE_SCENES.some((item) => item.route === route)
       ? { scene: PROFILE_SCENES.find((item) => item.route === route)?.name, kind: "profile" }
-      : {}),
+      : route === "sub/service/messages/index"
+        ? { scene: "messages-owner", kind: "message" }
+        : {}),
   })),
   ...(all ? componentNames : wantedComponents).map((name) => ({
     label: `组件 ${name}`,
@@ -305,6 +344,7 @@ async function shoot(target) {
       })
     : null;
   const page = await (isolated ?? context).newPage();
+  if (target.scene === "cert-sheet") await page.setViewportSize({ width: 320, height: 568 });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   try {
@@ -327,12 +367,36 @@ async function shoot(target) {
                 ? "mine-guest"
                 : "mine-owner";
             globalThis.__LYX_CATALOG_SHOT__ = scene;
+            if (scene.startsWith("home-") || scene.startsWith("mall-"))
+              globalThis.__LYX_SEARCH_SHOT__ = scene.endsWith("clerk")
+                ? "search-clerk"
+                : scene.endsWith("guest")
+                  ? "search-guest"
+                  : "search-owner";
+          }
+          if (kind === "search") {
+            globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("clerk")
+              ? "mine-clerk"
+              : scene.endsWith("guest")
+                ? "mine-guest"
+                : "mine-owner";
+            globalThis.__LYX_SEARCH_SHOT__ = scene;
+            globalThis.__LYX_CATALOG_SHOT__ = scene;
           }
           if (kind === "order") globalThis.__LYX_ORDER_SHOT__ = scene;
           if (kind === "publish") globalThis.__LYX_PUBLISH_SHOT__ = scene;
           if (kind === "delivery") globalThis.__LYX_DELIVERY_SHOT__ = scene;
           if (kind === "profile") globalThis.__LYX_PROFILE_SHOT__ = scene;
           if (kind === "billing") globalThis.__LYX_BILLING_SHOT__ = scene;
+          if (kind === "message") {
+            globalThis.__LYX_ACCOUNT_SHOT__ =
+              scene === "messages-no-store"
+                ? scene
+                : scene === "messages-clerk"
+                  ? "mine-clerk"
+                  : "mine-owner";
+            globalThis.__LYX_MESSAGE_SHOT__ = scene;
+          }
         },
         { scene: target.scene, kind: target.kind },
       );
@@ -361,14 +425,81 @@ async function shoot(target) {
                   ? "#order-ready"
                   : target.kind === "catalog"
                     ? "#catalog-ready"
-                    : target.kind === "delivery"
-                      ? "#delivery-ready"
-                      : "#account-ready",
+                    : target.kind === "search"
+                      ? "#search-ready"
+                      : target.kind === "message"
+                        ? target.scene === "messages-loading"
+                          ? ".messages-page .lyx-skeleton"
+                          : "#messages-ready"
+                        : target.kind === "delivery"
+                          ? "#delivery-ready"
+                          : "#account-ready",
         )
         .waitFor({ state: "visible", timeout: 15_000 });
+      if (target.kind === "search") await searchRegression(page, target.scene);
       if (target.kind === "publish" && target.scene === "accounts-bind") {
         await page.locator(".accounts-page .lyx-button").filter({ hasText: "绑定新账号" }).click();
         await page.locator(".accounts-page__form").waitFor({ state: "visible" });
+      }
+      if (target.kind === "message") {
+        if (target.scene === "messages-loading") {
+          await expect(page.locator(".messages-page .lyx-skeleton")).toBeVisible();
+          await expect(page.getByText("暂无消息", { exact: true })).toHaveCount(0);
+        }
+        if (target.scene === "messages-error") {
+          await expect(page.getByText("网络异常，请检查网络后重试", { exact: true })).toBeVisible();
+          await expect(page.getByText("重新加载", { exact: true })).toBeVisible();
+          await expect(page.getByText("暂无消息", { exact: true })).toHaveCount(0);
+        }
+        if (target.scene === "messages-category") {
+          await page.locator(".lyx-filter-chips__item").filter({ hasText: "审核" }).click();
+          await expect(page.locator(".messages-page__row")).toHaveCount(1);
+          await expect(page.locator(".messages-page__row")).toContainText("门店审核通过");
+        }
+        if (target.scene === "messages-more") {
+          await page
+            .locator(".messages-page .lyx-button")
+            .filter({ hasText: "继续查看消息" })
+            .click();
+          await expect(page.locator(".messages-page__row")).toHaveCount(24);
+        }
+        if (target.scene === "messages-all-read") {
+          await page.locator(".messages-page__action").filter({ hasText: "全部已读" }).click();
+          await expect(page.locator(".messages-page__toolbar")).toContainText("未读 0 条");
+          const writes = await page.evaluate(() =>
+            globalThis.__LYX_MESSAGE_CALLS__.filter((call) => call.path === "/m/messages/read"),
+          );
+          if (
+            writes.length !== 2 ||
+            writes[0].key !== writes[1].key ||
+            writes[0].data.upToMessageId !== writes[1].data.upToMessageId
+          )
+            throw new Error("全读网络重试未保持同一边界/幂等键");
+        }
+        if (target.scene === "messages-empty")
+          await expect(page.getByText("暂无消息", { exact: true })).toBeVisible();
+        if (
+          target.scene === "messages-clerk" &&
+          (await page.locator(".messages-page__row").allTextContents()).some((text) =>
+            text.includes("积分变动"),
+          )
+        )
+          throw new Error("店员消息出现老板财务文案");
+        if (target.scene === "messages-no-store") {
+          const headers = await page.evaluate(() => globalThis.__LYX_MESSAGE_HEADERS__);
+          if (!headers.length || headers.some((item) => item.storeId !== undefined))
+            throw new Error("无店场景仍发送门店头");
+          await expect(page.getByText("账号安全提醒", { exact: true })).toBeVisible();
+        }
+        if (target.scene === "messages-unavailable") {
+          await page.locator(".messages-page__row").first().click();
+          await expect(
+            page.getByText("该内容暂不可访问，消息仍会保留", { exact: true }),
+          ).toBeVisible();
+          await page.locator(".messages-page__action").filter({ hasText: "订阅通知设置" }).click();
+          await expect(page.getByText("暂不可用", { exact: true })).toBeVisible();
+          await expect(page.locator(".lyx-sheet-popup")).toBeInViewport({ ratio: 1 });
+        }
       }
       if (target.kind === "delivery") {
         if (target.scene === "plan-change") {
@@ -492,7 +623,7 @@ async function shoot(target) {
       if (target.kind === "profile") {
         if (target.scene === "basic-normal") {
           await page.locator("input").first().fill("邻里咖啡新店");
-          await page.locator(".lyx-button").filter({ hasText: "保存基础信息" }).click();
+          await page.locator(".lyx-button").filter({ hasText: "保存草稿" }).click();
           await page.locator(".lyx-button--loading").waitFor({ state: "hidden" });
           const body = await page.evaluate(
             () =>
@@ -516,10 +647,7 @@ async function shoot(target) {
         }
         if (target.scene === "store-normal" || target.scene === "service-normal") {
           const media = target.scene === "store-normal";
-          await page
-            .locator(".lyx-button")
-            .filter({ hasText: media ? "保存门店环境" : "保存服务与价格" })
-            .click();
+          await page.locator(".lyx-button").filter({ hasText: "保存草稿" }).click();
           await page.locator(".lyx-button--loading").waitFor({ state: "hidden" });
           const body = await page.evaluate(
             (path) =>
@@ -543,15 +671,20 @@ async function shoot(target) {
         }
         if (target.scene === "cert-missing") {
           await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
+          await expect(
+            page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }),
+          ).toHaveClass(/lyx-checkbox--checked/);
           await page.locator(".lyx-button").filter({ hasText: "提交资质审核" }).click();
           const missing = page.getByText("请补充门店必填资料", { exact: true });
           await missing.waitFor({ state: "visible" });
+          await expect(page).toHaveURL(/sub\/profile\/cert\/index/);
           await missing.scrollIntoViewIfNeeded();
         }
         if (target.scene === "review-rejected")
           await page.getByText("证照不清晰", { exact: true }).waitFor({ state: "visible" });
       }
     }
+    if (target.kind === "catalog") await searchEntryRegression(page, target.scene);
     if (errors.length > 0) throw new Error(`页面报错：${errors[0]}`);
     if (target.fullPage) {
       // 页面上开着弹层时，等它的进场动画走完
@@ -657,21 +790,35 @@ async function shoot(target) {
     if (target.scene === "cert-normal") {
       await profileContactRegression(page);
       await profileAuthorizationRegression(page);
-      await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
-      await page.locator(".lyx-button").filter({ hasText: "提交资质审核" }).click();
+      await page.locator(".lyx-checkbox:visible").filter({ hasText: "我确认所填信息" }).click();
+      await expect(
+        page.locator(".lyx-checkbox:visible").filter({ hasText: "我确认所填信息" }),
+      ).toHaveClass(/lyx-checkbox--checked/);
+      await page.locator(".lyx-button:visible").filter({ hasText: "提交资质审核" }).click();
       await page
         .getByText("信息确认已更新，请刷新后重新阅读并确认", { exact: true })
         .waitFor({ state: "visible" });
       await page.locator(".lyx-text-button").filter({ hasText: "刷新并核对" }).click();
       await page.getByText("确认版本：2", { exact: true }).waitFor({ state: "visible" });
-      const submit = page.locator(".lyx-button").filter({ hasText: "提交资质审核" });
+      const submit = page.locator(".lyx-button:visible").filter({ hasText: "提交资质审核" });
       if (!(await submit.getAttribute("class"))?.includes("lyx-button--disabled"))
         throw new Error("声明更新后须重新勾选");
-      await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
-      await submit.click();
+      await page.locator(".lyx-checkbox:visible").filter({ hasText: "我确认所填信息" }).click();
+      await expect(
+        page.locator(".lyx-checkbox:visible").filter({ hasText: "我确认所填信息" }),
+      ).toHaveClass(/lyx-checkbox--checked/);
+      await page.evaluate(() =>
+        globalThis.__LYX_PROFILE_CONTROL__.authorization.failNextRedirect(),
+      );
+      await submit.dblclick();
       await page
-        .getByText("当前资料只读。审核进度与结果请到审核进度页查看", { exact: true })
+        .getByText("资料已保存，页面跳转失败，请点击下方重试", { exact: true })
         .waitFor({ state: "visible" });
+      await expect(page).toHaveURL(/sub\/profile\/cert\/index/);
+      await page.locator(".lyx-text-button").filter({ hasText: "重新进入审核进度" }).click();
+      await expect(page).toHaveURL(/sub\/profile\/review\/index/);
+      await profilePageReady(page, "review");
+      await page.getByText("平台审核中", { exact: true }).waitFor({ state: "visible" });
       const submitted = await page.evaluate(() =>
         globalThis.__LYX_PROFILE_CALLS__
           .filter((call) => call.path === "/m/store-profile/qualification/submit")
@@ -679,10 +826,26 @@ async function shoot(target) {
       );
       if (JSON.stringify(submitted) !== JSON.stringify(["1", "2"]))
         throw new Error("提交没有携带本次声明版本");
+      await page.evaluate(() => globalThis.__LYX_PROFILE_CONTROL__.authorization.enter());
+      await profilePageReady(page, "cert");
       await profileContextRegression(page, "cert");
     }
+    if (target.scene === "cert-sheet")
+      await profileCertificateSheetRegression(
+        page,
+        path.join(outDir, "profile__cert-sheet-bottom.png"),
+      );
     if (["basic-normal", "store-normal", "service-normal"].includes(target.scene))
       await profileEditRegression(page, target.scene);
+    if (
+      [
+        "profile-missing-items",
+        "service-no-points",
+        "service-disabled-points",
+        "cert-declaration",
+      ].includes(target.scene)
+    )
+      await profileMissingRegression(page, target.scene);
     if (errors.length > 0) throw new Error(`页面报错：${errors[0]}`);
     console.log(`已出图 ${path.relative(appRoot, file)}`);
   } catch (error) {

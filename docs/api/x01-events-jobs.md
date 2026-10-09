@@ -552,7 +552,7 @@
 | `notify.sms_balance` | 每日 10:20 | job | P3 | notify（13） | 短信余量检查 | 13:1212；d6:150 |
 | `docs.sweep` | 每 5 分钟 | job | P2 | docs（13） | 协议版本到点簿记翻转；重投 queued、租约过期的授权书版次 | 13:766、1039；d6:147 |
 | `evidence.consent_digest` | 每日 00:40 | job | P2 | docs（13） | 前一日同意记录按 seq 求 SHA-256，写入 secure 桶；次日校验 | 13:864；d6:151 |
-| `analytics.partitions` | 每月 20 日 | job | P2 | analytics（14） | 预建未来 3 个月的埋点分区（迁移账号） | 14:746 |
+| `analytics.partitions` | 每月 20 日 | job | P2 | analytics（14） | 预建未来 3 个月的埋点分区（应用角色调用受限函数） | 14:746 |
 | `analytics.dedup_purge` | 每日 04:10 | job | P3 | analytics（14） | 删除 8 天前的去重行 | 14:777 |
 | `export.sweep` | 每 5 分钟 | job | P2 | exports（14） | 回收租约过期的导出任务；到期置 expired 并删除文件 | 14:982-984 |
 | `reports.finalize` | 每日 00:30 | job | P2 | reports（14） | 续费率到期满 7 天后定稿，重出月度快照 | 14:890 |
@@ -617,9 +617,13 @@ BullMQ 只是执行通道：任务一律 `attempts: 1`，重试、到期、租�
 | 命令 | 出处 | 做什么 |
 | --- | --- | --- |
 | `staff:bootstrap` | 03:217；d4:1040 | 建第一位超级管理员（staff → active） |
+| `staff:reissue-activation` | W2-03；tasks README 第5.2节 | 仅补发仍未激活的首位超级管理员已过期的激活码；必须确认工号，生产另需显式授权，不改员工状态 |
 | `refund:abandon-txn` | 08:668；d2:937 | 两人确认放弃异常退款交易（refund_txn abnormal → abandoned），驱动 08:532 |
-| `ops analytics:repartition <YYYY-MM>` | 14:748 | 兜底分区搬迁（迁移账号） |
+| `ops analytics:repartition <YYYY-MM>` | 14:748 | 兜底分区搬迁（应用角色调用受限函数，服务校验操作者与环境） |
 | `cli.alerts.ack / 关闭告警、重置死信回调` | 15:120、260 | 以 `--staff` 指定的员工身份写 alert_event、webhook_event 与审计（client = cli） |
+
+实际worker入口`alerts-ack`仅接受`ack`、`close`、`reset-webhook`。三者均必须指定`--staff <active员工UUID>`、一个目标（前两者`--alert-id`，后者`--webhook-event-id`）与`--note <5–200字原因>`，不接受另一个目标参数、批量或任意状态。服务在同一事务读取员工当前角色、验证`sys.health.manage`或`flow.ops.manage`并修改固定目标、追加审计；不伪造会话/step-up，stdout只给命令、对象与结果状态。HTTP可选note的协议保持原样。`acked`状态供告警求值器延长重复通知间隔使用，人工关闭本身不发恢复通知。
+
 
 ### 4.7 草案提到、不单独登记的任务（去向）
 

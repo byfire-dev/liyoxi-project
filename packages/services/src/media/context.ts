@@ -11,10 +11,15 @@ import type {
   Tx,
   TxRunner,
 } from "../kernel/index.js";
-import type { StorageProvider } from "../providers/types.js";
+import type { WechatProvider, MediaProvider, StorageProvider } from "../providers/types.js";
+import type { MediaJobHandler, MediaConvergenceHandler } from "./jobs/types.js";
+import type { MediaProductionDeps } from "./production-types.js";
 import type { FileRefType } from "../kernel/index.js";
+import type { MediaBatchDeps } from "./batches/types.js";
+import type { AuditRequestMeta } from "../audit/index.js";
 export type FileRow = FileObject;
 export interface MediaActor {
+  readonly audit?: AuditRequestMeta;
   readonly identity: IdentityContext;
   readonly staff?: StaffContext;
   readonly merchant?: {
@@ -28,6 +33,11 @@ export interface FileCategoryGuard {
   registered?(tx: Tx, fileId: string, actor: MediaActor, input: RegisterInput): Promise<void>;
 }
 export interface MediaDeps {
+  readonly batches?: MediaBatchDeps;
+  readonly production?: MediaProductionDeps;
+  readonly jobOwnerId?: string;
+  readonly jobHandlers?: readonly MediaJobHandler[];
+  readonly jobConvergenceHandlers?: readonly MediaConvergenceHandler[];
   readonly tx: TxRunner;
   readonly clock: Clock;
   readonly storage: StorageProvider;
@@ -36,11 +46,25 @@ export interface MediaDeps {
   readonly channel?: Pick<QueueChannel, "enqueue">;
   readonly videoMaxMb?: () => Promise<number>;
   readonly pollMs?: number;
+  readonly wechatImage?: {
+    readonly appid?: string;
+    readonly provider: Pick<WechatProvider, "checkImage" | "configured">;
+    readonly fallback: Pick<MediaProvider, "audit" | "status">;
+    readonly recentWechatOpenid: (
+      tx: Tx,
+      input: { merchantUserId: string; appid: string; now: Date },
+    ) => Promise<{ wechatIdentityId: string; openid: string } | null>;
+  };
 }
 export interface BoundMediaDeps extends MediaDeps {
+  readonly queueBatchProbe?: (tx: Tx, fileId: string, batchId: string) => Promise<string>;
+  readonly batchStored?: (tx: Tx, fileId: string) => Promise<void>;
+  readonly batchRejected?: (tx: Tx, fileId: string) => Promise<void>;
+  readonly queueProbe?: (tx: Tx, file: FileRow) => Promise<string | null>;
   readonly refTypes: ReadonlyMap<string, FileRefType>;
   readonly guards: ReadonlyMap<string, FileCategoryGuard>;
 }
+export type BatchRuntimeDeps = BoundMediaDeps & { readonly batches: MediaBatchDeps };
 export interface UploadInput {
   readonly fileName: string;
   readonly sizeBytes: string;

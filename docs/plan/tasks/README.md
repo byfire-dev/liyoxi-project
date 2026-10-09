@@ -125,10 +125,10 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 | 17 | G4-A（部分与 G2-0、G4-B） | 微信支付驱动接进选择分支与组合根；补 `loadEnv` 与 `.env.example` 缺的变量；到 `WEBHOOK_*` 的错误映射；真实账单复核 V13 | X-04 第 5 节、第 11 节第 4、5、7 项 |
 | 18 | G5-B | 法务条款定稿后用真文本复测授权书渲染 | X-03 第 11 节第 4 项 |
 | 22 | W1-02 | 后台的模块键、模块等级换成引契约：`apps/admin/src/lib/menu-types.ts` 的 `AdminModuleKey`、`ModuleLevel` 改为取 `@liyoxi/contract/authz`（W0-28 状态文件“往后移交”点名交给 W0-09b、W0-10 的那一件；菜单角标键随 a02 域，契约里还没有） | W0-09b 第 5 节 |
-| 23 | G2-C | ① 通知注册表登记的场景键与契约的 `NOTIFY_SCENES` 一一对应（启动自检或用例）。② 埋点接收接口对端上 10 个事件的属性校验结构，与契约 `ClientEventProps` 的类型同形（用例断言） | W0-09b 第 5 节；`packages/contract/src/analytics/events.ts` 开头的注释 |
+| 23 | W2-17；W2-18 | ① W2-17 通知注册表登记的场景键与契约的 `NOTIFY_SCENES` 一一对应（启动自检或用例，实际 producer 与未来场景分列）。② 埋点接收接口对端上 10 个事件的属性校验结构，与契约 `ClientEventProps` 的类型同形（用例断言） | W0-09b 第 5 节；`packages/contract/src/analytics/events.ts` 开头的注释 |
 | 24 | 各域第一个后端 PR | 本域里标了带 `details` 的领域错误码，各登记 `details` 的结构；默认文案不合适的同 PR 改（文案不在对账之内） | W0-09b 第 5 节、第 11 节第 3 项（W1-03、W1-06 的第一个 PR 各登记了本域的两个码，#54、#56；W1-11b 登记本域 M07/A07 details 结构；其余各域照旧） |
 | 26 | W1-01b；服务器与发布的包（G2-D 环境包） | W1-01b：登记 `staff.I8`（`packages/services/src/staff/invariants.ts`）。发布流程：`migrate deploy` 之后跑播种；命令行入口 `pnpm db:seed` 靠 `tsx` 直接跑源码，生产镜像里没有它时由构建产物里的入口调 `runSeed` | W0-21 第 5 节、第 10 节第 1 项（`staff.I8` 已由 W0-24 登记在 `packages/services/src/staff/register.ts`，#54：W1-01b 不再登记，再登记会装配重名。发布流程的一半照旧） |
-| 27 | G2-C；M2 的初始化脚本 | 订阅槽位的字段定义、短信模板的变量定义、模板编号与签名：种子里是空数组与 `unconfigured`，模板选定、报备通过后写 | W0-21 第 10 节第 7 项 |
+| 27 | W2-17；W2-22；M2 的初始化脚本 | 订阅槽位的字段定义、短信模板的变量定义、模板编号与签名：种子里是空数组与 `unconfigured`，模板选定、报备通过后写 | W0-21 第 10 节第 7 项 |
 | 28 | W1-01a、W1-13 | 原想请 W0-21 顺手做的两件，W0-21 合并时都没有带，改由用到的包自己做。① 8 个角色各一个默认组（`staff_group`，03 分组 第 2.2 节；新增员工与引导命令都要用）：W1-01a 的第二个 PR 在 `packages/services/src/staff/seed.ts` 里追加。② “新增字典项、没有才插”的函数：config 现在只有读侧与种子，W1-13 在 `packages/services/src/config/` 里只增这一个函数，演示种子用它补题材、卖点标签、行业、定制重点的演示项；字典写侧的接口与引用计数仍在 M2（交 W1-23 写进 G2-A 任务书的那一行） | W1-01a、W1-13 的任务书；已写进这两份任务书（① 已办结：W1-01a 的第二个 PR，#54；② 照旧） |
 | 33 | W1-01a | `auth_event` 的写函数与清理项建在 `packages/services/src/audit/auth-event.ts`，三个身份空间共用（W1-04 先开工时自己建同名同签名的文件，后合并的一方并成一份）；演示种子的运行器让各模块加一行；演示员工满足下游的四个要求；`defineAdminHandler`、`signInAsStaff` 给全部后台接口包用；a01 的公共结构 `StaffBrief`、`AdminPage<T>`、`AdminCursorPage<T>` | W1-04、W1-06、W1-07、W1-11b、W1-13、W1-16a、W1-19 的任务书；已写进 W1-01a 的任务书（`auth_event` 的写函数与清理项已建：W1-01a 的第二个 PR，#54；其余在第三个 PR） |
 | 34 | W1-01b | `staff.pickNext(tx, pool, scopeKey)` 对选中的员工行加共享锁，调用方（W1-17、W1-08、W1-16a）要在锁任何业务行之前调；`publisher` 池在 M1 可返回空；按 id 批量取员工摘要的只读函数只给上层用 | W1-06、W1-08、W1-17 的任务书；已写进 W1-01b 的任务书 |
@@ -151,7 +151,7 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 | 51 | W1-21 | 演示种子运行器由 W1-01a 起头，本包只核对先后并加演示参数（`order.start_delay_minutes` 设 0）；降 `landed-baseline.txt`；核对计划留桩清单“M1 内的端口桩”一行全为已回补；端到端脚本里“保存样片 → 确认样片”两步缺一不可，登记样片与质检用两个账号；演示手册含演示点 A 的起环境步骤与 W1-12 的四页；接口清零按两条提前之后的数 | W1-06、W1-09、W1-11b、W1-12、W1-13、W1-16a 的任务书；已写进 W1-21 的任务书 |
 | 52 | W1-23（写进 G2-A 的任务书） | 员工其余接口与页面、staff 其余不变量（`staff.I2` 在没引导过首位管理员的库上必然违规，M1 没登记）、在办来源端口、分配池与 `pickNext` 去桩、发布专员的指派、激活码短信（staff 调 notify 不在 06 第 3.6 节的同层白名单里，要定走端口还是改白名单）；用户菜单的修改密码与动态口令设置两项及页面清单补登、员工页的行内操作与页头计数；审批决定时限（`due_at`、`sla.breach`、`approval.onCalendarImported`、`approval.I3`、`I5`）、“只升锁版本”入口、字典写侧与引用计数 | W1-01a、W1-01b、W1-02、W1-06、W1-17 的任务书 |
 | 53 | W1-23（写进 G2-B 的任务书） | 登录表单换成手机号组件并去桩；休眠检查的两支；“退出登录”移进设置页；协议 PDF 的读地址与 docs 登记文件引用怎么走（06 第 3.6 节的同层白名单没有 docs → media，13 分组 第 5.1 节却要 docs 调 `files.link()`：走端口或单独的 `gate-change`）；`notices.withdraw`；资质的 `change`、`new_store` 轮次与终局驳回、联系人发码、后台商家聚合端口的各键、建档首页成员摘要、小程序地图选点入口（业主申请的 `chooseLocation` 通过后）；门店数额度校验 | W1-03、W1-04、W1-05、W1-08、W1-09、W1-15 的任务书 |
-| 54 | W1-23（写进 G2-0、G2-C、G2-D 的任务书） | W2-02：`QueryTablePage` 的 `mask` 与 `selectedRowKey`、`validateSearch` 复用公开 `@liyoxi/contract/queries/admin` 查询结构；CompareTable/RejectDialog 已公开，保留既有公口与 pending 守卫，新增 DiffBlock。G2-C：事实端口的 `notify` 键；billing、order、delivery、publish、approval 的通知场景解析（M1 的事件已照发）；定 `docs.N5` 的归属（要读付款单、订购单、广告三张上层表，docs 在 L1 登记不了）。G2-D 的代码包：后台来源 IP 白名单（`ADMIN_IP_ALLOWLIST`、`IP_NOT_ALLOWED`）；锁定告警的规则键 `auth.staff_untrusted_locked` 进告警最小集；事件型告警规则的登记处收进 `sla.calendar_fallback` 等已在用的键；`alerts.raise` 在业务事务里被调不能丢（`sla.dueAt` 就在业务事务里调它；实现要另开独立事务时会被 kernel 的嵌套检测拦下，得先由 kernel 给一个“脱离当前事务作用域”的办法，G2-D 的代码包开工前做）；`ops.cert_check` 对还解析不到的读域名记“未配置”；`backup.pgdump` 的上传走存储 Provider；两条错误上报转发接口归到一个代码包（同时接上小程序 `apps/weapp/src/lib/server.ts` 里错误上报的那个调用，W0-27a 留的），并把 W2-27 依赖里的两处文字换成编号；预发的 `AUTH_KEYS_FILE` 生成步骤进环境包的密钥清单；计划 第 5.5 节“M2 起加”的每晚 P95 基线归到一个包 | W1-01a、W1-02、W1-03、W1-06、W1-09、W1-11b、W1-16a 与 W2-25–W2-29 的任务书 |
+| 54 | W1-23（写进 G2-0、G2-C、G2-D 的任务书） | W2-02：`QueryTablePage` 的 `mask` 与 `selectedRowKey`、`validateSearch` 复用公开 `@liyoxi/contract/queries/admin` 查询结构；CompareTable/RejectDialog 已公开，保留既有公口与 pending 守卫，新增 DiffBlock。W2-17：真实 `merchantFacts.notify` 未读数和 billing/order/delivery/publish/approval 的当前通知事实；docs.N5 经 billing/order/ad 三个已登记 keyed 只读端口取单据/同意事实，L1 不直查上层表。PR1/PR2 已实际本地 main，PR3 的五桩按源码回补；未来 Rx 与真实通道配置保留原归属。G2-D 的代码包：后台来源 IP 白名单（`ADMIN_IP_ALLOWLIST`、`IP_NOT_ALLOWED`）；锁定告警的规则键 `auth.staff_untrusted_locked` 进告警最小集；事件型告警规则的登记处收进 `sla.calendar_fallback` 等已在用的键；`alerts.raise` 在业务事务里被调不能丢（`sla.dueAt` 就在业务事务里调它；实现要另开独立事务时会被 kernel 的嵌套检测拦下，得先由 kernel 给一个“脱离当前事务作用域”的办法，G2-D 的代码包开工前做）；`ops.cert_check` 对还解析不到的读域名记“未配置”；`backup.pgdump` 的上传走存储 Provider；两条错误上报转发接口归到一个代码包（同时接上小程序 `apps/weapp/src/lib/server.ts` 里错误上报的那个调用，W0-27a 留的），并把 W2-27 依赖里的两处文字换成编号；预发的 `AUTH_KEYS_FILE` 生成步骤进环境包的密钥清单；计划 第 5.5 节“M2 起加”的每晚 P95 基线归到一个包 | W1-01a、W1-02、W1-03、W1-06、W1-09、W1-11b、W1-16a 与 W2-25–W2-29 的任务书 |
 | 55 | W1-23（写进 G3、G4 的任务书） | G3-A：真实存储与分块、`media.sweep`；执行循环接手后删掉 W1-07 的 promote 补偿扫描；体检接入包替换 `media/production-stub.ts`；成片批量上传；预发 mediatool 的内存上限实测后定是否升配。G3-B：原片与预告片就绪、版权到期定时器与 `content.I3`、订购统计、公告条、搜索。G3-C：OCR 接上证照识别与提交时的字段比对；事实端口的 `asset` 键；参考素材。G4-A、G4-B、G4-C：续费、升级、降级、加购的报价与履约；微信渠道入账（付款人与回传数据校验、孤儿交易、补单）；对公二人复核；凭证的 `sla.breach` 与回单识别；unexpire、revoke、extend、调整审批；估值与日快照及 `billing.I11`、`I13`、`I15`、`I17`；payment 不变量从 I16 续编；延长后续费的锚定日；提醒查询 R1；钱包里生效中的续费、升级、加购入口与微信支付调起；订购单页的付款单页签 | W1-07、W1-08、W1-10、W1-11a、W1-11b、W1-12、W1-13、W1-15、W1-16a、W1-19 与 W2-25 的任务书 |
 | 56 | 之后的拆包 PR（G5、G6、G7-A） | G5-A：指派剪辑师时去掉“首次登记即认领”，环节时限、已确认方案的修订、样片修改意见，资质驳回后的 `order.rejected_stale` 与整店取消。G5-B：事实端口的 `ad` 键、广告就绪与授权书齐全、订购时选广告。G6-A、G6-B：发布清单编辑、预打包、到期定时器、重新生成授权、`m.download.report` 与逐集下载的真实形态；方案表单里改选发布账号。G7-A：事实端口的 `support` 键、企业微信联系人回填、在线客服配置、首页待办区 | W1-03、W1-04、W1-15、W1-16a、W1-16b、W1-17、W1-18、W1-19、W1-20 的任务书 |
 | 57 | 第一个结构变更包；M2 合流包 | D7 第 10.6 节第 19 项的迁移演练（`@ignore` 删列三步、CHECK 约束替换各一次）随第一个结构变更包做，W2-28 只交混跑冒烟。M2 合流包按实际页面把 W2-29 的真机清单第一版校一遍并补本里程碑的条目 | W2-28、W2-29 的任务书 |
@@ -219,6 +219,12 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 | W2-24 PR2 | 独立告警存储/投递接实际 alerts 端口；calendar coverage 的 detach 只隔离事务，不能豁免存活祖先的 Provider 外呼守卫。 |
 
 
+### 5.4 W2-07 系统配置页面移交
+
+| 接收方 | 实际页面与合流要求 |
+| --- | --- |
+| W2-30 | 四页为 `/sys/dict`、`/sys/params`、`/sys/flags`、`/sys/checklists`；后两页保留参数页子入口与实际权限。合流演示要区分参数当前 `rev`/CAS `latestRev`/预约列表；409 保留草稿、显式核对再确认。日历只提交 `{year}`，演示 2026 内置导入及重复 changedDays 空；缺内置年实际 fieldErrors.path 为 `days`。清单草稿修订是先退役旧草稿再创建的两个提交，失败/历史按事实显示，不能承诺旧业务快照自动升级。真实浏览器前置复用原财务配置提议员工，finance 只增加 system 查看等级，不新增员工或编辑权限。 |
+
 ## 6. 任务书加的前置（计划依赖列没有）
 
 写任务书时查实的三处。已由一条计划小改补进计划 第 7.2 节依赖列与第 12 节（[changes/W0-04-post-kickoff-fixes.md](../changes/W0-04-post-kickoff-fixes.md)）。下表留作出处，“怎么办”一栏照旧有效（默认，W0-04 定）。
@@ -234,6 +240,8 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 ## 7. M1 与环境泳道各包共用的口径（W0-31 定）
 
 32 份任务书是七个会话并行写的，下面是统稿时定的共同做法。任务书的“依据”表里有一行指到本节；任务书与本节不一致时以本节为准，照做并在状态文件“偏差”记一句。
+
+W2-19 消息页只进入已实际实现且当前角色可访问的目标；客服、公告等未来目标由 W2-31 拆包接入，当前受控提示不可访问，不登记新页面或假成功。
 
 ### 7.1 预拆成几个 PR 的包
 
@@ -258,6 +266,7 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 | W2-26 | a、b1、b2 三步 | a 节点步骤、通道编排、回滚与测试；原 b 下拆 b1 持续探测、全资源/DB核对与双版演练，b2 上传体验版与工作流消费者（另等 W2-25b actual main）；按任务书第 9 节预拆，见 [原变更](../changes/W2-26-split-a-b.md)与[续拆](../changes/W2-26-b-split-b1-b2.md) | 无：下游等整包 |
 | W2-10 | PR1、主包 | PR1甲仅tenant定义端口、identity同事务精准吊销portal授权；其actual后主包乙17接口/2x01/2桩，其他缺失收尾公口仍由拥有者先实际交；见[记录](../changes/W2-10-portal-revocation-first.md) | 无：下游等整包 |
 | W2-12 | PR1、PR2 主包 | PR1仅有界对象读取、隔离正文技术转换、精确依赖和两应用真实产物，0 HTTP/页/x01/桩；actual后PR2乙交原8接口/2cron/2桩；见[记录](../changes/W2-12-document-capability-first.md) | 无：W2-16仍等整包，计划PR与PR1均不代替整包actual |
+| W2-17 | PR1、PR2、PR3 | PR1乙五消息/设置HTTP与真实未读读侧；PR2甲通知发送结果/取消协议，二者独立actual基线可并行；两者actual后PR3交M2场景、派发/提醒/删除、N5、五x01/五桩；见[记录](../changes/W2-17-independent-read-and-outcomes.md) | 无：所有原下游仍等整包actual |
 
 体量仍超上限而没有再拆的三处，由调度会话在 PR 上定，会话不停下：W1-04 的 ①（约 1,100 行）、W1-15 的 a（约 1,200 行，只有“确认订购”一个机制）、W1-08 的 a（约 1,900 行，乙类按接口数 13 条不超）。
 
@@ -310,9 +319,12 @@ W1-23a交[分配表](../changes/W1-23-m2-m4-package-map.md)、M2共25本（01–
 | 移交方 | 接收方 | 内容与边界 |
 | --- | --- | --- |
 | W1-23a | W2-01/02 | 回调单机制与共用构件优先，供M3/M4接入；下游不重写框架/通用件 |
+| W2-22（进行中） | W2-03/17/24及业主 | 腾讯云TC3单次短信/严格九模板初始化/内部保活提供本地可验实现；真实激活8字母数字与官方验证码≤6数字不兼容，外呼前rejected，不改staff码/冻结种子，不假闭环。余额因未证完整套餐历史/权限及正式阈值而unsupported/noquery；外部签名模板/到达与E项待业主事实，告警只用既有alerts.raise。W2-24接固定P3键notify.sms_suspect（dimension=templateKey）与notify.sms_balance_unconfigured（无dimension、queried=false、无余额数字），有限detail见notify README；端口调用不代表外部到达。详见notify README/W222 status（官方文档获取2026-10-08） |
 | W1-23a | W2-03/17/22 | 激活码短信经注入端口，staff不直接同步导入notify；实际短信由driver接 |
 | W1-23a | W2-24 | PR1独立kernel.detach；PR2 actual后再probe/alerts，整包两PR齐才完成 |
 | W1-23a | W2-18/24、W2-27 | 错误转发与探针告警为代码包；环境接通分别等18与24第二PR，未真实部署不称已验 |
 | W1-23a → 本段b | W2-01/02及M3/M4各包 | 39本已覆盖全部分配与既有后台页增量、冻结媒体事实及权限/版本；Q8/Q10/Q13按既定默认；G2-0 actual后按本书依赖开工 |
 
 W3-06同编号先交甲级session advisory mutex公开能力与必要工厂接线，后交乙级文件恢复/彻删；领域段必须等待前置PR实际合入，两PR齐才完成。正式a01规定全用例持锁，不能用普通事务行锁或领域裸连接替代；b任务书按此展开。
+
+W2-03 在实际 main W2-17/W2-22 后实施员工全量与真实已落地 profile/order/delivery/publish/follow_up 来源，staff 只消费 typed 来源端口，不跨 L3 查表。M5 广告在办和 M7 客服工单来源仍由 W4-20、W2-31 各自登记真实 countOpen/list/reassign；本包不注册恒零来源。过期首管理员补发独立登记 staff_reissue_activation，保原 staff_bootstrap 与既有两项任务归属。真实腾讯验证码限制无法接受8字符激活码，仍由现通知结果受控手动回退，完整外部报备与到达不算已验。

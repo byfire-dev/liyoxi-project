@@ -12,7 +12,7 @@ M1 只开放 MinIO 预签名表单的小文件通道。服务入口是 `createMe
 
 `complete` 是三段式：锁 file_object，写 30 秒确认标记；事务外 HEAD 与最多 4KB 的文件头校验，绑定 etag；事务二按确认标记条件推进 promoting，并同时插入去重任务 promote:fileId 与 file.uploaded。不存在的对象清标记后返回 UPLOAD_NOT_FOUND，同幂等键可补传重试；大小优先于文件头判据，不合格持久化 rejected 与 file.rejected，再返回 UPLOAD_REJECTED。已确认不再重复建任务。幂等结果存完整 JSON 视图：商家 FileStatusView，后台 AdminFileView；首请求最多轮询 3 秒取得较新状态，重放仍返回事务二保存的 promoting 快照。
 
-worker 的 promote 并发为 2，锁序是 media_job(400) → file_object(410)。领取时推进 attemptNo 并写 30 秒租约；事务外按 incoming etag 条件复制，改写规范 MIME 与 attachment，再核对正式区大小/etag。收尾只接受当前 attemptNo、leaseOwner 且未到期的租约，成功写 stored 与 file.stored，偷换/核对不符写 rejected，暂时故障在最大尝试与期限内重试。消费者每 30 秒重唤醒超时 queued 与过期 running，属于消费者生命周期，不另登记领域循环。
+W3-03 将 promote 迁入统一媒体执行器：local 并发2、remote并发8，`media_job_run`每15秒最多扫描20行，`media_job`队列消费者并发10仅作入口。promote硬超时4分钟、租约5分钟、deadline30分钟；父对象(如有)先锁，再media_job(400)→file_object(410)。TX外按incoming etag条件复制、规范MIME/attachment，再核实际大小/etag/CRC。收尾复核当前state/attempt/leaseOwner/外部号与未到期租约，成功stored+file.stored一次，故障按1/5/15分钟退避；原promote消费者和30秒补偿扫描被统一事实恢复接管。扫描只等短TX认领，执行IO由同一owned集合持有，不能将扫描返回数理解为已stored。
 
 ## 2. 同事务引用
 
@@ -45,4 +45,62 @@ pnpm depcheck
 pnpm plan:summaries --check
 ```
 
-制作上下文/留痕归 W1-16a；引用方逐表登记由各业务包完成。真实存储、STS、分块、全量执行循环及清扫归 G3-A，接手时删 promote 补偿扫描；图片审核归 M2，视频及其余审核归 M3。分类登记表后续只增开放类别与守卫，不在本包放开未来权限。
+制作上下文/留痕归 W1-16a；引用方逐表登记由各业务包完成。真实存储、STS及分块公开能力见W3-01；W3-03接手统一执行循环与原promote补偿扫描，清扫仍归后续包；图片审核的微信窄接线见下节，视频及其余审核归 M3。分类登记表后续只增开放类别与守卫，不在本包放开未来权限。
+
+## 5. 微信图片审核（W2-21 窄接线）
+
+注入 `wechatImage` 后，原 promote 成功事务为 weapp 商家上传的 profile_image/profile_promo/store_asset/channel_screenshot/ticket_attachment JPG/PNG（不超过 5 MiB）创建唯一 audit_image_wx 任务并置 pending。W3-03中任务由统一 media_job 队列及15秒事实扫描执行；锁序保持 media_job(400) → file_object(410)，签读 URL 和 Provider 外呼均在短事务之外。领取只接受同 AppID、最近两小时身份公口的真实结果；没有身份/配置或提交未获 pending+traceId 时转入唯一 CI fallback 任务。
+
+WX 提交先持久化 submitting/attempt/租约，结果仅由同 attempt/lease 收尾为 submitted；35 分钟未完成或提交租约过期转 CI，避免未知外呼结果重复提交。CI 只在既有 MediaProvider.audit 明确 processed:true 且 pass/review/block 时关闭任务；当前 local processed:false 或不可用会持久化受控失败，文件仍 pending。W3-03新增CI原生驱动，只有完整CI角色配置时选择；未配/local processed:false不能算审核完成，真实云权限与回调到达另验。
+
+公开 `applyWechatImageResult(tx,{traceId,result:{suggest,label},receivedAt},ctx)` 使用注入 clock 写 decidedAt；risky 保存原来源结果并映射文件 block。未知/尚未提交 trace 返回 BUSY，由原 webhook inbox 重试预算承接，不吞成 ignored；终态重复、超时后的回调、退役文件与对象键不匹配均不得覆盖文件。pending/review 仍遵循既有引用与签读规则，block 继续由原 refs/sign 守卫拒绝。未新增通用审核流水线或状态历史机制。
+
+本叶验证使用真实隔离 PostgreSQL 与受统一 TX 外呼守卫约束的假 Storage/Wechat/Media，覆盖生产 promote 触发、并发领取、三种回调、提前回调重试、旧尝试、退役/错对象、超时与 CI processed:false；未调用真实微信或 CI。进程/worker 的配置、最近身份注入、来源 handler 与关闭生命周期由中央装配接管。
+
+## 6. W3-01 分块登记、续签与取消
+
+支持 STS 的 StorageProvider 对>20MiB登记选择 multipart：8MiB分块、块并发4、每文件前缀30分钟短授权；无能力仍是原post，不伪造STS。首次STS占1次，实际续签先在短TX内按原 file_object 锁顺序复核本人、scope、pending、确认租约及24小时上传期限，并原子预扣（最多30）；随后TX外调用，返回前短TX再做 fresh 复核。确定 rejected/unconfigured/unsupported 未签发才退本次1；网络/5xx/未知结果或崩溃保守保留占用，不声称官方已签发30次。成功签发后状态改变不退预算，也不给客户端凭据；凭据不进数据库/幂等结果/日志。
+
+后台新增恰 `admin.file.refreshCredentials`（none、no-store）和 `admin.file.cancel`（required）。取消仅本人staff登记，确认中拒绝；pending→expired，同意图重放不重复中止，无取消业务事件/审计。提交后尽力中止本file确切incoming key的未完成分块，不扩大权限；旧MinIO post取消仍走原删除。微信图片审核回执、trace竞态与35分钟兜底保留；W3-03已由统一15秒事实循环接手原30秒promote补偿。
+
+complete仍是原三段式，在TX外读取HEAD/4KiB头、核声明大小与真实类型/ETag；服务端可选CRC写incomingCrc64。条件copy后正式HEAD必须与大小、copy ETag及确认CRC一致才stored；不相信端侧“上传成功”或客户端CRC。冻结构noscope唯一索引未带entity_id保持原拒绝策略，同actor/token跨主体仍VALIDATION_FAILED；没有本包DDL，独立结构包再评估。
+
+公开后台 `createMultipartUploadAdapter` + `createAdminMultipartUploadPorts` 供后续批量页调用现typed中央API，不改通用UploadField：文件并发3/块4，失败保留UploadId/clientToken，ListParts恢复仅补缺块，STS按服务端到期时间单飞续签；取消/close用generation+AbortSignal丢弃晚进度。Complete/Cancel同意图key只在File的WeakMap会话中保留；不使用localStorage/sessionStorage、不打印密钥；成功释放会话。若同内存会话实际尝试Complete后响应未知，仅ListParts404+唯一NoSuchUpload才进入现有业务确认，最终由服务端检查决定；未Complete/一般云错不得绕过。不新建UploadId，不假云成功。外部CORS需允许Authorization/x-cos-security-token并暴露ETag，E4未验证。
+
+本地新增真实库反例覆盖额度并发、确定失败返还/未知占用、成功签发后取消、确认租约、scope、服务端CRC；新API走原鉴权/Origin/限流/幂等全管线。真实云、历史版本操作、GB压测及未来批次页面未宣称完成。
+
+## 7. W3-03 统一媒体任务
+
+`createMediaJobs`只运输事实；handler按既有kind注入，严格校验input/output、当前业务代次和父汇合，当前实际接promote、audit_image_wx及其profile图片CI fallback。其余13种业务处理器由对应包接入，不用空handler造完成。`createRemoteMediaHandler`提供提交/查询/按UserData找回的必要原语，首次提交即使平台称Success也先submitted再真实查询。每次UserData固定jobId:attemptNo，过期submitting先按当前重试周期与该UserData有界找回；截断、超时、未配置或遗留替身缺方法均不能当成none证据盲目重发。
+
+`jobs.pause`立即取消本机IO；`jobs.shutdown`停止新领，等45秒后取消并等实际清理；只在同state/attempt/leaseOwner条件下将自己local running退queued、attempt减回一次。强杀依赖持久租约，不重置其它实例。输入输出不存openid/签读URL/原识别正文。父锁→job→file后同TX调用业务纯汇合；I10逾deadline收尾与I11父对象15分钟停滞复用该汇合，缺handler如实留未自愈，不写通用ready。I11按正式数据模型15分钟，D5较低层的2分钟表述不缩短此界限。
+
+新增3HTTP/3x01：后台页码列表默认failed且system≥view，DTO隐去input/output/leaseOwner与原始错误正文；人工retry要求media.job.retry及required幂等，仍需当前业务需要，复位attempt/deadline/error并只审计一次；CI自然幂等回调只验HMAC-SHA256(mediaJobId)，提取一个安全JobId，submitted且外部号匹配才提前nextRunAt，绝不采信回调状态。原W2-01 inline收件同TX，无载荷持久化。媒体/微信/对象IO新增可选signal，未传仍兼容原调用，外呼guard保持最外层。
+
+ProduceID新补标默认`lyx:{小写UUIDv7 fileId}`仅作后续任务移交；不改上游已有标识、不声称法务已确认。CI真实激活、cam角色授权、任务模板、回调到达及大文件性能未验；本机只验证公开假key、有限HTTP与自有隔离库。
+
+## 8. W3-04 制作处理器与真实技术事实
+
+在既有执行器登记 probe、restamp、transcode_mp4、watermark_sample、normalize 五个 handler，不新增 HTTP、页面、x01 或任务循环。只有存储真实 HEAD/条件流读取、隔离 mediatool 探测与 H1–H7/S1–S10 判定后才写 mediaInfo/check；没有原片、广告窗或当前制作上下文时拒绝。raw 只保留技术白名单，来源的 AI 七字段逐字保存；缺标才补写，并独立回读全部七字段，不改变来源 AI 声明。
+
+派生文件使用新 UUID/固定对象键、条件流写和真实 HEAD。对象先成功写入后，独立短事务登记无引用 stored 技术事实；当前父、attempt、lease 和完整 context 均有效时，收尾事务才建立引用、派生 productionRecord 与事件。来源引用保留30天；晚结果不会挂到当前业务父，只由既有无引用清扫规则回收。cover 使用 media_info/cover 引用，来源使用 production_record/source 引用；引用不绕过原分类和归属守卫。
+
+production_record 父先预锁已有样片350再制作记录360；属于批次时通过同事务注入的 batchLockSiblings 预锁，再领取 job400。playable 父与同短剧兄弟350排序预锁，重读新增成员则 BUSY 零写。handler current 在同事务一次排序锁全部源、派生、封面及旧引用文件410；不在文件锁后补拿业务父锁。批次原片无需伪建 productionRecord，真实检查后调用同事务 productionChecked；派生检查通过后才替换活动批次文件。
+
+预告片 SD480×854、HD720×1280 两个独立云任务都完成且通过产物回读才安装 current；target 变化的晚结果退役，失败保留旧预告。样片取真实门店 name，经 shared 清洗、截10字和北京时间日期生成完整正式文案；固定许可 Noto CJK 字体渲染透明720×96 PNG，再使用同桶固定临时对象的原生 Image 水印，样片输出720×1280。云任务成功状态不能代替重新下载、探测、七字段回读与对象确认。
+
+`MEDIA_PRODUCTION_FILE` 必须完整给工作根、根内 socket、AI主体五个配置值及六个模板标识；ProduceID 和 PropagateID 由实际文件/来源事实生成。缺配置受控失败，不自行补法务主体值。store/ad/drama/trailer 由组合根同事务公开事实注入，media 不直接读取同层 content 的私有表。local/test 工具测试注入保留真实领域事实与外呼守卫，生产环境拒绝注入。
+
+`productionFacts` 只回有限技术/检查/AI/派生/水印事实，不返回对象键、短签名或用户工具正文。`retireDramaMedia` 证明 DB retired、在途取消与专属引用即时释放，返回 objectRefs 和 `cdnPending:true`；真实公开 URL/CDN 清除尚未配置，不能声称停止播放。当前真实库15例、客户端小IO15和装配4例已通过；存储新增字节/元数据欺骗2反例先真实失败，完整修正后受影响14例和CI/配置6例均已通过，API/worker类型通过。新源镜像31例中30通过、1条原业主样本条件跳过；最长完整中文水印实际两行alpha均不触画布边缘。约199.8MiB五轮体检+封面最慢232ms，三轮补标七字段完整回读、最慢424ms，原沙箱与轮数/上限不变；这是Mac本机观察。同步实际main bfcf9817后的旧装配、必跑MinIO、新鲜类型、严格分层、双次官方生成/门禁与API/worker构建已通过，相关纯类型迁移的32例定点回归通过；真实云、法务与平台读标未验。
+
+正式审查指出的mediatool取消项已定点闭合：私有UNIX随机调用标识与102注册屏障防止取消先于登记；queued取消不spawn，running取消等待自己的子进程close后才释放槽位。调用者不把request.destroy当清理完成；原响应或固定cancel确认都不能验证时，沿原绝对期限返回不可用并保留工作目录。关闭A不取消、等待或删除B资源。真实旧镜像反例先失败，新源取消7例和原受影响38例通过；真实容器33例中32通过、原样片1条件跳过，原199.6MiB五轮最慢163ms/三补标最慢656ms通过，仍是本机观察，未调用真实云。
+
+## 9. W3-02 批量上传
+
+`media.uploadBatches` 提供 create/get/start/refreshCredentials/update/complete/cancel/commit 八个用例。通过 L4 注入的用途公口读取真实剧目集数、工单范围及制作快照；media 不查 delivery 表。原片 commit 同事务生成新版本、交接引用并发出既有 `drama.masters_changed`，成片由交付公开用例消费批次。
+
+匹配保留已登记总集数；full 必须覆盖全部集号，partial 保留未选集。顺序建议须显式接受。修改严格三选一，替换先让出旧 pending token 与有效条目唯一键；被替换的历史仍可查询。批次活动将期限顺延 72 小时并同步 pending 文件，最晚为创建后 7 天。confirm 只经过真实 HEAD/头校验进入 promoting；拒收事实提交后再返回错误，不把直传完成当作体检完成。
+
+凭据只授权本批 `incoming/b{uploadBatchId}/`，30 分钟、8 MiB 块、文件并发 3、块并发 4；返回前后均复核本人及当前权限，不存凭据。批次 COS ListMultipartUploads 另用严格 `cos:prefix` 条件，原单文件授权不扩大。GET 不写业务行；权限变化后持有人仍可查看，但不能续签或变更。
+
+已普通同步包含 W3-04 的实际 main 并装配其真实处理器：批次父对象预锁、promote 入库/拒收通知及 productionChecked 在原结果事务内收敛；原片不伪造 productionRecord。新增四项公开执行器连库回归先真实失败、接线后完整通过；原批次目录、交付写侧、体检与 promote 租约九文件45项完整通过，接口七项的先前证据保留。真实容器20集ready、跨刷新续传与交付消费已通过：完整live旧21项通过、新批次输入方式失败；修正后定点auth+20集两项通过，严格核20个latest成片到ready文件ID对应且待质检current保持null。原两集制作/QC/保存/包质检证据保留，不混称重新跑全22项。原片编辑 UI 移交 W3-12；真实云断点、大文件与平台联调另验。

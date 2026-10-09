@@ -1,14 +1,25 @@
 import { createHash } from "node:crypto";
 import { BannerJumpSchema, MallConfigViewSchema } from "@liyoxi/contract";
-import type { MallDramaListQuery, MallConfig, HomeRecommendConfig } from "@liyoxi/contract";
+import type {
+  MallDramaListQuery,
+  DramaSearchQuery,
+  MallConfig,
+  HomeRecommendConfig,
+} from "@liyoxi/contract";
 import { calendarDate, diffDays } from "@liyoxi/shared/time";
 import { quoteDramaItem, quoteAd } from "@liyoxi/shared/pricing";
 import { AppError } from "../../kernel/index.js";
 import type { Clock, TxRunner } from "../../kernel/index.js";
+import { matchedFields, normalizeSearch } from "../../content/index.js";
 import type { Content } from "../../content/index.js";
-import type { Config } from "../../config/index.js";
+import type { Config, SiteAdmin } from "../../config/index.js";
 import type { Media } from "../../media/index.js";
-import { getWalletView, getEntitlements, paramsAt } from "../../billing/index.js";
+import {
+  getWalletView,
+  getEntitlements,
+  paramsAt,
+  getPurchasePolicy,
+} from "../../billing/index.js";
 import type { Entitlements, WalletView } from "../../billing/index.js";
 import { paramsAt as configParamsAt } from "../../config/index.js";
 import { countCartBadge } from "../../order/index.js";
@@ -23,6 +34,7 @@ export interface MallDeps {
   readonly content: Content;
   readonly config: Config;
   readonly media: Pick<Media, "signRead">;
+  readonly homeNotice: SiteAdmin["homeNotice"];
 }
 type CardRow = Awaited<ReturnType<Content["getDramaCards"]>>[number];
 const heat = (tier: string | null) => ({ S: 100, A: 75, B: 50, C: 25 })[tier ?? ""] ?? 0;
@@ -77,6 +89,11 @@ export function sortCatalog(
   });
 }
 export function createMall(deps: MallDeps) {
+  const snapshots = new Map<string, { until: number; token: string; ids: string[] }>();
+  // 只缓存公共排序和Banner标识；当前可见事实、签名与每位老板的价格始终重新读取。
+  let homeSnapshot:
+    | { key: string; until: number; bannerIds: string[]; hotIds: string[]; newIds: string[] }
+    | undefined;
   async function configs() {
     const [mall, home] = await Promise.all([
       deps.config.siteConfig.published("mall"),
@@ -197,119 +214,202 @@ export function createMall(deps: MallDeps) {
       industries: industries.map(({ code, name }) => ({ code, name })),
     });
   }
+  async function catalogPage(viewer: MallViewer, query: MallDramaListQuery, search = false) {
+    const at = deps.clock.now(),
+      [{ mall, home }, dict, view, fin] = await Promise.all([
+        configs(),
+        dictionaries(),
+        mallConfig(),
+        finance(viewer, at),
+      ]);
+    const { rows, sales } = await deps.tx.run(async (tx) => ({
+      rows: await deps.content.visibleCatalog(tx, at),
+      sales: new Map(
+        (await tx.dramaStat.findMany({ select: { dramaId: true, orders30d: true } })).map((row) => [
+          row.dramaId,
+          row.orders30d,
+        ]),
+      ),
+    }));
+    const category = query.category
+      ? view.categories.find((row) => row.key === query.category)
+      : null;
+    if (query.category && !category) fail("category");
+    const genres = csv(
+        query.genreCodes,
+        view.genres.map((row) => row.code),
+        "genreCodes",
+      ),
+      industries = csv(
+        query.industryCodes,
+        view.industries.map((row) => row.code),
+        "industryCodes",
+      );
+    const episode = query.episodeBand
+        ? view.filters.episodeBands.find((row) => row.key === query.episodeBand)
+        : null,
+      price = query.priceBand
+        ? view.filters.priceBands.find((row) => row.key === query.priceBand)
+        : null;
+    if (query.episodeBand && !episode) fail("episodeBand");
+    if (query.priceBand && !price) fail("priceBand");
+    const sort = query.sort ?? view.defaultSort;
+    if (!view.sorts.includes(sort)) fail("sort");
+    const inBand = (
+      value: number | null,
+      band: { min: number | null; max: number | null } | null | undefined,
+    ) =>
+      !band ||
+      (value !== null &&
+        (band.min === null || value >= band.min) &&
+        (band.max === null || value <= band.max));
+    const genreNames = new Map(
+      (dict.byType.get("genre") ?? [])
+        .filter((row) => row.isEnabled)
+        .map((row) => [row.code, row.name]),
+    );
+    const match = (row: CardRow) => matchedFields(row, query.q ?? "", genreNames);
+    let filtered = rows.filter(
+      (row) =>
+        (!query.q || match(row).length > 0) &&
+        (!category ||
+          category.key === "all" ||
+          category.genres.some((item) => row.genreCodes.includes(item.code))) &&
+        (!genres.length || genres.some((code) => row.genreCodes.includes(code))) &&
+        (!industries.length || industries.some((code) => row.industryCodes.includes(code))) &&
+        inBand(row.totalEpisodes, episode) &&
+        inBand(row.listPricePoints, price),
+    );
+    let fallbackIndustry: { code: string; name: string; keywordCategoryName: string } | null = null;
+    if (
+      search &&
+      !filtered.length &&
+      (await deps.tx.run((tx) => configParamsAt(tx, ["catalog.search.industry_fallback"], at)))[
+        "catalog.search.industry_fallback"
+      ]
+    ) {
+      const industries = dict.byType.get("industry") ?? [];
+      const category = industries
+        .filter(
+          (row) =>
+            row.isEnabled &&
+            row.isSelectable &&
+            row.parentCode &&
+            normalizeSearch(row.name) === normalizeSearch(query.q ?? ""),
+        )
+        .sort((a, b) => a.code.localeCompare(b.code))[0];
+      const parent = category
+        ? industries.find(
+            (row) => row.code === category.parentCode && row.isEnabled && row.parentCode === null,
+          )
+        : null;
+      if (parent && category) {
+        fallbackIndustry = {
+          code: parent.code,
+          name: parent.name,
+          keywordCategoryName: category.name,
+        };
+        filtered = rows.filter((row) => row.industryCodes.includes(parent.code));
+      }
+    }
+    const sorted = sortCatalog(
+      filtered,
+      sort,
+      mall.content.weights,
+      sales,
+      Math.max(0, ...rows.map((row) => sales.get(row.id) ?? 0)),
+      at,
+    );
+    if (search && !fallbackIndustry)
+      sorted.sort(
+        (a, b) =>
+          (match(a).includes("title") ? 0 : 1) - (match(b).includes("title") ? 0 : 1) || tie(a, b),
+      );
+    const fingerprint = createHash("sha256")
+      .update(
+        JSON.stringify({
+          rev: mall.revNo,
+          search,
+          fallbackIndustry,
+          query: { ...query, cursor: undefined },
+          rows: [...filtered]
+            .sort((a, b) => a.id.localeCompare(b.id))
+            .map((row) => [
+              row.id,
+              row.updatedAt.toISOString(),
+              row.priceVersion,
+              row.listPricePoints,
+            ]),
+        }),
+      )
+      .digest("hex");
+    for (const [key, value] of snapshots) if (value.until <= at.getTime()) snapshots.delete(key);
+    let snapshot = snapshots.get(fingerprint);
+    if (!snapshot) {
+      snapshot = {
+        until: at.getTime() + 60000,
+        token: createHash("sha256").update(`${fingerprint}:${at.getTime()}`).digest("hex"),
+        ids: sorted.map((row) => row.id),
+      };
+      if (snapshots.size >= 128) snapshots.delete(snapshots.keys().next().value!);
+      snapshots.set(fingerprint, snapshot);
+    }
+    const fresh = new Map(filtered.map((row) => [row.id, row]));
+    const ordered = snapshot.ids.flatMap((id) => {
+      const row = fresh.get(id);
+      return row ? [row] : [];
+    });
+    let offset = 0;
+    try {
+      if (query.cursor) {
+        const decoded = JSON.parse(Buffer.from(query.cursor, "base64url").toString()) as {
+          snapshot: unknown;
+          offset: unknown;
+        };
+        if (
+          decoded.snapshot === snapshot.token &&
+          Number.isSafeInteger(decoded.offset) &&
+          Number(decoded.offset) >= 0 &&
+          Number(decoded.offset) < ordered.length
+        )
+          offset = Number(decoded.offset);
+      }
+    } catch {
+      /* 游标失效或格式坏：C42 重置第一页。 */
+    }
+    const end = offset + query.limit,
+      hasMore = end < ordered.length,
+      items = await cards(ordered.slice(offset, end), viewer, fin, home.content, dict, at);
+    return {
+      viewerRole: viewer.role,
+      viewerPlan: fin.term
+        ? { planName: fin.wallet?.subscription.plan?.name ?? "", discountBp: fin.term.discountBp }
+        : null,
+      items: search
+        ? items.map((item, index) => ({
+            ...item,
+            matchedFields: fallbackIndustry ? [] : match(ordered[offset + index]!),
+          }))
+        : items,
+      ...(search
+        ? {
+            mode: fallbackIndustry ? ("industry_fallback" as const) : ("match" as const),
+            fallbackIndustry,
+            totalApprox: Math.min(999, ordered.length),
+          }
+        : {}),
+      hasMore,
+      nextCursor: hasMore
+        ? Buffer.from(JSON.stringify({ snapshot: snapshot.token, offset: end })).toString(
+            "base64url",
+          )
+        : null,
+    };
+  }
   return {
     config: mallConfig,
-    async list(viewer: MallViewer, query: MallDramaListQuery) {
-      const at = deps.clock.now(),
-        [{ mall, home }, dict, view, fin] = await Promise.all([
-          configs(),
-          dictionaries(),
-          mallConfig(),
-          finance(viewer, at),
-        ]);
-      const { rows, sales } = await deps.tx.run(async (tx) => ({
-        rows: await deps.content.visibleCatalog(tx, at),
-        sales: new Map(
-          (await tx.dramaStat.findMany({ select: { dramaId: true, orders30d: true } })).map(
-            (row) => [row.dramaId, row.orders30d],
-          ),
-        ),
-      }));
-      const category = query.category
-        ? view.categories.find((row) => row.key === query.category)
-        : null;
-      if (query.category && !category) fail("category");
-      const genres = csv(
-          query.genreCodes,
-          view.genres.map((row) => row.code),
-          "genreCodes",
-        ),
-        industries = csv(
-          query.industryCodes,
-          view.industries.map((row) => row.code),
-          "industryCodes",
-        );
-      const episode = query.episodeBand
-          ? view.filters.episodeBands.find((row) => row.key === query.episodeBand)
-          : null,
-        price = query.priceBand
-          ? view.filters.priceBands.find((row) => row.key === query.priceBand)
-          : null;
-      if (query.episodeBand && !episode) fail("episodeBand");
-      if (query.priceBand && !price) fail("priceBand");
-      const sort = query.sort ?? view.defaultSort;
-      if (!view.sorts.includes(sort)) fail("sort");
-      const inBand = (
-        value: number | null,
-        band: { min: number | null; max: number | null } | null | undefined,
-      ) =>
-        !band ||
-        (value !== null &&
-          (band.min === null || value >= band.min) &&
-          (band.max === null || value <= band.max));
-      const filtered = rows.filter(
-        (row) =>
-          (!query.q || row.title.includes(query.q)) &&
-          (!category ||
-            category.key === "all" ||
-            category.genres.some((item) => row.genreCodes.includes(item.code))) &&
-          (!genres.length || genres.some((code) => row.genreCodes.includes(code))) &&
-          (!industries.length || industries.some((code) => row.industryCodes.includes(code))) &&
-          inBand(row.totalEpisodes, episode) &&
-          inBand(row.listPricePoints, price),
-      );
-      const sorted = sortCatalog(
-        filtered,
-        sort,
-        mall.content.weights,
-        sales,
-        Math.max(0, ...rows.map((row) => sales.get(row.id) ?? 0)),
-        at,
-      );
-      const fingerprint = createHash("sha256")
-        .update(
-          JSON.stringify({
-            rev: mall.revNo,
-            query: { ...query, cursor: undefined },
-            rows: sorted.map((row) => [row.id, row.updatedAt.toISOString(), row.listPricePoints]),
-          }),
-        )
-        .digest("hex");
-      let offset = 0;
-      try {
-        if (query.cursor) {
-          const decoded = JSON.parse(Buffer.from(query.cursor, "base64url").toString()) as {
-            snapshot: unknown;
-            offset: unknown;
-          };
-          if (
-            decoded.snapshot === fingerprint &&
-            Number.isSafeInteger(decoded.offset) &&
-            Number(decoded.offset) >= 0 &&
-            Number(decoded.offset) < sorted.length
-          )
-            offset = Number(decoded.offset);
-        }
-      } catch {
-        /* 游标失效或格式坏：C42 重置第一页。 */
-      }
-      const end = offset + query.limit,
-        hasMore = end < sorted.length,
-        items = await cards(sorted.slice(offset, end), viewer, fin, home.content, dict, at);
-      return {
-        viewerRole: viewer.role,
-        viewerPlan: fin.term
-          ? { planName: fin.wallet?.subscription.plan?.name ?? "", discountBp: fin.term.discountBp }
-          : null,
-        items,
-        hasMore,
-        nextCursor: hasMore
-          ? Buffer.from(JSON.stringify({ snapshot: fingerprint, offset: end })).toString(
-              "base64url",
-            )
-          : null,
-      };
-    },
+    list: (viewer: MallViewer, query: MallDramaListQuery) => catalogPage(viewer, query),
+    search: (viewer: MallViewer, query: DramaSearchQuery) => catalogPage(viewer, query, true),
     async detail(viewer: MallViewer, id: string) {
       const at = deps.clock.now(),
         [{ home }, dict, fin, data] = await Promise.all([
@@ -385,7 +485,11 @@ export function createMall(deps: MallDeps) {
           : {}),
       };
     },
-    async home(viewer: MallViewer, cityCode?: string) {
+    async home(
+      viewer: MallViewer,
+      cityCode?: string,
+      client: { platform: string; appVersion?: string } = { platform: "unknown" },
+    ) {
       const at = deps.clock.now(),
         [{ mall, home }, dict, fin, data] = await Promise.all([
           configs(),
@@ -417,21 +521,73 @@ export function createMall(deps: MallDeps) {
                 ? await countCartBadge(tx, viewer.storeId, at)
                 : 0,
             banners: await tx.homeBanner.findMany({
-              where: {
-                isEnabled: true,
-                startAt: { lte: at },
-                OR: [{ endAt: null }, { endAt: { gt: at } }],
-              },
+              where: { isEnabled: true, OR: [{ endAt: null }, { endAt: { gt: at } }] },
               orderBy: [{ position: "asc" }, { id: "asc" }],
+            }),
+            noticeBoundaries: await tx.siteNotice.findMany({
+              where: { status: "announced", barEnabled: true },
+              select: { announcedAt: true, effectiveAt: true },
             }),
           })),
         ]);
+      const key = JSON.stringify({
+        siteVersion: await deps.config.cache.version("site"),
+        mall: mall.revNo,
+        home: home.revNo,
+        prices: [...data.rows]
+          .sort((a, b) => a.id.localeCompare(b.id))
+          .map((row) => [row.id, row.priceVersion, row.updatedAt.toISOString()]),
+      });
+      if (!homeSnapshot || homeSnapshot.key !== key || homeSnapshot.until <= at.getTime()) {
+        const nextBoundary = [
+          ...data.banners.flatMap((row) => [
+            row.startAt.getTime(),
+            ...(row.endAt ? [row.endAt.getTime()] : []),
+          ]),
+          ...data.noticeBoundaries.flatMap((row) => [
+            row.announcedAt.getTime(),
+            row.effectiveAt.getTime() + 7 * 86400000,
+          ]),
+        ].filter((value) => value > at.getTime());
+        homeSnapshot = {
+          key,
+          until: Math.min(at.getTime() + 60000, ...nextBoundary),
+          bannerIds: data.banners.filter((row) => row.startAt <= at).map((row) => row.id),
+          hotIds: sortCatalog(data.rows, "heat", mall.content.weights, data.sales, 0, at).map(
+            (row) => row.id,
+          ),
+          newIds: sortCatalog(
+            data.rows.filter(
+              (row) =>
+                row.firstListedAt &&
+                diffDays(calendarDate(at), calendarDate(row.firstListedAt)) < home.content.newDays,
+            ),
+            "newest",
+            mall.content.weights,
+            data.sales,
+            0,
+            at,
+          ).map((row) => row.id),
+        };
+      }
+      const visibleRows = new Map(data.rows.map((row) => [row.id, row])),
+        bannerRows = new Map(data.banners.map((row) => [row.id, row]));
+      const hot = homeSnapshot.hotIds.flatMap((id) => {
+          const row = visibleRows.get(id);
+          return row ? [row] : [];
+        }),
+        newest = homeSnapshot.newIds.flatMap((id) => {
+          const row = visibleRows.get(id);
+          return row ? [row] : [];
+        });
       const categoryKeys = new Set(
           mall.content.categories.filter((row) => row.visible).map((row) => row.key),
         ),
         ids = new Set(data.rows.map((row) => row.id)),
         banners = [];
-      for (const row of data.banners) {
+      for (const bannerId of homeSnapshot.bannerIds) {
+        const row = bannerRows.get(bannerId);
+        if (!row || row.startAt > at || (row.endAt && row.endAt <= at)) continue;
         const parsed = BannerJumpSchema.safeParse({
           jumpKind: row.jumpKind,
           jumpTarget: row.jumpKind === "none" ? null : row.jumpTarget,
@@ -459,19 +615,6 @@ export function createMall(deps: MallDeps) {
           banners,
         };
       if (viewer.role === "clerk") return common;
-      const hot = sortCatalog(data.rows, "heat", mall.content.weights, data.sales, 0, at),
-        newest = sortCatalog(
-          data.rows.filter(
-            (row) =>
-              row.firstListedAt &&
-              diffDays(calendarDate(at), calendarDate(row.firstListedAt)) < home.content.newDays,
-          ),
-          "newest",
-          mall.content.weights,
-          data.sales,
-          0,
-          at,
-        );
       const result = {
         ...common,
         hot: await cards(hot.slice(0, 4), viewer, fin, home.content, dict, at),
@@ -491,7 +634,13 @@ export function createMall(deps: MallDeps) {
       const owner = ownerFields(fin);
       return {
         ...result,
-        noticeBar: null,
+        noticeBar: await deps.tx.run(async (tx) =>
+          deps.homeNotice(
+            tx,
+            at,
+            (await getPurchasePolicy(tx, deps.config, viewer.entityId!, at, client)).mode,
+          ),
+        ),
         launchOverview: {
           liveItemCount: data.live?._count ?? 0,
           liveEpisodeCount: data.live?._sum.liveEpisodeCount ?? 0,

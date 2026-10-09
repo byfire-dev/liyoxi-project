@@ -1,11 +1,13 @@
 import { useUploadBusy } from "@/lib/upload/taro";
 import { formatMoney } from "@liyoxi/shared/format/money";
 import { Image, View } from "@tarojs/components";
+import Taro from "@tarojs/taro";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { Checkbox } from "@/components/Checkbox";
 import { FooterBar } from "@/components/FooterBar";
 import { Sheet } from "@/components/Sheet";
+import { Note } from "@/components/Note";
 import { StepBar } from "@/components/StepBar";
 import { TextButton } from "@/components/TextButton";
 import type { Body, DictItems } from "../private/api";
@@ -13,7 +15,8 @@ import { Frame, Feedback, TextField, STEP_NAMES, useAction, useResource } from "
 import { FileGrid, type MediaFile } from "../private/uploads";
 import { parseFen, yuan } from "../private/model";
 import { useDraft } from "../private/draft";
-import { profileRuntime } from "../private/runtime";
+import { profileContext, profileRuntime } from "../private/runtime";
+import { useMediaPreview } from "../private/use-media-preview";
 type Item = NonNullable<Body<"m.storeProfile.service.update">["serviceItems"]>[number] & {
   image?: MediaFile | null;
 };
@@ -50,11 +53,40 @@ export default function Service() {
     }),
     { promo: "", groupBuy: "", note: "", points: [] as string[] },
   );
+  const previews = useMediaPreview(
+    items.flatMap((item) =>
+      item.image ? [{ fileId: item.image.fileId, src: item.image.coverUrl ?? item.image.url }] : [],
+    ),
+  );
   const [edit, setEdit] = useDraft(data, (): number | null => null, null);
   const emptyItem = { name: "", price: "", original: "", intro: "", image: [] as MediaFile[] };
   const [draft, setDraft] = useDraft(data, () => emptyItem, emptyItem);
   const [itemError, setItemError] = useDraft(data, (): string | null => null, null);
   const readonly = data?.viewerRole !== "owner";
+  const save = async (draft: boolean) => {
+    if (!data || data.viewerRole !== "owner") return;
+    const context = profileContext();
+    const body = {
+      draft,
+      lockVersion: data.lockVersion,
+      serviceItems: items.map(({ image: _image, ...item }) => item),
+      promoText: form.promo || null,
+      groupBuyText: form.groupBuy || null,
+      sellingNote: form.note || null,
+      sellingPointCodes: form.points,
+    };
+    const value = await action.run(body, async (key) =>
+      (await profileRuntime()).api.saveService(body, key),
+    );
+    if (value && action.isCurrent(context)) {
+      acceptItems(value);
+      acceptForm(value);
+      resource.setData((old) => (old ? { ...old, service: value } : old));
+      if (draft)
+        void Taro.showToast({ title: "草稿已保存", icon: "success" }).catch(() => undefined);
+      else await action.continueTo("cert", context);
+    }
+  };
   const candidates: DictItems = (resource.data?.dicts[0]?.items ?? []).filter((item) => {
     const categories = item.ext.categoryCodes;
     return (
@@ -96,11 +128,22 @@ export default function Service() {
         extra={<View className="profile-subtitle">{items.length}/10</View>}
       >
         <View className="profile-subtitle">名称、价格、图片与简介将用于门店广告</View>
+        {previews.pending ? <Note>图片加载中…</Note> : null}
+        {previews.message ? (
+          <Note tone="warning">
+            {previews.message}
+            <TextButton onClick={previews.retry}>重试加载图片</TextButton>
+          </Note>
+        ) : null}
         <View className="profile-spaced">
           {items.map((item, i) => (
             <View className="profile-row" key={item.serviceItemId ?? i}>
-              {item.image?.url ? (
-                <Image className="profile-photo" src={item.image.url} mode="aspectFill" />
+              {item.image && previews.sources[item.image.fileId] ? (
+                <Image
+                  className="profile-photo"
+                  src={previews.sources[item.image.fileId]!}
+                  mode="aspectFill"
+                />
               ) : null}
               <View>
                 <View>{item.name}</View>
@@ -143,7 +186,12 @@ export default function Service() {
         </View>
       </Card>
       <Card title="核心卖点">
-        <View className="profile-subtitle">最多5个，候选按门店品类提供</View>
+        <View className="profile-subtitle">至少选择1个标签，最多5个，候选按门店品类提供</View>
+        {!candidates.some((point) => point.isSelectable || form.points.includes(point.code)) ? (
+          <Note tone="warning">
+            暂无可选的核心卖点标签，请联系平台配置后再继续。填写补充卖点不能代替标签选择，可先保存草稿。
+          </Note>
+        ) : null}
         <View className="profile-chips">
           {candidates.map((point) => (
             <Checkbox
@@ -169,6 +217,7 @@ export default function Service() {
         </View>
         <TextField
           label="补充卖点"
+          hint="选填，不能代替上方的核心卖点标签"
           value={form.note}
           max={100}
           disabled={readonly}
@@ -178,35 +227,23 @@ export default function Service() {
       {!readonly ? (
         <FooterBar>
           <Button
-            block
+            variant="secondary"
             loading={action.busy}
             disabled={uploading}
             onClick={() => {
-              if (!data || data.viewerRole !== "owner") return;
-              const body = {
-                draft: true,
-                lockVersion: data.lockVersion,
-                serviceItems: items.map(({ image: _image, ...item }) => item),
-                promoText: form.promo || null,
-                groupBuyText: form.groupBuy || null,
-                sellingNote: form.note || null,
-                sellingPointCodes: form.points,
-              };
-              void action
-                .run(body, async (key) => {
-                  const value = await (await profileRuntime()).api.saveService(body, key);
-                  return value;
-                })
-                .then((value) => {
-                  if (value) {
-                    acceptItems(value);
-                    acceptForm(value);
-                    resource.setData((old) => (old ? { ...old, service: value } : old));
-                  }
-                });
+              void save(true);
             }}
           >
-            保存服务与价格
+            保存草稿
+          </Button>
+          <Button
+            loading={action.busy}
+            disabled={uploading}
+            onClick={() => {
+              void save(false);
+            }}
+          >
+            保存并下一步
           </Button>
         </FooterBar>
       ) : null}

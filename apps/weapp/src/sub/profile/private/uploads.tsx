@@ -3,12 +3,14 @@ import { View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { Note } from "@/components/Note";
 import { UploadGrid, type UploadItem } from "@/components/UploadGrid";
+import { TextButton } from "@/components/TextButton";
 import { withPrivacy } from "@/lib/runtime";
 import { createTaroUpload, prepareTaroFile } from "@/lib/upload/taro";
 import { profileContext } from "./runtime";
 import type { RegisterBody } from "@/lib/upload/api";
 import type { UploadJob } from "@/lib/upload/queue";
 import type { components } from "@liyoxi/contract/types/merchant";
+import { useMediaPreview } from "./use-media-preview";
 
 export type MediaFile = NonNullable<components["schemas"]["MediaFileView"]>;
 export function FileGrid({
@@ -30,6 +32,11 @@ export function FileGrid({
   video?: boolean;
   single?: boolean;
 }) {
+  const previews = useMediaPreview(
+    files
+      .filter((file) => file.kind === "image" || file.coverUrl)
+      .map((file) => ({ fileId: file.fileId, src: file.coverUrl ?? file.url })),
+  );
   const [pending, setPending] = useState<{ job: UploadJob; src: string; key: string }[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const jobs = useRef<UploadJob[]>([]);
@@ -128,7 +135,13 @@ export function FileGrid({
     }
   };
   const items: UploadItem[] = [
-    ...files.map((file) => ({ key: file.fileId, src: file.coverUrl ?? file.url ?? undefined })),
+    ...files.map((file) => ({
+      key: file.fileId,
+      src:
+        file.kind === "image" || file.coverUrl
+          ? previews.sources[file.fileId]
+          : (file.url ?? undefined),
+    })),
     ...pending.map((entry) => ({
       key: entry.key,
       src: entry.src,
@@ -161,18 +174,28 @@ export function FileGrid({
         }}
         onPreview={(key) => {
           const file = files.find((item) => item.fileId === key);
-          if (file?.url)
+          const url = file?.kind === "image" ? previews.sources[key] : file?.url;
+          if (file && url)
             void Taro.previewMedia({
               sources: [
                 {
-                  url: file.url,
+                  url,
                   type: file.kind === "video" ? "video" : "image",
-                  ...(file.coverUrl ? { poster: file.coverUrl } : {}),
+                  ...(file.coverUrl
+                    ? { poster: previews.sources[file.fileId] ?? file.coverUrl }
+                    : {}),
                 },
               ],
             }).catch(() => setMessage("预览失败，请刷新本页重新取得地址"));
         }}
       />
+      {previews.pending ? <Note>图片加载中…</Note> : null}
+      {previews.message ? (
+        <Note tone="warning">
+          {previews.message}
+          <TextButton onClick={previews.retry}>重试加载图片</TextButton>
+        </Note>
+      ) : null}
       {message ? <Note tone="warning">{message}</Note> : null}
       {pending
         .filter((entry) => entry.job.snapshot().message)

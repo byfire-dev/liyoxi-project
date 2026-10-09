@@ -1,5 +1,6 @@
 import { useState, type SetStateAction } from "react";
 import { profileContext } from "./runtime";
+import { refreshDraftMedia } from "./media-draft";
 
 /** GET 更新版本与守卫；同上下文的未保存输入保留，成功保存显式采用确认视图。 */
 export function useDraft<S, D>(source: S | undefined, project: (source: S) => D, empty: D) {
@@ -21,7 +22,12 @@ export function useDraft<S, D>(source: S | undefined, project: (source: S) => D,
     setState({
       ...state,
       source,
-      value: state.dirty || source === undefined ? state.value : project(source),
+      value:
+        source === undefined
+          ? state.value
+          : state.dirty
+            ? refreshDraftMedia(state.value, source)
+            : project(source),
     });
   }
   const change = (value: SetStateAction<D>) => {

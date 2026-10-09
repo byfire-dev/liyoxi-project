@@ -11,7 +11,9 @@ import type {
 
 export type ProviderInputs = {
   [K in ProviderName]: {
-    [M in ProviderMethodName<Providers[K]>]: Providers[K][M] extends (input: infer I) => unknown
+    [M in ProviderMethodName<Providers[K]>]: NonNullable<Providers[K][M]> extends (
+      input: infer I,
+    ) => unknown
       ? I
       : never;
   };
@@ -55,6 +57,19 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
     fetchTradeBill: { billDate: "2026-10-01" },
   },
   sms: {
+    sendTemplate: {
+      phone: "13800138000",
+      template: {
+        templateKey: "account_notice",
+        kind: "notice",
+        status: "active",
+        providerTemplateId: "1234",
+        signName: "样例平台",
+        params: [],
+      },
+      params: {},
+    },
+    checkBalance: {},
     sendActivationCode: { phone: "13800138000", code: "246810" },
     sendSubscribeFallback: {
       phone: "13800138000",
@@ -77,6 +92,27 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
     },
     presignGet: { ...SAMPLE_REF, expiresSec: 900, disposition: "inline" },
     delete: SAMPLE_REF,
+    abortMultipart: SAMPLE_REF,
+    readTo: {
+      ...SAMPLE_REF,
+      expectedSize: 3,
+      maxBytes: 3,
+      ifMatchEtag: '"sample-etag"',
+      signal: new AbortController().signal,
+      sink: async () => undefined,
+    },
+    putStream: {
+      ...SAMPLE_REF,
+      body: async function* () {
+        yield new Uint8Array([1, 2, 3]);
+      },
+      size: 3,
+      sha256: "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+      contentIdentity: "1".repeat(64),
+      contentType: "video/mp4",
+      ifAbsent: true,
+      signal: new AbortController().signal,
+    },
   },
   media: {
     probe: { src: SAMPLE_REF },
@@ -93,6 +129,15 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
       userData: "sample-job:2",
     },
     audit: { src: SAMPLE_REF, scenes: ["porn", "politics"], userData: "sample-job:3" },
+    describe: { jobId: "fake-job-1", family: "media" },
+    find: {
+      family: "media",
+      tag: "Transcode",
+      userData: "sample-job:3",
+      createdAfter: new Date("2026-01-01T00:00:00Z"),
+      createdBefore: new Date("2026-01-02T00:00:00Z"),
+    },
+    cancel: { jobId: "fake-job-1", family: "media" },
   },
   ocr: {
     recognizeBusinessLicense: { imageUrl: "https://example.invalid/license.jpg" },

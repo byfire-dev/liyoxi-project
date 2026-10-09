@@ -162,7 +162,15 @@ export const HomeOwnerSchema = z
     viewerRole: z.literal("owner"),
     hot: z.array(DramaCardSchema),
     new: z.array(DramaCardSchema),
-    noticeBar: z.null(),
+    noticeBar: z
+      .object({
+        siteNoticeId: IdSchema,
+        title: z.string(),
+        summary: z.string(),
+        effectiveAt: InstantSchema,
+        link: z.object({ route: z.string(), params: z.record(z.string(), z.unknown()) }),
+      })
+      .nullable(),
     launchOverview: z
       .object({
         liveItemCount: count,
@@ -194,3 +202,39 @@ export type MallConfigView = z.infer<typeof MallConfigViewSchema>;
 export type HomeView = z.infer<typeof HomeSchema>;
 export type DramaPage = z.infer<typeof DramaPageSchema>;
 export type DramaDetail = z.infer<typeof DramaDetailSchema>;
+
+export const DramaSearchQuerySchema = z.object({
+  q: z
+    .string()
+    .transform((value) => value.replace(/[\s·]/gu, ""))
+    .refine((value) => [...value].length >= 1 && [...value].length <= 20, "关键词须为1–20字"),
+  cursor: z.string().max(2048).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+const searchShape = {
+  mode: z.enum(["match", "industry_fallback"]),
+  fallbackIndustry: z
+    .object({ code: z.string(), name: z.string(), keywordCategoryName: z.string() })
+    .nullable(),
+  totalApprox: z.int().min(0).max(999),
+};
+const matches = z.array(z.enum(["title", "genre", "cast"]));
+export const DramaSearchOwnerSchema = DramaPageOwnerSchema.extend({
+  ...searchShape,
+  items: z.array(DramaCardSchema.extend({ matchedFields: matches })),
+});
+export const DramaSearchClerkSchema = DramaPageClerkSchema.extend({
+  ...searchShape,
+  items: z.array(DramaCardForClerkSchema.extend({ matchedFields: matches })),
+});
+export const DramaSearchGuestSchema = DramaPageGuestSchema.extend({
+  ...searchShape,
+  items: z.array(DramaCardForClerkSchema.extend({ matchedFields: matches })),
+});
+export const DramaSearchSchema = z.discriminatedUnion("viewerRole", [
+  DramaSearchOwnerSchema,
+  DramaSearchClerkSchema,
+  DramaSearchGuestSchema,
+]);
+export type DramaSearch = z.infer<typeof DramaSearchSchema>;
+export type DramaSearchQuery = z.infer<typeof DramaSearchQuerySchema>;

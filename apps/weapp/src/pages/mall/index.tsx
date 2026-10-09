@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { View } from "@tarojs/components";
-import { useDidShow, useReachBottom } from "@tarojs/taro";
+import Taro, { useDidShow, useReachBottom } from "@tarojs/taro";
+import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { PageBody } from "@/components/PageBody";
 import { Empty } from "@/components/Empty";
@@ -104,6 +105,17 @@ function MallContent() {
       id={config && page && !resource.loading ? "catalog-ready" : undefined}
     >
       <PageBody>
+        <Button
+          variant="secondary"
+          size="md"
+          icon="search"
+          block
+          onClick={() => {
+            void Taro.navigateTo({ url: "/sub/catalog/search/index?from=mall" });
+          }}
+        >
+          搜索剧名、题材、主演
+        </Button>
         {resource.error ? (
           <LoadError
             message={resource.error}

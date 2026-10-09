@@ -229,3 +229,13 @@ W1-02 的 `admin:e2e:live` 起构建产物时传 `--test-redis-prefix lyx:test:a
 ## 10. 套餐购买与对公付款（W1-11b）
 
 商家七条与后台六条处理器分别在 `src/routes/billing.ts`、`src/routes/admin/billing.ts`；业务交 `Runtime.billing`，最终 JSON DTO 才交事务幂等保存。七条商家接口只允许老板，后台确认/驳回按权限点、再验证、范围和回显校验；队列计数与列表同源。账号明文只在商家本次响应，Cache-Control=no-store，同键重放为 null；后台只给脱敏串，不签凭证 URL。完整服务约定与 M4 留桩见 [付款 README](../../packages/services/src/billing/payment/README.md) 第 6 节。
+
+## 客户端上报接收（W2-18 PR1）
+
+四个真实处理器消费生成契约：m.analyticsEvent.batchCreate、m.subscribeResult.create、m.clientError.create、admin.clientError.create。订阅取当前商家session身份并校验精确required键；埋点是批头严格、事件逐条strict白名单与部分受理。两端信封必须原文application/x-sentry-envelope，合法受理即202/data=null，后台登录页optional仍保留原CSRF头/Origin检查。最低版本与协议同意豁免只沿原metadata；telemetry限流不放松。
+
+reporting-body在原pipeline末尾、OpenAPI解析前逐chunk读取真实字节，埋点64KiB、两端信封200KiB；不依赖Content-Length，超限取消流并释放reader。只三operation启用，订阅与其他路由不变。上限返回入口传输层纯文本413，C24业务响应/错误码不新增413；应用真实边界已验，nginx/W2-27网关未验。Hono4.13.9公开BodyCache类型是值，真实cachedBody使用.then，本包窄适配已受限字节的settled Promise，供正式解析器复用，不无限clone/二次整流读取。
+
+CLIENT_ERROR_PROJECTS_FILE内容由loadEnv读取，格式为{"projects":[{"dsn":"https://publickey@example.invalid/7","upstreamDsn":"https://upstreamkey@example.invalid/7"}]}（仅占位示例）。至多3个唯一公开dsn，HTTPS/数字项目/可固定前缀、无password/query/hash；传入信封dsn精确匹配公开白名单，外呼只从已配置upstreamDsn推导固定目标，redirect:error。FILE未配则严格解析/去敏后日志202，upstream未配只日志；原信封/DSN凭据/请求体/手机号不落日志。两端公开构建DSN须与配置dsn逐字一致：小程序WEAPP_SENTRY_DSN，后台VITE_CLIENT_ERROR_DSN。真实FILE、模板与收件按W2-27授权另验，不能把fakeHTTP当真实平台证据。转发器队列/熔断/关闭语义见[说明](../../packages/services/src/ops/client-errors.README.md)。
+
+定向验证：pnpm exec vitest run --project api apps/api/test/client-reporting.test.ts apps/api/src/http/reporting-body.test.ts apps/api/test/pipeline.test.ts。商家三条原店员回放样例只增reporting-samples，golden由原pnpm clerk:snapshot生成；后台optional上报不属于staff矩阵，新资源不修改既有矩阵行。

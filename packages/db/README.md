@@ -2,11 +2,13 @@
 
 唯一的数据访问层：Prisma schema、迁移、客户端工厂。依据：[06](../../docs/06-data-model.md) 第 8 节、[开发计划](../../docs/08-development-plan.md) 第 5.7 节、W0-05 任务书。表结构以这里的迁移为准；`docs/data-model/` 下的 `schema.prisma` 与 `constraints/` 是首版迁移的底稿，接管后冻结。
 
+W2-17 独立结构能力增加 `notification_fanout`（13 列、6 CHECK、2 FK、5 索引），仅持久化公告分页进度；应用无 DELETE，readonly 沿原迁移属主默认 SELECT。新迁移、现行 Prisma、授权期望/下限、实际结构快照与字段文档一起核对，首版重拼改读冻结底稿，不改任何已经执行的迁移。完整派发、队列和恢复由 W2-17 PR3 在能力实际合入 main 后消费另验。见 [能力范围](../../docs/plan/changes/W2-17-notification-fanout-capability.md)。
+
 ## 1. 这里有什么
 
 | 路径 | 内容 |
 | --- | --- |
-| `prisma/schema.prisma` | 由底稿迁入，模型一字未改；只改了文件头注释与 `generator` 的输出目录 |
+| `prisma/schema.prisma` | 现行模型；首版从冻结底稿迁入，后续独立结构迁移同时维护这里 |
 | `prisma/migrations/20261005000000_init/migration.sql` | 首版迁移：166 张表与 00–15 的手写约束。拼出来的，不手改（第 4 节） |
 | `prisma/migrations/20261005060000_grants/migration.sql` | 第二个迁移：角色与授权。手写的，不改结构（第 9 节） |
 | `prisma.config.ts` | Prisma 的配置。连接串只取环境变量 `DATABASE_URL`，不读 `.env`，没有默认值 |
@@ -69,7 +71,7 @@ DATABASE_URL=postgresql://liyoxi:lyx-local-dev@localhost:5442/lyx_migrate_check 
 
 ## 4. 首版迁移是怎么来的
 
-迁移文件由脚本机械拼出：`prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script` 的输出，接上 `docs/data-model/constraints/` 下的 00–15（文件名顺序）。语义一字不改，只加了注释：文件头、每个来源前的分隔行、四类语句前各一行 `-- lyx:allow <理由>`（D7 第 8.3 节第 5 条：`DROP`、`RENAME`、`ALTER … TYPE`、不带默认值的 `SET NOT NULL`）。
+首版迁移由脚本机械拼出：Prisma 从冻结 `docs/data-model/schema.prisma` 离线出 DDL，接上 `docs/data-model/constraints/` 下的 00–15（文件名顺序）。现行模型新增表不会改变首版输出。语义一字不改，只加了注释：文件头、每个来源前的分隔行、四类语句前各一行 `-- lyx:allow <理由>`（D7 第 8.3 节第 5 条：`DROP`、`RENAME`、`ALTER … TYPE`、不带默认值的 `SET NOT NULL`）。
 
 ```sh
 pnpm --filter @liyoxi/db migration:build --check   # 重拼的结果应与入库的文件逐字节相同；并列出带 lyx:allow 的语句
@@ -110,7 +112,7 @@ PGHOST=localhost PGPORT=5442 PGUSER=liyoxi PGPASSWORD=lyx-local-dev python3 tool
 pnpm db:catalog-diff
 ```
 
-- 四段，任何一段不过即退出码 1：两个库都在 PostgreSQL 17 上；两份 `schema.prisma` 去掉文件头注释与 `generator` 块后逐字节相同；系统目录逐项相同；数量等于 06 第 1 节的两组口径。
+- 首版后由独立门禁包衔接两种证明：冻结底稿与只跑首版迁移的自有临时库保持逐项等价和首版固定数量；当前两个全迁移库保持原完整目录逐项相同，另核现行快照/数量及真实库→当前 Prisma schema 只读差异。后续结构不再要求现行模型与冻结底稿逐字节相同，也不删除任何首版证明；只有原素材搜索手写索引的已确认 Prisma 假动作可精确忽略。
 - 逐项比的是表、列、约束定义、索引定义、触发器、函数体六类，另加一类：序列（连当前值与持久性）、扩展（名字与版本）、视图与物化视图（定义）、外部表、类型（枚举、域、范围、独立的复合类型）、模式、策略、规则、统计对象、事件触发器、注释。`_prisma_migrations` 不计。口径与查询在 [db-lib.mjs](../../infra/ci/db-lib.mjs)。
 - 几处容易漏的也在比的范围里（第一轮复审试出来后补上的，各有一条反向用例）：表的 TOAST 选项；列的压缩方式与列选项；外键名下内部触发器的启停（停用之后外键的定义不变，但不再校验）；视图上的触发器、物化视图上的索引、外部表的列、独立复合类型的属性；域的默认值与 CHECK；聚合的定义；序列的持久性。
 - 不比的，改了查不出，报告里的“0 差异”不含这些：
@@ -179,8 +181,17 @@ PGPASSWORD=lyx-local-dev psql -X -h localhost -p 5442 -U liyoxi -d postgres -c "
 | `SELECT, INSERT, DELETE` | `service_ticket_ref` |
 | `SELECT, INSERT, UPDATE, DELETE` | 其余 135 张 |
 | 序列 `USAGE` | 14 个自增列背后的序列与 `audit_no_seq` |
-| 函数 `EXECUTE` | `lyx_03_purge_auth_event`（已收回所有人的执行权，只授给它） |
+| 函数 `EXECUTE` | `lyx_03_purge_auth_event`；固定月首的 `lyx_14_analytics_event_ensure_partition(date)` 与 `lyx_14_analytics_event_repartition_month(date)`（均收回 PUBLIC，只授 `lyx_app`） |
 | 没有任何权限 | 分区子表（经父表 `analytics_event` 读写）、`_prisma_migrations` |
+
+- 分区结构能力由新增迁移 `20261007230600_analytics_partition_capability` 补齐（[计划偏差](../../docs/plan/changes/W2-18-analytics-partition-capability.md)）。`ensure_partition(date) → text` 与 `repartition_month(date) → bigint` 都是受限 `SECURITY DEFINER`：只接 0001–9999 年有限公历月首，固定 `public` 对象、`pg_catalog` 内置函数与安全 `search_path`，月界取 Asia/Shanghai。建分区在父表独占锁内校验现有对象的属主、父关系、精确范围和防改触发器；同名错误对象会失败，default 有当月行时普通建分区也失败。
+- `repartition_month` 只搬指定月，临时停用 default 的行级防改触发器，完整行经本次自建 `pg_temp` 暂存表转回父表；条数及全部列（含主键、来源、收件时刻）必须一致。调用者已有同名 temp 时先拒绝，成功仅删除自建 temp，任何错误或外层回滚恢复 DDL、数据与触发器。应用直接 DDL/改删/清空权限与子表零权限保持原样，readonly 缺省 SELECT 沿用。
+- 数据库只校验结构日期，不以 `now()` 新增保留期规则。W2-18 服务仍要按注入 clock 和既有参数校验允许月份、CLI 环境授权与当前至未来 3 月预建；归档/过期 `DETACH`、`DROP` 仍不在这两个能力内。迁移账号口令不进入 worker。本包是独立结构能力，不能据此宣称 W2-18 整包完成。
+
+- 新增迁移 `20261008183700_analytics_partition_retirement` 单独提供 `lyx_14_analytics_event_retire_partition(date,timestamptz,integer,bigint,text) → boolean`。只接固定月首、注入业务时钟、正式保留月数 13–60、已验证完整归档的行数与 manifest SHA-256；只退役结束边界不晚于时钟减保留期的完整北京时间自然月。父表独占锁内复用上述结构/guard 验证，完整行数匹配才原子 DETACH/DROP，无 CASCADE；缺失分区返回 false，错误不改分区或旁侧表。PUBLIC/readonly 无 EXECUTE，仅授 app，原表 SI 与禁改/删/清空权限保持。
+- 数据库不向对象存储外呼，也不替可信服务验证 manifest 内容。后继 W2-18 PR2 必须先分批导出全部 21 列，写入并校验每块对象与最后的不可变 manifest，再提交实际总行数与 manifest 哈希。只增源表下的锁内行数失配会拒绝退役，导出期间迟到插入须重做归档；不得仅凭最大 UUID 或上传受理声称归档完整。此函数不验证失陷应用凭据伪造的归档证明，不改变 DEFAULT、dedup 或 identity；真实 COS/运维与 W2-18 业务包仍待后继验收。
+- 同既有 auth_event purge 的角色年龄下限，退役函数额外以数据库语句时钟保护最短 13 个月：伪造未来业务时钟不能退役这一范围内的月份，报 `23001`。这只是权限下限，服务仍按注入 clock 与实际 13–60 月配置决定业务保留期；不使用数据库时钟替代业务时间。真实当前月、伪未来时钟和完整行保持的反例固定在能力测试。
+- 窄真库回归：`pnpm --filter @liyoxi/db exec vitest run src/analytics-partitions.test.ts src/grants.test.ts`；使用隔离测试库与真实 `lyx_app`，不修改长驻校验库。
 
 - 两个角色不可登录、不带口令，实例上已有同名角色就不再建（也不改它的属性）。登录账号另建，加为这两个角色的成员（`GRANT lyx_app TO <应用的登录账号>`）；账号的名字、口令、怎么加，由环境初始化做，不进迁移。
 - 登录账号只当这一个角色的成员：不要给超级用户，不要带 `ADMIN OPTION`，不要再加入别的角色（`pg_write_all_data` 之类一加，只增表就删得掉），不要让它当库的属主。平台收回了所有人对库的 `CONNECT` 时，把它授给两个角色（`GRANT CONNECT ON DATABASE <库> TO lyx_app, lyx_readonly`），成员靠继承连得上。这几条 `pnpm db:verify-grants` 都核对（2026-10-05 在另一个临时实例上用不是超级用户的管理账号逐种试过）。
@@ -194,7 +205,7 @@ PGPASSWORD=lyx-local-dev psql -X -h localhost -p 5442 -U liyoxi -d postgres -c "
   - 加表：`tables` 里加一行（表名与 `lyx_app` 的表级权限，权限按字母序、逗号连接）。只增表另加进 `appendOnly`；触发器放行的例外列写进 `columnUpdate`。受限的表（不是全套读写的，或只增表）另在下限清单 `infra/ci/grants-floor.txt` 里加一行（见下）。
   - 加视图、物化视图、外部表：应用要查它，就在迁移里授 `SELECT`，并在 `views` 里登记名字；这类关系上应用最多只有查询。`lyx_readonly` 靠缺省授权自动带上，不用写。
   - 加以属主身份执行的函数（`SECURITY DEFINER`）：先收回 PUBLIC 的执行权，`definerFunctions` 里加一行，写明由谁执行。
-  - 加自增列：迁移里给背后的序列授 `USAGE`。序列按规则核对（全部只给 `lyx_app` 的 `USAGE`），不用登记；`src/grants.test.ts` 里另有一张自增列的清单（`SERIAL_COLUMNS`）与几处写死的数量（166 张表、16 张只增表、15 个序列、11 列），跟着改。
+  - 加自增列：迁移里给背后的序列授 `USAGE`。序列按规则核对（全部只给 `lyx_app` 的 `USAGE`），不用登记；`src/grants.test.ts` 里另有一张自增列的清单（`SERIAL_COLUMNS`）与当前表、只增表、序列及自增列的数量断言，跟着实际结构改。
   - `lyx_readonly` 不用写：缺省授权自动带上。
   - 改一张已有表的授权也是这两处一起改：新迁移，加上期望里那一行。只改期望而没有对应的迁移，权限测试就红。把一张表收紧成受限的，下限清单里加一行；放开一张受限的表，先走下面说的门禁 PR。
   - 不用改的：核对脚本（`infra/ci/db-verify-grants.mjs`、`db-grants-rules.mjs`）与它的三份用例（`infra/ci/test/db-verify-grants.test.ts`、`grants-floor.test.ts`、`db-verify-managed-hook.test.ts`）、两个反例。它们是门禁文件，改已有的行要走单独的门禁 PR；所以里面不写数量、不点名哪张表现在是什么权限：数量现查，要动手脚的表按权限集合从期望里现挑，动完之后“实际是什么”由期望算出来。加表、加函数、收紧或放开一张表的授权都不用动它们（2026-10-05 在克隆里模拟过收紧 `store` 的 `DELETE`：`infra/ci/` 下只往下限清单加了一行）。例外是 `file_object`：核对脚本自己点名它不给删除。`src/grants.expected.json` 与 `src/grants.test.ts` 不是门禁文件，随工作包 PR 改。

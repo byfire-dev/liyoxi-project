@@ -69,6 +69,12 @@
     "summary",
     "versionLabel"
   ],
+  "m.analyticsEvent.batchCreate": [
+    "accepted",
+    "dropped",
+    "duplicated",
+    "rejected"
+  ],
   "m.bootstrap.get": [
     "context",
     "context.storeId",
@@ -97,6 +103,7 @@
     "versions.dict",
     "versions.site"
   ],
+  "m.clientError.create": [],
   "m.dictItem.list": [
     "items",
     "items[].items",
@@ -176,6 +183,30 @@
     "items[].totalEpisodes",
     "items[].usableUntilDate",
     "nextCursor",
+    "viewerPlan",
+    "viewerRole"
+  ],
+  "m.drama.search": [
+    "fallbackIndustry",
+    "hasMore",
+    "items",
+    "items[].badge",
+    "items[].dramaId",
+    "items[].genres",
+    "items[].genres[].code",
+    "items[].genres[].name",
+    "items[].heatTier",
+    "items[].listPricePoints",
+    "items[].matchedFields",
+    "items[].posterUrl",
+    "items[].posterUrl.expiresAt",
+    "items[].posterUrl.url",
+    "items[].title",
+    "items[].totalEpisodes",
+    "items[].usableUntilDate",
+    "mode",
+    "nextCursor",
+    "totalApprox",
     "viewerPlan",
     "viewerRole"
   ],
@@ -328,6 +359,61 @@
     "stores.visibleCount",
     "unreadMessageCount",
     "viewerRole"
+  ],
+  "m.message.batchRead": [
+    "markedCount",
+    "summary",
+    "summary.byStore",
+    "summary.byStore[].storeId",
+    "summary.byStore[].unreadCount",
+    "summary.byTab",
+    "summary.byTab[].tab",
+    "summary.byTab[].unreadCount",
+    "summary.total"
+  ],
+  "m.message.list": [
+    "hasMore",
+    "items",
+    "items[].body",
+    "items[].category",
+    "items[].createdAt",
+    "items[].createdDate",
+    "items[].ctaText",
+    "items[].isRead",
+    "items[].link",
+    "items[].link.params",
+    "items[].link.params.storeId",
+    "items[].link.route",
+    "items[].messageId",
+    "items[].readAt",
+    "items[].storeId",
+    "items[].title",
+    "nextCursor"
+  ],
+  "m.message.read": [
+    "messageId",
+    "readAt"
+  ],
+  "m.message.summary": [
+    "byStore",
+    "byStore[].storeId",
+    "byStore[].unreadCount",
+    "byTab",
+    "byTab[].tab",
+    "byTab[].unreadCount",
+    "total"
+  ],
+  "m.notifySetting.list": [
+    "cooldownDays",
+    "items",
+    "items[].estRemaining",
+    "items[].lastAcceptAt",
+    "items[].sceneNames",
+    "items[].slotKey",
+    "items[].state",
+    "items[].title",
+    "items[].tmplId",
+    "maxPerAsk"
   ],
   "m.session.create": [
     "me",
@@ -539,5 +625,9 @@
     "serviceItems[].priceFen",
     "serviceItems[].serviceItemId",
     "viewerRole"
+  ],
+  "m.subscribeResult.create": [
+    "appliedCount",
+    "ignoredCount"
   ]
 }

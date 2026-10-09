@@ -55,6 +55,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/assignment-pool-members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 分配池成员：交付经理（按城市）、剪辑师、发布专员、客服（含当班开关） */
+        get: operations["admin.assignmentPoolMember.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/audit-logs": {
         parameters: {
             query?: never;
@@ -447,6 +464,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/client-errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 后台前端错误上报转发（同源） */
+        post: operations["admin.clientError.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/delivery-plans/{deliveryPlanId}": {
         parameters: {
             query?: never;
@@ -789,6 +823,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/files/{fileId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 上传人本人取消未确认的上传登记（pending → expired，清空写入区键） */
+        post: operations["admin.file.cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/files/{fileId}/complete": {
         parameters: {
             query?: never;
@@ -821,6 +872,92 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/files/{fileId}/refresh-credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 续签直传临时密钥（大文件分块上传中途过期） */
+        post: operations["admin.file.refreshCredentials"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/home-banners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Banner 列表：标题、图片、跳转、时间窗、启用、点击数、派生状态（生效中、已排期、已结束、已停用）；可按是否已结束筛选 */
+        get: operations["admin.homeBanner.list"];
+        put?: never;
+        /** 新增 Banner（任意时刻同时生效 ≤5 张，按区间重叠校验） */
+        post: operations["admin.homeBanner.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/home-banners/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 拖动调整轮播顺序（提交全部未结束 Banner 的 id 数组；已结束的不参与、position 不变） */
+        post: operations["admin.homeBanner.batchReorder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/home-banners/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Banner 计数与上限：生效中、已排期、已结束、已停用张数与同时生效上限（OpsHome 页头“生效中 N 张 · 最多 5 张”） */
+        get: operations["admin.homeBanner.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/home-banners/{homeBannerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 编辑 Banner，或启用 / 停用（已结束的不可切换） */
+        patch: operations["admin.homeBanner.update"];
         trace?: never;
     };
     "/api/v1/admin/launch-submissions/{launchSubmissionId}": {
@@ -874,6 +1011,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/media-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 媒体任务监控（失败列表：转码、体检、OCR、打包等） */
+        get: operations["admin.mediaJob.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/media-jobs/{mediaJobId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 媒体任务人工重试 */
+        post: operations["admin.mediaJob.retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/orders": {
         parameters: {
             query?: never;
@@ -919,6 +1090,40 @@ export interface paths {
         get: operations["admin.order.get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/outbox-deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 出站投递查询：死信与重试中的投递 */
+        get: operations["admin.outboxDelivery.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/outbox-events/{outboxEventId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 把某个出站事件对某订阅者的死信重新投递（body 带 subscriber） */
+        post: operations["admin.outboxEvent.retry"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1148,6 +1353,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/site-configs/{configKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 站点配置当前内容与草稿：首页推荐位（home_recommend）、商城配置（mall） */
+        get: operations["admin.siteConfig.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/site-configs/{configKey}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 保存站点配置草稿（整份覆盖，带 lockVersion） */
+        put: operations["admin.siteConfig.draft.replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/site-configs/{configKey}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 发布站点配置（base_rev_no 冲突返回 409；旧版本归档） */
+        post: operations["admin.siteConfig.publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/site-configs/{configKey}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 站点配置版本记录（发布时间、发布人） */
+        get: operations["admin.siteConfig.revision.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/site-notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 规则变更公告记录（套餐调整、计费参数、协议版本触发；只读） */
+        get: operations["admin.siteNotice.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/staff": {
         parameters: {
             query?: never;
@@ -1166,6 +1456,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/staff-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 员工分组列表（编辑员工时选分组；“本组”数据范围的组织实体） */
+        get: operations["admin.staffGroup.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/staff-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 在线会话列表 */
+        get: operations["admin.staffSession.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/staff-sessions/{staffSessionId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 强制下线某个会话 */
+        post: operations["admin.staffSession.revoke"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/staff/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 员工计数：共 N 个账号 · 启用 · 待启用 · 已禁用（另给待激活、锁定人数） */
+        get: operations["admin.staff.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/staff/{staffId}": {
         parameters: {
             query?: never;
@@ -1177,6 +1535,211 @@ export interface paths {
         get: operations["admin.staff.get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 编辑员工：姓名、角色、主管标记、分组（手机号不可改） */
+        patch: operations["admin.staff.update"];
+        trace?: never;
+    };
+    "/api/v1/admin/staff/{staffId}/bind-wecom": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 手工录入员工的企业微信 userid（兜底方式，V1.0 默认） */
+        post: operations["admin.staff.bindWecom"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/staff/{staffId}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 禁用员工：在办事项移交给同角色启用员工，吊销会话，移出分配池 */
+        post: operations["admin.staff.disable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/staff/{staffId}/duty": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 切换客服“当班 / 接单中”开关 */
+        patch: operations["admin.staff.duty.update"];
+        trace?: never;
+    };
+    "/api/v1/admin/staff/{staffId}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 启用员工（待启用或已禁用），重置密码并下发激活码 */
+        post: operations["admin.staff.enable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/staff/{staffId}/handover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 只移交在办事项、不禁用（调岗、长假） */
+        post: operations["admin.staff.handover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/staff/{staffId}/invite-wecom": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 发送企业微信绑定邀请（原型“邀请”按钮） */
+        post: operations["admin.staff.inviteWecom"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/staff/{staffId}/open-work": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 名下在办事项摘要（禁用、移交弹层用）：门店、工单、广告、客服工单、跟进待办 */
+        get: operations["admin.staff.openWork.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/staff/{staffId}/pool-memberships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 设置员工所在的分配池与城市（整体替换） */
+        put: operations["admin.staff.poolMembership.replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/staff/{staffId}/reissue-activation-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 重新生成激活码（只返回这一次） */
+        post: operations["admin.staff.reissueActivationCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/staff/{staffId}/reset-mfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 重置第二因子：清空动态口令与密码、吊销会话、下发新激活码 */
+        post: operations["admin.staff.resetMfa"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/staff/{staffId}/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 重置登录密码：原密码与全部会话立即失效，下发重置码 */
+        post: operations["admin.staff.resetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/staff/{staffId}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 解除登录锁定 */
+        post: operations["admin.staff.unlock"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1228,6 +1791,57 @@ export interface paths {
         put?: never;
         /** 首次指派交付经理（门店还没有交付经理时）：写门店交付经理，同步未结订购单，同事务分配本门店的待分配工单 */
         post: operations["admin.store.assignDeliveryManager"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/timers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 定时器查询：失败、待触发，按对象类型与 id 过滤 */
+        get: operations["admin.timer.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/timers/{timerId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 把失败的定时器标记为不再需要（原因必填，写审计） */
+        post: operations["admin.timer.cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/timers/{timerId}/reschedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 定时器重新排期（失败或需改期的定时器） */
+        post: operations["admin.timer.reschedule"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1319,6 +1933,176 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/upload-batch-items/{uploadBatchItemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 修改批次条目：集号映射、跳过（仅 partial 批次）、同一集换新文件 */
+        patch: operations["admin.uploadBatchItem.update"];
+        trace?: never;
+    };
+    "/api/v1/admin/upload-batch-items/{uploadBatchItemId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 批次内单个文件上传完成确认 */
+        post: operations["admin.uploadBatchItem.complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/upload-batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 创建批量上传批次并逐集匹配（原片首次上传、批量替换原片；成片批次同用）：用途、目标、文件清单、范围、替换原因、AI 使用声明 */
+        post: operations["admin.uploadBatch.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/upload-batches/{uploadBatchId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 批次详情与逐条进度（前端轮询） */
+        get: operations["admin.uploadBatch.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/upload-batches/{uploadBatchId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 取消批次 */
+        post: operations["admin.uploadBatch.cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/upload-batches/{uploadBatchId}/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 提交原片批次：生成新原片版本，旧版本置 superseded；内容有实质变更时标记许可待重新核验 */
+        post: operations["admin.uploadBatch.commit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/upload-batches/{uploadBatchId}/refresh-credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 签发或续签整批的直传临时密钥（只能写批次前缀 incoming/b{uploadBatchId}/*，30 分钟） */
+        post: operations["admin.uploadBatch.refreshCredentials"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/upload-batches/{uploadBatchId}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 确认匹配结果，开始上传 */
+        post: operations["admin.uploadBatch.start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/webhook-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 回调收件箱查询（失败、死信） */
+        get: operations["admin.webhookEvent.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/webhook-events/{webhookEventId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 把死信回调重置为待处理（attempts 清零） */
+        post: operations["admin.webhookEvent.retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1326,6 +2110,13 @@ export interface components {
         ActivateBody: {
             activationCode: string;
             phone: string;
+        };
+        ActivationDeliveryBody: {
+            /**
+             * @default sms
+             * @enum {string}
+             */
+            activationDelivery: "sms" | "manual";
         };
         ActivationIssue: {
             activationCode: string | null;
@@ -1825,6 +2616,19 @@ export interface components {
             storeId: string;
             storeName: string | null;
         };
+        AiUsage: {
+            /** Format: date-time */
+            declaredAt: string;
+            /** Format: uuid */
+            declaredBy: string;
+            forcedByDrama: boolean;
+            tools: {
+                name: string;
+                usedFor: string;
+                version: string;
+            }[];
+            used: boolean;
+        };
         ApprovalCounts: {
             items: {
                 all: number;
@@ -2040,6 +2844,17 @@ export interface components {
             next: "mfa" | "set_password" | "enroll_totp" | "login";
             ticket: string | null;
             ticketExpiresAt: string | null;
+        };
+        BatchUploadCredentials: {
+            bucket: string;
+            chunkParallel: number;
+            chunkSize: number;
+            /** Format: date-time */
+            expiresAt: string;
+            fileParallel: number;
+            prefix: string;
+            region: string;
+            sts: components["schemas"]["StsCredential"];
         };
         BindWecomSelfBody: {
             code?: string;
@@ -2822,6 +3637,28 @@ export interface components {
             /** Format: date-time */
             uploadExpiresAt: string;
         };
+        FlowOpsNoteBody: {
+            note?: string;
+        };
+        HandoverBody: {
+            /** Format: uuid */
+            handoverToStaffId: string;
+            note?: string;
+            /** @enum {string} */
+            reason: "reassigned" | "long_leave" | "other";
+        };
+        HandoverResult: {
+            batchId: string | null;
+            handoverTo: components["schemas"]["StaffBrief"] | null;
+            moved: {
+                count: number;
+                /** @enum {string} */
+                source: "store_manager" | "ticket_editor" | "ticket_publisher" | "ad_editor" | "service_ticket_owner" | "follow_up_owner" | (string & {});
+                /** @enum {string} */
+                subjectType: "store" | "drama_order" | "delivery_ticket" | "ad" | "service_ticket" | "follow_up" | (string & {});
+            }[];
+            staff: components["schemas"]["StaffDetail"];
+        };
         ImageRef: {
             /** Format: date-time */
             expiresAt: string;
@@ -3054,6 +3891,80 @@ export interface components {
                 dramaOrderCount: number;
             };
         };
+        MediaJobNoteBody: {
+            note?: string;
+        };
+        MediaJobPage: {
+            items: components["schemas"]["MediaJobView"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        MediaJobView: {
+            actions: "retry"[];
+            attemptNo: number;
+            billable: {
+                estCostMicro: string | null;
+                qty: string;
+                unit: string | null;
+            } | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            deadlineAt: string;
+            error: {
+                code: string | null;
+                isRetryable: boolean;
+                message: string | null;
+            } | null;
+            externalJobId: string | null;
+            /** Format: date-time */
+            finishedAt: string | null;
+            /** @enum {string} */
+            kind: "promote" | "probe" | "restamp" | "transcode_mp4" | "watermark_sample" | "normalize" | "zip_package" | "audit_image" | "audit_image_wx" | "audit_video" | "audit_text" | "asr" | "vision" | "doc_extract" | "digest" | "ocr";
+            maxAttempts: number;
+            /** Format: uuid */
+            mediaJobId: string;
+            /** @enum {string} */
+            mode: "local" | "remote";
+            /** Format: date-time */
+            nextRunAt: string;
+            parent: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                type: "store_asset" | "playable_asset" | "upload_batch" | "production_record" | "zip_bundle";
+            } | null;
+            provider: string;
+            /** Format: date-time */
+            startedAt: string | null;
+            /** @enum {string} */
+            state: "queued" | "running" | "submitting" | "submitted" | "succeeded" | "failed" | "canceled";
+            subject: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                type: "file_object" | "zip_bundle" | "store_asset" | "ocr_result";
+            };
+        };
+        OpenWorkSummary: {
+            bySource: {
+                count: number;
+                samples: {
+                    label: string;
+                    /** Format: uuid */
+                    subjectId: string;
+                }[];
+                /** @enum {string} */
+                source: "store_manager" | "ticket_editor" | "ticket_publisher" | "ad_editor" | "service_ticket_owner" | "follow_up_owner" | (string & {});
+                /** @enum {string} */
+                subjectType: "store" | "drama_order" | "delivery_ticket" | "ad" | "service_ticket" | "follow_up" | (string & {});
+            }[];
+            candidates: components["schemas"]["StaffBrief"][];
+            pendingApprovalsAsRequester: number;
+            staff: components["schemas"]["StaffBrief"];
+            total: number;
+        };
         OrderCancelRequestCard: {
             actions: string[];
             /** Format: date-time */
@@ -3117,6 +4028,51 @@ export interface components {
                 refunded: number;
                 to_launch: number;
             };
+        };
+        OutboxDeliveryPage: {
+            items: components["schemas"]["OutboxDeliveryView"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        OutboxDeliveryView: {
+            actions: "retry"[];
+            attempts: number;
+            /** Format: date-time */
+            consumedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            dispatchNo: number;
+            event: {
+                actorType: string;
+                /** Format: uuid */
+                aggregateId: string | null;
+                aggregateType: string | null;
+                /** Format: uuid */
+                entityId: string | null;
+                eventType: string;
+                /** Format: date-time */
+                occurredAt: string;
+                requestId: string | null;
+                /** Format: uuid */
+                storeId: string | null;
+            };
+            lastError: string | null;
+            /** Format: date-time */
+            leaseUntil: string | null;
+            /** Format: date-time */
+            nextAttemptAt: string;
+            /** Format: uuid */
+            outboxEventId: string;
+            /** @enum {string} */
+            status: "pending" | "leased" | "done" | "retry" | "dead";
+            subscriber: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        OutboxRetryBody: {
+            note?: string;
+            subscriber: string;
         };
         PaymentOrderAdminDetail: {
             actions: string[];
@@ -3375,6 +4331,19 @@ export interface components {
             staff: components["schemas"]["StaffBrief"];
             /** Format: date-time */
             updatedAt: string;
+        };
+        PoolMemberList: {
+            cursors: {
+                lastStaff: components["schemas"]["StaffBrief"] | null;
+                /** @enum {string} */
+                pool: "delivery_manager" | "editor" | "publisher" | "cs" | (string & {});
+                scopeKey: string;
+                /** Format: date-time */
+                updatedAt: string;
+            }[];
+            items: (components["schemas"]["PoolMember"] & {
+                isRecommended: boolean;
+            })[];
         };
         PostPolicy: {
             fields: {
@@ -3729,6 +4698,16 @@ export interface components {
             /** @enum {string} */
             status: "pending" | "active" | "disabled" | (string & {});
         };
+        StaffCounts: {
+            byStatus: {
+                active: number;
+                disabled: number;
+                pending: number;
+            };
+            locked: number;
+            pendingActivation: number;
+            total: number;
+        };
         StaffCreateBody: {
             activateNow: boolean;
             /**
@@ -3795,6 +4774,30 @@ export interface components {
                 status: "none" | "invited" | "bound" | "unbound" | (string & {});
                 userid: string | null;
             };
+        };
+        StaffDisableBody: {
+            confirm: {
+                openWorkCount: number;
+                staffNo: number;
+            };
+            /** Format: uuid */
+            handoverToStaffId?: string;
+            note?: string;
+            /** @enum {string} */
+            reason: "resigned" | "reassigned" | "long_leave" | "other";
+        };
+        StaffDutyBody: {
+            onDuty: boolean;
+        };
+        StaffGroupSummary: {
+            activeLeadCount: number;
+            isDefault: boolean;
+            memberCount: number;
+            name: string;
+            /** @enum {string} */
+            roleKey: "super_admin" | "cs" | "delivery_manager" | "editor" | "publisher" | "content_ops" | "channel_ops" | "finance" | (string & {});
+            /** Format: uuid */
+            staffGroupId: string;
         };
         StaffListItem: components["schemas"]["StaffBrief"] & {
             actions: ("update" | "enable" | "disable" | "handover" | "reset-password" | "reset-mfa" | "reissue-activation-code" | "unlock" | "invite-wecom" | "bind-wecom" | (string & {}))[];
@@ -3894,6 +4897,64 @@ export interface components {
             replayed: boolean;
             staff: components["schemas"]["StaffDetail"];
         };
+        StaffPoolMembershipReplaceBody: {
+            lockVersion: number;
+            memberships: {
+                cityCode?: string | null;
+                /** @enum {string} */
+                pool: "delivery_manager" | "editor" | "publisher" | "cs";
+            }[];
+        };
+        StaffResetBody: components["schemas"]["ActivationDeliveryBody"] & {
+            confirm: {
+                staffNo: number;
+            };
+            note?: string;
+        };
+        StaffSessionView: {
+            /** Format: date-time */
+            absoluteExpiresAt: string;
+            actions: "revoke"[];
+            /** @enum {string} */
+            authMethod: "password+totp" | "password+recovery" | (string & {});
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            idleExpiresAt: string;
+            ipMask: string | null;
+            isCurrent: boolean;
+            /** Format: date-time */
+            lastSeenAt: string;
+            revokeReason: ("logout" | "disabled" | "password_reset" | "mfa_reset" | "phone_changed" | "admin" | (string & {})) | null;
+            revokedAt: string | null;
+            staff: components["schemas"]["StaffBrief"];
+            /** Format: uuid */
+            staffSessionId: string;
+            userAgent: string | null;
+        };
+        StaffUnlockBody: {
+            /**
+             * @default all
+             * @enum {string}
+             */
+            bucket: "trusted" | "untrusted" | "all";
+            note?: string;
+        };
+        StaffUpdateBody: {
+            /** @default false */
+            ackNoLead: boolean;
+            displayName?: string | null;
+            isLead?: boolean;
+            lockVersion: number;
+            name?: string;
+            /** @enum {string} */
+            roleKey?: "super_admin" | "cs" | "delivery_manager" | "editor" | "publisher" | "content_ops" | "channel_ops" | "finance";
+            servicePhone?: string | null;
+            /** Format: uuid */
+            staffGroupId?: string;
+            /** Format: uuid */
+            wecomQrFileId?: string | null;
+        };
         StaffWecom: {
             /** Format: date-time */
             boundAt: string | null;
@@ -3908,6 +4969,11 @@ export interface components {
             /** @enum {string} */
             status: "none" | "invited" | "bound" | "unbound";
             userid: string | null;
+        };
+        StaffWecomBindBody: {
+            /** @default false */
+            takeOver: boolean;
+            wecomUserid: string;
         };
         StepUpBody: {
             code: string;
@@ -4085,6 +5151,54 @@ export interface components {
             status: "none" | "active" | "expired" | (string & {});
         };
         SystemConfigJsonValue: Record<string, never> | unknown[] | string | number | boolean | null;
+        TimerCancelBody: {
+            reason: string;
+        };
+        TimerPage: {
+            items: components["schemas"]["TimerView"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        TimerView: {
+            actions: ("reschedule" | "cancel")[];
+            attempts: number;
+            /** Format: date-time */
+            createdAt: string;
+            dedupeKey: string;
+            dispatchNo: number;
+            /** Format: uuid */
+            entityId: string | null;
+            /** Format: date-time */
+            fireAt: string;
+            /** Format: date-time */
+            firedAt: string | null;
+            kind: string;
+            lastError: string | null;
+            /** Format: date-time */
+            leaseUntil: string | null;
+            payload: {
+                [key: string]: unknown;
+            } | null;
+            result: {
+                [key: string]: unknown;
+            } | null;
+            /** Format: date-time */
+            retryAt: string | null;
+            /** @enum {string} */
+            status: "scheduled" | "dispatched" | "fired" | "skipped" | "cancelled" | "failed";
+            /** Format: uuid */
+            storeId: string | null;
+            subject: {
+                /** Format: uuid */
+                id: string;
+                type: string;
+            } | null;
+            /** Format: uuid */
+            timerId: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         TotpConfirmResult: {
             me: components["schemas"]["StaffMe"];
             recoveryCodes: string[];
@@ -4193,11 +5307,175 @@ export interface components {
                 type: "merchant" | "staff" | (string & {});
             };
         };
+        UploadBatchCommitResult: {
+            batch: components["schemas"]["UploadBatchDetail"];
+            masters: {
+                /** Format: uuid */
+                dramaEpisodeMasterId: string;
+                episodeNo: number;
+                revNo: number;
+            }[];
+        };
+        UploadBatchCoverage: {
+            duplicateEpisodeNos: number[];
+            missingEpisodeNos: number[];
+            needsSequenceConfirm: boolean;
+            unmatchedItemIds: string[];
+        };
+        UploadBatchCreateBody: {
+            aiUsage?: {
+                tools: {
+                    name: string;
+                    usedFor: string;
+                    version: string;
+                }[];
+                used: boolean;
+            } | null;
+            files: {
+                clientToken: string;
+                originalName: string;
+                sizeBytes: string;
+            }[];
+            /** @default false */
+            isContentChanged: boolean;
+            note?: string | null;
+            /** @enum {string} */
+            purpose: "drama_master" | "final_release";
+            /** @enum {string|null} */
+            replaceReason?: "quality_fix" | "license_info_fix" | "other" | null;
+            /** @enum {string} */
+            scope: "full" | "partial";
+            /** Format: uuid */
+            targetId: string;
+        };
+        UploadBatchDetail: {
+            actions: ("start" | "refresh-credentials" | "commit" | "cancel" | (string & {}))[];
+            aiUsage: components["schemas"]["AiUsage"] | null;
+            bucket: string;
+            committedAt: string | null;
+            counts: {
+                checked: number;
+                pending: number;
+                rejected: number;
+                replaced: number;
+                skipped: number;
+                total: number;
+                uploaded: number;
+            };
+            coverage: components["schemas"]["UploadBatchCoverage"];
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: components["schemas"]["StaffBrief"];
+            expectedCount: number;
+            /** Format: date-time */
+            expiresAt: string;
+            isContentChanged: boolean;
+            items: components["schemas"]["UploadBatchItem"][];
+            note: string | null;
+            prefix: string;
+            /** @enum {string} */
+            purpose: "drama_master" | "final_release" | (string & {});
+            region: string;
+            replaceReason: ("quality_fix" | "license_info_fix" | "other" | (string & {})) | null;
+            /** @enum {string} */
+            scope: "full" | "partial" | (string & {});
+            /** @enum {string} */
+            state: "matching" | "uploading" | "verifying" | "ready" | "committed" | "canceled" | "expired" | (string & {});
+            /** Format: uuid */
+            targetId: string;
+            targetLabel: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            uploadBatchId: string;
+            /** @enum {string} */
+            variant: "common" | (string & {});
+        };
+        UploadBatchItem: {
+            aiUsage: components["schemas"]["AiUsage"] | null;
+            check: {
+                failedHard: {
+                    actual: string | number;
+                    code: string;
+                    expected: string | number;
+                }[];
+                /** @enum {string} */
+                gate: "pass" | "reject" | (string & {});
+                warnings: {
+                    code: string;
+                    note: string;
+                }[];
+            } | null;
+            durationMs: number | null;
+            episodeNo: number | null;
+            episodeTitle: string | null;
+            /** Format: uuid */
+            fileId: string;
+            /** @enum {string} */
+            fileStatus: "pending" | "promoting" | "stored" | "rejected" | "expired" | "deleting" | "deleted" | (string & {});
+            isDurationDiffWarn: boolean;
+            matchMethod: ("pattern" | "sequence" | "manual" | (string & {})) | null;
+            originalName: string;
+            previousDurationMs: number | null;
+            rejectReason: ("size_mismatch" | "bad_magic" | "changed_after_confirm" | "copy_verify_failed" | "stamp_failed" | (string & {})) | null;
+            sizeBytes: string;
+            /** @enum {string} */
+            state: "pending" | "uploaded" | "checked" | "rejected" | "skipped" | "replaced" | (string & {});
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            uploadBatchItemId: string;
+            uploadKey: string | null;
+        };
+        UploadBatchItemUpdateBody: {
+            episodeNo: number | null;
+        } | {
+            /** @enum {boolean} */
+            skip: true;
+        } | {
+            replacementFile: {
+                clientToken: string;
+                originalName: string;
+                sizeBytes: string;
+            };
+        };
         VerifyMfaBody: {
             code: string;
             /** @enum {string} */
             method: "totp" | "recovery";
             ticket: string;
+        };
+        WebhookEventPage: {
+            hasMore: boolean;
+            items: components["schemas"]["WebhookEventView"][];
+            nextCursor: string | null;
+            totalApprox: number;
+        };
+        WebhookEventView: {
+            actions: "retry"[];
+            attempts: number;
+            error: string | null;
+            eventId: string;
+            eventType: string;
+            /** @enum {string} */
+            mode: "inline" | "inbox";
+            /** Format: date-time */
+            nextAttemptAt: string | null;
+            /** Format: date-time */
+            payloadPurgedAt: string | null;
+            /** @enum {string} */
+            processState: "received" | "processed" | "ignored" | "failed" | "dead";
+            /** Format: date-time */
+            processedAt: string | null;
+            /** @enum {string} */
+            provider: "wechatpay" | "wechat" | "wecom" | "ci" | "asr" | "sms" | "esign";
+            /** Format: date-time */
+            receivedAt: string;
+            summary: {
+                [key: string]: unknown;
+            } | null;
+            /** Format: uuid */
+            webhookEventId: string;
         };
     };
     responses: never;
@@ -4377,6 +5655,73 @@ export interface operations {
             };
             /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.assignmentPoolMember.list": {
+        parameters: {
+            query?: {
+                pool?: string;
+                cityCode?: string;
+                staffId?: string;
+                onDuty?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PoolMemberList"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6382,6 +7727,54 @@ export interface operations {
             };
             /** @description 外部能力不可用、系统繁忙或停机维护 */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.clientError.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-sentry-envelope": components["schemas"]["SentryEnvelope"];
+            };
+        };
+        responses: {
+            /** @description 已收下，未处理 */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: null;
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8430,6 +9823,88 @@ export interface operations {
             };
         };
     };
+    "admin.file.cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminFileView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.file.complete": {
         parameters: {
             query?: never;
@@ -8589,6 +10064,585 @@ export interface operations {
             };
             /** @description 外部能力不可用、系统繁忙或停机维护 */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.file.refreshCredentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["FileRegistration"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.homeBanner.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                displayState?: string;
+                isEnded?: ("true" | "false") | boolean;
+                sort?: "position" | "-startAt" | "-createdAt";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: {
+                                actions: ("edit" | "enable" | "disable")[];
+                                clickCount: number | null;
+                                /** Format: date-time */
+                                createdAt: string;
+                                createdBy: components["schemas"]["StaffBrief"];
+                                /** @enum {string} */
+                                displayState: "live" | "scheduled" | "ended" | "disabled";
+                                /** Format: date-time */
+                                endAt: string | null;
+                                /** Format: uuid */
+                                homeBannerId: string;
+                                /** Format: uuid */
+                                imageFileId: string;
+                                imageUrl: components["schemas"]["SignedUrl"] & (Record<string, never> | null);
+                                isEnabled: boolean;
+                                /** @enum {string} */
+                                jumpKind: "drama" | "mall" | "page" | "none";
+                                jumpTarget: {
+                                    [key: string]: unknown;
+                                } | null;
+                                jumpTargetLabel: string | null;
+                                lockVersion: number;
+                                position: number;
+                                /** Format: date-time */
+                                startAt: string;
+                                title: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                                updatedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                            }[];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.homeBanner.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date-time */
+                    endAt?: string | null;
+                    /** Format: uuid */
+                    imageFileId: string;
+                    isEnabled?: boolean;
+                    /** @enum {string} */
+                    jumpKind: "drama" | "mall" | "page" | "none";
+                    jumpTarget?: {
+                        [key: string]: unknown;
+                    } | null;
+                    /** Format: date-time */
+                    startAt: string;
+                    title: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: ("edit" | "enable" | "disable")[];
+                            clickCount: number | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            createdBy: components["schemas"]["StaffBrief"];
+                            /** @enum {string} */
+                            displayState: "live" | "scheduled" | "ended" | "disabled";
+                            /** Format: date-time */
+                            endAt: string | null;
+                            /** Format: uuid */
+                            homeBannerId: string;
+                            /** Format: uuid */
+                            imageFileId: string;
+                            imageUrl: components["schemas"]["SignedUrl"] & (Record<string, never> | null);
+                            isEnabled: boolean;
+                            /** @enum {string} */
+                            jumpKind: "drama" | "mall" | "page" | "none";
+                            jumpTarget: {
+                                [key: string]: unknown;
+                            } | null;
+                            jumpTargetLabel: string | null;
+                            lockVersion: number;
+                            position: number;
+                            replayed: boolean;
+                            /** Format: date-time */
+                            startAt: string;
+                            title: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                            updatedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.homeBanner.batchReorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    homeBannerIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: {
+                                actions: ("edit" | "enable" | "disable")[];
+                                clickCount: number | null;
+                                /** Format: date-time */
+                                createdAt: string;
+                                createdBy: components["schemas"]["StaffBrief"];
+                                /** @enum {string} */
+                                displayState: "live" | "scheduled" | "ended" | "disabled";
+                                /** Format: date-time */
+                                endAt: string | null;
+                                /** Format: uuid */
+                                homeBannerId: string;
+                                /** Format: uuid */
+                                imageFileId: string;
+                                imageUrl: components["schemas"]["SignedUrl"] & (Record<string, never> | null);
+                                isEnabled: boolean;
+                                /** @enum {string} */
+                                jumpKind: "drama" | "mall" | "page" | "none";
+                                jumpTarget: {
+                                    [key: string]: unknown;
+                                } | null;
+                                jumpTargetLabel: string | null;
+                                lockVersion: number;
+                                position: number;
+                                /** Format: date-time */
+                                startAt: string;
+                                title: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                                updatedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                            }[];
+                            replayed: boolean;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.homeBanner.summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            disabled: number;
+                            ended: number;
+                            live: number;
+                            maxActive: number;
+                            scheduled: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.homeBanner.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                homeBannerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date-time */
+                    endAt?: string | null;
+                    /** Format: uuid */
+                    imageFileId?: string;
+                    isEnabled?: boolean;
+                    /** @enum {string} */
+                    jumpKind?: "drama" | "mall" | "page" | "none";
+                    jumpTarget?: {
+                        [key: string]: unknown;
+                    } | null;
+                    lockVersion: number;
+                    /** Format: date-time */
+                    startAt?: string;
+                    title?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: ("edit" | "enable" | "disable")[];
+                            clickCount: number | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            createdBy: components["schemas"]["StaffBrief"];
+                            /** @enum {string} */
+                            displayState: "live" | "scheduled" | "ended" | "disabled";
+                            /** Format: date-time */
+                            endAt: string | null;
+                            /** Format: uuid */
+                            homeBannerId: string;
+                            /** Format: uuid */
+                            imageFileId: string;
+                            imageUrl: components["schemas"]["SignedUrl"] & (Record<string, never> | null);
+                            isEnabled: boolean;
+                            /** @enum {string} */
+                            jumpKind: "drama" | "mall" | "page" | "none";
+                            jumpTarget: {
+                                [key: string]: unknown;
+                            } | null;
+                            jumpTargetLabel: string | null;
+                            lockVersion: number;
+                            position: number;
+                            replayed: boolean;
+                            /** Format: date-time */
+                            startAt: string;
+                            title: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                            updatedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8872,6 +10926,166 @@ export interface operations {
             };
         };
     };
+    "admin.mediaJob.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                state?: string;
+                kind?: string;
+                subjectType?: "file_object" | "zip_bundle" | "store_asset" | "ocr_result";
+                subjectId?: string;
+                parentType?: "store_asset" | "playable_asset" | "upload_batch" | "production_record" | "zip_bundle";
+                parentId?: string;
+                createdFrom?: string;
+                createdTo?: string;
+                sort?: "-finishedAt" | "-createdAt";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["MediaJobPage"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.mediaJob.retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mediaJobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["MediaJobNoteBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["MediaJobView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.order.list": {
         parameters: {
             query?: {
@@ -9055,6 +11269,163 @@ export interface operations {
             };
             /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.outboxDelivery.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                status?: string;
+                subscriber?: string;
+                eventType?: string;
+                aggregateType?: string;
+                aggregateId?: string;
+                entityId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["OutboxDeliveryPage"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.outboxEvent.retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                outboxEventId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["OutboxRetryBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["OutboxDeliveryView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10382,6 +12753,917 @@ export interface operations {
             };
         };
     };
+    "admin.siteConfig.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                configKey: "mall" | "home_recommend";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            /** @enum {string} */
+                            configKey: "mall" | "home_recommend";
+                            draft: {
+                                baseRevNo: number | null;
+                                content: {
+                                    categories: {
+                                        fixed: boolean;
+                                        genreCodes: string[];
+                                        key: string;
+                                        name: string;
+                                        visible: boolean;
+                                    }[];
+                                    /** @enum {string} */
+                                    defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                                    filters: {
+                                        episodeBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                        episodes: boolean;
+                                        genre: boolean;
+                                        industry: boolean;
+                                        price: boolean;
+                                        priceBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                    };
+                                    hotWords: string[];
+                                    sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
+                                    weights: {
+                                        freshness: number;
+                                        heat: number;
+                                        manual: number;
+                                        sales30d: number;
+                                    };
+                                } | {
+                                    /** @enum {string} */
+                                    defaultTab: "hot" | "new";
+                                    newDays: number;
+                                    pins: {
+                                        /** Format: uuid */
+                                        dramaId: string;
+                                        industryCode: string;
+                                    }[];
+                                    recommendCount: number;
+                                };
+                                createdBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                lockVersion: number;
+                                note: string | null;
+                                /** Format: uuid */
+                                siteConfigRevisionId: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            } | null;
+                            published: {
+                                content: {
+                                    categories: {
+                                        fixed: boolean;
+                                        genreCodes: string[];
+                                        key: string;
+                                        name: string;
+                                        visible: boolean;
+                                    }[];
+                                    /** @enum {string} */
+                                    defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                                    filters: {
+                                        episodeBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                        episodes: boolean;
+                                        genre: boolean;
+                                        industry: boolean;
+                                        price: boolean;
+                                        priceBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                    };
+                                    hotWords: string[];
+                                    sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
+                                    weights: {
+                                        freshness: number;
+                                        heat: number;
+                                        manual: number;
+                                        sales30d: number;
+                                    };
+                                } | {
+                                    /** @enum {string} */
+                                    defaultTab: "hot" | "new";
+                                    newDays: number;
+                                    pins: {
+                                        /** Format: uuid */
+                                        dramaId: string;
+                                        industryCode: string;
+                                    }[];
+                                    recommendCount: number;
+                                };
+                                note: string | null;
+                                /** Format: date-time */
+                                publishedAt: string;
+                                publishedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                revNo: number;
+                                /** Format: uuid */
+                                siteConfigRevisionId: string;
+                                /** @enum {string} */
+                                status: "published" | "archived";
+                            };
+                            refs: {
+                                affectedBanners: {
+                                    categoryKey: string;
+                                    /** Format: uuid */
+                                    homeBannerId: string;
+                                    title: string;
+                                }[];
+                                categoryStats: {
+                                    dramaCount: number;
+                                    genreNames: string[];
+                                    key: string;
+                                }[];
+                                invalidRefs: {
+                                    code: string;
+                                    path: string;
+                                    /** @enum {string} */
+                                    reason: "genre_unknown" | "genre_disabled" | "industry_unknown" | "drama_not_found" | "drama_not_listed" | "drama_not_orderable";
+                                }[];
+                                pins: {
+                                    /** Format: uuid */
+                                    dramaId: string;
+                                    dramaTitle: string;
+                                    industryCode: string;
+                                    industryName: string;
+                                    isOrderable: boolean;
+                                }[];
+                            };
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.siteConfig.draft.replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                configKey: "mall" | "home_recommend";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    baseRevNo: number;
+                    content: {
+                        categories: {
+                            fixed: boolean;
+                            genreCodes: string[];
+                            key: string;
+                            name: string;
+                            visible: boolean;
+                        }[];
+                        /** @enum {string} */
+                        defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                        filters: {
+                            episodeBands: {
+                                key: string;
+                                label: string;
+                                max: number | null;
+                                min: number | null;
+                            }[];
+                            episodes: boolean;
+                            genre: boolean;
+                            industry: boolean;
+                            price: boolean;
+                            priceBands: {
+                                key: string;
+                                label: string;
+                                max: number | null;
+                                min: number | null;
+                            }[];
+                        };
+                        hotWords: string[];
+                        sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
+                        weights: {
+                            freshness: number;
+                            heat: number;
+                            manual: number;
+                            sales30d: number;
+                        };
+                    } | {
+                        /** @enum {string} */
+                        defaultTab: "hot" | "new";
+                        newDays: number;
+                        pins: {
+                            /** Format: uuid */
+                            dramaId: string;
+                            industryCode: string;
+                        }[];
+                        recommendCount: number;
+                    };
+                    lockVersion: number | null;
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            /** @enum {string} */
+                            configKey: "mall" | "home_recommend";
+                            draft: {
+                                baseRevNo: number | null;
+                                content: {
+                                    categories: {
+                                        fixed: boolean;
+                                        genreCodes: string[];
+                                        key: string;
+                                        name: string;
+                                        visible: boolean;
+                                    }[];
+                                    /** @enum {string} */
+                                    defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                                    filters: {
+                                        episodeBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                        episodes: boolean;
+                                        genre: boolean;
+                                        industry: boolean;
+                                        price: boolean;
+                                        priceBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                    };
+                                    hotWords: string[];
+                                    sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
+                                    weights: {
+                                        freshness: number;
+                                        heat: number;
+                                        manual: number;
+                                        sales30d: number;
+                                    };
+                                } | {
+                                    /** @enum {string} */
+                                    defaultTab: "hot" | "new";
+                                    newDays: number;
+                                    pins: {
+                                        /** Format: uuid */
+                                        dramaId: string;
+                                        industryCode: string;
+                                    }[];
+                                    recommendCount: number;
+                                };
+                                createdBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                lockVersion: number;
+                                note: string | null;
+                                /** Format: uuid */
+                                siteConfigRevisionId: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            } | null;
+                            published: {
+                                content: {
+                                    categories: {
+                                        fixed: boolean;
+                                        genreCodes: string[];
+                                        key: string;
+                                        name: string;
+                                        visible: boolean;
+                                    }[];
+                                    /** @enum {string} */
+                                    defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                                    filters: {
+                                        episodeBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                        episodes: boolean;
+                                        genre: boolean;
+                                        industry: boolean;
+                                        price: boolean;
+                                        priceBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                    };
+                                    hotWords: string[];
+                                    sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
+                                    weights: {
+                                        freshness: number;
+                                        heat: number;
+                                        manual: number;
+                                        sales30d: number;
+                                    };
+                                } | {
+                                    /** @enum {string} */
+                                    defaultTab: "hot" | "new";
+                                    newDays: number;
+                                    pins: {
+                                        /** Format: uuid */
+                                        dramaId: string;
+                                        industryCode: string;
+                                    }[];
+                                    recommendCount: number;
+                                };
+                                note: string | null;
+                                /** Format: date-time */
+                                publishedAt: string;
+                                publishedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                revNo: number;
+                                /** Format: uuid */
+                                siteConfigRevisionId: string;
+                                /** @enum {string} */
+                                status: "published" | "archived";
+                            };
+                            refs: {
+                                affectedBanners: {
+                                    categoryKey: string;
+                                    /** Format: uuid */
+                                    homeBannerId: string;
+                                    title: string;
+                                }[];
+                                categoryStats: {
+                                    dramaCount: number;
+                                    genreNames: string[];
+                                    key: string;
+                                }[];
+                                invalidRefs: {
+                                    code: string;
+                                    path: string;
+                                    /** @enum {string} */
+                                    reason: "genre_unknown" | "genre_disabled" | "industry_unknown" | "drama_not_found" | "drama_not_listed" | "drama_not_orderable";
+                                }[];
+                                pins: {
+                                    /** Format: uuid */
+                                    dramaId: string;
+                                    dramaTitle: string;
+                                    industryCode: string;
+                                    industryName: string;
+                                    isOrderable: boolean;
+                                }[];
+                            };
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.siteConfig.publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                configKey: "mall" | "home_recommend";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    baseRevNo: number;
+                    lockVersion: number;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            /** @enum {string} */
+                            configKey: "mall" | "home_recommend";
+                            draft: {
+                                baseRevNo: number | null;
+                                content: {
+                                    categories: {
+                                        fixed: boolean;
+                                        genreCodes: string[];
+                                        key: string;
+                                        name: string;
+                                        visible: boolean;
+                                    }[];
+                                    /** @enum {string} */
+                                    defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                                    filters: {
+                                        episodeBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                        episodes: boolean;
+                                        genre: boolean;
+                                        industry: boolean;
+                                        price: boolean;
+                                        priceBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                    };
+                                    hotWords: string[];
+                                    sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
+                                    weights: {
+                                        freshness: number;
+                                        heat: number;
+                                        manual: number;
+                                        sales30d: number;
+                                    };
+                                } | {
+                                    /** @enum {string} */
+                                    defaultTab: "hot" | "new";
+                                    newDays: number;
+                                    pins: {
+                                        /** Format: uuid */
+                                        dramaId: string;
+                                        industryCode: string;
+                                    }[];
+                                    recommendCount: number;
+                                };
+                                createdBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                lockVersion: number;
+                                note: string | null;
+                                /** Format: uuid */
+                                siteConfigRevisionId: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            } | null;
+                            published: {
+                                content: {
+                                    categories: {
+                                        fixed: boolean;
+                                        genreCodes: string[];
+                                        key: string;
+                                        name: string;
+                                        visible: boolean;
+                                    }[];
+                                    /** @enum {string} */
+                                    defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                                    filters: {
+                                        episodeBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                        episodes: boolean;
+                                        genre: boolean;
+                                        industry: boolean;
+                                        price: boolean;
+                                        priceBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                    };
+                                    hotWords: string[];
+                                    sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
+                                    weights: {
+                                        freshness: number;
+                                        heat: number;
+                                        manual: number;
+                                        sales30d: number;
+                                    };
+                                } | {
+                                    /** @enum {string} */
+                                    defaultTab: "hot" | "new";
+                                    newDays: number;
+                                    pins: {
+                                        /** Format: uuid */
+                                        dramaId: string;
+                                        industryCode: string;
+                                    }[];
+                                    recommendCount: number;
+                                };
+                                note: string | null;
+                                /** Format: date-time */
+                                publishedAt: string;
+                                publishedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                revNo: number;
+                                /** Format: uuid */
+                                siteConfigRevisionId: string;
+                                /** @enum {string} */
+                                status: "published" | "archived";
+                            };
+                            refs: {
+                                affectedBanners: {
+                                    categoryKey: string;
+                                    /** Format: uuid */
+                                    homeBannerId: string;
+                                    title: string;
+                                }[];
+                                categoryStats: {
+                                    dramaCount: number;
+                                    genreNames: string[];
+                                    key: string;
+                                }[];
+                                invalidRefs: {
+                                    code: string;
+                                    path: string;
+                                    /** @enum {string} */
+                                    reason: "genre_unknown" | "genre_disabled" | "industry_unknown" | "drama_not_found" | "drama_not_listed" | "drama_not_orderable";
+                                }[];
+                                pins: {
+                                    /** Format: uuid */
+                                    dramaId: string;
+                                    dramaTitle: string;
+                                    industryCode: string;
+                                    industryName: string;
+                                    isOrderable: boolean;
+                                }[];
+                            };
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.siteConfig.revision.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                status?: string;
+            };
+            header?: never;
+            path: {
+                configKey: "mall" | "home_recommend";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: {
+                                content: {
+                                    categories: {
+                                        fixed: boolean;
+                                        genreCodes: string[];
+                                        key: string;
+                                        name: string;
+                                        visible: boolean;
+                                    }[];
+                                    /** @enum {string} */
+                                    defaultSort: "composite" | "heat" | "price_asc" | "price_desc" | "newest";
+                                    filters: {
+                                        episodeBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                        episodes: boolean;
+                                        genre: boolean;
+                                        industry: boolean;
+                                        price: boolean;
+                                        priceBands: {
+                                            key: string;
+                                            label: string;
+                                            max: number | null;
+                                            min: number | null;
+                                        }[];
+                                    };
+                                    hotWords: string[];
+                                    sorts: ("composite" | "heat" | "price_asc" | "price_desc" | "newest")[];
+                                    weights: {
+                                        freshness: number;
+                                        heat: number;
+                                        manual: number;
+                                        sales30d: number;
+                                    };
+                                } | {
+                                    /** @enum {string} */
+                                    defaultTab: "hot" | "new";
+                                    newDays: number;
+                                    pins: {
+                                        /** Format: uuid */
+                                        dramaId: string;
+                                        industryCode: string;
+                                    }[];
+                                    recommendCount: number;
+                                };
+                                note: string | null;
+                                /** Format: date-time */
+                                publishedAt: string;
+                                publishedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                revNo: number;
+                                /** Format: uuid */
+                                siteConfigRevisionId: string;
+                                /** @enum {string} */
+                                status: "published" | "archived";
+                            }[];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.siteNotice.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                kind?: string;
+                refId?: string;
+                status?: "announced" | "withdrawn";
+                displayState?: string;
+                effectiveFrom?: string;
+                effectiveTo?: string;
+                sort?: "-announcedAt" | "-effectiveAt";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: {
+                                /** Format: date-time */
+                                announcedAt: string;
+                                /** Format: date-time */
+                                createdAt: string;
+                                createdBy: components["schemas"]["StaffBrief"];
+                                /** @enum {string} */
+                                displayState: "scheduled" | "effective" | "withdrawn";
+                                /** Format: date-time */
+                                effectiveAt: string;
+                                isBarEnabled: boolean;
+                                /** @enum {string} */
+                                kind: "plan_revision" | "billing_param" | "agreement_version";
+                                leadDays: number;
+                                link: {
+                                    params?: {
+                                        [key: string]: unknown;
+                                    };
+                                    route: string;
+                                };
+                                /** Format: uuid */
+                                refId: string;
+                                shortNoticeReason: string | null;
+                                /** Format: uuid */
+                                siteNoticeId: string;
+                                /** @enum {string} */
+                                status: "announced" | "withdrawn";
+                                summary: string;
+                                summaryNoPrice: string | null;
+                                title: string;
+                                /** Format: date-time */
+                                withdrawnAt: string | null;
+                                withdrawnBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                            }[];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.staff.list": {
         parameters: {
             query?: {
@@ -10389,10 +13671,10 @@ export interface operations {
                 pageSize?: number;
                 q?: string;
                 roleKey?: string;
-                status?: string;
                 isLead?: boolean;
                 staffGroupId?: string;
                 pool?: string;
+                status?: string;
                 withLoad?: boolean;
                 recommendPool?: "delivery_manager" | "editor" | "publisher" | "cs";
                 recommendCityCode?: string;
@@ -10537,6 +13819,318 @@ export interface operations {
             };
         };
     };
+    "admin.staffGroup.list": {
+        parameters: {
+            query?: {
+                roleKey?: "super_admin" | "cs" | "delivery_manager" | "editor" | "publisher" | "content_ops" | "channel_ops" | "finance";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: components["schemas"]["StaffGroupSummary"][];
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staffSession.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                staffId?: string;
+                activeOnly?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: components["schemas"]["StaffSessionView"][];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staffSession.revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffSessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["StaffSessionView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.summary": {
+        parameters: {
+            query?: {
+                q?: string;
+                roleKey?: string;
+                isLead?: boolean;
+                staffGroupId?: string;
+                pool?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["StaffCounts"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.staff.get": {
         parameters: {
             query?: never;
@@ -10583,6 +14177,1116 @@ export interface operations {
             };
             /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffUpdateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["StaffDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.bindWecom": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffWecomBindBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["StaffWecom"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffDisableBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["HandoverResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.duty.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffDutyBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PoolMember"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivationDeliveryBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["StaffMutationResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.handover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoverBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["HandoverResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.inviteWecom": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["StaffWecom"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.openWork.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["OpenWorkSummary"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.poolMembership.replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffPoolMembershipReplaceBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["StaffDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.reissueActivationCode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivationDeliveryBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["ActivationIssue"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.resetMfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffResetBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["StaffMutationResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.resetPassword": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffResetBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["StaffMutationResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.staff.unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffUnlockBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["StaffDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10835,6 +15539,250 @@ export interface operations {
             };
             /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.timer.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                status?: string;
+                kind?: string;
+                subjectType?: string;
+                subjectId?: string;
+                entityId?: string;
+                fireFrom?: string;
+                fireTo?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["TimerPage"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.timer.cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                timerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["TimerCancelBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["TimerView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.timer.reschedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                timerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["FlowOpsNoteBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["TimerView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -11319,6 +16267,919 @@ export interface operations {
             };
             /** @description 外部能力不可用、系统繁忙或停机维护 */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.uploadBatchItem.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uploadBatchItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UploadBatchItemUpdateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["UploadBatchDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.uploadBatchItem.complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uploadBatchItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["UploadBatchItem"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.uploadBatch.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UploadBatchCreateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["UploadBatchDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.uploadBatch.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uploadBatchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["UploadBatchDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.uploadBatch.cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uploadBatchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["UploadBatchDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.uploadBatch.commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uploadBatchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["UploadBatchCommitResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.uploadBatch.refreshCredentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uploadBatchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["BatchUploadCredentials"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.uploadBatch.start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uploadBatchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @default false */
+                    acceptSequenceSuggestion?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["UploadBatchDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.webhookEvent.list": {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+                provider?: string;
+                processState?: string;
+                eventType?: string;
+                receivedFrom?: string;
+                receivedTo?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["WebhookEventPage"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.webhookEvent.retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhookEventId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["FlowOpsNoteBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["WebhookEventView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

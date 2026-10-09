@@ -117,7 +117,17 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
     name: fixture.newStaff.name,
     status: "active",
     isActivated: false,
-    actions: [],
+    actions: [
+      "update",
+      "unlock",
+      "handover",
+      "reissue-activation-code",
+      "disable",
+      "reset-password",
+      "reset-mfa",
+      "bind-wecom",
+      "invite-wecom",
+    ],
   });
   await page.getByRole("button", { name: "＋ 新增员工", exact: true }).click();
   await expect(form.getByRole("textbox", { name: "姓名", exact: true })).toHaveValue("");
@@ -127,3 +137,7 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
   await noHorizontalScroll(page, "员工创建完成");
   expect(errors).toEqual([]);
 });
+
+// W223 后置：原员工验收全部完成后才创建自己的只读员工；不污染旧数量/筛选事实。
+import { registerFlowOpsReadonlyTest } from "./w223-flow-ops-readonly";
+registerFlowOpsReadonlyTest();

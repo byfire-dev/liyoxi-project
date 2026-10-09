@@ -21,6 +21,7 @@ import { merchantAuth } from "../http/merchant-auth.js";
 import { merchantConsent } from "../http/merchant-consent.js";
 import { merchantCapability, merchantMembership } from "../http/merchant-membership.js";
 import { rateLimit } from "../http/rate-limit.js";
+import { reportingBody } from "../http/reporting-body.js";
 import { versionGate } from "../http/version-gate.js";
 import { webhookNatural, webhookPreparation, webhookRateLimit } from "../http/webhook.js";
 
@@ -56,6 +57,8 @@ export const PIPELINE_ORDER = [
   "rateLimit",
   /** 幂等上下文（约定 C47–C50） */
   "idempotency",
+  /** 三条客户端上报的真实字节上限，排在 OpenAPI 自动解析之前。 */
+  "bodyLimit",
 ] as const;
 
 export type PipelineSlot = (typeof PIPELINE_ORDER)[number];
@@ -86,4 +89,5 @@ export const ROUTE_MIDDLEWARES: readonly PipelineEntry[] = [
   { slot: "csrf", groups: ["admin"], factory: adminCsrf },
   { slot: "authz", groups: ["admin"], factory: adminAuthz },
   { slot: "stepUp", groups: ["admin"], factory: adminStepUp },
+  { slot: "bodyLimit", groups: ["m", "admin"], factory: reportingBody },
 ];

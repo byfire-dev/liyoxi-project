@@ -8,7 +8,9 @@
 //   3. 每个接口带 status（生效状态）与 configured（这项能力现在能不能用）。
 //   4. 金额一律整数分，字段名以 Fen 结尾。
 //   5. 加方法时三处一起改，少一处即编译失败：接口、PROVIDER_METHODS、未配置实现与替身。
-// 本文件不引任何别的文件。
+// 本文件只从无反向依赖的 mediatool 结构文件引纯类型，不依赖客户端或工作区实现。
+
+import type { MediaToolDemuxer, MediaToolHealth, ProbeReport } from "./mediatool/schema.js";
 
 // ---------- 通用 ----------
 
@@ -47,6 +49,72 @@ export function ok<T>(value: T): ProviderSuccess<T> {
 
 export function failed(reason: ProviderFailureReason, message: string): ProviderFailure {
   return { ok: false, reason, message };
+}
+
+/** 只用于通知发送；通用失败原因不足以证明外部是否受理，不据此自动重发。 */
+export const NOTIFICATION_FAILURE_CODES = [
+  "no_quota",
+  "user_refused",
+  "invalid_openid",
+  "template_invalid",
+  "field_mismatch",
+  "rate_limited",
+  "provider_rejected",
+  "unconfigured",
+  "unsupported",
+  "aborted",
+  "unknown_outcome",
+] as const;
+export interface NotificationFailureDetail {
+  readonly acceptance: "not_accepted" | "unknown";
+  readonly code: (typeof NOTIFICATION_FAILURE_CODES)[number];
+}
+export interface NotificationProviderFailure extends ProviderFailure {
+  /** 旧实现可不带；缺省表示受理情况未知，不是可重试证明。 */
+  readonly notification?: NotificationFailureDetail;
+}
+export interface NotificationProviderSuccess<T> extends ProviderSuccess<T> {
+  /** 服务商返回的标识，不代表终端到达。≤64 的 ASCII 标识；本地替身不伪造真实标识。 */
+  readonly providerMsgId?: string;
+}
+export type NotificationProviderResult<T> =
+  NotificationProviderSuccess<T> | NotificationProviderFailure;
+
+/** 入参强转也不能引入任意分类；message 沿旧契约，不承载原始 Provider 响应/敏感正文。 */
+export function notificationFailed(
+  reason: ProviderFailureReason,
+  message: string,
+  detail: NotificationFailureDetail,
+): NotificationProviderFailure {
+  if (
+    detail === null ||
+    typeof detail !== "object" ||
+    !Object.hasOwn(detail, "acceptance") ||
+    !Object.hasOwn(detail, "code") ||
+    !["not_accepted", "unknown"].includes(detail.acceptance) ||
+    !NOTIFICATION_FAILURE_CODES.includes(detail.code) ||
+    Reflect.ownKeys(detail).some((key) => key !== "acceptance" && key !== "code")
+  )
+    throw new TypeError("通知失败分类不合法");
+  return {
+    ...failed(reason, message),
+    notification: { acceptance: detail.acceptance, code: detail.code },
+  };
+}
+
+export function notificationOk<T>(
+  value: T,
+  providerMsgId?: string,
+): NotificationProviderSuccess<T> {
+  if (
+    providerMsgId !== undefined &&
+    (typeof providerMsgId !== "string" ||
+      providerMsgId.length > 64 ||
+      !/^[A-Za-z0-9]/.test(providerMsgId) ||
+      /[^A-Za-z0-9._:-]/.test(providerMsgId))
+  )
+    throw new TypeError("通知服务商标识不合法");
+  return { ...ok(value), ...(providerMsgId === undefined ? {} : { providerMsgId }) };
 }
 
 /**
@@ -93,14 +161,22 @@ export interface WechatProvider extends ProviderBase {
   /** 登录：用小程序端 wx.login 给的 code 换 openid */
   code2Session(input: { code: string }): Promise<ProviderResult<WechatSession>>;
   /** 手机号：用手机号组件给的 code 换手机号 */
-  getPhoneNumber(input: { code: string }): Promise<ProviderResult<{ phone: string }>>;
+  getPhoneNumber(input: { code: string }): Promise<
+    ProviderResult<{
+      phone: string;
+      /** 微信真实区号与纯号码；旧替身/调用方可继续只返回phone。 */
+      countryCode?: string;
+      purePhoneNumber?: string;
+    }>
+  >;
   /** 订阅消息 */
   sendSubscribeMessage(input: {
     openid: string;
     templateId: string;
     page?: string;
     data: Record<string, string>;
-  }): Promise<ProviderResult<void>>;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<void>>;
   /** 小程序码 */
   createMiniProgramCode(input: {
     scene: string;
@@ -117,6 +193,7 @@ export interface WechatProvider extends ProviderBase {
     openid: string;
     scene: WechatTextScene;
     mediaUrl: string;
+    signal?: AbortSignal;
   }): Promise<ProviderResult<ContentCheckOutcome>>;
 }
 
@@ -213,6 +290,8 @@ export interface StsCredential {
   secretAccessKey: string;
   sessionToken: string;
   expiresAt: Date;
+  /** 云端签发起点；客户端避免以本机时间猜测签名生效时间。 */
+  startTime?: Date;
 }
 
 export interface ObjectHead {
@@ -220,11 +299,100 @@ export interface ObjectHead {
   size: number;
   mime?: string;
   etag?: string;
+  crc64?: string;
+  versionId?: string;
+}
+
+export type { ProbeReport, AigcLabel } from "./mediatool/schema.js";
+
+export interface PosterResult {
+  /** 校验过的封面字节。上传用这一份，不要回头再按路径读文件 */
+  bytes: Uint8Array;
+  sizeBytes: number;
+  width: number;
+  height: number;
+  /** 实际抽的时间点：片子比要求的时间点短时退回 0 */
+  atMs: number;
+}
+
+export interface StampResult {
+  /** 回读加标产物得到的体检报告，report.aigc 已核对与写入的相同 */
+  report: ProbeReport;
+  /** 调用端自己量的大小 */
+  inputSizeBytes: number;
+  outputSizeBytes: number;
+}
+
+export interface MediaToolClient {
+  /** 体检：媒体信息、顶层 box 顺序、AIGC 标签。demuxers 依次尝试 */
+  probe(input: {
+    path: string;
+    demuxers: readonly MediaToolDemuxer[];
+    timeoutMs?: number;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<ProbeReport>>;
+  /** 抽 atMs 处的一帧存成 JPEG，写到 outPath（与输入同一个任务目录） */
+  poster(input: {
+    path: string;
+    demuxer: MediaToolDemuxer;
+    atMs: number;
+    outPath: string;
+    timeoutMs?: number;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<PosterResult>>;
+  /** 流拷贝重封装并写入 AIGC，再回读。aigcJson 用 aigcMetadataJson 生成。输入里已有标识会被覆盖：先体检再决定要不要调 */
+  stampAigc(input: {
+    path: string;
+    outPath: string;
+    aigcJson: string;
+    timeoutMs?: number;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<StampResult>>;
+  /** 容器在不在、里面的 ffmpeg 是哪个版本 */
+  health(signal?: AbortSignal): Promise<ProviderResult<MediaToolHealth>>;
+  /** Fixed licensed font and RGBA canvas; text is never an ffmpeg expression. */
+  watermarkPng?(input: {
+    outPath: string;
+    text: string;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<{ sizeBytes: number; width: 720; height: 96; sha256: string }>>;
+}
+
+export interface MediaWorkSession {
+  readonly path: (name: "source.mp4" | "stamped.mp4" | "poster.jpg" | "watermark.png") => string;
+  download(
+    input: ObjectRef & { size: number; etag: string },
+  ): Promise<ProviderResult<{ size: number; sha256: string }>>;
+  publish(input: {
+    name: "stamped.mp4" | "source.mp4" | "poster.jpg" | "watermark.png";
+    dst: ObjectRef;
+    contentIdentity: string;
+    expectedSha256?: string;
+    expectedSize?: number;
+  }): Promise<ProviderResult<{ size: number; sha256: string; etag: string }>>;
+}
+export interface MediaWorkspace {
+  run<T>(
+    job: { id: string; attemptNo: number },
+    signal: AbortSignal,
+    action: (work: MediaWorkSession) => Promise<T>,
+  ): Promise<T>;
+  close(): Promise<void>;
+}
+export interface ProductionMediaTools {
+  readonly client: MediaToolClient;
+  readonly workspace: MediaWorkspace;
+  close(): Promise<void>;
 }
 
 export interface StorageProvider extends ProviderBase {
   /** sts：能不能签发临时密钥（大文件分块上传要用）；versioning：桶有没有开版本控制 */
   readonly capabilities: { readonly sts: boolean; readonly versioning: boolean };
+  /** 物理桶名和地域；不含凭据，不是凭据发现链。 */
+  readonly uploadLocation?: {
+    readonly region: string;
+    readonly buckets: Readonly<Record<StorageBucket, string>>;
+  };
   /** 签名（写）：≤20MB 的预签名表单，直传到写入区。key 不以 incoming/ 开头即 rejected */
   presignPost(input: {
     bucket: StorageBucket;
@@ -240,11 +408,33 @@ export interface StorageProvider extends ProviderBase {
     durationSec: number;
   }): Promise<ProviderResult<StsCredential>>;
   /** 读对象头。对象不存在不算失败：返回 exists 为 false */
-  head(input: ObjectRef): Promise<ProviderResult<ObjectHead>>;
+  head(input: ObjectRef & { signal?: AbortSignal }): Promise<ProviderResult<ObjectHead>>;
   /** 有界读取文件头；confirm 只需前 4KB，可绑定对象 etag。 */
   readPrefix(
     input: ObjectRef & { bytes: number; ifMatchEtag?: string },
   ): Promise<ProviderResult<Uint8Array>>;
+  /** HEAD/If-Match绑定的有界流读取；等待sink消费并回收网络流才返回。 */
+  readTo(
+    input: ObjectRef & {
+      expectedSize: number;
+      maxBytes: number;
+      ifMatchEtag: string;
+      signal: AbortSignal;
+      sink: (chunk: Uint8Array) => Promise<void>;
+    },
+  ): Promise<ProviderResult<{ size: number; sha256: string }>>;
+  /** 正式区固定键的原子条件流写；真实逐块长度/hash核对，不缓存完整对象。 */
+  putStream(
+    input: ObjectRef & {
+      body: (signal: AbortSignal) => AsyncIterable<Uint8Array>;
+      size: number;
+      sha256: string;
+      contentIdentity: string;
+      contentType: string;
+      ifAbsent: true;
+      signal: AbortSignal;
+    },
+  ): Promise<ProviderResult<{ etag: string; size: number }>>;
   /** 系统文件写入正式区；只供服务端种子与系统生成文件，禁止端侧使用。 */
   putObject(
     input: ObjectRef & {
@@ -262,6 +452,7 @@ export interface StorageProvider extends ProviderBase {
     ifMatchEtag: string;
     contentType: string;
     contentDisposition?: string;
+    signal?: AbortSignal;
   }): Promise<ProviderResult<{ etag: string }>>;
   /** 签名（读）：签发有时限的读地址 */
   presignGet(input: {
@@ -275,6 +466,8 @@ export interface StorageProvider extends ProviderBase {
   }): Promise<ProviderResult<{ url: string; expiresAt: Date }>>;
   /** 删除。对象本来就不存在也算成功 */
   delete(input: ObjectRef): Promise<ProviderResult<void>>;
+  /** 尽力中止指定 incoming 对象的未完成分块；不得处理同前缀的其他对象。 */
+  abortMultipart(input: ObjectRef): Promise<ProviderResult<void>>;
 }
 
 // ---------- media：体检、转码、打包、视频审核（M0 只有方法位，任务书 第 11 节第 7 项） ----------
@@ -295,21 +488,49 @@ export interface MediaJob {
   processed: boolean;
 }
 
+export interface MediaRemoteJob {
+  readonly jobId: string;
+  readonly state: "submitted" | "running" | "succeeded" | "failed" | "canceled";
+  readonly processed: boolean;
+  readonly userData?: string;
+  /** 只含经驱动白名单解析的技术结果，禁止原始Operation/UserInfo/审核正文。 */
+  readonly output: {
+    readonly width?: number;
+    readonly height?: number;
+    readonly durationMs?: number;
+    readonly sizeBytes?: string;
+    readonly etag?: string;
+  };
+}
+
 export interface MediaProvider extends ProviderBase {
   /** 体检：分辨率、时长、编码、音轨。没有真正体检时 report 为 null */
   probe(input: {
     src: ObjectRef;
+    signal?: AbortSignal;
   }): Promise<ProviderResult<{ processed: boolean; report: MediaProbeReport | null }>>;
   /** 转码 */
   transcode(input: {
     src: ObjectRef;
+    signal?: AbortSignal;
     dst: ObjectRef;
     template: string;
     userData: string;
+    watermarks?: readonly (
+      | { readonly templateId: string }
+      | {
+          readonly text: string;
+          readonly position: "Center" | "TopRight";
+          readonly fontSize: number;
+          readonly transparency: number;
+        }
+      | { readonly image: ObjectRef; readonly position: "Center"; readonly transparency: number }
+    )[];
   }): Promise<ProviderResult<MediaJob>>;
   /** 打包：把同一个桶里的几个对象打成一个压缩包 */
   pack(input: {
     bucket: StorageBucket;
+    signal?: AbortSignal;
     items: Array<{ key: string; name: string }>;
     dstKey: string;
     userData: string;
@@ -317,28 +538,135 @@ export interface MediaProvider extends ProviderBase {
   /** 视频审核 */
   audit(input: {
     src: ObjectRef;
+    signal?: AbortSignal;
     scenes: string[];
     userData: string;
   }): Promise<ProviderResult<{ verdict: ContentVerdict; processed: boolean; jobId?: string }>>;
+  /** 旧临时实现可缺省，统一执行器须受控拒绝缺失能力。 */
+  describe?(input: {
+    jobId: string;
+    family: "media" | "file";
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<MediaRemoteJob>>;
+  find?(input: {
+    family: "media" | "file";
+    tag: string;
+    userData: string;
+    src?: ObjectRef;
+    createdAfter: Date;
+    createdBefore: Date;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<{ job: MediaRemoteJob | null; complete: boolean }>>;
+  cancel?(input: {
+    jobId: string;
+    family: "media" | "file";
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<void>>;
 }
 
 // ---------- sms：员工激活码、订阅消息的补发、值班告警 ----------
 
+export const SMS_TODO_ITEMS = [
+  "样片确认",
+  "广告确认",
+  "成片交付",
+  "上线确认",
+  "资料审核",
+  "工单回复",
+  "积分变动",
+  "服务到期",
+  "下架确认",
+  "账号安全",
+  "付款成功",
+  "订购成功",
+  "方案确认",
+  "发票开具",
+  "成员变动",
+  "素材反馈",
+  "退款结果",
+] as const;
+
+/** D6 §2.10 固定变量顺序/有限业务上限；业主批准长度只能进一步收窄。 */
+export const SMS_TEMPLATE_PARAMS: Readonly<
+  Record<string, readonly { name: string; maxLen: number }[]>
+> = {
+  verify_code: [{ name: "code", maxLen: 6 }],
+  review_result: [
+    { name: "result", maxLen: 12 },
+    { name: "reason", maxLen: 64 },
+  ],
+  sample_pending: [{ name: "item", maxLen: 12 }],
+  launch_remind: [
+    { name: "date", maxLen: 10 },
+    { name: "channel", maxLen: 20 },
+    { name: "drama", maxLen: 40 },
+  ],
+  plan_expiring: [
+    { name: "plan", maxLen: 40 },
+    { name: "expiry_date", maxLen: 10 },
+    { name: "points", maxLen: 12 },
+  ],
+  offline_remind: [
+    { name: "drama", maxLen: 40 },
+    { name: "offline_date", maxLen: 10 },
+  ],
+  generic_todo: [{ name: "item", maxLen: 12 }],
+  account_notice: [],
+  ops_alert: [{ name: "rule_name", maxLen: 64 }],
+};
+
+export interface SmsTemplateBinding {
+  readonly templateKey: string;
+  readonly kind: "verify" | "notice";
+  readonly providerTemplateId: string | null;
+  readonly signName: string | null;
+  readonly status: string;
+  readonly params: readonly { readonly name: string; readonly maxLen: number }[];
+}
+
+export type SmsSendResult =
+  | ProviderSuccess<{ requestId: string; providerMsgId: string }>
+  | (ProviderFailure & {
+      readonly providerCode?: string;
+      readonly requestId?: string;
+      /** unknown 禁止自动重发；同步成功也不代表已到达。 */
+      readonly acceptance?: "not_accepted" | "unknown";
+    });
+
+export interface SmsBalance {
+  /** 完整有效套餐剩余条数；当前驱动无完整性证据而不返回此值。 */
+  readonly remaining: number;
+  readonly observedAt: Date;
+}
+
 export interface SmsProvider extends ProviderBase {
+  sendTemplate(input: {
+    phone: string;
+    template: SmsTemplateBinding;
+    params: Readonly<Record<string, string>>;
+    signal?: AbortSignal;
+  }): Promise<SmsSendResult>;
+  checkBalance(input?: { signal?: AbortSignal }): Promise<ProviderResult<SmsBalance>>;
   /** 员工激活码 */
-  sendActivationCode(input: { phone: string; code: string }): Promise<ProviderResult<void>>;
+  sendActivationCode(input: {
+    phone: string;
+    code: string;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<void>>;
   /** 订阅消息的补发：订阅消息发不出去时改发短信 */
   sendSubscribeFallback(input: {
     phone: string;
     templateKey: string;
     params: Record<string, string>;
-  }): Promise<ProviderResult<void>>;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<void>>;
   /** 值班告警 */
   sendOncallAlert(input: {
     phones: string[];
     title: string;
     content: string;
-  }): Promise<ProviderResult<void>>;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<void>>;
 }
 
 // ---------- ocr：营业执照识别、行业许可证字段抽取 ----------
@@ -411,7 +739,8 @@ export interface WecomProvider extends ProviderBase {
     title: string;
     description: string;
     url?: string;
-  }): Promise<ProviderResult<void>>;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<void>>;
   /** “联系我”二维码 */
   createContactWay(input: {
     userId: string;
@@ -470,7 +799,8 @@ export interface MailProvider extends ProviderBase {
     subject: string;
     text: string;
     attachments?: MailAttachment[];
-  }): Promise<ProviderResult<{ messageId: string }>>;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<{ messageId: string }>>;
 }
 
 // ---------- 十二个接口的汇总 ----------
@@ -510,7 +840,7 @@ export const PROVIDER_NAMES = [
 
 /** 一个接口里的方法名：值是函数的键 */
 export type ProviderMethodName<P> = {
-  [K in keyof P]-?: P[K] extends (...args: never[]) => unknown ? K : never;
+  [K in keyof P]-?: NonNullable<P[K]> extends (...args: never[]) => unknown ? K : never;
 }[keyof P] &
   string;
 
@@ -535,7 +865,13 @@ export const PROVIDER_METHODS = {
     "createRefund",
     "fetchTradeBill",
   ],
-  sms: ["sendActivationCode", "sendSubscribeFallback", "sendOncallAlert"],
+  sms: [
+    "sendActivationCode",
+    "sendSubscribeFallback",
+    "sendOncallAlert",
+    "sendTemplate",
+    "checkBalance",
+  ],
   storage: [
     "presignPost",
     "issueSts",
@@ -545,8 +881,11 @@ export const PROVIDER_METHODS = {
     "copy",
     "presignGet",
     "delete",
+    "abortMultipart",
+    "readTo",
+    "putStream",
   ],
-  media: ["probe", "transcode", "pack", "audit"],
+  media: ["probe", "transcode", "pack", "audit", "describe", "find", "cancel"],
   ocr: ["recognizeBusinessLicense", "extractLicenseFields"],
   asr: ["transcribe"],
   llm: ["tagAsset", "extractKeyPoints"],

@@ -1,6 +1,21 @@
 // 后台：登录、员工、权限与系统 · staff（docs/api/a01-system.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { adminMeta } from "../meta-only.js";
+import {
+  StaffIdParamsSchema,
+  StaffUpdateBodySchema,
+  ActivationDeliveryBodySchema,
+  StaffResetBodySchema,
+  StaffDisableBodySchema,
+  HandoverBodySchema,
+  StaffUnlockBodySchema,
+  StaffWecomBindBodySchema,
+  StaffPoolMembershipReplaceBodySchema,
+  StaffDutyBodySchema,
+  OpenWorkSummarySchema,
+  OpenWorkCountSchema,
+  StaffCountsSchema,
+} from "./staff-full.schemas.js";
+export * from "./staff-full.schemas.js";
 import { adminRoute } from "../builders.js";
 import {
   DictRefSchema,
@@ -158,13 +173,16 @@ export type StaffCreateBody = z.infer<typeof StaffCreateBodySchema>;
 const csvEnum = (values: readonly string[]) =>
   z.string().regex(new RegExp(`^(?:${values.join("|")})(?:,(?:${values.join("|")}))*$`));
 const queryBool = z.stringbool({ truthy: ["true"], falsy: ["false"] }).openapi({ type: "boolean" });
-export const StaffListQuerySchema = PageQuerySchema.extend({
+const staffFilterShape = {
   q: z.string().min(1).max(20).optional(),
   roleKey: csvEnum(STAFF_ROLE_KEY.values).optional(),
-  status: csvEnum(STAFF_STATUS.values).optional(),
   isLead: queryBool.optional(),
   staffGroupId: IdSchema.optional(),
   pool: csvEnum(ASSIGNMENT_POOL.values).optional(),
+};
+export const StaffListQuerySchema = PageQuerySchema.extend({
+  ...staffFilterShape,
+  status: csvEnum(STAFF_STATUS.values).optional(),
   withLoad: queryBool.default(false),
   recommendPool: z.enum(ASSIGNMENT_POOL.values).optional(),
   recommendCityCode: z.string().min(1).optional(),
@@ -229,43 +247,93 @@ export const adminStaffGet = adminRoute({
   responses: { ...okResponse(StaffDetailSchema), ...errorResponses(401, 403, 404, 429) },
 });
 
-export const adminStaffUpdate = adminMeta({
+export const StaffSummaryQuerySchema = z.object(staffFilterShape);
+export type StaffSummaryQuery = z.infer<typeof StaffSummaryQuerySchema>;
+export const HandoverResultSchema = z
+  .strictObject({
+    staff: StaffDetailSchema,
+    batchId: orNull(IdSchema),
+    moved: z.array(OpenWorkCountSchema),
+    handoverTo: orNull(StaffBriefSchema),
+  })
+  .openapi("HandoverResult");
+export type HandoverResult = z.infer<typeof HandoverResultSchema>;
+export const PoolMemberListSchema = z
+  .strictObject({
+    items: z.array(PoolMemberSchema.extend({ isRecommended: z.boolean() })),
+    cursors: z.array(
+      z.strictObject({
+        pool: openEnum(ASSIGNMENT_POOL.values),
+        scopeKey: z.string(),
+        lastStaff: orNull(StaffBriefSchema),
+        updatedAt: InstantSchema,
+      }),
+    ),
+  })
+  .openapi("PoolMemberList");
+export type PoolMemberList = z.infer<typeof PoolMemberListSchema>;
+import { StaffWecomSchema } from "./auth.schemas.js";
+
+export const adminStaffUpdate = adminRoute({
   method: "patch",
   path: "/admin/staff/{staffId}",
   operationId: "admin.staff.update",
   summary: "编辑员工：姓名、角色、主管标记、分组（手机号不可改）",
   "x-permission": "sys.staff.manage",
   "x-idempotent": "required",
+  request: {
+    params: StaffIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: StaffUpdateBodySchema } } },
+  },
+  responses: { ...okResponse(StaffDetailSchema), ...errorResponses(400, 401, 403, 404, 409, 429) },
 });
 
-export const adminStaffBindWecom = adminMeta({
+export const adminStaffBindWecom = adminRoute({
   method: "post",
   path: "/admin/staff/{staffId}/bind-wecom",
   operationId: "admin.staff.bindWecom",
   summary: "手工录入员工的企业微信 userid（兜底方式，V1.0 默认）",
   "x-permission": "sys.staff.wecom_bind",
   "x-idempotent": "required",
+  request: {
+    params: StaffIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: StaffWecomBindBodySchema } } },
+  },
+  responses: { ...okResponse(StaffWecomSchema), ...errorResponses(400, 401, 403, 404, 409, 429) },
 });
 
-export const adminStaffDisable = adminMeta({
+export const adminStaffDisable = adminRoute({
   method: "post",
   path: "/admin/staff/{staffId}/disable",
   operationId: "admin.staff.disable",
   summary: "禁用员工：在办事项移交给同角色启用员工，吊销会话，移出分配池",
   "x-permission": "sys.staff.secure_ops",
   "x-idempotent": "required",
+  request: {
+    params: StaffIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: StaffDisableBodySchema } } },
+  },
+  responses: {
+    ...okResponse(HandoverResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429),
+  },
 });
 
-export const adminStaffDutyUpdate = adminMeta({
+export const adminStaffDutyUpdate = adminRoute({
   method: "patch",
   path: "/admin/staff/{staffId}/duty",
   operationId: "admin.staff.duty.update",
   summary: "切换客服“当班 / 接单中”开关",
   "x-permission": "assert-in-handler",
   "x-idempotent": "required",
+  request: {
+    params: StaffIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: StaffDutyBodySchema } } },
+  },
+  responses: { ...okResponse(PoolMemberSchema), ...errorResponses(400, 401, 403, 404, 409, 429) },
 });
 
-export const adminStaffEnable = adminMeta({
+export const adminStaffEnable = adminRoute({
   method: "post",
   path: "/admin/staff/{staffId}/enable",
   operationId: "admin.staff.enable",
@@ -273,45 +341,80 @@ export const adminStaffEnable = adminMeta({
   "x-permission": "sys.staff.manage",
   "x-idempotent": "required",
   "x-idempotent-reason": "结果脱敏（A80）：重放时激活码为 null 并带 replayed: true",
+  "x-redact-on-replay": ["activation.activationCode"],
+  request: {
+    params: StaffIdParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: ActivationDeliveryBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(StaffMutationResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429),
+  },
 });
 
-export const adminStaffHandover = adminMeta({
+export const adminStaffHandover = adminRoute({
   method: "post",
   path: "/admin/staff/{staffId}/handover",
   operationId: "admin.staff.handover",
   summary: "只移交在办事项、不禁用（调岗、长假）",
   "x-permission": "sys.staff.manage",
   "x-idempotent": "required",
+  request: {
+    params: StaffIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: HandoverBodySchema } } },
+  },
+  responses: {
+    ...okResponse(HandoverResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429),
+  },
 });
 
-export const adminStaffInviteWecom = adminMeta({
+export const adminStaffInviteWecom = adminRoute({
   method: "post",
   path: "/admin/staff/{staffId}/invite-wecom",
   operationId: "admin.staff.inviteWecom",
   summary: "发送企业微信绑定邀请（原型“邀请”按钮）",
   "x-permission": "sys.staff.wecom_bind",
   "x-idempotent": "required",
+  request: { params: StaffIdParamsSchema },
+  responses: { ...okResponse(StaffWecomSchema), ...errorResponses(400, 401, 403, 404, 409, 429) },
 });
 
-export const adminStaffOpenWorkGet = adminMeta({
+export const adminStaffOpenWorkGet = adminRoute({
   method: "get",
   path: "/admin/staff/{staffId}/open-work",
   operationId: "admin.staff.openWork.get",
   summary: "名下在办事项摘要（禁用、移交弹层用）：门店、工单、广告、客服工单、跟进待办",
   "x-permission": "sys.staff.manage",
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: StaffIdParamsSchema },
+  responses: {
+    ...okResponse(OpenWorkSummarySchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429),
+  },
 });
 
-export const adminStaffPoolMembershipReplace = adminMeta({
+export const adminStaffPoolMembershipReplace = adminRoute({
   method: "put",
   path: "/admin/staff/{staffId}/pool-memberships",
   operationId: "admin.staff.poolMembership.replace",
   summary: "设置员工所在的分配池与城市（整体替换）",
   "x-permission": "sys.staff.manage",
   "x-idempotent": "required",
+  request: {
+    params: StaffIdParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: StaffPoolMembershipReplaceBodySchema } },
+    },
+  },
+  responses: { ...okResponse(StaffDetailSchema), ...errorResponses(400, 401, 403, 404, 409, 429) },
 });
 
-export const adminStaffReissueActivationCode = adminMeta({
+export const adminStaffReissueActivationCode = adminRoute({
   method: "post",
   path: "/admin/staff/{staffId}/reissue-activation-code",
   operationId: "admin.staff.reissueActivationCode",
@@ -319,9 +422,21 @@ export const adminStaffReissueActivationCode = adminMeta({
   "x-permission": "sys.staff.manage",
   "x-idempotent": "required",
   "x-idempotent-reason": "结果脱敏（A80）：重放时激活码为 null 并带 replayed: true",
+  "x-redact-on-replay": ["activationCode"],
+  request: {
+    params: StaffIdParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: ActivationDeliveryBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(ActivationIssueSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429),
+  },
 });
 
-export const adminStaffResetMfa = adminMeta({
+export const adminStaffResetMfa = adminRoute({
   method: "post",
   path: "/admin/staff/{staffId}/reset-mfa",
   operationId: "admin.staff.resetMfa",
@@ -329,9 +444,18 @@ export const adminStaffResetMfa = adminMeta({
   "x-permission": "sys.staff.secure_ops",
   "x-idempotent": "required",
   "x-idempotent-reason": "结果脱敏（A80）：重放时激活码为 null 并带 replayed: true",
+  "x-redact-on-replay": ["activation.activationCode"],
+  request: {
+    params: StaffIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: StaffResetBodySchema } } },
+  },
+  responses: {
+    ...okResponse(StaffMutationResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429),
+  },
 });
 
-export const adminStaffResetPassword = adminMeta({
+export const adminStaffResetPassword = adminRoute({
   method: "post",
   path: "/admin/staff/{staffId}/reset-password",
   operationId: "admin.staff.resetPassword",
@@ -339,22 +463,38 @@ export const adminStaffResetPassword = adminMeta({
   "x-permission": "sys.staff.secure_ops",
   "x-idempotent": "required",
   "x-idempotent-reason": "结果脱敏（A80）：重放时激活码为 null 并带 replayed: true",
+  "x-redact-on-replay": ["activation.activationCode"],
+  request: {
+    params: StaffIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: StaffResetBodySchema } } },
+  },
+  responses: {
+    ...okResponse(StaffMutationResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429),
+  },
 });
 
-export const adminStaffUnlock = adminMeta({
+export const adminStaffUnlock = adminRoute({
   method: "post",
   path: "/admin/staff/{staffId}/unlock",
   operationId: "admin.staff.unlock",
   summary: "解除登录锁定",
   "x-permission": "sys.staff.manage",
   "x-idempotent": "required",
+  request: {
+    params: StaffIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: StaffUnlockBodySchema } } },
+  },
+  responses: { ...okResponse(StaffDetailSchema), ...errorResponses(400, 401, 403, 404, 409, 429) },
 });
 
-export const adminStaffSummary = adminMeta({
+export const adminStaffSummary = adminRoute({
   method: "get",
   path: "/admin/staff/summary",
   operationId: "admin.staff.summary",
   summary: "员工计数：共 N 个账号 · 启用 · 待启用 · 已禁用（另给待激活、锁定人数）",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { query: StaffSummaryQuerySchema },
+  responses: { ...okResponse(StaffCountsSchema), ...errorResponses(400, 401, 403, 404, 409, 429) },
 });
