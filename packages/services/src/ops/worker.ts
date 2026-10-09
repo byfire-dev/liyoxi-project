@@ -1,3 +1,7 @@
+import { createContentPricingAssembly } from "./content-pricing-runtime.js";
+import { createContent, createContentLicense } from "../content/index.js";
+import { createDramaPricing } from "../billing/index.js";
+import { staffBriefs } from "../staff/index.js";
 import { latestStaffWecomInviteKey } from "../audit/index.js";
 import { createConfig, bindAgreementNoticeLink } from "../config/index.js";
 import { createSmsHealth, smsTemplateReader } from "../notify/index.js";
@@ -202,7 +206,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const notifyScope = createNotifyAssembly(analyticsScope.assembly);
   const mediaScope = createMediaAssembly(notifyScope.assembly);
   const staffScope = createStaffAssembly(mediaScope.assembly);
-  const assembly = staffScope.assembly;
+  const contentPricingScope = createContentPricingAssembly(staffScope.assembly);
+  const assembly = contentPricingScope.assembly;
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const flow = createFlow({ assembly, clock, events });
@@ -349,6 +354,10 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   bindOps({ db: prisma, tx, clock, assembly });
   const closeAnalytics = () => analyticsScope.close();
   bindContent(assembly);
+  const contentLicense = createContentLicense({ clock, flow, timers });
+  const content = createContent({ clock, flow, media, assembly, events, license: contentLicense });
+  const dramaPricing = createDramaPricing({ clock, content, staffBriefs, events, timers });
+  contentPricingScope.attach({ license: contentLicense, pricing: dramaPricing });
   const closePublish = bindPublish(assembly);
   const deliveryCore = {
     tx,
@@ -439,7 +448,10 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     closeStorageDrivers,
     closeMediaDrivers,
     closeMediaJobs,
-    closeStaff: () => staffScope.close(),
+    closeStaff: async () => {
+      contentPricingScope.close();
+      await staffScope.close();
+    },
     shutdownMediaJobs: () => media.jobs.shutdown(),
     pauseMediaJobs: () => media.jobs.pause(),
     resumeMediaJobs: () => media.jobs.resume(),

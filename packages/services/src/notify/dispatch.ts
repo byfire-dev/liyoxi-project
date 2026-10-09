@@ -49,6 +49,23 @@ export async function currentNotificationFact(
   spec: NotificationSpec,
   id: string,
 ): Promise<NotifyFact | null> {
+  if (spec.sceneKey === "s.copyright_expiring") {
+    const active = await notifyReadOf(deps.assembly).read<string[]>(tx, "activeStaffForNotify", {
+      ids: [id],
+    });
+    return active?.includes(id)
+      ? {
+          bizType: "staff",
+          bizId: id,
+          entityId: null,
+          storeId: null,
+          status: "copyright_expiring",
+          version: 0,
+          name: "版权到期提醒",
+          staffIds: [id],
+        }
+      : null;
+  }
   if (spec.sceneKey === "s.merchant_unreached") {
     const original = await tx.notification.findUnique({
       where: { id },
@@ -175,7 +192,10 @@ export async function dispatchFact(
       const active = await read.read<string[]>(tx, "activeStaffForNotify", { ids: [staffId] });
       if (!active?.includes(staffId)) continue;
       const id = uuidv7();
-      const key = `${spec.sceneKey}:${fact.bizId}:v${fact.version}:${source.node}:${fact.status}:${fact.targetDate ?? ""}:${staffId}`;
+      const key =
+        spec.sceneKey === "s.copyright_expiring"
+          ? `copyright:${staffId}:${fact.targetDate}`
+          : `${spec.sceneKey}:${fact.bizId}:v${fact.version}:${source.node}:${fact.status}:${fact.targetDate ?? ""}:${staffId}`;
       const created = await tx.notification.createMany({
         skipDuplicates: true,
         data: [
@@ -206,7 +226,7 @@ export async function dispatchFact(
           staffId,
           kind: fact.bizType === "approval_request" ? "approval" : "todo",
           title: textLimit(cfg.name, 40),
-          body: textLimit(`${fact.name}：${cfg.name}，请查看当前业务详情。`, 200),
+          body: textLimit(fact.summary ?? `${fact.name}：${cfg.name}，请查看当前业务详情。`, 200),
           link: spec.staffLink(fact),
           createdAt: now,
           updatedAt: now,

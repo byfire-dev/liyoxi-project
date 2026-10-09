@@ -1,3 +1,4 @@
+import { satisfiesLevel } from "../authz/index.js";
 import {
   createApprovalReads,
   approvalKindsOf,
@@ -173,6 +174,10 @@ export function createRuntimeNotify(input: {
     },
 
     wechatTarget: (t, id, user) => wechatTargetForNotify(t, id, user, input.appid),
+    copyrightRecipients: async (t) =>
+      (await staffContextsForNotify(t))
+        .filter((ctx) => satisfiesLevel(ctx.moduleLevels.drama, "edit"))
+        .map((ctx) => ctx.staff.id),
     approvalRecipients: async (t, id) =>
       approvalRecipientsForNotify(t, id, reads, await staffContextsForNotify(t)),
   });

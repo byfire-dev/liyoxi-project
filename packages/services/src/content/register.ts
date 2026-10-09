@@ -8,8 +8,17 @@ export const registration = defineRegistration("content", {
   portImplementations: [
     implementKeyed(dictReferencesPort, "content", contentDictReferences),
     implement(catalogRefPort, contentCatalogRefs),
+    implementKeyed(remindersPort, "R7", copyrightReminder),
     contentMachine,
     ...contentFileRefs,
+  ],
+  timerHandlers: [
+    {
+      kind: "content.license_end",
+      handle: async () => {
+        throw new TypeError("版权计价运行时尚未绑定");
+      },
+    },
   ],
   invariants: contentInvariants,
 });
@@ -18,3 +27,6 @@ import { dictReferencesPort } from "../kernel/index.js";
 import { contentDictReferences } from "./dict-references.js";
 
 import { contentCatalogRefs } from "./catalog-refs.js";
+
+import { remindersPort } from "../kernel/index.js";
+import { copyrightReminder } from "./reminder.js";

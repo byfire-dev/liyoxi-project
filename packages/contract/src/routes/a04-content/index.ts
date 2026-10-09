@@ -21,3 +21,18 @@ export const A04_CONTENT = defineRouteDoc("a04-content", [
   uploadBatchItems,
   uploadBatches,
 ]);
+
+export {
+  adminDramaConfirmPermitRecheck,
+  adminDramaCopyrightReplace,
+  adminDramaDramaCopyrightRevisionCreate,
+  adminDramaDramaPriceRevisionCreate,
+} from "./dramas.js";
+export { adminDramaPriceList, adminDramaPriceSummary } from "./drama-prices.js";
+export {
+  adminDramaPriceRevisionList,
+  adminDramaPriceRevisionWithdraw,
+} from "./drama-price-revisions.js";
+export { adminPriceTierRevisionList } from "./price-tier-revisions.js";
+export * from "./drama-copyright.schemas.js";
+export * from "./drama-pricing.schemas.js";

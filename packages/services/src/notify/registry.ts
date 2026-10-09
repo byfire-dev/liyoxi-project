@@ -357,7 +357,7 @@ export const SCENE_COVERAGE = NOTIFY_SCENES.map((scene) => ({
     .map(([event]) => event),
 }));
 export const specFor = (key: string): NotificationSpec | undefined =>
-  [...Object.values(EVENT_SCENES).flat(), FOLLOWUP_SPEC, UNREACHED_SPEC].find(
+  [...Object.values(EVENT_SCENES).flat(), FOLLOWUP_SPEC, UNREACHED_SPEC, COPYRIGHT_SPEC].find(
     (s) => s.sceneKey === key,
   );
 
@@ -375,3 +375,13 @@ export const UNREACHED_SPEC = staffSpec(
   "merchant.detail",
   ["unreached"],
 );
+
+export const COPYRIGHT_SPEC: NotificationSpec = {
+  sceneKey: "s.copyright_expiring",
+  reader: "copyrightExpiringForNotify",
+  refField: "staffId",
+  category: "review",
+  ownerOnly: false,
+  staffLink: () => ({ route: "drama.list", params: {} }),
+  link: () => ({ route: "messages.list", params: {} }),
+};

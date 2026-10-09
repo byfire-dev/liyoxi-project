@@ -1,3 +1,7 @@
+import { createContentPricingAssembly, createContentAdmin } from "./ops/index.js";
+import type { ContentAdmin } from "./ops/index.js";
+import { createContentCopyright, createContentLicense, DramaPricePort } from "./content/index.js";
+import { createDramaPricing } from "./billing/index.js";
 import { latestStaffWecomInviteKey } from "./audit/index.js";
 import { createSmsInit, createSmsHealth, smsTemplateReader } from "./notify/index.js";
 import { keyringFromEnv } from "./security/index.js";
@@ -203,6 +207,7 @@ export interface Runtime {
   readonly notifyMessages: NotifyMessages;
   readonly notify: NotifyDispatcherService;
   readonly content: Content;
+  readonly contentAdmin: ContentAdmin;
   readonly media: Media;
   /** 审批执行器与只读队列：api、worker 各自装配（移交表 64） */
   readonly approval: Approval;
@@ -332,7 +337,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const notifyScope = createNotifyAssembly(analyticsScope.assembly);
   const mediaScope = createMediaAssembly(notifyScope.assembly);
   const staffScope = createStaffAssembly(mediaScope.assembly);
-  const assembly = staffScope.assembly;
+  const contentPricingScope = createContentPricingAssembly(staffScope.assembly);
+  const assembly = contentPricingScope.assembly;
   // 违规上报端口（invariants.report）的实现在 ops，要连接、时钟与装配结果（W0-24）
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
   const wechatClosers: Array<() => Promise<void>> = [];
@@ -511,7 +517,27 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     events,
     sla: createSla({ clock, assembly }),
   });
-  const content = createContent({ clock, flow, media, assembly });
+  const contentLicense = createContentLicense({ clock, flow, timers });
+  const content = createContent({ clock, flow, media, assembly, events, license: contentLicense });
+  const dramaPricing = createDramaPricing({ clock, content, staffBriefs, events, timers });
+  contentPricingScope.attach({ license: contentLicense, pricing: dramaPricing });
+  const contentCopyright = createContentCopyright({
+    clock,
+    media,
+    events,
+    prices: assembly.port(DramaPricePort),
+    license: contentLicense,
+  });
+  const contentAdmin = createContentAdmin({
+    clock,
+    tx,
+    content,
+    staffBriefs,
+    pricing: (t, staff, id, at) => dramaPricing.detailPricing(t, staff, id, at),
+    copyright: contentCopyright,
+    pricingService: dramaPricing,
+    media,
+  });
   const bizNo = createBizNoIssuer({ clock, appEnv: env.APP_ENV });
   const sla = createSla({ clock, assembly });
   const approval = createApproval({ assembly, clock, flow, events, bizNo, sla, timers });
@@ -734,6 +760,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     notify,
     staffManagement,
     content,
+    contentAdmin,
     media,
     entry,
     env,
@@ -763,6 +790,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         notifyScope.close(),
       ]);
       mediaScope.close();
+      contentPricingScope.close();
       await mediaProduction.close();
       unbindNoticeLink();
       await Promise.allSettled(wechatClosers.map((close) => close()));

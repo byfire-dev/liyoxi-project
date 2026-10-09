@@ -118,3 +118,6 @@ export type { BillingSeedDeps } from "./demo-seed.js";
 export { getNotifyPurchaseMode, getPurchasePolicy } from "./policy/index.js";
 
 export { billingPiiFields } from "./pii-fields.js";
+
+export { createDramaPricing } from "./pricing/revisions.js";
+export type { DramaPricingService, DramaPricingDeps } from "./pricing/revisions.js";

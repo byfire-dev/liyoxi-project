@@ -1,19 +1,41 @@
+import { calendarDate } from "@liyoxi/shared/time";
 import type { Prisma } from "@liyoxi/db";
 import { chainKey, machinePort, rowKey } from "../flow/index.js";
 import type { MachineBinding } from "../flow/index.js";
 import { implementKeyed, lockRows, uuidv7 } from "../kernel/index.js";
 import type { Media } from "../media/index.js";
 import type { DramaPrices } from "./ports.js";
-import { listingChecks, assertListing } from "./checks.js";
+import { listingChecks, assertListing, dateOf } from "./checks.js";
 
 const binding: MachineBinding = {
-  companions: ["first_listed_at", "listed_at", "updated_by_staff_id"],
+  companions: [
+    "first_listed_at",
+    "listed_at",
+    "updated_by_staff_id",
+    "delisted_at",
+    "delist_reason_code",
+    "delist_note",
+  ],
   activity: (facts) => ({
     category: "flow",
-    action: facts.event === "drama.create" ? "content.drama.create" : "content.drama.list",
-    summary: facts.event === "drama.create" ? "创建短剧草稿" : "通过上架校验，上架至短剧商城",
+    action:
+      facts.event === "drama.create"
+        ? "content.drama.create"
+        : facts.event === "drama.license_expire"
+          ? "content.drama.license_expire"
+          : "content.drama.list",
+    summary:
+      facts.event === "drama.create"
+        ? "创建短剧草稿"
+        : facts.event === "drama.license_expire"
+          ? "授权到期，系统下架"
+          : "通过上架校验，上架至短剧商城",
   }),
   guards: {
+    [rowKey("05:146", "drama.license_expire")]: async (tx, facts) => {
+      const row = await tx.dramaCopyright.findUnique({ where: { dramaId: facts.subjectId } });
+      return Boolean(row?.licenseEndDate && calendarDate(facts.now) > dateOf(row.licenseEndDate)!);
+    },
     [rowKey("05:144", "drama.list")]: async (tx, facts) => {
       const args = facts.args as { prices?: DramaPrices } | undefined;
       if (!args?.prices) throw new Error("drama.list 缺少本次装配的 DramaPricePort");

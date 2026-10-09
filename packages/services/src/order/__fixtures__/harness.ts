@@ -38,7 +38,7 @@ export function harness(prisma: PrismaClient, options: LedgerHarnessOptions = {}
     bizNo: createBizNoIssuer({ clock: h.clock, appEnv: "test" }),
     ledger: h.ledger,
     docs: createDocs({ tx: h.tx, clock: h.clock }),
-    content: createContent({ clock: h.clock, flow, media, assembly }),
+    content: createContent({ clock: h.clock, flow, media, assembly, events: h.events }),
     media,
     events: h.events,
     timers: createTimers({ assembly }),
