@@ -15,7 +15,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 运营管理后台 | 80 | 67 | 24 | 43 | 13 | 2 |
 | 电脑端下载页 | 8 | 7 | 0 | 7 | 1 | 0 |
-| 商家端小程序 | 49 | 48 | 26 | 22 | 1 | 0 |
+| 商家端小程序 | 49 | 48 | 27 | 21 | 1 | 0 |
 
 应实现未实现页面数，按里程碑：
 
@@ -23,7 +23,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 运营管理后台 | 0 | 6 | 6 | 14 | 1 | 4 | 12 |
 | 电脑端下载页 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
-| 商家端小程序 | 0 | 7 | 5 | 4 | 3 | 1 | 2 |
+| 商家端小程序 | 0 | 7 | 4 | 4 | 3 | 1 | 2 |
 
 “入口隐藏”的页面照做、外壳不给入口（规范 第 14 节第 12 项），计入应实现，不算留桩。
 
@@ -163,7 +163,7 @@
 | 主包 | 我的 | `pages/mine/index` | Mine | M32 | W1-05 | M1 | 是 |  |
 | 主包 | 登录 | `pages/login/index` | Login | M01 | W1-05 | M1 | 是 |  |
 | 主包 | 协议正文 | `pages/agreement/index` | — | — | W1-05 | M1 | 是 | 新增页：登录前可读 |
-| `sub/catalog` | 搜索 | `sub/catalog/search/index` | Search | M03 | G3-B | M3 | 否 |  |
+| `sub/catalog` | 搜索 | `sub/catalog/search/index` | Search | M03 | W3-13 | M3 | 是 |  |
 | `sub/catalog` | 预告片模式 | `sub/catalog/trailer/index` | Trailer | M05 | — | V1.0 不做 | 否 | V1.0 不做（规范 第 11 节） |
 | `sub/catalog` | 短剧详情 | `sub/catalog/detail/index` | Detail | M06 | W1-18 | M1 | 是 |  |
 | `sub/order` | 确认订购 | `sub/order/checkout/index` | Checkout | M09 | W1-18 | M1 | 是 |  |

@@ -42,6 +42,7 @@ describe("页面清单", () => {
       "pages/mine/index",
       "pages/login/index",
       "pages/agreement/index",
+      "sub/catalog/search/index",
       "sub/catalog/detail/index",
       "sub/order/checkout/index",
       "sub/order/result/index",
@@ -70,6 +71,7 @@ describe("页面清单", () => {
       "pages/mine/index",
       "pages/login/index",
       "pages/agreement/index",
+      "sub/catalog/search/index",
       "sub/catalog/detail/index",
       "sub/order/checkout/index",
       "sub/order/result/index",
@@ -116,7 +118,7 @@ describe("由清单拼出全局配置", () => {
         "pages/agreement/index",
       ],
       subPackages: [
-        { root: "sub/catalog", pages: ["detail/index"] },
+        { root: "sub/catalog", pages: ["search/index", "detail/index"] },
         {
           root: "sub/order",
           pages: [
@@ -167,7 +169,7 @@ describe("由清单拼出全局配置", () => {
     );
     const routes = buildRoutes(pages);
     expect(routes.subPackages).toEqual([
-      { root: "sub/catalog", pages: ["detail/index"] },
+      { root: "sub/catalog", pages: ["search/index", "detail/index"] },
       {
         root: "sub/order",
         pages: [
