@@ -2,7 +2,13 @@ import { Prisma } from "@liyoxi/db";
 import type { MediaJob } from "@liyoxi/db";
 import { assertLockOrder, createIdentityContext, lockRows, uuidv7 } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
-import type { JobOutcome, MediaJobHandler, MediaJobsOptions, MediaJobKind } from "./types.js";
+import type {
+  JobOutcome,
+  MediaJobHandler,
+  MediaJobsOptions,
+  MediaJobKind,
+  MediaConvergenceHandler,
+} from "./types.js";
 import {
   jobBudget,
   MEDIA_SCAN_LIMIT,
@@ -29,7 +35,7 @@ type Claim = {
   owner: string;
   previousPoll: number;
 };
-export async function lockJobParent(tx: Tx, job: MediaJob) {
+export async function lockJobParent(tx: Tx, job: MediaJob, convergence?: MediaConvergenceHandler) {
   if (job.parentId && job.parentType) {
     if (
       ![
@@ -41,6 +47,10 @@ export async function lockJobParent(tx: Tx, job: MediaJob) {
       ].includes(job.parentType)
     )
       throw new TypeError("媒体父对象类型不合格");
+    if (convergence?.lockSiblings) {
+      await convergence.lockSiblings(tx, job.parentId);
+      return;
+    }
     await lockRows(
       tx,
       job.parentType as
@@ -135,7 +145,11 @@ export function createMediaJobs(options: MediaJobsOptions) {
         snapshot.nextRunAt > clock.now()
       )
         return null;
-      await lockJobParent(tx, snapshot);
+      await lockJobParent(
+        tx,
+        snapshot,
+        snapshot.parentType ? convergence.get(snapshot.parentType as "store_asset") : undefined,
+      );
       assertLockOrder(tx, "media_job", [id]);
       const locked = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT id::text FROM media_job WHERE id=${id}::uuid FOR UPDATE SKIP LOCKED
@@ -237,7 +251,13 @@ export function createMediaJobs(options: MediaJobsOptions) {
   async function settle(claimed: Claim, outcome: JobOutcome, aborted: boolean, stopping: boolean) {
     let canceled: MediaJob | undefined;
     const wakes = await transactions.run(async (tx) => {
-      await lockJobParent(tx, claimed.job);
+      await lockJobParent(
+        tx,
+        claimed.job,
+        claimed.job.parentType
+          ? convergence.get(claimed.job.parentType as "store_asset")
+          : undefined,
+      );
       await lockRows(tx, "media_job", [claimed.job.id]);
       const job = await tx.mediaJob.findUniqueOrThrow({ where: { id: claimed.job.id } });
       const now = clock.now();
@@ -411,7 +431,11 @@ export function createMediaJobs(options: MediaJobsOptions) {
     const snapshot = await tx.mediaJob.findUnique({ where: { id } });
     if (!snapshot || !activeStates.includes(snapshot.state) || snapshot.deadlineAt > now)
       return false;
-    await lockJobParent(tx, snapshot);
+    await lockJobParent(
+      tx,
+      snapshot,
+      snapshot.parentType ? convergence.get(snapshot.parentType as "store_asset") : undefined,
+    );
     await lockRows(tx, "media_job", [id]);
     const job = await tx.mediaJob.findUniqueOrThrow({ where: { id } });
     if (!sameParent(snapshot, job) || !activeStates.includes(job.state) || job.deadlineAt > now)

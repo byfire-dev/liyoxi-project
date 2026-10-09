@@ -37,6 +37,8 @@ RUN rm -rf /usr/local/lib/node_modules /opt/yarn-* \
 RUN mkdir -p /work && chown 1000:1000 /work && chmod 0770 /work
 
 COPY service/ /app/
+COPY fonts/ /app/fonts/
+RUN echo '2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b  /app/fonts/NotoSansCJKsc-Regular.otf' | sha256sum -c -
 
 USER 1000:1000
 WORKDIR /app

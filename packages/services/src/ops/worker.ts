@@ -26,6 +26,7 @@ import { createTenant } from "../tenant/index.js";
 import { bindPublish } from "../publish/index.js";
 import { createMedia } from "../media/index.js";
 import { createMediaAssembly } from "./media-runtime.js";
+import { createRuntimeMediaProduction } from "./media-production-runtime.js";
 import type { PromoteRef } from "../media/index.js";
 import { advanceDueAccounts, createLedger, bindBillingTimers } from "../billing/index.js";
 import { createFlow } from "../flow/index.js";
@@ -112,6 +113,7 @@ export interface WorkerServicesOptions {
     readonly COS?: Env["COS"];
     readonly SMS?: Env["SMS"];
     readonly CI?: Env["CI"];
+    readonly MEDIA_PRODUCTION?: Env["MEDIA_PRODUCTION"];
   };
   /** 换掉十二个 Provider：只有用例会给（替身）。不给即 assembleProviders 按环境选实现 */
   readonly providers?: Providers;
@@ -305,6 +307,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
           }
         : {}),
     });
+  const mediaProduction = createRuntimeMediaProduction(options.keys?.MEDIA_PRODUCTION, providers);
+  mediaClosers.push(() => mediaProduction.close());
   const smsHealth = createSmsHealth({
     db: prisma,
     tx,
@@ -318,6 +322,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   });
   notifyScope.attachSmsHealth(smsHealth);
   const media = createMedia({
+    ...(mediaProduction.production ? { production: mediaProduction.production } : {}),
     tx,
     clock,
     assembly,

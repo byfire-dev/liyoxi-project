@@ -40,3 +40,4 @@ export type { ReferralHit } from "./briefs.js";
 export { findVerifiedEntityByUsccBidx } from "./uscc.js";
 export { clearDraftStoreName } from "./qualification.js";
 export { noticeRecipientsPageForNotify } from "./notify-facts.js";
+export { readStoreMediaFacts } from "./media-facts.js";

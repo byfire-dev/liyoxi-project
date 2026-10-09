@@ -3,7 +3,7 @@ import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createCiMedia } from "./ci.js";
 import type { CiConfig } from "./ci.js";
-import { parseCiXml } from "./xml.js";
+import { ciChild, ciText, parseCiXml } from "./xml.js";
 const now = () => new Date("2026-10-08T00:00:00.000Z");
 const userData = "019acdef-0000-7000-8000-000000000000:1";
 const config: CiConfig = {
@@ -41,6 +41,89 @@ const transcode = {
   userData,
 };
 describe("腾讯数据万象原生HTTP协议", () => {
+  it("原生Image仅签固定同桶PNG，15分钟独立GET向量与完整XML节点", async () => {
+    let sent = "";
+    const provider = driver(async (_url, init) => {
+      sent = String(init?.body);
+      return new Response(response());
+    });
+    const key = `ci-out/019acdef-0000-7000-8000-000000000000/watermark-${"f".repeat(64)}.png`;
+    expect(
+      await provider.transcode({
+        ...transcode,
+        watermarks: [{ image: { bucket: "media", key }, position: "Center", transparency: 100 }],
+      }),
+    ).toHaveProperty("ok", true);
+    const operation = ciChild(parseCiXml(sent), "Operation")!,
+      mark = ciChild(operation, "Watermark")!,
+      image = ciChild(mark, "Image")!,
+      url = new URL(ciText(image, "Url")!);
+    expect(url.origin).toBe("https://test-media-1250000000.cos.ap-beijing.myqcloud.com");
+    expect(url.pathname).toBe(`/${key}`);
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      "q-sign-algorithm": "sha1",
+      "q-ak": config.worker.secretId,
+      "q-sign-time": "1791417600;1791418500",
+      "q-key-time": "1791417600;1791418500",
+      "q-header-list": "host",
+      "q-url-param-list": "",
+      "q-signature": "ff09b8f89aefba7f5def21ea93bbf15ad71556f2",
+    });
+    expect(ciText(mark, "Type")).toBe("Image");
+    expect(ciText(mark, "Pos")).toBe("Center");
+    expect(ciText(mark, "LocMode")).toBe("Absolute");
+    expect(ciText(image, "Mode")).toBe("Original");
+    expect(ciText(image, "Transparency")).toBe("100");
+    expect(sent).not.toContain(config.worker.secretKey);
+  });
+  it("正式动态中文及AI空格不偷改Text，受控unsupported且零外呼", async () => {
+    const send = vi.fn(async () => new Response(response())),
+      provider = driver(send);
+    for (const text of ["样片 · 仅供「测试门店」确认 · 10-09", "AI 生成"]) {
+      expect(
+        await provider.transcode({
+          ...transcode,
+          watermarks: [{ text, position: "Center", fontSize: 28, transparency: 100 }],
+        }),
+      ).toMatchObject({ ok: false, reason: "unsupported" });
+    }
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("Image拒绝跨桶/非固定key/额外URL、混合模板及超过3个节点", async () => {
+    const send = vi.fn(async () => new Response(response())),
+      provider = driver(send);
+    const mark = {
+      image: {
+        bucket: "media" as const,
+        key: `ci-out/019acdef-0000-7000-8000-000000000000/watermark-${"f".repeat(64)}.png`,
+      },
+      position: "Center" as const,
+      transparency: 100,
+    };
+    const invalid: unknown[] = [
+      [{ ...mark, image: { ...mark.image, bucket: "pub" } }],
+      [{ ...mark, image: { ...mark.image, key: "https://example.invalid/sensitive.png" } }],
+      [
+        {
+          ...mark,
+          image: { ...mark.image, key: `ci-out/${"-".repeat(36)}/watermark-${"f".repeat(64)}.png` },
+        },
+      ],
+      [{ ...mark, image: { ...mark.image, url: "https://example.invalid/" } }],
+      [{ ...mark, url: "https://example.invalid/" }],
+      [mark, { templateId: "fixed-template" }],
+      [mark, mark, mark, mark],
+      [null],
+      [{ ...mark, transparency: 0 }],
+    ];
+    for (const watermarks of invalid)
+      expect(
+        await provider.transcode({ ...transcode, watermarks } as Parameters<
+          typeof provider.transcode
+        >[0]),
+      ).toMatchObject({ ok: false, reason: "rejected" });
+    expect(send).not.toHaveBeenCalled();
+  });
   it("固定CI主机/查询路线/COSv5独立预期向量，经真实本机HTTP收到同签名", async () => {
     const received: string[] = [];
     const server = createServer((request, reply) => {

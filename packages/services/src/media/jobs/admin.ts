@@ -117,7 +117,13 @@ export function createMediaJobAdmin(options: { tx: TxRunner; clock: Clock; jobs:
       async (tx) => {
         const snapshot = await tx.mediaJob.findUnique({ where: { id } });
         if (!snapshot) throw new AppError("NOT_FOUND");
-        await lockJobParent(tx, snapshot);
+        await lockJobParent(
+          tx,
+          snapshot,
+          snapshot.parentType
+            ? options.jobs.convergence.get(snapshot.parentType as MediaParentType)
+            : undefined,
+        );
         await lockRows(tx, "media_job", [id]);
         const job = await tx.mediaJob.findUniqueOrThrow({ where: { id } });
         if (job.parentType !== snapshot.parentType || job.parentId !== snapshot.parentId)
