@@ -132,3 +132,7 @@ COS 对象签名是 SHA1，STS JSON 是 TC3-HMAC-SHA256，二者不能混用。�
 `putObject(ifAbsent)` 不使用 S3 的 If-None-Match/412：worker 先只读当前 bucket versioning；未知、Enabled、Suspended 或无读取权返回 unsupported。只有正式 VersioningConfiguration 无 Status 的未启用版本桶才用 `x-cos-forbid-overwrite:true`；仅409 FileAlreadyExists后核真实HEAD的SHA256、大小和contentIdentity，匹配才算重放。该原子保护依赖E4桶配置受控、写入途中不由外部管理员切换版本；真实桶配置尚未验。当前 `capabilities.versioning=false`，不会凭配置存在推定历史版本操作已可用；HEAD的实际versionId仅作为事实，不宣称已实现erase/restore。
 
 2026-10-08 查阅的 primary 来源（未访问云控制台/凭据发现链）：[COS 请求签名](https://cloud.tencent.com/document/product/436/7778)、[POST Object及签名策略](https://intl.cloud.tencent.com/document/product/436/14690)、[STS TC3 v3](https://cloud.tencent.com/document/api/1312/48202)、[GetFederationToken参数](https://cloud.tencent.com/document/api/1312/48195)、[COS授权条件cos:prefix](https://intl.cloud.tencent.com/zh/document/product/436/46205)、[PUT Object防覆盖与版本限制](https://intl.cloud.tencent.com/zh/document/product/436/7749)、[List Multipart Uploads](https://cloud.tencent.com/document/product/436/7736)、[官方SDK签名公式](https://github.com/TencentCloud/tencentcloud-sdk-nodejs/blob/master/src/common/sign.ts)。本地fake HTTP 验证协议、超限、拒绝、一次请求、条件读取和关闭，不代表四桶真实云验收。
+
+## 11. CI 媒体原语（W3-03）
+
+新增可选 `media.describe/find/cancel`，并在真实CI、unconfigured/local、替身与样例中完整登记；已有probe/transcode/pack/audit方法名称保留，只增可选signal。老adhoc替身缺新增方法时统一执行器保守等待回查，不构造none证据或假成功。四桶/FILE角色、官方REST与独立签名向量见[media/README.md](media/README.md)。Storage.head/copy、Wechat.checkImage只增可选caller signal；未传信号沿旧行为，MinIO带signal的HEAD/copy不走不可取消的建桶初始化，使用已存在桶。所有自有IO关闭与祖先TX guard保持。

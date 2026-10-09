@@ -59,3 +59,5 @@ export type {
 } from "./alert-actions.js";
 
 export { createNotifyAssembly, createRuntimeNotify } from "./notify-runtime.js";
+
+export { createMediaAssembly } from "./media-runtime.js";

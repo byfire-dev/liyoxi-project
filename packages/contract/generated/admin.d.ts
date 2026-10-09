@@ -994,6 +994,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/media-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 媒体任务监控（失败列表：转码、体检、OCR、打包等） */
+        get: operations["admin.mediaJob.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/media-jobs/{mediaJobId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 媒体任务人工重试 */
+        post: operations["admin.mediaJob.retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/orders": {
         parameters: {
             query?: never;
@@ -3379,6 +3413,62 @@ export interface components {
             synced: {
                 deliveryTicketCount: number;
                 dramaOrderCount: number;
+            };
+        };
+        MediaJobNoteBody: {
+            note?: string;
+        };
+        MediaJobPage: {
+            items: components["schemas"]["MediaJobView"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        MediaJobView: {
+            actions: "retry"[];
+            attemptNo: number;
+            billable: {
+                estCostMicro: string | null;
+                qty: string;
+                unit: string | null;
+            } | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            deadlineAt: string;
+            error: {
+                code: string | null;
+                isRetryable: boolean;
+                message: string | null;
+            } | null;
+            externalJobId: string | null;
+            /** Format: date-time */
+            finishedAt: string | null;
+            /** @enum {string} */
+            kind: "promote" | "probe" | "restamp" | "transcode_mp4" | "watermark_sample" | "normalize" | "zip_package" | "audit_image" | "audit_image_wx" | "audit_video" | "audit_text" | "asr" | "vision" | "doc_extract" | "digest" | "ocr";
+            maxAttempts: number;
+            /** Format: uuid */
+            mediaJobId: string;
+            /** @enum {string} */
+            mode: "local" | "remote";
+            /** Format: date-time */
+            nextRunAt: string;
+            parent: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                type: "store_asset" | "playable_asset" | "upload_batch" | "production_record" | "zip_bundle";
+            } | null;
+            provider: string;
+            /** Format: date-time */
+            startedAt: string | null;
+            /** @enum {string} */
+            state: "queued" | "running" | "submitting" | "submitted" | "succeeded" | "failed" | "canceled";
+            subject: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                type: "file_object" | "zip_bundle" | "store_asset" | "ocr_result";
             };
         };
         OrderCancelRequestCard: {
@@ -10024,6 +10114,166 @@ export interface operations {
             };
             /** @description 外部能力不可用、系统繁忙或停机维护 */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.mediaJob.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                state?: string;
+                kind?: string;
+                subjectType?: "file_object" | "zip_bundle" | "store_asset" | "ocr_result";
+                subjectId?: string;
+                parentType?: "store_asset" | "playable_asset" | "upload_batch" | "production_record" | "zip_bundle";
+                parentId?: string;
+                createdFrom?: string;
+                createdTo?: string;
+                sort?: "-finishedAt" | "-createdAt";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["MediaJobPage"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.mediaJob.retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mediaJobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["MediaJobNoteBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["MediaJobView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

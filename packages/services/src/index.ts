@@ -283,12 +283,13 @@ export type { OrderActor, OrderDeps, OrderService, OrderStartBinding } from "./o
 
 export * as notify from "./notify/index.js";
 export {
-  bindAnalytics,
+  createAnalyticsJobs,
   createAnalyticsReceiver,
   analyticsDayStart,
   purgeAnalyticsDedup,
 } from "./analytics/index.js";
 export type {
+  AnalyticsJobs,
   AnalyticsReceiver,
   AnalyticsReceiverDeps,
   AnalyticsRequest,

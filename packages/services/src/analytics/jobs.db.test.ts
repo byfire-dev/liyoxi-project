@@ -9,7 +9,7 @@ import {
   createProviderHarness,
   useSeededDatabase,
 } from "../testing/index.js";
-import { bindAnalytics, runScheduledDedupPurge } from "./jobs.js";
+import { createAnalyticsJobs, runScheduledDedupPurge } from "./jobs.js";
 
 const db = useSeededDatabase("services");
 const clock = createClock(new Date("2026-10-08T04:00:00Z"));
@@ -26,8 +26,8 @@ beforeAll(async () => {
     channel: { enqueue: async () => undefined, downForMs: () => 0 },
   });
 }, 120_000);
-afterAll(() => {
-  worker?.closeAnalytics?.();
+afterAll(async () => {
+  await worker?.closeAnalytics?.();
   worker?.closeWebhooks?.();
   worker?.closeDelivery?.();
   worker?.closePublish?.();
@@ -75,9 +75,15 @@ it("真实worker装配与job认领执行：每日04:10/P3，按执行clock8天cu
   expect(await worker.runTimer(refs[0]!)).toBe("stale");
   expect(await prisma.analyticsEventDedup.count()).toBe(1);
 }, 120_000);
-it("job取消在下一短TX前收手；解绑只清自己，旧解绑不移除新clock", async () => {
+it("job取消在下一短TX前收手；owned关闭只清自己，旧关闭不移除新clock", async () => {
   const calls: string[] = [];
-  const first = bindAnalytics({
+  const base = assembleForTest({ entry: "worker" });
+  const tx = createTxRunner({ prisma, appEnv: "test" });
+  const providers = createProviderHarness({ clock }).providers;
+  const first = createAnalyticsJobs(base, {
+    tx,
+    appEnv: "test",
+    storage: () => providers.storage,
     clock: {
       now: () => {
         calls.push("first");
@@ -85,7 +91,10 @@ it("job取消在下一短TX前收手；解绑只清自己，旧解绑不移除�
       },
     },
   });
-  const second = bindAnalytics({
+  const second = createAnalyticsJobs(base, {
+    tx,
+    appEnv: "test",
+    storage: () => providers.storage,
     clock: {
       now: () => {
         calls.push("second");
@@ -93,12 +102,12 @@ it("job取消在下一短TX前收手；解绑只清自己，旧解绑不移除�
       },
     },
   });
-  first();
+  await first.close();
   const signal = new AbortController();
   signal.abort();
   let transactions = 0;
   await expect(
-    runScheduledDedupPurge({
+    second.assembly.recurringJob("analytics.dedup_purge")!.run({
       scheduledFor: clock.now(),
       signal: signal.signal,
       runTx: async () => {
@@ -109,13 +118,15 @@ it("job取消在下一短TX前收手；解绑只清自己，旧解绑不移除�
   ).rejects.toThrow("已取消");
   expect(transactions).toBe(0);
   expect(calls).toEqual(["second"]);
-  second();
+  await second.close();
+  const cancelled = {
+    scheduledFor: clock.now(),
+    runTx: async () => {
+      throw new Error("不应进入");
+    },
+  };
   await expect(
-    runScheduledDedupPurge({
-      scheduledFor: clock.now(),
-      runTx: async () => {
-        throw new Error("不应进入");
-      },
-    }),
-  ).rejects.toThrow("尚未绑定");
+    second.assembly.recurringJob("analytics.dedup_purge")!.run(cancelled),
+  ).rejects.toThrow("已经关闭");
+  await expect(runScheduledDedupPurge()).rejects.toThrow("尚未绑定");
 });

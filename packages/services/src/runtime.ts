@@ -1,9 +1,13 @@
 import { createSmsInit, createSmsHealth, smsTemplateReader } from "./notify/index.js";
 import { keyringFromEnv } from "./security/index.js";
+import {
+  createAnalyticsJobs,
+  createAnalyticsReceiver,
+  countBannerClicks,
+} from "./analytics/index.js";
+import type { AnalyticsReceiver, AnalyticsJobs } from "./analytics/index.js";
 import type { NotifyDispatcherService } from "./notify/index.js";
 import { bindAgreementNoticeLink } from "./config/index.js";
-import { bindAnalytics, createAnalyticsReceiver, countBannerClicks } from "./analytics/index.js";
-import type { AnalyticsReceiver } from "./analytics/index.js";
 import { createSubscribeResults, createWechatReceiptHandler } from "./notify/index.js";
 import { findWechatIdentityId, recentWechatOpenid } from "./identity/index.js";
 import type { SubscribeResults } from "./notify/index.js";
@@ -100,6 +104,7 @@ import type { Providers } from "./providers/types.js";
 import { createContent, bindContent } from "./content/index.js";
 import type { Content } from "./content/index.js";
 import { createMedia } from "./media/index.js";
+import { createMediaAssembly } from "./ops/index.js";
 import type { Media } from "./media/index.js";
 import { createRateLimiter } from "./rate-limit.js";
 import type { RateLimiter } from "./rate-limit.js";
@@ -110,6 +115,7 @@ import {
   bindWebhooks,
   createWebhooks,
   createWechatMessageSource,
+  createCiWebhookSource,
 } from "./security/index.js";
 import type { Webhooks, WebhookSource } from "./security/index.js";
 import {
@@ -183,6 +189,7 @@ export interface RuntimeOptions {
 export interface Runtime {
   readonly smsInit: ReturnType<typeof createSmsInit>;
   readonly analytics: AnalyticsReceiver;
+  readonly analyticsPartitions: Pick<AnalyticsJobs, "repartition">;
   readonly subscribeResults: SubscribeResults;
   readonly clientErrors: ClientErrorForwarder;
   readonly webhooks: Webhooks;
@@ -245,6 +252,8 @@ export interface Runtime {
  */
 export function createRuntime(options: RuntimeOptions): Runtime {
   const { entry, env, version } = options;
+  if (entry === "worker" && env.CI && !env.CI.worker)
+    throw new TypeError("CI worker入口缺少worker角色");
   if (env.COS && (entry === "worker" ? !env.COS.worker : !env.COS.signer || !env.COS.stsIssuer))
     throw new TypeError("当前进程 COS 角色配置不完整");
   const clock = options.clock ?? systemClock;
@@ -308,11 +317,17 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       ? {}
       : { commandTimeoutMs: options.rateLimitCommandTimeoutMs }),
   });
-  const notifyScope = createNotifyAssembly(assembleServices({ entry, appEnv: env.APP_ENV }));
-  const assembly = notifyScope.assembly;
+  const analyticsScope = createAnalyticsJobs(assembleServices({ entry, appEnv: env.APP_ENV }), {
+    tx,
+    clock,
+    appEnv: env.APP_ENV,
+    storage: () => providers.storage,
+  });
+  const notifyScope = createNotifyAssembly(analyticsScope.assembly);
+  const mediaScope = createMediaAssembly(notifyScope.assembly);
+  const assembly = mediaScope.assembly;
   // 违规上报端口（invariants.report）的实现在 ops，要连接、时钟与装配结果（W0-24）
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
-  const unbindAnalytics = bindAnalytics({ clock });
   const wechatClosers: Array<() => Promise<void>> = [];
   const providers =
     options.providers ??
@@ -328,6 +343,18 @@ export function createRuntime(options: RuntimeOptions): Runtime {
                   config: env.SMS,
                   getTemplate: smsTemplateReader(prisma),
                   now: () => clock.now(),
+                },
+              },
+            }
+          : {}),
+        ...(entry === "worker" && env.CI?.worker
+          ? {
+              media: {
+                ci: {
+                  region: env.CI.worker.region,
+                  buckets: env.CI.worker.buckets,
+                  worker: { secretId: env.CI.worker.secretId, secretKey: env.CI.worker.secretKey },
+                  callback: env.CI.callback,
                 },
               },
             }
@@ -349,6 +376,14 @@ export function createRuntime(options: RuntimeOptions): Runtime {
           : {}),
         ...(env.WECHAT ? { wechat: { appid: env.WECHAT.appid, secret: env.WECHAT.secret } } : {}),
       },
+      ...(entry === "worker" && env.CI?.worker
+        ? {
+            media: {
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => wechatClosers.push(close),
+            },
+          }
+        : {}),
       ...(env.COS
         ? {
             storage: {
@@ -405,7 +440,13 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     tx,
     clock,
     events,
-    sources: options.webhookSources ?? wechatSources,
+    sources: options.webhookSources ?? [
+      ...wechatSources,
+      createCiWebhookSource({
+        key: env.CI?.callback.key,
+        wake: (tx, input) => media.wakeCiJob(tx, input),
+      }),
+    ],
     alerts: alertsOf(assembly),
   });
   const unbindWebhooks = bindWebhooks(webhooks);
@@ -443,6 +484,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       recentWechatOpenid,
     },
   });
+  mediaScope.attach(media.jobs);
   const unbindContent = bindContent(assembly);
   const unbindPublish = bindPublish(assembly);
   const unbindDelivery = bindDelivery({
@@ -669,7 +711,12 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
-      await notifyScope.close();
+      await Promise.allSettled([
+        media.jobs.shutdown(),
+        analyticsScope.close(),
+        notifyScope.close(),
+      ]);
+      mediaScope.close();
       unbindNoticeLink();
       await Promise.allSettled(wechatClosers.map((close) => close()));
       await clientErrors.close();
@@ -681,7 +728,6 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       unbindDelivery();
       unbindApprovalSla();
       unbindCalendarCoverage();
-      unbindAnalytics();
       unbindOps();
       unbindWebhooks();
       await mediaChannel.close();
@@ -692,6 +738,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     auditRead,
     flowOps: createFlowOps({ tx, clock }),
     alertActions: createAlertActions({ tx, clock }),
+    analyticsPartitions: { repartition: analyticsScope.repartition },
     piiReveal,
     get staffRoles() {
       staffRoles ??= createRoleManagement({ db: prisma, tx, clock, roles: this.staffAuth.roles });

@@ -12,6 +12,7 @@ import type {
   TxRunner,
 } from "../kernel/index.js";
 import type { WechatProvider, MediaProvider, StorageProvider } from "../providers/types.js";
+import type { MediaJobHandler, MediaConvergenceHandler } from "./jobs/types.js";
 import type { FileRefType } from "../kernel/index.js";
 export type FileRow = FileObject;
 export interface MediaActor {
@@ -28,6 +29,9 @@ export interface FileCategoryGuard {
   registered?(tx: Tx, fileId: string, actor: MediaActor, input: RegisterInput): Promise<void>;
 }
 export interface MediaDeps {
+  readonly jobOwnerId?: string;
+  readonly jobHandlers?: readonly MediaJobHandler[];
+  readonly jobConvergenceHandlers?: readonly MediaConvergenceHandler[];
   readonly tx: TxRunner;
   readonly clock: Clock;
   readonly storage: StorageProvider;

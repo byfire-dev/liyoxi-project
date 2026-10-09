@@ -23,9 +23,9 @@ export function providerValue<T>(value: ProviderResult<T>): T {
 }
 export const notifyPromote = async (deps: BoundMediaDeps, jobId: string) => {
   try {
-    await deps.channel?.enqueue("promote", uuidv7(), { jobId });
+    await deps.channel?.enqueue("media_job", uuidv7(), { jobId });
   } catch {
-    /* 唤醒失败由 30 秒扫描补回；media_job 是事实源。 */
+    /* 唤醒失败由 15 秒统一扫描补回；media_job 是事实源。 */
   }
 };
 const tokenConflict = (index: number): never => {
@@ -427,7 +427,7 @@ export async function complete(
               state: "queued",
               input: {},
               nextRunAt: now,
-              deadlineAt: new Date(now.getTime() + 86_400_000),
+              deadlineAt: new Date(now.getTime() + 30 * 60_000),
               createdAt: now,
               updatedAt: now,
             },

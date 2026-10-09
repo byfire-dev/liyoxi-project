@@ -153,6 +153,8 @@ export const AUDIT_TARGET_TYPES = [
   "sms_template", // W2-22：短信初始化，template_key 写 target_key
   "timer", // W2-23：失败定时器人工恢复/取消
   "outbox_delivery", // W2-23：事件×订阅者复合键人工重投
+  "analytics_event", // W2-18：受限月归档/兜底修复，以月份写target_key
+  "media_job", // W3-03：媒体任务人工重试
 ] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 

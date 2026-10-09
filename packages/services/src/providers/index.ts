@@ -12,6 +12,8 @@ import { createConsoleSms } from "./sms/console.js";
 import type { Redis } from "ioredis";
 import { createWechatDriver } from "./wechat/driver.js";
 import { createRedisTokenCache } from "./wechat/token.js";
+import { createCiMedia } from "./media/ci.js";
+import type { CiConfig } from "./media/ci.js";
 import { createCosStorage } from "./storage/cos.js";
 import type { CosConfig } from "./storage/cos.js";
 import { createMinioStorage, LOCAL_MINIO } from "./storage/minio.js";
@@ -56,6 +58,7 @@ export {
  */
 export interface ProviderSettings {
   wechat?: { appid: string; secret: string };
+  media?: { ci: CiConfig };
   sms?: {
     /** 显式选控制台短信。不写时：local、test 用控制台输出，stg、prod 为未配置 */
     driver?: "console" | "tencent";
@@ -80,6 +83,11 @@ export interface CreateProvidersOptions {
   settings?: ProviderSettings;
   /** 外呼前钩子；缺省空转。W0-20 接上 kernel 的事务标记 */
   beforeCall?: BeforeProviderCall;
+  media?: {
+    now: () => Date;
+    registerClose: (close: () => Promise<void>) => void;
+    fetchImpl?: typeof fetch;
+  };
   storage?: {
     now: () => Date;
     registerClose: (close: () => Promise<void>) => void;
@@ -219,6 +227,8 @@ export function createProviders(options: CreateProvidersOptions): Providers {
   )
     throw new ProviderConfigError("storage", "COS 完整配置与运行时依赖须同时提供");
 
+  if ((settings.media === undefined) !== (options.media === undefined))
+    throw new ProviderConfigError("media", "CI配置与自有生命周期须同时提供");
   const chosen: Providers = {
     ...unconfiguredProviders,
     // 真实驱动的位置：wechat 在 G2-D；media（数据万象）在 G3-A
@@ -254,6 +264,11 @@ export function createProviders(options: CreateProvidersOptions): Providers {
     options.storage.registerClose(driver.close);
   }
 
+  if (settings.media && options.media) {
+    const driver = createCiMedia(settings.media.ci, options.media);
+    chosen.media = driver.provider;
+    options.media.registerClose(driver.close);
+  }
   const providers = guardProviders(chosen, options.beforeCall ?? noop);
   logProviderStatus(logger, providers);
   return providers;

@@ -1,11 +1,12 @@
 // 假媒体处理：体检给预置的报告；转码、打包直接完成；视频审核直接放行
 //（计划 第 7.3 节表后的留桩清单：体检替身；样片水印版由替身直接置 ready）。
 
-import { ok } from "../../providers/types.js";
+import { ok, failed } from "../../providers/types.js";
 import type {
   MediaJob,
   MediaProbeReport,
   MediaProvider,
+  MediaRemoteJob,
   ObjectRef,
   ProviderMethodName,
 } from "../../providers/types.js";
@@ -17,6 +18,7 @@ type Method = ProviderMethodName<MediaProvider>;
 export interface FakeMediaJob extends MediaJob {
   kind: "transcode" | "pack";
   userData: string;
+  canceled?: boolean;
 }
 
 export interface FakeMedia extends MediaProvider, FakeControl<Method> {
@@ -47,6 +49,13 @@ export function createFakeMedia(options: { clock?: FakeClock } = {}): FakeMedia 
     return { jobId: job.jobId, state: job.state, processed: job.processed };
   }
 
+  const remote = (one: FakeMediaJob): MediaRemoteJob => ({
+    jobId: one.jobId,
+    state: one.canceled ? "canceled" : one.state === "done" ? "succeeded" : "submitted",
+    userData: one.userData,
+    processed: true,
+    output: {},
+  });
   const fake: FakeMedia = {
     status: "fake",
     configured: true,
@@ -63,16 +72,53 @@ export function createFakeMedia(options: { clock?: FakeClock } = {}): FakeMedia 
     jobs,
 
     probe: (input) =>
-      core.run("probe", input, () =>
-        ok({
-          processed: true,
-          report: { ...(reports.get(slot(input.src)) ?? fake.defaultReport) },
-        }),
+      core.run(
+        "probe",
+        input,
+        () =>
+          ok({
+            processed: true,
+            report: { ...(reports.get(slot(input.src)) ?? fake.defaultReport) },
+          }),
+        input.signal,
       ),
     transcode: (input) =>
-      core.run("transcode", input, () => ok(submit("transcode", input.userData))),
-    pack: (input) => core.run("pack", input, () => ok(submit("pack", input.userData))),
-    audit: (input) => core.run("audit", input, () => ok({ verdict: "pass", processed: true })),
+      core.run("transcode", input, () => ok(submit("transcode", input.userData)), input.signal),
+    pack: (input) =>
+      core.run("pack", input, () => ok(submit("pack", input.userData)), input.signal),
+    audit: (input) =>
+      core.run("audit", input, () => ok({ verdict: "pass", processed: true }), input.signal),
+    describe: (input) =>
+      core.run(
+        "describe",
+        input,
+        () => {
+          const one = jobs.find((job) => job.jobId === input.jobId);
+          return one ? ok(remote(one)) : failed("rejected", "没有该替身任务");
+        },
+        input.signal,
+      ),
+    find: (input) =>
+      core.run(
+        "find",
+        input,
+        () => {
+          const one = jobs.find((job) => job.userData === input.userData);
+          return ok({ job: one ? remote(one) : null, complete: true });
+        },
+        input.signal,
+      ),
+    cancel: (input) =>
+      core.run(
+        "cancel",
+        input,
+        () => {
+          const one = jobs.find((job) => job.jobId === input.jobId);
+          if (one) one.canceled = true;
+          return ok(undefined);
+        },
+        input.signal,
+      ),
   };
   return fake;
 }

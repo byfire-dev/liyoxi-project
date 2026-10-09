@@ -6,10 +6,12 @@ import { billingAdvance } from "./loops/billing-advance.js";
 
 import { deliveryReevaluate } from "./loops/delivery-reevaluate.js";
 import { webhookReprocess } from "./loops/webhook-reprocess.js";
+import { mediaJobRun } from "./loops/media-job-run.js";
 
 export const DOMAIN_LOOPS: readonly DomainLoopDef[] = [
   billingAdvance,
   notifyScan,
   deliveryReevaluate,
   webhookReprocess,
+  mediaJobRun,
 ];

@@ -32,6 +32,7 @@ const result = await build({
     "staff-bootstrap": "src/cli/staff-bootstrap.ts",
     "sms-init": "src/cli/sms-init.ts",
     "alerts-ack": "src/cli/alerts-ack.ts",
+    "analytics-repartition": "src/cli/analytics-repartition.ts",
   },
   outdir: "dist",
   bundle: true,

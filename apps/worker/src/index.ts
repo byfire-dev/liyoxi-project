@@ -86,11 +86,18 @@ async function main(): Promise<void> {
   } catch (error) {
     // 自检或装配失败也回收本进程创建的资源；没有启动消费者，不借其它进程的连接。
     await Promise.allSettled([
-      ...(services ? [services.closeStorageDrivers?.()] : []),
+      ...(services
+        ? [
+            services.shutdownMediaJobs?.(),
+            services.closeMediaDrivers?.(),
+            services.closeStorageDrivers?.(),
+          ]
+        : []),
       ...wechatClosers.map((close) => close()),
       channel?.close(),
       database.close(),
     ]);
+    services?.closeMediaJobs?.();
     wechatRedis?.disconnect();
     throw error;
   }
@@ -104,7 +111,9 @@ async function main(): Promise<void> {
   };
   if (channel === undefined) {
     logger.info(summary, "装配与自检通过");
-    await services.closeStorageDrivers?.();
+    await services.shutdownMediaJobs?.();
+    services.closeMediaJobs?.();
+    await Promise.allSettled([services.closeMediaDrivers?.(), services.closeStorageDrivers?.()]);
     await Promise.allSettled(wechatClosers.map((close) => close()));
     wechatRedis?.disconnect();
     await database.close();

@@ -40,7 +40,7 @@ describe("十二个接口", () => {
     ]);
   });
 
-  it("方法按 01 第 9 节“用途”列一项一个，一共 43 个", () => {
+  it("方法按 01 第 9 节“用途”列一项一个，一共 46 个", () => {
     expect(
       Object.fromEntries(PROVIDER_NAMES.map((name) => [name, PROVIDER_METHODS[name].length])),
     ).toEqual({
@@ -48,7 +48,7 @@ describe("十二个接口", () => {
       wechatPay: 6, // 预下单、回调验签、查单、关单、退款、账单
       sms: 5, // 员工激活码、订阅消息的补发、值班告警
       storage: 9, // 签名（写、读）、临时密钥、复制入库、对象头/删除与取消分块原语
-      media: 4, // 体检、转码、打包、视频审核
+      media: 7, // 体检、转码、打包、审核以及任务查询、按UserData查找、取消
       ocr: 2, // 营业执照识别、行业许可证字段抽取
       asr: 1, // 录音转写
       llm: 2, // 素材识别打标、要点提炼
@@ -57,7 +57,7 @@ describe("十二个接口", () => {
       invoice: 1, // 自动开票
       mail: 1, // 电子发票发送
     });
-    expect(ALL_PROVIDER_METHODS).toHaveLength(43);
+    expect(ALL_PROVIDER_METHODS).toHaveLength(46);
   });
 
   it("环境的取值与 kernel 的 APP_ENV 相同", () => {

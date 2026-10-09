@@ -283,7 +283,7 @@ it("missing recent identity selects real CI job; processed false never pretends 
   const ci = await prisma.mediaJob.findUniqueOrThrow({
     where: { dedupeKey: `audit_image:${id}:v1` },
   });
-  expect(wake).toHaveBeenCalledWith("promote", expect.any(String), { jobId: ci.id });
+  expect(wake).toHaveBeenCalledWith("media_job", expect.any(String), { jobId: ci.id });
   audit.mockImplementationOnce(async (input) => {
     await fake.media.audit(input);
     return ok({ verdict: "pass", processed: false });
@@ -360,7 +360,7 @@ it("submitted timeout is recovered by original scanner and never resends WX", as
   const job = await submit(id);
   clock.advance(35 * 60_000);
   await media.scanPromote();
-  expect(wake).toHaveBeenCalledWith("promote", expect.any(String), { jobId: job.id });
+  expect(wake).toHaveBeenCalledWith("media_job", expect.any(String), { jobId: job.id });
   await media.promote({ jobId: job.id });
   expect(check).toHaveBeenCalledOnce();
   expect(await wxJob(id)).toMatchObject({ state: "failed", errorCode: "WX_IMAGE_TIMEOUT" });
@@ -404,6 +404,37 @@ it("other provider, mode and dedupe tasks are not claimed by this narrow consume
     });
   }
   expect(check).not.toHaveBeenCalled();
+  expect((await prisma.fileObject.findUniqueOrThrow({ where: { id } })).moderationState).toBe(
+    "pending",
+  );
+});
+
+it("unprocessed CI result remains manually retryable with three attempts and scan never resends it", async () => {
+  const id = await stored();
+  recent.mockResolvedValueOnce(null);
+  await submit(id);
+  const ci = await prisma.mediaJob.update({
+    where: { dedupeKey: `audit_image:${id}:v1` },
+    data: { maxAttempts: 3 },
+  });
+  const file = await prisma.fileObject.findUniqueOrThrow({ where: { id } });
+  audit.mockImplementation(async (input) => {
+    await fake.media.audit(input);
+    return ok({ verdict: "pass", processed: false });
+  });
+  await media.promote({ jobId: ci.id });
+  const failed = await prisma.mediaJob.findUniqueOrThrow({ where: { id: ci.id } });
+  expect(failed).toMatchObject({
+    state: "failed",
+    attemptNo: 1,
+    maxAttempts: 3,
+    errorCode: "CI_IMAGE_UNAVAILABLE",
+    isRetryable: true,
+  });
+  await media.scanPromote();
+  await media.jobs.shutdown();
+  expect(await prisma.mediaJob.findUniqueOrThrow({ where: { id: ci.id } })).toEqual(failed);
+  expect(audit.mock.calls.filter(([input]) => input.src.key === file.objectKey)).toHaveLength(1);
   expect((await prisma.fileObject.findUniqueOrThrow({ where: { id } })).moderationState).toBe(
     "pending",
   );
