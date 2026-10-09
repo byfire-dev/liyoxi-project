@@ -67,6 +67,10 @@ test("W216 真实legal_doc入库→真实转换草稿→安排→撤回另id，�
     errors = recordErrors(page),
     registeredIds: string[] = [];
   expect(data.legalStatus).toBe("fictional_only");
+  const me = await page.request.get("/api/v1/admin/auth/me");
+  expect(me.status()).toBe(200);
+  const ownStaffId = (await me.json()).data.staff.staffId;
+  expect(ownStaffId).toEqual(expect.any(String));
   await page.goto(`/ops/agreements?agreementKey=${data.agreementKey}`);
   await expect(page.locator(".lyx-agreement-card")).toHaveCount(6);
   await page.getByRole("button", { name: "新建草稿", exact: true }).click();
@@ -82,8 +86,12 @@ test("W216 真实legal_doc入库→真实转换草稿→安排→撤回另id，�
       .setInputFiles({ name: file.name, mimeType: file.mime, buffer: bytes });
     const result = await registered;
     expect(result.status()).toBe(200);
-    expect(result.request().postDataJSON()).toMatchObject({ category: "legal_doc" });
-    registeredIds.push((await result.json()).data.items[0].fileId);
+    // Chrome streamed Requests may omit postData; persisted file facts remain mandatory below.
+    const requestBody = result.request().postDataJSON();
+    if (requestBody) expect(requestBody).toMatchObject({ category: "legal_doc" });
+    const registration = (await result.json()).data;
+    expect(registration.fileId).toEqual(expect.any(String));
+    registeredIds.push(registration.fileId);
     await expect(
       dialog.getByRole("button", {
         name: index === 0 ? "清除 Word 引用" : "清除 PDF 引用",
@@ -96,6 +104,10 @@ test("W216 真实legal_doc入库→真实转换草稿→安排→撤回另id，�
       fileId: registeredIds[index],
       status: "stored",
       category: "legal_doc",
+      originalName: file.name,
+      declaredSizeBytes: String(file.size),
+      sizeBytes: String(file.size),
+      uploader: { actorType: "staff", actorId: ownStaffId, client: "admin" },
     });
   }
   await shot(page, "agreements-05-real-uploaded", "新建协议草稿");
@@ -104,13 +116,20 @@ test("W216 真实legal_doc入库→真实转换草稿→安排→撤回另id，�
   const createdResponse = await created;
   expect(createdResponse.status()).toBe(200);
   expect(createdResponse.headers()["cache-control"]).toBe("no-store");
-  expect(createdResponse.request().postDataJSON()).toMatchObject({
-    sourceFileId: registeredIds[0],
-    pdfFileId: registeredIds[1],
+  const createBody = createdResponse.request().postDataJSON();
+  if (createBody)
+    expect(createBody).toMatchObject({
+      sourceFileId: registeredIds[0],
+      pdfFileId: registeredIds[1],
+      isLegalApproved: true,
+    });
+  const saved = (await createdResponse.json()).data;
+  expect(saved.version).toMatchObject({
+    status: "draft",
+    sourceFile: { fileId: registeredIds[0] },
+    pdfFile: { fileId: registeredIds[1] },
     isLegalApproved: true,
   });
-  const saved = (await createdResponse.json()).data;
-  expect(saved.version.status).toBe("draft");
   expect(saved.conversion.state).toBe("converted");
   expect(saved.contentHtml).toContain("狸有戏虚构协议");
   await expect(

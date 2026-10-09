@@ -17,6 +17,6 @@ ops≥v 可查看，ops≥e 可编辑。主版本与短公告理由分别按实�
 - 原全样例：`pnpm admin:e2e`；本页文件 `test/e2e/agreements-m2.spec.ts` 明确拦截虚构 API，只证明页面与键盘/状态/脱敏。
 - 日期有头：`pnpm --filter @liyoxi/admin build:e2e && LYX_E2E_CHANNEL=chrome pnpm --filter @liyoxi/admin exec playwright test agreements-m2.spec.ts --project=samples --headed`。
 - 原全真实服务：`pnpm admin:e2e:live`。`live-agreements-m2.spec.ts` 经真实八接口、文件登记/完整上传/promote、实际 API 构建产物 document-converter.js、安排/撤回与签署读侧。`x-agreements-m2.fixture.ts` 在已有版本输入后只造虚构签署输入，以正式 reconsent 场景隔离分页；最终上传文件与转换不直接改库。不拦截业务 API，不以样例回包证明服务通过。
-- 真实权限后置注册在原 staff 用例末尾；临时修改 publisher 的 ops=v/e 与短公告权限，finally 用当前 lockVersion 恢复完整原 moduleLevels/actions/dataScope。只读/无ops/编辑员工通过真实 staff/auth 创建，原员工数与角色初值不变。当前新增场景只验证 fresh auth/me 与短公告分权；过期再验证由原服务/HTTP边界与本页同键恢复分别证明，不冒称浏览器过期弹层已过。
+- 真实权限后置注册在原 staff 用例末尾；临时修改 publisher 的 ops=v/e，finally 用当前 lockVersion 恢复完整原 moduleLevels/actions/dataScope。短公告沿正式仅超管权限：编辑员工先真实被拒，随后由实际管理员核当前草稿并填原因；不向普通角色造授权。只读/无ops/编辑员工通过真实 staff/auth 创建，沿既有可信回环代理为各自有身份分配隔离的虚构客户端来源，保留原认证限流。当前新增场景只验证 fresh auth/me 与短公告分权；过期再验证由原服务/HTTP边界与本页同键恢复分别证明，不冒称浏览器过期弹层已过。
 
 样例与 live 截图为 `dist/e2e-shots/agreements-*.png`，1440×900；另核1366×768无整页横滚，版本表仅私有内部横滚。实际运行结果以状态文件和本轮日志为准，源码中的场景不等于已经执行。所有重验证按全局单窗口运行；无需真实云、真机或正式法律文件。

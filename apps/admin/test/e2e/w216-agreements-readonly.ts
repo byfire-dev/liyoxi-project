@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Response } from "@playwright/test";
 import type { components } from "@liyoxi/contract/types/admin";
 import { createAdminApi } from "../../src/lib/api";
 import { liveContext, noHorizontalScroll, recordErrors } from "./live-context";
@@ -16,6 +16,8 @@ const roleBody = (role: Role) => ({
 // These fictional credentials travel through native fetch, outside Playwright traces/screenshots.
 async function createIdentity(page: Page, roleKey: "publisher" | "editor", index: number) {
   const origin = liveContext().origin;
+  // Same trusted-loopback source mechanism as W206; each owned identity keeps its own auth budget.
+  const clientSource = `192.0.2.${216 + index}`;
   const administratorCookie = (await page.context().cookies(origin))
     .map((c) => `${c.name}=${c.value}`)
     .join("; ");
@@ -26,6 +28,7 @@ async function createIdentity(page: Page, roleKey: "publisher" | "editor", index
       build: "w216-permissions",
       fetch: async (request) => {
         request.headers.set("Origin", origin);
+        request.headers.set("X-Forwarded-For", clientSource);
         request.headers.set(
           "Cookie",
           administrator
@@ -88,6 +91,7 @@ async function createIdentity(page: Page, roleKey: "publisher" | "editor", index
   expect(confirmed.response.status).toBe(200);
   return {
     staffId,
+    clientSource,
     cookies: [...cookies].map(([name, value]) => ({
       name,
       value,
@@ -124,6 +128,7 @@ export function registerAgreementPermissionsTest() {
           storageState: { cookies: identity.cookies, origins: [] },
           locale: "zh-CN",
           timezoneId: "Asia/Shanghai",
+          extraHTTPHeaders: { "X-Forwarded-For": identity.clientSource },
         });
         try {
           const page = await context.newPage(),
@@ -177,7 +182,7 @@ export function registerAgreementPermissionsTest() {
     }
   });
 
-  test("W216 真实编辑与短公告分权、当前再验证事实及同意图重放，完整恢复角色", async ({
+  test("W216 真实编辑与超管短公告分权、当前再验证事实及同意图重放，完整恢复角色", async ({
     browser,
     page: administrator,
   }) => {
@@ -187,11 +192,6 @@ export function registerAgreementPermissionsTest() {
       await write(administrator, "/roles/publisher", "PUT", {
         ...roleBody(original),
         moduleLevels: { ...original.moduleLevels, ops: "e" },
-        actions: {
-          ...original.actions,
-          "agreement.short_notice": { on: false, leadOnly: false },
-          "sys.super_admin": { on: false, leadOnly: false },
-        },
       });
       const identity = await createIdentity(administrator, "publisher", 3);
       context = await browser.newContext({
@@ -200,14 +200,18 @@ export function registerAgreementPermissionsTest() {
         storageState: { cookies: identity.cookies, origins: [] },
         locale: "zh-CN",
         timezoneId: "Asia/Shanghai",
+        extraHTTPHeaders: { "X-Forwarded-For": identity.clientSource },
       });
-      const page = await context.newPage(),
-        errors: { message: string; url?: string }[] = [];
-      page.on("pageerror", (error) => errors.push({ message: error.message }));
-      page.on("console", (message) => {
-        if (message.type() === "error")
-          errors.push({ message: message.text(), url: message.location().url });
-      });
+      let page = await context.newPage();
+      const errors: { message: string; url?: string }[] = [];
+      const record = (target: Page) => {
+        target.on("pageerror", (error) => errors.push({ message: error.message }));
+        target.on("console", (message) => {
+          if (message.type() === "error")
+            errors.push({ message: message.text(), url: message.location().url });
+        });
+      };
+      record(page);
       const data = (
         liveContext().fixtures as {
           fixtures: {
@@ -284,16 +288,21 @@ export function registerAgreementPermissionsTest() {
       await expect(
         editor.getByRole("textbox", { name: "公告不足期覆盖理由", exact: true }),
       ).toHaveCount(0);
-      const current = await api<Role>(administrator, "/roles/publisher");
-      await write(administrator, "/roles/publisher", "PUT", {
-        ...roleBody(current),
-        actions: { ...current.actions, "agreement.short_notice": { on: true, leadOnly: false } },
-      });
-      await page.reload();
+      await context.close();
+      context = undefined;
+      // The formal permission is SUPER_ADMIN_ONLY, never a configurable publisher grant.
+      page = administrator;
+      record(page);
       const me = await api<components["schemas"]["StaffMe"]>(page, "/auth/me");
       expect(me.permissions).toContain("agreement.short_notice");
-      expect(me.permissions).not.toContain("sys.super_admin");
+      expect(me.permissions).toContain("sys.super_admin");
       expect(Date.parse(me.session.stepUpValidUntil)).toBeGreaterThan(Date.parse(me.serverTime));
+      const current = await api<components["schemas"]["AgreementDetail"]>(
+        page,
+        `/agreements/${data.noticeAgreementKey}`,
+      );
+      expect(current.draftVersion?.agreementVersionId).toEqual(expect.any(String));
+      await page.goto(`/ops/agreements?agreementKey=${data.noticeAgreementKey}`);
       await page.getByRole("button", { name: "编辑草稿", exact: true }).click();
       editor = page
         .getByRole("dialog")
@@ -317,7 +326,33 @@ export function registerAgreementPermissionsTest() {
       await editor
         .getByRole("textbox", { name: "公告不足期覆盖理由", exact: true })
         .fill("虚构权限演练，已核对当前正文及公告影响");
-      const scheduled = await schedule();
+      const beforeSchedule = await api<components["schemas"]["AgreementDetail"]>(
+        page,
+        `/agreements/${data.noticeAgreementKey}`,
+      );
+      const draft = beforeSchedule.versions.find(
+        (version) => version.agreementVersionId === current.draftVersion?.agreementVersionId,
+      );
+      if (!draft) throw new Error("短公告演练缺少当前真实草稿");
+      const replayBody: components["schemas"]["AgreementVersionScheduleBody"] = {
+        lockVersion: draft.lockVersion,
+        shortNoticeReason: await editor
+          .getByRole("textbox", { name: "公告不足期覆盖理由", exact: true })
+          .inputValue(),
+      };
+      const extraSaves: string[] = [];
+      const observeSave = (response: Response) => {
+        if (
+          response.request().method() === "PATCH" &&
+          new URL(response.url()).pathname.startsWith("/api/v1/admin/agreement-versions/")
+        )
+          extraSaves.push(response.url());
+      };
+      page.on("response", observeSave);
+      const scheduled = await schedule().finally(() => {
+        page.off("response", observeSave);
+      });
+      expect(extraSaves).toEqual([]);
       expect(scheduled.status()).toBe(200);
       const result = (await scheduled.json()).data;
       expect(result.version.displayStatus).toBe("pending");
@@ -327,8 +362,10 @@ export function registerAgreementPermissionsTest() {
       });
       expect(result.siteNotice.leadDays).toBeLessThan(30);
       const request = scheduled.request();
+      const capturedBody = request.postDataJSON();
+      if (capturedBody) expect(capturedBody).toEqual(replayBody);
       const replay = await page.request.post(request.url(), {
-        data: request.postDataJSON(),
+        data: replayBody,
         headers: {
           Origin: liveContext().origin,
           "X-LYX-Admin": "1",
