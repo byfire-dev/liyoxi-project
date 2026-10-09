@@ -1,5 +1,5 @@
 import type { Prisma } from "@liyoxi/db";
-import { UPLOAD_CATEGORIES } from "@liyoxi/shared/uploads";
+import { UPLOAD_CATEGORIES, extensionOf } from "@liyoxi/shared/uploads";
 import type { UploadCategory } from "@liyoxi/shared/uploads";
 import {
   assertCapability,
@@ -82,6 +82,19 @@ export async function registerScope(
   }
   const staff = actor.staff;
   if (!staff || !definition.admin) throw new AppError("FILE_CATEGORY_NOT_ALLOWED");
+  if (input.category === "legal_doc") {
+    if (
+      !satisfiesLevel(staff.moduleLevels.ops, "edit") ||
+      actor.identity.actor.type !== "staff" ||
+      actor.identity.actor.id !== staff.staff.id
+    )
+      throw new AppError("PERMISSION_DENIED");
+    if (input.entityId || input.storeId || input.onBehalfStore)
+      throw new AppError("FILE_CATEGORY_NOT_ALLOWED");
+    const allowedExts = ["docx", "pdf"];
+    if (input.files.some((file) => !allowedExts.includes(extensionOf(file.fileName) ?? "")))
+      throw new AppError("FILE_TYPE_NOT_ALLOWED", { details: { allowedExts } });
+  }
   const guard = deps.guards.get(input.category);
   if (["sample_video", "final_episode"].includes(input.category) && !guard)
     throw new AppError("FILE_CATEGORY_NOT_ALLOWED");

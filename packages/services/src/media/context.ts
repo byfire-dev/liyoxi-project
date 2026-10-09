@@ -75,6 +75,7 @@ export interface RegisterInput {
   readonly category: UploadCategory;
   readonly files: readonly UploadInput[];
   readonly licenseKind?: "business_license" | "branch_license";
+  readonly entityId?: string;
   readonly storeId?: string;
   readonly onBehalfStore?: boolean;
   readonly production?: unknown;
