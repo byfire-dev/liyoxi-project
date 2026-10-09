@@ -23,7 +23,10 @@ export interface DeliveryCoreDeps {
   readonly media?: Pick<Media, "link">;
 }
 export interface DeliveryDeps extends DeliveryCoreDeps {
-  readonly media: Pick<Media, "signRead" | "link" | "release">;
+  readonly media: Pick<
+    Media,
+    "signRead" | "link" | "release" | "prepareDeliveryProduction" | "deliveryProductionFacts"
+  >;
   readonly profile: Pick<Profile, "assignDeliveryManager">;
   readonly samplePlayback?: (entityId: string) => Promise<boolean>;
   readonly publish?: Pick<Publish, "createLaunchTasks">;

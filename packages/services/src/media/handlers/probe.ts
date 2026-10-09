@@ -27,6 +27,7 @@ const inputSchema = z.strictObject({
   contextHash: z.string().regex(/^[a-f0-9]{64}$/),
   coverFileId: z.uuid(),
 });
+export { inputSchema as ProbeInputSchema };
 const artifact = z.strictObject({
   id: z.uuid(),
   key: z.string().max(512),
@@ -38,7 +39,11 @@ const artifact = z.strictObject({
   sha256: z.string().regex(/^[a-f0-9]{64}$/),
   etag: z.string().min(1).max(256),
 });
-const resultSchema = z.strictObject({ technical: TechnicalSchema, cover: artifact.nullable() });
+export const ProbeOutputSchema = z.strictObject({
+  technical: TechnicalSchema,
+  cover: artifact.nullable(),
+  sourceSha256: z.string().regex(/^[a-f0-9]{64}$/),
+});
 const failure = (code: string, retryable = false): JobOutcome => ({
   state: "failed",
   failure: { code, retryable },
@@ -173,7 +178,7 @@ export function createProbeHandler(deps: BoundMediaDeps): MediaJobHandler {
     mode: "local",
     provider: "mediatool",
     validInput: (input) => inputSchema.safeParse(input).success,
-    validOutput: (output) => resultSchema.safeParse(output).success,
+    validOutput: (output) => ProbeOutputSchema.safeParse(output).success,
     current: (tx, job) => probeCurrent(deps, tx, job),
     prepare: (tx, job) => readProductionWork(deps, tx, job.subjectId),
     execute: async (job, context, signal) => {
@@ -193,6 +198,12 @@ export function createProbeHandler(deps: BoundMediaDeps): MediaJobHandler {
         });
         if (!downloaded.ok)
           return failure("MEDIA_SOURCE_CHANGED", downloaded.reason === "unavailable");
+        if (
+          downloaded.value.size !== size ||
+          !/^[a-f0-9]{64}$/.test(downloaded.value.sha256) ||
+          (facts.file.sha256 !== null && facts.file.sha256 !== downloaded.value.sha256)
+        )
+          return failure("MEDIA_SOURCE_CHANGED");
         const probed = await production.tool.probe({
           path: work.path("source.mp4"),
           demuxers:
@@ -246,15 +257,25 @@ export function createProbeHandler(deps: BoundMediaDeps): MediaJobHandler {
             ),
           );
         }
-        return { state: "succeeded", output: { technical, cover } as unknown as JobJson };
+        return {
+          state: "succeeded",
+          output: { technical, cover, sourceSha256: downloaded.value.sha256 } as unknown as JobJson,
+        };
       });
     },
     finish: async (tx, job, outcome, ctx) => {
       if (outcome.state !== "succeeded") return;
-      const output = resultSchema.parse(outcome.output),
+      const output = ProbeOutputSchema.parse(outcome.output),
         input = inputSchema.parse(job.input),
         facts = await readProductionWork(deps, tx, job.subjectId),
-        now = deps.clock.now();
+        now = job.finishedAt;
+      if (!now) throw new Error("媒体任务缺少已写完成时间");
+      if (facts.file.sha256 !== null && facts.file.sha256 !== output.sourceSha256)
+        throw new Error("媒体来源摘要不一致");
+      await tx.fileObject.update({
+        where: { id: facts.file.id },
+        data: { sha256: output.sourceSha256, updatedAt: now },
+      });
       if (
         output.cover &&
         (output.cover.id !== input.coverFileId ||

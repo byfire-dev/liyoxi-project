@@ -5,6 +5,7 @@ import type { Tx } from "../../kernel/index.js";
 import type { DeliveryViewer } from "../context.js";
 import { sampleOf } from "../samples.js";
 import type { DeliveryDownloadDeps } from "./context.js";
+import { productionEvidence } from "../production-guard.js";
 import { lockParents, viewerOf } from "./repo.js";
 async function facts(tx: Tx, deps: DeliveryDownloadDeps, v: DeliveryViewer, id: string) {
   await viewerOf(tx, v, true);
@@ -18,17 +19,8 @@ async function facts(tx: Tx, deps: DeliveryDownloadDeps, v: DeliveryViewer, id: 
     throw new AppError("SAMPLE_VIEW_CHANNEL_NOT_OFFERED", {
       details: { previewChannels: s.previewChannels },
     });
-  const playable = await tx.playableAsset.findFirst({
-    where: {
-      kind: "sample",
-      sourceFileId: s.fileId,
-      ownerType: "order_item",
-      ownerId: t.orderItemId,
-      entityId: s.entityId,
-      storeId: s.storeId,
-    },
-    orderBy: { specVersion: "desc" },
-  });
+  const production = await deps.media.deliveryProductionFacts(tx, s.fileId);
+  const playable = production.playable;
   const fileId = (playable?.renditions as Array<{ fileId?: string }> | undefined)?.[0]?.fileId;
   if (playable?.state !== "ready" || !fileId || !isUuid(fileId))
     throw new AppError("SAMPLE_PREVIEW_NOT_READY");
@@ -59,8 +51,7 @@ export async function sampleUrl(
   return deps.tx.run(async (tx) => {
     await lockParents(tx, v, first.t.id);
     await lockRows(tx, "sample", [id]);
-    await lockRows(tx, "playable_asset", [first.playable.id], "share");
-    await lockRows(tx, "file_object", [first.file.id], "share");
+    await productionEvidence(tx, deps.media, first.s.fileId, true);
     const current = await facts(tx, deps, v, id);
     if (
       current.playable.id !== first.playable.id ||

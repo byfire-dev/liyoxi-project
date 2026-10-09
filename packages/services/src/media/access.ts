@@ -82,6 +82,20 @@ export async function registerScope(
   }
   const staff = actor.staff;
   if (!staff || !definition.admin) throw new AppError("FILE_CATEGORY_NOT_ALLOWED");
+  if (["banner", "trailer_src", "drama_license_doc"].includes(input.category)) {
+    if (
+      actor.identity.actor.type !== "staff" ||
+      actor.identity.actor.id !== staff.staff.id ||
+      (input.category === "banner" && !satisfiesLevel(staff.moduleLevels.ops, "edit")) ||
+      (input.category === "trailer_src" && !staff.permissions.has("drama.media.manage")) ||
+      (input.category === "drama_license_doc" &&
+        !satisfiesLevel(staff.moduleLevels.drama, "edit") &&
+        !staff.permissions.has("drama.copyright.revise"))
+    )
+      throw new AppError("PERMISSION_DENIED");
+    if (input.entityId || input.storeId || input.onBehalfStore)
+      throw new AppError("FILE_CATEGORY_NOT_ALLOWED");
+  }
   if (input.category === "legal_doc") {
     if (
       !satisfiesLevel(staff.moduleLevels.ops, "edit") ||
@@ -126,6 +140,9 @@ export function canReadCategory(
   const level = (module: keyof StaffContext["moduleLevels"]) =>
     satisfiesLevel(staff.moduleLevels[module], "view");
   switch (file.category) {
+    case "banner":
+    case "trailer_src":
+      return true;
     case "kyc_license":
     case "kyc_permit":
       return (

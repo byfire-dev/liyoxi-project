@@ -1,6 +1,8 @@
 import { ChecklistItemsSchema } from "@liyoxi/contract";
 import type { Prisma } from "@liyoxi/db";
 import { AppError, uuidv7 } from "../kernel/index.js";
+import type { Media } from "../media/index.js";
+import { productionEvidence } from "./production-guard.js";
 import type { Tx } from "../kernel/index.js";
 import type { DeliveryCoreDeps } from "./context.js";
 import type { TicketRow } from "./repo.js";
@@ -107,25 +109,12 @@ export async function insertQuality(
     },
   });
 }
-export async function productionReady(tx: Tx, fileId: string) {
-  const p = await tx.productionRecord.findUnique({ where: { fileId } });
-  if (!p || p.pipelineState !== "ready" || !["not_required", "verified"].includes(p.aigcState))
-    throw new AppError("PRODUCTION_NOT_READY", {
-      details: {
-        fileId,
-        pipelineState: p?.pipelineState ?? "missing",
-        gate: p?.pipelineState === "rejected" ? "reject" : null,
-      },
-    });
-  const check = await tx.mediaCheck.findFirst({
-    where: { fileId },
-    orderBy: { createdAt: "desc" },
-  });
-  if (check?.gate === "reject")
-    throw new AppError("PRODUCTION_NOT_READY", {
-      details: { fileId, pipelineState: p.pipelineState, gate: "reject" },
-    });
-  return p;
+export async function productionReady(
+  tx: Tx,
+  fileId: string,
+  media: Pick<Media, "deliveryProductionFacts">,
+) {
+  return (await productionEvidence(tx, media, fileId)).production!;
 }
 
 /** 仅由所属订单项的真实剧目行提供，客户端不能否认此事实。 */

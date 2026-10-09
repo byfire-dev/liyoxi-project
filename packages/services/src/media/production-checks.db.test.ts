@@ -366,6 +366,40 @@ async function trailerFixture(h: Fixture) {
   };
 }
 describe("真实制作事实与派生", { timeout: 30000 }, () => {
+  it("递增业务clock的真实runner收尾共用已写完成时间，严格制作事实仍可ready", async () => {
+    const h = await fixture();
+    await db.fileObject.update({ where: { id: h.file.id }, data: { sha256: null } });
+    const id = await h.tx.run((t) => h.media.enqueueProbe(t, h.file.id));
+    let tick = clock.now().getTime();
+    vi.spyOn(clock, "now").mockImplementation(() => new Date(++tick));
+    await h.media.jobs.run({ jobId: id });
+    const job = await db.mediaJob.findUniqueOrThrow({ where: { id } });
+    const check = await db.mediaCheck.findUniqueOrThrow({ where: { fileId: h.file.id } });
+    const info = await db.mediaInfo.findUniqueOrThrow({ where: { fileId: h.file.id } });
+    expect(job.state).toBe("succeeded");
+    expect(job.finishedAt).not.toBeNull();
+    const times = {
+      jobCheckSame: job.finishedAt!.getTime() === check.checkedAt.getTime(),
+      infoCheckSame: info.probedAt.getTime() === check.checkedAt.getTime(),
+      jobInfoSame: job.finishedAt!.getTime() === info.probedAt.getTime(),
+    };
+    const facts = await h.tx.run((tx) => h.media.deliveryProductionFacts(tx, h.file.id));
+    process.stdout.write(
+      `${JSON.stringify({
+        evt: "probe.canonical_time",
+        ...times,
+        valid: facts.valid,
+        ready: facts.ready,
+      })}\n`,
+    );
+    expect({ ...times, valid: facts.valid, ready: facts.ready }).toEqual({
+      jobCheckSame: true,
+      infoCheckSame: true,
+      jobInfoSame: true,
+      valid: true,
+      ready: true,
+    });
+  });
   it("actual probe写技术/七字段上下文，封面有live引用且raw没有用户标签", async () => {
     const h = await fixture(),
       id = await h.tx.run((t) => h.media.enqueueProbe(t, h.file.id));
@@ -406,6 +440,35 @@ describe("真实制作事实与派生", { timeout: 30000 }, () => {
         where: { eventType: "media.production.checked", aggregateId: h.file.id },
       }),
     ).toBe(1);
+  });
+  it("probe摘要只取真实download结果，空SHA在收尾写入且和job输出一致", async () => {
+    const h = await fixture();
+    await db.fileObject.update({ where: { id: h.file.id }, data: { sha256: null } });
+    const id = await h.tx.run((t) => h.media.enqueueProbe(t, h.file.id));
+    await h.media.jobs.run({ jobId: id });
+    expect((await db.fileObject.findUniqueOrThrow({ where: { id: h.file.id } })).sha256).toBe(
+      digest,
+    );
+    expect((await db.mediaJob.findUniqueOrThrow({ where: { id } })).output).toMatchObject({
+      sourceSha256: digest,
+    });
+    expect((await h.tx.run((t) => h.media.deliveryProductionFacts(t, h.file.id))).ready).toBe(true);
+  });
+  it("已存SHA和download真实字节摘要不同则零体检写入且保留原摘要", async () => {
+    const h = await fixture(),
+      original = "a".repeat(64);
+    await db.fileObject.update({ where: { id: h.file.id }, data: { sha256: original } });
+    const id = await h.tx.run((t) => h.media.enqueueProbe(t, h.file.id));
+    await h.media.jobs.run({ jobId: id });
+    expect(await db.mediaInfo.findUnique({ where: { fileId: h.file.id } })).toBeNull();
+    expect(await db.mediaCheck.findUnique({ where: { fileId: h.file.id } })).toBeNull();
+    expect((await db.fileObject.findUniqueOrThrow({ where: { id: h.file.id } })).sha256).toBe(
+      original,
+    );
+    expect(await db.mediaJob.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      state: "failed",
+      errorCode: "MEDIA_SOURCE_CHANGED",
+    });
   });
   it("缺真实原片上下文只能reject，不伪尺寸/AI已通过", async () => {
     const h = await fixture({ missingContext: true }),

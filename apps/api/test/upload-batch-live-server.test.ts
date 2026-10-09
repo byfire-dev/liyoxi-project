@@ -10,6 +10,8 @@ const owned = {
   prefix: `lyx:test:admin_live_${runId}:`,
 };
 const scope = { ...owned, startedAt: "2026-10-01T00:00:00.000Z", uploaderId: id, dramaIds: [id] };
+// The original runner passes this full fixture envelope, not its nested scope alone.
+const content = { scope, dramaId: id, title: "虚构页面", query: "页面", expectedDraftCount: 13 };
 const delivery = {
   ...owned,
   startedAt: scope.startedAt,
@@ -63,18 +65,27 @@ it("without W312 the original strict four-field manifest remains unchanged", () 
   expect(() => parseOutputBatchLiveManifest({ ...original, unexpected: true })).toThrow();
 });
 it("W312 is independently parsed and stripped before the original strict manifest", () => {
-  expect(parseOutputBatchLiveManifest({ ...original, w312: scope })).toEqual({
+  expect(parseOutputBatchLiveManifest({ ...original, w312: content })).toEqual({
     inputs: original,
     w312: scope,
   });
   expect(() =>
-    parseOutputBatchLiveManifest({ ...original, w312: scope, unexpected: true }),
+    parseOutputBatchLiveManifest({ ...original, w312: content, unexpected: true }),
   ).toThrow();
   expect(() =>
-    parseOutputBatchLiveManifest({ ...original, w312: { ...scope, verified: true } }),
+    parseOutputBatchLiveManifest({ ...original, w312: { ...content, verified: true } }),
   ).toThrow();
   expect(() =>
-    parseOutputBatchLiveManifest({ ...original, w312: { ...scope, dramaIds: [id, id] } }),
+    parseOutputBatchLiveManifest({
+      ...original,
+      w312: { ...content, scope: { ...scope, verified: true } },
+    }),
+  ).toThrow();
+  expect(() =>
+    parseOutputBatchLiveManifest({
+      ...original,
+      w312: { ...content, scope: { ...scope, dramaIds: [id, id] } },
+    }),
   ).toThrow();
   expect(() => parseOutputBatchLiveManifest({ ...original, w312: undefined })).toThrow();
 });
@@ -82,12 +93,16 @@ it("W312 cannot broaden the original current or legacy target contract", () => {
   expect(() =>
     parseOutputBatchLiveManifest({
       ...original,
-      w312: scope,
+      w312: content,
       current: { ...original.current, anotherTarget: id },
     }),
   ).toThrow();
   expect(() =>
-    parseOutputBatchLiveManifest({ ...original, w312: scope, video: { ...video, verified: true } }),
+    parseOutputBatchLiveManifest({
+      ...original,
+      w312: content,
+      video: { ...video, verified: true },
+    }),
   ).toThrow();
 });
 it("W312 scope requires this exact local owned database, app role and Redis prefix", () => {

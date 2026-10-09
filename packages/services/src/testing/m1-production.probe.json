@@ -1,0 +1,69 @@
+{
+  "report": {
+    "demuxer": "mov",
+    "format": {
+      "formatName": "mov,mp4,m4a,3gp,3g2,mj2",
+      "majorBrand": "isom",
+      "durationMs": 20000,
+      "sizeBytes": 368254,
+      "bitRate": 147301,
+      "tags": {
+        "major_brand": "isom",
+        "minor_version": "512",
+        "compatible_brands": "isomiso2avc1mp41",
+        "encoder": "Lavf59.27.100"
+      }
+    },
+    "streams": [
+      {
+        "index": 0,
+        "codecType": "video",
+        "codecName": "h264",
+        "profile": "High",
+        "pixFmt": "yuv420p",
+        "bitsPerRawSample": 8,
+        "width": 720,
+        "height": 1280,
+        "rotation": 0,
+        "displayWidth": 720,
+        "displayHeight": 1280,
+        "sampleAspectRatio": "1:1",
+        "rFrameRate": "30/1",
+        "avgFrameRate": "30/1",
+        "nbFrames": 600,
+        "startTimeMs": 0,
+        "durationMs": 20000,
+        "bitRate": 9742,
+        "sampleRate": null,
+        "channels": null,
+        "attachedPic": false
+      },
+      {
+        "index": 1,
+        "codecType": "audio",
+        "codecName": "aac",
+        "profile": "LC",
+        "pixFmt": null,
+        "bitsPerRawSample": null,
+        "width": null,
+        "height": null,
+        "rotation": 0,
+        "displayWidth": null,
+        "displayHeight": null,
+        "sampleAspectRatio": null,
+        "rFrameRate": "0/0",
+        "avgFrameRate": "0/0",
+        "nbFrames": 939,
+        "startTimeMs": 0,
+        "durationMs": 20000,
+        "bitRate": 128040,
+        "sampleRate": 48000,
+        "channels": 2,
+        "attachedPic": false
+      }
+    ],
+    "boxes": ["ftyp", "moov", "free", "mdat"],
+    "moovBeforeMdat": true,
+    "aigc": null
+  }
+}
