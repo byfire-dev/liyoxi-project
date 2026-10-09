@@ -374,6 +374,7 @@ async function main() {
       inputs,
       image: values["mediatool-image"],
       version: process.env.LYX_BUILD ?? "w302-private-live",
+      documentWorkerUrl: new URL("./document-converter.js", import.meta.url),
       signal: controller.signal,
     });
     process.stdout.write(
