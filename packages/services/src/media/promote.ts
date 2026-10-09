@@ -2,7 +2,7 @@ import { AppError, lockRows } from "../kernel/index.js";
 import type { StorageBucket } from "../providers/types.js";
 import type { BoundMediaDeps, FileRow } from "./context.js";
 import type { MediaJobHandler } from "./jobs/types.js";
-import { queueWechatImageAudit } from "./wechat-image-audit.js";
+import { queueModeration } from "./handlers/moderation/queue.js";
 import { emitFile } from "./upload.js";
 
 export interface PromoteRef {
@@ -112,9 +112,10 @@ export function createPromoteHandler(deps: BoundMediaDeps): MediaJobHandler {
         if (changed.count !== 1) throw new AppError("STATE_NOT_ALLOWED");
         await deps.batchStored?.(tx, file.id);
         await emitFile(tx, deps, { identity: ctx }, file, "file.stored");
-        const next = await queueWechatImageAudit(tx, deps, {
+        const next = await queueModeration(tx, deps, {
           ...file,
           status: "stored",
+          etag: outcome.output.etag,
           sizeBytes: BigInt(outcome.output.sizeBytes),
         });
         const probe = await deps.queueProbe?.(tx, {

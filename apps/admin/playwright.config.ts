@@ -20,11 +20,11 @@ export default defineConfig({
         {
           name: "live",
           dependencies: ["live-auth"],
-          testMatch: /live-.*\.spec\.ts$/,
+          testMatch: /(?:^|[/\\])live-[^/\\]*\.spec\.ts$/,
           use: { storageState: process.env.LYX_ADMIN_LIVE_STATE },
         },
       ]
-    : [{ name: "samples", testIgnore: /live-/ }],
+    : [{ name: "samples", testIgnore: /(?:^|[/\\])live-[^/\\]*$/ }],
   fullyParallel: false,
   workers: 1,
   retries: 0,

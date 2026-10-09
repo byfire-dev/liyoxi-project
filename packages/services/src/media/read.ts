@@ -1,6 +1,7 @@
 import { readUrlExpiry, UPLOAD_CATEGORIES } from "@liyoxi/shared/uploads";
 import { record } from "../audit/index.js";
 import type { AuditRequestMeta } from "../audit/index.js";
+import type { Tx } from "../kernel/index.js";
 import { AppError } from "../kernel/index.js";
 import { categoryOf, owned, readableByStaff } from "./access.js";
 import type {
@@ -74,7 +75,14 @@ export function createSigner(deps: BoundMediaDeps) {
         void result.catch(() => windows.delete(key));
       }
     }
-    return { signed: await result, urlTtlSec };
+    const signed = await result;
+    await deps.tx.run(async (tx) => {
+      const current = await tx.fileObject.findUnique({ where: { id: file.id } });
+      if (!current || current.objectKey !== file.objectKey || current.etag !== file.etag)
+        throw new AppError("FILE_NOT_AVAILABLE");
+      requireStored(current);
+    });
+    return { signed, urlTtlSec };
   };
 }
 export async function downloadUrls(
@@ -110,4 +118,18 @@ export async function downloadUrls(
     });
   }
   return signed;
+}
+
+/** Future vision/LLM consumers must call this in their current claim TX before model IO. */
+export async function assertUsableForModel(tx: Tx, fileId: string) {
+  const file = await tx.fileObject.findUnique({ where: { id: fileId } });
+  if (!file) throw new AppError("FILE_NOT_AVAILABLE");
+  requireStored(file);
+  return {
+    fileId: file.id,
+    bucket: file.bucket,
+    key: file.objectKey,
+    etag: file.etag,
+    sizeBytes: file.sizeBytes,
+  };
 }

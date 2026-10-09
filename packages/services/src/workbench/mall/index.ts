@@ -596,10 +596,17 @@ export function createMall(deps: MallDeps) {
         const jump = parsed.data;
         if (jump.jumpKind === "drama" && !ids.has(jump.jumpTarget.dramaId)) continue;
         if (jump.jumpKind === "mall" && !categoryKeys.has(jump.jumpTarget.categoryKey)) continue;
+        let imageUrl;
+        try {
+          imageUrl = await deps.media.signRead({ fileId: row.imageFileId });
+        } catch (error) {
+          if (error instanceof AppError && error.error === "FILE_NOT_AVAILABLE") continue;
+          throw error;
+        }
         banners.push({
           homeBannerId: row.id,
           title: row.title,
-          imageUrl: await deps.media.signRead({ fileId: row.imageFileId }),
+          imageUrl,
           ...jump,
         });
         if (banners.length === 5) break;

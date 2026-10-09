@@ -8,7 +8,7 @@
 
 UserData严格`小写UUIDv7 jobId:attemptNo`。按UserData查找没有虚构平台过滤字段：GET `/jobs`使用官方tag、queueType=Transcoding/FileProcess、states=All、每页100，固定创建窗口≤2小时，在本地筛选最多4页；截断/重复token/多个外部号不能形成完整none证据，调用方不得据此盲目重发。Native Success也先保存submitted，业务仍需真实describe、匹配UserData及strict输出；解析只返回技术宽高/毫秒时长/字节大小，不透OCR或UserInfo。提交HTTP200坏XML/缺号属于受理未知，返回unavailable，不能当作确定拒绝。
 
-同步图片审核只接既有profile场景：COS GET object的`ci-process=sensitive-content-recognition&async=0`，RecognitionResult.Result 0/1/2映射pass/block/review。probe和未接视频等业务明确unsupported，不能把local/fake processed:false写成审核或体检完成。
+同步图片审核只接既有profile场景：COS GET object的`ci-process=sensitive-content-recognition&async=0`，RecognitionResult.Result 0/1/2映射pass/block/review。W3-05 补真实原生文本/异步视频审核，见 [审核模块说明](../../media/handlers/moderation/README.md)；其余未接业务仍明确unsupported，不能把local/fake processed:false写成审核或体检完成。
 
 2026-10-08 已查阅的腾讯primary来源：[COSv5请求签名](https://cloud.tencent.com/document/product/436/7778)、[转码提交](https://cloud.tencent.com/document/product/460/84790)、[媒体查询](https://cloud.tencent.com/document/product/460/84765)、[任务列表](https://cloud.tencent.com/document/product/460/84766)、[媒体取消](https://cloud.tencent.com/document/product/460/84803)、[FileCompress提交](https://cloud.tencent.com/document/product/436/121031)、[文件任务查询](https://cloud.tencent.com/document/product/436/121032)、[FileCompress列表](https://cloud.tencent.com/document/product/436/120622)、[同步图片审核](https://cloud.tencent.com/document/product/436/119478)、[回调XML与JSON JobsDetail数组](https://cloud.tencent.com/document/product/436/119472)。没有借第三方博客推断接口。
 
