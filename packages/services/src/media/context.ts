@@ -34,7 +34,6 @@ export interface FileCategoryGuard {
 }
 export interface MediaDeps {
   readonly batches?: MediaBatchDeps;
-  readonly queueBatchProbe?: (tx: Tx, fileId: string, batchId: string) => Promise<string>;
   readonly production?: MediaProductionDeps;
   readonly jobOwnerId?: string;
   readonly jobHandlers?: readonly MediaJobHandler[];
@@ -58,6 +57,9 @@ export interface MediaDeps {
   };
 }
 export interface BoundMediaDeps extends MediaDeps {
+  readonly queueBatchProbe?: (tx: Tx, fileId: string, batchId: string) => Promise<string>;
+  readonly batchStored?: (tx: Tx, fileId: string) => Promise<void>;
+  readonly batchRejected?: (tx: Tx, fileId: string) => Promise<void>;
   readonly queueProbe?: (tx: Tx, file: FileRow) => Promise<string | null>;
   readonly refTypes: ReadonlyMap<string, FileRefType>;
   readonly guards: ReadonlyMap<string, FileCategoryGuard>;

@@ -18,6 +18,7 @@ import {
 import type { Media, MediaActor } from "../index.js";
 import { fileCategoryGuardPort, fileRefTypePort } from "../ports.js";
 import { createBatchWorkerHooks } from "./worker.js";
+import type { MediaProductionDeps } from "../production-types.js";
 
 export const MP4_HEADER = new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112]);
 export const batchDraft = (name: string, token = uuidv7()) => ({
@@ -25,7 +26,10 @@ export const batchDraft = (name: string, token = uuidv7()) => ({
   originalName: name,
   sizeBytes: String(MP4_HEADER.length),
 });
-export async function batchHarness(prisma: PrismaClient) {
+export async function batchHarness(
+  prisma: PrismaClient,
+  production?: (fake: ReturnType<typeof createFakeProviders>) => MediaProductionDeps,
+) {
   const clock = createClock(),
     make = createFactories({ db: prisma, clock });
   const tx = createTxRunner({ prisma, appEnv: "test" });
@@ -38,6 +42,7 @@ export async function batchHarness(prisma: PrismaClient) {
     assembly,
     events,
     storage: fake.storage,
+    ...(production ? { production: production(fake) } : {}),
   });
   const row = await make.staff({ staffRoleKey: "super_admin" });
   const role = STAFF_ROLE_DEFAULTS.find((item) => item.key === "super_admin")!;
