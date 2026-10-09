@@ -111,7 +111,15 @@ describe("交付阶段 SLA 固定运行时分发", { timeout: 60000 }, () => {
     await api.tx.run(async (tx) => {
       await releaseCancelReviewPauses(
         tx,
-        { ...api, sla: createSla({ clock, assembly: api.assembly }) },
+        {
+          tx: api.tx,
+          clock,
+          assembly: api.assembly,
+          flow: api.flow,
+          events: api.events,
+          media: api.media,
+          sla: createSla({ clock, assembly: api.assembly }),
+        },
         createIdentityContext({ actor: { type: "system", job: "lyxtest.delivery_resume_due" } }),
         {
           targets: await readCancelReviewPauseTargets(tx, [approvalRequestId]),

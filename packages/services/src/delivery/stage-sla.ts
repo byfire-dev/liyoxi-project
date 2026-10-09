@@ -1,4 +1,5 @@
 import { z } from "@liyoxi/contract";
+import { DELIVERY_TICKET_STAGE_STEP } from "@liyoxi/contract/enums";
 import { createIdentityContext } from "../kernel/index.js";
 import type { FiredTimer, TimerOutcome, Tx } from "../kernel/index.js";
 import { timerKey } from "../timers/index.js";
@@ -75,7 +76,7 @@ export async function handleDeliveryStageSlaBreach(
       v: 1,
       deliveryTicketId: ticket.id,
       deliveryTicketStageId: stage.id,
-      step: stage.step,
+      step: z.enum(DELIVERY_TICKET_STAGE_STEP.values).parse(stage.step),
       dueAt: stage.dueAt.toISOString(),
     },
   });
