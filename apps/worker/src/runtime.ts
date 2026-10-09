@@ -209,6 +209,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
             services.closeMediaDrivers?.(),
             services.closeStorageDrivers?.(),
           ]);
+          await services.closeAlertFacts?.();
         }
       })());
     },
