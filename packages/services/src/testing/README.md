@@ -242,8 +242,11 @@ W3-07 的 `m1-production.mp4` 是本轮单次生成的固定色画面和440Hz音
 字节 SHA256 为 `55290244d31b267a68d47cfe26e443f527b255d4254c759dd98bd10fd935bbc3`。
 同一固定镜像 `sha256:91a0ba46c7135164b5cae54ee329134c105d7bf5d08c5286232dbfd946a9310d`
 的公开 probe 实际读取 boxes、faststart 和 AIGC，原始响应保存在
-`m1-production.probe.json`，SHA256 为
+`m1-production.probe.json`；原始公开响应 SHA256 为
 `2a4e68caa0a5aab10a433184a62c8ad47e674f7b133f6e59545a07a592026765`。
+正常提交格式化后的仓内报告 SHA256 为
+`5b21c91d18607c0c0834df19977ffbfa1b12d424ec7b623f6ab073bd606c829f`，
+与原始响应解析后逐字段相同，加载器严格校验仓内字节。
 加载时同时验证两摘要，不将旧2秒/noaudio素材投影为20秒；旧素材与 FACTS 不改。
 
 M1 购入的20集母片经真实公开批次/complete/promote/probe/commit，制作经同一完整

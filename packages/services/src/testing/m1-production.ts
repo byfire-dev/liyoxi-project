@@ -11,7 +11,7 @@ import type { AdjustableClock } from "./clock.js";
 import type { M1MediaScope, M1Support } from "./m1-types.js";
 
 const VIDEO_SHA = "55290244d31b267a68d47cfe26e443f527b255d4254c759dd98bd10fd935bbc3";
-const REPORT_SHA = "2a4e68caa0a5aab10a433184a62c8ad47e674f7b133f6e59545a07a592026765";
+const REPORT_SHA = "5b21c91d18607c0c0834df19977ffbfa1b12d424ec7b623f6ab073bd606c829f";
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 export async function m1ProductionVideo() {
   const [bytes, raw] = await Promise.all([
