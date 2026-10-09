@@ -1,3 +1,9 @@
+import { implement as implementTenantCloseFacts } from "../kernel/index.js";
+import { profileCloseFactsPort } from "../tenant/index.js";
+import {
+  countQualificationSubmissionsInReview,
+  countUnverifiedPrimaryStore,
+} from "./close-facts.js";
 import { staffWorkPort, staffFollowUpPort } from "../kernel/index.js";
 import { onFileModerated } from "./file-moderated.js";
 import { profileStaffWork } from "./staff-work.js";
@@ -27,6 +33,10 @@ export const registration = defineRegistration("profile", {
     { name: "profile.onFileModerated", events: ["file.moderated"], handle: onFileModerated },
   ],
   portImplementations: [
+    implementTenantCloseFacts(profileCloseFactsPort, {
+      countQualificationSubmissionsInReview,
+      countUnverifiedPrimaryStore,
+    }),
     implementKeyed(staffFollowUpPort, "store", async (tx, id) => {
       const row = await tx.store.findUnique({
         where: { id },

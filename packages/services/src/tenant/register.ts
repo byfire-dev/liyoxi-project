@@ -22,6 +22,7 @@ import {
 } from "./invariants.js";
 import { machineImplementations } from "./machines.js";
 import { billingAccountPort, membershipAuthorizationsPort } from "./ports.js";
+import { CLOSE_FACTS_PORTS } from "./close-facts.js";
 
 const check = (
   code: string,
@@ -29,7 +30,7 @@ const check = (
 ): InvariantRegistration => ({ code, severity: "P2", modes: ["full"], heal: "none", run });
 
 export const registration = defineRegistration("tenant", {
-  ports: [billingAccountPort, membershipAuthorizationsPort],
+  ports: [billingAccountPort, membershipAuthorizationsPort, ...CLOSE_FACTS_PORTS],
   portImplementations: [
     notifyReaderImplementation(
       currentNotifyReadPort,
