@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { components } from "@liyoxi/contract/types/admin";
 import { liveContext, recordErrors } from "./live-context";
-import { api, select, shot, write } from "./w206-helpers";
+import { api, clientSourceHeaders, select, shot, write } from "./w206-helpers";
 
 type Detail = components["schemas"]["RoleDetail"];
 const body = (role: Detail) => ({
@@ -88,6 +88,7 @@ test("实际财务查看身份角色页只读，直接写接口仍403", async ({
     baseURL: live.origin,
     viewport: { width: 1366, height: 768 },
     storageState: { cookies: [], origins: [] },
+    extraHTTPHeaders: clientSourceHeaders("roles"),
   });
   try {
     const page = await context.newPage();

@@ -390,7 +390,14 @@ function StaffCommand({
       />
     );
   return (
-    <Modal open title={title} footer={null} destroyOnHidden onCancel={close}>
+    <Modal
+      open
+      title={title}
+      className="lyx-staff-command"
+      footer={null}
+      destroyOnHidden
+      onCancel={close}
+    >
       <p>
         {staff.name} · 工号 {staff.staffNo}
       </p>

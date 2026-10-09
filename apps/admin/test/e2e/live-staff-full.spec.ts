@@ -1,7 +1,18 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { components } from "@liyoxi/contract/types/admin";
-import { liveContext, recordErrors } from "./live-context";
-import { api, confirm, openStaff, select, shot, totp, w206, write } from "./w206-helpers";
+import { liveContext } from "./live-context";
+import {
+  api,
+  clientSourceHeaders,
+  confirm,
+  openStaff,
+  recordExpectedConflictErrors,
+  select,
+  shot,
+  totp,
+  w206,
+  write,
+} from "./w206-helpers";
 
 type Detail = components["schemas"]["StaffDetail"];
 type Work = components["schemas"]["OpenWorkSummary"];
@@ -29,7 +40,7 @@ async function closeCode(page: Page) {
 
 test("员工同筛选计数、真实编辑409与池版本，读推荐不推进游标", async ({ page }) => {
   const fixture = w206(),
-    errors = recordErrors(page);
+    errors = recordExpectedConflictErrors(page);
   const original = await detail(page, fixture.manager.id);
   try {
     await page.goto(`/sys/staff?q=${encodeURIComponent(fixture.manager.name)}`);
@@ -57,7 +68,9 @@ test("员工同筛选计数、真实编辑409与池版本，读推荐不推进�
         new URL(response.url()).pathname === `/api/v1/admin/staff/${fixture.manager.id}`,
     );
     await confirm(page, "编辑员工");
-    expect((await conflict).status()).toBe(409);
+    const conflicted = await conflict;
+    expect(conflicted.status()).toBe(409);
+    errors.allow(conflicted, `/api/v1/admin/staff/${fixture.manager.id}`);
     await expect(
       page.getByText("内容已变化，已重新读取。请打开操作并核对最新版本及在办量。", { exact: true }),
     ).toBeVisible();
@@ -116,7 +129,7 @@ test("员工同筛选计数、真实编辑409与池版本，读推荐不推进�
     expect(pools(await detail(page, fixture.manager.id))).toEqual([
       { pool: "delivery_manager", cityCode: city!.code },
     ]);
-    expect(errors).toEqual([]);
+    expect(errors.unexpected()).toEqual([]);
   } finally {
     const current = await detail(page, fixture.manager.id);
     await write(page, `/staff/${fixture.manager.id}`, "PATCH", {
@@ -190,6 +203,7 @@ test("真实启用激活、本人改密重绑恢复码、会话吊销与客服�
     baseURL: live.origin,
     viewport: { width: 1366, height: 768 },
     storageState: { cookies: [], origins: [] },
+    extraHTTPHeaders: clientSourceHeaders("safety"),
   });
   try {
     await openStaff(page, fixture.editor.name);
@@ -214,10 +228,9 @@ test("真实启用激活、本人改密重绑恢复码、会话吊销与客服�
       .getByLabel("6 位动态口令", { exact: true })
       .fill(totp(await firstSecret.inputValue()));
     await personal.getByRole("button", { name: "验证并绑定", exact: true }).click();
-    const oldCodes = await personal
-      .getByLabel("恢复码清单", { exact: true })
-      .locator("code")
-      .allTextContents();
+    const initialCodes = personal.getByLabel("恢复码清单", { exact: true }).locator("code");
+    await expect(initialCodes).toHaveCount(10);
+    const oldCodes = await initialCodes.allTextContents();
     expect(oldCodes).toHaveLength(10);
     await personal.getByRole("checkbox", { name: "我已保存恢复码", exact: true }).check();
     await personal.getByRole("button", { name: "进入后台", exact: true }).click();
@@ -232,7 +245,10 @@ test("真实启用激活、本人改密重绑恢复码、会话吊销与客服�
     await shot(personal, "w206-self-password");
     await passDialog.getByRole("button", { name: "确认修改", exact: true }).click();
     await expect(passDialog).toContainText("密码已修改，其他会话已失效。");
-    await passDialog.getByRole("button", { name: "关闭", exact: true }).click();
+    await passDialog
+      .locator(".lyx-confirm__footer")
+      .getByRole("button", { name: "关闭", exact: true })
+      .click();
     const oldPassword = await personal.request.post("/api/v1/admin/auth/login", {
       data: { phone: fixture.editor.phone, password },
       headers: { Origin: live.origin, "X-LYX-Admin": "1" },
@@ -244,7 +260,10 @@ test("真实启用激活、本人改密重绑恢复码、会话吊销与客服�
     await mfa.getByRole("button", { name: "生成新密钥", exact: true }).click();
     await expect(mfa.getByLabel("手输密钥", { exact: true })).not.toHaveValue("");
     await shot(personal, "w206-self-totp-masked");
-    await mfa.getByRole("button", { name: "关闭", exact: true }).click();
+    await mfa
+      .locator(".lyx-confirm__footer")
+      .getByRole("button", { name: "关闭", exact: true })
+      .click();
     await personal.getByRole("button", { name: "用户菜单", exact: true }).click();
     await personal.getByRole("menuitem", { name: "动态口令设置", exact: true }).click();
     await expect(mfa.getByLabel("手输密钥", { exact: true })).toHaveCount(0);
@@ -277,14 +296,20 @@ test("真实启用激活、本人改密重绑恢复码、会话吊销与客服�
     await personal.getByRole("button", { name: "用户菜单", exact: true }).click();
     await personal.getByRole("menuitem", { name: "动态口令设置", exact: true }).click();
     await expect(mfa.getByLabel("本人恢复码", { exact: true })).toHaveCount(0);
-    await mfa.getByRole("button", { name: "关闭", exact: true }).click();
+    await mfa
+      .locator(".lyx-confirm__footer")
+      .getByRole("button", { name: "关闭", exact: true })
+      .click();
     await personal.getByRole("button", { name: "用户菜单", exact: true }).click();
     await personal.getByRole("menuitem", { name: "绑定企业微信", exact: true }).click();
     const binding = personal.getByRole("dialog", { name: "绑定企业微信", exact: true });
     await binding.getByLabel("企业微信账号", { exact: true }).fill("w206-editor-self");
     await binding.getByRole("button", { name: "确认绑定", exact: true }).click();
     await expect(binding).toContainText("企业微信状态：已绑定");
-    await binding.getByRole("button", { name: "关闭", exact: true }).click();
+    await binding
+      .locator(".lyx-confirm__footer")
+      .getByRole("button", { name: "关闭", exact: true })
+      .click();
 
     // 真实角色修改使已有登录态读到新的当前身份；仅为此演练暂授客服系统查看，末尾恢复。
     await write(page, "/roles/cs", "PUT", {

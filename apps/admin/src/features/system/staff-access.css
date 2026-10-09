@@ -9,6 +9,9 @@
   min-width: 130px;
   max-width: 100%;
 }
+.lyx-staff-command .ant-select {
+  width: 100%;
+}
 .lyx-access-list {
   min-width: 0;
   padding: var(--lyx-space-12);

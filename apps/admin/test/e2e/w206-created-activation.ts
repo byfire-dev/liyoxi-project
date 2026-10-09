@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { liveContext } from "./live-context";
-import { confirm, openStaff, shot, totp } from "./w206-helpers";
+import { clientSourceHeaders, confirm, openStaff, shot, totp } from "./w206-helpers";
 
 /** 放在原新增员工验收之后，只消费该用例已创建的员工，不改变原列表/分页基数。 */
 export function registerW206CreatedActivationTest() {
@@ -27,6 +27,7 @@ export function registerW206CreatedActivationTest() {
       baseURL: live.origin,
       viewport: { width: 1366, height: 768 },
       storageState: { cookies: [], origins: [] },
+      extraHTTPHeaders: clientSourceHeaders("activation"),
     });
     try {
       const personal = await context.newPage();
