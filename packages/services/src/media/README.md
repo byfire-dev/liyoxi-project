@@ -78,3 +78,13 @@ complete仍是原三段式，在TX外读取HEAD/4KiB头、核声明大小与真�
 新增3HTTP/3x01：后台页码列表默认failed且system≥view，DTO隐去input/output/leaseOwner与原始错误正文；人工retry要求media.job.retry及required幂等，仍需当前业务需要，复位attempt/deadline/error并只审计一次；CI自然幂等回调只验HMAC-SHA256(mediaJobId)，提取一个安全JobId，submitted且外部号匹配才提前nextRunAt，绝不采信回调状态。原W2-01 inline收件同TX，无载荷持久化。媒体/微信/对象IO新增可选signal，未传仍兼容原调用，外呼guard保持最外层。
 
 ProduceID新补标默认`lyx:{小写UUIDv7 fileId}`仅作后续任务移交；不改上游已有标识、不声称法务已确认。CI真实激活、cam角色授权、任务模板、回调到达及大文件性能未验；本机只验证公开假key、有限HTTP与自有隔离库。
+
+## 8. W3-02 批量上传（开发中）
+
+`media.uploadBatches` 提供 create/get/start/refreshCredentials/update/complete/cancel/commit 八个用例。通过 L4 注入的用途公口读取真实剧目集数、工单范围及制作快照；media 不查 delivery 表。原片 commit 同事务生成新版本、交接引用并发出既有 `drama.masters_changed`，成片由交付公开用例消费批次。
+
+匹配保留已登记总集数；full 必须覆盖全部集号，partial 保留未选集。顺序建议须显式接受。修改严格三选一，替换先让出旧 pending token 与有效条目唯一键；被替换的历史仍可查询。批次活动将期限顺延 72 小时并同步 pending 文件，最晚为创建后 7 天。confirm 只经过真实 HEAD/头校验进入 promoting；拒收事实提交后再返回错误，不把直传完成当作体检完成。
+
+凭据只授权本批 `incoming/b{uploadBatchId}/`，30 分钟、8 MiB 块、文件并发 3、块并发 4；返回前后均复核本人及当前权限，不存凭据。批次 COS ListMultipartUploads 另用严格 `cos:prefix` 条件，原单文件授权不扩大。GET 不写业务行；权限变化后持有人仍可查看，但不能续签或变更。
+
+当前匹配纯测试、10 项服务连库闭环与完整 7 项接口用例已通过。worker 体检收敛、20 集 ready 后消费与浏览器证据仍在开发；只在 W3-04 实际合入 main 后接入其真实处理器，尚不记为完整交付。原片编辑 UI 移交 W3-12；真实云断点、大文件与平台联调另验。

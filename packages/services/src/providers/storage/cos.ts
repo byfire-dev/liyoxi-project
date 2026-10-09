@@ -221,7 +221,7 @@ export function createCosStorage(
               ],
           resource: [resource],
         },
-        ...(abortOnly
+        ...(abortOnly || /^incoming\/b[0-9a-f-]{36}\/$/.test(keyPrefix)
           ? [
               {
                 effect: "allow",

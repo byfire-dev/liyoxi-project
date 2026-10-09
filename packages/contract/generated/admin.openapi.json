@@ -2857,6 +2857,57 @@
         ],
         "type": "object"
       },
+      "AiUsage": {
+        "additionalProperties": false,
+        "properties": {
+          "declaredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "declaredBy": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "forcedByDrama": {
+            "type": "boolean"
+          },
+          "tools": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "usedFor": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "version",
+                "usedFor"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "used": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "used",
+          "tools",
+          "declaredBy",
+          "declaredAt",
+          "forcedByDrama"
+        ],
+        "type": "object"
+      },
       "ApprovalCounts": {
         "properties": {
           "items": {
@@ -4071,6 +4122,49 @@
           "ticket",
           "ticketExpiresAt",
           "methods"
+        ],
+        "type": "object"
+      },
+      "BatchUploadCredentials": {
+        "properties": {
+          "bucket": {
+            "type": "string"
+          },
+          "chunkParallel": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "chunkSize": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fileParallel": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "region": {
+            "type": "string"
+          },
+          "sts": {
+            "$ref": "#/components/schemas/StsCredential"
+          }
+        },
+        "required": [
+          "bucket",
+          "region",
+          "prefix",
+          "sts",
+          "chunkSize",
+          "fileParallel",
+          "chunkParallel",
+          "expiresAt"
         ],
         "type": "object"
       },
@@ -16386,6 +16480,740 @@
           "actions"
         ],
         "type": "object"
+      },
+      "UploadBatchCommitResult": {
+        "properties": {
+          "batch": {
+            "$ref": "#/components/schemas/UploadBatchDetail"
+          },
+          "masters": {
+            "items": {
+              "properties": {
+                "dramaEpisodeMasterId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "episodeNo": {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "revNo": {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "episodeNo",
+                "dramaEpisodeMasterId",
+                "revNo"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "batch",
+          "masters"
+        ],
+        "type": "object"
+      },
+      "UploadBatchCoverage": {
+        "properties": {
+          "duplicateEpisodeNos": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "missingEpisodeNos": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "needsSequenceConfirm": {
+            "type": "boolean"
+          },
+          "unmatchedItemIds": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "missingEpisodeNos",
+          "duplicateEpisodeNos",
+          "unmatchedItemIds",
+          "needsSequenceConfirm"
+        ],
+        "type": "object"
+      },
+      "UploadBatchCreateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "aiUsage": {
+            "additionalProperties": false,
+            "properties": {
+              "tools": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "usedFor": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "version",
+                    "usedFor"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "used": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "used",
+              "tools"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "files": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "clientToken": {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                "originalName": {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "sizeBytes": {
+                  "pattern": "^[1-9][0-9]*$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "clientToken",
+                "originalName",
+                "sizeBytes"
+              ],
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "isContentChanged": {
+            "default": false,
+            "type": "boolean"
+          },
+          "note": {
+            "maxLength": 200,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "purpose": {
+            "enum": [
+              "drama_master",
+              "final_release"
+            ],
+            "type": "string"
+          },
+          "replaceReason": {
+            "enum": [
+              "quality_fix",
+              "license_info_fix",
+              "other",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "enum": [
+              "full",
+              "partial"
+            ],
+            "type": "string"
+          },
+          "targetId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "purpose",
+          "targetId",
+          "scope",
+          "files"
+        ],
+        "type": "object"
+      },
+      "UploadBatchDetail": {
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "start",
+                "refresh-credentials",
+                "commit",
+                "cancel"
+              ],
+              "type": "string",
+              "x-open-enum": true
+            },
+            "type": "array"
+          },
+          "aiUsage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiUsage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bucket": {
+            "type": "string"
+          },
+          "committedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "counts": {
+            "properties": {
+              "checked": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "pending": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "rejected": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "replaced": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "skipped": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "total": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "uploaded": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "total",
+              "pending",
+              "uploaded",
+              "checked",
+              "rejected",
+              "skipped",
+              "replaced"
+            ],
+            "type": "object"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/UploadBatchCoverage"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "$ref": "#/components/schemas/StaffBrief"
+          },
+          "expectedCount": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "isContentChanged": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UploadBatchItem"
+            },
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "drama_master",
+              "final_release"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "region": {
+            "type": "string"
+          },
+          "replaceReason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "quality_fix",
+                  "license_info_fix",
+                  "other"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scope": {
+            "enum": [
+              "full",
+              "partial"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "state": {
+            "enum": [
+              "matching",
+              "uploading",
+              "verifying",
+              "ready",
+              "committed",
+              "canceled",
+              "expired"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "targetId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "targetLabel": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "uploadBatchId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "variant": {
+            "enum": [
+              "common"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "uploadBatchId",
+          "purpose",
+          "targetId",
+          "targetLabel",
+          "variant",
+          "scope",
+          "state",
+          "expectedCount",
+          "replaceReason",
+          "isContentChanged",
+          "aiUsage",
+          "note",
+          "bucket",
+          "region",
+          "prefix",
+          "expiresAt",
+          "committedAt",
+          "createdBy",
+          "createdAt",
+          "updatedAt",
+          "counts",
+          "coverage",
+          "items",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "UploadBatchItem": {
+        "properties": {
+          "aiUsage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiUsage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "check": {
+            "anyOf": [
+              {
+                "properties": {
+                  "failedHard": {
+                    "items": {
+                      "properties": {
+                        "actual": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "expected": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "actual",
+                        "expected"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "gate": {
+                    "enum": [
+                      "pass",
+                      "reject"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  },
+                  "warnings": {
+                    "items": {
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "note": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "note"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "gate",
+                  "failedHard",
+                  "warnings"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "episodeNo": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "episodeTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "fileStatus": {
+            "enum": [
+              "pending",
+              "promoting",
+              "stored",
+              "rejected",
+              "expired",
+              "deleting",
+              "deleted"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "isDurationDiffWarn": {
+            "type": "boolean"
+          },
+          "matchMethod": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pattern",
+                  "sequence",
+                  "manual"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "originalName": {
+            "type": "string"
+          },
+          "previousDurationMs": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rejectReason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "size_mismatch",
+                  "bad_magic",
+                  "changed_after_confirm",
+                  "copy_verify_failed",
+                  "stamp_failed"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sizeBytes": {
+            "pattern": "^[0-9]+$",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "uploaded",
+              "checked",
+              "rejected",
+              "skipped",
+              "replaced"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "uploadBatchItemId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "uploadKey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "uploadBatchItemId",
+          "fileId",
+          "originalName",
+          "sizeBytes",
+          "uploadKey",
+          "fileStatus",
+          "rejectReason",
+          "episodeNo",
+          "episodeTitle",
+          "matchMethod",
+          "state",
+          "durationMs",
+          "previousDurationMs",
+          "isDurationDiffWarn",
+          "check",
+          "aiUsage",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "UploadBatchItemUpdateBody": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "episodeNo": {
+                "exclusiveMinimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "episodeNo"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "skip": {
+                "enum": [
+                  true
+                ],
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "skip"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "replacementFile": {
+                "additionalProperties": false,
+                "properties": {
+                  "clientToken": {
+                    "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                    "type": "string"
+                  },
+                  "originalName": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "sizeBytes": {
+                    "pattern": "^[1-9][0-9]*$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "clientToken",
+                  "originalName",
+                  "sizeBytes"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "replacementFile"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "VerifyMfaBody": {
         "properties": {
@@ -36030,6 +36858,1075 @@
         "x-auth": "staff",
         "x-idempotent": "required",
         "x-permission": "finance.receipt.reject"
+      }
+    },
+    "/api/v1/admin/upload-batch-items/{uploadBatchItemId}": {
+      "patch": {
+        "operationId": "admin.uploadBatchItem.update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uploadBatchItemId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadBatchItemUpdateBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UploadBatchDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "修改批次条目：集号映射、跳过（仅 partial 批次）、同一集换新文件",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "assert-in-handler"
+      }
+    },
+    "/api/v1/admin/upload-batch-items/{uploadBatchItemId}/complete": {
+      "post": {
+        "operationId": "admin.uploadBatchItem.complete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uploadBatchItemId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UploadBatchItem"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "批次内单个文件上传完成确认",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "assert-in-handler",
+        "x-three-phase": true
+      }
+    },
+    "/api/v1/admin/upload-batches": {
+      "post": {
+        "operationId": "admin.uploadBatch.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadBatchCreateBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UploadBatchDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "创建批量上传批次并逐集匹配（原片首次上传、批量替换原片；成片批次同用）：用途、目标、文件清单、范围、替换原因、AI 使用声明",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "assert-in-handler"
+      }
+    },
+    "/api/v1/admin/upload-batches/{uploadBatchId}": {
+      "get": {
+        "operationId": "admin.uploadBatch.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uploadBatchId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UploadBatchDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "批次详情与逐条进度（前端轮询）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+        "x-permission": "assert-in-handler"
+      }
+    },
+    "/api/v1/admin/upload-batches/{uploadBatchId}/cancel": {
+      "post": {
+        "operationId": "admin.uploadBatch.cancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uploadBatchId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UploadBatchDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "取消批次",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "assert-in-handler"
+      }
+    },
+    "/api/v1/admin/upload-batches/{uploadBatchId}/commit": {
+      "post": {
+        "operationId": "admin.uploadBatch.commit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uploadBatchId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UploadBatchCommitResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "提交原片批次：生成新原片版本，旧版本置 superseded；内容有实质变更时标记许可待重新核验",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "drama.media.manage"
+      }
+    },
+    "/api/v1/admin/upload-batches/{uploadBatchId}/refresh-credentials": {
+      "post": {
+        "operationId": "admin.uploadBatch.refreshCredentials",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uploadBatchId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/BatchUploadCredentials"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "签发或续签整批的直传临时密钥（只能写批次前缀 incoming/b{uploadBatchId}/*，30 分钟）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "签发短时凭证，结果不进幂等记录（A18、C47）",
+        "x-permission": "assert-in-handler"
+      }
+    },
+    "/api/v1/admin/upload-batches/{uploadBatchId}/start": {
+      "post": {
+        "operationId": "admin.uploadBatch.start",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uploadBatchId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "acceptSequenceSuggestion": {
+                    "default": false,
+                    "type": "boolean"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UploadBatchDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "确认匹配结果，开始上传",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "assert-in-handler"
       }
     },
     "/api/v1/admin/webhook-events": {

@@ -104,7 +104,7 @@ import type { Providers } from "./providers/types.js";
 import { createContent, bindContent } from "./content/index.js";
 import type { Content } from "./content/index.js";
 import { createMedia } from "./media/index.js";
-import { createMediaAssembly } from "./ops/index.js";
+import { createMediaAssembly, createRuntimeMediaBatches } from "./ops/index.js";
 import type { Media } from "./media/index.js";
 import { createRateLimiter } from "./rate-limit.js";
 import type { RateLimiter } from "./rate-limit.js";
@@ -470,6 +470,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const unbindOrder = bindOrder({ assembly, clock, flow });
   const mediaChannel = createQueueChannel({ redisUrl: env.REDIS_URL, prefix: `${keyPrefix}bull` });
   const media = createMedia({
+    batches: createRuntimeMediaBatches({ clock, events, media: () => media }),
     tx,
     clock,
     assembly,

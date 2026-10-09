@@ -12,6 +12,7 @@ import { createMediaJobs } from "./jobs/runner.js";
 import { uuidv7, lockRows } from "../kernel/index.js";
 import { readableByStaff } from "./access.js";
 import { bindFileRefTypes } from "./invariants.js";
+import { createUploadBatches } from "./batches/service.js";
 export function createMedia(options: MediaDeps) {
   const refTypes = options.assembly.portEntries(fileRefTypePort);
   const guards = options.assembly.portEntries(fileCategoryGuardPort);
@@ -32,6 +33,7 @@ export function createMedia(options: MediaDeps) {
   bindFileRefTypes(refTypes);
   const deps = { ...options, refTypes, guards };
   const signRead = createSigner(deps);
+  let uploadBatches: ReturnType<typeof createUploadBatches> | undefined;
   const jobs = createMediaJobs({
     tx: options.tx,
     clock: options.clock,
@@ -45,6 +47,9 @@ export function createMedia(options: MediaDeps) {
     convergenceHandlers: options.jobConvergenceHandlers,
   });
   return {
+    get uploadBatches() {
+      return (uploadBatches ??= createUploadBatches(deps));
+    },
     register: (...args: Parameters<typeof register> extends [unknown, ...infer A] ? A : never) =>
       register(deps, ...args),
     complete: (

@@ -1,7 +1,7 @@
 import { AppError } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 
-/** The caller supplies its transaction; media never reads L2 drama tables directly. */
+/** Same-transaction facts through the composition; media never reads content-owned tables. */
 export async function readUploadDramaFacts(tx: Tx, dramaId: string) {
   const drama = await tx.drama.findUnique({
     where: { id: dramaId },
@@ -13,6 +13,11 @@ export async function readUploadDramaFacts(tx: Tx, dramaId: string) {
     select: { episodeNo: true, title: true },
     orderBy: { episodeNo: "asc" },
   });
-  return { ...drama, episodes };
+  const masters = await tx.dramaEpisodeMaster.findMany({
+    where: { dramaId, isCurrent: true },
+    select: { id: true, episodeNo: true, durationMs: true, fileId: true },
+    orderBy: { episodeNo: "asc" },
+  });
+  return { ...drama, episodes, masters };
 }
 export type UploadDramaFacts = Awaited<ReturnType<typeof readUploadDramaFacts>>;

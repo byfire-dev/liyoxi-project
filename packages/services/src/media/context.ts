@@ -14,8 +14,11 @@ import type {
 import type { WechatProvider, MediaProvider, StorageProvider } from "../providers/types.js";
 import type { MediaJobHandler, MediaConvergenceHandler } from "./jobs/types.js";
 import type { FileRefType } from "../kernel/index.js";
+import type { MediaBatchDeps } from "./batches/types.js";
+import type { AuditRequestMeta } from "../audit/index.js";
 export type FileRow = FileObject;
 export interface MediaActor {
+  readonly audit?: AuditRequestMeta;
   readonly identity: IdentityContext;
   readonly staff?: StaffContext;
   readonly merchant?: {
@@ -29,6 +32,8 @@ export interface FileCategoryGuard {
   registered?(tx: Tx, fileId: string, actor: MediaActor, input: RegisterInput): Promise<void>;
 }
 export interface MediaDeps {
+  readonly batches?: MediaBatchDeps;
+  readonly queueBatchProbe?: (tx: Tx, fileId: string, batchId: string) => Promise<string>;
   readonly jobOwnerId?: string;
   readonly jobHandlers?: readonly MediaJobHandler[];
   readonly jobConvergenceHandlers?: readonly MediaConvergenceHandler[];
