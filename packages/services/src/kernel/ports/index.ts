@@ -57,3 +57,23 @@ export type { SubscribePlanQuery, SubscribePlanReader } from "./subscribe-plan.j
 
 export { catalogRefPort, catalogRefsOf } from "./catalog-refs.js";
 export type { CatalogRef, CatalogRefs } from "./catalog-refs.js";
+
+export {
+  staffWorkPort,
+  staffFollowUpPort,
+  staffWorkSourcesOf,
+  STAFF_WORK_OWNERS,
+} from "./staff-work.js";
+export type {
+  StaffWorkSource,
+  StaffWorkSources,
+  StaffWorkOwner,
+  StaffWorkItem,
+  StaffWorkQuery,
+  StaffWorkReassignment,
+  StaffWorkSourceKey,
+  StaffWorkSubjectType,
+  StaffActivationSender,
+  StaffFollowUpSubject,
+  StaffFollowUpReader,
+} from "./staff-work.js";

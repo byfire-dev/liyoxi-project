@@ -122,8 +122,9 @@ describe("与 x01 对账（验收 1–4）", () => {
     expect(body.prefixes).toHaveLength(52);
     expect(body.queues).toHaveLength(8);
     expect(body.callbacks).toHaveLength(7);
-    expect(body.commands).toHaveLength(4);
+    expect(body.commands).toHaveLength(5);
     expect(body.commands).toContain("staff:bootstrap");
+    expect(body.commands).toContain("staff:reissue-activation");
     expect(body.events.find((item) => item.name === "billing.month_closed")).toEqual({
       name: "billing.month_closed",
       aggregates: ["billing_month_close"],

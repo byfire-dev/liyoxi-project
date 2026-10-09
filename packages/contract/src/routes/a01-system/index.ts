@@ -97,3 +97,7 @@ export * from "./webhook-events.js";
 
 export * from "./media-jobs.js";
 export * from "./media-jobs.schemas.js";
+
+export * from "./staff-groups.js";
+export * from "./staff-sessions.js";
+export * from "./assignment-pool-members.js";

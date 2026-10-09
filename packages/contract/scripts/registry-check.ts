@@ -63,14 +63,14 @@ export const EXPECTED_COUNTS = {
   loops: 11,
   queues: 8,
   callbacks: 7,
-  commands: 4,
+  commands: 5,
 } as const;
 
 /** 各里程碑各类的条目数，列的顺序同 MAP_CATEGORIES：订阅者、定时器、周期任务、循环、队列、回调、命令行（计划 第 8.4 节） */
 export const EXPECTED_MILESTONE_MATRIX: Record<Milestone, readonly number[]> = {
   M0: [0, 0, 3, 4, 2, 0, 0],
   M1: [2, 2, 1, 2, 1, 0, 1],
-  M2: [9, 3, 10, 3, 1, 1, 2],
+  M2: [9, 3, 10, 3, 1, 1, 3],
   M3: [6, 3, 3, 1, 1, 2, 0],
   M4: [6, 4, 5, 0, 0, 2, 1],
   M5: [5, 4, 0, 1, 1, 0, 0],

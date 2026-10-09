@@ -324,3 +324,5 @@ W1-23a交[分配表](../changes/W1-23-m2-m4-package-map.md)、M2共25本（01–
 | W1-23a → 本段b | W2-01/02及M3/M4各包 | 39本已覆盖全部分配与既有后台页增量、冻结媒体事实及权限/版本；Q8/Q10/Q13按既定默认；G2-0 actual后按本书依赖开工 |
 
 W3-06同编号先交甲级session advisory mutex公开能力与必要工厂接线，后交乙级文件恢复/彻删；领域段必须等待前置PR实际合入，两PR齐才完成。正式a01规定全用例持锁，不能用普通事务行锁或领域裸连接替代；b任务书按此展开。
+
+W2-03 在实际 main W2-17/W2-22 后实施员工全量与真实已落地 profile/order/delivery/publish/follow_up 来源，staff 只消费 typed 来源端口，不跨 L3 查表。M5 广告在办和 M7 客服工单来源仍由 W4-20、W2-31 各自登记真实 countOpen/list/reassign；本包不注册恒零来源。过期首管理员补发独立登记 staff_reissue_activation，保原 staff_bootstrap 与既有两项任务归属。真实腾讯验证码限制无法接受8字符激活码，仍由现通知结果受控手动回退，完整外部报备与到达不算已验。

@@ -41,3 +41,5 @@ export {
 } from "./invariants.js";
 
 export type { DirectNotificationInput } from "./direct.js";
+
+export { sendStaffWecomInvite } from "./staff-invite.js";

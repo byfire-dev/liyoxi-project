@@ -2528,6 +2528,12 @@
       "audience": "staff",
       "events": [],
       "source": "W2-17 必要补登；03 分组 2.9、13 分组 2.1；纯提醒 followup_due"
+    },
+    {
+      "sceneKey": "s.wecom_invite",
+      "audience": "staff",
+      "events": [],
+      "source": "W2-03 必要补登；a01 3.24、13分组2.1；站内邀请与原扫描恢复"
     }
   ]
 }
