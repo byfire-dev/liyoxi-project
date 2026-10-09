@@ -64,6 +64,8 @@ export interface TestApiOptions {
   readonly rateLimitQuotas?: RateLimitOptions["quotas"];
   /** 运行时连哪个 Redis，缺省环境变量里的那个；验“Redis 不可用”时传故障注入的转发口 */
   readonly redisUrl?: string;
+  /** 使用 API 构建的实际隔离转换产物；不以假转换结果代替正文验收。 */
+  readonly documentConverterWorkerUrl?: URL;
 }
 
 export interface TestRequestInit extends RequestInit {
@@ -143,6 +145,7 @@ export function useTestApi(): TestApiHandle {
         // 机器忙的时候 Redis 的一条命令也可能慢过 200 毫秒：放宽，免得用例里把慢当成断
         rateLimitCommandTimeoutMs: 5_000,
         providers,
+        documentWorkerUrl: options.documentConverterWorkerUrl,
         logger: createLogger({
           svc: "api",
           env: env.APP_ENV,

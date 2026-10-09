@@ -13,6 +13,7 @@ import type {
   SignedAgreementList,
 } from "@liyoxi/contract";
 
+import { AppError } from "../kernel/index.js";
 import type { Clock, IdempotencyContext, IdentityContext, Tx, TxRunner } from "../kernel/index.js";
 import { assertConsents } from "./consents.js";
 import type { AssertConsentsInput, AssertConsentsResult } from "./consents.js";
@@ -35,6 +36,8 @@ export interface DocsDeps {
   readonly tx: TxRunner;
   /** 业务时钟：“当前版本”按它解析，同意时间取它 */
   readonly clock: Clock;
+  /** 仅TX外现签；未配置真实能力时受控失败，不返回占位地址。 */
+  readonly signPdf?: (input: { fileId: string }) => Promise<AgreementVersionDetail["pdf"]>;
 }
 
 /** 重新同意（m.agreementConsent.create）的入参：场景固定 reconsent、方式固定勾选 */
@@ -83,7 +86,16 @@ export function createDocs(deps: DocsDeps): Docs {
   const read = <T>(fn: (tx: Tx) => Promise<T>): Promise<T> => deps.tx.run(fn);
   return {
     listAgreements: (query) => read((tx) => listAgreements(tx, now(), query)),
-    getAgreementVersion: (id) => read((tx) => getAgreementVersion(tx, now(), id)),
+    getAgreementVersion: async (id) => {
+      const first = await read((tx) => getAgreementVersion(tx, now(), id));
+      if (!first.pdfFileId || !deps.signPdf) throw new AppError("FILE_NOT_AVAILABLE");
+      const pdf = await deps.signPdf({ fileId: first.pdfFileId });
+      const fresh = await read((tx) => getAgreementVersion(tx, now(), id));
+      if (fresh.pdfFileId !== first.pdfFileId || fresh.contentSha256 !== first.contentSha256)
+        throw new AppError("FILE_NOT_AVAILABLE");
+      const { pdfFileId: _pdfFileId, ...detail } = fresh;
+      return { ...detail, pdf };
+    },
     reconsent: (ctx, input, options = {}) =>
       deps.tx.run(async (tx) => {
         const result = await assertConsents(tx, now(), ctx, {

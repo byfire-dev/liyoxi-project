@@ -26,7 +26,8 @@ export interface AgreementListQuery {
 
 function briefOf(version: VersionRow | undefined): AgreementVersionBrief | null {
   // 能被解析到的版本都离开了草稿：生效时间与摘要必有（ck_agreement_version_effective_at、_published）
-  if (version === undefined || version.effectiveAt === null || version.summary === null) return null;
+  if (version === undefined || version.effectiveAt === null || version.summary === null)
+    return null;
   return {
     agreementVersionId: version.id,
     versionLabel: versionLabel(version),
@@ -52,18 +53,16 @@ export async function listAgreements(
   });
   const current = await currentVersions(db, now);
   const upcoming = await upcomingVersions(db, now);
-  const items = agreements.map(
-    (agreement): AgreementCurrent => ({
-      agreementKey: agreement.key,
-      name: agreement.name,
-      // 三列在库里各有 CHECK，取值就是契约的枚举
-      subjectKind: agreement.subjectKind as AgreementCurrent["subjectKind"],
-      consentMode: agreement.consentMode as AgreementCurrent["consentMode"],
-      scenes: agreement.scenes as AgreementCurrent["scenes"],
-      currentVersion: briefOf(current.get(agreement.key)),
-      upcomingVersion: briefOf(upcoming.get(agreement.key)),
-    }),
-  );
+  const items = agreements.map((agreement): AgreementCurrent => ({
+    agreementKey: agreement.key,
+    name: agreement.name,
+    // 三列在库里各有 CHECK，取值就是契约的枚举
+    subjectKind: agreement.subjectKind as AgreementCurrent["subjectKind"],
+    consentMode: agreement.consentMode as AgreementCurrent["consentMode"],
+    scenes: agreement.scenes as AgreementCurrent["scenes"],
+    currentVersion: briefOf(current.get(agreement.key)),
+    upcomingVersion: briefOf(upcoming.get(agreement.key)),
+  }));
   return pageOf(items, query.cursor, query.limit);
 }
 
@@ -75,7 +74,7 @@ export async function getAgreementVersion(
   db: DocsReader,
   now: Date,
   agreementVersionId: string,
-): Promise<AgreementVersionDetail> {
+): Promise<Omit<AgreementVersionDetail, "pdf"> & { pdfFileId: string | null }> {
   const version = await db.agreementVersion.findUnique({
     where: { id: agreementVersionId },
     include: { agreement: { select: { name: true } } },
@@ -107,8 +106,6 @@ export async function getAgreementVersion(
     isReconsentRequired: version.isReconsentRequired,
     contentHtml: version.contentHtml,
     contentSha256: version.contentSha256,
-    // 留桩：PDF 的签名读地址要经 media 现签，docs → media 不在同层白名单里（06 第 3.6 节），随 G2-B 定走法。
-    // 现在地址为空串，端上只展示 contentHtml（docs/plan/stubs/m2-docs-agreement-pdf-url.md）
-    pdf: { url: "", expiresAt: new Date(now.getTime() + AGREEMENT_PDF_URL_TTL_MS).toISOString() },
+    pdfFileId: version.pdfFileId,
   };
 }

@@ -95,7 +95,7 @@ export const AgreementVersionDetailSchema = z
     isReconsentRequired: z.boolean(),
     contentHtml: orNull(z.string()),
     contentSha256: z.string().regex(/^[0-9a-f]{64}$/),
-    pdf: z.object({ url: z.string(), expiresAt: InstantSchema }),
+    pdf: z.strictObject({ url: z.string().min(1), expiresAt: InstantSchema }),
   })
   .openapi("AgreementVersionDetail");
 export type AgreementVersionDetail = z.infer<typeof AgreementVersionDetailSchema>;
