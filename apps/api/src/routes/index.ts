@@ -1,3 +1,4 @@
+import { adminAgreementHandlers } from "./admin/agreements.js";
 import { ciHookHandlers } from "./hooks/ci.js";
 import { adminMediaJobHandlers } from "./admin/media-jobs.js";
 import { analyticsEventHandlers } from "./analytics-events.js";
@@ -48,6 +49,7 @@ import { notifySettingHandlers } from "./notify-settings.js";
 import { siteHandlers } from "./admin/site.js";
 
 export const HANDLERS: readonly HandlerEntry[] = [
+  ...adminAgreementHandlers,
   ...siteHandlers,
   ...ciHookHandlers,
   ...adminMediaJobHandlers,

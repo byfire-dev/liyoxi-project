@@ -89,6 +89,7 @@ async function main(): Promise<void> {
     await Promise.allSettled([
       ...(services
         ? [
+            services.closeDocs(),
             services.documentConverter?.close(),
             services.shutdownMediaJobs?.(),
             services.closeMediaDrivers?.(),
@@ -113,6 +114,7 @@ async function main(): Promise<void> {
   };
   if (channel === undefined) {
     logger.info(summary, "装配与自检通过");
+    await services.closeDocs();
     await services.documentConverter?.close();
     await services.shutdownMediaJobs?.();
     services.closeMediaJobs?.();
@@ -136,6 +138,7 @@ async function main(): Promise<void> {
     logger.info({ signal }, "收到终止信号：停循环、收在途任务、让出租约");
     await Promise.allSettled(wechatClosers.map((close) => close()));
     await runtime.stop();
+    await services.closeDocs();
     await services.documentConverter?.close();
     wechatRedis?.disconnect();
     await Promise.allSettled([channel.close(), lease.close(), database.close()]);

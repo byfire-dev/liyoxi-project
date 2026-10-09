@@ -328,3 +328,6 @@ export type {
 
 export { createSiteAdmin } from "./config/index.js";
 export type { SiteAdmin, SiteAdminDeps } from "./config/index.js";
+
+export { createDocsAdmin } from "./docs/index.js";
+export type { AgreementActor, DocsAdminDeps, AgreementFilePort } from "./docs/index.js";

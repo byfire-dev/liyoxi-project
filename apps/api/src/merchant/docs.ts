@@ -1,12 +1,3 @@
-// 共享的 docs 装配：处理器和商家服务取同一份，装配不反向依赖 routes。
-import { createDocs } from "@liyoxi/services";
+// 同一运行时的商家读取与交易消费共用当前文书装配。
 import type { Docs, Runtime } from "@liyoxi/services";
-const built = new WeakMap<Runtime, Docs>();
-export function docsOf(runtime: Runtime): Docs {
-  let docs = built.get(runtime);
-  if (docs === undefined) {
-    docs = createDocs({ tx: runtime.tx, clock: runtime.clock });
-    built.set(runtime, docs);
-  }
-  return docs;
-}
+export const docsOf = (runtime: Runtime): Docs => runtime.docs;

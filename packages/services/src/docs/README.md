@@ -1,6 +1,6 @@
 # docs：协议与同意
 
-协议的“当前版本”、协议清单与版本正文的读、同意记录的写入、待同意与指纹、已签署协议（W1-03）。依据：[m01](../../../../docs/api/m01-account.md) 第 2.5、2.7、2.9–2.11、3.12–3.16 节；[13 分组](../../../../docs/data-model/13-notify-docs.md) 第 2.10–2.12、5.2、5.4 节。协议管理的写侧（新建版本、保存为待生效、撤回）、`docs.sweep`、同意记录日摘要随 M2；授权书随 M5。
+协议的“当前版本”、协议清单与版本正文的读、同意记录的写入、待同意与指纹、已签署协议（W1-03）。依据：[m01](../../../../docs/api/m01-account.md) 第 2.5、2.7、2.9–2.11、3.12–3.16 节；[13 分组](../../../../docs/data-model/13-notify-docs.md) 第 2.10–2.12、5.2、5.4 节。W2-12 PR2 增加八条后台接口及本域两项任务，当前源码仍在开发验收；授权书的渲染与保留分支随 M5。
 
 ## 1. 这里有什么
 
@@ -15,6 +15,9 @@
 | `invariants.ts`、`transaction-invariant.ts`、`register.ts` | `docs.N4`、`docs.N13` 与 `docs.N5` 的查询及登记 |
 | `seed.ts` | 六份协议的清单（W0-21，`pnpm db:seed`） |
 | `demo-seed.ts` | 六份占位版本（演示种子；只进本地与预发） |
+| `admin-context.ts`、`admin-read.ts`、`admin-write.ts` | 后台八接口：模块权限、脱敏查询、草稿与安排/撤回生命周期 |
+| `ports.ts` | 本域文件权限、引用、正文准备和私有现签的纯依赖类型 |
+| `jobs.ts`、`consent-digest.ts` | 到点簿记与前一北京时间自然日的只增证据摘要 |
 
 ## 2. 怎么用
 
@@ -53,9 +56,19 @@ pnpm --filter @liyoxi/services exec vitest run src/docs/
 
 ## 4. 已知的限度
 
-- 版本正文的 `pdf.url` 是空串：签名读地址要经 media 现签，docs → media 不在同层白名单里，走法随 G2-B 定（留桩）。
+- 版本正文通过注入的纯文件端口在事务外现签，并在签名前后读取真实可见性；未配置签名能力或文件不可用时受控失败，不返回空地址。PR2 源码尚待业务验收，不把本地实现当作真实法律正文已交。
 - 已签署协议里的 `bizTitle` 恒为 `null`：付款单的标题要经 billing 取，随 G4-C（留桩）。
 - `docs.N5` 已随 W2-17 PR3 接入：`billingConsentFacts`、`orderConsentFacts`、`adConsentFacts` 经既有 keyed 通知事实端口返回单据/签署人/时刻/协议键。docs 仅读自身版本与只增同意表；缺登记报受控检查错误，不能反向查询三张上层表。默认 API/worker 用本运行时 Assembly 的 full 不变量闭包，污染可以真实报告，其他未配置发送通道不令 N5 恒真。
 - `docs.N4` 的哈希一项只比“版本行的内容哈希”与“文件登记行上的哈希”，文件行没有哈希的不比；不读对象存储里的文件本身。
-- 登记给框架的两条不变量拿不到注入的时钟，“现在”取数据库时间。
+- API/worker 的 scoped 组合保留原 N5 闭包；N4/N13 应使用本次不变量运行的业务时刻，静态登记仅作为未装配时的原查询入口。
 - 取不到来源 IP、请求号的同意记录写 `unknown`，不拦业务。
+
+## 5. W2-12 PR2 的实现边界
+
+后台四项写操作保留 required 幂等与原权限元数据。草稿以协议自然键串行，再锁版本与已排序文件行；正文 prepare 先取得真实 converter 容量才有界读 source/PDF，写事务重新验证当前归属、分类、状态、ETag、大小、哈希。转换成功不替代这次授权。`agreement_version` 是技术簿记，不新增 flow 或状态历史；安排与撤回通过现有 notices 公口在同一事务记录公告及原出站事件，提交后发出 agreement/site 缓存失效信号。法律可见性仍每次实时查库。
+
+`ops/docs-files.ts` 是 L4 文件桥，只消费 media 的公开口；不增加 docs→media 白名单。私有签名不落幂等结果或数据库，商家正文响应为 no-store。默认双文件用于安排生效；PDF-only 可保存草稿并对有界完整字节求真实 SHA，Word/PDF 文本不一致只返回真实警告。正式法务文本和审批不会由转换自动补齐。
+
+`docs.sweep` 每五分钟仅补 pending→active 与原 active→superseded、人数快照及审计；读路径到点即按唯一 currentVersions 解析。M5 授权书 queued 重投/渲染租约分支不在本包实现。摘要按前一北京时间自然日、seq 顺序、所有列求 SHA-256，secure 桶仅保存固定元数据且用 ifAbsent/内容身份防覆盖；次日重算。摘要不一致调用 evidence.consent_digest_mismatch（P1），对象不可读/写等能力故障调用 evidence.consent_digest_unavailable（P2），并使本次任务真实失败。告警事实落库沿独立 W224 前置，调用替身仅能证明端口调用；最终验收须在其 actual main 合流后核实。
+
+两项 job 与不变量索引使用当前 API/worker Assembly 副本，关闭只取消和等待本实例已接受的任务；不设置全局最后绑定。测试支撑 docs-admin.ts 只布置虚构员工/合法 stored 输入/草稿事实。正文验收实际构建并启动 PR1 converter 产物；已有转换字段的 lifecycle fixture 只证明业务状态与引用，不冒充真实处理、云对象存储或法务验收。

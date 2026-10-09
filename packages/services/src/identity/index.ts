@@ -47,3 +47,5 @@ export { membershipAuthorizations, revokePortalGrants } from "./portal-grants.js
 export { findWechatIdentityId, recentWechatOpenid } from "./wechat-lookup.js";
 
 export { merchantTargetForNotify, wechatTargetForNotify } from "./notify-facts.js";
+
+export { countActiveMerchantUsers } from "./active-user-count.js";

@@ -31,3 +31,5 @@ export const A09_OPS = defineRouteDoc("a09-ops", [
 ]);
 
 export * from "./site.schemas.js";
+
+export * from "./agreement.schemas.js";
