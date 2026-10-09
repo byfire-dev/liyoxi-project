@@ -79,6 +79,36 @@
         ],
         "type": "object"
       },
+      "AdminAgreementVersionBrief": {
+        "additionalProperties": false,
+        "properties": {
+          "agreementVersionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "effectiveAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "versionLabel": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "agreementVersionId",
+          "versionLabel",
+          "effectiveAt"
+        ],
+        "type": "object"
+      },
       "AdminChecklistItemView": {
         "additionalProperties": false,
         "properties": {
@@ -3283,6 +3313,888 @@
         ],
         "type": "object"
       },
+      "AgreementConsentDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AgreementConsentItem"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "appid": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "contentSha256": {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              "createdAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "device": {
+                "additionalProperties": false,
+                "properties": {
+                  "appVersion": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  },
+                  "sdkVersion": {
+                    "type": "string"
+                  },
+                  "system": {
+                    "type": "string"
+                  },
+                  "wechatVersion": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "hasOpenidSnapshot": {
+                "type": "boolean"
+              },
+              "ipMask": {
+                "type": "string"
+              },
+              "isContentHashConsistent": {
+                "type": "boolean"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "revealableFields": {
+                "items": {
+                  "enum": [
+                    "phone",
+                    "uscc"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "userAgent": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "contentSha256",
+              "isContentHashConsistent",
+              "appid",
+              "hasOpenidSnapshot",
+              "ipMask",
+              "userAgent",
+              "device",
+              "requestId",
+              "revealableFields",
+              "createdAt"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "AgreementConsentItem": {
+        "additionalProperties": false,
+        "properties": {
+          "agreementConsentId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "agreementKey": {
+            "maxLength": 24,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "agreementName": {
+            "type": "string"
+          },
+          "agreementVersionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "bizId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bizNo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bizType": {
+            "anyOf": [
+              {
+                "enum": [
+                  "billing_order",
+                  "drama_order",
+                  "ad"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "consentNo": {
+            "pattern": "^\\d+$",
+            "type": "string"
+          },
+          "consentedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "entityId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entityName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "merchantUserId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "checkbox",
+              "by_action",
+              "prior_consent"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "operatorNameMask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "phoneMask": {
+            "type": "string"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "owner",
+                  "clerk"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scene": {
+            "enum": [
+              "login",
+              "reconsent",
+              "member_join",
+              "plan_purchase",
+              "topup",
+              "order_submit",
+              "ad_request"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "storeId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "storeName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usccMask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "versionLabel": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "agreementConsentId",
+          "consentNo",
+          "agreementKey",
+          "agreementName",
+          "agreementVersionId",
+          "versionLabel",
+          "scene",
+          "method",
+          "merchantUserId",
+          "phoneMask",
+          "operatorNameMask",
+          "role",
+          "entityId",
+          "entityName",
+          "usccMask",
+          "storeId",
+          "storeName",
+          "bizType",
+          "bizId",
+          "bizNo",
+          "consentedAt"
+        ],
+        "type": "object"
+      },
+      "AgreementDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AgreementListItem"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "currentContentHtml": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "draftContentHtml": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reconsentProgress": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "agreementVersionId": {
+                        "format": "uuid",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      },
+                      "consentedCount": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "expectedCount": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "ratioBp": {
+                        "maximum": 10000,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "versionLabel": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "agreementVersionId",
+                      "versionLabel",
+                      "consentedCount",
+                      "expectedCount",
+                      "ratioBp"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "versions": {
+                "items": {
+                  "$ref": "#/components/schemas/AgreementVersionItem"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "versions",
+              "currentContentHtml",
+              "draftContentHtml",
+              "reconsentProgress"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "AgreementFileBrief": {
+        "additionalProperties": false,
+        "properties": {
+          "fileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "mime": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "originalName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sizeBytes": {
+            "pattern": "^\\d+$",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "fileId",
+          "originalName",
+          "sizeBytes",
+          "mime"
+        ],
+        "type": "object"
+      },
+      "AgreementListItem": {
+        "additionalProperties": false,
+        "properties": {
+          "agreementKey": {
+            "maxLength": 24,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "audienceLabel": {
+            "type": "string"
+          },
+          "consentMode": {
+            "enum": [
+              "checkbox",
+              "by_action",
+              "esign"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "currentVersion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminAgreementVersionBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "draftVersion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminAgreementVersionBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "pendingVersion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminAgreementVersionBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scenes": {
+            "items": {
+              "enum": [
+                "login",
+                "reconsent",
+                "member_join",
+                "plan_purchase",
+                "topup",
+                "order_submit",
+                "ad_request"
+              ],
+              "type": "string",
+              "x-open-enum": true
+            },
+            "type": "array"
+          },
+          "signSceneLabel": {
+            "type": "string"
+          },
+          "sinceVersion": {
+            "type": "string"
+          },
+          "subjectKind": {
+            "enum": [
+              "user",
+              "entity",
+              "partner"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "agreementKey",
+          "name",
+          "subjectKind",
+          "consentMode",
+          "scenes",
+          "signSceneLabel",
+          "audienceLabel",
+          "sinceVersion",
+          "currentVersion",
+          "pendingVersion",
+          "draftVersion"
+        ],
+        "type": "object"
+      },
+      "AgreementVersionCreateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "bumpMajor": {
+            "default": false,
+            "type": "boolean"
+          },
+          "effectiveAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "isLegalApproved": {
+            "type": "boolean"
+          },
+          "isReconsentRequired": {
+            "type": "boolean"
+          },
+          "pdfFileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "sourceFileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AgreementVersionItem": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "edit",
+                "schedule",
+                "withdraw"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "activatedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "agreementKey": {
+            "maxLength": 24,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "agreementVersionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "contentSha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "$ref": "#/components/schemas/StaffBrief"
+          },
+          "displayStatus": {
+            "enum": [
+              "draft",
+              "pending",
+              "active",
+              "superseded",
+              "withdrawn"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "effectiveAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expectedConsents": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hasContentHtml": {
+            "type": "boolean"
+          },
+          "isLegalApproved": {
+            "type": "boolean"
+          },
+          "isReconsentRequired": {
+            "type": "boolean"
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "major": {
+            "type": "integer"
+          },
+          "minor": {
+            "type": "integer"
+          },
+          "pdfFile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgreementFileBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "publishedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shortNoticeReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "siteNoticeId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourceFile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgreementFileBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "pending",
+              "active",
+              "superseded",
+              "withdrawn"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "versionLabel": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "agreementVersionId",
+          "agreementKey",
+          "major",
+          "minor",
+          "versionLabel",
+          "status",
+          "displayStatus",
+          "effectiveAt",
+          "summary",
+          "isReconsentRequired",
+          "isLegalApproved",
+          "sourceFile",
+          "pdfFile",
+          "hasContentHtml",
+          "contentSha256",
+          "siteNoticeId",
+          "shortNoticeReason",
+          "expectedConsents",
+          "activatedAt",
+          "createdBy",
+          "publishedBy",
+          "lockVersion",
+          "createdAt",
+          "updatedAt",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "AgreementVersionMutationResult": {
+        "additionalProperties": false,
+        "properties": {
+          "contentHtml": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conversion": {
+            "$ref": "#/components/schemas/ContentConversion"
+          },
+          "version": {
+            "$ref": "#/components/schemas/AgreementVersionItem"
+          }
+        },
+        "required": [
+          "version",
+          "contentHtml",
+          "conversion"
+        ],
+        "type": "object"
+      },
+      "AgreementVersionScheduleBody": {
+        "additionalProperties": false,
+        "properties": {
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shortNoticeReason": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "lockVersion"
+        ],
+        "type": "object"
+      },
+      "AgreementVersionUpdateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "effectiveAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isLegalApproved": {
+            "type": "boolean"
+          },
+          "isReconsentRequired": {
+            "type": "boolean"
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "pdfFileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sourceFileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "summary": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "lockVersion"
+        ],
+        "type": "object"
+      },
+      "AgreementVersionWithdrawBody": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "AiUsage": {
         "additionalProperties": false,
         "properties": {
@@ -5865,6 +6777,48 @@
         },
         "required": [
           "code"
+        ],
+        "type": "object"
+      },
+      "ContentConversion": {
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "enum": [
+              "converted",
+              "pdf_only",
+              "unchanged"
+            ],
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "enum": [
+                    "text_mismatch"
+                  ],
+                  "type": "string"
+                },
+                "similarityBp": {
+                  "maximum": 10000,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "code",
+                "similarityBp"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "state",
+          "warnings"
         ],
         "type": "object"
       },
@@ -20001,6 +20955,1569 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/agreement-consents": {
+      "get": {
+        "operationId": "admin.agreementConsent.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agreementKey",
+            "required": false,
+            "schema": {
+              "pattern": "^[a-z][a-z0-9_]*(?:,[a-z][a-z0-9_]*){0,6}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agreementVersionId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "merchantUserId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scene",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "method",
+            "required": false,
+            "schema": {
+              "enum": [
+                "checkbox",
+                "by_action",
+                "prior_consent"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "bizType",
+            "required": false,
+            "schema": {
+              "enum": [
+                "billing_order",
+                "drama_order",
+                "ad"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "bizId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "no",
+            "required": false,
+            "schema": {
+              "maxLength": 40,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "consentNo",
+            "required": false,
+            "schema": {
+              "pattern": "^\\d{1,19}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "consentedFrom",
+            "required": false,
+            "schema": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "consentedTo",
+            "required": false,
+            "schema": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "-consentedAt",
+              "enum": [
+                "-consentedAt",
+                "consentedAt"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/AgreementConsentItem"
+                          },
+                          "type": "array"
+                        },
+                        "page": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "同意记录检索：按协议、版本、商家用户、主体或门店、场景、关联单据（bizType + bizId，或单号）、时间范围（手机号只回脱敏值）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/agreement-consents/{agreementConsentId}": {
+      "get": {
+        "operationId": "admin.agreementConsent.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agreementConsentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AgreementConsentDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "同意记录证据详情（手机号、信用代码只回脱敏值）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/agreement-versions/{agreementVersionId}": {
+      "patch": {
+        "operationId": "admin.agreementVersion.update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agreementVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgreementVersionUpdateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AgreementVersionMutationResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "编辑草稿：生效时间、变更摘要、正文文件（Word 或 PDF）、是否需重新同意、法务审定勾选",
+        "x-auth": "staff",
+        "x-idempotent": "required"
+      }
+    },
+    "/api/v1/admin/agreement-versions/{agreementVersionId}/schedule": {
+      "post": {
+        "operationId": "admin.agreementVersion.schedule",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agreementVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgreementVersionScheduleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "siteNotice": {
+                          "anyOf": [
+                            {
+                              "properties": {
+                                "announcedAt": {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                "createdAt": {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                "createdBy": {
+                                  "$ref": "#/components/schemas/StaffBrief"
+                                },
+                                "displayState": {
+                                  "enum": [
+                                    "scheduled",
+                                    "effective",
+                                    "withdrawn"
+                                  ],
+                                  "type": "string"
+                                },
+                                "effectiveAt": {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                "isBarEnabled": {
+                                  "type": "boolean"
+                                },
+                                "kind": {
+                                  "enum": [
+                                    "plan_revision",
+                                    "billing_param",
+                                    "agreement_version"
+                                  ],
+                                  "type": "string"
+                                },
+                                "leadDays": {
+                                  "type": "integer"
+                                },
+                                "link": {
+                                  "properties": {
+                                    "params": {
+                                      "additionalProperties": {},
+                                      "type": "object"
+                                    },
+                                    "route": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "route"
+                                  ],
+                                  "type": "object"
+                                },
+                                "refId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "shortNoticeReason": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "siteNoticeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "status": {
+                                  "enum": [
+                                    "announced",
+                                    "withdrawn"
+                                  ],
+                                  "type": "string"
+                                },
+                                "summary": {
+                                  "type": "string"
+                                },
+                                "summaryNoPrice": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "withdrawnAt": {
+                                  "format": "date-time",
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "withdrawnBy": {
+                                  "allOf": [
+                                    {
+                                      "$ref": "#/components/schemas/StaffBrief"
+                                    },
+                                    {
+                                      "type": [
+                                        "object",
+                                        "null"
+                                      ]
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "siteNoticeId",
+                                "kind",
+                                "refId",
+                                "title",
+                                "summary",
+                                "summaryNoPrice",
+                                "effectiveAt",
+                                "announcedAt",
+                                "leadDays",
+                                "shortNoticeReason",
+                                "link",
+                                "isBarEnabled",
+                                "status",
+                                "displayState",
+                                "createdBy",
+                                "withdrawnBy",
+                                "withdrawnAt",
+                                "createdAt"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "version": {
+                          "$ref": "#/components/schemas/AgreementVersionItem"
+                        }
+                      },
+                      "required": [
+                        "version",
+                        "siteNotice"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "保存为待生效（文件齐全、法务审定、生效时间晚于 10 分钟后）；会员与积分协议同事务建公告",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "assert-in-handler"
+      }
+    },
+    "/api/v1/admin/agreement-versions/{agreementVersionId}/withdraw": {
+      "post": {
+        "operationId": "admin.agreementVersion.withdraw",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agreementVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgreementVersionWithdrawBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "newDraft": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/AgreementVersionItem"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "siteNotice": {
+                          "anyOf": [
+                            {
+                              "properties": {
+                                "announcedAt": {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                "createdAt": {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                "createdBy": {
+                                  "$ref": "#/components/schemas/StaffBrief"
+                                },
+                                "displayState": {
+                                  "enum": [
+                                    "scheduled",
+                                    "effective",
+                                    "withdrawn"
+                                  ],
+                                  "type": "string"
+                                },
+                                "effectiveAt": {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                "isBarEnabled": {
+                                  "type": "boolean"
+                                },
+                                "kind": {
+                                  "enum": [
+                                    "plan_revision",
+                                    "billing_param",
+                                    "agreement_version"
+                                  ],
+                                  "type": "string"
+                                },
+                                "leadDays": {
+                                  "type": "integer"
+                                },
+                                "link": {
+                                  "properties": {
+                                    "params": {
+                                      "additionalProperties": {},
+                                      "type": "object"
+                                    },
+                                    "route": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "route"
+                                  ],
+                                  "type": "object"
+                                },
+                                "refId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "shortNoticeReason": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "siteNoticeId": {
+                                  "format": "uuid",
+                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                  "type": "string"
+                                },
+                                "status": {
+                                  "enum": [
+                                    "announced",
+                                    "withdrawn"
+                                  ],
+                                  "type": "string"
+                                },
+                                "summary": {
+                                  "type": "string"
+                                },
+                                "summaryNoPrice": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "withdrawnAt": {
+                                  "format": "date-time",
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "withdrawnBy": {
+                                  "allOf": [
+                                    {
+                                      "$ref": "#/components/schemas/StaffBrief"
+                                    },
+                                    {
+                                      "type": [
+                                        "object",
+                                        "null"
+                                      ]
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "siteNoticeId",
+                                "kind",
+                                "refId",
+                                "title",
+                                "summary",
+                                "summaryNoPrice",
+                                "effectiveAt",
+                                "announcedAt",
+                                "leadDays",
+                                "shortNoticeReason",
+                                "link",
+                                "isBarEnabled",
+                                "status",
+                                "displayState",
+                                "createdBy",
+                                "withdrawnBy",
+                                "withdrawnAt",
+                                "createdAt"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "withdrawn": {
+                          "$ref": "#/components/schemas/AgreementVersionItem"
+                        }
+                      },
+                      "required": [
+                        "withdrawn",
+                        "newDraft",
+                        "siteNotice"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "撤回待生效版本（无同意记录且距生效 >10 分钟），内容复制为新草稿",
+        "x-auth": "staff",
+        "x-idempotent": "required"
+      }
+    },
+    "/api/v1/admin/agreements": {
+      "get": {
+        "operationId": "admin.agreement.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/AgreementListItem"
+                          },
+                          "type": "array"
+                        },
+                        "page": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "协议清单（V1.0 6 份；服务商合作协议 partner 由 M9 推到 V1.1）：当前版本、待生效、草稿角标",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/agreements/{agreementKey}": {
+      "get": {
+        "operationId": "admin.agreement.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agreementKey",
+            "required": true,
+            "schema": {
+              "maxLength": 24,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AgreementDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "协议详情：版本记录、正文、重新同意进度（已同意 / 应同意）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/agreements/{agreementKey}/agreement-versions": {
+      "post": {
+        "operationId": "admin.agreement.agreementVersion.create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agreementKey",
+            "required": true,
+            "schema": {
+              "maxLength": 24,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgreementVersionCreateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AgreementVersionMutationResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "新建协议版本草稿（版本号自动递增）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "assert-in-handler"
+      }
+    },
     "/api/v1/admin/approvals": {
       "get": {
         "operationId": "admin.approval.list",

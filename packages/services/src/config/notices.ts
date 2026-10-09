@@ -2,9 +2,10 @@
 // 价目修订、需公告的计费参数、会员协议与积分规则的新版本保存时，在调用方的事务里建一条公告记录：
 //   没有才插（同一变更至多一条 announced 的行，靠部分唯一索引 uq_site_notice_kind_ref_id_announced）；
 //   已有就返回它的 id，不新建、不再发事件；新建时发出站事件 site_notice.announced。
-// 现在只有“建”：撤回（notices.withdraw）、首页公告条的读取、站内消息的派发随 G2-B、G2-C。
+// W2-12补同事务撤回；保留原行与公告历史。
 // 第一个参数是事务句柄：公告与被公告的变更同一事务，变更回滚公告也没了。
-import type { EnumValue, SITE_NOTICE_KIND } from "@liyoxi/contract/enums";
+import { SITE_NOTICE_KIND } from "@liyoxi/contract/enums";
+import type { EnumValue } from "@liyoxi/contract/enums";
 
 import type { EmitContext, Events } from "../events/index.js";
 import { uuidv7 } from "../kernel/index.js";
@@ -50,10 +51,37 @@ export interface NoticesDeps {
 export interface Notices {
   /** 在调用方的事务里公告一条变更；同一变更重复调返回同一行 */
   announce(tx: Tx, ctx: EmitContext, input: NoticeAnnouncement): Promise<AnnouncedNotice>;
+  withdraw(
+    tx: Tx,
+    ctx: EmitContext,
+    input: { siteNoticeId: string; staffId: string },
+  ): Promise<{ withdrawn: boolean }>;
 }
 
 export function createNotices(deps: NoticesDeps): Notices {
   return {
+    async withdraw(tx, ctx, input) {
+      const now = deps.clock.now();
+      const changed = await tx.siteNotice.updateMany({
+        where: { id: input.siteNoticeId, status: "announced" },
+        data: {
+          status: "withdrawn",
+          withdrawnByStaffId: input.staffId,
+          withdrawnAt: now,
+          updatedAt: now,
+        },
+      });
+      if (!changed.count) return { withdrawn: false };
+      const notice = await tx.siteNotice.findUniqueOrThrow({ where: { id: input.siteNoticeId } });
+      const kind = SITE_NOTICE_KIND.values.find((value) => value === notice.kind);
+      if (!kind) throw new TypeError("公告类型不在正式枚举中");
+      await deps.events.emit(tx, ctx, {
+        type: "site_notice.withdrawn",
+        aggregate: { type: "site_notice", id: notice.id },
+        payload: { v: 1, siteNoticeId: notice.id, kind, refId: notice.refId },
+      });
+      return { withdrawn: true };
+    },
     async announce(tx, ctx, input) {
       const now = deps.clock.now();
       const id = uuidv7();

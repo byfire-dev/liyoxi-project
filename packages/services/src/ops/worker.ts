@@ -7,6 +7,7 @@ import { latestStaffWecomInviteKey } from "../audit/index.js";
 import { createConfig, bindAgreementNoticeLink } from "../config/index.js";
 import { createSmsHealth, smsTemplateReader } from "../notify/index.js";
 import { keyringFromEnv } from "../security/index.js";
+import { createDocsAssembly, createRuntimeDocs } from "./docs-runtime.js";
 import { createRuntimeNotify, createNotifyAssembly } from "./notify-runtime.js";
 import { readAgreementNoticeLink } from "../docs/index.js";
 // 任务进程的服务装配（W0-23）：apps/worker 启动时调一次，拿到四个循环与两个队列消费者要调的用例函数。
@@ -137,6 +138,7 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  readonly closeDocs: () => Promise<void>;
   readonly documentConverter: ReturnType<typeof createDocumentConverter> | null;
   readonly closeSmsHealth?: () => Promise<void>;
   readonly closeAlertFacts?: () => Promise<void>;
@@ -225,7 +227,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const staffScope = createStaffAssembly(mediaScope.assembly);
   const contentPricingScope = createContentPricingAssembly(staffScope.assembly);
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
-  const assembly = deliveryProductionScope.assembly;
+  const docsScope = createDocsAssembly(deliveryProductionScope.assembly);
+  const assembly = docsScope.assembly;
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const flow = createFlow({ assembly, clock, events });
@@ -361,6 +364,19 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     },
   });
   mediaScope.attach(media.jobs);
+  const docsConfig = createConfig({ db: prisma, clock, redis: null });
+  const docsServices = createRuntimeDocs({
+    tx,
+    clock,
+    assembly,
+    media,
+    storage: providers.storage,
+    converter: documentConverter,
+    events,
+    config: docsConfig,
+    bumpAgreement: () => docsConfig.cache.bump("agreement"),
+  });
+  docsScope.attach(docsServices.jobs);
   const closeMediaJobs = () => mediaScope.close();
   const startupChecks = createStartupChecks({
     db: prisma,
@@ -452,6 +468,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const unbindNoticeLink = bindAgreementNoticeLink(readAgreementNoticeLink);
 
   return {
+    closeDocs: () => docsScope.close(),
     documentConverter,
     closeSmsHealth: () => smsHealth.close(),
     closeAlertFacts: () => alertFactsScope.close(),

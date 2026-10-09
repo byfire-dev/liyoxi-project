@@ -86,11 +86,12 @@ async function main(): Promise<void> {
     await services.selfCheck();
   } catch (error) {
     // 自检或装配失败也回收本进程创建的资源；没有启动消费者，不借其它进程的连接。
-    await services?.closeAlertFacts?.();
+    await Promise.allSettled([services?.closeDocs()]);
+    await Promise.allSettled([services?.documentConverter?.close()]);
+    await Promise.allSettled([services?.closeAlertFacts?.()]);
     await Promise.allSettled([
       ...(services
         ? [
-            services.documentConverter?.close(),
             services.shutdownMediaJobs?.(),
             services.closeMediaDrivers?.(),
             services.closeStorageDrivers?.(),
@@ -98,8 +99,8 @@ async function main(): Promise<void> {
         : []),
       ...wechatClosers.map((close) => close()),
       channel?.close(),
-      database.close(),
     ]);
+    await Promise.allSettled([database.close()]);
     services?.closeMediaJobs?.();
     wechatRedis?.disconnect();
     throw error;
@@ -114,6 +115,7 @@ async function main(): Promise<void> {
   };
   if (channel === undefined) {
     logger.info(summary, "装配与自检通过");
+    await services.closeDocs();
     await services.documentConverter?.close();
     await services.shutdownMediaJobs?.();
     services.closeMediaJobs?.();
@@ -138,7 +140,6 @@ async function main(): Promise<void> {
     logger.info({ signal }, "收到终止信号：停循环、收在途任务、让出租约");
     await Promise.allSettled(wechatClosers.map((close) => close()));
     await runtime.stop();
-    await services.documentConverter?.close();
     wechatRedis?.disconnect();
     await Promise.allSettled([channel.close(), lease.close(), database.close()]);
     process.exit(0);

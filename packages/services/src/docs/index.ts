@@ -45,3 +45,15 @@ export { docsPiiFields } from "./pii-fields.js";
 export { readAgreementNoticeLink } from "./notice-link.js";
 
 export { findN5Violations } from "./transaction-invariant.js";
+
+export { createDocsAdmin } from "./admin-write.js";
+export type { DocsAdminDeps, AgreementOptions } from "./admin-write.js";
+export type { AgreementActor } from "./admin-context.js";
+export type {
+  AgreementFilePort,
+  PreparedAgreementContent,
+  AgreementFileInput,
+  AgreementFileClaim,
+} from "./ports.js";
+export { scheduledDocsSweep, scheduledConsentDigest, sweepAgreementVersions } from "./jobs.js";
+export type { DocsJobDeps } from "./jobs.js";

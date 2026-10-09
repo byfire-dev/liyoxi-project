@@ -105,3 +105,4 @@ export {
   prepareDeliveryMasterForTest,
 } from "./delivery-production-tools.js";
 export type { DeliveryProductionTools } from "./delivery-production-tools.js";
+export { createDocsAdminFixture } from "./docs-admin.js";

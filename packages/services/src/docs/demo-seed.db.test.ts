@@ -1,9 +1,7 @@
 // 协议占位版本的用例（任务书 W1-03 第 7 节验收 11），顺带验 notices.announce 的最小实现（14 分组 第 2.6 节）。
 // 在带 W0-21 种子的库上跑：员工与六份占位 PDF 的文件行由用例自己造。
-import { createHash } from "node:crypto";
-
 import type { PrismaClient } from "@liyoxi/db";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createNotices } from "../config/index.js";
 import type { Notices } from "../config/index.js";
@@ -13,13 +11,12 @@ import type { TxRunner } from "../kernel/index.js";
 import {
   assembleForTest,
   createClock,
-  createFactories,
+  createDocsAdminFixture,
   useSeededDatabase,
 } from "../testing/index.js";
-import type { AdjustableClock, Factories } from "../testing/index.js";
+import type { AdjustableClock } from "../testing/index.js";
 import {
   AGREEMENT_SEEDS,
-  createDocs,
   findN13Violations,
   findN4Violations,
   seedPlaceholderAgreementVersions,
@@ -32,7 +29,7 @@ const ctx = createIdentityContext({ actor: { type: "system", job: "docs.demo_see
 
 let prisma: PrismaClient;
 let clock: AdjustableClock;
-let make: Factories;
+let fixture: ReturnType<typeof createDocsAdminFixture>;
 let tx: TxRunner;
 let notices: Notices;
 let input: PlaceholderSeedInput;
@@ -40,24 +37,20 @@ let input: PlaceholderSeedInput;
 beforeAll(async () => {
   prisma = await db.prisma();
   clock = createClock();
-  make = createFactories({ db: prisma, clock });
+  fixture = createDocsAdminFixture(prisma, null, { clock });
   tx = createTxRunner({ prisma, appEnv: "test" });
   const assembly = assembleForTest({ entry: "worker" });
   notices = createNotices({ clock, events: createEvents({ assembly, clock, tx }) });
-  const staff = await make.staff({ staffRoleKey: "super_admin" });
+  const actor = await fixture.actor();
   const files: Record<string, { pdfFileId: string; sha256: string }> = {};
   for (const seed of AGREEMENT_SEEDS) {
-    const sha256 = createHash("sha256").update(`placeholder:${seed.key}`).digest("hex");
-    const file = await make.fileObject({
-      bucket: "secure",
-      category: "legal_doc",
-      ext: "pdf",
-      sha256,
-    });
-    files[seed.key] = { pdfFileId: file.id, sha256 };
+    const file = await fixture.file(actor, "pdf");
+    if (!file.sha256) throw new Error("虚构PDF缺少真实字节哈希");
+    files[seed.key] = { pdfFileId: file.id, sha256: file.sha256 };
   }
-  input = { staffId: staff.id, files };
+  input = { staffId: actor.staff.staff.id, files };
 }, SLOW);
+afterAll(async () => fixture?.close());
 
 const seed = (appEnv: "test" | "prod" = "test") =>
   tx.run((handle) =>
@@ -75,7 +68,7 @@ describe("协议的占位版本", () => {
         { table: "agreement_version", inserted: 6, existing: 0 },
         { table: "site_notice", inserted: 2, existing: 0 },
       ]);
-      const docs = createDocs({ tx, clock });
+      const docs = fixture.docs;
       const current = await docs.currentVersions(prisma);
       expect([...current.keys()].sort()).toEqual(AGREEMENT_SEEDS.map((item) => item.key).sort());
       const list = await docs.listAgreements({ limit: 20 });
@@ -114,7 +107,9 @@ describe("协议的占位版本", () => {
       ]);
       expect(await prisma.agreementVersion.count()).toBe(6);
       expect(await prisma.siteNotice.count()).toBe(2);
-      expect(await prisma.outboxEvent.count({ where: { eventType: "site_notice.announced" } })).toBe(2);
+      expect(
+        await prisma.outboxEvent.count({ where: { eventType: "site_notice.announced" } }),
+      ).toBe(2);
 
       const now = clock.now();
       expect(await findN4Violations(prisma, { now })).toEqual([]);
@@ -182,7 +177,9 @@ describe("协议的占位版本", () => {
         }),
       );
       expect(renewed.created).toBe(true);
-      const row = await prisma.siteNotice.findUniqueOrThrow({ where: { id: renewed.siteNoticeId } });
+      const row = await prisma.siteNotice.findUniqueOrThrow({
+        where: { id: renewed.siteNoticeId },
+      });
       expect(row).toMatchObject({ leadDays: 40, barEnabled: true, shortNoticeReason: null });
     },
     SLOW,
