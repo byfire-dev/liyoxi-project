@@ -169,6 +169,9 @@ export const unconfiguredMedia: MediaProvider = {
   transcode: mediaOff,
   pack: mediaOff,
   audit: mediaOff,
+  auditText: mediaOff,
+  auditVideo: mediaOff,
+  describeAudit: mediaOff,
   describe: mediaOff,
   find: mediaOff,
   cancel: mediaOff,
@@ -193,6 +196,15 @@ export function createLocalMedia(): MediaProvider {
     },
     async audit() {
       return ok({ verdict: "pass", processed: false });
+    },
+    async auditText() {
+      return ok({ verdict: "pass", processed: false });
+    },
+    async auditVideo() {
+      return failed("unsupported", "本地媒体未执行视频审核");
+    },
+    async describeAudit() {
+      return failed("unsupported", "本地媒体没有审核任务查询能力");
     },
     async describe() {
       return failed("unsupported", "本地媒体没有外部任务查询能力");

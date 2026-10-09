@@ -1,4 +1,5 @@
 import { staffWorkPort, staffFollowUpPort } from "../kernel/index.js";
+import { onFileModerated } from "./file-moderated.js";
 import { profileStaffWork } from "./staff-work.js";
 import {
   implementKeyed as notifyReaderImplementation,
@@ -22,6 +23,9 @@ import { dictRef, snapshot } from "./repo.js";
 
 export const registration = defineRegistration("profile", {
   ports: [orderManagerPort, deliveryManagerPort, adminProfileFactsPort],
+  subscribers: [
+    { name: "profile.onFileModerated", events: ["file.moderated"], handle: onFileModerated },
+  ],
   portImplementations: [
     implementKeyed(staffFollowUpPort, "store", async (tx, id) => {
       const row = await tx.store.findUnique({

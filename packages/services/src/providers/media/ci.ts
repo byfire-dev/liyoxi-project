@@ -3,6 +3,7 @@ import { divRoundHalfUp } from "@liyoxi/shared/pricing";
 import { failed, ok } from "../types.js";
 import type { MediaProvider, MediaRemoteJob, ObjectRef, StorageBucket } from "../types.js";
 import { cosEncode, cosAuthorization, xmlEscape } from "../storage/cos-signature.js";
+import { createCiModeration, projectCiLabels } from "./moderation.js";
 import { createCiHttp } from "./http.js";
 import type { CiConfig } from "./http.js";
 import { parseCiXml, ciChild, ciText } from "./xml.js";
@@ -139,6 +140,7 @@ export function createCiMedia(
   const provider: MediaProvider = {
     status: "ci",
     configured: true,
+    ...createCiModeration(http),
     async probe() {
       return failed("unsupported", "体检处理器由对应媒体包接入，不以未处理结果冒充体检");
     },
@@ -283,6 +285,7 @@ export function createCiMedia(
           result = ciText(root, "Result");
         if (root.name !== "RecognitionResult" || !["0", "1", "2"].includes(result ?? ""))
           return bad();
+        const safeLabels = projectCiLabels(ciText(root, "Label"));
         return ok({
           verdict:
             result === "0"
@@ -291,6 +294,7 @@ export function createCiMedia(
                 ? ("block" as const)
                 : ("review" as const),
           processed: true,
+          ...(safeLabels.length ? { labels: safeLabels } : {}),
         });
       } catch {
         return bad();

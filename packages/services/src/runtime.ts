@@ -492,6 +492,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     storage: providers.storage,
     channel: mediaChannel,
     videoMaxMb: () => config.params.get("upload.weapp_video_max_mb"),
+    moderation: providers.media,
     wechatImage: {
       appid: env.WECHAT?.appid,
       provider: providers.wechat,
