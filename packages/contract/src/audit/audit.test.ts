@@ -65,11 +65,12 @@ describe("对象类型", () => {
     expect(isAuditTargetType("work_calendar_day")).toBe(true);
     expect(isAuditTargetType("timer")).toBe(true);
     expect(isAuditTargetType("outbox_delivery")).toBe(true);
-    expect(AUDIT_TARGET_TYPES.slice(-4, -2)).toEqual(["timer", "outbox_delivery"]);
+    expect(AUDIT_TARGET_TYPES.slice(-5, -3)).toEqual(["timer", "outbox_delivery"]);
     expect(isAuditTargetType("analytics_event")).toBe(true);
-    expect(AUDIT_TARGET_TYPES.at(-2)).toBe("analytics_event");
+    expect(AUDIT_TARGET_TYPES.at(-3)).toBe("analytics_event");
     expect(isAuditTargetType("media_job")).toBe(true);
-    expect(AUDIT_TARGET_TYPES.at(-1)).toBe("media_job");
+    expect(AUDIT_TARGET_TYPES.at(-2)).toBe("media_job");
+    expect(AUDIT_TARGET_TYPES.at(-1)).toBe("drama_price_revision");
     expect(isAuditTargetType("outbox_event")).toBe(false);
     expect(isAuditTargetType("ApprovalRequest")).toBe(false);
   });
@@ -153,4 +154,8 @@ describe("纯常量", () => {
     expect(scan.packages).toEqual([]);
     expect(scan.unresolved).toEqual([]);
   });
+});
+
+it("W310 单剧调价审计正式目标已登记", () => {
+  expect(isAuditTargetType("drama_price_revision")).toBe(true);
 });

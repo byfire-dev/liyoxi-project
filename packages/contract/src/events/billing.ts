@@ -194,7 +194,15 @@ export const transferRejectedPayload = z.strictObject({
   entityId: IdSchema,
   reasonCodes: z.array(z.string()).min(1),
 });
+export const dramaPriceChangedPayload = z.strictObject({
+  v: z.literal(1),
+  dramaId: IdSchema,
+  dramaPriceRevisionId: IdSchema.nullable(),
+  cause: z.enum(["revision", "tier_change", "tier_template"]),
+  effectiveAt: InstantSchema,
+});
 export const payloads = {
+  "pricing.drama_price_changed": dramaPriceChangedPayload,
   "billing_order.created": billingOrderCreatedPayload,
   "transfer.proof_submitted": transferProofSubmittedPayload,
   "transfer.rejected": transferRejectedPayload,

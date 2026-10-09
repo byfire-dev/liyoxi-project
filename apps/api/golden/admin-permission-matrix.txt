@@ -42,6 +42,14 @@ admin.dictItem.create | - | sys.dict.edit | 11 00 00 00 00 00 00 00
 admin.dictItem.list | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.dictItem.update | - | sys.dict.edit | 11 00 00 00 00 00 00 00
 admin.dictType.list | system:view | - | 11 00 00 00 00 00 00 00
+admin.drama.confirmPermitRecheck | drama:edit | - | 11 00 00 00 00 11 00 00
+admin.drama.copyright.replace | drama:edit | - | 11 00 00 00 00 11 00 00
+admin.drama.dramaCopyrightRevision.create | drama:view | drama.copyright.revise | 11 00 00 00 00 11 00 00
+admin.drama.dramaPriceRevision.create | billing:view | billing.price.edit | 11 00 00 00 00 11 00 00
+admin.dramaPrice.list | billing:view | - | 11 11 11 00 00 11 11 11
+admin.dramaPrice.summary | billing:view | - | 11 11 11 00 00 11 11 11
+admin.dramaPriceRevision.list | billing:view | - | 11 11 11 00 00 11 11 11
+admin.dramaPriceRevision.withdraw | billing:view | billing.price.edit | 11 00 00 00 00 11 00 00
 admin.featureFlag.list | - | sys.super_admin | 11 00 00 00 00 00 00 00
 admin.featureFlag.update | - | sys.super_admin | 11 00 00 00 00 00 00 00
 admin.file.cancel | - | assert-in-handler | 11 11 11 11 11 11 11 11
@@ -70,6 +78,7 @@ admin.paramValue.replace | - | sys.param.edit | 11 00 00 00 00 00 00 00
 admin.paramValue.withdraw | - | sys.param.edit | 11 00 00 00 00 00 00 00
 admin.paymentOrder.get | order:view | - | 11 11 11 00 00 11 11 11
 admin.piiReveal.create | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.priceTierRevision.list | billing:view | - | 11 11 11 00 00 11 11 11
 admin.qualificationSubmission.approve | merchant:view | merchant.qualification.review | 11 11 00 00 00 00 00 00
 admin.qualificationSubmission.get | merchant:view | - | 11 11 11 11 11 11 11 11
 admin.qualificationSubmission.reject | merchant:view | merchant.qualification.review | 11 11 00 00 00 00 00 00

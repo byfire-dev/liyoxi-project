@@ -18,3 +18,23 @@
 content 自己实现 kernel CatalogRefPort。read/areListed 在调用者同一事务按当前状态、版权止日和正式最短授权月份复用 shared/catalog.visible；config 不跨层查询 drama/copyright。areListed 沿名但表示当前可见且可订，不能把仅 status=listed 当成有效引用。
 
 matchedFields 与 normalizeSearch 是列表 q 和搜索共用的纯函数：去空白与间隔点，剧名和主演包含、启用题材显示名双向包含。workbench/mall 在真实可见目录中应用它，title 命中优先并以首次上架时间/id稳定裁决；getDramaCards 提供真实价目修订 source 给内部60秒快照键，不改变商家卡片 DTO。独立搜索不建表，不上传搜索词。
+
+# W3-10 版权修订、到期与 R7
+
+copyright 的草稿整份替换使用版权自己的 lockVersion；ever-listed 只能只增修订。
+修订先锁剧目，再复核版权版本/确认止日、真实差异和全部证明文件；listed 的阻断校验失败整笔回滚。
+旧 current proof 不释放；新 revision proof 永久引用。缩短及任何把止日改早的更正均拒绝。
+许可复核只清除真实待核标记并增加剧目版本，保留 initial 上架修订路径。
+
+content.license_end 在授权止日次日北京时间 00:00 到期；改期取消旧活动行再登记。
+处理器重读当前版权/状态，旧或重复回调不迁移；到期经 flow 系统下架，不重新上架续期剧。
+API/worker 的 ContentPricingAssembly 分别绑定两 timer、等级订阅及 I2/I3；关闭后不回退其他运行时。
+I3 修复缺失/错误时间/多余旧活动 timer，I2 用同一真实到期迁移自愈。
+同键已 skipped/fired 的正式终态不能复活；I3 保留未愈违规并告警，不虚报重排成功。
+R7 查询当前未归档版权止日，每日 09:05 按当前具有 drama edit 的员工聚合，按员工/日去重。
+站内写入与企业微信送达分开；未配置、无接收地址和发送失败都保留正式受控结果。
+
+九接口的版权响应在幂等事务内始终保持 posterUrl/trailer.coverUrl 为 null，
+首次成功提交后才经 media.signRead 装饰；重放保持 null，不持久化临时 URL。
+W3-12 应使用正式 DTO、版权自身版本和 confirm.prevEndDate，不能把剧目版本当版权版本。
+真实法务依据、真实外部通知发送及送达需要另行授权联调，本地验收使用虚构资料与替身。

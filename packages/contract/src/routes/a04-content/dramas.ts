@@ -1,6 +1,20 @@
 // 后台：短剧库与积分价 · dramas（docs/api/a04-content.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { adminMeta } from "../meta-only.js";
+import { adminRoute } from "../builders.js";
+import { z } from "../../zod.js";
+import { IdSchema, errorResponses, okResponse } from "../../common/index.js";
+import {
+  ConfirmPermitRecheckBodySchema,
+  CopyrightReplaceBodySchema,
+  CopyrightRevisionCreateBodySchema,
+  AdminDramaWriteResultSchema,
+  CopyrightRevisionCreateResultSchema,
+} from "./drama-copyright.schemas.js";
+import {
+  DramaPriceCreateBodySchema,
+  DramaPriceCreateResultSchema,
+} from "./drama-pricing.schemas.js";
 
 export const adminDramaList = adminMeta({
   method: "get",
@@ -68,22 +82,40 @@ export const adminDramaCommercialUpdate = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminDramaConfirmPermitRecheck = adminMeta({
+export const adminDramaConfirmPermitRecheck = adminRoute({
   method: "post",
   path: "/admin/dramas/{dramaId}/confirm-permit-recheck",
   operationId: "admin.drama.confirmPermitRecheck",
   summary: "替换原片后确认许可信息仍适用（清除待重新核验标记）",
   "x-permission": null,
   "x-idempotent": "required",
+  request: {
+    params: z.object({ dramaId: IdSchema }),
+    body: { content: { "application/json": { schema: ConfirmPermitRecheckBodySchema } } },
+  },
+  responses: {
+    ...okResponse(AdminDramaWriteResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429),
+  },
+  "x-redact-on-replay": ["posterUrl", "trailer.coverUrl"],
 });
 
-export const adminDramaCopyrightReplace = adminMeta({
+export const adminDramaCopyrightReplace = adminRoute({
   method: "put",
   path: "/admin/dramas/{dramaId}/copyright",
   operationId: "admin.drama.copyright.replace",
   summary: "草稿期保存版权信息（来源、平台与地域、四项权利、有效期、权属证明）",
   "x-permission": null,
   "x-idempotent": "required",
+  request: {
+    params: z.object({ dramaId: IdSchema }),
+    body: { content: { "application/json": { schema: CopyrightReplaceBodySchema } } },
+  },
+  responses: {
+    ...okResponse(AdminDramaWriteResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429),
+  },
+  "x-redact-on-replay": ["posterUrl", "trailer.coverUrl"],
 });
 
 export const adminDramaDelist = adminMeta({
@@ -95,13 +127,22 @@ export const adminDramaDelist = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminDramaDramaCopyrightRevisionCreate = adminMeta({
+export const adminDramaDramaCopyrightRevisionCreate = adminRoute({
   method: "post",
   path: "/admin/dramas/{dramaId}/drama-copyright-revisions",
   operationId: "admin.drama.dramaCopyrightRevision.create",
   summary: "上架后的版权变更（续期、缩短、范围变更、更正），须二次确认与依据文件",
   "x-permission": "drama.copyright.revise",
   "x-idempotent": "required",
+  request: {
+    params: z.object({ dramaId: IdSchema }),
+    body: { content: { "application/json": { schema: CopyrightRevisionCreateBodySchema } } },
+  },
+  responses: {
+    ...okResponse(CopyrightRevisionCreateResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429),
+  },
+  "x-redact-on-replay": ["drama.posterUrl", "drama.trailer.coverUrl"],
 });
 
 export const adminDramaDramaEpisodeList = adminMeta({
@@ -131,7 +172,7 @@ export const adminDramaDramaPermitCreate = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminDramaDramaPriceRevisionCreate = adminMeta({
+export const adminDramaDramaPriceRevisionCreate = adminRoute({
   method: "post",
   path: "/admin/dramas/{dramaId}/drama-price-revisions",
   operationId: "admin.drama.dramaPriceRevision.create",
@@ -139,6 +180,14 @@ export const adminDramaDramaPriceRevisionCreate = adminMeta({
     "单剧调价：新积分价、生效时间（立即或指定日 00:00）、原因 + 备注；选剧单读取时显示“积分价已变动”（V1.0 不推送）",
   "x-permission": "billing.price.edit",
   "x-idempotent": "required",
+  request: {
+    params: z.object({ dramaId: IdSchema }),
+    body: { content: { "application/json": { schema: DramaPriceCreateBodySchema } } },
+  },
+  responses: {
+    ...okResponse(DramaPriceCreateResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429),
+  },
 });
 
 export const adminDramaListingChecksGet = adminMeta({

@@ -37,7 +37,7 @@ const name = await config.dicts.label("industry", "C0101"); // 不看启用状�
 - 库里没有值的键用代码默认值；默认值是 `null` 的键读到 `null`，意思是“未配置”。
 - 库里没有的开关（还没播种）取登记的默认值。规则按序首条命中；上下文里缺的那一项当不满足。
 - 手里只有事务句柄、拿不到配置服务的地方（装配时静态登记的端口实现与处理器）用 `paramsAt(tx, ["work.start", "work.end"], 时刻)`：一次查询、不走缓存，取值的规矩同 `getAt`，读得到同一事务里刚写的值（W0-30a）。别处照旧用 `config.params`。
-- 写侧提交之后调 `config.cache.bump(命名空间)`：`dict`、`param`、`site`、`flag`、`checklist`。本进程立刻重读，别的进程 5 秒内重读。
+- 写侧提交之后调 `config.cache.bump(命名空间)`：`dict`、`param`、`site`、`flag`、`checklist`、`agreement`。协议信号供 W2-12 业务写入提交后使用；当前版本与同意的法律判断仍直接查库，bootstrap 保持实时版本指纹。本进程立刻重读，别的进程 5 秒内重读。
 
 ## 3. 缓存的口径
 

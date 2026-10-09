@@ -6,7 +6,8 @@ import { createEvents } from "../events/index.js";
 import { createFlow } from "../flow/index.js";
 import { createMedia } from "../media/index.js";
 import { createConfig } from "../config/index.js";
-import { createContent, bindContent } from "./index.js";
+import { createContent, createContentLicense, bindContent } from "./index.js";
+import { createTimers } from "../timers/index.js";
 export async function buildContentTest(db: ReturnType<typeof useSeededDatabase>, clock: Clock) {
   const prisma = await db.prisma(),
     tx = createTxRunner({ prisma, appEnv: "test" }),
@@ -15,7 +16,9 @@ export async function buildContentTest(db: ReturnType<typeof useSeededDatabase>,
     flow = createFlow({ clock, assembly, events }),
     providers = createProviderHarness({ clock }).providers,
     media = createMedia({ tx, clock, assembly, events, storage: providers.storage }),
-    content = createContent({ clock, assembly, flow, media }),
+    timers = createTimers({ assembly }),
+    license = createContentLicense({ clock, flow, timers }),
+    content = createContent({ clock, assembly, flow, media, events, license }),
     config = createConfig({ db: prisma, clock, redis: null }),
     staff = await createFactories({ db: prisma, clock }).staff({ staffRoleKey: "content_ops" });
   const unbind = bindContent(assembly);
