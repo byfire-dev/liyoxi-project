@@ -86,6 +86,7 @@ export interface NotifyDispatchDeps {
   ): Promise<"in_app" | "offline_contract" | "hidden">;
   merchantTarget(tx: Tx, userId: string): Promise<NotifyTarget | null>;
   approvalRecipients(tx: Tx, approvalId: string): Promise<string[]>;
+  copyrightRecipients?(tx: Tx): Promise<string[]>;
   staffTarget(tx: Tx, staffId: string): Promise<NotifyTarget | null>;
   staffWorkAt(tx: Tx, at: Date): Promise<Date>;
   wechatTarget(tx: Tx, identityId: string, userId: string): Promise<string | null>;

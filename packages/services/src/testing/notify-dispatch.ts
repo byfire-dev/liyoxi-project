@@ -8,7 +8,8 @@ import { maskPhone } from "@liyoxi/shared/mask";
 import { addDays, calendarDate } from "@liyoxi/shared/time";
 import { nextWorkStart } from "@liyoxi/shared/workcal";
 import { loadWorkCalendar, workHoursAt } from "../sla/index.js";
-import { staffTargetForNotify } from "../staff/index.js";
+import { staffContextsForNotify, staffTargetForNotify } from "../staff/index.js";
+import { satisfiesLevel } from "../authz/index.js";
 import { createClock } from "./clock.js";
 import { createFactories, TEST_KEYRING } from "./data/index.js";
 import { createFakeProviders } from "./providers/index.js";
@@ -37,6 +38,10 @@ export function notificationFixture(prisma: PrismaClient) {
     smsEnabled: async () => true,
     purchaseMode: async () => "in_app",
     approvalRecipients: async () => [],
+    copyrightRecipients: async (t) =>
+      (await staffContextsForNotify(t))
+        .filter((staff) => satisfiesLevel(staff.moduleLevels.drama, "edit"))
+        .map((staff) => staff.staff.id),
     merchantTarget: (t, id) => merchantTargetForNotify(t, id, () => TEST_KEYRING, true),
     staffTarget: (t, id) => staffTargetForNotify(t, id, () => TEST_KEYRING),
     staffWorkAt: async (t, at) => {

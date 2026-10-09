@@ -755,6 +755,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/drama-price-revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 调价记录（含待生效、已撤销） */
+        get: operations["admin.dramaPriceRevision.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/drama-price-revisions/{dramaPriceRevisionId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 撤销尚未生效的调价 */
+        post: operations["admin.dramaPriceRevision.withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/drama-prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 单剧积分价列表：等级、模板价、积分价、三个版本实扣、授权期、生效时间 */
+        get: operations["admin.dramaPrice.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/drama-prices/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 单剧积分价页首计数：已上架、单剧调整、本月订购；页头上下文带最短可订月数 */
+        get: operations["admin.dramaPrice.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dramas/{dramaId}/confirm-permit-recheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 替换原片后确认许可信息仍适用（清除待重新核验标记） */
+        post: operations["admin.drama.confirmPermitRecheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dramas/{dramaId}/copyright": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 草稿期保存版权信息（来源、平台与地域、四项权利、有效期、权属证明） */
+        put: operations["admin.drama.copyright.replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dramas/{dramaId}/drama-copyright-revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 上架后的版权变更（续期、缩短、范围变更、更正），须二次确认与依据文件 */
+        post: operations["admin.drama.dramaCopyrightRevision.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dramas/{dramaId}/drama-price-revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 单剧调价：新积分价、生效时间（立即或指定日 00:00）、原因 + 备注；选剧单读取时显示“积分价已变动”（V1.0 不推送） */
+        post: operations["admin.drama.dramaPriceRevision.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/feature-flags": {
         parameters: {
             query?: never;
@@ -1193,6 +1329,23 @@ export interface paths {
         put?: never;
         /** 查看字段明文（手机号、信用代码、银行账号等）：先写 access 审计再返回；限频 */
         post: operations["admin.piiReveal.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/price-tier-revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** S / A / B / C 等级模板价：当前值、适用剧目数、按模板定价剧目数 */
+        get: operations["admin.priceTierRevision.list"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2187,6 +2340,82 @@ export interface components {
                 versionNo: number;
             }[];
         };
+        AdminDramaDetail: {
+            actions: ("shelve" | "delist" | "confirm-permit-recheck" | (string & {}))[];
+            allowedPlacements: ("opening" | "ending" | "corner" | "mid_roll" | (string & {}))[];
+            /** Format: date-time */
+            archivedAt: string | null;
+            /** @enum {string} */
+            bodyEditPolicy: "undecided" | "allowed" | "forbidden" | (string & {});
+            castNames: string | null;
+            copyright: components["schemas"]["DramaCopyright"];
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: components["schemas"]["StaffBrief"];
+            delistNote: string | null;
+            /** @enum {string|null} */
+            delistReasonCode: "ops_strategy" | "rights_issue" | "content_revision" | "other" | "license_expired" | (string & {}) | null;
+            /** Format: date-time */
+            delistedAt: string | null;
+            /** @enum {string|null} */
+            dramaClass: "class_1" | "class_2" | "class_3" | (string & {}) | null;
+            /** Format: uuid */
+            dramaId: string;
+            editability: {
+                canEditContent: boolean;
+                canManageMedia: boolean;
+                canReprice: boolean;
+                /** @enum {string} */
+                copyrightEditMode: "direct" | "revision" | "locked" | (string & {});
+            };
+            episodeDurationSec: number | null;
+            episodeSummary: {
+                processing: number;
+                total: number;
+                withCurrentMaster: number;
+            };
+            /** Format: date-time */
+            firstListedAt: string | null;
+            genres: components["schemas"]["DictRef"][];
+            /** @enum {string|null} */
+            heatTier: "S" | "A" | "B" | "C" | (string & {}) | null;
+            industries: components["schemas"]["DictRef"][];
+            isAiGenerated: boolean;
+            isPermitRecheckRequired: boolean;
+            /** Format: date-time */
+            listedAt: string | null;
+            listingChecks: components["schemas"]["ListingCheckResult"];
+            lockVersion: number;
+            manualBoost: number;
+            openPlacementSlots: ("opening" | "ending" | "corner" | "mid_roll" | (string & {}))[];
+            /** Format: uuid */
+            posterFileId: string | null;
+            posterUrl: components["schemas"]["SignedUrl"] & (Record<string, never> | null);
+            pricing: components["schemas"]["DramaPricing"];
+            producerName: string | null;
+            roles: {
+                actor: string | null;
+                desc: string;
+                name: string;
+            }[];
+            sellingTags: components["schemas"]["DictRef"][];
+            /** @enum {string} */
+            status: "draft" | "listed" | "delisted" | (string & {});
+            /** Format: date-time */
+            statusChangedAt: string;
+            synopsis: string | null;
+            targetAudience: string | null;
+            title: string;
+            totalEpisodes: number | null;
+            trailer: components["schemas"]["TrailerBrief"];
+            trialEpisodeCount: number | null;
+            /** Format: date-time */
+            updatedAt: string;
+            updatedBy: components["schemas"]["StaffBrief"];
+        };
+        AdminDramaWriteResult: components["schemas"]["AdminDramaDetail"] & {
+            replayed: boolean;
+        };
         AdminFileCreateBody: {
             /** @enum {string} */
             category: "kyc_license" | "kyc_permit" | "pay_receipt" | "invoice" | "legal_doc" | "seal_image" | "consent_digest" | "drama_license_doc" | "evidence" | "export" | "profile_image" | "profile_video" | "profile_promo" | "store_asset" | "channel_screenshot" | "ticket_attachment" | "video_cover" | "drama_master" | "trailer_src" | "ad_video" | "sample_video" | "sample_wm" | "final_episode" | "package_zip" | "publish_list" | "trailer_out" | "poster" | "banner" | "pay_bill" | "wecom_qr" | "account_proof" | "portrait_auth";
@@ -3077,12 +3306,64 @@ export interface components {
             updatedAt: string;
             versionNo: number;
         };
+        ConfirmPermitRecheckBody: {
+            note?: string | null;
+        };
         ConfirmTotpBody: {
             code: string;
             ticket: string;
         };
         ConfirmTotpSelfBody: {
             code: string;
+        };
+        CopyrightReplaceBody: {
+            canAdapt: boolean;
+            canEditEmbed: boolean;
+            canSublicense: boolean;
+            hasNetworkRight: boolean;
+            /** Format: date */
+            licenseEndDate: string | null;
+            /** Format: date */
+            licenseStartDate: string | null;
+            lockVersion: number;
+            platforms: ("douyin" | "wechat_channels")[];
+            proofFileIds: string[];
+            /** @enum {string|null} */
+            source: "own" | "licensed" | null;
+            territory: string | null;
+        };
+        CopyrightRevision: {
+            /** @enum {string} */
+            changeKind: "initial" | "extend" | "shorten" | "scope_change" | "correction" | (string & {});
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: components["schemas"]["StaffBrief"];
+            /** Format: uuid */
+            dramaCopyrightRevisionId: string;
+            /** Format: date */
+            newEndDate: string;
+            /** Format: date */
+            prevEndDate: string | null;
+            proofFiles: components["schemas"]["DramaFileBrief"][];
+            reason: string;
+            snapshot: components["schemas"]["DramaCopyrightSnapshot"];
+        };
+        CopyrightRevisionCreateBody: {
+            /** @enum {string} */
+            changeKind: "extend" | "shorten" | "scope_change" | "correction";
+            confirm: {
+                /** Format: date */
+                prevEndDate: string;
+            };
+            copyright: components["schemas"]["DramaCopyrightSnapshot"];
+            lockVersion: number;
+            reason: string;
+            revisionProofFileIds: string[];
+        };
+        CopyrightRevisionCreateResult: {
+            drama: components["schemas"]["AdminDramaDetail"];
+            replayed: boolean;
+            revision: components["schemas"]["CopyrightRevision"];
         };
         DeliveryReleaseDetail: components["schemas"]["ReleaseAdminView"] & {
             actions: string[];
@@ -3500,6 +3781,197 @@ export interface components {
             code: string;
             name: string;
         };
+        DramaCopyright: {
+            canAdapt: boolean;
+            canEditEmbed: boolean;
+            canSublicense: boolean;
+            /** Format: uuid */
+            currentRevisionId: string | null;
+            /** @enum {string} */
+            editMode: "direct" | "revision" | "locked" | (string & {});
+            hasNetworkRight: boolean;
+            isExpiringSoon: boolean;
+            /** Format: date */
+            licenseEndDate: string | null;
+            /** @enum {string} */
+            licenseFlag: "license_ended" | "stopped" | "not_listed" | "orderable" | (string & {});
+            /** Format: date */
+            licenseStartDate: string | null;
+            lockVersion: number;
+            platforms: ("douyin" | "wechat_channels" | (string & {}))[];
+            proofFiles: components["schemas"]["DramaFileBrief"][];
+            /** @enum {string|null} */
+            source: "own" | "licensed" | (string & {}) | null;
+            /** Format: date */
+            stopOrderDate: string | null;
+            territory: string | null;
+        };
+        DramaCopyrightSnapshot: {
+            canAdapt: boolean;
+            canEditEmbed: boolean;
+            canSublicense: boolean;
+            hasNetworkRight: boolean;
+            /** Format: date */
+            licenseEndDate: string;
+            /** Format: date */
+            licenseStartDate: string | null;
+            platforms: ("douyin" | "wechat_channels")[];
+            proofFileIds: string[];
+            /** @enum {string|null} */
+            source: "own" | "licensed" | null;
+            territory: string | null;
+        };
+        DramaFileBrief: {
+            /** Format: uuid */
+            fileId: string;
+            mime: string | null;
+            /** @enum {string} */
+            moderationState: "none" | "pending" | "pass" | "review" | "block" | (string & {});
+            originalName: string | null;
+            sizeBytes: string | null;
+            /** @enum {string} */
+            status: "pending" | "promoting" | "stored" | "rejected" | "expired" | "deleting" | "deleted" | (string & {});
+        };
+        DramaPriceCreateBody: {
+            confirm: {
+                currentPoints: number | null;
+            };
+            customPoints?: number | null;
+            /** Format: date */
+            effectiveDate: string | null;
+            /** @enum {string} */
+            mode: "template" | "custom";
+            note?: string | null;
+            /** @enum {string} */
+            reasonCode: "quality" | "genre_fit" | "release_timing" | "license_remaining" | "restore_template";
+        };
+        DramaPriceCreateResult: {
+            price: components["schemas"]["DramaPriceRow"];
+            revision: components["schemas"]["DramaPriceRevision"];
+        };
+        DramaPriceNoteBody: {
+            note?: string | null;
+        };
+        DramaPricePage: {
+            items: components["schemas"]["DramaPriceRow"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        DramaPriceRevision: {
+            actions: ("withdraw" | (string & {}))[];
+            /** Format: date-time */
+            cancelledAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: components["schemas"]["StaffBrief"];
+            customPoints: number | null;
+            /** Format: uuid */
+            dramaId: string;
+            /** Format: uuid */
+            dramaPriceRevisionId: string;
+            dramaTitle: string;
+            /** Format: date-time */
+            effectiveAt: string;
+            /** @enum {string} */
+            mode: "template" | "custom" | (string & {});
+            newPoints: number;
+            note: string | null;
+            prevPoints: number | null;
+            /** @enum {string} */
+            reasonCode: "quality" | "genre_fit" | "release_timing" | "license_remaining" | "restore_template" | (string & {});
+            /** @enum {string} */
+            state: "pending" | "effective" | "withdrawn" | (string & {});
+        };
+        DramaPriceRevisionPage: {
+            items: components["schemas"]["DramaPriceRevision"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        DramaPriceRow: {
+            /** Format: date-time */
+            archivedAt: string | null;
+            canCreatePriceRevision: boolean;
+            currentRevision: {
+                /** Format: uuid */
+                dramaPriceRevisionId: string;
+                /** Format: date-time */
+                effectiveAt: string;
+                /** @enum {string} */
+                mode: "template" | "custom" | (string & {});
+                note: string | null;
+                /** @enum {string} */
+                reasonCode: "quality" | "genre_fit" | "release_timing" | "license_remaining" | "restore_template" | (string & {});
+            } | null;
+            /** Format: uuid */
+            dramaId: string;
+            /** @enum {string|null} */
+            heatTier: "S" | "A" | "B" | "C" | (string & {}) | null;
+            isExpiringSoon: boolean;
+            /** Format: date */
+            licenseEndDate: string | null;
+            /** @enum {string} */
+            licenseFlag: "orderable" | "stopped" | "license_ended" | "not_listed" | (string & {});
+            listPricePoints: number | null;
+            pendingRevision: {
+                /** Format: uuid */
+                dramaPriceRevisionId: string;
+                /** Format: date-time */
+                effectiveAt: string;
+                newPoints: number;
+            } | null;
+            planPrices: components["schemas"]["PlanPrice"][];
+            /** @enum {string|null} */
+            priceLockReason: "stopped" | "license_ended" | "archived" | (string & {}) | null;
+            /** @enum {string|null} */
+            priceMode: "template" | "custom" | (string & {}) | null;
+            /** Format: date-time */
+            pricedSince: string | null;
+            /** @enum {string} */
+            status: "draft" | "listed" | "delisted" | (string & {});
+            /** Format: date */
+            stopOrderDate: string | null;
+            templatePoints: number | null;
+            title: string;
+        };
+        DramaPriceSummary: {
+            customPriced: number;
+            listed: number;
+            minLicenseMonths: number;
+            ordersMonth: number;
+            /** Format: date-time */
+            statRefreshedAt: string | null;
+        };
+        DramaPricing: {
+            currentRevision: {
+                /** Format: uuid */
+                dramaPriceRevisionId: string;
+                /** Format: date-time */
+                effectiveAt: string;
+                /** @enum {string} */
+                mode: "template" | "custom" | (string & {});
+                /** @enum {string} */
+                reasonCode: "quality" | "genre_fit" | "release_timing" | "license_remaining" | "restore_template" | (string & {});
+            } | null;
+            listPricePoints: number | null;
+            pendingRevisions: {
+                /** Format: uuid */
+                dramaPriceRevisionId: string;
+                /** Format: date-time */
+                effectiveAt: string;
+                newPoints: number;
+            }[];
+            planPrices: components["schemas"]["PlanPrice"][];
+            /** @enum {string|null} */
+            priceMode: "template" | "custom" | (string & {}) | null;
+            templatePoints: number | null;
+            tierTemplates: {
+                points: number;
+                /** @enum {string} */
+                tier: "S" | "A" | "B" | "C" | (string & {});
+            }[];
+        };
         EnrollTotpBody: {
             ticket: string;
         };
@@ -3877,6 +4349,23 @@ export interface components {
                 ticketNo: string;
             };
             verifiedEpisodeCount: number | null;
+        };
+        ListingCheckResult: {
+            /** Format: date-time */
+            evaluatedAt: string;
+            isShelvable: boolean;
+            items: {
+                code: string;
+                /** @enum {string|null} */
+                fixTab: "basic" | "commercial" | "episodes" | "license" | "copyright" | (string & {}) | null;
+                isOk: boolean;
+                label: string;
+                note: string | null;
+                /** @enum {string} */
+                severity: "block" | "hint" | (string & {});
+            }[];
+            passedCount: number;
+            total: number;
         };
         LoginBody: {
             password: string;
@@ -4323,6 +4812,14 @@ export interface components {
                 slot: "opening" | "ending";
             }[];
         };
+        PlanPrice: {
+            discountBp: number;
+            discountedPoints: number | null;
+            planCode: string;
+            /** Format: uuid */
+            planId: string;
+            planName: string;
+        };
         PoolMember: {
             city: components["schemas"]["DictRef"] | null;
             onDuty: boolean;
@@ -4350,6 +4847,25 @@ export interface components {
                 [key: string]: string;
             };
             url: string;
+        };
+        PriceTierList: {
+            items: components["schemas"]["PriceTierRow"][];
+        };
+        PriceTierRow: {
+            /** Format: uuid */
+            batchId: string;
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+            dramaCount: number;
+            /** Format: date-time */
+            effectiveAt: string;
+            points: number;
+            /** Format: uuid */
+            priceTierRevisionId: string;
+            templateDramaCount: number;
+            /** @enum {string} */
+            tier: "S" | "A" | "B" | "C" | (string & {});
         };
         PublishApprovalView: components["schemas"]["ApprovalDecisionView"] & {
             checklist: {
@@ -5221,6 +5737,25 @@ export interface components {
             pendingExpiresAt: string;
             secret: string;
         };
+        TrailerBrief: {
+            coverUrl: components["schemas"]["SignedUrl"] & (Record<string, never> | null);
+            /** Format: uuid */
+            currentPlayableId: string | null;
+            durationMs: number | null;
+            error: string | null;
+            height: number | null;
+            /** Format: date-time */
+            readyAt: string | null;
+            /** Format: date-time */
+            setAt: string;
+            setBy: components["schemas"]["StaffBrief"];
+            sourceFile: components["schemas"]["DramaFileBrief"];
+            /** @enum {string} */
+            state: "processing" | "ready" | "failed" | "retired" | (string & {});
+            /** Format: uuid */
+            targetPlayableId: string;
+            width: number | null;
+        } | null;
         TransferProofDetail: {
             actions: string[];
             amountFen: number;
@@ -9414,6 +9949,645 @@ export interface operations {
             };
         };
     };
+    "admin.dramaPriceRevision.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                dramaId?: string;
+                state?: string;
+                sort?: "-effectiveAt" | "-createdAt";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["DramaPriceRevisionPage"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.dramaPriceRevision.withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dramaPriceRevisionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DramaPriceNoteBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["DramaPriceRevision"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.dramaPrice.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                q?: string;
+                dramaId?: string;
+                heatTier?: string;
+                priceMode?: "template" | "custom";
+                status?: string;
+                isArchived?: "true" | "false";
+                sort?: "heatTier,title" | "heatTier" | "title" | "-listPricePoints" | "-pricedSince";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["DramaPricePage"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.dramaPrice.summary": {
+        parameters: {
+            query?: {
+                q?: string;
+                dramaId?: string;
+                heatTier?: string;
+                priceMode?: "template" | "custom";
+                status?: string;
+                isArchived?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["DramaPriceSummary"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.drama.confirmPermitRecheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dramaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ConfirmPermitRecheckBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminDramaWriteResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.drama.copyright.replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dramaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CopyrightReplaceBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminDramaWriteResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.drama.dramaCopyrightRevision.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dramaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CopyrightRevisionCreateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["CopyrightRevisionCreateResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.drama.dramaPriceRevision.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dramaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DramaPriceCreateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["DramaPriceCreateResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.featureFlag.list": {
         parameters: {
             query?: never;
@@ -12004,6 +13178,68 @@ export interface operations {
             };
             /** @description 内部错误 */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.priceTierRevision.list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PriceTierList"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

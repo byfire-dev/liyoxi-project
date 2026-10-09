@@ -1,11 +1,11 @@
 import type { Prisma } from "@liyoxi/db";
-import { z } from "@liyoxi/contract";
+import { z, EVENT_PAYLOAD_SCHEMAS } from "@liyoxi/contract";
 import { calendarDate, addDays, dayRange } from "@liyoxi/shared/time";
 import { visible, orderable, stopDate, selectPermits } from "@liyoxi/shared/catalog";
 import { AppError, uuidv7, lockRows, bumpLockVersion } from "../kernel/index.js";
 import type { Tx, Clock, Assembly } from "../kernel/index.js";
 import type { Flow } from "../flow/index.js";
-import type { EmitContext } from "../events/index.js";
+import type { Events, EmitContext } from "../events/index.js";
 import type { Media } from "../media/index.js";
 import { record } from "../audit/index.js";
 import { paramsAt } from "../config/index.js";
@@ -21,6 +21,8 @@ import type {
 } from "./inputs.js";
 
 export interface ContentDeps {
+  readonly events?: Pick<Events, "emit">;
+  readonly license?: { rearm(tx: Tx, id: string): Promise<void> };
   readonly clock: Clock;
   readonly flow: Flow;
   readonly media: Pick<Media, "link" | "release">;
@@ -252,6 +254,29 @@ export function createContent(deps: ContentDeps) {
         after,
         Object.keys(data),
       );
+      if (before.heatTier !== after.heatTier) {
+        if (!deps.events) throw new AppError("PROVIDER_UNAVAILABLE");
+        await audit(
+          tx,
+          ctx,
+          id,
+          "drama.heat_tier.change",
+          "修改热度等级",
+          { heatTier: before.heatTier },
+          { heatTier: after.heatTier },
+          ["heatTier"],
+        );
+        await deps.events.emit(tx, ctx, {
+          type: "drama.tier_changed",
+          aggregate: { type: "drama", id },
+          payload: EVENT_PAYLOAD_SCHEMAS["drama.tier_changed"].parse({
+            v: 1,
+            dramaId: id,
+            fromTier: before.heatTier,
+            toTier: after.heatTier,
+          }),
+        });
+      }
       return after;
     },
     async saveRoles(tx: Tx, ctx: EmitContext, id: string, raw: RolesInput) {
@@ -378,6 +403,7 @@ export function createContent(deps: ContentDeps) {
         args: { prices, media: deps.media },
         emit: { type: "drama.listed", payload: { v: 1, dramaId: id, isRelist: false } },
       });
+      await deps.license?.rearm(tx, id);
       return tx.drama.findUniqueOrThrow({ where: { id: before.id } });
     },
     async getDramaCards(tx: Tx, ids: readonly string[], at = deps.clock.now()) {
