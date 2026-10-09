@@ -3,6 +3,7 @@
 import { recordAuthEvent } from "../audit/index.js";
 import { activate, confirmTotp, enrollTotp, setPassword } from "./activation.js";
 import type { TotpEnrollment } from "./activation.js";
+import { reissueBootstrapActivation } from "./reissue-bootstrap.js";
 import { bootstrap } from "./bootstrap.js";
 import type { BootstrapResult } from "./bootstrap.js";
 import { login, stepUp, verifyMfa } from "./login.js";
@@ -47,6 +48,11 @@ export interface StaffAuth {
   }): Promise<void>;
   /** 命令行 staff:bootstrap：建第一位超级管理员 */
   bootstrap(input: { name: string; phone: string }): Promise<BootstrapResult>;
+  /** 受限命令 staff:reissue-activation：补发过期首管理员激活码 */
+  reissueBootstrapActivation(input: {
+    staffId: string;
+    confirmStaffNo: number;
+  }): Promise<BootstrapResult>;
   /** 角色与本组成员的缓存：本进程改过角色或分组之后调 invalidate() */
   readonly roles: RoleCache;
 }
@@ -89,6 +95,7 @@ export function createStaffAuth(deps: StaffAuthDeps): StaffAuth {
       });
     },
     bootstrap: (input) => bootstrap(ctx, input),
+    reissueBootstrapActivation: (input) => reissueBootstrapActivation(ctx, input),
     roles,
   };
 }

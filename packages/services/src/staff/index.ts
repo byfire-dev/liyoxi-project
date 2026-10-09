@@ -51,8 +51,9 @@ export type {
 } from "./demo-seed.js";
 export { BOOTSTRAP_JOB } from "./bootstrap.js";
 export { createStaffManagement } from "./management.js";
+export { createStaffAssembly } from "./runtime.js";
 export type { StaffManagementDeps } from "./management.js";
-export { pickNext, recommendedStaff, staffBriefs } from "./assignment.js";
+export { pickNext, recommendedStaff, staffBriefs, prepareAssignmentPools } from "./assignment.js";
 export type { AssignmentPool } from "./assignment.js";
 export { createRoleManagement, roleDefaults } from "./role-management.js";
 export type { RoleManagementDeps } from "./role-management.js";
