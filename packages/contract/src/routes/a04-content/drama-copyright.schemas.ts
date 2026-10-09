@@ -1,5 +1,6 @@
 // W3-10; a04 §2.4/2.9/2.10/3.10/3.11/3.20.
 import { z } from "../../zod.js";
+import { FILE_OBJECT_STATUS, MODERATION_STATE } from "../../enums/media.js";
 import {
   IdSchema,
   DateSchema,
@@ -71,15 +72,8 @@ export const DramaFileBriefSchema = z
       .regex(/^[0-9]+$/)
       .nullable(),
     mime: z.string().nullable(),
-    status: openEnum(["pending", "confirming", "stored", "failed", "expired", "purged"]),
-    moderationState: openEnum([
-      "pending",
-      "pass",
-      "review",
-      "block",
-      "unavailable",
-      "not_required",
-    ]),
+    status: openEnum(FILE_OBJECT_STATUS.values),
+    moderationState: openEnum(MODERATION_STATE.values),
   })
   .openapi("DramaFileBrief");
 export const CopyrightRevisionSchema = z

@@ -82,9 +82,25 @@ it("content.license_end 真worker认领执行，次日上海00:00/重复不重�
   const timer = await prisma.timer.findFirstOrThrow({ where: { subjectId: d.id } });
   expect(timer.fireAt.toISOString()).toBe("2026-01-06T16:00:00.000Z");
   clock.set(new Date("2026-01-06T15:59:59.999Z"));
+  // 扫描按 PG now() 认领；这里先独立验证受控业务时钟的到期守卫，不把入队等同于业务到期。
+  expect(
+    await tx.run((t) =>
+      worker.assembly.timerHandler("content.license_end")!.handle(t, {
+        ...timer,
+        payload: z.record(z.string(), z.unknown()).nullable().parse(timer.payload),
+      }),
+    ),
+  ).toBe("skipped");
+  expect((await prisma.drama.findUniqueOrThrow({ where: { id: d.id } })).status).toBe("listed");
+  expect(
+    await prisma.statusTransition.count({
+      where: { subjectId: d.id, event: "drama.license_expire" },
+    }),
+  ).toBe(0);
+  expect((await prisma.timer.findUniqueOrThrow({ where: { id: timer.id } })).status).toBe(
+    "scheduled",
+  );
   queued.length = 0;
-  await worker.scan();
-  expect(queued.some((ref) => ref.timerId === timer.id)).toBe(false);
   clock.advance(1);
   await worker.scan();
   const ref = queued.find((ref) => ref.timerId === timer.id)!;

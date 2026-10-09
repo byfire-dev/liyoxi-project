@@ -24,7 +24,15 @@ let app: TestApi,
 let make: ReturnType<typeof createFactories>;
 const root = "/api/v1/admin";
 async function data<T>(res: Response): Promise<T> {
-  expect(res.status, await res.clone().text()).toBe(200);
+  const body = await res.clone().text();
+  expect(
+    res.status,
+    JSON.stringify({
+      body,
+      errors:
+        res.status >= 500 ? app.logs.filter((entry) => entry.evt === "http.error").slice(-1) : [],
+    }),
+  ).toBe(200);
   return ((await res.json()) as { data: T }).data;
 }
 const post = (path: string, body: unknown, session = supervisor, key: string | null = uuidv7()) =>
@@ -96,6 +104,10 @@ it("admin.drama.copyright.replace 真required/自身版本/C50：首次签名，
     before = storage.callsOf("presignGet").length;
   const first = await data<AdminDramaDetail>(await put(path, body, supervisor, key));
   expect(first.copyright.lockVersion).toBe(1);
+  expect(first.copyright.proofFiles[0]).toMatchObject({
+    status: "stored",
+    moderationState: "none",
+  });
   expect(first.lockVersion).toBe(0);
   expect(first.posterUrl?.url).toContain("http");
   const cached = await prisma.idempotencyRecord.findFirstOrThrow({
@@ -313,7 +325,7 @@ it("商城60秒home缓存跨午夜价格边界与热度事件，实际SQL priceV
       customPoints: 3200,
       effectiveDate: "2026-01-06",
       reasonCode: "quality",
-      confirm: { currentPoints: 5000 },
+      confirm: { currentPoints: 3000 },
     }),
   );
   app.clock.set(new Date("2026-01-05T15:59:59.999Z"));
@@ -326,7 +338,7 @@ it("商城60秒home缓存跨午夜价格边界与热度事件，实际SQL priceV
     versionBefore = (
       await app.runtime.tx.run((tx) => app.runtime.content.visibleCatalog(tx, app.clock.now()))
     ).find((row) => row.id === d.id)!.priceVersion;
-  expect(rowOf(before)?.listPricePoints).toBe(5000);
+  expect(rowOf(before)?.listPricePoints).toBe(3000);
   app.clock.advance(1);
   expect(rowOf(await data<Home>(await read()))?.listPricePoints).toBe(3200);
   const versionAfter = (
@@ -340,6 +352,8 @@ it("商城60秒home缓存跨午夜价格边界与热度事件，实际SQL priceV
       })
     ).status,
   ).toBe("scheduled");
+  // Crossing midnight expires the original staff session; keep the real session TTL intact.
+  supervisor = await signInAsStaff(prisma, { roleKey: "super_admin", now: app.clock.now() });
   // Restore template through the real write path, then apply a real tier fact without bumping site cache.
   app.clock.advance(1);
   await data(
@@ -352,7 +366,7 @@ it("商城60秒home缓存跨午夜价格边界与热度事件，实际SQL priceV
     }),
   );
   const templateBefore = await data<Home>(await read());
-  expect(rowOf(templateBefore)?.listPricePoints).toBe(5000);
+  expect(rowOf(templateBefore)?.listPricePoints).toBe(3000);
   const old = (
     await app.runtime.tx.run((tx) => app.runtime.content.visibleCatalog(tx, app.clock.now()))
   ).find((row) => row.id === d.id)!.priceVersion;
