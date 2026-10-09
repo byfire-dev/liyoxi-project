@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { createTxRunner } from "../kernel/index.js";
+import { createTxRunner, uuidv7 } from "../kernel/index.js";
 import {
   createClock,
   createFactories,
@@ -15,17 +15,20 @@ it("真实公开用量端口按上海月界/30自然日及当前live汇总，不
   const make = createFactories({ db: prisma, clock }),
     drama = await make.drama();
   const current = await make.orderItem({ dramaId: drama.id, phase: "live" });
-  const older = await make.orderItem({ dramaId: drama.id, phase: "live" });
-  await prisma.dramaOrder.update({
-    where: { id: older.dramaOrderId },
-    data: {
-      submittedAt: new Date("2026-02-01T00:00:00Z"),
-      createdAt: new Date("2026-02-01T00:00:00Z"),
-    },
+  const olderAt = new Date("2026-02-01T00:00:00Z");
+  const olderOrder = await make.dramaOrder({
+    status: "live",
+    submittedAt: olderAt,
+    startedAt: olderAt,
+    createdAt: olderAt,
   });
+  await make.orderItem({ dramaId: drama.id, phase: "live", dramaOrderId: olderOrder.id });
   const tx = createTxRunner({ prisma, appEnv: "test" }),
     usage = assembleForTest({ entry: "worker" }).port(DramaUsagePort);
-  expect((await tx.run((t) => usage.stats(t, [drama.id], clock.now()))).get(drama.id)).toEqual({
+  const missingId = uuidv7();
+  const stats = await tx.run((t) => usage.stats(t, [drama.id, missingId], clock.now()));
+  expect(stats.get(missingId)).toEqual({ orders30d: 0, ordersMtd: 0, liveItems: 0 });
+  expect(stats.get(drama.id)).toEqual({
     orders30d: 2,
     ordersMtd: 1,
     liveItems: 2,

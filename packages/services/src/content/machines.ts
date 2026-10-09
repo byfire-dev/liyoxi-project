@@ -1,3 +1,4 @@
+import { DramaDelistBodySchema } from "@liyoxi/contract";
 import { calendarDate } from "@liyoxi/shared/time";
 import type { Prisma } from "@liyoxi/db";
 import { chainKey, machinePort, rowKey } from "../flow/index.js";
@@ -36,6 +37,15 @@ const binding: MachineBinding = {
             : "通过上架校验，上架至短剧商城",
   }),
   guards: {
+    [rowKey("05:145", "drama.delist")]: async (tx, facts) => {
+      const input = DramaDelistBodySchema.safeParse({
+        reasonCode: facts.reasonCode,
+        note: facts.note,
+      });
+      if (facts.ctx.actor.type !== "staff" || !input.success) return false;
+      const drama = await tx.drama.findUnique({ where: { id: facts.subjectId } });
+      return Boolean(drama && !drama.archivedAt);
+    },
     [rowKey("05:146", "drama.license_expire")]: async (tx, facts) => {
       const row = await tx.dramaCopyright.findUnique({ where: { dramaId: facts.subjectId } });
       return Boolean(row?.licenseEndDate && calendarDate(facts.now) > dateOf(row.licenseEndDate)!);

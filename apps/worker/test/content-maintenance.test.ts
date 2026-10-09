@@ -130,9 +130,9 @@ it("一剧事务失败回滚后仍处理下一剧；最终任务明确失败，�
 
 it("已关闭worker的维护闭包不退回另一个scope，也不继续写库", async () => {
   await worker.closeStaff?.();
-  await expect(
-    worker.assembly
+  await expect(async () => {
+    await worker.assembly
       .recurringJob("content.stat_refresh")!
-      .run({ scheduledFor: clock.now(), runTx: tx.run }),
-  ).rejects.toThrow("已经关闭");
+      .run({ scheduledFor: clock.now(), runTx: tx.run });
+  }).rejects.toThrow("已经关闭");
 });

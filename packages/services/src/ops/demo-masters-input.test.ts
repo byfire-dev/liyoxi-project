@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, symlink, truncate, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseDemoMasterArgs, readDemoMasterInput } from "./demo-masters-input.js";
@@ -99,11 +99,43 @@ it("清单大小有界、匹配必须唯一，symlink不是批准的普通输入
 });
 it("文件系统/JSON诊断不回传显式路径或原文", async () => {
   const secretPath = join(dir, "should-never-appear.mp4");
-  try {
-    await readDemoMasterInput({ video: secretPath, facts: secretPath });
-    throw new Error("expected rejection");
-  } catch (error) {
-    expect(error).toBeInstanceOf(Error);
-    expect(String(error)).not.toContain(secretPath);
-  }
+  const error: unknown = await readDemoMasterInput({ video: secretPath, facts: secretPath }).then(
+    () => null,
+    (caught: unknown) => caught,
+  );
+  expect(error).toBeInstanceOf(Error);
+  expect(String(error)).not.toContain(secretPath);
+});
+it("CLI 表单边界恰为 20 MiB，超出时先于清单读取拒绝；不收窄其他清单条目", async () => {
+  const input = await fixture("post-boundary");
+  const limit = 20 * 1024 * 1024;
+  await truncate(input.video, limit + 1);
+  await expect(
+    readDemoMasterInput({ video: input.video, facts: join(dir, "not-created.json") }),
+  ).rejects.toThrow("20 MiB");
+  await truncate(input.video, limit);
+  const hash = createHash("sha256");
+  hash.update(bytes);
+  const zeroes = Buffer.alloc(64 * 1024);
+  for (let remaining = limit - bytes.length; remaining > 0; remaining -= zeroes.length)
+    hash.update(zeroes.subarray(0, Math.min(remaining, zeroes.length)));
+  const sha256 = hash.digest("hex");
+  const checks = {
+    duration: true,
+    video: true,
+    audio: true,
+    faststart: true,
+    serviceDuration: true,
+    size: true,
+  };
+  await writeFile(
+    input.facts,
+    JSON.stringify({
+      results: [
+        { name: "post-boundary.mp4", size: limit, sha256, checks },
+        { name: "other-multipart.mp4", size: limit + 1, sha256, checks },
+      ],
+    }),
+  );
+  expect(await readDemoMasterInput(input)).toEqual({ path: input.video, size: limit, sha256 });
 });

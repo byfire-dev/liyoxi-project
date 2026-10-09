@@ -1,6 +1,6 @@
 // 显式演示原片输入；manifest 只绑定输入字节，绝不替代媒体流水线的探针与检查结果。
 import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
+import { createReadStream, openAsBlob } from "node:fs";
 import { lstat, open } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { z } from "@liyoxi/contract";
@@ -20,14 +20,19 @@ interface DemoMasterRuntime {
   content: Pick<Content, "mediaReadiness">;
 }
 
-const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
+// This CLI adapter uses one presigned POST; the general master API keeps its larger limit.
+const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
 const MAX_MANIFEST_BYTES = 64 * 1024;
 const ManifestSchema = z.object({
   results: z
     .array(
       z.object({
         name: z.string().min(1).max(255),
-        size: z.int().positive().max(MAX_VIDEO_BYTES),
+        // A shared manifest may also describe inputs for the separate multipart client.
+        size: z
+          .int()
+          .positive()
+          .max(500 * 1024 * 1024),
         sha256: z.string().regex(/^[0-9a-f]{64}$/),
         checks: z.object({
           duration: z.literal(true),
@@ -75,10 +80,14 @@ export function parseDemoMasterArgs(args: readonly string[]) {
   if (!video || !facts) throw new DemoMasterInputError("--video 与 --probe-facts 必须同时提供");
   return { video, facts };
 }
-async function regular(path: string, maximum: number) {
+async function regular(
+  path: string,
+  maximum: number,
+  diagnostic = "输入必须是上限内的普通非空文件",
+) {
   const stat = await lstat(path);
   if (!stat.isFile() || stat.size <= 0 || stat.size > maximum)
-    throw new DemoMasterInputError("输入必须是上限内的普通非空文件");
+    throw new DemoMasterInputError(diagnostic);
   return stat;
 }
 /** 在运行器写任何演示内容前执行；所有文件系统错误投影为不带路径的诊断。 */
@@ -89,7 +98,7 @@ export async function readDemoMasterInput(input: {
   try {
     const path = resolve(input.video),
       factsPath = resolve(input.facts);
-    const before = await regular(path, MAX_VIDEO_BYTES);
+    const before = await regular(path, MAX_VIDEO_BYTES, "视频必须是 20 MiB 内的普通非空文件");
     await regular(factsPath, MAX_MANIFEST_BYTES);
     const handle = await open(factsPath, "r");
     let bytes: Buffer;
@@ -138,10 +147,27 @@ export function createDemoMasterInputPreparer(
 ): NonNullable<ContentDemoDeps["prepareMasters"]> {
   if (runtime.env.APP_ENV === "prod" || !runtime.env.MEDIA_PRODUCTION)
     throw new DemoMasterInputError("需要非生产环境的完整媒体工具配置");
+  if (!Number.isSafeInteger(input.size) || input.size <= 0 || input.size > MAX_VIDEO_BYTES)
+    throw new DemoMasterInputError("演示表单上传只接受 20 MiB 内的视频");
   return async (target) => {
     signal.throwIfAborted();
     const staff = await runtime.tx.run((tx) => loadCliStaffContext(tx, target.staffId));
-    const actor = { identity: target.identity, staff };
+    const actor = {
+      identity: target.identity,
+      staff,
+      ...(target.identity.actor.client === "cli"
+        ? {
+            audit: {
+              requestId: target.identity.requestId,
+              ip: target.identity.ip,
+              userAgent: target.identity.userAgent,
+              authMethod: null,
+              sessionId: null,
+              jobName: "cli.demo_seed",
+            },
+          }
+        : {}),
+    };
     const hasCurrent = await runtime.tx.run((tx) =>
       tx.dramaEpisodeMaster.count({
         where: { dramaId: target.dramaId, isCurrent: true },
@@ -177,26 +203,53 @@ export function createDemoMasterInputPreparer(
       if (item.state !== "pending") continue;
       if (!item.uploadKey || !item.uploadKey.startsWith(batch.prefix))
         throw new DemoMasterInputError("上传目标与当前批次不匹配");
-      const written = await runtime.providers.storage.putStream({
+      const signed = await runtime.providers.storage.presignPost({
         bucket: "media",
         key: item.uploadKey,
-        size: input.size,
-        sha256: input.sha256,
-        contentIdentity: `demo-master:${input.sha256}`,
-        contentType: "video/mp4",
-        ifAbsent: true,
-        signal,
-        body: async function* (ownedSignal) {
-          for await (const chunk of createReadStream(input.path, {
-            highWaterMark: 1024 * 1024,
-            signal: ownedSignal,
-          })) {
-            if (!(chunk instanceof Uint8Array)) throw new DemoMasterInputError("视频流类型不合格");
-            yield chunk;
-          }
-        },
+        mime: "video/mp4",
+        maxBytes: input.size,
+        expiresSec: 600,
       });
-      if (!written.ok) throw new DemoMasterInputError(`原片写入未完成（${written.reason}）`);
+      if (!signed.ok) throw new DemoMasterInputError(`原片上传签名未完成（${signed.reason}）`);
+      if (signed.value.key !== item.uploadKey || signed.value.fields.key !== item.uploadKey)
+        throw new DemoMasterInputError("签名表单与当前上传目标不匹配");
+      try {
+        const file = await openAsBlob(input.path, { type: "video/mp4" });
+        const hash = createHash("sha256"),
+          reader = file.stream().getReader();
+        try {
+          for (;;) {
+            signal.throwIfAborted();
+            const chunk = await reader.read();
+            if (chunk.done) break;
+            hash.update(chunk.value);
+          }
+        } finally {
+          await reader.cancel();
+          reader.releaseLock();
+        }
+        if (file.size !== input.size || hash.digest("hex") !== input.sha256)
+          throw new DemoMasterInputError("待上传视频与已验证的输入字节不匹配");
+        const form = new FormData();
+        for (const [key, value] of Object.entries(signed.value.fields)) form.append(key, value);
+        form.append("file", file, item.originalName);
+        const response = await fetch(signed.value.url, {
+          method: "POST",
+          body: form,
+          redirect: "error",
+          signal,
+        });
+        try {
+          if (!response.ok) throw new DemoMasterInputError("原片签名表单上传未被接受");
+        } finally {
+          await response.body?.cancel();
+        }
+      } catch (error) {
+        if (error instanceof DemoMasterInputError) throw error;
+        signal.throwIfAborted();
+        throw new DemoMasterInputError("原片签名表单上传未完成");
+      }
+      signal.throwIfAborted();
       await runtime.media.uploadBatches.complete(actor, item.uploadBatchItemId, {});
     }
     // 原任务自己的 deadline/lease/重试规则决定能否继续，不用等待循环伪造 ready。

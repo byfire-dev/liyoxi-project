@@ -20,6 +20,30 @@ it("首次上架与重新上架保留首次时间、仅一initial，历史/事�
   const first = await h.tx.run((tx) => h.content.list(tx, h.actor.identity, drama.id));
   expect(first.status).toBe("listed");
   expect(first.firstListedAt).toEqual(h.clock.now());
+  for (const input of [
+    { reasonCode: null, note: null },
+    { reasonCode: "license_expired", note: null },
+    { reasonCode: "ops_strategy", note: "长".repeat(201) },
+  ])
+    await expect(
+      h.tx.run((tx) =>
+        h.flow.transition(tx, h.actor.identity, {
+          machine: "drama",
+          stateField: "status",
+          id: drama.id,
+          event: "drama.delist",
+          reasonCode: input.reasonCode,
+          note: input.note,
+          emit: {
+            type: "drama.delisted",
+            payload: { v: 1, dramaId: drama.id, reasonCode: "ops_strategy" },
+          },
+        }),
+      ),
+    ).rejects.toMatchObject({ error: "STATE_NOT_ALLOWED" });
+  expect((await h.prisma.drama.findUniqueOrThrow({ where: { id: drama.id } })).status).toBe(
+    "listed",
+  );
   await h.tx.run((tx) =>
     h.content.delist(tx, h.actor.identity, drama.id, {
       reasonCode: "ops_strategy",
