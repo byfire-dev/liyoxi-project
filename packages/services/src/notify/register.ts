@@ -10,6 +10,9 @@ import {
   findNotifyN15Violations,
 } from "./invariants.js";
 import { boundNotifyAssembly } from "./service.js";
+const unboundSmsHealth = async () => {
+  throw new TypeError("短信健康任务需要本运行时装配");
+};
 export const registration = defineRegistration("notify", {
   subscribers: [
     {
@@ -28,6 +31,28 @@ export const registration = defineRegistration("notify", {
     },
   ],
   recurringJobs: [
+    {
+      kind: "notify.sms_keepalive",
+      schedule: { every: "day", at: "10:20" },
+      mode: "job",
+      leaseSec: 120,
+      maxAttempts: 1,
+      deadlineMin: 60,
+      missSeverity: "P3",
+      catchUp: true,
+      run: unboundSmsHealth,
+    },
+    {
+      kind: "notify.sms_balance",
+      schedule: { every: "day", at: "10:20" },
+      mode: "job",
+      leaseSec: 120,
+      maxAttempts: 1,
+      deadlineMin: 60,
+      missSeverity: "P3",
+      catchUp: true,
+      run: unboundSmsHealth,
+    },
     {
       kind: "notify.remind_scan",
       schedule: { every: "minutes", minutes: 5 },

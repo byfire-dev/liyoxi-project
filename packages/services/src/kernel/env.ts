@@ -48,6 +48,10 @@ export const ENV_KEYS: readonly string[] = [
   "DATA_KEYS_FILE",
   "BIDX_KEYS_FILE",
   "AUTH_KEYS_FILE",
+  "SMS_SECRET_ID_FILE",
+  "SMS_SECRET_KEY_FILE",
+  "SMS_SDK_APP_ID",
+  "SMS_REGION",
   "WECHAT_APPID",
   "WECHAT_SECRET_FILE",
   "WECHAT_MESSAGE_TOKEN_FILE",
@@ -84,6 +88,13 @@ export interface AuthKeysConfig {
   readonly ticket: string;
   readonly device: string;
   readonly mfa: DataKeysConfig;
+}
+
+export interface SmsEnvConfig {
+  readonly secretId: string;
+  readonly secretKey: string;
+  readonly sdkAppId: string;
+  readonly region: string;
 }
 
 export interface WechatConfig {
@@ -146,6 +157,7 @@ export interface Env {
   readonly BIDX_KEYS?: BidxKeysConfig;
   /** 后台登录的三把密钥；没配 AUTH_KEYS_FILE 时没有这一项 */
   readonly AUTH_KEYS?: AuthKeysConfig;
+  readonly SMS?: SmsEnvConfig;
   /** 整组未配置时没有此项；敏感字段只能从 FILE 读取。 */
   readonly WECHAT?: WechatConfig;
   readonly CLIENT_ERROR_PROJECTS?: ClientErrorProjectsConfig;
@@ -177,6 +189,10 @@ const WECHAT_GROUP: EnvGroup = {
   ],
 };
 export const ENV_GROUPS: readonly EnvGroup[] = [
+  {
+    name: "腾讯云短信",
+    keys: ["SMS_SECRET_ID_FILE", "SMS_SECRET_KEY_FILE", "SMS_SDK_APP_ID", "SMS_REGION"],
+  },
   { name: "字段加密与盲索引密钥", keys: ["DATA_KEYS_FILE", "BIDX_KEYS_FILE"] },
   WECHAT_GROUP,
 ];
@@ -388,6 +404,37 @@ function readKeyFile<T>(
   return undefined;
 }
 
+function readSmsSecret(
+  source: EnvSource,
+  key: "SMS_SECRET_ID" | "SMS_SECRET_KEY",
+  issues: EnvIssue[],
+): string | undefined {
+  if (read(source, key) !== undefined) issues.push({ key, reason: `任何环境密钥只认 ${key}_FILE` });
+  const file = read(source, `${key}_FILE`);
+  if (file === undefined) return undefined;
+  let fd: number | undefined;
+  try {
+    fd = openSync(file, "r");
+    const stat = fstatSync(fd);
+    if (!stat.isFile() || stat.size > 4096) throw new Error();
+    const bytes = Buffer.alloc(4097);
+    let length = 0;
+    while (length < bytes.length) {
+      const readLength = readSync(fd, bytes, length, bytes.length - length, null);
+      if (!readLength) break;
+      length += readLength;
+    }
+    if (length > 4096) throw new Error();
+    const value = bytes.subarray(0, length).toString("utf8").trim();
+    if (!/^[A-Za-z0-9_-]{16,128}$/.test(value)) throw new Error();
+    return value;
+  } catch {
+    issues.push({ key: `${key}_FILE`, reason: "文件无法读取或内容格式不合格" });
+    return undefined;
+  } finally {
+    if (fd !== undefined) closeSync(fd);
+  }
+}
 /** DSN 只作为 FILE 白名单/固定目的地；请求中的 URL 从不成为外呼目的地。 */
 function validErrorDsn(value: unknown): value is string {
   if (typeof value !== "string" || value !== value.trim() || value.includes("\\")) return false;
@@ -764,6 +811,14 @@ export function loadEnv(
   const dataKeys = readKeyFile(source, "DATA_KEYS", issues, parseDataKeys);
   const bidxKeys = readKeyFile(source, "BIDX_KEYS", issues, parseBidxKeys);
   const authKeys = readKeyFile(source, "AUTH_KEYS", issues, parseAuthKeys);
+  const secretId = readSmsSecret(source, "SMS_SECRET_ID", issues);
+  const secretKey = readSmsSecret(source, "SMS_SECRET_KEY", issues);
+  const sdkAppId = read(source, "SMS_SDK_APP_ID");
+  const region = read(source, "SMS_REGION");
+  if (sdkAppId !== undefined && !/^\d{1,20}$/.test(sdkAppId))
+    issues.push({ key: "SMS_SDK_APP_ID", reason: "须为数字应用ID" });
+  if (region !== undefined && !/^ap-[a-z]+(?:-[a-z]+)*$/.test(region))
+    issues.push({ key: "SMS_REGION", reason: "须为腾讯云地域编码" });
   const wechat = readWechat(source, issues);
   const minio = readMinio(source, appEnv, issues);
   const cos = readCos(source, issues);
@@ -809,6 +864,9 @@ export function loadEnv(
     ...(mediaProduction ? { MEDIA_PRODUCTION: mediaProduction } : {}),
     ...(dataKeys && bidxKeys ? { DATA_KEYS: dataKeys, BIDX_KEYS: bidxKeys } : {}),
     ...(authKeys ? { AUTH_KEYS: authKeys } : {}),
+    ...(secretId && secretKey && sdkAppId && region
+      ? { SMS: { secretId, secretKey, sdkAppId, region } }
+      : {}),
     ...(wechat ? { WECHAT: wechat } : {}),
     ...(clientErrorProjects ? { CLIENT_ERROR_PROJECTS: clientErrorProjects } : {}),
   });

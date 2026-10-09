@@ -204,6 +204,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           services.closeWebhooks?.();
           services.closeMediaJobs?.();
           await Promise.allSettled([
+            services.closeSmsHealth?.(),
             services.closeMediaDrivers?.(),
             services.closeStorageDrivers?.(),
           ]);

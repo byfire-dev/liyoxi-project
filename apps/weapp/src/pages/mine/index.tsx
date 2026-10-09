@@ -19,10 +19,12 @@ import { accountError } from "@/lib/account-controller";
 import { gotoAccountLogin } from "@/lib/account-routing";
 import { account, useAccount } from "@/lib/account-runtime";
 import { useSessionStore } from "@/stores/session";
+import { useMessageBadge } from "@/stores/messages";
 
 import "./index.scss";
 
 export default function Mine() {
+  const unread = useMessageBadge();
   const state = useAccount();
   const token = useSessionStore((value) => value.accessToken);
   const [error, setError] = useState<string | null>(null);
@@ -141,8 +143,24 @@ export default function Mine() {
           {data && accountEntries(data.viewerRole).length ? (
             <List>
               {accountEntries(data.viewerRole).map((item) => (
-                <ListRow key={item.route} title={item.title} onClick={() => navigate(item.route)} />
+                <ListRow
+                  key={item.route}
+                  title={item.title}
+                  badge={
+                    item.route === "sub/service/messages/index" ? (unread ?? undefined) : undefined
+                  }
+                  onClick={() => navigate(item.route)}
+                />
               ))}
+            </List>
+          ) : null}
+          {!data ? (
+            <List>
+              <ListRow
+                title="消息"
+                badge={unread ?? undefined}
+                onClick={() => navigate("sub/service/messages/index")}
+              />
             </List>
           ) : null}
           <List>
