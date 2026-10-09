@@ -3,6 +3,7 @@ import type { IdentityContext, Tx } from "../kernel/index.js";
 import type { MediaJob } from "@liyoxi/db";
 import type { StorageBucket } from "../providers/types.js";
 import type { BoundMediaDeps, FileRow } from "./context.js";
+import { recordModeration } from "./handlers/moderation/results.js";
 import type { MediaJobHandler } from "./jobs/types.js";
 
 export interface WechatImageResultInput {
@@ -47,7 +48,10 @@ export async function queueWechatImageAudit(
         subjectId: file.id,
         dedupeKey: `audit_image_wx:${file.id}:v1`,
         state: "queued",
-        input: { src: { bucket: file.bucket, key: file.objectKey }, scenes: ["profile"] },
+        input: {
+          src: { bucket: file.bucket, key: file.objectKey, etag: file.etag },
+          scenes: ["profile"],
+        },
         nextRunAt: now,
         deadlineAt: new Date(now.getTime() + WX_DEADLINE),
         createdAt: now,
@@ -94,7 +98,10 @@ async function fallback(
         subjectId: file.id,
         dedupeKey: `audit_image:${file.id}:v1`,
         state: "queued",
-        input: { src: { bucket: file.bucket, key: file.objectKey }, scenes: ["profile"] },
+        input: {
+          src: { bucket: file.bucket, key: file.objectKey, etag: file.etag },
+          scenes: ["profile"],
+        },
         nextRunAt: now,
         deadlineAt: new Date(now.getTime() + CI_DEADLINE),
         createdAt: now,
@@ -113,7 +120,7 @@ const claimsFileAudit = (job: MediaJob): boolean =>
   job.parentId === null &&
   job.dedupeKey === `${job.kind}:${job.subjectId}:v1`;
 const currentFile = (job: MediaJob, file: FileRow | null): file is FileRow => {
-  const src = (job.input as { src?: { bucket?: unknown; key?: unknown } })?.src;
+  const src = (job.input as { src?: { bucket?: unknown; key?: unknown; etag?: unknown } })?.src;
   return (
     file !== null &&
     claimsFileAudit(job) &&
@@ -125,24 +132,33 @@ const currentFile = (job: MediaJob, file: FileRow | null): file is FileRow => {
     file.moderationState === "pending" &&
     eligible(file) &&
     src?.bucket === file.bucket &&
-    src.key === file.objectKey
+    src.key === file.objectKey &&
+    (src.etag === undefined || src.etag === file.etag)
   );
 };
 const auditInput = (value: unknown) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const input = value as { src?: { bucket?: unknown; key?: unknown }; scenes?: unknown };
+  const input = value as {
+    src?: { bucket?: unknown; key?: unknown; etag?: unknown };
+    scenes?: unknown;
+  };
   return (
     Object.keys(input).length === 2 &&
     Object.keys(input).every((key) => ["src", "scenes"].includes(key)) &&
     input.src !== null &&
     typeof input.src === "object" &&
     !Array.isArray(input.src) &&
-    Object.keys(input.src).length === 2 &&
+    Object.keys(input.src).every((key) => ["bucket", "key", "etag"].includes(key)) &&
     ["secure", "asset", "media", "pub"].includes(String(input.src.bucket)) &&
     typeof input.src.key === "string" &&
     Buffer.byteLength(input.src.key) <= 1024 &&
     input.src.key.length > 0 &&
     !/\p{Cc}/u.test(input.src.key) &&
+    (input.src.etag === undefined ||
+      input.src.etag === null ||
+      (typeof input.src.etag === "string" &&
+        input.src.etag.length > 0 &&
+        input.src.etag.length <= 256)) &&
     Array.isArray(input.scenes) &&
     input.scenes.length === 1 &&
     input.scenes[0] === "profile"
@@ -253,30 +269,22 @@ export function createWechatImageHandlers(deps: BoundMediaDeps): readonly MediaJ
         };
       return { state: "succeeded", output: { verdict: result.value.verdict } };
     },
-    finish: async (tx, job, outcome) => {
+    finish: async (tx, job, outcome, ctx) => {
       if (outcome.state !== "succeeded" || !auditOutput(outcome.output)) return;
-      const now = deps.clock.now();
-      await tx.fileObject.update({
-        where: { id: job.subjectId },
-        data: {
-          moderationState: outcome.output.verdict,
-          moderationDetail: {
-            channel: "ci",
-            verdict: outcome.output.verdict,
-            decidedAt: now.toISOString(),
-          },
-          updatedAt: now,
-        },
+      await recordModeration(tx, deps, ctx, {
+        fileId: job.subjectId,
+        verdict: outcome.output.verdict,
+        channel: "ci",
       });
     },
   };
-  return [wx, ci];
+  return deps.moderation ? [wx] : [wx, ci];
 }
 export async function applyWechatImageResult(
   deps: BoundMediaDeps,
   tx: Tx,
   input: WechatImageResultInput,
-  _ctx: IdentityContext,
+  ctx: IdentityContext,
 ): Promise<"processed" | "ignored"> {
   if (
     !input.traceId ||
@@ -315,19 +323,12 @@ export async function applyWechatImageResult(
       updatedAt: now,
     },
   });
-  await tx.fileObject.update({
-    where: { id: file.id },
-    data: {
-      moderationState: verdict,
-      moderationDetail: {
-        channel: "wechat",
-        verdict,
-        traceId: input.traceId,
-        labels: [String(input.result.label)],
-        decidedAt: now.toISOString(),
-      },
-      updatedAt: now,
-    },
+  await recordModeration(tx, deps, ctx, {
+    fileId: file.id,
+    verdict,
+    channel: "wechat",
+    traceId: input.traceId,
+    labels: [String(input.result.label)],
   });
   return "processed";
 }

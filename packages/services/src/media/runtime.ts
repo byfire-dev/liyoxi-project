@@ -2,10 +2,12 @@ import { UPLOAD_CATEGORIES } from "@liyoxi/shared/uploads";
 import { fileCategoryGuardPort, fileRefTypePort } from "./ports.js";
 import type { DeliveryDownloadSignInput, MediaDeps } from "./context.js";
 import { register, complete, refresh, cancel } from "./upload.js";
-import { getAdmin, getMerchant, createSigner, downloadUrls } from "./read.js";
+import { assertUsableForModel, getAdmin, getMerchant, createSigner, downloadUrls } from "./read.js";
 import { link, release } from "./refs.js";
 import { putSystemFile } from "./system.js";
 import { createWechatImageHandlers, applyWechatImageResult } from "./wechat-image-audit.js";
+import { createModerationHandlers } from "./handlers/moderation/handlers.js";
+import { enqueueExtractedTextAudit } from "./handlers/moderation/queue.js";
 import { createPromoteHandler } from "./promote.js";
 import { createMediaJobAdmin } from "./jobs/admin.js";
 import { createMediaJobs } from "./jobs/runner.js";
@@ -98,6 +100,7 @@ export function createMedia(options: MediaDeps) {
     handlers: [
       createPromoteHandler(deps),
       ...createWechatImageHandlers(deps),
+      ...createModerationHandlers(deps),
       createProbeHandler(deps),
       createRestampHandler(deps),
       createTranscodeHandler(deps),
@@ -114,6 +117,10 @@ export function createMedia(options: MediaDeps) {
     ],
   });
   return {
+    enqueueExtractedTextAudit: (
+      tx: Parameters<typeof enqueueExtractedTextAudit>[1],
+      input: Parameters<typeof enqueueExtractedTextAudit>[2],
+    ) => enqueueExtractedTextAudit(deps, tx, input),
     get uploadBatches() {
       return (uploadBatches ??= createUploadBatches(deps));
     },
@@ -131,6 +138,7 @@ export function createMedia(options: MediaDeps) {
       input: Parameters<typeof enqueueTrailer>[2],
     ) => enqueueTrailer(deps, tx, input),
     productionFacts,
+    assertUsableForModel,
     retireDramaMedia: (
       tx: Parameters<typeof retireDramaMedia>[1],
       dramaId: string,

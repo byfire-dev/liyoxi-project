@@ -36,6 +36,7 @@ export function createFakeMedia(options: { clock?: FakeClock } = {}): FakeMedia 
   const core = createFakeCore<Method>(options.clock ?? systemClock);
   const reports = new Map<string, MediaProbeReport>();
   const jobs: FakeMediaJob[] = [];
+  const audits = new Map<string, { dataId: string; src: ObjectRef }>();
 
   function submit(kind: FakeMediaJob["kind"], userData: string): MediaJob {
     const job: FakeMediaJob = {
@@ -88,6 +89,43 @@ export function createFakeMedia(options: { clock?: FakeClock } = {}): FakeMedia 
       core.run("pack", input, () => ok(submit("pack", input.userData)), input.signal),
     audit: (input) =>
       core.run("audit", input, () => ok({ verdict: "pass", processed: true }), input.signal),
+    auditText: (input) =>
+      core.run(
+        "auditText",
+        input,
+        () => ok({ verdict: "pass", processed: true, labels: [] }),
+        input.signal,
+      ),
+    auditVideo: (input) =>
+      core.run(
+        "auditVideo",
+        input,
+        () => {
+          const jobId = `fake-audit-${audits.size + 1}`;
+          audits.set(jobId, { dataId: input.userData, src: { ...input.src } });
+          return ok({ jobId, dataId: input.userData, state: "submitted", processed: true });
+        },
+        input.signal,
+      ),
+    describeAudit: (input) =>
+      core.run(
+        "describeAudit",
+        input,
+        () => {
+          const one = audits.get(input.jobId);
+          return one && one.dataId === input.userData && slot(one.src) === slot(input.src)
+            ? ok({
+                jobId: input.jobId,
+                dataId: one.dataId,
+                state: "succeeded",
+                processed: true,
+                verdict: "pass",
+                labels: [],
+              })
+            : failed("rejected", "没有该替身审核任务");
+        },
+        input.signal,
+      ),
     describe: (input) =>
       core.run(
         "describe",

@@ -303,7 +303,8 @@ export function createHomeBanners(deps: SiteAdminDeps) {
         const imageFileId = input.imageFileId ?? before.imageFileId;
         if (imageFileId !== before.imageFileId)
           await lockRows(tx, "file_object", [before.imageFileId, imageFileId]);
-        if (imageFileId !== before.imageFileId) await deps.files.link(tx, imageFileId, id);
+        if (imageFileId !== before.imageFileId || merged.isEnabled)
+          await deps.files.link(tx, imageFileId, id);
         const after = await tx.homeBanner.update({
           where: { id },
           data: {

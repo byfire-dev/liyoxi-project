@@ -1,3 +1,4 @@
+import { FILE_OBJECT_CATEGORY } from "../enums/index.js";
 import { IdSchema } from "../common/index.js";
 import { z } from "../zod.js";
 const fileFact = z.object({ v: z.literal(1), fileId: IdSchema }).strict();
@@ -13,6 +14,13 @@ export const payloads = {
   "file.uploaded": fileFact,
   "file.stored": fileFact,
   "file.rejected": fileFact,
+  "file.moderated": z.strictObject({
+    v: z.literal(1),
+    fileId: IdSchema,
+    category: z.enum(FILE_OBJECT_CATEGORY.values),
+    moderationState: z.enum(["pass", "review", "block"]),
+    storeId: IdSchema.nullable(),
+  }),
   "media.production.checked": z.strictObject({
     v: z.literal(1),
     fileId: IdSchema,
