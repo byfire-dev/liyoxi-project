@@ -462,7 +462,7 @@ async function main(args) {
     );
     writeFileSync(
       inputFile,
-      `${JSON.stringify({ current: fixtures.fixtures.w302.scope, legacy: fixtures.fixtures["zz-delivery-flow"].scope, w120: fixtures.fixtures.w120, video, resumeVideo })}\n`,
+      `${JSON.stringify({ current: fixtures.fixtures.w302.scope, legacy: fixtures.fixtures["zz-delivery-flow"].scope, w120: fixtures.fixtures.w120.stage === "awaiting_actual_media" ? fixtures.fixtures.w120 : undefined, w312: fixtures.fixtures.w312, video, resumeVideo })}\n`,
       { mode: 0o600 },
     );
     await run(
@@ -485,22 +485,30 @@ async function main(args) {
     });
     await buildApi(baseEnv);
     const server = await startApi(testEnv, image);
-    if (!server.w120?.unknownMetadataRejectedWithoutWrites || server.w120.items?.length !== 2)
-      throw new Error("W120 actual production/QC fixture did not finish");
     const w120Pending = fixtures.fixtures.w120;
-    fixtures.fixtures.w120 = {
-      ...server.w120,
-      items: server.w120.items.map((item) => {
-        const pending = w120Pending.items.find(
-          (p) =>
-            p.scope.itemId === item.itemId &&
-            p.scope.ticketId === item.ticketId &&
-            p.outcome === item.outcome,
-        );
-        if (!pending) throw new Error("W120 completed fixture scope changed");
-        return { ...item, headers: pending.headers };
-      }),
-    };
+    if (w120Pending.stage === "awaiting_actual_media") {
+      if (!server.w120?.unknownMetadataRejectedWithoutWrites || server.w120.items?.length !== 2)
+        throw new Error("W120 actual production/QC fixture did not finish");
+      fixtures.fixtures.w120 = {
+        ...server.w120,
+        items: server.w120.items.map((item) => {
+          const pending = w120Pending.items.find(
+            (p) =>
+              p.scope.itemId === item.itemId &&
+              p.scope.ticketId === item.ticketId &&
+              p.outcome === item.outcome,
+          );
+          if (!pending) throw new Error("W120 completed fixture scope changed");
+          return { ...item, headers: pending.headers };
+        }),
+      };
+    } else if (
+      w120Pending.stage !== undefined ||
+      !w120Pending.unknownMetadataRejectedWithoutWrites ||
+      w120Pending.items?.length !== 2
+    ) {
+      throw new Error("W120 completed legacy fixture is missing its original proof");
+    }
     if (!(await fetch(`${server.apiOrigin}/readyz`)).ok)
       throw new Error("The actual API is not ready");
     const origin = await serveProduction(server.apiOrigin);
