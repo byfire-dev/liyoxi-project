@@ -282,6 +282,7 @@ export function AgreementEditor({
     <Modal
       open
       width={760}
+      styles={{ body: { maxHeight: "calc(100vh - 260px)", overflowY: "auto" } }}
       title={savedVersion ? `编辑草稿 ${savedVersion.versionLabel}` : "新建协议草稿"}
       onCancel={() => {
         if (!busy) onClose();

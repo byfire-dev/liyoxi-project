@@ -244,22 +244,51 @@ export function registerAgreementPermissionsTest() {
       await date.press("Enter");
       await date.press("Tab");
       await editor.getByLabel("生效时刻（北京时间）", { exact: true }).fill("09:00");
-      for (const [index, file] of data.files.entries()) {
-        const bytes = Buffer.from(file.base64, "base64");
-        expect(bytes.byteLength).toBe(file.size);
-        expect(createHash("sha256").update(bytes).digest("hex")).toBe(file.sha256);
-        await editor.locator('input[type="file"]').nth(index).setInputFiles({
-          name: file.name,
-          mimeType: file.mime,
-          buffer: bytes,
-        });
-        await expect(
-          editor.getByRole("button", {
-            name: index === 0 ? "清除 Word 引用" : "清除 PDF 引用",
-            exact: true,
-          }),
-        ).toBeVisible();
-      }
+      const uploadFiles = async (uploaderId: string) => {
+        const ids: string[] = [];
+        for (const [index, file] of data.files.entries()) {
+          const bytes = Buffer.from(file.base64, "base64");
+          expect(bytes.byteLength).toBe(file.size);
+          expect(createHash("sha256").update(bytes).digest("hex")).toBe(file.sha256);
+          const registered = page.waitForResponse(
+            (r) =>
+              r.request().method() === "POST" &&
+              new URL(r.url()).pathname === "/api/v1/admin/files",
+          );
+          await editor.locator('input[type="file"]').nth(index).setInputFiles({
+            name: file.name,
+            mimeType: file.mime,
+            buffer: bytes,
+          });
+          const registration = await registered;
+          expect(registration.status()).toBe(200);
+          ids.push((await registration.json()).data.fileId);
+          expect(ids[index]).toEqual(expect.any(String));
+          await expect(
+            editor.getByRole("button", {
+              name: index === 0 ? "清除 Word 引用" : "清除 PDF 引用",
+              exact: true,
+            }),
+          ).toBeVisible();
+          await expect(
+            editor.locator(".lyx-upload").nth(index).locator(".ant-upload-list-item-done"),
+          ).toBeVisible();
+          const fileFact = await api<components["schemas"]["FileBrief"]>(
+            page,
+            `/files/${ids[index]}`,
+          );
+          expect(fileFact).toMatchObject({
+            fileId: ids[index],
+            status: "stored",
+            category: "legal_doc",
+            declaredSizeBytes: String(file.size),
+            sizeBytes: String(file.size),
+            uploader: { actorType: "staff", actorId: uploaderId, client: "admin" },
+          });
+        }
+        return ids;
+      };
+      await uploadFiles(identity.staffId);
       await editor
         .getByRole("checkbox", { name: "我确认本次正文已完成法务审核", exact: true })
         .check();
@@ -313,7 +342,21 @@ export function registerAgreementPermissionsTest() {
       await editor
         .getByRole("checkbox", { name: "我确认本次正文已完成法务审核", exact: true })
         .check();
+      const ownFileIds = await uploadFiles(me.staff.staffId);
+      const saved = page.waitForResponse(
+        (r) =>
+          r.request().method() === "PATCH" &&
+          new URL(r.url()).pathname ===
+            `/api/v1/admin/agreement-versions/${current.draftVersion?.agreementVersionId}`,
+      );
       const needsReason = await schedule();
+      const savedResponse = await saved;
+      expect(savedResponse.status()).toBe(200);
+      expect((await savedResponse.json()).data.version).toMatchObject({
+        agreementVersionId: current.draftVersion?.agreementVersionId,
+        sourceFile: { fileId: ownFileIds[0] },
+        pdfFile: { fileId: ownFileIds[1] },
+      });
       expect(needsReason.status()).toBe(409);
       expect(await needsReason.json()).toMatchObject({
         error: "AGREEMENT_SHORT_NOTICE",
