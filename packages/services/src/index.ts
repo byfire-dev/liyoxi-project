@@ -222,6 +222,10 @@ export type { Media, MediaActor, MediaDeps, PromoteRef } from "./media/index.js"
 export { seedPlaceholderFinanceConfig, PLACEHOLDER_FINANCE } from "./billing/index.js";
 // W1-08a：商家档案及 initial 资质核心；后台路由随 b。
 export { createProfile } from "./profile/index.js";
+export {
+  countQualificationSubmissionsInReview,
+  countUnverifiedPrimaryStore,
+} from "./profile/index.js";
 export type { Profile, ProfileDeps, ProfileViewer } from "./profile/index.js";
 export { currentSessionOpenid } from "./identity/index.js";
 
