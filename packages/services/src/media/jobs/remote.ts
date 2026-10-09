@@ -8,6 +8,7 @@ export type RemoteMediaSubmission =
       readonly src: ObjectRef;
       readonly dst: ObjectRef;
       readonly template: string;
+      readonly watermarks?: Parameters<MediaProvider["transcode"]>[0]["watermarks"];
     }
   | {
       readonly tag: "FileCompress";

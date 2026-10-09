@@ -39,7 +39,9 @@ export function createPromoteHandler(deps: BoundMediaDeps): MediaJobHandler {
       const file = await tx.fileObject.findUnique({ where: { id: job.subjectId } });
       return (
         job.subjectType === "file_object" &&
-        job.parentId === null &&
+        (file?.uploadBatchId
+          ? job.parentType === "upload_batch" && job.parentId === file.uploadBatchId
+          : job.parentType === null && job.parentId === null) &&
         job.dedupeKey === `promote:${job.subjectId}` &&
         file?.status === "promoting" &&
         file.incomingKey !== null &&
@@ -108,13 +110,20 @@ export function createPromoteHandler(deps: BoundMediaDeps): MediaJobHandler {
           },
         });
         if (changed.count !== 1) throw new AppError("STATE_NOT_ALLOWED");
+        await deps.batchStored?.(tx, file.id);
         await emitFile(tx, deps, { identity: ctx }, file, "file.stored");
         const next = await queueWechatImageAudit(tx, deps, {
           ...file,
           status: "stored",
           sizeBytes: BigInt(outcome.output.sizeBytes),
         });
-        return next ? [next] : [];
+        const probe = await deps.queueProbe?.(tx, {
+          ...file,
+          status: "stored",
+          etag: outcome.output.etag,
+          sizeBytes: BigInt(outcome.output.sizeBytes),
+        });
+        return [next, probe].filter((id): id is string => !!id);
       }
       if (job.state === "failed") {
         const reason =
@@ -125,7 +134,8 @@ export function createPromoteHandler(deps: BoundMediaDeps): MediaJobHandler {
           where: { id: file.id, status: "promoting" },
           data: { status: "rejected", rejectReason: reason, updatedAt: now },
         });
-        if (changed.count)
+        if (changed.count) {
+          await deps.batchRejected?.(tx, file.id);
           await emitFile(
             tx,
             deps,
@@ -133,6 +143,7 @@ export function createPromoteHandler(deps: BoundMediaDeps): MediaJobHandler {
             await tx.fileObject.findUniqueOrThrow({ where: { id: file.id } }),
             "file.rejected",
           );
+        }
       }
     },
   };

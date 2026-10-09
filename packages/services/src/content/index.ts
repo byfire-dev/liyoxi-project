@@ -16,3 +16,12 @@ export type { ContentDemoDeps } from "./demo-seed.js";
 
 export { matchedFields, normalizeSearch } from "./search.js";
 export type { SearchField, SearchableDrama } from "./search.js";
+export { readUploadDramaFacts } from "./upload-facts.js";
+export type { UploadDramaFacts } from "./upload-facts.js";
+export { commitUploadMasters } from "./upload-masters.js";
+export {
+  readMasterProductionFacts,
+  readTrailerMediaFacts,
+  setTrailerTarget,
+  installTrailerCurrent,
+} from "./media-facts.js";

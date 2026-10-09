@@ -19,6 +19,7 @@ const CHILD_ENV = { PATH: "/usr/local/bin:/usr/bin:/bin", LC_ALL: "C" };
  * @property {string} stderrTail 标准错误的最后 8KB
  * @property {boolean} timedOut 到了硬超时被杀
  * @property {boolean} overflow 标准输出超过上限被杀
+ * @property {boolean} aborted 当前请求取消并已等待子进程关闭
  */
 
 /**
@@ -38,10 +39,19 @@ export function killGroup(child) {
  * 参数以数组交给 spawn，不经过 shell。
  * @param {string} bin
  * @param {string[]} args
- * @param {{ timeoutMs: number, maxStdoutBytes: number }} limits
+ * @param {{ timeoutMs: number, maxStdoutBytes: number, signal?: AbortSignal }} limits
  * @returns {Promise<RunResult>}
  */
 export function run(bin, args, limits) {
+  if (limits.signal?.aborted)
+    return Promise.resolve({
+      code: null,
+      stdout: Buffer.alloc(0),
+      stderrTail: "",
+      timedOut: false,
+      overflow: false,
+      aborted: true,
+    });
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, {
       detached: true,
@@ -59,6 +69,15 @@ export function run(bin, args, limits) {
     let tail = Buffer.alloc(0);
     let timedOut = false;
     let overflow = false;
+    let aborted = false;
+    /** @type {Error | undefined} */
+    let spawnError;
+    const abort = () => {
+      aborted = true;
+      killGroup(child);
+    };
+    limits.signal?.addEventListener("abort", abort, { once: true });
+    if (limits.signal?.aborted) abort();
 
     const timer = setTimeout(() => {
       timedOut = true;
@@ -79,19 +98,23 @@ export function run(bin, args, limits) {
       if (tail.length > STDERR_TAIL_BYTES) tail = tail.subarray(tail.length - STDERR_TAIL_BYTES);
     });
     child.on("error", (err) => {
-      clearTimeout(timer);
-      children.delete(child);
-      reject(err);
+      spawnError = err;
     });
     child.on("close", (code) => {
       clearTimeout(timer);
       children.delete(child);
+      limits.signal?.removeEventListener("abort", abort);
+      if (spawnError) {
+        reject(spawnError);
+        return;
+      }
       resolve({
         code,
         stdout: Buffer.concat(out),
         stderrTail: tail.toString("utf8"),
         timedOut,
         overflow,
+        aborted,
       });
     });
   });

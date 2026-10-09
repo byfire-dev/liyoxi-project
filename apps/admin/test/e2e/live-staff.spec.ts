@@ -117,7 +117,17 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
     name: fixture.newStaff.name,
     status: "active",
     isActivated: false,
-    actions: [],
+    actions: [
+      "update",
+      "unlock",
+      "handover",
+      "reissue-activation-code",
+      "disable",
+      "reset-password",
+      "reset-mfa",
+      "bind-wecom",
+      "invite-wecom",
+    ],
   });
   await page.getByRole("button", { name: "＋ 新增员工", exact: true }).click();
   await expect(form.getByRole("textbox", { name: "姓名", exact: true })).toHaveValue("");
