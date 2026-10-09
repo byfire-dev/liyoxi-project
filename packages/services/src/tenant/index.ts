@@ -11,6 +11,7 @@ export type {
 export { ONE_ENTITY_CONSTRAINT } from "./create-entity.js";
 export type { StoreMembership } from "./membership.js";
 export type { QuotaUsage } from "./quota.js";
+export { assertWithinQuota } from "./quota.js";
 export type { ActiveMembership, TenantReader } from "./repo.js";
 export { QUALIFICATION_ACTIONS, STORE_NAME_MAX, STORE_NAME_MIN } from "./qualification.js";
 export type {
@@ -41,3 +42,15 @@ export { findVerifiedEntityByUsccBidx } from "./uscc.js";
 export { clearDraftStoreName } from "./qualification.js";
 export { noticeRecipientsPageForNotify } from "./notify-facts.js";
 export { readStoreMediaFacts } from "./media-facts.js";
+export {
+  billingCloseFactsPort,
+  orderCloseFactsPort,
+  deliveryCloseFactsPort,
+  publishCloseFactsPort,
+  profileCloseFactsPort,
+  adCloseFactsPort,
+  CLOSE_FACTS_PORTS,
+  readStoreCloseCounts,
+  readEntityDeletionCounts,
+} from "./close-facts.js";
+export type { BillingCloseCounts, StoreCloseCounts, EntityDeletionCounts } from "./close-facts.js";

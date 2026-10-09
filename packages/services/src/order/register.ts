@@ -1,3 +1,6 @@
+import { implement as implementTenantCloseFacts } from "../kernel/index.js";
+import { orderCloseFactsPort } from "../tenant/index.js";
+import { countOpenOrdersByEntity, countBlockingStoreOrders } from "./counts.js";
 import { staffWorkPort, staffFollowUpPort } from "../kernel/index.js";
 import { orderStaffWork } from "./staff-work.js";
 import { DramaUsagePort } from "../content/index.js";
@@ -82,6 +85,10 @@ export const registration = defineRegistration("order", {
     },
   ],
   portImplementations: [
+    implementTenantCloseFacts(orderCloseFactsPort, {
+      countOpenOrdersByEntity,
+      countBlockingStoreOrders,
+    }),
     implement(DramaUsagePort, dramaUsage),
     implementKeyed(staffFollowUpPort, "order_item", async (tx, id) => {
       const row = await tx.orderItem.findUnique({

@@ -1,3 +1,6 @@
+import { implement as implementTenantCloseFacts } from "../kernel/index.js";
+import { publishCloseFactsPort } from "../tenant/index.js";
+import { countPendingChannelAccountsByStore } from "./service.js";
 import { staffWorkPort, staffFollowUpPort } from "../kernel/index.js";
 import { publishStaffWork } from "./staff-work.js";
 import {
@@ -26,6 +29,7 @@ import { channelAccountForNotify, launchTaskForNotify } from "./notify-read.js";
 export const registration = defineRegistration("publish", {
   ports: [launchChangedPort, launchHandlerPort],
   portImplementations: [
+    implementTenantCloseFacts(publishCloseFactsPort, { countPendingChannelAccountsByStore }),
     implementKeyed(staffFollowUpPort, "takedown_task", async (tx, id) => {
       const row = await tx.takedownTask.findUnique({
         where: { id },

@@ -119,7 +119,12 @@ export type {
   DocsDeps,
   SignedAgreementViewer,
 } from "./docs/index.js";
-export { billingAccountPort, createTenant, membershipAuthorizationsPort } from "./tenant/index.js";
+export {
+  assertWithinQuota,
+  billingAccountPort,
+  createTenant,
+  membershipAuthorizationsPort,
+} from "./tenant/index.js";
 export type {
   ActiveMembership,
   BillingAccountOpener,
@@ -218,6 +223,7 @@ export type {
 
 export * as media from "./media/index.js";
 export { countBlockingStoreAds } from "./ad/index.js";
+export { readStoreCloseCounts, readEntityDeletionCounts } from "./tenant/index.js";
 export { createMedia } from "./media/index.js";
 export type { Media, MediaActor, MediaDeps, PromoteRef } from "./media/index.js";
 export { seedPlaceholderFinanceConfig, PLACEHOLDER_FINANCE } from "./billing/index.js";
