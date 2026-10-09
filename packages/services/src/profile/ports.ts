@@ -1,5 +1,18 @@
 import { definePort } from "../kernel/index.js";
 import type { IdentityContext, Tx } from "../kernel/index.js";
+import type { FinalRejectImpact } from "@liyoxi/contract";
+
+export interface QualificationImpact {
+  previewFinalReject(
+    tx: Tx,
+    input: { entityId: string; storeId: string },
+    at: Date,
+  ): Promise<FinalRejectImpact>;
+}
+/** a03 §3.25：真实 order 实现；缺装配必须失败，不把未知影响当零。 */
+export const QualificationImpactPort = definePort<QualificationImpact>(
+  "profile.qualification_impact",
+);
 
 export interface ManagerAssignment {
   readonly storeId: string;

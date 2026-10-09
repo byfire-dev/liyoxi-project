@@ -119,7 +119,12 @@ export type {
   DocsDeps,
   SignedAgreementViewer,
 } from "./docs/index.js";
-export { billingAccountPort, createTenant, membershipAuthorizationsPort } from "./tenant/index.js";
+export {
+  assertWithinQuota,
+  billingAccountPort,
+  createTenant,
+  membershipAuthorizationsPort,
+} from "./tenant/index.js";
 export type {
   ActiveMembership,
   BillingAccountOpener,
@@ -218,6 +223,8 @@ export type {
 
 export * as media from "./media/index.js";
 export { countBlockingStoreAds } from "./ad/index.js";
+export { clearAdCancelRequestPointers } from "./ad/index.js";
+export type { AdCancelPointersInput } from "./ad/index.js";
 export { readStoreCloseCounts, readEntityDeletionCounts } from "./tenant/index.js";
 export { createMedia } from "./media/index.js";
 export type { Media, MediaActor, MediaDeps, PromoteRef } from "./media/index.js";
@@ -271,7 +278,10 @@ export {
   getPlanBriefByOrder,
   countBlockingStoreTickets,
   countOnlineReleaseTicketsByEntity,
+  readCancelReviewPauseTargets,
+  releaseCancelReviewPauses,
 } from "./delivery/index.js";
+export type { CancelReviewPauseTargets } from "./delivery/index.js";
 export type { DeliveryDownloads, DeliveryDownloadDeps } from "./delivery/index.js";
 export type {
   Delivery,
@@ -290,6 +300,14 @@ export {
   countOrderItemsByPhase,
 } from "./order/index.js";
 export type { OrderActor, OrderDeps, OrderService, OrderStartBinding } from "./order/index.js";
+export {
+  quoteOrderCancel,
+  quoteAdCancel,
+  previewFinalReject,
+  revalidateCancel,
+} from "./order/index.js";
+export { QualificationImpactPort } from "./profile/index.js";
+export type { QualificationImpact } from "./profile/index.js";
 
 export { createDocumentConverter, runDocumentConversionWorker } from "./kernel/index.js";
 export type {

@@ -84,3 +84,15 @@ export async function getQuotaUsage(
 ): Promise<QuotaUsage> {
   return (await quotaWithSubscription(tx, deps, now, entityId)).usage;
 }
+
+/** 门店超额才阻断新订购；成员超额保留原有业务，不在这里阻断。 */
+export async function assertWithinQuota(
+  tx: Tx,
+  deps: QuotaDeps,
+  now: Date,
+  entityId: string,
+): Promise<void> {
+  const { storesUsed, storeLimit, storesOver } = await getQuotaUsage(tx, deps, now, entityId);
+  if (storesOver > 0)
+    throw new AppError("QUOTA_EXCEEDED", { details: { storesUsed, storeLimit, storesOver } });
+}

@@ -26,7 +26,7 @@ import type { StoreMembership } from "./membership.js";
 import { billingAccountPort } from "./ports.js";
 import { setDeliveryManager, setStoreName, setStoreQualification } from "./qualification.js";
 import type { StoreQualificationInput, StoreQualificationResult } from "./qualification.js";
-import { getQuotaUsage } from "./quota.js";
+import { assertWithinQuota, getQuotaUsage } from "./quota.js";
 import type { QuotaUsage } from "./quota.js";
 import { selectActiveMembership } from "./repo.js";
 import type { ActiveMembership, TenantReader } from "./repo.js";
@@ -72,6 +72,8 @@ export interface Tenant {
   ): Promise<StoreMembership | null>;
   /** 额度与名额的唯一口径：读时现算 */
   getQuotaUsage(tx: Tx, entityId: string): Promise<QuotaUsage>;
+  /** 仅门店超额阻断新订购，复用调用方事务和当前额度事实。 */
+  assertWithinQuota(tx: Tx, entityId: string): Promise<void>;
   /** 资质 initial 轮次的提交、通过、驳回、撤回：门店与主体两条链同事务 */
   setStoreQualification(
     tx: Tx,
@@ -134,6 +136,7 @@ export function createTenant(deps: TenantDeps): Tenant {
     activeMembership: (db, merchantUserId) => selectActiveMembership(db, merchantUserId),
     resolveMembership: (db, input) => resolveMembership(db, input),
     getQuotaUsage: (tx, entityId) => getQuotaUsage(tx, { facts }, now(), entityId),
+    assertWithinQuota: (tx, entityId) => assertWithinQuota(tx, { facts }, now(), entityId),
     setStoreQualification: (tx, ctx, input) =>
       setStoreQualification(tx, { flow }, now(), ctx, input),
     setStoreName: (tx, ctx, input) => setStoreName(tx, now(), ctx, input),

@@ -25,5 +25,8 @@ export type { ProductionCheckedDeps } from "./production-checked.js";
 export { countBlockingStoreTickets, countOnlineReleaseTicketsByEntity } from "./close-facts.js";
 
 export { productionReady } from "./quality.js";
-
 export { readEpisodeAssetOrder, hasAssetEditingTicket } from "./asset-facts.js";
+export { readCancelReviewPauseTargets, releaseCancelReviewPauses } from "./cancel-review-pauses.js";
+export type { CancelReviewPauseTargets } from "./cancel-review-pauses.js";
+export { handleDeliveryStageSlaBreach } from "./stage-sla.js";
+export type { DeliveryStageSlaDeps } from "./stage-sla.js";

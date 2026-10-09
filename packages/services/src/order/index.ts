@@ -1,4 +1,6 @@
 export { createOrderService } from "./service.js";
+export { quoteOrderCancel, quoteAdCancel, previewFinalReject } from "./cancel-quote.js";
+export { revalidateCancel } from "./cancel-revalidation.js";
 export type { OrderService } from "./service.js";
 export type { OrderActor, OrderDeps } from "./context.js";
 export { bindOrder } from "./binding.js";

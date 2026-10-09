@@ -78,6 +78,7 @@ await tx.run(async (handle) => {
 | `getEntitlements(db, entityId, at)` | 订阅状态（按周期起止现算，不读 `sub_status`）、是否退款处理中、生效周期与权益快照 |
 | `getWalletView(db, entityId, at)` | m07 第 2.7 节 `Wallet` 的 `subscription`、`points` 两段。积分从批次现算：到点还没推进时，该清零的不显示成可用 |
 | `listOperationsByHold(db, pointHoldId)` | 一张冻结单的账本操作，按写入先后 |
+| `previewReturn(tx, { holdId, qty, reasonClass }, at)` | 取消的真实退回去向；复用释放/退回分摊算法，按此刻周期与原快照计算，不推进或写账本。冻结只能全额，扣减后可预览零数量的仅终止；调用方负责对象范围和写侧锁 |
 | `paramsAt(db, at)` | 时刻 `at` 生效的十二个计费参数（值的结构在契约 `BILLING_PARAM_VALUES`） |
 | `priceAt(db, dramaIds, at)` | 剧目积分价：单剧修订优先，否则取该剧热度等级的模板价；取不到时给原因（`no_tier`、`no_template`、`not_found`） |
 
