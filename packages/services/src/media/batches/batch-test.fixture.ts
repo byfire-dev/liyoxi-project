@@ -8,14 +8,13 @@ import {
   createTxRunner,
   uuidv7,
 } from "../../kernel/index.js";
-import { createRuntimeMediaBatches } from "../../ops/index.js";
 import {
   assembleForTest,
   createClock,
   createFactories,
   createFakeProviders,
+  createBatchMediaForTest,
 } from "../../testing/index.js";
-import { createMedia } from "../index.js";
 import type { Media, MediaActor } from "../index.js";
 import { fileCategoryGuardPort, fileRefTypePort } from "../ports.js";
 import { createBatchWorkerHooks } from "./worker.js";
@@ -33,13 +32,12 @@ export async function batchHarness(prisma: PrismaClient) {
   const assembly = assembleForTest({ entry: "worker" });
   const events = createEvents({ assembly, clock, tx });
   const fake = createFakeProviders({ clock });
-  const media: Media = createMedia({
+  const media: Media = createBatchMediaForTest({
     tx,
     clock,
     assembly,
     events,
     storage: fake.storage,
-    batches: createRuntimeMediaBatches({ clock, events, media: () => media }),
   });
   const row = await make.staff({ staffRoleKey: "super_admin" });
   const role = STAFF_ROLE_DEFAULTS.find((item) => item.key === "super_admin")!;

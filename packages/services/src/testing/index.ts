@@ -83,3 +83,4 @@ export {
   OutputBatchLiveInputSchema,
 } from "./admin-live/w302.fixture.js";
 export type { OutputBatchLiveInput } from "./admin-live/w302.fixture.js";
+export { createBatchMediaForTest } from "./media-batches.js";

@@ -5,6 +5,7 @@ import { readUploadDramaFacts, commitUploadMasters } from "../content/index.js";
 import { authorizeBatchUpload, readBatchUploadFacts } from "../delivery/index.js";
 import type { BatchTargetFacts, MediaBatchDeps, Media } from "../media/index.js";
 import type { Events } from "../events/index.js";
+import { staffBriefs } from "../staff/index.js";
 
 export function createRuntimeMediaBatches(options: {
   clock: Clock;
@@ -30,6 +31,7 @@ export function createRuntimeMediaBatches(options: {
     return { ...facts, episodes: [], masters: drama.masters };
   };
   return {
+    readStaffBrief: async (tx, staffId) => (await staffBriefs(tx, [staffId]))[0] ?? null,
     readTarget,
     authorizeTarget: async (tx, staff, input) => {
       if (input.purpose === "drama_master") {

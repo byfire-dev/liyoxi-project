@@ -10,7 +10,6 @@ import {
 import type { UploadCategory } from "@liyoxi/shared/uploads";
 import { AppError, lockRows, uuidv7 } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
-import { staffBriefs } from "../../staff/index.js";
 import type { BoundMediaDeps, MediaActor } from "../context.js";
 import type { BatchRuntimeDeps } from "./types.js";
 import { batchCoverage, activeExpiry, decideBatchState } from "./state.js";
@@ -293,7 +292,8 @@ export async function batchView(tx: Tx, deps: BatchRuntimeDeps, actor: MediaActo
     if (batch.state === "ready" && batch.purpose === "drama_master") actions.push("commit");
     if (["matching", "ready"].includes(batch.state)) actions.push("cancel");
   }
-  const staff = (await staffBriefs(tx, [batch.createdByStaffId]))[0];
+  const staff = await deps.batches.readStaffBrief(tx, batch.createdByStaffId);
+  if (!staff) throw new AppError("NOT_FOUND");
   const states = ["pending", "uploaded", "checked", "rejected", "skipped", "replaced"];
   const counts = Object.fromEntries(
     states.map((state) => [state, items.filter((i) => i.state === state).length]),

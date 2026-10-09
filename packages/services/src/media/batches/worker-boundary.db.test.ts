@@ -95,4 +95,47 @@ describe("批次 worker 的真实归属与结论边界", { timeout: 60_000 }, ()
       (await h.prisma.uploadBatch.findUniqueOrThrow({ where: { id: batch.uploadBatchId } })).state,
     ).toBe("uploading");
   });
+
+  it("其他体检规格的 pass 不能让原片条目通过，拒绝后条目和引用均不改变", async () => {
+    const h = await setup();
+    const batch = await h.create([batchDraft("第1集.mp4")]);
+    await h.media.uploadBatches.start(h.actor, batch.uploadBatchId, {});
+    const item = batch.items[0]!,
+      now = h.clock.now();
+    // Negative fixture: an existing object's unrelated check must never count as a master check.
+    await h.prisma.fileObject.update({
+      where: { id: item.fileId },
+      data: { status: "stored", incomingKey: null, sizeBytes: 8n, storedAt: now, updatedAt: now },
+    });
+    await h.prisma.mediaCheck.create({
+      data: {
+        fileId: item.fileId,
+        profile: "asset",
+        ruleVersion: 1,
+        gate: "pass",
+        hard: [],
+        soft: [],
+        checkedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    const before = await h.prisma.uploadBatchItem.findUniqueOrThrow({
+      where: { id: item.uploadBatchItemId },
+    });
+    await expect(
+      h.tx.run(async (tx) => {
+        await h.worker.lockSiblings(tx, batch.uploadBatchId);
+        await lockBatchFiles(tx, batch.uploadBatchId);
+        await h.worker.checked(tx, { fileId: item.fileId, gate: "pass", derivedFromFileId: null });
+      }),
+    ).rejects.toMatchObject({ error: "STATE_NOT_ALLOWED" });
+    expect(await h.prisma.uploadBatchItem.findUniqueOrThrow({ where: { id: before.id } })).toEqual(
+      before,
+    );
+    expect(await h.prisma.fileRef.count({ where: { fileId: item.fileId } })).toBe(0);
+    expect(
+      (await h.prisma.uploadBatch.findUniqueOrThrow({ where: { id: batch.uploadBatchId } })).state,
+    ).toBe("uploading");
+  });
 });

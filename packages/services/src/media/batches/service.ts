@@ -634,8 +634,13 @@ export function createUploadBatches(input: BoundMediaDeps) {
         if (
           f.status !== "stored" ||
           f.category !== "drama_master" ||
+          f.uploadBatchId !== batch.id ||
+          f.scopeType !== "platform" ||
+          f.entityId !== null ||
+          f.storeId !== null ||
           f.moderationState === "block" ||
           check?.gate !== "pass" ||
+          check.profile !== "master" ||
           f.mediaInfo?.durationMs === null ||
           f.mediaInfo?.durationMs === undefined ||
           f.mediaInfo.durationMs <= 0

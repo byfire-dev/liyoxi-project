@@ -1,4 +1,5 @@
 import type { UploadBatch } from "@liyoxi/db";
+import type { StaffBrief } from "@liyoxi/contract";
 import type { StaffContext } from "../../authz/index.js";
 import type { Tx, IdentityContext } from "../../kernel/index.js";
 import type { BoundMediaDeps } from "../context.js";
@@ -18,6 +19,7 @@ export interface BatchTargetFacts {
   } | null;
 }
 export interface MediaBatchDeps {
+  readStaffBrief(tx: Tx, staffId: string): Promise<StaffBrief | null>;
   readTarget(tx: Tx, input: { purpose: string; targetId: string }): Promise<BatchTargetFacts>;
   authorizeTarget(
     tx: Tx,
