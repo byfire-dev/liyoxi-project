@@ -68,7 +68,7 @@ export function createSigner(deps: BoundMediaDeps) {
             ...(downloadName === undefined ? {} : { downloadName }),
           }),
         );
-        return { url: signed.url, expiresAt: expiresAt.toISOString() };
+        return { url: signed.url, expiresAt: signed.expiresAt.toISOString() };
       })();
       if (stable) {
         windows.set(key, result);

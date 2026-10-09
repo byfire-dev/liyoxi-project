@@ -1,13 +1,14 @@
 // docs 的服务层用例（任务书 W1-03 第 7 节验收 1–4 与“模块完整”的两条不变量）。连真库，整份文件共用一个带种子的库。
 // 各段用不同的协议键或自己的账号，互不踩：同意记录与协议版本是只增或禁删的，插了删不掉。
 import type { PrismaClient } from "@liyoxi/db";
-import { beforeAll, describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { AppError, createIdentityContext, createTxRunner } from "../kernel/index.js";
+import { AppError, createIdentityContext } from "../kernel/index.js";
 import type { IdentityContext, TxRunner } from "../kernel/index.js";
-import { createClock, createFactories, useSeededDatabase } from "../testing/index.js";
+import { createClock, createDocsAdminFixture, useSeededDatabase } from "../testing/index.js";
 import type { AdjustableClock, Factories } from "../testing/index.js";
-import { createDocs, findN13Violations, findN4Violations, stampOf } from "./index.js";
+import { findN13Violations, findN4Violations, stampOf } from "./index.js";
 import type { ConsentSigner, Docs } from "./index.js";
 
 const db = useSeededDatabase("services");
@@ -19,19 +20,27 @@ let clock: AdjustableClock;
 let make: Factories;
 let tx: TxRunner;
 let docs: Docs;
+let fixture: ReturnType<typeof createDocsAdminFixture>;
 /** 版本共用的员工与 PDF 文件行：省掉每个版本各造一份 */
-let shared: { createdByStaffId: string; pdfFileId: string };
+let shared: { createdByStaffId: string; pdfFileId: string; contentSha256: string };
 
 beforeAll(async () => {
   prisma = await db.prisma();
   clock = createClock();
-  make = createFactories({ db: prisma, clock });
-  tx = createTxRunner({ prisma, appEnv: "test" });
-  docs = createDocs({ tx, clock });
-  const staff = await make.staff({ staffRoleKey: "super_admin" });
-  const file = await make.fileObject({ bucket: "secure", category: "legal_doc", ext: "pdf" });
-  shared = { createdByStaffId: staff.id, pdfFileId: file.id };
+  fixture = createDocsAdminFixture(prisma, null, { clock });
+  make = fixture.make;
+  tx = fixture.tx;
+  docs = fixture.docs;
+  const actor = await fixture.actor();
+  const file = await fixture.file(actor, "pdf");
+  if (!file.sha256) throw new Error("虚构PDF缺少真实字节哈希");
+  shared = {
+    createdByStaffId: actor.staff.staff.id,
+    pdfFileId: file.id,
+    contentSha256: file.sha256,
+  };
 }, SLOW);
+afterAll(async () => fixture?.close());
 
 const version = (
   agreementKey: string,
@@ -121,7 +130,7 @@ describe("当前版本解析（验收 1）", () => {
   );
 
   it(
-    "草稿、已撤回不算当前，读正文是 NOT_FOUND；正文带占位的 PDF 地址",
+    "草稿、已撤回不算当前，读正文是 NOT_FOUND；正文现签真实替身PDF与30分钟有效期",
     async () => {
       const key = "ad_service";
       const draft = await version(key, { status: "draft", effectiveAt: later(-HOUR) });
@@ -136,8 +145,13 @@ describe("当前版本解析（验收 1）", () => {
         phase: "current",
         versionLabel: `v${pending.major}.${pending.minor}`,
         contentSha256: pending.contentSha256,
-        pdf: { url: "" },
+        pdf: { url: expect.stringMatching(/^https:\/\/fake-storage\.invalid\/secure\//) },
       });
+      expect(new Date(detail.pdf.expiresAt).getTime()).toBe(clock.now().getTime() + 30 * 60_000);
+      const fetched = fixture.providers.storage.fetch(detail.pdf.url);
+      expect(fetched.status).toBe(200);
+      if (fetched.status !== 200) throw new Error("现签PDF没有实际字节");
+      expect(createHash("sha256").update(fetched.body).digest("hex")).toBe(detail.contentSha256);
 
       await prisma.agreementVersion.update({
         where: { id: pending.id },
@@ -172,7 +186,10 @@ describe("当前版本解析（验收 1）", () => {
       const first = await docs.listAgreements({ limit: 4 });
       expect(first.hasMore).toBe(true);
       const second = await docs.listAgreements({ limit: 4, cursor: first.nextCursor ?? "" });
-      expect(second.items.map((item) => item.agreementKey)).toEqual(["custom_license", "ad_service"]);
+      expect(second.items.map((item) => item.agreementKey)).toEqual([
+        "custom_license",
+        "ad_service",
+      ]);
       expect(second.hasMore).toBe(false);
       const bad = await appError(() => docs.listAgreements({ limit: 4, cursor: "@@" }));
       expect(bad.error).toBe("VALIDATION_FAILED");
@@ -266,7 +283,9 @@ describe("同意记录、待同意与指纹、已签署协议（验收 2–4）"
       const stale = await appError(() => submit([both[0] as (typeof both)[number]]));
       expect(stale.error).toBe("AGREEMENT_VERSION_STALE");
       expect(stale.details).toEqual({ agreementKey: "user", currentAgreementVersionId: user2.id });
-      expect(await prisma.agreementConsent.count({ where: { merchantUserId: signer.merchantUserId } })).toBe(2);
+      expect(
+        await prisma.agreementConsent.count({ where: { merchantUserId: signer.merchantUserId } }),
+      ).toBe(2);
 
       // 验收 3：当前版本集合一变指纹就变；关了“需重新同意”的小修订，同意过旧版的人不列入
       const stampAfter = await docs.consentStamps(prisma);
@@ -343,9 +362,11 @@ describe("同意记录、待同意与指纹、已签署协议（验收 2–4）"
         );
       const firstOrder = await order("01890000-0000-7000-8000-00000000b001", "LYX2026010590001");
       clock.advance(60_000);
-      expect(await order("01890000-0000-7000-8000-00000000b001", "LYX2026010590001")).toMatchObject({
-        consents: firstOrder.consents,
-      });
+      expect(await order("01890000-0000-7000-8000-00000000b001", "LYX2026010590001")).toMatchObject(
+        {
+          consents: firstOrder.consents,
+        },
+      );
       const secondOrder = await order("01890000-0000-7000-8000-00000000b002", "LYX2026010590002");
       expect(secondOrder.consents[0]?.consentNo).not.toBe(firstOrder.consents[0]?.consentNo);
 

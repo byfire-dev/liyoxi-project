@@ -290,12 +290,14 @@
             "type": "string"
           },
           "pdf": {
+            "additionalProperties": false,
             "properties": {
               "expiresAt": {
                 "format": "date-time",
                 "type": "string"
               },
               "url": {
+                "minLength": 1,
                 "type": "string"
               }
             },

@@ -3,8 +3,9 @@
 //   "m.agreement.list"、"m.agreementVersion.get"
 // 整个应用建起来，处理器是生产的那份清单，不带任何鉴权的顶替件：不带令牌就该读得到。
 import { runSeed, SEED_MODULES } from "@liyoxi/services";
-import { createFactories } from "@liyoxi/services/testing";
-import { beforeAll, describe, expect, it } from "vitest";
+import { createDocsAdminFixture } from "@liyoxi/services/testing";
+import { createHash } from "node:crypto";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { useTestApi } from "../src/testing/index.js";
 import type { TestApi } from "../src/testing/index.js";
@@ -14,7 +15,8 @@ const TIMEOUT = { timeout: 90_000 };
 const HOUR = 3_600_000;
 
 let api: TestApi;
-const ids = { user: "", privacyUpcoming: "", licenseDraft: "" };
+let fixture: ReturnType<typeof createDocsAdminFixture>;
+const ids = { user: "", privacyUpcoming: "", licenseDraft: "", pdfKey: "", pdfSha256: "" };
 
 interface Envelope<T> {
   code: number;
@@ -43,10 +45,21 @@ beforeAll(async () => {
   // 协议清单（6 份）与员工的角色来自种子；版本用工厂造
   const modules = SEED_MODULES.filter((seed) => ["staff", "docs"].includes(seed.module));
   await runSeed({ tx: api.runtime.tx, clock: api.clock, modules });
-  const make = createFactories({ db: await testApi.db.prisma(), clock: api.clock });
-  const staff = await make.staff({ staffRoleKey: "super_admin" });
-  const file = await make.fileObject({ bucket: "secure", category: "legal_doc", ext: "pdf" });
-  const shared = { createdByStaffId: staff.id, pdfFileId: file.id };
+  fixture = createDocsAdminFixture(await testApi.db.prisma(), null, {
+    clock: api.clock,
+    storage: api.runtime.providers.storage,
+  });
+  const make = fixture.make;
+  const actor = await fixture.actor();
+  const file = await fixture.file(actor, "pdf");
+  if (!file.sha256) throw new Error("虚构PDF缺少真实字节哈希");
+  ids.pdfKey = file.objectKey;
+  ids.pdfSha256 = file.sha256;
+  const shared = {
+    createdByStaffId: actor.staff.staff.id,
+    pdfFileId: file.id,
+    contentSha256: file.sha256,
+  };
   ids.user = (await make.agreementVersion({ agreementKey: "user", ...shared })).id;
   ids.privacyUpcoming = (
     await make.agreementVersion({
@@ -60,6 +73,7 @@ beforeAll(async () => {
     await make.agreementVersion({ agreementKey: "custom_license", status: "draft", ...shared })
   ).id;
 }, 120_000);
+afterAll(async () => fixture?.close());
 
 describe("m.agreement.list", () => {
   it("不带令牌回 200：六份协议按 sort_no，当前版本与待生效版本按时间现算", TIMEOUT, async () => {
@@ -118,7 +132,10 @@ describe("m.agreement.list", () => {
 
 describe("m.agreementVersion.get", () => {
   it("不带令牌回 200：正文、阶段现算、不缓存；到点后待生效的版本变成当前", TIMEOUT, async () => {
-    const current = await get<Record<string, unknown>>(`/api/v1/m/agreement-versions/${ids.user}`);
+    const current = await get<{
+      contentSha256: string;
+      pdf: { url: string; expiresAt: string };
+    }>(`/api/v1/m/agreement-versions/${ids.user}`);
     expect(current.status).toBe(200);
     expect(current.headers.get("Cache-Control")).toBe("no-store");
     expect(current.body.data).toMatchObject({
@@ -130,9 +147,22 @@ describe("m.agreementVersion.get", () => {
       minor: 0,
       phase: "current",
       isReconsentRequired: true,
-      pdf: { url: "" },
+      pdf: { url: expect.stringMatching(/^https:\/\/fake-storage\.invalid\/secure\//) },
     });
     expect(current.body.data.contentSha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(current.body.data.contentSha256).toBe(ids.pdfSha256);
+    expect(new URL(current.body.data.pdf.url).pathname).toBe(`/secure/${ids.pdfKey}`);
+    expect(new Date(current.body.data.pdf.expiresAt).getTime()).toBe(
+      api.clock.now().getTime() + 30 * 60_000,
+    );
+    const stored = await api.runtime.providers.storage.readObject({
+      bucket: "secure",
+      key: ids.pdfKey,
+      maxBytes: 20 * 1024 * 1024,
+    });
+    expect(stored.ok).toBe(true);
+    if (!stored.ok) throw new Error("现签对象没有实际字节");
+    expect(createHash("sha256").update(stored.value).digest("hex")).toBe(ids.pdfSha256);
 
     const path = `/api/v1/m/agreement-versions/${ids.privacyUpcoming}`;
     expect((await get<{ phase: string }>(path)).body.data.phase).toBe("upcoming");

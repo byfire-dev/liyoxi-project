@@ -12,7 +12,7 @@ import { createPromoteHandler } from "./promote.js";
 import { createMediaJobAdmin } from "./jobs/admin.js";
 import { createMediaJobs } from "./jobs/runner.js";
 import { uuidv7, lockRows } from "../kernel/index.js";
-import { readableByStaff } from "./access.js";
+import { owned, readableByStaff } from "./access.js";
 import { bindFileRefTypes } from "./invariants.js";
 import { createUploadBatches } from "./batches/service.js";
 import { createBatchWorkerHooks } from "./batches/worker.js";
@@ -188,6 +188,7 @@ export function createMedia(options: MediaDeps) {
         )
       ).signed,
     assertReadableByStaff: readableByStaff,
+    assertOwned: owned,
     downloadUrls: (
       ...args: Parameters<typeof downloadUrls> extends [unknown, unknown, ...infer A] ? A : never
     ) => downloadUrls(deps, signRead, ...args),

@@ -4,6 +4,142 @@
  */
 
 export interface paths {
+    "/api/v1/admin/agreement-consents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 同意记录检索：按协议、版本、商家用户、主体或门店、场景、关联单据（bizType + bizId，或单号）、时间范围（手机号只回脱敏值） */
+        get: operations["admin.agreementConsent.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/agreement-consents/{agreementConsentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 同意记录证据详情（手机号、信用代码只回脱敏值） */
+        get: operations["admin.agreementConsent.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/agreement-versions/{agreementVersionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 编辑草稿：生效时间、变更摘要、正文文件（Word 或 PDF）、是否需重新同意、法务审定勾选 */
+        patch: operations["admin.agreementVersion.update"];
+        trace?: never;
+    };
+    "/api/v1/admin/agreement-versions/{agreementVersionId}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 保存为待生效（文件齐全、法务审定、生效时间晚于 10 分钟后）；会员与积分协议同事务建公告 */
+        post: operations["admin.agreementVersion.schedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/agreement-versions/{agreementVersionId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 撤回待生效版本（无同意记录且距生效 >10 分钟），内容复制为新草稿 */
+        post: operations["admin.agreementVersion.withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/agreements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 协议清单（V1.0 6 份；服务商合作协议 partner 由 M9 推到 V1.1）：当前版本、待生效、草稿角标 */
+        get: operations["admin.agreement.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/agreements/{agreementKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 协议详情：版本记录、正文、重新同意进度（已同意 / 应同意） */
+        get: operations["admin.agreement.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/agreements/{agreementKey}/agreement-versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 新建协议版本草稿（版本号自动递增） */
+        post: operations["admin.agreement.agreementVersion.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/approvals": {
         parameters: {
             query?: never;
@@ -2281,6 +2417,12 @@ export interface components {
             purpose: "activate" | "reset_password" | (string & {});
             replayed: boolean;
         };
+        AdminAgreementVersionBrief: {
+            /** Format: uuid */
+            agreementVersionId: string;
+            effectiveAt: string | null;
+            versionLabel: string;
+        };
         AdminChecklistItemView: {
             key: string;
             label: string;
@@ -2845,6 +2987,157 @@ export interface components {
             storeId: string;
             storeName: string | null;
         };
+        AgreementConsentDetail: components["schemas"]["AgreementConsentItem"] & {
+            appid: string | null;
+            contentSha256: string;
+            /** Format: date-time */
+            createdAt: string;
+            device: {
+                appVersion?: string;
+                model?: string;
+                sdkVersion?: string;
+                system?: string;
+                wechatVersion?: string;
+            };
+            hasOpenidSnapshot: boolean;
+            ipMask: string;
+            isContentHashConsistent: boolean;
+            requestId: string;
+            revealableFields: ("phone" | "uscc")[];
+            userAgent: string | null;
+        };
+        AgreementConsentItem: {
+            /** Format: uuid */
+            agreementConsentId: string;
+            agreementKey: string;
+            agreementName: string;
+            /** Format: uuid */
+            agreementVersionId: string;
+            bizId: string | null;
+            bizNo: string | null;
+            bizType: ("billing_order" | "drama_order" | "ad" | (string & {})) | null;
+            consentNo: string;
+            /** Format: date-time */
+            consentedAt: string;
+            entityId: string | null;
+            entityName: string | null;
+            /** Format: uuid */
+            merchantUserId: string;
+            /** @enum {string} */
+            method: "checkbox" | "by_action" | "prior_consent" | (string & {});
+            operatorNameMask: string | null;
+            phoneMask: string;
+            role: ("owner" | "clerk" | (string & {})) | null;
+            /** @enum {string} */
+            scene: "login" | "reconsent" | "member_join" | "plan_purchase" | "topup" | "order_submit" | "ad_request" | (string & {});
+            storeId: string | null;
+            storeName: string | null;
+            usccMask: string | null;
+            versionLabel: string;
+        };
+        AgreementDetail: components["schemas"]["AgreementListItem"] & {
+            currentContentHtml: string | null;
+            draftContentHtml: string | null;
+            reconsentProgress: {
+                /** Format: uuid */
+                agreementVersionId: string;
+                consentedCount: number;
+                expectedCount: number;
+                ratioBp: number;
+                versionLabel: string;
+            } | null;
+            versions: components["schemas"]["AgreementVersionItem"][];
+        };
+        AgreementFileBrief: {
+            /** Format: uuid */
+            fileId: string;
+            mime: string | null;
+            originalName: string | null;
+            sizeBytes: string | null;
+        };
+        AgreementListItem: {
+            agreementKey: string;
+            audienceLabel: string;
+            /** @enum {string} */
+            consentMode: "checkbox" | "by_action" | "esign" | (string & {});
+            currentVersion: components["schemas"]["AdminAgreementVersionBrief"] | null;
+            draftVersion: components["schemas"]["AdminAgreementVersionBrief"] | null;
+            name: string;
+            pendingVersion: components["schemas"]["AdminAgreementVersionBrief"] | null;
+            scenes: ("login" | "reconsent" | "member_join" | "plan_purchase" | "topup" | "order_submit" | "ad_request" | (string & {}))[];
+            signSceneLabel: string;
+            sinceVersion: string;
+            /** @enum {string} */
+            subjectKind: "user" | "entity" | "partner" | (string & {});
+        };
+        AgreementVersionCreateBody: {
+            /** @default false */
+            bumpMajor: boolean;
+            /** Format: date-time */
+            effectiveAt?: string;
+            isLegalApproved?: boolean;
+            isReconsentRequired?: boolean;
+            /** Format: uuid */
+            pdfFileId?: string;
+            /** Format: uuid */
+            sourceFileId?: string;
+            summary?: string;
+        };
+        AgreementVersionItem: {
+            actions: ("edit" | "schedule" | "withdraw")[];
+            activatedAt: string | null;
+            agreementKey: string;
+            /** Format: uuid */
+            agreementVersionId: string;
+            contentSha256: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: components["schemas"]["StaffBrief"];
+            /** @enum {string} */
+            displayStatus: "draft" | "pending" | "active" | "superseded" | "withdrawn" | (string & {});
+            effectiveAt: string | null;
+            expectedConsents: number | null;
+            hasContentHtml: boolean;
+            isLegalApproved: boolean;
+            isReconsentRequired: boolean;
+            lockVersion: number;
+            major: number;
+            minor: number;
+            pdfFile: components["schemas"]["AgreementFileBrief"] | null;
+            publishedBy: components["schemas"]["StaffBrief"] | null;
+            shortNoticeReason: string | null;
+            siteNoticeId: string | null;
+            sourceFile: components["schemas"]["AgreementFileBrief"] | null;
+            /** @enum {string} */
+            status: "draft" | "pending" | "active" | "superseded" | "withdrawn" | (string & {});
+            summary: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+            versionLabel: string;
+        };
+        AgreementVersionMutationResult: {
+            contentHtml: string | null;
+            conversion: components["schemas"]["ContentConversion"];
+            version: components["schemas"]["AgreementVersionItem"];
+        };
+        AgreementVersionScheduleBody: {
+            lockVersion: number;
+            shortNoticeReason?: string;
+        };
+        AgreementVersionUpdateBody: {
+            effectiveAt?: string | null;
+            isLegalApproved?: boolean;
+            isReconsentRequired?: boolean;
+            lockVersion: number;
+            /** Format: uuid */
+            pdfFileId?: string | null;
+            /** Format: uuid */
+            sourceFileId?: string | null;
+            summary?: string | null;
+        };
+        AgreementVersionWithdrawBody: {
+            reason?: string;
+        };
         AiUsage: {
             /** Format: date-time */
             declaredAt: string;
@@ -3315,6 +3608,15 @@ export interface components {
         };
         ConfirmTotpSelfBody: {
             code: string;
+        };
+        ContentConversion: {
+            /** @enum {string} */
+            state: "converted" | "pdf_only" | "unchanged";
+            warnings: {
+                /** @enum {string} */
+                code: "text_mismatch";
+                similarityBp: number;
+            }[];
         };
         CopyrightReplaceBody: {
             canAdapt: boolean;
@@ -6021,6 +6323,849 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "admin.agreementConsent.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                agreementKey?: string;
+                agreementVersionId?: string;
+                merchantUserId?: string;
+                entityId?: string;
+                storeId?: string;
+                scene?: string;
+                method?: "checkbox" | "by_action" | "prior_consent";
+                bizType?: "billing_order" | "drama_order" | "ad";
+                bizId?: string;
+                no?: string;
+                consentNo?: string;
+                consentedFrom?: string;
+                consentedTo?: string;
+                sort?: "-consentedAt" | "consentedAt";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: components["schemas"]["AgreementConsentItem"][];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.agreementConsent.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agreementConsentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AgreementConsentDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.agreementVersion.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agreementVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgreementVersionUpdateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AgreementVersionMutationResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.agreementVersion.schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agreementVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgreementVersionScheduleBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            siteNotice: {
+                                /** Format: date-time */
+                                announcedAt: string;
+                                /** Format: date-time */
+                                createdAt: string;
+                                createdBy: components["schemas"]["StaffBrief"];
+                                /** @enum {string} */
+                                displayState: "scheduled" | "effective" | "withdrawn";
+                                /** Format: date-time */
+                                effectiveAt: string;
+                                isBarEnabled: boolean;
+                                /** @enum {string} */
+                                kind: "plan_revision" | "billing_param" | "agreement_version";
+                                leadDays: number;
+                                link: {
+                                    params?: {
+                                        [key: string]: unknown;
+                                    };
+                                    route: string;
+                                };
+                                /** Format: uuid */
+                                refId: string;
+                                shortNoticeReason: string | null;
+                                /** Format: uuid */
+                                siteNoticeId: string;
+                                /** @enum {string} */
+                                status: "announced" | "withdrawn";
+                                summary: string;
+                                summaryNoPrice: string | null;
+                                title: string;
+                                /** Format: date-time */
+                                withdrawnAt: string | null;
+                                withdrawnBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                            } | null;
+                            version: components["schemas"]["AgreementVersionItem"];
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.agreementVersion.withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agreementVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgreementVersionWithdrawBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            newDraft: components["schemas"]["AgreementVersionItem"] | null;
+                            siteNotice: {
+                                /** Format: date-time */
+                                announcedAt: string;
+                                /** Format: date-time */
+                                createdAt: string;
+                                createdBy: components["schemas"]["StaffBrief"];
+                                /** @enum {string} */
+                                displayState: "scheduled" | "effective" | "withdrawn";
+                                /** Format: date-time */
+                                effectiveAt: string;
+                                isBarEnabled: boolean;
+                                /** @enum {string} */
+                                kind: "plan_revision" | "billing_param" | "agreement_version";
+                                leadDays: number;
+                                link: {
+                                    params?: {
+                                        [key: string]: unknown;
+                                    };
+                                    route: string;
+                                };
+                                /** Format: uuid */
+                                refId: string;
+                                shortNoticeReason: string | null;
+                                /** Format: uuid */
+                                siteNoticeId: string;
+                                /** @enum {string} */
+                                status: "announced" | "withdrawn";
+                                summary: string;
+                                summaryNoPrice: string | null;
+                                title: string;
+                                /** Format: date-time */
+                                withdrawnAt: string | null;
+                                withdrawnBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                            } | null;
+                            withdrawn: components["schemas"]["AgreementVersionItem"];
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.agreement.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: components["schemas"]["AgreementListItem"][];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.agreement.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agreementKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AgreementDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.agreement.agreementVersion.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agreementKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgreementVersionCreateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AgreementVersionMutationResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.approval.list": {
         parameters: {
             query?: {

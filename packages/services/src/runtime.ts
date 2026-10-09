@@ -23,6 +23,8 @@ import { bindAgreementNoticeLink } from "./config/index.js";
 import { createSubscribeResults, createWechatReceiptHandler } from "./notify/index.js";
 import { findWechatIdentityId, recentWechatOpenid } from "./identity/index.js";
 import type { SubscribeResults } from "./notify/index.js";
+import { createDocsAssembly, createRuntimeDocs } from "./ops/index.js";
+import type { Docs } from "./docs/index.js";
 import { createClientErrorForwarder } from "./ops/index.js";
 import type { ClientErrorForwarder } from "./ops/index.js";
 import { createFlowOps, createAlertActions } from "./ops/index.js";
@@ -69,7 +71,7 @@ import type { NotifyMessages } from "./notify/index.js";
 import { staffBriefs, createStaffAssembly } from "./staff/index.js";
 import { staffWorkSourcesOf } from "./kernel/index.js";
 import { sendStaffWecomInvite } from "./notify/index.js";
-import { createDocs, readAgreementNoticeLink } from "./docs/index.js";
+import { readAgreementNoticeLink } from "./docs/index.js";
 import { createTenant } from "./tenant/index.js";
 import { createSla, createCalendarAdmin, bindCalendarCoverage } from "./sla/index.js";
 import type { CalendarAdmin } from "./sla/index.js";
@@ -210,6 +212,8 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly docs: Docs;
+  readonly docsAdmin: ReturnType<typeof createRuntimeDocs>["admin"];
   readonly documentConverter: ReturnType<typeof createDocumentConverter> | null;
   readonly smsInit: ReturnType<typeof createSmsInit>;
   readonly analytics: AnalyticsReceiver;
@@ -361,7 +365,11 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const mediaScope = createMediaAssembly(notifyScope.assembly);
   const staffScope = createStaffAssembly(mediaScope.assembly);
   const contentPricingScope = createContentPricingAssembly(staffScope.assembly);
-  const assembly = contentPricingScope.assembly;
+  const docsScope = createDocsAssembly(contentPricingScope.assembly);
+  const assembly = docsScope.assembly;
+  const documentConverter = options.documentWorkerUrl
+    ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
+    : null;
   // 违规上报端口（invariants.report）的实现在 ops，要连接、时钟与装配结果（W0-24）
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
   const wechatClosers: Array<() => Promise<void>> = [];
@@ -531,6 +539,18 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     },
   });
   mediaScope.attach(media.jobs);
+  const docsServices = createRuntimeDocs({
+    tx,
+    clock,
+    assembly,
+    media,
+    storage: providers.storage,
+    converter: documentConverter,
+    events,
+    config,
+    bumpAgreement: () => config.cache.bump("agreement"),
+  });
+  docsScope.attach(docsServices.jobs);
   const unbindContent = bindContent(assembly);
   const unbindPublish = bindPublish(assembly);
   const unbindDelivery = bindDelivery({
@@ -700,7 +720,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       bizNo,
       fulfillment: createFulfillment({ clock, events }),
     }),
-    docs: createDocs({ tx, clock }),
+    docs: docsServices.docs,
     tenant,
     keyring: () => (billingKeys ??= loadKeyring(env)),
     sla: createSla({ clock, assembly }),
@@ -716,7 +736,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     media,
     ledger,
     content,
-    docs: createDocs({ tx, clock }),
+    docs: docsServices.docs,
   });
   let staffAuth: StaffAuth | undefined;
   let staffRoles: ReturnType<typeof createRoleManagement> | undefined;
@@ -779,10 +799,9 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     },
   });
 
-  const documentConverter = options.documentWorkerUrl
-    ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
-    : null;
   return {
+    docs: docsServices.docs,
+    docsAdmin: docsServices.admin,
     documentConverter,
     smsInit: createSmsInit({ tx, clock }),
     analytics,
@@ -818,6 +837,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
+      await docsScope.close();
       await documentConverter?.close();
       await Promise.allSettled([
         staffScope.close(),
