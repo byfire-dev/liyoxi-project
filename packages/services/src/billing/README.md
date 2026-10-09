@@ -131,6 +131,12 @@ LYX_FC_RUNS=200 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run sr
 
 ## 7. 已知的限度
 
+W2-10 关闭前置的 `deletionGuard(tx, entityId)` 按 m07 第1节返回四项真实计数：
+`subscription_active` 为 active/scheduled 周期；`payment_open` 为待支付/待确认或有在途异常的付款单（同单只计一次）；
+`refund_open` 为 closedAt 为空的申请；`invoice_open` 为 pending/red_pending 申请。
+四项都按主体隔离，只读调用方事务，不使用展示权益缓存或按时间推进状态。
+该出口不代表主体关闭、退款/发票执行器或 tenant 跨层守卫装配已完成。
+
 - `billing.points.expired` 的去重键照 x01 写成按周期的：周期被延长复活后再次到期（M4）会被当成已发过。做延长的包（G4-A）要把它改成带止日的。
 - 清零数为 0 时仍写清零操作（幂等登记、账户上记“最近一次清零 0”），但不发 `billing.points.expired`。
 - 读函数给的是“到点之后的样子”，不是推进之后的结果：到点还没推进的那一分钟里，新一期的首月发放还看不到。
