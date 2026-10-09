@@ -12,10 +12,12 @@ import {
   DeliveryTicketDetailSchema,
   SampleViewSchema,
 } from "@liyoxi/contract";
-import { useSeededDatabase } from "../testing/index.js";
+import { createRecordingLogger, fakeKeyEnv, useSeededDatabase } from "../testing/index.js";
 import { record } from "../audit/index.js";
 import type { IdentityContext, IdempotencyContext } from "../kernel/index.js";
-import { createIdempotencyContext, uuidv7 } from "../kernel/index.js";
+import { createIdempotencyContext, loadEnv, uuidv7 } from "../kernel/index.js";
+import { runInvariants } from "../ops/index.js";
+import { createRuntime } from "../runtime.js";
 import { findI2Violations, findI14Violations } from "../media/index.js";
 import { findDeliveryViolations } from "./invariants.js";
 import { createDelivery } from "./service.js";
@@ -337,6 +339,49 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
       expect(await h.tx.run((tx) => c.run!(tx, {}, { now: h.clock.now() })), c.code).toEqual([]);
     expect(await h.tx.run(findI2Violations)).toEqual([]);
     expect(await h.tx.run((tx) => findI14Violations(tx))).toEqual([]);
+    const leadGroup = await h.prisma.staffGroup.findFirstOrThrow({
+      where: { staffRoleKey: "super_admin", isDefault: true },
+    });
+    await h.make.staff({
+      staffRoleKey: "super_admin",
+      staffGroupId: leadGroup.id,
+      isLead: true,
+    });
+    const runtime = createRuntime({
+      entry: "api",
+      env: {
+        ...loadEnv({
+          APP_ENV: "test",
+          DATABASE_URL: await db.url(),
+          REDIS_URL: process.env.REDIS_URL,
+        }),
+        ...fakeKeyEnv(),
+      },
+      version: "w307-full-test",
+      clock: h.clock,
+      providers: h.fake,
+      logger: createRecordingLogger(),
+    });
+    try {
+      const result = await runInvariants(runtime, { mode: "full", trigger: "manual" });
+      process.stdout.write(
+        `${JSON.stringify({
+          evt: "delivery.production.full",
+          checksRun: result.checksRun,
+          violationsFound: result.violationsFound,
+          errors: result.errors.map((error) => error.code),
+        })}\n`,
+      );
+      expect(result.errors).toEqual([]);
+      expect(result).toMatchObject({ status: "succeeded", violationsFound: 0 });
+      expect(result.checksRun).toBe(
+        runtime.assembly.invariants.filter(
+          (check) => check.run !== undefined && check.modes.includes("full"),
+        ).length,
+      );
+    } finally {
+      await runtime.close();
+    }
     await expect(
       h.prisma.deliveryRelease.create({
         data: {
