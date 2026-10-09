@@ -23,12 +23,12 @@ import {
 import type { ExpectedFileRef } from "../kernel/index.js";
 import { findViolations, PROFILE_INVARIANT_CODES } from "./invariants.js";
 import { adminProfileFactsPort } from "./admin-ports.js";
-import { deliveryManagerPort, orderManagerPort } from "./ports.js";
+import { deliveryManagerPort, orderManagerPort, QualificationImpactPort } from "./ports.js";
 import { qualificationKind } from "./qualification-kind.js";
 import { dictRef, snapshot } from "./repo.js";
 
 export const registration = defineRegistration("profile", {
-  ports: [orderManagerPort, deliveryManagerPort, adminProfileFactsPort],
+  ports: [orderManagerPort, deliveryManagerPort, adminProfileFactsPort, QualificationImpactPort],
   subscribers: [
     { name: "profile.onFileModerated", events: ["file.moderated"], handle: onFileModerated },
   ],
