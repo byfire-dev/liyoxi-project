@@ -1,6 +1,7 @@
 import { calendarDate, minuteOfDay } from "@liyoxi/shared/time";
 import { fenToYuan } from "@liyoxi/shared/format/money";
 import type { NotifyFact } from "./context.js";
+import type { SMS_TODO_ITEMS } from "../providers/types.js";
 import { textLimit } from "./policy.js";
 
 const progress = new Map([
@@ -125,17 +126,35 @@ export function renderWechat(
   return result;
 }
 
+// Group13 actual generic bindings; editable scene names never become reported enum values.
+const smsTodoByScene: ReadonlyMap<string, (typeof SMS_TODO_ITEMS)[number]> = new Map([
+  ["m.pay_success", "付款成功"],
+  ["m.order_submitted", "订购成功"],
+  ["m.plan_pending", "方案确认"],
+  ["m.delivered", "成片交付"],
+  ["m.verify_result", "上线确认"],
+  ["m.ticket_reply", "工单回复"],
+  ["m.invoice_issued", "发票开具"],
+  ["m.points_changed", "积分变动"],
+  ["m.member_changed", "成员变动"],
+  ["m.asset_feedback", "素材反馈"],
+  ["m.refund_result", "退款结果"],
+]);
+
 export function renderSms(
   template: string,
   params: unknown,
   fact: NotifyFact,
-  title: string,
+  _title: string,
+  sceneKey?: string,
 ): Record<string, string> | null {
+  const todo = sceneKey === undefined ? undefined : smsTodoByScene.get(sceneKey);
+  if (template === "generic_todo" && todo === undefined) return null;
   const values: Record<string, string> =
     template === "sample_pending"
       ? { item: "样片", matter: "样片", name: fact.name }
       : template === "generic_todo"
-        ? { item: textLimit(title, 12), matter: textLimit(title, 12) }
+        ? { item: todo! }
         : template === "review_result"
           ? {
               result: progress.get(fact.status) ?? "请查看详情",
@@ -160,7 +179,9 @@ export function renderSms(
       Object.hasOwn(result, param.name)
     )
       return null;
-    result[param.name] = textLimit(values[param.name]!, param.maxLen);
+    const value = values[param.name]!;
+    if (template === "generic_todo" && [...value].length > param.maxLen) return null;
+    result[param.name] = textLimit(value, param.maxLen);
   }
   return result;
 }

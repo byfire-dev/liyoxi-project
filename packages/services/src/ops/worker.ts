@@ -1,6 +1,8 @@
+import { createConfig, bindAgreementNoticeLink } from "../config/index.js";
+import { createSmsHealth, smsTemplateReader } from "../notify/index.js";
+import { keyringFromEnv } from "../security/index.js";
 import { createRuntimeNotify, createNotifyAssembly } from "./notify-runtime.js";
 import { readAgreementNoticeLink } from "../docs/index.js";
-import { createConfig, bindAgreementNoticeLink } from "../config/index.js";
 // 任务进程的服务装配（W0-23）：apps/worker 启动时调一次，拿到四个循环与两个队列消费者要调的用例函数。
 // 依据：D7 第 2.3 节规则 7、8，第 8.3 节“应用侧的数据库会话设置与连接池”；计划 第 5.1 节。
 // 应用层不引数据包（CLAUDE.md 第 6 节规则 5）：连接池在这里建，apps/worker 只把拿到的对象原样传回来。
@@ -105,6 +107,7 @@ export interface WorkerServicesOptions {
     readonly BIDX_KEYS?: BidxKeysConfig;
     readonly MINIO?: Env["MINIO"];
     readonly COS?: Env["COS"];
+    readonly SMS?: Env["SMS"];
     readonly CI?: Env["CI"];
   };
   /** 换掉十二个 Provider：只有用例会给（替身）。不给即 assembleProviders 按环境选实现 */
@@ -115,6 +118,7 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  readonly closeSmsHealth?: () => Promise<void>;
   notifyDeliver(ref: NotifyQueueRef): Promise<void>;
   scanNotify(): Promise<number>;
   closeNotify(): Promise<void>;
@@ -237,6 +241,18 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       appEnv: options.appEnv,
       logger,
       settings: {
+        ...(options.keys?.SMS
+          ? {
+              sms: {
+                driver: "tencent" as const,
+                tencent: {
+                  config: options.keys.SMS,
+                  getTemplate: smsTemplateReader(prisma),
+                  now: () => clock.now(),
+                },
+              },
+            }
+          : {}),
         ...(ci?.worker
           ? {
               media: {
@@ -284,6 +300,18 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
           }
         : {}),
     });
+  const smsHealth = createSmsHealth({
+    db: prisma,
+    tx,
+    clock,
+    config: createConfig({ db: prisma, clock, redis: null }),
+    sms: providers.sms,
+    alerts: alertsOf(assembly),
+    env: options.appEnv,
+    keyring: () =>
+      options.keys?.DATA_KEYS && options.keys.BIDX_KEYS ? keyringFromEnv(options.keys) : null,
+  });
+  notifyScope.attachSmsHealth(smsHealth);
   const media = createMedia({
     tx,
     clock,
@@ -352,6 +380,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const unbindNoticeLink = bindAgreementNoticeLink(readAgreementNoticeLink);
 
   return {
+    closeSmsHealth: () => smsHealth.close(),
     notifyDeliver: (ref) => notify.deliver(ref),
     scanNotify: () =>
       notify.scan(async (ref) => {

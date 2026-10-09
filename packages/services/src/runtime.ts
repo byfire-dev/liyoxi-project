@@ -1,3 +1,5 @@
+import { createSmsInit, createSmsHealth, smsTemplateReader } from "./notify/index.js";
+import { keyringFromEnv } from "./security/index.js";
 import {
   createAnalyticsJobs,
   createAnalyticsReceiver,
@@ -185,6 +187,7 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly smsInit: ReturnType<typeof createSmsInit>;
   readonly analytics: AnalyticsReceiver;
   readonly analyticsPartitions: Pick<AnalyticsJobs, "repartition">;
   readonly subscribeResults: SubscribeResults;
@@ -332,6 +335,18 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       appEnv: env.APP_ENV,
       logger,
       settings: {
+        ...(env.SMS
+          ? {
+              sms: {
+                driver: "tencent" as const,
+                tencent: {
+                  config: env.SMS,
+                  getTemplate: smsTemplateReader(prisma),
+                  now: () => clock.now(),
+                },
+              },
+            }
+          : {}),
         ...(entry === "worker" && env.CI?.worker
           ? {
               media: {
@@ -392,6 +407,19 @@ export function createRuntime(options: RuntimeOptions): Runtime {
           }
         : {}),
     });
+  if (entry === "worker")
+    notifyScope.attachSmsHealth(
+      createSmsHealth({
+        db: prisma,
+        tx,
+        clock,
+        config,
+        sms: providers.sms,
+        alerts: alertsOf(assembly),
+        env: env.APP_ENV,
+        keyring: () => (env.DATA_KEYS && env.BIDX_KEYS ? keyringFromEnv(env) : null),
+      }),
+    );
   const events = createEvents({ assembly, clock, tx });
   const wechatSources = env.WECHAT
     ? [
@@ -651,6 +679,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
 
   return {
+    smsInit: createSmsInit({ tx, clock }),
     analytics,
     subscribeResults,
     clientErrors,

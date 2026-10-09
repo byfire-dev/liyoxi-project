@@ -91,6 +91,19 @@ describe("直接执行处理函数、不调订阅接口", () => {
 });
 
 describe("清单非空", () => {
+  it("成功报告的可选当前页回调错误被报告链收口，不阻塞原业务handler", async () => {
+    const env = setup();
+    const handler = vi.fn(),
+      committed = vi.fn(async () => {
+        throw new Error("settings callback failed");
+      });
+    env.withSubscribe("order_submit", handler, committed)();
+    await settled();
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(env.afterReport).toHaveBeenCalledTimes(1);
+    expect(committed).toHaveBeenCalledTimes(1);
+  });
+
   it("订阅调用是点击处理的第一句：点击函数返回时已经同步调出去了，处理函数还没开始；模板取前 3 个", async () => {
     const env = setup();
     const handler = vi.fn(async () => undefined);

@@ -2,7 +2,7 @@
 // 01 第 9 节“未配置时：控制台输出；提醒只剩站内与订阅消息”。
 // 日志走注入的 logger，不用 console（服务端禁 console.log）。
 
-import { notificationFailed, ok } from "../types.js";
+import { failed, notificationFailed, ok } from "../types.js";
 import type { ProviderLogger, SmsProvider } from "../types.js";
 
 export function createConsoleSms(deps: { logger: ProviderLogger }): SmsProvider {
@@ -10,6 +10,12 @@ export function createConsoleSms(deps: { logger: ProviderLogger }): SmsProvider 
   return {
     status: "local",
     configured: true,
+    async sendTemplate() {
+      return failed("unsupported", "控制台短信不产生真实服务商投递编号");
+    },
+    async checkBalance() {
+      return failed("unsupported", "控制台短信没有真实套餐余量");
+    },
     async sendActivationCode({ phone, code, signal }) {
       if (signal?.aborted)
         return notificationFailed("rejected", "通知调用开始前已取消", {

@@ -1,0 +1,70 @@
+.messages-page {
+  min-height: 100vh;
+  background: $lyx-color-bg-page;
+  &__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: $lyx-color-text-secondary;
+    font-size: 13px;
+  }
+  &__action {
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+  }
+  &__filters {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: $lyx-color-bg-page;
+    .lyx-filter-chips__item {
+      min-height: 44px;
+      box-sizing: border-box;
+    }
+  }
+  &__date {
+    margin: 8px 0;
+    color: $lyx-color-text-secondary;
+    font-size: 12px;
+  }
+  &__avatar {
+    position: relative;
+    .lyx-badge-dot {
+      position: absolute;
+      right: -2px;
+      top: -2px;
+    }
+  }
+  &__title {
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  &__row--unread .lyx-list-row__title {
+    font-weight: 600;
+  }
+  &__time {
+    flex-shrink: 0;
+    color: $lyx-color-text-secondary;
+    font-size: 11px;
+    font-weight: 400;
+  }
+  &__body {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.6;
+  }
+  &__cta {
+    color: $lyx-color-primary-text;
+    margin-top: 6px;
+  }
+  &__hint {
+    color: $lyx-color-text-secondary;
+    font-size: 12px;
+    line-height: 1.6;
+    padding: 8px 0;
+  }
+}
