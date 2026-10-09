@@ -91,4 +91,4 @@ production_record 父先预锁已有样片350再制作记录360；属于批次�
 
 `MEDIA_PRODUCTION_FILE` 必须完整给工作根、根内 socket、AI主体五个配置值及六个模板标识；ProduceID 和 PropagateID 由实际文件/来源事实生成。缺配置受控失败，不自行补法务主体值。store/ad/drama/trailer 由组合根同事务公开事实注入，media 不直接读取同层 content 的私有表。local/test 工具测试注入保留真实领域事实与外呼守卫，生产环境拒绝注入。
 
-`productionFacts` 只回有限技术/检查/AI/派生/水印事实，不返回对象键、短签名或用户工具正文。`retireDramaMedia` 证明 DB retired、在途取消与专属引用即时释放，返回 objectRefs 和 `cdnPending:true`；真实公开 URL/CDN 清除尚未配置，不能声称停止播放。当前真实库15例、客户端小IO15和装配4例已通过；存储新增字节/元数据欺骗2反例先真实失败，完整修正后受影响14例和CI/配置6例均已通过，API/worker类型通过。新镜像/PNG真实像素与200MiB预算仍待验证，真实云、法务与平台读标未验。
+`productionFacts` 只回有限技术/检查/AI/派生/水印事实，不返回对象键、短签名或用户工具正文。`retireDramaMedia` 证明 DB retired、在途取消与专属引用即时释放，返回 objectRefs 和 `cdnPending:true`；真实公开 URL/CDN 清除尚未配置，不能声称停止播放。当前真实库15例、客户端小IO15和装配4例已通过；存储新增字节/元数据欺骗2反例先真实失败，完整修正后受影响14例和CI/配置6例均已通过，API/worker类型通过。新源镜像31例中30通过、1条原业主样本条件跳过；最长完整中文水印实际两行alpha均不触画布边缘。约199.8MiB五轮体检+封面最慢232ms，三轮补标七字段完整回读、最慢424ms，原沙箱与轮数/上限不变；这是Mac本机观察。最终主线同步后的兼容/类型/门禁仍待收口，真实云、法务与平台读标未验。
