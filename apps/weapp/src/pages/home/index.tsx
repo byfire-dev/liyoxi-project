@@ -11,6 +11,8 @@ import { FilterChips } from "@/components/FilterChips";
 import { Empty } from "@/components/Empty";
 import { LoadError } from "@/components/LoadError";
 import { Skeleton } from "@/components/Skeleton";
+import { List, ListRow } from "@/components/List";
+import { useMessageBadge } from "@/stores/messages";
 import { track } from "@/lib/runtime";
 import { catalogScope, useCatalogStore, type Home } from "@/stores/catalog";
 import { useContextStore } from "@/stores/context";
@@ -60,6 +62,7 @@ export default function HomePage() {
   return <HomeContent key={`${rev}:${token}`} />;
 }
 function HomeContent() {
+  const unread = useMessageBadge();
   const resource = useCatalogResource(catalogApi.home),
     home = resource.data;
   const [chosenTab, setTab] = useState<string | null>(null);
@@ -78,6 +81,16 @@ function HomeContent() {
         <View className="home-page__city">{home?.city?.name ?? "全国"}</View>
       </NavBar>
       <PageBody>
+        <List>
+          <ListRow
+            title="消息"
+            description="查看门店与账号通知"
+            badge={unread ?? undefined}
+            onClick={() => {
+              void Taro.navigateTo({ url: "/sub/service/messages/index" });
+            }}
+          />
+        </List>
         {resource.error ? (
           <LoadError
             message={resource.error}
