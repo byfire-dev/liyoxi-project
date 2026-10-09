@@ -51,6 +51,13 @@ export const dramaDelistedPayload = z.strictObject({
   transition: z.enum(["drama.delist", "drama.license_expire"]),
 });
 export const payloads = {
+  "drama.masters_changed": z.strictObject({
+    v: z.literal(1),
+    dramaId: IdSchema,
+    uploadBatchId: IdSchema,
+    episodeNos: z.array(z.int().positive()),
+    isContentChanged: z.boolean(),
+  }),
   "drama.created": dramaCreatedPayload,
   "drama.tier_changed": dramaTierChangedPayload,
   "drama.license_extended": dramaLicenseExtendedPayload,

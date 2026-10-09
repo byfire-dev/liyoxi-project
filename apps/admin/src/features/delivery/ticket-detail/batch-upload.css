@@ -1,0 +1,26 @@
+.lyx-batch-form {
+  min-width: 0;
+}
+.lyx-batch-form p,
+.lyx-batch-item strong {
+  overflow-wrap: anywhere;
+}
+.lyx-batch-items {
+  display: grid;
+  gap: 12px;
+  max-height: 48vh;
+  overflow: auto;
+}
+.lyx-batch-item {
+  display: grid;
+  gap: 8px;
+}
+.lyx-batch-item p {
+  margin: 0;
+}
+.lyx-batch-item .ant-input-number {
+  width: 110px;
+}
+.lyx-batch-item input[type="file"] {
+  max-width: 100%;
+}

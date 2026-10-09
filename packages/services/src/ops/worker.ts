@@ -30,6 +30,7 @@ import { createTenant } from "../tenant/index.js";
 import { bindPublish } from "../publish/index.js";
 import { createMedia } from "../media/index.js";
 import { createMediaAssembly } from "./media-runtime.js";
+import { createRuntimeMediaBatches } from "./media-batches-runtime.js";
 import { createRuntimeMediaProduction } from "./media-production-runtime.js";
 import type { PromoteRef } from "../media/index.js";
 import { advanceDueAccounts, createLedger, bindBillingTimers } from "../billing/index.js";
@@ -327,6 +328,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   });
   notifyScope.attachSmsHealth(smsHealth);
   const media = createMedia({
+    batches: createRuntimeMediaBatches({ clock, events, media: () => media }),
     ...(mediaProduction.production ? { production: mediaProduction.production } : {}),
     tx,
     clock,

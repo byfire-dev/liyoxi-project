@@ -61,6 +61,7 @@ export type {
 export { createNotifyAssembly, createRuntimeNotify } from "./notify-runtime.js";
 
 export { createMediaAssembly } from "./media-runtime.js";
+export { createRuntimeMediaBatches } from "./media-batches-runtime.js";
 export { createRuntimeMediaProduction } from "./media-production-runtime.js";
 
 export { createContentPricingAssembly } from "./content-pricing-runtime.js";

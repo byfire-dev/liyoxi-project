@@ -76,6 +76,15 @@ export { createFlowOpsCliSupport } from "./flow-ops-cli.js";
 export { installSitePurchasePolicy } from "./site.js";
 export { createAnalyticsCliSupport } from "./analytics-cli.js";
 export { notificationFixture } from "./notify-dispatch.js";
+export {
+  createOutputBatchLiveFixture,
+  prepareOutputBatchLiveMasters,
+  findOutputBatchLiveJobIds,
+  OutputBatchLiveInputSchema,
+} from "./admin-live/w302.fixture.js";
+export type { OutputBatchLiveInput } from "./admin-live/w302.fixture.js";
+export { createBatchMediaForTest } from "./media-batches.js";
+export { createOutputBatchToolsForTest, outputBatchInputFromProbe } from "./output-batch-tools.js";
 
 export { fullStaffWorld } from "./staff-full.js";
 export type { FullStaffWorld } from "./staff-full.js";

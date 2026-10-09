@@ -25,6 +25,7 @@ import { profileHandlers } from "./profile.js";
 import { mallHandlers } from "./mall.js";
 import { merchantFileHandlers } from "./files.js";
 import { adminFileHandlers } from "./admin/files.js";
+import { adminUploadBatchHandlers } from "./admin/upload-batches.js";
 import type { HandlerEntry } from "../routing/define.js";
 
 import { adminApprovalHandlers } from "./admin/approvals.js";
@@ -66,6 +67,7 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...mallHandlers,
   ...merchantFileHandlers,
   ...adminFileHandlers,
+  ...adminUploadBatchHandlers,
   // W1-04：静默登录、手机号登录、退出、当前账号
   ...sessionHandlers,
   // W1-01a：后台登录、激活、再验证、当前员工、退出（九条）

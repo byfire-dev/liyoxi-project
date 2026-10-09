@@ -36,3 +36,6 @@ export {
 export { adminPriceTierRevisionList } from "./price-tier-revisions.js";
 export * from "./drama-copyright.schemas.js";
 export * from "./drama-pricing.schemas.js";
+export * from "./upload-batches.js";
+export * from "./upload-batch-items.js";
+export * from "./upload-batches.schemas.js";

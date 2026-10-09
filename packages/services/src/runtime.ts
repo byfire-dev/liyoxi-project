@@ -111,7 +111,11 @@ import type { Providers, ProductionMediaTools } from "./providers/types.js";
 import { createContent, bindContent } from "./content/index.js";
 import type { Content } from "./content/index.js";
 import { createMedia } from "./media/index.js";
-import { createMediaAssembly, createRuntimeMediaProduction } from "./ops/index.js";
+import {
+  createMediaAssembly,
+  createRuntimeMediaBatches,
+  createRuntimeMediaProduction,
+} from "./ops/index.js";
 import type { Media } from "./media/index.js";
 import { createRateLimiter } from "./rate-limit.js";
 import type { RateLimiter } from "./rate-limit.js";
@@ -490,6 +494,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       : undefined,
   );
   const media = createMedia({
+    batches: createRuntimeMediaBatches({ clock, events, media: () => media }),
     ...(mediaProduction.production ? { production: mediaProduction.production } : {}),
     tx,
     clock,
