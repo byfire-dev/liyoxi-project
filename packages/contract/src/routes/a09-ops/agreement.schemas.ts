@@ -198,6 +198,7 @@ const date = z
     (v) => !Number.isNaN(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v,
     "日期无效",
   );
+const consentNoPattern = /^\d{1,19}$/;
 export const AdminAgreementConsentListQuerySchema = PageQuerySchema.extend({
   agreementKey: z
     .string()
@@ -214,8 +215,8 @@ export const AdminAgreementConsentListQuerySchema = PageQuerySchema.extend({
   no: z.string().max(40).optional(),
   consentNo: z
     .string()
-    .regex(/^\d{1,19}$/)
-    .refine((v) => BigInt(v) <= 9223372036854775807n, "编号超出范围")
+    .regex(consentNoPattern)
+    .refine((v) => !consentNoPattern.test(v) || BigInt(v) <= 9223372036854775807n, "编号超出范围")
     .optional(),
   consentedFrom: date.optional(),
   consentedTo: date.optional(),
