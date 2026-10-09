@@ -64,6 +64,9 @@ test("日期首次使用真实Tab进出和Esc关闭，筛选保持北京时间UR
   await page.goto("/approvals?tab=all");
   const start = page.getByPlaceholder("开始日期", { exact: true });
   await start.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  await expect(start).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(start).not.toBeFocused();
   await start.click();
