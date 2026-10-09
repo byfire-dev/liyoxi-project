@@ -15,6 +15,7 @@ export type { FileCategoryGuard, FileRefType, ExpectedFileRef } from "./ports.js
 export { findI2Violations, findI14Violations } from "./invariants.js";
 export type { PromoteRef } from "./promote.js";
 export { registration } from "./register.js";
+export type { MediaBatchDeps, BatchTargetFacts } from "./batches/types.js";
 
 export { seedPlaceholderFiles, placeholderPdf } from "./demo-seed.js";
 export { declareManualProduction, ensureProductionStubs } from "./production-stub.js";
