@@ -90,9 +90,11 @@ export function createCosStorage(
     maxBytes = 64 * 1024,
     deadline?: number,
   ): Promise<HttpReply> {
-    if (closed || (deadline !== undefined && deadline <= Date.now()))
+    if (closed || init.signal?.aborted || (deadline !== undefined && deadline <= Date.now()))
       throw new Error("COS 已关闭或到期");
     const controller = new AbortController();
+    const abort = () => controller.abort();
+    init.signal?.addEventListener("abort", abort, { once: true });
     active.add(controller);
     const timer = setTimeout(
       () => controller.abort(),
@@ -146,6 +148,7 @@ export function createCosStorage(
       reader?.releaseLock();
       clearTimeout(timer);
       active.delete(controller);
+      init.signal?.removeEventListener("abort", abort);
     }
   }
   async function run<T>(action: () => Promise<ProviderResult<T>>): Promise<ProviderResult<T>> {
@@ -166,6 +169,7 @@ export function createCosStorage(
     body?: RequestInit["body"],
     maxBytes?: number,
     deadline?: number,
+    signal?: AbortSignal,
   ) {
     const hostname = host(input.bucket);
     const start = Math.floor(options.now().getTime() / 1000);
@@ -186,6 +190,7 @@ export function createCosStorage(
         method,
         headers: { ...headers, Authorization: authorization },
         ...(body === undefined ? {} : { body }),
+        signal,
       },
       maxBytes,
       deadline,
@@ -357,7 +362,17 @@ export function createCosStorage(
     head: (input) =>
       run<ObjectHead>(async () => {
         if (!validRef(input)) return BAD();
-        const reply = await signed(input, "HEAD", readKey);
+        const reply = await signed(
+          input,
+          "HEAD",
+          readKey,
+          {},
+          {},
+          undefined,
+          undefined,
+          undefined,
+          input.signal,
+        );
         if (reply.status === 404) return ok({ exists: false, size: 0 });
         if (reply.status !== 200) return failure(reply);
         const length = reply.headers.get("content-length");
@@ -487,13 +502,25 @@ export function createCosStorage(
         )
           return BAD();
         if (!config.worker) return OFF();
-        const reply = await signed(input.dst, "PUT", config.worker, {
-          "x-cos-copy-source": `${host(input.src.bucket)}${objectPath(input.src.key)}`,
-          "x-cos-copy-source-if-match": input.ifMatchEtag,
-          "x-cos-metadata-directive": "Replaced",
-          "Content-Type": input.contentType,
-          ...(input.contentDisposition ? { "Content-Disposition": input.contentDisposition } : {}),
-        });
+        const reply = await signed(
+          input.dst,
+          "PUT",
+          config.worker,
+          {
+            "x-cos-copy-source": `${host(input.src.bucket)}${objectPath(input.src.key)}`,
+            "x-cos-copy-source-if-match": input.ifMatchEtag,
+            "x-cos-metadata-directive": "Replaced",
+            "Content-Type": input.contentType,
+            ...(input.contentDisposition
+              ? { "Content-Disposition": input.contentDisposition }
+              : {}),
+          },
+          {},
+          undefined,
+          undefined,
+          undefined,
+          input.signal,
+        );
         if (reply.status !== 200) return failure(reply);
         const etag = xmlField(reply.text, "ETag");
         if (!etag || !textValue(etag) || /<Error>/u.test(reply.text)) return UNAVAILABLE();

@@ -158,9 +158,14 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
   async function run<T>(
     what: string,
     action: () => Promise<ProviderResult<T>>,
+    signal?: AbortSignal,
   ): Promise<ProviderResult<T>> {
-    const prepared = await ensureBuckets();
-    if (!prepared.ok) return prepared;
+    // Cancellable worker reads/copies concern existing objects and never start shared bucket setup.
+    if (signal?.aborted) return failed("unavailable", "本地对象调用已取消");
+    if (!signal) {
+      const prepared = await ensureBuckets();
+      if (!prepared.ok) return prepared;
+    }
     try {
       return await action();
     } catch (error) {
@@ -202,23 +207,28 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
       return failed("unsupported", "本地 MinIO 只走小文件通道，不签发临时密钥");
     },
 
-    async head({ bucket, key }) {
-      return run<ObjectHead>("读对象头", async () => {
-        try {
-          const head = await client.send(
-            new HeadObjectCommand({ Bucket: nameOf(bucket), Key: key }),
-          );
-          return ok({
-            exists: true,
-            size: head.ContentLength ?? 0,
-            mime: head.ContentType,
-            etag: head.ETag,
-          });
-        } catch (error) {
-          if (httpStatusOf(error) === 404) return ok({ exists: false, size: 0 });
-          throw error;
-        }
-      });
+    async head({ bucket, key, signal }) {
+      return run<ObjectHead>(
+        "读对象头",
+        async () => {
+          try {
+            const head = await client.send(
+              new HeadObjectCommand({ Bucket: nameOf(bucket), Key: key }),
+              { abortSignal: signal },
+            );
+            return ok({
+              exists: true,
+              size: head.ContentLength ?? 0,
+              mime: head.ContentType,
+              etag: head.ETag,
+            });
+          } catch (error) {
+            if (httpStatusOf(error) === 404) return ok({ exists: false, size: 0 });
+            throw error;
+          }
+        },
+        signal,
+      );
     },
 
     async readPrefix({ bucket, key, bytes, ifMatchEtag }) {
@@ -288,21 +298,26 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
       });
     },
 
-    async copy({ src, dst, ifMatchEtag, contentType, contentDisposition }) {
-      return run("条件复制", async () => {
-        const copied = await client.send(
-          new CopyObjectCommand({
-            Bucket: nameOf(dst.bucket),
-            Key: dst.key,
-            CopySource: `${nameOf(src.bucket)}/${encodeKey(src.key)}`,
-            CopySourceIfMatch: ifMatchEtag,
-            MetadataDirective: "REPLACE",
-            ContentType: contentType,
-            ContentDisposition: contentDisposition,
-          }),
-        );
-        return ok({ etag: copied.CopyObjectResult?.ETag ?? "" });
-      });
+    async copy({ src, dst, ifMatchEtag, contentType, contentDisposition, signal }) {
+      return run(
+        "条件复制",
+        async () => {
+          const copied = await client.send(
+            new CopyObjectCommand({
+              Bucket: nameOf(dst.bucket),
+              Key: dst.key,
+              CopySource: `${nameOf(src.bucket)}/${encodeKey(src.key)}`,
+              CopySourceIfMatch: ifMatchEtag,
+              MetadataDirective: "REPLACE",
+              ContentType: contentType,
+              ContentDisposition: contentDisposition,
+            }),
+            { abortSignal: signal },
+          );
+          return ok({ etag: copied.CopyObjectResult?.ETag ?? "" });
+        },
+        signal,
+      );
     },
 
     async presignGet({ bucket, key, expiresSec, downloadName, disposition: requestedDisposition }) {

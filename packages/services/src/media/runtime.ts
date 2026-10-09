@@ -5,8 +5,11 @@ import { register, complete, refresh, cancel } from "./upload.js";
 import { getAdmin, getMerchant, createSigner, downloadUrls } from "./read.js";
 import { link, release } from "./refs.js";
 import { putSystemFile } from "./system.js";
-import { applyWechatImageResult } from "./wechat-image-audit.js";
-import { promote, scanPromote } from "./promote.js";
+import { createWechatImageHandlers, applyWechatImageResult } from "./wechat-image-audit.js";
+import { createPromoteHandler } from "./promote.js";
+import { createMediaJobAdmin } from "./jobs/admin.js";
+import { createMediaJobs } from "./jobs/runner.js";
+import { uuidv7, lockRows } from "../kernel/index.js";
 import { readableByStaff } from "./access.js";
 import { bindFileRefTypes } from "./invariants.js";
 export function createMedia(options: MediaDeps) {
@@ -29,6 +32,18 @@ export function createMedia(options: MediaDeps) {
   bindFileRefTypes(refTypes);
   const deps = { ...options, refTypes, guards };
   const signRead = createSigner(deps);
+  const jobs = createMediaJobs({
+    tx: options.tx,
+    clock: options.clock,
+    channel: options.channel,
+    ownerId: options.jobOwnerId ?? uuidv7(),
+    handlers: [
+      createPromoteHandler(deps),
+      ...createWechatImageHandlers(deps),
+      ...(options.jobHandlers ?? []),
+    ],
+    convergenceHandlers: options.jobConvergenceHandlers,
+  });
   return {
     register: (...args: Parameters<typeof register> extends [unknown, ...infer A] ? A : never) =>
       register(deps, ...args),
@@ -77,8 +92,26 @@ export function createMedia(options: MediaDeps) {
     downloadUrls: (
       ...args: Parameters<typeof downloadUrls> extends [unknown, unknown, ...infer A] ? A : never
     ) => downloadUrls(deps, signRead, ...args),
-    promote: (ref: Parameters<typeof promote>[1]) => promote(deps, ref),
-    scanPromote: () => scanPromote(deps),
+    promote: jobs.run,
+    scanPromote: jobs.scan,
+    jobs,
+    jobAdmin: createMediaJobAdmin({ tx: options.tx, clock: options.clock, jobs }),
+    wakeCiJob: async (
+      tx: Parameters<typeof applyWechatImageResult>[1],
+      input: { mediaJobId: string; externalJobId: string },
+    ): Promise<"processed" | "ignored"> => {
+      await lockRows(tx, "media_job", [input.mediaJobId]);
+      const count = await tx.mediaJob.updateMany({
+        where: {
+          id: input.mediaJobId,
+          state: "submitted",
+          provider: "ci",
+          externalJobId: input.externalJobId,
+        },
+        data: { nextRunAt: options.clock.now(), updatedAt: options.clock.now() },
+      });
+      return count.count === 1 ? "processed" : "ignored";
+    },
     applyWechatImageResult: (
       tx: Parameters<typeof applyWechatImageResult>[1],
       input: Parameters<typeof applyWechatImageResult>[2],

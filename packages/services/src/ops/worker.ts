@@ -20,6 +20,7 @@ import { recommendedStaff } from "../staff/index.js";
 import { createTenant } from "../tenant/index.js";
 import { bindPublish } from "../publish/index.js";
 import { createMedia } from "../media/index.js";
+import { createMediaAssembly } from "./media-runtime.js";
 import type { PromoteRef } from "../media/index.js";
 import { advanceDueAccounts, createLedger, bindBillingTimers } from "../billing/index.js";
 import { createFlow } from "../flow/index.js";
@@ -56,7 +57,12 @@ import type {
   Timers,
 } from "../timers/index.js";
 import { bindOps } from "./binding.js";
-import { bindWebhooks, createWebhooks, createWechatMessageSource } from "../security/index.js";
+import {
+  bindWebhooks,
+  createWebhooks,
+  createWechatMessageSource,
+  createCiWebhookSource,
+} from "../security/index.js";
 import type { WebhookSource } from "../security/index.js";
 import { createStartupChecks, runStartupChecks } from "./startup.js";
 
@@ -99,6 +105,7 @@ export interface WorkerServicesOptions {
     readonly BIDX_KEYS?: BidxKeysConfig;
     readonly MINIO?: Env["MINIO"];
     readonly COS?: Env["COS"];
+    readonly CI?: Env["CI"];
   };
   /** 换掉十二个 Provider：只有用例会给（替身）。不给即 assembleProviders 按环境选实现 */
   readonly providers?: Providers;
@@ -113,6 +120,11 @@ export interface WorkerServices {
   closeNotify(): Promise<void>;
   /** 只关闭本次装配创建的存储驱动；不关闭借用数据库、队列或 Redis。 */
   readonly closeStorageDrivers?: () => Promise<void>;
+  readonly closeMediaDrivers?: () => Promise<void>;
+  readonly closeMediaJobs?: () => void;
+  readonly shutdownMediaJobs?: () => Promise<void>;
+  readonly pauseMediaJobs?: () => Promise<void>;
+  readonly resumeMediaJobs?: () => void;
   readonly closeWebhooks?: () => void;
   readonly closeAnalytics?: () => Promise<void>;
   reprocessWebhooks(beat?: () => void): Promise<number>;
@@ -122,7 +134,7 @@ export interface WorkerServices {
   readonly closeDelivery?: () => void;
   reevaluateDelivery(): Promise<{ inspected: number; moved: number }>;
   promoteFile(ref: PromoteRef): Promise<void>;
-  scanPromote(): Promise<number>;
+  scanPromote(beat?: () => void): Promise<number>;
   readonly assembly: Assembly;
   readonly events: Events;
   readonly timers: Timers;
@@ -157,9 +169,15 @@ const silent: ProviderLogger = { info: () => {}, warn: () => {}, error: () => {}
  */
 export function buildWorkerServices(options: WorkerServicesOptions): WorkerServices {
   const cos = options.keys?.COS;
+  const ci = options.keys?.CI;
+  if (ci && !ci.worker) throw new TypeError("CI worker入口缺少worker角色");
   if (cos && !cos.worker) throw new TypeError("COS worker入口缺少worker角色");
   const { prisma, channel } = options;
   const clock = options.clock ?? systemClock;
+  const mediaClosers: Array<() => Promise<void>> = [];
+  let mediaClosing: Promise<void> | undefined;
+  const closeMediaDrivers = () =>
+    (mediaClosing ??= Promise.all(mediaClosers.map((close) => close())).then(() => undefined));
   const storageClosers: Array<() => Promise<void>> = [];
   let storageClosing: Promise<void> | undefined;
   const closeStorageDrivers = (): Promise<void> =>
@@ -172,7 +190,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     storage: () => providers.storage,
   });
   const notifyScope = createNotifyAssembly(analyticsScope.assembly);
-  const assembly = notifyScope.assembly;
+  const mediaScope = createMediaAssembly(notifyScope.assembly);
+  const assembly = mediaScope.assembly;
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const flow = createFlow({ assembly, clock, events });
@@ -196,7 +215,13 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     tx,
     clock,
     events,
-    sources: options.webhookSources ?? wechatSources,
+    sources: options.webhookSources ?? [
+      ...wechatSources,
+      createCiWebhookSource({
+        key: ci?.callback.key,
+        wake: (tx, input) => media.wakeCiJob(tx, input),
+      }),
+    ],
     alerts: alertsOf(assembly),
   });
   const closeWebhooks = bindWebhooks(webhooks);
@@ -212,6 +237,18 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       appEnv: options.appEnv,
       logger,
       settings: {
+        ...(ci?.worker
+          ? {
+              media: {
+                ci: {
+                  region: ci.worker.region,
+                  buckets: ci.worker.buckets,
+                  worker: { secretId: ci.worker.secretId, secretKey: ci.worker.secretKey },
+                  callback: ci.callback,
+                },
+              },
+            }
+          : {}),
         ...(options.keys?.MINIO ? { storage: { minio: options.keys.MINIO } } : {}),
         ...(cos
           ? {
@@ -225,6 +262,14 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
           ? { wechat: { appid: options.wechat.config.appid, secret: options.wechat.config.secret } }
           : {}),
       },
+      ...(ci?.worker
+        ? {
+            media: {
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => mediaClosers.push(close),
+            },
+          }
+        : {}),
       ...(cos
         ? {
             storage: {
@@ -253,6 +298,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       recentWechatOpenid,
     },
   });
+  mediaScope.attach(media.jobs);
+  const closeMediaJobs = () => mediaScope.close();
   const startupChecks = createStartupChecks({
     db: prisma,
     appEnv: options.appEnv,
@@ -322,6 +369,11 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       unbindNoticeLink();
     },
     closeStorageDrivers,
+    closeMediaDrivers,
+    closeMediaJobs,
+    shutdownMediaJobs: () => media.jobs.shutdown(),
+    pauseMediaJobs: () => media.jobs.pause(),
+    resumeMediaJobs: () => media.jobs.resume(),
     closeWebhooks,
     closeAnalytics,
     reprocessWebhooks: (beat) => webhooks.scan(beat),
@@ -334,7 +386,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     closeDelivery,
     reevaluateDelivery: () => reevaluateSweep(deliveryCore),
     promoteFile: (ref) => media.promote(ref),
-    scanPromote: () => media.scanPromote(),
+    scanPromote: (beat) => media.scanPromote(beat),
     assembly,
     events,
     timers,

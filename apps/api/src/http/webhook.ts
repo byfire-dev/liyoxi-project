@@ -109,6 +109,7 @@ export const webhookRateLimit =
             method: c.req.method,
             operationId: input.operationId,
             query: c.req.query(),
+            params: c.req.param(),
           });
           if (receipt.kind === "reply") {
             c.res = respond(receipt);

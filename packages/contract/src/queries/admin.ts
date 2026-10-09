@@ -8,3 +8,6 @@ export {
   OutboxDeliveryListQuerySchema,
   WebhookEventListQuerySchema,
 } from "../routes/a01-system/flow-ops.schemas.js";
+
+export { MediaJobListQuerySchema } from "../routes/a01-system/media-jobs.schemas.js";
+export type { MediaJobListQuery } from "../routes/a01-system/media-jobs.schemas.js";

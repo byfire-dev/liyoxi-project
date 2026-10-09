@@ -48,3 +48,4 @@ export * from "./routes/a09-ops/site.schemas.js";
 export * from "./routes/a09-ops/site-configs.js";
 export * from "./routes/a09-ops/home-banners.js";
 export * from "./routes/a09-ops/site-notices.js";
+export * from "./routes/h01-hooks/ci.js";

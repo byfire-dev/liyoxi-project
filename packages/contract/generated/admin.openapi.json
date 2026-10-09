@@ -9704,6 +9704,274 @@
         ],
         "type": "object"
       },
+      "MediaJobNoteBody": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MediaJobPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MediaJobView"
+            },
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pageSize": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "type": "object"
+      },
+      "MediaJobView": {
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "retry"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "attemptNo": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "billable": {
+            "properties": {
+              "estCostMicro": {
+                "pattern": "^\\d+$",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "qty": {
+                "pattern": "^\\d+\\.\\d{3}$",
+                "type": "string"
+              },
+              "unit": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "qty",
+              "unit",
+              "estCostMicro"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deadlineAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "error": {
+            "properties": {
+              "code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "isRetryable": {
+                "type": "boolean"
+              },
+              "message": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "isRetryable"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "externalJobId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finishedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "enum": [
+              "promote",
+              "probe",
+              "restamp",
+              "transcode_mp4",
+              "watermark_sample",
+              "normalize",
+              "zip_package",
+              "audit_image",
+              "audit_image_wx",
+              "audit_video",
+              "audit_text",
+              "asr",
+              "vision",
+              "doc_extract",
+              "digest",
+              "ocr"
+            ],
+            "type": "string"
+          },
+          "maxAttempts": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "mediaJobId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "local",
+              "remote"
+            ],
+            "type": "string"
+          },
+          "nextRunAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "parent": {
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "store_asset",
+                  "playable_asset",
+                  "upload_batch",
+                  "production_record",
+                  "zip_bundle"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "id"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "submitting",
+              "submitted",
+              "succeeded",
+              "failed",
+              "canceled"
+            ],
+            "type": "string"
+          },
+          "subject": {
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "file_object",
+                  "zip_bundle",
+                  "store_asset",
+                  "ocr_result"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "id"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "mediaJobId",
+          "kind",
+          "provider",
+          "mode",
+          "subject",
+          "parent",
+          "state",
+          "attemptNo",
+          "maxAttempts",
+          "externalJobId",
+          "error",
+          "nextRunAt",
+          "deadlineAt",
+          "billable",
+          "startedAt",
+          "finishedAt",
+          "createdAt",
+          "actions"
+        ],
+        "type": "object"
+      },
       "OrderCancelRequestCard": {
         "properties": {
           "actions": {
@@ -26213,6 +26481,339 @@
         "x-auth": "staff",
         "x-idempotent": "required",
         "x-permission": "publish.link.verify"
+      }
+    },
+    "/api/v1/admin/media-jobs": {
+      "get": {
+        "operationId": "admin.mediaJob.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "default": [
+                "failed"
+              ],
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "subjectType",
+            "required": false,
+            "schema": {
+              "enum": [
+                "file_object",
+                "zip_bundle",
+                "store_asset",
+                "ocr_result"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "subjectId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "parentType",
+            "required": false,
+            "schema": {
+              "enum": [
+                "store_asset",
+                "playable_asset",
+                "upload_batch",
+                "production_record",
+                "zip_bundle"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "parentId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "createdFrom",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "createdTo",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "-finishedAt",
+              "enum": [
+                "-finishedAt",
+                "-createdAt"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MediaJobPage"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "媒体任务监控（失败列表：转码、体检、OCR、打包等）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/media-jobs/{mediaJobId}/retry": {
+      "post": {
+        "operationId": "admin.mediaJob.retry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mediaJobId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MediaJobNoteBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MediaJobView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "媒体任务人工重试",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "media.job.retry"
       }
     },
     "/api/v1/admin/orders": {

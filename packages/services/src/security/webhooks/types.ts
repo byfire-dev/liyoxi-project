@@ -21,6 +21,7 @@ export interface WebhookRequest {
   readonly method: string;
   readonly operationId: string;
   readonly query?: Readonly<Record<string, string>>;
+  readonly params?: Readonly<Record<string, string>>;
 }
 export interface VerifiedWebhook {
   readonly eventId: string;

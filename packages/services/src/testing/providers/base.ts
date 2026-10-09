@@ -70,6 +70,7 @@ export interface FakeCore<M extends string> {
     method: M,
     input: unknown,
     action: () => ProviderResult<T> | Promise<ProviderResult<T>>,
+    signal?: AbortSignal,
   ): Promise<ProviderResult<T>>;
   runNotification<T>(
     method: M,
@@ -97,10 +98,12 @@ export function createFakeCore<M extends string>(
     calls.push({ method, input, at: clock.now() });
     if (signal?.aborted)
       return Promise.resolve(
-        notificationFailed("rejected", "通知调用开始前已取消", {
-          acceptance: "not_accepted",
-          code: "aborted",
-        }),
+        notificationMethods.includes(method)
+          ? notificationFailed("rejected", "通知调用开始前已取消", {
+              acceptance: "not_accepted",
+              code: "aborted",
+            })
+          : failed("unavailable", "外部能力调用已取消"),
       );
     const failure = failures.get(method)?.shift();
     const delayMs = delays.get(method)?.shift();
@@ -142,10 +145,16 @@ export function createFakeCore<M extends string>(
       const onAbort = () =>
         finish(() =>
           resolve(
-            notificationFailed(mayHaveBeenAccepted ? "unavailable" : "rejected", "通知调用已取消", {
-              acceptance: mayHaveBeenAccepted ? "unknown" : "not_accepted",
-              code: "aborted",
-            }),
+            notificationMethods.includes(method)
+              ? notificationFailed(
+                  mayHaveBeenAccepted ? "unavailable" : "rejected",
+                  "通知调用已取消",
+                  {
+                    acceptance: mayHaveBeenAccepted ? "unknown" : "not_accepted",
+                    code: "aborted",
+                  },
+                )
+              : failed("unavailable", "外部能力调用已取消"),
           ),
         );
       if (delayMs !== undefined) {
@@ -206,7 +215,7 @@ export function createFakeCore<M extends string>(
   };
   return {
     control,
-    run: (method, input, action) => run(method, input, action),
+    run: (method, input, action, signal) => run(method, input, action, signal),
     notificationControl,
     runNotification: (method, input, action, signal) => {
       if (!notificationMethods.includes(method)) throw new TypeError("不是通知发送方法");

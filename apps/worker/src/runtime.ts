@@ -7,6 +7,7 @@
 //   关停     → 停续约与看门狗 → 停循环（等在途的一轮）→ 关消费者（等在途任务，至多 30 秒）→ 让出租约
 // 循环都按“可多实例并行”写（认领用 SKIP LOCKED），单活只是省资源：不给租约时本实例直接干活（双实例的用例这么跑）。
 import type { LoopId, QueueId } from "@liyoxi/contract/registry";
+import { z } from "@liyoxi/contract";
 import type {
   DeliveryRef,
   QueueChannel,
@@ -37,10 +38,12 @@ export type WorkerLoop = keyof typeof LOOP_INTERVALS_MS;
 export const QUEUE_CONCURRENCY = {
   outbox_delivery: 4,
   timer_run: 4,
+  media_job: 10,
   promote: 2,
   notify: 4,
 } as const satisfies Partial<Record<QueueId, number>>;
 export type WorkerQueue = keyof typeof QUEUE_CONCURRENCY;
+const legacyPromoteRef = z.object({ jobId: z.uuid() }).strict();
 
 /** 关停时等在途任务的上限 */
 export const SHUTDOWN_WAIT_MS = 30_000;
@@ -100,9 +103,14 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
       QUEUE_CONCURRENCY.outbox_delivery,
       async (ref) => void (await services.consume(ref)),
     ),
-    promote: channel.consume<{ jobId: string }>("promote", QUEUE_CONCURRENCY.promote, (ref) =>
+    media_job: channel.consume<{ jobId: string }>("media_job", QUEUE_CONCURRENCY.media_job, (ref) =>
       services.promoteFile(ref),
     ),
+    promote: channel.consume<unknown>("promote", QUEUE_CONCURRENCY.promote, async (raw) => {
+      const ref = legacyPromoteRef.safeParse(raw);
+      if (!ref.success) throw new Error("历史媒体队列参数不合法");
+      return channel.enqueue("media_job", `media-${ref.data.jobId}`, ref.data);
+    }),
     timer_run: channel.consume<TimerRef>(
       "timer_run",
       QUEUE_CONCURRENCY.timer_run,
@@ -121,25 +129,20 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
       }),
     ]),
   );
-  const promoteRecovery = createLoop({
-    name: "promote.recovery",
-    intervalMs: options.domainIntervals?.["promote.recovery"] ?? 30_000,
-    run: () => services.scanPromote(),
-    onError,
-    monotonic,
-  });
-  const all = [...Object.values(loops), ...Object.values(domainLoops), promoteRecovery];
+  const all = [...Object.values(loops), ...Object.values(domainLoops)];
   const queues = Object.values(consumers);
 
   let active = false;
   let stopping: Promise<void> | undefined;
   const promote = (): void => {
     active = true;
+    services.resumeMediaJobs?.();
     for (const one of all) one.start();
     for (const one of queues) one.start();
   };
   const demote = (): void => {
     active = false;
+    void services.pauseMediaJobs?.().catch((error) => onError("media_job_run.pause", error));
     for (const one of all) void one.stop();
     for (const one of queues) void one.pause().catch(() => undefined);
   };
@@ -175,10 +178,12 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
         active = false;
         try {
           // 一个关闭失败不能提前解绑：循环与全部消费者都收完后才清理绑定。
+          const mediaShutdown = services.shutdownMediaJobs?.();
           const loopResults = await Promise.allSettled([
             services.closeNotify(),
             services.closeAnalytics?.(),
             ...all.map((one) => one.stop()),
+            ...(mediaShutdown ? [mediaShutdown] : []),
           ]);
           const queueResults = await Promise.allSettled(
             queues.map((one) => one.close(SHUTDOWN_WAIT_MS)),
@@ -197,7 +202,11 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           services.closePublish?.();
           services.closeDelivery?.();
           services.closeWebhooks?.();
-          await services.closeStorageDrivers?.();
+          services.closeMediaJobs?.();
+          await Promise.allSettled([
+            services.closeMediaDrivers?.(),
+            services.closeStorageDrivers?.(),
+          ]);
         }
       })());
     },
