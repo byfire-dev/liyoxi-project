@@ -278,7 +278,10 @@ export {
   getPlanBriefByOrder,
   countBlockingStoreTickets,
   countOnlineReleaseTicketsByEntity,
+  readCancelReviewPauseTargets,
+  releaseCancelReviewPauses,
 } from "./delivery/index.js";
+export type { CancelReviewPauseTargets } from "./delivery/index.js";
 export type { DeliveryDownloads, DeliveryDownloadDeps } from "./delivery/index.js";
 export type {
   Delivery,

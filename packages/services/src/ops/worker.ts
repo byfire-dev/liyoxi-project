@@ -1,4 +1,5 @@
 import { createDeliveryProductionAssembly } from "./delivery-production-runtime.js";
+import { createDeliverySlaAssembly } from "./delivery-sla-runtime.js";
 import { createContentPricingAssembly } from "./content-pricing-runtime.js";
 import {
   createContent,
@@ -232,9 +233,11 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const staffScope = createStaffAssembly(mediaScope.assembly);
   const contentPricingScope = createContentPricingAssembly(staffScope.assembly);
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
-  const docsScope = createDocsAssembly(deliveryProductionScope.assembly);
+  const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
+  const docsScope = createDocsAssembly(deliverySlaScope.assembly);
   const assembly = docsScope.assembly;
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
+  deliverySlaScope.attach({ events, clock });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const flow = createFlow({ assembly, clock, events });
   const wechatSources = options.wechat
@@ -416,6 +419,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   deliveryProductionScope.attach({ clock, flow, media });
   const closeDelivery = () => {
     deliveryProductionScope.close();
+    deliverySlaScope.close();
     unbindDelivery();
   };
   const delivery = { tx, subscribers: events.subscribers, channel, alerts };
