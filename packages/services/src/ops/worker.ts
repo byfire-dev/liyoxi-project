@@ -1,5 +1,6 @@
 import { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./media-assets-runtime.js";
 import { createDeliveryProductionAssembly } from "./delivery-production-runtime.js";
+import { createApprovalSlaAssembly } from "./approval-sla-runtime.js";
 import { createDeliverySlaAssembly } from "./delivery-sla-runtime.js";
 import { createContentPricingAssembly } from "./content-pricing-runtime.js";
 import {
@@ -157,6 +158,7 @@ export interface WorkerServices {
   readonly closeMediaDrivers?: () => Promise<void>;
   readonly closeMediaJobs?: () => void;
   readonly closeStaff?: () => Promise<void>;
+  readonly closeApproval?: () => void;
   readonly shutdownMediaJobs?: () => Promise<void>;
   readonly pauseMediaJobs?: () => Promise<void>;
   readonly resumeMediaJobs?: () => void;
@@ -233,7 +235,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const mediaScope = createMediaAssembly(notifyScope.assembly);
   const mediaAssetsScope = createMediaAssetsAssembly(mediaScope.assembly);
   const staffScope = createStaffAssembly(mediaAssetsScope.assembly);
-  const contentPricingScope = createContentPricingAssembly(staffScope.assembly);
+  const approvalSlaScope = createApprovalSlaAssembly(staffScope.assembly);
+  const contentPricingScope = createContentPricingAssembly(approvalSlaScope.assembly);
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
   const docsScope = createDocsAssembly(deliverySlaScope.assembly);
@@ -422,6 +425,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     media,
     sla: createSla({ clock, assembly }),
   };
+  approvalSlaScope.attach({ clock, events, flow, timers, sla: deliveryCore.sla });
   const unbindDelivery = bindDelivery(deliveryCore);
   deliveryProductionScope.attach({ clock, flow, media });
   const closeDelivery = () => {
@@ -515,6 +519,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       contentPricingScope.close();
       await staffScope.close();
     },
+    closeApproval: () => approvalSlaScope.close(),
     shutdownMediaJobs: () => media.jobs.shutdown(),
     pauseMediaJobs: () => media.jobs.pause(),
     resumeMediaJobs: () => media.jobs.resume(),

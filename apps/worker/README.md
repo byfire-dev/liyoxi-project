@@ -63,6 +63,12 @@ node apps/worker/dist/analytics-repartition.js YYYY-MM --env test --staff <员�
 - 看门狗每秒看一眼，只读本地变量：续约超过 20 秒没成功即降级（停循环、消费者不再领新任务）；自己晚到 10 秒以上、或某个循环连续两个周期没有进展（不少于 60 秒）即退出进程，由外面拉起。
 - 收到 SIGTERM：停循环与新领取 → 媒体owned任务先等最多45秒后取消并等待清理，其它消费者沿原30秒预算 → 让出租约 → 关闭本次驱动；借用DB/队列由父装配关闭。
 - Redis 不可用时循环照跑：关键类在进程内执行，非关键类放回去，连续不可用满 60 秒后也在进程内执行。
+
+### 独立审批时限装配（W2-27 前置）
+
+只调用 `buildWorkerServices` 即可处理真实 `calendar.imported`：审批与员工两个订阅者分别同事务写业务和 delivery.done，不需要先建 API runtime。ops 固定包装为审批注入本实例依赖和真实类型 map，保留唯一 `sla.breach` 的员工/交付委派。
+
+正常 stop 等循环和队列消费者关闭后调用 `closeApproval()`；入口的自检失败及 `--check` 成功两条退出路径也释放。关闭一个实例不会切换到另一个实例的审批绑定。连库用例见 services 的 `ops/approval-sla-runtime.db.test.ts`，实际队列关闭顺序用例见 `test/approval-sla-close.test.ts`。这只完成环境演练前的 owner 代码前置，W2-27 日志与接线整包另行验收。
 - 租约只是减少重复劳动：两个实例同时干活也不出错（认领用 `SKIP LOCKED`，消费按派发序号认）。
 
 ## 3. 跑用例
