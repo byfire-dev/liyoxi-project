@@ -509,6 +509,7 @@ describe("ci.yml", () => {
       'pnpm db:migration-lint --base "$BASE"',
       "pnpm db:draft-freeze:check",
       "pnpm contract:check",
+      "pnpm contract:compat",
       // W0-09a：登记表对账（x01 名称登记与归属表）
       "pnpm registry:check",
       // W0-12：状态机迁移表与分组文档逐行对照

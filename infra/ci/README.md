@@ -24,6 +24,7 @@
 | `db-verify-managed.mjs` | 托管库验证（W0-05）：两个扩展可建、迁移跑通、数量对得上；不打印连接串 | `pnpm db:verify-managed`；业主在托管库上跑 |
 | `db-verify-grants.mjs`、`db-grants-rules.mjs` | 角色与授权的核对（W0-06a）：两个角色在、成员与属主合规、授权生效、分区表可写可查；只读系统目录（另有一处插完即回滚的写入），不打印连接串。前一份是命令，后一份是不连库的判定规则（拆开是为了用例能不动实例就验到成员那几条）。期望的授权不写在脚本里，读 `packages/db/src/grants.expected.json`（与权限测试共用，不是门禁文件）：加表、加函数、改一张表的授权的包往那里加行、改行，脚本与它的用例不用改，用例里不写数量、不点名表的权限（[packages/db/README.md](../../packages/db/README.md) 第 9 节）。缺省只认 `lyx_` 开头的库名，核对别的库名加 `--database <库名>`；要 PostgreSQL 16 及以上。没有改 `db-verify-managed.mjs`（改已有的检查脚本是放松类改动），做成它的后置步骤 | `pnpm db:verify-grants`；根脚本 `postdb:verify-managed` 让 `pnpm db:verify-managed` 成功后自动接着跑（要经 pnpm 跑才有这一步；`test/db-verify-managed-hook.test.ts` 把它钉住，核对不通过时整条命令的退出码也钉住） |
 | `grants-floor.txt` | 授权下限清单（W0-06a）：受限的表上应用角色最多能有什么权限，一行一张表。期望数据不是门禁文件，这一份是：按 `append` 判，加行（新登记一张受限的表）算只增，删行、改行（放开）算放松，要走单独的 `gate-change` PR。期望与库里的授权都不得超过它，受限的表都得登记。写法与放开的走法见文件开头 | `db-verify-grants.mjs`；`test/grants-floor.test.ts`（不连库） |
+| `contract-compat.mjs` | C77/C78：标签快照与当前 OpenAPI 比六类破坏；退役记录 frozen，5 个在役小程序版本只提醒 | `pnpm contract:compat`；verify；`test/contract-compat.test.ts` 与两条 `selftest/cases/contract-compat-*` |
 | `fixtures/` | tsconfig 预设的最小工程；依赖方向与分层的反例夹具 | `pnpm typecheck`；用例与门禁自测 |
 | `pages/generate.mjs`、`pages/sources/` | 页面清单：由后台菜单登记表与下载页页面清单生成 `docs/plan/pages.md`。一个端一个数据源文件，自动收集；小程序的由 W0-27a 往 `sources/` 里加 | `node infra/ci/pages/generate.mjs`；CI 用 `--check` 核对无差异 |
 | `apps/admin/scripts/check-build.mjs`（不在本目录） | 后台与下载页的构建产物检查：文件名带内容哈希、写入了构建号、是生产构建、不含夹具的标记 | 两个应用各自的 `build` 脚本，即 `pnpm admin:build`、`pnpm portal:build`；CI |
@@ -365,3 +366,16 @@ DATABASE_URL=<同上> pnpm db:partitions:assert --db <库名>
 - 本地那个长期留着的 `lyx_migrate_check` 过了月初会少一个月的分区，`pnpm db:partitions:assert` 会红：删掉重建（`packages/db/README.md` 第 3 节）。CI 里只有一种情形会这样：迁移在北京时间月末的最后几分钟跑完、断言在下个月的头几分钟跑，那一次重跑即可。
 
 本地 gate-only 合流记录：源包已普通合入 00c200bf，ROOT 对本包唯一 NONCODER 审查 46.747/90 秒，P1/P2/D=0、冻结哈希无变化。分类器真实结论为 loosen（既有 JSONL 行替换），按 gate-change 独立合流，outside=0；只有同一 manual 原存量项坐标 947→949，没有新增豁免，原70项数量、顺序和原因保持。执行元数据与组合271G字节一致，135/205、70存量、未知0；两前置按顺序完成本地普通合流，中间坐标依赖至此闭合。无远端CI或部署结论。
+
+
+## 9. 在役契约兼容（W2-28a）
+
+`pnpm contract:compat` 只读本地 Git 标签和当前三份生成物，不 fetch、打标签或修改契约。verify 已检出完整历史与标签；新增步骤紧接 `contract:check`。商家端比较全部在役 `weapp-v*`，后台与下载页比较最近在役 `v*`（标签创建时间，时间相同按版本名降序）；无对应标签分别输出“无可比版本”并成功，存在标签但缺生成物必须失败。超过 4 个在役小程序标签只提醒。整个检查预算 20 秒，Git 子进程共享剩余预算。
+
+六类拒绝：旧路径/方法消失、operationId 改名、请求新增必填（含参数、body 与嵌套字段）、响应删字段或必有字段变可空、请求枚举删值、旧封闭响应枚举加值。原必有响应字段变可选也属于可能丢失字段。新增路径、可选请求字段、响应字段允许；响应开放枚举只读旧契约上的 `x-open-enum: true`，在新契约补标记不能追溯豁免旧客户端。
+
+比较展开本地 JSON pointer（含 `~0/~1` 与引用兄弟键）、数组、嵌套对象、递归引用和 anyOf/oneOf 分支；allOf 按类型/枚举交集、字段与 required 并集，不能把 `allOf: [object, object|null]` 当可空。null 按组合语义判断，oneOf 中被多个分支接受的 null 不属于可用值。分支用真实共同枚举/const 判别值对应，成对递归引用防止无限展开；超过 128 个组合、纯引用环、外部/悬空引用或尚未支持的结构关键字会带位置失败，不当作兼容。格式、长度等六类之外的差异不额外判成破坏。
+
+`packages/contract/released/retired.json` 初始为空数组。每项仅包含 `version`、非空 `reason`、真实 ISO 日期 `date`，例如 `{ "version": "weapp-v1.0.0", "reason": "最低客户端版本已提高", "date": "2026-10-10" }`。版本重复、未知字段、无效日期均失败；只摘除精确标签。该文件新登记为 frozen，以后修改属于放松类，须走现有 gate-change 评审并按 C78 同时登记最低版本计划。
+
+临时 Git 用例与两条 selftest 仅在自有临时仓库 commit/tag，并在 finally 清理；从不操作本仓库的真实标签。W2-28a 仅交这一道 PR 门禁；W2-28b 的真实双版本同库主流程、main 检查和发布预检仍未实现，W2-29 仍等整包。不得将无可比版本或假服务用例充作混跑通过。
