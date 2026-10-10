@@ -25,8 +25,10 @@ import {
   assertSnapshotsEqual,
   createFakeProviders,
   createLedgerHarness,
+  holdDrama,
   joinLedger,
   openTerm,
+  prepareOrderDrama,
   sampleStaffContext,
   snapshotTables,
   useSeededDatabase,
@@ -278,6 +280,28 @@ async function fixture(
   };
 }
 type Fixture = Awaited<ReturnType<typeof fixture>>;
+async function boundItem(f: Fixture) {
+  const order = await h.make.dramaOrder({
+    entityId: f.ad.entityId,
+    storeId: f.ad.storeId,
+    subscriptionTermId: f.term.id,
+  });
+  const drama = await prepareOrderDrama(h, 100);
+  const held = await holdDrama(h, {
+    entityId: f.ad.entityId,
+    storeId: f.ad.storeId,
+    dramaId: drama.id,
+  });
+  const item = await h.make.orderItem({
+    id: held.refId,
+    dramaOrderId: order.id,
+    dramaId: drama.id,
+    pointHoldId: held.pointHoldId,
+    chargePoints: held.points,
+    pricingSnapshot: held.snapshot,
+  });
+  return { order, item };
+}
 type Request = Awaited<ReturnType<ReturnType<typeof createAdCancel>["submit"]>>;
 const submit = (f: Fixture) => f.service.submit(f.requester, f.ad.id, f.body);
 const confirm = (r: Request) => ({
@@ -871,12 +895,7 @@ describe("真实广告取消写链", () => {
   });
   it("活跃广告位绑定阻止取消，关闭订单项的历史绑定原样保留", async () => {
     const f = await fixture();
-    const order = await h.make.dramaOrder({
-      entityId: f.ad.entityId,
-      storeId: f.ad.storeId,
-      subscriptionTermId: f.term.id,
-    });
-    const item = await h.make.orderItem({ dramaOrderId: order.id });
+    const { item } = await boundItem(f);
     const placement = await h.prisma.orderItemPlacement.create({
       data: {
         id: uuidv7(),
@@ -892,13 +911,22 @@ describe("真实广告取消写链", () => {
       error: "AD_NOT_CANCELLABLE",
       details: { reason: "ad_in_use", boundOrderItemIds: [item.id] },
     });
-    await h.prisma.orderItem.update({
-      where: { id: item.id },
-      data: {
-        phase: "cancelled",
-        cancelledAt: h.clock.now(),
-        cancelReasonCode: "merchant_request",
-      },
+    await h.tx.run(async (tx) => {
+      await lockRows(tx, "order_item", [item.id]);
+      await h.ledger.release(tx, {
+        pointHoldId: item.pointHoldId,
+        reasonClass: "merchant",
+        title: { refNo: f.ad.adNo, dramaTitles: [] },
+        ctx: f.requester.ctx,
+      });
+      await tx.orderItem.update({
+        where: { id: item.id },
+        data: {
+          phase: "cancelled",
+          cancelledAt: h.clock.now(),
+          cancelReasonCode: "merchant_request",
+        },
+      });
     });
     const r = await submit(f);
     await execute(f, await approve(f, r));
@@ -1430,12 +1458,7 @@ describe("广告取消两连接竞态与真实锁图", { timeout: 60000 }, () =>
   it("读图后真实新增绑定，整体预锁后拒绝旧图并回滚而不补低序锁", async () => {
     const f = await fixture(),
       r = await submit(f);
-    const order = await h.make.dramaOrder({
-      entityId: f.ad.entityId,
-      storeId: f.ad.storeId,
-      subscriptionTermId: f.term.id,
-    });
-    const item = await h.make.orderItem({ dramaOrderId: order.id });
+    const { order, item } = await boundItem(f);
     let read!: () => void, proceed!: () => void;
     const readDone = new Promise<void>((resolve) => {
       read = resolve;
