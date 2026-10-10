@@ -41,6 +41,8 @@ import {
 } from "./unconfigured.js";
 
 export * from "./types.js";
+export { createTencentAsr } from "./asr/tencent.js";
+export type { TencentAsrConfig, TencentAsrOptions } from "./asr/tencent.js";
 export { createProductionMediaTools } from "./mediatool/production.js";
 export type { ProductionMediaTools } from "./types.js";
 export { createConsoleSms } from "./sms/console.js";

@@ -232,6 +232,13 @@ export const unconfiguredOcr: OcrProvider = {
 export const unconfiguredAsr: AsrProvider = {
   ...BASE,
   transcribe: unconfigured("录音转写", "不转写"),
+  submit: () =>
+    Promise.resolve({
+      ...failed("unconfigured", "录音转写未配置：不转写"),
+      acceptance: "not_accepted",
+      code: "unconfigured",
+    }),
+  query: unconfigured("录音转写", "不转写"),
 };
 
 const llmOff = unconfigured("素材理解", "不打标");

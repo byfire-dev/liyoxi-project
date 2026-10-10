@@ -744,11 +744,50 @@ export interface OcrProvider extends ProviderBase {
 
 // ---------- asr：录音转写 ----------
 
+export interface AsrSubmissionFailure extends ProviderFailure {
+  /** unknown 不能据通用 unavailable 自动重提；只能由本地任务归属继续处置。 */
+  readonly acceptance: "not_accepted" | "unknown";
+  readonly code:
+    | "unconfigured"
+    | "invalid_input"
+    | "aborted"
+    | "closed"
+    | "timeout"
+    | "transport"
+    | "http_error"
+    | "invalid_response"
+    | "provider_rejected"
+    | "unknown_outcome";
+}
+export type AsrSubmissionResult =
+  | ProviderSuccess<{
+      /** 官方 uint64 十进制原值；24小时有效、跨日可能重复，不是业务幂等键。 */
+      taskId: string;
+      requestId: string;
+    }>
+  | AsrSubmissionFailure;
+export interface AsrSegment {
+  text: string;
+  startMs: number;
+  endMs: number;
+}
+export type AsrTaskStatus = {
+  taskId: string;
+  requestId: string;
+} & (
+  | { state: "waiting" | "doing" }
+  | { state: "failed"; code: "recognition_failed" }
+  | { state: "succeeded"; text: string; durationSec: number; segments: AsrSegment[] }
+);
+
 export interface AsrProvider extends ProviderBase {
   /** 录音转写 */
   transcribe(input: {
     url: string;
   }): Promise<ProviderResult<{ text: string; durationSec?: number }>>;
+  /** 一次异步受理，不自行重试；url 只能由拥有者提供短期授权地址。 */
+  submit(input: { url: string; signal?: AbortSignal }): Promise<AsrSubmissionResult>;
+  query(input: { taskId: string; signal?: AbortSignal }): Promise<ProviderResult<AsrTaskStatus>>;
 }
 
 // ---------- llm：素材识别打标、要点提炼 ----------
@@ -945,7 +984,7 @@ export const PROVIDER_METHODS = {
     "describeAudit",
   ],
   ocr: ["recognizeBusinessLicense", "extractLicenseFields"],
-  asr: ["transcribe"],
+  asr: ["transcribe", "submit", "query"],
   llm: ["tagAsset", "extractKeyPoints"],
   wecom: [
     "sendAppMessage",

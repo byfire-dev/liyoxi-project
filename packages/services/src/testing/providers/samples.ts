@@ -150,7 +150,11 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
       fieldNames: ["许可证编号", "有效期至"],
     },
   },
-  asr: { transcribe: { url: "https://example.invalid/voice.m4a" } },
+  asr: {
+    transcribe: { url: "https://example.invalid/voice.m4a" },
+    submit: { url: "https://example.invalid/voice.m4a" },
+    query: { taskId: "1" },
+  },
   llm: {
     tagAsset: { kind: "image", url: "https://example.invalid/dish.jpg" },
     extractKeyPoints: { text: "招牌菜是酸菜鱼。周末有优惠。门口可以停车。", maxPoints: 3 },
