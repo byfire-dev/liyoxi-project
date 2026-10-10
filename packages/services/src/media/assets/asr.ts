@@ -169,7 +169,13 @@ export function createAssetAsrStrategy(
     if (!job.externalJobId) return terminal("ASR_SUBMISSION_UNKNOWN");
     if (!taskId.safeParse(job.externalJobId).success) return terminal("ASR_RESULT_INVALID");
     if (signal.aborted) return { state: "pending" };
-    const allowed = await admitted(job, true);
+    let allowed: Awaited<ReturnType<typeof admitted>>;
+    try {
+      allowed = await admitted(job, true);
+    } catch {
+      // Local admission failure must not requeue an accepted remote task for another submit.
+      return { state: "pending" };
+    }
     if (!allowed) return { state: "canceled" };
     if (!allowed.permitted) return skipped("budget_unconfigured");
     if (signal.aborted) return { state: "pending" };
