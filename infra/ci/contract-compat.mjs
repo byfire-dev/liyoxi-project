@@ -313,6 +313,7 @@ function compareSchemas(oldDoc, newDoc) {
       mode === "response" &&
       required &&
       !oldReader.nullable(oldParts) &&
+      (limit === undefined || limit.some((value) => value === null)) &&
       newReader.nullable(newParts)
     )
       problems.push(`${path}：响应必有字段变为可空`);

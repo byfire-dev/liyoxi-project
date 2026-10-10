@@ -412,6 +412,36 @@ describe("C77/C78 临时 Git 标签兼容检查", () => {
     expect(fixture(old, current).check().status).toBe(0);
   });
 
+  it.each(["anyOf", "oneOf"] as const)("%s 含 null 的 response 分支等价合并遵循选中投影", (key) => {
+    const old = document();
+    operation(old).responses["200"] = body({
+      [key]: ["a", null].map((state) =>
+        objectSchema({ id: { type: "string" }, state: { enum: [state] } }),
+      ),
+    });
+    const current = structuredClone(old);
+    operation(current).responses["200"] = body(
+      objectSchema({ id: { type: "string" }, state: { enum: ["a", null] } }),
+    );
+    expect(fixture(old, current).check().status).toBe(0);
+  });
+
+  it.each(["anyOf", "oneOf"] as const)("%s response 联合覆盖仍拒绝真正新增 null", (key) => {
+    const old = document();
+    operation(old).responses["200"] = body({
+      [key]: ["a", "b"].map((state) =>
+        objectSchema({ id: { type: "string" }, state: { enum: [state] } }),
+      ),
+    });
+    const current = structuredClone(old);
+    operation(current).responses["200"] = body(
+      objectSchema({ id: { type: "string" }, state: { enum: ["a", "b", null] } }),
+    );
+    const result = fixture(old, current).check();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("response.200.state：响应必有字段变为可空");
+  });
+
   it("nullable enum union 的旧开放标记保留；oneOf/allOf 不能丢掉 null 分支", () => {
     const old = document();
     fields(response(old)).state = {
