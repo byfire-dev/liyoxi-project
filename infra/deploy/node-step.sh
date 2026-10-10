@@ -16,6 +16,7 @@
 #   verify-assets <标签> 完整镜像资源与共享目录核对；verify-assets-live <标签> [旧标签] 实际网关全资源核对
 #   smoke <标签>      API 探活、两个前端入口、实际版本与 worker；完整资源由 verify-assets-live 核对
 #   prune             只清本项目记录过的旧版本，留当前与最近三版；资源至少保留 60 天
+#   logs <六服务> <UUID> 只读最近60分钟的匹配日志（最多200行）；log-stats <1–1440分钟> 统计gateway
 #   facts / preflight 只读版本、发布历史与 P1（告警包未接时明确 unavailable）
 #   image-facts <标签> 只核目标三类本地镜像；record <标签> <base64url JSON> 严格校验后追加记录
 #   weapp-upload <40hex源码> <64hex摘要> 只读同源制品、复核成功部署，再用机器人1上传；未启用或未配桶时跳过
@@ -46,8 +47,8 @@ DB_RELEASE_ENV="$LYX_NODE_HOME/db-release.env"
 COMPOSE_FILE="$LYX_SRC/infra/compose/node.yml"
 SUPERVISOR="${LYX_NODE_SUPERVISOR:-systemd}"
 SERVICES="postgres redis mediatool api worker gateway"
-PUBLIC_STEPS="deps pull check-env migrate seed up status verify-db stage-assets worker-swap api-stop api-start smoke prune preflight facts image-facts record verify-assets verify-assets-live weapp-upload"
-USAGE="用法：node-step.sh deps | pull <标签> | check-env <标签> | migrate <标签> | seed <标签> | up <标签> | status | verify-db <标签> | stage-assets <标签> | worker-swap <标签> | api-stop | api-start <标签> | smoke <标签> | prune | facts | preflight | image-facts <标签> | record <标签> <base64url JSON> | verify-assets <标签> | verify-assets-live <标签> [旧标签]"
+PUBLIC_STEPS="deps pull check-env migrate seed up status verify-db stage-assets worker-swap api-stop api-start smoke prune preflight facts image-facts record verify-assets verify-assets-live weapp-upload logs log-stats"
+USAGE="用法：node-step.sh deps | pull <标签> | check-env <标签> | migrate <标签> | seed <标签> | up <标签> | status | verify-db <标签> | stage-assets <标签> | worker-swap <标签> | api-stop | api-start <标签> | smoke <标签> | prune | facts | preflight | image-facts <标签> | record <标签> <base64url JSON> | verify-assets <标签> | verify-assets-live <标签> [旧标签] | logs <六服务> <UUID> | log-stats <1–1440分钟>"
 
 via_ssh=0
 if [ $# -eq 0 ] && [ -n "${SSH_ORIGINAL_COMMAND:-}" ]; then
@@ -69,6 +70,14 @@ need_services() {
   for one in "$@"; do in_list "$one" "$SERVICES" || usage_die "不认识的服务 ${one}。服务有：$SERVICES"; done
 }
 case "$step" in
+  logs)
+    [ $# -eq 2 ] || usage_die "logs 只接受服务名与 UUID 请求编号"
+    need_services "$1"
+    [[ "$2" =~ ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$ ]] || usage_die "请求编号必须是 UUID"
+    ;;
+  log-stats)
+    [ $# -eq 1 ] && [[ "$1" =~ ^[1-9][0-9]{0,3}$ ]] && [ "$1" -le 1440 ] || usage_die "log-stats 分钟必须是 1–1440 的整数"
+    ;;
   weapp-upload)
     [ $# -eq 2 ] && [[ "$1" =~ ^[a-f0-9]{40}$ ]] && [[ "$2" =~ ^[a-f0-9]{64}$ ]] || usage_die "weapp-upload 只接受源码 SHA 与摘要 SHA256"
     ;;
@@ -304,11 +313,32 @@ step_run() {
   LYX_TAG="$tag" exec docker "${COMPOSE_ARGS[@]}" up --no-deps "$1"
 }
 
+# 无宿主 Node 假设：当前 server 镜像只读执行本节点 helper，不挂环境文件或密钥。
+step_log_read() (
+  set -o pipefail
+  local mode="$1" service="$2" value="$3" minutes="$4" tail="$5" tag image output
+  tag="$(current_tag)"
+  [ -n "$tag" ] || die "还没有当前版本：日志 runner 不可用"
+  need_tag "$tag"
+  image="$(docker image inspect -f '{{.Id}}' "$(image_name server "$tag")")" || die "当前 server 镜像不可用"
+  [[ "$image" =~ ^sha256:[a-f0-9]{64}$ ]] || die "日志 runner 镜像摘要不合法"
+  [ -f "$LYX_SRC/infra/deploy/log-stats.mjs" ] && [ ! -L "$LYX_SRC/infra/deploy/log-stats.mjs" ] || die "日志 helper 不可用"
+  # 多取一行用来检测超限；pipefail 同时保留 docker logs 和 helper 的失败。
+  output="$(docker logs --since "${minutes}m" --tail "$tail" "$(container "$service")" 2>&1 |
+    docker run --rm -i --pull never --network none --read-only --user 65534:65534 \
+      --cap-drop ALL --security-opt no-new-privileges:true --memory 128m --cpus 0.5 --pids-limit 32 --log-driver none \
+      --mount "type=bind,source=$LYX_SRC/infra/deploy/log-stats.mjs,target=/helper/log-stats.mjs,readonly" \
+      --entrypoint node "$image" /helper/log-stats.mjs "$mode" "$value")" || die "日志读取失败或超过上限，未输出不完整结果"
+  [ -z "$output" ] || printf '%s\n' "$output"
+)
+
 # 发布步骤没有独立的命令入口；上面的窄协议校验同时覆盖本地调用与强制 SSH。
 . "$LYX_SRC/infra/deploy/node-release.sh"
 . "$LYX_SRC/infra/deploy/node-weapp.sh"
 
 case "$step" in
+  logs) step_log_read logs "$1" "$2" 60 5001 ;;
+  log-stats) step_log_read stats gateway "$1" "$1" 100001 ;;
   weapp-upload) step_weapp_upload "$1" "$2" ;;
   deps) step_deps ;;
   pull) step_pull "$1" ;;
