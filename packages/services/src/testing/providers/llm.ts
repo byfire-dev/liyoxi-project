@@ -27,21 +27,31 @@ export function createFakeLlm(options: { clock?: FakeClock } = {}): FakeLlm {
     keyPointReplies,
 
     tagAsset: (input) =>
-      core.run("tagAsset", input, () => {
-        const reply = tagReplies.shift() ?? { description: "样例素材", tags: [input.kind] };
-        return ok({ description: reply.description, tags: [...reply.tags] });
-      }),
+      core.run(
+        "tagAsset",
+        input,
+        () => {
+          const reply = tagReplies.shift() ?? { description: "样例素材", tags: [input.kind] };
+          return ok({ description: reply.description, tags: [...reply.tags] });
+        },
+        input.signal,
+      ),
     extractKeyPoints: (input) =>
-      core.run("extractKeyPoints", input, () => {
-        const preset = keyPointReplies.shift();
-        const points =
-          preset ??
-          input.text
-            .split("。")
-            .map((sentence) => sentence.trim())
-            .filter((sentence) => sentence !== "")
-            .slice(0, input.maxPoints ?? 3);
-        return ok({ points: [...points] });
-      }),
+      core.run(
+        "extractKeyPoints",
+        input,
+        () => {
+          const preset = keyPointReplies.shift();
+          const points =
+            preset ??
+            input.text
+              .split("。")
+              .map((sentence) => sentence.trim())
+              .filter((sentence) => sentence !== "")
+              .slice(0, input.maxPoints ?? 3);
+          return ok({ points: [...points] });
+        },
+        input.signal,
+      ),
   };
 }
