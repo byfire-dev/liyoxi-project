@@ -1,5 +1,7 @@
 # order：订剧、选剧单与订单读侧
 
+广告取消财务代撤（A15）：活跃发起人的广告已确认/取消且指针按库约束清空时，真实财务可在完整目标图预锁及再验证后撤回；owner 在关闭回调再次核终局事实。只从 order 公口建立真实事务上下文；直接泛 approval、缺预锁或关联错配严格拒绝，外来指针不清理。本人、停用发起人代撤及实际 system 失效路径不变，无新 HTTP 或 M5 producer。
+
 W1-15a 交 `m.order.quote`、`m.order.create`；a 的 #91 已合主干；W1-15b 交选剧单与读侧 12 条。公开入口为 `createOrderService`、`OrderActor`、`OrderDeps`，API 只转交真实商家身份、当前门店和 `idemOf`。
 
 阅读顺序：`checks.ts` / `accounts.ts` → `quote.ts` → `submit.ts` → `read.ts` → `register.ts` / `invariants.ts`。契约在 contract 的 m04 `order.schemas.ts`，完整 `OrderDetail` 与 C50 首响应/重放从 a 起共用。

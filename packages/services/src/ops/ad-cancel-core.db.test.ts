@@ -15,7 +15,9 @@ import {
   quoteAdCancel,
   readAdCancelTargetGraph,
   submitAdCancel,
+  withdrawAdCancel,
 } from "../order/index.js";
+import type { Tx } from "../kernel/index.js";
 import type { CancelActor, CancelDeps } from "../order/index.js";
 import { createSla } from "../sla/index.js";
 import { createTimers, timerKey } from "../timers/index.js";
@@ -1508,6 +1510,424 @@ describe("广告取消两连接竞态与真实锁图", { timeout: 60000 }, () =>
     } finally {
       proceed();
       await waiter;
+    }
+  });
+});
+
+// M5 producer is still absent: these are explicit legal upstream row fixtures, not ad.confirm/ad.cancel implementations.
+async function terminalAd(
+  f: Fixture,
+  status: "confirmed" | "cancelled",
+  client: Pick<Tx, "ad"> = h.prisma,
+) {
+  return client.ad.update({
+    where: { id: f.ad.id },
+    data: {
+      status,
+      openCancelRequestId: null,
+      ...(status === "confirmed"
+        ? { confirmedAt: h.clock.now(), confirmedVersionNo: 1 }
+        : { cancelledAt: h.clock.now(), cancelReasonCode: "merchant_request" }),
+    },
+  });
+}
+async function invalidProxyFixture(status: "confirmed" | "cancelled" = "confirmed") {
+  const f = await fixture({ status: "pending_confirm" }),
+    r = await submit(f);
+  await terminalAd(f, status);
+  return { f, r };
+}
+
+describe("活跃发起人对象失效后的真实财务代撤", () => {
+  it.each(["confirmed", "cancelled"] as const)(
+    "%s终局+合法null指针保真实财务审计与所有积分数量",
+    async (status) => {
+      const { f, r } = await invalidProxyFixture(status);
+      await historyRef(f, r);
+      const before = await observe(f);
+      const result = await f.service.withdraw(f.approver, r.id, { note: "对象已失效，财务代撤" });
+      expect(result.status).toBe("not_executed");
+      await expectClosed(f, r, "withdrawn");
+      const row = await req(r.id),
+        after = await observe(f);
+      expect(row.approvalRequest).toMatchObject({
+        status: "withdrawn",
+        decidedByStaffId: null,
+        isDecidedBySystem: false,
+        decisionNote: "对象已失效，财务代撤",
+      });
+      expect(
+        (await h.prisma.staff.findUniqueOrThrow({ where: { id: f.requester.staff!.staff.id } }))
+          .status,
+      ).toBe("active");
+      expect(after.ad).toEqual(before.ad);
+      for (const key of ["hold", "account", "lots", "operations"] as const)
+        expect(after[key]).toEqual(before[key]);
+      const audit = await h.prisma.auditLog.findFirstOrThrow({
+        where: { targetId: r.approvalRequestId, action: "approval.request.withdraw" },
+      });
+      expect(audit).toMatchObject({
+        actorType: "staff",
+        actorId: f.approver.staff!.staff.id,
+        client: "admin",
+      });
+      expect(audit.summary).toContain("代为撤回");
+      for (const [eventType, aggregateId] of [
+        ["approval.withdrawn", r.approvalRequestId],
+        ["cancel.withdrawn", r.id],
+      ] as const)
+        expect(await h.prisma.outboxEvent.count({ where: { eventType, aggregateId } })).toBe(1);
+      expect(
+        await h.prisma.statusTransition.count({
+          where: { subjectId: r.id, event: "approval.withdrawn" },
+        }),
+      ).toBe(1);
+      await expect(f.service.withdraw(f.approver, r.id, {})).rejects.toMatchObject({
+        error: "APPROVAL_NOT_PENDING",
+      });
+    },
+  );
+  it("仍有效广告拒绝代撤，行、timer、账本及事件零变化", async () => {
+    const f = await fixture({ status: "pending_confirm" }),
+      r = await submit(f),
+      before = await snapshotTables(h.prisma, tables);
+    await expect(f.service.withdraw(f.approver, r.id, {})).rejects.toMatchObject({
+      error: "APPROVAL_WITHDRAW_FORBIDDEN",
+    });
+    await assertSnapshotsEqual(before, await snapshotTables(h.prisma, tables));
+  });
+  it.each(["entity", "store"] as const)("仅%s关闭不能冒充广告终局财务代撤", async (target) => {
+    const f = await fixture(),
+      r = await submit(f);
+    if (target === "entity")
+      await h.prisma.entity.update({
+        where: { id: f.ad.entityId },
+        data: { lifecycle: "closed", closedAt: h.clock.now() },
+      });
+    else
+      await h.prisma.store.update({
+        where: { id: f.ad.storeId },
+        data: { lifecycle: "closed", closedAt: h.clock.now() },
+      });
+    const before = await snapshotTables(h.prisma, tables);
+    await expect(f.service.withdraw(f.approver, r.id, {})).rejects.toMatchObject({
+      error: "APPROVAL_WITHDRAW_FORBIDDEN",
+    });
+    await assertSnapshotsEqual(before, await snapshotTables(h.prisma, tables));
+  });
+  it("没有决定权限的真实员工不能代撤终局对象", async () => {
+    const { f, r } = await invalidProxyFixture(),
+      actor = await person("publisher"),
+      before = await observe(f);
+    await expect(f.service.withdraw(actor, r.id, {})).rejects.toMatchObject({
+      error: "APPROVAL_WITHDRAW_FORBIDDEN",
+    });
+    expect(await observe(f)).toEqual(before);
+  });
+  it("范围外财务仍404且没有任何写入", async () => {
+    const { f, r } = await invalidProxyFixture();
+    const actor = {
+      ...f.approver,
+      staff: { ...f.approver.staff!, scope: ownTaskScope(f.approver.staff!.staff) },
+    };
+    const before = await snapshotTables(h.prisma, tables);
+    await expect(f.service.withdraw(actor, r.id, {})).rejects.toMatchObject({ error: "NOT_FOUND" });
+    await assertSnapshotsEqual(before, await snapshotTables(h.prisma, tables));
+  });
+  it("实际已禁用操作员工即使旧上下文有权限也不能代撤", async () => {
+    const { f, r } = await invalidProxyFixture();
+    await h.prisma.staff.update({
+      where: { id: f.approver.staff!.staff.id },
+      data: {
+        status: "disabled",
+        disabledAt: h.clock.now(),
+        disabledReason: "other",
+        disabledByStaffId: f.requester.staff!.staff.id,
+      },
+    });
+    const before = await observe(f);
+    await expect(f.service.withdraw(f.approver, r.id, {})).rejects.toMatchObject({
+      error: "PERMISSION_DENIED",
+    });
+    expect(await observe(f)).toEqual(before);
+  });
+  it("代撤再验证过期在原owner公口拒绝，不能享用C86驳回豁免", async () => {
+    const { f, r } = await invalidProxyFixture();
+    const actor = {
+      ...f.approver,
+      staff: { ...f.approver.staff!, stepUpAt: new Date(h.clock.now().getTime() - 600_001) },
+    };
+    const before = await observe(f);
+    await expect(f.service.withdraw(actor, r.id, {})).rejects.toMatchObject({
+      error: "STEP_UP_REQUIRED",
+    });
+    expect(await observe(f)).toEqual(before);
+  });
+  it("直接泛approval无真实owner上下文严格拒绝，不接受伪造invalid参数", async () => {
+    const { f, r } = await invalidProxyFixture(),
+      before = await snapshotTables(h.prisma, tables);
+    expect(f.deps.approval.kinds.get("ad_cancel")?.isSubjectInvalidForWithdrawal).toBeTypeOf(
+      "function",
+    );
+    await expect(
+      h.tx.run((tx) =>
+        f.deps.approval.withdraw(tx, f.approver.ctx, {
+          approvalId: r.approvalRequestId,
+          staff: f.approver.staff,
+          args: { invalid: true },
+        }),
+      ),
+    ).rejects.toMatchObject({ error: "INTERNAL" });
+    await assertSnapshotsEqual(before, await snapshotTables(h.prisma, tables));
+  });
+  it("只有真实预锁而无owner调用上下文仍拒绝", async () => {
+    const { f, r } = await invalidProxyFixture(),
+      before = await observe(f);
+    await expect(
+      h.tx.run(async (tx) => {
+        await prelockAdCancelTargets(tx, await readAdCancelTargetGraph(tx, [r.id]), [
+          f.approver.staff!.staff.id,
+        ]);
+        return f.deps.approval.withdraw(tx, f.approver.ctx, {
+          approvalId: r.approvalRequestId,
+          staff: f.approver.staff,
+        });
+      }),
+    ).rejects.toMatchObject({ error: "INTERNAL" });
+    expect(await observe(f)).toEqual(before);
+  });
+  it("已通过申请仍走原非pending拒绝，不因之后对象失效代撤", async () => {
+    const f = await fixture({ status: "pending_confirm" }),
+      r = await approve(f, await submit(f));
+    await terminalAd(f, "confirmed");
+    const before = await observe(f);
+    await expect(f.service.withdraw(f.approver, r.id, {})).rejects.toMatchObject({
+      error: "APPROVAL_NOT_PENDING",
+    });
+    expect(await observe(f)).toEqual(before);
+  });
+  it("终局null指针本人路径保持原拒绝，不借财务代撤条件放宽", async () => {
+    const { f, r } = await invalidProxyFixture(),
+      before = await observe(f);
+    await expect(f.service.withdraw(f.requester, r.id, {})).rejects.toMatchObject({
+      error: "PRECONDITION_CHANGED",
+    });
+    expect(await observe(f)).toEqual(before);
+  });
+  it("合法有效广告外来指针仍拒绝关闭，即使发起人已停用", async () => {
+    const f = await fixture(),
+      r = await submit(f),
+      other = await fixture(),
+      otherRequest = await submit(other);
+    await h.prisma.ad.update({
+      where: { id: f.ad.id },
+      data: { openCancelRequestId: otherRequest.id },
+    });
+    await h.prisma.staff.update({
+      where: { id: f.requester.staff!.staff.id },
+      data: {
+        status: "disabled",
+        disabledAt: h.clock.now(),
+        disabledReason: "other",
+        disabledByStaffId: f.approver.staff!.staff.id,
+      },
+    });
+    f.approver = await fresh(f.approver);
+    const before = await snapshotTables(h.prisma, tables);
+    await expect(f.service.withdraw(f.approver, r.id, {})).rejects.toMatchObject({
+      error: "PRECONDITION_CHANGED",
+    });
+    await assertSnapshotsEqual(before, await snapshotTables(h.prisma, tables));
+  });
+  it("同Tx真实代撤未提交对独立连接不可见，外层失败完整回滚", async () => {
+    const { f, r } = await invalidProxyFixture(),
+      before = await snapshotTables(h.prisma, tables),
+      peer = await joinLedger(h, await db.url());
+    try {
+      await expect(
+        h.tx.run(async (tx) => {
+          const result = await withdrawAdCancel(tx, f.deps, f.approver, r.id, {
+            note: "财务代撤待外层提交",
+          });
+          expect(result.status).toBe("not_executed");
+          expect(
+            (await tx.approvalRequest.findUniqueOrThrow({ where: { id: r.approvalRequestId } }))
+              .status,
+          ).toBe("withdrawn");
+          expect(
+            (
+              await peer.prisma.approvalRequest.findUniqueOrThrow({
+                where: { id: r.approvalRequestId },
+              })
+            ).status,
+          ).toBe("pending");
+          expect(
+            (await peer.prisma.cancelRequest.findUniqueOrThrow({ where: { id: r.id } })).status,
+          ).toBe("pending_approval");
+          throw new Error("proxy-outer-rollback");
+        }),
+      ).rejects.toThrow("proxy-outer-rollback");
+      await assertSnapshotsEqual(before, await snapshotTables(h.prisma, tables));
+    } finally {
+      await peer.close();
+    }
+  });
+  it("真实撤回事件插入后故障回滚审批、关闭、timer、审计与outbox", async () => {
+    const { f, r } = await invalidProxyFixture(),
+      before = await snapshotTables(h.prisma, tables);
+    const events = {
+      ...f.deps.events,
+      emit: async (...args: Parameters<typeof f.deps.events.emit>) => {
+        const result = await f.deps.events.emit(...args);
+        if (args[2].type === "cancel.withdrawn") throw new Error("after-real-proxy-event");
+        return result;
+      },
+    };
+    f.service = createAdCancel(deps({ events }));
+    await expect(f.service.withdraw(f.approver, r.id, {})).rejects.toThrow(
+      "after-real-proxy-event",
+    );
+    await assertSnapshotsEqual(before, await snapshotTables(h.prisma, tables));
+  });
+  it("只取消本审批决定timer，其他审批与广告timer保持原行", async () => {
+    const { f, r } = await invalidProxyFixture(),
+      other = await fixture(),
+      otherRequest = await submit(other);
+    f.approver = await fresh(f.approver);
+    const before = await h.prisma.timer.findMany({
+      where: { subjectId: { in: [f.ad.id, other.ad.id, otherRequest.approvalRequestId] } },
+      orderBy: { id: "asc" },
+    });
+    expect(
+      await h.prisma.timer.count({
+        where: { subjectId: r.approvalRequestId, status: "scheduled" },
+      }),
+    ).toBe(1);
+    await f.service.withdraw(f.approver, r.id, {});
+    expect(
+      await h.prisma.timer.findMany({
+        where: { subjectId: { in: [f.ad.id, other.ad.id, otherRequest.approvalRequestId] } },
+        orderBy: { id: "asc" },
+      }),
+    ).toEqual(before);
+    expect(
+      await h.prisma.timer.count({
+        where: { subjectId: r.approvalRequestId, status: { in: ["scheduled", "dispatched"] } },
+      }),
+    ).toBe(0);
+  });
+  it("二十轮财务代撤与批准竞争，唯一关闭结果且积分不动", async () => {
+    for (let round = 0; round < 20; round++) {
+      const { f, r } = await invalidProxyFixture(),
+        before = await holdNow(f);
+      const outcomes = await Promise.allSettled([
+        f.service.withdraw(f.approver, r.id, {}),
+        approve(f, r),
+      ]);
+      expect(outcomes[0]).toMatchObject({ status: "fulfilled", value: { status: "not_executed" } });
+      expect(outcomes[1].status).toBe("rejected");
+      if (outcomes[1].status === "rejected")
+        expect(["APPROVAL_NOT_PENDING", "PRECONDITION_CHANGED"]).toContain(
+          outcomes[1].reason.error,
+        );
+      expect(await req(r.id)).toMatchObject({
+        status: "not_executed",
+        closeReason: "withdrawn",
+        approvalRequest: { status: "withdrawn", isDecidedBySystem: false },
+      });
+      expect(await holdNow(f)).toEqual(before);
+      expect(
+        await h.prisma.outboxEvent.count({
+          where: { eventType: "approval.withdrawn", aggregateId: r.approvalRequestId },
+        }),
+      ).toBe(1);
+      expect(
+        await h.prisma.outboxEvent.count({
+          where: { eventType: "cancel.withdrawn", aggregateId: r.id },
+        }),
+      ).toBe(1);
+    }
+  });
+  it("真实广告锁等待后按提交后的终局重读，核精确双方PID阻塞", async () => {
+    const f = await fixture({ status: "pending_confirm" }),
+      r = await submit(f);
+    let writerPid = 0,
+      waiterPid = 0,
+      locked!: () => void,
+      release!: () => void,
+      entered!: () => void;
+    const held = new Promise<void>((resolve) => {
+        locked = resolve;
+      }),
+      proceed = new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+      connected = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+    const writer = h.tx.run(async (tx) => {
+      writerPid = (await tx.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid;
+      await lockRows(tx, "ad", [f.ad.id]);
+      locked();
+      await proceed;
+      await terminalAd(f, "confirmed", tx);
+    });
+    await held;
+    const d = deps({
+      tx: {
+        ...h.tx,
+        run: (fn, options) =>
+          h.tx.run(async (tx) => {
+            waiterPid = (await tx.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`)[0]!
+              .pid;
+            entered();
+            return fn(tx);
+          }, options),
+      },
+    });
+    const waiter = createAdCancel(d)
+      .withdraw(f.approver, r.id, {})
+      .then(
+        (value) => ({ value }),
+        (error: unknown) => ({ error }),
+      );
+    const observer = createPrismaClient({
+      connectionString: testDatabaseUrl(db.name, { role: null }),
+      max: 1,
+    });
+    try {
+      await connected;
+      expect(writerPid).toBeGreaterThan(0);
+      expect(waiterPid).not.toBe(writerPid);
+      let blocked = false;
+      for (let attempt = 0; attempt < 200; attempt++) {
+        const [backend] = await observer.$queryRaw<
+          { waiting: boolean; blockers: number[]; query: string }[]
+        >`
+          SELECT wait_event_type = 'Lock' AS waiting, pg_blocking_pids(pid) AS blockers, query
+          FROM pg_stat_activity WHERE pid = ${waiterPid}`;
+        if (backend?.waiting) {
+          expect(backend.blockers).toContain(writerPid);
+          expect(backend.query).toContain('FROM "ad"');
+          blocked = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      expect(blocked).toBe(true);
+      release();
+      await writer;
+      expect(await waiter).toMatchObject({ value: { status: "not_executed" } });
+      expect((await req(r.id)).approvalRequest).toMatchObject({
+        status: "withdrawn",
+        isDecidedBySystem: false,
+      });
+      expect((await adNow(f)).status).toBe("confirmed");
+    } finally {
+      release();
+      await writer;
+      await waiter;
+      await observer.$disconnect();
     }
   });
 });

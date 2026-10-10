@@ -9,6 +9,7 @@ import {
   approveAdCancelCallback,
   checkAdCancel,
   closeAdCancelCallback,
+  isAdSubjectInvalidForWithdrawal,
   validateAdCancelSubmission,
 } from "./ad-cancel.js";
 import { cancelCall, checkedCancel } from "./cancel-context.js";
@@ -57,6 +58,7 @@ export const adCancelKind = defineApprovalKind<AdCancelCoreSubmitBody>({
   onApproved: approveAdCancelCallback,
   onRejected: (tx, row) => closeAdCancelCallback(tx, row, "rejected"),
   onWithdrawn: (tx, row) => closeAdCancelCallback(tx, row, "withdrawn"),
+  isSubjectInvalidForWithdrawal: isAdSubjectInvalidForWithdrawal,
   executionSla: async (tx, row) => {
     const r = await tx.cancelRequest.findUnique({ where: { approvalRequestId: row.id } });
     if (!r) return null;
