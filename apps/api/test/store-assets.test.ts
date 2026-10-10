@@ -211,6 +211,14 @@ beforeAll(async () => {
     )
   ).storeId;
   admin = await signInAsStaff(prisma, { roleKey: "super_admin", now: api.clock.now() });
+  for (const dimension of ["usage", "timeliness"] as const)
+    await data(
+      await api.request("/api/v1/admin/dict-items", {
+        method: "POST",
+        headers: { ...admin.headers, "Idempotency-Key": uuidv7() },
+        json: { typeKey: "asset_tag", name: `测试${dimension}`, ext: { dimension } },
+      }),
+    );
   manager = await signInAsStaff(prisma, { roleKey: "delivery_manager", now: api.clock.now() });
   otherManager = await signInAsStaff(prisma, { roleKey: "delivery_manager", now: api.clock.now() });
   editor = await signInAsStaff(prisma, { roleKey: "editor", now: api.clock.now() });

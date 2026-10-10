@@ -370,6 +370,7 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
     finish: async (tx, job, outcome, ctx) => {
       const input = AssetJobInputSchema.parse(job.input),
         asset = await tx.storeAsset.findUniqueOrThrow({ where: { id: input.assetId } });
+      if (!(await current(deps, tx, job))) return;
       if (outcome.state === "succeeded") {
         const output = AssetJobOutputSchema.parse(outcome.output);
         if (kind === "probe" && output.probe !== undefined) {
@@ -381,7 +382,11 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
             ctx,
           );
         }
-        await storeAssetInsight(tx, job, asset, output.status, output.content, output.reusedFromId);
+        const content =
+          output.status === "skipped" && output.reason
+            ? { ...output.content, reason: output.reason }
+            : output.content;
+        await storeAssetInsight(tx, job, asset, output.status, content, output.reusedFromId);
         if (kind === "digest" && asset.type === "document") {
           if (!job.finishedAt) throw new TypeError("素材任务缺少实际完成时间");
           // W315 owns structured JSON extraction; record the missing capability instead of

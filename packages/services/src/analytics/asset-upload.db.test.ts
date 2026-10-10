@@ -108,9 +108,13 @@ it("预留去重键和直记事件跟随调用方回滚，未提交事实只在�
   );
 });
 
-it("真实分区拒绝只回滚埋点保存点，不吞外层失败且日志只有固定脱敏符号", async () => {
-  const value = { ...input(), now: new Date("2099-01-01T00:00:00Z") };
-  // 原 default 分区拒绝无分区月份；触发数据库错误，非 mock/客户端校验失败。
+it("真实数据库 CHECK 拒绝只回滚埋点保存点，不吞外层失败且日志只有固定脱敏符号", async () => {
+  const value = {
+    ...input(),
+    actor: createActor({ type: "staff", id: h.staff.id, client: "cli" }),
+  };
+  // cli 是合法审计 Actor，但 analytics_event 的 client CHECK 只接受三个业务客户端。
+  // 真实 INSERT 在去重键插入之后失败，验证保存点一并回滚两者，非 mock/客户端校验失败。
   const log = vi.spyOn(console, "error").mockImplementation(() => {});
   try {
     await h.tx.run(async (tx) => {

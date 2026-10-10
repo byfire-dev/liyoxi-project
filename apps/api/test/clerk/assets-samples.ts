@@ -60,6 +60,14 @@ function prepare(api: TestApi, ctx: ClerkContext): Promise<Prepared> {
           json,
           headers: { ...admin.headers, "Idempotency-Key": uuidv7() },
         });
+      for (const dimension of ["usage", "timeliness"] as const)
+        await data(
+          await adminRequest("/dict-items", {
+            typeKey: "asset_tag",
+            name: `测试${dimension}`,
+            ext: { dimension },
+          }),
+        );
       const demand = await data<{ assetDemandId: string }>(
         await adminRequest("/asset-demands", {
           storeId: ctx.storeId,

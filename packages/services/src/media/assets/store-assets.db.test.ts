@@ -1,7 +1,12 @@
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { createIdentityContext, createIdempotencyContext, uuidv7 } from "../../kernel/index.js";
 import type { MediaActor } from "../index.js";
-import { createMediaAssetsHarness, useSeededDatabase } from "../../testing/index.js";
+import {
+  createMediaAssetsHarness,
+  useSeededDatabase,
+  configTestStaffBriefs,
+} from "../../testing/index.js";
+import { createConfig, createConfigAdmin } from "../../config/index.js";
 import { AssetJobInputSchema } from "./pipeline.js";
 import { createCalendarAdmin } from "../../sla/index.js";
 import type { DeliveredEvent, FiredTimer } from "../../kernel/index.js";
@@ -10,6 +15,18 @@ const db = useSeededDatabase("services");
 let h: Awaited<ReturnType<typeof createMediaAssetsHarness>>;
 beforeAll(async () => {
   h = await createMediaAssetsHarness(await db.prisma());
+  const admin = createConfigAdmin({
+    tx: h.tx,
+    clock: h.clock,
+    assembly: h.assembly,
+    config: createConfig({ db: h.prisma, clock: h.clock, redis: null }),
+    staffBriefs: configTestStaffBriefs,
+  });
+  for (const dimension of ["usage", "timeliness"] as const)
+    await admin.createDictItem(
+      { identity: h.admin.identity, staff: h.admin.staff! },
+      { typeKey: "asset_tag", name: `测试${dimension}`, ext: { dimension } },
+    );
 }, 120_000);
 afterAll(async () => {
   await h?.close();

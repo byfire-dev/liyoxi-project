@@ -39,6 +39,13 @@ export async function createMediaAssetsHarness(prisma: PrismaClient) {
     storage: fake.storage,
     moderation: fake.media,
     assets: { ...assets, allowModelCall: async () => permitControlledModel },
+    channel: {
+      enqueue: async (queue, _messageId, payload) => {
+        if (queue !== "media_job" || typeof payload.jobId !== "string") return;
+        const job = await prisma.mediaJob.findUniqueOrThrow({ where: { id: payload.jobId } });
+        if (job.kind === "promote") await media.promote({ jobId: job.id });
+      },
+    },
   });
   mediaScope.attach(media.jobs);
   assetsScope.attach(media);
