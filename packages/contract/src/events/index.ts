@@ -5,6 +5,7 @@
 import { payloads as content } from "./content.js";
 import { payloads as delivery } from "./delivery.js";
 import { payloads as order } from "./order.js";
+import { payloads as ad } from "./ad.js";
 import { payloads as media } from "./media.js";
 import type { EventName } from "../registry/index.js";
 import type { z } from "../zod.js";
@@ -24,6 +25,7 @@ export const EVENT_PAYLOAD_SCHEMAS = {
   ...content,
   ...delivery,
   ...order,
+  ...ad,
   ...media,
   ...sla,
   ...tenant,
