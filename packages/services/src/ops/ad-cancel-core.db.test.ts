@@ -1627,8 +1627,20 @@ describe("活跃发起人对象失效后的真实财务代撤", () => {
   );
   it("没有决定权限的真实员工不能代撤终局对象", async () => {
     const { f, r } = await invalidProxyFixture(),
-      actor = await person("publisher"),
-      before = await observe(f);
+      manager = await h.make.staff({ staffRoleKey: "delivery_manager" });
+    const actor: CancelActor = {
+      ctx: createIdentityContext({ actor: { type: "staff", id: manager.id, client: "admin" } }),
+      staff: await sampleStaffContext(h.prisma, manager.id, { stepUpAt: h.clock.now() }),
+    };
+    await h.prisma.store.update({
+      where: { id: f.ad.storeId },
+      data: { deliveryManagerId: manager.id },
+    });
+    expect(actor.staff!.permissions.has("finance.refund.approve")).toBe(false);
+    expect(await h.prisma.store.findUniqueOrThrow({ where: { id: f.ad.storeId } })).toMatchObject({
+      deliveryManagerId: actor.staff!.staff.id,
+    });
+    const before = await observe(f);
     await expect(f.service.withdraw(actor, r.id, {})).rejects.toMatchObject({
       error: "APPROVAL_WITHDRAW_FORBIDDEN",
     });
