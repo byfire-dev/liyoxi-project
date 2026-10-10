@@ -478,7 +478,7 @@ EntityQualificationBrief（认证前除结论外各值为空；不带 `entityId`
 | files | array<MediaFileView> | 是 | 全部文件，按顺序 | `store_asset_file` 按 `position` |
 | transcript | `{ text: string, segments: array<{ fromMs, toMs, text }> }` \| null | 是 | 单值：语音转文字全文与分句（多个音频文件时取第一个，其余文件的转写在 `fileTranscripts`） | `kind = 'transcript'` 洞察的 `store_asset_insight.content`（取法见本节开头） |
 | fileTranscripts | array<{ fileId: string(uuid), text: string, segments: array<{ fromMs, toMs, text }> }> | 是 | 按文件的转写，按 `position` 排列；单文件素材与 `transcript` 相同 | 同上，逐文件 |
-| keypoints | array<string> | 是 | 自动提炼的要点 | `kind = 'digest'` 洞察的 `content.keypoints` |
+| highlights | array<string> | 是 | 自动提炼的要点（C57 命名避开积分禁用模式，数组内容不变） | `kind = 'digest'` 洞察的 `content.keypoints` |
 | structuredItems | array<{ name: string, priceText: string \| null }> | 是 | 菜单抽取的菜名与价格文字，按文件 `position` 依次拼接 | `kind = 'structured_items'` 洞察的 `content.items`（`price` 改名 `priceText`，A86 放行） |
 | isInsightPartial | boolean | 是 | 有理解步骤失败或跳过（详情显示“暂未转写”等） | `store_asset.is_insight_partial` |
 | tagsByDimension | `{ content, usage, timeliness }`，各为 array<AssetTag> | 是 | 分维度标签；有复核确认的标签时只给确认的 | `store_asset_tag` |

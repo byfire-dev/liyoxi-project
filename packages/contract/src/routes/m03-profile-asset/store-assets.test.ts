@@ -7,12 +7,14 @@ import {
 } from "../a03-merchant/store-assets.js";
 import {
   StoreAssetCreateBodySchema,
+  StoreAssetDetailSchema,
   StoreAssetListQuerySchema,
   PortraitAuthBodySchema,
   AssetFeedbackBodySchema,
 } from "./store-assets.schemas.js";
 import {
   AdminStoreAssetReviewBodySchema,
+  AdminStoreAssetDetailSchema,
   AdminStoreAssetReprocessBodySchema,
   AdminAssetDemandCreateBodySchema,
   AdminStoreAssetListQuerySchema,
@@ -120,4 +122,19 @@ it("四个详情写接口按正式数组段路径脱敏回放，签名字段全�
       "files[].expiresAt",
       "files[].coverUrl",
     ]);
+});
+
+it("商家要点按C57命名但保留原字符串数组，后台与菜单价格类型不变", () => {
+  const highlights = ["同一真实要点", "第二条要点"];
+  expect(StoreAssetDetailSchema.shape.highlights.parse(highlights)).toEqual(highlights);
+  expect("keypoints" in StoreAssetDetailSchema.shape).toBe(false);
+  expect(AdminStoreAssetDetailSchema.shape.keypoints.parse(highlights)).toEqual(highlights);
+  expect(StoreAssetDetailSchema.shape.highlights.safeParse([1]).success).toBe(false);
+  expect(
+    StoreAssetDetailSchema.shape.structuredItems.parse([{ name: "套餐", priceText: "68元" }]),
+  ).toEqual([{ name: "套餐", priceText: "68元" }]);
+  expect(
+    StoreAssetDetailSchema.shape.structuredItems.safeParse([{ name: "套餐", priceText: 68 }])
+      .success,
+  ).toBe(false);
 });

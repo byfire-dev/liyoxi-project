@@ -377,7 +377,7 @@ export async function assetView(
       ? { text: transcriptions[0].text, segments: transcriptions[0].segments }
       : null,
     fileTranscripts: transcriptions,
-    keypoints: strings(digest.keypoints),
+    highlights: strings(digest.keypoints),
     structuredItems,
     isInsightPartial: asset.isInsightPartial,
     tagsByDimension: byDimension,

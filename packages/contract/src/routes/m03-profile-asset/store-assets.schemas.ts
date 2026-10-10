@@ -120,7 +120,7 @@ export const StoreAssetDetailSchema = StoreAssetCardSchema.extend({
   files: z.array(MediaFileViewSchema),
   transcript: AssetTranscriptSchema.nullable(),
   fileTranscripts: z.array(AssetTranscriptSchema.extend({ fileId: IdSchema })),
-  keypoints: z.array(z.string()),
+  highlights: z.array(z.string()),
   structuredItems: z.array(AssetStructuredItemSchema),
   isInsightPartial: z.boolean(),
   tagsByDimension: z.strictObject({
