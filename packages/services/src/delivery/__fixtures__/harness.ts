@@ -48,6 +48,9 @@ export function harness(
     applications: string[] = [];
   const rederivations: Array<{ steps: string[]; input: Parameters<OrderSide["rederive"]>[1] }> = [];
   const rederiveHook: { run?: OrderSide["rederive"] } = {};
+  const readCancelReviewCause = assembleForTest({ entry: "api" }).port(
+    orderSidePort,
+  ).readCancelReviewCause;
   const assembly = assembleForTest({
     entry: "api",
     extra: [
@@ -61,6 +64,7 @@ export function harness(
           ...(apply
             ? [
                 implement(orderSidePort, {
+                  readCancelReviewCause,
                   // 测试装配的订单写侧样例；生产保持 INTERNAL，W1-17 必须注册自己的真实实现。
                   async applyConfirmedPlan(t, input) {
                     applications.push(input.deliveryPlanId);
