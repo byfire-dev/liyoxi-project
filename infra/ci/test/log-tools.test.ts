@@ -231,8 +231,14 @@ describe("node-step只增受限logs/log-stats", () => {
       const result = nodeStep(["logs", service, ID], row + "\n");
       expect(result.status, result.stderr).toBe(0);
       expect(result.stdout).toBe(row + "\n");
-      expect(result.calls[1]).toBe(`logs --since 60m --tail 5001 lyx-${service}`);
-      expect(result.calls[2]).toContain(`/helper/log-stats.mjs logs ${ID}`);
+      expect(result.calls).toHaveLength(3);
+      expect(result.calls[0]).toBe("image inspect -f {{.Id}} liyoxi/server:sha-0123456789ab");
+      expect(result.calls.filter((call) => call.startsWith("logs "))).toEqual([
+        `logs --since 60m --tail 5001 lyx-${service}`,
+      ]);
+      const runs = result.calls.filter((call) => call.startsWith("run "));
+      expect(runs).toHaveLength(1);
+      expect(runs[0]).toContain(`/helper/log-stats.mjs logs ${ID}`);
     },
   );
 
@@ -241,9 +247,13 @@ describe("node-step只增受限logs/log-stats", () => {
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout)).toMatchObject({ minutes: 5, samples: 0, p95Seconds: null });
     expect(result.calls[0]).toBe("image inspect -f {{.Id}} liyoxi/server:sha-0123456789ab");
-    expect(result.calls[1]).toBe("logs --since 5m --tail 100001 lyx-gateway");
+    expect(result.calls.filter((call) => call.startsWith("logs "))).toEqual([
+      "logs --since 5m --tail 100001 lyx-gateway",
+    ]);
     expect(result.calls).toHaveLength(3);
-    const run = result.calls[2] ?? "";
+    const runs = result.calls.filter((call) => call.startsWith("run "));
+    expect(runs).toHaveLength(1);
+    const run = runs[0] ?? "";
     for (const token of [
       "--rm -i --pull never --network none --read-only",
       "--user 65534:65534",
