@@ -171,6 +171,7 @@ async function imported(one = worker, day?: string) {
   const refs = eventRefs.filter((ref) => ref.eventId === event.id);
   expect(refs.map((ref) => ref.subscriber).sort()).toEqual([
     "approval.onCalendarImported",
+    "media.onCalendarImported",
     "staff.onCalendarImported",
   ]);
   return { event, refs, result };
@@ -178,7 +179,7 @@ async function imported(one = worker, day?: string) {
 async function consumeBoth(one: ReturnType<typeof buildWorkerServices>, refs: DeliveryRef[]) {
   for (const ref of refs) expect(await one.consume(ref)).toBe("done");
   const rows = await prisma.outboxDelivery.findMany({ where: { outboxEventId: refs[0]!.eventId } });
-  expect(rows).toHaveLength(2);
+  expect(rows).toHaveLength(3);
   expect(rows.every((row) => row.status === "done" && row.consumedAt !== null)).toBe(true);
 }
 async function realQualification() {
