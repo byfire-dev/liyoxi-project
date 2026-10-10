@@ -172,6 +172,131 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("国内 LLM：独立流的取消清理", () => {
+  it.each(["caller", "request", "total", "close", "http", "declared", "stream"] as const)(
+    "底层 cancel 不 settle 时仍有界结束并释放锁：%s",
+    async (mode) => {
+      vi.useFakeTimers();
+      const cancellation = deferred();
+      const cancel = vi.fn(() => cancellation.promise);
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          if (mode === "stream") controller.enqueue(new Uint8Array(1024 * 1024 + 1));
+        },
+        cancel,
+      });
+      const caller = new AbortController();
+      let calls = 0;
+      const transport: typeof fetch = async () => {
+        if (++calls > 1) return new Response(JSON.stringify(chat(points)));
+        return new Response(stream, {
+          status: mode === "http" ? 403 : 200,
+          headers: mode === "declared" ? { "content-length": String(1024 * 1024 + 1) } : {},
+        });
+      };
+      const scope = createDomesticLlm(configuration(), {
+        fetch: transport,
+        timeoutMs: 10,
+        totalTimeoutMs: mode === "total" ? 5 : 100,
+      });
+      let settled = false;
+      let result: ProviderResult<unknown> | undefined;
+      try {
+        const work = scope.provider.extractKeyPoints({ text: privateText, signal: caller.signal });
+        void work.then((value) => {
+          result = value;
+          settled = true;
+        });
+        await vi.advanceTimersByTimeAsync(0);
+        if (mode === "caller") caller.abort();
+        if (mode === "close") void scope.close();
+        await vi.advanceTimersByTimeAsync(30);
+        expect(cancel).toHaveBeenCalledTimes(1);
+        expect(settled).toBe(true);
+        expect(stream.locked).toBe(false);
+        if (["request", "declared", "stream"].includes(mode)) {
+          expect(result).toEqual({ ok: true, value: points });
+          expect(calls).toBe(2);
+        } else {
+          if (!result) throw new Error("调用应在未完成 cancel 时结束");
+          safeFailure(result, mode === "http" ? "rejected" : "unavailable");
+          expect(calls).toBe(1);
+        }
+        await scope.close();
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        // 整个断言期间 cancel 永不完成；仅失败退出时释放测试 gate，使旧生产 RED 能正常收尾。
+        cancellation.resolve();
+        await scope.close();
+      }
+    },
+  );
+
+  it("清理的迟到 rejection 被消费，reader 已释放且 close 不等待它", async () => {
+    vi.useFakeTimers();
+    let rejectCancel!: (reason: Error) => void;
+    const cancellation = new Promise<void>((_resolve, reject) => {
+      rejectCancel = reject;
+    });
+    const stream = new ReadableStream<Uint8Array>({ cancel: () => cancellation });
+    const caller = new AbortController();
+    const scope = createDomesticLlm(configuration(), { fetch: async () => new Response(stream) });
+    let settled = false;
+    try {
+      const work = scope.provider.extractKeyPoints({ text: privateText, signal: caller.signal });
+      void work.then(() => {
+        settled = true;
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      caller.abort();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(settled).toBe(true);
+      expect(stream.locked).toBe(false);
+      await scope.close();
+      rejectCancel(new Error("vendor-raw-sensitive"));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      rejectCancel(new Error("vendor-raw-sensitive"));
+      await scope.close();
+    }
+  });
+
+  it.each(["body", "reader"] as const)("cancel 同步抛错不改变结果或留下锁：%s", async (mode) => {
+    vi.useFakeTimers();
+    const stream = new ReadableStream<Uint8Array>();
+    const cancel = vi.fn(() => {
+      throw new Error("vendor-raw-sensitive");
+    });
+    if (mode === "body") vi.spyOn(stream, "cancel").mockImplementation(cancel);
+    else vi.spyOn(ReadableStreamDefaultReader.prototype, "cancel").mockImplementation(cancel);
+    const caller = new AbortController();
+    const scope = createDomesticLlm(configuration(), {
+      fetch: async () => new Response(stream, { status: mode === "body" ? 403 : 200 }),
+    });
+    try {
+      const observed = scope.provider
+        .extractKeyPoints({ text: privateText, signal: caller.signal })
+        .then(
+          (value) => ({ value }),
+          (error: unknown) => ({ error }),
+        );
+      await vi.advanceTimersByTimeAsync(0);
+      if (mode === "reader") caller.abort();
+      const result = await observed;
+      expect(result).not.toHaveProperty("error");
+      if (!("value" in result)) throw new Error("清理错误不应成为调用结果");
+      safeFailure(result.value, mode === "body" ? "rejected" : "unavailable");
+      expect(cancel).toHaveBeenCalledTimes(1);
+      expect(stream.locked).toBe(false);
+      await scope.close();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      await scope.close();
+    }
+  });
+});
+
 describe("国内 LLM：固定兼容端点与旧接口", () => {
   it.each([
     { vendor: "ark", url: textBackupUrl },
@@ -1112,129 +1237,6 @@ describe("国内 LLM：取消、期限与释放", () => {
       safeFailure(await pending, "unavailable");
       expect(cancel).toHaveBeenCalledTimes(1);
       expect(stream.locked).toBe(false);
-      expect(vi.getTimerCount()).toBe(0);
-    } finally {
-      await scope.close();
-    }
-  });
-
-  it.each(["caller", "request", "total", "close", "http", "declared", "stream"] as const)(
-    "底层 cancel 不 settle 时仍有界结束并释放锁：%s",
-    async (mode) => {
-      vi.useFakeTimers();
-      const cancellation = deferred();
-      const cancel = vi.fn(() => cancellation.promise);
-      const stream = new ReadableStream<Uint8Array>({
-        start(controller) {
-          if (mode === "stream") controller.enqueue(new Uint8Array(1024 * 1024 + 1));
-        },
-        cancel,
-      });
-      const caller = new AbortController();
-      let calls = 0;
-      const transport: typeof fetch = async () => {
-        if (++calls > 1) return new Response(JSON.stringify(chat(points)));
-        return new Response(stream, {
-          status: mode === "http" ? 403 : 200,
-          headers: mode === "declared" ? { "content-length": String(1024 * 1024 + 1) } : {},
-        });
-      };
-      const scope = createDomesticLlm(configuration(), {
-        fetch: transport,
-        timeoutMs: 10,
-        totalTimeoutMs: mode === "total" ? 5 : 100,
-      });
-      let settled = false;
-      let result: ProviderResult<unknown> | undefined;
-      try {
-        const work = scope.provider.extractKeyPoints({ text: privateText, signal: caller.signal });
-        void work.then((value) => {
-          result = value;
-          settled = true;
-        });
-        await vi.advanceTimersByTimeAsync(0);
-        if (mode === "caller") caller.abort();
-        if (mode === "close") void scope.close();
-        await vi.advanceTimersByTimeAsync(30);
-        expect(cancel).toHaveBeenCalledTimes(1);
-        expect(settled).toBe(true);
-        expect(stream.locked).toBe(false);
-        if (["request", "declared", "stream"].includes(mode)) {
-          expect(result).toEqual({ ok: true, value: points });
-          expect(calls).toBe(2);
-        } else {
-          if (!result) throw new Error("调用应在未完成 cancel 时结束");
-          safeFailure(result, mode === "http" ? "rejected" : "unavailable");
-          expect(calls).toBe(1);
-        }
-        await scope.close();
-        expect(vi.getTimerCount()).toBe(0);
-      } finally {
-        // 整个断言期间 cancel 永不完成；仅失败退出时释放测试 gate，使旧生产 RED 能正常收尾。
-        cancellation.resolve();
-        await scope.close();
-      }
-    },
-  );
-
-  it("清理的迟到 rejection 被消费，reader 已释放且 close 不等待它", async () => {
-    vi.useFakeTimers();
-    let rejectCancel!: (reason: Error) => void;
-    const cancellation = new Promise<void>((_resolve, reject) => {
-      rejectCancel = reject;
-    });
-    const stream = new ReadableStream<Uint8Array>({ cancel: () => cancellation });
-    const caller = new AbortController();
-    const scope = createDomesticLlm(configuration(), { fetch: async () => new Response(stream) });
-    let settled = false;
-    try {
-      const work = scope.provider.extractKeyPoints({ text: privateText, signal: caller.signal });
-      void work.then(() => {
-        settled = true;
-      });
-      await vi.advanceTimersByTimeAsync(0);
-      caller.abort();
-      await vi.advanceTimersByTimeAsync(0);
-      expect(settled).toBe(true);
-      expect(stream.locked).toBe(false);
-      await scope.close();
-      rejectCancel(new Error("vendor-raw-sensitive"));
-      await vi.advanceTimersByTimeAsync(0);
-      expect(vi.getTimerCount()).toBe(0);
-    } finally {
-      rejectCancel(new Error("vendor-raw-sensitive"));
-      await scope.close();
-    }
-  });
-
-  it.each(["body", "reader"] as const)("cancel 同步抛错不改变结果或留下锁：%s", async (mode) => {
-    vi.useFakeTimers();
-    const stream = new ReadableStream<Uint8Array>();
-    const cancel = vi.fn(() => {
-      throw new Error("vendor-raw-sensitive");
-    });
-    if (mode === "body") vi.spyOn(stream, "cancel").mockImplementation(cancel);
-    else vi.spyOn(ReadableStreamDefaultReader.prototype, "cancel").mockImplementation(cancel);
-    const caller = new AbortController();
-    const scope = createDomesticLlm(configuration(), {
-      fetch: async () => new Response(stream, { status: mode === "body" ? 403 : 200 }),
-    });
-    try {
-      const observed = scope.provider
-        .extractKeyPoints({ text: privateText, signal: caller.signal })
-        .then(
-          (value) => ({ value }),
-          (error: unknown) => ({ error }),
-        );
-      await vi.advanceTimersByTimeAsync(0);
-      if (mode === "reader") caller.abort();
-      const result = await observed;
-      expect(result).not.toHaveProperty("error");
-      if (!("value" in result)) throw new Error("清理错误不应成为调用结果");
-      safeFailure(result.value, mode === "body" ? "rejected" : "unavailable");
-      expect(cancel).toHaveBeenCalledTimes(1);
-      expect(stream.locked).toBe(false);
-      await scope.close();
       expect(vi.getTimerCount()).toBe(0);
     } finally {
       await scope.close();
