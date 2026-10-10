@@ -25,6 +25,8 @@ import { adminProfileHandlers } from "./admin/profile.js";
 import { profileHandlers } from "./profile.js";
 import { mallHandlers } from "./mall.js";
 import { merchantFileHandlers } from "./files.js";
+import { mediaAssetHandlers } from "./media-assets.js";
+import { adminMediaAssetHandlers } from "./admin/media-assets.js";
 import { adminFileHandlers } from "./admin/files.js";
 import { adminUploadBatchHandlers } from "./admin/upload-batches.js";
 import type { HandlerEntry } from "../routing/define.js";
@@ -68,6 +70,8 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...agreementHandlers,
   ...mallHandlers,
   ...merchantFileHandlers,
+  ...mediaAssetHandlers,
+  ...adminMediaAssetHandlers,
   ...adminFileHandlers,
   ...adminUploadBatchHandlers,
   // W1-04：静默登录、手机号登录、退出、当前账号

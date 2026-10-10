@@ -1,3 +1,4 @@
+import { assertAssetReferences, linkAssetReferences } from "../media/index.js";
 import { PricingSnapshotSchema } from "@liyoxi/contract";
 import type { OrderCreateBody } from "@liyoxi/contract";
 import { AppError, lockRows, uuidv7, notifyReadOf } from "../kernel/index.js";
@@ -127,6 +128,12 @@ export async function submit(tx: Tx, deps: OrderDeps, actor: OrderActor, input: 
       surchargeBp: initialPricing[0]!.kind === "drama" ? initialPricing[0]!.surchargeBp : 0,
     },
   };
+  // All existing lower-rank objects have been locked before assets370 and the unique billing420.
+  await assertAssetReferences(
+    tx,
+    { entityId, storeId, ids: input.referenceStoreAssetIds ?? [] },
+    true,
+  );
   const held: HoldResult[] = [];
   try {
     for (let i = 0; i < input.dramaIds.length; i++)
@@ -199,6 +206,13 @@ export async function submit(tx: Tx, deps: OrderDeps, actor: OrderActor, input: 
       createdAt: now,
       updatedAt: now,
     },
+  });
+  await linkAssetReferences(tx, {
+    entityId,
+    storeId,
+    ids: input.referenceStoreAssetIds ?? [],
+    orderId,
+    now,
   });
   for (let i = 0; i < itemIds.length; i++) {
     const snapshot = late.snapshots.get(input.dramaIds[i]!)!,

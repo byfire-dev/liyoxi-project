@@ -2,6 +2,9 @@ import {
   implementKeyed as notifyReaderImplementation,
   notifyReadPort as currentNotifyReadPort,
 } from "../kernel/index.js";
+import { assetMerchantFacts } from "./assets/facts.js";
+import { findAssetViolations } from "./assets/invariants.js";
+import { implementMerchantFacts } from "../kernel/index.js";
 import { assetForNotify } from "./notify-facts.js";
 import { defineRegistration, implementKeyed, invariantNow } from "../kernel/index.js";
 import { fileCategoryGuardPort, fileRefTypePort } from "./ports.js";
@@ -15,6 +18,35 @@ export const registration = defineRegistration("media", {
   ports: [fileRefTypePort, fileCategoryGuardPort],
   portImplementations: [
     notifyReaderImplementation(currentNotifyReadPort, "assetForNotify", assetForNotify),
+    implementMerchantFacts("asset", assetMerchantFacts),
+    implementKeyed(fileRefTypePort, "store_asset", {
+      roles: {
+        main: { categories: ["store_asset"], retentionDays: 7 },
+        portrait_auth: { categories: ["portrait_auth"], retentionDays: 7 },
+      },
+      readColumns: async (tx) => {
+        const rows = await tx.storeAsset.findMany({
+          where: { deletedAt: null },
+          select: {
+            id: true,
+            portraitAuthFileIds: true,
+            storeAssetFiles: { select: { fileId: true } },
+          },
+        });
+        return rows.flatMap((row) => [
+          ...row.storeAssetFiles.map((file) => ({
+            fileId: file.fileId,
+            refId: row.id,
+            role: "main",
+          })),
+          ...row.portraitAuthFileIds.map((fileId) => ({
+            fileId,
+            refId: row.id,
+            role: "portrait_auth",
+          })),
+        ]);
+      },
+    }),
 
     implementKeyed(fileRefTypePort, "playable_asset", mediaDeliveryRefTypes.playable_asset),
     implementKeyed(fileRefTypePort, "upload_batch", mediaDeliveryRefTypes.upload_batch),
@@ -37,7 +69,26 @@ export const registration = defineRegistration("media", {
         ),
     }),
   ],
+  subscribers: [
+    {
+      name: "media.onCalendarImported",
+      events: ["calendar.imported"],
+      handle: async () => {
+        throw new TypeError("素材日历运行时尚未装配");
+      },
+    },
+  ],
   invariants: [
+    ...(["I12", "I16", "I17"] as const).map((code) => ({
+      code: `media.${code}`,
+      severity: "P2" as const,
+      modes: ["full"] as const,
+      heal: "none" as const,
+      run: (
+        tx: Parameters<typeof findAssetViolations>[0],
+        scope: Parameters<typeof findAssetViolations>[1],
+      ) => findAssetViolations(tx, scope, code),
+    })),
     {
       code: "media.I10",
       severity: "P2",

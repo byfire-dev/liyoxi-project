@@ -16,4 +16,5 @@ export {
   countBlockingStoreOrders,
   orderMerchantFacts,
 } from "./counts.js";
+export { readOrderAssetUsage } from "./asset-facts.js";
 export { readCancelReviewCause } from "./cancel-review-facts.js";

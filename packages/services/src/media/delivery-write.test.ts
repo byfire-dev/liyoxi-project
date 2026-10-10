@@ -76,6 +76,82 @@ it("素材采用新增才累计/发事件，同TX失败回滚，跨门店不可�
     ),
   ).rejects.toMatchObject({ error: "VALIDATION_FAILED" });
 }, 60000);
+it("旧采用公口拒绝已删除、block或未完成处理/复核素材，整批没有计数或事件旁写", async () => {
+  const o = await h.order(true),
+    item = o.items[0]!,
+    reviewer = await h.staff(),
+    now = h.clock.now();
+  const makeAsset = (
+    extra: {
+      deletedAt?: Date;
+      moderationState?: string;
+      processingState?: string;
+      reviewState?: string;
+      usability?: string | null;
+      reviewedByStaffId?: string | null;
+      reviewedAt?: Date | null;
+    } = {},
+  ) =>
+    h.prisma.storeAsset.create({
+      data: {
+        id: uuidv7(),
+        entityId: o.entity.id,
+        storeId: o.store.id,
+        type: "text",
+        textBody: "采用守卫真实前提",
+        idempotencyKey: uuidv7(),
+        usability: "ready",
+        processingState: "processed",
+        reviewState: "reviewed",
+        reviewedByStaffId: reviewer.row.id,
+        reviewedAt: now,
+        uploadActorType: "merchant",
+        uploadActorId: o.user.id,
+        uploadActorRole: "owner",
+        uploadClient: "weapp",
+        createdAt: now,
+        updatedAt: now,
+        ...extra,
+      },
+    });
+  const valid = await makeAsset();
+  const invalid = await Promise.all([
+    makeAsset({ deletedAt: now }),
+    makeAsset({ moderationState: "block" }),
+    makeAsset({ processingState: "processing" }),
+    makeAsset({
+      reviewState: "unreviewed",
+      usability: null,
+      reviewedByStaffId: null,
+      reviewedAt: null,
+    }),
+  ]);
+  const before = await Promise.all([
+    h.prisma.storeAssetUsage.count(),
+    h.prisma.outboxEvent.count(),
+  ]);
+  for (const asset of invalid) {
+    await expect(
+      h.tx.run((tx) =>
+        recordAdoptedStoreAssets(tx, h.deps, o.viewer.ctx, {
+          entityId: o.entity.id,
+          storeId: o.store.id,
+          orderItemId: item.id,
+          storeAssetIds: [valid.id, asset.id],
+        }),
+      ),
+    ).rejects.toMatchObject({ error: "VALIDATION_FAILED" });
+    expect(
+      await Promise.all([h.prisma.storeAssetUsage.count(), h.prisma.outboxEvent.count()]),
+    ).toEqual(before);
+    expect(
+      (await h.prisma.storeAsset.findMany({ where: { id: { in: [valid.id, asset.id] } } })).map(
+        (row) => row.adoptedCount,
+      ),
+    ).toEqual([0, 0]);
+  }
+}, 60000);
+
 it("批次持锁重校验purpose/到期/fingerprint，callback失败整批保持ready及live引用", async () => {
   const o = await h.order(true),
     item = o.items[0]!,

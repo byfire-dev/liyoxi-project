@@ -20,7 +20,7 @@ export interface ProfileDeps {
   readonly tenant: Tenant;
   readonly approval: Approval;
   readonly events: Events;
-  readonly media: Pick<Media, "link" | "release" | "signRead">;
+  readonly media: Pick<Media, "link" | "release" | "signRead"> & Partial<Pick<Media, "assets">>;
   readonly keyring: () => Keyring;
   readonly wechat: Pick<WechatProvider, "checkText">;
   readonly currentOpenid: (principal: SessionPrincipal) => Promise<string>;

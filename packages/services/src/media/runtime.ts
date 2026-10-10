@@ -31,6 +31,14 @@ import { createTranscodeHandler } from "./handlers/transcode.js";
 import { createWatermarkHandler } from "./handlers/watermark.js";
 import { createNormalizeHandler } from "./handlers/normalize.js";
 import type { BoundMediaDeps } from "./context.js";
+import { createMediaAssets } from "./assets/service.js";
+import {
+  createAssetHandlers,
+  createAssetConvergence,
+  combineAssetHandler,
+} from "./assets/handlers.js";
+import { onAssetCalendarImported, onAssetSlaBreach } from "./assets/sla.js";
+import type { DeliveredEvent, FiredTimer, Tx } from "../kernel/index.js";
 import type { MediaConvergenceHandler } from "./jobs/types.js";
 export function createMedia(options: MediaDeps) {
   const refTypes = options.assembly.portEntries(fileRefTypePort);
@@ -95,31 +103,54 @@ export function createMedia(options: MediaDeps) {
         },
       ]
     : [];
+  const assetDeps = options.assets ? { ...deps, assets: options.assets } : undefined;
+  const baseHandlers = [
+    createPromoteHandler(deps),
+    ...createWechatImageHandlers(deps),
+    ...createModerationHandlers(deps),
+    createProbeHandler(deps),
+    createRestampHandler(deps),
+    createTranscodeHandler(deps),
+    createWatermarkHandler(deps),
+    createNormalizeHandler(deps),
+    ...(options.jobHandlers ?? []),
+  ];
+  const assetHandlers = assetDeps ? createAssetHandlers(assetDeps) : [];
+  const handlers = baseHandlers.map((original) => {
+    const asset = assetHandlers.find((item) => item.kind === original.kind);
+    return asset ? combineAssetHandler(original, asset) : original;
+  });
+  handlers.push(
+    ...assetHandlers.filter((asset) => !baseHandlers.some((item) => item.kind === asset.kind)),
+  );
+  let assets: ReturnType<typeof createMediaAssets> | undefined;
   const jobs = createMediaJobs({
     tx: options.tx,
     clock: options.clock,
     channel: options.channel,
     ownerId: options.jobOwnerId ?? uuidv7(),
-    handlers: [
-      createPromoteHandler(deps),
-      ...createWechatImageHandlers(deps),
-      ...createModerationHandlers(deps),
-      createProbeHandler(deps),
-      createRestampHandler(deps),
-      createTranscodeHandler(deps),
-      createWatermarkHandler(deps),
-      createNormalizeHandler(deps),
-      ...(options.jobHandlers ?? []),
-    ],
+    handlers,
     convergenceHandlers: [
       ...createProductionConvergence(deps).filter(
         (handler) => !options.batches || handler.parentType !== "upload_batch",
       ),
       ...batchConvergence,
+      ...(assetDeps ? [createAssetConvergence(assetDeps)] : []),
       ...(options.jobConvergenceHandlers ?? []),
     ],
   });
   return {
+    get assets() {
+      return (assets ??= createMediaAssets(deps));
+    },
+    onAssetCalendarImported: (tx: Tx, event: DeliveredEvent) => {
+      if (!assetDeps) throw new TypeError("素材运行时未配置");
+      return onAssetCalendarImported(tx, assetDeps, event);
+    },
+    onAssetSlaBreach: (tx: Tx, timer: FiredTimer) => {
+      if (!assetDeps) throw new TypeError("素材运行时未配置");
+      return onAssetSlaBreach(tx, assetDeps, timer);
+    },
     enqueueExtractedTextAudit: (
       tx: Parameters<typeof enqueueExtractedTextAudit>[1],
       input: Parameters<typeof enqueueExtractedTextAudit>[2],
@@ -208,7 +239,11 @@ export function createMedia(options: MediaDeps) {
           { kind: "delivery-download", fileName: input.fileName },
         )
       ).signed,
-    assertReadableByStaff: readableByStaff,
+    assertReadableByStaff: (
+      tx: Parameters<typeof readableByStaff>[0],
+      staff: Parameters<typeof readableByStaff>[1],
+      fileId: string,
+    ) => readableByStaff(tx, staff, fileId, deps),
     assertOwned: owned,
     downloadUrls: (
       ...args: Parameters<typeof downloadUrls> extends [unknown, unknown, ...infer A] ? A : never

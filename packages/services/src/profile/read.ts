@@ -1,8 +1,21 @@
+import { standingOf } from "../authz/index.js";
+import type { MediaActor } from "../media/index.js";
 import { merchantFactsOf } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 import type { ProfileDeps, ProfileViewer } from "./context.js";
 import { dictRef, snapshot } from "./repo.js";
 import { instant } from "./views.js";
+
+export function assetOverviewActor(viewer: ProfileViewer): MediaActor {
+  return {
+    identity: viewer.ctx,
+    merchant: {
+      entityId: viewer.membership.entityId,
+      storeId: viewer.membership.storeId,
+      standing: standingOf(viewer.membership.role, viewer.membership.storeMode),
+    },
+  };
+}
 
 export async function overview(tx: Tx, deps: ProfileDeps, viewer: ProfileViewer) {
   const s = await snapshot(tx, viewer.membership.storeId),
@@ -60,7 +73,13 @@ export async function overview(tx: Tx, deps: ProfileDeps, viewer: ProfileViewer)
       lastDecidedAt: instant(p?.lastDecidedAt),
     },
     members: { ownerDisplayName: null, clerkCount: 0, pendingInvitationCount: 0, preview: [] },
-    assets: { total: facts.asset.stores[s.store.id]!.assetCount, recent7dCount: 0, recent: [] },
+    assets: {
+      total: facts.asset.stores[s.store.id]!.assetCount,
+      recent7dCount: facts.asset.stores[s.store.id]!.recent7dCount ?? 0,
+      recent: deps.media.assets
+        ? await deps.media.assets.recent(tx, assetOverviewActor(viewer))
+        : [],
+    },
     ads: {
       confirmedCount: ad.readyCount,
       pendingConfirmCount: ad.pendingConfirmCount,

@@ -157,6 +157,8 @@ export const AUDIT_TARGET_TYPES = [
   "media_job", // W3-03：媒体任务人工重试
   "drama_price_revision", // W3-10：单剧积分价修订与撤销
   "agreement_version", // W2-12：实际版本簿记与审计对象
+  "store_asset", // W3-14：素材与反馈审计
+  "store_asset_demand", // W3-14：素材需求审计
 ] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 
