@@ -191,6 +191,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/asset-demands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 素材需求列表（门店素材页签上方）：标题、说明、发起人、完成时间、已收到条数、状态 */
+        get: operations["admin.assetDemand.list"];
+        put?: never;
+        /** 发起素材需求（名称、拍摄说明、完成日期、通知对象），通知老板与店员 */
+        post: operations["admin.assetDemand.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/asset-demands/{assetDemandId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 撤销素材需求 */
+        post: operations["admin.assetDemand.cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/asset-demands/{assetDemandId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 标记素材需求完成 */
+        post: operations["admin.assetDemand.complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/assignment-pool-members": {
         parameters: {
             query?: never;
@@ -2326,6 +2378,143 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/store-assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 门店素材列表：按复核状态（待整理）、是否已采用、类型筛选，按上传时间倒序 */
+        get: operations["admin.storeAsset.list"];
+        put?: never;
+        /** 员工代商家上传素材 */
+        post: operations["admin.storeAsset.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/store-assets/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 门店素材计数：按复核状态与类型（商家详情“门店素材”页签角标与类型筛选的计数） */
+        get: operations["admin.storeAsset.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/store-assets/{storeAssetId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 素材详情：文件组预览地址、系统识别结果（转写、要点、标签、人脸）、使用记录 */
+        get: operations["admin.storeAsset.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/store-assets/{storeAssetId}/confirm-portrait-auth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 确认肖像授权齐全，可用性改为可直接使用或仅供参考 */
+        post: operations["admin.storeAsset.confirmPortraitAuth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/store-assets/{storeAssetId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 后台软删除素材（写 deleted_at，7 天后清除文件；原因必填，写审计） */
+        post: operations["admin.storeAsset.delete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/store-assets/{storeAssetId}/portrait-auth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 员工代商家补交肖像授权材料（文件分类 portrait_auth，追加到 portrait_auth_file_ids） */
+        post: operations["admin.storeAsset.portraitAuth.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/store-assets/{storeAssetId}/reprocess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 素材重新识别（转写、打标） */
+        post: operations["admin.storeAsset.reprocess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/store-assets/{storeAssetId}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 整理素材：内容标签、用途、时效、可用性（需补拍、需肖像授权时提醒上传人），带 lockVersion */
+        post: operations["admin.storeAsset.review"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/stores": {
         parameters: {
             query?: never;
@@ -3292,6 +3481,135 @@ export interface components {
                 state: string;
             } | null;
         };
+        AdminStoreAssetDetail: components["schemas"]["AdminStoreAssetRow"] & {
+            files: components["schemas"]["MediaFileView"][];
+            insightSteps: {
+                /** @enum {string} */
+                kind: "transcript" | "vision" | "doc_text" | "structured_items" | "digest" | "tech_spec";
+                /** @enum {string} */
+                status: "ok" | "skipped" | "failed";
+            }[];
+            keypoints: string[];
+            lockVersion: number;
+            note: string | null;
+            portraitAuthFileIds: string[];
+            /** Format: date-time */
+            reviewedAt: string | null;
+            reviewedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+            structuredItems: {
+                name: string;
+                priceText: string | null;
+            }[];
+            suggestion: {
+                contentTags: components["schemas"]["DictRef"][];
+                description: string | null;
+                /** @enum {string} */
+                faceHint: "none" | "people_unclear" | "identifiable_customer";
+                qualityNotes: string[];
+                timeliness: {
+                    tag: components["schemas"]["DictRef"];
+                    /** Format: date */
+                    validEndDate: string | null;
+                    /** Format: date */
+                    validStartDate: string | null;
+                } | null;
+                usageTags: components["schemas"]["DictRef"][];
+            } | null;
+            techSpecLabel: string | null;
+            textBody: string | null;
+            transcript: {
+                segments: {
+                    fromMs: number;
+                    text: string;
+                    toMs: number;
+                }[];
+                text: string;
+            } | null;
+            usages: {
+                /** Format: date-time */
+                at: string;
+                /** @enum {string} */
+                role: "reference" | "adopted";
+                /** Format: uuid */
+                usedById: string;
+                usedByNo: string;
+                /** @enum {string} */
+                usedByType: "ad" | "drama_order" | "order_item" | "ad_version" | "episode_output";
+            }[];
+        };
+        AdminStoreAssetRow: {
+            actions: ("review" | "confirm-portrait-auth" | "portrait-auth" | "reprocess" | "delete")[];
+            /** @enum {string} */
+            adminStatus: "organizing" | "organized" | "adopted";
+            adoptedCount: number;
+            /** Format: uuid */
+            assetDemandId: string | null;
+            charCount: number | null;
+            contentTags: components["schemas"]["AssetTag"][];
+            /** Format: date-time */
+            createdAt: string;
+            durationMs: number | null;
+            fileCount: number;
+            hasUnconfirmedAutoTags: boolean;
+            isInsightPartial: boolean;
+            isReviewOverdue: boolean;
+            /** @enum {string} */
+            moderationState: "none" | "pending" | "pass" | "review" | "block";
+            pageCount: number | null;
+            portraitAuth: {
+                /** Format: date-time */
+                authorizedAt: string | null;
+                fileCount: number;
+            };
+            /** @enum {string} */
+            processingState: "pending" | "processing" | "processed";
+            /** Format: date-time */
+            reviewDueAt: string | null;
+            /** Format: uuid */
+            sourceStoreAssetId: string | null;
+            /** Format: uuid */
+            storeAssetId: string;
+            /** Format: uuid */
+            storeId: string;
+            storeName: string | null;
+            thumbnail: components["schemas"]["SignedUrl"] & (Record<string, never> | null);
+            timelinessTag: components["schemas"]["AssetTag"] & (Record<string, never> | null);
+            title: string | null;
+            /** @enum {string} */
+            type: "image" | "video" | "recording" | "audio" | "document" | "text";
+            uploader: {
+                /** @enum {string} */
+                actorType: "merchant" | "staff";
+                displayName: string | null;
+                /** Format: uuid */
+                merchantUserId: string | null;
+                /** @enum {string|null} */
+                role: "owner" | "clerk" | null;
+                /** Format: uuid */
+                staffId: string | null;
+            };
+            /** @enum {string|null} */
+            usability: "ready" | "reference_only" | "need_reshoot" | "need_portrait_auth" | null;
+            usageTags: components["schemas"]["AssetTag"][];
+        };
+        AdminStoreAssetSummary: {
+            awaitingPortraitConfirmCount: number;
+            organizedCount: number;
+            reviewOverdueCount: number;
+            tabs: {
+                adopted: number;
+                all: number;
+                organizing: number;
+            };
+            types: {
+                audio: number;
+                document: number;
+                image: number;
+                recording: number;
+                text: number;
+                video: number;
+            };
+        };
         AdminStoreBrief: {
             city: components["schemas"]["DictRef"] | null;
             district: components["schemas"]["DictRef"] | null;
@@ -3611,6 +3929,40 @@ export interface components {
                 points?: number;
                 title: string;
             };
+        };
+        AssetDemandRow: {
+            actions: ("complete" | "cancel")[];
+            /** Format: uuid */
+            assetDemandId: string;
+            /** Format: date-time */
+            closedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: components["schemas"]["StaffBrief"];
+            /** Format: date */
+            dueDate: string;
+            isOverdue: boolean;
+            /** @enum {string} */
+            notifyScope: "owner_and_clerks" | "owner_only";
+            receivedCount: number;
+            shootingNote: string | null;
+            /** @enum {string} */
+            status: "open" | "done" | "canceled";
+            /** Format: uuid */
+            storeId: string;
+            title: string;
+        };
+        AssetTag: {
+            /** @enum {string} */
+            dimension: "content" | "usage" | "timeliness";
+            isConfirmed: boolean;
+            /** @enum {string} */
+            source: "auto" | "uploader" | "reviewer";
+            tag: components["schemas"]["DictRef"];
+            /** Format: date */
+            validEndDate: string | null;
+            /** Format: date */
+            validStartDate: string | null;
         };
         AuditLogDetail: components["schemas"]["AuditLogItem"] & {
             after: {
@@ -5210,6 +5562,20 @@ export interface components {
                 dramaOrderCount: number;
             };
         };
+        MediaFileView: {
+            coverUrl: string | null;
+            displayHeight: number | null;
+            displayWidth: number | null;
+            durationMs: number | null;
+            expiresAt: string | null;
+            /** Format: uuid */
+            fileId: string;
+            /** @enum {string} */
+            kind: "image" | "video" | "audio" | "document" | (string & {});
+            /** @enum {string} */
+            moderationState: "none" | "pending" | "pass" | "review" | "block" | (string & {});
+            url: string | null;
+        };
         MediaJobNoteBody: {
             note?: string;
         };
@@ -5695,6 +6061,9 @@ export interface components {
             items: (components["schemas"]["PoolMember"] & {
                 isRecommended: boolean;
             })[];
+        };
+        PortraitAuthBody: {
+            fileIds: string[];
         };
         PostPolicy: {
             fields: {
@@ -7887,6 +8256,363 @@ export interface operations {
             };
             /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.assetDemand.list": {
+        parameters: {
+            query: {
+                page?: number;
+                pageSize?: number;
+                storeId: string;
+                status?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: components["schemas"]["AssetDemandRow"][];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.assetDemand.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date */
+                    dueDate: string;
+                    /** @enum {string} */
+                    notifyScope: "owner_and_clerks" | "owner_only";
+                    shootingNote?: string;
+                    /** Format: uuid */
+                    storeId: string;
+                    title: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AssetDemandRow"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.assetDemand.cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assetDemandId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reasonText?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AssetDemandRow"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.assetDemand.complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assetDemandId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AssetDemandRow"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -19857,6 +20583,819 @@ export interface operations {
             };
             /** @description 限流 */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.storeAsset.list": {
+        parameters: {
+            query?: {
+                storeId?: string;
+                type?: string;
+                usability?: string;
+                hasPortraitAuthFiles?: "true" | "false";
+                assetDemandId?: string;
+                q?: string;
+                page?: number;
+                pageSize?: number;
+                tab?: "all" | "organizing" | "adopted";
+                sort?: "-createdAt" | "reviewDueAt";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: components["schemas"]["AdminStoreAssetRow"][];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.storeAsset.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    assetDemandId?: string;
+                    contentTagCodes?: string[];
+                    fileIds?: string[];
+                    note?: string;
+                    /** Format: uuid */
+                    storeId: string;
+                    textBody?: string;
+                    /** @enum {string} */
+                    type: "image" | "video" | "recording" | "audio" | "document" | "text";
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminStoreAssetRow"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.storeAsset.summary": {
+        parameters: {
+            query?: {
+                storeId?: string;
+                type?: string;
+                usability?: string;
+                hasPortraitAuthFiles?: "true" | "false";
+                assetDemandId?: string;
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminStoreAssetSummary"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.storeAsset.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                storeAssetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminStoreAssetDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.storeAsset.confirmPortraitAuth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                storeAssetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    lockVersion: number;
+                    note?: string;
+                    /** @enum {string} */
+                    usability: "ready" | "reference_only";
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminStoreAssetDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.storeAsset.delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                storeAssetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reasonText: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: null;
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.storeAsset.portraitAuth.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                storeAssetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortraitAuthBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminStoreAssetDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.storeAsset.reprocess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                storeAssetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    kinds?: ("transcript" | "vision" | "doc_text" | "structured_items" | "digest" | "tech_spec")[];
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminStoreAssetRow"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.storeAsset.review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                storeAssetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    contentTagCodes: string[];
+                    lockVersion: number;
+                    timeliness: {
+                        tagCode: string;
+                        /** Format: date */
+                        validEndDate?: string;
+                        /** Format: date */
+                        validStartDate?: string;
+                    };
+                    title?: string | null;
+                    /** @enum {string} */
+                    usability: "ready" | "reference_only" | "need_reshoot" | "need_portrait_auth";
+                    usageTagCodes: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminStoreAssetDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
