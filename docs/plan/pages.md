@@ -13,7 +13,7 @@
 
 | 端 | 登记 | V1.0 应实现 | 已实现 | 未实现 | V1.1 只登记 | 入口隐藏 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 运营管理后台 | 80 | 67 | 27 | 40 | 13 | 2 |
+| 运营管理后台 | 80 | 67 | 32 | 35 | 13 | 2 |
 | 电脑端下载页 | 8 | 7 | 0 | 7 | 1 | 0 |
 | 商家端小程序 | 49 | 48 | 27 | 21 | 1 | 0 |
 
@@ -21,7 +21,7 @@
 
 | 端 | M1 | M2 | M3 | M4 | M5 | M6 | M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 运营管理后台 | 0 | 3 | 6 | 14 | 1 | 4 | 12 |
+| 运营管理后台 | 0 | 3 | 1 | 14 | 1 | 4 | 12 |
 | 电脑端下载页 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
 | 商家端小程序 | 0 | 7 | 4 | 4 | 3 | 1 | 2 |
 
@@ -38,12 +38,12 @@
 | 模块 | 页面 | 地址 | 画板 | 骨架 | 进菜单 | 开关 | 里程碑 | 工作包 | 已实现 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 工作台 | 工作台 | `/` | Main | 仪表盘 | 是 | — | M7 | G7-B | 否 |
-| 短剧库 | 短剧列表 | `/dramas` | Dramas | 筛选表格 | 是 | — | M3 | G3-B | 否 |
-| 短剧库 | 编辑短剧 | `/dramas/$id` | DramaEdit | 详情页 | 否 | — | M3 | G3-B | 否 |
+| 短剧库 | 短剧列表 | `/dramas` | Dramas | 筛选表格 | 是 | — | M3 | W3-12 | 是 |
+| 短剧库 | 编辑短剧 | `/dramas/$id` | DramaEdit | 详情页 | 否 | — | M3 | W3-12 | 是 |
 | 套餐与积分 | 套餐管理 | `/billing/plans` | Plans | 配置页 | 是 | — | M4 | G4-C | 否 |
 | 套餐与积分 | 积分包管理 | `/billing/point-packs` | PointPacks | 筛选表格 | 是 | — | M4 | G4-C | 否 |
 | 套餐与积分 | 积分价模板与参数 | `/billing/params` | Params | 配置页 | 是 | — | M4 | G4-C | 否 |
-| 套餐与积分 | 单剧积分价 | `/billing/pricing` | Pricing | 筛选表格 | 是 | — | M3 | G3-B | 否 |
+| 套餐与积分 | 单剧积分价 | `/billing/pricing` | Pricing | 筛选表格 | 是 | — | M3 | W3-12 | 是 |
 | 套餐与积分 | 积分账户与流水 | `/billing/accounts` | PointAccounts | 筛选表格 | 是 | — | M4 | G4-C | 否 |
 | 商家 | 商家列表 | `/merchants` | Merchants | 筛选表格 | 是 | — | M2 | G2-B | 否 |
 | 商家 | 商家详情 | `/merchants/$storeId` | MerchantDetail | 详情页 | 否 | — | M2 | G2-B | 否 |
@@ -78,8 +78,8 @@
 | 报表 | 广告制作 | `/reports/ads` | RptAds | — | 是 | `release.reports_v11` | V1.1 | — | 否 |
 | 报表 | 客服报表 | `/reports/service` | RptService | — | 是 | `release.reports_v11` | V1.1 | — | 否 |
 | 报表 | 服务商业绩 | `/reports/partners` | RptPartners | — | 是 | `release.partner` | V1.1 | — | 否 |
-| 运营 | 首页配置 | `/ops/home` | OpsHome | 配置页 | 是 | — | M3 | G3-B | 否 |
-| 运营 | 商城配置 | `/ops/mall` | OpsMall | 配置页 | 是 | — | M3 | G3-B | 否 |
+| 运营 | 首页配置 | `/ops/home` | OpsHome | 配置页 | 是 | — | M3 | W3-12 | 是 |
+| 运营 | 商城配置 | `/ops/mall` | OpsMall | 配置页 | 是 | — | M3 | W3-12 | 是 |
 | 运营 | 协议管理 | `/ops/agreements` | OpsAgreements | 主从页 | 是 | — | M2 | G2-B | 是 |
 | 运营 | 消息模板 | `/ops/templates` | OpsTemplates | 主从页 | 是 | — | M7 | G7-A | 否 |
 | 运营 | 公告与常见问题 | `/ops/notice` | OpsNotice | — | 是 | `release.notice_faq` | V1.1 | — | 否 |
