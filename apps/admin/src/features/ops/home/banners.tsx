@@ -38,9 +38,16 @@ export function Banners(props: BannerProps) {
 }
 function BannerWorkspace({ api, search, change }: BannerProps) {
   const editable = useModuleLevel("ops") === "e";
-  const [lifetime] = useState(() => new AbortController());
-  useEffect(() => () => lifetime.abort(), [lifetime]);
-  const canWrite = () => editable && !lifetime.signal.aborted;
+  const lifetime = useRef<AbortController | undefined>(undefined);
+  useEffect(() => {
+    const owner = new AbortController();
+    lifetime.current = owner;
+    return () => {
+      owner.abort();
+      if (lifetime.current === owner) lifetime.current = undefined;
+    };
+  }, []);
+  const canWrite = () => editable && !!lifetime.current && !lifetime.current.signal.aborted;
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<{ banner?: Banner }>(),
     [toggle, setToggle] = useState<Banner>();
@@ -91,7 +98,7 @@ function BannerWorkspace({ api, search, change }: BannerProps) {
     setBusy(true);
     setMessage(undefined);
     try {
-      await api.reorder(ordered, intent.key({ homeBannerIds: ordered }), lifetime.signal);
+      await api.reorder(ordered, intent.key({ homeBannerIds: ordered }), lifetime.current?.signal);
       if (!canWrite()) return;
       intent.done();
       await refresh();
@@ -345,7 +352,7 @@ function BannerWorkspace({ api, search, change }: BannerProps) {
                 toggle.homeBannerId,
                 { lockVersion: toggle.lockVersion, isEnabled: !toggle.isEnabled },
                 idempotencyKey,
-                lifetime.signal,
+                lifetime.current?.signal,
               );
               if (!canWrite()) return { outcome: "failed", message: "操作会话已关闭" };
               await refresh();

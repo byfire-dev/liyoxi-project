@@ -109,7 +109,7 @@ function App(){
    React.createElement(Banners,{api,search:homeSearch({}),change(){}})));
 }
 HomeBannerItemSchema.parse(${JSON.stringify(original)});
-pageRoot.render(React.createElement(App));
+pageRoot.render(React.createElement(React.StrictMode,null,React.createElement(App)));
 `,
   [virtual("confirm")]: `
 import React from 'react';
