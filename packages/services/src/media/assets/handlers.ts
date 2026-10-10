@@ -25,6 +25,7 @@ import {
 import { objectContent } from "./views.js";
 import { assetFileSteps } from "./steps.js";
 import type { AssetType } from "./steps.js";
+import { createAssetAsrStrategy } from "./asr.js";
 
 const done = (
   status: "ok" | "skipped",
@@ -152,7 +153,8 @@ async function prepare(deps: AssetDeps, tx: Tx, job: MediaJob): Promise<Prepared
           orderBy: { id: "asc" },
         })
       : null;
-  const model = ["asr", "vision", "digest"].includes(job.kind);
+  // ASR admits each submit/query in its fresh, lease-bound IO preflight instead.
+  const model = ["vision", "digest"].includes(job.kind);
   return {
     asset,
     file,
@@ -211,7 +213,8 @@ function adaptedProbe(job: MediaJob, facts: NonNullable<PreparedAsset["probe"]>)
 
 export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[] {
   const signer = createSigner(deps),
-    probe = createProbeHandler(deps);
+    probe = createProbeHandler(deps),
+    asr = createAssetAsrStrategy(deps, (tx, job) => current(deps, tx, job));
   const kinds = [
     "probe",
     "audit_image",
@@ -240,11 +243,12 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
     validInput: (input) => AssetJobInputSchema.safeParse(input).success,
     validOutput: (output) => AssetJobOutputSchema.safeParse(output).success,
     current: (tx, job) => current(deps, tx, job),
-    prepare: (tx, job) => prepare(deps, tx, job),
+    prepare: (tx, job) =>
+      kind === "asr" && job.externalJobId ? Promise.resolve(undefined) : prepare(deps, tx, job),
     execute: async (job, context, signal): Promise<JobOutcome> => {
       const prepared = context as PreparedAsset;
       if (signal.aborted) return failed("ASSET_CANCELED");
-      if (prepared.reused)
+      if (prepared.reused && (kind !== "asr" || asr.validCached(prepared.reused.content)))
         return {
           state: "succeeded",
           output: {
@@ -335,15 +339,7 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
         return done("ok", { text: [...text].slice(0, 10000).join(""), pageCount: 1 });
       }
       if (!prepared.permitted) return skipped("budget_unconfigured");
-      if (kind === "asr") {
-        if (deps.assets.asr.status === "unconfigured" || !prepared.file)
-          return skipped("asr_unconfigured");
-        const signed = await signer({ fileId: prepared.file.id, audience: "staff" });
-        const result = await deps.assets.asr.transcribe({ url: signed.signed.url });
-        return result.ok
-          ? done("ok", { text: result.value.text, segments: [] })
-          : skipped("asr_unavailable");
-      }
+      if (kind === "asr") return asr.execute(job, signal);
       if (deps.assets.llm.status === "unconfigured") return skipped("llm_unconfigured");
       if (kind === "vision") {
         if (!prepared.file) return skipped("vision_source_missing");
@@ -362,11 +358,13 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
         ? done("ok", { keypoints: result.value.points })
         : skipped("digest_unavailable");
     },
-    poll: (job) => originalAudit(deps, job),
-    recover: (job) =>
-      ["audit_image_wx", "audit_video"].includes(kind)
-        ? originalAudit(deps, job)
-        : Promise.resolve(skipped("result_unavailable")),
+    poll: (job, signal) => (kind === "asr" ? asr.poll(job, signal) : originalAudit(deps, job)),
+    recover: (job, signal) =>
+      kind === "asr"
+        ? asr.recover(job, signal)
+        : ["audit_image_wx", "audit_video"].includes(kind)
+          ? originalAudit(deps, job)
+          : Promise.resolve(skipped("result_unavailable")),
     finish: async (tx, job, outcome, ctx) => {
       const input = AssetJobInputSchema.parse(job.input),
         asset = await tx.storeAsset.findUniqueOrThrow({ where: { id: input.assetId } });
