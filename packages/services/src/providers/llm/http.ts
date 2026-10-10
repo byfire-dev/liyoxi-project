@@ -15,6 +15,15 @@ function failure(message: string, fallback: boolean, rejected = false): LlmHttpR
   };
 }
 
+/** 底层取消可能永不完成；清理不能延长本地期限，也不能泄漏迟到拒绝。 */
+function cancelWithoutWaiting(source?: { cancel(): Promise<void> } | null): void {
+  try {
+    void source?.cancel().catch(() => {});
+  } catch {
+    // 注入的 transport 也可能同步抛错；取消失败不改变已确定的业务结果。
+  }
+}
+
 /** 不依赖 transport 对 signal 的配合来结束本地等待；迟到 rejection 仍被消费。 */
 function abortable<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -64,13 +73,13 @@ export async function requestChat(
     });
     void transfer.then(
       (response) => {
-        if (controller.signal.aborted) void response.body?.cancel().catch(() => {});
+        if (controller.signal.aborted) cancelWithoutWaiting(response.body);
       },
       () => {},
     );
     const response = await abortable(transfer, controller.signal);
     if (!response.ok) {
-      await response.body?.cancel().catch(() => {});
+      cancelWithoutWaiting(response.body);
       const canFallback =
         response.status === 408 || response.status === 429 || response.status >= 500;
       return failure("素材理解 HTTP 失败", canFallback, !canFallback);
@@ -81,7 +90,7 @@ export async function requestChat(
       declared !== null &&
       (!/^\d+$/.test(declared) || Number(declared) > LLM_LIMITS.responseBytes)
     ) {
-      await response.body.cancel().catch(() => {});
+      cancelWithoutWaiting(response.body);
       return failure("素材理解响应超限", true);
     }
     reader = response.body.getReader();
@@ -107,7 +116,7 @@ export async function requestChat(
   } finally {
     clearTimeout(timer);
     parent.removeEventListener("abort", abort);
-    await reader?.cancel().catch(() => {});
+    cancelWithoutWaiting(reader);
     reader?.releaseLock();
   }
 }
