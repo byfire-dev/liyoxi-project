@@ -42,6 +42,8 @@ import {
 
 export * from "./types.js";
 export { createTencentAsr } from "./asr/tencent.js";
+export { createDomesticLlm } from "./llm/driver.js";
+export type { DomesticLlmConfig, DomesticLlmOptions, LlmEndpoint } from "./llm/driver.js";
 export type { TencentAsrConfig, TencentAsrOptions } from "./asr/tencent.js";
 export { createProductionMediaTools } from "./mediatool/production.js";
 export type { ProductionMediaTools } from "./types.js";

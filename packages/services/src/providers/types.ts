@@ -800,11 +800,13 @@ export interface LlmProvider extends ProviderBase {
     kind: LlmAssetKind;
     url?: string;
     text?: string;
+    signal?: AbortSignal;
   }): Promise<ProviderResult<{ description: string; tags: string[] }>>;
   /** 要点提炼 */
   extractKeyPoints(input: {
     text: string;
     maxPoints?: number;
+    signal?: AbortSignal;
   }): Promise<ProviderResult<{ points: string[] }>>;
 }
 
