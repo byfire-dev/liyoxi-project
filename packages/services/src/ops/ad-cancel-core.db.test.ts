@@ -1613,7 +1613,7 @@ describe("活跃发起人对象失效后的真实财务代撤", () => {
             lifecycle: "archived",
             archivedAt: h.clock.now(),
             archiveActorType: "staff",
-            archiveActorId: f.approver.id,
+            archiveActorId: f.approver.staff!.staff.id,
             archiveClient: "admin",
             archiveReason: "by_owner",
           },
