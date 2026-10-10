@@ -13,7 +13,7 @@ import {
   staffWorkSourcesOf,
   uuidv7,
 } from "../kernel/index.js";
-import type { DeliveredEvent } from "../kernel/index.js";
+import type { DeliveredEvent, Tx } from "../kernel/index.js";
 import type { DeliveryRef } from "../events/index.js";
 import type { TimerRef } from "../timers/index.js";
 import {
@@ -182,7 +182,7 @@ async function consumeBoth(one: ReturnType<typeof buildWorkerServices>, refs: De
   expect(rows).toHaveLength(3);
   expect(rows.every((row) => row.status === "done" && row.consumedAt !== null)).toBe(true);
 }
-async function realQualification() {
+async function realQualification(afterApprovalSubmit?: (tx: Tx, id: string) => Promise<void>) {
   const assembly = worker.assembly,
     events = worker.events;
   const flow = createFlow({ assembly, clock, events });
@@ -202,7 +202,14 @@ async function realQualification() {
     clock,
     assembly,
     events,
-    approval,
+    approval: {
+      ...approval,
+      submit: async (...args: Parameters<typeof approval.submit>) => {
+        const result = await approval.submit(...args);
+        await afterApprovalSubmit?.(args[0], result.approvalId);
+        return result;
+      },
+    },
     tenant: createTenant({ tx, clock, flow, assembly }),
     media: createMedia({ tx, clock, assembly, events, storage: fake.storage }),
     keyring: () => TEST_KEYRING,
@@ -507,18 +514,24 @@ describe("独立 worker 审批 SLA 装配", { timeout: 120_000 }, () => {
     const inv = worker.assembly.invariant("approval.I1")!;
     const slaInv = worker.assembly.invariant("approval.I3")!;
     expect(await tx.run((t) => slaInv.run!(t, {}, { now: clock.now() }))).toEqual([]);
+    let unlinked: string | undefined;
     await expect(
-      tx.run(async (t) => {
-        await t.approvalRequest.update({
-          where: { id: request.id },
-          data: { kind: "channel_account" },
-        });
+      realQualification(async (t, id) => {
+        unlinked = id;
         expect(await inv.run!(t, {}, { now: clock.now() })).toEqual(
-          expect.arrayContaining([expect.objectContaining({ subject: { id: request.id } })]),
+          expect.arrayContaining([
+            expect.objectContaining({
+              subject: { type: "approval_request", id },
+              detail: expect.objectContaining({ problem: "domain_row_count", domainRows: 0 }),
+            }),
+          ]),
         );
         throw new Error("rollback owned domain discrepancy");
       }),
     ).rejects.toThrow("rollback owned domain discrepancy");
+    expect(unlinked).toBeTypeOf("string");
+    expect(await prisma.approvalRequest.findUnique({ where: { id: unlinked! } })).toBeNull();
+    expect(await tx.run((t) => inv.run!(t, {}, { now: clock.now() }))).toEqual([]);
     expect(
       (await prisma.approvalRequest.findUniqueOrThrow({ where: { id: request.id } })).kind,
     ).toBe("qualification");
