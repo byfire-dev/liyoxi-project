@@ -6,11 +6,16 @@ import {
   lockRows,
   uuidv7,
 } from "../../kernel/index.js";
-import { createMediaAssetsHarness, useSeededDatabase } from "../../testing/index.js";
+import {
+  connectTestDatabase,
+  createMediaAssetsHarness,
+  useSeededDatabase,
+} from "../../testing/index.js";
 import { failed, ok } from "../../providers/types.js";
 import type { AsrTaskStatus } from "../../providers/types.js";
 import type { MediaActor } from "../index.js";
-import { AssetJobInputSchema } from "./pipeline.js";
+import { fileCategoryGuardPort, fileRefTypePort } from "../index.js";
+import { advanceAsset, AssetJobInputSchema } from "./pipeline.js";
 
 // 真实登记/上传/素材/任务/洞察表；仅对象存储和模型 IO 使用公开虚构替身。
 const database = useSeededDatabase("services");
@@ -292,8 +297,11 @@ describe("素材异步 ASR：真实任务受理与回查", () => {
       }),
     ).toBe(1);
     const events = await h.prisma.outboxEvent.findMany({ where: { aggregateId: facts.assetId } });
-    expect(JSON.stringify(events)).not.toContain(transcript.text);
-    expect(JSON.stringify(events)).not.toContain("https://fake-storage.invalid");
+    const persistedEvents = JSON.stringify(events, (_key, value: unknown) =>
+      typeof value === "bigint" ? value.toString() : value,
+    );
+    expect(persistedEvents).not.toContain(transcript.text);
+    expect(persistedEvents).not.toContain("https://fake-storage.invalid");
     safeJob(finished);
   });
 
@@ -629,15 +637,41 @@ describe("素材异步 ASR：归属、晚结果与缓存", () => {
     const facts = await ready();
     const held = await holdQuery(facts);
     let winner;
+    let eventsBefore;
     try {
       if (change === "delete")
         await h.media.assets.remove(h.admin, facts.assetId, { reasonText: "在途撤销" });
       else
-        await h.prisma.storeAsset.update({
-          where: { id: facts.assetId },
-          data: { moderationState: "block" },
+        await h.tx.run(async (tx) => {
+          await lockRows(tx, "store_asset", [facts.assetId]);
+          await tx.storeAsset.update({
+            where: { id: facts.assetId },
+            data: { moderationState: "block" },
+          });
+          // A block winner is settled by the existing domain plan, never by a fabricated state.
+          await advanceAsset(
+            tx,
+            {
+              tx: h.tx,
+              clock: h.clock,
+              events: h.events,
+              assembly: h.assembly,
+              storage: h.fake.storage,
+              assets: h.assets,
+              refTypes: h.assembly.portEntries(fileRefTypePort),
+              guards: h.assembly.portEntries(fileCategoryGuardPort),
+            },
+            facts.assetId,
+          );
         });
       winner = await h.prisma.storeAsset.findUniqueOrThrow({ where: { id: facts.assetId } });
+      eventsBefore = await h.prisma.outboxEvent.findMany({
+        where: { aggregateId: facts.assetId },
+        orderBy: { id: "asc" },
+      });
+      expect(eventsBefore.filter((event) => event.eventType === "asset.processed")).toHaveLength(
+        change === "block" ? 1 : 0,
+      );
     } finally {
       held.release();
       await held.running;
@@ -648,10 +682,11 @@ describe("素材异步 ASR：归属、晚结果与缓存", () => {
       winner,
     );
     expect(
-      await h.prisma.outboxEvent.count({
-        where: { aggregateId: facts.assetId, eventType: "asset.processed" },
+      await h.prisma.outboxEvent.findMany({
+        where: { aggregateId: facts.assetId },
+        orderBy: { id: "asc" },
       }),
-    ).toBe(0);
+    ).toEqual(eventsBefore);
   });
 
   it.each(["run", "prompt"] as const)("新%s代次存在时旧回查结果0采纳", async (change) => {
@@ -719,6 +754,7 @@ describe("素材异步 ASR：归属、晚结果与缓存", () => {
     h.clock.advance(accepted.nextRunAt.getTime() - h.clock.now().getTime());
     const locked = gate(),
       unlock = gate();
+    const observer = await connectTestDatabase(database.name, { role: null });
     let blockerPid: number;
     const parent = h.tx.run(async (tx) => {
       await lockRows(tx, "store_asset", [facts.assetId]);
@@ -729,22 +765,27 @@ describe("素材异步 ASR：归属、晚结果与缓存", () => {
       locked.release();
       await unlock.promise;
     });
-    await Promise.race([
-      locked.promise,
-      parent.then(() => {
-        throw new Error("父锁会话提前退出");
-      }),
-    ]);
-    const running = h.media.jobs.run({ jobId: accepted.id });
+    let running: Promise<void> | undefined;
     try {
+      await Promise.race([
+        locked.promise,
+        parent.then(() => {
+          throw new Error("父锁会话提前退出");
+        }),
+      ]);
+      running = h.media.jobs.run({ jobId: accepted.id });
       await vi.waitFor(
         async () => {
-          const blocked = await h.prisma.$queryRaw<Array<{ count: bigint }>>`
+          // Only the observer uses the owner role to see real app sessions' lock details.
+          const blocked = await observer.query<{ count: string }>(
+            `
           SELECT count(*)::bigint AS count FROM pg_stat_activity
           WHERE datname=current_database() AND wait_event_type='Lock'
-            AND query LIKE '%store_asset%' AND ${blockerPid!}=ANY(pg_blocking_pids(pid))
-        `;
-          expect(Number(blocked[0]!.count)).toBeGreaterThan(0);
+            AND query LIKE '%store_asset%' AND $1=ANY(pg_blocking_pids(pid))
+        `,
+            [blockerPid!],
+          );
+          expect(Number(blocked.rows[0]!.count)).toBeGreaterThan(0);
         },
         { timeout: 3000 },
       );
@@ -752,8 +793,12 @@ describe("素材异步 ASR：归属、晚结果与缓存", () => {
       expect(await insights(facts.assetId)).toEqual([]);
     } finally {
       unlock.release();
-      await parent;
-      await running;
+      try {
+        await parent;
+        await running;
+      } finally {
+        await observer.end();
+      }
     }
     expect(await row(accepted.id)).toMatchObject({ state: "succeeded" });
     expect(h.fake.asr.callsOf("query")).toHaveLength(1);
