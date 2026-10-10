@@ -19,7 +19,7 @@ import { createDoc, docPrecheck, updateDoc } from "./documents.js";
 import { saveDraft } from "./draft.js";
 import { assertProfileComplete, industryOpen, storeGate, storeLocation } from "./gate.js";
 import { withQualificationCall } from "./qualification-kind.js";
-import { overview } from "./read.js";
+import { overview, assetOverviewActor } from "./read.js";
 import { snapshot } from "./repo.js";
 import { submitQualification } from "./submit.js";
 import { assertOwner, assertVersion, checkContent, validateBasics } from "./validate.js";
@@ -98,7 +98,14 @@ export function createProfile(deps: ProfileDeps) {
   }
   return {
     admin: createAdminProfile(deps),
-    get: (viewer: ProfileViewer) => deps.tx.run((tx) => overview(tx, deps, viewer)),
+    get: async (viewer: ProfileViewer) => {
+      const value = await deps.tx.run((tx) => overview(tx, deps, viewer));
+      if (!deps.media.assets) return value;
+      const recent = [];
+      for (const row of value.assets.recent)
+        recent.push(await deps.media.assets.decorate(assetOverviewActor(viewer), row));
+      return { ...value, assets: { ...value.assets, recent } };
+    },
     basic: (viewer: ProfileViewer) => read(viewer, basicView),
     media: (viewer: ProfileViewer) => read(viewer, mediaView),
     service: (viewer: ProfileViewer) => read(viewer, serviceView),

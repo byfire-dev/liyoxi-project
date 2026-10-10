@@ -13,3 +13,4 @@ export type {
 export { registration } from "./register.js";
 
 export { countBannerClicks } from "./banner-clicks.js";
+export { recordAssetUpload } from "./asset-upload.js";

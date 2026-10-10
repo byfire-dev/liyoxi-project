@@ -55,7 +55,7 @@ export const UPLOAD_CATEGORIES = {
     "asset",
     "store",
     [...image, ...video, ...documentExts, "mp3", "m4a", "wav", "aac"],
-    { crossStore: true },
+    { merchant: true, admin: true, crossStore: true },
   ),
   channel_screenshot: category("asset", "store", image, { merchant: true }),
   ticket_attachment: category("asset", "store", image),
@@ -74,7 +74,11 @@ export const UPLOAD_CATEGORIES = {
   pay_bill: category("secure", "platform", ["csv", "txt"]),
   wecom_qr: category("asset", "platform", image),
   account_proof: category("secure", "entity", [...image, "pdf"]),
-  portrait_auth: category("secure", "store", [...image, "pdf"], { crossStore: true }),
+  portrait_auth: category("secure", "store", [...image, "pdf"], {
+    merchant: true,
+    admin: true,
+    crossStore: true,
+  }),
 } as const satisfies Record<string, Category>;
 export type UploadCategory = keyof typeof UPLOAD_CATEGORIES;
 export const MIME_BY_EXT: Readonly<Record<string, string>> = {

@@ -1,3 +1,4 @@
+import { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./media-assets-runtime.js";
 import { createDeliveryProductionAssembly } from "./delivery-production-runtime.js";
 import { createApprovalSlaAssembly } from "./approval-sla-runtime.js";
 import { createDeliverySlaAssembly } from "./delivery-sla-runtime.js";
@@ -232,7 +233,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   });
   const notifyScope = createNotifyAssembly(analyticsScope.assembly);
   const mediaScope = createMediaAssembly(notifyScope.assembly);
-  const staffScope = createStaffAssembly(mediaScope.assembly);
+  const mediaAssetsScope = createMediaAssetsAssembly(mediaScope.assembly);
+  const staffScope = createStaffAssembly(mediaAssetsScope.assembly);
   const approvalSlaScope = createApprovalSlaAssembly(staffScope.assembly);
   const contentPricingScope = createContentPricingAssembly(approvalSlaScope.assembly);
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
@@ -358,6 +360,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   });
   notifyScope.attachSmsHealth(smsHealth);
   const media = createMedia({
+    assets: createRuntimeMediaAssets({ clock, assembly, timers, providers }),
     batches: createRuntimeMediaBatches({ clock, events, media: () => media }),
     ...(mediaProduction.production ? { production: mediaProduction.production } : {}),
     tx,
@@ -375,6 +378,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     },
   });
   mediaScope.attach(media.jobs);
+  mediaAssetsScope.attach(media);
   const docsConfig = createConfig({ db: prisma, clock, redis: null });
   const docsServices = createRuntimeDocs({
     tx,
@@ -388,7 +392,10 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     bumpAgreement: () => docsConfig.cache.bump("agreement"),
   });
   docsScope.attach(docsServices.jobs);
-  const closeMediaJobs = () => mediaScope.close();
+  const closeMediaJobs = () => {
+    mediaAssetsScope.close();
+    mediaScope.close();
+  };
   const startupChecks = createStartupChecks({
     db: prisma,
     appEnv: options.appEnv,

@@ -3,6 +3,7 @@ import { UPLOAD_CATEGORIES, extensionOf } from "@liyoxi/shared/uploads";
 import type { UploadCategory } from "@liyoxi/shared/uploads";
 import {
   assertCapability,
+  assertPermission,
   byEntity,
   byStore,
   hasCapability,
@@ -52,7 +53,9 @@ export function assertMerchantCategory(actor: MediaActor, input: RegisterInput):
         ? "store.qualification.edit"
         : input.category === "channel_screenshot"
           ? "channel.manage"
-          : "store.profile.edit",
+          : ["store_asset", "portrait_auth"].includes(input.category)
+            ? "asset.upload"
+            : "store.profile.edit",
     );
   if ((input.category === "kyc_license") !== (input.licenseKind !== undefined))
     throw new AppError("VALIDATION_FAILED", {
@@ -73,6 +76,19 @@ export async function registerScope(
     scopeType = "store";
   if (actor.merchant) {
     assertMerchantCategory(actor, input);
+    if (["store_asset", "portrait_auth"].includes(input.category)) {
+      if (!deps.assets) throw new AppError("PROVIDER_UNAVAILABLE");
+      const store = await deps.assets.readStore(tx, actor.merchant.storeId);
+      if (!store || store.entityId !== actor.merchant.entityId) throw notFound();
+      if (store.lifecycle !== "active") throw new AppError("STATE_NOT_ALLOWED");
+      if (
+        input.category === "store_asset" &&
+        actor.identity.actor.role === "clerk" &&
+        !store.isPrimary &&
+        store.qualificationStatus !== "verified"
+      )
+        throw new AppError("ASSET_UPLOAD_GATED");
+    }
     return {
       scopeType,
       entityId: actor.merchant.entityId,
@@ -108,6 +124,19 @@ export async function registerScope(
     const allowedExts = ["docx", "pdf"];
     if (input.files.some((file) => !allowedExts.includes(extensionOf(file.fileName) ?? "")))
       throw new AppError("FILE_TYPE_NOT_ALLOWED", { details: { allowedExts } });
+  }
+  if (["store_asset", "portrait_auth"].includes(input.category)) {
+    if (actor.identity.actor.type !== "staff" || actor.identity.actor.id !== staff.staff.id)
+      throw new AppError("PERMISSION_DENIED");
+    assertPermission(staff, "merchant.asset.upload_on_behalf", deps.clock.now());
+    if (!input.onBehalfStore) throw new AppError("FILE_CATEGORY_NOT_ALLOWED");
+    if (!deps.assets) throw new AppError("PROVIDER_UNAVAILABLE");
+    const store = input.storeId
+      ? await deps.assets.readStore(tx, input.storeId, staff.scope)
+      : null;
+    if (!store) throw notFound();
+    if (store.lifecycle !== "active") throw new AppError("STATE_NOT_ALLOWED");
+    if (input.entityId && input.entityId !== store.entityId) throw notFound();
   }
   const guard = deps.guards.get(input.category);
   if (["sample_video", "final_episode"].includes(input.category) && !guard)
@@ -155,6 +184,13 @@ export function canReadCategory(
     case "profile_video":
     case "profile_promo":
       return level("merchant");
+    case "store_asset":
+      return level("merchant") || staff.permissions.has("merchant.asset.review");
+    case "portrait_auth":
+      return (
+        staff.permissions.has("merchant.asset.review") ||
+        staff.permissions.has("merchant.asset.upload_on_behalf")
+      );
     case "evidence":
       return level("publish");
     case "channel_screenshot":
@@ -176,9 +212,22 @@ export async function readableByStaff(
   tx: Tx,
   staff: StaffContext,
   fileId: string,
+  deps?: Pick<BoundMediaDeps, "assets">,
 ): Promise<FileRow> {
   const file = await tx.fileObject.findFirst({ where: { id: fileId, ...inStaffScope(staff) } });
-  if (!file || !canReadCategory(staff, file)) throw notFound();
+  if (!file) throw notFound();
+  if (
+    !canReadCategory(staff, file) &&
+    !(
+      file.category === "store_asset" &&
+      file.storeId &&
+      (await deps?.assets?.canReadEditingAsset(tx, {
+        storeId: file.storeId,
+        staffId: staff.staff.id,
+      }))
+    )
+  )
+    throw notFound();
   if (
     file.category === "legal_doc" &&
     file.scopeType === "platform" &&

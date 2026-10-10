@@ -239,3 +239,15 @@ createAppServices从公开构建变量VITE_CLIENT_ERROR_DSN装配clientReporting
 ## W2-16 协议管理
 
 `/ops/agreements` 为六协议、版本编辑/安排/撤回和脱敏同意证据的唯一主从页，实际消费 W2-12 八接口。legal_doc 上传入库后才提交双文件引用，法务确认默认关闭；当前 phase/actions、公告不足与撤回原因均取服务器返回。新 draft ID/null 与同键失败恢复、签名 PDF 每次现签、权限与旧响应丢弃见 [私有说明](src/features/ops/agreements/README.md)。样例与真实服务分别由 `agreements-m2.spec.ts`、`live-agreements-m2.spec.ts` 验证；虚构正文不代表 E8 法律审核或真实云验证已完成。实际通过范围记 W2-16 状态。
+
+## W3-12 短剧、积分价与站点五页
+
+五页只消费已接受的W3-09/10/11契约：`/dramas`、`/dramas/$id`、`/billing/pricing`、`/ops/home`、`/ops/mall`。列表筛选、分页、页签和返回状态进URL，summary/actions由服务端给出；基础、版权、许可、价格与站点各资源用自己的确认版本和幂等键，409保留草稿并要求核对。原片批次在编辑页复用W3-02客户端与正式batch context、匹配、人工逐集、恢复/取消/commit，不增加页面、接口或通用上传旁路。
+
+版权已上架后只能走独立修订，当前锁与旧授权止日必须确认；新证明真实上传后才提交，current完整版权证明集合与本次revision依据分别展示。上架前读取同份十四检查及missingEpisodes/在途批次，确认调用真实接口再验证。预告片明确target/current状态和目标源预览，源预览沿正式admin.file.downloadUrls/公共Player。源异步检查仅对TRAILER_SOURCE_CHECKING且retryable=true按原body/key有界重试，支持调用者取消和清理；其他失败按原语义显示。
+
+价格只展示服务器当前P和待生效价，修改/撤销按权限与actions；固定模板价只读。首页及商城保存草稿与发布各有独立键，第二步失败可重试实际草稿，历史复制为新草稿/新发布版。invalidRefs/fieldErrors.path真实显示，Banner排序包含未结束停用行，服务端maxActive/集合冲突重新核对。
+
+`live-content.spec.ts`和`live-content-site.spec.ts`使用原完整bare live入口，不缩集合；R6作者HEAD f4b71258实际47/47通过（old32+C10+B5）。财务身份复用原隔离员工的专用恢复码，通过正式role PUT临时v/e与独立权限关闭、两真实403并finally恢复完整角色，不增加员工或放松配额。仅精确假COS host转发同轮validated loopback receiver，保URL/path/query/method/body/header/签名及真实receiver验证，不mock业务/API响应。
+
+私有预告片演练严格绑定本轮注册的source/job/asset/drama/template/quality/dst，真实下载核字节/SHA，以原串行CPU1/1GiB固定镜像native转码后发布真实产物并经正式双rendition/install。默认样片分支及其guard保持，不把隔离演练当厂商/真实云认证。`w312-*.png`在本轮immutable产物记录三视口；1366/1440核横滚，1280低于正式shell最小宽有真实overflow annotation。有头/设备、真实合法运营内容及法务审核未验证。完整分轮/首次失败和最终尾检见W3-12状态与交接。

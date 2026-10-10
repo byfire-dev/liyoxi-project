@@ -96,7 +96,7 @@ async function staleParents(tx: Tx, scope: InvariantScope, cutoff: Date): Promis
         state: "verifying",
         updatedAt: { lte: cutoff },
         ...(scope.entityIds
-          ? { items: { some: { file: { entityId: { in: [...scope.entityIds] } } } } }
+          ? { uploadBatchItems: { some: { file: { entityId: { in: [...scope.entityIds] } } } } }
           : {}),
       },
       select: { id: true },

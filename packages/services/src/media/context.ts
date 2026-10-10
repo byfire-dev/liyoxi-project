@@ -1,11 +1,9 @@
 import type { FileObject } from "@liyoxi/db";
 import type { UploadCategory } from "@liyoxi/shared/uploads";
-import type { StaffContext, MerchantStanding } from "../authz/index.js";
 import type { Events } from "../events/index.js";
 import type {
   Assembly,
   Clock,
-  IdentityContext,
   IdempotencyContext,
   QueueChannel,
   Tx,
@@ -16,23 +14,16 @@ import type { MediaJobHandler, MediaConvergenceHandler } from "./jobs/types.js";
 import type { MediaProductionDeps } from "./production-types.js";
 import type { FileRefType } from "../kernel/index.js";
 import type { MediaBatchDeps } from "./batches/types.js";
-import type { AuditRequestMeta } from "../audit/index.js";
+import type { MediaAssetsDeps } from "./assets/types.js";
+import type { MediaActor } from "./actor.js";
 export type FileRow = FileObject;
-export interface MediaActor {
-  readonly audit?: AuditRequestMeta;
-  readonly identity: IdentityContext;
-  readonly staff?: StaffContext;
-  readonly merchant?: {
-    readonly standing: MerchantStanding;
-    readonly entityId: string;
-    readonly storeId: string;
-  };
-}
+export type { MediaActor } from "./actor.js";
 export interface FileCategoryGuard {
   assert(tx: Tx, actor: MediaActor, input: RegisterInput): Promise<void>;
   registered?(tx: Tx, fileId: string, actor: MediaActor, input: RegisterInput): Promise<void>;
 }
 export interface MediaDeps {
+  readonly assets?: MediaAssetsDeps;
   readonly batches?: MediaBatchDeps;
   readonly production?: MediaProductionDeps;
   readonly jobOwnerId?: string;
