@@ -1,5 +1,6 @@
 import { Prisma, createPrismaClient } from "@liyoxi/db";
 import type { PrismaClient } from "@liyoxi/db";
+import { testDatabaseUrl } from "@liyoxi/db/testing/standalone";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createIdentityContext, createTxRunner, lockRows, uuidv7 } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
@@ -774,13 +775,20 @@ describe("真实取消原因同事务暂停", { timeout: 60000 }, () => {
       proceed = new Promise<void>((r) => {
         finish = r;
       });
+    let writerPid = 0;
     const writer = runner.run(async (t) => {
+      const [backend] = await t.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
+      writerPid = backend!.pid;
       await hold(t, first);
       entered();
       await proceed;
     });
     await locked;
-    const observer = createPrismaClient({ connectionString: await db.url(), max: 1 });
+    // The formal testing API reserves role:null for observing other sessions' state.
+    const observer = createPrismaClient({
+      connectionString: testDatabaseUrl(db.name, { role: null }),
+      max: 1,
+    });
     let pid = 0,
       started!: () => void;
     const connected = new Promise<void>((r) => {
@@ -799,11 +807,25 @@ describe("真实取消原因同事务暂停", { timeout: 60000 }, () => {
       );
     try {
       await connected;
+      expect(writerPid).toBeGreaterThan(0);
+      expect(pid).not.toBe(writerPid);
       let blocked = false;
       for (let attempt = 0; attempt < 200; attempt++) {
-        const [backend] = await observer.$queryRaw<{ waiting: boolean }[]>`
-          SELECT wait_event_type = 'Lock' AS waiting FROM pg_stat_activity WHERE pid = ${pid}`;
+        const [backend] = await observer.$queryRaw<
+          { waiting: boolean; blockers: number[]; query: string }[]
+        >`
+          SELECT wait_event_type = 'Lock' AS waiting, pg_blocking_pids(pid) AS blockers, query
+          FROM pg_stat_activity WHERE pid = ${pid}`;
         if (backend?.waiting) {
+          expect(backend.blockers).toContain(writerPid);
+          expect(backend.query).toContain('FROM "entity"');
+          console.warn("cancel-review prelock observed", {
+            writerPid,
+            waiterPid: pid,
+            entityId: o.entity.id,
+            blockers: backend.blockers,
+            query: backend.query,
+          });
           blocked = true;
           break;
         }
