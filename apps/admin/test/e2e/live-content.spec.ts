@@ -664,7 +664,11 @@ test("W312 真实财务身份v只读与e独立权限关闭，服务端拒绝且f
     await expect(viewer.getByRole("button", { name: "提交版权变更", exact: true })).toHaveCount(0);
     const current = await detail(viewer),
       copyright = current.copyright;
-    expect(copyright.proofFiles).toHaveLength(1);
+    expect(copyright.proofFiles).toHaveLength(2);
+    expect(new Set(copyright.proofFiles.map((file) => file.fileId)).size).toBe(2);
+    expect(copyright.proofFiles.map((file) => file.originalName).sort()).toEqual(
+      ["虚构版权证明.png", "虚构版权修订依据.png"].sort(),
+    );
     const denied = await viewer.request.post(
       `/api/v1/admin/dramas/${f.dramaId}/drama-copyright-revisions`,
       {
