@@ -3,13 +3,14 @@ import type { PrismaClient } from "@liyoxi/db";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createIdentityContext, createTxRunner, lockRows, uuidv7 } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
-import { useSeededDatabase } from "../testing/index.js";
+import { assembleForTest, useSeededDatabase } from "../testing/index.js";
 import { createTimers, timerKey } from "../timers/index.js";
 import { harness } from "./__fixtures__/harness.js";
 import type { Harness } from "./__fixtures__/harness.js";
 import { checked } from "./machines.js";
 import {
   holdCancelReviewPauses,
+  orderSidePort,
   readCancelReviewHoldTargets,
   readCancelReviewPauseTargets,
   releaseCancelReviewPauses,
@@ -679,14 +680,10 @@ describe("真实取消原因同事务暂停", { timeout: 60000 }, () => {
     expect((await ticket(o)).pauseCount).toBe(0);
   });
   it("缺真实订单facts拥有者时fail-closed，不以空集合假成功", async () => {
-    const unbound = harness(h.prisma, false);
-    try {
-      await expect(
-        h.tx.run((t) => readCancelReviewHoldTargets(t, unbound.assembly, uuidv7())),
-      ).rejects.toMatchObject({ error: "INTERNAL" });
-    } finally {
-      unbound.unbind();
-    }
+    const assembly = assembleForTest({ entry: "api", withoutRealPorts: [orderSidePort] });
+    await expect(
+      h.tx.run((t) => readCancelReviewHoldTargets(t, assembly, uuidv7())),
+    ).rejects.toMatchObject({ error: "INTERNAL" });
   });
   it("全图预锁后持有高序plan，多个申请逐个持有原因仍无低序补锁", async () => {
     const o = await h.order(true);
