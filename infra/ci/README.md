@@ -196,6 +196,10 @@ node infra/ci/classify-gate-changes.mjs --base origin/main --labels gate-change
 
 登记新的门禁文件：往 `gate-files.json` 的 `files` 末尾加一条（`pattern`、`kind`、`note`）。`pattern` 里 `**` 跨目录、`*` 不跨目录。白名单、基线、黄金文件这类“一动就该让业主看”的用 `frozen`；规则与配置用 `append`；tsconfig 用 `tsconfig`；入库的生成物目录用 `generated`，另写 `check`，前提见第 5.1 节。新依赖一律写精确版本，写成范围会被判成放松。`infra/ci/` 下的检查脚本（`.mjs`）与 `selftest/` 已经被现有条目按 `new-file` 盖住，不用再登记；放在别处的检查脚本按 `new-file` 登记。
 
+授权书坐标独立 gate 包：数据模型插入文档行后，普通 source 包把 `license_letter.status` 六行引用统一后移两行，并同步 x01 来源与官方生成映射；此处只把 `machines-coverage-baseline.jsonl` 原第 39 项的 `13:947` 归位为 `13:949`。它仍是同一条 `license_letter.void` / `manual` 未覆盖项，原 70 项数量、顺序与 reason 完全不变，没有新增豁免或修改 checker。
+
+这是对既有基线行的替换，按原分类规则走独立 `gate-change`，不能伪装成 append 或和非门禁路径混合。source 单独合流时已知覆盖基线暂时未对齐；只有组合经原 `machines:check`、strict contract coverage、官方 registry 生成/对账与分类通过，分别独审后按 source → gate 普通合流才闭合。该记录不声称远端 CI 或部署。
+
 ### 5.1 生成物（`generated`）
 
 来历：计划 第 5.3 节把“重新生成的生成物”列在只增类，分类脚本第一版没有这一种口径。契约生成物当时登记成“算门禁路径、不逐行判”（条目的 `except` 盖住整个匹配式：重新生成不进清单，删掉一份也不报）；设计生成物按 `append` 登记（改一个已有变量的取值就判成放松，而来源 `design/tokens.json` 不是门禁文件，带 `gate-change` 的 PR 也放不进去）。业主 2026-10-05 同意加这一种口径（原话：“生成物的门禁口径、状态汇总不入库：两个减少摩擦的门禁改动。同意。”），两处登记统一到它上面。
