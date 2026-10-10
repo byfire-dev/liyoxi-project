@@ -1,0 +1,25 @@
+// 腾讯 TC3-HMAC-SHA256；服务名 asr，国内端点与版本固定，不接受任意 endpoint。
+import { createHash, createHmac } from "node:crypto";
+
+export const ASR_HOST = "asr.tencentcloudapi.com";
+export const ASR_CONTENT_TYPE = "application/json; charset=utf-8";
+export function signAsr(input: {
+  secretId: string;
+  secretKey: string;
+  timestamp: number;
+  payload: string;
+}): string {
+  const hash = (text: string) => createHash("sha256").update(text).digest("hex");
+  const hmac = (key: string | Buffer, text: string) =>
+    createHmac("sha256", key).update(text).digest();
+  const date = new Date(input.timestamp * 1000).toISOString().slice(0, 10);
+  const scope = `${date}/asr/tc3_request`;
+  const headers = "content-type;host";
+  const canonical = `POST\n/\n\ncontent-type:${ASR_CONTENT_TYPE}\nhost:${ASR_HOST}\n\n${headers}\n${hash(input.payload)}`;
+  const toSign = `TC3-HMAC-SHA256\n${input.timestamp}\n${scope}\n${hash(canonical)}`;
+  const signature = hmac(
+    hmac(hmac(hmac(`TC3${input.secretKey}`, date), "asr"), "tc3_request"),
+    toSign,
+  ).toString("hex");
+  return `TC3-HMAC-SHA256 Credential=${input.secretId}/${scope}, SignedHeaders=${headers}, Signature=${signature}`;
+}
