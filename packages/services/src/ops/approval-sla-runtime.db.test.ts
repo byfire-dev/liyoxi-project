@@ -505,11 +505,17 @@ describe("独立 worker 审批 SLA 装配", { timeout: 120_000 }, () => {
   it("I1使用真实kind领域关联而非恒零；I3和关闭后的两校验均绑定本实例", async () => {
     const kinds = approvalKindsOf(worker.assembly);
     expect([...kinds.keys()].sort()).toEqual([
+      "ad_cancel",
       "channel_account",
       "finance_config_change",
       "launch_link",
       "qualification",
     ]);
+    expect(kinds.get("ad_cancel")).toMatchObject({
+      domain: { table: "cancel_request", column: "approval_request_id" },
+      hasExecution: true,
+      executionSla: expect.any(Function),
+    });
     const request = await realQualification();
     const inv = worker.assembly.invariant("approval.I1")!;
     const slaInv = worker.assembly.invariant("approval.I3")!;

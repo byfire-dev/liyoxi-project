@@ -1,6 +1,17 @@
 export { createOrderService } from "./service.js";
 export { quoteOrderCancel, quoteAdCancel, previewFinalReject } from "./cancel-quote.js";
 export { revalidateCancel } from "./cancel-revalidation.js";
+export {
+  createAdCancel,
+  submitAdCancel,
+  approveAdCancel,
+  rejectAdCancel,
+  withdrawAdCancel,
+  voidAdCancel,
+  executeCancel,
+} from "./ad-cancel.js";
+export { readAdCancelTargetGraph, prelockAdCancelTargets } from "./cancel-locks.js";
+export type { CancelActor, CancelDeps } from "./cancel-context.js";
 export type { OrderService } from "./service.js";
 export type { OrderActor, OrderDeps } from "./context.js";
 export { bindOrder } from "./binding.js";
