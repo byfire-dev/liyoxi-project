@@ -85,3 +85,13 @@ ad 清指针、order 重新推导与 order.start 复活。真实执行还需要 
 发布/下架/下载授权/文件等完整拥有者出口，账户锁后不能首次获取低序对象或 timer 主体锁。
 本片没有 cancel kind、提交/审批/执行/终局 producer、免审批路径、HTTP 或新配置，
 不代表 W210 整包关闭收尾已完成。
+
+## 广告取消内部写链（W210 所属准备）
+
+`createAdCancel` 注入真实 approval/flow/ledger/events/timers/sla 与 TxRunner；提交、批准、驳回、撤回、作废、执行只处理 `ad_cancel`。六回调与执行时限读取由 order 静态注册；回调只接受本 Tx 的真实用例绑定，不缓存另一运行时。Tx-first 同名函数供同事务调用，`executeCancel` 是唯一执行入口。facade 在事务确实回滚后另开小事务保存复核失败日志；直接 Tx 调用者须在其外层回滚后履行同一日志责任。
+
+提交先认真实启用员工和权限，审批引擎在自己的 validate 中进入真实整图锁和账户 Tf 核算，再建审批/header/line/自有指针。批准保留审批引擎 pending/self/version 原守卫，校验回显并复核；待执行保存原工作日 SLA 与真实 approval_request execution timer。自动路径只由真实提交中开关与全额原批次释放条件触发，系统 approve 后直接 auto_execute，不伪造 pending_execution。
+
+`readAdCancelTargetGraph` / `prelockAdCancelTargets` 供未来关闭调用方整体预锁：staff20→approval30→request50→line60→entity100→store130→ad150→活跃绑定 order160/item170；每表 ID 升序，候选图重读不一致即整笔拒绝。所有相关既存 timer 在账户420前整体预锁；调用方必须合并其他 owner 目标后再锁，不得先持主体或高序锁再补本图。正常执行与 auto 都先迁移广告，再调用真实账本、写实际三去向及请求累计，最后完成 header 与 approval.executed；任一失败整笔回滚。广告不拥有 delivery_ticket，不创建假暂停。
+
+内部 body 不接受 serviceTicketId；完整 HTTP 的 support 引用写口与 active requester 对象失效财务代撤另属前置。现仅本人撤回、既有 disabled requester 合法代撤、真实失效后的 system 撤回/作废。未实现其他取消 kind、广告创建/指派/版本 producer、主体关闭或 W210 整包。实际验证待独占窗口，源码阶段不标通过。

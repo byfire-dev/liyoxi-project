@@ -1,3 +1,4 @@
+import { EVENT_PAYLOAD_SCHEMAS } from "@liyoxi/contract";
 import type { ReturnResult } from "../billing/index.js";
 import type { Events } from "../events/index.js";
 import { chainKey, rowKey } from "../flow/index.js";
@@ -127,7 +128,7 @@ export async function cancelAd(
     entityId: ad.entityId,
     storeId: ad.storeId,
     dedupeKey: `ad.cancelled:${input.cancelRequestId}:${ad.id}`,
-    payload: {
+    payload: EVENT_PAYLOAD_SCHEMAS["ad.cancelled"].parse({
       v: 1,
       adId: ad.id,
       cancelRequestId: input.cancelRequestId,
@@ -136,7 +137,7 @@ export async function cancelAd(
       fromState: transitioned.from,
       toState: transitioned.to,
       transition: "ad.cancel",
-    },
+    }),
   });
   return result;
 }
