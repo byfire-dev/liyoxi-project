@@ -124,3 +124,36 @@ export type CancelQuote = z.infer<typeof CancelQuoteSchema>;
 export type CancelBlockReason = z.infer<typeof CancelBlockReasonSchema>;
 export type CancelRecheckEntry = z.infer<typeof CancelRecheckEntrySchema>;
 export type FinalRejectImpact = z.infer<typeof FinalRejectImpactSchema>;
+
+// W2-10 内部写链命令；HTTP 与可选客服引用由后续应用用例接入。
+const confirm = z.strictObject({ requestNo: z.string().min(1), totalRefundPoints: points });
+const closeNote = z.string().trim().min(1).max(200);
+export const AdCancelCoreSubmitBodySchema = z.strictObject({
+  reasonCode: AdCancelQuoteBodySchema.shape.reasonCode,
+  note: z.string().trim().min(5).max(200),
+  expect: z.strictObject({ totalRefundPoints: points }),
+});
+export const CancelApproveBodySchema = z.strictObject({
+  lockVersion: z.int().nonnegative(),
+  confirm,
+  confirmChecks: z.array(z.literal("stage_rule_amount_checked")).min(1),
+});
+export const CancelExecuteBodySchema = z.strictObject({
+  confirm,
+  confirmChecks: z.array(z.literal("order_points_checked")).min(1),
+});
+export const CancelRejectBodySchema = z.strictObject({
+  note: closeNote,
+  // 启用状态与“取消与退款驳回”场景由事务内字典守卫判定。
+  reasonCodes: z.array(z.string().trim().min(1)).max(1).optional(),
+});
+export const CancelWithdrawBodySchema = z.strictObject({
+  note: z.string().trim().max(200).optional(),
+});
+export const CancelVoidBodySchema = z.strictObject({ note: closeNote });
+export type AdCancelCoreSubmitBody = z.infer<typeof AdCancelCoreSubmitBodySchema>;
+export type CancelApproveBody = z.infer<typeof CancelApproveBodySchema>;
+export type CancelExecuteBody = z.infer<typeof CancelExecuteBodySchema>;
+export type CancelRejectBody = z.infer<typeof CancelRejectBodySchema>;
+export type CancelWithdrawBody = z.infer<typeof CancelWithdrawBodySchema>;
+export type CancelVoidBody = z.infer<typeof CancelVoidBodySchema>;

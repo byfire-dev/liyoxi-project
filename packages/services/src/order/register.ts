@@ -22,6 +22,8 @@ import { orderManagerPort } from "../profile/index.js";
 import { QualificationImpactPort } from "../profile/index.js";
 import { previewFinalReject } from "./cancel-quote.js";
 import { readCancelReviewCause } from "./cancel-review-facts.js";
+import { approvalKindPort } from "../approval/index.js";
+import { adCancelKind, cancelRequestBinding, cancelRequestChain } from "./ad-cancel-kind.js";
 import type { SyncStoreManager } from "../profile/index.js";
 import { orderSidePort } from "../delivery/index.js";
 import { boundOrder } from "./binding.js";
@@ -88,6 +90,8 @@ export const registration = defineRegistration("order", {
     },
   ],
   portImplementations: [
+    implementKeyed(approvalKindPort, "ad_cancel", adCancelKind),
+    implementKeyed(machinePort, cancelRequestChain, cancelRequestBinding),
     implementTenantCloseFacts(orderCloseFactsPort, {
       countOpenOrdersByEntity,
       countBlockingStoreOrders,

@@ -1,9 +1,15 @@
 import { z } from "../zod.js";
-import { IdSchema, DateSchema } from "../common/index.js";
+import { IdSchema, DateSchema, InstantSchema } from "../common/index.js";
 const transitionKeys = {
   fromState: z.string().nullable(),
   toState: z.string(),
   transition: z.string(),
+};
+const cancel = { v: z.literal(1), cancelRequestId: IdSchema };
+const cancelled = {
+  ...cancel,
+  fromState: z.literal("pending_approval"),
+  toState: z.literal("not_executed"),
 };
 export const payloads = {
   "order.started": z.object({
@@ -35,4 +41,53 @@ export const payloads = {
     toState: z.string(),
     transition: z.string(),
   }),
+  "cancel.submitted": z
+    .strictObject({
+      ...cancel,
+      approvalRequestId: IdSchema,
+      kind: z.enum(["order_cancel", "ad_cancel", "qualification_cancel"]),
+      subjectType: z.enum(["drama_order", "ad", "store"]),
+      subjectId: IdSchema,
+      totalRefundPoints: z.int().nonnegative(),
+      fromState: z.null(),
+      toState: z.literal("pending_approval"),
+      transition: z.literal("cancel.submit"),
+    })
+    .refine(
+      (v) =>
+        ({ order_cancel: "drama_order", ad_cancel: "ad", qualification_cancel: "store" })[
+          v.kind
+        ] === v.subjectType,
+    ),
+  "cancel.approved": z.strictObject({
+    ...cancel,
+    execDueAt: InstantSchema,
+    fromState: z.literal("pending_approval"),
+    toState: z.literal("pending_execution"),
+    transition: z.literal("approval.approved"),
+  }),
+  "cancel.rejected": z.strictObject({ ...cancelled, transition: z.literal("approval.rejected") }),
+  "cancel.withdrawn": z.strictObject({ ...cancelled, transition: z.literal("approval.withdrawn") }),
+  "cancel.voided": z.strictObject({
+    ...cancel,
+    fromState: z.literal("pending_execution"),
+    toState: z.literal("not_executed"),
+    transition: z.literal("cancel.void"),
+  }),
+  "cancel.executed": z.discriminatedUnion("isAutoExecuted", [
+    z.strictObject({
+      ...cancel,
+      isAutoExecuted: z.literal(false),
+      fromState: z.literal("pending_execution"),
+      toState: z.literal("done"),
+      transition: z.literal("cancel.execute"),
+    }),
+    z.strictObject({
+      ...cancel,
+      isAutoExecuted: z.literal(true),
+      fromState: z.literal("pending_approval"),
+      toState: z.literal("done"),
+      transition: z.literal("cancel.auto_execute"),
+    }),
+  ]),
 } as const;
