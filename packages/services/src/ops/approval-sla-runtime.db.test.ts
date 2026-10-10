@@ -29,7 +29,7 @@ import {
 import { createApprovalSlaAssembly } from "./approval-sla-runtime.js";
 import { buildWorkerServices } from "./worker.js";
 
-const db = useSeededDatabase("services", { label: "approvalworker" });
+const db = useSeededDatabase("services", { label: "approvalwrk" });
 const clock = createClock(new Date("2026-01-05T01:00:00Z"));
 let prisma: Awaited<ReturnType<typeof db.prisma>>;
 let tx: ReturnType<typeof createTxRunner>;
