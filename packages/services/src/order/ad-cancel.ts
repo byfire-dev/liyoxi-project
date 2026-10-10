@@ -349,7 +349,7 @@ async function finishAdCancel(
         ...preview,
         backToOriginal: result.returnedPoints,
         convertedToAddon: result.convertedPoints,
-        forfeited: result.forfeited,
+        forfeited: result.forfeitedPoints,
       },
     },
   });
@@ -387,7 +387,7 @@ export async function submitAdCancel(
 ) {
   const body = AdCancelCoreSubmitBodySchema.parse(input),
     staff = await staffActor(tx, actor);
-  assertPermission(staff, "order.refund.request");
+  assertPermission(staff, "order.refund.request", deps.clock.now());
   const ad = await readAdCancelFacts(tx, adId, staff.scope);
   if (!ad) throw new AppError("NOT_FOUND");
   const requestId = uuidv7(),
@@ -507,8 +507,7 @@ export async function approveAdCancel(
 ) {
   const body = CancelApproveBodySchema.parse(input),
     staff = staffIdentity(actor);
-  assertPermission(staff, "finance.refund.approve");
-  assertStepUp(staff, "finance.refund.approve", deps.clock.now());
+  assertPermission(staff, "finance.refund.approve", deps.clock.now());
   const r = await lockedRequest(tx, actor, id);
   if (actor.ctx.actor.type !== "system") await staffActor(tx, actor);
   return withCancelCall(tx, { deps, actor, requestId: id }, async () => {
@@ -532,7 +531,7 @@ export async function rejectAdCancel(
 ) {
   const body = CancelRejectBodySchema.parse(input),
     staff = staffIdentity(actor);
-  assertPermission(staff, "finance.refund.approve");
+  assertPermission(staff, "finance.refund.approve", deps.clock.now(), { skipStepUp: true });
   const r = await lockedRequest(tx, actor, id);
   if (actor.ctx.actor.type !== "system") await staffActor(tx, actor);
   return withCancelCall(tx, { deps, actor, requestId: id }, async () => {
@@ -574,7 +573,7 @@ export async function voidAdCancel(
   const body = CancelVoidBodySchema.parse(input);
   if (actor.ctx.actor.type !== "system") {
     const staff = staffIdentity(actor);
-    assertPermission(staff, "order.refund.request");
+    assertPermission(staff, "order.refund.request", deps.clock.now());
   }
   const r = await lockedRequest(tx, actor, id);
   if (actor.ctx.actor.type !== "system") await staffActor(tx, actor);
@@ -600,8 +599,7 @@ export async function executeCancel(
 ) {
   const body = CancelExecuteBodySchema.parse(input),
     staff = staffIdentity(actor);
-  assertPermission(staff, "finance.refund.execute");
-  assertStepUp(staff, "finance.refund.execute", deps.clock.now());
+  assertPermission(staff, "finance.refund.execute", deps.clock.now());
   const r = await lockedRequest(tx, actor, id);
   if (actor.ctx.actor.type !== "system") await staffActor(tx, actor);
   assertConfirm(body.confirm, {

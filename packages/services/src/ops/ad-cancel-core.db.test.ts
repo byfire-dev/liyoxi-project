@@ -1126,17 +1126,18 @@ describe("真实广告取消写链", () => {
       ids: string[] = [];
     await h.tx.run(async (tx) => {
       await lockRows(tx, "ad", [f.ad.id, other.ad.id]);
-      for (const [kind, purpose] of [
+      const timerCases: [string, string][] = [
         ["sla.breach", "first:0"],
         ["sla.breach", "rev:1"],
         ["ad.returned_stale", "0"],
-      ])
+      ];
+      for (const [kind, purpose] of timerCases)
         ids.push(
           (
             await f.deps.timers.arm(tx, {
-              kind: kind!,
+              kind,
               subject: { type: "ad", id: f.ad.id },
-              key: timerKey(kind!, { type: "ad", id: f.ad.id }, purpose),
+              key: timerKey(kind, { type: "ad", id: f.ad.id }, purpose),
               fireAt: new Date(h.clock.now().getTime() + 86_400_000),
             })
           ).id,
