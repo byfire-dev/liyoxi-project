@@ -471,6 +471,8 @@ EntityQualificationBrief（认证前除结论外各值为空；不带 `entityId`
 
 **StoreAssetDetail**（详情）= StoreAssetCard 的全部字段，另加：
 
+商家老板与店员的 `same` 表示两者使用相同字段与数据。分析要点统一对外命名为 `highlights`，遵循 C57 的禁用字段规则；后台 a03 的 `keypoints` 与内部洞察的 `content.keypoints` 保持原名，三者承载同一字符串数组。
+
 | 字段 | 类型 | 必有 | 说明 | 来源 |
 | --- | --- | --- | --- | --- |
 | textBody | string \| null | 是 | 文字类正文 | `store_asset.text_body` |
