@@ -42,6 +42,7 @@ M2 的 25 本任务书已随 PR #124 合入，回调框架与后台通用构件�
 | [docs/07-api-contract.md](docs/07-api-contract.md) | 接口契约（字段级定义在 docs/api/） |
 | [docs/08-development-plan.md](docs/08-development-plan.md) | 开发计划（已确认，执行中；进度见 docs/plan/） |
 | [docs/plan/](docs/plan/README.md) | 开发计划的执行台账：任务书、工作包状态、留桩、计划变更、外部验证、业主清单、三份运维文档 |
+| [W2-27 日志入口边界](docs/plan/changes/W2-27-log-tools-first.md) | a 内先交受限日志查询与统计；轮转、Redis恢复与真实接通仍待交 |
 | [W2-28 阶段边界](docs/plan/changes/W2-28-compat-before-mixed.md) | a 在役契约兼容；b 真实混跑与发布阻断仍待交，整包进行中 |
 | [CLAUDE.md](CLAUDE.md) | 会话开工须知：每个开发会话开工前必读的总纲与出处 |
 | [docs/appendix/](docs/appendix/README.md) | 子系统设计草案、外部事实核实记录、调研记录 |
