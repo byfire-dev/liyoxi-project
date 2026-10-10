@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import type { IncomingHttpHeaders, Server, ServerResponse } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { withBeforeCall } from "../types.js";
-import { createFakeAsr } from "../../testing/providers/asr.js";
+import { createFakeAsr } from "../../testing/index.js";
 import { signAsr } from "./sign.js";
 import { createTencentAsr } from "./tencent.js";
 
