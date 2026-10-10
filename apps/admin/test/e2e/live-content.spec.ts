@@ -22,6 +22,7 @@ import { addDays, calendarDate } from "@liyoxi/shared/time";
 import { liveContext, recordErrors } from "./live-context";
 import { recordExpectedConflictErrors } from "./w206-helpers";
 import { contentFixture, contentVideo, syntheticImage, viewportShots } from "./w312-media";
+import { recordTrailerErrors, saveTrailerDialog } from "./w312-trailer";
 
 function headers(action: string) {
   return {
@@ -280,8 +281,8 @@ test("W312 五页内容主流程：真实原片批次、许可版权源文件、
 }, info) => {
   test.setTimeout(180_000);
   const f = contentFixture(),
-    errors = recordErrors(page),
-    base = `/api/v1/admin/dramas/${f.dramaId}`;
+    base = `/api/v1/admin/dramas/${f.dramaId}`,
+    errors = recordTrailerErrors(page, `${base}/trailer`);
   const stopCloud = await routeContentCloud(page);
   try {
     await page.goto(`/dramas/${f.dramaId}?tab=basic`);
@@ -422,7 +423,7 @@ test("W312 五页内容主流程：真实原片批次、许可版权源文件、
     await expect(trailer.getByRole("button", { name: "设置并转换", exact: true })).toBeEnabled({
       timeout: 120_000,
     });
-    await saveDialog(page, trailer, `${base}/trailer`, "PUT", "设置并转换");
+    const checkingReplies = await saveTrailerDialog(page, trailer, `${base}/trailer`);
     await expect
       .poll(async () => (await detail(page)).trailer?.state, { timeout: 120_000 })
       .toBe("ready");
@@ -446,7 +447,7 @@ test("W312 五页内容主流程：真实原片批次、许可版权源文件、
     await delisting.getByRole("checkbox").check();
     await saveDialog(page, delisting, `${base}/delist`, "POST", "确认下架");
     expect((await detail(page)).status).toBe("delisted");
-    expect(errors).toEqual([]);
+    expect(errors.unexpected(checkingReplies)).toEqual([]);
   } finally {
     await stopCloud();
   }

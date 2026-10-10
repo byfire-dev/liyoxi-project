@@ -219,16 +219,60 @@ export function createDramaApi(services: Pick<AppServices, "api">) {
         })
         .then(contentResult)
         .then((v) => AdminDramaWriteResultSchema.parse(v)),
-    trailer: (id: string, sourceFileId: string, key: string, signal?: AbortSignal) =>
-      c
-        .PUT("/api/v1/admin/dramas/{dramaId}/trailer", {
-          params: params(id),
-          body: { sourceFileId },
-          headers: headers(key),
-          signal,
-        })
-        .then(contentResult)
-        .then((v) => DramaTrailerWriteResultSchema.parse(v)),
+    trailer: async (id: string, sourceFileId: string, key: string, signal?: AbortSignal) => {
+      const controller = new AbortController();
+      const abort = () => controller.abort(signal?.reason);
+      signal?.addEventListener("abort", abort, { once: true });
+      if (signal?.aborted) abort();
+      const deadline = setTimeout(
+        () =>
+          controller.abort(
+            new DOMException("预告片源文件检测仍未完成，请稍后重试", "TimeoutError"),
+          ),
+        120_000,
+      );
+      try {
+        for (let attempt = 0; ; attempt++) {
+          controller.signal.throwIfAborted();
+          try {
+            return DramaTrailerWriteResultSchema.parse(
+              await contentResult(
+                await c.PUT("/api/v1/admin/dramas/{dramaId}/trailer", {
+                  params: params(id),
+                  body: { sourceFileId },
+                  headers: headers(key),
+                  signal: controller.signal,
+                }),
+              ),
+            );
+          } catch (error) {
+            controller.signal.throwIfAborted();
+            if (
+              !(error instanceof ContentFailure) ||
+              error.failure.status !== 409 ||
+              error.failure.symbol !== "TRAILER_SOURCE_CHECKING" ||
+              error.failure.body?.retryable !== true ||
+              attempt >= 119
+            )
+              throw error;
+            await new Promise<void>((resolve, reject) => {
+              const finish = () => {
+                clearTimeout(wait);
+                controller.signal.removeEventListener("abort", finish);
+                if (controller.signal.aborted) reject(controller.signal.reason);
+                else resolve();
+              };
+              const wait = setTimeout(finish, 1000);
+              controller.signal.addEventListener("abort", finish, { once: true });
+              if (controller.signal.aborted) finish();
+            });
+          }
+        }
+      } finally {
+        clearTimeout(deadline);
+        signal?.removeEventListener("abort", abort);
+      }
+    },
     dict: (typeKey: string, signal?: AbortSignal) =>
       c
         .GET("/api/v1/admin/dict-items", { params: { query: { typeKey } }, signal })
