@@ -15,11 +15,17 @@ export function attachOutputBatchLiveCloud(options: {
   tools: NonNullable<RuntimeOptions["mediaProductionTools"]>;
   relay: Awaited<ReturnType<typeof createOutputBatchMediaToolRelay>>;
   storeIds: readonly string[];
+  trailer?: (
+    input: Parameters<Runtime["providers"]["media"]["transcode"]>[0],
+    original: Runtime["providers"]["media"]["transcode"],
+  ) => ReturnType<Runtime["providers"]["media"]["transcode"]>;
   pngProof(ref: Ref): { size: number; sha256: string } | undefined;
 }) {
   const original = options.media.transcode;
   options.media.transcode = async (input) => {
     if (!input.watermarks?.length) return original(input);
+    if (input.watermarks.some((mark) => "templateId" in mark) && options.trailer)
+      return options.trailer(input, original);
     const [id, attempt, extra] = input.userData.split(":"),
       mark = input.watermarks[0];
     if (

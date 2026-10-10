@@ -6,6 +6,7 @@ import { chmod, lstat, mkdir, mkdtemp, open, readFile, realpath, rm } from "node
 import http from "node:http";
 import { join } from "node:path";
 import { once } from "node:events";
+import { trailerEncoding } from "./upload-batch-live-trailer.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const DIRECTORY =
@@ -589,12 +590,13 @@ export async function createOutputBatchMediaToolRelay(options: { runId: string; 
     for (const path of copied.keys()) if (path.startsWith(`${directory}/`)) copied.delete(path);
   };
   // Private live codec only. The original four mediatool operations and their IPC stay intact.
-  const renderSample = (input: {
-    path: string;
-    outPath: string;
-    png: Uint8Array;
-    signal: AbortSignal;
-  }) => {
+  const renderNative = (
+    input: {
+      path: string;
+      outPath: string;
+      signal: AbortSignal;
+    } & ({ png: Uint8Array } | { quality: "sd" | "hd"; ai: boolean }),
+  ) => {
     const controller = new AbortController(),
       previous = renderTail;
     renderControllers.add(controller);
@@ -608,28 +610,40 @@ export async function createOutputBatchMediaToolRelay(options: { runId: string; 
       if (
         source.name !== "source.mp4" ||
         output.name !== "stamped.mp4" ||
-        source.directory !== output.directory ||
-        input.png.length < 8 ||
-        input.png.length > 1024 * 1024 ||
-        Buffer.from(input.png.subarray(0, 8)).toString("hex") !== "89504e470d0a1a0a"
+        source.directory !== output.directory
+      )
+        throw new Error("W302 native render scope rejected");
+      const trailer = "quality" in input ? trailerEncoding(input.quality, input.ai) : undefined;
+      if (
+        "quality" in input &&
+        (!["sd", "hd"].includes(input.quality) || typeof input.ai !== "boolean")
+      )
+        throw new Error("W312 trailer render mapping rejected");
+      if (
+        "png" in input &&
+        (input.png.length < 8 ||
+          input.png.length > 1024 * 1024 ||
+          Buffer.from(input.png.subarray(0, 8)).toString("hex") !== "89504e470d0a1a0a")
       )
         throw new Error("W302 sample render scope rejected");
       const directory = source.directory,
         pngPath = `${directory}/watermark.png`;
       directories.add(directory);
-      const png = await open(
-        join(workDir, pngPath),
-        constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW | constants.O_WRONLY,
-        0o600,
-      );
-      try {
-        await png.writeFile(input.png);
-        await png.sync();
-      } finally {
-        await png.close();
+      if ("png" in input) {
+        const png = await open(
+          join(workDir, pngPath),
+          constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW | constants.O_WRONLY,
+          0o600,
+        );
+        try {
+          await png.writeFile(input.png);
+          await png.sync();
+        } finally {
+          await png.close();
+        }
       }
       await transferInput(source.path, signal);
-      await transferInput(pngPath, signal, true);
+      if ("png" in input) await transferInput(pngPath, signal, true);
       const name = `lyx-w307-render-${options.runId}-${randomUUID()}`;
       let execution: ReturnType<typeof start> | undefined, removal: Promise<string> | undefined;
       const remove = () => (removal ??= command(["rm", "--force", name]));
@@ -676,12 +690,10 @@ export async function createOutputBatchMediaToolRelay(options: { runId: string; 
           "1",
           "-i",
           `/work/${source.path}`,
-          "-loop",
-          "1",
-          "-i",
-          `/work/${pngPath}`,
+          ...(trailer ? [] : ["-loop", "1", "-i", `/work/${pngPath}`]),
           "-filter_complex",
-          "[0:v]scale=720:1280[base];[1:v]format=rgba,colorchannelmixer=aa=0.7[mark];[base][mark]overlay=(W-w)/2:(H-h)/2:shortest=1[out]",
+          trailer?.filter ??
+            "[0:v]scale=720:1280[base];[1:v]format=rgba,colorchannelmixer=aa=0.7[mark];[base][mark]overlay=(W-w)/2:(H-h)/2:shortest=1[out]",
           "-map",
           "[out]",
           "-map",
@@ -691,13 +703,15 @@ export async function createOutputBatchMediaToolRelay(options: { runId: string; 
           "-preset",
           "veryfast",
           "-profile:v",
-          "high",
+          trailer?.profile ?? "high",
+          ...(trailer ? ["-b:v", trailer.videoBitrate, "-r", "30", "-g", "60"] : []),
           "-pix_fmt",
           "yuv420p",
           "-threads",
           "1",
           "-c:a",
-          "copy",
+          trailer ? "aac" : "copy",
+          ...(trailer ? ["-b:a", trailer.audioBitrate] : []),
           "-movflags",
           "+faststart",
           "-n",
@@ -854,7 +868,19 @@ export async function createOutputBatchMediaToolRelay(options: { runId: string; 
       socketPath,
       bindAttempt,
       releaseDirectory,
-      renderSample,
+      renderSample: (input: {
+        path: string;
+        outPath: string;
+        png: Uint8Array;
+        signal: AbortSignal;
+      }) => renderNative(input),
+      renderTrailer: (input: {
+        path: string;
+        outPath: string;
+        quality: "sd" | "hd";
+        ai: boolean;
+        signal: AbortSignal;
+      }) => renderNative(input),
       close,
       resources: {
         root,
