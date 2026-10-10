@@ -59,6 +59,14 @@ export const payloads = {
     deliveryManagerId: z.union([IdSchema, z.null()]),
   }),
   "ticket.assigned": z.strictObject({ ...ticket, deliveryManagerId: IdSchema }),
+  "ticket.held": z.strictObject({
+    v: z.literal(1),
+    deliveryTicketId: IdSchema,
+    orderItemId: IdSchema,
+    reason: z.enum(DELIVERY_TICKET_PAUSE_REASON.values),
+    refId: IdSchema,
+    ...transition,
+  }),
   "ticket.resumed": z.strictObject({
     v: z.literal(1),
     deliveryTicketId: IdSchema,

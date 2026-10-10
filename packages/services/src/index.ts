@@ -280,8 +280,10 @@ export {
   countOnlineReleaseTicketsByEntity,
   readCancelReviewPauseTargets,
   releaseCancelReviewPauses,
+  readCancelReviewHoldTargets,
+  holdCancelReviewPauses,
 } from "./delivery/index.js";
-export type { CancelReviewPauseTargets } from "./delivery/index.js";
+export type { CancelReviewPauseTargets, CancelReviewHoldTargets } from "./delivery/index.js";
 export type { DeliveryDownloads, DeliveryDownloadDeps } from "./delivery/index.js";
 export type {
   Delivery,
