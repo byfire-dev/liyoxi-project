@@ -185,4 +185,10 @@ LYX_FC_RUNS=2000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 - 执行类领域 producer 尚未接入；I3 只校验有真实 `executionSla` 登记的来源，其他 timer 主体由后续所属模块接入统一派发。
 - 通知：事件照发，`s.approval_pending`、`s.approval_decided` 的场景解析没有登记（M2）。
 - 驳回原因只核对“是字典 `reject_reason` 的启用项”，不核对它属于这个类型的场景。
-- `approval.I1` 靠 `createApproval` 把登记绑到本模块：一个进程一份，没建 approval 的进程里它查不到任何类型。
+- 直接使用原始登记时，`approval.I1/I3` 仍依赖 `createApproval` 的类型绑定。正式 worker 经 ops 的固定实例包装，直接取实际装配的 `approval.kind`，不借用 API 进程绑定。
+
+### 独立 worker 的 SLA 依赖
+
+`buildWorkerServices` 用本实例的 clock、events、flow、sla、timers 绑定现有公开审批时限函数。`calendar.imported` 的审批订阅者、`sla.breach` 的 `approval_request` 分支与 `approval.I1/I3` 都使用该实例；staff 与 delivery 的既有分支继续委派，订阅者名、kind 与登记元数据不变。
+
+`closeApproval()` 幂等释放该实例，释放后审批分支和两项校验明确拒绝调用，不寻找其他实例。正式 worker 正常 stop 等循环和消费者退出后释放；自检失败和 `--check` 结束也释放。此独立前置不新增审批类型或修改决定、执行和日历算法。

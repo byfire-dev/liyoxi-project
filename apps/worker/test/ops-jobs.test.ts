@@ -1,4 +1,9 @@
-import { useSeededDatabase, useTestRedis } from "@liyoxi/services/testing";
+import {
+  createClock,
+  createFactories,
+  useSeededDatabase,
+  useTestRedis,
+} from "@liyoxi/services/testing";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { recurringTable } from "../src/recurring.js";
@@ -18,6 +23,16 @@ let h: Harness;
 
 beforeAll(async () => {
   h = await createHarness(db, redis);
+  // 种子只建角色与组；full 的 staff.I2/I6 需要真实在职管理员及组负责人。
+  const group = await h.prisma.staffGroup.findFirstOrThrow({
+    where: { staffRoleKey: "super_admin", isDefault: true },
+  });
+  await createFactories({ db: h.prisma, clock: createClock() }).staff({
+    staffRoleKey: "super_admin",
+    staffGroupId: group.id,
+    status: "active",
+    isLead: true,
+  });
 }, SLOW);
 
 interface FiredRow {
