@@ -1,11 +1,12 @@
 import { statusToneByEnum } from "@liyoxi/shared/design/status-tone";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button } from "antd";
-import { useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { ConfirmAction } from "../../../components/ConfirmAction";
 import { QueryTablePage, type QueryColumn } from "../../../components/QueryTablePage";
 import { StatusTag } from "../../../components/StatusTag";
-import { useModuleLevel } from "../../../lib/permissions";
+import { AccessContext, useModuleLevel } from "../../../lib/permissions";
+import { contentScope } from "../../drama/edit/model";
 import { LIST_QUERY } from "../../../lib/query";
 import { BannerEditor } from "./banner-editor";
 import { createSiteIntent, moveId, type homeSearch } from "./model";
@@ -26,16 +27,20 @@ const displayTime = (value: string) =>
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(value));
-export function Banners({
-  api,
-  search,
-  change,
-}: {
+type BannerProps = {
   api: SiteApi;
   search: Search;
   change(patch: Partial<Search>): void;
-}) {
+};
+export function Banners(props: BannerProps) {
+  const access = useContext(AccessContext);
+  return <BannerWorkspace key={contentScope(access)} {...props} />;
+}
+function BannerWorkspace({ api, search, change }: BannerProps) {
   const editable = useModuleLevel("ops") === "e";
+  const [lifetime] = useState(() => new AbortController());
+  useEffect(() => () => lifetime.abort(), [lifetime]);
+  const canWrite = () => editable && !lifetime.signal.aborted;
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<{ banner?: Banner }>(),
     [toggle, setToggle] = useState<Banner>();
@@ -78,7 +83,7 @@ export function Banners({
     ]);
   };
   async function reorder(source: string, target: string) {
-    if (running.current || !editable || !current.data || source === target) return;
+    if (running.current || !canWrite() || !current.data || source === target) return;
     const ids = current.data.map((row) => row.homeBannerId),
       ordered = moveId(ids, source, target);
     if (ordered.every((id, index) => id === ids[index])) return;
@@ -86,11 +91,13 @@ export function Banners({
     setBusy(true);
     setMessage(undefined);
     try {
-      await api.reorder(ordered, intent.key({ homeBannerIds: ordered }));
+      await api.reorder(ordered, intent.key({ homeBannerIds: ordered }), lifetime.signal);
+      if (!canWrite()) return;
       intent.done();
       await refresh();
       setMessage("Banner 顺序已保存");
     } catch (error) {
+      if (!canWrite()) return;
       await refresh();
       if (bannerOrderStale(error) || versionConflict(error)) intent.done();
       setMessage(
@@ -100,7 +107,7 @@ export function Banners({
       );
     } finally {
       running.current = false;
-      setBusy(false);
+      if (canWrite()) setBusy(false);
       dragged.current = undefined;
     }
   }
@@ -332,15 +339,19 @@ export function Banners({
             setMessage("Banner 状态已更新");
           }}
           onConfirm={async ({ idempotencyKey }) => {
+            if (!canWrite()) return { outcome: "failed", message: "权限已变化，请重新核对" };
             try {
               await api.updateBanner(
                 toggle.homeBannerId,
                 { lockVersion: toggle.lockVersion, isEnabled: !toggle.isEnabled },
                 idempotencyKey,
+                lifetime.signal,
               );
+              if (!canWrite()) return { outcome: "failed", message: "操作会话已关闭" };
               await refresh();
               return { outcome: "done" };
             } catch (error) {
+              if (!canWrite()) return { outcome: "failed", message: "操作会话已关闭" };
               await refresh();
               if (versionConflict(error)) {
                 setToggle(undefined);

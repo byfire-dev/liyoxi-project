@@ -14,6 +14,7 @@ import { UploadField } from "../../../components/UploadField";
 import { createProductionUpload } from "../../delivery/ticket-detail/upload";
 import { DICT_QUERY } from "../../../lib/query";
 import type { UploadFn } from "../../../lib/upload";
+import { useModuleLevel } from "../../../lib/permissions";
 import { createSiteIntent } from "./model";
 import {
   fieldErrors,
@@ -28,6 +29,7 @@ import { SiteErrors } from "./site-editor";
 type BannerUploadScope = {
   api: SiteApi;
   adapter: ReturnType<typeof createProductionUpload>;
+  controller: AbortController;
 };
 const rule = {
   accept: [".jpg", ".jpeg", ".png"],
@@ -52,6 +54,11 @@ export function BannerEditor({
   close(): void;
   saved(): Promise<void>;
 }) {
+  const editable = useModuleLevel("ops") === "e";
+  const writable = useRef(editable);
+  useEffect(() => {
+    writable.current = editable;
+  }, [editable]);
   const [draft, setDraft] = useState<BannerBody>(() => ({
     title: banner?.title ?? "",
     imageFileId: banner?.imageFileId ?? "",
@@ -75,10 +82,12 @@ export function BannerEditor({
   const uploadSlot = useRef<BannerUploadScope | undefined>(undefined);
   useEffect(() => {
     mounted.current = true;
-    const adapter = createProductionUpload(api, { category: "banner" });
-    uploadSlot.current = { api, adapter };
+    const adapter = createProductionUpload(api, { category: "banner" }),
+      controller = new AbortController();
+    uploadSlot.current = { api, adapter, controller };
     return () => {
       mounted.current = false;
+      controller.abort();
       adapter.dispose();
       if (uploadSlot.current?.adapter === adapter) uploadSlot.current = undefined;
     };
@@ -86,7 +95,13 @@ export function BannerEditor({
   const upload = useMemo<UploadFn>(
     () => (file, hooks) => {
       const slot = uploadSlot.current;
-      if (!mounted.current || !slot || slot.api !== api)
+      if (
+        !mounted.current ||
+        !writable.current ||
+        !slot ||
+        slot.api !== api ||
+        slot.controller.signal.aborted
+      )
         throw new DOMException("上传已取消", "AbortError");
       return slot.adapter.upload(file, hooks);
     },
@@ -103,14 +118,23 @@ export function BannerEditor({
     ...DICT_QUERY,
   });
   const update = (patch: Partial<BannerBody>) => {
-    if (mounted.current) {
+    if (mounted.current && writable.current) {
       setDraft((current) => ({ ...current, ...patch }));
       setErrors({});
       setMessage(undefined);
     }
   };
   async function submit() {
-    if (posting.current || conflict) return;
+    const slot = uploadSlot.current;
+    if (
+      !mounted.current ||
+      !writable.current ||
+      !slot ||
+      slot.controller.signal.aborted ||
+      posting.current ||
+      conflict
+    )
+      return;
     let input = draft;
     if (draft.jumpKind === "page") {
       try {
@@ -151,8 +175,9 @@ export function BannerEditor({
           banner.homeBannerId,
           { ...input, lockVersion: banner.lockVersion },
           key,
+          slot.controller.signal,
         );
-      else await api.createBanner(input, key);
+      else await api.createBanner(input, key, slot.controller.signal);
       if (!mounted.current) return;
       intent.done();
       await saved();
@@ -192,7 +217,7 @@ export function BannerEditor({
       <p className="lyx-confirm__desc">
         图片通过正式上传入库。生效区间与跳转目标由服务端再次校验。
       </p>
-      <fieldset disabled={busy} className="lyx-site-stack lyx-config-page__fields">
+      <fieldset disabled={busy || !editable} className="lyx-site-stack lyx-config-page__fields">
         <FormField label="标题" value={draft.title} maxLength={30} error={errors.title}>
           {(props) => (
             <Input
@@ -211,7 +236,7 @@ export function BannerEditor({
             <UploadField
               rule={rule}
               upload={upload}
-              disabled={busy}
+              disabled={busy || !editable}
               onChange={(id) => update({ imageFileId: id ?? "" })}
               text="上传 Banner 图片"
             />
@@ -365,7 +390,7 @@ export function BannerEditor({
           size="large"
           type="primary"
           loading={busy}
-          disabled={conflict}
+          disabled={conflict || !editable}
           onClick={() => void submit()}
         >
           {banner ? "保存 Banner" : "新增 Banner"}
