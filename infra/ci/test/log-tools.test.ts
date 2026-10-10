@@ -257,17 +257,19 @@ describe("node-step只增受限logs/log-stats", () => {
     expect(run).not.toMatch(/--env|--privileged|secrets|docker.sock|--network host/);
   });
 
-  it.each([
-    ["logs", "gateway", `${ID};id`],
-    ["logs", "nginx", ID],
-    ["logs", "gateway"],
-    ["logs", "gateway", ID, "extra"],
-    ["log-stats", "0"],
-    ["log-stats", "01"],
-    ["log-stats", "1441"],
-    ["log-stats", "1;id"],
-    ["log-stats", "1", "extra"],
-  ])("参数注入/错误 %j在调用Docker前拒绝", (args) => {
+  it.each(
+    [
+      ["logs", "gateway", `${ID};id`],
+      ["logs", "nginx", ID],
+      ["logs", "gateway"],
+      ["logs", "gateway", ID, "extra"],
+      ["log-stats", "0"],
+      ["log-stats", "01"],
+      ["log-stats", "1441"],
+      ["log-stats", "1;id"],
+      ["log-stats", "1", "extra"],
+    ].map((args) => ({ args })),
+  )("参数注入/错误 $args在调用Docker前拒绝", ({ args }) => {
     const result = nodeStep(args);
     expect(result.status).toBe(2);
     expect(result.calls).toEqual([]);
