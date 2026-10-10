@@ -31,6 +31,7 @@ import type { Api } from "../src/app.js";
 import { HANDLERS } from "../src/routes/index.js";
 import { createOutputBatchCosStorage } from "./upload-batch-live-cos.js";
 import { createOutputBatchMediaToolRelay } from "./upload-batch-live-mediatool.js";
+import { createContentTrailerCloud } from "./upload-batch-live-trailer.js";
 import { attachOutputBatchLiveCloud } from "./upload-batch-live-cloud.js";
 
 function assertScope(env: Env, prefix: string) {
@@ -206,6 +207,18 @@ export async function startOutputBatchLiveServer(options: {
         inputs.legacy.storeId,
         ...(inputs.w120?.items.map((p) => p.scope.storeId) ?? []),
       ],
+      ...(w312
+        ? {
+            trailer: createContentTrailerCloud({
+              runtime: () => batch,
+              scope: w312,
+              registeredIds: () => [...contentFiles],
+              storage: cos.storage,
+              tools,
+              relay,
+            }),
+          }
+        : {}),
       pngProof: (ref) => renderedPng.get(`${ref.bucket}/${ref.key}`),
     });
     const batch = createRuntime({ ...borrowed, env: batchEnv, mediaProductionTools: tools });
