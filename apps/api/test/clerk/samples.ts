@@ -3,6 +3,7 @@ import { mallClerkSamples } from "./mall-samples.js";
 import { orderClerkSamples } from "./order-samples.js";
 import { messageClerkSamples } from "./messages-samples.js";
 import { reportingClerkSamples } from "./reporting-samples.js";
+import { assetsClerkSamples } from "./assets-samples.js";
 import { uuidv7 } from "@liyoxi/services";
 import { createFactories } from "@liyoxi/services/testing";
 import type { FakeStorage } from "@liyoxi/services/testing";
@@ -309,6 +310,7 @@ export const CLERK_SAMPLES: readonly Sample[] = [
   })),
   ...mallClerkSamples,
   ...orderClerkSamples,
+  ...assetsClerkSamples,
   // 退出会吊销当前凭据，放到这一份样例的最后。其它样例不得靠退出后的身份。
   {
     operationId: "m.session.current.delete",

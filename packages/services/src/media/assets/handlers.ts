@@ -241,7 +241,7 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
     validOutput: (output) => AssetJobOutputSchema.safeParse(output).success,
     current: (tx, job) => current(deps, tx, job),
     prepare: (tx, job) => prepare(deps, tx, job),
-    execute: async (job, context, signal) => {
+    execute: async (job, context, signal): Promise<JobOutcome> => {
       const prepared = context as PreparedAsset;
       if (signal.aborted) return failed("ASSET_CANCELED");
       if (prepared.reused)

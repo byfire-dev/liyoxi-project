@@ -43,11 +43,13 @@ export function assetWhere(actor: MediaActor, input: Filters): Prisma.StoreAsset
   if (input.status) and.push({ OR: input.status.split(",").map(displayFilter) });
   if (input.tag) and.push({ storeAssetTags: { some: { tagCode: { in: input.tag.split(",") } } } });
   if (input.q) and.push({ searchText: { contains: input.q, mode: "insensitive" } });
-  if (input.uploader)
+  if (input.uploader) {
+    if (actor.identity.actor.type !== "merchant") throw new AppError("ROLE_FORBIDDEN");
     and.push({
       uploadActorType: actor.identity.actor.type,
       uploadActorId: actor.identity.actor.id,
     });
+  }
   if (input.assetDemandId) and.push({ storeAssetDemandId: input.assetDemandId });
   if (input.type) and.push({ type: { in: input.type.split(",") } });
   if (input.usability) and.push({ usability: { in: input.usability.split(",") } });
@@ -78,12 +80,12 @@ export function createAssetReads(deps: AssetDeps) {
     },
     async list(actor: MediaActor, value: unknown) {
       assetActor(actor, "read", deps.clock.now());
-      const input = parseAssetInput(
-        actor.staff ? AdminStoreAssetListQuerySchema : StoreAssetListQuerySchema,
-        value,
-      );
+      const input = actor.staff
+        ? parseAssetInput(AdminStoreAssetListQuerySchema, value)
+        : parseAssetInput(StoreAssetListQuerySchema, value);
       const raw = await deps.tx.run(async (tx) => {
-        if ("storeId" in input && input.storeId) await assetStore(tx, deps, actor, input.storeId);
+        if ("storeId" in input && typeof input.storeId === "string")
+          await assetStore(tx, deps, actor, input.storeId);
         const where = assetWhere(actor, input),
           and: Prisma.StoreAssetWhereInput[] = [where];
         if ("ids" in input && input.ids) {
@@ -145,12 +147,12 @@ export function createAssetReads(deps: AssetDeps) {
     },
     async summary(actor: MediaActor, value: unknown) {
       assetActor(actor, "read", deps.clock.now());
-      const input = parseAssetInput(
-        actor.staff ? AdminStoreAssetSummaryQuerySchema : StoreAssetSummaryQuerySchema,
-        value,
-      );
+      const input = actor.staff
+        ? parseAssetInput(AdminStoreAssetSummaryQuerySchema, value)
+        : parseAssetInput(StoreAssetSummaryQuerySchema, value);
       return deps.tx.run(async (tx) => {
-        if ("storeId" in input && input.storeId) await assetStore(tx, deps, actor, input.storeId);
+        if ("storeId" in input && typeof input.storeId === "string")
+          await assetStore(tx, deps, actor, input.storeId);
         const where = assetWhere(actor, input),
           count = (filter: Prisma.StoreAssetWhereInput = {}) =>
             tx.storeAsset.count({ where: { AND: [where, filter] } });

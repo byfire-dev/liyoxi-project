@@ -1,4 +1,5 @@
 import {
+  EVENT_PAYLOAD_SCHEMAS,
   StoreAssetCreateBodySchema,
   AdminStoreAssetCreateBodySchema,
   AdminStoreAssetReviewBodySchema,
@@ -14,6 +15,7 @@ import { dayRange, calendarDate } from "@liyoxi/shared/time";
 import { paramsAt } from "../../config/index.js";
 import { workHoursAt } from "../../sla/index.js";
 import { record } from "../../audit/index.js";
+import type { AuditEntry } from "../../audit/index.js";
 import { AppError, uuidv7, lockRows } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
 import type { MediaActor } from "../context.js";
@@ -50,6 +52,16 @@ export async function assetAudit(
   reason?: string,
   change?: { before: object | null; after: object | null; fields: string[] },
 ) {
+  const entry: AuditEntry = {
+    stream: "activity",
+    category: action === "review" || action === "confirm_portrait" ? "review" : "profile_edit",
+    action: `media.asset.${action}`,
+    target: { type: "store_asset", id: asset.id },
+    summary: `门店素材：${action}`,
+    entityId: asset.entityId,
+    storeId: asset.storeId,
+    ...(reason ? { reason: { code: action, text: reason } } : {}),
+  };
   await record(
     tx,
     actor.identity.actor,
@@ -58,18 +70,9 @@ export async function assetAudit(
       ip: null,
       userAgent: null,
       authMethod: null,
+      sessionId: null,
     },
-    {
-      stream: "activity",
-      category: action === "review" || action === "confirm_portrait" ? "review" : "profile_edit",
-      action: `media.asset.${action}`,
-      target: { type: "store_asset", id: asset.id },
-      summary: `门店素材：${action}`,
-      entityId: asset.entityId,
-      storeId: asset.storeId,
-      ...(reason ? { reason: { code: action, text: reason } } : {}),
-      ...change,
-    },
+    change ? { ...entry, ...change } : entry,
   );
 }
 async function emitReviewed(tx: Tx, deps: AssetDeps, actor: MediaActor, asset: StoreAsset) {
@@ -78,14 +81,14 @@ async function emitReviewed(tx: Tx, deps: AssetDeps, actor: MediaActor, asset: S
     aggregate: { type: "store_asset", id: asset.id },
     entityId: asset.entityId,
     storeId: asset.storeId,
-    payload: {
+    payload: EVENT_PAYLOAD_SCHEMAS["asset.reviewed"].parse({
       v: 1,
       storeAssetId: asset.id,
       storeId: asset.storeId,
-      usability: asset.usability!,
+      usability: asset.usability,
       uploadActorType: asset.uploadActorType,
       ...(asset.uploadActorType === "merchant" ? { uploaderUserId: asset.uploadActorId } : {}),
-    },
+    }),
     dedupeKey: `asset.reviewed:${asset.id}:v${asset.lockVersion}`,
   });
 }
@@ -503,14 +506,16 @@ export function createAssetWrites(deps: AssetDeps) {
       assetActor(actor, "feedback", deps.clock.now());
       return deps.tx.run(async (tx) => {
         const asset = await assetOf(tx, actor, id, true);
-        if (actor.identity.actor.type !== "merchant") throw new AppError("ROLE_FORBIDDEN");
+        const caller = actor.identity.actor;
+        if (caller.type !== "merchant" || (caller.role !== "owner" && caller.role !== "clerk"))
+          throw new AppError("ROLE_FORBIDDEN");
         const range = dayRange(calendarDate(deps.clock.now()));
         const count = await tx.auditLog.count({
           where: {
             targetType: "store_asset",
             targetId: id,
             action: "media.asset.feedback",
-            actorId: actor.identity.actor.id,
+            actorId: caller.id,
             createdAt: { gte: range.start, lt: range.end },
           },
         });
@@ -526,7 +531,7 @@ export function createAssetWrites(deps: AssetDeps) {
             storeAssetId: id,
             entityId: asset.entityId,
             storeId: asset.storeId,
-            actorRole: actor.identity.actor.role,
+            actorRole: caller.role,
           },
           dedupeKey: `asset.feedback:${id}:${options.idem?.key ?? uuidv7()}`,
         });

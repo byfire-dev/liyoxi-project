@@ -59,7 +59,7 @@ export async function onAssetCalendarImported(tx: Tx, deps: AssetDeps, event: De
     await record(
       tx,
       createIdentityContext({ actor: { type: "system", job: "media.calendar_imported" } }).actor,
-      { requestId: null, ip: null, userAgent: null, authMethod: null },
+      { requestId: null, ip: null, userAgent: null, authMethod: null, sessionId: null },
       {
         stream: "activity",
         category: "profile_edit",

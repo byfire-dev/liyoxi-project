@@ -40,6 +40,8 @@ export async function demandView(
   actor: MediaActor,
   row: StoreAssetDemand,
 ) {
+  const callerId = actor.identity.actor.id;
+  if (callerId === null) throw new AppError("NOT_A_MEMBER");
   const creator = await deps.assets.readUploader(tx, {
     entityId: row.entityId,
     actorType: "staff",
@@ -81,7 +83,7 @@ export async function demandView(
             storeAssetDemandId: row.id,
             deletedAt: null,
             uploadActorType: "merchant",
-            uploadActorId: actor.identity.actor.id,
+            uploadActorId: callerId,
           },
         }),
       });
@@ -106,6 +108,7 @@ async function demandAudit(
       ip: null,
       userAgent: null,
       authMethod: null,
+      sessionId: null,
     },
     {
       stream: "activity",
@@ -124,10 +127,9 @@ export function createAssetDemands(deps: AssetDeps) {
     async list(actor: MediaActor, value: unknown) {
       assetActor(actor, "read", deps.clock.now());
       if (!actor.staff) assetActor(actor, "demand", deps.clock.now());
-      const input = parseAssetInput(
-        actor.staff ? AdminAssetDemandListQuerySchema : AssetDemandListQuerySchema,
-        value,
-      );
+      const input = actor.staff
+        ? parseAssetInput(AdminAssetDemandListQuerySchema, value)
+        : parseAssetInput(AssetDemandListQuerySchema, value);
       return deps.tx.run(async (tx) => {
         if (actor.staff)
           await assetStore(tx, deps, actor, "storeId" in input ? String(input.storeId) : "");
@@ -233,7 +235,7 @@ export function createAssetDemands(deps: AssetDeps) {
                 v: 1,
                 storeAssetDemandId: row.id,
                 storeId: row.storeId,
-                notifyScope: row.notifyScope,
+                notifyScope: input.notifyScope,
                 dueDate: input.dueDate,
               },
               dedupeKey: `asset.demand_created:${row.id}`,

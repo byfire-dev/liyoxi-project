@@ -118,7 +118,7 @@ export async function assetView(
   const pageCounts = fileInsights("doc_text")
     .map((row) => integerOf(content(row).pageCount))
     .filter((value) => value !== null);
-  const firstMedia = links.find((row) => /^(audio|video)\//.test(row.file.mime));
+  const firstMedia = links.find((row) => /^(audio|video)\//.test(row.file.mime ?? ""));
   const uploaded = await deps.assets.readUploader(tx, {
     entityId: asset.entityId,
     actorType: asset.uploadActorType,
@@ -142,11 +142,11 @@ export async function assetView(
   };
   const files = links.map(({ file }) => ({
     fileId: file.id,
-    kind: file.mime.startsWith("image/")
+    kind: file.mime?.startsWith("image/")
       ? "image"
-      : file.mime.startsWith("video/")
+      : file.mime?.startsWith("video/")
         ? "video"
-        : file.mime.startsWith("audio/")
+        : file.mime?.startsWith("audio/")
           ? "audio"
           : "document",
     url: null,
@@ -419,7 +419,7 @@ export async function attachAssetUrls<T extends { storeAssetId: string; thumbnai
     return value;
   };
   const first = snapshot.links[0]?.file;
-  const thumbnailId = first?.mime.startsWith("image/") ? first.id : first?.mediaInfo?.coverFileId;
+  const thumbnailId = first?.mime?.startsWith("image/") ? first.id : first?.mediaInfo?.coverFileId;
   const thumbnail = thumbnailId ? await sign(thumbnailId) : null;
   const source = raw as T & {
     files?: readonly {

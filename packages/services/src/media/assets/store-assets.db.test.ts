@@ -617,9 +617,11 @@ it("实际 I11/I12/I16/I17 检查发现停滞、未授权采用、计数和标�
     },
   });
   for (const code of ["media.I12", "media.I16", "media.I17"]) {
-    const check = h.assembly.invariants.find((item) => item.code === code)!;
+    const run = h.assembly.invariants.find((item) => item.code === code)?.run;
+    expect(run).toBeDefined();
+    if (!run) throw new Error(`Missing invariant ${code}`);
     const found = await h.tx.run((tx) =>
-      check.run(tx, { entityIds: [row.entityId] }, { now: h.clock.now() }),
+      run(tx, { entityIds: [row.entityId] }, { now: h.clock.now() }),
     );
     expect(found.length).toBeGreaterThan(0);
   }
@@ -630,9 +632,11 @@ it("实际 I11/I12/I16/I17 检查发现停滞、未授权采用、计数和标�
       updatedAt: new Date(h.clock.now().getTime() - 16 * 60_000),
     },
   });
-  const i11 = h.assembly.invariants.find((item) => item.code === "media.I11")!;
+  const i11 = h.assembly.invariants.find((item) => item.code === "media.I11")?.run;
+  expect(i11).toBeDefined();
+  if (!i11) throw new Error("Missing invariant media.I11");
   const stalled = await h.tx.run((tx) =>
-    i11.run(tx, { entityIds: [row.entityId] }, { now: h.clock.now() }),
+    i11(tx, { entityIds: [row.entityId] }, { now: h.clock.now() }),
   );
   expect(stalled).toEqual(
     expect.arrayContaining([

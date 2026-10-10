@@ -693,6 +693,8 @@ describe("素材20接口的实际鉴权、人工降级和引用", { timeout: 90_
       .spyOn(api.runtime.events, "emit")
       .mockImplementation(async (tx, identity, event) => {
         if (event.type === "order.submitted") {
+          expect(event.aggregate).toBeDefined();
+          if (!event.aggregate) throw new Error("Missing order.submitted aggregate");
           const orderId = event.aggregate.id;
           expect(
             await tx.storeAssetUsage.findMany({
