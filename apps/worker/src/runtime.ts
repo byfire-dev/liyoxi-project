@@ -204,6 +204,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           services.closeOrder?.();
           services.closePublish?.();
           services.closeDelivery?.();
+          services.closeApproval?.();
           services.closeWebhooks?.();
           services.closeMediaJobs?.();
           await services.closeStaff?.();

@@ -181,6 +181,11 @@
       "pattern": "apps/api/golden/admin-permission-matrix.txt",
       "kind": "append",
       "note": "后台角色矩阵：新增接口由现有回放生成器登记，既有接口行与角色格保持一致"
+    },
+    {
+      "pattern": "packages/contract/released/retired.json",
+      "kind": "frozen",
+      "note": "C77 在役版本摘除清单：任何改动均须单独 gate-change 评审"
     }
   ]
 }

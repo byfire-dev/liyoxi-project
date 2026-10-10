@@ -272,6 +272,7 @@
 | `pnpm db:seed:demo` | 演示种子：按固定的先后跑各模块的演示数据（现在是 7 位演示员工，都建成待激活，各打印一枚激活码，只显示一次；仓库里没有任何固定口令）。可以反复跑，已有的不重建、不重发码；只进本地、测试与预发，`APP_ENV=prod` 拒绝。库要先跑完迁移与 `pnpm db:seed`；要字段加密的两份密钥文件。怎么加一步见 [demo-seed.ts](packages/services/src/demo-seed.ts) 开头的注释，演示员工见同一份 [README](packages/services/src/staff/README.md) 第 8 节 |
 | `pnpm exec vitest run --project api test/admin-auth.test.ts test/admin-matrix.test.ts`（前面加 `LYX_UPDATE_GOLDEN=1` 重写权限矩阵的黄金文件） | 只跑后台鉴权链的接口层用例：登录、激活、再验证、退出九条，防跨站，再验证后用原幂等键重放；权限矩阵回放（已挂载的后台路由 × 8 角色 × 主管与否，对黄金文件 `apps/api/golden/admin-permission-matrix.txt` 并逐格请求）。后台接口怎么登记、怎么写用例见 [README](apps/api/README.md) 第 8 节 |
 | `pnpm --filter @liyoxi/services exec vitest run src/billing/subscription/ src/billing/ports.test.ts` | 只跑履约（W1-11a 的账本侧）的用例：付清后建周期与发放计划、发首月、过期后重新开通、预约周期接续、周期不重叠、逐步故障注入、并发、性质测试（分摊不连库 200 轮；履约连库缺省 10 轮、固定种子，`LYX_FC_RUNS`、`LYX_FC_SEED` 可改）、三条不变量与两个端口。连带种子的测试库，要本地的 PostgreSQL 与 `DATABASE_URL`。`createFulfillment`、`fulfill` 怎么用、哪些算受阻，见 [README](packages/services/src/billing/subscription/README.md) |
+| `pnpm contract:compat` | W2-28a：从本地在役 `weapp-v*` 标签比较商家契约，后台/下载页比较最近在役 `v*`；无标签分别报无可比版本，缺快照失败。退役格式和六类判据见 [infra/ci](infra/ci/README.md#9-在役契约兼容w2-28a)。真实混跑与发布阻断由 W2-28b 交付，a 不表示整包完成 |
 
 本地连接参数：配置只经 `loadEnv`（`packages/services/src/kernel/env.ts`）读环境变量，会话与测试不建、不读 `.env`，在命令前或 shell 里给出。取值出处是 [local.yml](infra/compose/local.yml)，账号与口令是固定的开发值，只对本机这套容器有效；CI 的服务容器用同一组值。
 
@@ -286,7 +287,6 @@ export REDIS_URL=redis://localhost:6389/0
 | 命令 | 由谁提供 | 做什么 |
 | --- | --- | --- |
 | `pnpm demo:mN` | 各里程碑的合流包 | 重放该里程碑演示 |
-| `contract:compat` | M2 起 | 契约对在役小程序版本兼容 |
 | 小程序截图命令（可能是 `pnpm weapp:shots`） | W0-27a | 出页面截图；办法由该包定 |
 
 其余命令（安装、起环境、lint、测试、构建）由提供它的工作包同 PR 补进本节。本节没列的命令不要假定存在。默认：每个包只往本节加命令行；用法、参数、连接方式写进各自的 README，本节链过去（W0-04 定）。
