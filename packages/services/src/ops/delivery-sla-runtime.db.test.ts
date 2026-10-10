@@ -11,7 +11,14 @@ import {
   useTestRedis,
 } from "../testing/index.js";
 import { timerKey } from "../timers/index.js";
-import { readCancelReviewPauseTargets, releaseCancelReviewPauses } from "../delivery/index.js";
+import {
+  readCancelReviewPauseTargets,
+  releaseCancelReviewPauses,
+  readCancelReviewHoldTargets,
+  holdCancelReviewPauses,
+  orderSidePort,
+} from "../delivery/index.js";
+import { readCancelReviewCause } from "../order/index.js";
 import { createIdentityContext } from "../kernel/index.js";
 import { createSla } from "../sla/index.js";
 import { createDeliverySlaAssembly } from "./delivery-sla-runtime.js";
@@ -64,6 +71,174 @@ afterAll(async () => {
   await api?.close();
 });
 describe("交付阶段 SLA 固定运行时分发", { timeout: 60000 }, () => {
+  it("真实同源owner读口：实际hold→release→worker到点fired，重放零事件", async () => {
+    clock.set(new Date("2026-01-05T04:00:00Z"));
+    const make = createFactories({ db: prisma, clock }),
+      ticket = await make.deliveryTicket(),
+      staff = await make.staff(),
+      item = await prisma.orderItem.findUniqueOrThrow({ where: { id: ticket.orderItemId } });
+    const requestId = uuidv7(),
+      approvalId = uuidv7(),
+      now = clock.now();
+    const ctx = createIdentityContext({ actor: { type: "staff", id: staff.id, client: "admin" } });
+    await prisma.approvalRequest.create({
+      data: {
+        id: approvalId,
+        requestNo: "TK2026010599991",
+        kind: "order_cancel",
+        category: "approval",
+        subjectType: "drama_order",
+        subjectId: ticket.dramaOrderId,
+        entityId: ticket.entityId,
+        storeId: ticket.storeId,
+        status: "pending",
+        summarySnapshot: {
+          title: "真实暂停运行时",
+          domain: { type: "cancel_request", id: requestId },
+        },
+        submitActorType: "staff",
+        submitActorId: staff.id,
+        submitClient: "admin",
+        requesterStaffId: staff.id,
+        submittedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    await prisma.cancelRequest.create({
+      data: {
+        id: requestId,
+        approvalRequestId: approvalId,
+        kind: "order_cancel",
+        entityId: ticket.entityId,
+        storeId: ticket.storeId,
+        dramaOrderId: ticket.dramaOrderId,
+        reasonCode: "merchant_request",
+        note: "真实暂停运行时验收",
+        lineCount: 1,
+        totalBasePoints: item.chargePoints,
+        totalDeductPoints: 0,
+        totalRefundPoints: item.chargePoints,
+        status: "pending_approval",
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    await prisma.cancelRequestLine.create({
+      data: {
+        id: uuidv7(),
+        cancelRequestId: requestId,
+        entityId: ticket.entityId,
+        storeId: ticket.storeId,
+        targetType: "order_item",
+        targetId: item.id,
+        pointHoldId: item.pointHoldId,
+        mode: "refund",
+        stage: "plan_confirm",
+        stepAtSubmit: "assigning",
+        reasonClass: "merchant",
+        chargePoints: item.chargePoints,
+        priorRequestedPoints: 0,
+        ratioBp: 0,
+        deductPoints: 0,
+        refundPoints: item.chargePoints,
+        previewSnapshot: {},
+        createdAt: now,
+      },
+    });
+    const original = {
+      policy: "ticket.assigning",
+      amount: 1,
+      unit: "work_days",
+      calendarVersion: 1,
+      computedAt: now.toISOString(),
+    };
+    const stage = await prisma.deliveryTicketStage.create({
+      data: {
+        id: uuidv7(),
+        deliveryTicketId: ticket.id,
+        step: ticket.step,
+        visitNo: 1,
+        enteredAt: now,
+        dueAt: now,
+        slaSnapshot: original,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    await prisma.deliveryTicket.update({ where: { id: ticket.id }, data: { stepDueAt: now } });
+    const deps = {
+      tx: api.tx,
+      clock,
+      assembly: api.assembly,
+      flow: api.flow,
+      events: api.events,
+      media: api.media,
+      sla: createSla({ clock, assembly: api.assembly }),
+    };
+    for (const runtime of [api, worker]) {
+      expect(runtime.assembly.port(orderSidePort).readCancelReviewCause).toBe(
+        readCancelReviewCause,
+      );
+      const facts = await api.tx.run((t) =>
+        runtime.assembly.port(orderSidePort).readCancelReviewCause(t, approvalId),
+      );
+      expect(facts).toMatchObject({
+        requestId,
+        approvalRequestId: approvalId,
+        orderItemIds: [item.id],
+        approvalStatus: "pending",
+      });
+    }
+    await api.tx.run(async (t) => {
+      expect(
+        await holdCancelReviewPauses(
+          t,
+          deps,
+          ctx,
+          await readCancelReviewHoldTargets(t, api.assembly, approvalId),
+        ),
+      ).toEqual({ held: 1 });
+    });
+    expect(
+      (await prisma.deliveryTicket.findUniqueOrThrow({ where: { id: ticket.id } }))
+        .pauseRemainingMin,
+    ).toBe(0);
+    await api.tx.run(async (t) =>
+      releaseCancelReviewPauses(t, deps, ctx, {
+        targets: await readCancelReviewPauseTargets(t, [approvalId]),
+        releaseEvent: "withdrawn",
+      }),
+    );
+    const timer = await prisma.timer.findFirstOrThrow({
+      where: { subjectId: stage.id, status: "scheduled" },
+    });
+    expect(
+      (await prisma.deliveryTicketStage.findUniqueOrThrow({ where: { id: stage.id } })).slaSnapshot,
+    ).toMatchObject({
+      policy: original.policy,
+      amount: original.amount,
+      unit: original.unit,
+    });
+    await prisma.timer.update({
+      where: { id: timer.id },
+      data: {
+        status: "dispatched",
+        dispatchNo: 1,
+        leaseUntil: new Date(clock.now().getTime() + 60000),
+      },
+    });
+    const ref = { timerId: timer.id, dispatchNo: 1, kind: "sla.breach" };
+    expect(await worker.runTimer(ref)).toBe("fired");
+    expect(await worker.runTimer(ref)).toBe("stale");
+    expect(
+      (await prisma.deliveryTicketStage.findUniqueOrThrow({ where: { id: stage.id } })).isBreached,
+    ).toBe(true);
+    for (const eventType of ["ticket.held", "ticket.resumed", "ticket.sla_breached"])
+      expect(await prisma.outboxEvent.count({ where: { aggregateId: ticket.id, eventType } })).toBe(
+        1,
+      );
+  });
   it("真实 API 与 worker 唯一 handler 同源；worker 到点 fired，API 重放零事件", async () => {
     const make = createFactories({ db: prisma, clock }),
       ticket = await make.deliveryTicket();

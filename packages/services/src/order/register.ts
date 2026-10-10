@@ -21,6 +21,7 @@ import {
 import { orderManagerPort } from "../profile/index.js";
 import { QualificationImpactPort } from "../profile/index.js";
 import { previewFinalReject } from "./cancel-quote.js";
+import { readCancelReviewCause } from "./cancel-review-facts.js";
 import type { SyncStoreManager } from "../profile/index.js";
 import { orderSidePort } from "../delivery/index.js";
 import { boundOrder } from "./binding.js";
@@ -110,6 +111,7 @@ export const registration = defineRegistration("order", {
     notifyReaderImplementation(currentNotifyReadPort, "orderForNotify", orderForNotify),
 
     implement(orderSidePort, {
+      readCancelReviewCause,
       applyConfirmedPlan: (tx, input) => applyConfirmedPlan(tx, boundOrder(), input),
       rederive: (tx, input) => rederive(tx, boundOrder(), input),
     }),
