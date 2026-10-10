@@ -337,7 +337,8 @@ export async function reject(
 
 /**
  * 撤回的三种来源（03 分组 第 2.12 节）：提交人本人；发起人已不是启用状态时由能决定这一张的员工代撤；
- * 对象失效时归属模块以 system 调。其余 403 APPROVAL_WITHDRAW_FORBIDDEN。
+ * A15 另允许对象失效时由有决定权限者代撤，由真实 kind 所属判定；缺判据拒绝。
+ * 对象失效时归属模块仍可按原规则以 system 调。其余 403 APPROVAL_WITHDRAW_FORBIDDEN。
  */
 export async function withdraw(
   tx: Tx,
@@ -347,7 +348,7 @@ export async function withdraw(
 ): Promise<DecisionResult> {
   const operator = operatorOf(ctx, input.staff);
   const locked = await lockForDecision(tx, deps, input.approvalId, operator, true);
-  const { row } = locked;
+  const { row, kind } = locked;
   assertPending(row);
   let onBehalf = false;
   if (operator.type === "merchant") {
@@ -359,8 +360,10 @@ export async function withdraw(
       row.requesterStaffId === null ? undefined : locked.staffRows.get(row.requesterStaffId);
     onBehalf =
       requester !== undefined &&
-      requester.status !== "active" &&
-      (await isEligible(tx, operator.staff, locked));
+      (await isEligible(tx, operator.staff, locked)) &&
+      (requester.status !== "active" ||
+        (kind.isSubjectInvalidForWithdrawal !== undefined &&
+          (await kind.isSubjectInvalidForWithdrawal(tx, row))));
     if (!onBehalf) throw new AppError("APPROVAL_WITHDRAW_FORBIDDEN");
   }
   return settle(tx, deps, ctx, locked, input, {

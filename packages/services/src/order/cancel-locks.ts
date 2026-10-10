@@ -6,6 +6,14 @@ import type { Tx } from "../kernel/index.js";
 import { CLOSED_CANCEL_ITEMS } from "./cancel-quote.js";
 
 const sorted = (ids: readonly string[]) => [...new Set(ids)].sort();
+type LockedCancelGraph = { readonly ids: readonly string[]; readonly signature: string };
+const lockedGraphs = new WeakMap<Tx, Map<string, LockedCancelGraph>>();
+export async function assertAdCancelTargetsLocked(tx: Tx, requestId: string) {
+  const locked = lockedGraphs.get(tx)?.get(requestId);
+  if (!locked) throw new AppError("INTERNAL", { message: "取消目标必须已完整预锁" });
+  if (locked.signature !== JSON.stringify(await readAdCancelTargetGraph(tx, locked.ids)))
+    throw new AppError("PRECONDITION_CHANGED", { message: "取消目标图已变化，请重试" });
+}
 export async function readAdCancelTargetGraph(tx: Tx, requestIds: readonly string[]) {
   const rows = await tx.cancelRequest.findMany({
     where: { id: { in: [...requestIds] }, kind: "ad_cancel" },
@@ -76,6 +84,10 @@ export async function prelockAdCancelTargets(
     ((subject_type = 'approval_request' AND subject_id = ANY(${graph.approvalIds}::uuid[]) AND kind = 'sla.breach') OR
      (subject_type = 'ad' AND subject_id = ANY(${graph.adIds}::uuid[]) AND kind IN ('sla.breach','ad.returned_stale')))
     ORDER BY id FOR UPDATE`;
+  const locked = lockedGraphs.get(tx) ?? new Map<string, LockedCancelGraph>();
+  const witness = { ids: [...graph.requestIds], signature: JSON.stringify(graph) };
+  for (const id of graph.requestIds) locked.set(id, witness);
+  lockedGraphs.set(tx, locked);
 }
 export async function lockAdCancelSubmission(tx: Tx, adId: string, scope: DataScope) {
   const ad = await readAdCancelFacts(tx, adId, scope);
