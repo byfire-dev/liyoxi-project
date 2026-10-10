@@ -19,6 +19,7 @@ import { ChecklistItemsSchema, COMPARE_FIELDS } from "@liyoxi/contract";
 import { createProfile } from "../../profile/index.js";
 import { createSla } from "../../sla/index.js";
 import { createTenant } from "../../tenant/index.js";
+import { readCancelReviewCause } from "../../order/index.js";
 import {
   assembleForTest,
   createClock,
@@ -61,6 +62,7 @@ export function harness(
           ...(apply
             ? [
                 implement(orderSidePort, {
+                  readCancelReviewCause,
                   // 测试装配的订单写侧样例；生产保持 INTERNAL，W1-17 必须注册自己的真实实现。
                   async applyConfirmedPlan(t, input) {
                     applications.push(input.deliveryPlanId);

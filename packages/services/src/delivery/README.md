@@ -1,5 +1,17 @@
 # delivery 同事务取消暂停收尾
 
+`readCancelReviewHoldTargets(tx, assembly, approvalRequestId)` 零锁零写，经现有 orderSide
+端口读取真实取消申请、明细与审批关联，再读取选中订单项的工单、当前阶段与暂停原因。
+调用者必须先读取所有拥有者的图，预锁 approval30/request50/line60/entity100/store130/
+drama140/order160/item170/ticket180 及其他拥有者所需完整并集；然后同 Tx 调用
+`holdCancelReviewPauses(tx, deps, ctx, targets)`。图变化须重试整个事务，不能补低序锁。
+首次原因要求真实 pending 审批及原提交身份，approved 只可重放已有 active 同一原因；
+关闭、解除过的原因不得复活。仅暂停第 1–9 步，已上线等后续步骤不加入新原因。
+第一条原因记暂停起点和剩余工作分钟（无时限 null、已到期 0），叠加原因保留原快照；
+同状态 ticket.hold 写历史、审计、严格 ticket.held 与同 UPDATE 汇总，仅取消当前阶段的
+sla.breach，不改策略快照或其他 timer。重放零写，所有副作用均随外层事务回滚。
+新增端口方法缺拥有者时抛 INTERNAL；正式 API/worker 必须绑定 order 同源只读实现。
+
 `readCancelReviewPauseTargets(tx, approvalRequestIds)` 只读，按审批 UUID 找到仍生效的
 `cancel_review/approval_request` 原因。返回原因集合及 drama/order/item/ticket/plan/cover
 完整锁图，不涉及其他审批或 `plan_amendment`，不按取消申请 UUID 猜引用。

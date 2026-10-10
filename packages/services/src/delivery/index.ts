@@ -6,7 +6,7 @@ export type { Delivery } from "./service.js";
 export type { DeliveryCoreDeps, DeliveryDeps, DeliveryViewer } from "./context.js";
 export { bindDelivery } from "./binding.js";
 export { orderSidePort } from "./ports.js";
-export type { OrderSide } from "./ports.js";
+export type { OrderSide, CancelReviewCause } from "./ports.js";
 export { createTickets, prepareTicketAssignees } from "./create.js";
 export { reevaluate, reevaluateSweep } from "./reevaluate.js";
 export { authorizeBatchUpload, readBatchUploadFacts } from "./upload-batch-facts.js";
@@ -29,3 +29,5 @@ export { readCancelReviewPauseTargets, releaseCancelReviewPauses } from "./cance
 export type { CancelReviewPauseTargets } from "./cancel-review-pauses.js";
 export { handleDeliveryStageSlaBreach } from "./stage-sla.js";
 export type { DeliveryStageSlaDeps } from "./stage-sla.js";
+export { readCancelReviewHoldTargets, holdCancelReviewPauses } from "./cancel-review-hold.js";
+export type { CancelReviewHoldTargets } from "./cancel-review-hold.js";
