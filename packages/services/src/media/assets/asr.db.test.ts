@@ -14,7 +14,7 @@ import {
 import { failed, ok } from "../../providers/types.js";
 import type { AsrTaskStatus } from "../../providers/types.js";
 import type { MediaActor } from "../index.js";
-import { fileCategoryGuardPort, fileRefTypePort } from "../index.js";
+import { createMedia, fileCategoryGuardPort, fileRefTypePort } from "../index.js";
 import { advanceAsset, AssetJobInputSchema } from "./pipeline.js";
 
 // 真实登记/上传/素材/任务/洞察表；仅对象存储和模型 IO 使用公开虚构替身。
@@ -892,5 +892,83 @@ describe("素材异步 ASR：归属、晚结果与缓存", () => {
     expect(h.fake.asr.callsOf("submit")).toHaveLength(1);
     expect(h.fake.asr.callsOf("query")).toEqual([]);
     expect(await insights(facts.assetId)).toEqual([expect.objectContaining({ status: "failed" })]);
+  });
+});
+
+describe("已受理 ASR 的 admission 故障仍只回查原任务", () => {
+  it.each([
+    { label: "一次准入抛错后回查成功", repeated: false },
+    { label: "反复准入抛错耗尽原期限", repeated: true },
+  ])("$label且绝不重提", async ({ repeated }) => {
+    const facts = await ready();
+    const accepted = await submitted(facts);
+    let unavailable = true;
+    const admission = vi.fn(async () => {
+      if (unavailable) throw new Error("vendor-sensitive-error");
+      return true;
+    });
+    const polling = createMedia({
+      assembly: h.assembly,
+      clock: h.clock,
+      tx: h.tx,
+      events: h.events,
+      storage: h.fake.storage,
+      moderation: h.fake.media,
+      assets: { ...h.assets, allowModelCall: admission },
+    });
+    const poll = async () => {
+      const before = await row(accepted.id);
+      h.clock.advance(Math.max(0, before.nextRunAt.getTime() - h.clock.now().getTime()));
+      await polling.jobs.run({ jobId: accepted.id });
+      return row(accepted.id);
+    };
+    const identity = {
+      attemptNo: 1,
+      externalJobId: accepted.externalJobId,
+      deadlineAt: accepted.deadlineAt,
+    };
+    try {
+      const pending = await poll();
+      expect(pending).toMatchObject({ ...identity, state: "submitted", leaseOwner: null });
+      expect(pending.nextRunAt.getTime()).toBeGreaterThan(h.clock.now().getTime());
+      expect(admission).toHaveBeenCalledOnce();
+      expect(h.fake.asr.callsOf("query")).toEqual([]);
+      expect(await insights(facts.assetId)).toEqual([]);
+      expect(h.fake.asr.callsOf("submit")).toHaveLength(1);
+      if (repeated) {
+        expect(await poll()).toMatchObject({ ...identity, state: "submitted", leaseOwner: null });
+        expect(await insights(facts.assetId)).toEqual([]);
+        h.clock.advance(accepted.deadlineAt.getTime() - h.clock.now().getTime() + 1);
+        await polling.jobs.run({ jobId: accepted.id });
+        expect(await row(accepted.id)).toMatchObject({
+          ...identity,
+          state: "failed",
+          errorCode: "MEDIA_JOB_EXHAUSTED",
+        });
+        expect(await insights(facts.assetId)).toEqual([
+          expect.objectContaining({ status: "failed" }),
+        ]);
+      } else {
+        unavailable = false;
+        h.fake.asr.tasks.set(accepted.externalJobId!, succeeded(accepted.externalJobId!));
+        expect(await poll()).toMatchObject({ ...identity, state: "succeeded" });
+        expect(await insights(facts.assetId)).toEqual([
+          expect.objectContaining({ status: "ok", mediaJobId: accepted.id, content: transcript }),
+        ]);
+      }
+      const terminal = await row(accepted.id);
+      await Promise.all([
+        polling.jobs.run({ jobId: accepted.id }),
+        polling.jobs.run({ jobId: accepted.id }),
+      ]);
+      expect(await row(accepted.id)).toEqual(terminal);
+      expect(admission).toHaveBeenCalledTimes(2);
+      expect(h.fake.asr.callsOf("query")).toHaveLength(repeated ? 0 : 1);
+      expect(h.fake.asr.callsOf("submit")).toHaveLength(1);
+      expect(h.fake.asr.callsOf("transcribe")).toEqual([]);
+      safeJob(terminal);
+    } finally {
+      await polling.jobs.shutdown();
+    }
   });
 });
