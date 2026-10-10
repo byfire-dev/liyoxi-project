@@ -310,6 +310,108 @@ describe("C77/C78 临时 Git 标签兼容检查", () => {
     expect(fixture(old, current).check().status).toBe(0);
   });
 
+  it.each(["anyOf", "oneOf"] as const)("%s 有限 request 判别枚举等价拆分通过", (key) => {
+    const old = document();
+    const current = structuredClone(old);
+    operation(current).requestBody = {
+      ...body({
+        [key]: ["a", "b"].map((kind) =>
+          objectSchema({ name: { type: "string" }, kind: { enum: [kind] } }),
+        ),
+      }),
+      required: true,
+    };
+    expect(fixture(old, current).check().status).toBe(0);
+  });
+
+  it.each(["anyOf", "oneOf"] as const)("%s 跨候选仍拒绝真实 request 枚举删值", (key) => {
+    const old = document();
+    fields(request(old)).kind = { enum: ["a", "b", "c"] };
+    const current = structuredClone(old);
+    operation(current).requestBody = {
+      ...body({
+        [key]: ["a", "b"].map((kind) =>
+          objectSchema({ name: { type: "string" }, kind: { enum: [kind] } }),
+        ),
+      }),
+      required: true,
+    };
+    const result = fixture(old, current).check();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("request.body.kind：请求枚举删值");
+  });
+
+  it.each(["anyOf", "oneOf"] as const)("%s 判别字段分别值齐全也拒绝联合组合缺口", (key) => {
+    const old = document();
+    fields(request(old)).shade = { enum: ["x", "y"] };
+    request(old).required?.push("shade");
+    const current = structuredClone(old);
+    operation(current).requestBody = {
+      ...body({
+        [key]: [
+          objectSchema({ name: { type: "string" }, kind: { const: "a" }, shade: { const: "x" } }),
+          objectSchema({ name: { type: "string" }, kind: { const: "b" }, shade: { const: "y" } }),
+        ],
+      }),
+      required: true,
+    };
+    const result = fixture(old, current).check();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/request.body.(kind|shade)：请求枚举删值/u);
+  });
+
+  it.each(["anyOf", "oneOf"] as const)("%s 等价枚举覆盖不能掩盖某分支新增必填", (key) => {
+    const old = document();
+    const current = structuredClone(old);
+    operation(current).requestBody = {
+      ...body({
+        [key]: [
+          objectSchema({ name: { type: "string" }, kind: { const: "a" } }),
+          objectSchema({
+            name: { type: "string" },
+            kind: { const: "b" },
+            extra: { type: "string" },
+          }),
+        ],
+      }),
+      required: true,
+    };
+    const result = fixture(old, current).check();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("request.body.extra：请求新增必填字段");
+  });
+
+  it.each(["anyOf", "oneOf"] as const)("%s 有限 response 分支等价合并通过，新增值仍拒绝", (key) => {
+    const old = document();
+    operation(old).responses["200"] = body({
+      [key]: ["new", "done"].map((state) =>
+        objectSchema({ id: { type: "string" }, state: { enum: [state] } }),
+      ),
+    });
+    const current = document();
+    expect(fixture(old, current).check().status).toBe(0);
+    fields(response(current)).state = { enum: ["new", "done", "extra"] };
+    expect(fixture(old, current).check().stderr).toContain("响应封闭枚举加值");
+  });
+
+  it.each(["anyOf", "oneOf"] as const)("%s 递归 request 的有限等价拆分保留成对终止", (key) => {
+    const old = document();
+    old.components.schemas.Node = objectSchema(
+      { kind: { enum: ["a", "b"] }, child: { $ref: "#/components/schemas/Node" } },
+      ["kind"],
+    );
+    operation(old).requestBody = { ...body({ $ref: "#/components/schemas/Node" }), required: true };
+    const current = structuredClone(old);
+    current.components.schemas.Node = {
+      [key]: ["a", "b"].map((kind) =>
+        objectSchema({ kind: { const: kind }, child: { $ref: "#/components/schemas/Node" } }, [
+          "kind",
+        ]),
+      ),
+    };
+    expect(fixture(old, current).check().status).toBe(0);
+  });
+
   it("nullable enum union 的旧开放标记保留；oneOf/allOf 不能丢掉 null 分支", () => {
     const old = document();
     fields(response(old)).state = {

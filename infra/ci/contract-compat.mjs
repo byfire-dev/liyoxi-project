@@ -275,9 +275,34 @@ function compareSchemas(oldDoc, newDoc) {
     }
     return true;
   }
-  function compare(oldParts, newParts, path, mode, required, active = new Set()) {
+  function coverageVariants(origin, candidates, reader, otherReader) {
+    let variants = [Object.create(null)];
+    if (candidates.length < 2) return variants;
+    for (const key of origin.required) {
+      if (!origin.props[key]) continue;
+      const values = valuesOf(reader.parts(origin.props[key]));
+      if (!values || values.length < 2) continue;
+      if (
+        !candidates.some((candidate) => {
+          const other = valuesOf(otherReader.parts(candidate.props[key] ?? []));
+          return (
+            other && values.some((value) => !other.some((item) => encoded(item) === encoded(value)))
+          );
+        })
+      )
+        continue;
+      if (variants.length * values.length > 128)
+        throw new Error("schema 分支超过 128，无法可靠比较");
+      // 联合枚举组合分别覆盖，不能把 (a,x)/(b,y) 当成完整的笛卡尔积。
+      variants = variants.flatMap((variant) =>
+        values.map((value) => Object.assign(Object.create(null), variant, { [key]: [value] })),
+      );
+    }
+    return variants;
+  }
+  function compare(oldParts, newParts, path, mode, required, active = new Set(), limit) {
     budget();
-    const pair = `${oldReader.key(oldParts)}|${newReader.key(newParts)}|${mode}|${required}`;
+    const pair = `${oldReader.key(oldParts)}|${newReader.key(newParts)}|${mode}|${required}|${encoded(limit)}`;
     if (active.has(pair)) return [];
     const next = new Set([...active, pair]);
     const before = oldReader.parts(oldParts);
@@ -291,8 +316,8 @@ function compareSchemas(oldDoc, newDoc) {
       newReader.nullable(newParts)
     )
       problems.push(`${path}：响应必有字段变为可空`);
-    const oldValues = valuesOf(before);
-    const newValues = valuesOf(after);
+    const oldValues = (mode === "request" ? limit : undefined) ?? valuesOf(before);
+    const newValues = (mode === "response" ? limit : undefined) ?? valuesOf(after);
     if (
       oldValues &&
       mode === "request" &&
@@ -319,32 +344,53 @@ function compareSchemas(oldDoc, newDoc) {
       );
       // 判别值全变时也比较字段：枚举变化的诊断不能掩盖其它字段破坏。
       const matches = candidates.length ? candidates : mode === "request" ? newObjects : oldObjects;
-      const choices = matches.map((candidate) => {
-        const a = mode === "request" ? origin : candidate;
-        const b = mode === "request" ? candidate : origin;
-        const found = [];
-        if (mode === "request")
-          for (const key of b.required) {
-            if (!a.required.includes(key)) found.push(`${path}.${key}：请求新增必填字段`);
+      const reader = mode === "request" ? oldReader : newReader;
+      const otherReader = mode === "request" ? newReader : oldReader;
+      for (const limits of coverageVariants(origin, matches, reader, otherReader)) {
+        const eligible = matches.filter((candidate) =>
+          Object.entries(limits).every(([key, values]) => {
+            const other = valuesOf(otherReader.parts(candidate.props[key] ?? []));
+            return (
+              other === undefined ||
+              values.some((value) => other.some((item) => encoded(item) === encoded(value)))
+            );
+          }),
+        );
+        const choices = (eligible.length ? eligible : matches).map((candidate) => {
+          const a = mode === "request" ? origin : candidate;
+          const b = mode === "request" ? candidate : origin;
+          const found = [];
+          if (mode === "request")
+            for (const key of b.required) {
+              if (!a.required.includes(key)) found.push(`${path}.${key}：请求新增必填字段`);
+            }
+          for (const [key, child] of Object.entries(a.props)) {
+            if (!owns(b.props, key)) {
+              if (mode === "response") found.push(`${path}.${key}：响应删字段`);
+              continue;
+            }
+            if (mode === "response" && a.required.includes(key) && !b.required.includes(key))
+              found.push(`${path}.${key}：响应字段不再必有`);
+            found.push(
+              ...compare(
+                child,
+                b.props[key],
+                `${path}.${key}`,
+                mode,
+                a.required.includes(key),
+                next,
+                limits[key],
+              ),
+            );
           }
-        for (const [key, child] of Object.entries(a.props)) {
-          if (!owns(b.props, key)) {
-            if (mode === "response") found.push(`${path}.${key}：响应删字段`);
-            continue;
-          }
-          if (mode === "response" && a.required.includes(key) && !b.required.includes(key))
-            found.push(`${path}.${key}：响应字段不再必有`);
-          found.push(
-            ...compare(child, b.props[key], `${path}.${key}`, mode, a.required.includes(key), next),
-          );
-        }
-        if (a.items.length || b.items.length)
-          found.push(...compare(a.items, b.items, `${path}[]`, mode, true, next));
-        if (a.additional.length && b.additional.length)
-          found.push(...compare(a.additional, b.additional, `${path}.*`, mode, true, next));
-        return found;
-      });
-      if (choices.length) problems.push(...choices.sort((a, b) => a.length - b.length)[0]);
+          if (a.items.length || b.items.length)
+            found.push(...compare(a.items, b.items, `${path}[]`, mode, true, next));
+          if (a.additional.length && b.additional.length)
+            found.push(...compare(a.additional, b.additional, `${path}.*`, mode, true, next));
+          return found;
+        });
+        if (choices.length) problems.push(...choices.sort((a, b) => a.length - b.length)[0]);
+      }
     }
     return [...new Set(problems)];
   }
