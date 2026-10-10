@@ -113,7 +113,7 @@ export const mStoreAssetPortraitAuthCreate = merchantRoute({
     params: AssetPathSchema,
     body: { required: true, content: { "application/json": { schema: PortraitAuthBodySchema } } },
   },
-  "x-redact-on-replay": ["thumbnail", "files.*.url", "files.*.expiresAt", "files.*.coverUrl"],
+  "x-redact-on-replay": ["thumbnail", "files[].url", "files[].expiresAt", "files[].coverUrl"],
   responses: {
     ...okResponse(StoreAssetDetailSchema.extend({ replayed: z.boolean() })),
     ...errorResponses(400, 401, 403, 404, 409, 503),

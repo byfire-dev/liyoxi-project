@@ -1,4 +1,10 @@
 import { expect, it } from "vitest";
+import { mStoreAssetPortraitAuthCreate } from "./store-assets.js";
+import {
+  adminStoreAssetConfirmPortraitAuth,
+  adminStoreAssetPortraitAuthCreate,
+  adminStoreAssetReview,
+} from "../a03-merchant/store-assets.js";
 import {
   StoreAssetCreateBodySchema,
   StoreAssetListQuerySchema,
@@ -99,4 +105,19 @@ it("肖像/反馈/需求写严格上限，通知对象沿原枚举", () => {
   expect(
     AdminAssetDemandCreateBodySchema.safeParse({ ...demand, title: "字".repeat(21) }).success,
   ).toBe(false);
+});
+
+it("四个详情写接口按正式数组段路径脱敏回放，签名字段全部覆盖", () => {
+  for (const route of [
+    mStoreAssetPortraitAuthCreate,
+    adminStoreAssetConfirmPortraitAuth,
+    adminStoreAssetPortraitAuthCreate,
+    adminStoreAssetReview,
+  ])
+    expect(route["x-redact-on-replay"]).toEqual([
+      "thumbnail",
+      "files[].url",
+      "files[].expiresAt",
+      "files[].coverUrl",
+    ]);
 });
