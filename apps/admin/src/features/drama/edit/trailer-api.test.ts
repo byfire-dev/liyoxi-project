@@ -3,11 +3,11 @@ import { DramaTrailerWriteResultSchema } from "@liyoxi/contract";
 import { createAdminApi, type ApiHandlers } from "../../../lib/api";
 import { createDramaApi } from "./api";
 
-const dramaId = "00000000-0000-4000-8000-000000000001";
-const sourceFileId = "00000000-0000-4000-8000-000000000002";
+const dramaId = "00000000-0000-7000-8000-000000000001";
+const sourceFileId = "00000000-0000-7000-8000-000000000002";
 const key = "w312:trailer-checking";
 const checked = DramaTrailerWriteResultSchema.parse({
-  targetPlayableId: "00000000-0000-4000-8000-000000000003",
+  targetPlayableId: "00000000-0000-7000-8000-000000000003",
   currentPlayableId: null,
   state: "processing",
   sourceFile: {
@@ -24,10 +24,10 @@ const checked = DramaTrailerWriteResultSchema.parse({
   coverUrl: null,
   error: null,
   setBy: {
-    staffId: "00000000-0000-4000-8000-000000000004",
+    staffId: "00000000-0000-7000-8000-000000000004",
     staffNo: 1001,
     name: "虚构运营",
-    roleKey: "ops",
+    roleKey: "content_ops",
     isLead: false,
     status: "active",
   },
