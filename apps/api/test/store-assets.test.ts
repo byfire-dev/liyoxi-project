@@ -6,6 +6,7 @@ import type {
   AdminStoreAssetDetail,
   AdminStoreAssetRow,
   FileRegistration,
+  RoleDetail,
   StoreAssetCard,
   StoreAssetDetail,
 } from "@liyoxi/contract";
@@ -76,8 +77,49 @@ function request(
     peer: `198.19.214.${++peer % 250}`,
   });
 }
+async function responseDiagnostic(response: Response) {
+  const body = await response.clone().text();
+  if (response.status < 500) return body;
+  const requestId = response.headers.get("X-Request-Id");
+  const errors = api.logs
+    .filter((row) => row.evt === "http.error" && row.reqId === requestId)
+    .map((row) => {
+      const error =
+        typeof row.err === "object" && row.err !== null ? (row.err as Record<string, unknown>) : {};
+      return {
+        name: error.type,
+        message:
+          typeof error.message === "string"
+            ? error.message
+                .split("\n")
+                .find((line) => line.trim())
+                ?.slice(0, 200)
+            : null,
+        frames:
+          typeof error.stack === "string"
+            ? error.stack
+                .split("\n")
+                .flatMap((line) => {
+                  const frame = line.match(/^\s*at (.*?) \((.*):(\d+):(\d+)\)$/u);
+                  return frame
+                    ? [
+                        {
+                          function: frame[1],
+                          file: frame[2]!.split("/").at(-1),
+                          line: frame[3],
+                          column: frame[4],
+                        },
+                      ]
+                    : [];
+                })
+                .slice(0, 5)
+            : [],
+      };
+    });
+  return `${body}; safeHttpErrors=${JSON.stringify(errors)}`;
+}
 async function data<T>(response: Response, op?: Operation): Promise<T> {
-  expect(response.status, await response.clone().text()).toBe(200);
+  expect(response.status, await responseDiagnostic(response)).toBe(200);
   if (op) {
     passed.add(op);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
@@ -85,7 +127,7 @@ async function data<T>(response: Response, op?: Operation): Promise<T> {
   return ((await response.json()) as { data: T }).data;
 }
 async function reject(response: Response, status: number, symbol?: string, op?: Operation) {
-  expect(response.status, await response.clone().text()).toBe(status);
+  expect(response.status, await responseDiagnostic(response)).toBe(status);
   if (symbol) expect(await response.json()).toMatchObject({ error: symbol });
   if (op) denied.add(op);
 }
@@ -222,6 +264,22 @@ beforeAll(async () => {
   manager = await signInAsStaff(prisma, { roleKey: "delivery_manager", now: api.clock.now() });
   otherManager = await signInAsStaff(prisma, { roleKey: "delivery_manager", now: api.clock.now() });
   editor = await signInAsStaff(prisma, { roleKey: "editor", now: api.clock.now() });
+  const editorRole = await data<RoleDetail>(
+    await api.request("/api/v1/admin/roles/editor", { headers: admin.headers }),
+  );
+  const restrictedRole = await data<RoleDetail>(
+    await api.request("/api/v1/admin/roles/editor", {
+      method: "PUT",
+      headers: { ...admin.headers, "Idempotency-Key": uuidv7() },
+      json: {
+        moduleLevels: { ...editorRole.moduleLevels, merchant: "n" },
+        actions: editorRole.actions,
+        dataScope: editorRole.dataScope,
+        lockVersion: editorRole.lockVersion,
+      },
+    }),
+  );
+  expect(restrictedRole.moduleLevels.merchant).toBe("n");
   await prisma.store.update({
     where: { id: scope.storeId },
     data: { deliveryManagerId: manager.staff.id },
