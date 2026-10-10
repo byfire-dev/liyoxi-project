@@ -65,7 +65,7 @@ function request(
 ) {
   const route = HANDLERS.find((handler) => handler.route.operationId === op)!.route;
   const path = route.path.replace(/\{(?:storeAssetId|assetDemandId)\}/u, options.id ?? uuidv7());
-  return api.request(`/api/v1${path}${options.query ? `?${options.query}` : ""}`, {
+  return api.request(`${path}${options.query ? `?${options.query}` : ""}`, {
     method: route.method.toUpperCase(),
     ...(options.body === undefined || route.method === "get" ? {} : { json: options.body }),
     headers: {
