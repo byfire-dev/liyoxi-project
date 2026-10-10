@@ -3,7 +3,7 @@ import { createSampleEvents, useSeededDatabase, useTestRedis } from "@liyoxi/ser
 import { createHarness, SLOW } from "./support/harness.js";
 import type { Harness } from "./support/harness.js";
 
-const db = useSeededDatabase("worker", { label: "approvalclose" });
+const db = useSeededDatabase("worker", { label: "apprclose" });
 const redis = useTestRedis();
 let h: Harness;
 beforeAll(async () => {
