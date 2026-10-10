@@ -39,6 +39,7 @@ import {
 } from "./cancel-context.js";
 import type { CancelActor, CancelDeps } from "./cancel-context.js";
 import {
+  assertAdCancelTargetsLocked,
   lockAdCancelSubmission,
   prelockAdCancelTargets,
   readAdCancelTargetGraph,
@@ -108,6 +109,32 @@ async function invalidTarget(tx: Tx, r: Awaited<ReturnType<typeof requestOf>>) {
     store.entity.lifecycle !== "active" ||
     !ad ||
     ["confirmed", "cancelled"].includes(ad.status)
+  );
+}
+/** A15：真实财务代撤只接受广告终局；主体/门店失效仍走原系统路径。 */
+export async function isAdSubjectInvalidForWithdrawal(
+  tx: Tx,
+  row: { readonly id: string; readonly status: string },
+) {
+  const c = cancelCall(tx),
+    staff = staffIdentity(c.actor);
+  assertPermission(staff, "finance.refund.approve", c.deps.clock.now());
+  if (!c.requestId) throw new AppError("INTERNAL");
+  await assertAdCancelTargetsLocked(tx, c.requestId);
+  const r = await requestOf(tx, c.actor, c.requestId);
+  if (
+    r.approvalRequestId !== row.id ||
+    r.approvalRequest.status !== row.status ||
+    r.status !== "pending_approval"
+  )
+    throw new AppError("PRECONDITION_CHANGED");
+  if (staff.staff.id === r.approvalRequest.requesterStaffId) return false;
+  const requesterId = r.approvalRequest.requesterStaffId;
+  if (requesterId === null) return false;
+  const requester = await tx.staff.findUnique({ where: { id: requesterId } });
+  const ad = await readAdCancelFacts(tx, r.adId!);
+  return (
+    requester?.status === "active" && ad !== null && ["confirmed", "cancelled"].includes(ad.status)
   );
 }
 export async function validateAdCancelSubmission(
@@ -253,15 +280,15 @@ async function closeAdCancel(
 ) {
   const c = cancelCall(tx),
     ad = await readAdCancelFacts(tx, r.adId!);
-  if (
-    !ad ||
-    (ad.openCancelRequestId !== r.id &&
-      !(
-        c.actor.ctx.actor.type === "system" &&
-        ad.openCancelRequestId === null &&
-        (await invalidTarget(tx, r))
-      ))
-  )
+  const mayCloseClearedPointer =
+    ad?.openCancelRequestId === null &&
+    ((c.actor.ctx.actor.type === "system" && (await invalidTarget(tx, r))) ||
+      (reason === "withdrawn" &&
+        merged &&
+        c.actor.ctx.actor.type === "staff" &&
+        c.actor.ctx.actor.id !== r.approvalRequest.requesterStaffId &&
+        (await isAdSubjectInvalidForWithdrawal(tx, r.approvalRequest))));
+  if (!ad || (ad.openCancelRequestId !== r.id && !mayCloseClearedPointer))
     throw new AppError("PRECONDITION_CHANGED");
   await clearAdCancelRequestPointers(tx, {
     entityId: r.entityId,
