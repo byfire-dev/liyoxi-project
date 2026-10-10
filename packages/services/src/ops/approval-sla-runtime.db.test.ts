@@ -30,7 +30,7 @@ import { createApprovalSlaAssembly } from "./approval-sla-runtime.js";
 import { buildWorkerServices } from "./worker.js";
 
 const db = useSeededDatabase("services", { label: "approvalwrk" });
-const clock = createClock(new Date("2026-01-05T01:00:00Z"));
+const clock = createClock(new Date("2026-01-05T04:00:00Z"));
 let prisma: Awaited<ReturnType<typeof db.prisma>>;
 let tx: ReturnType<typeof createTxRunner>;
 let worker: ReturnType<typeof buildWorkerServices>;
@@ -469,7 +469,7 @@ describe("独立 worker 审批 SLA 装配", { timeout: 120_000 }, () => {
     ).toMatchObject({ status: "retry", attempts: 1, consumedAt: null });
   });
   it("两个真实worker不同clock，关闭一个不借另实例；存活实例仍两subscriber done", async () => {
-    const other = build(createClock(new Date("2026-01-05T02:00:00Z")));
+    const other = build(createClock(new Date("2026-01-05T05:00:00Z")));
     const event: DeliveredEvent = {
       id: actor.staff.staff.id,
       type: "calendar.imported",
