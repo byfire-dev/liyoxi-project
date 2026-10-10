@@ -129,11 +129,39 @@ async function clocks(o: Order, remaining: number | null = 30, step = "sample_ma
     computedAt: now.toISOString(),
   };
   for (const id of o.deliveryTicketIds) {
-    await h.prisma.deliveryTicket.update({ where: { id }, data: { step, stepDueAt: dueAt } });
-    await h.prisma.deliveryTicketStage.updateMany({
+    const ticket = await h.prisma.deliveryTicket.findUniqueOrThrow({ where: { id } });
+    const current = await h.prisma.deliveryTicketStage.findMany({
       where: { deliveryTicketId: id, completedAt: null },
-      data: { step, dueAt, slaSnapshot: remaining === null ? Prisma.DbNull : snapshot },
     });
+    expect(current).toHaveLength(1);
+    const stage = current[0]!;
+    expect(stage.step).toBe(ticket.step);
+    const historical = await h.prisma.deliveryTicketStage.findMany({
+      where: { deliveryTicketId: id, id: { not: stage.id } },
+      orderBy: { id: "asc" },
+    });
+    const maximum = await h.prisma.deliveryTicketStage.aggregate({
+      where: { deliveryTicketId: id, step },
+      _max: { visitNo: true },
+    });
+    const visitNo = stage.step === step ? stage.visitNo : (maximum._max.visitNo ?? 0) + 1;
+    await h.prisma.deliveryTicketStage.update({
+      where: {
+        id: stage.id,
+        deliveryTicketId: id,
+        step: ticket.step,
+        visitNo: stage.visitNo,
+        completedAt: null,
+      },
+      data: { step, visitNo, dueAt, slaSnapshot: remaining === null ? Prisma.DbNull : snapshot },
+    });
+    await h.prisma.deliveryTicket.update({ where: { id }, data: { step, stepDueAt: dueAt } });
+    expect(
+      await h.prisma.deliveryTicketStage.findMany({
+        where: { deliveryTicketId: id, id: { not: stage.id } },
+        orderBy: { id: "asc" },
+      }),
+    ).toEqual(historical);
   }
   return snapshot;
 }
