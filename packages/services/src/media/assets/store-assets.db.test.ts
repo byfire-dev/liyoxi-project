@@ -181,57 +181,78 @@ it("重处理按真实任务收尾、旧 prompt 历史不丢失，旧 run 晚结
 });
 
 it("同主体同实际指纹和 prompt 复用洞察，跨主体相同字节仍人工降级", async () => {
-  const firstFile = await h.stored();
-  const original = await h.media.assets.create(h.owner, { type: "image", fileIds: [firstFile.id] });
-  await h.drain(original.storeAssetId);
-  const insight = await h.prisma.storeAssetInsight.findFirstOrThrow({
-    where: {
-      storeAssetId: original.storeAssetId,
-      fileId: firstFile.id,
-      kind: "vision",
-      promptVersion: 1,
-    },
+  // This case uploads the same eight PNG signature bytes three times. The fake
+  // provider returns their fixed CRC64/ECMA-182 via HEAD, so complete/promote
+  // persists actual non-null fingerprint metadata instead of editing FileObject.
+  const head = h.fake.storage.head;
+  const spy = vi.spyOn(h.fake.storage, "head").mockImplementation(async (input) => {
+    const reply = await head(input);
+    return reply.ok && reply.value.exists
+      ? { ...reply, value: { ...reply.value, crc64: "7953934903724170396" } }
+      : reply;
   });
-  await h.prisma.storeAssetInsight.update({
-    where: { id: insight.id },
-    data: { status: "ok", content: { description: "同主体旧驱动已取得的洞察", tags: [] } },
-  });
-  const secondFile = await h.stored();
-  expect(secondFile).toMatchObject({ crc64: firstFile.crc64, sizeBytes: firstFile.sizeBytes });
-  const second = await h.media.assets.create(h.owner, { type: "image", fileIds: [secondFile.id] });
-  await h.drain(second.storeAssetId);
-  expect(
-    await h.prisma.storeAssetInsight.findFirstOrThrow({
-      where: { storeAssetId: second.storeAssetId, fileId: secondFile.id, kind: "vision" },
-    }),
-  ).toMatchObject({
-    status: "ok",
-    reusedFromStoreAssetInsightId: insight.id,
-    content: { description: "同主体旧驱动已取得的洞察", tags: [] },
-  });
-  const other = await h.make.merchant({ verified: true });
-  const actor: MediaActor = {
-    identity: createIdentityContext({
-      actor: { type: "merchant", id: other.user.id, client: "weapp", role: "owner" },
-      entityId: other.entity.id,
-      storeId: other.store.id,
-    }),
-    merchant: { entityId: other.entity.id, storeId: other.store.id, standing: "owner" },
-  };
-  const thirdFile = await h.stored(actor);
-  expect(thirdFile).toMatchObject({ crc64: firstFile.crc64, sizeBytes: firstFile.sizeBytes });
-  const third = await h.media.assets.create(actor, { type: "image", fileIds: [thirdFile.id] });
-  await h.drain(third.storeAssetId);
-  expect(
-    await h.prisma.storeAssetInsight.findFirstOrThrow({
-      where: { storeAssetId: third.storeAssetId, fileId: thirdFile.id, kind: "vision" },
-    }),
-  ).toMatchObject({
-    status: "skipped",
-    reusedFromStoreAssetInsightId: null,
-    content: { reason: "budget_unconfigured" },
-  });
-  expect(h.fake.llm.calls).toHaveLength(0);
+  try {
+    const firstFile = await h.stored();
+    expect(firstFile.crc64).not.toBeNull();
+    const original = await h.media.assets.create(h.owner, {
+      type: "image",
+      fileIds: [firstFile.id],
+    });
+    await h.drain(original.storeAssetId);
+    const insight = await h.prisma.storeAssetInsight.findFirstOrThrow({
+      where: {
+        storeAssetId: original.storeAssetId,
+        fileId: firstFile.id,
+        kind: "vision",
+        promptVersion: 1,
+      },
+    });
+    await h.prisma.storeAssetInsight.update({
+      where: { id: insight.id },
+      data: { status: "ok", content: { description: "同主体旧驱动已取得的洞察", tags: [] } },
+    });
+    const secondFile = await h.stored();
+    expect(secondFile).toMatchObject({ crc64: firstFile.crc64, sizeBytes: firstFile.sizeBytes });
+    const second = await h.media.assets.create(h.owner, {
+      type: "image",
+      fileIds: [secondFile.id],
+    });
+    await h.drain(second.storeAssetId);
+    expect(
+      await h.prisma.storeAssetInsight.findFirstOrThrow({
+        where: { storeAssetId: second.storeAssetId, fileId: secondFile.id, kind: "vision" },
+      }),
+    ).toMatchObject({
+      status: "ok",
+      reusedFromStoreAssetInsightId: insight.id,
+      content: { description: "同主体旧驱动已取得的洞察", tags: [] },
+    });
+    const other = await h.make.merchant({ verified: true });
+    const actor: MediaActor = {
+      identity: createIdentityContext({
+        actor: { type: "merchant", id: other.user.id, client: "weapp", role: "owner" },
+        entityId: other.entity.id,
+        storeId: other.store.id,
+      }),
+      merchant: { entityId: other.entity.id, storeId: other.store.id, standing: "owner" },
+    };
+    const thirdFile = await h.stored(actor);
+    expect(thirdFile).toMatchObject({ crc64: firstFile.crc64, sizeBytes: firstFile.sizeBytes });
+    const third = await h.media.assets.create(actor, { type: "image", fileIds: [thirdFile.id] });
+    await h.drain(third.storeAssetId);
+    expect(
+      await h.prisma.storeAssetInsight.findFirstOrThrow({
+        where: { storeAssetId: third.storeAssetId, fileId: thirdFile.id, kind: "vision" },
+      }),
+    ).toMatchObject({
+      status: "skipped",
+      reusedFromStoreAssetInsightId: null,
+      content: { reason: "budget_unconfigured" },
+    });
+    expect(h.fake.llm.calls).toHaveLength(0);
+  } finally {
+    spy.mockRestore();
+  }
 });
 
 it("已领租约的理解 IO 在途删除父素材，晚结果取消且不写洞察或覆盖删除赢家", async () => {

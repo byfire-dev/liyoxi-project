@@ -38,6 +38,8 @@ export function createSigner(deps: BoundMediaDeps) {
     const file = await deps.tx.run(async (tx) => {
       const found = await tx.fileObject.findUnique({ where: { id: input.fileId } });
       if (!found) throw new AppError("FILE_NOT_AVAILABLE");
+      if (found.category === "portrait_auth" && input.audience === "merchant")
+        throw new AppError("FILE_NOT_USABLE");
       requireStored(found);
       return found;
     });
