@@ -2,10 +2,12 @@
 
 | 项 | 内容 |
 | --- | --- |
-| 改了什么 | 普通 metadata 源包只把 license_letter.status 的六个文档坐标各后移两行、同步 x01 frag 的一个 attribution 范围和一个 draftNames 范围，并由官方 registry:generate 更新 x01-map；覆盖基线坐标另走独立 gate-only 包。 |
+| 改了什么 | 普通 metadata 源包只把 license_letter.status 的六个文档坐标各后移两行、同步 x01 frag 的一个 attribution 范围和一个 draftNames 范围，并用官方 registry:generate 对账 x01-map（两次均零差分）；覆盖基线坐标另走独立 gate-only 包。 |
 | 原因 | actual main d27ed55 的数据模型在 13:942–949，迁移表仍指 13:940–947，已有机器对账失败；这是原上游坐标漂移，不是新增事件或覆盖能力。 |
 | 影响的包 | W3-14 收尾及原主干门禁；机器六行的状态、事件、守卫、触发者和数量均不改。W2-27 worker 源保持冻结，未借此完成环境包。 |
 | 类别 | 顺序 |
 | PR | 仅本地 source / gate 两分支，分别唯一非作者审查，组合验证后按 source → gate 普通合流；不代表远端 CI 或部署。 |
 
-源包单独合入时，原覆盖基线仍把 manual 未覆盖项指向 13:947，已知中间依赖为 RED。独立 gate 包只把该同一项归位 13:949，原 70 项顺序、原因和实际未覆盖语义保持；不修改 checker、算法或新增豁免。当前 source-only，官方生成与组合重验证尚未执行，不能声称全部门禁通过。
+源包单独合入时，原覆盖基线仍把 manual 未覆盖项指向 13:947，已知中间依赖为 RED。独立 gate 包只把该同一项归位 13:949，原 70 项顺序、原因和实际未覆盖语义保持；不修改 checker、算法或新增豁免。本地组合验证已通过：原六个完整机器/registry/分类测试文件共 271 例，机器对账差异 0，strict contract coverage 为 135/205、70 条存量未覆盖、未知项 0；官方 registry 生成/检查各两次稳定，contract 生成与文档检查通过。source 无放松项，gate 包按真实 gate-change 单独分类；两包独立审查与顺序合流仍待完成，不代表远端 CI 或部署。
+
+本地源包合流记录：ROOT 唯一 NONCODER 审查 50.547/90 秒，P1/P2/D=0，冻结哈希无变化；三个普通 metadata 路径正常合流。原六文件271例的组合验证为绿，源包单独与旧基线的临时坐标依赖仍按上文披露；独立 gate-only 包下一步单独审查并连续合流。本记录不代表远端 CI 或部署。
