@@ -65,13 +65,13 @@ describe("对象类型", () => {
     expect(isAuditTargetType("work_calendar_day")).toBe(true);
     expect(isAuditTargetType("timer")).toBe(true);
     expect(isAuditTargetType("outbox_delivery")).toBe(true);
-    expect(AUDIT_TARGET_TYPES.slice(-6, -4)).toEqual(["timer", "outbox_delivery"]);
+    expect(AUDIT_TARGET_TYPES.slice(-8, -6)).toEqual(["timer", "outbox_delivery"]);
     expect(isAuditTargetType("analytics_event")).toBe(true);
-    expect(AUDIT_TARGET_TYPES.at(-4)).toBe("analytics_event");
+    expect(AUDIT_TARGET_TYPES.at(-6)).toBe("analytics_event");
     expect(isAuditTargetType("media_job")).toBe(true);
-    expect(AUDIT_TARGET_TYPES.at(-3)).toBe("media_job");
-    expect(AUDIT_TARGET_TYPES.at(-2)).toBe("drama_price_revision");
-    expect(AUDIT_TARGET_TYPES.at(-1)).toBe("agreement_version");
+    expect(AUDIT_TARGET_TYPES.at(-5)).toBe("media_job");
+    expect(AUDIT_TARGET_TYPES.at(-4)).toBe("drama_price_revision");
+    expect(AUDIT_TARGET_TYPES.at(-3)).toBe("agreement_version");
     expect(isAuditTargetType("agreement_version")).toBe(true);
     expect(isAuditTargetType("outbox_event")).toBe(false);
     expect(isAuditTargetType("ApprovalRequest")).toBe(false);
@@ -160,4 +160,10 @@ describe("纯常量", () => {
 
 it("W310 单剧调价审计正式目标已登记", () => {
   expect(isAuditTargetType("drama_price_revision")).toBe(true);
+});
+
+it("W3-14仅末尾追加素材与需求两个真实审计对象", () => {
+  expect(AUDIT_TARGET_TYPES.slice(-2)).toEqual(["store_asset", "store_asset_demand"]);
+  expect(isAuditTargetType("store_asset")).toBe(true);
+  expect(isAuditTargetType("store_asset_demand")).toBe(true);
 });

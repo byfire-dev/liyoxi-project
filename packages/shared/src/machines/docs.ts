@@ -7,10 +7,10 @@ import { chain } from "./define.js";
 
 /** license_letter.status：docs/data-model/13-notify-docs.md */
 export const licenseLetter = chain("license_letter", "status", LICENSE_LETTER_STATUS, [
-  ["13:940", null, "license_letter.create", ["pending_effective", "effective"]],
-  ["13:942", ["pending_effective"], "license_letter.go_live", ["effective"]],
-  ["13:944", ["effective"], "license_letter.revoke_live", ["pending_effective"]],
-  ["13:945", ["pending_effective", "effective"], "license_letter.void", ["voided"]],
-  ["13:946", ["pending_effective", "effective"], "license_letter.void", ["voided"]],
+  ["13:942", null, "license_letter.create", ["pending_effective", "effective"]],
+  ["13:944", ["pending_effective"], "license_letter.go_live", ["effective"]],
+  ["13:946", ["effective"], "license_letter.revoke_live", ["pending_effective"]],
   ["13:947", ["pending_effective", "effective"], "license_letter.void", ["voided"]],
+  ["13:948", ["pending_effective", "effective"], "license_letter.void", ["voided"]],
+  ["13:949", ["pending_effective", "effective"], "license_letter.void", ["voided"]],
 ]);

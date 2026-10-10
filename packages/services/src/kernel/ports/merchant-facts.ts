@@ -127,6 +127,7 @@ export interface SupportStoreFacts {
 /** asset：门店素材数（未删除的） */
 export interface AssetStoreFacts {
   readonly assetCount: number;
+  readonly recent7dCount?: number;
 }
 
 type ByStore<T> = Readonly<Record<string, T>>;
@@ -199,7 +200,7 @@ export function defaultMerchantFacts(storeIds: readonly string[]): MerchantFacts
     },
     support: { stores: perStore(storeIds, { ticketAwaitingConfirmCount: 0 }) },
     notify: { unreadMessageCount: 0 },
-    asset: { stores: perStore(storeIds, { assetCount: 0 }) },
+    asset: { stores: perStore(storeIds, { assetCount: 0, recent7dCount: 0 }) },
   };
 }
 

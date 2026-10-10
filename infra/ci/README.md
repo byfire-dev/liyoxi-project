@@ -197,6 +197,10 @@ node infra/ci/classify-gate-changes.mjs --base origin/main --labels gate-change
 
 登记新的门禁文件：往 `gate-files.json` 的 `files` 末尾加一条（`pattern`、`kind`、`note`）。`pattern` 里 `**` 跨目录、`*` 不跨目录。白名单、基线、黄金文件这类“一动就该让业主看”的用 `frozen`；规则与配置用 `append`；tsconfig 用 `tsconfig`；入库的生成物目录用 `generated`，另写 `check`，前提见第 5.1 节。新依赖一律写精确版本，写成范围会被判成放松。`infra/ci/` 下的检查脚本（`.mjs`）与 `selftest/` 已经被现有条目按 `new-file` 盖住，不用再登记；放在别处的检查脚本按 `new-file` 登记。
 
+授权书坐标独立 gate 包：数据模型插入文档行后，普通 source 包把 `license_letter.status` 六行引用统一后移两行，并同步 x01 来源与官方生成映射；此处只把 `machines-coverage-baseline.jsonl` 原第 39 项的 `13:947` 归位为 `13:949`。它仍是同一条 `license_letter.void` / `manual` 未覆盖项，原 70 项数量、顺序与 reason 完全不变，没有新增豁免或修改 checker。
+
+这是对既有基线行的替换，按原分类规则走独立 `gate-change`，不能伪装成 append 或和非门禁路径混合。source 单独合流时已知覆盖基线暂时未对齐；只有组合经原 `machines:check`、strict contract coverage、官方 registry 生成/对账与分类通过，分别独审后按 source → gate 普通合流才闭合。该记录不声称远端 CI 或部署。
+
 ### 5.1 生成物（`generated`）
 
 来历：计划 第 5.3 节把“重新生成的生成物”列在只增类，分类脚本第一版没有这一种口径。契约生成物当时登记成“算门禁路径、不逐行判”（条目的 `except` 盖住整个匹配式：重新生成不进清单，删掉一份也不报）；设计生成物按 `append` 登记（改一个已有变量的取值就判成放松，而来源 `design/tokens.json` 不是门禁文件，带 `gate-change` 的 PR 也放不进去）。业主 2026-10-05 同意加这一种口径（原话：“生成物的门禁口径、状态汇总不入库：两个减少摩擦的门禁改动。同意。”），两处登记统一到它上面。
@@ -360,6 +364,8 @@ DATABASE_URL=<同上> pnpm db:partitions:assert --db <库名>
 - 迁移规范检查按文本认语句：动态拼出来再 `EXECUTE` 的、先建函数再调它来删东西的，查不出；“带不带默认值”按迁移自己的文本推。迁移是甲类，靠评审。
 - 06 第 1 节的数量是从正文那一条里按句式读出来的：句式被改写、读不出数时检查报错（不当成通过），把 `db-structure-lib.mjs` 的 `readDocCounts` 一起改（改已有的检查脚本，走 `gate-change` PR）。
 - 本地那个长期留着的 `lyx_migrate_check` 过了月初会少一个月的分区，`pnpm db:partitions:assert` 会红：删掉重建（`packages/db/README.md` 第 3 节）。CI 里只有一种情形会这样：迁移在北京时间月末的最后几分钟跑完、断言在下个月的头几分钟跑，那一次重跑即可。
+
+本地 gate-only 合流记录：源包已普通合入 00c200bf，ROOT 对本包唯一 NONCODER 审查 46.747/90 秒，P1/P2/D=0、冻结哈希无变化。分类器真实结论为 loosen（既有 JSONL 行替换），按 gate-change 独立合流，outside=0；只有同一 manual 原存量项坐标 947→949，没有新增豁免，原70项数量、顺序和原因保持。执行元数据与组合271G字节一致，135/205、70存量、未知0；两前置按顺序完成本地普通合流，中间坐标依赖至此闭合。无远端CI或部署结论。
 
 
 ## 9. 在役契约兼容（W2-28a）

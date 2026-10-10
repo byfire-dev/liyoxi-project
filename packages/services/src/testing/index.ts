@@ -123,3 +123,4 @@ export { finishW120LiveFixture } from "./admin-live/w120.fixture.js";
 
 export { createMediaProductionHarness } from "./media-production-harness.js";
 export type { MediaProductionHarness } from "./media-production-harness.js";
+export { createMediaAssetsHarness } from "./media-assets.js";

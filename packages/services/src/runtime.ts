@@ -1,3 +1,4 @@
+import { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./ops/index.js";
 import { readTargetActivity } from "./audit/index.js";
 import {
   createDeliveryProductionAssembly,
@@ -368,7 +369,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
   const notifyScope = createNotifyAssembly(analyticsScope.assembly);
   const mediaScope = createMediaAssembly(notifyScope.assembly);
-  const staffScope = createStaffAssembly(mediaScope.assembly);
+  const mediaAssetsScope = createMediaAssetsAssembly(mediaScope.assembly);
+  const staffScope = createStaffAssembly(mediaAssetsScope.assembly);
   const contentPricingScope = createContentPricingAssembly(staffScope.assembly);
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
@@ -529,6 +531,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       : undefined,
   );
   const media = createMedia({
+    assets: createRuntimeMediaAssets({ clock, assembly, timers, providers }),
     batches: createRuntimeMediaBatches({ clock, events, media: () => media }),
     ...(mediaProduction.production ? { production: mediaProduction.production } : {}),
     tx,
@@ -547,6 +550,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     },
   });
   mediaScope.attach(media.jobs);
+  mediaAssetsScope.attach(media);
   deliveryProductionScope.attach({ clock, flow, media });
   const docsServices = createRuntimeDocs({
     tx,
@@ -854,6 +858,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         analyticsScope.close(),
         notifyScope.close(),
       ]);
+      mediaAssetsScope.close();
       mediaScope.close();
       contentPricingScope.close();
       deliveryProductionScope.close();

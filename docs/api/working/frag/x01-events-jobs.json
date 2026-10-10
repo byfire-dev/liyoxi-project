@@ -3763,7 +3763,7 @@
    "aggregate": "license_letter",
    "module": "docs",
    "status": "v1",
-   "draftNames": "本稿补（13:945-947）",
+   "draftNames": "本稿补（13:947-949）",
    "payload": [
     "v",
     "licenseLetterId",
@@ -5440,7 +5440,7 @@
    "via": "周期任务"
   },
   {
-   "ref": "13-notify-docs.md:940-946",
+   "ref": "13-notify-docs.md:942-948",
    "column": "license_letter.status",
    "transition": "建信、生效、止日变化、作废（对齐函数）",
    "via": "订阅者"

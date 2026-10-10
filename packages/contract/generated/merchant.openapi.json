@@ -1004,6 +1004,141 @@
         ],
         "type": "object"
       },
+      "AssetDemandItem": {
+        "additionalProperties": false,
+        "properties": {
+          "assetDemandId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdByName": {
+            "type": "string"
+          },
+          "dueDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "isOverdue": {
+            "type": "boolean"
+          },
+          "myUploadCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "receivedCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shootingNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "open",
+              "done",
+              "canceled"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "assetDemandId",
+          "title",
+          "shootingNote",
+          "dueDate",
+          "status",
+          "isOverdue",
+          "createdByName",
+          "receivedCount",
+          "myUploadCount",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "AssetFeedbackBody": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "dimension": {
+            "enum": [
+              "content",
+              "usage",
+              "timeliness",
+              "usability"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
+      "AssetTag": {
+        "additionalProperties": false,
+        "properties": {
+          "dimension": {
+            "enum": [
+              "content",
+              "usage",
+              "timeliness"
+            ],
+            "type": "string"
+          },
+          "isConfirmed": {
+            "type": "boolean"
+          },
+          "source": {
+            "enum": [
+              "auto",
+              "uploader",
+              "reviewer"
+            ],
+            "type": "string"
+          },
+          "tag": {
+            "$ref": "#/components/schemas/DictRef"
+          },
+          "validEndDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "validStartDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "dimension",
+          "tag",
+          "source",
+          "isConfirmed",
+          "validStartDate",
+          "validEndDate"
+        ],
+        "type": "object"
+      },
       "Attribution": {
         "properties": {
           "channelCode": {
@@ -12600,6 +12735,25 @@
         ],
         "type": "object"
       },
+      "PortraitAuthBody": {
+        "additionalProperties": false,
+        "properties": {
+          "fileIds": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 9,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "fileIds"
+        ],
+        "type": "object"
+      },
       "PostPolicy": {
         "properties": {
           "fields": {
@@ -14305,7 +14459,10 @@
           "url",
           "expiresAt"
         ],
-        "type": "object"
+        "type": [
+          "object",
+          "null"
+        ]
       },
       "SilentLoginResult": {
         "properties": {
@@ -14338,6 +14495,653 @@
           "needPhone",
           "token",
           "me"
+        ],
+        "type": "object"
+      },
+      "StoreAssetCard": {
+        "additionalProperties": false,
+        "properties": {
+          "adoptedCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "displayStatus": {
+            "enum": [
+              "organizing",
+              "ready",
+              "reference_only",
+              "need_reshoot",
+              "need_portrait_auth",
+              "adopted"
+            ],
+            "type": "string"
+          },
+          "durationMs": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "fileCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "isSelectableAsReference": {
+            "type": "boolean"
+          },
+          "moderationState": {
+            "enum": [
+              "none",
+              "pending",
+              "pass",
+              "review",
+              "block"
+            ],
+            "type": "string"
+          },
+          "pageCount": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "processingState": {
+            "enum": [
+              "pending",
+              "processing",
+              "processed"
+            ],
+            "type": "string"
+          },
+          "quote": {
+            "maxLength": 60,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reviewState": {
+            "enum": [
+              "unreviewed",
+              "reviewed"
+            ],
+            "type": "string"
+          },
+          "storeAssetId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "structuredItemCount": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/AssetTag"
+            },
+            "maxItems": 4,
+            "type": "array"
+          },
+          "techSpecLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "thumbnail": {
+            "$ref": "#/components/schemas/SignedUrl"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "enum": [
+              "image",
+              "video",
+              "recording",
+              "audio",
+              "document",
+              "text"
+            ],
+            "type": "string"
+          },
+          "uploader": {
+            "$ref": "#/components/schemas/UploaderView"
+          },
+          "usability": {
+            "enum": [
+              "ready",
+              "reference_only",
+              "need_reshoot",
+              "need_portrait_auth",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "storeAssetId",
+          "type",
+          "title",
+          "displayStatus",
+          "processingState",
+          "reviewState",
+          "usability",
+          "adoptedCount",
+          "moderationState",
+          "fileCount",
+          "durationMs",
+          "pageCount",
+          "thumbnail",
+          "quote",
+          "tags",
+          "techSpecLabel",
+          "structuredItemCount",
+          "isSelectableAsReference",
+          "uploader",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "StoreAssetCreateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "assetDemandId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "contentTagCodes": {
+            "items": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 0,
+            "type": "array"
+          },
+          "fileIds": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 9,
+            "minItems": 1,
+            "type": "array"
+          },
+          "note": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "textBody": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "image",
+              "video",
+              "recording",
+              "audio",
+              "document",
+              "text"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
+      "StoreAssetDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StoreAssetCard"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "actions": {
+                "items": {
+                  "enum": [
+                    "portrait-auth",
+                    "feedback"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "assetDemand": {
+                "additionalProperties": false,
+                "properties": {
+                  "assetDemandId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "assetDemandId",
+                  "title"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "fileTranscripts": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "fileId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "segments": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "fromMs": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "toMs": {
+                            "minimum": 0,
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "fromMs",
+                          "toMs",
+                          "text"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "text",
+                    "segments",
+                    "fileId"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "files": {
+                "items": {
+                  "$ref": "#/components/schemas/MediaFileView"
+                },
+                "type": "array"
+              },
+              "highlights": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "isInsightPartial": {
+                "type": "boolean"
+              },
+              "note": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "portraitAuth": {
+                "additionalProperties": false,
+                "properties": {
+                  "authorizedAt": {
+                    "format": "date-time",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "fileCount": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "fileCount",
+                  "authorizedAt"
+                ],
+                "type": "object"
+              },
+              "reviewedAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "reviewedBy": {
+                "additionalProperties": false,
+                "properties": {
+                  "displayName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "displayName"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "structuredItems": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "priceText": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "priceText"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "tagsByDimension": {
+                "additionalProperties": false,
+                "properties": {
+                  "content": {
+                    "items": {
+                      "$ref": "#/components/schemas/AssetTag"
+                    },
+                    "type": "array"
+                  },
+                  "timeliness": {
+                    "items": {
+                      "$ref": "#/components/schemas/AssetTag"
+                    },
+                    "type": "array"
+                  },
+                  "usage": {
+                    "items": {
+                      "$ref": "#/components/schemas/AssetTag"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "content",
+                  "usage",
+                  "timeliness"
+                ],
+                "type": "object"
+              },
+              "textBody": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "timeline": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "actorName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "at": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "kind": {
+                      "enum": [
+                        "uploaded",
+                        "processed",
+                        "reviewed",
+                        "used_as_reference",
+                        "adopted"
+                      ],
+                      "type": "string"
+                    },
+                    "usedBy": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "no": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "enum": [
+                            "ad",
+                            "drama_order"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "id",
+                        "no"
+                      ],
+                      "type": [
+                        "object",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "at",
+                    "actorName",
+                    "usedBy"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "transcript": {
+                "additionalProperties": false,
+                "properties": {
+                  "segments": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "fromMs": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "text": {
+                          "type": "string"
+                        },
+                        "toMs": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "fromMs",
+                        "toMs",
+                        "text"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text",
+                  "segments"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "textBody",
+              "note",
+              "files",
+              "transcript",
+              "fileTranscripts",
+              "highlights",
+              "structuredItems",
+              "isInsightPartial",
+              "tagsByDimension",
+              "reviewedBy",
+              "reviewedAt",
+              "portraitAuth",
+              "assetDemand",
+              "timeline",
+              "actions"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "StoreAssetSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "adoptedCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "hotTags": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "assetCount": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "dimension": {
+                  "enum": [
+                    "content",
+                    "usage",
+                    "timeliness"
+                  ],
+                  "type": "string"
+                },
+                "tag": {
+                  "$ref": "#/components/schemas/DictRef"
+                }
+              },
+              "required": [
+                "dimension",
+                "tag",
+                "assetCount"
+              ],
+              "type": "object"
+            },
+            "maxItems": 5,
+            "type": "array"
+          },
+          "organizingCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "recent7dCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tabs": {
+            "additionalProperties": false,
+            "properties": {
+              "all": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "audio": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "document": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "image": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "recording": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "text": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "video": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "all",
+              "image",
+              "video",
+              "recording",
+              "audio",
+              "document",
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "tabs",
+          "organizingCount",
+          "adoptedCount",
+          "recent7dCount",
+          "hotTags"
         ],
         "type": "object"
       },
@@ -15317,10 +16121,9 @@
                 "properties": {
                   "recent": {
                     "items": {
-                      "properties": {},
-                      "type": "object"
+                      "$ref": "#/components/schemas/StoreAssetCard"
                     },
-                    "maxItems": 0,
+                    "maxItems": 3,
                     "type": "array"
                   },
                   "recent7dCount": {
@@ -15679,10 +16482,9 @@
                 "properties": {
                   "recent": {
                     "items": {
-                      "properties": {},
-                      "type": "object"
+                      "$ref": "#/components/schemas/StoreAssetCard"
                     },
-                    "maxItems": 0,
+                    "maxItems": 3,
                     "type": "array"
                   },
                   "recent7dCount": {
@@ -16278,6 +17080,45 @@
         "required": [
           "appliedCount",
           "ignoredCount"
+        ],
+        "type": "object"
+      },
+      "UploaderView": {
+        "additionalProperties": false,
+        "properties": {
+          "actorType": {
+            "enum": [
+              "merchant",
+              "staff"
+            ],
+            "type": "string"
+          },
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isMe": {
+            "type": "boolean"
+          },
+          "role": {
+            "enum": [
+              "owner",
+              "clerk",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "actorType",
+          "role",
+          "displayName",
+          "isMe"
         ],
         "type": "object"
       },
@@ -17339,6 +18180,169 @@
         "x-clerk-view": "same",
         "x-idempotent": "none",
         "x-idempotent-reason": "埋点：事件按 event_id 在 analytics_event_dedup 去重，不经幂等记录（A18、C47）"
+      }
+    },
+    "/api/v1/m/asset-demands": {
+      "get": {
+        "operationId": "m.assetDemand.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "maxLength": 2200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/AssetDemandItem"
+                          },
+                          "type": "array"
+                        },
+                        "nextCursor": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "nextCursor",
+                        "hasMore"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "素材需求（?status=open）：名称、拍摄说明、发起的服务经理、完成日期",
+        "x-auth": "member",
+        "x-capability": "asset.demand.read",
+        "x-clerk-view": "same",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
       }
     },
     "/api/v1/m/bootstrap": {
@@ -25383,6 +26387,952 @@
         "x-idempotent": "none",
         "x-idempotent-reason": "登录与换会话（A18）",
         "x-rate-limit": "m.login.phone"
+      }
+    },
+    "/api/v1/m/store-assets": {
+      "get": {
+        "operationId": "m.storeAsset.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "maxLength": 2200,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "maxLength": 2200,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uploader",
+            "required": false,
+            "schema": {
+              "enum": [
+                "me"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isSelectableAsReference",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "assetDemandId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "image",
+                "video",
+                "recording",
+                "audio",
+                "document",
+                "text"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "enum": [
+                "-createdAt"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ids",
+            "required": false,
+            "schema": {
+              "maxLength": 2200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/StoreAssetCard"
+                          },
+                          "type": "array"
+                        },
+                        "nextCursor": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "nextCursor",
+                        "hasMore"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "门店素材列表（游标分页，按上传时间倒序）：?tab=（素材类型页签）&status=&tag=&q=&uploader=me&isSelectableAsReference=&assetDemandId=&ids=；卡片含缩略图、角标、标题、状态、上传人与角色、引文、标签",
+        "x-auth": "member",
+        "x-capability": "asset.read",
+        "x-clerk-view": "same",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      },
+      "post": {
+        "operationId": "m.storeAsset.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StoreAssetCreateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/StoreAssetCard"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "replayed": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "replayed"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "创建门店素材：{type, fileIds[], textBody?, contentTagCodes[], note?, assetDemandId?}，并投递理解任务（转写、识别、提炼）",
+        "x-auth": "member",
+        "x-capability": "asset.upload",
+        "x-clerk-view": "same",
+        "x-idempotent": "required",
+        "x-redact-on-replay": [
+          "thumbnail"
+        ]
+      }
+    },
+    "/api/v1/m/store-assets/summary": {
+      "get": {
+        "operationId": "m.storeAsset.summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "maxLength": 2200,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "maxLength": 2200,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uploader",
+            "required": false,
+            "schema": {
+              "enum": [
+                "me"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isSelectableAsReference",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "assetDemandId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StoreAssetSummary"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "素材库计数：各类型页签计数、整理中数量、热门标签；带 uploader=me 时给“我上传的 N 条 · M 条被采用”",
+        "x-auth": "member",
+        "x-capability": "asset.read",
+        "x-clerk-view": "same",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/store-assets/{storeAssetId}": {
+      "get": {
+        "operationId": "m.storeAsset.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storeAssetId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StoreAssetDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "素材详情：文件签名地址、转写全文、要点、分维度标签（内容/用途/时效/可用性）、复核人与时间、使用记录",
+        "x-auth": "member",
+        "x-capability": "asset.read",
+        "x-clerk-view": "same",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/store-assets/{storeAssetId}/feedback": {
+      "post": {
+        "operationId": "m.storeAsset.feedback.create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storeAssetId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetFeedbackBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "type": "null"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "素材标签有误等轻量反馈（反馈内容，≤200 字）；写审计并通知交付经理",
+        "x-auth": "member",
+        "x-capability": "asset.feedback",
+        "x-clerk-view": "same",
+        "x-idempotent": "required"
+      }
+    },
+    "/api/v1/m/store-assets/{storeAssetId}/portrait-auth": {
+      "post": {
+        "operationId": "m.storeAsset.portraitAuth.create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storeAssetId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortraitAuthBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/StoreAssetDetail"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "replayed": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "replayed"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "为“需肖像授权”的素材补交授权材料（fileIds）",
+        "x-auth": "member",
+        "x-capability": "asset.upload",
+        "x-clerk-view": "same",
+        "x-idempotent": "required",
+        "x-redact-on-replay": [
+          "thumbnail",
+          "files[].url",
+          "files[].expiresAt",
+          "files[].coverUrl"
+        ]
       }
     },
     "/api/v1/m/store-profile": {
