@@ -19,7 +19,6 @@ import { ChecklistItemsSchema, COMPARE_FIELDS } from "@liyoxi/contract";
 import { createProfile } from "../../profile/index.js";
 import { createSla } from "../../sla/index.js";
 import { createTenant } from "../../tenant/index.js";
-import { readCancelReviewCause } from "../../order/index.js";
 import {
   assembleForTest,
   createClock,
@@ -49,6 +48,9 @@ export function harness(
     applications: string[] = [];
   const rederivations: Array<{ steps: string[]; input: Parameters<OrderSide["rederive"]>[1] }> = [];
   const rederiveHook: { run?: OrderSide["rederive"] } = {};
+  const readCancelReviewCause = assembleForTest({ entry: "api" }).port(
+    orderSidePort,
+  ).readCancelReviewCause;
   const assembly = assembleForTest({
     entry: "api",
     extra: [
