@@ -1596,25 +1596,35 @@ describe("活跃发起人对象失效后的真实财务代撤", () => {
     });
     await assertSnapshotsEqual(before, await snapshotTables(h.prisma, tables));
   });
-  it.each(["entity", "store"] as const)("仅%s关闭不能冒充广告终局财务代撤", async (target) => {
-    const f = await fixture(),
-      r = await submit(f);
-    if (target === "entity")
-      await h.prisma.entity.update({
-        where: { id: f.ad.entityId },
-        data: { lifecycle: "closed", closedAt: h.clock.now() },
+  it.each(["entity", "store"] as const)(
+    "仅%s生命周期失效不能冒充广告终局财务代撤",
+    async (target) => {
+      const f = await fixture(),
+        r = await submit(f);
+      if (target === "entity")
+        await h.prisma.entity.update({
+          where: { id: f.ad.entityId },
+          data: { lifecycle: "closed", closedAt: h.clock.now() },
+        });
+      else
+        await h.prisma.store.update({
+          where: { id: f.ad.storeId },
+          data: {
+            lifecycle: "archived",
+            archivedAt: h.clock.now(),
+            archiveActorType: "staff",
+            archiveActorId: f.approver.id,
+            archiveClient: "admin",
+            archiveReason: "by_owner",
+          },
+        });
+      const before = await snapshotTables(h.prisma, tables);
+      await expect(f.service.withdraw(f.approver, r.id, {})).rejects.toMatchObject({
+        error: "APPROVAL_WITHDRAW_FORBIDDEN",
       });
-    else
-      await h.prisma.store.update({
-        where: { id: f.ad.storeId },
-        data: { lifecycle: "closed", closedAt: h.clock.now() },
-      });
-    const before = await snapshotTables(h.prisma, tables);
-    await expect(f.service.withdraw(f.approver, r.id, {})).rejects.toMatchObject({
-      error: "APPROVAL_WITHDRAW_FORBIDDEN",
-    });
-    await assertSnapshotsEqual(before, await snapshotTables(h.prisma, tables));
-  });
+      await assertSnapshotsEqual(before, await snapshotTables(h.prisma, tables));
+    },
+  );
   it("没有决定权限的真实员工不能代撤终局对象", async () => {
     const { f, r } = await invalidProxyFixture(),
       actor = await person("publisher"),
