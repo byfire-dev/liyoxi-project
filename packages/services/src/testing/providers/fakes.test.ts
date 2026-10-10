@@ -48,6 +48,9 @@ describe("每个方法：记录调用、注入失败、注入延迟", () => {
       ok: false,
       reason: "unavailable",
       message: "替身注入的失败",
+      ...(provider === "asr" && method === "submit"
+        ? { acceptance: "unknown", code: "unknown_outcome" }
+        : {}),
     });
     const recovered = await callWithSample(fakes, provider, method);
     expect(recovered).not.toMatchObject({ message: "替身注入的失败" });
@@ -59,6 +62,9 @@ describe("每个方法：记录调用、注入失败、注入延迟", () => {
         ok: false,
         reason: "rejected",
         message: "外部侧拒绝",
+        ...(provider === "asr" && method === "submit"
+          ? { acceptance: "unknown", code: "unknown_outcome" }
+          : {}),
       });
     }
     expect(fake.calls).toHaveLength(5);
