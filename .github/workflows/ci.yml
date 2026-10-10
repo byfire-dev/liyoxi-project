@@ -104,6 +104,8 @@ jobs:
       # 现生成的逐字节比对，它在 test 任务里跑，那边的检出没有被这一步重新写过
       - name: contract:check
         run: pnpm contract:check
+      - name: 在役契约兼容（C77/C78）
+        run: pnpm contract:compat
       # x01 名称登记（W0-09a）：先由登记数据重新生成归属表 docs/plan/x01-map.md 并 git diff --exit-code，再拿登记数据
       # 与 x01 正文、working/frag 对账（名称集合、数量、归属里程碑、写法）。不连库
       - name: 登记表对账

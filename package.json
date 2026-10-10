@@ -23,6 +23,7 @@
     "test": "vitest run",
     "contract:generate": "pnpm --filter @liyoxi/contract generate",
     "contract:check": "pnpm contract:generate && git diff --exit-code -- packages/contract/generated",
+    "contract:compat": "node infra/ci/contract-compat.mjs",
     "depcheck": "node infra/ci/check-layers.mjs && depcruise apps packages infra --config .dependency-cruiser.cjs",
     "check:rename": "node infra/ci/check-rename.mjs",
     "design:generate": "pnpm --filter @liyoxi/shared run design:generate",
