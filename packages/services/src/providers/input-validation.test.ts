@@ -67,9 +67,9 @@ describe("Provider 纯输入公口", () => {
       expect(isLlmDigestInput(input)).toBe(false);
     });
 
-    it("正文和真实三维词表可用，标签采用原JS长度而非新增码点规范", () => {
+    it("正文和真实三维词表可用，标签保留原Zod的20/21码点边界", () => {
       const input = digest();
-      input.vocabulary.content[0]!.label = "😀".repeat(10);
+      input.vocabulary.content[0]!.label = "😀".repeat(20);
       expect(isLlmDigestInput(input)).toBe(true);
       input.vocabulary.content[0]!.label += "x";
       expect(isLlmDigestInput(input)).toBe(false);
