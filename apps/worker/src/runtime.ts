@@ -227,6 +227,9 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
             ].map((close) => Promise.resolve().then(close)),
           );
           // 准入先禁用，业务drain后才关闭预算；其它close失败也不能跳过告警drain。
+          const modelsClosed = await Promise.allSettled([
+            Promise.resolve().then(() => services.closeModelDrivers?.()),
+          ]);
           const budgetClosed = await Promise.allSettled([
             Promise.resolve().then(() => services.closeModelBudget?.()),
           ]);
@@ -237,6 +240,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
             ...docsClosed,
             ...converterClosed,
             ...domainsClosed,
+            ...modelsClosed,
             ...budgetClosed,
             ...alertsClosed,
           ].find((result) => result.status === "rejected");

@@ -117,6 +117,11 @@ export function connectWorkerDatabase(connectionString: string): {
 }
 
 export interface WorkerServicesOptions {
+  /** 本实例自有模型驱动的成对生命周期；close须缓存同一Promise，借用providers不消费此口。 */
+  readonly modelDrivers?: {
+    registerClose(close: () => Promise<void>): void;
+    close(): Promise<void>;
+  };
   /** 入口借给本实例的专用预算transport；连接关闭仍归入口。缺省保守关闭。 */
   readonly modelBudgetTransport?: ModelBudgetTransport;
   readonly documentWorkerUrl?: URL;
@@ -146,6 +151,8 @@ export interface WorkerServicesOptions {
     readonly SMS?: Env["SMS"];
     readonly CI?: Env["CI"];
     readonly MEDIA_PRODUCTION?: Env["MEDIA_PRODUCTION"];
+    readonly ASR_TENCENT?: Env["ASR_TENCENT"];
+    readonly LLM_DOMESTIC?: Env["LLM_DOMESTIC"];
   };
   /** 换掉十二个 Provider：只有用例会给（替身）。不给即 assembleProviders 按环境选实现 */
   readonly providers?: Providers;
@@ -155,6 +162,7 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  readonly closeModelDrivers?: () => Promise<void>;
   readonly disableModelBudget?: () => void;
   readonly closeModelBudget?: () => Promise<void>;
   readonly closeDocs: () => Promise<void>;
@@ -222,6 +230,15 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const ci = options.keys?.CI;
   if (ci && !ci.worker) throw new TypeError("CI worker入口缺少worker角色");
   if (cos && !cos.worker) throw new TypeError("COS worker入口缺少worker角色");
+  const ownsModels =
+    options.providers === undefined &&
+    (options.keys?.ASR_TENCENT !== undefined || options.keys?.LLM_DOMESTIC !== undefined);
+  const modelDrivers = options.providers === undefined ? options.modelDrivers : undefined;
+  if (
+    ownsModels &&
+    (typeof modelDrivers?.registerClose !== "function" || typeof modelDrivers?.close !== "function")
+  )
+    throw new TypeError("模型配置须成对提供本实例关闭登记与关闭函数");
   const { prisma, channel } = options;
   const documentConverter = options.documentWorkerUrl
     ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
@@ -301,6 +318,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       appEnv: options.appEnv,
       logger,
       settings: {
+        ...(options.keys?.ASR_TENCENT !== undefined ? { asr: options.keys.ASR_TENCENT } : {}),
+        ...(options.keys?.LLM_DOMESTIC !== undefined ? { llm: options.keys.LLM_DOMESTIC } : {}),
         ...(options.keys?.SMS
           ? {
               sms: {
@@ -357,6 +376,21 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       ...(options.wechat
         ? {
             wechat: options.wechat.transport,
+          }
+        : {}),
+      ...(options.keys?.ASR_TENCENT !== undefined
+        ? {
+            asr: {
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => modelDrivers!.registerClose(close),
+            },
+          }
+        : {}),
+      ...(options.keys?.LLM_DOMESTIC !== undefined
+        ? {
+            llm: {
+              registerClose: (close: () => Promise<void>) => modelDrivers!.registerClose(close),
+            },
           }
         : {}),
     });
@@ -538,6 +572,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const unbindNoticeLink = bindAgreementNoticeLink(readAgreementNoticeLink);
 
   return {
+    ...(ownsModels ? { closeModelDrivers: () => modelDrivers!.close() } : {}),
     disableModelBudget: () => modelBudget.disable(),
     closeModelBudget: () => modelBudget.close(),
     closeDocs: () => docsScope.close(),
