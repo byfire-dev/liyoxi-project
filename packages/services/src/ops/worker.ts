@@ -255,7 +255,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   deliverySlaScope.attach({ events, clock });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const flow = createFlow({ assembly, clock, events });
-  invitationScope.attach(createInvitationExpiry({ clock, flow }));
+  invitationScope.attach(createInvitationExpiry({ clock, flow, timers }));
   const wechatSources = options.wechat
     ? [
         createWechatMessageSource({

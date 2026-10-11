@@ -508,7 +508,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const unbindWebhooks = bindWebhooks(webhooks);
   const timers = createTimers({ assembly });
   const flow = createFlow({ assembly, clock, events });
-  invitationScope.attach(createInvitationExpiry({ clock, flow }));
+  invitationScope.attach(createInvitationExpiry({ clock, flow, timers }));
   const reportingTenant = createTenant({ tx, clock, flow, assembly });
   const analytics = createAnalyticsReceiver({
     tx,
