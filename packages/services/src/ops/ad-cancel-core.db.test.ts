@@ -2010,6 +2010,7 @@ describe("主体关闭的 pending ad_cancel 同事务所属伴随", () => {
   it("独立 worker 实际绑定真实 owner 执行非空批次，closeOrder 精确恢复旧实例", async () => {
     const f = await fixture(),
       r = await submit(f);
+    await historyRef(f, r);
     await withEntityCancels(f, async () => {
       const previous = boundOrder();
       const worker = buildWorkerServices({
@@ -2105,6 +2106,7 @@ describe("主体关闭的 pending ad_cancel 同事务所属伴随", () => {
     async (status) => {
       const f = await fixture({ status }),
         r = await submit(f);
+      await historyRef(f, r);
       const financial = await snapshotTables(h.prisma, financialTables),
         hold = await holdNow(f);
       const result = await withEntityCancels(f, (port) =>
@@ -2143,6 +2145,8 @@ describe("主体关闭的 pending ad_cancel 同事务所属伴随", () => {
     const foreign = await submit(other),
       foreignBefore = await observe(other);
     const ref = await historyRef(f, requests[0]!);
+    await historyRef(second, requests[1]!);
+    await historyRef(third, requests[2]!);
     const before = await snapshotTables(h.prisma, financialTables);
     const actual = await withEntityCancels(f, (port) => h.tx.run((tx) => entityBatch(f, port, tx)));
     expect(actual).toEqual(requests.map((r) => r.id).sort());
@@ -2407,6 +2411,7 @@ describe("主体关闭的 pending ad_cancel 同事务所属伴随", () => {
       const f = await fixture(),
         r = await submit(f),
         before = await snapshotTables(h.prisma, financialTables);
+      await historyRef(f, r);
       const results = await withEntityCancels(f, (port) =>
         Promise.allSettled([
           h.tx.run((tx) => entityBatch(f, port, tx)),
@@ -2504,6 +2509,7 @@ describe("主体关闭的 pending ad_cancel 同事务所属伴随", () => {
   it("真实低序审批锁阻塞prepare，observer核双方PID、阻塞对象和原观测期限", async () => {
     const f = await fixture(),
       r = await submit(f);
+    await historyRef(f, r);
     let writerPid = 0,
       waiterPid = 0,
       release!: () => void,
