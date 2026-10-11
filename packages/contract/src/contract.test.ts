@@ -382,9 +382,10 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
   //     加具名结构时再改组件清单（现在只有 DictRef、ErrorBody、SentryEnvelope）。
   // 这是预期替换，不算“删改已有黄金条目”。替换时把断言换成新的现状（条数、组件名），不要整条删掉。
   // 路由清单本身的条数、与路线图的对账在 src/routes/routes.test.ts 与 pnpm contract:docs-check。
-  it("路由都已登记：带结构的 249 条中商家端与后台路由进入各自文档，回调不进入客户端文档；其余还只有元数据，三份文档都有通用结构与错误体", async () => {
+  it("路由都已登记：带结构的 270 条中商家端与后台路由进入各自文档，回调不进入客户端文档；其余还只有元数据，三份文档都有通用结构与错误体", async () => {
     // W1-03：协议与主体门店 8 条；W1-04：商家会话与当前账号 6 条；W1-01a：后台登录链路 9 条；W1-01b：员工增查与角色只读 4 条；W1-06：审批与字典读侧 4 条；W1-04b：商家字典 1 条；W1-07：文件 9 条；W1-13：内容读侧4条；W1-08a：商家档案13条；W1-11b：付款13条；W1-08b：后台档案6条；W1-14：发布15条；W1-15a：报价与订购2条；W1-15b：选剧单与读侧12条；W1-16a PR1：工单与方案10条；PR2：样片成片包10条；W1-16b：登录逐集下载4条
     // 最新 main 补 W3-01 两条后台文件操作与 W2-21 两条微信回调；W3-11 补站点/Banner/搜索 11 条；W2-03 补员工全量 18 条；W3-02 补批量上传 8 条；W3-10 补版权/调价 9 条；W2-12 PR2 补协议管理 8 条；W3-09 补短剧生命周期 19 条。
+    // 已合 main 补素材/需求 20 条；W3-15 补原 ASR 回调的正式结构 1 条。
     expect(allRoutes.map((route) => route.operationId).sort()).toEqual([
       "admin.agreement.agreementVersion.create",
       "admin.agreement.get",
@@ -397,6 +398,10 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "admin.approval.get",
       "admin.approval.list",
       "admin.approval.summary",
+      "admin.assetDemand.cancel",
+      "admin.assetDemand.complete",
+      "admin.assetDemand.create",
+      "admin.assetDemand.list",
       "admin.assignmentPoolMember.list",
       "admin.auditLog.get",
       "admin.auditLog.list",
@@ -535,6 +540,15 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "admin.store.assignDeliveryManager",
       "admin.store.get",
       "admin.store.list",
+      "admin.storeAsset.confirmPortraitAuth",
+      "admin.storeAsset.create",
+      "admin.storeAsset.delete",
+      "admin.storeAsset.get",
+      "admin.storeAsset.list",
+      "admin.storeAsset.portraitAuth.create",
+      "admin.storeAsset.reprocess",
+      "admin.storeAsset.review",
+      "admin.storeAsset.summary",
       "admin.timer.cancel",
       "admin.timer.list",
       "admin.timer.reschedule",
@@ -553,6 +567,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "admin.uploadBatchItem.update",
       "admin.webhookEvent.list",
       "admin.webhookEvent.retry",
+      "hooks.asr.mediaJob.wake",
       "hooks.ci.mediaJob.wake",
       "hooks.wechat.message.receive",
       "hooks.wechat.message.verify",
@@ -562,6 +577,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "m.agreementConsent.summary",
       "m.agreementVersion.get",
       "m.analyticsEvent.batchCreate",
+      "m.assetDemand.list",
       "m.bootstrap.get",
       "m.cartItem.acceptPrice",
       "m.cartItem.create",
@@ -622,6 +638,12 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "m.session.current.delete",
       "m.session.phoneLogin",
       "m.store.list",
+      "m.storeAsset.create",
+      "m.storeAsset.feedback.create",
+      "m.storeAsset.get",
+      "m.storeAsset.list",
+      "m.storeAsset.portraitAuth.create",
+      "m.storeAsset.summary",
       "m.storeProfile.basic.get",
       "m.storeProfile.basic.update",
       "m.storeProfile.contact.update",
@@ -636,12 +658,12 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "m.subscribeResult.create",
       "m.wallet.get",
     ]);
-    expect(allMetaOnlyRoutes).toHaveLength(415);
+    expect(allMetaOnlyRoutes).toHaveLength(394);
     expect(allRegistryOnly).toHaveLength(5);
     /** 各文档的 paths 条数与具名结构 */
     const expected: Record<string, { paths: number; schemas: string[] }> = {
       merchant: {
-        paths: 71,
+        paths: 77,
         schemas: [
           "AnalyticsEventBatch",
           "AnalyticsIngestResult",
@@ -766,10 +788,19 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
           "OrderItemDetail",
           "OrderItemRow",
           "OrderItemSummary",
+          "AssetDemandItem",
+          "AssetFeedbackBody",
+          "AssetTag",
+          "PortraitAuthBody",
+          "StoreAssetCard",
+          "StoreAssetCreateBody",
+          "StoreAssetDetail",
+          "StoreAssetSummary",
+          "UploaderView",
         ],
       },
       admin: {
-        paths: 157,
+        paths: 168,
         schemas: [
           "ActivityItem",
           "DramaActivityResult",
@@ -969,6 +1000,13 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
           "PriceTierList",
           "PriceTierRow",
           "TrailerBrief",
+          "AdminStoreAssetDetail",
+          "AdminStoreAssetRow",
+          "AdminStoreAssetSummary",
+          "AssetDemandRow",
+          "AssetTag",
+          "MediaFileView",
+          "PortraitAuthBody",
         ],
       },
       portal: {

@@ -2,6 +2,7 @@ import { adminAgreementHandlers } from "./admin/agreements.js";
 import { adminDramaHandlers } from "./admin/dramas.js";
 import { adminDramaPricingHandlers } from "./admin/drama-pricing.js";
 import { ciHookHandlers } from "./hooks/ci.js";
+import { asrHookHandlers } from "./hooks/asr.js";
 import { adminMediaJobHandlers } from "./admin/media-jobs.js";
 import { analyticsEventHandlers } from "./analytics-events.js";
 import { wechatHookHandlers } from "./hooks/wechat.js";
@@ -56,6 +57,7 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...adminAgreementHandlers,
   ...siteHandlers,
   ...ciHookHandlers,
+  ...asrHookHandlers,
   ...adminMediaJobHandlers,
   ...wechatHookHandlers,
   ...analyticsEventHandlers,

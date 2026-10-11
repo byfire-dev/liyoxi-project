@@ -99,3 +99,12 @@ LYX_TEST_SESSION=w315edoc pnpm exec vitest run --config packages/services/doc-co
 session 未被其他轮使用。入口严格核既有镜像的 arm64 manifest 与实际容器 descriptor、
 原无网/只读/nonroot/单CPU单GiB沙箱；缺环境或镜像前提明确失败，不自动拉取、构建或替换。
 这是本地已接纳镜像的真实 DB/workspace/socket 组合证明，不代替跨平台或远端 CI 镜像交付。
+
+## ASR 可信回调准备
+
+可注入 ASR source 仅接官方录音 form `requestId`（TaskId），独立 HMAC 校验本地任务UUID；
+payload 恒 null，仅留原文摘要。真实 owner 锁内复核当前代次、provider、文件指纹与期限，
+只改唤醒时间；回调正文不作洞察，仍由原 query 落结果。默认无来源/CallbackUrl/预算启用。
+API 组合验收用同库两个真实 runtime：既有 test-only 模型准入和 fake ASR 受理、真实 HTTP
+验签收件与 Redis 唤醒，再由原任务回查不同文本；不代表默认生产装配或真实云验收。
+国内官方协议2026-10-11核对，最多2次总尝试；query保留、重试触发/间隔和E22仍待实证。
