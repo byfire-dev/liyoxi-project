@@ -466,28 +466,6 @@ describe("document facts and the existing successor chain", () => {
     async (verdict) => {
       peerFacts = { text: "😀".repeat(10000), truncated: true, charCount: 10001 };
       const facts = await ready();
-      if (change === "sizeBytes") {
-        // Stored facts cannot lose their size: prove the actual DB invariant rather
-        // than constructing an impossible row or weakening the current() guard.
-        const before = await h.prisma.fileObject.findUniqueOrThrow({
-          where: { id: facts.file.id },
-        });
-        await expect(
-          h.prisma.fileObject.update({
-            where: { id: facts.file.id },
-            data: { sizeBytes: null },
-          }),
-        ).rejects.toThrow("ck_file_object_stored_facts");
-        expect(
-          await h.prisma.fileObject.findUniqueOrThrow({ where: { id: facts.file.id } }),
-        ).toEqual(before);
-        expect(await row(facts.job.id)).toEqual(facts.job);
-        expect(await insights(facts.assetId)).toEqual([]);
-        expect(docText).not.toHaveBeenCalled();
-        expect(directories).toEqual([]);
-        expect(h.fake.storage.callsOf("readTo")).toEqual([]);
-        return;
-      }
       await extract(facts);
       vi.spyOn(h.fake.media, "auditText").mockImplementation(async (input) => {
         assertNotInTransaction("document moderation");
@@ -545,6 +523,28 @@ describe("bounded inputs and untrusted tool results", () => {
     "rejects %s before workspace or parser IO",
     async (change) => {
       const facts = await ready();
+      if (change === "sizeBytes") {
+        // Stored facts cannot lose their size: prove the actual DB invariant rather
+        // than constructing an impossible row or weakening the current() guard.
+        const before = await h.prisma.fileObject.findUniqueOrThrow({
+          where: { id: facts.file.id },
+        });
+        await expect(
+          h.prisma.fileObject.update({
+            where: { id: facts.file.id },
+            data: { sizeBytes: null },
+          }),
+        ).rejects.toThrow("ck_file_object_stored_facts");
+        expect(
+          await h.prisma.fileObject.findUniqueOrThrow({ where: { id: facts.file.id } }),
+        ).toEqual(before);
+        expect(await row(facts.job.id)).toEqual(facts.job);
+        expect(await insights(facts.assetId)).toEqual([]);
+        expect(docText).not.toHaveBeenCalled();
+        expect(directories).toEqual([]);
+        expect(h.fake.storage.callsOf("readTo")).toEqual([]);
+        return;
+      }
       // Asset creation admits only supported formats. Recreate an obsolete stored-row
       // and matching job snapshot after that public validation to exercise execution.
       const file = await h.prisma.fileObject.update({
