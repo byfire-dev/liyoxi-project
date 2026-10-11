@@ -131,7 +131,7 @@ async function race(
     hold.service.close();
   }
 }
-async function unique(w: DeleteWorld) {
+async function unique(w: DeleteWorld, archivedEventCount: 1 | 2 = 1) {
   expect(
     await h.prisma.statusTransition.count({
       where: { subjectId: w.store.id, event: "store.draft_delete" },
@@ -145,7 +145,7 @@ async function unique(w: DeleteWorld) {
   for (const eventType of ["store.archived", "store.draft_deleted"])
     expect(
       await h.prisma.outboxEvent.count({ where: { aggregateId: w.store.id, eventType } }),
-    ).toBe(1);
+    ).toBe(eventType === "store.archived" ? archivedEventCount : 1);
 }
 
 describe("草稿删除：两真实业务连接的完整锁图", { timeout: SLOW }, () => {
@@ -232,7 +232,7 @@ describe("草稿删除：两真实业务连接的完整锁图", { timeout: SLOW 
     expect(
       await h.prisma.store.count({ where: { entityId: w.entity.id, lifecycle: "active" } }),
     ).toBeGreaterThan(0);
-    if (mode !== "archive_context") await unique(w);
+    if (mode !== "archive_context") await unique(w, mode === "restore_then_delete" ? 2 : 1);
   });
 
   it("额度已满的 restore 先真实失败零写，随后 delete 释放额度", async () => {
@@ -287,7 +287,10 @@ describe("草稿删除：两真实业务连接的完整锁图", { timeout: SLOW 
             where: { subjectId: row.id, kind: "invitation.expire" },
           }),
         ).toMatchObject({ status: "cancelled" });
-      } else expect(code(second)).toBe("STORE_ARCHIVED");
+      } else {
+        expect(code(second)).toBe("NOT_A_MEMBER");
+        expect(await h.prisma.invitation.count({ where: { storeId: w.store.id } })).toBe(0);
+      }
       await unique(w);
     },
   );
@@ -459,20 +462,9 @@ describe("草稿删除：两真实业务连接的完整锁图", { timeout: SLOW 
     const w = await h.world(),
       asset = await h.asset(w),
       media = await createMediaAssetsHarness(clients[0]!);
-    const actor = {
-      identity: createIdentityContext({
-        ...deleteContext(w.user.id, w.entity.id, w.store.id),
-        actor: { type: "merchant", id: w.user.id, client: "weapp", role: "owner" },
-      }),
-      merchant: {
-        entityId: w.entity.id,
-        storeId: w.store.id,
-        standing: standingOf("owner", "active"),
-      },
-    };
     try {
       await expect(remove(sides[1]!, w)).rejects.toMatchObject({ error: "STORE_NOT_DRAFT" });
-      await media.media.assets.remove(actor, asset.id, {});
+      await media.media.assets.remove(media.admin, asset.id, { reasonText: "删除虚构历史素材" });
       expect(await remove(sides[1]!, w)).toMatchObject({ storeId: w.store.id });
       expect(
         await h.prisma.storeAsset.findUniqueOrThrow({ where: { id: asset.id } }),

@@ -30,7 +30,11 @@ const empty = {
   serviceTickets: 0,
   originalAssets: 0,
 };
-function remove(w: Awaited<ReturnType<DeleteHarness["world"]>>, tenant = h.tenant, key = uuidv7()) {
+async function remove(
+  w: Awaited<ReturnType<DeleteHarness["world"]>>,
+  tenant = h.tenant,
+  key = uuidv7(),
+) {
   return tenant.deleteStore(
     w.ctx,
     { storeId: w.store.id },
