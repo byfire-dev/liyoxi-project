@@ -403,3 +403,105 @@ describe("成员移除：两独立连接", () => {
     SLOW,
   );
 });
+
+describe("成员移除与记住当前门店的锁后重验", () => {
+  it.each(["remove", "leave"] as const)(
+    "%s 已迁移但未提交时remember等待120，提交后不能回写被清空的门店",
+    async (mode) => {
+      const owner = await h.owner();
+      const clerk = await h.clerk(owner);
+      let completed!: () => void;
+      let release!: () => void;
+      const completedBody = new Promise<void>((resolve) => (completed = resolve));
+      const canCommit = new Promise<void>((resolve) => (release = resolve));
+      const runner: TxRunner = {
+        run: (fn, options) =>
+          sides[0].tx.run(async (tx) => {
+            const result = await fn(tx);
+            expect(result).toMatchObject({ memberId: clerk.memberId, status: "removed" });
+            // 同一真实事务已执行迁移、审计、事件与清理，仍持有member120锁。
+            // 这里只读断言当前事务事实，不加低序锁或生产测试钩子。
+            expect(
+              await tx.entityMember.findUniqueOrThrow({ where: { id: clerk.memberId } }),
+            ).toMatchObject({ status: "removed", lastStoreId: null });
+            expect(await tx.storeMember.count({ where: { entityMemberId: clerk.memberId } })).toBe(
+              0,
+            );
+            expect(
+              await tx.statusTransition.count({
+                where: { subjectId: clerk.memberId, machine: "entity_member" },
+              }),
+            ).toBe(1);
+            expect(await tx.auditLog.count({ where: { targetId: clerk.memberId } })).toBe(1);
+            expect(await tx.outboxEvent.count({ where: { aggregateId: clerk.memberId } })).toBe(1);
+            completed();
+            await canCommit;
+            return result;
+          }, options),
+      };
+      const removing = removalServices(clients[0], h.clock, runner);
+      const observer = await connectTestDatabase(db.name, { role: null });
+      const first =
+        mode === "remove"
+          ? removing.tenant.removeMember(owner.ctx, { memberId: clerk.memberId })
+          : removing.tenant.leaveMembership(clerk.ctx);
+      void first.catch(() => undefined);
+      let remembering: Promise<unknown> | undefined;
+      let remembered: PromiseSettledResult<unknown> | undefined;
+      try {
+        await Promise.race([completedBody, first]);
+        // 另一连接此刻仍看见已提交的active旧事实，复现锁前resolve能通过的窗口。
+        expect(
+          await h.tenant.resolveMembership(h.prisma, {
+            merchantUserId: clerk.userId,
+            storeId: owner.storeId,
+          }),
+        ).toMatchObject({ memberId: clerk.memberId, entityId: owner.entityId });
+        remembering = sides[1].tenant.rememberCurrentStore({
+          merchantUserId: clerk.userId,
+          storeId: owner.storeId,
+        });
+        void remembering.catch(() => undefined);
+        await waitBlocked(observer, runnerPids[1], runnerPids[0]);
+        release();
+        const [removalResult, rememberResult] = await Promise.allSettled([first, remembering]);
+        expect(removalResult).toMatchObject({
+          status: "fulfilled",
+          value: { memberId: clerk.memberId, status: "removed" },
+        });
+        remembered = rememberResult;
+      } finally {
+        release();
+        await first.catch(() => undefined);
+        await remembering?.catch(() => undefined);
+        await observer.end();
+      }
+      const trace = await h.trace(clerk.memberId);
+      // 两项都保留在修复前RED中：错误成功返回，以及已提交的lastStoreId回写。
+      expect.soft(remembered).toMatchObject({ status: "rejected", reason: { error: "NOT_FOUND" } });
+      expect.soft(trace.member.lastStoreId).toBeNull();
+      expect(trace.stores).toEqual([]);
+      expect(trace.history).toHaveLength(1);
+      expect(trace.audits).toHaveLength(1);
+      expect(trace.events).toHaveLength(1);
+      expect(trace.member).toMatchObject({
+        status: "removed",
+        removeReason: mode === "remove" ? "by_owner" : "self",
+        removeActorId: mode === "remove" ? owner.userId : clerk.userId,
+      });
+      expect(trace.history[0]?.event).toBe(
+        mode === "remove" ? "entity_member.remove" : "entity_member.leave",
+      );
+      expect(trace.events[0]?.payload).toMatchObject({
+        removeReason: mode === "remove" ? "by_owner" : "self",
+      });
+      expect(
+        await h.tenant.resolveMembership(h.prisma, {
+          merchantUserId: clerk.userId,
+          storeId: owner.storeId,
+        }),
+      ).toBeNull();
+    },
+    SLOW,
+  );
+});
