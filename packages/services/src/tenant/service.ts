@@ -10,6 +10,7 @@ import type {
   MembershipResult,
   StoreList,
   StoreArchiveResult,
+  StoreCard,
   MemberItem,
   MemberList,
   InvitationCreateBody,
@@ -55,6 +56,7 @@ import { createInvitation, markInvitationSharedIn, revokeInvitationIn } from "./
 import type { InvitationDeps, InvitationOptions } from "./invitations.js";
 import { invitationPreview } from "./invitation-repo.js";
 import { archiveStoreIn } from "./store-archive.js";
+import { restoreStoreIn } from "./store-restore.js";
 import type { Timers } from "../timers/index.js";
 import { createInvitationAcceptor } from "./invitation-accept.js";
 
@@ -89,6 +91,12 @@ export interface Tenant {
     input: { storeId: string },
     options?: UseCaseOptions,
   ): Promise<StoreArchiveResult>;
+  /** 只恢复老板停用的门店，重新占用当前主体额度。 */
+  restoreStore(
+    ctx: IdentityContext,
+    input: { storeId: string },
+    options?: UseCaseOptions,
+  ): Promise<StoreCard>;
   /** m.me.currentStore.replace：门店进不去即 NOT_FOUND */
   rememberCurrentStore(
     input: { merchantUserId: string; storeId: string },
@@ -211,6 +219,8 @@ export function createTenant(deps: TenantDeps): Tenant {
         options,
       );
     },
+    restoreStore: (ctx, input, options = {}) =>
+      deps.tx.run((tx) => restoreStoreIn(tx, { ...deps, facts }, ctx, input.storeId), options),
     rememberCurrentStore: (input, options = {}) =>
       deps.tx.run((tx) => rememberCurrentStore(tx, now(), input), options),
     removeMember: (ctx, input, options = {}) =>
