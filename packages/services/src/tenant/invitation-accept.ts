@@ -363,6 +363,16 @@ export function createInvitationAcceptor(deps: Deps) {
                   },
                 });
               }
+              const beforeIds = sorted(
+                (
+                  await tx.storeMember.findMany({
+                    where: { entityMemberId: state.memberId },
+                    select: { storeId: true },
+                  })
+                ).map((row) => row.storeId),
+              );
+              await target(tx, state);
+              const addedAt = deps.clock.now();
               const added = await tx.storeMember.createMany({
                 skipDuplicates: true,
                 data: [
@@ -371,7 +381,7 @@ export function createInvitationAcceptor(deps: Deps) {
                     storeId: state.storeId,
                     entityId: state.entityId,
                     addedByMemberId: invitation.inviterMemberId,
-                    createdAt: now,
+                    createdAt: addedAt,
                   },
                 ],
               });
@@ -394,7 +404,9 @@ export function createInvitationAcceptor(deps: Deps) {
                     target: { type: "entity_member", id: state.memberId },
                     entityId: state.entityId,
                     storeId: state.storeId,
-                    after: { addedStoreIds: [state.storeId] },
+                    before: { storeIds: beforeIds },
+                    after: { storeIds: sorted([...beforeIds, state.storeId]) },
+                    fields: ["storeIds"],
                   },
                 );
                 await deps.events!.emit(tx, ctx, {

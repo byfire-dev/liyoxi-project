@@ -160,6 +160,15 @@ describe("接受邀请：真实登录、当前成员与原事务副作用", { ti
         removedStoreIds: [],
         invitationId: card.invitationId,
       });
+    const audits = await h.prisma.auditLog.findMany({
+      where: { action: "tenant.member.accept_store", targetId: person.memberId },
+    });
+    expect(audits).toHaveLength(added ? 1 : 0);
+    if (added)
+      expect({ before: audits[0]!.before, after: audits[0]!.after }).toEqual({
+        before: { storeIds: [owner.storeId] },
+        after: { storeIds: [owner.storeId, store.id].sort() },
+      });
   });
 
   it.each(["same", "new"] as const)(
@@ -358,6 +367,7 @@ describe("接受邀请：真实登录、当前成员与原事务副作用", { ti
           requestId: uuidv7(),
           ip: null,
           userAgent: null,
+          clientVersion: null,
         });
       if (mode === "appid")
         await h.prisma.wechatIdentity.update({

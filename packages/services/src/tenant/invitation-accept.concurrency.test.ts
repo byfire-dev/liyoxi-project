@@ -268,6 +268,7 @@ describe("接受邀请：两业务连接、完整锁图与 fresh 会话/时钟",
             requestId: uuidv7(),
             ip: null,
             userAgent: null,
+            clientVersion: null,
           });
         holder.release();
         expect((await holder.settled)[0]?.status).toBe("fulfilled");

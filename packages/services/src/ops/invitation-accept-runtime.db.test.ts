@@ -33,7 +33,12 @@ let runtime: ReturnType<typeof createRuntime>, tenant: ReturnType<typeof createT
 let identity: ReturnType<typeof createIdentity>, prisma: Awaited<ReturnType<typeof db.prisma>>;
 let make: ReturnType<typeof createFactories>;
 let versions: { agreementKey: string; id: string }[];
-const meta = { requestId: "req_inv_accept", ip: "203.0.113.56", userAgent: "公开运行时测试" };
+const meta = {
+  requestId: "req_inv_accept",
+  ip: "203.0.113.56",
+  userAgent: "公开运行时测试",
+  clientVersion: null,
+};
 const ctx = (userId: string, entityId?: string, storeId?: string) =>
   createIdentityContext({
     actor: { type: "merchant", id: userId, client: "weapp" },

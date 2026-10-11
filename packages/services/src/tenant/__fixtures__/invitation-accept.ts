@@ -22,7 +22,12 @@ import { invitationHarness, invitationServices, memberContext, SLOW } from "./in
 
 export { memberContext, SLOW };
 export const APPID = "wxlyxtest00000001";
-const META = { requestId: "req_accept_login", ip: "203.0.113.28", userAgent: "lyxtest-accept" };
+const META = {
+  requestId: "req_accept_login",
+  ip: "203.0.113.28",
+  userAgent: "lyxtest-accept",
+  clientVersion: null,
+};
 export const TABLES = [
   "merchant_user",
   "wechat_identity",
