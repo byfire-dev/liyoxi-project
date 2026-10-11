@@ -185,3 +185,12 @@ L4 `readModelBudgetPermit`只在当前Tx按readAt读两正式参数，非法值�
 duplicate/stale/默认关闭不冒充超限，不持久化正文、URL、凭据或异常。stop先禁新许可、取消准入，
 等业务循环/消费者收尾，再关预算/自有Redis与告警；某项close失败仍独立清理并保留原失败。
 ops不关闭借用transport、PG、队列或其他实例资源。本片仍SOURCE，实际类型/完整回归尚待独占验证。
+
+## 账本只读诊断（SOURCE）
+
+ops inspector固定accepted的 `lyx:${appEnv}:model_budget:v1`，只读元字段与最多128个索引槽。
+closedBefore是原deadline拒绝水位而非总开关；token不是当前PG许可、模型调用或账单凭证。
+采样保留holes/hasMore及独立时钟/日界事实，不输出业务标识或正文，不证明整个HASH合法。
+独立CLI导入/check零IO，inspect经现有环境口、PG外独占连接；异常/取消/迟到关闭并消费回复。
+不修改ledger、owners、运行时或默认200/0；没有初始化/恢复/退款/维护/任意key覆盖功能。
+新旧完整测试/类型与自有资源证据等待独占验证，真实运维、容量与E22仍未验。

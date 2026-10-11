@@ -209,3 +209,24 @@ G8 做（D7 第 10.6 节第 18 项；开发计划 第 8.6 节）。
 | 演练日 | 执行人 | 重建对象 | 冒烟结果 | 桶配置差异 | 耗时 | 遇到的问题 | 后续动作 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | — | 待填 | | | | | | |
+
+### 6.6 模型预算账本只读诊断
+
+`pnpm --filter @liyoxi/services model-budget:inspect --check` 只核命令模式，
+不读环境、不连接Redis。明确诊断使用同命令加 `--inspect`，经现有loadEnv读取
+APP_ENV和REDIS_URL；仍须满足DATABASE_URL等原环境校验，但不会连接PG。
+工具固定读取 `lyx:${APP_ENV}:model_budget:v1`，拒绝任意URL/key/prefix/day或写入参数。
+stg/prod仍只认原*_FILE配置；真实执行须运维明确授权、准确环境及只读ACL。
+命令flag不是执行授权，本片开发没有进行真实环境诊断。
+
+输出是当次只读事实：missing/wrong_type、元字段或样本异常、两个独立时钟水位、
+closedBefore期限拒绝水位和当前global字段；closedBefore不是总开关。
+最多检查128个索引槽，洞同样消耗扫描预算；hasMore为真时尾部未读，
+即使完整覆盖索引范围，也不证明其他字段、PG来源、模型调用、费用或业务权限。
+token只表示原期限扣留历史；不打印job/file/store标识、正文/hash/URL或异常原值。
+
+退出0表示诊断返回（其中可能包含异常事实），1表示诊断不可用，2表示模式不合法。
+连接与返回等待均有界，无离线排队、重发或自动重连，退出始终清理自有连接。
+missing/格式非法/时钟回退应保留证据并人工排查；没有init、restore、refund、
+HDEL、UNLINK、reset、自动开通或维护模式，不以新namespace绕过损坏状态。
+当前SOURCE尚未完成独占类型/完整测试验证，不证明容量、恢复演练或E22完成。
