@@ -31,7 +31,12 @@ export const adCancelKind = defineApprovalKind<AdCancelCoreSubmitBody>({
   validate: async (tx, submission) => {
     if (submission.kind !== "ad_cancel" || submission.subjectType !== "ad")
       throw new AppError("VALIDATION_FAILED");
-    await validateAdCancelSubmission(tx, submission.subjectId, submission.input);
+    await validateAdCancelSubmission(
+      tx,
+      submission.subjectId,
+      submission.input,
+      submission.approvalId,
+    );
     const ad = await tx.ad.findUniqueOrThrow({ where: { id: submission.subjectId } });
     if (ad.entityId !== submission.entityId || ad.storeId !== submission.storeId)
       throw new AppError("PRECONDITION_CHANGED");
