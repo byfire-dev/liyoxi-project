@@ -4,7 +4,7 @@ import type { AdCancelCoreSubmitBody } from "@liyoxi/contract";
 import type { Prisma } from "@liyoxi/db";
 import { createPrismaClient } from "@liyoxi/db";
 import { testDatabaseUrl } from "@liyoxi/db/testing/standalone";
-import { createApproval } from "../approval/index.js";
+import { createApproval, approvalKindPort } from "../approval/index.js";
 import { ownTaskScope, SYSTEM_SCOPE } from "../authz/index.js";
 import { createFlow } from "../flow/index.js";
 import { createBizNoIssuer, createIdentityContext, lockRows, uuidv7 } from "../kernel/index.js";
@@ -16,9 +16,13 @@ import {
   readAdCancelTargetGraph,
   submitAdCancel,
   withdrawAdCancel,
+  bindOrder,
+  boundOrder,
 } from "../order/index.js";
 import type { Tx } from "../kernel/index.js";
 import type { CancelActor, CancelDeps } from "../order/index.js";
+import { entityAdCancelClosePort } from "../tenant/index.js";
+import type { EntityAdCancelCloser, EntityAdCancelClosePlan } from "../tenant/index.js";
 import { createSla } from "../sla/index.js";
 import { createTimers, timerKey } from "../timers/index.js";
 import type { TimerRef } from "../timers/index.js";
@@ -161,8 +165,18 @@ const ratios = (adInProduction: number) => ({
   adInProduction,
 });
 type Reason = AdCancelCoreSubmitBody["reasonCode"];
+type CancelTenantFixture = {
+  merchant: Awaited<ReturnType<ReturnType<typeof createLedgerHarness>["make"]["merchant"]>>;
+  term: Awaited<ReturnType<typeof openTerm>>["term"];
+};
 async function fixture(
-  options: { status?: string; returnedFrom?: string; ratioBp?: number; reasonCode?: Reason } = {},
+  options: {
+    status?: string;
+    returnedFrom?: string;
+    ratioBp?: number;
+    reasonCode?: Reason;
+    tenant?: CancelTenantFixture;
+  } = {},
 ) {
   h.clock.set(new Date(Date.parse("2026-01-05T04:00:00.000Z") + ++sequence * 60_000));
   const requester = await person(),
@@ -176,8 +190,8 @@ async function fixture(
     platform: "addon",
     qualification: "addon",
   });
-  const merchant = await h.make.merchant({ verified: true });
-  const { term } = await openTerm(h, { entityId: merchant.entity.id });
+  const merchant = options.tenant?.merchant ?? (await h.make.merchant({ verified: true }));
+  const { term } = options.tenant ?? (await openTerm(h, { entityId: merchant.entity.id }));
   const id = uuidv7(),
     now = h.clock.now(),
     adNo = `GG20260105${String(sequence).padStart(5, "0")}`;
@@ -1945,6 +1959,622 @@ describe("活跃发起人对象失效后的真实财务代撤", () => {
         isDecidedBySystem: false,
       });
       expect((await adNow(f)).status).toBe("confirmed");
+    } finally {
+      release();
+      await writer;
+      await waiter;
+      await observer.$disconnect();
+    }
+  });
+});
+
+// 只验 order 的关闭伴随口；主体行是合法上游 fixture，不冒充尚未实现的 tenant close producer。
+async function withEntityCancels<T>(
+  f: Fixture,
+  fn: (port: EntityAdCancelCloser) => Promise<T>,
+  d: CancelDeps = f.deps,
+) {
+  const assembly = assembleForTest({ entry: "api" });
+  const unbind = bindOrder({ assembly, clock: d.clock, flow: d.flow, cancel: d });
+  try {
+    return await fn(assembly.port(entityAdCancelClosePort));
+  } finally {
+    unbind();
+  }
+}
+const closedEntityFixture = (tx: Tx, entityId: string) =>
+  tx.entity.update({
+    where: { id: entityId },
+    data: { lifecycle: "closed", closedAt: h.clock.now(), updatedAt: h.clock.now() },
+  });
+async function entityBatch(f: Fixture, port: EntityAdCancelCloser, tx: Tx) {
+  const plan = await port.prepare(tx, f.ad.entityId, [f.requester.staff!.staff.id]);
+  await closedEntityFixture(tx, f.ad.entityId);
+  return port.withdraw(tx, f.requester.ctx, plan);
+}
+async function siblingAd(f: Fixture) {
+  const store = await h.make.store({ entityId: f.ad.entityId, qualificationStatus: "verified" });
+  return fixture({ tenant: { merchant: { ...f.merchant, store }, term: f.term } });
+}
+const entityTables = [...tables, "entity", "store", "entity_member", "invitation"];
+const financialTables = [
+  "billing_account",
+  "point_hold",
+  "point_hold_alloc",
+  "point_lot",
+  "ledger_operation",
+  "point_ledger_entry",
+];
+
+describe("主体关闭的 pending ad_cancel 同事务所属伴随", () => {
+  it("独立 worker 实际绑定真实 owner 执行非空批次，closeOrder 精确恢复旧实例", async () => {
+    const f = await fixture(),
+      r = await submit(f);
+    await historyRef(f, r);
+    await withEntityCancels(f, async () => {
+      const previous = boundOrder();
+      const worker = buildWorkerServices({
+        appEnv: "test",
+        prisma: h.prisma,
+        clock: h.clock,
+        assembly: assembleForTest({ entry: "worker" }),
+        providers: createFakeProviders({ clock: h.clock }),
+        channel: { downForMs: () => 0, enqueue: async () => {} },
+      });
+      ownedWorkers.push(worker);
+      try {
+        const current = boundOrder();
+        expect(current).not.toBe(previous);
+        expect(current.assembly).toBe(worker.assembly);
+        expect(current.cancel?.approval.kinds.get("ad_cancel")).toBe(
+          worker.assembly.portEntries(approvalKindPort).get("ad_cancel"),
+        );
+        expect(
+          await h.tx.run((tx) => entityBatch(f, worker.assembly.port(entityAdCancelClosePort), tx)),
+        ).toEqual([r.id]);
+        await expectClosed(f, r, "withdrawn");
+      } finally {
+        worker.closeOrder?.();
+      }
+      expect(boundOrder()).toBe(previous);
+      expect(boundOrder().cancel).toBe(f.deps);
+    });
+  });
+  it.each(["api", "worker"] as const)("%s 实际装配只有 order 实现且缺 owner 拒绝启动", (entry) => {
+    const assembly = assembleForTest({ entry });
+    expect(entityAdCancelClosePort.fallback).toBeUndefined();
+    expect(assembly.portImplementations.filter((p) => p.port === entityAdCancelClosePort)).toEqual([
+      expect.objectContaining({ module: "order" }),
+    ]);
+    expect(assembly.port(entityAdCancelClosePort).withdraw).toBeTypeOf("function");
+    expect(() => assembleForTest({ entry, withoutRealPorts: [entityAdCancelClosePort] })).toThrow(
+      /缺实现/,
+    );
+  });
+  it("旧绑定没有真实取消依赖时明确 INTERNAL，零写", async () => {
+    const f = await fixture(),
+      assembly = assembleForTest({ entry: "api" });
+    const before = await snapshotTables(h.prisma, entityTables);
+    const unbind = bindOrder({ assembly, clock: h.clock, flow: f.deps.flow });
+    try {
+      await expect(
+        h.tx.run((tx) => assembly.port(entityAdCancelClosePort).prepare(tx, f.ad.entityId)),
+      ).rejects.toMatchObject({ error: "INTERNAL" });
+    } finally {
+      unbind();
+    }
+    assertSnapshotsEqual(before, await snapshotTables(h.prisma, entityTables));
+  });
+  it("没有待审广告取消的真实主体返回空计划，反复准备不产生业务副作用", async () => {
+    const f = await fixture();
+    const member = await h.make.entityMember({ entityId: f.ad.entityId });
+    const invitation = await h.prisma.invitation.create({
+      data: {
+        id: uuidv7(),
+        entityId: f.ad.entityId,
+        storeId: f.ad.storeId,
+        role: "clerk",
+        inviterMemberId: f.merchant.owner.id,
+        tokenHash: Buffer.from(uuidv7().replaceAll("-", "").padEnd(64, "0"), "hex"),
+        tokenEnc: "lyxtest.invitation",
+        status: "pending",
+        clientRequestId: uuidv7(),
+        expiresAt: new Date(h.clock.now().getTime() + 86_400_000),
+        createdAt: h.clock.now(),
+        updatedAt: h.clock.now(),
+      },
+    });
+    await withEntityCancels(f, (port) =>
+      h.tx.run(async (tx) => {
+        const plan = await port.prepare(tx, f.ad.entityId);
+        expect(plan.requestIds).toEqual([]);
+        expect(plan.storeIds).toEqual([f.ad.storeId]);
+        expect(plan.memberIds).toContain(f.merchant.owner.id);
+        expect(plan.memberIds).toContain(member.id);
+        expect(plan.invitationIds).toEqual([invitation.id]);
+        await closedEntityFixture(tx, f.ad.entityId);
+        expect(await port.withdraw(tx, f.requester.ctx, plan)).toEqual([]);
+        const before = await snapshotTables(tx, tables);
+        const next = await port.prepare(tx, f.ad.entityId);
+        expect(await port.withdraw(tx, f.requester.ctx, next)).toEqual([]);
+        assertSnapshotsEqual(before, await snapshotTables(tx, tables));
+      }),
+    );
+  });
+  it.each(["pending_assign", "producing"])(
+    "%s 真实系统撤回保留原冻结/扣减和全部账本",
+    async (status) => {
+      const f = await fixture({ status }),
+        r = await submit(f);
+      await historyRef(f, r);
+      const financial = await snapshotTables(h.prisma, financialTables),
+        hold = await holdNow(f);
+      const result = await withEntityCancels(f, (port) =>
+        h.tx.run((tx) => entityBatch(f, port, tx)),
+      );
+      expect(result).toEqual([r.id]);
+      await expectClosed(f, r, "withdrawn");
+      expect(await holdNow(f)).toEqual(hold);
+      assertSnapshotsEqual(financial, await snapshotTables(h.prisma, financialTables));
+      expect((await req(r.id)).approvalRequest).toMatchObject({
+        status: "withdrawn",
+        isDecidedBySystem: true,
+        decidedByStaffId: null,
+      });
+      for (const [eventType, aggregateId] of [
+        ["approval.withdrawn", r.approvalRequestId],
+        ["cancel.withdrawn", r.id],
+      ]) {
+        const events = await h.prisma.outboxEvent.findMany({ where: { eventType, aggregateId } });
+        expect(events).toHaveLength(1);
+        expect(events[0]).toMatchObject({ actorType: "system", actorId: null });
+      }
+      const history = await h.prisma.statusTransition.findMany({
+        where: { subjectId: r.id, toState: "not_executed" },
+      });
+      expect(history).toHaveLength(1);
+      expect(history[0]).toMatchObject({ actorType: "system", actorId: null });
+    },
+  );
+  it("同主体跨两店三申请整图预锁，另一主体及历史客服关联不动", async () => {
+    const f = await fixture(),
+      second = await siblingAd(f);
+    const third = await fixture({ tenant: { merchant: f.merchant, term: f.term } });
+    const other = await fixture();
+    const requests = await Promise.all([submit(f), submit(second), submit(third)]);
+    const foreign = await submit(other),
+      foreignBefore = await observe(other);
+    const ref = await historyRef(f, requests[0]!);
+    await historyRef(second, requests[1]!);
+    await historyRef(third, requests[2]!);
+    const before = await snapshotTables(h.prisma, financialTables);
+    const actual = await withEntityCancels(f, (port) => h.tx.run((tx) => entityBatch(f, port, tx)));
+    expect(actual).toEqual(requests.map((r) => r.id).sort());
+    for (const [index, one] of [f, second, third].entries())
+      await expectClosed(one, requests[index]!, "withdrawn");
+    expect(await observe(other)).toEqual(foreignBefore);
+    expect((await req(foreign.id)).status).toBe("pending_approval");
+    expect(
+      await h.prisma.serviceTicketRef.findUnique({
+        where: {
+          serviceTicketId_refType_refId: {
+            serviceTicketId: ref.serviceTicketId,
+            refType: ref.refType,
+            refId: ref.refId,
+          },
+        },
+      }),
+    ).toEqual(ref);
+    assertSnapshotsEqual(before, await snapshotTables(h.prisma, financialTables));
+  });
+  it("只取 pending_approval，已批准待执行和已撤回/驳回/执行历史完整保留", async () => {
+    const f = await fixture(),
+      approved = await siblingAd(f),
+      rejected = await siblingAd(f),
+      withdrawn = await siblingAd(f),
+      done = await siblingAd(f);
+    const pending = await submit(f),
+      a = await approve(approved, await submit(approved));
+    const r = await submit(rejected),
+      w = await submit(withdrawn),
+      e = await approve(done, await submit(done));
+    await rejected.service.reject(rejected.approver, r.id, { note: "保留历史驳回" });
+    await withdrawn.service.withdraw(withdrawn.requester, w.id, {});
+    await execute(done, e);
+    const others = await Promise.all([a.id, r.id, w.id, e.id].map(req));
+    await withEntityCancels(f, (port) => h.tx.run((tx) => entityBatch(f, port, tx)));
+    expect(await Promise.all([a.id, r.id, w.id, e.id].map(req))).toEqual(others);
+    expect((await req(pending.id)).status).toBe("not_executed");
+    expect((await adNow(approved)).openCancelRequestId).toBe(a.id);
+  });
+  it("仅撤销自己的审批决定 timer，保留广告 timer、其他申请及原期限", async () => {
+    const f = await fixture({ status: "producing" }),
+      other = await fixture(),
+      r = await submit(f),
+      foreign = await submit(other);
+    let adTimerId = "";
+    await h.tx.run(async (tx) => {
+      await lockRows(tx, "ad", [f.ad.id]);
+      adTimerId = (
+        await f.deps.timers.arm(tx, {
+          kind: "sla.breach",
+          subject: { type: "ad", id: f.ad.id },
+          key: timerKey("sla.breach", { type: "ad", id: f.ad.id }, "first:0"),
+          fireAt: new Date(h.clock.now().getTime() + 86_400_000),
+        })
+      ).id;
+    });
+    const before = await h.prisma.timer.findMany({
+      where: { OR: [{ id: adTimerId }, { subjectId: foreign.approvalRequestId }] },
+      orderBy: { id: "asc" },
+    });
+    const own = await h.prisma.timer.findMany({ where: { subjectId: r.approvalRequestId } });
+    expect(own.length).toBeGreaterThan(0);
+    await withEntityCancels(f, (port) => h.tx.run((tx) => entityBatch(f, port, tx)));
+    expect(
+      await h.prisma.timer.findMany({
+        where: { id: { in: before.map((t) => t.id) } },
+        orderBy: { id: "asc" },
+      }),
+    ).toEqual(before);
+    expect(
+      (await h.prisma.timer.findMany({ where: { id: { in: own.map((t) => t.id) } } })).every(
+        (t) => t.status === "cancelled",
+      ),
+    ).toBe(true);
+  });
+  it.each(["active", "abandoned"])(
+    "主体为%s时拒绝系统撤回，整个事务零副作用",
+    async (lifecycle) => {
+      const f = await fixture();
+      await submit(f);
+      const before = await snapshotTables(h.prisma, entityTables);
+      await expect(
+        withEntityCancels(f, (port) =>
+          h.tx.run(async (tx) => {
+            const plan = await port.prepare(tx, f.ad.entityId);
+            if (lifecycle === "abandoned")
+              await tx.entity.update({
+                where: { id: f.ad.entityId },
+                data: { lifecycle, closedAt: h.clock.now() },
+              });
+            await port.withdraw(tx, f.requester.ctx, plan);
+          }),
+        ),
+      ).rejects.toMatchObject({ error: "PRECONDITION_CHANGED" });
+      assertSnapshotsEqual(before, await snapshotTables(h.prisma, entityTables));
+    },
+  );
+  it("复制的计划或另一个事务的旧计划不能获得系统撤回权限", async () => {
+    const f = await fixture();
+    await submit(f);
+    const before = await snapshotTables(h.prisma, entityTables);
+    await withEntityCancels(f, async (port) => {
+      let stale: EntityAdCancelClosePlan | undefined;
+      await h.tx.run(async (tx) => {
+        stale = await port.prepare(tx, f.ad.entityId);
+        await expect(port.withdraw(tx, f.requester.ctx, { ...stale })).rejects.toMatchObject({
+          error: "INTERNAL",
+        });
+      });
+      if (!stale) throw new Error("missing real plan");
+      await expect(
+        h.tx.run((tx) => port.withdraw(tx, f.requester.ctx, stale!)),
+      ).rejects.toMatchObject({ error: "INTERNAL" });
+    });
+    assertSnapshotsEqual(before, await snapshotTables(h.prisma, entityTables));
+  });
+  it("prepare 后候选减少拒绝整笔并回滚真实本人撤回", async () => {
+    const f = await fixture(),
+      r = await submit(f),
+      before = await snapshotTables(h.prisma, entityTables);
+    await expect(
+      withEntityCancels(f, (port) =>
+        h.tx.run(async (tx) => {
+          // owner callback 的原低锁均由 prepare 获取；自身撤回仅重入同一图。
+          const plan = await port.prepare(tx, f.ad.entityId);
+          await withdrawAdCancel(tx, f.deps, f.requester, r.id, {});
+          await closedEntityFixture(tx, f.ad.entityId);
+          await port.withdraw(tx, f.requester.ctx, plan);
+        }),
+      ),
+    ).rejects.toMatchObject({ error: "PRECONDITION_CHANGED" });
+    assertSnapshotsEqual(before, await snapshotTables(h.prisma, entityTables));
+  });
+  it("prepare 后广告绑定图增加拒绝，合法上游关联插入一起回滚", async () => {
+    const f = await fixture(),
+      { item } = await boundItem(f);
+    await submit(f);
+    const before = await snapshotTables(h.prisma, [...entityTables, "order_item_placement"]);
+    await expect(
+      withEntityCancels(f, (port) =>
+        h.tx.run(async (tx) => {
+          const plan = await port.prepare(tx, f.ad.entityId);
+          await tx.orderItemPlacement.create({
+            data: {
+              id: uuidv7(),
+              orderItemId: item.id,
+              slot: "opening",
+              adId: f.ad.id,
+              durationSec: f.ad.durationSec,
+              createdAt: h.clock.now(),
+              updatedAt: h.clock.now(),
+            },
+          });
+          await closedEntityFixture(tx, f.ad.entityId);
+          await port.withdraw(tx, f.requester.ctx, plan);
+        }),
+      ),
+    ).rejects.toMatchObject({ error: "PRECONDITION_CHANGED" });
+    assertSnapshotsEqual(
+      before,
+      await snapshotTables(h.prisma, [...entityTables, "order_item_placement"]),
+    );
+  });
+  it("prepare 后门店集合增加拒绝而不高锁后补锁，新增门店与关闭一起回滚", async () => {
+    const f = await fixture();
+    await submit(f);
+    const before = await snapshotTables(h.prisma, entityTables);
+    await expect(
+      withEntityCancels(f, (port) =>
+        h.tx.run(async (tx) => {
+          const plan = await port.prepare(tx, f.ad.entityId);
+          await tx.store.create({
+            data: {
+              id: uuidv7(),
+              entityId: f.ad.entityId,
+              name: "新候选门店",
+              lifecycle: "active",
+              createdAt: h.clock.now(),
+              updatedAt: h.clock.now(),
+            },
+          });
+          await closedEntityFixture(tx, f.ad.entityId);
+          await port.withdraw(tx, f.requester.ctx, plan);
+        }),
+      ),
+    ).rejects.toMatchObject({ error: "PRECONDITION_CHANGED" });
+    assertSnapshotsEqual(before, await snapshotTables(h.prisma, entityTables));
+  });
+  it("外层失败回滚主体、全部取消、审批、指针、timer与事件", async () => {
+    const f = await fixture(),
+      second = await siblingAd(f);
+    await submit(f);
+    await submit(second);
+    const before = await snapshotTables(h.prisma, entityTables);
+    await expect(
+      withEntityCancels(f, (port) =>
+        h.tx.run(async (tx) => {
+          expect(await entityBatch(f, port, tx)).toHaveLength(2);
+          throw new Error("outer-entity-close-rollback");
+        }),
+      ),
+    ).rejects.toThrow("outer-entity-close-rollback");
+    assertSnapshotsEqual(before, await snapshotTables(h.prisma, entityTables));
+  });
+  it("第二张实际撤回事件插入后失败，第一张和主体关闭也原子回滚", async () => {
+    const f = await fixture(),
+      second = await siblingAd(f);
+    await submit(f);
+    await submit(second);
+    const before = await snapshotTables(h.prisma, entityTables);
+    let emitted = 0;
+    const broken = deps({
+      events: {
+        ...h.events,
+        emit: async (...args) => {
+          const result = await h.events.emit(...args);
+          if (args[2].type === "cancel.withdrawn" && ++emitted === 2)
+            throw new Error("second-real-cancel-withdrawn");
+          return result;
+        },
+      },
+    });
+    await expect(
+      withEntityCancels(f, (port) => h.tx.run((tx) => entityBatch(f, port, tx)), broken),
+    ).rejects.toThrow("second-real-cancel-withdrawn");
+    expect(emitted).toBe(2);
+    assertSnapshotsEqual(before, await snapshotTables(h.prisma, entityTables));
+  });
+  it("同Tx可见完整批结果，另一连接提交前仍见pending，提交后才见关闭", async () => {
+    const f = await fixture(),
+      r = await submit(f),
+      peer = await joinLedger(h, await db.url());
+    try {
+      await withEntityCancels(f, (port) =>
+        h.tx.run(async (tx) => {
+          await entityBatch(f, port, tx);
+          expect((await tx.cancelRequest.findUniqueOrThrow({ where: { id: r.id } })).status).toBe(
+            "not_executed",
+          );
+          expect(
+            (await peer.prisma.cancelRequest.findUniqueOrThrow({ where: { id: r.id } })).status,
+          ).toBe("pending_approval");
+          expect(
+            (await peer.prisma.entity.findUniqueOrThrow({ where: { id: f.ad.entityId } }))
+              .lifecycle,
+          ).toBe("active");
+        }),
+      );
+      expect(
+        (await peer.prisma.cancelRequest.findUniqueOrThrow({ where: { id: r.id } })).status,
+      ).toBe("not_executed");
+      expect(
+        (await peer.prisma.entity.findUniqueOrThrow({ where: { id: f.ad.entityId } })).lifecycle,
+      ).toBe("closed");
+    } finally {
+      await peer.close();
+    }
+  });
+  it("二十轮关闭与本人撤回竞争最终收尾一致且无重复事件或账本", async () => {
+    for (let round = 0; round < 20; round++) {
+      const f = await fixture(),
+        r = await submit(f),
+        before = await snapshotTables(h.prisma, financialTables);
+      await historyRef(f, r);
+      const results = await withEntityCancels(f, (port) =>
+        Promise.allSettled([
+          h.tx.run((tx) => entityBatch(f, port, tx)),
+          f.service.withdraw(f.requester, r.id, {}),
+        ]),
+      );
+      expect(results.some((result) => result.status === "fulfilled")).toBe(true);
+      for (const result of results)
+        if (result.status === "rejected")
+          expect(["PRECONDITION_CHANGED", "APPROVAL_NOT_PENDING"]).toContain(result.reason.error);
+      await expectClosed(f, r, "withdrawn");
+      for (const [eventType, aggregateId] of [
+        ["approval.withdrawn", r.approvalRequestId],
+        ["cancel.withdrawn", r.id],
+      ])
+        expect(await h.prisma.outboxEvent.count({ where: { eventType, aggregateId } })).toBe(1);
+      assertSnapshotsEqual(before, await snapshotTables(h.prisma, financialTables));
+    }
+  });
+  it("等待主体锁时真实新增取消候选，拒绝整个计划而不补低锁", async () => {
+    const f = await fixture(),
+      second = await siblingAd(f),
+      r = await submit(f);
+    let writerPid = 0,
+      waiterPid = 0,
+      release!: () => void,
+      entered!: () => void,
+      locked!: () => void;
+    const held = new Promise<void>((resolve) => {
+      locked = resolve;
+    });
+    const proceed = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const connected = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const writer = h.tx.run(async (tx) => {
+      writerPid = (await tx.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid;
+      await lockRows(tx, "staff", [second.requester.staff!.staff.id], "share");
+      await lockRows(tx, "entity", [f.ad.entityId]);
+      locked();
+      await proceed;
+      return submitAdCancel(tx, second.deps, second.requester, second.ad.id, second.body);
+    });
+    await held;
+    const observer = createPrismaClient({
+      connectionString: testDatabaseUrl(db.name, { role: null }),
+      max: 1,
+    });
+    const waiter = withEntityCancels(f, (port) =>
+      h.tx.run(async (tx) => {
+        waiterPid = (await tx.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid;
+        entered();
+        return entityBatch(f, port, tx);
+      }),
+    ).then(
+      (value) => ({ value }),
+      (error: unknown) => ({ error }),
+    );
+    try {
+      await connected;
+      expect(waiterPid).not.toBe(writerPid);
+      let blocked = false;
+      for (let attempt = 0; attempt < 200; attempt++) {
+        const [backend] = await observer.$queryRaw<
+          { waiting: boolean; blockers: number[]; query: string }[]
+        >`
+          SELECT wait_event_type = 'Lock' AS waiting, pg_blocking_pids(pid) AS blockers, query
+          FROM pg_stat_activity WHERE pid = ${waiterPid}`;
+        if (backend?.waiting) {
+          expect(backend.blockers).toContain(writerPid);
+          expect(backend.query).toContain('FROM "entity"');
+          blocked = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      expect(blocked).toBe(true);
+      release();
+      const added = await writer;
+      expect(await waiter).toMatchObject({ error: { error: "PRECONDITION_CHANGED" } });
+      expect((await req(r.id)).status).toBe("pending_approval");
+      expect((await req(added.id)).status).toBe("pending_approval");
+      expect(
+        (await h.prisma.entity.findUniqueOrThrow({ where: { id: f.ad.entityId } })).lifecycle,
+      ).toBe("active");
+    } finally {
+      release();
+      await writer;
+      await waiter;
+      await observer.$disconnect();
+    }
+  });
+  it("真实低序审批锁阻塞prepare，observer核双方PID、阻塞对象和原观测期限", async () => {
+    const f = await fixture(),
+      r = await submit(f);
+    await historyRef(f, r);
+    let writerPid = 0,
+      waiterPid = 0,
+      release!: () => void,
+      entered!: () => void,
+      locked!: () => void;
+    const held = new Promise<void>((resolve) => {
+      locked = resolve;
+    });
+    const proceed = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const connected = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const writer = h.tx.run(async (tx) => {
+      writerPid = (await tx.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid;
+      await lockRows(tx, "approval_request", [r.approvalRequestId]);
+      locked();
+      await proceed;
+    });
+    await held;
+    const observer = createPrismaClient({
+      connectionString: testDatabaseUrl(db.name, { role: null }),
+      max: 1,
+    });
+    const waiter = withEntityCancels(f, (port) =>
+      h.tx.run(async (tx) => {
+        waiterPid = (await tx.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid;
+        entered();
+        return entityBatch(f, port, tx);
+      }),
+    ).then(
+      (value) => ({ value }),
+      (error: unknown) => ({ error }),
+    );
+    try {
+      await connected;
+      expect(writerPid).toBeGreaterThan(0);
+      expect(waiterPid).not.toBe(writerPid);
+      let blocked = false;
+      for (let attempt = 0; attempt < 200; attempt++) {
+        const [backend] = await observer.$queryRaw<
+          { waiting: boolean; blockers: number[]; query: string }[]
+        >`
+          SELECT wait_event_type = 'Lock' AS waiting, pg_blocking_pids(pid) AS blockers, query
+          FROM pg_stat_activity WHERE pid = ${waiterPid}`;
+        if (backend?.waiting) {
+          expect(backend.blockers).toContain(writerPid);
+          expect(backend.query).toContain('FROM "approval_request"');
+          console.warn("entity ad cancel low prelock observed", {
+            writerPid,
+            waiterPid,
+            approvalId: r.approvalRequestId,
+            blockers: backend.blockers,
+          });
+          blocked = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      expect(blocked).toBe(true);
+      release();
+      await writer;
+      expect(await waiter).toEqual({ value: [r.id] });
+      await expectClosed(f, r, "withdrawn");
     } finally {
       release();
       await writer;

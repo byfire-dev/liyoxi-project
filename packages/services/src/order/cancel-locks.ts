@@ -63,7 +63,7 @@ async function adBindings(tx: Tx, adIds: string[]) {
     bindings: bound.map((r) => [r.adId, r.orderItemId, r.orderItem.dramaOrderId]),
   };
 }
-export async function prelockAdCancelTargets(
+export async function prelockAdCancelLowTargets(
   tx: Tx,
   graph: Awaited<ReturnType<typeof readAdCancelTargetGraph>>,
   actorStaffIds: readonly string[] = [],
@@ -72,6 +72,13 @@ export async function prelockAdCancelTargets(
   await lockRows(tx, "approval_request", graph.approvalIds);
   await lockRows(tx, "cancel_request", graph.requestIds);
   await lockRows(tx, "cancel_request_line", graph.lineIds);
+}
+export async function prelockAdCancelTargets(
+  tx: Tx,
+  graph: Awaited<ReturnType<typeof readAdCancelTargetGraph>>,
+  actorStaffIds: readonly string[] = [],
+) {
+  await prelockAdCancelLowTargets(tx, graph, actorStaffIds);
   await lockRows(tx, "entity", graph.entityIds);
   await lockRows(tx, "store", graph.storeIds);
   await lockRows(tx, "ad", graph.adIds);

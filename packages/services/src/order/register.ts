@@ -1,5 +1,6 @@
 import { implement as implementTenantCloseFacts } from "../kernel/index.js";
-import { orderCloseFactsPort } from "../tenant/index.js";
+import { orderCloseFactsPort, entityAdCancelClosePort } from "../tenant/index.js";
+import { entityAdCancelCloser } from "./entity-ad-cancel-close.js";
 import { countOpenOrdersByEntity, countBlockingStoreOrders } from "./counts.js";
 import { staffWorkPort, staffFollowUpPort } from "../kernel/index.js";
 import { orderStaffWork } from "./staff-work.js";
@@ -90,6 +91,7 @@ export const registration = defineRegistration("order", {
     },
   ],
   portImplementations: [
+    implement(entityAdCancelClosePort, entityAdCancelCloser),
     implementKeyed(approvalKindPort, "ad_cancel", adCancelKind),
     implementKeyed(machinePort, cancelRequestChain, cancelRequestBinding),
     implementTenantCloseFacts(orderCloseFactsPort, {

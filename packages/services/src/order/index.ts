@@ -14,7 +14,7 @@ export { readAdCancelTargetGraph, prelockAdCancelTargets } from "./cancel-locks.
 export type { CancelActor, CancelDeps } from "./cancel-context.js";
 export type { OrderService } from "./service.js";
 export type { OrderActor, OrderDeps } from "./context.js";
-export { bindOrder } from "./binding.js";
+export { bindOrder, boundOrder } from "./binding.js";
 export { bindOrderStart } from "./start-binding.js";
 export type { OrderStartBinding } from "./start-binding.js";
 export { startOrder, startOrderUseCase } from "./start.js";

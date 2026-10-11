@@ -1,10 +1,12 @@
 import { AppError } from "../kernel/index.js";
 import type { Assembly, Clock } from "../kernel/index.js";
 import type { Flow } from "../flow/index.js";
+import type { CancelDeps } from "./cancel-context.js";
 export interface OrderBinding {
   readonly assembly: Assembly;
   readonly clock: Clock;
   readonly flow: Flow;
+  readonly cancel?: CancelDeps;
 }
 const scopes: Array<{ binding: OrderBinding }> = [];
 /** 静态登记的端口与自愈使用本进程依赖；解绑只撤销自身作用域，允许乱序关闭。 */
