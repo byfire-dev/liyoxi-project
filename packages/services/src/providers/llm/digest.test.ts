@@ -488,7 +488,7 @@ describe("digest 词表快照、未知过滤与 prompt 输入", () => {
             content: [],
             usage: [],
             timeliness: [],
-            [dimension]: [{ code: "_", label: "🍜".repeat(10) }],
+            [dimension]: [{ code: "_", label: "🍜".repeat(20) }],
           },
         }),
       ).toBeDefined();
@@ -499,7 +499,7 @@ describe("digest 词表快照、未知过滤与 prompt 输入", () => {
             content: [],
             usage: [],
             timeliness: [],
-            [dimension]: [{ code: "a".repeat(16), label: "🍜".repeat(11) }],
+            [dimension]: [{ code: "a".repeat(16), label: "🍜".repeat(21) }],
           },
         }),
       ).toBeUndefined();
