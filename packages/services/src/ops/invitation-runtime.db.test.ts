@@ -133,7 +133,7 @@ describe("真实邀请expiry运行时", { timeout: SLOW }, () => {
     await expect(tx.run((handle) => handler.handle(handle, timer))).rejects.toThrow("尚未绑定");
     const worker = build(),
       w = await world(worker);
-    const expiry = createInvitationExpiry({ clock, flow: w.flow });
+    const expiry = createInvitationExpiry({ clock, flow: w.flow, timers: worker.timers });
     scope.attach(expiry);
     expect(() => scope.attach(expiry)).toThrow("只能绑定一次");
     scope.close();

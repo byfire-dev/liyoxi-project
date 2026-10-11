@@ -144,3 +144,7 @@ W2-10 的 `assertWithinQuota` 复用现有额度口径与调用方事务，只�
 `acceptInvitation(ctx, input, { idem, principal })` 是唯一非事务 owner 入口：真实会话只读验证、事务外称呼检测、merchant80→完整排序主体100→邀请110→成员120→门店130，等待后重新读取时间和事实。私有 exact-Tx/context/phase 凭据只由该 settle 签发，不提供公共 abandon/prepare 或 caller 布尔权限。
 
 空草稿只按未提交审核、无任何历史计费项、无其他有效成员、无任何 DB pending 邀请四事实判定；满足时同事务放弃主体、级联成员/门店、吊销原老板下载授权，再接受。required 幂等只存私有收据，每次返回当前有效成员；已移除不复活，合法当前 owner 角色可投影。真实邀请通知只发当前老板，持久化 `bizType=invitation` 决定后续读取分支；旧店员范围通知保持原语义。运行验证与独立审查尚未进行，真实送达未验。
+
+## 邀请 I30 自愈（SOURCE）
+
+I30 仅 full、P2、heal_and_alert，无周期限制；复用实例内 expiry 核心，不伪造 FiredTimer。原框架 now 固定严格一小时阈值，每批最多200；先完整排序主体100与邀请110，再核当前行与新鲜时钟。同事务迁移、清 token、审计、事件、取消 timer 和违规落库；自愈警报仍未解决。空主体范围不扩库，未绑定/关闭明确失败。当前仅源码准备，真实新旧整叶及独审待执行。
