@@ -306,6 +306,17 @@
     "city",
     "viewerRole"
   ],
+  "m.invitation.lookup": [
+    "category",
+    "city",
+    "expiresAt",
+    "invitationId",
+    "inviterName",
+    "isPhoneRestricted",
+    "role",
+    "status",
+    "storeName"
+  ],
   "m.mallConfig.get": [
     "categories",
     "categories[].genres",
