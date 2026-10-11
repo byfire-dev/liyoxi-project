@@ -27,3 +27,19 @@ Node24 JSON reviver 从原始数字 token 无损读取任务号，查询发送�
 方法明确 unsupported；fake 新任务默认 waiting，完成事实由用例显式给出。
 协议测试采用公开虚构凭据与真实 loopback HTTP，不访问真实云；真实准确率、账单、
 E22开通、回调联调、日200与全局模型预算均未验证，也未宣称完成。
+
+## 可选 CallbackUrl 发送协议（SOURCE）
+
+显式构造 `TencentAsrOptions.callback={origin,key}` 与每次 `submit.callback={mediaJobId}`
+必须配齐；全省略保持原五字段 JSON/TC3 字节，半配返回 invalid_input/not_accepted 且零传输。
+配置构造时严格校验并复制：固定 HTTPS DNS origin，无路径/query/userinfo，key 沿接收端
+UTF8 字节32–256；UUID 保留接收端小写任意版本语义，不改码、不 trim 或 normalize。
+固定路径 `/api/v1/hooks/asr/media-jobs/{mediaJobId}?sig={HMAC}`，只签 UUID 原文。
+query 不附回调，默认配置/预算、API/worker 装配、单次提交与原期限不变。
+
+官方 [CreateRecTask](https://cloud.tencent.com/document/product/1093/37823) 的 CallbackUrl 可选；
+[回调说明](https://cloud.tencent.com/document/product/1093/52632) 规定 POST form-urlencoded、
+requestId=TaskId、JSON code=0 ACK 与最多两次总尝试（2026-10-12 核对）。重试间隔、超时、
+query 逐字保留及供应商签名头未明确。本项目 sig 是自有 bearer-token，不是腾讯签名。
+本地受控 HTTP/真实 verify 组合不调用 wake，不证明实际 callback 到达、DNS/证书、公网权限、
+隐私/费用/真实云准确率或 E22；本片源码尚待独占完整验证与正式审查。
