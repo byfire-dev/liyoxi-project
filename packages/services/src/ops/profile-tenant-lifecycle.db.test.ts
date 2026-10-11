@@ -776,7 +776,7 @@ describe("原事务回滚、完整锁图及真实双连接竞争", () => {
     await h.terminate(owner);
     const event = await h.event(owner, "entity.closed");
     const connection = createPrismaClient({
-      connectionString: testDatabaseUrl("services", "profilelife"),
+      connectionString: testDatabaseUrl(db.name),
       max: 1,
     });
     try {
@@ -819,7 +819,7 @@ describe("原事务回滚、完整锁图及真实双连接竞争", () => {
     await h.restore(o);
     const event = await h.event(o, "store.restored");
     const connection = createPrismaClient({
-      connectionString: testDatabaseUrl("services", "profilelife"),
+      connectionString: testDatabaseUrl(db.name),
       max: 2,
     });
     const other = createTxRunner({ prisma: connection, appEnv: "test" });
@@ -950,7 +950,7 @@ describe("原事务回滚、完整锁图及真实双连接竞争", () => {
     await h.terminate(f);
     const e = await h.event(f, "entity.closed");
     const connection = createPrismaClient({
-      connectionString: testDatabaseUrl("services", "profilelife"),
+      connectionString: testDatabaseUrl(db.name),
       max: 2,
     });
     const other = createTxRunner({ prisma: connection, appEnv: "test" });
@@ -1018,7 +1018,7 @@ describe("原事务回滚、完整锁图及真实双连接竞争", () => {
     const e1 = await h.event(f, "entity.closed"),
       e2 = await h.event(f, "entity.closed");
     const connection = createPrismaClient({
-      connectionString: testDatabaseUrl("services", "profilelife"),
+      connectionString: testDatabaseUrl(db.name),
       max: 1,
     });
     const other = createTxRunner({ prisma: connection, appEnv: "test" });
