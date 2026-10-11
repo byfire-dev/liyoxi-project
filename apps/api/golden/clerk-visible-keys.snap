@@ -358,6 +358,11 @@
     "user.phoneMask",
     "user.registeredAt"
   ],
+  "m.me.membership.leave": [
+    "memberId",
+    "removedAt",
+    "status"
+  ],
   "m.me.overview.get": [
     "currentStore",
     "currentStore.assetCount",
