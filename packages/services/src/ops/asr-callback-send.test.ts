@@ -62,12 +62,14 @@ async function local(
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("本地协议服务未就绪");
+  const authority = `127.0.0.1:${address.port}`;
   const forwarding: typeof fetch = (target, init) => {
     expect(target).toBe("https://asr.tencentcloudapi.com/");
+    expect(new Headers(init?.headers).get("host")).toBe("asr.tencentcloudapi.com");
     expect(init?.redirect).toBe("error");
-    return fetch(`http://127.0.0.1:${address.port}/`, init);
+    return fetch(`http://${authority}/`, init);
   };
-  return { fetch: forwarding, calls };
+  return { fetch: forwarding, calls, authority };
 }
 function driver(options: Omit<TencentAsrOptions, "now">) {
   const owned = createTencentAsr(config, { ...options, now });
@@ -139,7 +141,7 @@ describe("ASR 可选回调发送与真实验签公口组合", () => {
       expect(call.headers["x-tc-action"]).toBe("CreateRecTask");
       expect(call.headers["x-tc-version"]).toBe("2019-06-14");
       expect(call.headers["x-tc-timestamp"]).toBe("1551111465");
-      expect(call.headers.host).toBe("asr.tencentcloudapi.com");
+      expect(call.headers.host).toBe(http.authority);
     }
   });
 
