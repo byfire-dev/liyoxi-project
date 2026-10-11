@@ -1,6 +1,7 @@
 import { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./media-assets-runtime.js";
 import { createDeliveryProductionAssembly } from "./delivery-production-runtime.js";
 import { createApprovalSlaAssembly } from "./approval-sla-runtime.js";
+import { createApproval } from "../approval/index.js";
 import { createDeliverySlaAssembly } from "./delivery-sla-runtime.js";
 import { createContentPricingAssembly } from "./content-pricing-runtime.js";
 import {
@@ -61,6 +62,7 @@ import {
   assembleProviders,
   createDocumentConverter,
   createTxRunner,
+  createBizNoIssuer,
   systemClock,
 } from "../kernel/index.js";
 import type {
@@ -274,7 +276,6 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     alerts: alertsOf(assembly),
   });
   const closeWebhooks = bindWebhooks(webhooks);
-  const closeDerive = bindOrder({ assembly, clock, flow });
   const closeBillingTimers = bindBillingTimers({
     clock,
     flow,
@@ -436,6 +437,21 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const delivery = { tx, subscribers: events.subscribers, channel, alerts };
   // 账本（W1-10）：每分钟扫描用它推进到点的主体
   const ledger = createLedger({ clock, events });
+  const approval = createApproval({
+    assembly,
+    clock,
+    flow,
+    events,
+    timers,
+    sla: deliveryCore.sla,
+    bizNo: createBizNoIssuer({ clock, appEnv: options.appEnv }),
+  });
+  const closeDerive = bindOrder({
+    assembly,
+    clock,
+    flow,
+    cancel: { tx, clock, flow, events, approval, ledger, timers, sla: deliveryCore.sla },
+  });
   const tenant = createTenant({ tx, clock, flow, assembly });
   const closeStart = bindOrderStart({
     ...deliveryCore,

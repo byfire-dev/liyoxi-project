@@ -39,3 +39,26 @@ export interface MembershipAuthorizations {
 export const membershipAuthorizationsPort = definePort<MembershipAuthorizations>(
   "tenant.membership_authorizations",
 );
+
+/** 仅广告取消：同事务先 prepare，再关闭主体，最后 withdraw；不是完整主体关闭用例。 */
+export interface EntityAdCancelClosePlan {
+  readonly entityId: string;
+  readonly requestIds: readonly string[];
+  readonly invitationIds: readonly string[];
+  readonly memberIds: readonly string[];
+  readonly storeIds: readonly string[];
+}
+export interface EntityAdCancelCloser {
+  /** 在任何 tenant 锁之前调用；调用方员工也纳入 staff20 union，再锁至全部门店130。每 Tx 只准备一个主体。 */
+  prepare(
+    tx: Tx,
+    entityId: string,
+    actorStaffIds?: readonly string[],
+  ): Promise<EntityAdCancelClosePlan>;
+  /** 主体必须已真实 closed；复核同事务计划和完整图，再整体锁高序目标/timer，系统撤回 pending ad_cancel。 */
+  withdraw(tx: Tx, ctx: IdentityContext, plan: EntityAdCancelClosePlan): Promise<readonly string[]>;
+}
+// 无默认实现：缺真实 order owner 时装配失败。
+export const entityAdCancelClosePort = definePort<EntityAdCancelCloser>(
+  "tenant.entityAdCancelClose",
+);

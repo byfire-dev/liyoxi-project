@@ -521,7 +521,6 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     alerts: alertsOf(assembly),
     logger,
   });
-  const unbindOrder = bindOrder({ assembly, clock, flow });
   const mediaChannel = createQueueChannel({ redisUrl: env.REDIS_URL, prefix: `${keyPrefix}bull` });
   const mediaProduction = createRuntimeMediaProduction(
     env.MEDIA_PRODUCTION,
@@ -698,6 +697,12 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
   const unbindBilling = bindBillingTimers({ clock, flow, timers });
   const ledger = createLedger({ clock, events });
+  const unbindOrder = bindOrder({
+    assembly,
+    clock,
+    flow,
+    cancel: { tx, clock, flow, events, approval, ledger, timers, sla },
+  });
   const tenant = createTenant({ tx, clock, flow, assembly });
   const unbindOrderStart = bindOrderStart({
     tx,
