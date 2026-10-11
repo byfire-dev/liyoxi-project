@@ -262,6 +262,7 @@ async function ready(body = bytes(), ext = "txt", actor = h.owner, legacyStored 
       storeId: h.merchant.store.id,
       uploadActorType: "merchant",
       uploadActorId: h.merchant.user.id,
+      uploadClient: "weapp",
       ext,
       objectKey: key,
       declaredSize: BigInt(body.length),
