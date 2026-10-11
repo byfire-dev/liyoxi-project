@@ -197,7 +197,7 @@ describe("成员移除：两独立连接", () => {
       const owner = await h.owner();
       const user = await h.make.merchantUser();
       const member = await h.make.entityMember({
-        id: `00000000-0000-4000-8000-${uuidv7().slice(-12)}`,
+        id: `00000000-0000-7000-8000-${uuidv7().slice(-12)}`,
         entityId: owner.entityId,
         merchantUserId: user.id,
         role: "clerk",

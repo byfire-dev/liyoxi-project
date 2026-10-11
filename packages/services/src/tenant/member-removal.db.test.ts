@@ -171,10 +171,23 @@ describe("成员移除：真实用例、原 flow 与同事务副作用", () => {
           updatedAt: now,
         },
       });
+      const identity = await h.prisma.wechatIdentity.create({
+        data: {
+          id: uuidv7(),
+          merchantUserId: clerk.userId,
+          appid: "wx_member_removal_fixture",
+          openid: uuidv7(),
+          createdAt: now,
+          updatedAt: now,
+          lastActiveAt: now,
+          lastLoginAt: now,
+        },
+      });
       const session = await h.prisma.userSession.create({
         data: {
           id: uuidv7(),
           merchantUserId: clerk.userId,
+          wechatIdentityId: identity.id,
           tokenHash: new Uint8Array(32).fill(17),
           createdAt: now,
           updatedAt: now,
@@ -214,6 +227,9 @@ describe("成员移除：真实用例、原 flow 与同事务副作用", () => {
       await perform(mode, owner, clerk);
       expect(await h.prisma.storeAsset.findUnique({ where: { id: asset.id } })).toEqual(asset);
       expect(await h.prisma.userSession.findUnique({ where: { id: session.id } })).toEqual(session);
+      expect(await h.prisma.wechatIdentity.findUnique({ where: { id: identity.id } })).toEqual(
+        identity,
+      );
       expect(await h.prisma.portalSession.findUnique({ where: { id: portal.id } })).toEqual(portal);
       expect(
         await h.prisma.agreementConsent.findMany({ where: { merchantUserId: clerk.userId } }),
