@@ -5,7 +5,7 @@ import { createEvents } from "../events/index.js";
 import { createTimers } from "../timers/index.js";
 import { createMedia } from "../media/index.js";
 import type { MediaActor } from "../media/index.js";
-import type { MediaProductionDeps } from "../media/index.js";
+import type { MediaProductionDeps, ModelBudgetAdmission } from "../media/index.js";
 import {
   createMediaAssembly,
   createMediaAssetsAssembly,
@@ -22,6 +22,7 @@ export async function createMediaAssetsHarness(
   prisma: PrismaClient,
   options: {
     production?: (fake: ReturnType<typeof createFakeProviders>) => MediaProductionDeps;
+    modelBudget?: ModelBudgetAdmission;
   } = {},
 ) {
   const clock = createClock(new Date("2026-10-10T04:00:00Z"));
@@ -45,7 +46,11 @@ export async function createMediaAssetsHarness(
     events,
     storage: fake.storage,
     moderation: fake.media,
-    assets: { ...assets, allowModelCall: async () => permitControlledModel },
+    assets: {
+      ...assets,
+      allowModelCall: async () => permitControlledModel,
+      ...("modelBudget" in options ? { modelBudget: options.modelBudget } : {}),
+    },
     ...(production ? { production } : {}),
     channel: {
       enqueue: async (queue, _messageId, payload) => {

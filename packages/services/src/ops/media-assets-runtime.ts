@@ -17,12 +17,14 @@ export function createRuntimeMediaAssets(input: {
   clock: Clock;
   timers: Timers;
   providers: Providers;
+  modelBudget?: MediaAssetsDeps["modelBudget"];
 }): MediaAssetsDeps {
   return {
     sla: createSla({ assembly: input.assembly, clock: input.clock }),
     timers: input.timers,
     asr: input.providers.asr,
     llm: input.providers.llm,
+    ...(Object.hasOwn(input, "modelBudget") ? { modelBudget: input.modelBudget } : {}),
     readStore: readStoreAssetFacts,
     readUploader: async (tx, actor) => {
       if (actor.actorType === "merchant")

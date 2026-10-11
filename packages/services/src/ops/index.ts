@@ -83,5 +83,6 @@ export {
 } from "./demo-masters-input.js";
 
 export { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./media-assets-runtime.js";
+export { readModelBudgetPermit } from "./model-budget-permit.js";
 export { createProfileLifecycleAssembly } from "./profile-lifecycle-runtime.js";
 export { createInvitationAssembly } from "./invitation-runtime.js";
