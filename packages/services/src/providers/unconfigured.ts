@@ -156,6 +156,7 @@ export const unconfiguredStorage: StorageProvider = {
   putObject: storageOff,
   copy: storageOff,
   presignGet: storageOff,
+  presignVisionGet: storageOff,
   delete: storageOff,
   abortMultipart: storageOff,
   readTo: storageOff,
