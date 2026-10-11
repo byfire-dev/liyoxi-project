@@ -2,7 +2,7 @@
 // 与本包用到的十行迁移的守卫。迁移表本身在 @liyoxi/shared/machines，这里是表里没有的那一半（flow/README.md 第 4 节）。
 //
 // 登记在装配时是静态的，拿不到进程里的服务：守卫要的事实由用例经迁移的 args 带进来，守卫自己只回库核对。
-// 没登记守卫的行（普通门店停用与恢复、主体放弃、成员加入与移除、资质的 change 轮次）随 M2：
+// 没登记守卫的行（普通门店停用与恢复、主体放弃、成员加入与移除、资质变更提交/决定）随 M2：
 // 在那之前迁移到这些行即抛内部错误，不放行。
 import type { AuditCategory } from "@liyoxi/contract";
 
@@ -115,6 +115,11 @@ const rejectionGiven: Guard = (_tx, facts) => {
 
 /** 02:626 撤回：只由系统做（主体被关闭或放弃时的联动） */
 const bySystem: Guard = (_tx, facts) => Promise.resolve(facts.ctx.actor.type === "system");
+const lifecycleChangeWithdrawal: Guard = async (tx, facts) => {
+  if (facts.ctx.actor.type !== "system" || !facts.entityId) return false;
+  const entity = await tx.entity.findUnique({ where: { id: facts.entityId } });
+  return entity !== null && ["closed", "abandoned"].includes(entity.lifecycle);
+};
 
 /** 02:540 主体一侧的提交：主体 active */
 const entityActive: Guard = async (tx, facts) => {
@@ -144,6 +149,7 @@ const QUALIFICATION_VERBS: Readonly<Record<string, string>> = {
   "qualification.approve": "资质审核通过",
   "qualification.reject": "资质审核驳回",
   "qualification.withdraw": "撤回资质审核",
+  "qualification.change_withdraw": "随主体终止撤回资质变更审核",
 };
 
 /** 事件码 → 描述；这条链上没写到的事件码返回 null：用例必须自己传审计内容 */
@@ -213,6 +219,7 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
       [rowKey("02:624", "qualification.reject")]: rejectionGiven,
       [rowKey("02:625", "qualification.submit")]: storeReadyToSubmit,
       [rowKey("02:626", "qualification.withdraw")]: bySystem,
+      [rowKey("02:628", "qualification.change_withdraw")]: lifecycleChangeWithdrawal,
     },
   },
   [chainKey("entity_member", "status")]: {
