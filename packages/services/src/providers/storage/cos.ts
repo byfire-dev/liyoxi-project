@@ -26,6 +26,7 @@ import {
   xmlField,
 } from "./cos-signature.js";
 import type { CosKey } from "./cos-signature.js";
+import { prepareVisionRead, VISION_CI_REGIONS } from "./vision-signing.js";
 
 export interface CosConfig {
   readonly region: string;
@@ -869,6 +870,35 @@ export function createCosStorage(
       return ok({
         url: `https://${host(input.bucket)}${objectPath(input.key)}?${params}`,
         expiresAt: new Date((start + input.expiresSec) * 1000),
+      });
+    },
+    async presignVisionGet(value) {
+      const prepared = prepareVisionRead(value);
+      if (!prepared || closed) return BAD();
+      if (!VISION_CI_REGIONS.has(config.region))
+        return failed("unsupported", "该地域不在视觉签名的国内支持范围");
+      const { input, query } = prepared;
+      const start = Math.floor(options.now().getTime() / 1000);
+      if (!Number.isSafeInteger(start) || start < 0) return BAD();
+      const expiresAt = new Date((start + input.expiresSec) * 1000);
+      if (!Number.isFinite(expiresAt.getTime())) return BAD();
+      const auth = cosAuthorization({
+        key: readKey,
+        method: "GET",
+        pathname: `/${input.key}`,
+        query,
+        headers: { host: host(input.bucket) },
+        start,
+        end: start + input.expiresSec,
+      });
+      const params = new URLSearchParams(query);
+      for (const field of auth.split("&")) {
+        const separator = field.indexOf("=");
+        params.set(field.slice(0, separator), field.slice(separator + 1));
+      }
+      return ok({
+        url: `https://${host(input.bucket)}${objectPath(input.key)}?${params}`,
+        expiresAt,
       });
     },
     delete: (input) =>

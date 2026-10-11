@@ -269,6 +269,10 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
         return ok({ url: `${ORIGIN}/${input.bucket}/${path}?token=${token}`, expiresAt });
       }),
 
+    presignVisionGet: (input) =>
+      core.run("presignVisionGet", input, () =>
+        failed("unsupported", "替身不提供真实视觉处理签名"),
+      ),
     delete: (input) =>
       core.run("delete", input, () => {
         objects.delete(slot(input));

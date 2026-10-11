@@ -144,3 +144,15 @@ Storage 只增 readTo/putStream，旧小对象接口及10秒协议预算保留�
 流块最多1MiB、实现防御上限2GiB、独立传输预算180秒；媒体处理器仍保持正式200MiB/180秒和执行器原 hard timeout，不扩任务预算。来源、sink 和写入流均有 backpressure；取消和 close 等待自身 iterator/reader/Readable finally，未关闭借用兄弟 Storage、DB 或 Redis。workIO 只给任务内固定相对文件名，O_NOFOLLOW/普通文件检查、poster/PNG 已校验字节的 SHA/大小绑定阻止换文件；宿主工作文件核 hash 与驱动两次流扫描是三次顺序读取的明确成本。
 
 CI Image 水印仅允许与输入同桶的固定 ci-out/jobUUID/watermark-SHA.png，服务端构造15分钟 COS GET 短签名；没有任意 URL 输入，签名不进任务事实。原生 Text 的字符限制无法表达正式文案，因此保留文案并受控拒绝，不改标点或空格。模板与 inline 混用、跨桶图片、额外字段和超过3节点拒绝。2026-10-09查阅 primary：[Text 参数](https://intl.cloud.tencent.com/zh/document/product/1045/43639)、[Image 模式与同桶限制](https://intl.cloud.tencent.com/document/product/436/46873)、[SDK原生图片节点](https://cloud.tencent.com/document/product/460/77715)、[三节点上限](https://cloud.tencent.com/document/product/460/108706)、[模板优先级](https://cloud.tencent.com/document/product/436/119461)。独立 fake HTTP 仅证明协议与签名；真实云模板/图片执行另验。
+
+## 13. 可信视觉处理签名（W3-15 窄片）
+
+`Storage.presignVisionGet({bucket,key,expiresSec,source})` 是必需方法位；COS 只接受严格的 `source:{kind:'image'}` 或 `{kind:'video-frame',atMs}`，拒绝任意 query、地址及下载覆盖。对象键使用既有四逻辑桶、UTF-8 1024 字节上界和路径限制；到期为 1–3600 整秒。视频毫秒须为非负安全整数，以整数商余生成十进制秒，不舍入浮点输入。旧 `presignGet` 与签名算法保持原实现。
+
+图片固定按 `auto-orient` → `thumbnail/1280x1280>` → `format/jpg` 管道签发；只缩小、保持比例。视频固定 `ci-process=snapshot`、`time`、`width=0`、`height=0`、`format=jpg`、`rotate=auto`、`mode=exactframe`，再应用同一缩小上界，共八个处理 query。所有处理键（包括空值管道键）、GET、host 和对象路径一次性参与 COS 签名，签后不补处理参数。不允许忽略处理错误或退回原图的参数。
+
+新能力仅签北京、上海、广州、成都、重庆、南京的固定 COS 主机；其他地域返回 unsupported，普通下载不受影响。MinIO 和替身明确 unsupported；未配置继续 storageOff，工厂不默认启用新驱动。这里不查对象归属、大小或 ETag，调用方仍须按当前主体/文件事实授权。域名和配置不证明数据地域满足 E22。
+
+本地 HMAC/协议测试不证明真实云 IAM、桶启用 CI、处理可达性、产物尺寸/字节、视频 PTS、费用或模型调用已验。`exactframe` 与参数时刻不构成实际帧时刻证明；真实云验收另行记录。原 MinIO 整文件验收仍需 `LYX_TEST_MINIO=required`，只清理本轮自有对象。
+
+官方依据：[缩放](https://cloud.tencent.com/document/product/460/36540)、[管道](https://cloud.tencent.com/document/product/460/15293)、[图片格式](https://cloud.tencent.com/document/product/460/36543)、[视频截帧 GET](https://cloud.tencent.com/document/product/460/49283)、[COS 签名](https://cloud.tencent.com/document/api/436/7778)、[地域限制](https://cloud.tencent.com/document/product/460/36620)。

@@ -405,6 +405,12 @@ export interface ProductionMediaTools {
   close(): Promise<void>;
 }
 
+export type VisionReadInput = ObjectRef & {
+  readonly expiresSec: number;
+  readonly source:
+    { readonly kind: "image" } | { readonly kind: "video-frame"; readonly atMs: number };
+};
+
 export interface StorageProvider extends ProviderBase {
   /** sts：能不能签发临时密钥（大文件分块上传要用）；versioning：桶有没有开版本控制 */
   readonly capabilities: { readonly sts: boolean; readonly versioning: boolean };
@@ -488,6 +494,10 @@ export interface StorageProvider extends ProviderBase {
     /** 显式覆盖响应的 Content-Disposition；不传保持旧行为。 */
     disposition?: "inline" | "attachment";
   }): Promise<ProviderResult<{ url: string; expiresAt: Date }>>;
+  /** 固定视觉处理的短期 GET 签名；不证明产物、帧时刻、权限或对象归属。 */
+  presignVisionGet(
+    input: VisionReadInput,
+  ): Promise<ProviderResult<{ url: string; expiresAt: Date }>>;
   /** 删除。对象本来就不存在也算成功 */
   delete(input: ObjectRef): Promise<ProviderResult<void>>;
   /** 尽力中止指定 incoming 对象的未完成分块；不得处理同前缀的其他对象。 */
@@ -992,6 +1002,7 @@ export const PROVIDER_METHODS = {
     "putObject",
     "copy",
     "presignGet",
+    "presignVisionGet",
     "delete",
     "abortMultipart",
     "readTo",

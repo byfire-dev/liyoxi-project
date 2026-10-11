@@ -92,6 +92,7 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
       contentType: "video/mp4",
     },
     presignGet: { ...SAMPLE_REF, expiresSec: 900, disposition: "inline" },
+    presignVisionGet: { ...SAMPLE_REF, expiresSec: 900, source: { kind: "image" } },
     delete: SAMPLE_REF,
     abortMultipart: SAMPLE_REF,
     readTo: {
