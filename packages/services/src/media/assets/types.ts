@@ -5,6 +5,16 @@ import type { Sla } from "../../sla/index.js";
 import type { Timers } from "../../timers/index.js";
 import type { AsrProvider, LlmProvider } from "../../providers/types.js";
 import type { MediaActor } from "../actor.js";
+import type { ModelBudgetContext, ModelBudgetDecision } from "./model-budget.js";
+
+export type ModelBudgetFacts = Omit<ModelBudgetContext, "dailyFileCap" | "dailyCallCap">;
+export interface ModelBudgetAdmission {
+  readonly readPermit: (tx: Tx, facts: ModelBudgetFacts) => Promise<ModelBudgetContext | null>;
+  readonly reserve: (
+    context: ModelBudgetContext,
+    signal: AbortSignal,
+  ) => Promise<ModelBudgetDecision>;
+}
 
 export interface AssetStoreFacts {
   readonly id: string;
@@ -39,6 +49,8 @@ export interface MediaAssetsDeps {
   ) => Promise<boolean>;
   /** Missing approved global budget configuration degrades model calls to skipped. */
   readonly allowModelCall?: (tx: Tx, input: { storeId: string; now: Date }) => Promise<boolean>;
+  /** 成对端口一旦存在即为权威；不完整或失败不能回退旧授权。默认装配不提供。 */
+  readonly modelBudget?: ModelBudgetAdmission;
   readonly recordUpload: (
     tx: Tx,
     actor: MediaActor,
