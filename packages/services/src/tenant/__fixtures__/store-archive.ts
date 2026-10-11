@@ -1,9 +1,9 @@
 import type { PrismaClient } from "@liyoxi/db";
-import { createIdempotencyContext, uuidv7 } from "../../kernel/index.js";
-import type { IdentityContext, TxRunner } from "../../kernel/index.js";
+import { createIdempotencyContext, invariantNow, uuidv7 } from "../../kernel/index.js";
+import type { Assembly, IdentityContext, TxRunner } from "../../kernel/index.js";
 import { createFactories, snapshotTables } from "../../testing/index.js";
 import type { AdjustableClock } from "../../testing/index.js";
-import { createTenant } from "../index.js";
+import { createInvitationExpiry, createTenant } from "../index.js";
 import { invitationServices } from "./invitations.js";
 import { memberContext, SLOW } from "./member-removal.js";
 import { acceptHarness } from "./invitation-accept.js";
@@ -26,8 +26,32 @@ export const TABLES = [
 
 export function archiveServices(prisma: PrismaClient, clock?: AdjustableClock, runner?: TxRunner) {
   const base = invitationServices(prisma, clock, runner);
-  const tenant = createTenant({ ...base, archiveTimers: base.timers });
-  return { ...base, tenant, invitations: base.tenant };
+  const expiry = createInvitationExpiry({
+    clock: base.clock,
+    flow: base.flow,
+    timers: base.timers,
+  });
+  const timerHandlers = base.assembly.timerHandlers.map(
+    (item): Assembly["timerHandlers"][number] =>
+      item.kind === "invitation.expire"
+        ? { ...item, handle: (tx, timer) => expiry.handle(tx, timer) }
+        : item,
+  );
+  const invariants = base.assembly.invariants.map((item): Assembly["invariants"][number] =>
+    item.code === "tenant.I30"
+      ? { ...item, run: (tx, scope, ctx) => expiry.checkI30(tx, scope, invariantNow(ctx)) }
+      : item,
+  );
+  const assembly: Assembly = {
+    ...base.assembly,
+    timerHandlers,
+    invariants,
+    timerHandler: (kind) => timerHandlers.find((item) => item.kind === kind),
+    invariant: (code) => invariants.find((item) => item.code === code),
+  };
+  const timerDeps = { ...base.timerDeps, assembly };
+  const tenant = createTenant({ ...base, assembly, archiveTimers: base.timers });
+  return { ...base, assembly, tenant, invitations: base.tenant, timerDeps };
 }
 
 export function archiveHarness(prisma: PrismaClient) {

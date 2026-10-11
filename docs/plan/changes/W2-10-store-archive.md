@@ -8,7 +8,7 @@
 | 类别 | 顺序 |
 | PR | 本地 codex/w2-10-store-archive；唯一正式审查后正常合本地 main。 |
 
-从实际 main `8ecdf21c` 开工，已普通同步实际接纳邀请接受的 `8c861bfb`。
+从实际 main `8ecdf21c` 开工，已普通同步接纳邀请接受及 I30 的 `7f6aae04`。
 
 ## 范围与安全投影
 
@@ -25,13 +25,13 @@ entity/store/copyMode 均 NULL、非 ownerOnly、messages.list，正文及 vars 
 派发与外发均按持久化源 outbox 类型/业务 id 和真实历史重验，不信 vars 或调用方自报。
 原消息范围 SQL、stores_changed 通知及其他移除原因保持，缺当前有效接收人不伪造。
 原 profile 生命周期消费者通过真实 outbox 后续处理；本入口不反向锁资质/审批/文件。
-I5 采用 full/P2/heal:none，I30、恢复、删除、新建及其他生命周期仍待后续。
+I5 采用 full/P2/heal:none；I30 已独立接纳，恢复、删除、新建及其他生命周期仍待后续。
 
 ## 验收安排
 
 手写 nonTest 新增≤1200、测试/fixture/support≤2600，官方四生成物另列。
 SOURCE 仅轻 AST/格式/lint；官方生成准备独占执行后正常提交，再冻结完整输入。
-完整 fresh 四类型、63 旧与6新共69 whole、全部官方尾链/自有枚举及资源归零后，
+完整 fresh 四类型、65 旧与6新共71 whole、全部官方尾链/自有枚举及资源归零后，
 ROOT 唯一300秒正式审查并立即正常合本地 main。原正文、断言与内部期限不改。
 已增加邀请接受六整叶和归档/接受真实双序竞争，保双方各自私有守卫与持久通知分支。
 当前未执行重验证、远端 CI、真实平台或容量验收，不把 SOURCE 写成整包完成。
