@@ -8,6 +8,7 @@ import { FALLBACK_REASONS, notificationDueAt, sendVerdict, externalAllowed } fro
 import { NotifyFactSchema, specFor, UNREACHED_SPEC } from "./registry.js";
 import { renderWechat, renderSms } from "./render.js";
 import { smsDayUsage } from "./sms-budget.js";
+import { currentStoreArchiveNotification, lockStoreArchiveSource } from "./store-archive.js";
 
 type Delivery = NotificationDelivery & { notification: Notification | null };
 interface Prepared {
@@ -77,6 +78,7 @@ async function anchors(tx: Tx, deps: NotifyDispatchDeps, d: Delivery, identity?:
   if (vars?.success && vars.data.bizType === "approval_request")
     await lockRows(tx, "approval_request", [vars.data.bizId], "share");
   if (identityId) await lockRows(tx, "wechat_identity", [identityId], "share");
+  if (n) await lockStoreArchiveSource(tx, n);
   if (n?.entityId) {
     await lockRows(tx, "entity", [n.entityId], "share");
     const members = guardUserId
@@ -206,10 +208,12 @@ async function currentGuard(
   const n = d.notification;
   if (!n) return null;
   const cfg = await tx.notifyScene.findUnique({ where: { sceneKey: n.notifySceneKey } });
-  const spec = specFor(n.notifySceneKey, n.bizType);
+  const archive = await currentStoreArchiveNotification(tx, deps, n);
+  const spec = archive === undefined ? specFor(n.notifySceneKey, n.bizType) : archive?.spec;
   if (!cfg?.sceneEnabled || !cfg.extEnabled || !spec || !n.bizId) return null;
-  const fact = await currentNotificationFact(tx, deps, spec, n.bizId);
-  if (fact === null || (n.staffId && !fact.staffIds?.includes(n.staffId))) return null;
+  const fact =
+    archive === undefined ? await currentNotificationFact(tx, deps, spec, n.bizId) : archive?.fact;
+  if (!fact || (n.staffId && !fact.staffIds?.includes(n.staffId))) return null;
   if (spec.pendingStatus && !spec.pendingStatus.includes(fact.status)) return null;
   const stored = NotifyFactSchema.safeParse(n.vars);
   // Versioned pending actions never send the old request after a replacement version.
@@ -313,12 +317,11 @@ async function prepare(tx: Tx, deps: NotifyDispatchDeps, id: string): Promise<Pr
     }
     const openid = await deps.wechatTarget(tx, quota.wechatIdentityId, n.merchantUserId!);
     const stored = NotifyFactSchema.parse(n.vars);
-    const current = await currentNotificationFact(
-      tx,
-      deps,
-      specFor(n.notifySceneKey, n.bizType)!,
-      n.bizId!,
-    );
+    const archive = await currentStoreArchiveNotification(tx, deps, n);
+    const current =
+      archive === undefined
+        ? await currentNotificationFact(tx, deps, specFor(n.notifySceneKey, n.bizType)!, n.bizId!)
+        : archive?.fact;
     const fields = current
       ? renderWechat(slot!, template.fields, {
           ...stored,

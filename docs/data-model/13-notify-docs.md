@@ -1333,3 +1333,7 @@ erDiagram
 未改动的：01 分组的两条请求第二轮已按 M65、M52 改写（5.1 的 `source_outbox_event_id`、5.2 的 `aggregate_type`）；“`sla_snapshot.calendarVersion`”一条不适用（本分组没有该列）。stale 扫描的 9 处是事件名（`merchant_user.deleted`、`merchant_user.phone_changed`、`license_letter.revision_queued`、`license_letter.issued`、`store.profile.changed`、`store.qualification_change.*`）、权限点（`agreement.short_notice`）、参数键（`agreement.announce_min_days`）与改动记录里已删除的 `notification.is_test`，不改。M110 核对：文档引用的其他分组的列都是第二轮之后的现名。
 
 **接口阶段回写（2026-10-03）**：按接口契约阶段的裁决（[../api/working/api-rulings.md](../api/working/api-rulings.md) 的 A3、A15、A32、A37、A41、A46、A95、A105）改了本文少量说明；表结构未变。按 A145（A100）：授权书快照 `letter_snapshot.verifyUrl` 的格式写为 `https://portal.<域名>/v?code=<验真码>&rev=<版次>`，`verify_code` 的说明同步（2.13、第 4 节）；表结构与约束未变。 第二批（接口第三轮之后）：2.1 补“补登播种”表（a09 2.9 标“补登”的 31 个场景键，只加行；`m.account_security` 例外为短信 `account_notice` / `always`），`patrol_fix` 映射写明 `m.patrol_abnormal`；新微信登录事件名 `account.new_wechat_bound` 改为 `merchant_user.wechat_bound`（2.1、第 7 节，A95）；2.11 编辑草稿一行与 5.1 文件引用登记补协议草稿被替换或清空的 Word、PDF 解除引用、7 天释放（a09 的请求）。表结构与 CHECK 未变。
+
+## 8. W2-10 门店归档成员的账号级告知
+
+- 另有 W2-10 最窄成员状态告知：仅真实 `store_archived` 级联的被移除本人，`biz_type = merchant_user`，entity/store/copyMode 均 NULL、非 ownerOnly、`messages.list`。正文及 vars 不含旧主体/门店与个人敏感字段；派发及发送都以实际源 outbox、归档和移除历史及当前账号重验，不泛化其他移除原因或消息读取权限。

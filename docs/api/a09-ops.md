@@ -577,6 +577,12 @@
 | `s.publish_progress` | 发布待办 | `takedown.merchant_confirmed`、`launch.verify_revoked` | 发布专员 | ✔ / ✔ | `publish.offline`；核验为 `publish.verify` | 补登（x01 订阅栏） |
 | `s.merchant_changed` | 商家变动 | `store.archived`（只 `archiveReason = by_owner`）、`entity_member.promoted`（老板更换） | 交付经理；老板更换另发服务经理 | ✔ / ✔ | `merchant.detail` | 补登（x01 订阅栏） |
 
+W2-10 停用只对持久化 `store.archived/by_owner` 及其真实迁移历史通知当前 active 交付经理。
+`m.member_changed` 的 `store_archived` 级联本人为账号级安全告知（NULL entity/store/copyMode、非 ownerOnly、
+`messages.list`、无旧业务/个人隐私）；当前有效老板另收仍可进入门店的 `store.members`。
+两端派发/外发都重验源 outbox 类型、业务 id 与当前事实，outbox.id 区分发生次数且重投去重。
+`by_owner/self/entity_closed/entity_abandoned` 等其他移除通知未在此范围开放；原 stores_changed 分支保持。
+
 ## 3. 接口
 
 ### 3.1 admin.agreement.list　协议清单

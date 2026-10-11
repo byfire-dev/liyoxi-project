@@ -29,6 +29,22 @@ export const MemberRemovalResultSchema = z
 export type MemberRemovalResult = z.infer<typeof MemberRemovalResultSchema>;
 export const MemberIdParamsSchema = z.strictObject({ memberId: IdSchema });
 
+/** 2.12/3.4：所属域真实阻断项，未命中项不返回。 */
+export const StoreBlockerSchema = z
+  .strictObject({
+    kind: z.enum([
+      "open_order",
+      "open_delivery_ticket",
+      "ad_in_production",
+      "qualification_in_review",
+      "channel_account_in_review",
+      "unverified_primary_store",
+    ]),
+    count: z.int().positive(),
+  })
+  .openapi("StoreBlocker");
+export const StoreArchiveParamsSchema = z.strictObject({ storeId: IdSchema });
+
 // ---------- 2.4–2.6 成员、待接受邀请与名额 ----------
 
 export const MemberStoreRefSchema = z.strictObject({
@@ -261,6 +277,14 @@ export const StoreCardSchema = z
   })
   .openapi("StoreCard");
 export type StoreCard = z.infer<typeof StoreCardSchema>;
+export const StoreArchiveResultSchema = z
+  .strictObject({
+    store: StoreCardSchema,
+    revokedInvitationCount: z.int().nonnegative(),
+    removedMemberCount: z.int().nonnegative(),
+  })
+  .openapi("StoreArchiveResult");
+export type StoreArchiveResult = z.infer<typeof StoreArchiveResultSchema>;
 
 /** m.store.list：不分页，按 viewerRole 判别（约定 C55）；none = 账号没有有效成员关系 */
 export const StoreListSchema = z.discriminatedUnion("viewerRole", [
