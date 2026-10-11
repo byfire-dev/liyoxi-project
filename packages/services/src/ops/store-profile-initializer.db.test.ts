@@ -63,7 +63,20 @@ function harness(prisma: PrismaClient, extra: ModuleRegistration[] = []) {
     wechat: fake.wechat,
     currentOpenid: async () => "lyxtest_profile_openid",
   });
-  return { prisma, tx, clock, make, fake, events, flow, tenant, approval, media, profile };
+  return {
+    prisma,
+    tx,
+    clock,
+    assembly,
+    make,
+    fake,
+    events,
+    flow,
+    tenant,
+    approval,
+    media,
+    profile,
+  };
 }
 type Harness = ReturnType<typeof harness>;
 
