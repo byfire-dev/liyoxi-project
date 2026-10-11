@@ -1,5 +1,9 @@
 # media 文件最小集（W1-07）
 
+`readMemberAssetCounts(tx, { entityId, storeId, merchantUserIds })` 从同一 SQL 快照返回每个去重商家账号的上传素材条数和采用过的条数。仅计同主体、同门店、商家上传且未软删除的素材，采用次数大于零的每条素材只计一次；无匹配素材才返回零，空账号集合不查询。处理、复核、可用性及当前成员状态不参与历史计数。
+
+此公口复用调用方 Tx，不开事务、不加锁、不读时钟、不调 Provider、不写业务。类型由 media 所属叶公开导出；后续成员列表通过组合根注入结构等价的 typed reader，tenant 不直接引用同层 media。当前仅完成源码准备，尚未运行本片独占验证或接入成员 HTTP。
+
 M1 只开放 MinIO 预签名表单的小文件通道。服务入口是 `createMedia`，API 用进程运行时的 `media`，worker 用 `promoteFile` / `scanPromote`；对象存储的调用全部在事务外，队列只负责唤醒，`media_job` 是任务事实源。
 
 ## 1. 上传与入库
