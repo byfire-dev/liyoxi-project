@@ -81,7 +81,6 @@ const run = (service: "fixtures" | "caller", script: string, input = "", signal?
       "run",
       "--rm",
       "--no-deps",
-      "--no-build",
       "--pull",
       "never",
       "-T",
