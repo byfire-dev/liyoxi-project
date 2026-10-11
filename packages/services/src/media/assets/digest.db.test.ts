@@ -1157,3 +1157,228 @@ describe("digest real transaction and lock boundaries", () => {
     expect(await events(facts.assetId)).toEqual(beforeEvents);
   });
 });
+
+describe("digest 文件锁等待后的新鲜准入", () => {
+  it.each(["lease", "deadline"] as const)(
+    "%s 在真实410锁等待期间到期，准入与模型都不调用",
+    async (boundary) => {
+      const facts = await readySources();
+      const clockBefore = h.clock.now();
+      await claim(facts);
+      const job = await h.prisma.mediaJob.update({
+        where: { id: facts.job.id },
+        data: {
+          nextRunAt: new Date(clockBefore.getTime() + (boundary === "lease" ? 1000 : 60_000)),
+          deadlineAt: new Date(clockBefore.getTime() + (boundary === "deadline" ? 1000 : 60_000)),
+        },
+      });
+      const admission = vi.fn(async () => true);
+      const call = vi.spyOn(h.fake.llm, "extractKeyPoints").mockResolvedValue(
+        ok({
+          points: ["过期工作不应调用模型"],
+        }),
+      );
+      const beforeEvents = await events(facts.assetId);
+      const holder = await connectTestDatabase(database.name);
+      const observer = await connectTestDatabase(database.name, { role: null });
+      let running: Promise<JobOutcome> | undefined;
+      try {
+        await holder.query("BEGIN");
+        const { rows } = await holder.query<{ pid: number }>("SELECT pg_backend_pid()::int AS pid");
+        await holder.query("SELECT id FROM file_object WHERE id=$1::uuid FOR UPDATE", [
+          facts.files[0]!.id,
+        ]);
+        running = strategy({ allowModelCall: admission }).execute(
+          job,
+          new AbortController().signal,
+        );
+        void running.catch(() => undefined);
+        await vi.waitFor(
+          async () => {
+            const blocked = await observer.query<{ count: string }>(
+              "SELECT count(*)::bigint AS count FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND $1=ANY(pg_blocking_pids(pid))",
+              [rows[0]!.pid],
+            );
+            expect(Number(blocked.rows[0]!.count)).toBeGreaterThan(0);
+          },
+          { timeout: 3000 },
+        );
+        expect(admission).not.toHaveBeenCalled();
+        expect(call).not.toHaveBeenCalled();
+        h.clock.advance(1001);
+        await holder.query("COMMIT");
+        expect(await running).toEqual({ state: "canceled" });
+        expect(admission).not.toHaveBeenCalled();
+        expect(call).not.toHaveBeenCalled();
+        expect(await insights(facts.assetId)).toEqual([]);
+        expect(await row(job.id)).toEqual(job);
+        expect(await events(facts.assetId)).toEqual(beforeEvents);
+      } finally {
+        await holder.query("ROLLBACK");
+        await running?.catch(() => undefined);
+        h.clock.set(clockBefore);
+        await Promise.all([holder.end(), observer.end()]);
+      }
+    },
+    120_000,
+  );
+});
+
+const REPROCESS_SOURCES = [
+  { type: "image" as const, insightKind: "vision", jobKind: "vision" },
+  { type: "audio" as const, insightKind: "transcript", jobKind: "asr" },
+  { type: "document" as const, insightKind: "doc_text", jobKind: "doc_extract" },
+] as const;
+
+describe("digest 真实 public reprocess 的选中来源语义", () => {
+  it.each(REPROCESS_SOURCES)(
+    "$type 仅重跑digest保留旧run同prompt合法来源并生成新摘要",
+    async ({ type, insightKind }) => {
+      const marker = `公开虚构${type}此前真实来源正文`;
+      const facts = await readySources(type, [marker], "");
+      const first = await output(facts);
+      expect(first.status).toBe("ok");
+      expect(await asset(facts.assetId)).toMatchObject({ processingState: "processed" });
+      const beforeSources = await Promise.all(
+        facts.sources.map(async (source) => ({
+          origin: await row(source.origin.id),
+          insight: await h.prisma.storeAssetInsight.findUniqueOrThrow({
+            where: { id: source.insight.id },
+          }),
+        })),
+      );
+      h.fake.llm.resetCalls();
+      await h.media.assets.reprocess(h.admin, facts.assetId, { kinds: ["digest"] });
+      const job = await h.prisma.mediaJob.findFirstOrThrow({
+        where: { parentId: facts.assetId, kind: "digest", id: { not: facts.job.id } },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      });
+      const input = AssetJobInputSchema.parse(job.input);
+      expect(input.selected).toEqual(["digest"]);
+      expect(input.runId).not.toBe(AssetJobInputSchema.parse(facts.job.input).runId);
+      for (const source of beforeSources) {
+        const original = AssetJobInputSchema.parse(source.origin.input);
+        expect(original.runId).not.toBe(input.runId);
+        expect(original.promptVersion).toBe(input.promptVersion);
+        expect(source.insight).toMatchObject({
+          status: "ok",
+          kind: insightKind,
+          mediaJobId: source.origin.id,
+        });
+        expect(assetJobOwned(source.origin)).toBe(true);
+        expect(AssetJobOutputSchema.parse(source.origin.output).content).toEqual(
+          source.insight.content,
+        );
+      }
+      const call = vi.spyOn(h.fake.llm, "extractKeyPoints").mockImplementation(async (request) => {
+        assertNotInTransaction("重跑摘要模型外呼");
+        expect(request.text).toContain(`${insightKind}: ${marker}`);
+        expect(request.maxPoints).toBe(6);
+        return ok({ points: ["重跑采用合法未选中来源"] });
+      });
+      const result = await output({ ...facts, job });
+      expect(result).toMatchObject({
+        status: "ok",
+        reason: null,
+        content: { keypoints: ["重跑采用合法未选中来源"], partial: false },
+      });
+      expect(result.content.sourceHash).toMatch(/^[a-f0-9]{64}$/);
+      expect(call).toHaveBeenCalledOnce();
+      expect((await insights(facts.assetId))[0]).toMatchObject({
+        mediaJobId: job.id,
+        status: "ok",
+        content: result.content,
+      });
+      for (const source of beforeSources) {
+        expect(await row(source.origin.id)).toEqual(source.origin);
+        expect(
+          await h.prisma.storeAssetInsight.findUniqueOrThrow({ where: { id: source.insight.id } }),
+        ).toEqual(source.insight);
+      }
+      const currentJobs = (
+        await h.prisma.mediaJob.findMany({ where: { parentId: facts.assetId } })
+      ).filter((candidate) => AssetJobInputSchema.parse(candidate.input).runId === input.runId);
+      expect(currentJobs.map((candidate) => candidate.kind)).toEqual(["digest"]);
+      expect(await asset(facts.assetId)).toMatchObject({
+        processingState: "processed",
+        reviewState: "unreviewed",
+        usability: null,
+      });
+    },
+    120_000,
+  );
+
+  it.each(REPROCESS_SOURCES)(
+    "$type 选中来源的当前run取消后，不借旧run来源伪装新成果",
+    async ({ type, insightKind, jobKind }) => {
+      const facts = await readySources(type, [`公开虚构${type}旧来源必须拒绝`], "");
+      expect((await output(facts)).status).toBe("ok");
+      const beforeSources = await Promise.all(
+        facts.sources.map(async (source) => ({
+          origin: await row(source.origin.id),
+          insight: await h.prisma.storeAssetInsight.findUniqueOrThrow({
+            where: { id: source.insight.id },
+          }),
+        })),
+      );
+      await h.media.assets.reprocess(h.admin, facts.assetId, { kinds: [insightKind, "digest"] });
+      const selected = await h.prisma.mediaJob.findFirstOrThrow({
+        where: { parentId: facts.assetId, kind: jobKind, state: "queued" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      });
+      const current = AssetJobInputSchema.parse(selected.input);
+      expect(current.selected).toEqual([insightKind, "digest"]);
+      expect(current.runId).not.toBe(AssetJobInputSchema.parse(facts.job.input).runId);
+      // 当前source的合法取消终态是历史前提；不调用会覆盖旧洞察的finish。
+      // 摘要任务仍由真实advanceAsset产生，不手写新digest或伪造来源结果。
+      await h.tx.run(async (tx) => {
+        await lockRows(tx, "store_asset", [facts.assetId]);
+        await lockRows(tx, "media_job", [selected.id]);
+        await tx.mediaJob.update({
+          where: { id: selected.id },
+          data: {
+            state: "canceled",
+            finishedAt: h.clock.now(),
+            leaseOwner: null,
+            updatedAt: h.clock.now(),
+          },
+        });
+        await advanceAsset(tx, deps(), facts.assetId);
+      });
+      const job = await h.prisma.mediaJob.findFirstOrThrow({
+        where: { parentId: facts.assetId, kind: "digest", state: "queued" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      });
+      expect(AssetJobInputSchema.parse(job.input)).toMatchObject({
+        runId: current.runId,
+        selected: [insightKind, "digest"],
+      });
+      const call = vi.spyOn(h.fake.llm, "extractKeyPoints");
+      h.fake.llm.resetCalls();
+      expect(await output({ ...facts, job })).toMatchObject({
+        status: "skipped",
+        reason: "digest_source_missing",
+        content: {},
+      });
+      expect(call).not.toHaveBeenCalled();
+      expect(h.fake.llm.calls).toEqual([]);
+      for (const source of beforeSources) {
+        expect(await row(source.origin.id)).toEqual(source.origin);
+        expect(
+          await h.prisma.storeAssetInsight.findUniqueOrThrow({ where: { id: source.insight.id } }),
+        ).toEqual(source.insight);
+      }
+      expect((await insights(facts.assetId))[0]).toMatchObject({
+        status: "skipped",
+        mediaJobId: job.id,
+      });
+      expect(await asset(facts.assetId)).toMatchObject({
+        processingState: "processed",
+        isInsightPartial: true,
+        reviewState: "unreviewed",
+        usability: null,
+      });
+    },
+    120_000,
+  );
+});
