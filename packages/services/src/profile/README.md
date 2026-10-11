@@ -1,5 +1,18 @@
 # 商家档案与首店资质（W1-08a、b）
 
+## W2-10 门店档案初始化前置
+
+`createStoreProfileInitializer` 是显式装配的 callerTx 能力，不启用默认 runtime。
+prepare 锁完整账号80→主体100→owner120→门店130→档案135，零写封存来源；
+opaque plan 绑定当前 factory、精确事务和一次消费，公开部分仅冻结的文件 ID 集合。
+来源可为同主体 by_owner 归档店，draft_deleted 拒绝；缺来源档案不补行。
+后续所属域370完成后共同预锁410，再 apply；它仍复核真实当前会话/owner/目标缺行，
+首次 INSERT 写 copiedFrom/options 与三类精确复制，真实 link 失败整笔回滚。
+basic 不带电话/人均/地址/资格；service 与形象 media 只复制未移除行，生成新身份和引用。
+完整度使用原真实算法重算，不发伪造 profile_edit 或 store.created。
+本片不交 createStore HTTP、brand_assets 或创建权限证明；外部文字检查仍是后片责任。
+SOURCE 阶段尚未执行类型、新旧数据库整叶或唯一独立审查。
+
 a 已合并交付商家十三条 API 与进程内核心；b 补后台六条，总计十九条。依据任务书第 2、9、10 节，M1 只做首店 `initial`，含非终局驳回后的补传、重新送审。
 
 qualification 审批类型在 a 登记既定权限与决定 operationId；b 在生产清单挂载六条后台处理器，并用 `handlerOf` 只读取门店真实交付经理；经理为空仍沿既有门店范围回退。W1-09 后台页面必须等 b 实际合入 main 后开工。
