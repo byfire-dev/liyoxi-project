@@ -1,4 +1,4 @@
-import { StoreAssetCardSchema, StoreDeleteResultSchema } from "@liyoxi/contract";
+import { mStoreAssetCreate, StoreDeleteResultSchema } from "@liyoxi/contract";
 import { createIdentityContext, uuidv7 } from "@liyoxi/services";
 import { createFactories, signInAsStaff, snapshotTables } from "@liyoxi/services/testing";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -286,7 +286,10 @@ describe("m.store.delete 真实 HTTP", { timeout: 120_000 }, () => {
       json: { type: "text", textBody: "待删除草稿门店的真实原创素材" },
     });
     expect(uploaded.status, await uploaded.clone().text()).toBe(200);
-    const asset = StoreAssetCardSchema.parse(((await uploaded.json()) as { data: unknown }).data);
+    const asset = mStoreAssetCreate.responses[200].content[
+      "application/json"
+    ].schema.shape.data.parse(((await uploaded.json()) as { data: unknown }).data);
+    expect(asset.replayed).toBe(false);
     const before = await snapshotTables(w.db, tables);
     const rejected = await post(w.target.id, w.owner.withStore(w.storeId), key);
     expect(rejected.response.status).toBe(409);

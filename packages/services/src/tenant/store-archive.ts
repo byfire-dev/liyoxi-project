@@ -138,7 +138,26 @@ export const guardStoreArchiveCascade: Guard = async (tx, facts: TransitionFacts
     facts.ctx.actor.type !== "system"
   )
     return false;
-  await owner(tx, state.ctx, state.ownerId, true);
+  if (state.operation === "delete" && state.ctx.storeId === state.storeId) {
+    // 本事务删除当前门店后只重验已锁定的原老板；门店终态仍由下方私有见证核对。
+    const actor = state.ctx.actor;
+    const operator =
+      actor.type === "merchant" && actor.client === "weapp"
+        ? await tx.entityMember.findFirst({
+            where: {
+              id: state.ownerId,
+              entityId: state.entityId,
+              merchantUserId: actor.id,
+              status: "active",
+              entity: { lifecycle: "active" },
+              merchantUser: { status: "active" },
+            },
+            select: { role: true },
+          })
+        : null;
+    if (!operator) throw new AppError("NOT_A_MEMBER");
+    if (operator.role !== "owner") throw new AppError("ROLE_FORBIDDEN");
+  } else await owner(tx, state.ctx, state.ownerId, true);
   const store = await tx.store.findUnique({ where: { id: state.storeId } });
   if (
     store?.entityId !== state.entityId ||
