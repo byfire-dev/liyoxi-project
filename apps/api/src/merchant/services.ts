@@ -16,6 +16,7 @@ import {
   createProfile,
   currentSessionOpenid,
   security,
+  media,
 } from "@liyoxi/services";
 import type { Docs, Identity, Runtime, Tenant, Profile, WechatProvider } from "@liyoxi/services";
 
@@ -59,7 +60,14 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
   const { tx, clock, assembly, config, events } = runtime;
   const flow = createFlow({ assembly, clock, events });
   const docs = docsOf(runtime);
-  const tenant = createTenant({ tx, clock, flow, assembly });
+  const tenant = createTenant({
+    tx,
+    clock,
+    flow,
+    assembly,
+    events,
+    readMemberAssetCounts: media.readMemberAssetCounts,
+  });
   let keyring = deps.keyring;
   const appid = deps.appid ?? runtime.env.WECHAT?.appid ?? PLACEHOLDER_WEAPP_APPID;
   const identity = createIdentity({
