@@ -5,6 +5,7 @@ import { createMediaAssetsHarness } from "@liyoxi/services/testing";
 import { useTestApi } from "../src/testing/index.js";
 import type { TestApi } from "../src/testing/index.js";
 import { asrHookHandlers } from "../src/routes/hooks/asr.js";
+import { webhookRateLimit } from "../src/http/webhook.js";
 
 const handle = useTestApi();
 const key = "public-fake-asr-api-callback-key-with-32-bytes";
@@ -287,7 +288,15 @@ describe(operationId + "真实API/DB/Redis组合", () => {
   it("真实hooks.ip限频保留429和Retry-After，坏签名也计数", async () => {
     const limited = await handle.start({
       handlers: asrHookHandlers,
-      rateLimitQuotas: { "hooks.ip": [{ by: "ip", limit: 2, windowSec: 60 }] },
+      middlewares: [
+        {
+          slot: "rateLimit",
+          groups: ["hooks"],
+          factory: webhookRateLimit({
+            quotas: { "hooks.ip": [{ by: "ip", limit: 2, windowSec: 60 }] },
+          }),
+        },
+      ],
       webhookSources: [
         security.createAsrWebhookSource({
           key,
