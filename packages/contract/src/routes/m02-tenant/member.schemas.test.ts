@@ -79,14 +79,14 @@ describe("formal member DTOs and role projection", () => {
     expect(MemberItemSchema.safeParse({ ...full, uploadCount: -1 }).success).toBe(false);
     expect(MemberItemSchema.safeParse({ ...full, adoptedCount: 0.5 }).success).toBe(false);
   });
-  it("response role/lifecycle remain open while actions, scopes and instant shape stay exact", () => {
+  it("server validates known response roles/lifecycles and exact actions, scopes and instants", () => {
     expect(
       MemberItemSchema.safeParse({
         ...full,
         role: "future_role",
         stores: [{ ...full.stores[0], lifecycle: "future_state" }],
       }).success,
-    ).toBe(true);
+    ).toBe(false);
     for (const patch of [
       { storeScope: "all_stores" },
       { actions: ["promote"] },
@@ -120,7 +120,7 @@ describe("formal member DTOs and role projection", () => {
   it("existing route IDs preserve member auth, trimmed/none visibility and required mutation idem", () => {
     expect(mMemberList).toMatchObject({
       method: "get",
-      path: "/m/members",
+      path: "/api/v1/m/members",
       operationId: "m.member.list",
       "x-auth": "member",
       "x-capability": "member.list",
@@ -128,7 +128,7 @@ describe("formal member DTOs and role projection", () => {
     });
     expect(mMemberUpdate).toMatchObject({
       method: "patch",
-      path: "/m/members/{memberId}",
+      path: "/api/v1/m/members/{memberId}",
       operationId: "m.member.update",
       "x-auth": "member",
       "x-capability": "member.manage",
