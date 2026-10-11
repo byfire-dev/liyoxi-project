@@ -1,6 +1,10 @@
 import { AppError, lockRows, uuidv7 } from "../../kernel/index.js";
 import type { Tx, MerchantFactsQuery } from "../../kernel/index.js";
 import { assetSelectable } from "./steps.js";
+/** 只排除软删除与复制素材，审核、处理、角色和成员状态不改变上传历史。 */
+export function countStoreOriginalAssets(tx: Tx, input: { entityId: string; storeId: string }) {
+  return tx.storeAsset.count({ where: { ...input, deletedAt: null, sourceStoreAssetId: null } });
+}
 export async function assetMerchantFacts(tx: Tx, query: MerchantFactsQuery) {
   const stores: Record<string, { assetCount: number; recent7dCount: number }> = {};
   for (const id of query.storeIds) {

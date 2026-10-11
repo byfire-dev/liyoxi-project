@@ -218,6 +218,7 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
     activity: describe("store", "merchant_lifecycle", {
       "store.create": "创建门店",
       "store.archive": "停用门店",
+      "store.draft_delete": "删除草稿门店",
       "store.restore": "恢复门店",
       "store.archive_by_entity": "随主体关闭停用门店",
     }),
@@ -225,6 +226,7 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
       [rowKey("02:607", "store.create")]: async (tx, facts) =>
         (await guardStoreCreate(tx, facts)) || firstStoreOfOwnEntity(tx, facts),
       [rowKey("02:608", "store.archive")]: guardStoreArchive,
+      [rowKey("02:609", "store.draft_delete")]: guardStoreArchive,
       [rowKey("02:612", "store.restore")]: guardStoreRestore,
       [rowKey("02:611", "store.archive_by_entity")]: guardAccept,
     },

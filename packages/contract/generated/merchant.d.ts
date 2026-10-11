@@ -1434,8 +1434,7 @@ export interface paths {
         /** 我可见的门店：审核状态、完整度、提交与预计完成时间、上线中/交付中/素材/店员计数、待办数；主体额度（门店 n/N、成员名额 n/N，店员不含）；含已停用门店并标注 */
         get: operations["m.store.list"];
         put?: never;
-        /** 新增门店并按勾选复制档案（基础信息、服务与价格、门店形象、品牌故事素材）；校验主体门店额度 */
-        post: operations["m.store.create"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1453,6 +1452,23 @@ export interface paths {
         put?: never;
         /** 停用门店：返回阻断项清单（在办订购、未归档工单、制作中广告、审核中的资质与账号）或停用成功 */
         post: operations["m.store.archive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/stores/{storeId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 删除草稿门店（从未提交资质且无业务数据、不是最后一家）；不物理删除，置为已停用 */
+        post: operations["m.store.delete"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4746,14 +4762,11 @@ export interface components {
             storeId: string;
             todoCount: number;
         };
-        StoreCreateBody: {
-            addressDetail: string;
-            categoryCode: string;
+        StoreDeleteResult: {
+            /** Format: date-time */
+            deletedAt: string;
             /** Format: uuid */
-            copyFromStoreId?: string | null;
-            copyOptions?: ("basic" | "service" | "media" | "brand_assets")[];
-            industryCode: string;
-            name: string;
+            storeId: string;
         };
         StoreProfileBasic: {
             address: components["schemas"]["AddressView"];
@@ -12416,18 +12429,16 @@ export interface operations {
             };
         };
     };
-    "m.store.create": {
+    "m.store.archive": {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                storeId: string;
+            };
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["StoreCreateBody"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description 成功 */
             200: {
@@ -12438,7 +12449,7 @@ export interface operations {
                     "application/json": {
                         /** @enum {number} */
                         code: 0;
-                        data: components["schemas"]["StoreCard"];
+                        data: components["schemas"]["StoreArchiveResult"];
                         /** @enum {string} */
                         message: "ok";
                     };
@@ -12471,6 +12482,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
             409: {
                 headers: {
@@ -12480,18 +12500,9 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description 外部能力不可用、系统繁忙或停机维护 */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
         };
     };
-    "m.store.archive": {
+    "m.store.delete": {
         parameters: {
             query?: never;
             header?: never;
@@ -12511,7 +12522,7 @@ export interface operations {
                     "application/json": {
                         /** @enum {number} */
                         code: 0;
-                        data: components["schemas"]["StoreArchiveResult"];
+                        data: components["schemas"]["StoreDeleteResult"];
                         /** @enum {string} */
                         message: "ok";
                     };

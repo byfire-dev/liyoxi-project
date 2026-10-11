@@ -2,6 +2,10 @@ import { visible } from "@liyoxi/shared/catalog";
 import { calendarDate } from "@liyoxi/shared/time";
 import { paramsAt, priceAt } from "../billing/index.js";
 import type { Tx, MerchantFactsProvider } from "../kernel/index.js";
+/** 已取消、结束和退款的订购单仍是门店业务历史。 */
+export function countStoreOrderHistory(tx: Tx, input: { entityId: string; storeId: string }) {
+  return tx.dramaOrder.count({ where: input });
+}
 export const ITEM_GROUPS = [
   ["live"],
   ["pending_start", "producing", "to_launch"],

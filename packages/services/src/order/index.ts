@@ -30,6 +30,7 @@ export {
   countOrderItemsByPhase,
   countOpenOrdersByEntity,
   countBlockingStoreOrders,
+  countStoreOrderHistory,
   orderMerchantFacts,
 } from "./counts.js";
 export { readOrderAssetUsage } from "./asset-facts.js";

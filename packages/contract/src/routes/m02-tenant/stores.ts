@@ -2,7 +2,6 @@
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { errorResponses, okResponse } from "../../common/index.js";
 import { merchantRoute } from "../builders.js";
-import { merchantMeta } from "../meta-only.js";
 
 import {
   StoreListSchema,
@@ -11,6 +10,8 @@ import {
   StoreRestoreParamsSchema,
   StoreCardSchema,
   StoreCreateBodySchema,
+  StoreDeleteParamsSchema,
+  StoreDeleteResultSchema,
 } from "./tenant.schemas.js";
 
 export const mStoreList = merchantRoute({
@@ -55,7 +56,7 @@ export const mStoreArchive = merchantRoute({
   },
 });
 
-export const mStoreDelete = merchantMeta({
+export const mStoreDelete = merchantRoute({
   method: "post",
   path: "/m/stores/{storeId}/delete",
   operationId: "m.store.delete",
@@ -63,6 +64,8 @@ export const mStoreDelete = merchantMeta({
   "x-capability": "store.archive",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: { params: StoreDeleteParamsSchema },
+  responses: { ...okResponse(StoreDeleteResultSchema), ...errorResponses(400, 401, 403, 404, 409) },
 });
 
 export const mStoreRestore = merchantRoute({

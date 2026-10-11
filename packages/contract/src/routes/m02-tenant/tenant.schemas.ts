@@ -45,6 +45,12 @@ export const StoreBlockerSchema = z
   .openapi("StoreBlocker");
 export const StoreArchiveParamsSchema = z.strictObject({ storeId: IdSchema });
 export const StoreRestoreParamsSchema = z.strictObject({ storeId: IdSchema });
+export const StoreDeleteParamsSchema = z.strictObject({ storeId: IdSchema });
+export const StoreDeleteResultSchema = z
+  .strictObject({ storeId: IdSchema, deletedAt: InstantSchema })
+  .openapi("StoreDeleteResult");
+export type StoreDeleteResult = z.infer<typeof StoreDeleteResultSchema>;
+export const StoreNotDraftReasonSchema = z.enum(["qualification_submitted", "has_business_data"]);
 
 // ---------- 2.4–2.6 成员、待接受邀请与名额 ----------
 

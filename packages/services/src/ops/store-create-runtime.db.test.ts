@@ -522,3 +522,357 @@ describe("公开创建命令与真实四项档案/素材组合", { timeout: SLOW
     }
   });
 });
+
+// 原组合整叶保持不变；以下只追加真实 create/delete 生产者的双序竞争。
+import { createPrismaClient } from "@liyoxi/db";
+import type { PrismaClient } from "@liyoxi/db";
+import { createEvents } from "../events/index.js";
+import { createTxRunner } from "../kernel/index.js";
+import type { Tx, TxRunner } from "../kernel/index.js";
+import { readStoreDraftFacts } from "./index.js";
+
+function createDeleteSide(prisma: PrismaClient, runner?: TxRunner) {
+  const tx = runner ?? createTxRunner({ prisma, appEnv: "test" }),
+    events = createEvents({ tx, clock: h.clock, assembly: h.assembly }),
+    flow = createFlow({ clock: h.clock, assembly: h.assembly, events });
+  const approval = createApproval({
+    assembly: h.assembly,
+    clock: h.clock,
+    flow,
+    events,
+    bizNo: createBizNoIssuer({ clock: h.clock, appEnv: "test" }),
+  });
+  const creation: Ports = {
+    assertSession: (handle, principal, now) =>
+      assertCurrentSessionForTest(handle, principal, now, APPID),
+    async validateBasics(ctx, principal, input) {
+      const membership = await tx.run((handle) =>
+        sideTenant.resolveMembership(handle, {
+          merchantUserId: principal.merchantUserId,
+          storeId: ctx.storeId!,
+        }),
+      );
+      if (!membership) throw new AppError("NOT_A_MEMBER");
+      guardProviderCall({ provider: "wechat", method: "checkText" });
+      await sideProfile.validateStoreBasics(
+        { ctx, principal, membership },
+        {
+          draft: false,
+          lockVersion: 0,
+          storeName: input.name,
+          industryCode: input.industryCode,
+          categoryCode: input.categoryCode,
+          address: {
+            provinceCode: null,
+            cityCode: null,
+            districtCode: null,
+            zoneCode: null,
+            detail: input.addressDetail,
+            poiName: null,
+            latitude: null,
+            longitude: null,
+          },
+        },
+      );
+    },
+    async initialize(handle, ctx, principal, input) {
+      const owner = createStoreProfileAssetInitializer({
+        clock: h.clock,
+        tenant: sideTenant,
+        media: h.media,
+        expectedAppid: APPID,
+        sla: h.assets.sla,
+        timers: h.timers,
+      });
+      await owner.apply(handle, await owner.prepare(handle, ctx, principal, input));
+    },
+  };
+  const sideTenant = createTenant({
+    ...h,
+    tx,
+    events,
+    flow,
+    archiveTimers: h.timers,
+    readStoreDraftFacts,
+    storeCreation: creation,
+  });
+  const sideProfile = createProfile({
+    ...h,
+    tx,
+    events,
+    tenant: sideTenant,
+    approval,
+    keyring: () => TEST_KEYRING,
+    wechat: h.fake.wechat,
+    currentOpenid: (principal) =>
+      tx.run((handle) => currentSessionOpenidForTest(handle, principal, APPID)),
+  });
+  return { tx, tenant: sideTenant };
+}
+function producerGate() {
+  let release!: () => void;
+  const promise = new Promise<void>((done) => {
+    release = done;
+  });
+  return { promise, release };
+}
+async function producerBounded<T>(promise: Promise<T>) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("创建/删除真实事务栅栏超时")), 5000);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function producerBlocked(
+  observer: Awaited<ReturnType<typeof connectTestDatabase>>,
+  waiter: number,
+  holder: number,
+) {
+  const until = Date.now() + 3000;
+  do {
+    const result = await observer.query<{ blocked: boolean }>(
+      "SELECT $2::int=ANY(pg_blocking_pids($1::int)) AS blocked",
+      [waiter, holder],
+    );
+    if (result.rows[0]?.blocked) {
+      const all = await observer.query<{ pid: number }>(
+        "SELECT pid FROM pg_stat_activity WHERE datname=current_database() AND backend_type='client backend' AND pid<>pg_backend_pid() ORDER BY pid",
+      );
+      expect(all.rows.map((row) => row.pid)).toEqual([holder, waiter].sort((a, b) => a - b));
+      return;
+    }
+    await new Promise((done) => setTimeout(done, 15));
+  } while (Date.now() < until);
+  throw new Error("未观察到 create/delete 两具名业务连接真实阻塞");
+}
+
+describe("公开 create/delete 的两个 max1 业务连接与只读观察者", { timeout: SLOW }, () => {
+  let secondClient: PrismaClient, sides: ReturnType<typeof createDeleteSide>[], pids: number[];
+  beforeAll(async () => {
+    // h 的 max1 池直接作为第一侧；只在建库完成后增加一个 max1 池。
+    secondClient = createPrismaClient({ connectionString: await db.url(), max: 1 });
+    sides = [h.prisma, secondClient].map((client) => createDeleteSide(client));
+    pids = await Promise.all(
+      [h.prisma, secondClient].map(async (client) => {
+        const [row] = await client.$queryRaw<
+          Array<{ pid: number }>
+        >`SELECT pg_backend_pid() AS pid`;
+        if (!row) throw new Error("创建/删除真实业务 PID 缺失");
+        return row.pid;
+      }),
+    );
+    expect(new Set(pids).size).toBe(2);
+  }, SLOW);
+  afterAll(async () => {
+    await secondClient?.$disconnect();
+  }, SLOW);
+
+  it.each([
+    "quota_delete_first",
+    "quota_create_first",
+    "source_delete_first",
+    "source_create_first",
+    "context_delete_first",
+    "context_create_first",
+  ] as const)("%s 保留真实生产者、锁后事实与唯一副作用", async (mode) => {
+    const w = await world(),
+      secondary = await run(w, [], sides[0]!.tenant),
+      deleteFirst = mode.endsWith("delete_first"),
+      source = mode.startsWith("source"),
+      context = mode.startsWith("context"),
+      succeeds = !deleteFirst || (!source && !context);
+    const limit = mode === "quota_delete_first" ? 2 : 3;
+    await h.prisma.entity.update({
+      where: { id: w.entityId },
+      data: { storeLimitOverride: limit },
+    });
+    const ctx = context ? createIdentityContext({ ...w.ctx, storeId: secondary.storeId }) : w.ctx;
+    const input: StoreCreateBody = {
+      ...body,
+      copyOptions: source ? ["basic"] : [],
+      ...(source ? { copyFromStoreId: secondary.storeId } : {}),
+    };
+    const originalProfiles = await h.prisma.storeProfile.findMany({
+      where: { entityId: w.entityId },
+      orderBy: { storeId: "asc" },
+    });
+    const unchanged = tables.filter(
+      (table) =>
+        ![
+          "store",
+          "store_profile",
+          "status_transition",
+          "audit_log",
+          "outbox_event",
+          "entity_member",
+        ].includes(table),
+    );
+    const original = await snapshotTables(h.prisma, unchanged),
+      createKey = uuidv7(),
+      deleteKey = uuidv7(),
+      entered = producerGate(),
+      release = producerGate();
+    const condition = async (handle: Tx) =>
+      deleteFirst
+        ? (await handle.store.findUniqueOrThrow({ where: { id: secondary.storeId } }))
+            .archiveReason === "draft_deleted"
+        : (await handle.store.count({ where: { entityId: w.entityId } })) === 3;
+    const runner: TxRunner = {
+      run: (fn, options) =>
+        sides[0]!.tx.run(async (handle) => {
+          const result = await fn(handle);
+          if (await condition(handle)) {
+            entered.release();
+            await release.promise;
+          }
+          return result;
+        }, options),
+    };
+    const holding = createDeleteSide(h.prisma, runner);
+    const create = (side: ReturnType<typeof createDeleteSide>) =>
+      side.tenant.createStore(ctx, input, {
+        principal: w.principal,
+        idem: createIdempotencyContext({
+          mode: "required",
+          scope: "m.store.create",
+          actor: ctx.actor,
+          key: createKey,
+          request: { method: "POST", body: input, storeId: ctx.storeId },
+        }),
+      });
+    const remove = (side: ReturnType<typeof createDeleteSide>) =>
+      side.tenant.deleteStore(
+        w.ctx,
+        { storeId: secondary.storeId },
+        {
+          idem: createIdempotencyContext({
+            mode: "required",
+            scope: "m.store.delete",
+            actor: w.ctx.actor,
+            key: deleteKey,
+            request: {
+              method: "POST",
+              pathParams: { storeId: secondary.storeId },
+              body: null,
+              storeId: w.ctx.storeId,
+            },
+          }),
+        },
+      );
+    const observer = await connectTestDatabase(db.name, { role: null });
+    const first = Promise.allSettled([deleteFirst ? remove(holding) : create(holding)]);
+    let second: Promise<PromiseSettledResult<unknown>[]> | undefined;
+    try {
+      await producerBounded(entered.promise);
+      second = Promise.allSettled([deleteFirst ? create(sides[1]!) : remove(sides[1]!)]);
+      await producerBlocked(observer, pids[1]!, pids[0]!);
+      release.release();
+      const firstResult = (await producerBounded(first))[0]!,
+        secondResult = (await producerBounded(second))[0]!;
+      expect(firstResult.status).toBe("fulfilled");
+      const created = deleteFirst ? secondResult : firstResult,
+        deleted = deleteFirst ? firstResult : secondResult;
+      expect(deleted).toMatchObject({ status: "fulfilled", value: { storeId: secondary.storeId } });
+      if (succeeds) {
+        expect(created.status).toBe("fulfilled");
+        if (created.status !== "fulfilled") throw created.reason;
+        const card = StoreCardSchema.parse(created.value);
+        expect(card).toMatchObject({
+          lifecycle: "active",
+          isPrimary: false,
+          qualificationStatus: "unsubmitted",
+        });
+        expect(
+          await h.prisma.storeProfile.findUniqueOrThrow({ where: { storeId: card.storeId } }),
+        ).toMatchObject({
+          copiedFromStoreId: source ? secondary.storeId : null,
+          copyOptions: source ? ["basic"] : [],
+          addressDetail: body.addressDetail,
+          industryCode: body.industryCode,
+          categoryCode: body.categoryCode,
+          brandName: null,
+        });
+        expect(
+          await h.prisma.outboxEvent.count({
+            where: { aggregateId: card.storeId, eventType: "store.created" },
+          }),
+        ).toBe(1);
+        expect(
+          await h.prisma.statusTransition.count({
+            where: { subjectId: card.storeId, event: "store.create" },
+          }),
+        ).toBe(1);
+      } else {
+        expect(created).toMatchObject({
+          status: "rejected",
+          reason: { error: source ? "VALIDATION_FAILED" : "NOT_A_MEMBER" },
+        });
+      }
+      expect(await h.prisma.store.count({ where: { entityId: w.entityId } })).toBe(
+        succeeds ? 3 : 2,
+      );
+      expect(await h.prisma.storeProfile.count({ where: { entityId: w.entityId } })).toBe(
+        originalProfiles.length + Number(succeeds),
+      );
+      for (const row of originalProfiles)
+        expect(
+          await h.prisma.storeProfile.findUniqueOrThrow({ where: { storeId: row.storeId } }),
+        ).toEqual(row);
+      expect(await snapshotTables(h.prisma, unchanged)).toEqual(original);
+      expect(await h.prisma.store.findUniqueOrThrow({ where: { id: w.storeId } })).toMatchObject({
+        lifecycle: "active",
+        isPrimary: true,
+      });
+      expect(
+        await h.prisma.store.findUniqueOrThrow({ where: { id: secondary.storeId } }),
+      ).toMatchObject({ lifecycle: "archived", archiveReason: "draft_deleted" });
+      expect(await h.tx.run((handle) => tenant.getQuotaUsage(handle, w.entityId))).toMatchObject({
+        storesUsed: succeeds ? 2 : 1,
+        storeLimit: limit,
+      });
+      expect(
+        await h.prisma.outboxEvent.count({
+          where: { entityId: w.entityId, eventType: "store.created" },
+        }),
+      ).toBe(2 + Number(succeeds));
+      expect(
+        await h.prisma.statusTransition.count({
+          where: { subjectId: secondary.storeId, event: "store.draft_delete" },
+        }),
+      ).toBe(1);
+      expect(
+        await h.prisma.auditLog.count({
+          where: { targetId: secondary.storeId, action: "tenant.store.draft_delete" },
+        }),
+      ).toBe(1);
+      for (const eventType of ["store.archived", "store.draft_deleted"])
+        expect(
+          await h.prisma.outboxEvent.count({
+            where: { aggregateId: secondary.storeId, eventType },
+          }),
+        ).toBe(1);
+      // 技术收据与业务旁写分别核：失败不能持久化成功创建结果。
+      expect(
+        await h.prisma.idempotencyRecord.count({
+          where: { scope: "m.store.create", key: createKey, state: "done" },
+        }),
+      ).toBe(Number(succeeds));
+      expect(
+        await h.prisma.idempotencyRecord.count({
+          where: { scope: "m.store.delete", key: deleteKey, state: "done" },
+        }),
+      ).toBe(1);
+    } finally {
+      release.release();
+      await first;
+      if (second) await second;
+      await observer.end();
+    }
+  });
+});

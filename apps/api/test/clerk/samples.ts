@@ -431,6 +431,14 @@ export const CLERK_SAMPLES: readonly Sample[] = [
       }),
   },
   {
+    operationId: "m.store.delete",
+    play: (api, ctx) =>
+      api.request(`/api/v1/m/stores/${ctx.storeId}/delete`, {
+        method: "POST",
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      }),
+  },
+  {
     operationId: "m.store.create",
     play: (api, ctx) =>
       api.request("/api/v1/m/stores", {

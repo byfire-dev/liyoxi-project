@@ -17477,7 +17477,7 @@
    "conventions.md:107"
   ],
   "version": "V1.0",
-  "notes": "动作名 delete-draft 按词表改为 delete（软删除，C12；资源登记表 stores 的说明）。不物理删除，置为已停用（M93；06-data-model.md:74）。能力点沿用 store.archive（d4 未单列）。原路线图 natural 按 A17 改 required。停用联动同 m.store.archive（邀请撤回、店员移出），发 store.archived、store.draft_deleted、invitation.revoked、entity_member.removed。资质草稿轮次的丢弃（qualification_submission 草稿 → 已关闭，discarded）不是本接口同事务的迁移：由 profile 订阅 store.draft_deleted / store.archived 后在自己的事务里执行（04-profile.md:344），归 x01 的非 HTTP 迁移归属表。草稿判定：从未提交资质，且没有订购单、广告、渠道账号、客服工单、本店上传的未删除素材；新增门店时复制来的素材（source_store_asset_id 非空）不算。"
+  "notes": "动作名 delete-draft 按词表改为 delete（软删除，C12；资源登记表 stores 的说明）。不物理删除，置为已停用（M93；06-data-model.md:74）。能力点沿用 store.archive（d4 未单列）。原路线图 natural 按 A17 改 required。停用联动同 m.store.archive（邀请撤回、店员移出），发 store.archived、store.draft_deleted、invitation.revoked、entity_member.removed。资质草稿轮次的丢弃（qualification_submission 草稿 → 已关闭，discarded）不是本接口同事务的迁移：由 profile 订阅 store.draft_deleted / store.archived 后在自己的事务里执行（04-profile.md:344），归 x01 的非 HTTP 迁移归属表。草稿判定：从未提交资质，且没有订购单、广告、渠道账号、客服工单、本店上传的未删除素材；新增门店时复制来的素材（source_store_asset_id 非空）不算。已接真实六历史 callerTx 公口及原六阻断，终态仍计且未知值不默认零；required 收据、完整原锁图、私有 operation 见证和级联同事务。draft_deleted 归档/恢复隐藏404；成员安全告知按当前发生次，经理仍仅 by_owner，HTTP 不反向写档案。"
  },
  {
   "id": "m02.store.restore",

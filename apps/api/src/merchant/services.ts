@@ -13,6 +13,7 @@ import {
   createFlow,
   createIdentity,
   createTenant,
+  readStoreDraftFacts,
   createProfile,
   createStoreProfileAssetInitializer,
   createSla,
@@ -147,6 +148,7 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
         await initializer.apply(handle, plan);
       },
     },
+    readStoreDraftFacts,
     invitations: {
       keyring: () => (keyring ??= security.loadKeyring(runtime.env)),
       timers: runtime.timers,
