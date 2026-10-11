@@ -30,6 +30,7 @@ import {
   ProbeResponseSchema,
   StampResponseSchema,
   WatermarkPngResponseSchema,
+  DocTextResponseSchema,
 } from "./schema.js";
 import { validWatermarkPng } from "./png.js";
 
@@ -44,6 +45,7 @@ const HARD_TIMEOUT_MS = {
   stampAigc: 90_000,
   health: 5_000,
   watermarkPng: 30_000,
+  docText: 10_000,
 } as const;
 const QUEUE_ALLOWANCE_MS = 30_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -357,6 +359,41 @@ export function createMediaToolClient(options: MediaToolClientOptions = {}): Med
     (MEDIATOOL_DEMUXERS as readonly unknown[]).includes(value);
 
   return {
+    async docText(input) {
+      if (!isRelativeWorkPath(input.path)) return badPath("path");
+      if (
+        !["pdf", "docx", "txt"].includes(input.ext) ||
+        !Number.isInteger(input.maxChars) ||
+        input.maxChars < 1 ||
+        input.maxChars > 250_000 ||
+        (input.timeoutMs !== undefined &&
+          (!Number.isSafeInteger(input.timeoutMs) || input.timeoutMs < 1000))
+      )
+        return failed("rejected", "文档参数不合规");
+      const result = interpret(
+        DocTextResponseSchema,
+        await call(
+          "POST",
+          "/docText",
+          {
+            path: input.path,
+            ext: input.ext,
+            maxChars: input.maxChars,
+            timeoutMs: Math.min(input.timeoutMs ?? 10_000, 10_000),
+          },
+          waitFor("docText"),
+          input.signal,
+        ),
+      );
+      if (!result.ok) return result;
+      const { ok: _, ...facts } = result.value;
+      if (
+        Array.from(facts.text).length !== Math.min(input.maxChars, facts.charCount) ||
+        (input.ext === "pdf" ? facts.pageCount === undefined : facts.pageCount !== undefined)
+      )
+        return failed("rejected", "文档截断或页数事实不一致");
+      return ok(facts);
+    },
     async probe(input) {
       if (!isRelativeWorkPath(input.path)) return badPath("path");
       if (

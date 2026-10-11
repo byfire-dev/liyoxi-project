@@ -10,7 +10,12 @@
 //   5. 加方法时三处一起改，少一处即编译失败：接口、PROVIDER_METHODS、未配置实现与替身。
 // 本文件只从无反向依赖的 mediatool 结构文件引纯类型，不依赖客户端或工作区实现。
 
-import type { MediaToolDemuxer, MediaToolHealth, ProbeReport } from "./mediatool/schema.js";
+import type {
+  DocTextResult,
+  MediaToolDemuxer,
+  MediaToolHealth,
+  ProbeReport,
+} from "./mediatool/schema.js";
 
 // ---------- 通用 ----------
 
@@ -324,6 +329,14 @@ export interface StampResult {
 }
 
 export interface MediaToolClient {
+  /** Container-only extraction; optional preserves existing fake/unconfigured clients. */
+  docText?(input: {
+    path: string;
+    ext: "pdf" | "docx" | "txt";
+    maxChars: number;
+    timeoutMs?: number;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<DocTextResult>>;
   /** 体检：媒体信息、顶层 box 顺序、AIGC 标签。demuxers 依次尝试 */
   probe(input: {
     path: string;

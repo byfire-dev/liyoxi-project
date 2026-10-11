@@ -9,7 +9,7 @@
 | 路径 | 内容 |
 | --- | --- |
 | `Dockerfile` | 镜像 `liyoxi/mediatool`：`node:24-slim`（固定摘要）加 Debian 12 仓库里写死版本的 ffmpeg / ffprobe，再加 `service/` |
-| `service/` | 容器内服务：不带任何 npm 依赖的 ESM JavaScript，没有构建步骤。`server.mjs`（套接字、排队、路由）、`ops.mjs`（三个操作与 ffmpeg 参数）、`run.mjs`（子进程与硬超时）、`paths.mjs`（路径核对）、`boxes.mjs`（顶层 box 顺序）、`selfcheck.mjs`（容器自查）、`healthcheck.mjs` |
+| `service/` | 容器内 ESM 服务。`server.mjs`（套接字、排队、路由）、`ops.mjs`（原媒体操作）、`doc-text*.mjs`（隔离文档子进程与ZIP守卫）、`run.mjs`（子进程与硬超时）、`paths.mjs`（路径核对）、`boxes.mjs`、`selfcheck.mjs`、`healthcheck.mjs`；文档解析固定依赖见 `deps/` |
 | `compose.verify.yml` | 验证用的 Compose：`mediatool` 套上全部约束；`fixtures`、`caller` 是两个一次性容器 |
 | `verify/` | 验证：`run.mjs`（宿主机上的编排）、`make-fixtures.mjs`（造测试片与对照）、`cases/`（用例，Node 自带的测试运行器）、`bench.mjs`（耗时）、`lib/` |
 | `tsconfig.json` | 给 `service/`、`verify/` 做类型检查用（`// @ts-check` 加 JSDoc）。`pnpm typecheck` 不包含它，单独跑：`pnpm exec tsc --noEmit -p infra/docker/mediatool` |
@@ -67,7 +67,31 @@ mediatool:
 | 内存 | 上限 1GB 是 D5 的约定。预发节点内存小，要调低时见第 6 节的实测 |
 | 镜像版本 | 本地整套环境用 `liyoxi/mediatool:local`（`pnpm stack:build` 出，W1-22 定）；推镜像仓库的标签是 `sha-<12 位提交号>`（D7 第 7.4 节，W2-25）。`:verify` 只是验证时的本地标签 |
 
-没有做的：`docText`（文档抽文本，G3-C）、进程内实现（没有 Docker 时的开发退路）、整套 Compose（W1-22）。
+`docText` 隔离能力已通过本地真实容器验证；素材策略尚未接入。
+没有做的：进程内实现（没有 Docker 时的开发退路）、整套 Compose（W1-22）。
+
+### docText 能力前置（W315d）
+
+`POST /docText {path,ext,maxChars,timeoutMs?}`只收共享任务目录的相对路径；
+ext仅pdf/docx/txt，输入≤20MiB，maxChars为1–250000码点。解析子进程单次
+上限10秒、128MiB heap，取消/硬超时沿原进程组SIGKILL并等待close；不输出正文日志。
+结果为实际`text/truncated/charCount/pageCount?`；charCount是完整正文码点数，
+text按maxChars截断。PDF≤100页且仅读文本层，返回实际页数；TXT/DOCX不猜页数。
+全文最多250k码点；UTF8 fatal失败再GBK fatal；无文本/损坏/加密保守失败，不做OCR。
+DOCX保既有ZIP32MiB展开/256entry/8MiB单项/100倍压缩比、CRC/路径/宏/DTD等核验，
+Mammoth禁外部文件/图片，正文跳过table AST节点。xlsx拒抽；PDF不声称识别/排除
+所有版面表格，不生成结构化表格。此口不返回HTML或相似度，不改变D6转换器。
+
+`MediaToolClient.docText`为兼容可选方法，生产tools接同一外呼守卫与关闭/取消确认；
+默认素材策略、Provider工厂与预算未启用。2026-10-11在Linux arm64真实隔离镜像中，
+新增11项docText socket用例全部通过，含UTF8/GBK、跳过DOCX表节点、两页中文PDF、
+空文本/加密/损坏、预算、ZIP及取消确认。原完整verify实际44项：43通过，1项因缺业主样片
+按原条件跳过；原沙箱检查全部通过。原199.8MiB五轮probe+poster最慢376ms，三轮
+stampAigc最慢421ms，原10000ms判据和回读保持；只是本机观察，不代表负载或预发结果。
+文档依赖阶段已实际无网构建；完整镜像按原固定APT层/default构建通过，完整镜像
+`--network=none`重建因APT缓存按网络模式分键而失败，不能声称全镜像离线重建通过。
+调度接受此构建证据边界，运行时仍严格无网/无密钥/只读根/非root/1CPU/1GiB。
+依赖来源和native分支见[deps](deps/README.md)；未验证Linux x64或真实业主文档准确率。
 
 ## 4. 接口
 
