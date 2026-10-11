@@ -150,6 +150,7 @@ describe("三owner真实PG与Redis预算", () => {
             : await h.readyText();
       const d = h.deps(),
         legacy = vi.fn(async () => true);
+      const readsBefore = h.fake.storage.callsOf("presignGet").length;
       const assets = { ...d.assets, modelBudget: undefined, allowModelCall: legacy };
       const strategy =
         kind === "asr"
@@ -164,7 +165,7 @@ describe("三owner真实PG与Redis预算", () => {
       expect(h.budget.readPermit).not.toHaveBeenCalled();
       expect(h.budget.reserve).not.toHaveBeenCalled();
       expect(h.signing).not.toHaveBeenCalled();
-      expect(h.fake.storage.callsOf("presignGet")).toHaveLength(0);
+      expect(h.fake.storage.callsOf("presignGet")).toHaveLength(readsBefore);
       expect(h.fake.asr.callsOf("submit")).toHaveLength(0);
       expect(h.vision).not.toHaveBeenCalled();
       expect(h.digest).not.toHaveBeenCalled();
@@ -395,6 +396,7 @@ describe("三owner真实PG与Redis预算", () => {
     const next = await h.readyDigestSources(
       "说明",
       Array.from({ length: 9 }, () => "文".repeat(2000)),
+      facts.files,
     );
     const original = h.budget.reserve.getMockImplementation()!;
     h.budget.reserve.mockImplementationOnce(async (context, abort) => {

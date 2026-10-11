@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { expect, vi } from "vitest";
 import type { Redis } from "ioredis";
-import type { PrismaClient, MediaJob, Prisma } from "@liyoxi/db";
+import type { PrismaClient, MediaJob, Prisma, FileObject } from "@liyoxi/db";
 import { assertNotInTransaction, lockRows, uuidv7 } from "../../../kernel/index.js";
 import { createMediaAssetsHarness } from "../../../testing/index.js";
 import { ok } from "../../../providers/types.js";
@@ -377,9 +377,16 @@ export async function modelWorld(prisma: PrismaClient, client: Redis, ownPrefix:
     return { assetId: asset.storeAssetId, job: await claim(job), files: [file] };
   }
   /** 已成功历史洞察有真实run/任务/指纹，不宣称执行过对应云producer。 */
-  async function readyDigestSources(note: string, bodies = ["公开虚构画面"]) {
-    const files = [];
-    for (const _body of bodies) files.push(await storedImage(png()));
+  async function readyDigestSources(
+    note: string,
+    bodies = ["公开虚构画面"],
+    auditedFiles?: readonly FileObject[],
+  ) {
+    // 同一测试世界的已真实根审核文件可复用；新素材及其来源图仍走下面完整流程。
+    const files = auditedFiles ? [...auditedFiles] : [];
+    if (!auditedFiles) for (const _body of bodies) files.push(await storedImage(png()));
+    expect(files).toHaveLength(bodies.length);
+    expect(new Set(files.map((file) => file.id)).size).toBe(files.length);
     const asset = await h.media.assets.create(h.owner, {
       type: "image",
       fileIds: files.map((f) => f.id),
