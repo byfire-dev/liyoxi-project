@@ -26,6 +26,11 @@ async function memberContext(tx: Tx, ctx: IdentityContext, ownerOnly = false) {
     storeId: ctx.storeId,
   });
   if (!member || member.entityId !== ctx.entityId) throw new AppError("NOT_A_MEMBER");
+  const user = await tx.merchantUser.findUnique({
+    where: { id: ctx.actor.id },
+    select: { status: true },
+  });
+  if (user?.status !== "active") throw new AppError("NOT_A_MEMBER");
   if (ownerOnly && member.role !== "owner") throw new AppError("ROLE_FORBIDDEN");
   if (member.storeMode !== "active") throw new AppError("STORE_ARCHIVED");
   return { ...member, merchantUserId: ctx.actor.id };
