@@ -61,7 +61,7 @@ const raw = (n: number): unknown[] => [
 ];
 function setup(reply?: unknown, appEnv: AppEnv = "test") {
   const clock = createClock(new Date()),
-    evaluate = vi.fn(async () => reply ?? raw(clock.now().getTime()));
+    evaluate = vi.fn<() => Promise<unknown>>(async () => reply ?? raw(clock.now().getTime()));
   const inspector = createModelBudgetInspector({ appEnv, clock, transport: { eval: evaluate } });
   return { clock, evaluate, inspector };
 }
