@@ -837,9 +837,11 @@ describe("原事务回滚、完整锁图及真实双连接竞争", () => {
     try {
       await ready;
       waiter = h.tx.run(async (t) => {
-        [{ pid: waiterPid }] = await t.$queryRawUnsafe<Array<{ pid: number }>>(
+        const [backend] = await t.$queryRawUnsafe<Array<{ pid: number }>>(
           "SELECT pg_backend_pid()::int AS pid",
         );
+        if (!backend) throw new Error("真实测试连接未返回PID");
+        waiterPid = backend.pid;
         await h.lifecycle.onTenantLifecycle(t, event);
       });
       const outcome = waiter.then(
@@ -964,9 +966,11 @@ describe("原事务回滚、完整锁图及真实双连接竞争", () => {
     try {
       await ready;
       waiter = h.tx.run(async (t) => {
-        [{ pid: waiterPid }] = await t.$queryRawUnsafe<Array<{ pid: number }>>(
+        const [backend] = await t.$queryRawUnsafe<Array<{ pid: number }>>(
           "SELECT pg_backend_pid()::int AS pid",
         );
+        if (!backend) throw new Error("真实测试连接未返回PID");
+        waiterPid = backend.pid;
         await h.lifecycle.onTenantLifecycle(t, e);
       });
       // 捕获结果立即挂处理，避免预期拒绝成为未处理 Promise。
@@ -1131,7 +1135,14 @@ describe("真实worker实例作用域与原outbox交付", () => {
         channel: {
           downForMs: () => 0,
           enqueue: async (_queue, _id, raw) => {
-            const ref = raw as DeliveryRef;
+            const { eventId, subscriber, dispatchNo } = raw;
+            if (
+              typeof eventId !== "string" ||
+              typeof subscriber !== "string" ||
+              typeof dispatchNo !== "number"
+            )
+              throw new Error("真实outbox投递消息字段缺失");
+            const ref: DeliveryRef = { eventId, subscriber, dispatchNo };
             if (ref.subscriber === "profile.onTenantLifecycle") refs.push(ref);
           },
         },

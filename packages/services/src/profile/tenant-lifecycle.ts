@@ -64,7 +64,6 @@ async function discover(tx: Tx, input: Message) {
       archivedAt: true,
       qualificationStatus: true,
       isPrimary: true,
-      lockVersion: true,
     },
   });
   if (input.storeId && stores.length !== 1) throw new AppError("NOT_FOUND");
