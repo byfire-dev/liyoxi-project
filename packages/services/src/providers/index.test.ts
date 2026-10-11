@@ -40,7 +40,7 @@ describe("十二个接口", () => {
     ]);
   });
 
-  it("方法按 01 第 9 节“用途”及必要原语登记，一共 56 个", () => {
+  it("方法按 01 第 9 节“用途”及必要原语登记，一共 57 个", () => {
     expect(
       Object.fromEntries(PROVIDER_NAMES.map((name) => [name, PROVIDER_METHODS[name].length])),
     ).toEqual({
@@ -57,7 +57,7 @@ describe("十二个接口", () => {
       invoice: 1, // 自动开票
       mail: 1, // 电子发票发送
     });
-    expect(ALL_PROVIDER_METHODS).toHaveLength(56);
+    expect(ALL_PROVIDER_METHODS).toHaveLength(57);
     expect(PROVIDER_METHODS.asr).toEqual(["transcribe", "submit", "query"]);
   });
 
