@@ -2,6 +2,8 @@ import { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./media-ass
 import { createDeliveryProductionAssembly } from "./delivery-production-runtime.js";
 import { createApprovalSlaAssembly } from "./approval-sla-runtime.js";
 import { createProfileLifecycleAssembly } from "./profile-lifecycle-runtime.js";
+import { createInvitationAssembly } from "./invitation-runtime.js";
+import { createInvitationExpiry } from "../tenant/index.js";
 import { createProfileTenantLifecycle } from "../profile/index.js";
 import { createApproval } from "../approval/index.js";
 import { createDeliverySlaAssembly } from "./delivery-sla-runtime.js";
@@ -164,6 +166,7 @@ export interface WorkerServices {
   readonly closeStaff?: () => Promise<void>;
   readonly closeApproval?: () => void;
   readonly closeProfile?: () => void;
+  readonly closeInvitations?: () => void;
   readonly shutdownMediaJobs?: () => Promise<void>;
   readonly pauseMediaJobs?: () => Promise<void>;
   readonly resumeMediaJobs?: () => void;
@@ -246,11 +249,13 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
   const docsScope = createDocsAssembly(deliverySlaScope.assembly);
-  const assembly = docsScope.assembly;
+  const invitationScope = createInvitationAssembly(docsScope.assembly);
+  const assembly = invitationScope.assembly;
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   deliverySlaScope.attach({ events, clock });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const flow = createFlow({ assembly, clock, events });
+  invitationScope.attach(createInvitationExpiry({ clock, flow }));
   const wechatSources = options.wechat
     ? [
         createWechatMessageSource({
@@ -544,6 +549,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     },
     closeApproval: () => approvalSlaScope.close(),
     closeProfile: () => profileLifecycleScope.close(),
+    closeInvitations: () => invitationScope.close(),
     shutdownMediaJobs: () => media.jobs.shutdown(),
     pauseMediaJobs: () => media.jobs.pause(),
     resumeMediaJobs: () => media.jobs.resume(),

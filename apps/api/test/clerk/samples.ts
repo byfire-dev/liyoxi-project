@@ -4,6 +4,8 @@ import { orderClerkSamples } from "./order-samples.js";
 import { messageClerkSamples } from "./messages-samples.js";
 import { reportingClerkSamples } from "./reporting-samples.js";
 import { assetsClerkSamples } from "./assets-samples.js";
+import { createIdentityContext } from "@liyoxi/services";
+import { merchantServicesOf } from "../../src/merchant/services.js";
 import { uuidv7 } from "@liyoxi/services";
 import { createFactories } from "@liyoxi/services/testing";
 import type { FakeStorage } from "@liyoxi/services/testing";
@@ -352,6 +354,41 @@ export const CLERK_SAMPLES: readonly Sample[] = [
         json: { storeIds: [ctx.storeId] },
         headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
       }),
+  },
+  ...[
+    ["m.invitation.create", "/m/invitations", { clientRequestId: uuidv7() }],
+    ["m.invitation.markShared", `/m/invitations/${uuidv7()}/mark-shared`, {}],
+    ["m.invitation.revoke", `/m/invitations/${uuidv7()}/revoke`, { reason: "by_owner" }],
+  ].map(([operationId, path, body]): Sample => ({
+    operationId: String(operationId),
+    play: (api, ctx) =>
+      api.request(`/api/v1${String(path)}`, {
+        method: "POST",
+        json: body,
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      }),
+  })),
+  {
+    operationId: "m.invitation.lookup",
+    play: async (api, ctx) => {
+      const owner = await api.runtime.tx.run(async (tx) => {
+        const store = await tx.store.findUniqueOrThrow({ where: { id: ctx.storeId } });
+        return tx.entityMember.findFirstOrThrow({
+          where: { entityId: store.entityId, role: "owner", status: "active" },
+        });
+      });
+      const card = await merchantServicesOf(api.runtime).tenant.createInvitation(
+        createIdentityContext({
+          actor: { type: "merchant", id: owner.merchantUserId, client: "weapp" },
+          entityId: owner.entityId,
+          storeId: ctx.storeId,
+        }),
+        { clientRequestId: uuidv7() },
+      );
+      return api.request(`/api/v1/m/invitations/lookup?token=${card.token}`, {
+        headers: ctx.clerk.headers,
+      });
+    },
   },
   // 退出会吊销当前凭据，放到这一份样例的最后。其它样例不得靠退出后的身份。
   {
