@@ -129,3 +129,9 @@ W2-10 的 `assertWithinQuota` 复用现有额度口径与调用方事务，只�
 `removeMember(ctx, { memberId }, { idem })` 与 `leaveMembership(ctx, { idem })` 共用原事务幂等。先持主体100，再按 id 排序持操作人与目标成员120；锁后重新确认主体存续、真实门店成员上下文、操作人权限及目标归属。只有有效 clerk 可以离开，owner 不走此入口。直接调用原 flow 的 remove/leave 行不能绕过用例守卫。
 
 同事务写原成员迁移历史、活动审计和 `entity_member.removed`，清空目标 `entity_member.lastStoreId` 并删除全部 `store_member`。保留上传素材、协议同意、账号登录会话和老板下载页授权；成员权限由既有每请求查询立即失效。HTTP 主动退出成功后，即使原幂等键重放也先受原成员中间件约束。邀请接受和范围更新仍未交付，测试中的加入关系只是合法历史前提。本切片源码准备中，运行验证、唯一正式审查与本地合流尚待完成。
+
+## 接受邀请与空草稿让位（SOURCE）
+
+`acceptInvitation(ctx, input, { idem, principal })` 是唯一非事务 owner 入口：真实会话只读验证、事务外称呼检测、merchant80→完整排序主体100→邀请110→成员120→门店130，等待后重新读取时间和事实。私有 exact-Tx/context/phase 凭据只由该 settle 签发，不提供公共 abandon/prepare 或 caller 布尔权限。
+
+空草稿只按未提交审核、无任何历史计费项、无其他有效成员、无任何 DB pending 邀请四事实判定；满足时同事务放弃主体、级联成员/门店、吊销原老板下载授权，再接受。required 幂等只存私有收据，每次返回当前有效成员；已移除不复活，合法当前 owner 角色可投影。真实邀请通知只发当前老板，持久化 `bizType=invitation` 决定后续读取分支；旧店员范围通知保持原语义。运行验证与独立审查尚未进行，真实送达未验。

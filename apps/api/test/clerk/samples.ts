@@ -390,6 +390,30 @@ export const CLERK_SAMPLES: readonly Sample[] = [
       });
     },
   },
+  {
+    operationId: "m.invitation.accept",
+    play: async (api, ctx) => {
+      const owner = await api.runtime.tx.run(async (tx) => {
+        const store = await tx.store.findUniqueOrThrow({ where: { id: ctx.storeId } });
+        return tx.entityMember.findFirstOrThrow({
+          where: { entityId: store.entityId, role: "owner", status: "active" },
+        });
+      });
+      const card = await merchantServicesOf(api.runtime).tenant.createInvitation(
+        createIdentityContext({
+          actor: { type: "merchant", id: owner.merchantUserId, client: "weapp" },
+          entityId: owner.entityId,
+          storeId: ctx.storeId,
+        }),
+        { clientRequestId: uuidv7() },
+      );
+      return api.request(`/api/v1/m/invitations/${card.invitationId}/accept`, {
+        method: "POST",
+        json: { token: card.token, displayName: "既有店员" },
+        headers: { ...ctx.clerk.headers, "Idempotency-Key": uuidv7() },
+      });
+    },
+  },
   // 退出会吊销当前凭据，放到这一份样例的最后。其它样例不得靠退出后的身份。
   {
     operationId: "m.session.current.delete",

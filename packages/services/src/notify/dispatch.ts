@@ -13,7 +13,7 @@ import type {
   NotificationSpec,
   NoticeRecipient,
 } from "./context.js";
-import { EVENT_SCENES, NotifyFactSchema, specFor } from "./registry.js";
+import { EVENT_SCENES, INVITATION_JOIN_SPEC, NotifyFactSchema, specFor } from "./registry.js";
 import { notificationDueAt, textLimit, externalAllowed } from "./policy.js";
 
 export async function addDelivery(
@@ -77,7 +77,7 @@ export async function currentNotificationFact(
       include: { notificationDeliveries: true },
     });
     if (!original?.entityId || !original.bizId || !original.merchantUserId) return null;
-    const source = specFor(original.notifySceneKey);
+    const source = specFor(original.notifySceneKey, original.bizType);
     if (!source || source.sceneKey === "s.merchant_unreached") return null;
     const cfg = await tx.notifyScene.findUnique({ where: { sceneKey: source.sceneKey } });
     if (
@@ -372,20 +372,38 @@ export async function dispatchFact(
 }
 
 export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: DeliveredEvent) {
+  const joined =
+    event.type === "entity_member.joined"
+      ? EVENT_PAYLOAD_SCHEMAS["entity_member.joined"].parse(event.payload)
+      : undefined;
   const memberChange =
     event.type === "entity_member.stores_changed"
       ? EVENT_PAYLOAD_SCHEMAS["entity_member.stores_changed"].parse(event.payload)
       : undefined;
-  // 邀请接受的通知老板分支还没有 producer，不能把该分支误发给店员。
-  if (memberChange?.invitationId != null) return 0;
+  const invited = memberChange?.invitationId != null;
   let made = 0;
-  for (const spec of EVENT_SCENES[event.type] ?? []) {
+  for (const spec of invited ? [INVITATION_JOIN_SPEC] : (EVENT_SCENES[event.type] ?? [])) {
     const parsedId = IdSchema.safeParse(event.payload[spec.refField]);
     if (!parsedId.success) throw new TypeError(`通知对象标识不符合契约：${event.type}`);
     const fact = await currentNotificationFact(tx, deps, spec, parsedId.data);
     if (fact === null) continue;
     if (
+      joined &&
+      (fact.bizType !== "invitation" ||
+        fact.bizId !== joined.invitationId ||
+        fact.entityId !== joined.entityId)
+    )
+      throw new TypeError("加入事件与当前邀请归属不符");
+    if (
+      invited &&
+      (fact.bizType !== "invitation" ||
+        fact.bizId !== memberChange.invitationId ||
+        fact.entityId !== memberChange.entityId)
+    )
+      throw new TypeError("接受邀请事件与当前归属不符");
+    if (
       memberChange &&
+      !invited &&
       (fact.bizId !== memberChange.entityMemberId ||
         fact.entityId !== memberChange.entityId ||
         fact.merchantUserIds?.length !== 1 ||

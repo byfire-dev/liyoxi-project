@@ -7,6 +7,7 @@ import {
   managerIdsForNotify,
   noticeRecipientsPageForNotify,
   memberStoresForNotify,
+  acceptedInvitationForNotify,
 } from "./notify-facts.js";
 // tenant 模块的登记（W1-03）：
 //   端口     计费账户由 billing 实现；W2-10 PR1 的精准下载页授权吊销由 identity 实现。
@@ -54,6 +55,11 @@ export const registration = defineRegistration("tenant", {
     ...CLOSE_FACTS_PORTS,
   ],
   portImplementations: [
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "acceptedInvitationForNotify",
+      acceptedInvitationForNotify,
+    ),
     notifyReaderImplementation(
       currentNotifyReadPort,
       "memberStoresForNotify",

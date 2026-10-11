@@ -35,6 +35,7 @@ export const NotifyFactSchema = z.strictObject({
       "billing_order",
       "store_asset",
       "billing_account",
+      "invitation",
     ])
     .optional(),
   guardBizId: IdSchema.optional(),
@@ -102,7 +103,16 @@ const staffSpec = (
   }),
 });
 
+export const INVITATION_JOIN_SPEC = spec(
+  "m.member_changed",
+  "acceptedInvitationForNotify",
+  "invitationId",
+  "store",
+  (v) => ({ route: "store.members", params: { storeId: v.storeId! } }),
+  ["accepted"],
+);
 export const EVENT_SCENES: Readonly<Record<string, readonly NotificationSpec[]>> = {
+  "entity_member.joined": [INVITATION_JOIN_SPEC],
   "entity_member.stores_changed": [
     spec(
       "m.member_changed",
@@ -370,10 +380,17 @@ export const SCENE_COVERAGE = NOTIFY_SCENES.map((scene) => ({
     .filter(([, list]) => list.some((s) => s.sceneKey === scene.key))
     .map(([event]) => event),
 }));
-export const specFor = (key: string): NotificationSpec | undefined =>
-  [...Object.values(EVENT_SCENES).flat(), FOLLOWUP_SPEC, UNREACHED_SPEC, COPYRIGHT_SPEC].find(
-    (s) => s.sceneKey === key,
-  );
+export const specFor = (key: string, bizType?: string | null): NotificationSpec | undefined =>
+  key === "m.member_changed" && bizType === "invitation"
+    ? INVITATION_JOIN_SPEC
+    : [
+        ...Object.values(EVENT_SCENES)
+          .flat()
+          .filter((s) => s !== INVITATION_JOIN_SPEC),
+        FOLLOWUP_SPEC,
+        UNREACHED_SPEC,
+        COPYRIGHT_SPEC,
+      ].find((s) => s.sceneKey === key);
 
 export const FOLLOWUP_SPEC = staffSpec(
   "s.followup_due",
