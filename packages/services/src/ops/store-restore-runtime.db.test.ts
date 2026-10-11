@@ -205,7 +205,7 @@ describe("门店恢复：真实运行时、原投递及档案事务", { timeout:
     expect(after.services).toEqual(before.services);
     expect(after.history.filter((row) => row.event === "store.restore")).toHaveLength(1);
     expect(after.events.filter((row) => row.eventType === "store.restored")).toHaveLength(1);
-    expect(after.audit.filter((row) => row.action === "store.restore")).toHaveLength(1);
+    expect(after.audit.filter((row) => row.action === "tenant.store.restore")).toHaveLength(1);
     const business = await h.snapshot(w.entity.id);
     const delivery = await h.prisma.outboxDelivery.findMany({
       where: { outboxEventId: ref.eventId },
@@ -492,7 +492,7 @@ describe("恢复与实际主体关闭共用原锁顺序", { timeout: SLOW }, () 
         expect(holderPid).not.toBe(waiterPid);
         await blocked(observer, waiterPid, holderPid);
         const connections = await observer.query<{ pid: number }>(
-          "SELECT pid FROM pg_stat_activity WHERE datname=current_database() AND usename='lyx_app' AND backend_type='client backend' ORDER BY pid",
+          "SELECT pid FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND backend_type='client backend' ORDER BY pid",
         );
         expect(connections.rows.map((row) => row.pid)).toEqual(
           [holderPid, waiterPid].sort((a, b) => a - b),

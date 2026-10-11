@@ -270,7 +270,7 @@ describe("恢复再归档：真实当前发生次通知", { timeout: SLOW }, () 
     const w = await world();
     const original = runtime.flow.transition.bind(runtime.flow);
     vi.spyOn(runtime.flow, "transition").mockImplementationOnce(async (...args) => {
-      clock.advance(-1);
+      clock.set(new Date(clock.now().getTime() - 1));
       return original(...args);
     });
     const events = await archive(w);

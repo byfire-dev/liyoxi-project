@@ -99,7 +99,7 @@ describe("恢复门店：真实两连接及锁后重读", { timeout: SLOW }, () 
       const trace = await h.trace(own);
       expect(trace.history.filter((row) => row.event === "store.restore")).toHaveLength(1);
       expect(trace.events.filter((row) => row.eventType === "store.restored")).toHaveLength(1);
-      expect(trace.audits.filter((row) => row.action === "store.restore")).toHaveLength(1);
+      expect(trace.audits.filter((row) => row.action === "tenant.store.restore")).toHaveLength(1);
     } finally {
       hold.release();
       await first;
