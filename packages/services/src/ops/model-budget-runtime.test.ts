@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { uuidv7 } from "../kernel/index.js";
-import type { AlertInput } from "../kernel/index.js";
+import type { AlertInput, Alerts } from "../kernel/index.js";
 import type { ModelBudgetContext } from "../media/index.js";
 import { createClock } from "../testing/index.js";
 import { createModelBudgetRuntime } from "./model-budget-runtime.js";
@@ -9,7 +9,7 @@ import { createModelBudgetRuntime } from "./model-budget-runtime.js";
 function setup(reply: unknown = ["reserved", 3, 1]) {
   const clock = createClock(new Date());
   const evalCall = vi.fn(async () => reply);
-  const raise = vi.fn(async (_fact: AlertInput) => undefined);
+  const raise = vi.fn<Alerts["raise"]>(async (_fact: AlertInput) => undefined);
   const warn = vi.fn();
   const runtime = createModelBudgetRuntime({
     clock,

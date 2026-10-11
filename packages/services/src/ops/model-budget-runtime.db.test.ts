@@ -56,10 +56,12 @@ beforeEach(async () => {
 }, SLOW);
 afterEach(async () => {
   vi.restoreAllMocks();
-  await h?.close();
-  await runtime?.close();
-  await other?.close();
-  await alerts?.close();
+  try {
+    await h?.close();
+  } finally {
+    await Promise.allSettled([runtime?.close(), other?.close()]);
+    await alerts?.close();
+  }
 }, SLOW);
 
 async function seed() {

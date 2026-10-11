@@ -1,12 +1,13 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { buildWorkerServices } from "@liyoxi/services";
-import type { ModelBudgetTransport, QueueChannel, QueueConsumer } from "@liyoxi/services";
+import type { WorkerServicesOptions, QueueChannel, QueueConsumer } from "@liyoxi/services";
 import { assembleForTest, useSeededDatabase } from "@liyoxi/services/testing";
 import { createWorkerRuntime, SHUTDOWN_WAIT_MS } from "../src/runtime.js";
 import { silentLogger } from "../src/log.js";
 
 const db = useSeededDatabase("worker", { max: 1, label: "budgetclose" }),
   SLOW = 240000;
+type BudgetTransport = NonNullable<WorkerServicesOptions["modelBudgetTransport"]>;
 let prisma: Awaited<ReturnType<typeof db.prisma>>;
 beforeAll(async () => {
   prisma = await db.prisma();
@@ -18,9 +19,7 @@ function deferred() {
   });
   return { promise, release };
 }
-function instance(
-  evaluate = vi.fn<ModelBudgetTransport["eval"]>(async () => ["maintained", 0, 0]),
-) {
+function instance(evaluate = vi.fn<BudgetTransport["eval"]>(async () => ["maintained", 0, 0])) {
   const consumers: QueueConsumer[] = [];
   // 队列IO是受控替身；真正的runtime.stop、服务装配、PG扫描和预算ledger保持原实现。
   const channel: QueueChannel = {
@@ -100,7 +99,7 @@ describe("实际worker预算生命周期", { timeout: SLOW }, () => {
   it("stop先取消在途维护，迟到EVAL不重放；另一真实装配实例仍工作", async () => {
     const entered = deferred();
     let reject!: (error: unknown) => void;
-    const evaluate = vi.fn<ModelBudgetTransport["eval"]>(() => {
+    const evaluate = vi.fn<BudgetTransport["eval"]>(() => {
       entered.release();
       return new Promise((_r, no) => {
         reject = no;

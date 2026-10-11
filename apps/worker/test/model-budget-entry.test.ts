@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ModelBudgetTransport } from "@liyoxi/services";
+import type { WorkerServicesOptions } from "@liyoxi/services";
 
 const ports = vi.hoisted(() => {
   const state = {
@@ -15,7 +15,7 @@ const ports = vi.hoisted(() => {
     database: { prisma: {}, close: vi.fn(async () => undefined) },
     channel: { close: vi.fn(async () => undefined) },
     lease: { holder: "公开虚构worker", close: vi.fn(async () => undefined) },
-    runtime: { start: vi.fn(), stop: vi.fn(async () => undefined) },
+    runtime: { start: vi.fn(), stop: vi.fn<() => Promise<void>>(async () => undefined) },
     build: vi.fn((_options: unknown): Record<string, unknown> => ({})),
     createRuntime: vi.fn((_options: unknown): unknown => ({})),
   };
@@ -96,8 +96,11 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 function budgetTransport() {
-  return (ports.build.mock.calls[0]![0] as { modelBudgetTransport: ModelBudgetTransport })
-    .modelBudgetTransport;
+  return (
+    ports.build.mock.calls[0]![0] as {
+      modelBudgetTransport: NonNullable<WorkerServicesOptions["modelBudgetTransport"]>;
+    }
+  ).modelBudgetTransport;
 }
 async function stopped() {
   signals.get("SIGTERM")!();
