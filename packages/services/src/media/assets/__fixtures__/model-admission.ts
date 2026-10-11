@@ -162,7 +162,7 @@ export async function modelWorld(prisma: PrismaClient, client: Redis, ownPrefix:
     return { assetId: asset.storeAssetId, job: await claim(job), files: [] };
   }
   async function readyImage(sameBody?: Uint8Array, claimNow = true) {
-    const file = await h.stored(h.owner, "store_asset", sameBody ?? png());
+    const file = await h.stored(h.owner, "store_asset", sameBody ? Buffer.from(sameBody) : png());
     const asset = await h.media.assets.create(h.owner, { type: "image", fileIds: [file.id] });
     const audit = await prisma.mediaJob.findFirstOrThrow({
       where: { parentId: asset.storeAssetId, kind: "audit_image_wx" },

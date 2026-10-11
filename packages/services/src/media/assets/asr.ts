@@ -117,7 +117,7 @@ export function createAssetAsrStrategy(
       !run ||
       run.runId !== input.runId ||
       run.promptVersion !== input.promptVersion ||
-      file.scope !== "store" ||
+      file.scopeType !== "store" ||
       file.entityId !== graph.asset.entityId ||
       file.storeId !== graph.asset.storeId ||
       file.category !== "store_asset" ||
@@ -158,7 +158,7 @@ export function createAssetAsrStrategy(
               value.id,
               value.entityId,
               value.storeId,
-              value.scope,
+              value.scopeType,
               value.category,
               value.bucket,
               value.objectKey,

@@ -99,7 +99,7 @@ export async function readModelJob(
       ({ file }) =>
         file.entityId !== asset.entityId ||
         file.storeId !== asset.storeId ||
-        file.scope !== "store" ||
+        file.scopeType !== "store" ||
         file.category !== "store_asset" ||
         file.bucket !== "asset" ||
         file.status !== "stored" ||

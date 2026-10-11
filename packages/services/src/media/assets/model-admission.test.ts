@@ -44,11 +44,12 @@ function setup(kind: "asr" | "vision" | "digest" = "asr") {
     events.push(`settled${n}`);
     return value;
   };
+  // 纯协议夹具只构造本组所需端口，不代表完整运行时或真实PG提交。
   const deps = {
     clock,
     tx: { run },
     assets: { modelBudget: { readPermit, reserve } },
-  } as AssetDeps;
+  } as unknown as AssetDeps;
   const execute = () => admitModel(deps, job, signal.signal, read);
   return { clock, at, signal, job, source, events, read, readPermit, reserve, deps, execute };
 }
