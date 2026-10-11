@@ -83,7 +83,10 @@ describe("草稿门店删除：真实历史拥有者及完整事务", { timeout:
 
   it("真实 initial 提交批准后的首店不可删除；两类原因固定次序且每类只出现一次", async () => {
     const { owner, profile, ready } = await h.readyInitial();
-    await profile.approve(h.system, ready.submissionId, { confirm: { roundNo: 1 } });
+    await profile.approve(h.system, ready.submissionId, {
+      lockVersion: 0,
+      confirm: { roundNo: 1 },
+    });
     await h.make.store({ entityId: owner.entity.id });
     const ctx = deleteContext(owner.user.id, owner.entity.id, owner.store.id);
     const own = await h.world();

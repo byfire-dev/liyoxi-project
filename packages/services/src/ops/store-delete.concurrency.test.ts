@@ -260,7 +260,7 @@ describe("草稿删除：两真实业务连接的完整锁图", { timeout: SLOW 
         mode === "create_first"
           ? async (tx) =>
               (await tx.invitation.count({
-                where: { storeId: w.store.id, requestId: clientRequestId, status: "pending" },
+                where: { storeId: w.store.id, clientRequestId, status: "pending" },
               })) === 1
           : undefined,
       );
