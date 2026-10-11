@@ -47,7 +47,7 @@ async function get(headers: Record<string, string>) {
     },
   };
 }
-async function world() {
+async function world(useSecondaryTarget = false) {
   const owner = await signInAsMerchant(api),
     clerk = await signInAsMerchant(api);
   const tenant = merchantServicesOf(api.runtime).tenant;
@@ -59,16 +59,17 @@ async function world() {
   const prisma = await handle.db.prisma(),
     make = createFactories({ db: prisma, clock: api.clock });
   const second = await make.store({ entityId: created.entityId });
+  const storeId = useSecondaryTarget ? second.id : created.storeId;
   const member = await make.entityMember({
     entityId: created.entityId,
     merchantUserId: clerk.merchantUserId,
     invitedByMemberId: created.memberId,
-    lastStoreId: created.storeId,
+    lastStoreId: storeId,
     displayName: null,
   });
   await make.storeMember({
     entityMemberId: member.id,
-    storeId: created.storeId,
+    storeId,
     addedByMemberId: created.memberId,
   });
   await prisma.entityMember.update({
@@ -79,13 +80,13 @@ async function world() {
     where: { id: owner.merchantUserId },
     data: { displayName: "不可回落账号名" },
   });
-  async function invitation(expiresAt: Date, storeId = created.storeId) {
+  async function invitation(expiresAt: Date, targetStoreId = storeId) {
     const id = uuidv7();
     return prisma.invitation.create({
       data: {
         id,
         entityId: created.entityId,
-        storeId,
+        storeId: targetStoreId,
         inviterMemberId: created.memberId,
         role: "clerk",
         status: "pending",
@@ -99,7 +100,18 @@ async function world() {
       },
     });
   }
-  return { owner, clerk, member, second, prisma, make, invitation, ...created };
+  return {
+    owner,
+    clerk,
+    member,
+    second,
+    prisma,
+    make,
+    invitation,
+    ...created,
+    storeId,
+    archiveContextStoreId: created.storeId,
+  };
 }
 
 describe("建档首页成员摘要真实HTTP", { timeout: 120_000 }, () => {
@@ -181,11 +193,11 @@ describe("建档首页成员摘要真实HTTP", { timeout: 120_000 }, () => {
   );
 
   it("真实公开archive后老板仍可读档案，摘要反映级联且GET零副作用", async () => {
-    const w = await world();
+    const w = await world(true);
     const invitation = await w.invitation(new Date(api.clock.now().getTime() + 1_000));
     const archived = await api.request(`/api/v1/m/stores/${w.storeId}/archive`, {
       method: "POST",
-      headers: { ...w.owner.withStore(w.second.id), "Idempotency-Key": uuidv7() },
+      headers: { ...w.owner.withStore(w.archiveContextStoreId), "Idempotency-Key": uuidv7() },
     });
     expect(archived.status, await archived.clone().text()).toBe(200);
     expect(await w.prisma.store.findUniqueOrThrow({ where: { id: w.storeId } })).toMatchObject({
@@ -256,7 +268,7 @@ describe("建档首页成员摘要真实HTTP", { timeout: 120_000 }, () => {
   it.each(["guest", "unbound", "foreign", "no_store", "removed", "archived_clerk"] as const)(
     "%s保留原权限边界，拒绝请求业务零写",
     async (mode) => {
-      const w = await world();
+      const w = await world(mode === "archived_clerk");
       const outsider = mode === "unbound" ? await signInAsMerchant(api) : null;
       const foreign = mode === "foreign" ? await w.make.store() : null;
       if (mode === "removed")
@@ -271,7 +283,7 @@ describe("建档首页成员摘要真实HTTP", { timeout: 120_000 }, () => {
       if (mode === "archived_clerk") {
         const result = await api.request(`/api/v1/m/stores/${w.storeId}/archive`, {
           method: "POST",
-          headers: { ...w.owner.withStore(w.second.id), "Idempotency-Key": uuidv7() },
+          headers: { ...w.owner.withStore(w.archiveContextStoreId), "Idempotency-Key": uuidv7() },
         });
         expect(result.status, await result.clone().text()).toBe(200);
       }
