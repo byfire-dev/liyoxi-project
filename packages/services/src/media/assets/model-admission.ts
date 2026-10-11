@@ -133,7 +133,12 @@ const factsEqual = (left: ModelBudgetFacts, right: ModelBudgetFacts) =>
   );
 function checkedPermit(value: ModelBudgetContext | null, facts: ModelBudgetFacts) {
   if (value === null) return null;
-  if (!value || typeof value !== "object" || Array.isArray(value))
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    Object.keys(value).length !== 13
+  )
     throw new TypeError("模型许可格式非法");
   const { dailyFileCap, dailyCallCap, ...returned } = value;
   if (
@@ -178,7 +183,9 @@ export async function admitModel(
       if (!source || signal.aborted) return undefined;
       const readAtMs = deps.clock.now().getTime();
       const facts: ModelBudgetFacts = Object.freeze({
-        ...source,
+        entityId: source.entityId,
+        storeId: source.storeId,
+        expectedSourceHash: source.expectedSourceHash,
         fileIds: Object.freeze([...source.fileIds]),
         jobId: job.id,
         kind: job.kind as ModelBudgetFacts["kind"],

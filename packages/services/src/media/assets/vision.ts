@@ -476,7 +476,8 @@ export function createAssetVisionStrategy(
     if (expired() || signal?.aborted) throw outdated;
     return { target, cache, permitted };
   }
-  function admitted(job: MediaJob, model = false, expiresAt?: Date, signal?: AbortSignal) {
+  async function admitted(job: MediaJob, model = false, expiresAt?: Date, signal?: AbortSignal) {
+    if (job.kind !== "vision" || job.state !== "running" || !assetJobOwned(job)) return null;
     return deps.tx.run((tx) => read(tx, job, model, expiresAt, signal));
   }
   return {
