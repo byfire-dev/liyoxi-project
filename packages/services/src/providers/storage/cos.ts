@@ -892,7 +892,10 @@ export function createCosStorage(
         end: start + input.expiresSec,
       });
       const params = new URLSearchParams(query);
-      for (const [key, item] of new URLSearchParams(auth)) params.set(key, item);
+      for (const field of auth.split("&")) {
+        const separator = field.indexOf("=");
+        params.set(field.slice(0, separator), field.slice(separator + 1));
+      }
       return ok({
         url: `https://${host(input.bucket)}${objectPath(input.key)}?${params}`,
         expiresAt,
