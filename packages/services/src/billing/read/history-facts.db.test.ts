@@ -161,15 +161,36 @@ describe("全部计费历史事实", () => {
       const entity = await h.make.entity();
       const before = await snapshot(entity.id);
       const failure = new Error("rollback billing history fixture");
-      await expect(
-        h.tx.run(async (tx) => {
+      const ready = Promise.withResolvers<void>();
+      const timer = setTimeout(() => ready.reject(new Error("未提交读取信号超时")), SLOW);
+      // 先在事务外登记兄弟异步链，再由调用方未提交写入触发独立 app 事务。
+      const reader = ready.promise.then(() =>
+        h.tx.run(async (tx) => ({
+          pid: (await tx.db.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`)[0]!.pid,
+          facts: await readBillingHistoryFacts(tx, entity.id),
+        })),
+      );
+      void reader.catch(() => undefined);
+      try {
+        const caller = h.tx.run(async (tx) => {
+          const callerPid = (
+            await tx.db.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`
+          )[0]!.pid;
           const make = createFactories({ db: tx, clock: h.clock });
           await make.subscriptionTerm({ entityId: entity.id, status: "cancelled" });
           expect(await readBillingHistoryFacts(tx, entity.id)).toEqual(both);
-          expect(await read(entity.id)).toEqual(absent);
+          ready.resolve();
+          const other = await reader;
+          expect(other.pid).not.toBe(callerPid);
+          expect(other.facts).toEqual(absent);
           throw failure;
-        }),
-      ).rejects.toBe(failure);
+        });
+        await expect(caller).rejects.toBe(failure);
+      } finally {
+        clearTimeout(timer);
+        ready.resolve();
+        await reader;
+      }
       expect(await read(entity.id)).toEqual(absent);
       expect(await snapshot(entity.id)).toEqual(before);
     },
