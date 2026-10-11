@@ -36,4 +36,5 @@ export { profilePiiFields } from "./pii-fields.js";
 export {
   countQualificationSubmissionsInReview,
   countUnverifiedPrimaryStore,
+  countSubmittedQualificationHistory,
 } from "./close-facts.js";

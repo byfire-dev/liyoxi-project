@@ -1,5 +1,13 @@
 import type { Tx } from "../kernel/index.js";
 
+/** 草稿删除判断完整提交历史，不按审核结果、轮次类型或关闭状态裁剪。 */
+export function countSubmittedQualificationHistory(
+  tx: Tx,
+  input: { entityId: string; storeId: string },
+) {
+  return tx.qualificationSubmission.count({ where: { ...input, submittedAt: { not: null } } });
+}
+
 /** m03 第1.2节：initial、new_store、change 的已提交未关闭轮次均阻止停用。 */
 export function countQualificationSubmissionsInReview(tx: Tx, storeId: string): Promise<number> {
   return tx.qualificationSubmission.count({
