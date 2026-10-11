@@ -341,12 +341,18 @@ function success(outcome: JobOutcome) {
   if (outcome.state !== "succeeded") throw new Error("expected digest output");
   return AssetJobOutputSchema.parse(outcome.output);
 }
-async function held(facts: Facts, mutation: () => Promise<unknown>, publicRun = false) {
+async function held(
+  facts: Facts,
+  mutation: () => Promise<unknown>,
+  publicRun = false,
+  observed: string[] = [],
+) {
   const entered = gate(),
     release = gate();
   const call = vi.spyOn(h.fake.llm, "extractKeyPoints").mockImplementation(async (input) => {
     assertNotInTransaction("digest model IO");
     expect(input.signal).toBeInstanceOf(AbortSignal);
+    observed.push(input.text);
     entered.release();
     await release.promise;
     return ok({ points: ["公开虚构摘要要点"] });
@@ -921,13 +927,17 @@ describe("digest fresh lease and source snapshots around IO", () => {
   ])("$type hashes source suffixes discarded by projection", async ({ type, limit, content }) => {
     const facts = await readySources(type, ["甲".repeat(limit) + "旧"], ""),
       source = facts.sources[0]!;
-    const result = await held(facts, () =>
-      replaceSource(source, content("甲".repeat(limit) + "新")),
+    const observed: string[] = [];
+    const result = await held(
+      facts,
+      () => replaceSource(source, content("甲".repeat(limit) + "新")),
+      false,
+      observed,
     );
     expect(result).toEqual({ state: "canceled" });
-    const call = vi.mocked(h.fake.llm.extractKeyPoints).mock.calls[0]![0];
-    expect(call.text).not.toContain("旧");
-    expect(call.text).not.toContain("新");
+    expect(observed).toHaveLength(1);
+    expect(observed[0]).not.toContain("旧");
+    expect(observed[0]).not.toContain("新");
     expect(await insights(facts.assetId)).toEqual([]);
   });
 
