@@ -172,3 +172,12 @@ L4 `readModelBudgetPermit`只在当前Tx按readAt读两正式参数，非法值�
 缺值沿正式默认200/0关闭；不在业务锁中发告警。当前仅源码与轻量检查，实际新旧整文件、类型、
 正式生成/资源收尾尚待独占验证。连接、初始化/恢复、维护、自动告警与worker关闭仍为后继，
 真实云、费用、模型质量、容量、E22及完整W3-15未宣称完成。
+
+## W2-10 品牌素材 callerTx 复制
+
+`createStoreAssetCopyOwner` 显式装配既有 readStore/SLA/timers/Media.link 公口，只校验本域事实，不授予商家权限。
+prepare 先持门店130、日历共享锁及全部未删除来源370，再选 content/brand_story；opaque plan 绑定实例、精确Tx及一次消费。
+共同410后逐条真实link，同主体复制全部文件/肖像材料、标签及洞察，保留原处理和复核事实；失败整笔回滚。
+未复核副本从新创建时间计算SLA并arm新timer，已复核副本无SLA；复制时不提交任务或外呼。
+保留pending/processing意味着I11在15分钟后仍可真实汇合，不承诺永久零任务/费用。
+SOURCE尚未执行新旧整叶、类型或独立审查；不是store.create HTTP、真实云或生产容量验收。

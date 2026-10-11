@@ -6,6 +6,13 @@ import type { SessionPrincipal } from "../identity/index.js";
 import { AppError, actorColumns, lockRows, uuidv7 } from "../kernel/index.js";
 import type { Clock, IdentityContext, Tx } from "../kernel/index.js";
 import type { Media } from "../media/index.js";
+import { createStoreAssetCopyOwner } from "../media/index.js";
+import type {
+  StoreAssetCopyOwner,
+  StoreAssetCopyPlan,
+  StoreAssetCopyDeps,
+} from "../media/index.js";
+import { readStoreAssetFacts } from "../tenant/index.js";
 import type { Tenant } from "../tenant/index.js";
 import { refreshCompleteness } from "./repo.js";
 import { invalid, validateBasics } from "./validate.js";
@@ -32,6 +39,13 @@ export interface StoreProfileInitializerDeps {
   readonly media: Pick<Media, "link">;
   readonly expectedAppid: string;
 }
+export interface StoreProfileAssetInitInput extends Omit<StoreProfileInitInput, "copyOptions"> {
+  readonly copyOptions: readonly (StoreProfileCopyOption | "brand_assets")[];
+}
+export interface StoreProfileAssetInitializerDeps extends StoreProfileInitializerDeps {
+  readonly sla: StoreAssetCopyDeps["sla"];
+  readonly timers: StoreAssetCopyDeps["timers"];
+}
 const Input = z.strictObject({
   contextStoreId: IdSchema,
   targetStoreId: IdSchema,
@@ -44,7 +58,10 @@ const Input = z.strictObject({
   }),
 });
 const sorted = (values: readonly string[]) => [...new Set(values)].sort();
-async function readSource(tx: Tx, input: StoreProfileInitInput) {
+const AssetInput = Input.extend({
+  copyOptions: z.array(z.enum(["basic", "service", "media", "brand_assets"])).max(4),
+});
+async function readSource(tx: Tx, input: StoreProfileAssetInitInput) {
   const storeId = input.copyFromStoreId;
   const profile = storeId ? await tx.storeProfile.findUnique({ where: { storeId } }) : null;
   const services =
@@ -65,17 +82,19 @@ async function readSource(tx: Tx, input: StoreProfileInitInput) {
 }
 
 /** 调用方在完整低序图阶段 prepare；未来素材370完成后共同锁410，再 apply。 */
-export function createStoreProfileInitializer(deps: StoreProfileInitializerDeps) {
+function createInitializer(deps: StoreProfileInitializerDeps, assets?: StoreAssetCopyOwner) {
   const { clock, tenant, media, expectedAppid } = deps;
   if (!expectedAppid) throw new TypeError("档案初始化必须绑定真实 AppID");
   type State = {
     tx: Tx;
     ctx: IdentityContext;
     principal: SessionPrincipal;
-    input: StoreProfileInitInput;
+    input: StoreProfileAssetInitInput;
     entityId: string;
     source: Awaited<ReturnType<typeof readSource>>;
     consumed: boolean;
+    assets?: StoreAssetCopyPlan;
+    inserted?: boolean;
   };
   const plans = new WeakMap<StoreProfileInitPlan, State>();
   async function current(tx: Tx, state: Omit<State, "source" | "consumed" | "tx">) {
@@ -90,13 +109,19 @@ export function createStoreProfileInitializer(deps: StoreProfileInitializerDeps)
     if (ctx.entityId !== entityId || ctx.storeId !== input.contextStoreId)
       throw invalid("档案初始化上下文不属于当前门店");
     const target = await tx.store.findUnique({ where: { id: input.targetStoreId } });
+    const profile = await tx.storeProfile.findUnique({ where: { storeId: input.targetStoreId } });
     if (
       !target ||
       target.entityId !== entityId ||
       target.lifecycle !== "active" ||
       target.isPrimary ||
       target.qualificationStatus !== "unsubmitted" ||
-      (await tx.storeProfile.findUnique({ where: { storeId: target.id } }))
+      (state.inserted
+        ? !profile ||
+          profile.entityId !== entityId ||
+          profile.copiedFromStoreId !== input.copyFromStoreId ||
+          JSON.stringify(profile.copyOptions) !== JSON.stringify(input.copyOptions)
+        : profile)
     )
       throw invalid("目标必须是同主体尚无档案的启用分店");
     if (input.copyFromStoreId) {
@@ -116,11 +141,11 @@ export function createStoreProfileInitializer(deps: StoreProfileInitializerDeps)
     tx: Tx,
     ctx: IdentityContext,
     principal: SessionPrincipal,
-    raw: StoreProfileInitInput,
+    raw: StoreProfileAssetInitInput,
   ): Promise<StoreProfileInitPlan> {
-    const parsed = Input.safeParse(raw);
+    const parsed = (assets ? AssetInput : Input).safeParse(raw);
     if (!parsed.success) throw invalid("档案初始化输入不合法");
-    const input = parsed.data;
+    const input: StoreProfileAssetInitInput = parsed.data;
     if (
       new Set(input.copyOptions).size !== input.copyOptions.length ||
       (!input.copyFromStoreId && input.copyOptions.length > 0) ||
@@ -167,15 +192,24 @@ export function createStoreProfileInitializer(deps: StoreProfileInitializerDeps)
       !Array.isArray(source.profile.businessHours)
     )
       throw invalid("来源营业时间不是合法数组");
+    const assetPlan =
+      assets && input.copyOptions.includes("brand_assets")
+        ? await assets.prepare(tx, {
+            entityId,
+            sourceStoreId: input.copyFromStoreId!,
+            targetStoreId: input.targetStoreId,
+          })
+        : undefined;
     const fileIds = sorted([
       ...(input.copyOptions.includes("basic") && source.profile?.logoFileId
         ? [source.profile.logoFileId]
         : []),
       ...source.services.flatMap((row) => (row.imageFileId ? [row.imageFileId] : [])),
       ...source.media.map((row) => row.fileId),
+      ...(assetPlan?.fileIds ?? []),
     ]);
     const plan = Object.freeze({ fileIds: Object.freeze(fileIds) });
-    plans.set(plan, { ...state, source, consumed: false });
+    plans.set(plan, { ...state, source, assets: assetPlan, consumed: false });
     return plan;
   }
   async function apply(tx: Tx, plan: StoreProfileInitPlan): Promise<void> {
@@ -219,6 +253,7 @@ export function createStoreProfileInitializer(deps: StoreProfileInitializerDeps)
         updatedAt: now,
       },
     });
+    state.inserted = true;
     const link = (fileId: string, refType: string, refId: string, role: string) =>
       media.link(tx, { fileId, refType, refId, role, entityId, storeId });
     if (basic && basic.logoFileId) await link(basic.logoFileId, "store_profile", storeId, "logo");
@@ -265,7 +300,36 @@ export function createStoreProfileInitializer(deps: StoreProfileInitializerDeps)
       await link(row.fileId, "store_profile_media", id, "main");
     }
     await refreshCompleteness(tx, storeId, now);
+    if (state.assets) await assets!.apply(tx, state.assets);
+    // 最后一个引用、时限与完整度 await 之后重新读取当前授权和真实会话。
+    if (assets) await current(tx, state);
   }
   return { prepare, apply };
 }
+export function createStoreProfileInitializer(deps: StoreProfileInitializerDeps) {
+  const impl = createInitializer(deps);
+  return {
+    ...impl,
+    prepare: (
+      tx: Tx,
+      ctx: IdentityContext,
+      principal: SessionPrincipal,
+      input: StoreProfileInitInput,
+    ) => impl.prepare(tx, ctx, principal, input),
+  };
+}
+/** 四项组合固定绑定 tenant 真实公口；调用者不能替换来源事实或授权 owner。 */
+export function createStoreProfileAssetInitializer(deps: StoreProfileAssetInitializerDeps) {
+  return createInitializer(
+    deps,
+    createStoreAssetCopyOwner({
+      clock: deps.clock,
+      media: deps.media,
+      sla: deps.sla,
+      timers: deps.timers,
+      readStore: readStoreAssetFacts,
+    }),
+  );
+}
 export type StoreProfileInitializer = ReturnType<typeof createStoreProfileInitializer>;
+export type StoreProfileAssetInitializer = ReturnType<typeof createStoreProfileAssetInitializer>;

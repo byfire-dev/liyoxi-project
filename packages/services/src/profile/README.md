@@ -1,5 +1,11 @@
 # 商家档案与首店资质（W1-08a、b）
 
+`createStoreProfileAssetInitializer` 增加显式四项组合，旧 initializer 的三项严格入口不扩大。
+组合闭包固定 tenant.readStoreAssetFacts，不接受调用者提供的授权事实或owner替身。
+低序80→100→120→完整130/135后接日历→完整素材370→共同文件410，首次INSERT即写完整四项来源/选项。
+三类档案、品牌引用/洞察/SLA/完整度同TX，所有await后重新核当前会话/owner/来源和本次profile；任一失败全部回滚。
+by_owner来源可读，draft_deleted拒绝；当前SOURCE尚未进行本片类型/新旧整叶或独立验收，不启用默认runtime或HTTP。
+
 ## W2-10 门店档案初始化前置
 
 `createStoreProfileInitializer` 是显式装配的 callerTx 能力，不启用默认 runtime。
