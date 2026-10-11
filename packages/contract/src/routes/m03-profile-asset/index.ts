@@ -28,3 +28,4 @@ export * from "./store-assets.schemas.js";
 export * from "./store-assets.js";
 
 export * from "./asset-demands.js";
+export * from "./media-file.schemas.js";
