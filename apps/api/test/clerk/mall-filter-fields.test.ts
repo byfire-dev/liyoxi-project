@@ -224,3 +224,87 @@ describe("门店公开卖点标签的精确店员扫描例外", () => {
     rejects({ sellingPoints: [tag], nested: { originalPriceFen: 2000 } }, route);
   });
 });
+
+describe("邀请公开预览布尔决策的精确店员扫描例外", () => {
+  const operationId = "m.invitation.lookup";
+  const rejects = (data: unknown, route = operationId): void => {
+    expect(() => clerkVisibleKeys(route, data)).toThrow("店员禁用字段");
+  };
+
+  it.each([true, false])("仅放行顶层布尔值 %s 并记录完整路径", (isPhoneRestricted) => {
+    expect(clerkVisibleKeys(operationId, { isPhoneRestricted })).toEqual(["isPhoneRestricted"]);
+  });
+
+  it.each([
+    { value: "true" },
+    { value: "false" },
+    { value: "13800138001" },
+    { value: 0 },
+    { value: 1 },
+    { value: null },
+    { value: undefined },
+    { value: {} },
+    { value: { value: true } },
+    { value: { phone: "13800138001" } },
+    { value: [] },
+    { value: [true] },
+  ])("同名字段的非布尔类型仍拒绝：%j", ({ value: isPhoneRestricted }) => {
+    rejects({ isPhoneRestricted });
+  });
+
+  it.each([
+    { data: { nested: { isPhoneRestricted: true } } },
+    { data: { nested: { isPhoneRestricted: false } } },
+    { data: { items: [{ isPhoneRestricted: true }] } },
+    { data: [{ isPhoneRestricted: false }] },
+    { data: { isPhoneRestricted: true, preview: { isPhoneRestricted: false } } },
+  ])("嵌套、数组与顶层之外的同名字段仍拒绝：%j", ({ data }) => {
+    rejects(data);
+  });
+
+  it.each([
+    "m.invitation.create",
+    "m.invitation.markShared",
+    "m.invitation.accept",
+    "m.invitation.revoke",
+    "m.session.create",
+    "m.sample",
+    "m.invitation.lookup.extra",
+    "M.INVITATION.LOOKUP",
+  ])("其他 operationId %s 不放行该字段", (route) => {
+    rejects({ isPhoneRestricted: true }, route);
+    rejects({ isPhoneRestricted: false }, route);
+  });
+
+  it.each(["phone", "targetPhone", "phoneNumber", "isPhoneRestrictedText", "hasPhone"])(
+    "已放行布尔值不开放同层敏感键 %s",
+    (key) => {
+      rejects({ isPhoneRestricted: true, [key]: "13800138001" });
+      rejects({ isPhoneRestricted: false, [key]: null });
+      rejects({ isPhoneRestricted: true, nested: [{ [key]: "13800138001" }] });
+    },
+  );
+
+  it("布尔例外不开放其它原禁用类别，也不改变 Mask 与登录决策边界", () => {
+    for (const key of [
+      "points",
+      "balance",
+      "amount",
+      "price",
+      "contract",
+      "invoice",
+      "uscc",
+      "license",
+    ])
+      rejects({ isPhoneRestricted: true, [key]: 1 });
+    expect(
+      clerkVisibleKeys(operationId, {
+        isPhoneRestricted: false,
+        phoneMask: "138****8001",
+        storeName: "公开虚构门店",
+      }),
+    ).toEqual(["isPhoneRestricted", "phoneMask", "storeName"]);
+    expect(clerkVisibleKeys("m.session.create", { needPhone: false })).toEqual(["needPhone"]);
+    rejects({ needPhone: false });
+  });
+});
