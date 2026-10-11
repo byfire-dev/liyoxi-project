@@ -35,6 +35,7 @@ export const THREE_PHASE_OPERATIONS = {
   "m.storeProfile.contact.update": "external-first",
   "m.invitation.create": "external-first",
   "m.invitation.accept": "external-first",
+  "m.store.create": "external-first",
 } as const satisfies Record<string, ThreePhaseShape>;
 
 /** 这条路由是不是三段式用例：登记表里有，或路由自己标了 x-three-phase */

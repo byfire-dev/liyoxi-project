@@ -250,3 +250,8 @@ CLIENT_ERROR_PROJECTS_FILE内容由loadEnv读取，格式为{"projects":[{"dsn":
 此门禁放松独立于邀请业务源码，不改分类规则、契约、HTTP、DDL 或依赖；不计完整邀请、emptyDraft 或 W2-10 完成。
 
 2026-10-11 本地合流记录：邀请预览店员字段门禁独立前置源387b041c从实际main46c6c04a开工，经唯一非作者ROOT正式审查76.861018208/180秒通过，P1/P2/D=0、首尾SHA无差异。非测试新增14/80、测试新增84/180；只允许m.invitation.lookup顶层isPhoneRestricted布尔，原FORBIDDEN/其它路径与类型行为保留。新增33边界与原98共131/131、两个完整文件、fresh API类型及17阶段全部退出0，0失败/跳过/pending/todo/复用/未执行。原mall7858字节前缀及clerk整叶经ROOT独立base核对完全保留；原classifier明确loosen、outside为空，按gate-change独立验收，不改登记或规则。69观测PID/20PGID（含observer/owner/caffeinate）退出后fresh OS全部归零，自有DB/Redis/TMP归零。正常hooks后立即合本地main，仅三个已登记门禁叶，五个外来首页文件逐SHA保留且未暂存、outputs未读写。本段替代本片SOURCE未验证状态；此片不交邀请业务HTTP/到期、emptyDraft或完整W2-10，不声称远端CI/真实平台或生产容量。
+## W2-10 分店创建
+
+`POST /api/v1/m/stores` 为老板能力，要求当前启用门店上下文、JSON 正式请求及 `Idempotency-Key`。API 固定绑定真实会话校验、Profile.validateStoreBasics 和四项档案/品牌复制 factory；店名与地址外检只投影正式拒绝字段。成功返回当前真实完整老板 StoreCard 并标记 no-store，required 重放保留原响应。
+
+当前记录为 SOURCE 准备；官方契约与 clerk golden 只能经独占验证窗口生成，类型、整叶、资源及最终审查结果另行记录。真实云付费、像素/帧验证和默认模型预算不属于本片。

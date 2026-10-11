@@ -167,3 +167,8 @@ draft_deleted 归档/恢复均隐藏404；成员安全告知保留，经理仍�
 `readStoreMembersBrief(tx, { entityId, storeId, now })` 单 SQL 读取 scoped 成员、邀请与稳定三人预览。
 称呼只取成员列；pending 只有 expiresAt>now 占额，不隐式修复、外呼或开启第二事务。
 Profile 消费公开 Tenant 方法；无新 kernel 端口，原权限与成员写锁图保持。完整验证待授权。
+## 分店创建（W2-10）
+
+`Tenant.createStore` 使用 required 三段式幂等：外部阶段仅调用正式档案基础校验，写事务锁完整账号、主体、成员和来源/目标门店图后重读额度与真实会话。新店首次写入 active/non-primary/unsubmitted，复制来源与四项选择在档案首次 INSERT 固定；四项复制通过 API 固定绑定的真实 profile/media 拥有者完成。
+
+同键成功重放返回原 StoreCard，进入缓存前仍重新核当前拥有者与会话。未装配 `storeCreation` 的旧构造入口只在调用此新方法时明确失败，不提供空档案或授权默认值。本片不提交资质、不实现门店删除，也不启用模型预算。SOURCE 与官方派生、业务及并发验收分阶段记录。

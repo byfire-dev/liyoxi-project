@@ -5,6 +5,7 @@ import {
   mStoreArchive,
   StoreCardSchema,
   mStoreRestore,
+  mStoreCreate,
   StoreDeleteResultSchema,
   mStoreDelete,
 } from "@liyoxi/contract";
@@ -17,6 +18,18 @@ import { merchantServicesOf } from "../merchant/services.js";
 import { defineHandler } from "../routing/define.js";
 
 export const storeHandlers = [
+  defineHandler(mStoreCreate, async (c) => {
+    const ctx = c.get("identity"),
+      principal = c.get("merchantSession");
+    if (!ctx || !principal) throw new AppError("AUTH_REQUIRED");
+    const result = await merchantServicesOf(c.var.runtime).tenant.createStore(
+      ctx,
+      c.req.valid("json"),
+      { idem: idemOf(c), principal },
+    );
+    c.header("Cache-Control", "no-store");
+    return respondByRole(c, { owner: StoreCardSchema }, result);
+  }),
   defineHandler(mStoreDelete, async (c) => {
     const ctx = c.get("identity");
     if (!ctx) throw new AppError("AUTH_REQUIRED");
