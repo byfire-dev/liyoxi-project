@@ -10,7 +10,7 @@ import {
 } from "../../testing/index.js";
 import { createConfig, createConfigAdmin } from "../../config/index.js";
 import { failed, ok } from "../../providers/types.js";
-import type { LlmProvider } from "../../providers/types.js";
+import type { LlmDigest, LlmProvider } from "../../providers/types.js";
 import { createMediaJobs } from "../index.js";
 import type { JobJson, JobOutcome } from "../jobs/types.js";
 import type { AssetDeps } from "./context.js";
@@ -46,13 +46,22 @@ beforeAll(async () => {
 beforeEach(() => {
   h.permitControlledModel(true);
   h.fake.llm.resetCalls();
-  h.fake.llm.keyPointReplies.length = 0;
+  h.fake.llm.digestReplies.length = 0;
   h.fake.llm.tagReplies.length = 0;
 });
 afterEach(() => vi.restoreAllMocks());
 afterAll(async () => h?.close());
 
 const json = (value: unknown) => value as Prisma.InputJsonValue;
+// Explicit complete model fixture; production never fills missing Digest fields.
+const summary = (keypoints: readonly string[]): LlmDigest => ({
+  title: "",
+  keypoints: [...keypoints],
+  contentTags: [],
+  suggestedUsage: [],
+  faceHint: "none",
+  qualityNotes: [],
+});
 const row = (id: string) => h.prisma.mediaJob.findUniqueOrThrow({ where: { id } });
 const asset = (id: string) => h.prisma.storeAsset.findUniqueOrThrow({ where: { id } });
 const insights = (id: string) =>
@@ -349,13 +358,13 @@ async function held(
 ) {
   const entered = gate(),
     release = gate();
-  const call = vi.spyOn(h.fake.llm, "extractKeyPoints").mockImplementation(async (input) => {
+  const call = vi.spyOn(h.fake.llm, "summarizeAsset").mockImplementation(async (input) => {
     assertNotInTransaction("digest model IO");
     expect(input.signal).toBeInstanceOf(AbortSignal);
     observed.push(input.text);
     entered.release();
     await release.promise;
-    return ok({ points: ["公开虚构摘要要点"] });
+    return ok(summary(["公开虚构摘要要点"]));
   });
   const running = publicRun
     ? h.media.jobs.run({ jobId: facts.job.id })
@@ -375,11 +384,14 @@ describe("digest public jobs and manual fallback", () => {
   it("audits real text, sends the same signal outside Tx, and stores six bounded Unicode points once", async () => {
     const facts = await readyText(),
       points = Array.from({ length: 6 }, (_, index) => `${index}${"😀".repeat(59)}`);
-    const call = vi.spyOn(h.fake.llm, "extractKeyPoints").mockImplementation(async (input) => {
+    const call = vi.spyOn(h.fake.llm, "summarizeAsset").mockImplementation(async (input) => {
       assertNotInTransaction("public digest model IO");
-      expect(input).toMatchObject({ text: (await asset(facts.assetId)).textBody, maxPoints: 6 });
+      expect(input).toMatchObject({
+        text: (await asset(facts.assetId)).textBody,
+        vocabulary: expect.any(Object),
+      });
       expect(input.signal).toBeInstanceOf(AbortSignal);
-      return ok({ points });
+      return ok(summary(points));
     });
     const result = await output(facts);
     expect(result).toMatchObject({
@@ -389,7 +401,16 @@ describe("digest public jobs and manual fallback", () => {
       content: { keypoints: points, partial: false },
     });
     expect(result.content.sourceHash).toMatch(/^[a-f0-9]{64}$/);
-    expect(Object.keys(result.content).sort()).toEqual(["keypoints", "partial", "sourceHash"]);
+    expect(Object.keys(result.content).sort()).toEqual([
+      "contentTags",
+      "faceHint",
+      "keypoints",
+      "partial",
+      "qualityNotes",
+      "sourceHash",
+      "suggestedUsage",
+      "title",
+    ]);
     expect(points.every((point) => Array.from(point).length === 60)).toBe(true);
     expect(await asset(facts.assetId)).toMatchObject({
       processingState: "processed",
@@ -403,7 +424,7 @@ describe("digest public jobs and manual fallback", () => {
     expect(saved).toHaveLength(1);
     expect(saved[0]).toMatchObject({
       status: "ok",
-      content: result.content,
+      content: summary(points),
       mediaJobId: facts.job.id,
     });
     expect(emitted.filter((event) => event.eventType === "asset.processed")).toHaveLength(1);
@@ -440,7 +461,7 @@ describe("digest public jobs and manual fallback", () => {
       where: { parentId: created.storeAssetId, kind: "vision" },
     });
     await h.media.jobs.run({ jobId: origin.id });
-    h.fake.llm.keyPointReplies.push(["现场制作展示"]);
+    h.fake.llm.digestReplies.push(summary(["现场制作展示"]));
     const job = await h.prisma.mediaJob.findFirstOrThrow({
       where: { parentId: created.storeAssetId, kind: "digest" },
     });
@@ -456,9 +477,9 @@ describe("digest public jobs and manual fallback", () => {
     expect(AssetJobOutputSchema.parse((await row(origin.id)).output).content).toEqual(
       source.content,
     );
-    expect(h.fake.llm.callsOf("extractKeyPoints")[0]!.input).toMatchObject({
+    expect(h.fake.llm.callsOf("summarizeAsset")[0]!.input).toMatchObject({
       text: "拍摄开放式厨房\nvision: 公开虚构厨房正在现场制作",
-      maxPoints: 6,
+      vocabulary: expect.any(Object),
     });
   });
 
@@ -502,18 +523,18 @@ describe("digest public jobs and manual fallback", () => {
 
   it.each([
     { name: "empty", value: { points: [] } },
-    { name: "seven", value: { points: Array.from({ length: 7 }, () => "要点") } },
-    { name: "61 codepoints", value: { points: ["😀".repeat(61)] } },
+    { name: "seven", value: summary(Array.from({ length: 7 }, () => "要点")) },
+    { name: "61 codepoints", value: summary(["😀".repeat(61)]) },
     { name: "whitespace", value: { points: [" \n\t"] } },
     { name: "non string", value: { points: [7] } },
-    { name: "extra invented tags", value: { points: ["要点"], tags: ["广告"] } },
+    { name: "extra invented tags", value: { ...summary(["要点"]), tags: ["广告"] } },
     { name: "missing DTO", value: { keypoints: ["要点"] } },
   ])(
     "$name model DTO becomes a controlled skip without retry or invented fields",
     async ({ value }) => {
       const facts = await readyText();
-      vi.spyOn(h.fake.llm, "extractKeyPoints").mockResolvedValue(
-        ok(value) as Awaited<ReturnType<LlmProvider["extractKeyPoints"]>>,
+      vi.spyOn(h.fake.llm, "summarizeAsset").mockResolvedValue(
+        ok(value) as Awaited<ReturnType<LlmProvider["summarizeAsset"]>>,
       );
       expect(await output(facts)).toMatchObject({
         status: "skipped",
@@ -536,7 +557,7 @@ describe("digest public jobs and manual fallback", () => {
     "provider %s does not enter generic automatic retries",
     async (reason) => {
       const facts = await readyText(),
-        call = vi.spyOn(h.fake.llm, "extractKeyPoints");
+        call = vi.spyOn(h.fake.llm, "summarizeAsset");
       if (reason === "throw")
         call.mockRejectedValue(new Error("public fictional provider failure"));
       else call.mockResolvedValue(failed(reason, "public fictional provider failure"));
@@ -599,13 +620,13 @@ describe("digest uses complete current source provenance", () => {
     const facts = await readySources("image", ["公开虚构菜品"], "公开虚构拍摄说明");
     const code = await tag(facts.assetId);
     await h.prisma.storeAssetInsight.delete({ where: { id: facts.sources[0]!.insight.id } });
-    h.fake.llm.keyPointReplies.push(["公开虚构说明要点"]);
+    h.fake.llm.digestReplies.push(summary(["公开虚构说明要点"]));
     expect(await output(facts)).toMatchObject({
       status: "ok",
       content: { partial: true, keypoints: ["公开虚构说明要点"] },
     });
-    expect(h.fake.llm.callsOf("extractKeyPoints")).toHaveLength(1);
-    expect(h.fake.llm.callsOf("extractKeyPoints")[0]!.input).toMatchObject({
+    expect(h.fake.llm.callsOf("summarizeAsset")).toHaveLength(1);
+    expect(h.fake.llm.callsOf("summarizeAsset")[0]!.input).toMatchObject({
       text: `公开虚构拍摄说明\n${code.tagCode}`,
     });
     expect(await asset(facts.assetId)).toMatchObject({
@@ -619,12 +640,12 @@ describe("digest uses complete current source provenance", () => {
     const facts = await readySources("image", ["公开虚构菜品", "公开虚构环境"], "公开虚构拍摄说明"),
       code = await tag(facts.assetId);
     await h.prisma.storeAssetInsight.delete({ where: { id: facts.sources[1]!.insight.id } });
-    h.fake.llm.keyPointReplies.push(["菜品展示"]);
+    h.fake.llm.digestReplies.push(summary(["菜品展示"]));
     expect(await output(facts)).toMatchObject({
       status: "ok",
       content: { partial: true, keypoints: ["菜品展示"] },
     });
-    expect(h.fake.llm.callsOf("extractKeyPoints")[0]!.input).toMatchObject({
+    expect(h.fake.llm.callsOf("summarizeAsset")[0]!.input).toMatchObject({
       text: `公开虚构拍摄说明\n${code.tagCode}\nvision: 公开虚构菜品`,
     });
     expect(await asset(facts.assetId)).toMatchObject({ isInsightPartial: true });
@@ -731,10 +752,10 @@ describe("digest uses complete current source provenance", () => {
     async ({ type, limit, prefix, character }) => {
       const text = character.repeat(limit / 2 + 1),
         facts = await readySources(type, [text, text], "");
-      h.fake.llm.keyPointReplies.push(["公开虚构长来源要点"]);
+      h.fake.llm.digestReplies.push(summary(["公开虚构长来源要点"]));
       const result = await output(facts),
-        input = h.fake.llm.callsOf("extractKeyPoints")[0]!.input as Parameters<
-          LlmProvider["extractKeyPoints"]
+        input = h.fake.llm.callsOf("summarizeAsset")[0]!.input as Parameters<
+          LlmProvider["summarizeAsset"]
         >[0];
       expect(input.text).toBe(`${prefix}: ${text}\n${prefix}: ${character.repeat(limit / 2 - 1)}`);
       expect(Array.from(input.text.replaceAll(`${prefix}: `, "").replaceAll("\n", "")).length).toBe(
@@ -746,14 +767,11 @@ describe("digest uses complete current source provenance", () => {
         const structured = await h.prisma.storeAssetInsight.findMany({
           where: { storeAssetId: facts.assetId, kind: "structured_items" },
         });
-        expect(structured).toHaveLength(2);
-        expect(
-          structured.every(
-            (item) =>
-              item.status === "skipped" &&
-              (item.content as { reason: string }).reason === "structured_extractor_unconfigured",
-          ),
-        ).toBe(true);
+        // A valid aggregate DTO is not an extraction result attributed to each file.
+        expect(structured).toEqual([]);
+        expect((await insights(facts.assetId))[0]?.content).toEqual(
+          summary(["公开虚构长来源要点"]),
+        );
       }
     },
   );
@@ -762,7 +780,7 @@ describe("digest uses complete current source provenance", () => {
     const facts = await readySources("document", ["文".repeat(10000)], ""),
       source = facts.sources[0]!;
     await replaceSource(source, { text: "文".repeat(10000), truncated: true, charCount: 12000 });
-    h.fake.llm.keyPointReplies.push(["公开虚构文档要点"]);
+    h.fake.llm.digestReplies.push(summary(["公开虚构文档要点"]));
     expect(await output(facts)).toMatchObject({ status: "ok", content: { partial: true } });
   });
 
@@ -772,10 +790,10 @@ describe("digest uses complete current source provenance", () => {
       Array.from({ length: 9 }, () => "文".repeat(2000)),
       "",
     );
-    h.fake.llm.keyPointReplies.push(["公开虚构视频要点"]);
+    h.fake.llm.digestReplies.push(summary(["公开虚构视频要点"]));
     const result = await output(facts),
-      input = h.fake.llm.callsOf("extractKeyPoints")[0]!.input as Parameters<
-        LlmProvider["extractKeyPoints"]
+      input = h.fake.llm.callsOf("summarizeAsset")[0]!.input as Parameters<
+        LlmProvider["summarizeAsset"]
       >[0];
     expect(Array.from(input.text)).toHaveLength(16000);
     expect(Buffer.byteLength(input.text)).toBeLessThanOrEqual(64 * 1024);
@@ -972,11 +990,11 @@ describe("digest fresh lease and source snapshots around IO", () => {
     expect(h.fake.llm.calls).toEqual([]);
     const live = new AbortController(),
       release = gate();
-    const call = vi.spyOn(h.fake.llm, "extractKeyPoints").mockImplementation(async (input) => {
+    const call = vi.spyOn(h.fake.llm, "summarizeAsset").mockImplementation(async (input) => {
       assertNotInTransaction("abort-ignoring fixture IO");
       expect(input.signal).toBe(live.signal);
       await release.promise;
-      return ok({ points: ["不能采纳的晚结果"] });
+      return ok(summary(["不能采纳的晚结果"]));
     });
     const running = strategy().execute(job, live.signal);
     try {
@@ -1020,10 +1038,10 @@ describe("digest real transaction and lock boundaries", () => {
       holder = await connectTestDatabase(database.name),
       observer = await connectTestDatabase(database.name, { role: null });
     let running: Promise<void> | undefined;
-    const call = vi.spyOn(h.fake.llm, "extractKeyPoints").mockImplementation(async (input) => {
+    const call = vi.spyOn(h.fake.llm, "summarizeAsset").mockImplementation(async (input) => {
       assertNotInTransaction("lock-winner digest IO");
       expect(input.text).toBe("公开虚构锁赢家正文");
-      return ok({ points: ["锁赢家要点"] });
+      return ok(summary(["锁赢家要点"]));
     });
     try {
       await holder.query("BEGIN");
@@ -1074,11 +1092,11 @@ describe("digest real transaction and lock boundaries", () => {
       handlers: [...h.media.jobs.handlers.values()],
       convergenceHandlers: [...h.media.jobs.convergence.values()],
     });
-    const call = vi.spyOn(h.fake.llm, "extractKeyPoints").mockImplementation(async () => {
+    const call = vi.spyOn(h.fake.llm, "summarizeAsset").mockImplementation(async () => {
       assertNotInTransaction("two-worker digest IO");
       entered.release();
       await release.promise;
-      return ok({ points: ["唯一摘要"] });
+      return ok(summary(["唯一摘要"]));
     });
     const running = h.media.jobs.run({ jobId: facts.job.id });
     try {
@@ -1102,7 +1120,7 @@ describe("digest real transaction and lock boundaries", () => {
   it("finish rereads the source hash after IO and rejects a third-window content winner", async () => {
     const facts = await readyText(),
       job = await claim(facts);
-    h.fake.llm.keyPointReplies.push(["公开虚构旧正文要点"]);
+    h.fake.llm.digestReplies.push(summary(["公开虚构旧正文要点"]));
     const result = await strategy().execute(job, new AbortController().signal);
     expect(success(result).status).toBe("ok");
     await h.prisma.storeAsset.update({
@@ -1137,10 +1155,10 @@ describe("digest real transaction and lock boundaries", () => {
       beforeAsset = await asset(facts.assetId),
       beforeEvents = await events(facts.assetId);
     let claimed: MediaJob | undefined;
-    vi.spyOn(h.fake.llm, "extractKeyPoints").mockImplementation(async () => {
+    vi.spyOn(h.fake.llm, "summarizeAsset").mockImplementation(async () => {
       assertNotInTransaction("rollback digest IO");
       claimed = await row(facts.job.id);
-      return ok({ points: ["公开虚构待回滚要点"] });
+      return ok(summary(["公开虚构待回滚要点"]));
     });
     const emit = h.events.emit;
     vi.spyOn(h.events, "emit").mockImplementation(async (...args) => {
@@ -1173,11 +1191,9 @@ describe("digest 文件锁等待后的新鲜准入", () => {
         },
       });
       const admission = vi.fn(async () => true);
-      const call = vi.spyOn(h.fake.llm, "extractKeyPoints").mockResolvedValue(
-        ok({
-          points: ["过期工作不应调用模型"],
-        }),
-      );
+      const call = vi
+        .spyOn(h.fake.llm, "summarizeAsset")
+        .mockResolvedValue(ok(summary(["过期工作不应调用模型"])));
       const beforeEvents = await events(facts.assetId);
       const holder = await connectTestDatabase(database.name);
       const observer = await connectTestDatabase(database.name, { role: null });
@@ -1270,11 +1286,11 @@ describe("digest 真实 public reprocess 的选中来源语义", () => {
           source.insight.content,
         );
       }
-      const call = vi.spyOn(h.fake.llm, "extractKeyPoints").mockImplementation(async (request) => {
+      const call = vi.spyOn(h.fake.llm, "summarizeAsset").mockImplementation(async (request) => {
         assertNotInTransaction("重跑摘要模型外呼");
         expect(request.text).toContain(`${insightKind}: ${marker}`);
-        expect(request.maxPoints).toBe(6);
-        return ok({ points: ["重跑采用合法未选中来源"] });
+        expect(Object.keys(request.vocabulary).sort()).toEqual(["content", "timeliness", "usage"]);
+        return ok(summary(["重跑采用合法未选中来源"]));
       });
       const result = await output({ ...facts, job });
       expect(result).toMatchObject({
@@ -1287,7 +1303,7 @@ describe("digest 真实 public reprocess 的选中来源语义", () => {
       expect((await insights(facts.assetId))[0]).toMatchObject({
         mediaJobId: job.id,
         status: "ok",
-        content: result.content,
+        content: summary(["重跑采用合法未选中来源"]),
       });
       for (const source of beforeSources) {
         expect(await row(source.origin.id)).toEqual(source.origin);
@@ -1353,7 +1369,7 @@ describe("digest 真实 public reprocess 的选中来源语义", () => {
         runId: current.runId,
         selected: [insightKind, "digest"],
       });
-      const call = vi.spyOn(h.fake.llm, "extractKeyPoints");
+      const call = vi.spyOn(h.fake.llm, "summarizeAsset");
       h.fake.llm.resetCalls();
       expect(await output({ ...facts, job })).toMatchObject({
         status: "skipped",
