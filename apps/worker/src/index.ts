@@ -42,6 +42,16 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
   const assembly = assembleServices({ entry: "worker", appEnv: env.APP_ENV });
   const database = connectWorkerDatabase(env.DATABASE_URL);
   const wechatClosers: Array<() => Promise<void>> = [];
+  // 装配可能在services返回前失败，模型所有权须先由入口持有。
+  const modelClosers: Array<() => Promise<void>> = [];
+  let modelClosing: Promise<void> | undefined;
+  const closeModelDrivers = () =>
+    (modelClosing ??= Promise.allSettled(
+      modelClosers.map((close) => Promise.resolve().then(close)),
+    ).then((results) => {
+      const failure = results.find((result) => result.status === "rejected");
+      if (failure?.status === "rejected") throw failure.reason;
+    }));
   const wechatRedis = env.WECHAT
     ? new Redis(env.REDIS_URL, {
         lazyConnect: true,
@@ -85,6 +95,7 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
       () => services?.closeStorageDrivers?.(),
       ...wechatClosers,
     ]);
+    await clean([closeModelDrivers]);
     await clean([() => services?.closeModelBudget?.()]);
     await clean([closeBudgetRedis]);
     await clean([() => services?.closeAlertFacts?.()]);
@@ -117,6 +128,10 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
       });
     }
     services = buildWorkerServices({
+      modelDrivers: {
+        registerClose: (close) => modelClosers.push(close),
+        close: closeModelDrivers,
+      },
       ...(budgetRedis
         ? {
             modelBudgetTransport: {
@@ -205,6 +220,8 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
       failed = true;
       logger.error({ err: error }, "任务关停失败");
     } finally {
+      // runtime已完成业务drain；同一缓存Promise也覆盖stop自身提前失败的兜底。
+      const modelsClosed = await settle([closeModelDrivers]);
       const closed = await settle([
         closeBudgetRedis,
         () => activeChannel.close(),
@@ -212,7 +229,7 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
         () => database.close(),
         () => wechatRedis?.disconnect(),
       ]);
-      failed ||= closed.some((result) => result.status === "rejected");
+      failed ||= [...modelsClosed, ...closed].some((result) => result.status === "rejected");
     }
     process.exit(failed ? 1 : 0);
   };
