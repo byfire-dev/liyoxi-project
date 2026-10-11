@@ -2,10 +2,34 @@ import { createHash, createHmac } from "node:crypto";
 import { createServer } from "node:http";
 import type { IncomingHttpHeaders, Server, ServerResponse } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createTencentAsr, withBeforeCall } from "../providers/index.js";
-import type { TencentAsrOptions } from "../providers/index.js";
+import { assembleProviders } from "../kernel/index.js";
+import type { AssembleProvidersOptions } from "../kernel/index.js";
+import { withBeforeCall } from "../providers/types.js";
 import { createAsrWebhookSource } from "../security/index.js";
 import type { WebhookRequest } from "../security/index.js";
+
+type TencentAsrOptions = Omit<NonNullable<AssembleProvidersOptions["asr"]>, "registerClose">;
+
+// 仅经既有 kernel 公口组装真实腾讯驱动，关闭函数由真实工厂登记。
+function createTencentAsr(
+  config: NonNullable<NonNullable<AssembleProvidersOptions["settings"]>["asr"]>,
+  options: TencentAsrOptions,
+) {
+  let close: (() => Promise<void>) | undefined;
+  const providers = assembleProviders({
+    appEnv: "prod",
+    logger: { info: () => undefined, warn: () => undefined, error: () => undefined },
+    settings: { asr: config },
+    asr: {
+      ...options,
+      registerClose(registered) {
+        close = registered;
+      },
+    },
+  });
+  if (!close) throw new Error("真实 ASR 工厂未登记关闭函数");
+  return { provider: providers.asr, close };
+}
 
 // 公开虚构配置与本地 HTTP；不连接腾讯或 CallbackUrl，不伪造 DB wake。
 const config = { secretId: "AKIDEXAMPLE", secretKey: "SECRETKEYEXAMPLE" };
