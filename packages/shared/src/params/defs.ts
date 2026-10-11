@@ -485,6 +485,18 @@ export const PARAM_DEFS = [
   bool("catalog.search.industry_fallback", "搜索无结果时按行业兜底推荐", { default: true }),
 
   // ---- media（D5 第 3.6、6.2 节；D7 第 4.11 节；07 第 7 节）
+  int("media.assets.daily_file_cap", "门店每日模型处理文件上限", {
+    default: 200,
+    unit: "文件",
+    min: 0,
+    max: 200,
+  }),
+  int("media.model.daily_call_cap", "全局每日模型保守预留槽上限", {
+    default: 0,
+    unit: "槽",
+    min: 0,
+    max: 10_000,
+  }),
   enumOf("files.purge.mode", "文件清除的运行模式", {
     options: ["list_only", "auto"],
     default: "list_only",
