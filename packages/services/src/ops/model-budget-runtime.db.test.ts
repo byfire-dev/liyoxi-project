@@ -354,9 +354,16 @@ describe("预算真实参数/Redis/独立告警事务", { timeout: SLOW }, () =>
     await caps(200, 3);
     const job = await readyText();
     h.clock.set(new Date());
-    const model = vi
-      .spyOn(h.fake.llm, "summarizeAsset")
-      .mockResolvedValue(ok({ keypoints: ["公开虚构菜品"] }));
+    const model = vi.spyOn(h.fake.llm, "summarizeAsset").mockResolvedValue(
+      ok({
+        title: "",
+        keypoints: ["公开虚构菜品"],
+        contentTags: [],
+        suggestedUsage: [],
+        faceHint: "none",
+        qualityNotes: [],
+      }),
+    );
     if (invalidate) {
       const original = runtime.admission.reserve.bind(runtime.admission);
       vi.spyOn(runtime.admission, "reserve").mockImplementation(async (value, abort) => {
