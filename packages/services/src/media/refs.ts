@@ -1,12 +1,61 @@
 import { UPLOAD_CATEGORIES } from "@liyoxi/shared/uploads";
 import { AppError, lockRows, uuidv7 } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
-import type { BoundMediaDeps, LinkInput, ReleaseInput } from "./context.js";
+import type {
+  BoundMediaDeps,
+  LinkInput,
+  ReleaseInput,
+  RefRetentionInput,
+  RefRetention,
+} from "./context.js";
 import { categoryOf } from "./access.js";
 const unusable = (
   fileId: string,
   reason: "not_stored" | "blocked" | "category_mismatch" | "scope_mismatch",
 ) => new AppError("FILE_NOT_USABLE", { details: { fileIds: [fileId], reason } });
+export async function readRefRetention(
+  deps: BoundMediaDeps,
+  tx: Tx,
+  input: RefRetentionInput,
+): Promise<RefRetention | null> {
+  const roles = deps.refTypes.get(input.refType)?.roles;
+  if (!roles || !Object.hasOwn(roles, input.role))
+    throw new TypeError(`未登记文件引用：${input.refType}/${input.role}`);
+  await lockRows(tx, "file_object", [input.fileId]);
+  const file = await tx.fileObject.findUnique({ where: { id: input.fileId } });
+  if (
+    !file ||
+    (file.scopeType !== "platform" &&
+      (file.entityId !== input.entityId ||
+        (file.scopeType === "store" &&
+          !UPLOAD_CATEGORIES[categoryOf(file)].crossStore &&
+          file.storeId !== input.storeId)))
+  )
+    throw new AppError("FILE_NOT_AVAILABLE");
+  const ref = await tx.fileRef.findUnique({
+    where: {
+      fileId_refType_refId_role: {
+        fileId: input.fileId,
+        refType: input.refType,
+        refId: input.refId,
+        role: input.role,
+      },
+    },
+    select: { state: true, releasedAt: true, keepUntil: true },
+  });
+  if (!ref) return null;
+  if (ref.state === "live" && ref.releasedAt === null && ref.keepUntil === null)
+    return { state: "live", releasedAt: null, keepUntil: null };
+  if (
+    ref.state === "released" &&
+    ref.releasedAt instanceof Date &&
+    Number.isFinite(ref.releasedAt.getTime()) &&
+    ref.keepUntil instanceof Date &&
+    Number.isFinite(ref.keepUntil.getTime())
+  )
+    return { state: "released", releasedAt: ref.releasedAt, keepUntil: ref.keepUntil };
+  throw new TypeError("文件引用留存事实不合法");
+}
 export async function link(deps: BoundMediaDeps, tx: Tx, input: LinkInput): Promise<void> {
   const role = deps.refTypes.get(input.refType)?.roles[input.role];
   if (!role) throw new TypeError(`未登记文件引用：${input.refType}/${input.role}`);
