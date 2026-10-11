@@ -121,6 +121,8 @@ export const PARAM_KEYS_BY_GROUP = {
     "catalog.search.industry_fallback",
   ],
   media: [
+    "media.assets.daily_file_cap",
+    "media.model.daily_call_cap",
     "files.purge.mode",
     "files.purge.max_objects",
     "files.purge.max_bytes",

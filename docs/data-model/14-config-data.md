@@ -303,7 +303,7 @@ erDiagram
 | `identity` / `tenant`（02） | `auth.dormant_days`、`auth.identity_remove_min_age_days`、`tenant.default_store_limit`、`tenant.default_member_limit`、`invitation.ttl_hours`、`invitation.require_phone`、`invitation.daily_cap` | 02 的请求（d4:2342-2361） |
 | `staff` / `approval`（03） | `approval.remind_workdays`、`approval.escalate_workdays`、`admin.password_max_age_days` | 03 的请求 |
 | `content`（05） | `content.permit.platform_check`、`content.placement.open_slots` | d8:645；05 的请求 |
-| `media`（06） | `files.purge.mode`、`files.purge.max_objects`、`files.purge.max_bytes`、`files.retention.portrait_auth_adopted_years`（被采用过的素材删除后，其肖像授权材料的保留年数，默认 3，待法务确认；06 分组第 6 节第 5 项） | 06 的请求 |
+| `media`（06） | `files.purge.mode`、`files.purge.max_objects`、`files.purge.max_bytes`、`files.retention.portrait_auth_adopted_years`（被采用过的素材删除后，其肖像授权材料的保留年数，默认 3，待法务确认；06 分组第 6 节第 5 项）、`media.assets.daily_file_cap`（门店每日模型处理文件上限，默认 200，0–200文件）、`media.model.daily_call_cap`（全局每日保守预留槽上限，默认 0，0–10000槽；ASR提交1槽，LLM逻辑调用3槽，任一上限0则关闭） | 06 的请求；D5 §9.5预算护栏，W3-15独立账本前置；登记不代表模型已接入 |
 | `order` / `ad`（09） | `order.start_delay_minutes`、`order.rejected_stale_days`（默认 7）、`ad.returned_stale_days`（默认 7） | d3:3045；09 的请求 |
 | `delivery`（10） | `qc.episode.four_eyes` | 10 的请求 |
 | `publish`（11） | `launch.partial_goes_live`、`launch.verify_revoke_window`、`patrol.weekly_sample`、`takedown.check_mode`（下架核查口径：默认逐条核查留证，可改为按比例抽查，抽查比例用万分比；值形态见第 4.2 节） | d3:1998、3398；11 的请求 |
