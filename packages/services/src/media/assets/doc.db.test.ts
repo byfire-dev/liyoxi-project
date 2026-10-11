@@ -244,8 +244,35 @@ async function stored(body = bytes(), ext = "txt", actor = h.owner) {
     metadata.mockRestore();
   }
 }
-async function ready(body = bytes(), ext = "txt", actor = h.owner) {
-  const file = await stored(body, ext, actor);
+async function ready(body = bytes(), ext = "txt", actor = h.owner, legacyStored = false) {
+  // Existing stored GBK facts are legal, although today's upload-prefix guard accepts
+  // UTF8 only. This controlled row does not claim that public GBK upload succeeds.
+  let file: Awaited<ReturnType<typeof stored>>;
+  if (legacyStored) {
+    const key = `test/${uuidv7()}.txt`;
+    h.fake.storage.put({ bucket: "asset", key }, body, "text/plain");
+    const metadata = await h.fake.storage.head({ bucket: "asset", key });
+    if (!metadata.ok || !metadata.value.exists || !metadata.value.etag)
+      throw new Error("stored document fixture has no actual object");
+    file = await h.make.fileObject({
+      category: "store_asset",
+      bucket: "asset",
+      scopeType: "store",
+      entityId: h.merchant.entity.id,
+      storeId: h.merchant.store.id,
+      uploadActorType: "merchant",
+      uploadActorId: h.merchant.user.id,
+      ext,
+      objectKey: key,
+      declaredSize: BigInt(body.length),
+      sizeBytes: BigInt(body.length),
+      mime: "text/plain",
+      declaredMime: "text/plain",
+      etag: metadata.value.etag,
+      crc64: crc64(body),
+      sha256: hash(body),
+    });
+  } else file = await stored(body, ext, actor);
   const asset = await h.media.assets.create(actor, { type: "document", fileIds: [file.id] });
   const job = await h.prisma.mediaJob.findFirstOrThrow({
     where: {
@@ -353,7 +380,7 @@ describe("document facts and the existing successor chain", () => {
       facts: () => textFacts("公开虚构😀"),
     },
     {
-      name: "GBK TXT",
+      name: "existing stored GBK TXT",
       ext: "txt",
       body: () => Buffer.concat([Buffer.from("d6d0cec4", "hex"), Buffer.from(` ${sequence++}`)]),
       facts: () => textFacts("中文"),
@@ -374,7 +401,12 @@ describe("document facts and the existing successor chain", () => {
     "$name downloads exact bytes through workspace/socket and saves plain facts",
     async (sample) => {
       peerFacts = sample.facts();
-      const facts = await ready(sample.body(), sample.ext);
+      const facts = await ready(
+        sample.body(),
+        sample.ext,
+        h.owner,
+        sample.name === "existing stored GBK TXT",
+      );
       const sourceBefore = await h.prisma.fileObject.findUniqueOrThrow({
         where: { id: facts.file.id },
       });
@@ -434,6 +466,28 @@ describe("document facts and the existing successor chain", () => {
     async (verdict) => {
       peerFacts = { text: "😀".repeat(10000), truncated: true, charCount: 10001 };
       const facts = await ready();
+      if (change === "sizeBytes") {
+        // Stored facts cannot lose their size: prove the actual DB invariant rather
+        // than constructing an impossible row or weakening the current() guard.
+        const before = await h.prisma.fileObject.findUniqueOrThrow({
+          where: { id: facts.file.id },
+        });
+        await expect(
+          h.prisma.fileObject.update({
+            where: { id: facts.file.id },
+            data: { sizeBytes: null },
+          }),
+        ).rejects.toThrow("ck_file_object_stored_facts");
+        expect(
+          await h.prisma.fileObject.findUniqueOrThrow({ where: { id: facts.file.id } }),
+        ).toEqual(before);
+        expect(await row(facts.job.id)).toEqual(facts.job);
+        expect(await insights(facts.assetId)).toEqual([]);
+        expect(docText).not.toHaveBeenCalled();
+        expect(directories).toEqual([]);
+        expect(h.fake.storage.callsOf("readTo")).toEqual([]);
+        return;
+      }
       await extract(facts);
       vi.spyOn(h.fake.media, "auditText").mockImplementation(async (input) => {
         assertNotInTransaction("document moderation");
@@ -498,11 +552,9 @@ describe("bounded inputs and untrusted tool results", () => {
         data:
           change === "unsupported"
             ? { ext: "xlsx" }
-            : change === "sizeBytes"
-              ? { sizeBytes: null }
-              : change === "etag"
-                ? { etag: null }
-                : { sizeBytes: 20n * 1024n ** 2n + 1n },
+            : change === "etag"
+              ? { etag: null }
+              : { sizeBytes: 20n * 1024n ** 2n + 1n },
       });
       await h.prisma.mediaJob.update({
         where: { id: facts.job.id },
@@ -514,25 +566,18 @@ describe("bounded inputs and untrusted tool results", () => {
           },
         },
       });
-      if (change === "sizeBytes") {
-        // The existing current() fingerprint guard rejects an absent size before claim.
-        await h.media.jobs.run({ jobId: facts.job.id });
-        expect(await row(facts.job.id)).toMatchObject({ state: "canceled", attemptNo: 0 });
-        expect(await insights(facts.assetId)).toEqual([]);
-      } else {
-        expect(await extract(facts)).toMatchObject({
-          status: "skipped",
-          content: {
-            reason:
-              change === "unsupported"
-                ? "document_format_unsupported"
-                : change === "oversize"
-                  ? "document_text_limit"
-                  : "document_missing",
-          },
-        });
-        expect(await assetRow(facts.assetId)).toMatchObject({ isInsightPartial: true });
-      }
+      expect(await extract(facts)).toMatchObject({
+        status: "skipped",
+        content: {
+          reason:
+            change === "unsupported"
+              ? "document_format_unsupported"
+              : change === "oversize"
+                ? "document_text_limit"
+                : "document_missing",
+        },
+      });
+      expect(await assetRow(facts.assetId)).toMatchObject({ isInsightPartial: true });
       expect(docText).not.toHaveBeenCalled();
       expect(directories).toEqual([]);
       expect(h.fake.storage.callsOf("readTo")).toEqual([]);
