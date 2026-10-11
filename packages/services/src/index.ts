@@ -124,11 +124,14 @@ export {
   billingAccountPort,
   createTenant,
   membershipAuthorizationsPort,
+  entityAdCancelClosePort,
 } from "./tenant/index.js";
 export type {
   ActiveMembership,
   BillingAccountOpener,
   MembershipAuthorizations,
+  EntityAdCancelCloser,
+  EntityAdCancelClosePlan,
   PortalGrantRevocation,
   QuotaUsage,
   StoreMembership,

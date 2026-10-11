@@ -97,3 +97,5 @@ ad 清指针、order 重新推导与 order.start 复活。真实执行还需要 
 `readAdCancelTargetGraph` / `prelockAdCancelTargets` 供未来关闭调用方整体预锁：staff20→approval30→request50→line60→entity100→store130→ad150→活跃绑定 order160/item170；每表 ID 升序，候选图重读不一致即整笔拒绝。所有相关既存 timer 在账户420前整体预锁；调用方必须合并其他 owner 目标后再锁，不得先持主体或高序锁再补本图。正常执行与 auto 都先迁移广告，再调用真实账本、写实际三去向及请求累计，最后完成 header 与 approval.executed；任一失败整笔回滚。广告不拥有 delivery_ticket，不创建假暂停。
 
 内部 body 不接受 serviceTicketId；完整 HTTP 的 support 引用写口与 active requester 对象失效财务代撤另属前置。现仅本人撤回、既有 disabled requester 合法代撤、真实失效后的 system 撤回/作废。未实现其他取消 kind、广告创建/指派/版本 producer、主体关闭或 W210 整包。实际验证待独占窗口，源码阶段不标通过。
+
+`tenant.entityAdCancelClose` 是本域登记的二阶段关闭伴随口，按 tenant README 的低序 union 与全部 tenant 行预锁协议调用。仅在调用方已真实关闭主体后，精确系统撤回该主体的 pending ad_cancel；沿现有六回调关闭 header/审批/自有指针/审批 timer，零账本变动，不造 delivery 暂停。API 复用其唯一 Approval 实例，worker 以原 registry 与真实依赖创建 Approval；既有 `bindOrder`/close 维护本实例作用域，无取消依赖则拒绝。本片不构成完整 tenant 关闭或其他 kind 实现。

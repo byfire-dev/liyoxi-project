@@ -78,3 +78,11 @@ pnpm --filter @liyoxi/services exec vitest run src/tenant/
 调用方在持主体、门店锁的同一事务使用 `readStoreCloseCounts(tx, assembly, storeId)` 取 m02 六类停用计数，或 `readEntityDeletionCounts(tx, assembly, entityId)` 取 m01/a03 共用六类注销/关闭计数。来源失败原样传播；不另开事务、不写库、不读上层内部表，不提前声称生命周期写侧/取消审批已交付。
 
 W2-10 的 `assertWithinQuota` 复用现有额度口径与调用方事务，只在门店超额时返回 `QUOTA_EXCEEDED` 及真实三个数字；成员超额不拦已有订剧。order 报价与提交（含 hold 后复核）消费同一公开判定。新增真实DB6项与原submit/quote/tenant20项同轮26G，services类型和依赖检查通过；唯一独审和合流待执行，完整生命周期仍开发中。
+
+## 主体关闭的广告取消伴随
+
+`entityAdCancelClosePort` 由 order 唯一实现，无默认实现。调用方在任何 tenant 锁或高序锁之前，以真实同一 Tx 调 `prepare(tx, entityId, actorStaffIds)`；它整体预锁员工20、审批30、取消50/明细60，再锁主体100、所有邀请110、成员120、门店130。调用方员工须并入低序 union，每个事务只准备一个主体。
+
+在同一事务履行 tenant 自身关闭联动后，调用 `withdraw(tx, ctx, plan)`。只有真实 entity.closed/closedAt、同 Tx 原计划和完整候选/归属/广告指针/绑定图一致才整体锁广告150、订单160、订单项170及精确 timer，随后走真实广告取消系统撤回与原审批/业务回调。候选或图改变整笔拒绝重试，不补低序锁；缺写侧运行时依赖明确 INTERNAL。
+
+仅收尾 pending_approval 的 ad_cancel，保留 approved 待执行及历史；积分和广告生产 timer 不动。该口不是 tenant 关闭入口，open_order 和其他取消 kind、完整主体/邀请/成员/门店关闭及 HTTP 仍未交付。

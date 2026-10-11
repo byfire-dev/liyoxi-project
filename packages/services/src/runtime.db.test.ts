@@ -7,6 +7,7 @@ import type { Env } from "./kernel/index.js";
 import { createLogger } from "./logger.js";
 import { createRuntime, DB_POOLS, runStartupChecks, StartupCheckError } from "./runtime.js";
 import type { RuntimeOptions } from "./runtime.js";
+import { boundOrder } from "./order/index.js";
 import {
   createFakeProviders,
   createClock,
@@ -46,6 +47,30 @@ async function start(overrides: Partial<Env> = {}, options: Partial<RuntimeOptio
 }
 
 describe("createRuntime", () => {
+  it("order 关闭伴随绑定复用实际审批实例，close 恢复旧作用域", TIMEOUT, async () => {
+    let previous;
+    try {
+      previous = boundOrder();
+    } catch {
+      previous = undefined;
+    }
+    const { runtime } = await start();
+    try {
+      expect(boundOrder().cancel).toMatchObject({
+        clock: runtime.clock,
+        tx: runtime.tx,
+        approval: runtime.approval,
+        flow: runtime.flow,
+        events: runtime.events,
+        timers: runtime.timers,
+      });
+      expect(boundOrder().cancel?.approval).toBe(runtime.approval);
+    } finally {
+      await runtime.close();
+    }
+    if (previous) expect(boundOrder()).toBe(previous);
+    else expect(() => boundOrder()).toThrow(/尚未绑定/);
+  });
   it("coverage runtime 实际绑定，close 后恢复此前的公开绑定", TIMEOUT, async () => {
     const clock = createClock(new Date("2035-01-01T02:00:00Z"));
     let previousCalls = 0;
