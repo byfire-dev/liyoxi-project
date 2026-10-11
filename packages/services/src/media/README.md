@@ -22,6 +22,12 @@ W3-03 将 promote 迁入统一媒体执行器：local 并发2、remote并发8，
 
 live 引用清空 releasedAt/keepUntil，firstLinkedAt 只设置一次。release 的 keepUntil 取调用值、分类/引用最短缓冲与旧值的最大值；有 live 引用时 purgeAfter 为 null，否则取已释放引用的最大保留期。released:true 只用于初建已释放引用或延长已有 released，不能绕过 release 使 live 转 released，也不能绕过永久/生效协议的释放守卫。重新 link 已释放引用恢复 live。协议 source/pdf 已接端口：草稿 7 天、生效后不可释放；media.I2 每日全量与 media.I14 每周全量均为 P2、无自动修复。
 
+`readRefRetention(tx, input)` 读取同一四列自然键的 state/releasedAt/keepUntil，返回 live/released 判别事实；文件、登记与 scope 合法但引用不存在时才返回 null。未登记类型或角色抛 TypeError；缺文件与错误 scope 都返回 FILE_NOT_AVAILABLE。scope 沿原 release，永久及不可释放引用仍可读，不调用 canRelease，不证明可引用、恢复或下载。
+
+读口持 file_object(410) 的默认 update 锁，业务零写，不读取 clock 或调用存储；不能用于数据库 READ ONLY 事务。调用域先验证真实 refId 归属并锁低阶业务图，多文件须一次预锁完整去重文件集后逐项重入。deleted/deleting/block 文件仍能读取历史事实，原 link 技术守卫保持。
+
+消费者在同一事务比较稳定业务锚点的目标期：released 且 keepUntil 足够时跳过原 release，避免晚到重复投递再次顺延；事实不足时才调原 release，null 须明确处理缺引用。原 release 仍取当前 clock 最低期、调用目标和旧值的最大值；本读口不改变首次迟消费的最低留存，也不实现 profile 生命周期消费者。
+
 ## 3. 签发与系统文件
 
 `signRead` 只校验文件技术状态，由业务调用方先授权；`downloadUrls` 先按后台分类矩阵与数据范围授权，拒绝统一 404，未入库或 block 返回 FILE_NOT_AVAILABLE(status)。GET 零写入。secure、样片、成片每次成功 POST 签发都写 access/file_access/files.url.sign；默认 inline，可选 attachment。时效取共享登记表：证照/回单 5 分钟、协议 30 分钟、档案图片对齐窗口实际 30–60 分钟、样片 60 分钟、员工成片 30 分钟、商家单集 15 分钟、ZIP 3 小时、发布清单 15 分钟。窗口内重复图片地址相同。
