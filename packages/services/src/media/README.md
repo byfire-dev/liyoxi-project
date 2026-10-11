@@ -186,6 +186,15 @@ duplicate/stale/默认关闭不冒充超限，不持久化正文、URL、凭据�
 等业务循环/消费者收尾，再关预算/自有Redis与告警；某项close失败仍独立清理并保留原失败。
 ops不关闭借用transport、PG、队列或其他实例资源。本片仍SOURCE，实际类型/完整回归尚待独占验证。
 
+## W2-10 品牌素材 callerTx 复制
+
+`createStoreAssetCopyOwner` 显式装配既有 readStore/SLA/timers/Media.link 公口，只校验本域事实，不授予商家权限。
+prepare 先持门店130、日历共享锁及全部未删除来源370，再选 content/brand_story；opaque plan 绑定实例、精确Tx及一次消费。
+共同410后逐条真实link，同主体复制全部文件/肖像材料、标签及洞察，保留原处理和复核事实；失败整笔回滚。
+未复核副本从新创建时间计算SLA并arm新timer，已复核副本无SLA；复制时不提交任务或外呼。
+保留pending/processing意味着I11在15分钟后仍可真实汇合，不承诺永久零任务/费用。
+SOURCE尚未执行新旧整叶、类型或独立审查；不是store.create HTTP、真实云或生产容量验收。
+
 ## 账本只读诊断（SOURCE）
 
 ops inspector固定accepted的 `lyx:${appEnv}:model_budget:v1`，只读元字段与最多128个索引槽。
