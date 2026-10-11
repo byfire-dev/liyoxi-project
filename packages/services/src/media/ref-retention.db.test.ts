@@ -293,7 +293,10 @@ describe("媒体自然键留存事实公口", () => {
       "state",
       "live",
     );
-    for (const invalid of [{ refType: "not_registered" }, { role: "not_registered" }])
+    for (const invalid of [
+      { refType: "not_registered" },
+      ...["not_registered", "__proto__", "toString", "constructor"].map((role) => ({ role })),
+    ])
       await expect(read({ ...input, ...invalid, fileId: uuidv7() })).rejects.toBeInstanceOf(
         TypeError,
       );

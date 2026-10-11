@@ -18,7 +18,8 @@ export async function readRefRetention(
   tx: Tx,
   input: RefRetentionInput,
 ): Promise<RefRetention | null> {
-  if (!deps.refTypes.get(input.refType)?.roles[input.role])
+  const roles = deps.refTypes.get(input.refType)?.roles;
+  if (!roles || !Object.hasOwn(roles, input.role))
     throw new TypeError(`未登记文件引用：${input.refType}/${input.role}`);
   await lockRows(tx, "file_object", [input.fileId]);
   const file = await tx.fileObject.findUnique({ where: { id: input.fileId } });
