@@ -547,6 +547,17 @@ describe("成员移除：原 required 幂等与失败原子性", () => {
               remove_actor_id: ctx.actor.id,
               remove_client: "weapp",
             },
+            emit: {
+              type: "entity_member.removed",
+              payload: {
+                v: 1,
+                entityMemberId: clerk.memberId,
+                entityId: owner.entityId,
+                merchantUserId: clerk.userId,
+                role: "clerk",
+                removeReason: mode === "remove" ? "by_owner" : "self",
+              },
+            },
           });
         }),
       ).rejects.toMatchObject({ error: "STATE_NOT_ALLOWED", details: { reason: "guard" } });

@@ -117,6 +117,11 @@ export function removalIdem(
   ctx: IdentityContext,
   input: { mode: "remove" | "leave"; key: string; memberId?: string; storeId?: string },
 ) {
+  const pathParams: Record<string, string> = {};
+  if (input.mode === "remove") {
+    if (!input.memberId) throw new TypeError("移除幂等样例必须提供成员 ID");
+    pathParams.memberId = input.memberId;
+  }
   return createIdempotencyContext({
     mode: "required",
     scope: input.mode === "remove" ? "m.member.remove" : "m.me.membership.leave",
@@ -124,7 +129,7 @@ export function removalIdem(
     key: input.key,
     request: {
       method: "POST",
-      pathParams: input.mode === "remove" ? { memberId: input.memberId } : {},
+      pathParams,
       body: {},
       storeId: input.storeId ?? ctx.storeId,
     },
