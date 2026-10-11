@@ -68,6 +68,7 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
     assembly,
     events,
     readMemberAssetCounts: media.readMemberAssetCounts,
+    archiveTimers: runtime.timers,
     invitations: {
       keyring: () => (keyring ??= security.loadKeyring(runtime.env)),
       timers: runtime.timers,

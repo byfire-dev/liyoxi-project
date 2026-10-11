@@ -7,6 +7,7 @@ import {
   managerIdsForNotify,
   noticeRecipientsPageForNotify,
   memberStoresForNotify,
+  storeArchiveForNotify,
 } from "./notify-facts.js";
 // tenant 模块的登记（W1-03）：
 //   端口     计费账户由 billing 实现；W2-10 PR1 的精准下载页授权吊销由 identity 实现。
@@ -17,6 +18,7 @@ import { defineRegistration } from "../kernel/index.js";
 import type { InvariantRegistration } from "../kernel/index.js";
 import {
   findI1Violations,
+  findI5Violations,
   findI17Violations,
   findI28Violations,
   findI27Violations,
@@ -56,6 +58,11 @@ export const registration = defineRegistration("tenant", {
   portImplementations: [
     notifyReaderImplementation(
       currentNotifyReadPort,
+      "storeArchiveForNotify",
+      storeArchiveForNotify,
+    ),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
       "memberStoresForNotify",
       memberStoresForNotify,
     ),
@@ -74,6 +81,7 @@ export const registration = defineRegistration("tenant", {
   ],
   invariants: [
     check("tenant.I1", (tx) => findI1Violations(tx)),
+    check("tenant.I5", (tx) => findI5Violations(tx)),
     check("tenant.I7", (tx) => findI7Violations(tx)),
     check("tenant.I27", (tx) => findI27Violations(tx)),
     check("tenant.I29", (tx) => findI29Violations(tx)),

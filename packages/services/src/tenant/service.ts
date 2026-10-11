@@ -9,6 +9,7 @@ import type {
   MembershipBrief,
   MembershipResult,
   StoreList,
+  StoreArchiveResult,
   MemberItem,
   MemberList,
   InvitationCreateBody,
@@ -52,8 +53,12 @@ import type { MemberManagementDeps } from "./member-management.js";
 import { createInvitation, markInvitationSharedIn, revokeInvitationIn } from "./invitations.js";
 import type { InvitationDeps, InvitationOptions } from "./invitations.js";
 import { invitationPreview } from "./invitation-repo.js";
+import { archiveStoreIn } from "./store-archive.js";
+import type { Timers } from "../timers/index.js";
 
 export interface TenantDeps extends Pick<MemberManagementDeps, "readMemberAssetCounts" | "events"> {
+  /** 仅新门店归档用例需要；同事务取消原邀请到期任务。 */
+  readonly archiveTimers?: Pick<Timers, "cancel">;
   /** 仅四个新邀请入口需要；旧用例不因缺此装配失败。 */
   readonly invitations?: InvitationDeps;
   /** 开事务的入口：用例函数用它 */
@@ -77,6 +82,11 @@ export interface Tenant {
   createEntity(ctx: IdentityContext, options?: UseCaseOptions): Promise<MembershipResult>;
   /** m.store.list：按账号的有效成员关系现算；老板、店员、没有成员关系三种形状 */
   listStores(viewer: { merchantUserId: string }): Promise<StoreList>;
+  archiveStore(
+    ctx: IdentityContext,
+    input: { storeId: string },
+    options?: UseCaseOptions,
+  ): Promise<StoreArchiveResult>;
   /** m.me.currentStore.replace：门店进不去即 NOT_FOUND */
   rememberCurrentStore(
     input: { merchantUserId: string; storeId: string },
@@ -185,6 +195,14 @@ export function createTenant(deps: TenantDeps): Tenant {
       }
     },
     listStores: (viewer) => deps.tx.run((tx) => listStores(tx, { facts }, now(), viewer)),
+    archiveStore: (ctx, input, options = {}) => {
+      if (!deps.archiveTimers) throw new AppError("INTERNAL");
+      return deps.tx.run(
+        (tx) =>
+          archiveStoreIn(tx, { ...deps, facts, timers: deps.archiveTimers! }, ctx, input.storeId),
+        options,
+      );
+    },
     rememberCurrentStore: (input, options = {}) =>
       deps.tx.run((tx) => rememberCurrentStore(tx, now(), input), options),
     removeMember: (ctx, input, options = {}) =>

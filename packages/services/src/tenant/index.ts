@@ -41,6 +41,7 @@ export type {
 export { MEMBER_PREVIEW_MAX } from "./stores.js";
 export {
   findI1Violations,
+  findI5Violations,
   findI17Violations,
   findI28Violations,
   findI27Violations,

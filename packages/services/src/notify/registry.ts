@@ -117,6 +117,20 @@ export const EVENT_SCENES: Readonly<Record<string, readonly NotificationSpec[]>>
       false,
     ),
   ],
+  "entity_member.removed": [
+    spec(
+      "m.member_changed",
+      "storeArchiveForNotify",
+      "entityMemberId",
+      "store",
+      () => ({ route: "messages.list", params: {} }),
+      undefined,
+      false,
+    ),
+  ],
+  "store.archived": [
+    staffSpec("s.merchant_changed", "storeArchiveForNotify", "storeId", "merchant.detail"),
+  ],
   "ticket.created": [
     staffSpec(
       "s.work_ticket_assigned",

@@ -15,6 +15,7 @@ import type {
 } from "./context.js";
 import { EVENT_SCENES, NotifyFactSchema, specFor } from "./registry.js";
 import { notificationDueAt, textLimit, externalAllowed } from "./policy.js";
+import { storeArchiveNotifications, storeArchiveSource } from "./store-archive.js";
 
 export async function addDelivery(
   tx: Tx,
@@ -168,6 +169,8 @@ export const smsNodeAllowed = (nodes: unknown, node: string): boolean =>
 // These producers can recur while the account/store and current status stay the same.
 // A stable outbox ID preserves each occurrence, including replay after a later review round.
 const occurrenceEvents = new Set([
+  "entity_member.removed",
+  "store.archived",
   "entity_member.stores_changed",
   "merchant_user.wechat_bound",
   "store.qualification.submitted",
@@ -372,6 +375,14 @@ export async function dispatchFact(
 }
 
 export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: DeliveredEvent) {
+  if (event.type === "store.archived" || event.type === "entity_member.removed") {
+    const source = await storeArchiveSource(tx, event.id);
+    if (!source || source.type !== event.type) return 0;
+    let made = 0;
+    for (const { spec, fact } of await storeArchiveNotifications(tx, deps, event.id))
+      made += await dispatchFact(tx, deps, spec, fact, { event, node: "N0" });
+    return made;
+  }
   const memberChange =
     event.type === "entity_member.stores_changed"
       ? EVENT_PAYLOAD_SCHEMAS["entity_member.stores_changed"].parse(event.payload)
