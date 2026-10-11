@@ -4,11 +4,14 @@ export { createTenant } from "./service.js";
 export type { Tenant, TenantDeps, UseCaseOptions } from "./service.js";
 export {
   billingAccountPort,
+  billingHistoryPort,
   membershipAuthorizationsPort,
   entityAdCancelClosePort,
 } from "./ports.js";
 export type {
   BillingAccountOpener,
+  BillingHistoryFacts,
+  BillingHistoryReader,
   MembershipAuthorizations,
   PortalGrantRevocation,
   EntityAdCancelClosePlan,

@@ -17,6 +17,20 @@ export interface BillingAccountOpener {
 
 export const billingAccountPort = definePort<BillingAccountOpener>("tenant.billingAccount");
 
+/** 全部计费历史；不存在历史不代表主体存在或有权放弃草稿。 */
+export interface BillingHistoryFacts {
+  readonly hasSubscriptionTerm: boolean;
+  readonly hasBillingOrder: boolean;
+}
+
+export interface BillingHistoryReader {
+  /** 调用方事务内的同一语句快照；不按状态、时间、金额或账户缓存过滤。 */
+  read(tx: Tx, entityId: string): Promise<BillingHistoryFacts>;
+}
+
+// 缺 billing 真实实现即装配失败，不把缺来源当作没有历史。
+export const billingHistoryPort = definePort<BillingHistoryReader>("tenant.billing_history");
+
 /** 下载页授权只按主体或该主体内的授权老板撤销；时间由调用方注入。 */
 export type PortalGrantRevocation =
   | { readonly scope: "entity"; readonly entityId: string; readonly now: Date }

@@ -26,6 +26,7 @@ import {
 import { machineImplementations } from "./machines.js";
 import {
   billingAccountPort,
+  billingHistoryPort,
   membershipAuthorizationsPort,
   entityAdCancelClosePort,
 } from "./ports.js";
@@ -39,6 +40,7 @@ const check = (
 export const registration = defineRegistration("tenant", {
   ports: [
     billingAccountPort,
+    billingHistoryPort,
     membershipAuthorizationsPort,
     entityAdCancelClosePort,
     ...CLOSE_FACTS_PORTS,

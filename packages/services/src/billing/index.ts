@@ -91,6 +91,7 @@ export type {
 } from "./subscription/index.js";
 export { billingAccountOpener, billingMerchantFacts, openAccountForEntity } from "./ports.js";
 export { deletionGuard } from "./read/deletion-guard.js";
+export { readBillingHistoryFacts } from "./read/history-facts.js";
 export type { BillingDeletionGuardCounts } from "./read/deletion-guard.js";
 export {
   createPayment,

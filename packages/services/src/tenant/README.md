@@ -1,5 +1,16 @@
 # tenant：主体、门店与成员关系
 
+## 计费历史事实窄前置
+
+`billingHistoryPort` 无 fallback，由 billing 登记 `readBillingHistoryFacts(tx, entityId)`。
+调用方事务内的一条 SELECT 同时读取 subscription_term、billing_order 的两个 EXISTS；
+全部历史状态、时间及金额均计入，不读取账户余额缓存、不取行锁、不写库、不依赖 Clock。
+缺实现装配失败，读取异常不退为无历史。
+
+两个 false 只说明该快照没有匹配历史，不证明主体存在、调用者有权限或可以放弃草稿。
+完整 emptyDraft/abandon 仍须业务拥有者同事务复核主体、认证、成员、邀请及全部写侧并发保护；
+本片不接放弃/邀请接受入口。当前仅 SOURCE 与轻检查，真实新旧目标、三消费者类型及唯一独审待授权。
+
 ## 成员列表与范围调整源码阶段
 
 `listMembers(ctx)` 读取当前有效门店的成员；老板共用完整 MemberItem 映射，店员只返回五字段且不读计数、邀请与名额。`updateMember(ctx, { memberId, storeIds }, { idem })` 只允许老板调整本主体 active clerk，主体100→排序成员120→新旧范围及上下文店130，锁后完整复核再差集写关联；交集元数据保留，失去范围的 lastStoreId 清空。只写活动审计和 strict `entity_member.stores_changed`，无状态历史。
