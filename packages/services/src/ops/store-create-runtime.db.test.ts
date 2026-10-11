@@ -19,6 +19,7 @@ import { createTenant } from "../tenant/index.js";
 import type { Tenant, TenantDeps } from "../tenant/index.js";
 import {
   assertCurrentSessionForTest,
+  connectTestDatabase,
   createIdentityForTest,
   currentSessionOpenidForTest,
   createMediaAssetsHarness,
@@ -303,23 +304,23 @@ async function run(
 
 describe("公开创建命令与真实四项档案/素材组合", { timeout: SLOW }, () => {
   it.each([
-    [],
-    ["basic"],
-    ["service"],
-    ["media"],
-    ["brand_assets"],
-    ["basic", "service"],
-    ["basic", "media"],
-    ["basic", "brand_assets"],
-    ["service", "media"],
-    ["service", "brand_assets"],
-    ["media", "brand_assets"],
-    ["basic", "service", "media"],
-    ["basic", "service", "brand_assets"],
-    ["basic", "media", "brand_assets"],
-    ["service", "media", "brand_assets"],
-    ["basic", "service", "media", "brand_assets"],
-  ] as const)("四项真实组合 %j：新ID、初次metadata、引用和计数精确", async (...copyOptions) => {
+    { copyOptions: [] },
+    { copyOptions: ["basic"] },
+    { copyOptions: ["service"] },
+    { copyOptions: ["media"] },
+    { copyOptions: ["brand_assets"] },
+    { copyOptions: ["basic", "service"] },
+    { copyOptions: ["basic", "media"] },
+    { copyOptions: ["basic", "brand_assets"] },
+    { copyOptions: ["service", "media"] },
+    { copyOptions: ["service", "brand_assets"] },
+    { copyOptions: ["media", "brand_assets"] },
+    { copyOptions: ["basic", "service", "media"] },
+    { copyOptions: ["basic", "service", "brand_assets"] },
+    { copyOptions: ["basic", "media", "brand_assets"] },
+    { copyOptions: ["service", "media", "brand_assets"] },
+    { copyOptions: ["basic", "service", "media", "brand_assets"] },
+  ] as const)("四项真实组合 %j：新ID、初次metadata、引用和计数精确", async ({ copyOptions }) => {
     const selected: NonNullable<StoreCreateBody["copyOptions"]> = [...copyOptions];
     const w = await world(),
       original = await h.prisma.storeProfile.findUniqueOrThrow({ where: { storeId: w.storeId } });
@@ -462,5 +463,62 @@ describe("公开创建命令与真实四项档案/素材组合", { timeout: SLOW
       viewerRole: "owner",
     });
     expect(await snapshotTables(h.prisma, tables)).toEqual(before);
+  });
+
+  it.each(["idle", "absolute"] as const)("真实四项共同410等待中%s到期，整笔零写", async (kind) => {
+    const w = await world(),
+      start = h.clock.now();
+    const session = await h.prisma.userSession.findUniqueOrThrow({
+      where: { id: w.principal.sessionId },
+    });
+    const at = kind === "idle" ? session.idleExpiresAt : session.absoluteExpiresAt;
+    if (kind === "absolute")
+      await h.prisma.userSession.update({
+        where: { id: session.id },
+        data: { idleExpiresAt: new Date(at.getTime() + 1) },
+      });
+    const [waiter] = await h.prisma.$queryRaw<
+      Array<{ pid: number }>
+    >`SELECT pg_backend_pid() AS pid`;
+    if (!waiter) throw new Error("真实组合业务PID缺失");
+    const holder = await connectTestDatabase(db.name),
+      observer = await connectTestDatabase(db.name, { role: null });
+    let pending: ReturnType<typeof Promise.allSettled> | undefined;
+    const before = await snapshotTables(h.prisma, tables);
+    try {
+      await holder.query("BEGIN");
+      const hp = (await holder.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")).rows[0]!
+        .pid;
+      expect(hp).not.toBe(waiter.pid);
+      await holder.query("SELECT id FROM file_object WHERE id=$1 FOR UPDATE", [w.file.id]);
+      pending = Promise.allSettled([run(w, ["basic", "service", "media", "brand_assets"])]);
+      let seen = false;
+      const end = Date.now() + 3000;
+      do {
+        const row = await observer.query<{ blocked: boolean }>(
+          "SELECT $2::int=ANY(pg_blocking_pids($1::int)) AS blocked",
+          [waiter.pid, hp],
+        );
+        if (row.rows[0]?.blocked) {
+          seen = true;
+          break;
+        }
+        await new Promise((done) => setTimeout(done, 15));
+      } while (Date.now() < end);
+      expect(seen).toBe(true);
+      h.clock.set(at);
+      await holder.query("COMMIT");
+      expect((await pending)[0]).toMatchObject({
+        status: "rejected",
+        reason: { error: "SESSION_INVALID" },
+      });
+      expect(await snapshotTables(h.prisma, tables)).toEqual(before);
+    } finally {
+      await holder.query("ROLLBACK");
+      if (pending) await pending;
+      h.clock.set(start);
+      await holder.end();
+      await observer.end();
+    }
   });
 });
