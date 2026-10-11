@@ -418,9 +418,26 @@ describe("邀请卡片：真实自然绑定与事务事实", { timeout: SLOW }, 
           event: "invitation.revoke",
           entityId: owner.entityId,
           storeId: owner.storeId,
+          set: {
+            revoked_at: h.clock.now(),
+            revoke_actor_type: "merchant",
+            revoke_actor_id: owner.userId,
+            revoke_client: "weapp",
+            revoke_reason: "by_owner",
+            token_enc: null,
+          },
+          emit: {
+            type: "invitation.revoked",
+            payload: {
+              v: 1,
+              invitationId: card.invitationId,
+              entityId: owner.entityId,
+              storeId: owner.storeId,
+            },
+          },
         }),
       ),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ error: "STATE_NOT_ALLOWED", details: { reason: "guard" } });
     expect(await h.state()).toEqual(before);
   });
 
