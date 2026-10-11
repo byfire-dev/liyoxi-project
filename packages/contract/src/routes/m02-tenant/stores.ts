@@ -4,7 +4,11 @@ import { errorResponses, okResponse } from "../../common/index.js";
 import { merchantRoute } from "../builders.js";
 import { merchantMeta } from "../meta-only.js";
 
-import { StoreListSchema } from "./tenant.schemas.js";
+import {
+  StoreListSchema,
+  StoreArchiveParamsSchema,
+  StoreArchiveResultSchema,
+} from "./tenant.schemas.js";
 
 export const mStoreList = merchantRoute({
   method: "get",
@@ -29,7 +33,7 @@ export const mStoreCreate = merchantMeta({
   "x-idempotent": "required",
 });
 
-export const mStoreArchive = merchantMeta({
+export const mStoreArchive = merchantRoute({
   method: "post",
   path: "/m/stores/{storeId}/archive",
   operationId: "m.store.archive",
@@ -38,6 +42,11 @@ export const mStoreArchive = merchantMeta({
   "x-capability": "store.archive",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: { params: StoreArchiveParamsSchema },
+  responses: {
+    ...okResponse(StoreArchiveResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409),
+  },
 });
 
 export const mStoreDelete = merchantMeta({

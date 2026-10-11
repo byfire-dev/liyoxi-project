@@ -907,6 +907,7 @@ V1.1，细节待设计。按分类展示常见问题（PRD 6.12-6），表结构
 
 **说明**：
 - 可见范围（d6-notify-docs-data.md:745-754）：`merchant_message.merchant_user_id` = 本人；且 `entity_id` 等于当前门店所属主体或为空（账号级消息在任何主体下都可见）；且 `store_id` 为空或等于当前门店（参数 `inbox.scope = current_store`，默认；为 `all_stores` 时不按当前门店过滤）；且 `store_id` 为空或在本人仍能进的门店里（老板：主体下全部门店；店员：仍是成员的门店）；且 `is_owner_only = false` 或本人此刻仍是该主体的老板（老板更换后，原老板即使仍是店员也读不到）。没有门店上下文时只看 `entity_id` 为空的账号级消息。走索引 `ix_merchant_message_merchant_user_id_entity_id_id`。
+- 门店停用的真实 `store_archived` 级联本人告知为最小账号消息：entity/store/copyMode 均 NULL、非 ownerOnly、`messages.list` 深链，无旧业务或个人隐私。只凭源 outbox 与归档/移除历史生成，不让已失权成员读取旧门店消息，也不扩展其他 removed 原因。
 - 店员收到的只有门店（成员变动、素材反馈）与客服两类，这是派发时由场景的 `recipients()` 决定的，金额、积分类消息从未写进店员的收件箱，文案也按角色渲染（d6-notify-docs-data.md:756）；因此读取不裁剪、不另设店员 schema（A52、C56）。
 - 消息是否随门店切换过滤（原型切换门店后角标变化）默认按 `inbox.scope = current_store` 实现，PRD 未定义，列为待确认（第 6 节第 2 项）。
 

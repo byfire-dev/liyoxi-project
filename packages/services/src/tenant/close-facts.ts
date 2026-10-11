@@ -58,7 +58,7 @@ export const CLOSE_FACTS_PORTS = [
 /** 调用方持主体/门店锁；不另开事务、不读上层表，所属来源失败直接传播。 */
 export async function readStoreCloseCounts(
   tx: Tx,
-  assembly: Assembly,
+  assembly: Pick<Assembly, "port">,
   storeId: string,
 ): Promise<StoreCloseCounts> {
   return {

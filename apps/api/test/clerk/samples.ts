@@ -414,6 +414,14 @@ export const CLERK_SAMPLES: readonly Sample[] = [
       });
     },
   },
+  {
+    operationId: "m.store.archive",
+    play: (api, ctx) =>
+      api.request(`/api/v1/m/stores/${ctx.storeId}/archive`, {
+        method: "POST",
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      }),
+  },
   // 退出会吊销当前凭据，放到这一份样例的最后。其它样例不得靠退出后的身份。
   {
     operationId: "m.session.current.delete",
