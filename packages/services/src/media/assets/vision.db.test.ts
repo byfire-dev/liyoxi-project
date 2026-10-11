@@ -1225,7 +1225,13 @@ describe("public reprocess selects only the requested current source generation"
       if (change.startsWith("digest-only")) {
         await digest(facts);
         expect(h.fake.llm.callsOf("summarizeAsset")).toHaveLength(1);
-        expect(h.fake.llm.callsOf("summarizeAsset")[0]!.text).toContain(visible().description);
+        expect(
+          (
+            h.fake.llm.callsOf("summarizeAsset")[0]!.input as Parameters<
+              LlmProvider["summarizeAsset"]
+            >[0]
+          ).text,
+        ).toContain(visible().description);
         expect(await visions(facts.assetId)).toEqual(before);
         expect(model).not.toHaveBeenCalled();
         expect(signing).not.toHaveBeenCalled();
@@ -1417,8 +1423,12 @@ describe("strict vision facts feed aggregate digest without private metadata", (
         const second = output(await digestStrategy.execute(claimed, new AbortController().signal));
         const calls = h.fake.llm.callsOf("summarizeAsset");
         expect(calls).toHaveLength(2);
-        expect(Array.from(calls[0]!.text)).toHaveLength(16000);
-        expect(calls[1]!.text).toBe(calls[0]!.text);
+        expect(
+          Array.from((calls[0]!.input as Parameters<LlmProvider["summarizeAsset"]>[0]).text),
+        ).toHaveLength(16000);
+        expect((calls[1]!.input as Parameters<LlmProvider["summarizeAsset"]>[0]).text).toBe(
+          (calls[0]!.input as Parameters<LlmProvider["summarizeAsset"]>[0]).text,
+        );
         expect(first.content.partial).toBe(true);
         expect(second.content.partial).toBe(true);
         expect(first.content.sourceHash).not.toBe(second.content.sourceHash);
@@ -1436,7 +1446,9 @@ describe("strict vision facts feed aggregate digest without private metadata", (
           "hasPeople",
           "identifiableCustomerFace",
         ])
-          expect(calls[0]!.text).toContain(`${field}: ${String(reply[field as keyof LlmVision])}`);
+          expect((calls[0]!.input as Parameters<LlmProvider["summarizeAsset"]>[0]).text).toContain(
+            `${field}: ${String(reply[field as keyof LlmVision])}`,
+          );
         const details = await h.media.assets.get(h.admin, facts.assetId);
         const serialized = JSON.stringify(
           {
@@ -1480,7 +1492,13 @@ describe("strict vision facts feed aggregate digest without private metadata", (
           h.fake.llm.resetCalls();
           await digest(facts);
           expect(h.fake.llm.callsOf("summarizeAsset")).toHaveLength(1);
-          expect(h.fake.llm.callsOf("summarizeAsset")[0]!.text).toContain(legacy.description);
+          expect(
+            (
+              h.fake.llm.callsOf("summarizeAsset")[0]!.input as Parameters<
+                LlmProvider["summarizeAsset"]
+              >[0]
+            ).text,
+          ).toContain(legacy.description);
           expect((await visions(facts.assetId))[0]!.content).toEqual(legacy);
         }
       }
