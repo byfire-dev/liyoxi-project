@@ -5,6 +5,7 @@ import type { DomesticLlmConfig, DomesticLlmOptions, LlmEndpoint } from "./confi
 import { requestChat } from "./http.js";
 import { chatContent, pointOutput, tagOutput } from "./parse.js";
 import { DIGEST_JSON_INSTRUCTIONS, prepareDigest } from "./digest.js";
+import { prepareVision, VISION_JSON_INSTRUCTIONS } from "./vision.js";
 
 export type { DomesticLlmConfig, DomesticLlmOptions, LlmEndpoint } from "./config.js";
 
@@ -193,6 +194,17 @@ export function createDomesticLlm(
       const prepared = prepareDigest(input);
       if (!prepared) return Promise.resolve(failed("rejected", "素材理解输入不合法"));
       return run("text", prepared.content, DIGEST_JSON_INSTRUCTIONS, prepared.parse, input.signal);
+    },
+    analyzeVision(input) {
+      const prepared = prepareVision(input);
+      if (!prepared) return Promise.resolve(failed("rejected", "素材理解输入不合法"));
+      return run(
+        "vision",
+        prepared.content,
+        VISION_JSON_INSTRUCTIONS,
+        prepared.parse,
+        prepared.signal,
+      );
     },
   };
   return {
