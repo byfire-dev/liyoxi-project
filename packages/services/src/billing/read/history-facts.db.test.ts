@@ -15,7 +15,7 @@ import type { LedgerHarness } from "../../testing/index.js";
 import { billingHistoryPort } from "../../tenant/index.js";
 import { deletionGuard, readBillingHistoryFacts } from "../index.js";
 
-const db = useSeededDatabase("services", { label: "billinghistory", max: 4 });
+const db = useSeededDatabase("services", { label: "billinghist", max: 4 });
 const SLOW = 60_000;
 const absent = { hasSubscriptionTerm: false, hasBillingOrder: false };
 const orderOnly = { hasSubscriptionTerm: false, hasBillingOrder: true };
