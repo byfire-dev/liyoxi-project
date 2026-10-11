@@ -382,6 +382,7 @@ describe("键名清单", () => {
       "CI_WORKER_KEYS_FILE",
       "CI_CALLBACK_KEY_FILE",
       "CI_CALLBACK_ORIGIN",
+      "MEDIA_PRODUCTION_FILE",
     ]);
   });
 });
