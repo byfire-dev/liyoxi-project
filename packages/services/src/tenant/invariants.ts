@@ -12,6 +12,21 @@ type Reader = Pick<Tx, "$queryRaw">;
 /** 每条至多报多少个对象 */
 export const TENANT_INVARIANT_LIMIT = 200;
 
+/** 有效店员必须仍可进入至少一家启用门店；不自动修复历史。 */
+export async function findI5Violations(db: Reader): Promise<InvariantViolation[]> {
+  const rows = await db.$queryRaw<{ id: string; entityId: string }[]>`
+    SELECT m.id::text, m.entity_id::text AS "entityId" FROM entity_member m
+    WHERE m.status = 'active' AND m.role = 'clerk' AND NOT EXISTS (
+      SELECT 1 FROM store_member sm JOIN store s ON s.id = sm.store_id
+      WHERE sm.entity_member_id = m.id AND s.entity_id = m.entity_id AND s.lifecycle = 'active')
+    ORDER BY m.id LIMIT ${TENANT_INVARIANT_LIMIT}`;
+  return rows.map((row) => ({
+    subject: { type: "entity_member", id: row.id },
+    entityId: row.entityId,
+    detail: { activeStores: 0 },
+  }));
+}
+
 export async function findI1Violations(db: Reader): Promise<InvariantViolation[]> {
   const rows = await db.$queryRaw<{ id: string; owners: number }[]>`
     SELECT e.id::text AS id, count(m.id)::int AS owners

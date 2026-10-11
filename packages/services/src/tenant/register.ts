@@ -7,6 +7,7 @@ import {
   managerIdsForNotify,
   noticeRecipientsPageForNotify,
   memberStoresForNotify,
+  storeArchiveForNotify,
   acceptedInvitationForNotify,
 } from "./notify-facts.js";
 // tenant 模块的登记（W1-03）：
@@ -18,6 +19,7 @@ import { defineRegistration } from "../kernel/index.js";
 import type { InvariantRegistration } from "../kernel/index.js";
 import {
   findI1Violations,
+  findI5Violations,
   findI17Violations,
   findI28Violations,
   findI27Violations,
@@ -57,6 +59,11 @@ export const registration = defineRegistration("tenant", {
   portImplementations: [
     notifyReaderImplementation(
       currentNotifyReadPort,
+      "storeArchiveForNotify",
+      storeArchiveForNotify,
+    ),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
       "acceptedInvitationForNotify",
       acceptedInvitationForNotify,
     ),
@@ -80,6 +87,7 @@ export const registration = defineRegistration("tenant", {
   ],
   invariants: [
     check("tenant.I1", (tx) => findI1Violations(tx)),
+    check("tenant.I5", (tx) => findI5Violations(tx)),
     check("tenant.I7", (tx) => findI7Violations(tx)),
     check("tenant.I27", (tx) => findI27Violations(tx)),
     check("tenant.I29", (tx) => findI29Violations(tx)),

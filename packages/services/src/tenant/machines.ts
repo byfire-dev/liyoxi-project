@@ -18,6 +18,7 @@ import {
 import { guardMemberRemoval } from "./member-removal.js";
 import { guardInvitation } from "./invitations.js";
 import { guardInvitationExpiry } from "./invitation-expiry.js";
+import { guardStoreArchive, guardStoreArchiveCascade } from "./store-archive.js";
 import { guardAccept } from "./invitation-accept.js";
 
 /** 建主体的三行迁移随 args 带的事实 */
@@ -214,10 +215,12 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
     ],
     activity: describe("store", "merchant_lifecycle", {
       "store.create": "创建门店",
+      "store.archive": "停用门店",
       "store.archive_by_entity": "随主体关闭停用门店",
     }),
     guards: {
       [rowKey("02:607", "store.create")]: firstStoreOfOwnEntity,
+      [rowKey("02:608", "store.archive")]: guardStoreArchive,
       [rowKey("02:611", "store.archive_by_entity")]: guardAccept,
     },
     effects: { [rowKey("02:610", "store.archive_by_entity")]: requireClosedStoreCascade },
@@ -254,7 +257,8 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
       [rowKey("02:691", "entity_member.join")]: guardAccept,
       [rowKey("02:692", "entity_member.remove")]: guardMemberRemoval,
       [rowKey("02:692", "entity_member.leave")]: guardMemberRemoval,
-      [rowKey("02:692", "entity_member.cascade_remove")]: guardEntityCloseCascade,
+      [rowKey("02:692", "entity_member.cascade_remove")]: async (tx, facts) =>
+        (await guardStoreArchiveCascade(tx, facts)) || guardEntityCloseCascade(tx, facts),
       [rowKey("02:695", "entity_member.cascade_remove")]: async (tx, facts) =>
         (await guardAccept(tx, facts)) || (await guardEntityCloseCascade(tx, facts)),
     },
@@ -281,7 +285,8 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
       [rowKey("02:788", "invitation.revoke")]: (tx, facts) =>
         facts.ctx.actor.type === "merchant"
           ? guardInvitation(tx, facts)
-          : guardEntityCloseCascade(tx, facts),
+          : (async () =>
+              (await guardStoreArchiveCascade(tx, facts)) || guardEntityCloseCascade(tx, facts))(),
       [rowKey("02:789", "invitation.expire")]: guardInvitationExpiry,
     },
   },
