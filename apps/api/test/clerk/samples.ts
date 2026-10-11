@@ -9,7 +9,11 @@ import { createFactories } from "@liyoxi/services/testing";
 import type { FakeStorage } from "@liyoxi/services/testing";
 import { expect } from "vitest";
 import type { TestApi, TestRequestInit } from "../../src/testing/index.js";
-import { currentUserConsents, presetLoginCodes } from "../../src/testing/merchant.js";
+import {
+  currentUserConsents,
+  presetLoginCodes,
+  signInAsMerchant,
+} from "../../src/testing/merchant.js";
 import type { SignedInMerchant } from "../../src/testing/merchant.js";
 
 export interface ClerkSampleContext {
@@ -171,6 +175,34 @@ export const CLERK_SAMPLES: readonly Sample[] = [
         json: { storeId: ctx.storeId },
         headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": "clerk-current-store" },
       }),
+  },
+  {
+    operationId: "m.member.remove",
+    play: async (api, ctx) =>
+      api.request(`/api/v1/m/members/${uuidv7()}/remove`, {
+        method: "POST",
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      }),
+  },
+  {
+    operationId: "m.me.membership.leave",
+    play: async (api, ctx) => {
+      // 独立店员真实退出，保留其他既有回放使用的原店员成员关系。
+      const leaving = await signInAsMerchant(api);
+      await api.runtime.tx.run(async (tx) => {
+        const store = await tx.store.findUniqueOrThrow({ where: { id: ctx.storeId } });
+        const make = createFactories({ db: tx, clock: api.clock });
+        const member = await make.entityMember({
+          entityId: store.entityId,
+          merchantUserId: leaving.merchantUserId,
+        });
+        await make.storeMember({ entityMemberId: member.id, storeId: ctx.storeId });
+      });
+      return api.request("/api/v1/m/me/membership/leave", {
+        method: "POST",
+        headers: { ...leaving.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      });
+    },
   },
   get("m.dictItem.list", "/m/dict-items?typeKey=ticket_type"),
   {

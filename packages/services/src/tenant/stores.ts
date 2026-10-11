@@ -160,6 +160,13 @@ export async function rememberCurrentStore(
   const membership = await resolveMembership(tx, input);
   if (membership === null) throw new AppError("NOT_FOUND");
   await lockRows(tx, "entity_member", [membership.memberId], "update");
+  const current = await resolveMembership(tx, input);
+  if (
+    current === null ||
+    current.memberId !== membership.memberId ||
+    current.entityId !== membership.entityId
+  )
+    throw new AppError("NOT_FOUND");
   await tx.entityMember.update({
     where: { id: membership.memberId },
     data: { lastStoreId: input.storeId, updatedAt: now },

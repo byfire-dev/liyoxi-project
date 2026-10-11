@@ -1,8 +1,8 @@
 // tenant 三张状态机表的登记（W1-03；02 分组 第 2.9–2.11 节的状态机表）：随迁列、活动流默认描述，
 // 与本包用到的十行迁移的守卫。迁移表本身在 @liyoxi/shared/machines，这里是表里没有的那一半（flow/README.md 第 4 节）。
 //
-// 登记在装配时是静态的，拿不到进程里的服务：守卫要的事实由用例经迁移的 args 带进来，守卫自己只回库核对。
-// 没登记守卫的行（普通门店停用与恢复、主体放弃、成员加入与移除、资质变更提交/决定）随 M2：
+// 登记在装配时是静态的，拿不到进程里的服务：守卫按 args 或同事务用例事实回库核对。
+// 没登记守卫的行（普通门店停用与恢复、主体放弃、成员加入、资质变更提交/决定）随 M2：
 // 在那之前迁移到这些行即抛内部错误，不放行。
 import type { AuditCategory } from "@liyoxi/contract";
 
@@ -15,6 +15,7 @@ import {
   guardEntityCloseCascade,
   requireClosedStoreCascade,
 } from "./entity-close.js";
+import { guardMemberRemoval } from "./member-removal.js";
 
 /** 建主体的三行迁移随 args 带的事实 */
 export interface CreateEntityArgs {
@@ -233,10 +234,14 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
     ],
     activity: describe("entity_member", "member", {
       "entity_member.create_owner": "成为主体的老板",
+      "entity_member.remove": "移除店员",
+      "entity_member.leave": "退出主体",
       "entity_member.cascade_remove": "随主体关闭移除成员",
     }),
     guards: {
       [rowKey("02:690", "entity_member.create_owner")]: noOtherActiveMembership,
+      [rowKey("02:692", "entity_member.remove")]: guardMemberRemoval,
+      [rowKey("02:692", "entity_member.leave")]: guardMemberRemoval,
       [rowKey("02:692", "entity_member.cascade_remove")]: guardEntityCloseCascade,
       [rowKey("02:695", "entity_member.cascade_remove")]: guardEntityCloseCascade,
     },

@@ -1,6 +1,9 @@
 // 商家端：主体、门店与成员 · members（docs/api/m02-tenant.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { merchantMeta } from "../meta-only.js";
+import { errorResponses, okResponse } from "../../common/index.js";
+import { merchantRoute } from "../builders.js";
+import { MemberIdParamsSchema, MemberRemovalResultSchema } from "./tenant.schemas.js";
 
 export const mMemberList = merchantMeta({
   method: "get",
@@ -23,7 +26,7 @@ export const mMemberUpdate = merchantMeta({
   "x-idempotent": "required",
 });
 
-export const mMemberRemove = merchantMeta({
+export const mMemberRemove = merchantRoute({
   method: "post",
   path: "/m/members/{memberId}/remove",
   operationId: "m.member.remove",
@@ -31,4 +34,9 @@ export const mMemberRemove = merchantMeta({
   "x-capability": "member.manage",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: { params: MemberIdParamsSchema },
+  responses: {
+    ...okResponse(MemberRemovalResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409),
+  },
 });

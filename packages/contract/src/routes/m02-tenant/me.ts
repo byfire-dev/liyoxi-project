@@ -2,9 +2,12 @@
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { errorResponses, okResponse } from "../../common/index.js";
 import { merchantRoute } from "../builders.js";
-import { merchantMeta } from "../meta-only.js";
 
-import { CurrentStoreBodySchema, CurrentStoreSchema } from "./tenant.schemas.js";
+import {
+  CurrentStoreBodySchema,
+  CurrentStoreSchema,
+  MemberRemovalResultSchema,
+} from "./tenant.schemas.js";
 
 export const mMeCurrentStoreReplace = merchantRoute({
   method: "put",
@@ -20,7 +23,7 @@ export const mMeCurrentStoreReplace = merchantRoute({
   responses: { ...okResponse(CurrentStoreSchema), ...errorResponses(400, 401, 403, 404) },
 });
 
-export const mMeMembershipLeave = merchantMeta({
+export const mMeMembershipLeave = merchantRoute({
   method: "post",
   path: "/m/me/membership/leave",
   operationId: "m.me.membership.leave",
@@ -28,4 +31,8 @@ export const mMeMembershipLeave = merchantMeta({
   "x-capability": "me.*",
   "x-clerk-view": "same",
   "x-idempotent": "required",
+  responses: {
+    ...okResponse(MemberRemovalResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409),
+  },
 });
