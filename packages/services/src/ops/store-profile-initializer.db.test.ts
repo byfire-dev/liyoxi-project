@@ -11,14 +11,14 @@ import {
   TEST_KEYRING,
   useSeededDatabase,
 } from "../testing/index.js";
-import { createStoreProfileInitializer } from "./index.js";
+import { createStoreProfileInitializer } from "../profile/index.js";
 import type {
   StoreProfileCopyOption,
   StoreProfileInitInput,
   StoreProfileInitPlan,
-} from "./index.js";
-import { harness, installDicts, ownedFile } from "./__fixtures__/harness.js";
-import type { Harness } from "./__fixtures__/harness.js";
+} from "../profile/index.js";
+import { harness, installDicts, ownedFile } from "../profile/__fixtures__/harness.js";
+import type { Harness } from "../profile/__fixtures__/harness.js";
 
 const db = useSeededDatabase("services", { label: "profcopy", max: 1 });
 const APPID = "wxlyxtest00000001",
