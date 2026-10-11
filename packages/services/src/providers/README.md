@@ -161,3 +161,19 @@ CI Image 水印仅允许与输入同桶的固定 ci-out/jobUUID/watermark-SHA.pn
 本地 HMAC/协议测试不证明真实云 IAM、桶启用 CI、处理可达性、产物尺寸/字节、视频 PTS、费用或模型调用已验。`exactframe` 与参数时刻不构成实际帧时刻证明；真实云验收另行记录。原 MinIO 整文件验收仍需 `LYX_TEST_MINIO=required`，只清理本轮自有对象。
 
 官方依据：[缩放](https://cloud.tencent.com/document/product/460/36540)、[管道](https://cloud.tencent.com/document/product/460/15293)、[图片格式](https://cloud.tencent.com/document/product/460/36543)、[视频截帧 GET](https://cloud.tencent.com/document/product/460/49283)、[COS 签名](https://cloud.tencent.com/document/api/436/7778)、[地域限制](https://cloud.tencent.com/document/product/460/36620)。
+
+## 14. ASR/LLM 显式工厂配置（W3-15）
+
+`settings.asr` 使用已有 `TencentAsrConfig`，与 `options.asr` 的原
+`TencentAsrOptions`、必需 `registerClose` 成对；ASR 时钟仍由 `now` 注入。
+`settings.llm` 使用已有 `DomesticLlmConfig`，与 `options.llm` 的原
+`DomesticLlmOptions`、必需 `registerClose` 成对，不额外添加时钟选项。
+两个 transport 均沿原 `fetch` 字段；半配或关闭登记不是函数时启动拒绝。
+完整配置选择 `tencent`/`domestic-llm`，构造零请求，每个实际驱动的 `close`
+恰好登记一次，最后统一包原外呼守卫并打印脱敏状态。登记拥有者负责关闭，
+包括后续构造失败时已经登记的驱动；工厂不聚合关闭，也不关闭借用资源。
+
+全部未配保持原默认表；现有生产 env/API/worker 未在本片增加模型配置读取或启用。
+ASR 仍提交后以原任务号回查，旧 `transcribe` 不冒充同步完成。LLM 固定目的地主备、
+最多三请求/一次结构修复以及原期限保持。此处可显式选择不代表真实平台已开通，
+不创建预算账本或许可。真实凭据、地域/隐私/E22、收费及准确率仍需另行验证。
