@@ -69,7 +69,7 @@ export function invitationServices(
     events,
     invitations,
   });
-  const expiry = createInvitationExpiry({ clock: base.clock, flow });
+  const expiry = createInvitationExpiry({ clock: base.clock, flow, timers });
   const timerDeps = {
     tx: base.tx,
     assembly,

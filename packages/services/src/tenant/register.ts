@@ -85,5 +85,14 @@ export const registration = defineRegistration("tenant", {
     check("tenant.I29", (tx) => findI29Violations(tx)),
     check("tenant.I17", (tx) => findI17Violations(tx)),
     check("tenant.I28", (tx) => findI28Violations(tx)),
+    {
+      code: "tenant.I30",
+      severity: "P2",
+      modes: ["full"],
+      heal: "heal_and_alert",
+      run: async () => {
+        throw new TypeError("邀请自愈须由本实例运行时绑定");
+      },
+    },
   ],
 });
