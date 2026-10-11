@@ -277,7 +277,11 @@ describe("媒体自然键留存事实公口", () => {
   it("平台文件不依赖主体/门店，非法登记在缺文件前拒绝且零写", async () => {
     const f = await logo();
     const file = await fileFact(f, "legal_doc", "platform");
-    const version = await make.agreementVersion({ status: "draft", sourceFileId: file.id });
+    const version = await make.agreementVersion({
+      agreementKey: "user",
+      status: "draft",
+      sourceFileId: file.id,
+    });
     const input = {
       ...f.input,
       fileId: file.id,
