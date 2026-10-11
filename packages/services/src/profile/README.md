@@ -78,3 +78,9 @@ worker 在 createEvents 前生成实例 scope，在真实 tenant/approval/media 
 未绑定或 close 后明确失败。在途 outbox 消费和循环收完后才 closeProfile，无进程全局服务绑定。
 本片仍需按冻结清单完成真实数据库、outbox/worker、类型和契约验证；新增消费者不代表尚缺 producer
 或 W2-10 整包完成，真实云及正式容量未验。
+
+## 建档首页成员摘要（SOURCE）
+
+首页在原调用方 Tx 中读取 Tenant 真实成员摘要，并与原商家事实共用一次业务 now。
+老板名取成员列，店员数仅本店有效范围，预览老板优先且至多三人；未到期 pending 才占额。
+GET 不建档案、不补过期状态；既有老板/店员响应裁剪及其他首页字段保持，完整验证待授权。

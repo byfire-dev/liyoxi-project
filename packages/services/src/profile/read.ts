@@ -1,6 +1,6 @@
 import { standingOf } from "../authz/index.js";
 import type { MediaActor } from "../media/index.js";
-import { merchantFactsOf } from "../kernel/index.js";
+import { AppError, merchantFactsOf } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 import type { ProfileDeps, ProfileViewer } from "./context.js";
 import { dictRef, snapshot } from "./repo.js";
@@ -20,13 +20,20 @@ export function assetOverviewActor(viewer: ProfileViewer): MediaActor {
 export async function overview(tx: Tx, deps: ProfileDeps, viewer: ProfileViewer) {
   const s = await snapshot(tx, viewer.membership.storeId),
     p = s.profile;
+  const now = deps.clock.now();
   const facts = await merchantFactsOf(deps.assembly).read(tx, {
     entityId: s.store.entityId,
     storeIds: [s.store.id],
     viewerRole: viewer.membership.role,
     merchantUserId: viewer.principal.merchantUserId,
-    now: deps.clock.now(),
+    now,
   });
+  const members = await deps.tenant.readStoreMembersBrief(tx, {
+    entityId: s.store.entityId,
+    storeId: s.store.id,
+    now,
+  });
+  if (!members) throw new AppError("NOT_FOUND");
   const [basic, media, service, qualification] = s.completeness.steps;
   const docTypes = [];
   for (const doc of s.current?.qualificationDocs ?? [])
@@ -72,7 +79,7 @@ export async function overview(tx: Tx, deps: ProfileDeps, viewer: ProfileViewer)
       dueAt: instant(s.open?.approvalRequest?.dueAt),
       lastDecidedAt: instant(p?.lastDecidedAt),
     },
-    members: { ownerDisplayName: null, clerkCount: 0, pendingInvitationCount: 0, preview: [] },
+    members,
     assets: {
       total: facts.asset.stores[s.store.id]!.assetCount,
       recent7dCount: facts.asset.stores[s.store.id]!.recent7dCount ?? 0,
