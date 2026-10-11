@@ -356,6 +356,7 @@ describe("API误驱动新ASR保守关闭与已有TaskId回查", { timeout: SLOW 
           key: "media.model.daily_call_cap",
           value: cap,
           effectiveAt: clock.now(),
+          createdAt: clock.now(),
           createdByStaffId: h.staff.id,
         },
       });
