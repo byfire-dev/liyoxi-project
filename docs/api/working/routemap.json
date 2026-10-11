@@ -16758,7 +16758,7 @@
    "uq_invitation_inviter_member_id_client_request_id",
    "uq_invitation_request_inviter_client"
   ],
-  "idempotentNote": "自然三段式只读 claim、事务外备注检测、settle 永久请求映射；同键库 pending 回原卡且零写，库终态拒绝。",
+  "idempotentNote": null,
   "screens": [
    "M:Invite"
   ],
@@ -16781,7 +16781,7 @@
    "wf-api1-findings.md:131"
   ],
   "version": "V1.0",
-  "notes": "幂等 natural：请求体带 clientRequestId，按 (inviter_member_id, client_request_id) 去重（02-identity-tenant.md:767；C47 列出的可用约束）；idempotentBy 按 A49 写成数组。进入邀请页即调用，令牌须在分享前就绪（onShareAppMessage 同步返回，d7:683）。同一邀请人、同一门店已有 pending、未过期、未分享的卡片时复用同一行并重置有效期，不再占名额、不计每日上限；第二轮起复用条件去掉“定向手机号相同”，请求体带 remarkName / targetPhone 键时原地改写 invitation.remark_name / target_phone_bidx（键缺省不改、显式 null 清空），老板先预创建、后填备注名与手机号只有一张卡（复核意见 A）。原型 M:Invite 没有“备注名”“对方手机号（可选）”输入框，列 m02 第 6 节待补。invitation.require_phone 为真时端上先填手机号再调用。inviterName 非空：邀请人称呼为空时服务端回落“门店老板”。出站事件 invitation.created。“发送给微信好友”不受登录文案去“微信”的约束（design-spec.md:860），但邀请页里关于加入方式的提示同样去掉“微信”（design-spec.md:849）。"
+  "notes": "幂等 natural：请求体带 clientRequestId，按 (inviter_member_id, client_request_id) 去重（02-identity-tenant.md:767；C47 列出的可用约束）；idempotentBy 按 A49 写成数组。进入邀请页即调用，令牌须在分享前就绪（onShareAppMessage 同步返回，d7:683）。同一邀请人、同一门店已有 pending、未过期、未分享的卡片时复用同一行并重置有效期，不再占名额、不计每日上限；第二轮起复用条件去掉“定向手机号相同”，请求体带 remarkName / targetPhone 键时原地改写 invitation.remark_name / target_phone_bidx（键缺省不改、显式 null 清空），老板先预创建、后填备注名与手机号只有一张卡（复核意见 A）。原型 M:Invite 没有“备注名”“对方手机号（可选）”输入框，列 m02 第 6 节待补。invitation.require_phone 为真时端上先填手机号再调用。inviterName 非空：邀请人称呼为空时服务端回落“门店老板”。出站事件 invitation.created。“发送给微信好友”不受登录文案去“微信”的约束（design-spec.md:860），但邀请页里关于加入方式的提示同样去掉“微信”（design-spec.md:849）。 自然三段式只读 claim、事务外备注检测、settle 永久请求映射；同键库 pending 回原卡且零写，库终态拒绝。"
  },
  {
   "id": "m02.invitation.preview",
