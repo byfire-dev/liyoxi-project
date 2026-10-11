@@ -13,13 +13,14 @@ import {
 } from "./__fixtures__/model-admission.js";
 import type { ModelWorld } from "./__fixtures__/model-admission.js";
 
-const db = useSeededDatabase("services"),
+const db = useSeededDatabase("services", { max: 1 }),
   redis = useTestRedis();
 let client: Awaited<ReturnType<typeof redis.raw>>, other: typeof client, h: ModelWorld;
 let holder: Awaited<ReturnType<typeof connectTestDatabase>>, observer: typeof holder;
 beforeAll(async () => {
   client = await redis.raw();
   other = await redis.raw();
+  await db.prisma();
   holder = await connectTestDatabase(db.name);
   observer = await connectTestDatabase(db.name, { role: null });
 }, SLOW);
