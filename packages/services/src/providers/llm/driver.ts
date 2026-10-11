@@ -4,6 +4,7 @@ import { deadlines, endpointUrl, LLM_LIMITS } from "./config.js";
 import type { DomesticLlmConfig, DomesticLlmOptions, LlmEndpoint } from "./config.js";
 import { requestChat } from "./http.js";
 import { chatContent, pointOutput, tagOutput } from "./parse.js";
+import { DIGEST_JSON_INSTRUCTIONS, prepareDigest } from "./digest.js";
 
 export type { DomesticLlmConfig, DomesticLlmOptions, LlmEndpoint } from "./config.js";
 
@@ -187,6 +188,11 @@ export function createDomesticLlm(
         (value) => pointOutput(value, count),
         input.signal,
       );
+    },
+    summarizeAsset(input) {
+      const prepared = prepareDigest(input);
+      if (!prepared) return Promise.resolve(failed("rejected", "素材理解输入不合法"));
+      return run("text", prepared.content, DIGEST_JSON_INSTRUCTIONS, prepared.parse, input.signal);
     },
   };
   return {

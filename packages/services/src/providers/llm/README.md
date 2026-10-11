@@ -44,3 +44,27 @@ input.text 与图片同送，不识别人。audio/document 及已有文本的视
 listener、reader。close 等待该实例自有调用结束，不关闭借来的 transport 或其他实例。
 本片只验虚构凭据和本地可控 HTTP，不宣称真实模型质量、国内数据处理、账单、日200、
 全局预算、洞察缓存或生产云能力已开通。
+
+## 结构化摘要协议准备
+
+新增 `summarizeAsset({ text, vocabulary, signal? }) -> ProviderResult<LlmDigest>`，旧两方法与
+默认未配工厂保持。仅沿上述 text 主备、最多3请求、全调用修复1次及取消/close路径；
+不接素材任务、不自动写标签、不让模型代替人工复核或认定肖像授权。
+
+调用者从真实可选 `asset_tag` 按 content/usage/timeliness 传 `{code,label}` 快照，label投影
+配置名称。编码沿 `DictCodeSchema` 的1–16位 ASCII字母/数字/下划线/连字符，名称沿既有
+配置写侧1–20字符；每维最多256项，跨维编码不重复，空词表合法。文本非空，文本与
+词表序列化合计最多64KiB；发送与过滤绑定调用前深拷贝，之后修改调用者数组不会生效。
+没有第二份固定标签词表；Provider 不查字典，也不证明调用者已核可选性/来源归属。
+
+`LlmDigestSchema` 严格包含 D5 §9.3 全字段：title≤20、keypoints≤6且每项≤60、
+contentTags≤4、suggestedUsage≤3、可选suggestedTimeliness、必有faceHint三值、
+qualityNotes≤3且每项≤40、可选structuredItems≤50（name≤30/可选price≤20）。
+这些文本长度按Unicode码点；沿D5允许空字符串/空数组，但必填字段缺失、未知键、
+坏类型不补默认。时效仅接受实际ISO日，完整起止不能倒置，不把price偷换为priceText。
+原始标签数组仍各≤256、每串≤100码点，先严格验证再过滤词表外编码；已知项过滤后
+仍须满足4/3上限，未知时效整项省略。公共schema只验DTO形状，真实词表由调用者负责。
+
+fake新增独立digestReplies队列及深拷贝的明确虚构样例，未配实现返回原受控失败。
+本片本地协议验证尚未执行；完整视觉输入、策略消费、真实模型质量/地域/费用、预算
+与E22继续待办，不能据此宣称完整W3-15完成。

@@ -158,6 +158,14 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
   llm: {
     tagAsset: { kind: "image", url: "https://example.invalid/dish.jpg" },
     extractKeyPoints: { text: "招牌菜是酸菜鱼。周末有优惠。门口可以停车。", maxPoints: 3 },
+    summarizeAsset: {
+      text: "公开虚构样例：门店菜单含牛肉面。",
+      vocabulary: {
+        content: [{ code: "menu", label: "菜单价目" }],
+        usage: [],
+        timeliness: [],
+      },
+    },
   },
   wecom: {
     sendAppMessage: {
