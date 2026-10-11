@@ -23,7 +23,8 @@ const session = z
   .regex(/^[a-z0-9]{1,12}$/)
   .parse(process.env.LYX_TEST_SESSION);
 const project = `lyx-doc-strategy-${session}`;
-const image = "sha256:833b1a38847cd1e603079b11f7fa0e84985a5b9dff70177f03c2f4c309728c7b";
+const imageManifest = "sha256:08340b032c22d3cb46622bf23e4aeee127782edca3f514573144ba1040aa4020";
+const imageConfig = "sha256:4f4aa385c16046d17abf1d52de5d4abdc3300c278503685f23fe45e7c42bdc14";
 const children = new Set<number>();
 const observed: { ext: string; size: number; sha256: string; maxChars: number }[] = [];
 let root: string;
@@ -174,9 +175,17 @@ const tool: MediaToolClient = {
 };
 
 beforeAll(async () => {
-  expect(await docker(["image", "inspect", "liyoxi/mediatool:verify", "--format", "{{.Id}}"])).toBe(
-    `${image}\n`,
-  );
+  expect(
+    await docker([
+      "image",
+      "inspect",
+      "--platform",
+      "linux/arm64",
+      "liyoxi/mediatool:verify",
+      "--format",
+      "{{.Id}}",
+    ]),
+  ).toBe(`${imageManifest}\n`);
   root = await mkdtemp(join(tmpdir(), "lyx-doc-strategy-"));
   started = true;
   await docker(
@@ -193,6 +202,7 @@ beforeAll(async () => {
     ),
   );
   const id = (await docker(command("ps", "-q", "mediatool"))).trim();
+  expect((await docker(["inspect", id, "--format", "{{.Image}}"])).trim()).toBe(imageConfig);
   const sandbox = z
     .object({
       NetworkMode: z.literal("none"),
