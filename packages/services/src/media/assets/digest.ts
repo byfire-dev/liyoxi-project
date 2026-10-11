@@ -1,8 +1,11 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { MediaJob } from "@liyoxi/db";
+import { AssetTagExtSchema, DictCodeSchema } from "@liyoxi/contract";
 import { assertNotInTransaction, lockRows } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
+import { LlmDigestSchema } from "../../providers/types.js";
+import type { LlmDigestVocabulary } from "../../providers/types.js";
 import type { JobJson, JobOutcome } from "../jobs/types.js";
 import type { AssetDeps } from "./context.js";
 import {
@@ -15,12 +18,18 @@ import { assetFiles } from "./repo.js";
 import { documentFacts } from "./doc.js";
 
 const sourceKind = { transcript: "asr", vision: "vision", doc_text: "doc_extract" } as const;
-const points = z.strictObject({
-  points: z
-    .array(z.string().refine((v) => !!v.trim() && Array.from(v).length <= 60))
-    .min(1)
-    .max(6),
-});
+const vocabularyItem = z.object({ code: DictCodeSchema, name: z.string().min(1).max(20) });
+/** Only job output carries private completion facts; the persisted insight is the strict DTO. */
+export function digestContent(content: Readonly<Record<string, JobJson>>) {
+  const { partial, sourceHash, ...value } = content;
+  if (
+    typeof partial !== "boolean" ||
+    typeof sourceHash !== "string" ||
+    !/^[a-f0-9]{64}$/.test(sourceHash)
+  )
+    return undefined;
+  return LlmDigestSchema.safeParse(value).data;
+}
 const vision = z.object({
   description: z.string().trim().min(1).max(2000),
   tags: z.array(z.string().trim().min(1).max(100)).max(20),
@@ -90,6 +99,29 @@ async function sources(tx: Tx, job: MediaJob) {
     where: { storeAssetId: asset.id, source: "uploader", dimension: "content" },
     orderBy: { id: "asc" },
   });
+  const dictionary = await tx.dictItem.findMany({
+    where: { dictTypeKey: "asset_tag", isEnabled: true },
+    orderBy: { code: "asc" },
+    take: 769,
+  });
+  const vocabulary: Record<keyof LlmDigestVocabulary, Array<{ code: string; label: string }>> = {
+    content: [],
+    usage: [],
+    timeliness: [],
+  };
+  let vocabularyValid = dictionary.length <= 768;
+  for (const row of dictionary) {
+    const item = vocabularyItem.safeParse(row).data;
+    const dimension = AssetTagExtSchema.safeParse(row.ext).data?.dimension;
+    if (!item || !dimension) {
+      vocabularyValid = false;
+      continue;
+    }
+    // The owned snapshot is constructed here and never exposed before the IO boundary.
+    const entries = vocabulary[dimension];
+    entries.push({ code: item.code, label: item.name });
+    if (entries.length > 256) vocabularyValid = false;
+  }
   const expected: readonly (keyof typeof sourceKind)[] =
     asset.type === "document"
       ? ["doc_text"]
@@ -200,6 +232,7 @@ async function sources(tx: Tx, job: MediaJob) {
           row.attemptNo,
         ]),
         tags: tags.map((row) => [row.id, row.tagCode]),
+        dictionary: dictionary.map((row) => [row.id, row.code, row.name, row.ext, row.updatedAt]),
       }),
     )
     .digest("hex");
@@ -208,6 +241,7 @@ async function sources(tx: Tx, job: MediaJob) {
     text: usable ? Array.from(fullText).slice(0, 16000).join("") : "",
     partial,
     storeId: asset.storeId,
+    vocabulary: vocabularyValid ? vocabulary : null,
   };
 }
 
@@ -251,25 +285,41 @@ export function createAssetDigestStrategy(
         if (!before || signal.aborted) return { state: "canceled" };
         if (!before.permitted) return skipped("budget_unconfigured");
         if (deps.assets.llm.status === "unconfigured") return skipped("llm_unconfigured");
+        const vocabulary = before.vocabulary;
+        if (!vocabulary) return skipped("digest_vocabulary_invalid");
         if (!before.text.trim()) return skipped("digest_source_missing");
-        assertNotInTransaction("素材要点模型调用");
-        const result = await deps.assets.llm.extractKeyPoints({
+        if (Buffer.byteLength(JSON.stringify({ evidence: before.text, vocabulary })) > 64 * 1024)
+          return skipped("digest_input_invalid");
+        assertNotInTransaction("素材结构化摘要模型调用");
+        const result = await deps.assets.llm.summarizeAsset({
           text: before.text,
-          maxPoints: 6,
+          vocabulary: structuredClone(vocabulary),
           signal,
         });
         const after = await admitted(job, false);
         if (signal.aborted || !after || before.hash !== after.hash) return { state: "canceled" };
         if (!result.ok) return skipped("digest_unavailable");
-        const parsed = points.safeParse(result.value);
-        if (!parsed.success) return skipped("digest_result_invalid");
+        const parsed = LlmDigestSchema.safeParse(result.value);
+        if (!parsed.success || !z.json().safeParse(parsed.data).success)
+          return skipped("digest_result_invalid");
+        const { suggestedTimeliness, ...fields } = parsed.data;
+        const known = (dimension: keyof LlmDigestVocabulary, code: string) =>
+          vocabulary[dimension].some((item) => item.code === code);
+        const value = {
+          ...fields,
+          contentTags: fields.contentTags.filter((code) => known("content", code)),
+          suggestedUsage: fields.suggestedUsage.filter((code) => known("usage", code)),
+          ...(suggestedTimeliness && known("timeliness", suggestedTimeliness.code)
+            ? { suggestedTimeliness }
+            : {}),
+        };
         return {
           state: "succeeded",
           output: {
             status: "ok",
             reason: null,
             content: {
-              keypoints: parsed.data.points,
+              ...value,
               partial: before.partial,
               sourceHash: before.hash,
             },
@@ -282,7 +332,17 @@ export function createAssetDigestStrategy(
     },
     async matches(tx: Tx, job: MediaJob, content: Readonly<Record<string, JobJson>>) {
       const snapshot = await sources(tx, job);
-      return !!snapshot && snapshot.hash === content.sourceHash;
+      const value = digestContent(content);
+      const known = (dimension: keyof LlmDigestVocabulary, code: string) =>
+        snapshot?.vocabulary?.[dimension].some((item) => item.code === code);
+      return (
+        !!snapshot?.vocabulary &&
+        !!value &&
+        snapshot.hash === content.sourceHash &&
+        value.contentTags.every((code) => known("content", code)) &&
+        value.suggestedUsage.every((code) => known("usage", code)) &&
+        (!value.suggestedTimeliness || known("timeliness", value.suggestedTimeliness.code))
+      );
     },
   };
 }

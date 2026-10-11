@@ -12,6 +12,7 @@ import { assetDisplayStatus, assetSelectable } from "./steps.js";
 import { assetFiles, assetOf } from "./repo.js";
 import type { AssetDeps } from "./context.js";
 import { documentFacts } from "./doc.js";
+import { LlmDigestSchema } from "../../providers/types.js";
 
 export const objectContent = (value: unknown): Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
@@ -100,12 +101,13 @@ export async function assetView(
     );
   const content = (row?: StoreAssetInsight) => (row ? objectContent(row.content) : {});
   const digestRow = insights.find((row) => row.fileId === null && row.kind === "digest"),
-    digest = content(digestRow);
+    digest = content(digestRow),
+    structuredDigest = LlmDigestSchema.safeParse(digest).data;
   const transcriptions = fileInsights("transcript").flatMap((row) => {
     const value = transcript(content(row));
     return value && row.fileId ? [{ ...value, fileId: row.fileId }] : [];
   });
-  const structuredItems = fileInsights("structured_items").flatMap((row) => {
+  const legacyItems = fileInsights("structured_items").flatMap((row) => {
     const items = content(row).items;
     return Array.isArray(items)
       ? items.flatMap((item) => {
@@ -116,6 +118,12 @@ export async function assetView(
         })
       : [];
   });
+  const structuredItems = structuredDigest
+    ? (structuredDigest.structuredItems ?? []).map((item) => ({
+        name: item.name,
+        priceText: item.price ?? null,
+      }))
+    : legacyItems;
   const pageCounts = fileInsights("doc_text")
     .map((row) => {
       const ext = links.find((link) => link.fileId === row.fileId)?.file.ext;
@@ -187,7 +195,13 @@ export async function assetView(
       )
       .slice(0, 4),
     techSpecLabel: textOf(content(fileInsights("tech_spec")[0]).label),
-    structuredItemCount: fileInsights("structured_items").length ? structuredItems.length : null,
+    structuredItemCount: structuredDigest
+      ? structuredDigest.structuredItems === undefined
+        ? null
+        : structuredItems.length
+      : fileInsights("structured_items").length
+        ? structuredItems.length
+        : null,
     isSelectableAsReference: assetSelectable(asset),
     uploader,
     createdAt: asset.createdAt.toISOString(),
