@@ -4,12 +4,15 @@ import { DOC_LIMITS as L } from "./doc-text.mjs";
 import { RequestError } from "./paths.mjs";
 
 const utf8 = new TextDecoder("utf-8", { fatal: true });
+/** @returns {never} */
 const invalid = () => {
   throw new RequestError("invalid_document", "文档不合法", 422);
 };
+/** @returns {never} */
 const unsupported = () => {
   throw new RequestError("unsupported_document", "文档格式不支持", 422);
 };
+/** @returns {never} */
 const oversized = () => {
   throw new RequestError("too_large", "文档超出安全上限", 413);
 };
@@ -46,6 +49,7 @@ export async function validateDocxZip(bytes) {
     names = new Set();
   let cursor = start,
     declared = 0;
+  /** @param {number} from @param {number} length */
   const checkExtra = (from, length) => {
     const stop = from + length;
     while (from < stop) {
@@ -127,6 +131,7 @@ export async function validateDocxZip(bytes) {
     if (utf8.decode(data.subarray(p + 30, p + 30 + nameLen)).normalize("NFC") !== entry.name)
       invalid();
     if (entry.flags & 8) {
+      /** @param {number} pos */
       const matches = (pos) =>
         pos + 12 <= start &&
         data.readUInt32LE(pos) === entry.crc &&
@@ -147,7 +152,9 @@ export async function validateDocxZip(bytes) {
     }
     let size = 0,
       checksum = 0;
+    /** @type {Uint8Array[]} */
     const chunks = [];
+    /** @param {Uint8Array} chunk */
     const account = (chunk) => {
       size += chunk.byteLength;
       expanded += chunk.byteLength;

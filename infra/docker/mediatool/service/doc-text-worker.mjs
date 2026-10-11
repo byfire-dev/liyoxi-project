@@ -5,9 +5,11 @@ import { DOC_LIMITS as L } from "./doc-text.mjs";
 import { inputFile, RequestError } from "./paths.mjs";
 import { validateDocxZip } from "./doc-text-zip.mjs";
 
+/** @param {string} code @returns {never} */
 const fail = (code) => {
   throw new RequestError(code, "文档解析失败");
 };
+/** @param {unknown} relative */
 async function load(relative) {
   const file = await inputFile(relative);
   const handle = await open(file.abs, constants.O_RDONLY | constants.O_NOFOLLOW);
@@ -29,9 +31,11 @@ async function load(relative) {
   }
 }
 function collector() {
+  /** @type {string[]} */
   const parts = [];
   let count = 0;
   return {
+    /** @param {string} text */
     add(text) {
       count += Array.from(text).length;
       if (count > L.codepoints) fail("too_large");
@@ -40,6 +44,7 @@ function collector() {
     text: () => parts.join(""),
   };
 }
+/** @param {Buffer} bytes */
 async function word(bytes) {
   await validateDocxZip(bytes);
   const mammoth = (await import("mammoth")).default;
@@ -50,6 +55,7 @@ async function word(bytes) {
       externalFileAccess: false,
       includeEmbeddedStyleMap: false,
       convertImage: mammoth.images.imgElement(async () => ({ src: "" })),
+      /** @param {unknown} document */
       transformDocument(document) {
         const stack = [document];
         while (stack.length) {
@@ -58,11 +64,18 @@ async function word(bytes) {
             output.add(item);
             continue;
           }
-          if (!item || item.type === "table") continue;
-          if (item.type === "text") output.add(item.value);
+          if (
+            typeof item !== "object" ||
+            item === null ||
+            !("type" in item) ||
+            item.type === "table"
+          )
+            continue;
+          if (item.type === "text" && "value" in item && typeof item.value === "string")
+            output.add(item.value);
           if (item.type === "break") output.add("\n");
           if (item.type === "paragraph") stack.push("\n");
-          if (Array.isArray(item.children))
+          if ("children" in item && Array.isArray(item.children))
             for (let i = item.children.length - 1; i >= 0; i--) stack.push(item.children[i]);
         }
         return document;
@@ -71,6 +84,7 @@ async function word(bytes) {
   );
   return { text: output.text() };
 }
+/** @param {Buffer} bytes */
 async function pdf(bytes) {
   if (bytes.subarray(0, 5).toString() !== "%PDF-") fail("invalid_document");
   await import("@napi-rs/canvas");
