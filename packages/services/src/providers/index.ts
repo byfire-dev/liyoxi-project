@@ -46,6 +46,8 @@ export { createDomesticLlm } from "./llm/driver.js";
 export type { DomesticLlmConfig, DomesticLlmOptions, LlmEndpoint } from "./llm/driver.js";
 export type { TencentAsrConfig, TencentAsrOptions } from "./asr/tencent.js";
 export { createProductionMediaTools } from "./mediatool/production.js";
+export { createMediaToolClient } from "./mediatool/client.js";
+export { createMediaWorkspace } from "./mediatool/work-io.js";
 export type { ProductionMediaTools } from "./types.js";
 export { createConsoleSms } from "./sms/console.js";
 export { createMinioStorage, LOCAL_MINIO } from "./storage/minio.js";

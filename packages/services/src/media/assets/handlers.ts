@@ -26,6 +26,7 @@ import { objectContent } from "./views.js";
 import { assetFileSteps } from "./steps.js";
 import type { AssetType } from "./steps.js";
 import { createAssetAsrStrategy } from "./asr.js";
+import { createAssetDocStrategy, documentFacts } from "./doc.js";
 
 const done = (
   status: "ok" | "skipped",
@@ -45,6 +46,7 @@ interface PreparedAsset {
   readonly asset: StoreAsset;
   readonly file: Awaited<ReturnType<typeof assetFiles>>[number]["file"] | null;
   readonly text: string;
+  readonly documentComplete: boolean;
   readonly permitted: boolean;
   readonly reused: { id: string; content: JobJson } | null;
   readonly probe?: Awaited<ReturnType<typeof readProductionWork>>;
@@ -114,7 +116,7 @@ async function prepare(deps: AssetDeps, tx: Tx, job: MediaJob): Promise<Prepared
     },
     orderBy: { id: "asc" },
   });
-  const text = [
+  const fullText = [
     asset.textBody,
     ...insights.map((row) => {
       const value = objectContent(row.content);
@@ -126,8 +128,16 @@ async function prepare(deps: AssetDeps, tx: Tx, job: MediaJob): Promise<Prepared
     }),
   ]
     .filter(Boolean)
-    .join("\n")
-    .slice(0, 10000);
+    .join("\n");
+  const documents = insights.filter((row) => row.kind === "doc_text");
+  const documentComplete =
+    asset.type !== "document" ||
+    (!!documents.length &&
+      documents.every((row) => {
+        const content = documentFacts(row.content, file?.ext ?? null);
+        return content && !content.truncated;
+      }) &&
+      fullText.length <= 10000);
   const kind = insightForKind[job.kind as MediaJobKind];
   const reusable =
     file?.crc64 && file.sizeBytes !== null && kind && job.kind !== "probe"
@@ -148,6 +158,9 @@ async function prepare(deps: AssetDeps, tx: Tx, job: MediaJob): Promise<Prepared
               entityId: asset.entityId,
               status: "stored",
               moderationState: { not: "block" },
+              ...(job.kind === "doc_extract"
+                ? { ext: file.ext, ...(file.sha256 ? { sha256: file.sha256 } : {}) }
+                : {}),
             },
           },
           orderBy: { id: "asc" },
@@ -158,7 +171,8 @@ async function prepare(deps: AssetDeps, tx: Tx, job: MediaJob): Promise<Prepared
   return {
     asset,
     file,
-    text,
+    text: fullText.slice(0, 10000),
+    documentComplete,
     permitted:
       !model ||
       !!(await deps.assets.allowModelCall?.(tx, { storeId: asset.storeId, now: deps.clock.now() })),
@@ -214,7 +228,8 @@ function adaptedProbe(job: MediaJob, facts: NonNullable<PreparedAsset["probe"]>)
 export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[] {
   const signer = createSigner(deps),
     probe = createProbeHandler(deps),
-    asr = createAssetAsrStrategy(deps, (tx, job) => current(deps, tx, job));
+    asr = createAssetAsrStrategy(deps, (tx, job) => current(deps, tx, job)),
+    doc = createAssetDocStrategy(deps, (tx, job) => current(deps, tx, job));
   const kinds = [
     "probe",
     "audit_image",
@@ -248,6 +263,7 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
     execute: async (job, context, signal): Promise<JobOutcome> => {
       const prepared = context as PreparedAsset;
       if (signal.aborted) return failed("ASSET_CANCELED");
+      if (kind === "doc_extract") return doc.execute(job, signal, prepared.reused);
       if (prepared.reused && (kind !== "asr" || asr.validCached(prepared.reused.content)))
         return {
           state: "succeeded",
@@ -302,41 +318,16 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
           userData: `${job.id}:${job.attemptNo}`,
           signal,
         });
+        if (result.ok && result.value.processed && !prepared.documentComplete)
+          return done(
+            "skipped",
+            {},
+            "document_audit_incomplete",
+            result.value.verdict === "pass" ? "pending" : result.value.verdict,
+          );
         return result.ok && result.value.processed
           ? done("ok", {}, null, result.value.verdict)
           : done("skipped", {}, "audit_unavailable", "pending");
-      }
-      if (kind === "doc_extract") {
-        const file = prepared.file;
-        if (!file || !file.etag || file.sizeBytes === null) return skipped("document_missing");
-        // No reviewed office/PDF extractor is currently exposed to this domain.
-        if (file.ext !== "txt") return skipped("document_extractor_unconfigured");
-        if (file.sizeBytes > 40000n) return skipped("document_text_limit");
-        const chunks: Uint8Array[] = [];
-        const read = await deps.storage.readTo({
-          bucket: "asset",
-          key: file.objectKey,
-          expectedSize: Number(file.sizeBytes),
-          maxBytes: 40000,
-          ifMatchEtag: file.etag,
-          signal,
-          sink: async (chunk) => {
-            chunks.push(chunk.slice());
-          },
-        });
-        if (!read.ok) return skipped("document_read_unavailable");
-        const bytes = Buffer.concat(chunks);
-        let text: string;
-        try {
-          text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-        } catch {
-          try {
-            text = new TextDecoder("gbk", { fatal: true }).decode(bytes);
-          } catch {
-            return skipped("document_encoding_invalid");
-          }
-        }
-        return done("ok", { text: [...text].slice(0, 10000).join(""), pageCount: 1 });
       }
       if (!prepared.permitted) return skipped("budget_unconfigured");
       if (kind === "asr") return asr.execute(job, signal);
@@ -421,7 +412,7 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
           }
           await tx.storeAsset.update({ where: { id: asset.id }, data: { isInsightPartial: true } });
         }
-        if (output.status !== "ok")
+        if (output.status !== "ok" || (kind === "doc_extract" && output.content.truncated === true))
           await tx.storeAsset.update({ where: { id: asset.id }, data: { isInsightPartial: true } });
         if (output.verdict) {
           const audits = await tx.mediaJob.findMany({

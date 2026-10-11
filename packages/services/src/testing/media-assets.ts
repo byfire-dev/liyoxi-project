@@ -5,6 +5,7 @@ import { createEvents } from "../events/index.js";
 import { createTimers } from "../timers/index.js";
 import { createMedia } from "../media/index.js";
 import type { MediaActor } from "../media/index.js";
+import type { MediaProductionDeps } from "../media/index.js";
 import {
   createMediaAssembly,
   createMediaAssetsAssembly,
@@ -17,11 +18,17 @@ import { sampleStaffContext } from "./approval.js";
 import { createFakeProviders } from "./providers/index.js";
 
 /** Real domain assembly and owner facts, with only external provider IO replaced. */
-export async function createMediaAssetsHarness(prisma: PrismaClient) {
+export async function createMediaAssetsHarness(
+  prisma: PrismaClient,
+  options: {
+    production?: (fake: ReturnType<typeof createFakeProviders>) => MediaProductionDeps;
+  } = {},
+) {
   const clock = createClock(new Date("2026-10-10T04:00:00Z"));
   const tx = createTxRunner({ prisma, appEnv: "test" });
   const make = createFactories({ db: prisma, clock });
   const fake = createFakeProviders({ clock });
+  const production = options.production?.(fake);
   const mediaScope = createMediaAssembly(assembleForTest({ entry: "api" }));
   const assetsScope = createMediaAssetsAssembly(mediaScope.assembly);
   const assembly = assetsScope.assembly;
@@ -39,6 +46,7 @@ export async function createMediaAssetsHarness(prisma: PrismaClient) {
     storage: fake.storage,
     moderation: fake.media,
     assets: { ...assets, allowModelCall: async () => permitControlledModel },
+    ...(production ? { production } : {}),
     channel: {
       enqueue: async (queue, _messageId, payload) => {
         if (queue !== "media_job" || typeof payload.jobId !== "string") return;
@@ -149,6 +157,7 @@ export async function createMediaAssetsHarness(prisma: PrismaClient) {
       } finally {
         assetsScope.close();
         mediaScope.close();
+        await production?.workspace.close();
       }
     },
   };
