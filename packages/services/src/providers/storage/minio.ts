@@ -555,6 +555,10 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
       });
     },
 
+    async presignVisionGet() {
+      return failed("unsupported", "本地 MinIO 不提供 CI 视觉处理签名");
+    },
+
     async delete({ bucket, key }) {
       return run("删除", async () => {
         await client.send(new DeleteObjectCommand({ Bucket: nameOf(bucket), Key: key }));
