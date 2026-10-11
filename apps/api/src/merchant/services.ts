@@ -109,7 +109,7 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
           );
         } catch (error) {
           if (error instanceof AppError) {
-            if (error.code === "CONTENT_REJECTED") {
+            if (error.error === "CONTENT_REJECTED") {
               const details = error.details;
               const fields =
                 details && typeof details === "object" && "fields" in details
@@ -135,7 +135,7 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
                 "INDUSTRY_NOT_OPEN",
                 "PROVIDER_UNAVAILABLE",
                 "SESSION_INVALID",
-              ].includes(error.code)
+              ].includes(error.error)
             )
               throw error;
           }
