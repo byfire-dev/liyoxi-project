@@ -155,16 +155,21 @@ describe("模型预算实例生命周期（纯协议替身）", () => {
   it("维护同轮只执行一次，close后不再发维护", async () => {
     const h = setup();
     let release!: (value: unknown) => void;
+    let entered!: () => void;
+    const entry = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
     h.evalCall.mockImplementation(
       () =>
         new Promise((r) => {
           release = r;
+          entered();
         }),
     );
     const first = h.runtime.maintain(),
       second = h.runtime.maintain();
     expect(second).toBe(first);
-    await Promise.resolve();
+    await entry;
     release(["maintained", 128, 2]);
     expect(await first).toEqual({ status: "maintained", scanned: 128, removed: 2 });
     expect(h.evalCall).toHaveBeenCalledOnce();
