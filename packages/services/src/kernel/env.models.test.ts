@@ -234,6 +234,7 @@ describe("ASR完整结构与原驱动谓词", () => {
     { ...asr, secretId: "" },
     { ...asr, secretId: "a".repeat(129) },
     { ...asr, secretId: "bad space" },
+    { ...asr, secretId: "original-id\n" },
     { ...asr, secretKey: "" },
     { ...asr, secretKey: "x".repeat(257) },
     { ...asr, secretKey: "😀".repeat(129) },
@@ -249,7 +250,6 @@ describe("ASR完整结构与原驱动谓词", () => {
     { secretId: "a".repeat(128), secretKey: "x".repeat(256) },
     { ...asr, secretKey: "😀".repeat(128) },
     { ...asr, secretKey: " \n\u0000" },
-    { ...asr, secretId: "original-id\n" },
   ])("保持已接受驱动的字符串边界 %j", (value) => {
     expect(loadEnv(source("ASR_TENCENT", value)).ASR_TENCENT).toEqual(value);
   });
@@ -282,11 +282,13 @@ describe("LLM完整四端点与原驱动谓词", () => {
       { ...endpoint, model: "" },
       { ...endpoint, model: "x".repeat(129) },
       { ...endpoint, model: "has space" },
+      { ...endpoint, model: "original-model\n" },
       { ...endpoint, apiKey: 1 },
       { ...endpoint, apiKey: "" },
       { ...endpoint, apiKey: "k".repeat(513) },
       { ...endpoint, apiKey: "has space" },
       { ...endpoint, apiKey: "私有" },
+      { ...endpoint, apiKey: "original-key\n" },
       { ...endpoint, url: "https://private-value-marker.invalid" },
       { ...endpoint, workspaceId: "unexpected" },
       { ...endpoint, vendor: "deepseek", workspaceId: "unexpected" },
@@ -296,6 +298,7 @@ describe("LLM完整四端点与原驱动谓词", () => {
       { ...endpoint, vendor: "bailian", workspaceId: "-starts-with-dash" },
       { ...endpoint, vendor: "bailian", workspaceId: "x".repeat(64) },
       { ...endpoint, vendor: "bailian", workspaceId: "has space" },
+      { ...endpoint, vendor: "bailian", workspaceId: "original-workspace\n" },
     ];
     for (const value of invalid) {
       const input = structuredClone(llm);
@@ -311,8 +314,6 @@ describe("LLM完整四端点与原驱动谓词", () => {
       { ...endpoint, vendor: "deepseek" },
       { ...endpoint, vendor: "bailian", workspaceId: "x" },
       { ...endpoint, vendor: "bailian", workspaceId: "x".repeat(63) },
-      { ...endpoint, model: "original-model\n", apiKey: "original-key\n" },
-      { ...endpoint, vendor: "bailian", workspaceId: "original-workspace\n" },
     ]) {
       const input = structuredClone(llm);
       Reflect.set(input[role], priority, value);
