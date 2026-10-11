@@ -11,6 +11,7 @@ W1-03 交最小集：懒创建主体、成员关系解析、门店列表与额�
 | `service.ts` | `createTenant({ tx, clock, flow, assembly })`：装配入口，给出下面全部函数 |
 | `create-entity.ts` | 建主体的事务 |
 | `membership.ts` | 成员关系解析 |
+| `member-removal.ts` | 老板移除店员与店员本人退出：主体、成员锁后复核，原状态机及同事务关系清理 |
 | `quota.ts` | 额度与名额的唯一口径 |
 | `stores.ts` | 门店列表、记住当前门店 |
 | `qualification.ts` | 给 profile 的三个写函数 |
@@ -28,6 +29,8 @@ const tenant = createTenant({ tx, clock, flow, assembly }); // api、worker 启�
 const result = await tenant.createEntity(ctx, { idem }); // 操作人须是商家用户
 const list = await tenant.listStores({ merchantUserId }); // viewerRole：owner、clerk、none
 await tenant.rememberCurrentStore({ merchantUserId, storeId }, { idem });
+await tenant.removeMember(ctx, { memberId }, { idem }); // 老板移除本主体有效店员
+await tenant.leaveMembership(ctx, { idem }); // 店员本人退出；老板拒绝
 
 // 在调用方的事务里
 const membership = await tenant.resolveMembership(tx, { merchantUserId, storeId }); // 进不去即 null
@@ -58,7 +61,7 @@ pnpm --filter @liyoxi/services exec vitest run src/tenant/
 
 ## 5. 已知的限度
 
-- 没登记守卫的迁移行（门店停用与恢复、主体放弃与关闭、成员加入与移除、`change` 轮次）迁移即抛 `FlowError`，随 M2 补。`store.create` 的守卫现在只认建主体时的首家门店。
+- 未交付的普通门店停用、恢复、主体放弃、成员加入及 `change` 轮次迁移继续拒绝；主体关闭沿既有关闭用例，普通成员移除与退出沿上述两个用例。`store.create` 的守卫仍只认建主体时的首家门店。
 - 门店卡的 `actions` 只按“是不是最后一家启用中的门店、有没有提交过资质”给；有没有业务数据、在办事项的判断在停用与删除的接口里（M2）。
 - 撤回回到“提交前的值”取自本链的状态历史（最近一次进入 `pending` 的那一行）。
 - 资质撤回的守卫只认“操作人是系统”；主体关闭或放弃的联动随 M2 接上时再核对触发条件。
@@ -88,3 +91,9 @@ W2-10 的 `assertWithinQuota` 复用现有额度口径与调用方事务，只�
 在同一事务履行 tenant 自身关闭联动后，调用 `withdraw(tx, ctx, plan)`。只有真实 entity.closed/closedAt、同 Tx 原计划和完整候选/归属/广告指针/绑定图一致才整体锁广告150、订单160、订单项170及精确 timer，随后走真实广告取消系统撤回与原审批/业务回调。候选或图改变整笔拒绝重试，不补低序锁；缺写侧运行时依赖明确 INTERNAL。
 
 仅收尾 pending_approval 的 ad_cancel，保留 approved 待执行及历史；积分和广告生产 timer 不动。该口不是 tenant 关闭入口，open_order 和其他取消 kind、完整主体/邀请/成员/门店关闭及 HTTP 仍未交付。
+
+## 普通店员移除与退出（W2-10 独立切片）
+
+`removeMember(ctx, { memberId }, { idem })` 与 `leaveMembership(ctx, { idem })` 共用原事务幂等。先持主体100，再按 id 排序持操作人与目标成员120；锁后重新确认主体存续、真实门店成员上下文、操作人权限及目标归属。只有有效 clerk 可以离开，owner 不走此入口。直接调用原 flow 的 remove/leave 行不能绕过用例守卫。
+
+同事务写原成员迁移历史、活动审计和 `entity_member.removed`，清空目标 `entity_member.lastStoreId` 并删除全部 `store_member`。保留上传素材、协议同意、账号登录会话和老板下载页授权；成员权限由既有每请求查询立即失效。HTTP 主动退出成功后，即使原幂等键重放也先受原成员中间件约束。邀请接受和范围更新仍未交付，测试中的加入关系只是合法历史前提。本切片源码准备中，运行验证、唯一正式审查与本地合流尚待完成。

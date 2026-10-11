@@ -45,6 +45,7 @@ import { agreementConsentHandlers } from "./agreement-consents.js";
 import { entityHandlers } from "./entities.js";
 import { storeHandlers } from "./stores.js";
 import { meHandlers } from "./me.js";
+import { memberHandlers } from "./members.js";
 import { dictItemHandlers } from "./dict-items.js";
 import { billingHandlers } from "./billing.js";
 import { adminBillingHandlers } from "./admin/billing.js";
@@ -96,6 +97,7 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...entityHandlers,
   ...storeHandlers,
   ...meHandlers,
+  ...memberHandlers,
   ...dictItemHandlers,
   ...billingHandlers,
   ...adminBillingHandlers,

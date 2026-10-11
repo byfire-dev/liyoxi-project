@@ -18,6 +18,17 @@ import { z } from "../../zod.js";
 
 const verificationStatus = () => openEnum(QUALIFICATION_STATUS.values);
 
+/** 3.10/3.11：实际成员移除或主动退出的同一结果。 */
+export const MemberRemovalResultSchema = z
+  .strictObject({
+    memberId: IdSchema,
+    status: z.literal("removed"),
+    removedAt: InstantSchema,
+  })
+  .openapi("MemberRemovalResult");
+export type MemberRemovalResult = z.infer<typeof MemberRemovalResultSchema>;
+export const MemberIdParamsSchema = z.strictObject({ memberId: IdSchema });
+
 /** 额度引导的文案依据：套餐生效 / 未开通或已过期 */
 export const QUOTA_LIMIT_REASONS = ["plan", "inactive"] as const;
 /** 门店卡的可执行动作（约定 C16）；守卫的最终判断在服务端 */
