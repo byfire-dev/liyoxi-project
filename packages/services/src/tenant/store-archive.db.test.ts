@@ -331,8 +331,11 @@ describe("门店停用：真实事务与系统级联", { timeout: SLOW }, () => 
             });
       const attempt = h.tx.run((tx) =>
         h.flow.transition(tx, ctx, {
-          machine: kind === "member" ? "entity_member" : kind,
-          stateField: kind === "store" ? "lifecycle" : "status",
+          ...(kind === "store"
+            ? ({ machine: "store", stateField: "lifecycle" } as const)
+            : kind === "invitation"
+              ? ({ machine: "invitation", stateField: "status" } as const)
+              : ({ machine: "entity_member", stateField: "status" } as const)),
           id,
           entityId: owner.entityId,
           storeId: owner.secondId,
