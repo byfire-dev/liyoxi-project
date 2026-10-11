@@ -67,7 +67,7 @@ mediatool:
 | 内存 | 上限 1GB 是 D5 的约定。预发节点内存小，要调低时见第 6 节的实测 |
 | 镜像版本 | 本地整套环境用 `liyoxi/mediatool:local`（`pnpm stack:build` 出，W1-22 定）；推镜像仓库的标签是 `sha-<12 位提交号>`（D7 第 7.4 节，W2-25）。`:verify` 只是验证时的本地标签 |
 
-`docText` 隔离能力源码已新增，当前等待独占构建及真实容器验证；素材策略尚未接入。
+`docText` 隔离能力已通过本地真实容器验证；素材策略尚未接入。
 没有做的：进程内实现（没有 Docker 时的开发退路）、整套 Compose（W1-22）。
 
 ### docText 能力前置（W315d）
@@ -83,8 +83,15 @@ Mammoth禁外部文件/图片，正文跳过table AST节点。xlsx拒抽；PDF�
 所有版面表格，不生成结构化表格。此口不返回HTML或相似度，不改变D6转换器。
 
 `MediaToolClient.docText`为兼容可选方法，生产tools接同一外呼守卫与关闭/取消确认；
-默认素材策略、Provider工厂与预算未启用。首次Linux镜像/缓存/真实socket验证仍待调度，
-不能把宿主已锁依赖当作容器可用证据。依赖来源和native分支见[deps](deps/README.md)。
+默认素材策略、Provider工厂与预算未启用。2026-10-11在Linux arm64真实隔离镜像中，
+新增11项docText socket用例全部通过，含UTF8/GBK、跳过DOCX表节点、两页中文PDF、
+空文本/加密/损坏、预算、ZIP及取消确认。原完整verify实际44项：43通过，1项因缺业主样片
+按原条件跳过；原沙箱检查全部通过。原199.8MiB五轮probe+poster最慢376ms，三轮
+stampAigc最慢421ms，原10000ms判据和回读保持；只是本机观察，不代表负载或预发结果。
+文档依赖阶段已实际无网构建；完整镜像按原固定APT层/default构建通过，完整镜像
+`--network=none`重建因APT缓存按网络模式分键而失败，不能声称全镜像离线重建通过。
+调度接受此构建证据边界，运行时仍严格无网/无密钥/只读根/非root/1CPU/1GiB。
+依赖来源和native分支见[deps](deps/README.md)；未验证Linux x64或真实业主文档准确率。
 
 ## 4. 接口
 
