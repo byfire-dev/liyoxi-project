@@ -42,7 +42,7 @@ describe("接受邀请正式请求与当前成员投影", () => {
   it("正式路由保 user/same/required 三段声明，不要求门店上下文", () => {
     expect(mInvitationAccept).toMatchObject({
       method: "post",
-      path: "/m/invitations/{invitationId}/accept",
+      path: "/api/v1/m/invitations/{invitationId}/accept",
       operationId: "m.invitation.accept",
       "x-auth": "user",
       "x-clerk-view": "same",
