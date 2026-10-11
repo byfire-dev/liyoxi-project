@@ -1,9 +1,7 @@
 // Provider 的工厂与生效状态汇总（01 第 9 节；ADR-039；D7 第 7.5 节“启动校验”）。
 //
 // createProviders 按环境与选项给十二个接口各选一个实现，包上外呼前钩子，并把各接口的生效状态打进启动日志。
-// 构建时不连网、不外呼：什么都没配也能启动。启动失败只有一种：选了只限本地的驱动而环境是 stg、prod。
-// 真实驱动还没有（wechat、sms 在 G2-D；对象存储与数据万象在 G3-A；ocr、asr、llm 在 G3-C；wechatPay 在 G4-A；
-// mail 在 G4-B；esign 在 G5-B；wecom 在 G7-A；invoice 属 V1.1）：下面各 select* 函数里留了位置，由那些包填。
+// 构建时不连网、不外呼：什么都没配也能启动。显式驱动须完整配置并交由调用者登记关闭。
 // 领域模块不引本文件，只引 ./types.ts；驱动只在装配处（kernel）经本文件引入（D7 第 2.2 节 D8）。
 
 import { createTencentSms } from "./sms/tencent.js";
@@ -18,6 +16,10 @@ import { createCosStorage } from "./storage/cos.js";
 import type { CosConfig } from "./storage/cos.js";
 import { createMinioStorage, LOCAL_MINIO } from "./storage/minio.js";
 import type { MinioConfig } from "./storage/minio.js";
+import { createTencentAsr } from "./asr/tencent.js";
+import type { TencentAsrConfig, TencentAsrOptions } from "./asr/tencent.js";
+import { createDomesticLlm } from "./llm/driver.js";
+import type { DomesticLlmConfig, DomesticLlmOptions } from "./llm/driver.js";
 import { guardProviders, PROVIDER_NAMES } from "./types.js";
 import type {
   BeforeProviderCall,
@@ -61,12 +63,14 @@ export {
 } from "./unconfigured.js";
 
 /**
- * 影响选哪个实现的选项。现在只有三项；真实驱动的配置由各自的包加在这里。
+ * 影响选哪个实现的选项；真实驱动的配置由各自的包声明。
  * 它们从哪些环境变量来、怎样并进 loadEnv 与 .env.example，本包没有做，原因见 README.md“环境变量”一节。
  */
 export interface ProviderSettings {
   wechat?: { appid: string; secret: string };
   media?: { ci: CiConfig };
+  asr?: TencentAsrConfig;
+  llm?: DomesticLlmConfig;
   sms?: {
     /** 显式选控制台短信。不写时：local、test 用控制台输出，stg、prod 为未配置 */
     driver?: "console" | "tencent";
@@ -91,6 +95,8 @@ export interface CreateProvidersOptions {
   settings?: ProviderSettings;
   /** 外呼前钩子；缺省空转。W0-20 接上 kernel 的事务标记 */
   beforeCall?: BeforeProviderCall;
+  asr?: TencentAsrOptions & { registerClose: (close: () => Promise<void>) => void };
+  llm?: DomesticLlmOptions & { registerClose: (close: () => Promise<void>) => void };
   media?: {
     now: () => Date;
     registerClose: (close: () => Promise<void>) => void;
@@ -237,6 +243,17 @@ export function createProviders(options: CreateProvidersOptions): Providers {
 
   if ((settings.media === undefined) !== (options.media === undefined))
     throw new ProviderConfigError("media", "CI配置与自有生命周期须同时提供");
+  if ((settings.asr === undefined) !== (options.asr === undefined))
+    throw new ProviderConfigError("asr", "完整配置与自有生命周期须同时提供");
+  if (
+    options.asr !== undefined &&
+    (typeof options.asr?.now !== "function" || typeof options.asr?.registerClose !== "function")
+  )
+    throw new ProviderConfigError("asr", "须提供时钟与关闭登记函数");
+  if ((settings.llm === undefined) !== (options.llm === undefined))
+    throw new ProviderConfigError("llm", "完整配置与自有生命周期须同时提供");
+  if (options.llm !== undefined && typeof options.llm?.registerClose !== "function")
+    throw new ProviderConfigError("llm", "须提供关闭登记函数");
   const chosen: Providers = {
     ...unconfiguredProviders,
     // 真实驱动的位置：wechat 在 G2-D；media（数据万象）在 G3-A
@@ -245,7 +262,7 @@ export function createProviders(options: CreateProvidersOptions): Providers {
     storage: selectStorage(appEnv, settings),
     media: local ? createLocalMedia() : unconfiguredProviders.media,
     esign: selectEsign(appEnv, settings, logger),
-    // wechatPay（G4-A）、ocr、asr、llm（G3-C）、wecom（G7-A）、mail（G4-B）、invoice（V1.1）：
+    // wechatPay（G4-A）、ocr、wecom（G7-A）、mail（G4-B）、invoice（V1.1）：
     // 真实驱动没到之前一律未配置
   };
 
@@ -276,6 +293,16 @@ export function createProviders(options: CreateProvidersOptions): Providers {
     const driver = createCiMedia(settings.media.ci, options.media);
     chosen.media = driver.provider;
     options.media.registerClose(driver.close);
+  }
+  if (settings.asr !== undefined && options.asr !== undefined) {
+    const driver = createTencentAsr(settings.asr, options.asr);
+    options.asr.registerClose(driver.close);
+    chosen.asr = driver.provider;
+  }
+  if (settings.llm !== undefined && options.llm !== undefined) {
+    const driver = createDomesticLlm(settings.llm, options.llm);
+    options.llm.registerClose(driver.close);
+    chosen.llm = driver.provider;
   }
   const providers = guardProviders(chosen, options.beforeCall ?? noop);
   logProviderStatus(logger, providers);
