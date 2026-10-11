@@ -247,6 +247,7 @@ export const unconfiguredLlm: LlmProvider = {
   ...BASE,
   tagAsset: llmOff,
   extractKeyPoints: llmOff,
+  summarizeAsset: llmOff,
 };
 
 export const unconfiguredWecom: WecomProvider = {
