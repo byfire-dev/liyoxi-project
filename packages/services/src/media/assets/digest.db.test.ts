@@ -23,6 +23,7 @@ import {
 } from "./pipeline.js";
 import { assetFileSteps } from "./steps.js";
 import type { AssetType } from "./steps.js";
+import { visionContent } from "./vision.js";
 
 // Real Tx/locks, public asset registration, job runner, insight and outbox writes.
 // Controlled historical source rows below are lawful provenance fixtures, not cloud evidence.
@@ -48,8 +49,12 @@ beforeEach(() => {
   h.fake.llm.resetCalls();
   h.fake.llm.digestReplies.length = 0;
   h.fake.llm.tagReplies.length = 0;
+  h.fake.llm.visionReplies.length = 0;
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  h.fake.llm.visionReplies.length = 0;
+});
 afterAll(async () => h?.close());
 
 const json = (value: unknown) => value as Prisma.InputJsonValue;
@@ -456,7 +461,19 @@ describe("digest public jobs and manual fallback", () => {
       where: { parentId: created.storeAssetId, kind: "audit_image_wx" },
     });
     await h.media.jobs.run({ jobId: audit.id });
-    h.fake.llm.tagReplies.push({ description: "公开虚构厨房正在现场制作", tags: ["厨房"] });
+    h.fake.llm.visionReplies.push({
+      description: "公开虚构厨房正在现场制作",
+      quality: "公开虚构清晰画面",
+      hasPeople: false,
+      identifiableCustomerFace: false,
+      textInImage: "",
+    });
+    vi.spyOn(h.fake.storage, "presignVisionGet").mockResolvedValue(
+      ok({
+        url: "https://public.invalid/vision.jpg",
+        expiresAt: new Date(h.clock.now().getTime() + 900_000),
+      }),
+    );
     const origin = await h.prisma.mediaJob.findFirstOrThrow({
       where: { parentId: created.storeAssetId, kind: "vision" },
     });
@@ -474,11 +491,11 @@ describe("digest public jobs and manual fallback", () => {
       where: { storeAssetId: created.storeAssetId, kind: "vision" },
     });
     expect(source.mediaJobId).toBe(origin.id);
-    expect(AssetJobOutputSchema.parse((await row(origin.id)).output).content).toEqual(
-      source.content,
-    );
+    expect(
+      visionContent(AssetJobOutputSchema.parse((await row(origin.id)).output).content),
+    ).toEqual(source.content);
     expect(h.fake.llm.callsOf("summarizeAsset")[0]!.input).toMatchObject({
-      text: "拍摄开放式厨房\nvision: 公开虚构厨房正在现场制作",
+      text: "拍摄开放式厨房\nvision: description: 公开虚构厨房正在现场制作\nquality: 公开虚构清晰画面\ntextInImage: \nhasPeople: false\nidentifiableCustomerFace: false",
       vocabulary: expect.any(Object),
     });
   });

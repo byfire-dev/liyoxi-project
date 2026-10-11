@@ -431,8 +431,10 @@ export function createAssetVisionStrategy(
       const fresh = await tx.mediaJob.findUnique({ where: { id: job.id } });
       if (
         !fresh ||
+        fresh.kind !== "vision" ||
         fresh.state !== "running" ||
         fresh.provider !== deps.assets.llm.status ||
+        fresh.provider !== job.provider ||
         fresh.attemptNo !== job.attemptNo ||
         !job.leaseOwner ||
         fresh.leaseOwner !== job.leaseOwner ||
