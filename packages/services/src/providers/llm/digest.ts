@@ -106,3 +106,8 @@ export const DIGEST_JSON_INSTRUCTIONS =
   '"structuredItems"?: array of <=50 {"name": string <=30 code points, "price"?: string <=20 code points}}; ' +
   "no other keys. Use only supplied evidence and vocabulary, never identify people or infer missing visual evidence. " +
   "Required keys must be present; optional keys must be omitted when unknown.";
+
+/** 复用真实发送输入的纯校验；不检查配置、授权、预算或取消状态。 */
+export function isLlmDigestInput(value: unknown): value is LlmDigestInput {
+  return prepareDigest(value) !== undefined;
+}

@@ -53,6 +53,11 @@ import type { StorageProvider } from "../providers/types.js";
 
 在 stg、prod 选了只限本地的驱动（控制台短信、本地 MinIO），或只提供微信配置与运行时依赖的一半，抛 `ProviderConfigError`。
 
+`types.ts` 另公开 `isLlmDigestInput`、`isLlmVisionInput`、`isAsrSubmitUrl`、
+`isAsrQueryTaskId` 四个纯数据校验，委托现有协议规则，不创建驱动或外呼。
+ASR URL 保持原 JS 字符串长度界限，查询保持原字符串 uint64 判定；不新增空白规范。
+这些函数不代表已配置、来源可信、预算许可、信号未取消或租约仍有效，调用者须另行守卫。
+
 ## 4. 选项与环境变量
 
 `createProviders` 的三个本地选项（`ProviderSettings`）为 `sms.driver`（`console` / `tencent`）、`storage.driver`（`minio`，另可用 `storage.minio` 覆盖连接参数）、`esign.imageSeal`（图片章开关）。
