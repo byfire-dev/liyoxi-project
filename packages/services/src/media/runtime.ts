@@ -32,6 +32,7 @@ import { createWatermarkHandler } from "./handlers/watermark.js";
 import { createNormalizeHandler } from "./handlers/normalize.js";
 import type { BoundMediaDeps } from "./context.js";
 import { createMediaAssets } from "./assets/service.js";
+import { wakeAssetAsrJob } from "./assets/asr-wake.js";
 import {
   createAssetHandlers,
   createAssetConvergence,
@@ -252,6 +253,13 @@ export function createMedia(options: MediaDeps) {
     scanPromote: jobs.scan,
     jobs,
     jobAdmin: createMediaJobAdmin({ tx: options.tx, clock: options.clock, jobs }),
+    wakeAsrJob: (tx: Tx, input: { mediaJobId: string; externalJobId: string }) =>
+      wakeAssetAsrJob(
+        tx,
+        input,
+        options.clock,
+        assetHandlers.find((handler) => handler.kind === "asr"),
+      ),
     wakeCiJob: async (
       tx: Parameters<typeof applyWechatImageResult>[1],
       input: { mediaJobId: string; externalJobId: string },

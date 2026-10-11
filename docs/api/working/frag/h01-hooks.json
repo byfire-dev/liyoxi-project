@@ -282,8 +282,9 @@
    "path": "/hooks/asr/media-jobs/{mediaJobId}",
    "section": "3.8",
    "requestSchemas": [
-    "MediaJobWakeQuery",
-    "AsrTaskCallback"
+    "AsrWakeParams",
+    "AsrWakeQuery",
+    "AsrWakeBody"
    ],
    "responseSchema": "HookAck",
    "errors": [
@@ -307,7 +308,7 @@
    "lockVersion": false,
    "version": "V1.0",
    "hookMode": "inline",
-   "note": "同 hooks.ci.mediaJob.wake"
+   "note": "官方录音回调只接form-urlencoded requestId(uint64→TaskId)，ACK code0/success；真实当前ASR owner只改next_run_at/updated_at，去重/ignored可无害唤醒；默认未登记，query/生产激活仍待E22"
   },
   {
    "operationId": "hooks.sms.statusReport.receive",
@@ -477,7 +478,7 @@
     "wechat: echostr / success / 客服消息被动回复 transfer_customer_service",
     "wecom: echostr 明文 / 空包体",
     "ci: 200",
-    "asr: {code:0,message}",
+    "asr: {code:0,message:success}",
     "sms: {result:0,errmsg:OK}"
    ]
   },
@@ -673,9 +674,22 @@
    ]
   },
   {
-   "name": "AsrTaskCallback",
+   "name": "AsrWakeParams",
    "fields": [
-    "任务号（官方字段名接入时核对）"
+    "mediaJobId（路径UUID）"
+   ]
+  },
+  {
+   "name": "AsrWakeQuery",
+   "fields": [
+    "sig（查询canonical base64url HMAC）"
+   ]
+  },
+  {
+   "name": "AsrWakeBody",
+   "fields": [
+    "application/x-www-form-urlencoded requestId（唯一canonical uint64，对应TaskId）",
+    "原文UTF-8/percent/重复解码键严格校验，其他字段不作业务事实"
    ]
   },
   {
