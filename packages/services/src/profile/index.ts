@@ -1,5 +1,13 @@
 export { createProfile } from "./service.js";
 export type { Profile } from "./service.js";
+export { createStoreProfileInitializer } from "./store-create.js";
+export type {
+  StoreProfileCopyOption,
+  StoreProfileInitInput,
+  StoreProfileInitPlan,
+  StoreProfileInitializer,
+  StoreProfileInitializerDeps,
+} from "./store-create.js";
 export type { ProfileDeps, ProfileViewer, WriteOptions } from "./context.js";
 export type { ProfileLifecycleDeps } from "./context.js";
 export { createProfileTenantLifecycle, PROFILE_TENANT_EVENTS } from "./tenant-lifecycle.js";
