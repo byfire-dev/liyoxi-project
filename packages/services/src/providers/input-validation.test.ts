@@ -207,7 +207,7 @@ describe("Provider 纯输入公口", () => {
       " 1",
       "1 ",
       "18446744073709551616",
-    ])("查询拒绝%j", (value) => {
+    ])("查询拒绝%s", (value) => {
       expect(isAsrQueryTaskId(value)).toBe(false);
     });
 
