@@ -103,6 +103,20 @@ const staffSpec = (
 });
 
 export const EVENT_SCENES: Readonly<Record<string, readonly NotificationSpec[]>> = {
+  "entity_member.stores_changed": [
+    spec(
+      "m.member_changed",
+      "memberStoresForNotify",
+      "entityMemberId",
+      "store",
+      (v) => ({
+        route: "store.members",
+        params: { storeId: v.storeId! },
+      }),
+      undefined,
+      false,
+    ),
+  ],
   "ticket.created": [
     staffSpec(
       "s.work_ticket_assigned",

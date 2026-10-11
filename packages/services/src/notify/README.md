@@ -1,5 +1,11 @@
 # 通知域
 
+## 成员门店范围调整源码阶段
+
+`entity_member.stores_changed` 仅接老板调整范围的 producer：strict body 的 invitationId 为 null 或未给时，读取 tenant 当前有效成员及仍可进入的店，沿原 m.member_changed 派发给该店员，深链为有效店的 store.members。移出旧当前店不会漏通知；已失效成员无消息。按原 outbox.id 区分每次调整，重投同事件不重复，后续真实调整仍通知。
+
+非空 invitationId 的未来邀请接受分支明确跳过，不误通知店员；joined/removed/promoted 等其他成员事件仍待所属 producer 接入。本片当前仅源码与轻静态准备，真实消费/回滚、类型与必要检查待独占验证，真实微信模板与平台送达未验。
+
 PR1 的五条商家消息接口、消息可见性与幂等裁剪以及 PR2 的发送结果协议已经进入本地 main。PR3 在这些实际能力上生成消息和投递，消费实际 M2 producer；本页已按源码与本地验收收口，唯一独审已完成，两项 P2 经原加新九项真库回归关闭；最终本地合流待调度；真实平台到达另验。
 
 ## 场景与当前事实

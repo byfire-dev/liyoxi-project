@@ -7,6 +7,48 @@ export interface NotifyRecipientsQuery {
   allEntities?: boolean;
 }
 
+/** 范围调整通知只读当前有效店员与其仍可进入的门店，不能沿事件旧门店筛收件人。 */
+export async function memberStoresForNotify(tx: Tx, id: string) {
+  const row = await tx.entityMember.findFirst({
+    where: {
+      id,
+      status: "active",
+      role: "clerk",
+      entity: { lifecycle: "active" },
+      merchantUser: { status: "active" },
+    },
+    select: {
+      id: true,
+      entityId: true,
+      merchantUserId: true,
+      displayName: true,
+      lastStoreId: true,
+      merchantUser: { select: { displayName: true } },
+      storeMemberships: {
+        where: { store: { lifecycle: "active" } },
+        select: { storeId: true },
+        orderBy: [{ store: { createdAt: "asc" } }, { storeId: "asc" }],
+      },
+    },
+  });
+  if (!row) return null;
+  const entry =
+    row.storeMemberships.find((store) => store.storeId === row.lastStoreId) ??
+    row.storeMemberships[0];
+  if (!entry) return null;
+  return {
+    bizType: "entity_member",
+    bizId: row.id,
+    entityId: row.entityId,
+    storeId: entry.storeId,
+    status: "active",
+    version: 0,
+    name: row.displayName ?? row.merchantUser.displayName ?? "店员",
+    merchantUserIds: [row.merchantUserId],
+    summary: "所属门店已调整，请查看当前门店范围。",
+  };
+}
+
 /** Announcement fanout uses an ordered, bounded pair cursor, never a full recipient materialization. */
 export async function noticeRecipientsPageForNotify(
   tx: Tx,

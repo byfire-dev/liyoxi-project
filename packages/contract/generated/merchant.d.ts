@@ -619,6 +619,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 当前门店的成员（姓名、角色、加入日期、上传数与被采用数、多门店提示）、待接受邀请（备注名、有效期）与名额；按角色裁剪 */
+        get: operations["m.member.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/members/{memberId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 调整店员所属门店（全量替换，至少保留 1 家），立即生效并通知该成员 */
+        patch: operations["m.member.update"];
+        trace?: never;
+    };
     "/api/v1/m/members/{memberId}/remove": {
         parameters: {
             query?: never;
@@ -3151,6 +3185,33 @@ export interface components {
             moderationState: "none" | "pending" | "pass" | "review" | "block" | (string & {});
             url: string | null;
         };
+        MemberItem: components["schemas"]["MemberItemForClerk"] & {
+            actions: ("update" | "remove")[];
+            adoptedCount: number;
+            phoneMask: string | null;
+            /** @enum {string} */
+            storeScope: "all" | "listed";
+            stores: {
+                /** @enum {string} */
+                lifecycle: "active" | "archived" | (string & {});
+                name: string | null;
+                /** @enum {string} */
+                qualificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
+                /** Format: uuid */
+                storeId: string;
+            }[];
+            uploadCount: number;
+        };
+        MemberItemForClerk: {
+            displayName: string | null;
+            isSelf: boolean;
+            /** Format: date-time */
+            joinedAt: string;
+            /** Format: uuid */
+            memberId: string;
+            /** @enum {string} */
+            role: "owner" | "clerk" | (string & {});
+        };
         MemberPreview: {
             displayName: string | null;
             /** @enum {string} */
@@ -3839,6 +3900,20 @@ export interface components {
             summary: string;
             versionLabel: string;
         };
+        PendingInvitationItem: {
+            actions: "revoke"[];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            invitationId: string;
+            isPhoneRestricted: boolean;
+            isShared: boolean;
+            remarkName: string | null;
+            /** @enum {string} */
+            role: "clerk";
+        };
         PhoneLoginResult: {
             isNewUser: boolean;
             me: components["schemas"]["MeView"];
@@ -4289,6 +4364,16 @@ export interface components {
                 viewedVia: ("weapp" | "album" | "portal" | "wecom") | null;
             } | null;
             replayed: boolean;
+        };
+        SeatInfo: {
+            includesUnsharedDraft: boolean;
+            /** @enum {string} */
+            limitReason: "plan" | "inactive";
+            memberLimit: number | null;
+            pendingInvitationCount: number;
+            planName: string | null;
+            seatsOver: number;
+            seatsUsed: number;
         };
         /** @description Sentry envelope 原文，≤200KB */
         SentryEnvelope: string;
@@ -7576,6 +7661,139 @@ export interface operations {
             };
             /** @description 限流 */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.member.list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: components["schemas"]["MemberItem"][];
+                            pendingInvitations: components["schemas"]["PendingInvitationItem"][];
+                            seats: components["schemas"]["SeatInfo"];
+                            /** @enum {string} */
+                            viewerRole: "owner";
+                        } | {
+                            items: components["schemas"]["MemberItemForClerk"][];
+                            /** @enum {string} */
+                            viewerRole: "clerk";
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.member.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memberId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    storeIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["MemberItem"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
