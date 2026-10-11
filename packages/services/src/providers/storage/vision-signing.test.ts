@@ -1,7 +1,7 @@
 import { createHash, createHmac } from "node:crypto";
 import { S3Client } from "@aws-sdk/client-s3";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createFakeStorage } from "../../testing/providers/storage.js";
+import { createFakeStorage } from "../../testing/index.js";
 import { unconfiguredStorage } from "../unconfigured.js";
 import { withBeforeCall } from "../types.js";
 import type { ProviderResult, VisionReadInput } from "../types.js";
