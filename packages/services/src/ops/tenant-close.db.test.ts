@@ -15,19 +15,19 @@ import type { Tx } from "../kernel/index.js";
 import { bindOrder, createAdCancel, quoteAdCancel } from "../order/index.js";
 import type { CancelDeps } from "../order/index.js";
 import { createSla } from "../sla/index.js";
-import { testSealer } from "../testing/data/seal.js";
 import {
   assembleForTest,
   createFactories,
   createLedgerHarness,
   openTerm,
   sampleStaffContext,
+  testSealer,
   seedBillingDeletionFacts,
   useSeededDatabase,
 } from "../testing/index.js";
 import { createTimers, timerKey } from "../timers/index.js";
-import { closeEntityIn, findI17Violations, findI28Violations } from "./index.js";
-import type { CloseEntityActor, CloseEntityInput } from "./index.js";
+import { closeEntityIn, findI17Violations, findI28Violations } from "../tenant/index.js";
+import type { CloseEntityActor, CloseEntityInput } from "../tenant/index.js";
 
 const db = useSeededDatabase("services", { label: "tenantclose", max: 4 });
 let h: ReturnType<typeof createLedgerHarness>;
