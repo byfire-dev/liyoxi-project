@@ -1,7 +1,7 @@
 // tenant 模块发出的事件的载荷（docs/api/x01-events-jobs.md 第 3.2 节；01 分组 第 4 节）。
 // 载荷规则见 x01 第 2.3 节 P1–P7：{ v: 数字, … }，只放 id 与枚举；迁移事件带三个迁移键（P4），由 flow.transition() 补上。
 // W1-03 创建事件与 W2-10 主体关闭联动；成员/门店的其他迁移仍按正式目录共享载荷。
-import { IdSchema, orNull } from "../common/index.js";
+import { IdSchema, InstantSchema, orNull } from "../common/index.js";
 import {
   ENTITY_LIFECYCLE,
   STORE_LIFECYCLE,
@@ -98,6 +98,26 @@ export const invitationRevokedPayload = z.strictObject({
   transition: z.literal("invitation.revoke"),
 });
 
+export const invitationCreatedPayload = z.strictObject({
+  v: z.literal(1),
+  invitationId: IdSchema,
+  entityId: IdSchema,
+  storeId: IdSchema,
+  expiresAt: InstantSchema,
+  fromState: z.null(),
+  toState: z.literal("pending"),
+  transition: z.literal("invitation.create"),
+});
+export const invitationExpiredPayload = z.strictObject({
+  v: z.literal(1),
+  invitationId: IdSchema,
+  entityId: IdSchema,
+  storeId: IdSchema,
+  fromState: z.literal("pending"),
+  toState: z.literal("expired"),
+  transition: z.literal("invitation.expire"),
+});
+
 // 门店范围调整不是状态迁移，不带迁移键；邀请接受分支由其 producer 后续交付。
 export const entityMemberStoresChangedPayload = z.strictObject({
   v: z.literal(1),
@@ -120,4 +140,6 @@ export const payloads = {
   "entity_member.removed": entityMemberRemovedPayload,
   "entity_member.stores_changed": entityMemberStoresChangedPayload,
   "invitation.revoked": invitationRevokedPayload,
+  "invitation.created": invitationCreatedPayload,
+  "invitation.expired": invitationExpiredPayload,
 } as const;

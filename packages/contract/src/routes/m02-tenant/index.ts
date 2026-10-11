@@ -29,3 +29,4 @@ export * from "./me.js";
 export * from "./members.js";
 export * from "./stores.js";
 export * from "./tenant.schemas.js";
+export * from "./invitations.js";

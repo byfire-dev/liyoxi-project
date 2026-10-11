@@ -11,10 +11,16 @@ import type {
   StoreList,
   MemberItem,
   MemberList,
+  InvitationCreateBody,
+  InvitationCard,
+  InvitationPreview,
+  InvitationMarkSharedResult,
+  InvitationRevokeBody,
+  InvitationRevokeResult,
 } from "@liyoxi/contract";
 
 import type { Flow } from "../flow/index.js";
-import { isUniqueViolation, merchantFactsOf } from "../kernel/index.js";
+import { AppError, isUniqueViolation, merchantFactsOf } from "../kernel/index.js";
 import type {
   Assembly,
   Clock,
@@ -43,8 +49,13 @@ import type { ReferralHit } from "./briefs.js";
 import { removeMemberIn } from "./member-removal.js";
 import { listMembersIn, updateMemberIn } from "./member-management.js";
 import type { MemberManagementDeps } from "./member-management.js";
+import { createInvitation, markInvitationSharedIn, revokeInvitationIn } from "./invitations.js";
+import type { InvitationDeps, InvitationOptions } from "./invitations.js";
+import { invitationPreview } from "./invitation-repo.js";
 
 export interface TenantDeps extends Pick<MemberManagementDeps, "readMemberAssetCounts" | "events"> {
+  /** 仅四个新邀请入口需要；旧用例不因缺此装配失败。 */
+  readonly invitations?: InvitationDeps;
   /** 开事务的入口：用例函数用它 */
   readonly tx: TxRunner;
   /** 业务时钟 */
@@ -87,6 +98,22 @@ export interface Tenant {
     input: { memberId: string; storeIds: readonly string[] },
     options?: UseCaseOptions,
   ): Promise<MemberItem>;
+  createInvitation(
+    ctx: IdentityContext,
+    input: InvitationCreateBody,
+    options?: InvitationOptions,
+  ): Promise<InvitationCard>;
+  markInvitationShared(
+    ctx: IdentityContext,
+    input: { invitationId: string },
+    options?: UseCaseOptions,
+  ): Promise<InvitationMarkSharedResult>;
+  revokeInvitation(
+    ctx: IdentityContext,
+    input: InvitationRevokeBody & { invitationId: string },
+    options?: UseCaseOptions,
+  ): Promise<InvitationRevokeResult>;
+  lookupInvitation(token: string): Promise<InvitationPreview>;
 
   // ---------- 在调用方的事务里 ----------
   /** 账号此刻的有效成员关系（V1.0 至多一条）；没有即 null */
@@ -167,6 +194,16 @@ export function createTenant(deps: TenantDeps): Tenant {
     listMembers: (ctx) => deps.tx.run((tx) => listMembersIn(tx, memberDeps, now(), ctx)),
     updateMember: (ctx, input, options = {}) =>
       deps.tx.run((tx) => updateMemberIn(tx, memberDeps, now(), ctx, input), options),
+    createInvitation: (ctx, input, options = {}) =>
+      createInvitation(memberDeps, ctx, input, options),
+    markInvitationShared: (ctx, input, options = {}) =>
+      deps.tx.run((tx) => markInvitationSharedIn(tx, memberDeps, ctx, input.invitationId), options),
+    revokeInvitation: (ctx, input, options = {}) =>
+      deps.tx.run((tx) => revokeInvitationIn(tx, memberDeps, ctx, input), options),
+    lookupInvitation: (token) => {
+      if (!deps.invitations) throw new AppError("INTERNAL");
+      return deps.tx.run((tx) => invitationPreview(tx, facts, now(), token));
+    },
     activeMembership: (db, merchantUserId) => selectActiveMembership(db, merchantUserId),
     resolveMembership: (db, input) => resolveMembership(db, input),
     getQuotaUsage: (tx, entityId) => getQuotaUsage(tx, { facts }, now(), entityId),

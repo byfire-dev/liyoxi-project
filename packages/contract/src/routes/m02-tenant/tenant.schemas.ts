@@ -99,6 +99,77 @@ export const MemberUpdateBodySchema = z.strictObject({
     .refine((ids) => new Set(ids).size === ids.length, "门店不能重复"),
 });
 
+// ---------- 2.8–2.9 邀请卡片与匿名预览 ----------
+
+const invitationToken = z
+  .string()
+  .length(43)
+  .regex(/^[A-Za-z0-9_-]{43}$/);
+export const InvitationCreateBodySchema = z.strictObject({
+  // 客户端意图号不是业务主键；保留 string(uuid) 的通用版本范围。
+  clientRequestId: z
+    .uuid()
+    .length(36)
+    .refine((id) => id === id.toLowerCase(), "请求号须为小写 UUID"),
+  remarkName: orNull(
+    z.string().refine((name) => [...name].length <= 10, "备注名最多10字"),
+  ).optional(),
+  targetPhone: orNull(
+    z
+      .string()
+      .length(11)
+      .regex(/^1\d{10}$/, "请输入11位手机号"),
+  ).optional(),
+});
+export type InvitationCreateBody = z.infer<typeof InvitationCreateBodySchema>;
+export const InvitationIdParamsSchema = z.strictObject({ invitationId: IdSchema });
+export const InvitationCardSchema = z
+  .strictObject({
+    invitationId: IdSchema,
+    token: invitationToken,
+    isReused: z.boolean(),
+    role: z.literal("clerk"),
+    storeId: IdSchema,
+    storeName: orNull(z.string()),
+    inviterName: z.string().min(1),
+    remarkName: orNull(z.string()),
+    isPhoneRestricted: z.boolean(),
+    expiresAt: InstantSchema,
+    seats: SeatInfoSchema,
+  })
+  .openapi("InvitationCard");
+export type InvitationCard = z.infer<typeof InvitationCardSchema>;
+export const InvitationMarkSharedResultSchema = z.strictObject({
+  invitationId: IdSchema,
+  sharedAt: orNull(InstantSchema),
+});
+export type InvitationMarkSharedResult = z.infer<typeof InvitationMarkSharedResultSchema>;
+export const InvitationRevokeBodySchema = z.strictObject({
+  reason: z.enum(["by_owner", "unshared_leave"]),
+});
+export type InvitationRevokeBody = z.infer<typeof InvitationRevokeBodySchema>;
+export const InvitationRevokeResultSchema = z.strictObject({
+  invitationId: IdSchema,
+  status: z.literal("revoked"),
+  revokedAt: InstantSchema,
+});
+export type InvitationRevokeResult = z.infer<typeof InvitationRevokeResultSchema>;
+export const InvitationLookupQuerySchema = z.strictObject({ token: invitationToken });
+export const InvitationPreviewSchema = z
+  .strictObject({
+    invitationId: IdSchema,
+    status: z.enum(["pending", "accepted", "revoked", "expired"]),
+    storeName: orNull(z.string()),
+    city: orNull(DictRefSchema),
+    category: orNull(DictRefSchema),
+    inviterName: z.string().min(1),
+    role: z.literal("clerk"),
+    isPhoneRestricted: z.boolean(),
+    expiresAt: InstantSchema,
+  })
+  .openapi("InvitationPreview");
+export type InvitationPreview = z.infer<typeof InvitationPreviewSchema>;
+
 /** 额度引导的文案依据：套餐生效 / 未开通或已过期 */
 export const QUOTA_LIMIT_REASONS = ["plan", "inactive"] as const;
 /** 门店卡的可执行动作（约定 C16）；守卫的最终判断在服务端 */

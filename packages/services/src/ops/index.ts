@@ -84,3 +84,4 @@ export {
 
 export { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./media-assets-runtime.js";
 export { createProfileLifecycleAssembly } from "./profile-lifecycle-runtime.js";
+export { createInvitationAssembly } from "./invitation-runtime.js";

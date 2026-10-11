@@ -87,6 +87,7 @@ async function main(): Promise<void> {
   } catch (error) {
     // 自检或装配失败也回收本进程创建的资源；没有启动消费者，不借其它进程的连接。
     services?.closeApproval?.();
+    services?.closeInvitations?.();
     await Promise.allSettled([services?.closeDocs()]);
     await Promise.allSettled([services?.documentConverter?.close()]);
     await Promise.allSettled([services?.closeAlertFacts?.()]);
@@ -117,6 +118,7 @@ async function main(): Promise<void> {
   if (channel === undefined) {
     logger.info(summary, "装配与自检通过");
     services.closeApproval?.();
+    services.closeInvitations?.();
     await services.closeDocs();
     await services.documentConverter?.close();
     await services.shutdownMediaJobs?.();
