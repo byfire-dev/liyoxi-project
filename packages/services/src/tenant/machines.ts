@@ -16,6 +16,8 @@ import {
   requireClosedStoreCascade,
 } from "./entity-close.js";
 import { guardMemberRemoval } from "./member-removal.js";
+import { guardInvitation } from "./invitations.js";
+import { guardInvitationExpiry } from "./invitation-expiry.js";
 
 /** 建主体的三行迁移随 args 带的事实 */
 export interface CreateEntityArgs {
@@ -256,7 +258,14 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
       "token_enc",
     ],
     activity: describe("invitation", "member", { "invitation.revoke": "随主体关闭撤回邀请" }),
-    guards: { [rowKey("02:788", "invitation.revoke")]: guardEntityCloseCascade },
+    guards: {
+      [rowKey("02:786", "invitation.create")]: guardInvitation,
+      [rowKey("02:788", "invitation.revoke")]: (tx, facts) =>
+        facts.ctx.actor.type === "merchant"
+          ? guardInvitation(tx, facts)
+          : guardEntityCloseCascade(tx, facts),
+      [rowKey("02:789", "invitation.expire")]: guardInvitationExpiry,
+    },
   },
 };
 

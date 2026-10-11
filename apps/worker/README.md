@@ -1,5 +1,10 @@
 # apps/worker：任务进程
 
+邀请到期由本实例 createInvitationAssembly 绑定真实 tenant handler，两个 worker 不共享闭包。
+invitation.expire 锁后读当前期限，早到走原 retry/backoff，无 maxLateMinutes 或 rearmAfterSkip。
+关停先排空 timer 消费者，再 closeInvitations；启动自检失败及 --check 也关闭本实例绑定。
+当前本片 SOURCE 尚待完整运行验证与合流，不代表邀请接受或完整 W2-10 完成。
+
 出站事件的中继与派发、定时器扫描、周期任务补登记、两个队列的消费（W0-23）。依据：[x01](../../docs/api/x01-events-jobs.md) 第 4.3、4.4 节；[01](../../docs/01-architecture.md) 第 7.3、7.4 节；D7 第 7.6 节。
 
 这里只有调度：循环、租约与看门狗、队列装配、信号处理。认领、执行、失败处理都在 `@liyoxi/services`（`events`、`timers`、`ops`、`kernel/queue`）。
