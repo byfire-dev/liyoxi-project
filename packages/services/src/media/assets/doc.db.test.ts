@@ -15,14 +15,19 @@ import {
 import {
   connectTestDatabase,
   createMediaAssetsHarness,
+  createMediaToolClientForTest as createMediaToolClient,
+  createMediaWorkspaceForTest as createMediaWorkspace,
+  fictionalDocumentDocx as docx,
+  fictionalDocumentPdf as pdf,
   useSeededDatabase,
 } from "../../testing/index.js";
-import { docx, pdf } from "../../testing/document-fixtures.js";
 import { failed, ok } from "../../providers/types.js";
-import type { MediaToolClient, ProviderResult, StorageProvider } from "../../providers/types.js";
-import type { DocTextResult } from "../../providers/mediatool/schema.js";
-import { createMediaToolClient } from "../../providers/mediatool/client.js";
-import { createMediaWorkspace } from "../../providers/mediatool/work-io.js";
+import type {
+  DocTextResult,
+  MediaToolClient,
+  ProviderResult,
+  StorageProvider,
+} from "../../providers/types.js";
 import type { MediaActor } from "../index.js";
 import { fileCategoryGuardPort, fileRefTypePort } from "../index.js";
 import type { MediaProductionDeps } from "../production-types.js";

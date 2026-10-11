@@ -5,7 +5,7 @@ import { createEvents } from "../events/index.js";
 import { createTimers } from "../timers/index.js";
 import { createMedia } from "../media/index.js";
 import type { MediaActor } from "../media/index.js";
-import type { MediaProductionDeps } from "../media/production-types.js";
+import type { MediaProductionDeps } from "../media/index.js";
 import {
   createMediaAssembly,
   createMediaAssetsAssembly,

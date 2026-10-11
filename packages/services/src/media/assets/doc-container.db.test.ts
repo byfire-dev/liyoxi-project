@@ -7,9 +7,12 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { assertNotInTransaction, uuidv7 } from "../../kernel/index.js";
-import { createMediaAssetsHarness, useSeededDatabase } from "../../testing/index.js";
-import { createMediaWorkspace } from "../../providers/mediatool/work-io.js";
-import { DocTextResponseSchema } from "../../providers/mediatool/schema.js";
+import {
+  createMediaAssetsHarness,
+  createMediaWorkspaceForTest as createMediaWorkspace,
+  useSeededDatabase,
+} from "../../testing/index.js";
+import { DocTextResponseSchema } from "../../providers/types.js";
 import type { MediaToolClient } from "../../providers/types.js";
 import { failed, ok } from "../../providers/types.js";
 

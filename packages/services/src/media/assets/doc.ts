@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { MediaJob } from "@liyoxi/db";
 import { assertNotInTransaction, lockRows } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
-import { DocTextResultSchema } from "../../providers/mediatool/schema.js";
+import { DocTextResultSchema } from "../../providers/types.js";
 import type { JobJson, JobOutcome } from "../jobs/types.js";
 import type { AssetDeps } from "./context.js";
 import { AssetJobInputSchema, assetJobOwned } from "./pipeline.js";

@@ -8,7 +8,7 @@
 //   3. 每个接口带 status（生效状态）与 configured（这项能力现在能不能用）。
 //   4. 金额一律整数分，字段名以 Fen 结尾。
 //   5. 加方法时三处一起改，少一处即编译失败：接口、PROVIDER_METHODS、未配置实现与替身。
-// 本文件只从无反向依赖的 mediatool 结构文件引纯类型，不依赖客户端或工作区实现。
+// 本文件只从无反向依赖的 mediatool 结构文件引类型与纯 DTO 校验，不依赖客户端或工作区实现。
 
 import type {
   DocTextResult,
@@ -308,7 +308,8 @@ export interface ObjectHead {
   versionId?: string;
 }
 
-export type { ProbeReport, AigcLabel } from "./mediatool/schema.js";
+export type { ProbeReport, AigcLabel, DocTextResult } from "./mediatool/schema.js";
+export { DocTextResultSchema, DocTextResponseSchema } from "./mediatool/schema.js";
 
 export interface PosterResult {
   /** 校验过的封面字节。上传用这一份，不要回头再按路径读文件 */
