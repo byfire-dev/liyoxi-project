@@ -9,6 +9,8 @@ import type {
   MembershipBrief,
   MembershipResult,
   StoreList,
+  MemberItem,
+  MemberList,
 } from "@liyoxi/contract";
 
 import type { Flow } from "../flow/index.js";
@@ -39,8 +41,10 @@ import { listStores, rememberCurrentStore } from "./stores.js";
 import { findActiveReferralCode, membershipBriefs } from "./briefs.js";
 import type { ReferralHit } from "./briefs.js";
 import { removeMemberIn } from "./member-removal.js";
+import { listMembersIn, updateMemberIn } from "./member-management.js";
+import type { MemberManagementDeps } from "./member-management.js";
 
-export interface TenantDeps {
+export interface TenantDeps extends Pick<MemberManagementDeps, "readMemberAssetCounts" | "events"> {
   /** 开事务的入口：用例函数用它 */
   readonly tx: TxRunner;
   /** 业务时钟 */
@@ -75,6 +79,14 @@ export interface Tenant {
   ): Promise<MemberRemovalResult>;
   /** 店员退出当前主体；老板只能走既有更换或注销流程。 */
   leaveMembership(ctx: IdentityContext, options?: UseCaseOptions): Promise<MemberRemovalResult>;
+  /** 当前门店成员；店员仅五字段，老板含真实计数、邀请与主体名额。 */
+  listMembers(ctx: IdentityContext): Promise<MemberList>;
+  /** 老板全量替换有效店员的门店范围，不迁移成员状态。 */
+  updateMember(
+    ctx: IdentityContext,
+    input: { memberId: string; storeIds: readonly string[] },
+    options?: UseCaseOptions,
+  ): Promise<MemberItem>;
 
   // ---------- 在调用方的事务里 ----------
   /** 账号此刻的有效成员关系（V1.0 至多一条）；没有即 null */
@@ -125,6 +137,7 @@ export function createTenant(deps: TenantDeps): Tenant {
   const now = (): Date => deps.clock.now();
   const facts = merchantFactsOf(deps.assembly);
   const billingAccount = deps.assembly.port(billingAccountPort);
+  const memberDeps = { ...deps, facts };
   return {
     async createEntity(ctx, options = {}) {
       try {
@@ -151,6 +164,9 @@ export function createTenant(deps: TenantDeps): Tenant {
       deps.tx.run((tx) => removeMemberIn(tx, flow, now(), ctx, input.memberId), options),
     leaveMembership: (ctx, options = {}) =>
       deps.tx.run((tx) => removeMemberIn(tx, flow, now(), ctx), options),
+    listMembers: (ctx) => deps.tx.run((tx) => listMembersIn(tx, memberDeps, now(), ctx)),
+    updateMember: (ctx, input, options = {}) =>
+      deps.tx.run((tx) => updateMemberIn(tx, memberDeps, now(), ctx, input), options),
     activeMembership: (db, merchantUserId) => selectActiveMembership(db, merchantUserId),
     resolveMembership: (db, input) => resolveMembership(db, input),
     getQuotaUsage: (tx, entityId) => getQuotaUsage(tx, { facts }, now(), entityId),

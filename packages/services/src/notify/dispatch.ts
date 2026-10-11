@@ -1,4 +1,9 @@
-import { IdSchema, MessageDeepLinkSchema, eventPayloadSchema } from "@liyoxi/contract";
+import {
+  IdSchema,
+  MessageDeepLinkSchema,
+  eventPayloadSchema,
+  EVENT_PAYLOAD_SCHEMAS,
+} from "@liyoxi/contract";
 import { formatMoney } from "@liyoxi/shared/format/money";
 import { notifyReadOf, uuidv7 } from "../kernel/index.js";
 import type { DeliveredEvent, Tx } from "../kernel/index.js";
@@ -163,6 +168,7 @@ export const smsNodeAllowed = (nodes: unknown, node: string): boolean =>
 // These producers can recur while the account/store and current status stay the same.
 // A stable outbox ID preserves each occurrence, including replay after a later review round.
 const occurrenceEvents = new Set([
+  "entity_member.stores_changed",
   "merchant_user.wechat_bound",
   "store.qualification.submitted",
   "store.qualification.approved",
@@ -366,12 +372,26 @@ export async function dispatchFact(
 }
 
 export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: DeliveredEvent) {
+  const memberChange =
+    event.type === "entity_member.stores_changed"
+      ? EVENT_PAYLOAD_SCHEMAS["entity_member.stores_changed"].parse(event.payload)
+      : undefined;
+  // 邀请接受的通知老板分支还没有 producer，不能把该分支误发给店员。
+  if (memberChange?.invitationId != null) return 0;
   let made = 0;
   for (const spec of EVENT_SCENES[event.type] ?? []) {
     const parsedId = IdSchema.safeParse(event.payload[spec.refField]);
     if (!parsedId.success) throw new TypeError(`通知对象标识不符合契约：${event.type}`);
     const fact = await currentNotificationFact(tx, deps, spec, parsedId.data);
     if (fact === null) continue;
+    if (
+      memberChange &&
+      (fact.bizId !== memberChange.entityMemberId ||
+        fact.entityId !== memberChange.entityId ||
+        fact.merchantUserIds?.length !== 1 ||
+        fact.merchantUserIds[0] !== memberChange.merchantUserId)
+    )
+      throw new TypeError("成员范围事件与当前归属不符");
     if (spec.sceneKey === "m.rule_change_notice" || spec.sceneKey === "m.rule_change_withdrawn") {
       if (spec.pendingStatus && !spec.pendingStatus.includes(fact.status)) continue;
       const batch = await deps.params.get("notify.fanout.batch");

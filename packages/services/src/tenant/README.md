@@ -1,5 +1,13 @@
 # tenant：主体、门店与成员关系
 
+## 成员列表与范围调整源码阶段
+
+`listMembers(ctx)` 读取当前有效门店的成员；老板共用完整 MemberItem 映射，店员只返回五字段且不读计数、邀请与名额。`updateMember(ctx, { memberId, storeIds }, { idem })` 只允许老板调整本主体 active clerk，主体100→排序成员120→新旧范围及上下文店130，锁后完整复核再差集写关联；交集元数据保留，失去范围的 lastStoreId 清空。只写活动审计和 strict `entity_member.stores_changed`，无状态历史。
+
+实际 API 组合根注入可选的 `readMemberAssetCounts` 与原 events；新老板用例缺装配明确 INTERNAL，旧用例和店员列表不受影响。计数批量复用同 Tx 的 media 公口，tenant 不导入 media、不查素材表或补无来源零值。范围无变化不新增审计/通知；只清理失去范围的旧选择。UUID 沿原小写 v7 校验，不扩大大小写规则。
+
+本片新增两条既有 HTTP 和范围调整单事件通知，当前仅源码与轻静态准备；类型、真实 DB/API、官方生成及完整尾链待独占验证。其他成员事件、邀请、门店和后台入口及整包仍待交付。
+
 `closeEntityIn(tx, deps, actor, input)` 是 W2-10 内部员工关闭入口；调用方拥有事务与幂等边界。必须从尚未取得业务锁的事务进入，真实 order prepare 先锁低序并完整锁住 tenant 图，六个所属计数、权限及回显复核后才关闭。邀请、有效成员（含老板）、启用门店通过 flow 写历史/审计/事件，再精准吊销 portal 授权及系统撤回 pending ad_cancel。任何失败整体回滚，其他取消 kind 异常拒绝。直接 flow 参数不能伪造级联 witness；profile 异步收尾、HTTP、普通成员/门店/邀请写侧仍另做。
 
 W1-03 交最小集：懒创建主体、成员关系解析、门店列表与额度、记住当前门店、给 profile 的三个写函数、计费账户端口。依据：[m02](../../../../docs/api/m02-tenant.md) 第 1、2.1–2.3、2.7、3.1、3.2、3.7 节；[02 分组](../../../../docs/data-model/02-identity-tenant.md) 第 2.9–2.12、5 节；D4 第 5.1 节。新增门店、停用与恢复、成员、邀请、空草稿让位、主体关闭、资质的 `change` 轮次随 M2。

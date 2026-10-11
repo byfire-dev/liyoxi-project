@@ -98,6 +98,17 @@ export const invitationRevokedPayload = z.strictObject({
   transition: z.literal("invitation.revoke"),
 });
 
+// 门店范围调整不是状态迁移，不带迁移键；邀请接受分支由其 producer 后续交付。
+export const entityMemberStoresChangedPayload = z.strictObject({
+  v: z.literal(1),
+  entityMemberId: IdSchema,
+  entityId: IdSchema,
+  merchantUserId: IdSchema,
+  addedStoreIds: z.array(IdSchema),
+  removedStoreIds: z.array(IdSchema),
+  invitationId: orNull(IdSchema).optional(),
+});
+
 export const payloads = {
   "entity.created": entityCreatedPayload,
   "store.created": storeCreatedPayload,
@@ -107,5 +118,6 @@ export const payloads = {
   "store.draft_deleted": storeDraftDeletedPayload,
   "store.restored": storeRestoredPayload,
   "entity_member.removed": entityMemberRemovedPayload,
+  "entity_member.stores_changed": entityMemberStoresChangedPayload,
   "invitation.revoked": invitationRevokedPayload,
 } as const;

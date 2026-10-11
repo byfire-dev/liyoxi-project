@@ -1,11 +1,16 @@
 // 商家端：主体、门店与成员 · members（docs/api/m02-tenant.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
 import { errorResponses, okResponse } from "../../common/index.js";
 import { merchantRoute } from "../builders.js";
-import { MemberIdParamsSchema, MemberRemovalResultSchema } from "./tenant.schemas.js";
+import {
+  MemberIdParamsSchema,
+  MemberRemovalResultSchema,
+  MemberListSchema,
+  MemberItemSchema,
+  MemberUpdateBodySchema,
+} from "./tenant.schemas.js";
 
-export const mMemberList = merchantMeta({
+export const mMemberList = merchantRoute({
   method: "get",
   path: "/m/members",
   operationId: "m.member.list",
@@ -14,9 +19,10 @@ export const mMemberList = merchantMeta({
   "x-capability": "member.list",
   "x-clerk-view": "trimmed",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  responses: { ...okResponse(MemberListSchema), ...errorResponses(401, 403) },
 });
 
-export const mMemberUpdate = merchantMeta({
+export const mMemberUpdate = merchantRoute({
   method: "patch",
   path: "/m/members/{memberId}",
   operationId: "m.member.update",
@@ -24,6 +30,11 @@ export const mMemberUpdate = merchantMeta({
   "x-capability": "member.manage",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    params: MemberIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: MemberUpdateBodySchema } } },
+  },
+  responses: { ...okResponse(MemberItemSchema), ...errorResponses(400, 401, 403, 404, 409) },
 });
 
 export const mMemberRemove = merchantRoute({

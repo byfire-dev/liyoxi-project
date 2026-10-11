@@ -29,6 +29,76 @@ export const MemberRemovalResultSchema = z
 export type MemberRemovalResult = z.infer<typeof MemberRemovalResultSchema>;
 export const MemberIdParamsSchema = z.strictObject({ memberId: IdSchema });
 
+// ---------- 2.4–2.6 成员、待接受邀请与名额 ----------
+
+export const MemberStoreRefSchema = z.strictObject({
+  storeId: IdSchema,
+  name: orNull(z.string()),
+  lifecycle: openEnum(STORE_LIFECYCLE.values),
+  qualificationStatus: verificationStatus(),
+});
+export type MemberStoreRef = z.infer<typeof MemberStoreRefSchema>;
+export const MemberItemForClerkSchema = z
+  .strictObject({
+    memberId: IdSchema,
+    role: openEnum(MERCHANT_ROLE.values),
+    displayName: orNull(z.string()),
+    joinedAt: InstantSchema,
+    isSelf: z.boolean(),
+  })
+  .openapi("MemberItemForClerk");
+export type MemberItemForClerk = z.infer<typeof MemberItemForClerkSchema>;
+export const MemberItemSchema = MemberItemForClerkSchema.extend({
+  phoneMask: orNull(z.string()),
+  storeScope: z.enum(["all", "listed"]),
+  stores: z.array(MemberStoreRefSchema),
+  uploadCount: z.int().nonnegative(),
+  adoptedCount: z.int().nonnegative(),
+  actions: z.array(z.enum(["update", "remove"])),
+}).openapi("MemberItem");
+export type MemberItem = z.infer<typeof MemberItemSchema>;
+export const PendingInvitationItemSchema = z
+  .strictObject({
+    invitationId: IdSchema,
+    role: z.literal("clerk"),
+    remarkName: orNull(z.string()),
+    isPhoneRestricted: z.boolean(),
+    isShared: z.boolean(),
+    createdAt: InstantSchema,
+    expiresAt: InstantSchema,
+    actions: z.array(z.literal("revoke")),
+  })
+  .openapi("PendingInvitationItem");
+export type PendingInvitationItem = z.infer<typeof PendingInvitationItemSchema>;
+export const SeatInfoSchema = z
+  .strictObject({
+    seatsUsed: z.int().nonnegative(),
+    memberLimit: orNull(z.int().nonnegative()),
+    pendingInvitationCount: z.int().nonnegative(),
+    includesUnsharedDraft: z.boolean(),
+    seatsOver: z.int().nonnegative(),
+    limitReason: z.enum(["plan", "inactive"]),
+    planName: orNull(z.string()),
+  })
+  .openapi("SeatInfo");
+export type SeatInfo = z.infer<typeof SeatInfoSchema>;
+export const MemberListSchema = z.discriminatedUnion("viewerRole", [
+  z.strictObject({
+    viewerRole: z.literal("owner"),
+    items: z.array(MemberItemSchema),
+    pendingInvitations: z.array(PendingInvitationItemSchema),
+    seats: SeatInfoSchema,
+  }),
+  z.strictObject({ viewerRole: z.literal("clerk"), items: z.array(MemberItemForClerkSchema) }),
+]);
+export type MemberList = z.infer<typeof MemberListSchema>;
+export const MemberUpdateBodySchema = z.strictObject({
+  storeIds: z
+    .array(IdSchema)
+    .min(1, "请至少保留一家门店；如不再合作，请移除成员")
+    .refine((ids) => new Set(ids).size === ids.length, "门店不能重复"),
+});
+
 /** 额度引导的文案依据：套餐生效 / 未开通或已过期 */
 export const QUOTA_LIMIT_REASONS = ["plan", "inactive"] as const;
 /** 门店卡的可执行动作（约定 C16）；守卫的最终判断在服务端 */
