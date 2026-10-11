@@ -4,7 +4,7 @@ import type { MediaJob } from "@liyoxi/db";
 import { AssetTagExtSchema, DictCodeSchema } from "@liyoxi/contract";
 import { assertNotInTransaction, lockRows } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
-import { LlmDigestSchema } from "../../providers/types.js";
+import { LlmDigestSchema, LlmVisionSchema } from "../../providers/types.js";
 import type { LlmDigestVocabulary } from "../../providers/types.js";
 import type { JobJson, JobOutcome } from "../jobs/types.js";
 import type { AssetDeps } from "./context.js";
@@ -16,6 +16,7 @@ import {
 } from "./pipeline.js";
 import { assetFiles } from "./repo.js";
 import { documentFacts } from "./doc.js";
+import { visionContent, visionProjection } from "./vision.js";
 
 const sourceKind = { transcript: "asr", vision: "vision", doc_text: "doc_extract" } as const;
 const vocabularyItem = z.object({ code: DictCodeSchema, name: z.string().min(1).max(20) });
@@ -145,6 +146,10 @@ async function sources(tx: Tx, job: MediaJob) {
       const origin = jobs.find((origin) => origin.id === row?.mediaJobId);
       const facts = origin && AssetJobInputSchema.safeParse(origin.input).data;
       const output = origin && AssetJobOutputSchema.safeParse(origin.output).data;
+      const modernContent =
+        kind === "vision" ? LlmVisionSchema.safeParse(row?.content).data : undefined;
+      const modernVision = !!modernContent;
+      const originContent = modernVision ? visionContent(output?.content) : output?.content;
       const valid =
         origin &&
         facts &&
@@ -153,7 +158,7 @@ async function sources(tx: Tx, job: MediaJob) {
         origin.kind === sourceKind[kind] &&
         output?.status === "ok" &&
         row?.provider === origin.provider &&
-        JSON.stringify(output.content) === JSON.stringify(row?.content) &&
+        JSON.stringify(originContent) === JSON.stringify(modernContent ?? row?.content) &&
         facts.assetId === asset.id &&
         (facts.runId === run.runId || (run.selected.length > 0 && !run.selected.includes(kind))) &&
         facts.promptVersion === input.promptVersion &&
@@ -167,7 +172,10 @@ async function sources(tx: Tx, job: MediaJob) {
           const value = documentFacts(row.content, file.ext);
           text = value?.text;
           partial ||= value?.truncated === true;
-        } else if (kind === "vision") text = vision.safeParse(row.content).data?.description;
+        } else if (kind === "vision")
+          text = modernVision
+            ? visionProjection(row.content)
+            : vision.safeParse(row.content).data?.description;
         else text = transcript.safeParse(row.content).data?.text;
       }
       if (!text) {
@@ -181,7 +189,9 @@ async function sources(tx: Tx, job: MediaJob) {
           ? 6000 - transcriptChars
           : kind === "doc_text"
             ? 8000 - documentChars
-            : 2000;
+            : modernVision
+              ? 16000
+              : 2000;
       partial ||= chars.length > remaining;
       const selected = chars.slice(0, Math.max(0, remaining)).join("");
       if (kind === "transcript") transcriptChars += Array.from(selected).length;

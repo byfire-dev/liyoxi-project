@@ -1,7 +1,6 @@
 import type { MediaJob, StoreAsset } from "@liyoxi/db";
 import type { Tx } from "../../kernel/index.js";
 import { uuidv7 } from "../../kernel/index.js";
-import { createSigner } from "../read.js";
 import { contextHash, readProductionWork } from "../production.js";
 import { createProbeHandler, ProbeInputSchema, ProbeOutputSchema } from "../handlers/probe.js";
 import type {
@@ -28,6 +27,12 @@ import type { AssetType } from "./steps.js";
 import { createAssetAsrStrategy } from "./asr.js";
 import { createAssetDocStrategy, documentFacts } from "./doc.js";
 import { createAssetDigestStrategy, digestContent } from "./digest.js";
+import {
+  createAssetVisionStrategy,
+  lockVisionFiles,
+  lockVisionParents,
+  visionContent,
+} from "./vision.js";
 
 const done = (
   status: "ok" | "skipped",
@@ -48,7 +53,6 @@ interface PreparedAsset {
   readonly file: Awaited<ReturnType<typeof assetFiles>>[number]["file"] | null;
   readonly text: string;
   readonly documentComplete: boolean;
-  readonly permitted: boolean;
   readonly reused: { id: string; content: JobJson } | null;
   readonly probe?: Awaited<ReturnType<typeof readProductionWork>>;
 }
@@ -167,16 +171,11 @@ async function prepare(deps: AssetDeps, tx: Tx, job: MediaJob): Promise<Prepared
           orderBy: { id: "asc" },
         })
       : null;
-  // ASR admits each submit/query in its fresh, lease-bound IO preflight instead.
-  const model = job.kind === "vision";
   return {
     asset,
     file,
     text: fullText.slice(0, 10000),
     documentComplete,
-    permitted:
-      !model ||
-      !!(await deps.assets.allowModelCall?.(tx, { storeId: asset.storeId, now: deps.clock.now() })),
     reused: reusable ? { id: reusable.id, content: reusable.content as JobJson } : null,
     ...(job.kind === "probe" && file && deps.production
       ? { probe: await readProductionWork(deps, tx, file.id) }
@@ -227,11 +226,11 @@ function adaptedProbe(job: MediaJob, facts: NonNullable<PreparedAsset["probe"]>)
 }
 
 export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[] {
-  const signer = createSigner(deps),
-    probe = createProbeHandler(deps),
+  const probe = createProbeHandler(deps),
     asr = createAssetAsrStrategy(deps, (tx, job) => current(deps, tx, job)),
     doc = createAssetDocStrategy(deps, (tx, job) => current(deps, tx, job)),
-    digest = createAssetDigestStrategy(deps, (tx, job) => current(deps, tx, job));
+    digest = createAssetDigestStrategy(deps, (tx, job) => current(deps, tx, job)),
+    vision = createAssetVisionStrategy(deps, (tx, job) => current(deps, tx, job));
   const kinds = [
     "probe",
     "audit_image",
@@ -259,13 +258,17 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
     claims: assetJobOwned,
     validInput: (input) => AssetJobInputSchema.safeParse(input).success,
     validOutput: (output) => AssetJobOutputSchema.safeParse(output).success,
-    current: (tx, job) => current(deps, tx, job),
+    current: async (tx, job) => {
+      if (kind === "vision") await lockVisionFiles(tx, job);
+      return current(deps, tx, job);
+    },
     prepare: (tx, job) =>
-      kind === "digest" || (kind === "asr" && job.externalJobId)
+      kind === "digest" || kind === "vision" || (kind === "asr" && job.externalJobId)
         ? Promise.resolve(undefined)
         : prepare(deps, tx, job),
     execute: async (job, context, signal): Promise<JobOutcome> => {
       if (kind === "digest") return digest.execute(job, signal);
+      if (kind === "vision") return vision.execute(job, signal);
       const prepared = context as PreparedAsset;
       if (signal.aborted) return failed("ASSET_CANCELED");
       if (kind === "doc_extract") return doc.execute(job, signal, prepared.reused);
@@ -334,20 +337,7 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
           ? done("ok", {}, null, result.value.verdict)
           : done("skipped", {}, "audit_unavailable", "pending");
       }
-      if (!prepared.permitted) return skipped("budget_unconfigured");
       if (kind === "asr") return asr.execute(job, signal);
-      if (deps.assets.llm.status === "unconfigured") return skipped("llm_unconfigured");
-      if (kind === "vision") {
-        if (!prepared.file) return skipped("vision_source_missing");
-        const signed = await signer({ fileId: prepared.file.id, audience: "staff" });
-        const result = await deps.assets.llm.tagAsset({
-          kind: prepared.asset.type === "image" ? "image" : "video",
-          url: signed.signed.url,
-        });
-        return result.ok
-          ? done("ok", { description: result.value.description, tags: result.value.tags })
-          : skipped("vision_unavailable");
-      }
       return skipped("asset_step_unsupported");
     },
     poll: (job, signal) => (kind === "asr" ? asr.poll(job, signal) : originalAudit(deps, job)),
@@ -360,14 +350,19 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
     finish: async (tx, job, outcome, ctx) => {
       const input = AssetJobInputSchema.parse(job.input),
         asset = await tx.storeAsset.findUniqueOrThrow({ where: { id: input.assetId } });
+      if (kind === "vision") await lockVisionFiles(tx, job);
       if (!(await current(deps, tx, job))) return;
       if (kind === "digest" && outcome.state === "canceled") return;
+      if (kind === "vision" && outcome.state === "canceled") {
+        await tx.storeAsset.update({ where: { id: asset.id }, data: { isInsightPartial: true } });
+        return;
+      }
       if (outcome.state === "succeeded") {
         const output = AssetJobOutputSchema.parse(outcome.output);
         if (
-          kind === "digest" &&
           output.status === "ok" &&
-          !(await digest.matches(tx, job, output.content))
+          ((kind === "digest" && !(await digest.matches(tx, job, output.content))) ||
+            (kind === "vision" && !(await vision.matches(tx, job, output.content))))
         ) {
           await tx.storeAsset.update({ where: { id: asset.id }, data: { isInsightPartial: true } });
           return;
@@ -384,6 +379,9 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
         const structured =
           kind === "digest" && output.status === "ok" ? digestContent(output.content) : undefined;
         const content =
+          (kind === "vision" && output.status === "ok"
+            ? visionContent(output.content)
+            : undefined) ??
           structured ??
           (output.status === "skipped" && output.reason
             ? { ...output.content, reason: output.reason }
@@ -532,6 +530,7 @@ export function combineAssetHandler(
 export function createAssetConvergence(deps: AssetDeps): MediaConvergenceHandler {
   return {
     parentType: "store_asset",
+    lockSiblings: lockVisionParents,
     needed: async (tx, job) => {
       if (!assetJobOwned(job)) return false;
       const asset = await tx.storeAsset.findUnique({ where: { id: job.parentId! } });
