@@ -137,7 +137,7 @@ export async function modelWorld(prisma: PrismaClient, client: Redis, ownPrefix:
     return prisma.mediaJob.update({
       where: { id: job.id },
       data: {
-        state: "running",
+        state: job.kind === "asr" && job.mode === "remote" ? "submitting" : "running",
         attemptNo: 1,
         leaseOwner: `budget:${uuidv7()}`,
         startedAt: h.clock.now(),
@@ -161,8 +161,27 @@ export async function modelWorld(prisma: PrismaClient, client: Redis, ownPrefix:
     });
     return { assetId: asset.storeAssetId, job: await claim(job), files: [] };
   }
+  async function storedImage(body: Buffer) {
+    const file = await h.stored(h.owner, "store_asset", body);
+    const audit = await prisma.mediaJob.findUniqueOrThrow({
+      where: { dedupeKey: `audit_image:${file.id}:v1` },
+    });
+    expect(audit).toMatchObject({
+      parentId: null,
+      subjectType: "file_object",
+      subjectId: file.id,
+      kind: "audit_image",
+    });
+    await h.media.jobs.run({ jobId: audit.id });
+    const finished = await prisma.mediaJob.findUniqueOrThrow({ where: { id: audit.id } });
+    expect(finished.state).toBe("succeeded");
+    expect(finished.output).toEqual({ verdict: "pass", labels: [] });
+    const fresh = await prisma.fileObject.findUniqueOrThrow({ where: { id: file.id } });
+    expect(fresh.moderationState).toBe("pass");
+    return fresh;
+  }
   async function readyImage(sameBody?: Uint8Array, claimNow = true) {
-    const file = await h.stored(h.owner, "store_asset", sameBody ? Buffer.from(sameBody) : png());
+    const file = await storedImage(sameBody ? Buffer.from(sameBody) : png());
     const asset = await h.media.assets.create(h.owner, { type: "image", fileIds: [file.id] });
     const audit = await prisma.mediaJob.findFirstOrThrow({
       where: { parentId: asset.storeAssetId, kind: "audit_image_wx" },
@@ -360,7 +379,7 @@ export async function modelWorld(prisma: PrismaClient, client: Redis, ownPrefix:
   /** 已成功历史洞察有真实run/任务/指纹，不宣称执行过对应云producer。 */
   async function readyDigestSources(note: string, bodies = ["公开虚构画面"]) {
     const files = [];
-    for (const _body of bodies) files.push(await h.stored(h.owner, "store_asset", png()));
+    for (const _body of bodies) files.push(await storedImage(png()));
     const asset = await h.media.assets.create(h.owner, {
       type: "image",
       fileIds: files.map((f) => f.id),

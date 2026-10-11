@@ -175,7 +175,11 @@ export async function admitModel(
   };
   try {
     if (!completeModelBudget(deps)) return modelBudgetFailure("unavailable");
-    if (job.state !== "running" || !["asr", "vision", "digest"].includes(job.kind))
+    if (
+      (job.state !== "running" &&
+        !(job.kind === "asr" && job.mode === "remote" && job.state === "submitting")) ||
+      !["asr", "vision", "digest"].includes(job.kind)
+    )
       return { state: "canceled" };
     const port = deps.assets.modelBudget!;
     const paid = await deps.tx.run(async (tx) => {

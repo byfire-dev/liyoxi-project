@@ -262,6 +262,8 @@ describe("三owner真实PG与Redis预算", () => {
     await h.refresh();
     await h.media.jobs.run({ jobId: first.job.id });
     const submitted = await h.prisma.mediaJob.findUniqueOrThrow({ where: { id: first.job.id } });
+    expect(submitted.state).toBe("submitted");
+    expect(submitted.externalJobId).toEqual(expect.stringMatching(/^(?:0|[1-9][0-9]{0,19})$/));
     if (!submitted.externalJobId) throw new Error("没有原TaskId");
     h.fake.asr.tasks.set(submitted.externalJobId, {
       taskId: submitted.externalJobId,
