@@ -12431,6 +12431,493 @@
         ],
         "type": "object"
       },
+      "EntityCard": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "closedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "entityId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "entityType": {
+            "anyOf": [
+              {
+                "enum": [
+                  "enterprise",
+                  "individual"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "legalRepNameMask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lifecycle": {
+            "enum": [
+              "active",
+              "abandoned",
+              "closed"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MerchantUserBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pendingInvitations": {
+            "items": {
+              "$ref": "#/components/schemas/PendingInvitationRow"
+            },
+            "type": "array"
+          },
+          "referralCode": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "referralCodeId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "referralCodeId",
+                  "code",
+                  "label"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourceType": {
+            "enum": [
+              "organic",
+              "sales",
+              "campaign",
+              "partner"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "spendablePoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "stores": {
+            "items": {
+              "$ref": "#/components/schemas/EntityStoreRow"
+            },
+            "type": "array"
+          },
+          "subscription": {
+            "$ref": "#/components/schemas/SubscriptionBrief"
+          },
+          "usage": {
+            "additionalProperties": false,
+            "properties": {
+              "activeMemberCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "isOverLimit": {
+                "type": "boolean"
+              },
+              "limitReason": {
+                "enum": [
+                  "plan",
+                  "inactive"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "memberLimit": {
+                "anyOf": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "memberLimitOverride": {
+                "anyOf": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pendingInvitationCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "seatsOver": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "seatsUsed": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "storeLimit": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "storeLimitOverride": {
+                "anyOf": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "storesOver": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "storesUsed": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "storesUsed",
+              "storeLimit",
+              "seatsUsed",
+              "memberLimit",
+              "storesOver",
+              "seatsOver",
+              "limitReason",
+              "storeLimitOverride",
+              "memberLimitOverride",
+              "pendingInvitationCount",
+              "activeMemberCount",
+              "isOverLimit"
+            ],
+            "type": "object"
+          },
+          "usccMask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verificationStatus": {
+            "enum": [
+              "unsubmitted",
+              "pending",
+              "verified",
+              "rejected"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "verifiedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "entityId",
+          "name",
+          "entityType",
+          "lifecycle",
+          "closedAt",
+          "verificationStatus",
+          "usccMask",
+          "legalRepNameMask",
+          "verifiedAt",
+          "sourceType",
+          "referralCode",
+          "createdAt",
+          "owner",
+          "subscription",
+          "usage",
+          "spendablePoints",
+          "stores",
+          "pendingInvitations",
+          "lockVersion",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "EntityStoreRow": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "additionalProperties": false,
+            "properties": {
+              "city": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "detail": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "district": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "city",
+              "district",
+              "detail"
+            ],
+            "type": "object"
+          },
+          "assetCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "clerkCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "copiedAssetCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "copiedFromStoreId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deliveryManager": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "lastDecidedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lifecycle": {
+            "enum": [
+              "active",
+              "archived"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "liveDramaCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "openQualificationSubmissionId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "producingDramaCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "qualificationStatus": {
+            "enum": [
+              "unsubmitted",
+              "pending",
+              "verified",
+              "rejected"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "reviewDueAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewedAssetCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "storeId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "storeId",
+          "name",
+          "isPrimary",
+          "lifecycle",
+          "qualificationStatus",
+          "lastDecidedAt",
+          "reviewDueAt",
+          "openQualificationSubmissionId",
+          "address",
+          "deliveryManager",
+          "liveDramaCount",
+          "producingDramaCount",
+          "assetCount",
+          "reviewedAssetCount",
+          "copiedAssetCount",
+          "copiedFromStoreId",
+          "clerkCount",
+          "createdAt"
+        ],
+        "type": "object"
+      },
       "EpisodeGrid": {
         "additionalProperties": false,
         "properties": {
@@ -15005,6 +15492,158 @@
         ],
         "type": "object"
       },
+      "MemberRow": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "adoptedAssetCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "joinedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "memberId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "registeredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "removeReason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "by_owner",
+                  "self",
+                  "dormant",
+                  "owner_transfer",
+                  "account_deleted",
+                  "draft_abandoned",
+                  "store_archived",
+                  "entity_closed"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "removedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "enum": [
+              "owner",
+              "clerk"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "status": {
+            "enum": [
+              "active",
+              "removed"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "storeIds": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "uploadedAssetCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "user": {
+            "$ref": "#/components/schemas/MerchantUserBrief"
+          }
+        },
+        "required": [
+          "memberId",
+          "user",
+          "role",
+          "status",
+          "storeIds",
+          "joinedAt",
+          "registeredAt",
+          "removedAt",
+          "removeReason",
+          "uploadedAssetCount",
+          "adoptedAssetCount",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "MerchantUserBrief": {
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "merchantUserId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "phoneMask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "active",
+              "disabled",
+              "deleted"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "merchantUserId",
+          "displayName",
+          "phoneMask",
+          "status"
+        ],
+        "type": "object"
+      },
       "OpenWorkSummary": {
         "additionalProperties": false,
         "properties": {
@@ -16490,6 +17129,58 @@
           "openExceptions",
           "logs",
           "lockVersion"
+        ],
+        "type": "object"
+      },
+      "PendingInvitationRow": {
+        "additionalProperties": false,
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "invitationId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "inviterName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remarkName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "storeId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "invitationId",
+          "storeId",
+          "remarkName",
+          "inviterName",
+          "createdAt",
+          "expiresAt"
         ],
         "type": "object"
       },
@@ -35951,6 +36642,243 @@
         "x-redact-on-replay": [
           "coverUrl"
         ]
+      }
+    },
+    "/api/v1/admin/entities/{entityId}": {
+      "get": {
+        "operationId": "admin.entity.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entityId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/EntityCard"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "主体卡片与名下门店（门店与成员页签）：信用代码脱敏、认证日期、老板、套餐、门店与成员用量",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/entities/{entityId}/members": {
+      "get": {
+        "operationId": "admin.entity.member.list",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entityId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "role",
+            "required": false,
+            "schema": {
+              "enum": [
+                "owner",
+                "clerk"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeRemoved",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/MemberRow"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "items"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "主体成员（只读：成员由老板在小程序邀请和管理；待接受的邀请随 admin.entity.get 返回）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
       }
     },
     "/api/v1/admin/feature-flags": {
