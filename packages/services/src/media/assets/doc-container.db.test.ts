@@ -33,6 +33,16 @@ let started = false;
 
 async function docker(args: string[], input = "", signal?: AbortSignal) {
   const deadline = AbortSignal.timeout(60000);
+  const stage =
+    args[0] === "image"
+      ? "image_identity"
+      : args[0] === "inspect"
+        ? args.at(-1) === "{{json .ImageManifestDescriptor}}"
+          ? "runtime_manifest"
+          : "runtime_metadata"
+        : args[5] === "run"
+          ? "fixture_or_caller"
+          : "compose";
   return new Promise<string>((resolvePromise, reject) => {
     const child = spawn("docker", args, {
       stdio: ["pipe", "pipe", "pipe"],
@@ -55,7 +65,7 @@ async function docker(args: string[], input = "", signal?: AbortSignal) {
     child.on("close", (code) => {
       if (child.pid) children.delete(child.pid);
       if (error || code !== 0 || length > 1024 ** 2)
-        reject(new Error("owned document container command failed"));
+        reject(new Error(`owned document container command failed: ${stage}, exit ${code}`));
       else resolvePromise(Buffer.concat(chunks).toString("utf8"));
     });
     child.stdin.on("error", (value) => {
@@ -206,9 +216,9 @@ beforeAll(async () => {
   );
   const id = (await docker(command("ps", "-q", "mediatool"))).trim();
   expect((await docker(["inspect", id, "--format", "{{.Image}}"])).trim()).toBe(imageIndex);
-  expect(
-    (await docker(["inspect", id, "--format", "{{.ImageManifestDescriptor.digest}}"])).trim(),
-  ).toBe(imageManifest);
+  z.object({ digest: z.literal(imageManifest) }).parse(
+    JSON.parse(await docker(["inspect", id, "--format", "{{json .ImageManifestDescriptor}}"])),
+  );
   const sandbox = z
     .object({
       NetworkMode: z.literal("none"),
