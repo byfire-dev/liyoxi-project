@@ -360,7 +360,7 @@ describe("接受邀请：真实登录、当前成员与原事务副作用", { ti
     "真实会话 %s 在 claim 被拒绝",
     async (mode) => {
       const owner = await h.owner(),
-        person = await h.person(),
+        person = await h.person(undefined, mode === "appid" ? "wxlyxtest00000002" : APPID),
         card = await h.card(owner);
       if (mode === "revoked")
         await h.identity.logout(person.principal, {
@@ -368,11 +368,6 @@ describe("接受邀请：真实登录、当前成员与原事务副作用", { ti
           ip: null,
           userAgent: null,
           clientVersion: null,
-        });
-      if (mode === "appid")
-        await h.prisma.wechatIdentity.update({
-          where: { id: person.principal.wechatIdentityId },
-          data: { appid: "wxlyxtest00000002" },
         });
       if (mode === "disabled")
         await h.prisma.merchantUser.update({
@@ -584,7 +579,6 @@ describe("空草稿让位：严格四项真实历史与私有权限", { timeout:
             : mode === "order_cancelled"
               ? "cancelled"
               : "refunded",
-        amountFen: 0,
       });
     if (mode.startsWith("term_"))
       await h.make.subscriptionTerm({

@@ -402,12 +402,13 @@ describe("接受邀请：两业务连接、完整锁图与 fresh 会话/时钟",
       await blocked(observer, pids[1]!, pids[0]!);
       paused.release();
       expect((await accepted)[0]?.status).toBe("fulfilled");
-      expect((await outcome)[0]).toMatchObject({ status: "fulfilled", value: "stale" });
+      expect((await outcome)[0]).toMatchObject({ status: "fulfilled", value: "skipped" });
       const trace = await h.trace(card.invitationId);
       expect(trace.row.status).toBe("accepted");
       expect(trace.history).toHaveLength(2);
       expect(trace.events).toHaveLength(2);
       expect(trace.timers[0]?.status).toBe("cancelled");
+      expect(await runTimer(sides[1]!.timerDeps, ref)).toBe("stale");
     } finally {
       paused.release();
       await Promise.allSettled([accepted, ...(expired ? [expired] : [])]);

@@ -62,7 +62,12 @@ export async function acceptHarness(prisma: PrismaClient) {
         make.agreementVersion({ agreementKey }),
     ),
   );
-  function side(client = prisma, runner?: TxRunner, overrides: Partial<InvitationDeps> = {}) {
+  function side(
+    client = prisma,
+    runner?: TxRunner,
+    overrides: Partial<InvitationDeps> = {},
+    identityAppid = APPID,
+  ) {
     const sessionTx = runner ?? createTxRunner({ prisma: client, appEnv: "test" });
     // 组合只经过正式 testing 入口，真实会话与微信身份仍由 identity 拥有者校验。
     const service = invitationServices(client, clock, sessionTx, {
@@ -88,12 +93,14 @@ export async function acceptHarness(prisma: PrismaClient) {
       config: createConfig({ db: client, clock, redis: null }),
       keyring: () => TEST_KEYRING,
       wechat,
-      appid: APPID,
+      appid: identityAppid,
     });
     return { ...service, identity, wechat };
   }
   const service = side();
-  async function person(displayName: string | null = "新店员") {
+  async function person(displayName: string | null = "新店员", appid = APPID) {
+    const identity =
+      appid === APPID ? service.identity : side(prisma, undefined, {}, appid).identity;
     const n = ++sequence,
       phone = `139${String(91_000_000 + n).padStart(8, "0")}`;
     const openid = `lyxtest_accept_${n}`,
@@ -101,7 +108,7 @@ export async function acceptHarness(prisma: PrismaClient) {
       phoneCode = `accept-phone-${n}`;
     wechat.sessions.set(loginCode, { openid });
     wechat.phones.set(phoneCode, phone);
-    const result = await service.identity.phoneLogin(META, {
+    const result = await identity.phoneLogin(META, {
       loginCode,
       phoneCode,
       consents: versions.map((version) => ({
@@ -109,7 +116,7 @@ export async function acceptHarness(prisma: PrismaClient) {
         agreementVersionId: version.id,
       })),
     });
-    const checked = await service.identity.authenticate(result.token, { ip: META.ip });
+    const checked = await identity.authenticate(result.token, { ip: META.ip });
     if (!checked.ok) throw new Error("真实登录没有形成有效会话");
     // 显示名是合法既有账号事实，不代替接受邀请的检测/写入路径。
     if (displayName !== null)

@@ -3,6 +3,7 @@ import { createRuntime, loadEnv } from "../index.js";
 import { createDocs } from "../docs/index.js";
 import { createIdentity, assertCurrentSession, currentSessionOpenid } from "../identity/index.js";
 import { createTenant } from "../tenant/index.js";
+import { readMemberAssetCounts } from "../media/index.js";
 import { claimDeliveries, consumeDelivery } from "../events/index.js";
 import {
   AppError,
@@ -77,6 +78,7 @@ beforeAll(async () => {
     flow: runtime.flow,
     assembly: runtime.assembly,
     events: runtime.events,
+    readMemberAssetCounts,
     invitations: {
       keyring: () => TEST_KEYRING,
       timers: runtime.timers,
