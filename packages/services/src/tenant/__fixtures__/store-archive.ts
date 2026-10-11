@@ -105,7 +105,10 @@ export function archiveHarness(prisma: PrismaClient) {
         prisma.entity.findUniqueOrThrow({ where: { id: parent.entityId } }),
         prisma.store.findMany({ where: scope, orderBy: { id: "asc" } }),
         prisma.entityMember.findMany({ where: scope, orderBy: { id: "asc" } }),
-        prisma.storeMember.findMany({ where: scope, orderBy: { id: "asc" } }),
+        prisma.storeMember.findMany({
+          where: scope,
+          orderBy: [{ entityMemberId: "asc" }, { storeId: "asc" }],
+        }),
         prisma.invitation.findMany({ where: scope, orderBy: { id: "asc" } }),
         prisma.timer.findMany({ where: { entityId: parent.entityId }, orderBy: { id: "asc" } }),
         prisma.statusTransition.findMany({ where: scope, orderBy: { seq: "asc" } }),

@@ -282,7 +282,14 @@ describe("门店停用：真实事务与系统级联", { timeout: SLOW }, () => 
               throw failure;
             }, options),
         };
-        tenant = createTenant({ ...h, tx: runner, archiveTimers: h.timers });
+        tenant = createTenant({
+          tx: runner,
+          clock: h.clock,
+          flow: h.flow,
+          events: h.events,
+          assembly: h.assembly,
+          archiveTimers: h.timers,
+        });
       }
       try {
         await expect(tenant.archiveStore(owner.ctx, { storeId: owner.secondId })).rejects.toThrow(
@@ -347,7 +354,6 @@ describe("门店停用：真实事务与系统级联", { timeout: SLOW }, () => 
                       invitationId: id,
                       entityId: owner.entityId,
                       storeId: owner.secondId,
-                      revokeReason: "store_archived",
                     }
                   : {
                       v: 1,
@@ -382,7 +388,14 @@ describe("门店停用：真实事务与系统级联", { timeout: SLOW }, () => 
       }) as typeof h.assembly.port,
     };
     // 构造时必需的计费历史装配仍是原 portEntries；只有调用真实阻断公口时失败。
-    const tenant = createTenant({ ...h, assembly, archiveTimers: h.timers });
+    const tenant = createTenant({
+      tx: h.tx,
+      clock: h.clock,
+      flow: h.flow,
+      events: h.events,
+      assembly,
+      archiveTimers: h.timers,
+    });
     const before = await h.state();
     await expect(tenant.archiveStore(owner.ctx, { storeId: owner.secondId })).rejects.toThrow(
       failure,
