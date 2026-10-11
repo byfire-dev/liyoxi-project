@@ -68,3 +68,21 @@ qualityNotes≤3且每项≤40、可选structuredItems≤50（name≤30/可选pr
 fake新增独立digestReplies队列及深拷贝的明确虚构样例，未配实现返回原受控失败。
 本片本地协议验证尚未执行；完整视觉输入、策略消费、真实模型质量/地域/费用、预算
 与E22继续待办，不能据此宣称完整W3-15完成。
+
+## 多图视觉协议准备
+
+新增 `analyzeVision({ imageUrls, signal? }) -> ProviderResult<LlmVision>`，使用原 vision
+主备与取消/close机制，三个旧方法及默认未配工厂保持。调用者按可信顺序提供1–14张
+短期HTTPS图片URL；协议层不下载、缩放、截帧或证明URL来源归属。每URL按UTF8最多
+8192字节，拒凭据、片段、原始ASCII空白/控制字符；固定提示及全部image_url节点的
+实际user content JSON合计最多65536字节，超限拒绝，不静默删图或截断。
+
+`LlmVisionSchema` 只含五个必填字段：description≤2000码点、quality≤500码点、
+hasPeople与identifiableCustomerFace两个严格布尔、textInImage≤8000码点。文本按
+Unicode码点界定，空字符串可表达明确事实；缺项、错误类型、额外字段不补默认。
+quality是画质描述文本，没有虚构枚举。只描述可见事实，不推定人物身份、缺失内容或
+肖像授权；协议本身不能代替人工复核、来源可用性和模型准确率验证。
+
+fake增加独立visionReplies队列与明确虚构五字段样例，返回深拷贝；未配仍受控失败。
+本片仅SOURCE与轻静态检查，重验证排队未执行；可信1280缩放/6–14视频帧来源、素材
+vision策略、真实云/模型质量/地域/费用、原子预算与E22仍待办，整包保持进行中。
