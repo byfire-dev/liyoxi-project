@@ -1,16 +1,57 @@
 import { beforeAll, expect, it, vi } from "vitest";
-import { uuidv7 } from "../kernel/index.js";
+import { createApproval } from "../approval/index.js";
+import { createEvents } from "../events/index.js";
+import { createFlow } from "../flow/index.js";
+import { createBizNoIssuer, uuidv7 } from "../kernel/index.js";
+import { createMedia } from "../media/index.js";
+import { createSla } from "../sla/index.js";
+import { createTenant } from "../tenant/index.js";
+import { createTimers } from "../timers/index.js";
 import type { Tx } from "../kernel/index.js";
-import { createFactories, snapshotTables, useSeededDatabase } from "../testing/index.js";
+import {
+  assembleForTest,
+  createFactories,
+  snapshotTables,
+  TEST_KEYRING,
+  useSeededDatabase,
+} from "../testing/index.js";
 import { complete, harness, submit } from "./__fixtures__/harness.js";
 import type { Harness } from "./__fixtures__/harness.js";
-import { readEntityStoreProfileFacts } from "./index.js";
+import { createProfile, readEntityStoreProfileFacts } from "./index.js";
 
 const db = useSeededDatabase("services", { max: 1 });
 const SLOW = 120_000;
 let h: Harness;
 beforeAll(async () => {
-  h = harness(await db.prisma());
+  const baseline = harness(await db.prisma());
+  const { tx, clock, fake } = baseline;
+  const assembly = assembleForTest({ entry: "api" });
+  const events = createEvents({ tx, clock, assembly });
+  const flow = createFlow({ assembly, clock, events });
+  const tenant = createTenant({ tx, clock, flow, assembly });
+  const media = createMedia({ tx, clock, assembly, events, storage: fake.storage });
+  const approval = createApproval({
+    assembly,
+    clock,
+    flow,
+    events,
+    bizNo: createBizNoIssuer({ clock, appEnv: "test" }),
+    sla: createSla({ assembly, clock }),
+    timers: createTimers({ assembly }),
+  });
+  const profile = createProfile({
+    tx,
+    clock,
+    assembly,
+    tenant,
+    approval,
+    events,
+    media: { link: media.link, release: media.release, signRead: media.signRead },
+    keyring: () => TEST_KEYRING,
+    wechat: fake.wechat,
+    currentOpenid: async () => "lyxtest_profile_openid",
+  });
+  h = { ...baseline, events, flow, tenant, media, approval, profile };
 }, SLOW);
 const TABLES = [
   "store",
