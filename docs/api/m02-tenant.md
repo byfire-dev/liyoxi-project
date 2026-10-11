@@ -1100,3 +1100,9 @@ V1.1，细节待设计。用途：老板授权管理员代为确认方案、样�
 | 2026-10-03 | 第三轮。① `EntityBrief` 在 2.2 补成字段表，写明本文为唯一定义（m01 引用，m03 同名结构改名）。② 文本内容安全检测不可用一律 503 `PROVIDER_UNAVAILABLE`、不写库：`m.store.create`、`m.invitation.create`、`m.invitation.accept` 补错误行，删去邀请备注名“先接受、排队复检”；`CONTENT_REJECTED` 写明 `details.fields`。③ `PORTAL_TICKET_INVALID` 三条接口补 `details.reason = approved`，与 p01 第 5 节取值表一致。④ 第 1 节补对外函数 `tenant.previewQuota`。⑤ 2.12 列出 `StoreCloseGuard` 各类别的登记方与口径（m03 1.2、m04 2.9、m05 1.2、m06 第 1 节）；`liveCount`、`deliveringCount`、`todoCount` 写明取 m04 的计数函数。⑥ M:StoreAdd 品牌故事计数改为 `m.storeAsset.summary?tag=brand_story` 取 `tabs.all`。⑦ 依据更新到 A150、C87。第 6 节无可删项 | A131、A132、A137、A145、A150；C27、C87；m01、m03、m04、m05、m07、p01 的第二轮请求；`d4-identity.md:682`、`794`；p01-portal.md 第 5 节 |
 | 2026-10-03 | 第四轮（收尾）。3.3 `m.store.create` 改引 m03 1.2 `profile.validateStoreBasics`：行业品类已停用改返回 409 `DICT_ITEM_DISABLED`、未开放改返回 409 `INDUSTRY_NOT_OPEN`（第 5 节补引用来源），503 `PROVIDER_UNAVAILABLE` 注明同出 1.2；清单与路线图切片同步 | A137；m03-profile-asset 1.2、3.3；m03 第三轮请求 |
 | 2026-10-03 | 第四轮补：`StoreCard`、`StoreCardForClerk` 与当前门店卡的 `cityName`、`categoryName` 改为 `city`、`category`（`DictRef` \| null，A151、C85；m08 `OverviewStore` 同形） | m08 的请求 |
+
+## 8. W2-10 门店恢复实现边界
+
+3.6 复用原 required 幂等。账号80→主体100→当前老板成员120→排序上下文及目标门店130，等待结束后重新读权限、门店状态、正式额度事实和业务时钟；目标店自身可作 by_owner 收尾上下文。仅五个归档随迁列清空，同事务写原 store.restore 历史、活动审计和 store.restored，返回真实 StoreCard。
+
+恢复不重建旧店员范围、撤回邀请/token、lastStoreId 或下载授权；主体关闭和草稿删除不经此入口恢复。当前归档通知以最新真实状态历史及归档源识别发生次，旧源不能借再次归档发出；原安全投影和实际外发前重验保持。此处只回写实现边界，不改变3.6正式条件或宣布整包验收完成。

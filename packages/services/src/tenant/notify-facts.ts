@@ -175,6 +175,9 @@ export async function storeArchiveForNotify(tx: Tx, sourceId: string) {
     store.lifecycle !== "archived" ||
     store.archiveReason !== "by_owner" ||
     !store.archivedAt ||
+    store.archiveActorType !== "merchant" ||
+    !store.archiveActorId ||
+    store.archiveClient !== "weapp" ||
     store.entity.lifecycle !== "active"
   )
     return null;
@@ -183,16 +186,48 @@ export async function storeArchiveForNotify(tx: Tx, sourceId: string) {
       machine: "store",
       subjectId: store.id,
       stateField: "lifecycle",
-      event: "store.archive",
-      toState: "archived",
-      reasonCode: "by_owner",
+    },
+    orderBy: { seq: "desc" },
+  });
+  if (
+    !archive ||
+    archive.event !== "store.archive" ||
+    archive.fromState !== "active" ||
+    archive.toState !== "archived" ||
+    archive.reasonCode !== "by_owner" ||
+    archive.entityId !== store.entityId ||
+    archive.storeId !== store.id ||
+    archive.actorType !== store.archiveActorType ||
+    archive.actorId !== store.archiveActorId ||
+    archive.client !== store.archiveClient ||
+    archive.occurredAt < store.archivedAt
+  )
+    return null;
+  // 两张表的序号各自排序；请求号和三次 Clock 采样均不充当发生次唯一键。
+  const anchor = await tx.outboxEvent.findFirst({
+    where: {
+      eventType: "store.archived",
+      aggregateType: "store",
+      aggregateId: store.id,
       entityId: store.entityId,
       storeId: store.id,
-      actorType: "merchant",
-      client: "weapp",
     },
+    orderBy: { seq: "desc" },
   });
-  if (!archive) return null;
+  if (!anchor) return null;
+  const anchored = EVENT_PAYLOAD_SCHEMAS["store.archived"].parse(anchor.payload);
+  if (
+    anchored.storeId !== store.id ||
+    anchored.entityId !== store.entityId ||
+    anchored.archiveReason !== "by_owner" ||
+    anchored.transition !== "store.archive" ||
+    anchor.actorType !== archive.actorType ||
+    anchor.actorId !== archive.actorId ||
+    anchor.client !== archive.client ||
+    anchor.requestId !== archive.requestId ||
+    anchor.occurredAt < archive.occurredAt
+  )
+    return null;
   const common = { version: 0, name: "成员状态变更", status: "removed" };
   if (source.eventType === "store.archived") {
     const p = EVENT_PAYLOAD_SCHEMAS["store.archived"].parse(source.payload);
@@ -201,6 +236,7 @@ export async function storeArchiveForNotify(tx: Tx, sourceId: string) {
       p.entityId !== store.entityId ||
       p.archiveReason !== "by_owner" ||
       p.transition !== "store.archive" ||
+      source.id !== anchor.id ||
       source.aggregateType !== "store" ||
       source.aggregateId !== store.id ||
       source.actorType !== "merchant" ||
@@ -236,6 +272,7 @@ export async function storeArchiveForNotify(tx: Tx, sourceId: string) {
     source.actorType !== "system" ||
     source.actorId !== null ||
     source.client !== null ||
+    source.seq <= anchor.seq ||
     source.requestId !== archive.requestId
   )
     return null;
@@ -249,25 +286,28 @@ export async function storeArchiveForNotify(tx: Tx, sourceId: string) {
     member.role !== "clerk" ||
     member.status !== "removed" ||
     member.removeReason !== "store_archived" ||
-    member.removeActorType !== "system"
+    member.removeActorType !== "system" ||
+    member.removeActorId !== null ||
+    member.removeClient !== null ||
+    member.removedAt?.getTime() !== store.archivedAt.getTime()
   )
     return null;
+  const removed = await tx.statusTransition.findFirst({
+    where: { machine: "entity_member", subjectId: member.id, stateField: "status" },
+    orderBy: { seq: "desc" },
+  });
   if (
-    !(await tx.statusTransition.findFirst({
-      where: {
-        machine: "entity_member",
-        subjectId: member.id,
-        stateField: "status",
-        event: "entity_member.cascade_remove",
-        fromState: "active",
-        toState: "removed",
-        reasonCode: "store_archived",
-        entityId: store.entityId,
-        storeId: store.id,
-        actorType: "system",
-        requestId: source.requestId,
-      },
-    }))
+    !removed ||
+    removed.event !== "entity_member.cascade_remove" ||
+    removed.fromState !== "active" ||
+    removed.toState !== "removed" ||
+    removed.reasonCode !== "store_archived" ||
+    removed.entityId !== store.entityId ||
+    removed.storeId !== store.id ||
+    removed.actorType !== "system" ||
+    removed.actorId !== null ||
+    removed.client !== null ||
+    removed.requestId !== source.requestId
   )
     return null;
   const boss = await tx.entityMember.findFirst({
