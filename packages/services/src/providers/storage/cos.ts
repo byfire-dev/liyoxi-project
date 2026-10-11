@@ -845,7 +845,7 @@ export function createCosStorage(
         !validRef(input) ||
         !Number.isInteger(input.expiresSec) ||
         input.expiresSec < 1 ||
-        input.expiresSec > 3600 ||
+        input.expiresSec > 7200 ||
         closed
       )
         return BAD();
