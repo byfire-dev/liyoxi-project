@@ -1434,7 +1434,8 @@ export interface paths {
         /** 我可见的门店：审核状态、完整度、提交与预计完成时间、上线中/交付中/素材/店员计数、待办数；主体额度（门店 n/N、成员名额 n/N，店员不含）；含已停用门店并标注 */
         get: operations["m.store.list"];
         put?: never;
-        post?: never;
+        /** 新增门店并按勾选复制档案（基础信息、服务与价格、门店形象、品牌故事素材）；校验主体门店额度 */
+        post: operations["m.store.create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4761,6 +4762,15 @@ export interface components {
             /** Format: uuid */
             storeId: string;
             todoCount: number;
+        };
+        StoreCreateBody: {
+            addressDetail: string;
+            categoryCode: string;
+            /** Format: uuid */
+            copyFromStoreId?: string | null;
+            copyOptions?: ("basic" | "service" | "media" | "brand_assets")[];
+            industryCode: string;
+            name: string;
         };
         StoreDeleteResult: {
             /** Format: date-time */
@@ -12420,6 +12430,81 @@ export interface operations {
             };
             /** @description 未登录或会话失效 */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.store.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StoreCreateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["StoreCard"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
