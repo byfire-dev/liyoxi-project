@@ -6,6 +6,7 @@ import { createPrismaClient } from "@liyoxi/db";
 import { testDatabaseUrl } from "@liyoxi/db/testing/standalone";
 import { createApproval, approvalKindPort } from "../approval/index.js";
 import { ownTaskScope, SYSTEM_SCOPE } from "../authz/index.js";
+import { requiresStepUp } from "../authz/index.js";
 import { createFlow } from "../flow/index.js";
 import { createBizNoIssuer, createIdentityContext, lockRows, uuidv7 } from "../kernel/index.js";
 import {
@@ -2801,7 +2802,7 @@ describe("客服广告取消审批引用：真实早晚回调", () => {
     await unchanged(() => link(f, t, actor), "PERMISSION_DENIED");
   });
 
-  it("原提交再验证过期不因客服关联获得豁免", async () => {
+  it("发起权限未标再验证，过期上下文仍按原注册表允许并关联", async () => {
     const f = await fixture(),
       t = await ticket(f);
     const actor = {
@@ -2811,7 +2812,10 @@ describe("客服广告取消审批引用：真实早晚回调", () => {
         stepUpAt: new Date(h.clock.now().getTime() - 600_001),
       },
     };
-    await unchanged(() => link(f, t, actor), "STEP_UP_REQUIRED");
+    expect(requiresStepUp("order.refund.request")).toBe(false);
+    const r = await link(f, t, actor);
+    expect(r.status).toBe("pending_approval");
+    await expectLink(f, t, r, actor);
   });
 
   it("广告不在原order范围内仍404且不泄露同店工单", async () => {
