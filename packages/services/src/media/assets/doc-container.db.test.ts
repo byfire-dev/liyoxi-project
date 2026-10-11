@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -198,7 +198,7 @@ beforeAll(async () => {
       "{{.Id}}",
     ]),
   ).toBe(`${imageManifest}\n`);
-  root = await mkdtemp(join(tmpdir(), "lyx-doc-strategy-"));
+  root = await realpath(await mkdtemp(join(tmpdir(), "lyx-doc-strategy-")));
   started = true;
   await docker(
     command(
