@@ -15,6 +15,7 @@ import type { Tx } from "../kernel/index.js";
 import { bindOrder, createAdCancel, quoteAdCancel } from "../order/index.js";
 import type { CancelDeps } from "../order/index.js";
 import { createSla } from "../sla/index.js";
+import { testSealer } from "../testing/data/seal.js";
 import {
   assembleForTest,
   createFactories,
@@ -35,9 +36,9 @@ beforeAll(async () => {
   h = createLedgerHarness(await db.prisma());
 }, 120_000);
 
-function runtime(flowTransform?: (flow: Flow) => Flow) {
+function runtime(flowTransform?: (flow: Flow) => Flow, events = h.events) {
   const assembly = assembleForTest({ entry: "api" });
-  const realFlow = createFlow({ assembly, clock: h.clock, events: h.events });
+  const realFlow = createFlow({ assembly, clock: h.clock, events });
   const flow = flowTransform?.(realFlow) ?? realFlow;
   const timers = createTimers({ assembly });
   const sla = createSla({ assembly, clock: h.clock });
@@ -45,7 +46,7 @@ function runtime(flowTransform?: (flow: Flow) => Flow) {
     assembly,
     clock: h.clock,
     flow,
-    events: h.events,
+    events,
     timers,
     sla,
     bizNo: createBizNoIssuer({ clock: h.clock, appEnv: "test" }),
@@ -56,7 +57,7 @@ function runtime(flowTransform?: (flow: Flow) => Flow) {
     approval,
     flow,
     ledger: h.ledger,
-    events: h.events,
+    events,
     timers,
     sla,
   };
@@ -533,32 +534,88 @@ describe("真实 staff entity close owner", () => {
 
 async function block(f: Fixture, kind: string) {
   const entityId = f.input.entityId;
-  if (["subscription_active", "payment_open", "refund_open", "invoice_open"].includes(kind)) {
+  if (kind === "subscription_active") {
+    await h.make.subscriptionTerm({ entityId });
+    return 1;
+  }
+  if (kind === "payment_open") {
+    await h.make.billingOrder({ entityId, status: "pending_payment" });
+    return 1;
+  }
+  if (kind === "refund_open" || kind === "invoice_open") {
     await h.tx.run(async (tx) => {
-      await seedBillingDeletionFacts(tx, h.clock, { entityId, userId: f.merchant.user.id });
-      // 上游表夹具仅保留待验的真实阻断；不以替身端口返回计数。
-      if (kind !== "subscription_active")
-        await tx.subscriptionTerm.updateMany({
-          where: { entityId, status: { in: ["active", "scheduled"] } },
-          data: { status: "ended", activatedAt: h.clock.now() },
+      // 只初始创建本例的合法上游行，不依赖 app 角色无权执行的清表。
+      const make = createFactories({ db: tx, clock: h.clock });
+      const order = await make.billingOrder({ entityId });
+      const now = h.clock.now();
+      const id = uuidv7();
+      if (kind === "refund_open") {
+        if (!order.paidPaymentTxnId) throw new Error("退款夹具缺少真实已付流水");
+        await tx.approvalRequest.create({
+          data: {
+            id,
+            requestNo: `TK${id.replaceAll("-", "")}`,
+            kind: "plan_refund",
+            category: "approval",
+            subjectType: "billing_order",
+            subjectId: order.id,
+            entityId,
+            status: "pending",
+            summarySnapshot: { title: "主体关闭阻断测试退款" },
+            requesterStaffId: f.actor.staff.staff.id,
+            submitActorType: "staff",
+            submitActorId: f.actor.staff.staff.id,
+            submitClient: "admin",
+            submittedAt: now,
+            createdAt: now,
+            updatedAt: now,
+          },
         });
-      if (kind !== "payment_open") {
-        await tx.billingOrder.deleteMany({
-          where: { entityId, status: { in: ["pending_payment", "pending_confirmation"] } },
+        await tx.refundRequest.create({
+          data: {
+            id: uuidv7(),
+            approvalRequestId: id,
+            source: "customer_service",
+            entityId,
+            billingOrderId: order.id,
+            paymentTxnId: order.paidPaymentTxnId,
+            baseAmountFen: order.amountFen,
+            amountFen: order.amountFen,
+            breakdownSnapshot: {},
+            ruleCode: "window",
+            ruleText: "关闭阻断测试退款规则",
+            reasonCode: "other",
+            status: "pending_approval",
+            createdAt: now,
+            updatedAt: now,
+          },
         });
-        await tx.billingOrder.updateMany({
-          where: { entityId },
-          data: { hasOpenException: false },
+      } else {
+        await tx.invoiceRequest.create({
+          data: {
+            id,
+            requestNo: `FP${id.replaceAll("-", "")}`,
+            billingOrderId: order.id,
+            entityId,
+            amountFen: order.amountFen,
+            invoiceType: "normal",
+            medium: "electronic",
+            title: "主体关闭阻断测试开票",
+            taxNoEnc: testSealer.text("invoice_request.tax_no_enc", "913300001234567890"),
+            taxNoMask: "9133**********7890",
+            recvEmailEnc: testSealer.text("invoice_request.recv_email_enc", "test@example.invalid"),
+            recvEmailMask: "te**@example.invalid",
+            itemName: "测试服务",
+            status: "pending",
+            appliedByUserId: f.merchant.user.id,
+            appliedAt: now,
+            createdAt: now,
+            updatedAt: now,
+          },
         });
       }
-      if (kind !== "refund_open") await tx.refundRequest.deleteMany({ where: { entityId } });
-      if (kind !== "invoice_open") await tx.invoiceRequest.deleteMany({ where: { entityId } });
     });
-    return kind === "subscription_active" || kind === "invoice_open"
-      ? 2
-      : kind === "payment_open"
-        ? 4
-        : 1;
+    return 1;
   }
   const term = await h.make.subscriptionTerm({ entityId, status: "ended" });
   const order = await h.make.dramaOrder({
@@ -1149,31 +1206,25 @@ describe("真实广告取消 owner 及并发", () => {
   });
 
   it("实际 cancel.withdrawn 事件落库后故障，tenant 全部与审批/指针/timer/账本原子回滚", async () => {
-    const f = await fixture(),
-      r = runtime(),
+    const f = await fixture();
+    const failure = new Error("after cancel.withdrawn");
+    const events = {
+      ...h.events,
+      emit: async (...args: Parameters<typeof h.events.emit>) => {
+        const row = await h.events.emit(...args);
+        if (args[2].type === "cancel.withdrawn") throw failure;
+        return row;
+      },
+    };
+    const r = runtime(undefined, events),
       ad = await adCancel(f, r);
     const before = await snapshot(f.input.entityId),
       money = await finances(f.input.entityId);
     const approval = await h.prisma.approvalRequest.findUniqueOrThrow({
       where: { id: ad.request.approvalRequestId },
     });
-    const originalAd = await h.prisma.ad.findUniqueOrThrow({ where: { id: ad.id } }),
-      failure = new Error("after cancel.withdrawn");
-    await expect(
-      bound(r, () =>
-        h.tx.run(async (tx) => {
-          const original = tx.outboxEvent.create.bind(tx.outboxEvent);
-          Object.assign(tx.outboxEvent, {
-            create: async (args: Prisma.OutboxEventCreateArgs) => {
-              const row = await original(args);
-              if (args.data.eventType === "cancel.withdrawn") throw failure;
-              return row;
-            },
-          });
-          return closeEntityIn(tx, r, f.actor, f.input);
-        }),
-      ),
-    ).rejects.toBe(failure);
+    const originalAd = await h.prisma.ad.findUniqueOrThrow({ where: { id: ad.id } });
+    await expect(close(f, r)).rejects.toBe(failure);
     expect(await snapshot(f.input.entityId)).toEqual(before);
     expect(await finances(f.input.entityId)).toEqual(money);
     expect(
