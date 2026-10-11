@@ -34,10 +34,6 @@ erDiagram
   store ||--o{ invitation : "24 小时有效"
   entity_member ||--o{ invitation : "邀请人"
   invitation ||--o{ entity_member : "经邀请加入"
-  invitation ||--o{ invitation_request : "创建及复用请求"
-  entity ||--o{ invitation_request : "真实主体"
-  store ||--o{ invitation_request : "真实门店"
-  entity_member ||--o{ invitation_request : "请求发起人"
   approval_request ||--|| account_change_request : "一对一"
   merchant_user ||--o{ account_change_request : "目标账号"
   entity ||--o{ account_change_request : "目标主体"
@@ -769,7 +765,6 @@ erDiagram
 - 主键：`pk_invitation (id)`。
 - 外键：`entity_id → entity.id`（`fk_invitation_entity_id`）；`(store_id, entity_id) → store(id, entity_id)`（`fk_invitation_store_entity`）；`(inviter_member_id, entity_id) → entity_member(id, entity_id)`（`fk_invitation_inviter_member_entity`）；`accepted_by_user_id → merchant_user.id`（`fk_invitation_accepted_by_user_id`）；`(accepted_member_id, entity_id) → entity_member(id, entity_id)`（`fk_invitation_accepted_member_entity`）。都是 RESTRICT。
 - 唯一：`uq_invitation_token_hash (token_hash)`；`uq_invitation_inviter_member_id_client_request_id (inviter_member_id, client_request_id)`。
-- 引用候选唯一：`uq_invitation_id_inviter_entity_store (id, inviter_member_id, entity_id, store_id)`，供请求映射精确核对同一邀请的完整归属；不替代原创建键。
 - 普通索引：`ix_invitation_entity_id_created_at (entity_id, created_at)`（每主体每天未撤回的创建数 ≤ 20，事务内计数）；`ix_invitation_store_id (store_id)`（门店停用时撤回、门店成员页的待接受列表）。
 
 **手写约束**
@@ -930,6 +925,14 @@ tenant L1 内部的成功请求绑定，见 [W2-10 结构前置](../plan/changes
 一张邀请可对应原创建请求 A 和多个复用请求 B；原 `invitation.client_request_id` 仍为 A，不改写。
 本表不存令牌、手机号、盲索引、备注名、请求正文、哈希或响应快照，不增加外部资源。
 
+```mermaid
+erDiagram
+  invitation ||--o{ invitation_request : "创建及复用请求"
+  entity ||--o{ invitation_request : "真实主体"
+  store ||--o{ invitation_request : "真实门店"
+  entity_member ||--o{ invitation_request : "请求发起人"
+```
+
 | 列 | 类型 | 空 | 默认 | 说明 | 出处 |
 | --- | --- | --- | --- | --- | --- |
 | id | uuid | 否 | — | UUID v7，应用生成；旧创建请求回填复制原 invitation.id | W2-10 结构前置 |
@@ -943,6 +946,7 @@ tenant L1 内部的成功请求绑定，见 [W2-10 结构前置](../plan/changes
 **键与索引**
 
 - 主键：`pk_invitation_request (id)`。
+- 原邀请引用候选唯一：`uq_invitation_id_inviter_entity_store (id, inviter_member_id, entity_id, store_id)`，供请求映射精确核对同一邀请的完整归属；不替代原创建键。
 - 全量唯一：`uq_invitation_request_inviter_client (inviter_member_id, client_request_id)`，不包含门店或状态，不按时间过期。
 - 普通索引：`ix_invitation_request_invitation_id (invitation_id)`，用于父引用检查和本域查询。
 - `fk_invitation_request_entity_id`：`entity_id → entity.id`。
