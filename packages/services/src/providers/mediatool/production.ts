@@ -51,6 +51,8 @@ export function createProductionMediaTools(options: {
     });
   };
   const client: MediaToolClient = {
+    docText: (input) =>
+      invoke("probe", input.signal, (signal) => raw.docText!({ ...input, signal })),
     probe: (input) => invoke("probe", input.signal, (signal) => raw.probe({ ...input, signal })),
     poster: (input) => invoke("probe", input.signal, (signal) => raw.poster({ ...input, signal })),
     stampAigc: (input) =>

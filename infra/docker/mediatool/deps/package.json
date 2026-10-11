@@ -1,0 +1,11 @@
+{
+  "name": "@liyoxi/mediatool-parsers",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.34.5",
+  "dependencies": {
+    "@napi-rs/canvas": "1.0.9",
+    "mammoth": "1.13.0",
+    "pdfjs-dist": "6.3.289"
+  }
+}
