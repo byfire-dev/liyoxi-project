@@ -851,6 +851,8 @@
     "members.clerkCount",
     "members.ownerDisplayName",
     "members.preview",
+    "members.preview[].displayName",
+    "members.preview[].role",
     "qualification",
     "qualification.status",
     "steps",
