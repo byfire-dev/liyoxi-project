@@ -24,6 +24,7 @@ import type { CancelActor, CancelDeps } from "../order/index.js";
 import { entityAdCancelClosePort } from "../tenant/index.js";
 import type { EntityAdCancelCloser, EntityAdCancelClosePlan } from "../tenant/index.js";
 import { createSla } from "../sla/index.js";
+import { createAdCancelApprovalRefCompanion } from "../support/index.js";
 import { createTimers, timerKey } from "../timers/index.js";
 import type { TimerRef } from "../timers/index.js";
 import {
@@ -2580,6 +2581,757 @@ describe("主体关闭的 pending ad_cancel 同事务所属伴随", () => {
       await writer;
       await waiter;
       await observer.$disconnect();
+    }
+  });
+});
+
+describe("客服广告取消审批引用：真实早晚回调", () => {
+  type Companion = ReturnType<typeof createAdCancelApprovalRefCompanion>;
+  type Target = Parameters<Companion["beforeAccount"]>[1];
+  const states = ["pending", "processing", "awaiting_confirm", "resolved", "closed"] as const;
+  const refTables = [...tables, "service_ticket", "service_ticket_entry"];
+  async function ticket(
+    f: Fixture,
+    options: {
+      status?: (typeof states)[number];
+      ownerStaffId?: string | null;
+      storeId?: string;
+      entityId?: string;
+    } = {},
+  ) {
+    const now = h.clock.now(),
+      status = options.status ?? "pending";
+    const awaiting = status === "awaiting_confirm",
+      resolved = status === "resolved";
+    return h.prisma.serviceTicket.create({
+      data: {
+        id: uuidv7(),
+        ticketNo: "KF20260105" + String(++sequence).padStart(5, "0"),
+        entityId: options.entityId ?? f.ad.entityId,
+        storeId: options.storeId ?? f.ad.storeId,
+        source: "weapp",
+        submitterUserId: f.merchant.user.id,
+        typeCode: "K01",
+        priority: "mid",
+        description: "客服广告取消关联前置事实",
+        ownerStaffId: options.ownerStaffId ?? null,
+        status,
+        firstResponseAt: status === "pending" ? null : now,
+        solutionDueAt: new Date(now.getTime() + 86_400_000),
+        solutionAt: awaiting || resolved ? now : null,
+        awaitingConfirmAt: awaiting ? now : null,
+        autoResolveAt: awaiting ? new Date(now.getTime() + 3 * 86_400_000) : null,
+        resolvedAt: resolved ? now : null,
+        resolvedVia: resolved ? "merchant" : null,
+        closedAt: status === "closed" ? now : null,
+        closeReason: status === "closed" ? "invalid" : null,
+        closeNote: status === "closed" ? "历史工单已关闭" : null,
+        slaSnapshot: awaiting ? { solution: {}, autoResolve: {} } : { solution: {} },
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+  }
+  type Ticket = Awaited<ReturnType<typeof ticket>>;
+  const companion = (t: Ticket) =>
+    createAdCancelApprovalRefCompanion({ clock: h.clock, serviceTicketId: t.id });
+  const link = (
+    f: Fixture,
+    t: Ticket,
+    actor: CancelActor = f.requester,
+    d: CancelDeps = f.deps,
+    hooks: Companion = companion(t),
+  ) => createAdCancel(d).submit(actor, f.ad.id, f.body, undefined, hooks);
+  const linked = (ticketId: string) =>
+    h.prisma.serviceTicketRef.findMany({
+      where: { serviceTicketId: ticketId },
+      orderBy: [{ refType: "asc" }, { refId: "asc" }],
+    });
+  const refAudits = (ticketId: string) =>
+    h.prisma.auditLog.findMany({
+      where: { targetId: ticketId, action: "support.service_ticket.ref_add" },
+      orderBy: { id: "asc" },
+    });
+  async function expectLink(f: Fixture, t: Ticket, r: Request, actor = f.requester) {
+    const approval = (await req(r.id)).approvalRequest;
+    expect(await linked(t.id)).toEqual([
+      {
+        serviceTicketId: t.id,
+        refType: "approval_request",
+        refId: r.approvalRequestId,
+        createdAt: approval.createdAt,
+      },
+    ]);
+    expect(approval).toMatchObject({
+      kind: "ad_cancel",
+      subjectType: "ad",
+      subjectId: f.ad.id,
+      entityId: f.ad.entityId,
+      storeId: f.ad.storeId,
+      requesterStaffId: actor.staff!.staff.id,
+    });
+    const audits = await refAudits(t.id);
+    expect(audits).toHaveLength(1);
+    expect(audits[0]).toMatchObject({
+      stream: "activity",
+      category: "service_ticket",
+      action: "support.service_ticket.ref_add",
+      targetType: "service_ticket",
+      targetId: t.id,
+      entityId: f.ad.entityId,
+      storeId: f.ad.storeId,
+      actorType: "staff",
+      actorId: actor.staff!.staff.id,
+      client: "admin",
+    });
+    expect(await h.prisma.serviceTicket.findUniqueOrThrow({ where: { id: t.id } })).toEqual(t);
+    expect(await h.prisma.serviceTicketEntry.count({ where: { serviceTicketId: t.id } })).toBe(0);
+  }
+  async function unchanged(fn: () => Promise<unknown>, error: string) {
+    const before = await snapshotTables(h.prisma, refTables);
+    await expect(fn()).rejects.toMatchObject({ error });
+    await assertSnapshotsEqual(before, await snapshotTables(h.prisma, refTables));
+  }
+  async function ownOrderActor(f: Fixture): Promise<CancelActor> {
+    await h.prisma.store.update({
+      where: { id: f.ad.storeId },
+      data: { deliveryManagerId: f.requester.staff!.staff.id },
+    });
+    return {
+      ...f.requester,
+      staff: {
+        ...f.requester.staff!,
+        permissions: new Set(["order.refund.request"] as const),
+        moduleLevels: { ...f.requester.staff!.moduleLevels, service: "n" },
+        scope: ownTaskScope(f.requester.staff!.staff),
+      },
+    };
+  }
+
+  it.each(states)("%s历史工单均可关联，引用真实审批且工单与条目零改动", async (status) => {
+    const f = await fixture(),
+      t = await ticket(f, { status });
+    const r = await link(f, t);
+    expect(r.status).toBe("pending_approval");
+    await expectLink(f, t, r);
+    expect((await adNow(f)).openCancelRequestId).toBe(r.id);
+    expect((await holdNow(f)).status).toBe("held");
+    for (const [eventType, aggregateId] of [
+      ["approval.submitted", r.approvalRequestId],
+      ["cancel.submitted", r.id],
+    ] as const)
+      expect(await h.prisma.outboxEvent.count({ where: { eventType, aggregateId } })).toBe(1);
+  });
+
+  it("没有companion仍走原取消公口，不创建客服引用或关联审计", async () => {
+    const f = await fixture(),
+      t = await ticket(f),
+      r = await submit(f);
+    expect(r.status).toBe("pending_approval");
+    expect(await linked(t.id)).toEqual([]);
+    expect(await refAudits(t.id)).toEqual([]);
+    expect(await h.prisma.serviceTicket.findUniqueOrThrow({ where: { id: t.id } })).toEqual(t);
+  });
+
+  it("仅原order权限且工单负责人在本人任务范围外仍允许同店历史关联", async () => {
+    const f = await fixture(),
+      actor = await ownOrderActor(f);
+    const t = await ticket(f, { ownerStaffId: f.approver.staff!.staff.id });
+    expect(actor.staff!.permissions.size).toBe(1);
+    expect(actor.staff!.moduleLevels.service).toBe("n");
+    expect(actor.staff!.scope).toMatchObject({ kind: "staff", staffIds: [actor.staff!.staff.id] });
+    const r = await link(f, t, actor);
+    await expectLink(f, t, r, actor);
+  });
+
+  it("本人order范围不带待分配池，owner为空工单仍可历史关联", async () => {
+    const f = await fixture(),
+      actor = await ownOrderActor(f),
+      t = await ticket(f);
+    expect(t.ownerStaffId).toBeNull();
+    if (actor.staff!.scope.kind === "staff") expect(actor.staff!.scope.unassigned.size).toBe(0);
+    await expectLink(f, t, await link(f, t, actor), actor);
+  });
+
+  it.each(["merchant", "system"] as const)("%s不能借companion绕过员工提交身份", async (kind) => {
+    const f = await fixture(),
+      t = await ticket(f);
+    const actor: CancelActor = {
+      ctx: createIdentityContext({
+        actor:
+          kind === "merchant"
+            ? { type: "merchant", id: f.merchant.user.id, client: "weapp", role: "owner" }
+            : { type: "system", job: "lyxtest.support_ref" },
+      }),
+    };
+    await unchanged(() => link(f, t, actor), "PERMISSION_DENIED");
+  });
+
+  it("ctx与StaffContext员工ID不符时关联不能产生半申请", async () => {
+    const f = await fixture(),
+      t = await ticket(f);
+    await unchanged(
+      () => link(f, t, { ...f.requester, staff: f.approver.staff }),
+      "PERMISSION_DENIED",
+    );
+  });
+
+  it("缓存上下文仍有权限而库中员工已禁用，原提交守卫拒绝", async () => {
+    const f = await fixture(),
+      t = await ticket(f);
+    await h.prisma.staff.update({
+      where: { id: f.requester.staff!.staff.id },
+      data: {
+        status: "disabled",
+        disabledAt: h.clock.now(),
+        disabledReason: "other",
+        disabledByStaffId: f.approver.staff!.staff.id,
+      },
+    });
+    await unchanged(() => link(f, t), "PERMISSION_DENIED");
+  });
+
+  it("没有原order.refund.request权限，客服工单存在也不能提交", async () => {
+    const f = await fixture(),
+      t = await ticket(f);
+    const actor = {
+      ...f.requester,
+      staff: { ...f.requester.staff!, permissions: new Set<never>() },
+    };
+    await unchanged(() => link(f, t, actor), "PERMISSION_DENIED");
+  });
+
+  it("原提交再验证过期不因客服关联获得豁免", async () => {
+    const f = await fixture(),
+      t = await ticket(f);
+    const actor = {
+      ...f.requester,
+      staff: {
+        ...f.requester.staff!,
+        stepUpAt: new Date(h.clock.now().getTime() - 600_001),
+      },
+    };
+    await unchanged(() => link(f, t, actor), "STEP_UP_REQUIRED");
+  });
+
+  it("广告不在原order范围内仍404且不泄露同店工单", async () => {
+    const f = await fixture(),
+      t = await ticket(f);
+    const actor = {
+      ...f.requester,
+      staff: {
+        ...f.requester.staff!,
+        scope: ownTaskScope(f.requester.staff!.staff),
+      },
+    };
+    await unchanged(() => link(f, t, actor), "NOT_FOUND");
+  });
+
+  it.each(["missing", "same_entity_other_store", "other_entity"] as const)(
+    "%s工单均404，原广告、审批、账本和审计全部零写",
+    async (kind) => {
+      const f = await fixture();
+      let t: Ticket;
+      if (kind === "missing") t = { ...(await ticket(f)), id: uuidv7() };
+      else if (kind === "same_entity_other_store") {
+        const store = await h.make.store({ entityId: f.ad.entityId });
+        t = await ticket(f, { storeId: store.id });
+      } else {
+        const other = await h.make.merchant({ verified: true });
+        t = await ticket(f, { entityId: other.entity.id, storeId: other.store.id });
+      }
+      await unchanged(() => link(f, t), "NOT_FOUND");
+    },
+  );
+
+  it("真实重算expect不符回滚早270后的所有财务推进与关联", async () => {
+    const f = await fixture(),
+      t = await ticket(f);
+    await unchanged(
+      () =>
+        createAdCancel(f.deps).submit(
+          f.requester,
+          f.ad.id,
+          {
+            ...f.body,
+            expect: { totalRefundPoints: f.body.expect.totalRefundPoints + 1 },
+          },
+          undefined,
+          companion(t),
+        ),
+      "CANCEL_QUOTE_CHANGED",
+    );
+  });
+
+  it("真实在办订单项绑定阻断广告，已预锁工单也不残留引用", async () => {
+    const f = await fixture(),
+      t = await ticket(f),
+      { item } = await boundItem(f);
+    // No M5 binding writer exists; this is only the legal upstream placement fixture.
+    await h.prisma.orderItemPlacement.create({
+      data: {
+        id: uuidv7(),
+        orderItemId: item.id,
+        slot: "opening",
+        adId: f.ad.id,
+        durationSec: f.ad.durationSec,
+        createdAt: h.clock.now(),
+        updatedAt: h.clock.now(),
+      },
+    });
+    await unchanged(() => link(f, t), "AD_NOT_CANCELLABLE");
+  });
+
+  it("真实早回调锁完270后故障，首次ledger尚未调用且全链回滚", async () => {
+    const f = await fixture(),
+      t = await ticket(f),
+      real = companion(t);
+    const before = await snapshotTables(h.prisma, refTables);
+    let calls = 0;
+    const d = deps({
+      ledger: {
+        ...h.ledger,
+        lockAccount: async (...args) => {
+          calls++;
+          return h.ledger.lockAccount(...args);
+        },
+      },
+    });
+    await expect(
+      link(f, t, f.requester, d, {
+        ...real,
+        beforeAccount: async (tx, target) => {
+          await real.beforeAccount(tx, target);
+          throw new Error("after-real-support-270");
+        },
+      }),
+    ).rejects.toThrow("after-real-support-270");
+    expect(calls).toBe(0);
+    await assertSnapshotsEqual(before, await snapshotTables(h.prisma, refTables));
+  });
+
+  it("真实晚引用和audit.record已写后故障，审批、取消、积分及审计同事务撤销", async () => {
+    const f = await fixture(),
+      t = await ticket(f),
+      real = companion(t);
+    const before = await snapshotTables(h.prisma, refTables);
+    await expect(
+      link(f, t, f.requester, f.deps, {
+        ...real,
+        afterCreated: async (tx, target) => {
+          await real.afterCreated(tx, target);
+          expect(
+            await tx.serviceTicketRef.count({
+              where: {
+                serviceTicketId: t.id,
+                refType: "approval_request",
+                refId: target.approvalId,
+              },
+            }),
+          ).toBe(1);
+          expect(
+            await tx.auditLog.count({
+              where: {
+                targetId: t.id,
+                action: "support.service_ticket.ref_add",
+              },
+            }),
+          ).toBe(1);
+          throw new Error("after-real-support-ref-and-audit");
+        },
+      }),
+    ).rejects.toThrow("after-real-support-ref-and-audit");
+    await assertSnapshotsEqual(before, await snapshotTables(h.prisma, refTables));
+  });
+
+  it("自动全额释放实际完成后仍关联真实审批，关联审计保原staff且createdAt取审批提交时刻", async () => {
+    const f = await fixture(),
+      t = await ticket(f),
+      before = await observe(f);
+    await param("refund.points.auto_approve_before_production", true, f.requester.staff!.staff.id);
+    const r = await link(f, t),
+      row = await req(r.id);
+    expect(r.status).toBe("done");
+    expect(row.approvalRequest).toMatchObject({
+      status: "approved",
+      isDecidedBySystem: true,
+      decidedByStaffId: null,
+    });
+    expect(row.cancelRequestLines[0]).toMatchObject({
+      returnedPoints: r.totalRefundPoints,
+      convertedPoints: 0,
+      forfeitedPoints: 0,
+    });
+    await expectLink(f, t, r);
+    expect((await holdNow(f)).status).toBe("released");
+    expect((await adNow(f)).status).toBe("cancelled");
+    expect(
+      await h.prisma.ledgerOperation.count({
+        where: { entityId: f.ad.entityId, opType: "release" },
+      }),
+    ).toBe(before.operations.filter((op) => op.opType === "release").length + 1);
+    for (const [eventType, aggregateId] of [
+      ["approval.executed", r.approvalRequestId],
+      ["cancel.executed", r.id],
+      ["ad.cancelled", f.ad.id],
+    ] as const)
+      expect(await h.prisma.outboxEvent.count({ where: { eventType, aggregateId } })).toBe(1);
+  });
+
+  it("调用方未提交时自身可见完整引用与审计，独立连接不可见，外层失败全撤销", async () => {
+    const f = await fixture(),
+      t = await ticket(f),
+      before = await snapshotTables(h.prisma, refTables);
+    let approvalId = "";
+    await expect(
+      h.tx.run(async (tx) => {
+        const r = await submitAdCancel(tx, f.deps, f.requester, f.ad.id, f.body, companion(t));
+        approvalId = r.approvalRequestId;
+        expect(await tx.cancelRequest.findUnique({ where: { id: r.id } })).not.toBeNull();
+        expect(
+          await tx.serviceTicketRef.count({
+            where: {
+              serviceTicketId: t.id,
+              refType: "approval_request",
+              refId: approvalId,
+            },
+          }),
+        ).toBe(1);
+        expect(
+          await tx.auditLog.count({
+            where: {
+              targetId: t.id,
+              action: "support.service_ticket.ref_add",
+            },
+          }),
+        ).toBe(1);
+        expect(await h.prisma.approvalRequest.findUnique({ where: { id: approvalId } })).toBeNull();
+        expect(await linked(t.id)).toEqual([]);
+        expect(await refAudits(t.id)).toEqual([]);
+        throw new Error("outer-support-ref-rollback");
+      }),
+    ).rejects.toThrow("outer-support-ref-rollback");
+    expect(approvalId).not.toBe("");
+    await assertSnapshotsEqual(before, await snapshotTables(h.prisma, refTables));
+  });
+
+  it("伪造缺失早回调或把现有审批ID当新分配ID，真实writer均拒绝", async () => {
+    const f = await fixture(),
+      t = await ticket(f),
+      real = companion(t);
+    await unchanged(
+      () =>
+        link(f, t, f.requester, f.deps, {
+          beforeAccount: async () => undefined,
+          afterCreated: real.afterCreated,
+        }),
+      "INTERNAL",
+    );
+    const r = await submit(f);
+    const target: Target = {
+      actor: f.requester,
+      approvalId: r.approvalRequestId,
+      adId: f.ad.id,
+      entityId: f.ad.entityId,
+      storeId: f.ad.storeId,
+    };
+    await unchanged(() => h.tx.run((tx) => companion(t).beforeAccount(tx, target)), "INTERNAL");
+  });
+
+  it("晚回调clone早回调的target不能继承同事务capability，整份真实申请回滚", async () => {
+    const f = await fixture(),
+      t = await ticket(f),
+      real = companion(t);
+    let original: Target | undefined;
+    await unchanged(
+      () =>
+        link(f, t, f.requester, f.deps, {
+          beforeAccount: async (tx, target) => {
+            original = target;
+            await real.beforeAccount(tx, target);
+          },
+          afterCreated: async (tx, target) => {
+            expect(target).toBe(original);
+            expect(
+              await tx.approvalRequest.findUnique({
+                where: { id: target.approvalId },
+              }),
+            ).not.toBeNull();
+            await real.afterCreated(tx, { ...target });
+          },
+        }),
+      "INTERNAL",
+    );
+  });
+
+  it("已真实提交的原target换事务不可重放，既有引用与审批原样保留", async () => {
+    const f = await fixture(),
+      t = await ticket(f),
+      real = companion(t);
+    let captured!: Target;
+    const r = await link(f, t, f.requester, f.deps, {
+      beforeAccount: async (tx, target) => {
+        captured = target;
+        await real.beforeAccount(tx, target);
+      },
+      afterCreated: real.afterCreated,
+    });
+    await expectLink(f, t, r);
+    await unchanged(() => h.tx.run((tx) => real.afterCreated(tx, captured)), "INTERNAL");
+    await expectLink(f, t, r);
+  });
+
+  it("同Tx同原target在自动approved之后晚回调重入，引用与审计只一行", async () => {
+    const f = await fixture(),
+      t = await ticket(f),
+      real = companion(t);
+    await param("refund.points.auto_approve_before_production", true, f.requester.staff!.staff.id);
+    let captured!: Target;
+    const hooks: Companion = {
+      beforeAccount: async (tx, target) => {
+        captured = target;
+        await real.beforeAccount(tx, target);
+      },
+      afterCreated: async (tx, target) => {
+        expect(target).toBe(captured);
+        await real.afterCreated(tx, target);
+        await real.afterCreated(tx, target);
+      },
+    };
+    const r = await h.tx.run(async (tx) => {
+      const result = await submitAdCancel(tx, f.deps, f.requester, f.ad.id, f.body, hooks);
+      expect(result.status).toBe("done");
+      expect(
+        (
+          await tx.approvalRequest.findUniqueOrThrow({
+            where: { id: result.approvalRequestId },
+          })
+        ).status,
+      ).toBe("approved");
+      await real.afterCreated(tx, captured);
+      return result;
+    });
+    await expectLink(f, t, r);
+    expect(
+      await h.prisma.ledgerOperation.count({
+        where: { entityId: f.ad.entityId, opType: "release" },
+      }),
+    ).toBe(1);
+  });
+
+  it("真实270锁等待由PG双方PID确认，释放前首次ledger锁账户调用为零", async () => {
+    const f = await fixture(),
+      t = await ticket(f);
+    let writerPid = 0,
+      waiterPid = 0,
+      accountCalls = 0;
+    let locked!: () => void, release!: () => void, entered!: () => void;
+    const held = new Promise<void>((resolve) => {
+      locked = resolve;
+    });
+    const proceed = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const connected = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const writer = h.tx.run(async (tx) => {
+      writerPid = (
+        await tx.$queryRawUnsafe<{ pid: number }[]>("SELECT pg_backend_pid() AS pid")
+      )[0]!.pid;
+      await lockRows(tx, "service_ticket", [t.id]);
+      locked();
+      await proceed;
+    });
+    await held;
+    const d = deps({
+      tx: {
+        ...h.tx,
+        run: (fn, options) =>
+          h.tx.run(async (tx) => {
+            waiterPid = (
+              await tx.$queryRawUnsafe<{ pid: number }[]>("SELECT pg_backend_pid() AS pid")
+            )[0]!.pid;
+            entered();
+            return fn(tx);
+          }, options),
+      },
+      ledger: {
+        ...h.ledger,
+        lockAccount: async (...args) => {
+          accountCalls++;
+          return h.ledger.lockAccount(...args);
+        },
+      },
+    });
+    const waiter = link(f, t, f.requester, d).then(
+      (value) => ({ value }),
+      (error: unknown) => ({ error }),
+    );
+    const observer = createPrismaClient({
+      connectionString: testDatabaseUrl(db.name, { role: null }),
+      max: 1,
+    });
+    try {
+      await connected;
+      expect(writerPid).toBeGreaterThan(0);
+      expect(waiterPid).not.toBe(writerPid);
+      let blocked = false;
+      for (let attempt = 0; attempt < 200; attempt++) {
+        const [backend] = await observer.$queryRawUnsafe<
+          {
+            waiting: boolean;
+            blockers: number[];
+            query: string;
+          }[]
+        >(
+          "SELECT wait_event_type = 'Lock' AS waiting, pg_blocking_pids(pid) AS blockers, query FROM pg_stat_activity WHERE pid = $1",
+          waiterPid,
+        );
+        if (backend?.waiting) {
+          expect(backend.blockers).toContain(writerPid);
+          expect(backend.query).toContain('FROM "service_ticket"');
+          expect(accountCalls).toBe(0);
+          expect(await linked(t.id)).toEqual([]);
+          console.warn("support ad cancel ticket prelock observed", {
+            writerPid,
+            waiterPid,
+            ticketId: t.id,
+            adId: f.ad.id,
+            blockers: backend.blockers,
+          });
+          blocked = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      expect(blocked).toBe(true);
+      h.clock.advance(1);
+      release();
+      await writer;
+      const result = await waiter;
+      expect(result).toMatchObject({ value: { status: "pending_approval" } });
+      if (!("value" in result)) throw new Error("support-ref waiter failed");
+      expect(accountCalls).toBeGreaterThan(0);
+      await expectLink(f, t, result.value);
+    } finally {
+      release();
+      await Promise.allSettled([writer, waiter]);
+      await observer.$disconnect();
+    }
+  });
+
+  async function twoConnections(first: Fixture, second: Fixture, t: Ticket) {
+    let enter = 0,
+      open!: () => void;
+    const both = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    const pids: number[] = [];
+    const run = (f: Fixture) =>
+      h.tx.run(async (tx) => {
+        pids.push(
+          (await tx.$queryRawUnsafe<{ pid: number }[]>("SELECT pg_backend_pid() AS pid"))[0]!.pid,
+        );
+        if (++enter === 2) open();
+        await both;
+        return submitAdCancel(tx, f.deps, f.requester, f.ad.id, f.body, companion(t));
+      });
+    const outcomes = await Promise.allSettled([run(first), run(second)]);
+    expect(new Set(pids).size).toBe(2);
+    return outcomes;
+  }
+
+  it(
+    "二十轮同工单不同广告使用实际双连接，都保真实各一审批引用和审计",
+    { timeout: 120_000 },
+    async () => {
+      for (let round = 0; round < 20; round++) {
+        const f = await fixture();
+        const g = await fixture({ tenant: { merchant: f.merchant, term: f.term } });
+        const t = await ticket(f),
+          outcomes = await twoConnections(f, g, t);
+        expect(outcomes.every((outcome) => outcome.status === "fulfilled")).toBe(true);
+        const ids = outcomes.flatMap((outcome) =>
+          outcome.status === "fulfilled" ? [outcome.value.approvalRequestId] : [],
+        );
+        expect(await linked(t.id)).toHaveLength(2);
+        expect((await linked(t.id)).map((ref) => ref.refId).sort()).toEqual(ids.sort());
+        expect(await refAudits(t.id)).toHaveLength(2);
+        expect(
+          await h.prisma.cancelRequest.count({
+            where: { entityId: f.ad.entityId, kind: "ad_cancel" },
+          }),
+        ).toBe(2);
+        expect((await holdNow(f)).status).toBe("held");
+        expect((await holdNow(g)).status).toBe("held");
+        expect(await h.prisma.serviceTicket.findUniqueOrThrow({ where: { id: t.id } })).toEqual(t);
+      }
+    },
+  );
+
+  it("二十轮同广告同工单双连接竞争只有一套真实申请引用审计", { timeout: 120_000 }, async () => {
+    for (let round = 0; round < 20; round++) {
+      const f = await fixture(),
+        t = await ticket(f);
+      const outcomes = await twoConnections(f, f, t);
+      const ok = outcomes.filter((outcome) => outcome.status === "fulfilled");
+      expect(ok).toHaveLength(1);
+      expect(outcomes.find((outcome) => outcome.status === "rejected")).toMatchObject({
+        reason: { error: "AD_CANCEL_IN_PROGRESS" },
+      });
+      if (ok[0]?.status !== "fulfilled") throw new Error("missing real support-ref winner");
+      const r = ok[0].value;
+      await expectLink(f, t, r);
+      expect(
+        await h.prisma.cancelRequest.count({
+          where: { adId: f.ad.id, kind: "ad_cancel" },
+        }),
+      ).toBe(1);
+      expect((await adNow(f)).openCancelRequestId).toBe(r.id);
+      expect((await holdNow(f)).status).toBe("held");
+      for (const [eventType, aggregateId] of [
+        ["approval.submitted", r.approvalRequestId],
+        ["cancel.submitted", r.id],
+      ] as const)
+        expect(await h.prisma.outboxEvent.count({ where: { eventType, aggregateId } })).toBe(1);
+    }
+  });
+
+  it("真实驳回撤回作废执行均保历史审批引用与旧广告引用，不造客服业务事件条目", async () => {
+    for (const action of ["reject", "withdraw", "void", "execute"] as const) {
+      const f = await fixture(),
+        t = await ticket(f);
+      // This is an unrelated historical upstream ref; the tested approval ref only uses the real writer.
+      await h.prisma.serviceTicketRef.create({
+        data: {
+          serviceTicketId: t.id,
+          refType: "ad",
+          refId: f.ad.id,
+          createdAt: h.clock.now(),
+        },
+      });
+      const r = await link(f, t);
+      const before = await linked(t.id),
+        audits = await refAudits(t.id);
+      if (action === "reject")
+        await f.service.reject(f.approver, r.id, { note: "真实驳回保留客服历史" });
+      else if (action === "withdraw")
+        await f.service.withdraw(f.requester, r.id, { note: "本人撤回保留历史" });
+      else {
+        const approved = await approve(f, r);
+        if (action === "void")
+          await f.service.void(f.requester, r.id, { note: "本人作废保留历史" });
+        else await execute(f, approved);
+      }
+      expect(await linked(t.id)).toEqual(before);
+      expect(await refAudits(t.id)).toEqual(audits);
+      expect(before.filter((ref) => ref.refType === "ad")).toHaveLength(1);
+      expect(before.find((ref) => ref.refType === "approval_request")?.refId).toBe(
+        r.approvalRequestId,
+      );
+      expect(await h.prisma.serviceTicketEntry.count({ where: { serviceTicketId: t.id } })).toBe(0);
+      expect(await h.prisma.serviceTicket.findUniqueOrThrow({ where: { id: t.id } })).toEqual(t);
     }
   });
 });

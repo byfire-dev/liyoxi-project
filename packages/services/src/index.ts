@@ -312,6 +312,7 @@ export {
   revalidateCancel,
 } from "./order/index.js";
 export { QualificationImpactPort } from "./profile/index.js";
+export { createAdCancelApprovalRefCompanion } from "./support/index.js";
 export type { QualificationImpact } from "./profile/index.js";
 
 export { createDocumentConverter, runDocumentConversionWorker } from "./kernel/index.js";
