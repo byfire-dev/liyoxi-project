@@ -10,6 +10,7 @@ import type {
   MembershipResult,
   StoreList,
   StoreArchiveResult,
+  StoreDeleteResult,
   StoreCard,
   MemberItem,
   MemberList,
@@ -55,12 +56,15 @@ import type { MemberManagementDeps } from "./member-management.js";
 import { createInvitation, markInvitationSharedIn, revokeInvitationIn } from "./invitations.js";
 import type { InvitationDeps, InvitationOptions } from "./invitations.js";
 import { invitationPreview } from "./invitation-repo.js";
-import { archiveStoreIn } from "./store-archive.js";
+import { archiveStoreIn, deleteStoreIn } from "./store-archive.js";
+import type { StoreDraftFactsReader } from "./store-archive.js";
 import { restoreStoreIn } from "./store-restore.js";
 import type { Timers } from "../timers/index.js";
 import { createInvitationAcceptor } from "./invitation-accept.js";
 
 export interface TenantDeps extends Pick<MemberManagementDeps, "readMemberAssetCounts" | "events"> {
+  /** 删除草稿门店需要六个拥有者的真实同事务历史，缺装配不影响旧用例。 */
+  readonly readStoreDraftFacts?: StoreDraftFactsReader;
   /** 仅新门店归档用例需要；同事务取消原邀请到期任务。 */
   readonly archiveTimers?: Pick<Timers, "cancel">;
   /** 仅四个新邀请入口需要；旧用例不因缺此装配失败。 */
@@ -91,6 +95,11 @@ export interface Tenant {
     input: { storeId: string },
     options?: UseCaseOptions,
   ): Promise<StoreArchiveResult>;
+  deleteStore(
+    ctx: IdentityContext,
+    input: { storeId: string },
+    options: UseCaseOptions & { readonly idem: IdempotencyContext },
+  ): Promise<StoreDeleteResult>;
   /** 只恢复老板停用的门店，重新占用当前主体额度。 */
   restoreStore(
     ctx: IdentityContext,
@@ -221,6 +230,15 @@ export function createTenant(deps: TenantDeps): Tenant {
     },
     restoreStore: (ctx, input, options = {}) =>
       deps.tx.run((tx) => restoreStoreIn(tx, { ...deps, facts }, ctx, input.storeId), options),
+    deleteStore: (ctx, input, options) => {
+      if (!deps.archiveTimers || !deps.events || !deps.readStoreDraftFacts || !options?.idem)
+        throw new AppError("INTERNAL");
+      return deps.tx.run(
+        (tx) =>
+          deleteStoreIn(tx, { ...deps, facts, timers: deps.archiveTimers! }, ctx, input.storeId),
+        options,
+      );
+    },
     rememberCurrentStore: (input, options = {}) =>
       deps.tx.run((tx) => rememberCurrentStore(tx, now(), input), options),
     removeMember: (ctx, input, options = {}) =>

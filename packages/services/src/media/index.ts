@@ -70,4 +70,5 @@ export {
   assertAssetReferences,
   linkAssetReferences,
   readOrderAssetReferences,
+  countStoreOriginalAssets,
 } from "./assets/facts.js";

@@ -1,5 +1,6 @@
 export { registration } from "./register.js";
 export { countBlockingStoreAds } from "./close-facts.js";
+export { countStoreAdHistory } from "./close-facts.js";
 export { readAdAssetUsage, hasAssetEditingAd } from "./asset-facts.js";
 export { clearAdCancelRequestPointers } from "./cancel-pointers.js";
 export { claimAdCancelRequest, cancelAd } from "./cancel-write.js";

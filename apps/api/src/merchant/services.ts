@@ -13,6 +13,7 @@ import {
   createFlow,
   createIdentity,
   createTenant,
+  readStoreDraftFacts,
   createProfile,
   currentSessionOpenid,
   assertCurrentSession,
@@ -70,6 +71,7 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
     events,
     readMemberAssetCounts: media.readMemberAssetCounts,
     archiveTimers: runtime.timers,
+    readStoreDraftFacts,
     invitations: {
       keyring: () => (keyring ??= security.loadKeyring(runtime.env)),
       timers: runtime.timers,
