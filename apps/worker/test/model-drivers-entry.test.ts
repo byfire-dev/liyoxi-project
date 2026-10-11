@@ -77,7 +77,7 @@ const configurations = [
   { name: "llm", asr: false, llm: true },
   { name: "both", asr: true, llm: true },
 ] as const;
-let services: Record<string, ReturnType<typeof vi.fn> | null>;
+let services: Record<string, ReturnType<typeof vi.fn<() => Promise<void>>> | null>;
 let signals: Map<string, () => void>;
 let exit: ReturnType<typeof vi.fn<typeof process.exit>>;
 

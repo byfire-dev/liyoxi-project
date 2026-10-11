@@ -86,12 +86,15 @@ function instance(providers?: WorkerServicesOptions["providers"]) {
     close,
     actualCloses,
     modelCloses,
-    recover: [] as Array<() => unknown>,
+    recover: [] as Array<() => void | Promise<void>>,
   };
   instances.push(one);
   return one;
 }
-const instances: Array<ReturnType<typeof instance>> = [];
+const instances: Array<{
+  runtime: ReturnType<typeof createWorkerRuntime>;
+  recover: Array<() => void | Promise<void>>;
+}> = [];
 beforeEach(() => {
   vi.stubGlobal(
     "fetch",
