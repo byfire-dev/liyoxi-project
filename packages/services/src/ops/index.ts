@@ -84,6 +84,7 @@ export {
 
 export { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./media-assets-runtime.js";
 export { readModelBudgetPermit } from "./model-budget-permit.js";
+export { readStoreDraftFacts } from "./store-draft-facts.js";
 export { createModelBudgetRuntime } from "./model-budget-runtime.js";
 export { createModelBudgetInspector } from "./model-budget-inspect.js";
 export type { ModelBudgetInspection } from "./model-budget-inspect.js";

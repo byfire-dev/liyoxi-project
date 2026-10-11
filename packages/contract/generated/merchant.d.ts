@@ -1458,6 +1458,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/stores/{storeId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 删除草稿门店（从未提交资质且无业务数据、不是最后一家）；不物理删除，置为已停用 */
+        post: operations["m.store.delete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/stores/{storeId}/restore": {
         parameters: {
             query?: never;
@@ -4744,6 +4761,12 @@ export interface components {
             /** Format: uuid */
             storeId: string;
             todoCount: number;
+        };
+        StoreDeleteResult: {
+            /** Format: date-time */
+            deletedAt: string;
+            /** Format: uuid */
+            storeId: string;
         };
         StoreProfileBasic: {
             address: components["schemas"]["AddressView"];
@@ -12427,6 +12450,79 @@ export interface operations {
                         /** @enum {number} */
                         code: 0;
                         data: components["schemas"]["StoreArchiveResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.store.delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                storeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["StoreDeleteResult"];
                         /** @enum {string} */
                         message: "ok";
                     };

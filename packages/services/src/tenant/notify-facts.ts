@@ -173,7 +173,7 @@ export async function storeArchiveForNotify(tx: Tx, sourceId: string) {
   if (
     store?.entityId !== source.entityId ||
     store.lifecycle !== "archived" ||
-    store.archiveReason !== "by_owner" ||
+    (store.archiveReason !== "by_owner" && store.archiveReason !== "draft_deleted") ||
     !store.archivedAt ||
     store.archiveActorType !== "merchant" ||
     !store.archiveActorId ||
@@ -181,6 +181,8 @@ export async function storeArchiveForNotify(tx: Tx, sourceId: string) {
     store.entity.lifecycle !== "active"
   )
     return null;
+  const lifecycleEvent =
+    store.archiveReason === "draft_deleted" ? "store.draft_delete" : "store.archive";
   const archive = await tx.statusTransition.findFirst({
     where: {
       machine: "store",
@@ -191,10 +193,10 @@ export async function storeArchiveForNotify(tx: Tx, sourceId: string) {
   });
   if (
     !archive ||
-    archive.event !== "store.archive" ||
+    archive.event !== lifecycleEvent ||
     archive.fromState !== "active" ||
     archive.toState !== "archived" ||
-    archive.reasonCode !== "by_owner" ||
+    archive.reasonCode !== store.archiveReason ||
     archive.entityId !== store.entityId ||
     archive.storeId !== store.id ||
     archive.actorType !== store.archiveActorType ||
@@ -219,8 +221,8 @@ export async function storeArchiveForNotify(tx: Tx, sourceId: string) {
   if (
     anchored.storeId !== store.id ||
     anchored.entityId !== store.entityId ||
-    anchored.archiveReason !== "by_owner" ||
-    anchored.transition !== "store.archive" ||
+    anchored.archiveReason !== store.archiveReason ||
+    anchored.transition !== lifecycleEvent ||
     anchor.actorType !== archive.actorType ||
     anchor.actorId !== archive.actorId ||
     anchor.client !== archive.client ||
@@ -230,6 +232,8 @@ export async function storeArchiveForNotify(tx: Tx, sourceId: string) {
     return null;
   const common = { version: 0, name: "成员状态变更", status: "removed" };
   if (source.eventType === "store.archived") {
+    // 删除草稿只复用成员联动；经理通知仍只属于老板停用门店。
+    if (store.archiveReason !== "by_owner") return null;
     const p = EVENT_PAYLOAD_SCHEMAS["store.archived"].parse(source.payload);
     if (
       p.storeId !== store.id ||

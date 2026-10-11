@@ -1343,3 +1343,10 @@ erDiagram
 门店再次归档后，读取当前五个归档列、最后一条 store.lifecycle 历史和最新真实 store.archived 源。历史与 outbox 的 seq 只在各自表内排序，不跨表比较；经理源必须是当前源 id，本人级联源须在该归档源之后且当前 removedAt 对应同次归档。请求号可重复或为空，三次 Clock 采样不要求相等；同发生次回拨使时间下界失效时保守拒发。
 
 仅 reader 识别当前发生次，原账号级安全告知、当前有效老板/经理筛选、持久来源识别与实际发送前重验保持。恢复不删除历史消息或放宽 messages.list 的业务权限，也不扩张普通 by_owner 移除通知。
+
+### 草稿删除的成员安全告知实施边界（SOURCE）
+
+draft_deleted/store.draft_delete 仅作为同一真实 store_archived 系统级联的发生次配对。
+本人仍为 NULL entity/store/copyMode、非 ownerOnly、messages.list；老板只进入当前有效门店。
+经理 s.merchant_changed 仍只认 by_owner/store.archive，draft_deleted 全消息及外发链不新增通知。
+原历史/来源与发送前重验、消息权限 SQL、acceptedInvitation 和其他成员原因保持；无新通知场景。

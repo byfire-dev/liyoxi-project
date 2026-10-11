@@ -10,6 +10,8 @@ import {
   StoreArchiveResultSchema,
   StoreRestoreParamsSchema,
   StoreCardSchema,
+  StoreDeleteParamsSchema,
+  StoreDeleteResultSchema,
 } from "./tenant.schemas.js";
 
 export const mStoreList = merchantRoute({
@@ -51,7 +53,7 @@ export const mStoreArchive = merchantRoute({
   },
 });
 
-export const mStoreDelete = merchantMeta({
+export const mStoreDelete = merchantRoute({
   method: "post",
   path: "/m/stores/{storeId}/delete",
   operationId: "m.store.delete",
@@ -59,6 +61,8 @@ export const mStoreDelete = merchantMeta({
   "x-capability": "store.archive",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: { params: StoreDeleteParamsSchema },
+  responses: { ...okResponse(StoreDeleteResultSchema), ...errorResponses(400, 401, 403, 404, 409) },
 });
 
 export const mStoreRestore = merchantRoute({
