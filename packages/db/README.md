@@ -6,6 +6,12 @@ W2-17 独立结构能力增加 `notification_fanout`（13 列、6 CHECK、2 FK�
 
 ## 1. 这里有什么
 
+W2-10 邀请请求映射是独立结构前置：`invitation_request` 七列只增表、四个 RESTRICT FK、两个公共守卫，连同原邀请引用候选唯一共新增四索引。应用仅 INSERT/SELECT，readonly 沿原属主默认 SELECT；旧迁移与首版底稿保持原字节，见[实施边界](../../docs/plan/changes/W2-10-invitation-request-schema.md)。
+
+新迁移显式事务锁 invitation，全状态回填原创建请求 A→原卡并逐列核对；不推断历史未保存的复用键。映射与邀请长期保留，不存正文、令牌或 PII，终态不删除或改绑。
+
+官方生成准备已用旧五迁移空库的 Prisma diff 逐项对照新表、索引与 FK，并官方生成客户端及快照；原始 diff 保留，仅排除既有工具登记的 ix_store_asset_search 假 DROP。带五种历史邀请的真实升级、类型、测试与完整结构/授权检查另待独占验证，不复用准备结果。后续卡片 HTTP 与 expiry 只在结构实际合入 main 后消费，结构测试不声称这些生产入口或强重试业务已交。
+
 | 路径 | 内容 |
 | --- | --- |
 | `prisma/schema.prisma` | 现行模型；首版从冻结底稿迁入，后续独立结构迁移同时维护这里 |
