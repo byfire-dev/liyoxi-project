@@ -383,6 +383,8 @@ describe("键名清单", () => {
       "CI_CALLBACK_KEY_FILE",
       "CI_CALLBACK_ORIGIN",
       "MEDIA_PRODUCTION_FILE",
+      "ASR_TENCENT_FILE",
+      "LLM_DOMESTIC_FILE",
     ]);
   });
 });

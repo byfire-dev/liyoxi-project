@@ -74,6 +74,8 @@ export const ENV_KEYS: readonly string[] = [
   "CI_CALLBACK_KEY_FILE",
   "CI_CALLBACK_ORIGIN",
   "MEDIA_PRODUCTION_FILE",
+  "ASR_TENCENT_FILE",
+  "LLM_DOMESTIC_FILE",
 ];
 
 /** 数据加密密钥文件的内容：current 是当前 kid，keys 是 kid → base64 写的 32 字节 */
@@ -109,7 +111,13 @@ export interface ClientErrorProjectsConfig {
   readonly projects: readonly { readonly dsn: string; readonly upstreamDsn?: string }[];
 }
 
+export type AsrTencentEnvConfig = z.infer<typeof AsrTencentEnvSchema>;
+export type LlmDomesticEnvConfig = z.infer<typeof LlmDomesticEnvSchema>;
+
 export interface Env {
+  /** 独立可选的严格模型配置；本片只解析，不装配或启用驱动。 */
+  readonly ASR_TENCENT?: AsrTencentEnvConfig;
+  readonly LLM_DOMESTIC?: LlmDomesticEnvConfig;
   readonly MEDIA_PRODUCTION?: {
     readonly workDir: string;
     readonly socketPath: string;
@@ -572,6 +580,58 @@ function readWechatFile(source: EnvSource, key: string, issues: EnvIssue[]): str
   return undefined;
 }
 
+// 与已接受驱动的字符串谓词等价；不把原 UTF16 长度或正则改成码点规则。
+const AsrTencentEnvSchema = z
+  .object({
+    secretId: z.string().refine((value) => /^[A-Za-z0-9_-]{1,128}$/.test(value)),
+    secretKey: z.string().refine((value) => value.length > 0 && value.length <= 256),
+  })
+  .strict()
+  .readonly();
+const LlmEndpointEnvSchema = z
+  .object({
+    vendor: z.enum(["ark", "bailian", "deepseek"]),
+    model: z.string().refine((value) => /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value)),
+    apiKey: z.string().refine((value) => /^[\x21-\x7e]{1,512}$/.test(value)),
+    workspaceId: z.string().optional(),
+  })
+  .strict()
+  .superRefine((endpoint, context) => {
+    const valid =
+      endpoint.vendor === "bailian"
+        ? endpoint.workspaceId !== undefined &&
+          /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(endpoint.workspaceId)
+        : endpoint.workspaceId === undefined;
+    if (!valid) context.addIssue({ code: "custom", message: "工作区配置不合法" });
+  })
+  .readonly();
+const LlmRouteEnvSchema = z
+  .object({ primary: LlmEndpointEnvSchema, backup: LlmEndpointEnvSchema })
+  .strict()
+  .readonly();
+const LlmDomesticEnvSchema = z
+  .object({ text: LlmRouteEnvSchema, vision: LlmRouteEnvSchema })
+  .strict()
+  .readonly();
+
+function readModelFile<T>(
+  source: EnvSource,
+  key: "ASR_TENCENT" | "LLM_DOMESTIC",
+  issues: EnvIssue[],
+  schema: z.ZodType<T>,
+): T | undefined {
+  const text = readWechatFile(source, key, issues);
+  if (text === undefined) return undefined;
+  try {
+    const parsed = schema.safeParse(JSON.parse(text) as unknown);
+    if (parsed.success) return parsed.data;
+  } catch {
+    // 不透传 JSON/Zod 异常、字段值或路径。
+  }
+  issues.push({ key: `${key}_FILE`, reason: "须为完整合法的模型JSON配置" });
+  return undefined;
+}
+
 function readCi(source: EnvSource, issues: EnvIssue[]): Env["CI"] {
   const callbackKey = readWechatFile(source, "CI_CALLBACK_KEY", issues);
   const workerText = readWechatFile(source, "CI_WORKER_KEYS", issues);
@@ -823,6 +883,8 @@ export function loadEnv(
   const minio = readMinio(source, appEnv, issues);
   const cos = readCos(source, issues);
   const ci = readCi(source, issues);
+  const asrTencent = readModelFile(source, "ASR_TENCENT", issues, AsrTencentEnvSchema);
+  const llmDomestic = readModelFile(source, "LLM_DOMESTIC", issues, LlmDomesticEnvSchema);
   const mediaProduction = readKeyFile(source, "MEDIA_PRODUCTION", issues, parseMediaProduction);
   const clientErrorProjects = readKeyFile(
     source,
@@ -862,6 +924,8 @@ export function loadEnv(
     ...(cos ? { COS: cos } : {}),
     ...(ci ? { CI: ci } : {}),
     ...(mediaProduction ? { MEDIA_PRODUCTION: mediaProduction } : {}),
+    ...(asrTencent ? { ASR_TENCENT: asrTencent } : {}),
+    ...(llmDomestic ? { LLM_DOMESTIC: llmDomestic } : {}),
     ...(dataKeys && bidxKeys ? { DATA_KEYS: dataKeys, BIDX_KEYS: bidxKeys } : {}),
     ...(authKeys ? { AUTH_KEYS: authKeys } : {}),
     ...(secretId && secretKey && sdkAppId && region
