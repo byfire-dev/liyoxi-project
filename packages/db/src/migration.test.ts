@@ -31,6 +31,7 @@ function copyOfPackage(): string {
     cpSync(join(pkg, path), join(copy, path), { recursive: true });
   }
   symlinkSync(join(pkg, "node_modules"), join(copy, "node_modules"), "dir");
+  symlinkSync(join(repoRoot, "node_modules"), join(dir, "node_modules"), "dir");
   const constraints = "docs/data-model/constraints";
   cpSync(join(repoRoot, constraints), join(dir, constraints), { recursive: true });
   cpSync(
