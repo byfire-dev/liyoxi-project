@@ -239,3 +239,14 @@ reporting-body在原pipeline末尾、OpenAPI解析前逐chunk读取真实字节�
 CLIENT_ERROR_PROJECTS_FILE内容由loadEnv读取，格式为{"projects":[{"dsn":"https://publickey@example.invalid/7","upstreamDsn":"https://upstreamkey@example.invalid/7"}]}（仅占位示例）。至多3个唯一公开dsn，HTTPS/数字项目/可固定前缀、无password/query/hash；传入信封dsn精确匹配公开白名单，外呼只从已配置upstreamDsn推导固定目标，redirect:error。FILE未配则严格解析/去敏后日志202，upstream未配只日志；原信封/DSN凭据/请求体/手机号不落日志。两端公开构建DSN须与配置dsn逐字一致：小程序WEAPP_SENTRY_DSN，后台VITE_CLIENT_ERROR_DSN。真实FILE、模板与收件按W2-27授权另验，不能把fakeHTTP当真实平台证据。转发器队列/熔断/关闭语义见[说明](../../packages/services/src/ops/client-errors.README.md)。
 
 定向验证：pnpm exec vitest run --project api apps/api/test/client-reporting.test.ts apps/api/src/http/reporting-body.test.ts apps/api/test/pipeline.test.ts。商家三条原店员回放样例只增reporting-samples，golden由原pnpm clerk:snapshot生成；后台optional上报不属于staff矩阵，新资源不修改既有矩阵行。
+
+## 邀请预览店员字段门禁独立前置
+
+正式 m02 §2.9 的 `InvitationPreview.isPhoneRestricted` 是公开布尔决策，不回显手机号。
+本片从 actual main `46c6c04a` 独立准备 `gate-change`：仅 `m.invitation.lookup`、顶层完整路径 `isPhoneRestricted`、boolean 三条件同时成立时放行。
+原 FORBIDDEN、递归、其它例外与旧测试不变；新组仅附 mall-filter-fields.test.ts 尾，错误类型、嵌套、其它路由及 phone/targetPhone 仍拒绝。
+非测试含文档≤80、新测试≤180；当前仅 SOURCE/轻静态，完整两测试叶、fresh API 类型、必要门禁与唯一 ROOT180秒独审尚未执行。
+验收命令：`pnpm exec vitest run --project api apps/api/test/clerk/clerk.test.ts apps/api/test/clerk/mall-filter-fields.test.ts --maxWorkers=1 --no-file-parallelism --no-cache`，以及原分类器 `node infra/ci/classify-gate-changes.mjs --base 46c6c04af68c7ffc956712837538fcf743b28bd2 --labels gate-change`。
+此门禁放松独立于邀请业务源码，不改分类规则、契约、HTTP、DDL 或依赖；不计完整邀请、emptyDraft 或 W2-10 完成。
+
+2026-10-11 本地合流记录：邀请预览店员字段门禁独立前置源387b041c从实际main46c6c04a开工，经唯一非作者ROOT正式审查76.861018208/180秒通过，P1/P2/D=0、首尾SHA无差异。非测试新增14/80、测试新增84/180；只允许m.invitation.lookup顶层isPhoneRestricted布尔，原FORBIDDEN/其它路径与类型行为保留。新增33边界与原98共131/131、两个完整文件、fresh API类型及17阶段全部退出0，0失败/跳过/pending/todo/复用/未执行。原mall7858字节前缀及clerk整叶经ROOT独立base核对完全保留；原classifier明确loosen、outside为空，按gate-change独立验收，不改登记或规则。69观测PID/20PGID（含observer/owner/caffeinate）退出后fresh OS全部归零，自有DB/Redis/TMP归零。正常hooks后立即合本地main，仅三个已登记门禁叶，五个外来首页文件逐SHA保留且未暂存、outputs未读写。本段替代本片SOURCE未验证状态；此片不交邀请业务HTTP/到期、emptyDraft或完整W2-10，不声称远端CI/真实平台或生产容量。

@@ -50,9 +50,14 @@ export function clerkVisibleKeys(operationId: string, data: unknown): string[] {
       const path = parent ? `${parent}.${dictionary ? "*" : key}` : key;
       const loginDecision =
         operationId === "m.session.create" && path === "needPhone" && typeof child === "boolean";
+      const invitationDecision =
+        operationId === "m.invitation.lookup" &&
+        path === "isPhoneRestricted" &&
+        typeof child === "boolean";
       if (
         !dictionary &&
         !loginDecision &&
+        !invitationDecision &&
         !isMallFilter(operationId, path, child) &&
         !isSellingPoints(operationId, path, child) &&
         FORBIDDEN.test(key) &&
