@@ -17,6 +17,8 @@
 
 ## 2. 文档怎么读
 
+W2-10 独立结构前置增加 `invitation_request`（七列、四 FK、两个只增守卫），并为原邀请增加精确引用候选唯一；预计净增一表、四索引，无 CHECK/枚举变化。当前 SOURCE，正式结构计数与快照在独占生成/真实旧库升级核对后更新，第1节数字仍为前置基线，不代表本片已验。
+
 | 想知道 | 看哪里 |
 | --- | --- |
 | 有哪些表、各属于哪个模块 | 本文第 4 节 |
@@ -133,6 +135,7 @@
 | `entity_member` | 成员关系 | 主体 | uuid |  | 是 | 120 |
 | `store_member` | 店员所属门店 | 主体 + 门店 | entity_member_id + store_id |  |  |  |
 | `invitation` | 店员邀请 | 主体 + 门店 | uuid |  | 是 | 110 |
+| `invitation_request` | 邀请请求映射 | 主体 + 门店 | uuid | 是 |  |  |
 | `referral_code` | 渠道码与邀请码登记 | — | uuid |  |  |  |
 | `portal_ticket` | 下载页扫码票据 | 主体 + 门店 | uuid |  |  |  |
 

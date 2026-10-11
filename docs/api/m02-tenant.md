@@ -23,7 +23,7 @@
 | `m.member.update` | `PATCH /m/members/{memberId}` | 调整店员所属门店 | `member`；`member.manage` | required |
 | `m.member.remove` | `POST /m/members/{memberId}/remove` | 移除店员 | `member`；`member.manage` | required |
 | `m.me.membership.leave` | `POST /m/me/membership/leave` | 店员退出主体 | `member`；`me.*` | required |
-| `m.invitation.create` | `POST /m/invitations` | 预创建邀请卡片（未分享的复用） | `member`；`member.manage` | natural（`uq_invitation_inviter_member_id_client_request_id`） |
+| `m.invitation.create` | `POST /m/invitations` | 预创建邀请卡片（未分享的复用） | `member`；`member.manage` | natural（原创建键及请求映射键，见3.12） |
 | `m.invitation.markShared` | `POST /m/invitations/{invitationId}/mark-shared` | 上报已分享 | `member`；`member.manage` | required |
 | `m.invitation.revoke` | `POST /m/invitations/{invitationId}/revoke` | 撤回待接受的邀请 | `member`；`member.manage` | required |
 | `m.invitation.lookup` | `GET /m/invitations/lookup?token=` | 邀请落地页信息 | `public` | none（查询） |
@@ -685,7 +685,7 @@
 | operationId | `m.invitation.create`（路线图 `m02.invitation.create`） |
 | 鉴权 | `member`；能力点 `member.manage`（仅老板；已停用门店上下文里没有） |
 | 店员视图 | `none` |
-| 幂等 | `natural`，`idempotentBy = [uq_invitation_inviter_member_id_client_request_id]`：请求体带 `clientRequestId`，不要 `Idempotency-Key`（C47） |
+| 幂等 | `natural`，`idempotentBy = [uq_invitation_inviter_member_id_client_request_id, uq_invitation_request_inviter_client]`：请求体带 `clientRequestId`，不要 `Idempotency-Key`（C47） |
 | 乐观锁 | 无；事务先锁主体行，复用时再锁那张邀请行（第 1 节的次序） |
 | 限流 | `m.global` |
 | 开关 | 无 |
@@ -695,7 +695,7 @@
 
 | 字段 | 类型 | 必填 | 约束 | 说明 |
 | --- | --- | --- | --- | --- |
-| `clientRequestId` | string(uuid) | 是 | 端上每次调用新生成（进入邀请页一次，之后每次改备注名或手机号各一次）；网络重试沿用同一个 | → `invitation.client_request_id`（新建时） |
+| `clientRequestId` | string(uuid) | 是 | 端上每次调用新生成（进入邀请页一次，之后每次改备注名或手机号各一次）；网络重试沿用同一个 | 所有成功请求 → `invitation_request.client_request_id`；原创建键仍存 `invitation.client_request_id` |
 | `remarkName` | string \| null | 否 | ≤10 字；过文本内容安全检测 | 老板填的备注名 → `invitation.remark_name`。键缺省 = 不改（复用时保持原值）；显式 `null` = 清空 |
 | `targetPhone` | string \| null | 否 | 11 位手机号；参数 `invitation.require_phone` 为真时必填 | 定向手机号；只存盲索引 → `invitation.target_phone_bidx`，不回显。键缺省 = 不改；显式 `null` = 取消定向 |
 
@@ -718,7 +718,10 @@
 
 - 新建：`invitation.status`：— → `pending`（`invitation.create`，`02-identity-tenant.md:786`）；`expires_at` = 创建 + 参数 `invitation.ttl_hours`（默认 24 小时）；登记定时器 `timer.kind = invitation.expire`，`dedupe_key = invitation.expire:invitation:{invitationId}`，`fire_at = expires_at`（`02-identity-tenant.md:794`）；写 `status_transition` 与审计（`activity` 流）；出站事件 `invitation.created`（x01 3.2）。
 - 复用：同一邀请人、同一门店已有 `pending`、未过期、`shared_at` 为空的邀请时不新建，返回同一行（`isReused = true`），把 `invitation.expires_at` 重置为 now + 24 小时，并按同一 `dedupe_key` 把定时器 `fire_at` 改到新时刻；不计入每日上限、不再占名额（d4:711）。请求体带了 `remarkName` / `targetPhone` 键的，原地改写 `invitation.remark_name` / `invitation.target_phone_bidx`（两列都允许修改，`trg_invitation_immutable` 不含它们），改写时写审计；令牌不变。这样“先预创建、后填备注名与手机号”只有一张卡片。本稿相对 d4:711 的改动：复用条件去掉“定向手机号相同”，否则改手机号会新建第二张卡、多占名额与每日上限。
-- 同一 `clientRequestId` 重放：返回已建的那一行（仍是 `pending` 时带同一令牌），不改写字段。
+- 所有成功新建/复用请求都在同一业务事务写入 `invitation_request`，绑定同一邀请及其真实邀请人/主体/门店；原邀请创建键不可改。失败整笔回滚，不占请求号。
+- 同一 `clientRequestId` 重放：先查同 inviter 的不可变请求绑定，返回已建的那一行（仍是 `pending` 时带同一令牌），不重新选卡、续期、改正文或重复审计/历史/事件。返回当前视图，不缓存首次完整响应或额度。
+- A 创建卡片、B 复用后，即使原卡已上报分享，B 重试仍读取该卡；终态按 STATE_NOT_ALLOWED 返回，不删除映射或改绑。pending 已到期的同键重放也不续期、不另建卡。
+- 已绑定邀请不属于当前 `X-Store-Id` 时沿原 NOT_FOUND 隐藏资源；原鉴权及成员失权边界先执行，不豁免重放。结构前置只回填旧创建键，不伪造历史未保存的 B；完整生产入口须在结构实际合入后独立验收。
 - 未分享的卡片若其实已发出（`mark-shared` 上报丢失），改写定向手机号会让先收到卡片的人接受时得到 `INVITATION_NOT_FOR_YOU`；这与 d4:712 已接受的“上报丢失”后果同类，老板再生成一张即可。
 
 **说明**：

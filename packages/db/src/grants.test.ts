@@ -58,7 +58,7 @@ const names = (text: string): string[] => text.trim().split(/\s+/);
 interface ExpectedGrants {
   /** 逻辑表 → lyx_app 的表级权限（按字母序、逗号连接） */
   tables: Record<string, string>;
-  /** 只增表（06 第 4 节“只增”一列为“是”的 16 张） */
+  /** 只增表（06 第 4 节“只增”一列为“是”的 17 张） */
   appendOnly: string[];
   /** 另授列级 UPDATE 的列（触发器放行“写一次”的那几列） */
   columnUpdate: Record<string, string[]>;
@@ -74,7 +74,7 @@ const EXPECTED = JSON.parse(
 const APPEND_ONLY: Record<string, string[]> = Object.fromEntries(
   EXPECTED.appendOnly.map((table) => [table, EXPECTED.columnUpdate[table] ?? []]),
 );
-/** lyx_app 在现行 167 张逻辑表上的表级权限 */
+/** lyx_app 在现行 168 张逻辑表上的表级权限 */
 const TABLE_PRIVILEGES = EXPECTED.tables;
 /** 14 个自增列（表.列）；它们背后的序列加审计编号的序列 audit_no_seq，lyx_app 各有 USAGE */
 const SERIAL_COLUMNS = [
@@ -86,7 +86,7 @@ const SERIAL_COLUMNS = [
   "staff.staff_no",
 ].sort();
 
-// ===== 夹具：18 张表各一行，值是 SQL 表达式 =====
+// ===== 夹具：19 张表各一行，值是 SQL 表达式 =====
 
 const NOW = "now()";
 const TODAY = "(now() AT TIME ZONE 'Asia/Shanghai')::date";
@@ -94,6 +94,17 @@ const uuid = (): string => `'${randomUUID()}'`;
 const SYSTEM = { actor_type: "'system'" };
 /** needsFk：有非空外键，插入时走 seed 连接 */
 const FIXTURES: Record<string, { needsFk?: true; values: Record<string, string> }> = {
+  invitation_request: {
+    needsFk: true,
+    values: {
+      inviter_member_id: uuid(),
+      client_request_id: uuid(),
+      invitation_id: uuid(),
+      entity_id: uuid(),
+      store_id: uuid(),
+      created_at: NOW,
+    },
+  },
   outbox_event: {
     values: { event_type: "'lyx.grants_test'", payload: `'{"v":1}'`, occurred_at: NOW, ...SYSTEM },
   },
@@ -577,9 +588,9 @@ describe("file_object（任务书 第 7 节第 5 条）", () => {
 });
 
 describe("授权没有漏表（任务书 第 7 节第 6 条）", () => {
-  it("期望清单自洽：167 张表；16 张只增表都只有 INSERT、SELECT；例外列所在的表没有表级 UPDATE", () => {
-    expect(Object.keys(TABLE_PRIVILEGES)).toHaveLength(167);
-    expect(EXPECTED.appendOnly).toHaveLength(16);
+  it("期望清单自洽：168 张表；17 张只增表都只有 INSERT、SELECT；例外列所在的表没有表级 UPDATE", () => {
+    expect(Object.keys(TABLE_PRIVILEGES)).toHaveLength(168);
+    expect(EXPECTED.appendOnly).toHaveLength(17);
     expect(EXPECTED.appendOnly.map((table) => TABLE_PRIVILEGES[table])).toEqual(
       EXPECTED.appendOnly.map(() => "INSERT,SELECT"),
     );
@@ -593,7 +604,7 @@ describe("授权没有漏表（任务书 第 7 节第 6 条）", () => {
     }
   });
 
-  it("167 张逻辑表逐张：lyx_app 的表级权限等于清单；分区子表与 _prisma_migrations 上没有", async () => {
+  it("168 张逻辑表逐张：lyx_app 的表级权限等于清单；分区子表与 _prisma_migrations 上没有", async () => {
     const actual = await query<{ name: string; part: boolean; privileges: string }>(
       owner,
       `select c.relname::text as name, c.relispartition as part,
@@ -786,7 +797,7 @@ describe("lyx_readonly 与分区（任务书 第 11 节第 5、7 项）", () => 
                           from aclexplode(c.relacl) a where a.grantee = 'lyx_readonly'::regrole), '') as privileges
          from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p', 'S')`,
     );
-    expect(relations.filter((row) => row.kind !== "S")).toHaveLength(167 + 5 + 1);
+    expect(relations.filter((row) => row.kind !== "S")).toHaveLength(168 + 5 + 1);
     expect(relations.filter((row) => row.kind === "S")).toHaveLength(15);
     expect(relations.filter((row) => row.privileges !== "SELECT")).toEqual([]);
     expect(await query(readonly, "select count(*)::int as n from _prisma_migrations")).toEqual([

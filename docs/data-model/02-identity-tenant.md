@@ -2,8 +2,8 @@
 
 | 项 | 内容 |
 | --- | --- |
-| 模块 | identity（8 张）、tenant（6 张）、portal（1 张），都在 L1 |
-| 表 | 15 张：`merchant_user`、`wechat_identity`、`user_session`、`portal_session`、`merchant_user_notice`、`sms_verification`、`wecom_contact`、`account_change_request`、`entity`、`store`、`entity_member`、`store_member`、`invitation`、`referral_code`、`portal_ticket` |
+| 模块 | identity（8 张）、tenant（7 张）、portal（1 张），都在 L1 |
+| 表 | 16 张：`merchant_user`、`wechat_identity`、`user_session`、`portal_session`、`merchant_user_notice`、`sms_verification`、`wecom_contact`、`account_change_request`、`entity`、`store`、`entity_member`、`store_member`、`invitation`、`invitation_request`、`referral_code`、`portal_ticket` |
 | 依据 | rulings M1、M5、M6、M7、M12、M13、M29、M32、M33、M36、M37、M40、M44；第二轮另按 M46、M47、M48、M49、M50、M51、M52、M53、M63、M78、M79、M91、M92；第三轮另按 M93、M94、M110；catalogue 的约定与本分组 15 张表的条目；decisions 第 1 节 #5、#9、#10、#11，第 3、6、10、12 节；草案 d4-identity 第 2.3、3、4、7.6、9、10 节，d7-platform 第 6 节（下载页票据），d9-profile 第 3.7、5.1、5.2 节，d6 第 3.4 节（`consent_stamp`） |
 | Prisma 片段 | 工作目录 `dm/prisma/frag/02-identity-tenant.prisma`（合并后进 `packages/db`） |
 | 手写约束 | 工作目录 `dm/sql/02-identity-tenant.sql`（合并后进迁移） |
@@ -34,6 +34,10 @@ erDiagram
   store ||--o{ invitation : "24 小时有效"
   entity_member ||--o{ invitation : "邀请人"
   invitation ||--o{ entity_member : "经邀请加入"
+  invitation ||--o{ invitation_request : "创建及复用请求"
+  entity ||--o{ invitation_request : "真实主体"
+  store ||--o{ invitation_request : "真实门店"
+  entity_member ||--o{ invitation_request : "请求发起人"
   approval_request ||--|| account_change_request : "一对一"
   merchant_user ||--o{ account_change_request : "目标账号"
   entity ||--o{ account_change_request : "目标主体"
@@ -765,6 +769,7 @@ erDiagram
 - 主键：`pk_invitation (id)`。
 - 外键：`entity_id → entity.id`（`fk_invitation_entity_id`）；`(store_id, entity_id) → store(id, entity_id)`（`fk_invitation_store_entity`）；`(inviter_member_id, entity_id) → entity_member(id, entity_id)`（`fk_invitation_inviter_member_entity`）；`accepted_by_user_id → merchant_user.id`（`fk_invitation_accepted_by_user_id`）；`(accepted_member_id, entity_id) → entity_member(id, entity_id)`（`fk_invitation_accepted_member_entity`）。都是 RESTRICT。
 - 唯一：`uq_invitation_token_hash (token_hash)`；`uq_invitation_inviter_member_id_client_request_id (inviter_member_id, client_request_id)`。
+- 引用候选唯一：`uq_invitation_id_inviter_entity_store (id, inviter_member_id, entity_id, store_id)`，供请求映射精确核对同一邀请的完整归属；不替代原创建键。
 - 普通索引：`ix_invitation_entity_id_created_at (entity_id, created_at)`（每主体每天未撤回的创建数 ≤ 20，事务内计数）；`ix_invitation_store_id (store_id)`（门店停用时撤回、门店成员页的待接受列表）。
 
 **手写约束**
@@ -917,6 +922,59 @@ erDiagram
 - `ip` 由 `inet` 改为 `text`；增加 `updated_at`。
 - 增加按状态必填的 CHECK 与格式 CHECK（d7 只写了 `pair_digits` 的长度与 `status` 的取值）。
 - 票据有效期：两稿不一致，d4 附录 C 是部署配置 `PORTAL_TICKET_TTL` 默认 5 分钟（d4:2350），d7 是业务参数 `portal.ticket_ttl_sec` 默认 120 秒（d7:1229）。按 d4 的原则放部署配置（d4:2364：安全阈值不进后台参数页，避免后台账号被接管后先调松），默认值取票据设计方 d7 的 120 秒（过期后页面自动换新票据，d7:1244）。不登记参数 `portal.ticket_ttl_sec`。
+
+### 2.16 `invitation_request` 邀请请求映射
+
+tenant L1 内部的成功请求绑定，见 [W2-10 结构前置](../plan/changes/W2-10-invitation-request-schema.md)。
+归属：主体 + 门店；主键 uuid；只增，无状态机、seq、lockVersion 或新锁级。
+一张邀请可对应原创建请求 A 和多个复用请求 B；原 `invitation.client_request_id` 仍为 A，不改写。
+本表不存令牌、手机号、盲索引、备注名、请求正文、哈希或响应快照，不增加外部资源。
+
+| 列 | 类型 | 空 | 默认 | 说明 | 出处 |
+| --- | --- | --- | --- | --- | --- |
+| id | uuid | 否 | — | UUID v7，应用生成；旧创建请求回填复制原 invitation.id | W2-10 结构前置 |
+| inviter_member_id | uuid | 否 | — | 请求发起成员，必须与绑定邀请相同 | 同上 |
+| client_request_id | uuid | 否 | — | 成功创建或复用请求号，与 inviter 一起构成规范键空间 | m02 §3.12 |
+| invitation_id | uuid | 否 | — | 永久绑定的原邀请 | W2-10 结构前置 |
+| entity_id | uuid | 否 | — | 绑定邀请的真实主体 | 同上 |
+| store_id | uuid | 否 | — | 绑定邀请的真实门店 | 同上 |
+| created_at | timestamptz | 否 | — | 首次绑定时间，由业务时钟注入；旧行沿 invitation.created_at | 同上 |
+
+**键与索引**
+
+- 主键：`pk_invitation_request (id)`。
+- 全量唯一：`uq_invitation_request_inviter_client (inviter_member_id, client_request_id)`，不包含门店或状态，不按时间过期。
+- 普通索引：`ix_invitation_request_invitation_id (invitation_id)`，用于父引用检查和本域查询。
+- `fk_invitation_request_entity_id`：`entity_id → entity.id`。
+- `fk_invitation_request_store_entity`：`(store_id, entity_id) → store(id, entity_id)`。
+- `fk_invitation_request_inviter_entity`：`(inviter_member_id, entity_id) → entity_member(id, entity_id)`。
+- `fk_invitation_request_invitation_scope`：`(invitation_id, inviter_member_id, entity_id, store_id) → invitation(id, inviter_member_id, entity_id, store_id)`。
+
+四 FK 的删除与更新行为均为 RESTRICT。最后一条保证同一邀请的完整归属，不能只凭相同主体、门店绑定到另一邀请人的卡。
+没有反向循环 FK 强迫每次插入 invitation 自动生成请求；生产必须同事务写入绑定，结构测试不能替代入口原子性证明。
+
+**只增守卫与权限**
+
+- `trg_invitation_request_append_only`：BEFORE UPDATE OR DELETE，逐行调用原 `lyx_forbid_mutation()`。
+- `trg_invitation_request_no_truncate`：BEFORE TRUNCATE，逐语句调用同一函数。
+- `lyx_app` 仅 INSERT、SELECT；readonly 沿原属主默认 SELECT。无新函数、角色、序列、CHECK 或部分索引。
+
+**回填与保留**
+
+单条新迁移在显式事务中以 SHARE ROW EXCLUSIVE 锁 invitation，阻止写入与扫描交错。
+所有旧状态逐行回填 A→原卡，id 复制 invitation.id，归属及 created_at 原样；严格核对完整 1:1，不用 ON CONFLICT 掩盖差异。
+历史未持久化的复用键 B 无从恢复，不推断、不编造。空库自然回填零行，不代表线上没有数据。
+映射与原邀请长期保留，无 TTL 或清理任务；分享、接受、撤回、过期、成员移除、门店归档、主体关闭和账号注销均不删除或改绑。
+原邀请离开 pending 仍按原规则清 token_enc；映射没有敏感内容，不延长密文寿命。父物理删除被 RESTRICT 拒绝。
+
+**后续 owner 协议（本结构片不实现业务入口）**
+
+完整业务锁后先查规范请求绑定；已绑定则读取原邀请，不再选卡、续期、改正文或新增副作用。
+B 复用 IA 后，即使 IA 已分享，B 重试仍读取 IA；新的 C 可按当时状态另建卡。终态返回 STATE_NOT_ALLOWED，不改绑。
+pending 但已到期的绑定不续期、不另建；当前门店与已绑定邀请不符按原 NOT_FOUND 隐藏资源，鉴权及失权门槛不豁免。
+主体100→邀请110→成员120→门店130 原锁序保留；本表只增，不额外取行锁或高锁后补低锁。
+创建/复用及绑定同事务失败全部回滚，不能让失败请求占号；唯一冲突不能偷换候选绑定。
+数据库 FK/唯一只证明真实结构能力；HTTP 强重试、权限、timer 和 cancel→arm 竞争由后续公开入口独立验收。
 
 ## 3. 枚举汇总
 
