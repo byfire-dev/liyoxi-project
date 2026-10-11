@@ -229,7 +229,7 @@ MembersBrief：
 | --- | --- | --- | --- | --- |
 | ownerDisplayName | string \| null | 是 | 老板称呼（店员视角“老板王先生”） | 本主体有效老板的 `entity_member.display_name` |
 | clerkCount | integer | 是 | 本门店有效店员数 | `store_member` 中 `store_id` 为当前门店、且对应 `entity_member.status = 'active'` 的行数 |
-| pendingInvitationCount | integer | 是 | 待接受邀请数；店员不返回（占名额） | `invitation` 中 `store_id` 为当前门店、`status = 'pending'` 的行数 |
+| pendingInvitationCount | integer | 是 | 待接受邀请数；店员不返回（占名额） | `invitation` 中 `store_id` 为当前门店、`status = 'pending'` 且 `expires_at > now` 的行数 |
 | preview | array<{ displayName, role }> | 是 | 头像预览，至多 3 人 | `entity_member.display_name`、`entity_member.role` |
 
 AdsBrief（店员不返回；只计本门店；口径与 m06-ad 的列表页签 `AdListTab` 相同，从首页卡片点进“我的广告”时各页签数量对得上；商家端映射见 d3-flow.md:1257）：

@@ -137,7 +137,7 @@ describe("商家档案十三条生产接口", () => {
       viewerRole: "owner",
       completeness: { requiredTotal: 15 },
       store: { storeId, qualificationStatus: "unsubmitted" },
-      members: { clerkCount: 0, pendingInvitationCount: 0 },
+      members: { clerkCount: 1, pendingInvitationCount: 0 },
       assets: { total: 0, recent7dCount: 0 },
       ads: { confirmedCount: 0, pendingConfirmCount: 0, producingCount: 0, revisingCount: 0 },
     });

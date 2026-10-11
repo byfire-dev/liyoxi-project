@@ -161,3 +161,9 @@ I30 仅 full、P2、heal_and_alert，无周期限制；复用实例内 expiry �
 已提交资质及任一业务历史拒绝；原创素材仅计未删除且非复制，失败不写收据或级联。
 私有 operation 见证联动原邀请/member/timer，另发 strict store.draft_deleted；档案仍由原订阅消费。
 draft_deleted 归档/恢复均隐藏404；成员安全告知保留，经理仍仅 by_owner。完整验证待独占窗口。
+
+## 建档首页成员摘要（SOURCE）
+
+`readStoreMembersBrief(tx, { entityId, storeId, now })` 单 SQL 读取 scoped 成员、邀请与稳定三人预览。
+称呼只取成员列；pending 只有 expiresAt>now 占额，不隐式修复、外呼或开启第二事务。
+Profile 消费公开 Tenant 方法；无新 kernel 端口，原权限与成员写锁图保持。完整验证待授权。
