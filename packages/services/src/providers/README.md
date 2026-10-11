@@ -177,3 +177,15 @@ CI Image 水印仅允许与输入同桶的固定 ci-out/jobUUID/watermark-SHA.pn
 ASR 仍提交后以原任务号回查，旧 `transcribe` 不冒充同步完成。LLM 固定目的地主备、
 最多三请求/一次结构修复以及原期限保持。此处可显式选择不代表真实平台已开通，
 不创建预算账本或许可。真实凭据、地域/隐私/E22、收费及准确率仍需另行验证。
+
+
+## 15. 模型 FILE 配置解析（W3-15）
+
+`ASR_TENCENT_FILE` 与 `LLM_DOMESTIC_FILE` 独立可选，分别解析为 `Env.ASR_TENCENT`
+与 `Env.LLM_DOMESTIC`。任何环境均拒绝同名明文基键；每份普通文件最多4096真实字节，
+只接完整严格 JSON。ASR只含secretId/secretKey，LLM必须含text/vision的primary/backup；
+端点仅vendor/model/apiKey及百炼workspaceId，不接受URL、超时或其他额外键。
+解析保持已接受驱动原字符串谓词，所有层深冻结；错误只含键名和静态原因，不含路径/内容。
+本片仅解析数据，尚未接API或worker的模型驱动/关闭生命周期；文件存在不代表模型调用
+或云权限/收费已获授权。未配保留原未配置行为，不改默认200/0或冷账本。
+当前SOURCE仅轻静态，新旧测试尚未执行；真实云、E22、收费和完整W3-15仍待办。
