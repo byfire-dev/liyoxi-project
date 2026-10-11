@@ -123,7 +123,7 @@ async function sources(tx: Tx, job: MediaJob) {
         row?.provider === origin.provider &&
         JSON.stringify(output.content) === JSON.stringify(row?.content) &&
         facts.assetId === asset.id &&
-        facts.runId === input.runId &&
+        (facts.runId === run.runId || (run.selected.length > 0 && !run.selected.includes(kind))) &&
         facts.promptVersion === input.promptVersion &&
         facts.fileId === file.id &&
         facts.etag === file.etag &&
@@ -164,7 +164,7 @@ async function sources(tx: Tx, job: MediaJob) {
     .update(
       JSON.stringify({
         asset: [asset.id, asset.entityId, asset.storeId, asset.type, asset.textBody, asset.note],
-        run: [input.runId, input.promptVersion],
+        run: [run.runId, run.promptVersion, run.selected],
         files: links.map(({ file, position }) => [
           position,
           file.id,
@@ -223,7 +223,6 @@ export function createAssetDigestStrategy(
       await lockRows(tx, "store_asset", [input.assetId]);
       await lockRows(tx, "media_job", [job.id]);
       const fresh = await tx.mediaJob.findUnique({ where: { id: job.id } });
-      const now = deps.clock.now();
       if (
         !fresh ||
         fresh.kind !== "digest" ||
@@ -232,14 +231,13 @@ export function createAssetDigestStrategy(
         fresh.attemptNo !== job.attemptNo ||
         !job.leaseOwner ||
         fresh.leaseOwner !== job.leaseOwner ||
-        fresh.nextRunAt <= now ||
-        fresh.deadlineAt <= now ||
         JSON.stringify(fresh.input) !== JSON.stringify(job.input) ||
         !(await current(tx, fresh))
       )
         return null;
       const snapshot = await sources(tx, fresh);
-      if (!snapshot) return null;
+      const now = deps.clock.now();
+      if (!snapshot || fresh.nextRunAt <= now || fresh.deadlineAt <= now) return null;
       const permitted =
         !model || !!(await deps.assets.allowModelCall?.(tx, { storeId: snapshot.storeId, now }));
       return { ...snapshot, permitted };
