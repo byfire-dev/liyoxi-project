@@ -11,7 +11,10 @@ export const mInvitationCreate = merchantMeta({
   "x-capability": "member.manage",
   "x-clerk-view": "none",
   "x-idempotent": "natural",
-  "x-idempotent-by": ["uq_invitation_inviter_member_id_client_request_id"],
+  "x-idempotent-by": [
+    "uq_invitation_inviter_member_id_client_request_id",
+    "uq_invitation_request_inviter_client",
+  ],
 });
 
 export const mInvitationLookup = merchantMeta({

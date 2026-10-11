@@ -31,6 +31,7 @@
     "entity_member": "DELETE,INSERT,SELECT,UPDATE",
     "store_member": "DELETE,INSERT,SELECT,UPDATE",
     "invitation": "DELETE,INSERT,SELECT,UPDATE",
+    "invitation_request": "INSERT,SELECT",
     "referral_code": "DELETE,INSERT,SELECT,UPDATE",
     "portal_ticket": "DELETE,INSERT,SELECT,UPDATE",
     "staff": "DELETE,INSERT,SELECT,UPDATE",
@@ -182,6 +183,7 @@
   "appendOnly": [
     "outbox_event",
     "status_transition",
+    "invitation_request",
     "assignment_history",
     "audit_log",
     "auth_event",

@@ -16755,7 +16755,8 @@
   "clerkView": "none",
   "xIdempotent": "natural",
   "idempotentBy": [
-   "uq_invitation_inviter_member_id_client_request_id"
+   "uq_invitation_inviter_member_id_client_request_id",
+   "uq_invitation_request_inviter_client"
   ],
   "idempotentNote": null,
   "screens": [
@@ -16763,6 +16764,7 @@
   ],
   "tables": [
    "invitation",
+   "invitation_request",
    "timer"
   ],
   "transitions": [

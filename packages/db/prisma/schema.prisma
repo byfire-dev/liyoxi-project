@@ -664,6 +664,7 @@ model Entity {
   entityMembers              EntityMember[]
   storeMembers               StoreMember[]
   invitations                Invitation[]
+  invitationRequests         InvitationRequest[]
   portalTickets              PortalTicket[]
   followUps                  FollowUp[]
   approvalRequests           ApprovalRequest[]
@@ -789,6 +790,7 @@ model Store {
   entityMembers              EntityMember[]
   storeMembers               StoreMember[]
   invitations                Invitation[]
+  invitationRequests         InvitationRequest[]
   portalTickets              PortalTicket[]
   followUps                  FollowUp[]
   approvalRequests           ApprovalRequest[]
@@ -899,6 +901,8 @@ model EntityMember {
   invitationsSent     Invitation[]   @relation("InvitationInviter")
   /// 反向：接受后落到本成员关系上的邀请
   invitationsAccepted Invitation[]   @relation("InvitationAcceptedMember")
+  /// 反向：本成员的成功邀请请求绑定
+  invitationRequests  InvitationRequest[]
 
   @@unique([id, entityId], map: "uq_entity_member_id_entity_id")
   @@index([entityId], map: "ix_entity_member_entity_id")
@@ -997,11 +1001,45 @@ model Invitation {
   // 反向字段（初稿手写，按 M46 ③ 保留）：与 EntityMember 之间有三条带名关系
   /// 反向：经本邀请加入的成员关系
   joinedMembers EntityMember[] @relation("EntityMemberJoinedVia")
+  /// 反向：创建与复用请求的不可变绑定
+  requests      InvitationRequest[]
 
   @@unique([inviterMemberId, clientRequestId], map: "uq_invitation_inviter_member_id_client_request_id")
+  @@unique([id, inviterMemberId, entityId, storeId], map: "uq_invitation_id_inviter_entity_store")
   @@index([entityId, createdAt], map: "ix_invitation_entity_id_created_at")
   @@index([storeId], map: "ix_invitation_store_id")
   @@map("invitation")
+}
+
+/// 成功邀请请求与原卡的只增绑定；不存正文、令牌或敏感内容
+model InvitationRequest {
+  /// 主键，UUID v7；旧创建请求回填复制 invitation.id
+  id              String   @id(map: "pk_invitation_request") @db.Uuid
+  /// 请求发起人的成员关系
+  inviterMemberId String   @map("inviter_member_id") @db.Uuid
+  /// 原创建或复用请求号
+  clientRequestId String   @map("client_request_id") @db.Uuid
+  /// 永久绑定的邀请
+  invitationId    String   @map("invitation_id") @db.Uuid
+  /// 邀请所属主体
+  entityId        String   @map("entity_id") @db.Uuid
+  /// 邀请所属门店
+  storeId         String   @map("store_id") @db.Uuid
+  /// 首次绑定时间；由调用方注入，旧行沿 invitation.created_at
+  createdAt       DateTime @map("created_at") @db.Timestamptz(3)
+
+  /// 所属主体
+  entity        Entity       @relation(fields: [entityId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_invitation_request_entity_id")
+  /// 门店及真实主体
+  store         Store        @relation(fields: [storeId, entityId], references: [id, entityId], onDelete: Restrict, onUpdate: Restrict, map: "fk_invitation_request_store_entity")
+  /// 发起成员及真实主体
+  inviterMember EntityMember @relation(fields: [inviterMemberId, entityId], references: [id, entityId], onDelete: Restrict, onUpdate: Restrict, map: "fk_invitation_request_inviter_entity")
+  /// 同一邀请的完整归属，不能绑定到其他邀请人或门店
+  invitation    Invitation   @relation(fields: [invitationId, inviterMemberId, entityId, storeId], references: [id, inviterMemberId, entityId, storeId], onDelete: Restrict, onUpdate: Restrict, map: "fk_invitation_request_invitation_scope")
+
+  @@unique([inviterMemberId, clientRequestId], map: "uq_invitation_request_inviter_client")
+  @@index([invitationId], map: "ix_invitation_request_invitation_id")
+  @@map("invitation_request")
 }
 
 /// 渠道码与邀请码登记：注册归因时服务端按它判定来源
