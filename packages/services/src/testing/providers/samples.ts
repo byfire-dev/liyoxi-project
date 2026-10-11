@@ -167,6 +167,7 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
         timeliness: [],
       },
     },
+    analyzeVision: { imageUrls: ["https://example.invalid/vision.jpg"] },
   },
   wecom: {
     sendAppMessage: {

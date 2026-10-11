@@ -17,8 +17,11 @@ import type {
   ProbeReport,
 } from "./mediatool/schema.js";
 import type { LlmDigest, LlmDigestInput } from "./llm/digest.js";
+import type { LlmVision, LlmVisionInput } from "./llm/vision.js";
 export { LlmDigestSchema } from "./llm/digest.js";
 export type { LlmDigest, LlmDigestInput, LlmDigestVocabulary } from "./llm/digest.js";
+export { LlmVisionSchema } from "./llm/vision.js";
+export type { LlmVision, LlmVisionInput } from "./llm/vision.js";
 
 // ---------- 通用 ----------
 
@@ -837,6 +840,8 @@ export interface LlmProvider extends ProviderBase {
   }): Promise<ProviderResult<{ points: string[] }>>;
   /** D5 完整结构化建议；词表由调用者提供真实分维快照，不写人工复核结果。 */
   summarizeAsset(input: LlmDigestInput): Promise<ProviderResult<LlmDigest>>;
+  /** 调用者提供同源可信图片/视频帧；只输出视觉事实，不推定身份或肖像授权。 */
+  analyzeVision(input: LlmVisionInput): Promise<ProviderResult<LlmVision>>;
 }
 
 // ---------- wecom：员工通知、“联系我”二维码与加好友回调、微信客服 ----------
@@ -1017,7 +1022,7 @@ export const PROVIDER_METHODS = {
   ],
   ocr: ["recognizeBusinessLicense", "extractLicenseFields"],
   asr: ["transcribe", "submit", "query"],
-  llm: ["tagAsset", "extractKeyPoints", "summarizeAsset"],
+  llm: ["tagAsset", "extractKeyPoints", "summarizeAsset", "analyzeVision"],
   wecom: [
     "sendAppMessage",
     "createContactWay",

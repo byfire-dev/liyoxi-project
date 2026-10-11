@@ -249,6 +249,7 @@ export const unconfiguredLlm: LlmProvider = {
   tagAsset: llmOff,
   extractKeyPoints: llmOff,
   summarizeAsset: llmOff,
+  analyzeVision: llmOff,
 };
 
 export const unconfiguredWecom: WecomProvider = {
