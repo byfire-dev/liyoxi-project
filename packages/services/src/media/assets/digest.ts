@@ -102,7 +102,7 @@ async function sources(tx: Tx, job: MediaJob) {
             : [];
   const pieces: string[] = [];
   let partial = false,
-    usable = !!asset.textBody?.trim(),
+    usable = !!(asset.textBody?.trim() || asset.note?.trim()),
     transcriptChars = 0,
     documentChars = 0;
   for (const { file } of links)
