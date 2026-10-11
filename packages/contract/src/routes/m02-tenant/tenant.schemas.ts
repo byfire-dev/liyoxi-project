@@ -44,6 +44,7 @@ export const StoreBlockerSchema = z
   })
   .openapi("StoreBlocker");
 export const StoreArchiveParamsSchema = z.strictObject({ storeId: IdSchema });
+export const StoreRestoreParamsSchema = z.strictObject({ storeId: IdSchema });
 
 // ---------- 2.4–2.6 成员、待接受邀请与名额 ----------
 

@@ -17510,7 +17510,7 @@
    "conventions.md:370"
   ],
   "version": "V1.0",
-  "notes": "原路线图 natural 按 A17 改 required。已停用门店的老板也可调用（d4 5.2）。仅 archive_reason = by_owner 可恢复，重新校验门店额度。原型未画入口。"
+  "notes": "原路线图 natural 按 A17 改 required。已停用门店的老板也可调用（d4 5.2）。仅 archive_reason = by_owner 可恢复，重新校验门店额度。原型未画入口。W2-10恢复入口采用同事务原额度事实、私有守卫及StoreCard投影；不复活旧成员或撤回邀请。"
  },
  {
   "id": "m03.asset-demand.list",

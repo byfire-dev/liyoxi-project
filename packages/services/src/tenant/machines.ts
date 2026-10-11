@@ -19,6 +19,7 @@ import { guardMemberRemoval } from "./member-removal.js";
 import { guardInvitation } from "./invitations.js";
 import { guardInvitationExpiry } from "./invitation-expiry.js";
 import { guardStoreArchive, guardStoreArchiveCascade } from "./store-archive.js";
+import { guardStoreRestore } from "./store-restore.js";
 import { guardAccept } from "./invitation-accept.js";
 
 /** 建主体的三行迁移随 args 带的事实 */
@@ -216,11 +217,13 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
     activity: describe("store", "merchant_lifecycle", {
       "store.create": "创建门店",
       "store.archive": "停用门店",
+      "store.restore": "恢复门店",
       "store.archive_by_entity": "随主体关闭停用门店",
     }),
     guards: {
       [rowKey("02:607", "store.create")]: firstStoreOfOwnEntity,
       [rowKey("02:608", "store.archive")]: guardStoreArchive,
+      [rowKey("02:612", "store.restore")]: guardStoreRestore,
       [rowKey("02:611", "store.archive_by_entity")]: guardAccept,
     },
     effects: { [rowKey("02:610", "store.archive_by_entity")]: requireClosedStoreCascade },
