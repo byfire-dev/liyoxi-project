@@ -13,7 +13,8 @@ import {
 import type { DeliveredEvent } from "../../kernel/index.js";
 import { createMedia } from "../../media/index.js";
 import type { RefRetentionInput } from "../../media/index.js";
-import { createProfileTenantLifecycle } from "../../profile/index.js";
+import { createProfile, createProfileTenantLifecycle } from "../../profile/index.js";
+import type { ProfileViewer } from "../../profile/index.js";
 import { createSla } from "../../sla/index.js";
 import { createTenant } from "../../tenant/index.js";
 import {
@@ -21,12 +22,14 @@ import {
   createClock,
   createFactories,
   createFakeProviders,
+  TEST_KEYRING,
 } from "../../testing/index.js";
 import { createTimers, timerKey } from "../../timers/index.js";
 import { createProfileLifecycleAssembly } from "../profile-lifecycle-runtime.js";
 
 export const DAY = 86_400_000;
 export const START = new Date("2026-01-05T04:00:00.000Z");
+let initialSequence = 0;
 export type RoundKind = "initial" | "new_store" | "change";
 export type LifecycleType =
   | "entity.closed"
@@ -64,6 +67,19 @@ export function lifecycleWorld(prisma: PrismaClient) {
     actor: { type: "system", job: "lyxtest.profile_lifecycle" },
     requestId: "lyxtest_lifecycle",
   });
+  const profileFor = (client: PrismaClient = prisma) =>
+    createProfile({
+      tx: client === prisma ? tx : createTxRunner({ prisma: client, appEnv: "test" }),
+      clock,
+      assembly,
+      tenant,
+      approval,
+      events,
+      media: { link: media.link, release: media.release, signRead: media.signRead },
+      keyring: () => TEST_KEYRING,
+      wechat: fake.wechat,
+      currentOpenid: async () => "lyxtest_lifecycle_openid",
+    });
 
   async function owner(kind: RoundKind = "initial") {
     const user = await make.merchantUser();
@@ -417,6 +433,111 @@ export function lifecycleWorld(prisma: PrismaClient) {
       });
     });
   }
+  async function readyInitial() {
+    const o = await owner();
+    const member = await make.entityMember({
+      entityId: o.entity.id,
+      merchantUserId: o.user.id,
+      role: "owner",
+    });
+    const viewer: ProfileViewer = {
+      ctx: o.ctx,
+      principal: {
+        sessionId: o.user.id,
+        merchantUserId: o.user.id,
+        wechatIdentityId: o.user.id,
+        consentStamp: "test",
+      },
+      membership: {
+        memberId: member.id,
+        entityId: o.entity.id,
+        storeId: o.store.id,
+        role: "owner",
+        storeMode: "active",
+      },
+    };
+    for (const item of [
+      {
+        dictTypeKey: "industry",
+        code: "LCI",
+        parentCode: null,
+        ext: { open: true, special: false, requiredCerts: [] },
+      },
+      {
+        dictTypeKey: "industry",
+        code: "LCC",
+        parentCode: "LCI",
+        ext: { open: true, special: false, requiredCerts: [] },
+      },
+      {
+        dictTypeKey: "region",
+        code: "LCP",
+        parentCode: null,
+        ext: { level: 1, functionalZone: false, opened: true },
+      },
+      {
+        dictTypeKey: "region",
+        code: "LCM",
+        parentCode: "LCP",
+        ext: { level: 2, functionalZone: false, opened: true },
+      },
+      {
+        dictTypeKey: "region",
+        code: "LCD",
+        parentCode: "LCM",
+        ext: { level: 3, functionalZone: false, opened: true },
+      },
+    ])
+      await prisma.dictItem.upsert({
+        where: { dictTypeKey_code: { dictTypeKey: item.dictTypeKey, code: item.code } },
+        create: {
+          ...item,
+          id: uuidv7(),
+          name: "生命周期测试字典",
+          isEnabled: true,
+          position: 999,
+          createdAt: clock.now(),
+          updatedAt: clock.now(),
+        },
+        update: {},
+      });
+    await assets(o);
+    const profile = profileFor();
+    await profile.updateContact(viewer, {
+      lockVersion: 0,
+      name: "测试联系人",
+      phoneSource: "login",
+    });
+    const f = await draft(o);
+    const chars = "0123456789ABCDEFGHJKLMNPQRTUWXY";
+    const weights = [1, 3, 9, 27, 19, 26, 16, 17, 20, 29, 25, 13, 8, 24, 10, 30, 28];
+    const prefix = `91310000MA1M${String(++initialSequence).padStart(5, "0")}`;
+    const sum = [...prefix].reduce((n, c, i) => n + chars.indexOf(c) * weights[i]!, 0);
+    // 真实公开提交生成证照加密快照与审批，不手拼已批准的历史事实。
+    await profile.updateDocument(viewer, f.doc.id, {
+      lockVersion: 0,
+      fields: {
+        name: "生命周期认证主体",
+        uscc: prefix + chars[(31 - (sum % 31)) % 31],
+        principal: "张测试",
+        principalRole: "legal_rep",
+        subjectType: "enterprise",
+        validFrom: "2020-01-01",
+        validTo: "long_term",
+        address: "测试营业地址",
+      },
+    });
+    await profile.submit(viewer, {
+      qualificationSubmissionId: f.round.id,
+      declarationConfirmed: true,
+      declarationVersion: "1",
+    });
+    return {
+      owner: { ...o, viewer },
+      ready: { submissionId: f.round.id, docId: f.doc.id },
+      profile,
+    };
+  }
   return {
     prisma,
     clock,
@@ -449,6 +570,8 @@ export function lifecycleWorld(prisma: PrismaClient) {
     readRef,
     snapshot,
     unrelatedTimer,
+    profileFor,
+    readyInitial,
   };
 }
 export type LifecycleWorld = ReturnType<typeof lifecycleWorld>;

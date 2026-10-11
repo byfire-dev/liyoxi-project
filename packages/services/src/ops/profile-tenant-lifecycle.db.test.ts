@@ -5,7 +5,6 @@ import { consumeDelivery, createEvents, dispatchDue } from "../events/index.js";
 import type { DeliveryRef } from "../events/index.js";
 import { createIdentityContext, createTxRunner, lockRows, uuidv7 } from "../kernel/index.js";
 import type { DeliveredEvent } from "../kernel/index.js";
-import { complete, harness as profileHarness, submit } from "../profile/__fixtures__/harness.js";
 import { assembleForTest, createFakeProviders, useSeededDatabase } from "../testing/index.js";
 import { createProfileLifecycleAssembly } from "./profile-lifecycle-runtime.js";
 import { buildWorkerServices } from "./worker.js";
@@ -454,12 +453,8 @@ describe("稳定生命周期锚及所有自然键留存", () => {
     await assertReleased(other.input, threeYears(anchor), anchor);
   });
   it("历史被取代的生效证照也升级三年，历史终态轮次与审批保持原字节事实", async () => {
-    const full = profileHarness(h.prisma);
-    full.clock.set(START);
-    const o = await full.owner();
-    const ready = await complete(full, o.viewer);
-    await submit(full, o.viewer, ready.submissionId);
-    await full.profile.approve(h.system, ready.submissionId, {
+    const { owner: o, ready, profile } = await h.readyInitial();
+    await profile.approve(h.system, ready.submissionId, {
       lockVersion: 0,
       confirm: { roundNo: 1 },
     });
@@ -765,10 +760,7 @@ describe("恢复只处理仍在用档案与真实文件状态", () => {
 
 describe("原事务回滚、完整锁图及真实双连接竞争", () => {
   it("真实资格决定与终态收尾竞争：审核不能越过主体终态，审批仅系统撤回一次", async () => {
-    const full = profileHarness(h.prisma);
-    const o = await full.owner();
-    const ready = await complete(full, o.viewer);
-    await submit(full, o.viewer, ready.submissionId);
+    const { owner: o, ready } = await h.readyInitial();
     const round = await h.prisma.qualificationSubmission.findUniqueOrThrow({
       where: { id: ready.submissionId },
     });
@@ -780,10 +772,10 @@ describe("原事务回滚、完整锁图及真实双连接竞争", () => {
       max: 1,
     });
     try {
-      const decider = profileHarness(connection);
+      const decider = h.profileFor(connection);
       const results = await Promise.allSettled([
         h.invoke(event),
-        decider.profile.approve(h.system, ready.submissionId, {
+        decider.approve(h.system, ready.submissionId, {
           lockVersion: 0,
           confirm: { roundNo: 1 },
         }),
