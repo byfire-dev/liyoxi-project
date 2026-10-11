@@ -45,7 +45,7 @@ export function harness(prisma: PrismaClient, extra: ModuleRegistration[] = []) 
     tenant,
     approval,
     events,
-    media,
+    media: { link: media.link, release: media.release, signRead: media.signRead },
     keyring: () => TEST_KEYRING,
     wechat: fake.wechat,
     currentOpenid: async () => "lyxtest_profile_openid",
