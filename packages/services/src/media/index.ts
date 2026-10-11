@@ -15,6 +15,8 @@ export type {
   RegisterInput,
   LinkInput,
   ReleaseInput,
+  RefRetentionInput,
+  RefRetention,
   SystemFileInput,
 } from "./context.js";
 export { fileCategoryGuardPort, fileRefTypePort } from "./ports.js";

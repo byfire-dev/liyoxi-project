@@ -93,6 +93,13 @@ export interface ReleaseInput extends FileOwnerScope {
   readonly role: string;
   readonly keepUntil: Date;
 }
+export type RefRetentionInput = Pick<
+  ReleaseInput,
+  "fileId" | "refType" | "refId" | "role" | "entityId" | "storeId"
+>;
+export type RefRetention =
+  | { readonly state: "live"; readonly releasedAt: null; readonly keepUntil: null }
+  | { readonly state: "released"; readonly releasedAt: Date; readonly keepUntil: Date };
 export interface ReadSignInput {
   readonly fileId: string;
   readonly disposition?: "inline" | "attachment";

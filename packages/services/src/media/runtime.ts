@@ -3,7 +3,7 @@ import { fileCategoryGuardPort, fileRefTypePort } from "./ports.js";
 import type { DeliveryDownloadSignInput, MediaDeps } from "./context.js";
 import { register, complete, refresh, cancel } from "./upload.js";
 import { assertUsableForModel, getAdmin, getMerchant, createSigner, downloadUrls } from "./read.js";
-import { link, release } from "./refs.js";
+import { link, release, readRefRetention } from "./refs.js";
 import { putSystemFile } from "./system.js";
 import { createWechatImageHandlers, applyWechatImageResult } from "./wechat-image-audit.js";
 import { createModerationHandlers } from "./handlers/moderation/handlers.js";
@@ -228,6 +228,9 @@ export function createMedia(options: MediaDeps) {
       link(deps, ...args),
     release: (...args: Parameters<typeof release> extends [unknown, ...infer A] ? A : never) =>
       release(deps, ...args),
+    readRefRetention: (
+      ...args: Parameters<typeof readRefRetention> extends [unknown, ...infer A] ? A : never
+    ) => readRefRetention(deps, ...args),
     putSystemFile: (
       ...args: Parameters<typeof putSystemFile> extends [unknown, ...infer A] ? A : never
     ) => putSystemFile(deps, ...args),
