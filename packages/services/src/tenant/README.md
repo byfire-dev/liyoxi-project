@@ -172,3 +172,12 @@ Profile 消费公开 Tenant 方法；无新 kernel 端口，原权限与成员�
 `Tenant.createStore` 使用 required 三段式幂等：外部阶段仅调用正式档案基础校验，写事务锁完整账号、主体、成员和来源/目标门店图后重读额度与真实会话。新店首次写入 active/non-primary/unsubmitted，复制来源与四项选择在档案首次 INSERT 固定；四项复制通过 API 固定绑定的真实 profile/media 拥有者完成。
 
 同键成功重放返回原 StoreCard，进入缓存前仍重新核当前拥有者与会话。未装配 `storeCreation` 的旧构造入口只在调用此新方法时明确失败，不提供空档案或授权默认值。本片不提交资质、不实现门店删除，也不启用模型预算。SOURCE 与官方派生、业务及并发验收分阶段记录。
+
+## 后台主体详情与成员列表（SOURCE）
+
+`adminEntityGet`、`adminEntityMemberList` 先按真实员工范围读取主体，再用调用方事务组合事实。
+API 固定绑定 billing/profile/media/order 公口；缺装配、缺账户或缺统计映射明确失败。
+额度复用原唯一公式，邀请只取同一次 now 前尚未到期的 pending；GET 不推进或修复状态。
+主体含正式兄弟门店概要；成员范围按真实关系，历史素材不因移除而丢失，账号仅投影脱敏字段。
+订单仍逐店调用原计数公口；不宣称批量性能、全库单快照或后台写入口已实现。
+当前仅 SOURCE，官方派生、类型、完整整叶及独立审查待独占窗口。
