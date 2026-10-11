@@ -1,6 +1,5 @@
 // 商家端：主体、门店与成员 · invitations（docs/api/m02-tenant.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
 import { merchantRoute } from "../builders.js";
 import { errorResponses, okResponse } from "../../common/index.js";
 import {
@@ -12,6 +11,8 @@ import {
   InvitationRevokeResultSchema,
   InvitationLookupQuerySchema,
   InvitationPreviewSchema,
+  InvitationAcceptBodySchema,
+  MembershipResultSchema,
 } from "./tenant.schemas.js";
 
 export const mInvitationCreate = merchantRoute({
@@ -54,7 +55,7 @@ export const mInvitationLookup = merchantRoute({
   responses: { ...okResponse(InvitationPreviewSchema), ...errorResponses(400, 404, 429) },
 });
 
-export const mInvitationAccept = merchantMeta({
+export const mInvitationAccept = merchantRoute({
   method: "post",
   path: "/m/invitations/{invitationId}/accept",
   operationId: "m.invitation.accept",
@@ -63,6 +64,19 @@ export const mInvitationAccept = merchantMeta({
   "x-auth": "user",
   "x-clerk-view": "same",
   "x-idempotent": "required",
+  "x-three-phase": true,
+  "x-rate-limit": "m.invitation",
+  request: {
+    params: InvitationIdParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: InvitationAcceptBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(MembershipResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 410, 428, 503),
+  },
 });
 
 export const mInvitationMarkShared = merchantRoute({

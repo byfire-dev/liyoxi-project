@@ -128,3 +128,8 @@ export {
   createMediaToolClient as createMediaToolClientForTest,
   createMediaWorkspace as createMediaWorkspaceForTest,
 } from "../providers/index.js";
+export {
+  createIdentity as createIdentityForTest,
+  assertCurrentSession as assertCurrentSessionForTest,
+  currentSessionOpenid as currentSessionOpenidForTest,
+} from "../identity/index.js";

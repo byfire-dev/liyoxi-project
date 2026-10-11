@@ -15,6 +15,7 @@ import {
   createTenant,
   createProfile,
   currentSessionOpenid,
+  assertCurrentSession,
   security,
   media,
   AppError,
@@ -71,6 +72,21 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
     invitations: {
       keyring: () => (keyring ??= security.loadKeyring(runtime.env)),
       timers: runtime.timers,
+      accept: {
+        assertSession: (handle, principal, now) =>
+          assertCurrentSession(handle, principal, now, appid),
+        async checkName(principal, content) {
+          const openid = await tx.run((handle) => currentSessionOpenid(handle, principal, appid));
+          const result = await runtime.providers.wechat
+            .checkText({ openid, scene: "profile", content })
+            .catch(() => {
+              throw new AppError("PROVIDER_UNAVAILABLE");
+            });
+          if (!result.ok) throw new AppError("PROVIDER_UNAVAILABLE");
+          if (result.value.verdict !== "pass")
+            throw new AppError("CONTENT_REJECTED", { details: { fields: ["displayName"] } });
+        },
+      },
       async checkRemark(principal, content) {
         const openid = await tx.run((handle) => currentSessionOpenid(handle, principal, appid));
         const result = await runtime.providers.wechat

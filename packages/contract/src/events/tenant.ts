@@ -117,6 +117,27 @@ export const invitationExpiredPayload = z.strictObject({
   toState: z.literal("expired"),
   transition: z.literal("invitation.expire"),
 });
+export const invitationAcceptedPayload = z.strictObject({
+  v: z.literal(1),
+  invitationId: IdSchema,
+  entityId: IdSchema,
+  storeId: IdSchema,
+  acceptedByUserId: IdSchema,
+  fromState: z.literal("pending"),
+  toState: z.literal("accepted"),
+  transition: z.literal("invitation.accept"),
+});
+export const entityMemberJoinedPayload = z.strictObject({
+  v: z.literal(1),
+  entityMemberId: IdSchema,
+  entityId: IdSchema,
+  merchantUserId: IdSchema,
+  invitationId: IdSchema,
+  storeIds: z.array(IdSchema).min(1),
+  fromState: z.null(),
+  toState: z.literal("active"),
+  transition: z.literal("entity_member.join"),
+});
 
 // 门店范围调整不是状态迁移，不带迁移键；邀请接受分支由其 producer 后续交付。
 export const entityMemberStoresChangedPayload = z.strictObject({
@@ -142,4 +163,6 @@ export const payloads = {
   "invitation.revoked": invitationRevokedPayload,
   "invitation.created": invitationCreatedPayload,
   "invitation.expired": invitationExpiredPayload,
+  "invitation.accepted": invitationAcceptedPayload,
+  "entity_member.joined": entityMemberJoinedPayload,
 } as const;

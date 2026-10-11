@@ -843,7 +843,7 @@
 
 请求体不带协议同意。加入场景的同意只由 `m.session.phoneLogin(consentScene = member_join)` 写（m01）；理由见说明。
 
-**响应**：`MembershipResult`（2.7），`role = clerk`。
+**响应**：`MembershipResult`（2.7）。首次接受 `role = clerk`；已接受本人重放投影当前有效成员角色（可为 `owner`），不改变角色或重建成员。
 
 **错误**：
 
@@ -863,14 +863,14 @@
 
 - 归属判定（本人当前的有效成员关系）：
   - 没有：新建 `entity_member`，`entity_member.status`：— → `active`（`entity_member.join`，`role = clerk`，`02-identity-tenant.md:691`），写 `invitation_id`、`invited_by_member_id`、`display_name`、`last_store_id` = 邀请的门店；插入 `store_member`（`added_by_member_id` = 邀请人）；出站事件 `entity_member.joined`（x01 3.2；notify 场景 `m.member_changed` 通知老板，带称呼与脱敏手机号，d4:741；d6:247）。
-  - 同主体的店员：`store_member` 追加该门店（已在则不动），不新增名额；没有状态迁移，所以不发 `entity_member.joined`，改发 `entity_member.stores_changed`（`addedStoreIds` = [邀请的门店]，`removedStoreIds` = []；已在该门店时不发）。载荷另带 `invitationId`，notify 据此通知老板“某某已加入本店”，而不是像 `m.member.update` 那样通知店员本人（x01 待补登本接口为发出方与这条订阅规则）。
+  - 同主体的店员：`store_member` 追加该门店（已在则不动），不新增名额；没有状态迁移，所以不发 `entity_member.joined`，改发 `entity_member.stores_changed`（`addedStoreIds` = [邀请的门店]，`removedStoreIds` = []；已在该门店时不发）。载荷另带 `invitationId`，notify 据此通知老板“某某已加入本店”，而不是像 `m.member.update` 那样通知店员本人（x01 3.2）。
   - 名下是空草稿主体（`02-identity-tenant.md:524` 的四个条件）：先让位——`entity.lifecycle`：`active` → `abandoned`（`entity.abandon`），老板成员关系 `active` → `removed`（`entity_member.cascade_remove`，原因 `draft_abandoned`），名下门店 `active` → `archived`（`store.archive_by_entity`，原因 `entity_abandoned`，`02-identity-tenant.md:611`）；同事务吊销该老板在被放弃主体下未吊销的下载页会话（`portal_session.revoked_at = now`，`revoke_reason = membership_changed`；`02-identity-tenant.md:697`，保证 `identity.I20`）；发 `entity.abandoned`、`entity_member.removed`（`removeReason = draft_abandoned`）与各门店的 `store.archived`；再按“没有”处理。空草稿的定义已排除待接受的邀请，没有邀请要撤回。
 - `invitation.status`：`pending` → `accepted`（`invitation.accept`，`02-identity-tenant.md:787`），写 `accepted_at`、`accepted_by_user_id`、`accepted_member_id`，清空 `token_enc`；取消 `invitation.expire` 定时器；出站事件 `invitation.accepted`（三个分支都发）。
 - 账号没有称呼时写 `merchant_user.display_name`；各迁移写 `status_transition` 与审计（PRD 6.16.2 第 3 条）。不写 `agreement_consent`。
 
 **说明**：
 
-- 同一令牌已由本人接受：返回 200 与当前成员关系（不论幂等键是否相同，d4:742）。卡片被转发、多人并发点击时，行锁保证只有第一个成功，其余得到 `INVITATION_USED`。
+- 同一令牌已由本人接受：返回 200 与当前成员关系（不论幂等键是否相同，d4:742）；已移除或门店已停用沿用 `NOT_A_MEMBER` / `STORE_ARCHIVED`，不复活缓存身份。required 三段式只存私有接受收据，成功返回前重新投影当前成员。最终锁等待后以新时间检查真实会话、邀请和归属；会话校验是只读语句快照，不承诺取消所有已在途的退出登录请求。卡片被转发、多人并发点击时，行锁保证只有第一个成功，其余得到 `INVITATION_USED`。
 - 同一用户并发接受两个主体的邀请，撞 `uq_entity_member_one_entity` 时映射为 `PHONE_IN_OTHER_ENTITY`（d4:737）。
 - 协议同意：未登录的受邀人在加入页勾选协议后走 `m.session.phoneLogin(consentScene = member_join)`，同意在登录时以 `member_join` 记一次（m01 3.2；d7:685）；已登录的不再弹手机号组件，也不再勾选协议。本接口不在 C73 白名单内：已登录者若缺现行版本的同意，会先在中间件得到 428 `CONSENT_REQUIRED`，端上走 `m.agreementConsent.create`（`reconsent`）后用同一幂等键重放。这样能走到处理器的账号一定已有同版本的同意行，本接口再写会撞 `uq_agreement_consent_no_biz`（同一账号同一版本、无单据只有一行，与 `scene` 无关，`13-notify-docs.md:853`），所以不写、也不收 `consents`。
 - 成功后端上重拉 `GET /m/me`，进入店员首页。

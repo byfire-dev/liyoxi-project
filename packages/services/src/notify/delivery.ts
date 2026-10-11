@@ -206,7 +206,7 @@ async function currentGuard(
   const n = d.notification;
   if (!n) return null;
   const cfg = await tx.notifyScene.findUnique({ where: { sceneKey: n.notifySceneKey } });
-  const spec = specFor(n.notifySceneKey);
+  const spec = specFor(n.notifySceneKey, n.bizType);
   if (!cfg?.sceneEnabled || !cfg.extEnabled || !spec || !n.bizId) return null;
   const fact = await currentNotificationFact(tx, deps, spec, n.bizId);
   if (fact === null || (n.staffId && !fact.staffIds?.includes(n.staffId))) return null;
@@ -313,7 +313,12 @@ async function prepare(tx: Tx, deps: NotifyDispatchDeps, id: string): Promise<Pr
     }
     const openid = await deps.wechatTarget(tx, quota.wechatIdentityId, n.merchantUserId!);
     const stored = NotifyFactSchema.parse(n.vars);
-    const current = await currentNotificationFact(tx, deps, specFor(n.notifySceneKey)!, n.bizId!);
+    const current = await currentNotificationFact(
+      tx,
+      deps,
+      specFor(n.notifySceneKey, n.bizType)!,
+      n.bizId!,
+    );
     const fields = current
       ? renderWechat(slot!, template.fields, {
           ...stored,
