@@ -1,5 +1,14 @@
 # tenant：主体、门店与成员关系
 
+## 老板停用门店源码阶段
+
+`archiveStore(ctx, { storeId }, { idem })` 使用原事务幂等，完整预锁账号、主体、邀请、成员与门店，
+锁后重读候选全集、权限及六类真实阻断。私有同 Tx/ctx/目标见证只放行本次系统邀请撤回与店员级联；
+全部 pending 邀请（含已过期未迁移）撤回并取消原 timer，清目标范围与最后选择，老板授权保留。
+通知只对真实 store_archived 级联本人投影账号级安全告知；老板进入仍有效店，经理读真实归档事实。
+I5 只查真实有效店员的启用门店，不自动修复。当前仅 SOURCE/轻静态，完整验证与正式审查未运行。
+恢复、删除、新建、I30、其他移除原因通知及整包下游继续待交。
+
 ## 邀请卡片与到期源码阶段
 
 四个正式入口 createInvitation、markInvitationShared、revokeInvitation、lookupInvitation 消费已合 invitation_request。

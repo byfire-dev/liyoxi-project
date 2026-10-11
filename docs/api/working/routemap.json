@@ -17427,7 +17427,7 @@
    "wf-api1-findings.md:158"
   ],
   "version": "V1.0",
-  "notes": "原路线图“natural（状态守卫）”按 A17 改 required。门店本身是操作对象，路径带 storeId，仍校验与 X-Store-Id 同属一个主体（C17）。原型没有停用入口，挂在“我的门店”。加锁次序：主体 → 该门店 pending 邀请 → 受影响的成员关系 → 门店（数据模型全局次序）。联动发 invitation.revoked、entity_member.removed 与 store.archived。停用后老板保留收尾上下文（看订单、下载成片、确认到期下架），不计入门店额度（d4:794）。"
+  "notes": "原路线图“natural（状态守卫）”按 A17 改 required。路径 storeId 与 X-Store-Id 同主体（C17）。账号80→主体100→全部数据库 pending 邀请110→主体成员120→主体门店130，排序锁后重读完整候选/权限/最后店/六类真实阻断，失败不默认零。私有同Tx见证联动 invitation.revoked、entity_member.removed、store.archived，原timer取消；本人仅账号级安全告知，老板深链仍有效店、经理按真实by_owner来源；派发/外发重验outbox与历史。停用保老板收尾/下载授权，不计门店额度（d4:794）；恢复/删除/新建及其他移除原因通知待后续。"
  },
  {
   "id": "m02.store.delete-draft",

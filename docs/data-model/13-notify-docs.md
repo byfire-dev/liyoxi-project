@@ -154,6 +154,7 @@ erDiagram
 - 证照到期提醒与 `store.qualification_change.*`、`store.profile.changed` 的接入（d9:703-704、725；catalogue notes）。
 - 员工的跟进到期提醒与待审批提醒（03 分组 2.9、请求）：纯提醒，由通知规则派生（`source_rule` 非空），用 `notification.dedupe_key` 去重，不登记定时器行；取数经 03 注册的查询端口，分别用 `follow_up` 的部分索引 `ix_follow_up_next_follow_at`（提醒对象 `owner_staff_id`，`biz_type = follow_up`）与 `approval_request` 的 `pending` 行（`biz_type = approval_request`）。
 - 账号级的账号安全通知：站内消息不归属主体（`entity_id`、`store_id`、`copy_mode` 都为空，见 2.4、2.6），`biz_type = merchant_user`。
+- 另有 W2-10 最窄成员状态告知：仅真实 `store_archived` 级联的被移除本人，`biz_type = merchant_user`，entity/store/copyMode 均 NULL、非 ownerOnly、`messages.list`。正文及 vars 不含旧主体/门店与个人敏感字段；派发及发送都以实际源 outbox、归档和移除历史及当前账号重验，不泛化其他移除原因或消息读取权限。
   - 新微信登录（d4:386-389；订阅 02 分组的出站事件 `merchant_user.wechat_bound`，A95 改名，x01 3.17）：短信用 `account_notice` 模板、策略 `always`；订阅消息要排除刚绑定的那个微信身份，事件载荷带 `wechatIdentityId`，场景的 `vars` 带 `excludeWechatIdentityId`，额度预留跳过它（见 2.8）。
   - 换绑手机号：订阅 02 分组的出站事件 `merchant_user.phone_changed` 生成站内消息，载荷不带手机号，场景不发短信。给原号码的账号安全短信不经场景：identity 在换绑事务提交后调 `notify.sendDirect`（`purpose = account_notice`，见 2.5“直发”；02 分组 2.8）。
 

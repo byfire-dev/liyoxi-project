@@ -204,7 +204,9 @@ export async function dispatchFact(
       const key =
         spec.sceneKey === "s.copyright_expiring"
           ? `copyright:${staffId}:${fact.targetDate}`
-          : `${spec.sceneKey}:${fact.bizId}:v${fact.version}:${source.node}:${fact.status}:${fact.targetDate ?? ""}:${staffId}`;
+          : source.event?.type === "store.archived"
+            ? `${spec.sceneKey}:${source.event.id}:${staffId}`
+            : `${spec.sceneKey}:${fact.bizId}:v${fact.version}:${source.node}:${fact.status}:${fact.targetDate ?? ""}:${staffId}`;
       const created = await tx.notification.createMany({
         skipDuplicates: true,
         data: [
