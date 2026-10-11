@@ -425,29 +425,51 @@ it("肖像补交不等于确认，secure 材料仅员工可读；删除保留主
 it("反馈同素材锁并发每日至多5条，超过拒绝且没有第6个审计或事件", async () => {
   const asset = await processed(),
     id = asset.storeAssetId;
-  const results = await Promise.allSettled(
-    Array.from({ length: 6 }, () => h.media.assets.feedback(h.owner, id, { content: "本轮反馈" })),
-  );
-  expect(results.filter((one) => one.status === "fulfilled")).toHaveLength(5);
-  expect(results.flatMap((one) => (one.status === "rejected" ? [one.reason] : []))).toEqual([
-    expect.objectContaining({ error: "ASSET_FEEDBACK_DAILY_LIMIT" }),
-  ]);
-  expect(
-    await h.prisma.auditLog.count({ where: { targetId: id, action: "media.asset.feedback" } }),
-  ).toBe(5);
-  expect(
-    await h.prisma.outboxEvent.count({
-      where: { aggregateId: id, eventType: "asset.feedback_submitted" },
-    }),
-  ).toBe(5);
-  const beforeClock = h.clock.now();
+  const originalClock = h.clock.now();
+  const [databaseClock] = await h.prisma.$queryRaw<Array<{ now: Date }>>`
+    SELECT clock_timestamp() AS now
+  `;
   try {
-    h.clock.advance(86_400_000);
-    await expect(
-      h.media.assets.feedback(h.owner, id, { content: "次日可反馈" }),
-    ).resolves.toBeNull();
+    h.clock.set(databaseClock!.now);
+    const results = await Promise.allSettled(
+      Array.from({ length: 6 }, () =>
+        h.media.assets.feedback(h.owner, id, { content: "本轮反馈" }),
+      ),
+    );
+    expect(results.filter((one) => one.status === "fulfilled")).toHaveLength(5);
+    expect(results.flatMap((one) => (one.status === "rejected" ? [one.reason] : []))).toEqual([
+      expect.objectContaining({ error: "ASSET_FEEDBACK_DAILY_LIMIT" }),
+    ]);
+    expect(
+      await h.prisma.auditLog.count({ where: { targetId: id, action: "media.asset.feedback" } }),
+    ).toBe(5);
+    expect(
+      await h.prisma.outboxEvent.count({
+        where: { aggregateId: id, eventType: "asset.feedback_submitted" },
+      }),
+    ).toBe(5);
+    const dates = await h.prisma.auditLog.findMany({
+      where: { targetId: id, action: "media.asset.feedback" },
+      select: { createdAt: true },
+      orderBy: { createdAt: "asc" },
+    });
+    console.warn("ASSET_FEEDBACK_CLOCK_ALIGNMENT", {
+      clock: databaseClock!.now.toISOString(),
+      count: dates.length,
+      first: dates[0]!.createdAt.toISOString(),
+      last: dates.at(-1)!.createdAt.toISOString(),
+    });
+    const beforeClock = h.clock.now();
+    try {
+      h.clock.advance(86_400_000);
+      await expect(
+        h.media.assets.feedback(h.owner, id, { content: "次日可反馈" }),
+      ).resolves.toBeNull();
+    } finally {
+      h.clock.set(beforeClock);
+    }
   } finally {
-    h.clock.set(beforeClock);
+    h.clock.set(originalClock);
   }
 });
 
