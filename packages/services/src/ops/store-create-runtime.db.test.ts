@@ -543,8 +543,9 @@ function createDeleteSide(prisma: PrismaClient, runner?: TxRunner) {
     bizNo: createBizNoIssuer({ clock: h.clock, appEnv: "test" }),
   });
   const creation: Ports = {
-    assertSession: (handle, principal, now) =>
-      assertCurrentSessionForTest(handle, principal, now, APPID),
+    async assertSession(handle, principal, now) {
+      await assertCurrentSessionForTest(handle, principal, now, APPID);
+    },
     async validateBasics(ctx, principal, input) {
       const membership = await tx.run((handle) =>
         sideTenant.resolveMembership(handle, {
