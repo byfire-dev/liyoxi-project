@@ -7,7 +7,7 @@
 //   setDeliveryManager     改门店的交付经理并写审计。
 //
 // 加锁：主体（100）→ 门店（130）。调用方（profile）在这之前锁的资质轮次（65）次序更小，不冲突。
-// change、new_store 两种轮次随 M2。
+// change、new_store 仅补系统生命周期撤回；提交、通过、驳回仍未开放。
 import { record as recordAudit } from "../audit/index.js";
 import type { AuditRequestMeta } from "../audit/index.js";
 import type { Flow, MergedAudit } from "../flow/index.js";
@@ -25,8 +25,8 @@ export type QualificationAction = (typeof QUALIFICATION_ACTIONS)[number];
 
 export interface StoreQualificationInput {
   readonly storeId: string;
-  /** 只做含主体营业执照的那一轮；别的轮次随 M2 */
-  readonly round: "initial";
+  /** change/new_store 仅开放系统生命周期撤回。 */
+  readonly round: "initial" | "new_store" | "change";
   readonly action: QualificationAction;
   /** approve 必给：写进主体的认证字段 */
   readonly verified?: VerifiedEntityFields;
@@ -89,7 +89,9 @@ export async function setStoreQualification(
   const { storeId, action } = input;
   const store = await lockStore(tx, storeId, true);
   const entityId = store.entityId;
-  const event = `qualification.${action}`;
+  const entity = await tx.entity.findUniqueOrThrow({ where: { id: entityId } });
+  const event =
+    input.round === "change" ? "qualification.change_withdraw" : `qualification.${action}`;
   const refuse = (reason: string): never => {
     throw new AppError("STATE_NOT_ALLOWED", {
       details: {
@@ -101,8 +103,16 @@ export async function setStoreQualification(
       },
     });
   };
-  // initial 轮次只发生在首家门店上：主体的结论随它变
-  if (!store.isPrimary) refuse("not_initial_round");
+  if (input.round !== "initial") {
+    if (
+      action !== "withdraw" ||
+      ctx.actor.type !== "system" ||
+      !["closed", "abandoned"].includes(entity.lifecycle) ||
+      entity.verificationStatus !== "verified"
+    )
+      refuse("only_system_lifecycle_withdraw_open");
+    if (input.round === "new_store" && store.isPrimary) refuse("not_new_store_round");
+  } else if (!store.isPrimary) refuse("not_initial_round");
   // 服务层先断言；库里的 ck_store_name_required 兜底
   if (action === "submit" && store.name === null) refuse("store_name_required");
 
@@ -121,7 +131,11 @@ export async function setStoreQualification(
         ? { round: input.round }
         : { round: input.round, reasonCodes: [...input.rejection.reasonCodes] },
     ...(input.audit === undefined ? {} : { audit: input.audit }),
-    emit: { none: true, primary: PRIMARY_EVENT[action] },
+    emit: {
+      none: true,
+      primary:
+        input.round === "change" ? "store.qualification_change.withdrawn" : PRIMARY_EVENT[action],
+    },
   } as const;
   /** 撤回回到提交前的值：这条链最近一次进入 pending 之前的状态 */
   const revertTo = async (machine: "store" | "entity", stateField: string, id: string) =>
@@ -135,8 +149,15 @@ export async function setStoreQualification(
     stateField: "qualification_status",
     id: storeId,
     storeId,
-    ...(await revertTo("store", "qualification_status", storeId)),
+    ...(input.round === "change" ? {} : await revertTo("store", "qualification_status", storeId)),
   });
+  if (input.round !== "initial")
+    return {
+      storeId,
+      entityId,
+      store: { from: onStore.from, to: onStore.to },
+      entity: { from: entity.verificationStatus, to: entity.verificationStatus },
+    };
   const verified = action === "approve" ? input.verified : undefined;
   const onEntity = await deps.flow.transition(tx, ctx, {
     ...shared,

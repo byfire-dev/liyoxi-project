@@ -25,11 +25,17 @@ import { findViolations, PROFILE_INVARIANT_CODES } from "./invariants.js";
 import { adminProfileFactsPort } from "./admin-ports.js";
 import { deliveryManagerPort, orderManagerPort, QualificationImpactPort } from "./ports.js";
 import { qualificationKind } from "./qualification-kind.js";
+import { PROFILE_TENANT_EVENTS, unboundTenantLifecycle } from "./tenant-lifecycle.js";
 import { dictRef, snapshot } from "./repo.js";
 
 export const registration = defineRegistration("profile", {
   ports: [orderManagerPort, deliveryManagerPort, adminProfileFactsPort, QualificationImpactPort],
   subscribers: [
+    {
+      name: "profile.onTenantLifecycle",
+      events: PROFILE_TENANT_EVENTS,
+      handle: unboundTenantLifecycle,
+    },
     { name: "profile.onFileModerated", events: ["file.moderated"], handle: onFileModerated },
   ],
   portImplementations: [

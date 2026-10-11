@@ -15,6 +15,7 @@ import {
   submittedFields,
 } from "./repo.js";
 import { invalid } from "./validate.js";
+import { onLifecycleWithdrawn } from "./lifecycle-withdrawal.js";
 
 // 登记是静态的，依赖由领域用例按本事务绑定，避免不同 runtime/测试之间共享服务实例。
 const calls = new WeakMap<Tx, { deps: ProfileDeps; ctx: IdentityContext }>();
@@ -277,7 +278,5 @@ export const qualificationKind = defineApprovalKind<{ submissionId: string; roun
   },
   onApproved: (tx, row, decision) => conclude(tx, row, decision, true),
   onRejected: (tx, row, decision) => conclude(tx, row, decision, false),
-  async onWithdrawn() {
-    throw new AppError("STATE_NOT_ALLOWED", { details: { reason: "merchant_withdraw_not_open" } });
-  },
+  onWithdrawn: onLifecycleWithdrawn,
 });

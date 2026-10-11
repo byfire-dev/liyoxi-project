@@ -1,6 +1,8 @@
 import { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./media-assets-runtime.js";
 import { createDeliveryProductionAssembly } from "./delivery-production-runtime.js";
 import { createApprovalSlaAssembly } from "./approval-sla-runtime.js";
+import { createProfileLifecycleAssembly } from "./profile-lifecycle-runtime.js";
+import { createProfileTenantLifecycle } from "../profile/index.js";
 import { createApproval } from "../approval/index.js";
 import { createDeliverySlaAssembly } from "./delivery-sla-runtime.js";
 import { createContentPricingAssembly } from "./content-pricing-runtime.js";
@@ -161,6 +163,7 @@ export interface WorkerServices {
   readonly closeMediaJobs?: () => void;
   readonly closeStaff?: () => Promise<void>;
   readonly closeApproval?: () => void;
+  readonly closeProfile?: () => void;
   readonly shutdownMediaJobs?: () => Promise<void>;
   readonly pauseMediaJobs?: () => Promise<void>;
   readonly resumeMediaJobs?: () => void;
@@ -238,7 +241,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const mediaAssetsScope = createMediaAssetsAssembly(mediaScope.assembly);
   const staffScope = createStaffAssembly(mediaAssetsScope.assembly);
   const approvalSlaScope = createApprovalSlaAssembly(staffScope.assembly);
-  const contentPricingScope = createContentPricingAssembly(approvalSlaScope.assembly);
+  const profileLifecycleScope = createProfileLifecycleAssembly(approvalSlaScope.assembly);
+  const contentPricingScope = createContentPricingAssembly(profileLifecycleScope.assembly);
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
   const docsScope = createDocsAssembly(deliverySlaScope.assembly);
@@ -453,6 +457,9 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     cancel: { tx, clock, flow, events, approval, ledger, timers, sla: deliveryCore.sla },
   });
   const tenant = createTenant({ tx, clock, flow, assembly });
+  profileLifecycleScope.attach(
+    createProfileTenantLifecycle({ clock, tenant, approval, events, media }),
+  );
   const closeStart = bindOrderStart({
     ...deliveryCore,
     timers,
@@ -536,6 +543,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       await staffScope.close();
     },
     closeApproval: () => approvalSlaScope.close(),
+    closeProfile: () => profileLifecycleScope.close(),
     shutdownMediaJobs: () => media.jobs.shutdown(),
     pauseMediaJobs: () => media.jobs.pause(),
     resumeMediaJobs: () => media.jobs.resume(),

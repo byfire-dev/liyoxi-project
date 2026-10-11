@@ -33,3 +33,29 @@ API 的响应沿既有 `respondByRole` 以本请求会员角色裁剪，写路�
 W3-05 的 `profile.onFileModerated` 只回读当前文件和 logo/媒体/服务图片引用，按 store_profile UUID 排序锁后复用 refreshCompleteness 重算现有三列缓存，时间取当前 file.updatedAt。乱序 pass 事件不能把已 block 文件恢复为可用；审批状态、档案 lockVersion 和其他字段保持原业务写入口。
 
 W2-10 的门店停用窄前置公开 `countQualificationSubmissionsInReview(tx, storeId)` 与 `countUnverifiedPrimaryStore(tx, storeId)`。前者只计已提交且未关闭的全部三种资质轮次，后者只计主体认证结论不是 verified 的首店；复用调用方事务，只读无副作用。完整 StoreCloseGuard 必需端口装配及生命周期写侧仍由 W2-10 主包完成，不把缺装配当作零。
+
+## W2-10 生命周期订阅
+
+`createProfileTenantLifecycle` 只接 clock、tenant、approval、events 与真实媒体引用三公口，
+不需要商家审核、openid、密钥或另开事务。`profile.onTenantLifecycle` 接收原五事件；
+严格校验载荷后回读当前主体、门店归属、生命周期与停用原因，已过时的停用/恢复消息不写新状态。
+
+先发现完整候选图，再按 approval30→round65→entity100→store130→profile135 锁全集，
+锁后重读候选与关联；有新增或变化则整事务拒绝重试。完整文件集合只预锁一次410，
+之后再次重读候选。系统撤回通过真实 approval.withdraw 取消本单 SLA timer、记录审批历史/审计，
+领域回调重验真实终止主体及轮次关联。initial 回退门店/主体，new_store 仅回退门店，
+change 写 verified→verified 历史；商家撤回及未来 change/new_store 提交、通过、驳回仍拒绝。
+
+停用门店丢弃未提交草稿，给未移除且未生效证照写 removedAt；草稿证照7天、档案三类180天。
+主体关闭时全部历史证照引用延至 closedAt 后三个日历年，放弃时保留已提交证照引用。
+留存目标锚定真实 archivedAt/closedAt；先读 media.readRefRetention，已释放且目标足够则跳过，
+原 release 的当前最低保留仍生效，原先更长期限不缩短。释放时缺失业务文件引用明确失败，不静默补造。
+
+恢复只重连未移除档案行；真实 link 再核 stored、审核、类别与归属。仅已 deleted 文件可清理
+档案行或 Logo，清理前仍核归属；过渡态、block、错类别/范围保持失败，不吞成成功。
+重算完整度三列，实际清理时递增档案 lockVersion；不恢复资格草稿或已提交证照。
+
+worker 在 createEvents 前生成实例 scope，在真实 tenant/approval/media 完成后只 attach 一次；
+未绑定或 close 后明确失败。在途 outbox 消费和循环收完后才 closeProfile，无进程全局服务绑定。
+本片仍需按冻结清单完成真实数据库、outbox/worker、类型和契约验证；新增消费者不代表尚缺 producer
+或 W2-10 整包完成，真实云及正式容量未验。

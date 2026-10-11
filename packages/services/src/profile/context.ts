@@ -30,6 +30,14 @@ export interface ProfileViewer {
   readonly membership: StoreMembership;
   readonly principal: SessionPrincipal;
 }
+/** 生命周期订阅不需要商家审核、openid、密钥或自行开事务。 */
+export interface ProfileLifecycleDeps {
+  readonly clock: Clock;
+  readonly tenant: Pick<Tenant, "setStoreQualification">;
+  readonly approval: Pick<Approval, "withdraw">;
+  readonly events: Pick<Events, "emit">;
+  readonly media: Pick<Media, "link" | "release" | "readRefRetention">;
+}
 export interface WriteOptions {
   readonly idem?: IdempotencyContext;
 }
