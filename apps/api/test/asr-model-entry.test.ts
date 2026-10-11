@@ -179,7 +179,7 @@ describe("API ASR模型所有权的真实server入口", () => {
   });
 
   it.each(["-1", "65536", "1.5", "NaN"])("非法端口%s在Env与DI前按原CLI退出1", async (port) => {
-    argv("--port", port);
+    argv(`--port=${port}`);
     const exited = new Error("public-process-exit");
     exit.mockImplementationOnce(() => {
       throw exited;
