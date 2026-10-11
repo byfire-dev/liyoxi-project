@@ -364,7 +364,7 @@ describe("公开创建命令与真实四项档案/素材组合", { timeout: SLOW
       expect(assets[0]).toMatchObject({
         entityId: w.entityId,
         sourceStoreAssetId: w.assetId,
-        processingState: "pending",
+        processingState: "processing",
       });
       expect(
         await h.prisma.storeAssetFile.findMany({ where: { storeAssetId: assets[0].id } }),
