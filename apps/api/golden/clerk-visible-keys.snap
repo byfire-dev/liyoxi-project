@@ -380,6 +380,15 @@
     "unreadMessageCount",
     "viewerRole"
   ],
+  "m.member.list": [
+    "items",
+    "items[].displayName",
+    "items[].isSelf",
+    "items[].joinedAt",
+    "items[].memberId",
+    "items[].role",
+    "viewerRole"
+  ],
   "m.message.batchRead": [
     "markedCount",
     "summary",
