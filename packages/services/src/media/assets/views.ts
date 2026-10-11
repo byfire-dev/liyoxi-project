@@ -11,6 +11,7 @@ import type { MediaActor, ReadSignInput } from "../context.js";
 import { assetDisplayStatus, assetSelectable } from "./steps.js";
 import { assetFiles, assetOf } from "./repo.js";
 import type { AssetDeps } from "./context.js";
+import { documentFacts } from "./doc.js";
 
 export const objectContent = (value: unknown): Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
@@ -116,7 +117,10 @@ export async function assetView(
       : [];
   });
   const pageCounts = fileInsights("doc_text")
-    .map((row) => integerOf(content(row).pageCount))
+    .map((row) => {
+      const ext = links.find((link) => link.fileId === row.fileId)?.file.ext;
+      return ext === "pdf" ? (documentFacts(row.content, ext)?.pageCount ?? null) : null;
+    })
     .filter((value) => value !== null);
   const firstMedia = links.find((row) => /^(audio|video)\//.test(row.file.mime ?? ""));
   const uploaded = await deps.assets.readUploader(tx, {

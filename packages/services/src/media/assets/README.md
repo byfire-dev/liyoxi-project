@@ -46,13 +46,14 @@ fromMs/toMs；缺失事实、错误 TaskId 或过期租约不写成功洞察。
 
 ## 外部未验与 W3-15 移交
 
-- W3-14 不新增 ASR/vision/digest 驱动；W3-15 当前仅接 ASR 异步策略。生产组合缺正式全局预算参数，模型调用
+- W3-14 不新增 ASR/vision/digest 驱动；W3-15 当前接 ASR 异步策略及文档隔离抽取。生产组合缺正式全局预算参数，模型调用
   fail closed 为 `budget_unconfigured`；每日每店 200 次理解和全局日成本的原子准入
   尚未实现，是真实驱动启用前的 W3-15 阻断，不能把文件创建日计数充当调用配额。
 - promptVersion=1 是内部记录。ASR/LLM 协议构造不代表真实模型配置、区域与费用
   验收；完整 D5 富摘要、视频抽帧、自动闭集标签、回调及其余策略仍待 W3-15。
-- TXT 只作有界 UTF-8/GBK 文本读取；PDF/DOCX 抽取、结构化菜单和不兼容/超界文本
-  如实 skipped/partial，人工复核继续可用，不冒称已有容器抽取或识别成功。
+- 文档策略消费已合 mediatool 的 TXT UTF-8/GBK、DOCX、PDF 文本层抽取；宿主只下载
+  有界字节到既有 workspace，隔离容器解析，未配置或不兼容/超界输入如实 skipped/partial。
+  不做 OCR 或结构化菜单；DOCX 跳过表节点，PDF 不承诺识别任意表格结构，人工复核继续可用。
 - 真实云、真实模型、顾客肖像材料及成本/隐私联调未验。测试里的受控外呼结果仅用于
   数据库、租约、取消与人工降级性质，不能代替这些外部验收。
 
@@ -68,3 +69,33 @@ API/worker 构建、完整 enum394 列及官方契约/文档对账已实际通�
 当前官方差异检查与剩余原门禁已实际通过（7.034 秒）；最终文书和唯一独立审查
 记录以作者冻结清单及调度合流结果为准。
 这些结果不代表真实模型或真实云验收；所有早期失败与精确资源清理原件保留。
+
+## W3-15 文档素材策略
+
+文档 IO 前后由短事务按父素材、任务、文件原顺序复核新鲜 lease/attempt/deadline、
+run/prompt 与主体门店/文件指纹。仅 stored/non-block 的 TXT/DOCX/PDF、20MiB 内实际
+字节可下载；workspace 的 source.mp4 只是固定传输名，解析格式来自可信文件记录。
+下载大小及 SHA 与源事实核对，解析最多10000码点、10秒且不越任务期限；取消和清理沿
+原 caller signal/workspace，不在事务内解析或外呼，不新增模型准入或开启付费默认。
+
+doc_text 严格保存实际正文、完整码点数及截断事实，只有 PDF 给实际页数，TXT/DOCX
+不猜页数。缓存仍限定同主体、实际 CRC64/大小、prompt，并核格式和已知 SHA；旧固定
+页数或缺少字符数/截断事实的内容不复用。提取或审核聚合正文不完整时，前缀 pass
+降为 pending/partial；已观察到的 block/review 保留，不能据此前缀批准整份文档。
+本片业务 DB/受控 Unix 协议 peer 与真实 Linux 容器组合测试分列，不把替身当真实解析。
+真实文档准确率、云与 E22 仍未验，整个 W3-15 继续进行中。
+
+### 独立真实容器验收
+
+`packages/services/test/doc-container.db.test.ts` 的三格式验收需本机 PostgreSQL/Redis、
+Docker 与已接纳的 Linux arm64 mediatool 镜像。普通 services/CI 的 `src/**/*.test.ts`
+不收集本组；从仓库根显式执行，不跳过其中任何一例：
+
+```sh
+LYX_TEST_SESSION=w315edoc pnpm exec vitest run --config packages/services/doc-container.vitest.config.ts
+```
+
+运行前须按测试支架配置 `DATABASE_URL`、`REDIS_URL` 和 `APP_ENV=test`，并确保该独占
+session 未被其他轮使用。入口严格核既有镜像的 arm64 manifest 与实际容器 descriptor、
+原无网/只读/nonroot/单CPU单GiB沙箱；缺环境或镜像前提明确失败，不自动拉取、构建或替换。
+这是本地已接纳镜像的真实 DB/workspace/socket 组合证明，不代替跨平台或远端 CI 镜像交付。
