@@ -65,6 +65,12 @@ export type {
 } from "./assets/store-copy.js";
 export type { ModelBudgetFacts, ModelBudgetAdmission } from "./assets/types.js";
 export { readMemberAssetCounts } from "./assets/member-counts.js";
+export { readEntityAssetCounts } from "./assets/admin-entity-counts.js";
+export type {
+  EntityAssetCounts,
+  EntityStoreAssetCounts,
+  EntityMemberAssetCounts,
+} from "./assets/admin-entity-counts.js";
 export type { MemberAssetCounts, MemberAssetCountsInput } from "./assets/member-counts.js";
 export { createModelBudgetLedger } from "./assets/model-budget.js";
 export type {
