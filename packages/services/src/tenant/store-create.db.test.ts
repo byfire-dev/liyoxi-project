@@ -344,6 +344,7 @@ describe("分店创建真实本域命令与typed端口边界", { timeout: SLOW }
             entityId: w.entityId,
             name: BODY.name,
             isPrimary: false,
+            lifecycle: "active",
             createdAt: h.clock.now(),
             updatedAt: h.clock.now(),
           },
