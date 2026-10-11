@@ -176,18 +176,20 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
       return (stopping ??= (async () => {
         keeper?.stop();
         active = false;
-        let docsFailure: PromiseRejectedResult | undefined;
+        let failure: unknown;
+        let failed = false;
         try {
+          services.disableModelBudget?.();
           // 一个关闭失败不能提前解绑：循环与全部消费者都收完后才清理绑定。
-          const mediaShutdown = services.shutdownMediaJobs?.();
+          const mediaShutdown = Promise.resolve().then(() => services.shutdownMediaJobs?.());
           const loopResults = await Promise.allSettled([
-            services.closeNotify(),
-            services.closeAnalytics?.(),
-            ...all.map((one) => one.stop()),
-            ...(mediaShutdown ? [mediaShutdown] : []),
+            Promise.resolve().then(() => services.closeNotify()),
+            Promise.resolve().then(() => services.closeAnalytics?.()),
+            ...all.map((one) => Promise.resolve().then(() => one.stop())),
+            mediaShutdown,
           ]);
           const queueResults = await Promise.allSettled(
-            queues.map((one) => one.close(SHUTDOWN_WAIT_MS)),
+            queues.map((one) => Promise.resolve().then(() => one.close(SHUTDOWN_WAIT_MS))),
           );
           const failed = [...loopResults, ...queueResults].find(
             (result) => result.status === "rejected",
@@ -197,30 +199,53 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           await lease
             ?.release()
             .catch((error: unknown) => logger.warn({ err: error }, "让出租约失败"));
+        } catch (error) {
+          failed = true;
+          failure = error;
         } finally {
-          const docsClosed = await Promise.allSettled([services.closeDocs()]);
-          const converterClosed = await Promise.allSettled([services.documentConverter?.close()]);
-          services.closeBillingTimers?.();
-          services.closeOrder?.();
-          services.closePublish?.();
-          services.closeDelivery?.();
-          services.closeProfile?.();
-          services.closeInvitations?.();
-          services.closeApproval?.();
-          services.closeWebhooks?.();
-          services.closeMediaJobs?.();
-          await services.closeStaff?.();
-          await Promise.allSettled([
-            services.closeSmsHealth?.(),
-            services.closeMediaDrivers?.(),
-            services.closeStorageDrivers?.(),
+          const docsClosed = await Promise.allSettled([
+            Promise.resolve().then(() => services.closeDocs()),
           ]);
-          await services.closeAlertFacts?.();
-          docsFailure = [...docsClosed, ...converterClosed].find(
-            (result) => result.status === "rejected",
+          const converterClosed = await Promise.allSettled([
+            Promise.resolve().then(() => services.documentConverter?.close()),
+          ]);
+          const domainsClosed = await Promise.allSettled(
+            [
+              () => services.closeBillingTimers?.(),
+              () => services.closeOrder?.(),
+              () => services.closePublish?.(),
+              () => services.closeDelivery?.(),
+              () => services.closeProfile?.(),
+              () => services.closeInvitations?.(),
+              () => services.closeApproval?.(),
+              () => services.closeWebhooks?.(),
+              () => services.closeMediaJobs?.(),
+              () => services.closeStaff?.(),
+              () => services.closeSmsHealth?.(),
+              () => services.closeMediaDrivers?.(),
+              () => services.closeStorageDrivers?.(),
+            ].map((close) => Promise.resolve().then(close)),
           );
+          // 准入先禁用，业务drain后才关闭预算；其它close失败也不能跳过告警drain。
+          const budgetClosed = await Promise.allSettled([
+            Promise.resolve().then(() => services.closeModelBudget?.()),
+          ]);
+          const alertsClosed = await Promise.allSettled([
+            Promise.resolve().then(() => services.closeAlertFacts?.()),
+          ]);
+          const closeFailure = [
+            ...docsClosed,
+            ...converterClosed,
+            ...domainsClosed,
+            ...budgetClosed,
+            ...alertsClosed,
+          ].find((result) => result.status === "rejected");
+          if (!failed && closeFailure?.status === "rejected") {
+            failed = true;
+            failure = closeFailure.reason;
+          }
         }
-        if (docsFailure) throw docsFailure.reason;
+        if (failed) throw failure;
       })());
     },
   };
