@@ -2,8 +2,7 @@ import type { Prisma, PrismaClient } from "@liyoxi/db";
 import { createEvents } from "../../events/index.js";
 import { createFlow } from "../../flow/index.js";
 import { AppError, alertsOf, createIdempotencyContext, uuidv7 } from "../../kernel/index.js";
-import type { IdentityContext, TxRunner } from "../../kernel/index.js";
-import { createInvitationAssembly } from "../../ops/index.js";
+import type { Assembly, IdentityContext, TxRunner } from "../../kernel/index.js";
 import { createFakeWechat, snapshotTables, TEST_KEYRING } from "../../testing/index.js";
 import type { AdjustableClock } from "../../testing/index.js";
 import { claimTimers, createTimers, runTimer } from "../../timers/index.js";
@@ -28,8 +27,17 @@ export function invitationServices(
   override: Partial<InvitationDeps> = {},
 ) {
   const base = removalServices(prisma, clock, runner);
-  const scope = createInvitationAssembly(base.assembly),
-    assembly = scope.assembly;
+  // 本域测试只接真实拥有者，不构造高层运行时；实例装配/关停由 ops 与 worker 整叶覆盖。
+  const timerHandlers: Assembly["timerHandlers"] = base.assembly.timerHandlers.map((item) =>
+    item.kind === "invitation.expire"
+      ? { ...item, handle: (tx, timer) => expiry.handle(tx, timer) }
+      : item,
+  );
+  const assembly: Assembly = {
+    ...base.assembly,
+    timerHandlers,
+    timerHandler: (kind) => timerHandlers.find((item) => item.kind === kind),
+  };
   const events = createEvents({ tx: base.tx, clock: base.clock, assembly });
   const flow = createFlow({ assembly, clock: base.clock, events });
   const timers = createTimers({ assembly });
@@ -58,7 +66,7 @@ export function invitationServices(
     events,
     invitations,
   });
-  scope.attach(createInvitationExpiry({ clock: base.clock, flow }));
+  const expiry = createInvitationExpiry({ clock: base.clock, flow });
   const timerDeps = {
     tx: base.tx,
     assembly,
@@ -66,7 +74,7 @@ export function invitationServices(
     clock: base.clock,
     alerts: alertsOf(assembly),
   };
-  return { ...base, assembly, events, flow, timers, tenant, wechat, scope, timerDeps };
+  return { ...base, assembly, events, flow, timers, tenant, wechat, timerDeps };
 }
 export function invitationHarness(prisma: PrismaClient) {
   const base = removalHarness(prisma);
