@@ -8,6 +8,8 @@ import {
   StoreListSchema,
   StoreArchiveParamsSchema,
   StoreArchiveResultSchema,
+  StoreRestoreParamsSchema,
+  StoreCardSchema,
 } from "./tenant.schemas.js";
 
 export const mStoreList = merchantRoute({
@@ -59,7 +61,7 @@ export const mStoreDelete = merchantMeta({
   "x-idempotent": "required",
 });
 
-export const mStoreRestore = merchantMeta({
+export const mStoreRestore = merchantRoute({
   method: "post",
   path: "/m/stores/{storeId}/restore",
   operationId: "m.store.restore",
@@ -67,4 +69,6 @@ export const mStoreRestore = merchantMeta({
   "x-capability": "store.restore",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: { params: StoreRestoreParamsSchema },
+  responses: { ...okResponse(StoreCardSchema), ...errorResponses(400, 401, 403, 404, 409) },
 });

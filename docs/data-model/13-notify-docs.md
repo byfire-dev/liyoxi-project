@@ -1337,3 +1337,9 @@ erDiagram
 ## 8. W2-10 门店归档成员的账号级告知
 
 - 另有 W2-10 最窄成员状态告知：仅真实 `store_archived` 级联的被移除本人，`biz_type = merchant_user`，entity/store/copyMode 均 NULL、非 ownerOnly、`messages.list`。正文及 vars 不含旧主体/门店与个人敏感字段；派发及发送都以实际源 outbox、归档和移除历史及当前账号重验，不泛化其他移除原因或消息读取权限。
+
+## 9. 恢复后的当前归档发生次
+
+门店再次归档后，读取当前五个归档列、最后一条 store.lifecycle 历史和最新真实 store.archived 源。历史与 outbox 的 seq 只在各自表内排序，不跨表比较；经理源必须是当前源 id，本人级联源须在该归档源之后且当前 removedAt 对应同次归档。请求号可重复或为空，三次 Clock 采样不要求相等；同发生次回拨使时间下界失效时保守拒发。
+
+仅 reader 识别当前发生次，原账号级安全告知、当前有效老板/经理筛选、持久来源识别与实际发送前重验保持。恢复不删除历史消息或放宽 messages.list 的业务权限，也不扩张普通 by_owner 移除通知。
