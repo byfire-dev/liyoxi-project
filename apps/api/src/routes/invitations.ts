@@ -7,6 +7,8 @@ import {
   mInvitationLookup,
   mInvitationMarkShared,
   mInvitationRevoke,
+  mInvitationAccept,
+  MembershipResultSchema,
 } from "@liyoxi/contract";
 import { AppError } from "@liyoxi/services";
 import { ok } from "../http/errors.js";
@@ -16,6 +18,18 @@ import { merchantServicesOf } from "../merchant/services.js";
 import { defineHandler } from "../routing/define.js";
 
 export const invitationHandlers = [
+  defineHandler(mInvitationAccept, async (c) => {
+    const ctx = c.get("identity"),
+      principal = c.get("merchantSession");
+    if (!ctx || !principal) throw new AppError("AUTH_REQUIRED");
+    const result = await merchantServicesOf(c.var.runtime).tenant.acceptInvitation(
+      ctx,
+      { ...c.req.valid("param"), ...c.req.valid("json") },
+      { idem: idemOf(c), principal },
+    );
+    c.header("Cache-Control", "no-store");
+    return ok(c, MembershipResultSchema.parse(result));
+  }),
   defineHandler(mInvitationCreate, async (c) => {
     const ctx = c.get("identity"),
       principal = c.get("merchantSession");

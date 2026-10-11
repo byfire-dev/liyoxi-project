@@ -31,6 +31,7 @@ export interface NotifyFact {
   occurredAt?: string;
   detail?: string;
   guardBizType?:
+    | "invitation"
     | "drama_order"
     | "delivery_plan"
     | "delivery_release"

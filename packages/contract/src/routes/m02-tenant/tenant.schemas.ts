@@ -155,6 +155,16 @@ export const InvitationRevokeResultSchema = z.strictObject({
 });
 export type InvitationRevokeResult = z.infer<typeof InvitationRevokeResultSchema>;
 export const InvitationLookupQuerySchema = z.strictObject({ token: invitationToken });
+export const InvitationAcceptBodySchema = z.strictObject({
+  token: invitationToken,
+  displayName: z
+    .string()
+    .trim()
+    .refine((v) => [...v].length >= 1 && [...v].length <= 20, "称呼须为 1 至 20 字")
+    .nullable()
+    .optional(),
+});
+export type InvitationAcceptBody = z.infer<typeof InvitationAcceptBodySchema>;
 export const InvitationPreviewSchema = z
   .strictObject({
     invitationId: IdSchema,
