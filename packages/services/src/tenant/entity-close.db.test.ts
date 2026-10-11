@@ -174,7 +174,7 @@ async function grant(
       grantScope: "store",
       expiresAt: new Date(now.getTime() + (options.expired ? -1 : 1) * 3_600_000),
       ...(options.revoked ? { revokedAt: now, revokeReason: "owner_revoked" } : {}),
-      createdAt: now,
+      createdAt: new Date(now.getTime() - 3 * 3_600_000),
       updatedAt: now,
       ip: "198.51.100.11",
       userAgent: "W210 owner fixture",
