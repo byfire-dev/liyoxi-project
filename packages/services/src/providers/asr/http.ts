@@ -13,6 +13,8 @@ export interface TencentAsrOptions {
   fetch?: typeof fetch;
   /** 单请求最多10秒；不含业务轮询、重试或任务期限。 */
   timeoutMs?: number;
+  /** 可选固定回调来源；不读取环境或启用默认生产回调。 */
+  callback?: Readonly<{ origin: string; key: string }>;
 }
 export function asrFailure(
   reason: AsrSubmissionFailure["reason"],
