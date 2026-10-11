@@ -217,7 +217,10 @@ describe("预算真实参数/Redis/独立告警事务", { timeout: SLOW }, () =>
   });
 
   it("非法P1只排本次事实；活PG中零外呼，事务外才写告警", async () => {
+    const capturedNow = h.clock.now();
+    h.clock.set(new Date(capturedNow.getTime() - 1));
     await caps();
+    h.clock.set(capturedNow);
     await revision("media.model.daily_call_cap", "非法历史值");
     const before = await prisma.paramValue.findMany({ orderBy: { seq: "asc" } });
     await expect(
