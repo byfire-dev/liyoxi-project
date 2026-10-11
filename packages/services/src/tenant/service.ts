@@ -62,6 +62,8 @@ import type { StoreDraftFactsReader } from "./store-archive.js";
 import { restoreStoreIn } from "./store-restore.js";
 import type { Timers } from "../timers/index.js";
 import { createInvitationAcceptor } from "./invitation-accept.js";
+import { readStoreMembersBrief } from "./profile-members.js";
+import type { StoreMembersBrief } from "./profile-members.js";
 import { createStoreCreator } from "./store-create.js";
 import type { StoreCreation, StoreCreateOptions } from "./store-create.js";
 
@@ -160,6 +162,11 @@ export interface Tenant {
   ): Promise<MembershipResult>;
 
   // ---------- 在调用方的事务里 ----------
+  /** 建档首页真实成员摘要：同 caller Tx 与业务时间，仅有效主体/门店。 */
+  readStoreMembersBrief(
+    tx: Tx,
+    input: { readonly entityId: string; readonly storeId: string; readonly now: Date },
+  ): Promise<StoreMembersBrief | null>;
   /** 账号此刻的有效成员关系（V1.0 至多一条）；没有即 null */
   activeMembership(db: TenantReader, merchantUserId: string): Promise<ActiveMembership | null>;
   /** 成员关系解析：进不去即 null；老板进自己停用的门店是收尾上下文 */
@@ -271,6 +278,7 @@ export function createTenant(deps: TenantDeps): Tenant {
       return deps.tx.run((tx) => invitationPreview(tx, facts, now(), token));
     },
     acceptInvitation,
+    readStoreMembersBrief,
     activeMembership: (db, merchantUserId) => selectActiveMembership(db, merchantUserId),
     resolveMembership: (db, input) => resolveMembership(db, input),
     getQuotaUsage: (tx, entityId) => getQuotaUsage(tx, { facts }, now(), entityId),

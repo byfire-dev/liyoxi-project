@@ -78,3 +78,4 @@ export type {
 } from "./entity-close.js";
 
 export { readStoreAssetFacts, readAssetMerchantUploader } from "./media-facts.js";
+export type { StoreMembersBrief } from "./profile-members.js";
