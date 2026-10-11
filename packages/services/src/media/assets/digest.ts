@@ -4,7 +4,7 @@ import type { MediaJob } from "@liyoxi/db";
 import { AssetTagExtSchema, DictCodeSchema } from "@liyoxi/contract";
 import { assertNotInTransaction, lockRows } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
-import { LlmDigestSchema, LlmVisionSchema } from "../../providers/types.js";
+import { LlmDigestSchema, LlmVisionSchema, isLlmDigestInput } from "../../providers/types.js";
 import type { LlmDigestVocabulary } from "../../providers/types.js";
 import type { JobJson, JobOutcome } from "../jobs/types.js";
 import type { AssetDeps } from "./context.js";
@@ -17,6 +17,15 @@ import {
 import { assetFiles } from "./repo.js";
 import { documentFacts } from "./doc.js";
 import { visionContent, visionProjection } from "./vision.js";
+import {
+  admitModel,
+  hasModelBudget,
+  completeModelBudget,
+  modelBudgetFailure,
+  readModelJob,
+  modelPermitCurrent,
+} from "./model-admission.js";
+import type { ModelBudgetContext } from "./model-budget.js";
 
 const sourceKind = { transcript: "asr", vision: "vision", doc_text: "doc_extract" } as const;
 const vocabularyItem = z.object({ code: DictCodeSchema, name: z.string().min(1).max(20) });
@@ -134,6 +143,7 @@ async function sources(tx: Tx, job: MediaJob) {
             ? ["transcript"]
             : [];
   const pieces: string[] = [];
+  const pieceFiles: Array<{ fileId: string; prefix: number }> = [];
   let partial = false,
     usable = !!(asset.textBody?.trim() || asset.note?.trim()),
     transcriptChars = 0,
@@ -196,12 +206,26 @@ async function sources(tx: Tx, job: MediaJob) {
       const selected = chars.slice(0, Math.max(0, remaining)).join("");
       if (kind === "transcript") transcriptChars += Array.from(selected).length;
       if (kind === "doc_text") documentChars += Array.from(selected).length;
-      if (selected) pieces.push(`${kind}: ${selected}`);
+      if (selected) {
+        pieces.push(`${kind}: ${selected}`);
+        pieceFiles.push({ fileId: file.id, prefix: kind.length + 2 });
+      }
     }
   const fullText = [asset.textBody, asset.note, tags.map((tag) => tag.tagCode).join(","), ...pieces]
     .filter(Boolean)
     .join("\n");
   partial ||= Array.from(fullText).length > 16000;
+  // 前缀/换行/文本/说明/标签都占原布局；只有实际保留洞察正文字符才计文件。
+  const base = [asset.textBody, asset.note, tags.map((tag) => tag.tagCode).join(",")].filter(
+    Boolean,
+  );
+  let offset = Array.from(base.join("\n")).length;
+  const contributing = new Set<string>();
+  for (const [index, piece] of pieces.entries()) {
+    if (base.length || index > 0) offset += 1;
+    if (offset + pieceFiles[index]!.prefix < 16000) contributing.add(pieceFiles[index]!.fileId);
+    offset += Array.from(piece).length;
+  }
   const hash = createHash("sha256")
     .update(
       JSON.stringify({
@@ -250,7 +274,9 @@ async function sources(tx: Tx, job: MediaJob) {
     hash,
     text: usable ? Array.from(fullText).slice(0, 16000).join("") : "",
     partial,
+    entityId: asset.entityId,
     storeId: asset.storeId,
+    fileIds: [...contributing].sort(),
     vocabulary: vocabularyValid ? vocabulary : null,
   };
 }
@@ -291,7 +317,9 @@ export function createAssetDigestStrategy(
     async execute(job: MediaJob, signal: AbortSignal): Promise<JobOutcome> {
       if (signal.aborted) return { state: "canceled" };
       try {
-        const before = await admitted(job, true);
+        const paired = hasModelBudget(deps);
+        if (paired && !completeModelBudget(deps)) return modelBudgetFailure("unavailable");
+        const before = await admitted(job, !paired);
         if (!before || signal.aborted) return { state: "canceled" };
         if (!before.permitted) return skipped("budget_unconfigured");
         if (deps.assets.llm.status === "unconfigured") return skipped("llm_unconfigured");
@@ -300,12 +328,28 @@ export function createAssetDigestStrategy(
         if (!before.text.trim()) return skipped("digest_source_missing");
         if (Buffer.byteLength(JSON.stringify({ evidence: before.text, vocabulary })) > 64 * 1024)
           return skipped("digest_input_invalid");
+        const modelInput = { text: before.text, vocabulary: structuredClone(vocabulary), signal };
+        let permit: ModelBudgetContext | undefined;
+        if (paired) {
+          if (!isLlmDigestInput(modelInput)) return skipped("digest_input_invalid");
+          const outcome = await admitModel(deps, job, signal, async (tx) => {
+            if (!(await readModelJob(deps, tx, job, current))) return null;
+            const snapshot = await sources(tx, job);
+            return snapshot?.hash === before.hash
+              ? {
+                  entityId: snapshot.entityId,
+                  storeId: snapshot.storeId,
+                  fileIds: snapshot.fileIds,
+                  expectedSourceHash: snapshot.hash,
+                }
+              : null;
+          });
+          if ("state" in outcome) return outcome;
+          permit = outcome.permit;
+        }
         assertNotInTransaction("素材结构化摘要模型调用");
-        const result = await deps.assets.llm.summarizeAsset({
-          text: before.text,
-          vocabulary: structuredClone(vocabulary),
-          signal,
-        });
+        if (permit && !modelPermitCurrent(deps, permit, signal)) return { state: "canceled" };
+        const result = await deps.assets.llm.summarizeAsset(modelInput);
         const after = await admitted(job, false);
         if (signal.aborted || !after || before.hash !== after.hash) return { state: "canceled" };
         if (!result.ok) return skipped("digest_unavailable");
