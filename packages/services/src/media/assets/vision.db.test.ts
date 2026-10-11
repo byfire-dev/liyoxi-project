@@ -155,7 +155,12 @@ function crc64(bytes: Uint8Array) {
   }
   return crc.toString();
 }
-async function stored(type: "image" | "video", merchant: Merchant, same?: FileObject) {
+async function stored(
+  type: "image" | "video",
+  merchant: Merchant,
+  same?: FileObject,
+  category = "store_asset",
+) {
   const body = same ? storedBodies.get(same.id) : Buffer.from(`public synthetic ${uuidv7()}`),
     key = `test/${uuidv7()}.${type === "image" ? "png" : "mp4"}`;
   if (!body) throw new Error("缺少同字节缓存来源夹具");
@@ -166,7 +171,7 @@ async function stored(type: "image" | "video", merchant: Merchant, same?: FileOb
   );
   const file = await h.make.fileObject({
     bucket: "asset",
-    category: "store_asset",
+    category,
     scopeType: "store",
     entityId: merchant.entity.id,
     storeId: merchant.store.id,
@@ -513,25 +518,35 @@ describe("current subject, file and complete provenance", () => {
     "provider-or-input-changed",
   ] as const)("%s rejects the original claim before signing or model IO", async (change) => {
     const facts = await ready(),
-      job = await claim(facts),
       file = facts.files[0]!;
-    if (change === "foreign-entity") {
-      const foreign = await h.make.merchant();
-      await h.prisma.fileObject.update({
-        where: { id: file.id },
+    let job = await claim(facts);
+    if (["foreign-entity", "foreign-store", "wrong-category"].includes(change)) {
+      const merchant = change === "foreign-entity" ? await h.make.merchant() : h.merchant;
+      const store =
+        change === "foreign-store"
+          ? await h.make.store({ entityId: merchant.entity.id })
+          : merchant.store;
+      // 独立合法登记行保留真替身字节；归属/类别不匹配由current业务guard拒绝。
+      const replacement = await stored(
+        "image",
+        { ...merchant, store },
+        file,
+        change === "wrong-category" ? "portrait_auth" : "store_asset",
+      );
+      const input = { ...AssetJobInputSchema.parse(job.input), fileId: replacement.id };
+      await h.prisma.storeAssetFile.update({
+        where: { storeAssetId_fileId: { storeAssetId: facts.assetId, fileId: file.id } },
+        data: { fileId: replacement.id },
+      });
+      job = await h.prisma.mediaJob.update({
+        where: { id: job.id },
         data: {
-          entityId: foreign.entity.id,
-          storeId: foreign.store.id,
+          input: json(input),
+          subjectId: replacement.id,
+          dedupeKey: `asset:${facts.assetId}:${input.runId}:vision:${replacement.id}:v${input.promptVersion}`,
         },
       });
-    } else if (change === "foreign-store") {
-      const other = await h.make.store({ entityId: h.merchant.entity.id });
-      await h.prisma.fileObject.update({ where: { id: file.id }, data: { storeId: other.id } });
-    } else if (change === "wrong-category") {
-      await h.prisma.fileObject.update({
-        where: { id: file.id },
-        data: { category: "portrait_auth" },
-      });
+      expect(assetJobOwned(job)).toBe(true);
     } else if (change === "missing-link") {
       await h.prisma.storeAssetFile.deleteMany({ where: { storeAssetId: facts.assetId } });
     } else if (change === "asset-deleted" || change === "asset-block") {
@@ -787,7 +802,7 @@ describe("unlocked model IO and complete late-source fingerprints", () => {
         else if (change === "etag-or-key-during-io")
           await h.prisma.fileObject.update({
             where: { id: facts.files[0]!.id },
-            data: { objectKey: "test/winner.png" },
+            data: { etag: "actual-winner-etag" },
           });
         else {
           const origin = await h.prisma.mediaJob.findFirstOrThrow({
@@ -1013,9 +1028,9 @@ describe("real lock waits recheck lease, deadline and current facts", () => {
             void pending.catch(() => undefined);
             await lock.blocked();
             if (stage.startsWith("370"))
-              await lock.holder.query("UPDATE file_object SET object_key=$2 WHERE id=$1::uuid", [
+              await lock.holder.query("UPDATE file_object SET etag=$2 WHERE id=$1::uuid", [
                 file.id,
-                "test/committed-winner.png",
+                "actual-committed-winner-etag",
               ]);
             else
               await lock.holder.query(
@@ -1025,9 +1040,12 @@ describe("real lock waits recheck lease, deadline and current facts", () => {
             await lock.commit();
             const result = await pending;
             if (stage.startsWith("370")) {
-              expect(output(result).status).toBe("ok");
-              expect(signing.mock.calls[0]![0].key).toBe("test/committed-winner.png");
-              expect(model).toHaveBeenCalledOnce();
+              expect(result).toEqual({ state: "canceled" });
+              expect(signing).not.toHaveBeenCalled();
+              expect(model).not.toHaveBeenCalled();
+              expect(
+                (await h.prisma.fileObject.findUniqueOrThrow({ where: { id: file.id } })).etag,
+              ).toBe("actual-committed-winner-etag");
             } else {
               expect(result).toEqual({ state: "canceled" });
               expect(signing).not.toHaveBeenCalled();
@@ -1167,7 +1185,7 @@ describe("real first-round cache origins and bounded parent-lock graph", () => {
                 );
               await lock.commit();
               if (change === "candidate-graph-expanded")
-                await expect(pending).rejects.toMatchObject({ code: "BUSY" });
+                await expect(pending).rejects.toMatchObject({ error: "BUSY" });
               else await pending;
             },
           );
@@ -1467,9 +1485,9 @@ describe("strict vision facts feed aggregate digest without private metadata", (
           expect(serialized).not.toContain(privateFact);
         expect(details).toMatchObject({
           portraitAuth: { authorizedAt: null },
-          reviewState: "unreviewed",
           usability: null,
         });
+        expect(await assetRow(facts.assetId)).toMatchObject({ reviewState: "unreviewed" });
         expect(await tags(facts.assetId)).toEqual([]);
         if (scenario === "private-provenance-no-business-leak") {
           // 明确合法历史旧DTO；既有摘要兼容分支须保留2000字，而非让新helper伪造五项。
