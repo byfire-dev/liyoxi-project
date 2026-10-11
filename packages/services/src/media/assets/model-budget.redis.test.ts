@@ -1,11 +1,5 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  createTxRunner,
-  detach,
-  isInTransaction,
-  KernelViolation,
-  uuidv7,
-} from "../../kernel/index.js";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTxRunner, detach, KernelViolation, uuidv7 } from "../../kernel/index.js";
 import { createClock, useTestDatabase, useTestRedis } from "../../testing/index.js";
 import { createModelBudgetLedger } from "../index.js";
 import type { ModelBudgetContext, ModelBudgetTransport } from "../index.js";
@@ -18,39 +12,6 @@ const DAY = 86400000,
 const dayOf = (n: number) => Math.floor((n + OFFSET) / DAY);
 const signal = () => new AbortController().signal;
 let first: Awaited<ReturnType<typeof redis.raw>>, second: typeof first;
-// 临时有界诊断：原eval之前不增加命令，全部业务断言完成后才读自有元数据与RedisTIME。
-let diagnostic: unknown[] = [],
-  diagnosticKeys: string[] = [];
-const observe = (value: unknown) => {
-  if (diagnostic.length < 64) diagnostic.push(value);
-};
-beforeEach(() => {
-  diagnostic = [];
-  diagnosticKeys = [];
-});
-afterEach(async () => {
-  if (!first) return;
-  const time = await first.time();
-  const metadata = await Promise.all(
-    diagnosticKeys.slice(0, 4).map(async (key) => ({
-      key,
-      type: await first.type(key),
-      values: await first
-        .hmget(key, "marker", "business", "redis", "day", "closed", "head", "next", "cursor")
-        .catch((error: unknown) => ({ error: String(error) })),
-    })),
-  );
-  console.warn(
-    "MODEL_BUDGET_DIAGNOSTIC",
-    JSON.stringify({
-      hostMs: Date.now(),
-      redisMs: Number(time[0]) * 1000 + Math.floor(Number(time[1]) / 1000),
-      inTransaction: isInTransaction(),
-      diagnostic,
-      metadata,
-    }),
-  );
-}, 60000);
 beforeAll(async () => {
   first = await redis.raw();
   second = await redis.raw();
@@ -65,35 +26,9 @@ async function setup(options: { seed?: boolean; maxFields?: number } = {}) {
     storeId = uuidv7(),
     fileId = uuidv7();
   const transport = (client: typeof first) =>
-    vi.fn<ModelBudgetTransport["eval"]>(async (script, keys, argv) => {
-      const started = {
-        clockMs: clock.now().getTime(),
-        hostMs: Date.now(),
-        inTransaction: isInTransaction(),
-      };
-      try {
-        const raw = await client.eval(script, keys.length, ...keys, ...argv);
-        observe({
-          phase: "eval",
-          argv,
-          started,
-          clockMs: clock.now().getTime(),
-          hostMs: Date.now(),
-          raw,
-        });
-        return raw;
-      } catch (error) {
-        observe({
-          phase: "eval",
-          argv,
-          started,
-          clockMs: clock.now().getTime(),
-          hostMs: Date.now(),
-          error: String(error),
-        });
-        throw error;
-      }
-    });
+    vi.fn<ModelBudgetTransport["eval"]>(async (script, keys, argv) =>
+      client.eval(script, keys.length, ...keys, ...argv),
+    );
   const evaluate = transport(first),
     otherEvaluate = transport(second);
   const build = (evalCall = evaluate) =>
@@ -101,23 +36,25 @@ async function setup(options: { seed?: boolean; maxFields?: number } = {}) {
   const ledger = build(),
     other = build(otherEvaluate);
   const now = clock.now().getTime();
-  if (diagnosticKeys.length < 4) diagnosticKeys.push(key);
-  observe({ phase: "setup", key, now, hostMs: Date.now(), seed: options.seed !== false });
-  if (options.seed !== false)
+  if (options.seed !== false) {
+    // 两个独立时钟各取自己的合法历史，不把业务时间当作Redis时间。
+    const [seconds, micros] = await first.time();
+    const redisNow = Number(seconds) * 1000 + Math.floor(Number(micros) / 1000);
     await first.hset(key, {
       marker: "model_budget_v1",
       business: String(now - 1),
-      redis: String(now - 1),
+      redis: String(redisNow - 1),
       day: String(dayOf(now)),
       closed: "0",
       head: "1",
       next: "1",
       cursor: "1",
     });
+  }
   const permit = (change: Partial<ModelBudgetContext> = {}): ModelBudgetContext => {
     clock.set(new Date());
     const at = clock.now().getTime();
-    const value: ModelBudgetContext = {
+    return {
       entityId,
       storeId,
       jobId: uuidv7(),
@@ -133,8 +70,6 @@ async function setup(options: { seed?: boolean; maxFields?: number } = {}) {
       originalDeadlineMs: at + 1800000,
       ...change,
     };
-    observe({ phase: "permit", clockMs: clock.now().getTime(), hostMs: Date.now(), value });
-    return value;
   };
   const snapshot = () => first.hgetall(key);
   const token = (p: ModelBudgetContext) => `t:${p.jobId}:${p.attemptNo}:${p.kind}`;
