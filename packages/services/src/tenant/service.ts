@@ -12,6 +12,7 @@ import type {
   StoreArchiveResult,
   StoreDeleteResult,
   StoreCard,
+  StoreCreateBody,
   MemberItem,
   MemberList,
   InvitationCreateBody,
@@ -61,8 +62,14 @@ import type { StoreDraftFactsReader } from "./store-archive.js";
 import { restoreStoreIn } from "./store-restore.js";
 import type { Timers } from "../timers/index.js";
 import { createInvitationAcceptor } from "./invitation-accept.js";
+import { readStoreMembersBrief } from "./profile-members.js";
+import type { StoreMembersBrief } from "./profile-members.js";
+import { createStoreCreator } from "./store-create.js";
+import type { StoreCreation, StoreCreateOptions } from "./store-create.js";
 
 export interface TenantDeps extends Pick<MemberManagementDeps, "readMemberAssetCounts" | "events"> {
+  /** 分店创建由上层固定绑定档案与会话拥有者；缺失不影响旧命令。 */
+  readonly storeCreation?: StoreCreation;
   /** 删除草稿门店需要六个拥有者的真实同事务历史，缺装配不影响旧用例。 */
   readonly readStoreDraftFacts?: StoreDraftFactsReader;
   /** 仅新门店归档用例需要；同事务取消原邀请到期任务。 */
@@ -85,6 +92,11 @@ export interface UseCaseOptions {
 }
 
 export interface Tenant {
+  createStore(
+    ctx: IdentityContext,
+    input: StoreCreateBody,
+    options: StoreCreateOptions,
+  ): Promise<StoreCard>;
   // ---------- 用例函数：自己开事务 ----------
   /** m.entity.create：懒创建主体、首店、老板成员关系，经端口建计费账户。操作人须是商家用户 */
   createEntity(ctx: IdentityContext, options?: UseCaseOptions): Promise<MembershipResult>;
@@ -150,6 +162,11 @@ export interface Tenant {
   ): Promise<MembershipResult>;
 
   // ---------- 在调用方的事务里 ----------
+  /** 建档首页真实成员摘要：同 caller Tx 与业务时间，仅有效主体/门店。 */
+  readStoreMembersBrief(
+    tx: Tx,
+    input: { readonly entityId: string; readonly storeId: string; readonly now: Date },
+  ): Promise<StoreMembersBrief | null>;
   /** 账号此刻的有效成员关系（V1.0 至多一条）；没有即 null */
   activeMembership(db: TenantReader, merchantUserId: string): Promise<ActiveMembership | null>;
   /** 成员关系解析：进不去即 null；老板进自己停用的门店是收尾上下文 */
@@ -200,7 +217,9 @@ export function createTenant(deps: TenantDeps): Tenant {
   const billingAccount = deps.assembly.port(billingAccountPort);
   const memberDeps = { ...deps, facts };
   const acceptInvitation = createInvitationAcceptor(memberDeps);
+  const createStore = createStoreCreator(memberDeps);
   return {
+    createStore,
     async createEntity(ctx, options = {}) {
       try {
         return await deps.tx.run(
@@ -259,6 +278,7 @@ export function createTenant(deps: TenantDeps): Tenant {
       return deps.tx.run((tx) => invitationPreview(tx, facts, now(), token));
     },
     acceptInvitation,
+    readStoreMembersBrief,
     activeMembership: (db, merchantUserId) => selectActiveMembership(db, merchantUserId),
     resolveMembership: (db, input) => resolveMembership(db, input),
     getQuotaUsage: (tx, entityId) => getQuotaUsage(tx, { facts }, now(), entityId),

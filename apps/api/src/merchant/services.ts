@@ -15,6 +15,8 @@ import {
   createTenant,
   readStoreDraftFacts,
   createProfile,
+  createStoreProfileAssetInitializer,
+  createSla,
   currentSessionOpenid,
   assertCurrentSession,
   security,
@@ -63,7 +65,7 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
   const { tx, clock, assembly, config, events } = runtime;
   const flow = createFlow({ assembly, clock, events });
   const docs = docsOf(runtime);
-  const tenant = createTenant({
+  const tenant: Tenant = createTenant({
     tx,
     clock,
     flow,
@@ -71,6 +73,81 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
     events,
     readMemberAssetCounts: media.readMemberAssetCounts,
     archiveTimers: runtime.timers,
+    storeCreation: {
+      async assertSession(handle, principal, now) {
+        await assertCurrentSession(handle, principal, now, appid);
+      },
+      async validateBasics(ctx, principal, body) {
+        const membership = await tx.run((handle) =>
+          tenant.resolveMembership(handle, {
+            merchantUserId: principal.merchantUserId,
+            storeId: ctx.storeId!,
+          }),
+        );
+        if (!membership || membership.entityId !== ctx.entityId) throw new AppError("NOT_A_MEMBER");
+        if (membership.role !== "owner") throw new AppError("ROLE_FORBIDDEN");
+        if (membership.storeMode !== "active") throw new AppError("STORE_ARCHIVED");
+        try {
+          await profile.validateStoreBasics(
+            { ctx, principal, membership },
+            {
+              draft: false,
+              lockVersion: 0,
+              storeName: body.name,
+              industryCode: body.industryCode,
+              categoryCode: body.categoryCode,
+              address: {
+                provinceCode: null,
+                cityCode: null,
+                districtCode: null,
+                zoneCode: null,
+                detail: body.addressDetail,
+                poiName: null,
+                latitude: null,
+                longitude: null,
+              },
+            },
+          );
+        } catch (error) {
+          if (error instanceof AppError) {
+            if (error.error === "CONTENT_REJECTED") {
+              const details = error.details;
+              const fields =
+                details && typeof details === "object" && "fields" in details
+                  ? details.fields
+                  : undefined;
+              if (
+                Array.isArray(fields) &&
+                fields.every((field) => field === "storeName" || field === "address.detail")
+              )
+                throw new AppError("CONTENT_REJECTED", {
+                  details: {
+                    fields: fields.map((field) =>
+                      field === "storeName" ? "name" : "addressDetail",
+                    ),
+                  },
+                });
+              throw new AppError("PROVIDER_UNAVAILABLE");
+            }
+            if (
+              [
+                "VALIDATION_FAILED",
+                "DICT_ITEM_DISABLED",
+                "INDUSTRY_NOT_OPEN",
+                "PROVIDER_UNAVAILABLE",
+                "SESSION_INVALID",
+              ].includes(error.error)
+            )
+              throw error;
+          }
+          throw new AppError("PROVIDER_UNAVAILABLE");
+        }
+      },
+      async initialize(handle, ctx, principal, input) {
+        const plan = await initializer.prepare(handle, ctx, principal, input);
+        await initializer.apply(handle, plan);
+      },
+    },
     readStoreDraftFacts,
     invitations: {
       keyring: () => (keyring ??= security.loadKeyring(runtime.env)),
@@ -118,7 +195,7 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
     wechat: deps.wechat ?? runtime.providers.wechat,
     appid,
   });
-  const profile = createProfile({
+  const profile: Profile = createProfile({
     tx,
     clock,
     assembly,
@@ -132,6 +209,14 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
       tx.run((handle) => currentSessionOpenid(handle, principal, appid)),
   });
   const services: MerchantServices = { docs, tenant, identity, profile };
+  const initializer = createStoreProfileAssetInitializer({
+    clock,
+    tenant,
+    media: runtime.media,
+    expectedAppid: appid,
+    sla: createSla({ clock, assembly }),
+    timers: runtime.timers,
+  });
   built.set(runtime, services);
   return services;
 }

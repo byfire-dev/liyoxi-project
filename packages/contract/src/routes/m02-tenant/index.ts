@@ -27,6 +27,7 @@ export * from "./entities.js";
 export * from "./error-details.js";
 export * from "./me.js";
 export * from "./members.js";
+export * from "./store-create.schemas.js";
 export * from "./stores.js";
 export * from "./tenant.schemas.js";
 export * from "./invitations.js";
