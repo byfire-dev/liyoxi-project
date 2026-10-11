@@ -27,7 +27,7 @@ import { assetFileSteps } from "./steps.js";
 import type { AssetType } from "./steps.js";
 import { createAssetAsrStrategy } from "./asr.js";
 import { createAssetDocStrategy, documentFacts } from "./doc.js";
-import { createAssetDigestStrategy } from "./digest.js";
+import { createAssetDigestStrategy, digestContent } from "./digest.js";
 
 const done = (
   status: "ok" | "skipped",
@@ -381,12 +381,45 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
             ctx,
           );
         }
+        const structured =
+          kind === "digest" && output.status === "ok" ? digestContent(output.content) : undefined;
         const content =
-          output.status === "skipped" && output.reason
+          structured ??
+          (output.status === "skipped" && output.reason
             ? { ...output.content, reason: output.reason }
-            : output.content;
+            : output.content);
         await storeAssetInsight(tx, job, asset, output.status, content, output.reusedFromId);
-        if (kind === "digest" && asset.type === "document") {
+        if (structured) {
+          if (!job.finishedAt) throw new TypeError("素材任务缺少实际完成时间");
+          await tx.storeAssetTag.deleteMany({
+            where: { storeAssetId: asset.id, source: "auto", dimension: "content" },
+          });
+          for (const tagCode of new Set(structured.contentTags))
+            await tx.storeAssetTag.create({
+              data: {
+                id: uuidv7(),
+                storeAssetId: asset.id,
+                dimension: "content",
+                source: "auto",
+                tagCode,
+                isConfirmed: false,
+                createdAt: job.finishedAt,
+                updatedAt: job.finishedAt,
+              },
+            });
+          if (
+            asset.title === null &&
+            asset.reviewState === "unreviewed" &&
+            !asset.reviewedAt &&
+            !asset.reviewedByStaffId &&
+            structured.title.trim()
+          )
+            await tx.storeAsset.update({
+              where: { id: asset.id },
+              data: { title: structured.title },
+            });
+        }
+        if (kind === "digest" && asset.type === "document" && !structured) {
           if (!job.finishedAt) throw new TypeError("素材任务缺少实际完成时间");
           // W315 owns structured JSON extraction; record the missing capability instead of
           // presenting an absent result as an empty successful menu.
