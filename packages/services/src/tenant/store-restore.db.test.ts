@@ -336,7 +336,14 @@ describe("恢复门店：真实额度与单事务", { timeout: SLOW }, () => {
               throw failure;
             }, options),
         };
-        tenant = createTenant({ ...h, tx, archiveTimers: h.timers });
+        tenant = createTenant({
+          tx,
+          clock: h.clock,
+          flow: h.flow,
+          events: h.events,
+          assembly: h.assembly,
+          archiveTimers: h.timers,
+        });
       } else {
         const assembly = assembleForTest({
           entry: "api",
@@ -351,7 +358,14 @@ describe("恢复门店：真实额度与单事务", { timeout: SLOW }, () => {
             }),
           ],
         });
-        tenant = createTenant({ ...h, assembly, archiveTimers: h.timers });
+        tenant = createTenant({
+          tx: h.tx,
+          clock: h.clock,
+          flow: h.flow,
+          events: h.events,
+          assembly,
+          archiveTimers: h.timers,
+        });
       }
       await expect(
         tenant.restoreStore(
