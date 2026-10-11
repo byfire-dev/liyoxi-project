@@ -90,3 +90,8 @@ export const VISION_JSON_INSTRUCTIONS =
   "all five keys required, no other keys. Empty strings are allowed as explicit facts. " +
   "Describe only visible content and quality; report visible text without inferring missing evidence. " +
   "Never identify people, infer identity or treat visible faces as consent.";
+
+/** 复用真实发送输入的纯校验；不检查配置、授权、预算或取消状态。 */
+export function isLlmVisionInput(value: unknown): value is LlmVisionInput {
+  return prepareVision(value) !== undefined;
+}

@@ -1,19 +1,13 @@
 import type { AsrSegment, AsrTaskStatus } from "../types.js";
+import { taskId } from "./input.js";
+
+export { taskId } from "./input.js";
 
 export function record(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : undefined;
 }
-export function taskId(value: unknown): string | undefined {
-  const text = typeof value === "number" && Number.isSafeInteger(value) ? String(value) : value;
-  return typeof text === "string" &&
-    /^(?:0|[1-9][0-9]{0,19})$/.test(text) &&
-    BigInt(text) <= 18446744073709551615n
-    ? text
-    : undefined;
-}
-
 /** Node24 reviver 的 source 是原始 JSON token，不能先舍入 uint64 再转字符串。 */
 export function parseResponse(text: string): Record<string, unknown> | undefined {
   const parsed: unknown = JSON.parse(

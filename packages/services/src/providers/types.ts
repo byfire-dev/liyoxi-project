@@ -18,10 +18,11 @@ import type {
 } from "./mediatool/schema.js";
 import type { LlmDigest, LlmDigestInput } from "./llm/digest.js";
 import type { LlmVision, LlmVisionInput } from "./llm/vision.js";
-export { LlmDigestSchema } from "./llm/digest.js";
+export { isLlmDigestInput, LlmDigestSchema } from "./llm/digest.js";
 export type { LlmDigest, LlmDigestInput, LlmDigestVocabulary } from "./llm/digest.js";
-export { LlmVisionSchema } from "./llm/vision.js";
+export { isLlmVisionInput, LlmVisionSchema } from "./llm/vision.js";
 export type { LlmVision, LlmVisionInput } from "./llm/vision.js";
+export { isAsrQueryTaskId, isAsrSubmitUrl } from "./asr/input.js";
 
 // ---------- 通用 ----------
 
