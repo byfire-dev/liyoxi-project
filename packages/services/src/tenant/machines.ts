@@ -20,6 +20,7 @@ import { guardInvitation } from "./invitations.js";
 import { guardInvitationExpiry } from "./invitation-expiry.js";
 import { guardStoreArchive, guardStoreArchiveCascade } from "./store-archive.js";
 import { guardStoreRestore } from "./store-restore.js";
+import { guardStoreCreate } from "./store-create.js";
 import { guardAccept } from "./invitation-accept.js";
 
 /** 建主体的三行迁移随 args 带的事实 */
@@ -221,7 +222,8 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
       "store.archive_by_entity": "随主体关闭停用门店",
     }),
     guards: {
-      [rowKey("02:607", "store.create")]: firstStoreOfOwnEntity,
+      [rowKey("02:607", "store.create")]: async (tx, facts) =>
+        (await guardStoreCreate(tx, facts)) || firstStoreOfOwnEntity(tx, facts),
       [rowKey("02:608", "store.archive")]: guardStoreArchive,
       [rowKey("02:612", "store.restore")]: guardStoreRestore,
       [rowKey("02:611", "store.archive_by_entity")]: guardAccept,

@@ -11,6 +11,7 @@ import type {
   StoreList,
   StoreArchiveResult,
   StoreCard,
+  StoreCreateBody,
   MemberItem,
   MemberList,
   InvitationCreateBody,
@@ -59,8 +60,12 @@ import { archiveStoreIn } from "./store-archive.js";
 import { restoreStoreIn } from "./store-restore.js";
 import type { Timers } from "../timers/index.js";
 import { createInvitationAcceptor } from "./invitation-accept.js";
+import { createStoreCreator } from "./store-create.js";
+import type { StoreCreation, StoreCreateOptions } from "./store-create.js";
 
 export interface TenantDeps extends Pick<MemberManagementDeps, "readMemberAssetCounts" | "events"> {
+  /** 分店创建由上层固定绑定档案与会话拥有者；缺失不影响旧命令。 */
+  readonly storeCreation?: StoreCreation;
   /** 仅新门店归档用例需要；同事务取消原邀请到期任务。 */
   readonly archiveTimers?: Pick<Timers, "cancel">;
   /** 仅四个新邀请入口需要；旧用例不因缺此装配失败。 */
@@ -81,6 +86,11 @@ export interface UseCaseOptions {
 }
 
 export interface Tenant {
+  createStore(
+    ctx: IdentityContext,
+    input: StoreCreateBody,
+    options: StoreCreateOptions,
+  ): Promise<StoreCard>;
   // ---------- 用例函数：自己开事务 ----------
   /** m.entity.create：懒创建主体、首店、老板成员关系，经端口建计费账户。操作人须是商家用户 */
   createEntity(ctx: IdentityContext, options?: UseCaseOptions): Promise<MembershipResult>;
@@ -191,7 +201,9 @@ export function createTenant(deps: TenantDeps): Tenant {
   const billingAccount = deps.assembly.port(billingAccountPort);
   const memberDeps = { ...deps, facts };
   const acceptInvitation = createInvitationAcceptor(memberDeps);
+  const createStore = createStoreCreator(memberDeps);
   return {
+    createStore,
     async createEntity(ctx, options = {}) {
       try {
         return await deps.tx.run(

@@ -330,3 +330,5 @@ export const EntityCreateBodySchema = z.strictObject({});
 
 export const CurrentStoreBodySchema = z.object({ storeId: IdSchema });
 export const CurrentStoreSchema = z.object({ storeId: IdSchema });
+export { StoreCreateBodySchema, STORE_COPY_OPTIONS } from "./store-create.schemas.js";
+export type { StoreCreateBody } from "./store-create.schemas.js";

@@ -10,6 +10,7 @@ import {
   StoreArchiveResultSchema,
   StoreRestoreParamsSchema,
   StoreCardSchema,
+  StoreCreateBodySchema,
 } from "./tenant.schemas.js";
 
 export const mStoreList = merchantRoute({
@@ -24,7 +25,7 @@ export const mStoreList = merchantRoute({
   responses: { ...okResponse(StoreListSchema), ...errorResponses(401) },
 });
 
-export const mStoreCreate = merchantMeta({
+export const mStoreCreate = merchantRoute({
   method: "post",
   path: "/m/stores",
   operationId: "m.store.create",
@@ -33,6 +34,9 @@ export const mStoreCreate = merchantMeta({
   "x-capability": "store.create",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  "x-three-phase": true,
+  request: { body: { content: { "application/json": { schema: StoreCreateBodySchema } } } },
+  responses: { ...okResponse(StoreCardSchema), ...errorResponses(400, 401, 403, 409, 503) },
 });
 
 export const mStoreArchive = merchantRoute({

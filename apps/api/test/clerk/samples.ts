@@ -430,6 +430,20 @@ export const CLERK_SAMPLES: readonly Sample[] = [
         headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
       }),
   },
+  {
+    operationId: "m.store.create",
+    play: (api, ctx) =>
+      api.request("/api/v1/m/stores", {
+        method: "POST",
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+        json: {
+          name: "公开新分店",
+          addressDetail: "公开测试路一号",
+          industryCode: "C900",
+          categoryCode: "C901",
+        },
+      }),
+  },
   // 退出会吊销当前凭据，放到这一份样例的最后。其它样例不得靠退出后的身份。
   {
     operationId: "m.session.current.delete",
