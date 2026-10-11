@@ -56,6 +56,13 @@ export { ProbeOutputSchema } from "./handlers/probe.js";
 export { DerivationOutputSchema } from "./handlers/restamp.js";
 
 export type { MediaAssetsDeps, AssetStoreFacts } from "./assets/types.js";
+export { createStoreAssetCopyOwner } from "./assets/store-copy.js";
+export type {
+  StoreAssetCopyOwner,
+  StoreAssetCopyDeps,
+  StoreAssetCopyInput,
+  StoreAssetCopyPlan,
+} from "./assets/store-copy.js";
 export type { ModelBudgetFacts, ModelBudgetAdmission } from "./assets/types.js";
 export { readMemberAssetCounts } from "./assets/member-counts.js";
 export type { MemberAssetCounts, MemberAssetCountsInput } from "./assets/member-counts.js";
