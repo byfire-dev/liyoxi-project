@@ -24,6 +24,8 @@ import { createFlow } from "../../flow/index.js";
 import { createTimers } from "../../timers/index.js";
 import { createSla } from "../../sla/index.js";
 import { createStaffAssembly } from "../../staff/index.js";
+import { createInvitationExpiry } from "../../tenant/index.js";
+import { createInvitationAssembly } from "../invitation-runtime.js";
 import { createNotifyAssembly, createRuntimeNotify } from "../index.js";
 import { bindOps } from "../binding.js";
 import { runInvariants } from "./run.js";
@@ -102,10 +104,18 @@ const runRow = async (id: string): Promise<RunRow> => {
 describe("真实装配：空库加种子（验收 1、2）", () => {
   const notifyScope = createNotifyAssembly(assembleForTest({ entry: "worker" }));
   const staffScope = createStaffAssembly(notifyScope.assembly);
-  const assembly = staffScope.assembly;
+  const invitationScope = createInvitationAssembly(staffScope.assembly);
+  const assembly = invitationScope.assembly;
   beforeAll(async () => {
     const config = createConfig({ db: prisma, clock, redis: null });
     const events = createEvents({ tx, clock, assembly });
+    invitationScope.attach(
+      createInvitationExpiry({
+        clock,
+        flow: createFlow({ assembly, clock, events }),
+        timers: createTimers({ assembly }),
+      }),
+    );
     notifyScope.attach(
       createRuntimeNotify({
         tx,
@@ -137,7 +147,10 @@ describe("真实装配：空库加种子（验收 1、2）", () => {
       isLead: true,
     });
   });
-  afterAll(() => Promise.all([staffScope.close(), notifyScope.close()]));
+  afterAll(() => {
+    invitationScope.close();
+    return Promise.all([staffScope.close(), notifyScope.close()]);
+  });
   const deps = () => ({ tx, assembly, clock });
 
   it(
