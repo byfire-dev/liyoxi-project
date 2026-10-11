@@ -1,6 +1,9 @@
 export { createProfile } from "./service.js";
 export type { Profile } from "./service.js";
 export type { ProfileDeps, ProfileViewer, WriteOptions } from "./context.js";
+export type { ProfileLifecycleDeps } from "./context.js";
+export { createProfileTenantLifecycle, PROFILE_TENANT_EVENTS } from "./tenant-lifecycle.js";
+export type { ProfileTenantLifecycle } from "./tenant-lifecycle.js";
 export { assignDeliveryManager } from "./assign-manager.js";
 export type { AssignDeliveryManagerDeps } from "./assign-manager.js";
 export { storeGate, assertProfileComplete, industryOpen, storeLocation } from "./gate.js";

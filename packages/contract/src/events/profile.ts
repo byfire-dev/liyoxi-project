@@ -18,6 +18,16 @@ export const payloads = {
     reasonCodes: z.array(z.string()),
     isSystem: z.boolean(),
   }),
+  "store.qualification.withdrawn": z.strictObject({
+    v: z.literal(1),
+    storeId: IdSchema,
+    submissionId: IdSchema,
+  }),
+  "store.qualification_change.withdrawn": z.strictObject({
+    v: z.literal(1),
+    storeId: IdSchema,
+    submissionId: IdSchema,
+  }),
   "store.profile.changed": z.strictObject({
     v: z.literal(1),
     storeId: IdSchema,

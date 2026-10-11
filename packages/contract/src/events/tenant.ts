@@ -44,6 +44,26 @@ export const entityClosedPayload = z.strictObject({
   toState: z.literal("closed"),
   transition: z.literal("entity.close"),
 });
+export const entityAbandonedPayload = z.strictObject({
+  v: z.literal(1),
+  entityId: IdSchema,
+  fromState: z.literal("active"),
+  toState: z.literal("abandoned"),
+  transition: z.literal("entity.abandon"),
+});
+export const storeDraftDeletedPayload = z.strictObject({
+  v: z.literal(1),
+  storeId: IdSchema,
+  entityId: IdSchema,
+});
+export const storeRestoredPayload = z.strictObject({
+  v: z.literal(1),
+  storeId: IdSchema,
+  entityId: IdSchema,
+  fromState: z.literal("archived"),
+  toState: z.literal("active"),
+  transition: z.literal("store.restore"),
+});
 export const storeArchivedPayload = z.strictObject({
   v: z.literal(1),
   storeId: IdSchema,
@@ -82,7 +102,10 @@ export const payloads = {
   "entity.created": entityCreatedPayload,
   "store.created": storeCreatedPayload,
   "entity.closed": entityClosedPayload,
+  "entity.abandoned": entityAbandonedPayload,
   "store.archived": storeArchivedPayload,
+  "store.draft_deleted": storeDraftDeletedPayload,
+  "store.restored": storeRestoredPayload,
   "entity_member.removed": entityMemberRemovedPayload,
   "invitation.revoked": invitationRevokedPayload,
 } as const;
