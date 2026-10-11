@@ -3,6 +3,7 @@ import { createDeliveryProductionAssembly } from "./delivery-production-runtime.
 import { createApprovalSlaAssembly } from "./approval-sla-runtime.js";
 import { createProfileLifecycleAssembly } from "./profile-lifecycle-runtime.js";
 import { createInvitationAssembly } from "./invitation-runtime.js";
+import { createModelBudgetRuntime } from "./model-budget-runtime.js";
 import { createInvitationExpiry } from "../tenant/index.js";
 import { createProfileTenantLifecycle } from "../profile/index.js";
 import { createApproval } from "../approval/index.js";
@@ -48,7 +49,7 @@ import { createMediaAssembly } from "./media-runtime.js";
 import { createRuntimeMediaBatches } from "./media-batches-runtime.js";
 import { createRuntimeMediaProduction } from "./media-production-runtime.js";
 import { createAlertFactsAssembly } from "./alert-facts-runtime.js";
-import type { PromoteRef } from "../media/index.js";
+import type { ModelBudgetTransport, PromoteRef } from "../media/index.js";
 import { advanceDueAccounts, createLedger, bindBillingTimers } from "../billing/index.js";
 import { createFlow } from "../flow/index.js";
 import type { AdvanceSweepOptions, AdvanceSweepResult } from "../billing/index.js";
@@ -116,6 +117,8 @@ export function connectWorkerDatabase(connectionString: string): {
 }
 
 export interface WorkerServicesOptions {
+  /** 入口借给本实例的专用预算transport；连接关闭仍归入口。缺省保守关闭。 */
+  readonly modelBudgetTransport?: ModelBudgetTransport;
   readonly documentWorkerUrl?: URL;
   readonly wechat?: {
     readonly config: NonNullable<Env["WECHAT"]>;
@@ -152,6 +155,8 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  readonly disableModelBudget?: () => void;
+  readonly closeModelBudget?: () => Promise<void>;
   readonly closeDocs: () => Promise<void>;
   readonly documentConverter: ReturnType<typeof createDocumentConverter> | null;
   readonly closeSmsHealth?: () => Promise<void>;
@@ -355,6 +360,13 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
           }
         : {}),
     });
+  const modelBudget = createModelBudgetRuntime({
+    clock,
+    prefix: `lyx:${options.appEnv}:`,
+    transport: options.modelBudgetTransport,
+    alerts: alertsOf(assembly),
+    logger,
+  });
   const mediaProduction = createRuntimeMediaProduction(options.keys?.MEDIA_PRODUCTION, providers);
   mediaClosers.push(() => mediaProduction.close());
   const smsHealth = createSmsHealth({
@@ -370,7 +382,13 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   });
   notifyScope.attachSmsHealth(smsHealth);
   const media = createMedia({
-    assets: createRuntimeMediaAssets({ clock, assembly, timers, providers }),
+    assets: createRuntimeMediaAssets({
+      clock,
+      assembly,
+      timers,
+      providers,
+      modelBudget: modelBudget.admission,
+    }),
     batches: createRuntimeMediaBatches({ clock, events, media: () => media }),
     ...(mediaProduction.production ? { production: mediaProduction.production } : {}),
     tx,
@@ -520,6 +538,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const unbindNoticeLink = bindAgreementNoticeLink(readAgreementNoticeLink);
 
   return {
+    disableModelBudget: () => modelBudget.disable(),
+    closeModelBudget: () => modelBudget.close(),
     closeDocs: () => docsScope.close(),
     documentConverter,
     closeSmsHealth: () => smsHealth.close(),
@@ -565,7 +585,13 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     closeDelivery,
     reevaluateDelivery: () => reevaluateSweep(deliveryCore),
     promoteFile: (ref) => media.promote(ref),
-    scanPromote: (beat) => media.scanPromote(beat),
+    async scanPromote(beat) {
+      try {
+        return await media.scanPromote(beat);
+      } finally {
+        await modelBudget.maintain();
+      }
+    },
     assembly,
     events,
     timers,
