@@ -245,7 +245,7 @@ describe("m.store.create 真实HTTP及固定公开组合", { timeout: 120_000 },
             dictTypeKey: "industry",
             code,
             parentCode: mode === "wrong_parent" ? null : body.industryCode,
-            name: "公开拒绝品类",
+            name: `公开拒绝品类-${mode}`,
             isEnabled: mode !== "disabled",
             position: 999,
             ext: { open: mode !== "closed", special: false, requiredCerts: [] },
@@ -311,15 +311,16 @@ describe("m.store.create 真实HTTP及固定公开组合", { timeout: 120_000 },
       });
     }
     if (mode === "archived") {
-      await w.make.store({ entityId: w.entityId });
+      const archived = await w.make.store({ entityId: w.entityId });
       await merchantServicesOf(api.runtime).tenant.archiveStore(
         createIdentityContext({
           actor: { type: "merchant", id: w.owner.merchantUserId, client: "weapp" },
           entityId: w.entityId,
           storeId: w.storeId,
         }),
-        { storeId: w.storeId },
+        { storeId: archived.id },
       );
+      w.storeId = archived.id;
     }
     const before = await snapshotTables(w.db, tables),
       checks = api.wechat.callsOf("checkText").length;
