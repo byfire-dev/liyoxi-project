@@ -194,3 +194,12 @@ prepare 先持门店130、日历共享锁及全部未删除来源370，再选 co
 未复核副本从新创建时间计算SLA并arm新timer，已复核副本无SLA；复制时不提交任务或外呼。
 保留pending/processing意味着I11在15分钟后仍可真实汇合，不承诺永久零任务/费用。
 SOURCE尚未执行新旧整叶、类型或独立审查；不是store.create HTTP、真实云或生产容量验收。
+
+## 账本只读诊断（SOURCE）
+
+ops inspector固定accepted的 `lyx:${appEnv}:model_budget:v1`，只读元字段与最多128个索引槽。
+closedBefore是原deadline拒绝水位而非总开关；token不是当前PG许可、模型调用或账单凭证。
+采样保留holes/hasMore及独立时钟/日界事实，不输出业务标识或正文，不证明整个HASH合法。
+独立CLI导入/check零IO，inspect经现有环境口、PG外独占连接；异常/取消/迟到关闭并消费回复。
+不修改ledger、owners、运行时或默认200/0；没有初始化/恢复/退款/维护/任意key覆盖功能。
+新旧完整测试/类型与自有资源证据等待独占验证，真实运维、容量与E22仍未验。

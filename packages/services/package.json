@@ -26,7 +26,8 @@
     "seeded-db": "tsx scripts/seeded-db.ts",
     "demo:m0": "tsx scripts/demo-m0.ts",
     "seed:demo": "tsx scripts/demo-seed.ts",
-    "admin:live:data": "tsx scripts/admin-live-data.ts"
+    "admin:live:data": "tsx scripts/admin-live-data.ts",
+    "model-budget:inspect": "tsx scripts/model-budget-inspect.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1141.0",
