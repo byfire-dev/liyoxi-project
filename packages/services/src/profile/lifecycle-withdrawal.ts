@@ -58,7 +58,7 @@ export async function onLifecycleWithdrawn(
     round.closedAt !== null ||
     round.submittedAt === null ||
     row.kind !== "qualification" ||
-    row.status !== "pending" ||
+    row.status !== "withdrawn" ||
     approval.status !== "withdrawn" ||
     !approval.isDecidedBySystem ||
     row.entityId !== entityId ||
