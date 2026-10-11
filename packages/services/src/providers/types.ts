@@ -817,7 +817,12 @@ export interface AsrProvider extends ProviderBase {
     url: string;
   }): Promise<ProviderResult<{ text: string; durationSec?: number }>>;
   /** 一次异步受理，不自行重试；url 只能由拥有者提供短期授权地址。 */
-  submit(input: { url: string; signal?: AbortSignal }): Promise<AsrSubmissionResult>;
+  submit(input: {
+    url: string;
+    signal?: AbortSignal;
+    /** 仅本地任务标识；回调目的地由构造配置固定，不接受逐次 URL。 */
+    callback?: Readonly<{ mediaJobId: string }>;
+  }): Promise<AsrSubmissionResult>;
   query(input: { taskId: string; signal?: AbortSignal }): Promise<ProviderResult<AsrTaskStatus>>;
 }
 

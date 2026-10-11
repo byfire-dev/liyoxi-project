@@ -3,6 +3,7 @@ import type { AsrProvider } from "../types.js";
 import { asrFailure, createAsrHttp } from "./http.js";
 import type { TencentAsrConfig, TencentAsrOptions } from "./http.js";
 import { isAsrQueryTaskId, isAsrSubmitUrl } from "./input.js";
+import { asrCallbackUrl, prepareAsrCallback } from "./callback.js";
 import {
   errorCode,
   parseTask,
@@ -22,6 +23,7 @@ export function createTencentAsr(
   provider: AsrProvider;
   close: () => Promise<void>;
 } {
+  const callback = prepareAsrCallback(options.callback);
   const http = createAsrHttp(config, options);
   const provider: AsrProvider = {
     status: "tencent",
@@ -30,6 +32,9 @@ export function createTencentAsr(
     async submit(input) {
       if (!isAsrSubmitUrl(input.url))
         return asrFailure("rejected", "录音转写输入不合法", "not_accepted", "invalid_input");
+      const callbackUrl = asrCallbackUrl(callback, input.callback);
+      if (callbackUrl === null)
+        return asrFailure("rejected", "录音转写回调输入不合法", "not_accepted", "invalid_input");
       const result = await http.request(
         "CreateRecTask",
         JSON.stringify({
@@ -38,6 +43,7 @@ export function createTencentAsr(
           ResTextFormat: 3,
           SourceType: 0,
           Url: input.url,
+          ...(callbackUrl === undefined ? {} : { CallbackUrl: callbackUrl }),
         }),
         input.signal,
       );
