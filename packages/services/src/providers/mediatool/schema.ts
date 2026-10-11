@@ -163,3 +163,24 @@ export const WatermarkPngResponseSchema = z.discriminatedUnion("ok", [
   failure,
 ]);
 export type MediaToolHealth = { ffmpeg: string; ffprobe: string };
+
+/** Real codepoints, not HTML/similarity; only PDF has an actual page count. */
+export const DocTextResultSchema = z
+  .strictObject({
+    text: z.string().min(1).max(500_000),
+    truncated: z.boolean(),
+    charCount: int.min(1).max(250_000),
+    pageCount: int.min(1).max(100).optional(),
+  })
+  .refine((value) => {
+    const count = Array.from(value.text).length;
+    return count <= value.charCount && value.truncated === count < value.charCount;
+  }, "文档字数与截断事实不一致");
+export type DocTextResult = z.infer<typeof DocTextResultSchema>;
+export const DocTextResponseSchema = z.union([
+  z.strictObject({ ok: z.literal(true), ...DocTextResultSchema.shape }).refine((value) => {
+    const { ok: _, ...facts } = value;
+    return DocTextResultSchema.safeParse(facts).success;
+  }, "文档字数与截断事实不一致"),
+  failure,
+]);

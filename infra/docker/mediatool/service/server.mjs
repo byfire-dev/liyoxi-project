@@ -1,10 +1,11 @@
 // @ts-check
-// 狸有戏 · mediatool 容器内服务（D5 第 6.6 节）。只用 Node 内置模块，没有构建步骤。
+// 狸有戏 · mediatool 容器内服务（D5 第 6.6 节）。文档解析仅在独立有界子进程。
 //
 // 在 /work/.sock/mediatool.sock 上听 HTTP + JSON：
 //   POST /probe      { path, demuxers, timeoutMs? }                → { ok, report }
 //   POST /poster     { path, demuxer, atMs, outPath, timeoutMs? }  → { ok, sizeBytes, atMs }
 //   POST /stampAigc  { path, outPath, aigcJson, timeoutMs? }       → { ok, report, inputSizeBytes, outputSizeBytes }
+//   POST /docText    { path, ext, maxChars, timeoutMs? }          → { ok, text, truncated, charCount, pageCount? }
 //   GET  /healthz    版本、上限、排队情况、容器里别的进程
 //   GET  /selfcheck  容器自查（见 selfcheck.mjs）
 // 没办成：{ ok: false, error: { code, message } }，HTTP 状态码 4xx / 5xx。
@@ -21,6 +22,7 @@ import { RequestError, SOCKET_PATH } from "./paths.mjs";
 import { children, killGroup } from "./run.mjs";
 import { watermarkPng } from "./watermark.mjs";
 import { selfcheck } from "./selfcheck.mjs";
+import { docText } from "./doc-text.mjs";
 
 const CONCURRENCY = 2;
 const MAX_QUEUE = 32;
@@ -33,6 +35,7 @@ const OPS = {
   "/poster": poster,
   "/stampAigc": stampAigc,
   "/watermarkPng": watermarkPng,
+  "/docText": docText,
 };
 
 /** 取 “ffmpeg version 5.1.9-0+deb12u1 …” 里的版本号 @param {string} bin */
