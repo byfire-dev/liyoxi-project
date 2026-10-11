@@ -1,4 +1,6 @@
 export { createProfile } from "./service.js";
+export { readEntityStoreProfileFacts } from "./entity-summary.js";
+export type { EntityStoreProfileSummary } from "./entity-summary.js";
 export type { Profile } from "./service.js";
 export {
   createStoreProfileInitializer,

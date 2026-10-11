@@ -92,6 +92,8 @@ export type {
 export { billingAccountOpener, billingMerchantFacts, openAccountForEntity } from "./ports.js";
 export { deletionGuard } from "./read/deletion-guard.js";
 export { readBillingHistoryFacts } from "./read/history-facts.js";
+export { readTenantAdminBillingFacts } from "./read/tenant-admin.js";
+export type { TenantAdminBillingFacts } from "./read/tenant-admin.js";
 export type { BillingDeletionGuardCounts } from "./read/deletion-guard.js";
 export {
   createPayment,
