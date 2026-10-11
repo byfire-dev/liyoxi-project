@@ -1,7 +1,8 @@
 import { MessageListQuerySchema } from "@liyoxi/contract";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createRuntime, createTenant, loadEnv } from "../index.js";
 import { claimDeliveries, consumeDelivery } from "../events/index.js";
+import type { DeliveryRef } from "../events/index.js";
 import { alertsOf, createIdentityContext, uuidv7 } from "../kernel/index.js";
 import {
   createClock,
@@ -23,6 +24,10 @@ let runtime: ReturnType<typeof createRuntime>;
 let tenant: ReturnType<typeof createTenant>;
 let prisma: Awaited<ReturnType<typeof db.prisma>>;
 let make: ReturnType<typeof createFactories>;
+const deliveryRefs = new Map<string, DeliveryRef>();
+beforeEach(() => {
+  deliveryRefs.clear();
+});
 beforeAll(async () => {
   prisma = await db.prisma();
   await redis.raw();
@@ -99,8 +104,12 @@ async function consume(eventId: string) {
   while ((await runtime.events.expand()).events > 0) {
     /* 真实 outbox 展开。 */
   }
-  const { claimed } = await runtime.tx.run((tx) => claimDeliveries(tx));
-  const ref = claimed.find((r) => r.eventId === eventId && r.subscriber === "notify.onEvent");
+  if (!deliveryRefs.has(eventId)) {
+    const { claimed } = await runtime.tx.run((tx) => claimDeliveries(tx));
+    for (const ref of claimed)
+      if (ref.subscriber === "notify.onEvent") deliveryRefs.set(ref.eventId, ref);
+  }
+  const ref = deliveryRefs.get(eventId);
   if (!ref) throw new Error("没有正式 notify 投递");
   const deps = {
     tx: runtime.tx,
@@ -228,7 +237,10 @@ describe("门店归档通知：实际来源、账号投影和发送前重验", {
           data: { status: "disabled" },
         });
       if (mode === "manager_disabled")
-        await prisma.staff.update({ where: { id: w.manager.id }, data: { status: "disabled" } });
+        await prisma.staff.update({
+          where: { id: w.manager.id },
+          data: { status: "disabled", disabledAt: clock.now(), disabledReason: "other" },
+        });
       if (mode === "no_manager")
         await prisma.store.update({
           where: { id: w.second.id },
@@ -424,7 +436,10 @@ describe("门店归档通知：实际来源、账号投影和发送前重验", {
           },
         });
       if (mode === "manager_disabled")
-        await prisma.staff.update({ where: { id: w.manager.id }, data: { status: "disabled" } });
+        await prisma.staff.update({
+          where: { id: w.manager.id },
+          data: { status: "disabled", disabledAt: clock.now(), disabledReason: "other" },
+        });
       if (mode === "store_reason")
         await prisma.store.update({
           where: { id: w.second.id },

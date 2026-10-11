@@ -179,13 +179,21 @@ describe("门店停用：真实事务与系统级联", { timeout: SLOW }, () => 
 
   it("同键重放原 DTO 零旁写，异键重复停用拒绝，最后启用门店拒绝", async () => {
     const owner = await h.owner();
-    const idem = archiveIdem(owner.ctx, owner.secondId);
-    const first = await h.tenant.archiveStore(owner.ctx, { storeId: owner.secondId }, { idem });
+    const key = uuidv7();
+    const first = await h.tenant.archiveStore(
+      owner.ctx,
+      { storeId: owner.secondId },
+      { idem: archiveIdem(owner.ctx, owner.secondId, key) },
+    );
     const snapshot = await h.state();
     h.clock.advance(1);
-    expect(await h.tenant.archiveStore(owner.ctx, { storeId: owner.secondId }, { idem })).toEqual(
-      first,
-    );
+    expect(
+      await h.tenant.archiveStore(
+        owner.ctx,
+        { storeId: owner.secondId },
+        { idem: archiveIdem(owner.ctx, owner.secondId, key) },
+      ),
+    ).toEqual(first);
     expect(await h.state()).toEqual(snapshot);
     await expect(
       h.tenant.archiveStore(owner.ctx, { storeId: owner.secondId }),
@@ -340,6 +348,7 @@ describe("门店停用：真实事务与系统级联", { timeout: SLOW }, () => 
           entityId: owner.entityId,
           storeId: owner.secondId,
           event,
+          ...(kind === "member" ? { ref: "02:692" } : {}),
           reasonCode: kind === "store" ? "by_owner" : "store_archived",
           emit: {
             type:

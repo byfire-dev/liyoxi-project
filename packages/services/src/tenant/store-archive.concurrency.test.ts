@@ -21,19 +21,19 @@ let h: ArchiveHarness;
 let clients: PrismaClient[];
 let sides: ReturnType<typeof archiveServices>[];
 let pids: number[];
+async function backendPid(client: PrismaClient) {
+  const [row] = await client.$queryRaw<Array<{ pid: number }>>`SELECT pg_backend_pid() AS pid`;
+  if (!row) throw new Error("缺少真实 backend PID");
+  return row.pid;
+}
 beforeAll(async () => {
-  h = archiveHarness(await db.prisma());
+  const url = await db.url();
   clients = await Promise.all(
-    [0, 1].map(async () => createPrismaClient({ connectionString: await db.url(), max: 1 })),
+    [0, 1].map(async () => createPrismaClient({ connectionString: url, max: 1 })),
   );
+  h = archiveHarness(clients[0]!);
   sides = clients.map((client) => archiveServices(client, h.clock));
-  pids = await Promise.all(
-    clients.map(async (client) => {
-      const [row] = await client.$queryRaw<Array<{ pid: number }>>`SELECT pg_backend_pid() AS pid`;
-      if (!row) throw new Error("缺少真实 backend PID");
-      return row.pid;
-    }),
-  );
+  pids = await Promise.all(clients.map(backendPid));
   expect(new Set(pids).size).toBe(2);
 }, SLOW);
 afterAll(async () => {
@@ -114,6 +114,8 @@ describe("门店停用：两个真实 app 连接", { timeout: SLOW }, () => {
       const owner = await h.owner();
       const clerk = await h.clerk(owner);
       const successor = mode === "member" ? await h.clerk(owner, [owner.storeId]) : null;
+      // 原生 holder 占第二条业务连接；不同时保留闲置的第二个 Prisma 连接。
+      await clients[1]!.$disconnect();
       const holder = await connectTestDatabase(db.name);
       const observer = await connectTestDatabase(db.name, { role: null });
       let pending: Promise<unknown> | undefined;
@@ -190,6 +192,8 @@ describe("门店停用：两个真实 app 连接", { timeout: SLOW }, () => {
         await holder.query("ROLLBACK");
         await pending?.catch(() => undefined);
         await Promise.all([holder.end(), observer.end()]);
+        await clients[1]!.$connect();
+        pids[1] = await backendPid(clients[1]!);
       }
     },
   );
@@ -198,6 +202,7 @@ describe("门店停用：两个真实 app 连接", { timeout: SLOW }, () => {
     "%s 与真实邀请 create 串行，归档后无 pending 孤儿",
     async (mode) => {
       const owner = await h.owner();
+      const clientRequestId = uuidv7();
       let enter!: () => void, release!: () => void;
       const entered = new Promise<void>((resolve) => {
         enter = resolve;
@@ -209,15 +214,29 @@ describe("门店停用：两个真实 app 连接", { timeout: SLOW }, () => {
         run: (fn, options) =>
           sides[0]!.tx.run(async (tx) => {
             const value = await fn(tx);
-            enter();
-            await gate;
+            const inserted =
+              mode === "create_first"
+                ? await tx.invitation.findFirst({
+                    where: {
+                      entityId: owner.entityId,
+                      storeId: owner.secondId,
+                      clientRequestId,
+                      status: "pending",
+                    },
+                    select: { id: true },
+                  })
+                : null;
+            if (mode === "archive_first" || inserted) {
+              enter();
+              await gate;
+            }
             return value;
           }, options),
       };
       const paused = archiveServices(clients[0]!, h.clock, runner);
       const ctx = memberContext(owner.userId, owner.entityId, owner.secondId);
       const create = (side: ReturnType<typeof archiveServices>) =>
-        side.invitations.createInvitation(ctx, { clientRequestId: uuidv7() });
+        side.invitations.createInvitation(ctx, { clientRequestId });
       const first = Promise.allSettled([
         mode === "create_first"
           ? create(paused)
@@ -470,11 +489,11 @@ describe("门店停用与已验收的真实接受邀请", { timeout: SLOW }, () 
         await firstGate.entered;
         // 另一连接仍见原 pending/active，证明不是提交后才发起第二个请求。
         expect(
-          await h.prisma.invitation.findUniqueOrThrow({ where: { id: card.invitationId } }),
+          await clients[1]!.invitation.findUniqueOrThrow({ where: { id: card.invitationId } }),
         ).toMatchObject({ status: "pending", acceptedMemberId: null });
-        expect(await h.prisma.store.findUniqueOrThrow({ where: { id: target.id } })).toMatchObject({
-          lifecycle: "active",
-        });
+        expect(
+          await clients[1]!.store.findUniqueOrThrow({ where: { id: target.id } }),
+        ).toMatchObject({ lifecycle: "active" });
         second = Promise.allSettled([
           mode === "archive_first"
             ? world.accept(person, card, {}, world.side(clients[1]!))
