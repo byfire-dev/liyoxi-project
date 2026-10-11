@@ -37,7 +37,7 @@ import {
   CancelRecheckError,
   withCancelCall,
 } from "./cancel-context.js";
-import type { CancelActor, CancelDeps } from "./cancel-context.js";
+import type { AdCancelSubmissionCompanion, CancelActor, CancelDeps } from "./cancel-context.js";
 import {
   assertAdCancelTargetsLocked,
   lockAdCancelSubmission,
@@ -141,9 +141,21 @@ export async function validateAdCancelSubmission(
   tx: Tx,
   adId: string,
   body: AdCancelCoreSubmitBody,
+  approvalId: string,
 ) {
   const c = cancelCall(tx),
     ad = await lockAdCancelSubmission(tx, adId, cancelScope(c.actor));
+  if (c.submissionCompanion) {
+    c.submissionTarget = Object.freeze({
+      actor: c.actor,
+      approvalId,
+      adId: ad.id,
+      entityId: ad.entityId,
+      storeId: ad.storeId,
+    });
+    // service_ticket270 必须在全部目标170之后、首次账户420之前取得。
+    await c.submissionCompanion.beforeAccount(tx, c.submissionTarget);
+  }
   // Real Tf/advance after every lower business lock; quote and ledger share this account clock.
   const at = (await c.deps.ledger.lockAccount(tx, ad.entityId)).now;
   const q = await quoteAdCancel(
@@ -411,14 +423,21 @@ export async function submitAdCancel(
   actor: CancelActor,
   adId: string,
   input: AdCancelCoreSubmitBody,
+  submissionCompanion?: AdCancelSubmissionCompanion,
 ) {
+  if (
+    submissionCompanion &&
+    (typeof submissionCompanion.beforeAccount !== "function" ||
+      typeof submissionCompanion.afterCreated !== "function")
+  )
+    throw new AppError("INTERNAL", { message: "广告取消提交伴随必须成对提供" });
   const body = AdCancelCoreSubmitBodySchema.parse(input),
     staff = await staffActor(tx, actor);
   assertPermission(staff, "order.refund.request", deps.clock.now());
   const ad = await readAdCancelFacts(tx, adId, staff.scope);
   if (!ad) throw new AppError("NOT_FOUND");
   const requestId = uuidv7(),
-    call = { deps, actor, requestId };
+    call = { deps, actor, requestId, submissionCompanion };
   return withCancelCall(tx, call, async () => {
     const submitted = await deps.approval.submit(tx, actor.ctx, {
       kind: "ad_cancel",
@@ -503,6 +522,13 @@ export async function submitAdCancel(
         },
       },
     });
+    if (submissionCompanion) {
+      const target = cancelCall(tx).submissionTarget;
+      if (!target || target.approvalId !== submitted.approvalId)
+        throw new AppError("INTERNAL", { message: "广告取消提交伴随缺少本次预锁事实" });
+      // 只重入早阶段持有的工单锁；自动批准前保留真实员工身份。
+      await submissionCompanion.afterCreated(tx, target);
+    }
     const values = await paramsAt(tx, ["refund.points.auto_approve_before_production"], now);
     if (
       values["refund.points.auto_approve_before_production"] === true &&
@@ -709,7 +735,8 @@ export function createAdCancel(deps: CancelDeps) {
       adId: string,
       body: AdCancelCoreSubmitBody,
       idem?: IdempotencyContext,
-    ) => run((tx) => submitAdCancel(tx, deps, actor, adId, body), idem),
+      companion?: AdCancelSubmissionCompanion,
+    ) => run((tx) => submitAdCancel(tx, deps, actor, adId, body, companion), idem),
     approve: (actor: CancelActor, id: string, body: CancelApproveBody, idem?: IdempotencyContext) =>
       run((tx) => approveAdCancel(tx, deps, actor, id, body), idem),
     reject: (actor: CancelActor, id: string, body: CancelRejectBody, idem?: IdempotencyContext) =>

@@ -99,3 +99,5 @@ ad 清指针、order 重新推导与 order.start 复活。真实执行还需要 
 内部 body 不接受 serviceTicketId；完整 HTTP 的 support 引用写口与 active requester 对象失效财务代撤另属前置。现仅本人撤回、既有 disabled requester 合法代撤、真实失效后的 system 撤回/作废。未实现其他取消 kind、广告创建/指派/版本 producer、主体关闭或 W210 整包。实际验证待独占窗口，源码阶段不标通过。
 
 `tenant.entityAdCancelClose` 是本域登记的二阶段关闭伴随口，按 tenant README 的低序 union 与全部 tenant 行预锁协议调用。仅在调用方已真实关闭主体后，精确系统撤回该主体的 pending ad_cancel；沿现有六回调关闭 header/审批/自有指针/审批 timer，零账本变动，不造 delivery 暂停。API 复用其唯一 Approval 实例，worker 以原 registry 与真实依赖创建 Approval；既有 `bindOrder`/close 维护本实例作用域，无取消依赖则拒绝。本片不构成完整 tenant 关闭或其他 kind 实现。
+
+广告取消提交新增可选成对 `AdCancelSubmissionCompanion`：`beforeAccount` 在真实目标170之后、首次 `ledger.lockAccount`420之前调用，`afterCreated` 在真实审批/header/line/指针/提交事件建立后、自动审批执行前调用。两个阶段收到同一个冻结目标对象及实际分配审批ID；应用可组合 support 专用引用 writer，order 不导入同层 support。未提供 companion 的原提交语义不变，单侧回调拒绝。HTTP 仍待后片，不接受后静默丢弃 `serviceTicketId`。

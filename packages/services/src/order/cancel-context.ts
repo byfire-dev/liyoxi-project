@@ -24,12 +24,26 @@ export interface CancelActor {
   ctx: IdentityContext;
   staff?: StaffContext;
 }
+/** 应用组合只在固定的两个提交阶段运行；不把其他 L3 owner 注入 order。 */
+export interface AdCancelSubmissionTarget {
+  readonly actor: CancelActor;
+  readonly approvalId: string;
+  readonly adId: string;
+  readonly entityId: string;
+  readonly storeId: string;
+}
+export interface AdCancelSubmissionCompanion {
+  beforeAccount(tx: Tx, target: AdCancelSubmissionTarget): Promise<void>;
+  afterCreated(tx: Tx, target: AdCancelSubmissionTarget): Promise<void>;
+}
 export interface CancelCall {
   deps: CancelDeps;
   actor: CancelActor;
   requestId?: string;
   quote?: CancelQuote;
   auto?: boolean;
+  submissionCompanion?: AdCancelSubmissionCompanion;
+  submissionTarget?: AdCancelSubmissionTarget;
 }
 // 与 qualification 同形的事务绑定；静态 kind 不缓存某个 API/worker 的实例。
 const calls = new WeakMap<Tx, CancelCall>();
