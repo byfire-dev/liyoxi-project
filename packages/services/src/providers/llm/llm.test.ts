@@ -323,7 +323,7 @@ describe("国内 LLM：固定兼容端点与旧接口", () => {
           Object.keys(scope.provider)
             .filter((key) => typeof Reflect.get(scope.provider, key) === "function")
             .sort(),
-        ).toEqual(["extractKeyPoints", "tagAsset"]);
+        ).toEqual(["extractKeyPoints", "summarizeAsset", "tagAsset"]);
         expect(await scope.provider.extractKeyPoints({ text: privateText, maxPoints: 2 })).toEqual({
           ok: true,
           value: points,
