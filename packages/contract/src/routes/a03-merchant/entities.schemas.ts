@@ -22,8 +22,7 @@ export const EntityMemberListQuerySchema = z.strictObject({
     .default("false")
     .transform((v) => v === "true"),
 });
-export const MerchantUserBriefSchema = StoreHeaderSchema.shape.owner
-  .unwrap()
+export const MerchantUserBriefSchema = StoreHeaderSchema.shape.owner.options[0]
   .strict()
   .openapi("MerchantUserBrief");
 export const EntityStoreRowSchema = z
