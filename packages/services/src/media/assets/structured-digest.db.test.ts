@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FileObject, MediaJob, Prisma } from "@liyoxi/db";
+import { connectTestDatabase } from "@liyoxi/db/testing";
 import { assertNotInTransaction, lockRows, uuidv7 } from "../../kernel/index.js";
 import {
   configTestStaffBriefs,
@@ -939,6 +940,102 @@ describe("structured digest aggregate document items", () => {
 });
 
 describe("structured digest atomic DB settlement", () => {
+  it.each(["deadline", "lease"] as const)(
+    "%s expires during the real public runner's final file lock wait and rejects model settlement",
+    async (boundary) => {
+      const facts = await readyDocument(),
+        clockBefore = h.clock.now(),
+        executed = gate(),
+        release = gate(),
+        reply = complete({ title: "最终等待后不得接纳的模型标题" });
+      if (boundary === "deadline")
+        await h.prisma.mediaJob.update({
+          where: { id: facts.job.id },
+          data: { deadlineAt: new Date(clockBefore.getTime() + 1000) },
+        });
+      const beforeSources = await h.prisma.storeAssetInsight.findMany({
+        where: { storeAssetId: facts.assetId },
+        orderBy: { id: "asc" },
+      });
+      const call = vi.spyOn(h.fake.llm, "summarizeAsset").mockImplementation(async () => {
+        assertNotInTransaction("structured digest final settlement model IO");
+        return ok(reply);
+      });
+      const actualExecute = handler().execute;
+      vi.spyOn(handler(), "execute").mockImplementation(async (...args) => {
+        const result = await actualExecute(...args);
+        expect(result).toMatchObject({ state: "succeeded", output: { status: "ok" } });
+        // Both strategy admission transactions have finished; only final settlement remains.
+        executed.release();
+        await release.promise;
+        return result;
+      });
+      const holder = await connectTestDatabase(database.name),
+        observer = await connectTestDatabase(database.name, { role: null });
+      let running: Promise<void> | undefined;
+      try {
+        running = h.media.jobs.run({ jobId: facts.job.id });
+        void running.catch(() => undefined);
+        await vi.waitFor(() => expect(call).toHaveBeenCalledOnce(), { timeout: 3000 });
+        await executed.promise;
+        const claimed = await jobRow(facts.job.id);
+        expect(claimed).toMatchObject({ state: "running", attemptNo: 1 });
+        const expiresAt = boundary === "deadline" ? claimed.deadlineAt : claimed.nextRunAt;
+        expect(expiresAt.getTime()).toBeGreaterThan(h.clock.now().getTime());
+        await holder.query("BEGIN");
+        const { rows } = await holder.query<{ pid: number }>("SELECT pg_backend_pid()::int AS pid");
+        await holder.query("SELECT id FROM file_object WHERE id=$1::uuid FOR UPDATE", [
+          facts.files[0]!.id,
+        ]);
+        release.release();
+        await vi.waitFor(
+          async () => {
+            const blocked = await observer.query<{ count: string }>(
+              "SELECT count(*)::bigint AS count FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND $1=ANY(pg_blocking_pids(pid)) AND query ILIKE '%file_object%'",
+              [rows[0]!.pid],
+            );
+            expect(Number(blocked.rows[0]!.count)).toBe(1);
+          },
+          { timeout: 3000 },
+        );
+        expect(await digests(facts.assetId)).toEqual([]);
+        expect(await tags(facts.assetId)).toEqual([]);
+        h.clock.set(expiresAt);
+        await holder.query("COMMIT");
+        await running;
+        expect(call).toHaveBeenCalledOnce();
+        expect(await jobRow(facts.job.id)).toMatchObject({
+          state: "succeeded",
+          attemptNo: 1,
+          nextRunAt: claimed.nextRunAt,
+          deadlineAt: claimed.deadlineAt,
+          leaseOwner: null,
+        });
+        expect(await digests(facts.assetId)).toEqual([]);
+        expect(await tags(facts.assetId)).toEqual([]);
+        expect((await asset(facts.assetId)).title).not.toBe(reply.title);
+        expect(await asset(facts.assetId)).toMatchObject({
+          processingState: "processed",
+          isInsightPartial: true,
+          usability: null,
+        });
+        expect(
+          await h.prisma.storeAssetInsight.findMany({
+            where: { storeAssetId: facts.assetId },
+            orderBy: { id: "asc" },
+          }),
+        ).toEqual(beforeSources);
+      } finally {
+        release.release();
+        await holder.query("ROLLBACK");
+        await running?.catch(() => undefined);
+        h.clock.set(clockBefore);
+        await Promise.all([holder.end(), observer.end()]);
+      }
+    },
+    120_000,
+  );
+
   it("a real post-insert outbox failure rolls back complete DTO, auto replacement, title and terminal job", async () => {
     const facts = await readyText();
     await historicalTag(facts.assetId, "content", codes.content[2]!, "auto");
