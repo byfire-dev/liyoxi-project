@@ -424,7 +424,8 @@ describe("媒体自然键留存事实公口", () => {
       clock.set(new Date(target.getTime() + 365 * day));
       const before = await snapshot(f.file.id),
         reads = clockReads;
-      for (const lateTarget of [target, new Date(start.getTime() + 7 * day)])
+      const weakerDays = period === "three_years" ? 180 : 7;
+      for (const lateTarget of [target, new Date(start.getTime() + weakerDays * day)])
         await tx.run((t) => releaseIfNeeded(t, f.input, lateTarget));
       expect(await snapshot(f.file.id)).toEqual(before);
       expect(clockReads).toBe(reads);
@@ -539,7 +540,12 @@ describe("媒体自然键留存事实公口", () => {
         entered();
         await media.release(t, { ...f.input, keepUntil: target });
       });
-      await waiting;
+      await Promise.race([
+        waiting,
+        writer.then(() => {
+          throw new Error("等锁事务提前退出");
+        }),
+      ]);
       expect(waiterPid).not.toBe(ownerPid);
       await vi.waitFor(
         async () => {
