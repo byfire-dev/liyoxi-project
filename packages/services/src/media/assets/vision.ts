@@ -3,10 +3,19 @@ import { z } from "zod";
 import type { MediaJob } from "@liyoxi/db";
 import { AppError, assertNotInTransaction, lockRows } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
-import { LlmVisionSchema } from "../../providers/types.js";
+import { LlmVisionSchema, isLlmVisionInput } from "../../providers/types.js";
 import type { JobJson, JobOutcome } from "../jobs/types.js";
 import { ProbeOutputSchema } from "../handlers/probe.js";
 import type { AssetDeps } from "./context.js";
+import {
+  admitModel,
+  hasModelBudget,
+  completeModelBudget,
+  modelBudgetFailure,
+  sameModelJob,
+  modelPermitCurrent,
+} from "./model-admission.js";
+import type { ModelBudgetContext } from "./model-budget.js";
 import { assetFiles, lockAssetFiles } from "./repo.js";
 import {
   AssetJobInputSchema,
@@ -422,45 +431,53 @@ export function createAssetVisionStrategy(
   deps: AssetDeps,
   current: (tx: Tx, job: MediaJob) => Promise<boolean>,
 ) {
-  async function admitted(job: MediaJob, model = false, expiresAt?: Date, signal?: AbortSignal) {
+  async function read(
+    tx: Tx,
+    job: MediaJob,
+    model = false,
+    expiresAt?: Date,
+    signal?: AbortSignal,
+  ) {
     if (job.kind !== "vision" || job.state !== "running" || !assetJobOwned(job)) return null;
-    return deps.tx.run(async (tx) => {
-      const input = AssetJobInputSchema.parse(job.input);
-      await lockVisionParents(tx, input.assetId);
-      await lockRows(tx, "media_job", [job.id]);
-      const fresh = await tx.mediaJob.findUnique({ where: { id: job.id } });
-      if (
-        !fresh ||
-        fresh.kind !== "vision" ||
-        fresh.state !== "running" ||
-        fresh.provider !== deps.assets.llm.status ||
-        fresh.provider !== job.provider ||
-        fresh.attemptNo !== job.attemptNo ||
-        !job.leaseOwner ||
-        fresh.leaseOwner !== job.leaseOwner ||
-        !same(fresh.input, job.input)
-      )
-        return null;
-      await lockVisionFiles(tx, fresh);
-      if (!(await current(tx, fresh))) return null;
-      const target = await source(deps, tx, fresh);
-      const cache = target && !model ? await cached(deps, tx, target) : null;
-      const expired = () => {
-        const now = deps.clock.now();
-        return fresh.nextRunAt <= now || fresh.deadlineAt <= now || (expiresAt && expiresAt <= now);
-      };
-      if (expired()) return null;
-      if (!target) return { unavailable: true as const };
-      const permitted =
-        !model ||
-        !!(await deps.assets.allowModelCall?.(tx, {
-          storeId: target.asset.storeId,
-          now: deps.clock.now(),
-        }));
-      // 准入也可能await；抛出令本Tx内预算写回滚，外层转为取消而非再次收费。
-      if (expired() || signal?.aborted) throw outdated;
-      return { target, cache, permitted };
-    });
+    const input = AssetJobInputSchema.parse(job.input);
+    await lockVisionParents(tx, input.assetId);
+    await lockRows(tx, "media_job", [job.id]);
+    const fresh = await tx.mediaJob.findUnique({ where: { id: job.id } });
+    if (
+      !fresh ||
+      (hasModelBudget(deps) && !sameModelJob(fresh, job, deps.assets.llm.status)) ||
+      fresh.kind !== "vision" ||
+      fresh.state !== "running" ||
+      fresh.provider !== deps.assets.llm.status ||
+      fresh.provider !== job.provider ||
+      fresh.attemptNo !== job.attemptNo ||
+      !job.leaseOwner ||
+      fresh.leaseOwner !== job.leaseOwner ||
+      !same(fresh.input, job.input)
+    )
+      return null;
+    await lockVisionFiles(tx, fresh);
+    if (!(await current(tx, fresh))) return null;
+    const target = await source(deps, tx, fresh);
+    const cache = target && !model ? await cached(deps, tx, target) : null;
+    const expired = () => {
+      const now = deps.clock.now();
+      return fresh.nextRunAt <= now || fresh.deadlineAt <= now || (expiresAt && expiresAt <= now);
+    };
+    if (expired()) return null;
+    if (!target) return { unavailable: true as const };
+    const permitted =
+      !model ||
+      !!(await deps.assets.allowModelCall?.(tx, {
+        storeId: target.asset.storeId,
+        now: deps.clock.now(),
+      }));
+    // 准入也可能await；抛出令本Tx内预算写回滚，外层转为取消而非再次收费。
+    if (expired() || signal?.aborted) throw outdated;
+    return { target, cache, permitted };
+  }
+  function admitted(job: MediaJob, model = false, expiresAt?: Date, signal?: AbortSignal) {
+    return deps.tx.run((tx) => read(tx, job, model, expiresAt, signal));
   }
   return {
     async execute(job: MediaJob, signal: AbortSignal): Promise<JobOutcome> {
@@ -486,7 +503,9 @@ export function createAssetVisionStrategy(
           },
         });
         if (cache) return success(cache.content);
-        if (!deps.assets.allowModelCall) return skipped("budget_unconfigured");
+        const paired = hasModelBudget(deps);
+        if (paired && !completeModelBudget(deps)) return modelBudgetFailure("unavailable");
+        if (!paired && !deps.assets.allowModelCall) return skipped("budget_unconfigured");
         if (deps.assets.llm.status === "unconfigured") return skipped("llm_unconfigured");
         assertNotInTransaction("素材视觉处理签发");
         const imageUrls: string[] = [];
@@ -518,12 +537,41 @@ export function createAssetVisionStrategy(
           imageUrls.push(signed.value.url);
           if (!expiresAt || signed.value.expiresAt < expiresAt) expiresAt = signed.value.expiresAt;
         }
-        const ready = await admitted(job, true, expiresAt, signal);
-        if (!ready || signal.aborted) return { state: "canceled" };
-        if ("unavailable" in ready || ready.target.hash !== target.hash)
-          return { state: "canceled" };
-        if (!ready.permitted) return skipped("budget_unconfigured");
+        let permit: ModelBudgetContext | undefined;
+        if (paired) {
+          if (!isLlmVisionInput({ imageUrls, signal }))
+            return skipped("vision_signing_unavailable");
+          const outcome = await admitModel(
+            deps,
+            job,
+            signal,
+            async (tx) => {
+              const ready = await read(tx, job, false, expiresAt, signal);
+              return ready &&
+                !("unavailable" in ready) &&
+                !ready.cache &&
+                ready.target.hash === target.hash
+                ? {
+                    entityId: target.asset.entityId,
+                    storeId: target.asset.storeId,
+                    fileIds: [target.file.id],
+                    expectedSourceHash: target.hash,
+                  }
+                : null;
+            },
+            expiresAt?.getTime(),
+          );
+          if ("state" in outcome) return outcome;
+          permit = outcome.permit;
+        } else {
+          const ready = await admitted(job, true, expiresAt, signal);
+          if (!ready || signal.aborted) return { state: "canceled" };
+          if ("unavailable" in ready || ready.target.hash !== target.hash)
+            return { state: "canceled" };
+          if (!ready.permitted) return skipped("budget_unconfigured");
+        }
         assertNotInTransaction("素材视觉模型调用");
+        if (permit && !modelPermitCurrent(deps, permit, signal)) return { state: "canceled" };
         const result = await deps.assets.llm.analyzeVision({ imageUrls, signal });
         const after = await admitted(job);
         if (!after || "unavailable" in after || signal.aborted || after.target.hash !== target.hash)
