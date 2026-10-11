@@ -11,6 +11,13 @@ import {
 } from "./cancel-locks.js";
 
 async function candidates(tx: Tx, entityId: string) {
+  if (
+    await tx.cancelRequest.findFirst({
+      where: { entityId, status: "pending_approval", kind: { not: "ad_cancel" } },
+      select: { id: true },
+    })
+  )
+    throw new AppError("PRECONDITION_CHANGED", { message: "主体存在尚不支持系统收尾的取消类型" });
   const rows = await tx.cancelRequest.findMany({
     where: { entityId, kind: "ad_cancel", status: "pending_approval" },
     select: {

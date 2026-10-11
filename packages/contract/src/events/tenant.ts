@@ -1,8 +1,14 @@
 // tenant 模块发出的事件的载荷（docs/api/x01-events-jobs.md 第 3.2 节；01 分组 第 4 节）。
 // 载荷规则见 x01 第 2.3 节 P1–P7：{ v: 数字, … }，只放 id 与枚举；迁移事件带三个迁移键（P4），由 flow.transition() 补上。
-// 现在只有建主体那一个用例发的两条（W1-03）；门店停用、成员、邀请的事件随 M2。
+// W1-03 创建事件与 W2-10 主体关闭联动；成员/门店的其他迁移仍按正式目录共享载荷。
 import { IdSchema, orNull } from "../common/index.js";
-import { ENTITY_LIFECYCLE, STORE_LIFECYCLE } from "../enums/index.js";
+import {
+  ENTITY_LIFECYCLE,
+  STORE_LIFECYCLE,
+  STORE_ARCHIVE_REASON,
+  ENTITY_MEMBER_REMOVE_REASON,
+  MERCHANT_ROLE,
+} from "../enums/index.js";
 import { zodEnum } from "../enums/zod.js";
 import { z } from "../zod.js";
 
@@ -30,7 +36,53 @@ export const storeCreatedPayload = z.strictObject({
   transition: z.literal("store.create"),
 });
 
+export const entityClosedPayload = z.strictObject({
+  v: z.literal(1),
+  entityId: IdSchema,
+  closedBy: z.enum(["owner_deletion", "staff_close"]),
+  fromState: z.literal("active"),
+  toState: z.literal("closed"),
+  transition: z.literal("entity.close"),
+});
+export const storeArchivedPayload = z.strictObject({
+  v: z.literal(1),
+  storeId: IdSchema,
+  entityId: IdSchema,
+  archiveReason: zodEnum(STORE_ARCHIVE_REASON),
+  fromState: z.literal("active"),
+  toState: z.literal("archived"),
+  transition: z.enum(["store.archive", "store.draft_delete", "store.archive_by_entity"]),
+});
+export const entityMemberRemovedPayload = z.strictObject({
+  v: z.literal(1),
+  entityMemberId: IdSchema,
+  entityId: IdSchema,
+  merchantUserId: IdSchema,
+  role: zodEnum(MERCHANT_ROLE),
+  removeReason: zodEnum(ENTITY_MEMBER_REMOVE_REASON),
+  fromState: z.literal("active"),
+  toState: z.literal("removed"),
+  transition: z.enum([
+    "entity_member.remove",
+    "entity_member.leave",
+    "entity_member.cascade_remove",
+  ]),
+});
+export const invitationRevokedPayload = z.strictObject({
+  v: z.literal(1),
+  invitationId: IdSchema,
+  entityId: IdSchema,
+  storeId: IdSchema,
+  fromState: z.literal("pending"),
+  toState: z.literal("revoked"),
+  transition: z.literal("invitation.revoke"),
+});
+
 export const payloads = {
   "entity.created": entityCreatedPayload,
   "store.created": storeCreatedPayload,
+  "entity.closed": entityClosedPayload,
+  "store.archived": storeArchivedPayload,
+  "entity_member.removed": entityMemberRemovedPayload,
+  "invitation.revoked": invitationRevokedPayload,
 } as const;

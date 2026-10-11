@@ -123,12 +123,17 @@ export {
   assertWithinQuota,
   billingAccountPort,
   createTenant,
+  closeEntityIn,
   membershipAuthorizationsPort,
   entityAdCancelClosePort,
 } from "./tenant/index.js";
 export type {
   ActiveMembership,
   BillingAccountOpener,
+  CloseEntityActor,
+  CloseEntityDeps,
+  CloseEntityInput,
+  CloseEntityResult,
   MembershipAuthorizations,
   EntityAdCancelCloser,
   EntityAdCancelClosePlan,

@@ -1,10 +1,10 @@
-// tenant 在 M1 登记的四条不变量（W1-03；02 分组 第 2.9、2.11 节与第 5 节“不变量登记”）。
+// tenant 不变量（W1-03 与 W2-10；02 分组第 2.9–2.13 节与第 5 节“不变量登记”）。
 // 都是 P2，只在 full 运行里查，不自愈；调度与落库由 ops（W0-24）。对象属于主体的带 entityId。
 //   tenant.I1   每个 active 主体恰有 1 位有效老板
 //   tenant.I7   已认证主体信用代码的唯一索引存在
 //   tenant.I27  每个主体恰有一家首店
 //   tenant.I29  老板没有 store_member 行
-// I5、I17、I28、I30 的对象（店员、停用门店、已关闭主体、邀请）在 M1 不会出现，随 M2 登记。
+// W2-10 关闭核心补 I17、I28；I5、I30 随成员/邀请完整写侧登记。
 import type { InvariantViolation, Tx } from "../kernel/index.js";
 
 type Reader = Pick<Tx, "$queryRaw">;
@@ -72,5 +72,57 @@ export async function findI29Violations(db: Reader): Promise<InvariantViolation[
     subject: { type: "entity_member", id: row.id },
     entityId: row.entityId,
     detail: { expected: 0, storeMemberRows: row.stores },
+  }));
+}
+
+/** 终局主体与归档门店不能残留有效授权或待接受邀请（02 第 2.9、2.10、2.13 节）。 */
+export async function findI17Violations(db: Reader): Promise<InvariantViolation[]> {
+  const rows = await db.$queryRaw<
+    {
+      id: string;
+      entityId: string;
+      type: "entity" | "store";
+      members: number;
+      invitations: number;
+      stores: number;
+    }[]
+  >`
+    WITH residuals AS (
+      SELECT e.id, e.id AS entity_id, 'entity'::text AS type,
+        (SELECT count(*)::int FROM entity_member m WHERE m.entity_id = e.id AND m.status = 'active') AS members,
+        (SELECT count(*)::int FROM invitation i WHERE i.entity_id = e.id AND i.status = 'pending') AS invitations,
+        (SELECT count(*)::int FROM store s WHERE s.entity_id = e.id AND s.lifecycle = 'active') AS stores
+      FROM entity e WHERE e.lifecycle <> 'active'
+      UNION ALL
+      SELECT s.id, s.entity_id, 'store'::text,
+        (SELECT count(*)::int FROM store_member sm WHERE sm.store_id = s.id),
+        (SELECT count(*)::int FROM invitation i WHERE i.store_id = s.id AND i.status = 'pending'), 0
+      FROM store s WHERE s.lifecycle = 'archived'
+    )
+    SELECT id::text, entity_id::text AS "entityId", type, members, invitations, stores
+      FROM residuals WHERE members + invitations + stores > 0
+     ORDER BY type, id LIMIT ${TENANT_INVARIANT_LIMIT}`;
+  return rows.map((row) => ({
+    subject: { type: row.type, id: row.id },
+    entityId: row.entityId,
+    detail: { members: row.members, pendingInvitations: row.invitations, activeStores: row.stores },
+  }));
+}
+
+/** 随主体归档的原因必须与真实主体终局一致（02 第 2.10 节）。 */
+export async function findI28Violations(db: Reader): Promise<InvariantViolation[]> {
+  const rows = await db.$queryRaw<
+    { id: string; entityId: string; reason: string; lifecycle: string }[]
+  >`
+    SELECT s.id::text, s.entity_id::text AS "entityId", s.archive_reason AS reason, e.lifecycle
+      FROM store s JOIN entity e ON e.id = s.entity_id
+     WHERE s.lifecycle = 'archived' AND (
+       (s.archive_reason = 'entity_closed' AND e.lifecycle <> 'closed') OR
+       (s.archive_reason = 'entity_abandoned' AND e.lifecycle <> 'abandoned'))
+     ORDER BY s.id LIMIT ${TENANT_INVARIANT_LIMIT}`;
+  return rows.map((row) => ({
+    subject: { type: "store", id: row.id },
+    entityId: row.entityId,
+    detail: { archiveReason: row.reason, entityLifecycle: row.lifecycle },
   }));
 }

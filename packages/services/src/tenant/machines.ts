@@ -2,7 +2,7 @@
 // 与本包用到的十行迁移的守卫。迁移表本身在 @liyoxi/shared/machines，这里是表里没有的那一半（flow/README.md 第 4 节）。
 //
 // 登记在装配时是静态的，拿不到进程里的服务：守卫要的事实由用例经迁移的 args 带进来，守卫自己只回库核对。
-// 没登记守卫的行（门店停用与恢复、主体放弃与关闭、成员加入与移除、资质的 change 轮次）随 M2：
+// 没登记守卫的行（普通门店停用与恢复、主体放弃、成员加入与移除、资质的 change 轮次）随 M2：
 // 在那之前迁移到这些行即抛内部错误，不放行。
 import type { AuditCategory } from "@liyoxi/contract";
 
@@ -10,6 +10,11 @@ import { chainKey, machinePort, rowKey } from "../flow/index.js";
 import type { ActivityDescription, Guard, MachineBinding, TransitionFacts } from "../flow/index.js";
 import { implementKeyed } from "../kernel/index.js";
 import type { PortImplementation } from "../kernel/index.js";
+import {
+  guardEntityClose,
+  guardEntityCloseCascade,
+  requireClosedStoreCascade,
+} from "./entity-close.js";
 
 /** 建主体的三行迁移随 args 带的事实 */
 export interface CreateEntityArgs {
@@ -144,7 +149,7 @@ const QUALIFICATION_VERBS: Readonly<Record<string, string>> = {
 /** 事件码 → 描述；这条链上没写到的事件码返回 null：用例必须自己传审计内容 */
 const describe =
   (
-    object: "entity" | "store" | "entity_member",
+    object: "entity" | "store" | "entity_member" | "invitation",
     category: AuditCategory,
     summaries: Readonly<Record<string, string>>,
   ) =>
@@ -152,16 +157,21 @@ const describe =
     const summary = summaries[facts.event];
     if (summary === undefined) return null;
     // 动作：tenant.<对象>.<事件码的动作段>，如 tenant.store.qualification_submit
-    const verb = facts.event.replace(/^(entity_member|entity|store)\./, "").replaceAll(".", "_");
+    const verb = facts.event
+      .replace(/^(entity_member|entity|store|invitation)\./, "")
+      .replaceAll(".", "_");
     return { category, action: `tenant.${object}.${verb}`, summary };
   };
 
-/** 五条链的登记 */
+/** 六条链的登记 */
 export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> = {
   [chainKey("entity", "lifecycle")]: {
     companions: ["closed_at"],
     activity: describe("entity", "merchant_lifecycle", { "entity.create": "创建经营主体" }),
-    guards: { [rowKey("02:523", "entity.create")]: noActiveMembership },
+    guards: {
+      [rowKey("02:523", "entity.create")]: noActiveMembership,
+      [rowKey("02:525", "entity.close")]: guardEntityClose,
+    },
   },
   [chainKey("entity", "verification_status")]: {
     companions: [
@@ -188,8 +198,12 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
       "archive_client",
       "archive_reason",
     ],
-    activity: describe("store", "merchant_lifecycle", { "store.create": "创建门店" }),
+    activity: describe("store", "merchant_lifecycle", {
+      "store.create": "创建门店",
+      "store.archive_by_entity": "随主体关闭停用门店",
+    }),
     guards: { [rowKey("02:607", "store.create")]: firstStoreOfOwnEntity },
+    effects: { [rowKey("02:610", "store.archive_by_entity")]: requireClosedStoreCascade },
   },
   [chainKey("store", "qualification_status")]: {
     activity: describe("store", "review", QUALIFICATION_VERBS),
@@ -208,11 +222,29 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
       "remove_actor_id",
       "remove_client",
       "remove_reason",
+      "last_store_id",
     ],
     activity: describe("entity_member", "member", {
       "entity_member.create_owner": "成为主体的老板",
+      "entity_member.cascade_remove": "随主体关闭移除成员",
     }),
-    guards: { [rowKey("02:690", "entity_member.create_owner")]: noOtherActiveMembership },
+    guards: {
+      [rowKey("02:690", "entity_member.create_owner")]: noOtherActiveMembership,
+      [rowKey("02:692", "entity_member.cascade_remove")]: guardEntityCloseCascade,
+      [rowKey("02:695", "entity_member.cascade_remove")]: guardEntityCloseCascade,
+    },
+  },
+  [chainKey("invitation", "status")]: {
+    companions: [
+      "revoked_at",
+      "revoke_actor_type",
+      "revoke_actor_id",
+      "revoke_client",
+      "revoke_reason",
+      "token_enc",
+    ],
+    activity: describe("invitation", "member", { "invitation.revoke": "随主体关闭撤回邀请" }),
+    guards: { [rowKey("02:788", "invitation.revoke")]: guardEntityCloseCascade },
   },
 };
 
