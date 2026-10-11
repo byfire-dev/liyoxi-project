@@ -1,24 +1,142 @@
+import type { PrismaClient } from "@liyoxi/db";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { createApproval } from "../approval/index.js";
 import { createConfig } from "../config/index.js";
 import { createDocs } from "../docs/index.js";
+import { createEvents } from "../events/index.js";
+import { createFlow } from "../flow/index.js";
 import type { SessionPrincipal } from "../identity/index.js";
-import { createIdentityContext, uuidv7 } from "../kernel/index.js";
-import type { IdentityContext } from "../kernel/index.js";
 import {
+  createBizNoIssuer,
+  createIdentityContext,
+  createTxRunner,
+  uuidv7,
+} from "../kernel/index.js";
+import type { IdentityContext, ModuleRegistration } from "../kernel/index.js";
+import { createMedia } from "../media/index.js";
+import {
+  assembleForTest,
   assertSnapshotsEqual,
+  createClock,
+  createFactories,
+  createFakeProviders,
   createIdentityForTest,
   snapshotTables,
   TEST_KEYRING,
   useSeededDatabase,
 } from "../testing/index.js";
-import { createStoreProfileInitializer } from "../profile/index.js";
+import { createProfile, createStoreProfileInitializer } from "../profile/index.js";
+import { createTenant } from "../tenant/index.js";
 import type {
+  ProfileViewer,
   StoreProfileCopyOption,
   StoreProfileInitInput,
   StoreProfileInitPlan,
 } from "../profile/index.js";
-import { harness, installDicts, ownedFile } from "../profile/__fixtures__/harness.js";
-import type { Harness } from "../profile/__fixtures__/harness.js";
+
+function harness(prisma: PrismaClient, extra: ModuleRegistration[] = []) {
+  const clock = createClock(),
+    tx = createTxRunner({ prisma, appEnv: "test" }),
+    assembly = assembleForTest({ entry: "api", extra });
+  const make = createFactories({ db: prisma, clock }),
+    fake = createFakeProviders({ clock });
+  const events = createEvents({ tx, clock, assembly }),
+    flow = createFlow({ assembly, clock, events }),
+    tenant = createTenant({ tx, clock, flow, assembly });
+  const approval = createApproval({
+    assembly,
+    clock,
+    flow,
+    events,
+    bizNo: createBizNoIssuer({ clock, appEnv: "test" }),
+  });
+  const media = createMedia({ tx, clock, assembly, events, storage: fake.storage });
+  const profile = createProfile({
+    tx,
+    clock,
+    assembly,
+    tenant,
+    approval,
+    events,
+    media: { link: media.link, release: media.release, signRead: media.signRead },
+    keyring: () => TEST_KEYRING,
+    wechat: fake.wechat,
+    currentOpenid: async () => "lyxtest_profile_openid",
+  });
+  return { prisma, tx, clock, make, fake, events, flow, tenant, approval, media, profile };
+}
+type Harness = ReturnType<typeof harness>;
+
+async function installDicts(h: Harness) {
+  for (const item of [
+    {
+      dictTypeKey: "industry",
+      code: "C900",
+      name: "测试开放行业",
+      parentCode: null,
+      ext: { open: true, special: false, requiredCerts: [] },
+    },
+    {
+      dictTypeKey: "industry",
+      code: "C901",
+      name: "测试开放品类",
+      parentCode: "C900",
+      ext: { open: true, special: false, requiredCerts: [] },
+    },
+    {
+      dictTypeKey: "region",
+      code: "110000",
+      name: "测试省",
+      parentCode: null,
+      ext: { level: 1, functionalZone: false, opened: true },
+    },
+    {
+      dictTypeKey: "region",
+      code: "110100",
+      name: "测试市",
+      parentCode: "110000",
+      ext: { level: 2, functionalZone: false, opened: true },
+    },
+    {
+      dictTypeKey: "region",
+      code: "110101",
+      name: "测试区",
+      parentCode: "110100",
+      ext: { level: 3, functionalZone: false, opened: true },
+    },
+    {
+      dictTypeKey: "store_selling_point",
+      code: "SP99",
+      name: "测试卖点",
+      parentCode: null,
+      ext: { categoryCodes: [] },
+    },
+  ])
+    await h.prisma.dictItem.upsert({
+      where: { dictTypeKey_code: { dictTypeKey: item.dictTypeKey, code: item.code } },
+      create: {
+        ...item,
+        id: uuidv7(),
+        isEnabled: true,
+        position: 999,
+        createdAt: h.clock.now(),
+        updatedAt: h.clock.now(),
+      },
+      update: {},
+    });
+}
+async function ownedFile(h: Harness, viewer: ProfileViewer, category = "profile_image") {
+  return h.make.fileObject({
+    category,
+    bucket: category.startsWith("kyc") ? "secure" : "asset",
+    scopeType: category === "kyc_license" ? "entity" : "store",
+    entityId: viewer.membership.entityId,
+    storeId: category === "kyc_license" ? null : viewer.membership.storeId,
+    uploadActorType: "merchant",
+    uploadActorId: viewer.principal.merchantUserId,
+    uploadClient: "weapp",
+  });
+}
 
 const db = useSeededDatabase("services", { label: "profcopy", max: 1 });
 const APPID = "wxlyxtest00000001",
