@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, expect, it, onTestFinished, vi } from "vitest";
 import { createIdentityContext, createIdempotencyContext, uuidv7 } from "../../kernel/index.js";
 import type { MediaActor } from "../index.js";
 import {
@@ -56,6 +56,13 @@ async function reviewBody(usability = "ready") {
 }
 
 it("实际登记→上传→complete/promote→素材引用，未配理解仍人工收尾且直记埋点不为 noop", async () => {
+  const signing = vi.spyOn(h.fake.storage, "presignVisionGet").mockResolvedValue(
+    ok({
+      url: "https://public.invalid/unconfigured.jpg",
+      expiresAt: new Date(h.clock.now().getTime() + 900_000),
+    }),
+  );
+  onTestFinished(() => signing.mockRestore());
   const file = await h.stored();
   expect(file.status).toBe("stored");
   const view = await h.media.assets.create(h.owner, { type: "image", fileIds: [file.id] });
@@ -244,6 +251,7 @@ it("同主体同实际指纹和 prompt 复用洞察，跨主体相同字节仍�
       reusedFromStoreAssetInsightId: insight.id,
       content,
     });
+    expect(signing).not.toHaveBeenCalled();
     const other = await h.make.merchant({ verified: true });
     const actor: MediaActor = {
       identity: createIdentityContext({
@@ -267,7 +275,7 @@ it("同主体同实际指纹和 prompt 复用洞察，跨主体相同字节仍�
       content: { reason: "budget_unconfigured" },
     });
     expect(h.fake.llm.calls).toHaveLength(0);
-    expect(signing).not.toHaveBeenCalled();
+    expect(signing).toHaveBeenCalledOnce();
   } finally {
     h.permitControlledModel(false);
     h.fake.llm.visionReplies.splice(0, h.fake.llm.visionReplies.length, ...previous);
