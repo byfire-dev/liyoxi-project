@@ -4,7 +4,12 @@
 //   const tenant = createTenant({ tx, clock, flow, assembly });
 //   await tenant.createEntity(ctx, { idem });                           // 用例：自己开事务
 //   await tx.run((handle) => tenant.resolveMembership(handle, { merchantUserId, storeId }));   // 在调用方的事务里
-import type { MembershipBrief, MembershipResult, StoreList } from "@liyoxi/contract";
+import type {
+  MemberRemovalResult,
+  MembershipBrief,
+  MembershipResult,
+  StoreList,
+} from "@liyoxi/contract";
 
 import type { Flow } from "../flow/index.js";
 import { isUniqueViolation, merchantFactsOf } from "../kernel/index.js";
@@ -33,6 +38,7 @@ import type { ActiveMembership, TenantReader } from "./repo.js";
 import { listStores, rememberCurrentStore } from "./stores.js";
 import { findActiveReferralCode, membershipBriefs } from "./briefs.js";
 import type { ReferralHit } from "./briefs.js";
+import { removeMemberIn } from "./member-removal.js";
 
 export interface TenantDeps {
   /** 开事务的入口：用例函数用它 */
@@ -61,6 +67,14 @@ export interface Tenant {
     input: { merchantUserId: string; storeId: string },
     options?: UseCaseOptions,
   ): Promise<{ storeId: string }>;
+  /** 老板移除当前主体的有效店员。 */
+  removeMember(
+    ctx: IdentityContext,
+    input: { memberId: string },
+    options?: UseCaseOptions,
+  ): Promise<MemberRemovalResult>;
+  /** 店员退出当前主体；老板只能走既有更换或注销流程。 */
+  leaveMembership(ctx: IdentityContext, options?: UseCaseOptions): Promise<MemberRemovalResult>;
 
   // ---------- 在调用方的事务里 ----------
   /** 账号此刻的有效成员关系（V1.0 至多一条）；没有即 null */
@@ -133,6 +147,10 @@ export function createTenant(deps: TenantDeps): Tenant {
     listStores: (viewer) => deps.tx.run((tx) => listStores(tx, { facts }, now(), viewer)),
     rememberCurrentStore: (input, options = {}) =>
       deps.tx.run((tx) => rememberCurrentStore(tx, now(), input), options),
+    removeMember: (ctx, input, options = {}) =>
+      deps.tx.run((tx) => removeMemberIn(tx, flow, now(), ctx, input.memberId), options),
+    leaveMembership: (ctx, options = {}) =>
+      deps.tx.run((tx) => removeMemberIn(tx, flow, now(), ctx), options),
     activeMembership: (db, merchantUserId) => selectActiveMembership(db, merchantUserId),
     resolveMembership: (db, input) => resolveMembership(db, input),
     getQuotaUsage: (tx, entityId) => getQuotaUsage(tx, { facts }, now(), entityId),
