@@ -1,6 +1,6 @@
 import { createPrismaClient } from "@liyoxi/db";
 import type { PrismaClient } from "@liyoxi/db";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createTxRunner, isAppError, uuidv7 } from "../kernel/index.js";
 import type { TxRunner } from "../kernel/index.js";
 import { connectTestDatabase, useSeededDatabase } from "../testing/index.js";
@@ -34,6 +34,9 @@ beforeAll(async () => {
 }, SLOW);
 afterAll(async () => {
   await Promise.all(clients?.map((client) => client.$disconnect()) ?? []);
+}, SLOW);
+afterEach(async () => {
+  await h.restoreParams();
 }, SLOW);
 function latch() {
   let release!: () => void;

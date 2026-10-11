@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { InvitationCardSchema, InvitationPreviewSchema } from "@liyoxi/contract";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createTenant } from "./index.js";
 import { isInTransaction, uuidv7 } from "../kernel/index.js";
 import type { TxRunner } from "../kernel/index.js";
@@ -19,6 +19,9 @@ const db = useSeededDatabase("services", { max: 1 });
 let h: InvitationHarness;
 beforeAll(async () => {
   h = invitationHarness(await db.prisma());
+}, SLOW);
+afterEach(async () => {
+  await h.restoreParams();
 }, SLOW);
 
 describe("邀请卡片：真实自然绑定与事务事实", { timeout: SLOW }, () => {
@@ -79,7 +82,10 @@ describe("邀请卡片：真实自然绑定与事务事实", { timeout: SLOW }, 
       status: "scheduled",
       dedupeKey: `invitation.expire:invitation:${card.invitationId}`,
     });
-    const encoded = JSON.stringify({ card, events: t.events, audits: t.audits });
+    const encoded = JSON.stringify(
+      { card, events: t.events, audits: t.audits },
+      (_key, value: unknown) => (typeof value === "bigint" ? value.toString() : value),
+    );
     expect(encoded).not.toContain("13800000000");
     expect(JSON.stringify(card)).not.toMatch(/tokenEnc|tokenHash|targetPhoneBidx|merchantUserId/);
   });
@@ -300,7 +306,9 @@ describe("邀请卡片：真实自然绑定与事务事实", { timeout: SLOW }, 
     expect(h.wechat.callsOf("checkText")).toHaveLength(calls);
     h.wechat.setTextCheckAvailable(true);
     const bare = createTenant({ tx: h.tx, clock: h.clock, flow: h.flow, assembly: h.assembly });
-    await expect(bare.lookupInvitation(card.token)).rejects.toMatchObject({ error: "INTERNAL" });
+    expect(() => bare.lookupInvitation(card.token)).toThrowError(
+      expect.objectContaining({ error: "INTERNAL" }),
+    );
     expect(await bare.activeMembership(h.prisma, owner.userId)).not.toBeNull();
   });
 

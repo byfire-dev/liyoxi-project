@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from "@liyoxi/db";
+import { paramsAt } from "../../config/index.js";
 import { createEvents } from "../../events/index.js";
 import { createFlow } from "../../flow/index.js";
 import { AppError, alertsOf, createIdempotencyContext, uuidv7 } from "../../kernel/index.js";
@@ -11,6 +12,8 @@ import type { InvitationDeps } from "../index.js";
 import { memberContext, removalHarness, removalServices, SLOW } from "./member-removal.js";
 
 export { memberContext, SLOW };
+type InvitationParamKey =
+  "invitation.require_phone" | "invitation.ttl_hours" | "invitation.daily_cap";
 export const TABLES = [
   "invitation",
   "invitation_request",
@@ -79,6 +82,7 @@ export function invitationServices(
 export function invitationHarness(prisma: PrismaClient) {
   const base = removalHarness(prisma);
   const service = invitationServices(prisma, base.clock);
+  const originalParams = new Map<InvitationParamKey, Prisma.InputJsonValue>();
   const principal = (ctx: IdentityContext) => {
     if (ctx.actor.type !== "merchant") throw new TypeError("检测样例要求商家身份");
     return {
@@ -132,7 +136,13 @@ export function invitationHarness(prisma: PrismaClient) {
     if (!ref) throw new Error("本邀请的真实 timer 未被认领");
     return ref;
   }
-  async function param(key: string, value: Prisma.InputJsonValue) {
+  async function param(key: InvitationParamKey, value: Prisma.InputJsonValue) {
+    if (!originalParams.has(key)) {
+      const current = await paramsAt(prisma, [key], base.clock.now());
+      originalParams.set(key, current[key]);
+    }
+    // 参数只能追加；递进一毫秒建立合法修订，不覆盖同刻已有事实。
+    base.clock.advance(1);
     const staff = await base.make.staff({ staffRoleKey: "super_admin" });
     return prisma.paramValue.create({
       data: {
@@ -145,6 +155,11 @@ export function invitationHarness(prisma: PrismaClient) {
       },
     });
   }
+  async function restoreParams() {
+    // afterEach 即使断言失败也追加原值，保留本例的完整参数历史。
+    for (const [key, value] of originalParams) await param(key, value);
+    originalParams.clear();
+  }
   return {
     ...base,
     ...service,
@@ -153,6 +168,7 @@ export function invitationHarness(prisma: PrismaClient) {
     trace,
     claim,
     param,
+    restoreParams,
     state: () => snapshotTables(prisma, TABLES),
     run: async (id: string) => runTimer(service.timerDeps, await claim(id)),
   };
