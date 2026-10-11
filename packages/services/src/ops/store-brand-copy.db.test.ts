@@ -92,7 +92,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await h?.close();
 }, SLOW);
-const factory = (media = h.media, timers = h.timers) =>
+const factory = (media: Pick<typeof h.media, "link"> = h.media, timers = h.timers) =>
   createStoreProfileAssetInitializer({
     clock: h.clock,
     tenant,
@@ -575,8 +575,13 @@ describe("四项组合：真实会话owner、首次metadata与双域事务", { t
   it.each(["session", "owner", "source"])(
     "最后timer await之后%s事实失效，两个域及timer全部回滚",
     async (kind) => {
-      const w = await world(),
-        start = h.clock.now(),
+      const w = await world();
+      if (kind === "source") {
+        const context = await h.make.store({ entityId: w.entityId });
+        w.ctx = createIdentityContext({ ...w.ctx, storeId: context.id });
+        w.input = { ...w.input, contextStoreId: context.id };
+      }
+      const start = h.clock.now(),
         before = await snapshotTables(h.prisma, TABLES);
       const real = h.timers.arm;
       const timers = {
@@ -688,7 +693,6 @@ describe("四项组合：真实会话owner、首次metadata与双域事务", { t
       const media =
         stage === "asset-link"
           ? {
-              ...h.media,
               link: async (...args: Parameters<typeof real>) => {
                 if (args[1].refType === "store_asset") throw failure;
                 return real(...args);
