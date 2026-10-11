@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, expect, it, onTestFinished, vi } from "vitest";
 import { createIdentityContext, createIdempotencyContext, uuidv7 } from "../../kernel/index.js";
 import type { MediaActor } from "../index.js";
 import {
@@ -9,6 +9,7 @@ import {
 import { createConfig, createConfigAdmin } from "../../config/index.js";
 import { AssetJobInputSchema } from "./pipeline.js";
 import { createCalendarAdmin } from "../../sla/index.js";
+import { ok } from "../../providers/types.js";
 import type { DeliveredEvent, FiredTimer } from "../../kernel/index.js";
 
 const db = useSeededDatabase("services");
@@ -55,6 +56,13 @@ async function reviewBody(usability = "ready") {
 }
 
 it("实际登记→上传→complete/promote→素材引用，未配理解仍人工收尾且直记埋点不为 noop", async () => {
+  const signing = vi.spyOn(h.fake.storage, "presignVisionGet").mockResolvedValue(
+    ok({
+      url: "https://public.invalid/unconfigured.jpg",
+      expiresAt: new Date(h.clock.now().getTime() + 900_000),
+    }),
+  );
+  onTestFinished(() => signing.mockRestore());
   const file = await h.stored();
   expect(file.status).toBe("stored");
   const view = await h.media.assets.create(h.owner, { type: "image", fileIds: [file.id] });
@@ -191,7 +199,23 @@ it("同主体同实际指纹和 prompt 复用洞察，跨主体相同字节仍�
       ? { ...reply, value: { ...reply.value, crc64: "7953934903724170396" } }
       : reply;
   });
+  const previous = [...h.fake.llm.visionReplies];
+  const content = {
+    description: "同主体旧驱动已取得的洞察",
+    quality: "公开虚构清晰画面",
+    hasPeople: false,
+    identifiableCustomerFace: false,
+    textInImage: "",
+  };
+  const signing = vi.spyOn(h.fake.storage, "presignVisionGet").mockResolvedValue(
+    ok({
+      url: "https://public.invalid/vision.jpg",
+      expiresAt: new Date(h.clock.now().getTime() + 900_000),
+    }),
+  );
   try {
+    h.permitControlledModel(true);
+    h.fake.llm.visionReplies.splice(0, h.fake.llm.visionReplies.length, content);
     const firstFile = await h.stored();
     expect(firstFile.crc64).not.toBeNull();
     const original = await h.media.assets.create(h.owner, {
@@ -207,10 +231,10 @@ it("同主体同实际指纹和 prompt 复用洞察，跨主体相同字节仍�
         promptVersion: 1,
       },
     });
-    await h.prisma.storeAssetInsight.update({
-      where: { id: insight.id },
-      data: { status: "ok", content: { description: "同主体旧驱动已取得的洞察", tags: [] } },
-    });
+    expect(insight).toMatchObject({ status: "ok", content, mediaJobId: expect.any(String) });
+    h.permitControlledModel(false);
+    h.fake.llm.resetCalls();
+    signing.mockClear();
     const secondFile = await h.stored();
     expect(secondFile).toMatchObject({ crc64: firstFile.crc64, sizeBytes: firstFile.sizeBytes });
     const second = await h.media.assets.create(h.owner, {
@@ -225,8 +249,9 @@ it("同主体同实际指纹和 prompt 复用洞察，跨主体相同字节仍�
     ).toMatchObject({
       status: "ok",
       reusedFromStoreAssetInsightId: insight.id,
-      content: { description: "同主体旧驱动已取得的洞察", tags: [] },
+      content,
     });
+    expect(signing).not.toHaveBeenCalled();
     const other = await h.make.merchant({ verified: true });
     const actor: MediaActor = {
       identity: createIdentityContext({
@@ -250,7 +275,12 @@ it("同主体同实际指纹和 prompt 复用洞察，跨主体相同字节仍�
       content: { reason: "budget_unconfigured" },
     });
     expect(h.fake.llm.calls).toHaveLength(0);
+    expect(signing).toHaveBeenCalledOnce();
   } finally {
+    h.permitControlledModel(false);
+    h.fake.llm.visionReplies.splice(0, h.fake.llm.visionReplies.length, ...previous);
+    h.fake.llm.resetCalls();
+    signing.mockRestore();
     spy.mockRestore();
   }
 });
@@ -289,12 +319,18 @@ it("已领租约的理解 IO 在途删除父素材，晚结果取消且不写洞
   const held = new Promise<void>((resolve) => {
     release = resolve;
   });
-  const actual = h.fake.llm.tagAsset;
-  const spy = vi.spyOn(h.fake.llm, "tagAsset").mockImplementation(async (input) => {
+  const actual = h.fake.llm.analyzeVision;
+  const spy = vi.spyOn(h.fake.llm, "analyzeVision").mockImplementation(async (input) => {
     entered = true;
     await held;
     return actual(input);
   });
+  const signing = vi.spyOn(h.fake.storage, "presignVisionGet").mockResolvedValue(
+    ok({
+      url: "https://public.invalid/vision.jpg",
+      expiresAt: new Date(h.clock.now().getTime() + 900_000),
+    }),
+  );
   h.permitControlledModel(true);
   const running = h.media.jobs.run({ jobId: vision!.id });
   let winner!: Awaited<ReturnType<typeof h.prisma.storeAsset.findUniqueOrThrow>>;
@@ -309,9 +345,13 @@ it("已领租约的理解 IO 在途删除父素材，晚结果取消且不写洞
     winner = await h.prisma.storeAsset.findUniqueOrThrow({ where: { id } });
   } finally {
     release();
-    await running;
-    spy.mockRestore();
-    h.permitControlledModel(false);
+    try {
+      await running;
+    } finally {
+      spy.mockRestore();
+      signing.mockRestore();
+      h.permitControlledModel(false);
+    }
   }
   expect(await h.prisma.mediaJob.findUniqueOrThrow({ where: { id: vision!.id } })).toMatchObject({
     state: "canceled",
