@@ -27,6 +27,7 @@ import { assetFileSteps } from "./steps.js";
 import type { AssetType } from "./steps.js";
 import { createAssetAsrStrategy } from "./asr.js";
 import { createAssetDocStrategy, documentFacts } from "./doc.js";
+import { createAssetDigestStrategy } from "./digest.js";
 
 const done = (
   status: "ok" | "skipped",
@@ -167,7 +168,7 @@ async function prepare(deps: AssetDeps, tx: Tx, job: MediaJob): Promise<Prepared
         })
       : null;
   // ASR admits each submit/query in its fresh, lease-bound IO preflight instead.
-  const model = ["vision", "digest"].includes(job.kind);
+  const model = job.kind === "vision";
   return {
     asset,
     file,
@@ -229,7 +230,8 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
   const signer = createSigner(deps),
     probe = createProbeHandler(deps),
     asr = createAssetAsrStrategy(deps, (tx, job) => current(deps, tx, job)),
-    doc = createAssetDocStrategy(deps, (tx, job) => current(deps, tx, job));
+    doc = createAssetDocStrategy(deps, (tx, job) => current(deps, tx, job)),
+    digest = createAssetDigestStrategy(deps, (tx, job) => current(deps, tx, job));
   const kinds = [
     "probe",
     "audit_image",
@@ -259,8 +261,11 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
     validOutput: (output) => AssetJobOutputSchema.safeParse(output).success,
     current: (tx, job) => current(deps, tx, job),
     prepare: (tx, job) =>
-      kind === "asr" && job.externalJobId ? Promise.resolve(undefined) : prepare(deps, tx, job),
+      kind === "digest" || (kind === "asr" && job.externalJobId)
+        ? Promise.resolve(undefined)
+        : prepare(deps, tx, job),
     execute: async (job, context, signal): Promise<JobOutcome> => {
+      if (kind === "digest") return digest.execute(job, signal);
       const prepared = context as PreparedAsset;
       if (signal.aborted) return failed("ASSET_CANCELED");
       if (kind === "doc_extract") return doc.execute(job, signal, prepared.reused);
@@ -343,11 +348,7 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
           ? done("ok", { description: result.value.description, tags: result.value.tags })
           : skipped("vision_unavailable");
       }
-      if (!prepared.text) return skipped("digest_source_missing");
-      const result = await deps.assets.llm.extractKeyPoints({ text: prepared.text, maxPoints: 6 });
-      return result.ok
-        ? done("ok", { keypoints: result.value.points })
-        : skipped("digest_unavailable");
+      return skipped("asset_step_unsupported");
     },
     poll: (job, signal) => (kind === "asr" ? asr.poll(job, signal) : originalAudit(deps, job)),
     recover: (job, signal) =>
@@ -360,8 +361,17 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
       const input = AssetJobInputSchema.parse(job.input),
         asset = await tx.storeAsset.findUniqueOrThrow({ where: { id: input.assetId } });
       if (!(await current(deps, tx, job))) return;
+      if (kind === "digest" && outcome.state === "canceled") return;
       if (outcome.state === "succeeded") {
         const output = AssetJobOutputSchema.parse(outcome.output);
+        if (
+          kind === "digest" &&
+          output.status === "ok" &&
+          !(await digest.matches(tx, job, output.content))
+        ) {
+          await tx.storeAsset.update({ where: { id: asset.id }, data: { isInsightPartial: true } });
+          return;
+        }
         if (kind === "probe" && output.probe !== undefined) {
           const facts = await readProductionWork(deps, tx, job.subjectId);
           await probe.finish?.(
@@ -412,7 +422,11 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
           }
           await tx.storeAsset.update({ where: { id: asset.id }, data: { isInsightPartial: true } });
         }
-        if (output.status !== "ok" || (kind === "doc_extract" && output.content.truncated === true))
+        if (
+          output.status !== "ok" ||
+          (kind === "doc_extract" && output.content.truncated === true) ||
+          (kind === "digest" && output.content.partial === true)
+        )
           await tx.storeAsset.update({ where: { id: asset.id }, data: { isInsightPartial: true } });
         if (output.verdict) {
           const audits = await tx.mediaJob.findMany({
