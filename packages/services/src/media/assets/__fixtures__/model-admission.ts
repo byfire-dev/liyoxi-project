@@ -162,7 +162,7 @@ export async function modelWorld(prisma: PrismaClient, client: Redis, ownPrefix:
     return { assetId: asset.storeAssetId, job: await claim(job), files: [] };
   }
   async function storedImage(body: Buffer) {
-    const file = await h.stored(h.owner, "store_asset", body);
+    const file = await h.stored(h.owner, "store_asset", new Uint8Array(body));
     const audit = await prisma.mediaJob.findUniqueOrThrow({
       where: { dedupeKey: `audit_image:${file.id}:v1` },
     });
