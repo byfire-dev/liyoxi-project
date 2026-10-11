@@ -62,7 +62,7 @@ describe("实际worker预算生命周期", { timeout: SLOW }, () => {
       closeAlerts = vi.spyOn(one.services, "closeAlertFacts");
     const disable = vi.spyOn(one.services, "disableModelBudget");
     const consumer = one.consumers[0]!;
-    const original = consumer.close.bind(consumer);
+    const original = vi.mocked(consumer.close).getMockImplementation()!;
     vi.spyOn(consumer, "close").mockImplementation(async (timeout) => {
       entered.release();
       await gate.promise;
