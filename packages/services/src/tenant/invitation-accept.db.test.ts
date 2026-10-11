@@ -675,7 +675,7 @@ describe("空草稿让位：严格四项真实历史与私有权限", { timeout:
         actor === "merchant"
           ? old.ctx
           : createIdentityContext({
-              actor: { type: "system", job: "tenant.acceptInvitation" },
+              actor: { type: "system", job: "tenant.accept_invitation" },
               entityId: old.entityId,
               requestId: uuidv7(),
             });

@@ -310,7 +310,7 @@ export function createInvitationAcceptor(deps: Deps) {
               memberId: member?.memberId ?? uuidv7(),
               phase: "abandon",
               system: createIdentityContext({
-                actor: { type: "system", job: "tenant.acceptInvitation" },
+                actor: { type: "system", job: "tenant.accept_invitation" },
                 entityId: old?.entityId ?? null,
                 requestId: ctx.requestId,
               }),

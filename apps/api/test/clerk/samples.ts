@@ -407,87 +407,11 @@ export const CLERK_SAMPLES: readonly Sample[] = [
         }),
         { clientRequestId: uuidv7() },
       );
-      const response = await api.request(`/api/v1/m/invitations/${card.invitationId}/accept`, {
+      return api.request(`/api/v1/m/invitations/${card.invitationId}/accept`, {
         method: "POST",
         json: { token: card.token, displayName: "既有店员" },
         headers: { ...ctx.clerk.headers, "Idempotency-Key": uuidv7() },
       });
-      if (response.status === 500) {
-        // 临时具名观测：不输出 message、SQL、参数、请求正文或凭据。
-        const row = api.logs.findLast((entry) => entry.evt === "http.error");
-        const error = row?.err as Record<string, unknown> | undefined;
-        const types = [
-          "Error",
-          "TypeError",
-          "ReferenceError",
-          "KernelViolation",
-          "FlowError",
-          "EventEmitError",
-          "AppError",
-          "PrismaClientKnownRequestError",
-          "PrismaClientValidationError",
-          "DriverAdapterError",
-          "ZodError",
-        ];
-        const codes = [
-          "P2002",
-          "P2003",
-          "P2010",
-          "P2028",
-          "23503",
-          "23505",
-          "23514",
-          "42501",
-          "lock_order",
-          "nested_transaction",
-          "idempotency_context_reused",
-          "external_call_in_transaction",
-        ];
-        const reasons = [
-          "unknown_chain",
-          "unknown_event",
-          "guard_missing",
-          "column",
-          "created",
-          "audit_required",
-          "event_required",
-          "unknown_event",
-          "not_emitted",
-          "aggregate",
-          "tenant",
-          "no_schema",
-          "payload",
-          "dedupe_key",
-        ];
-        const allowed = (value: unknown, values: readonly string[]) =>
-          typeof value === "string" && values.includes(value) ? value : "UNLISTED";
-        const frames =
-          typeof error?.stack === "string"
-            ? error.stack
-                .split("\n")
-                .slice(1)
-                .flatMap((line) => {
-                  const site = line.match(
-                    /(\/Users\/byfire.ai\/\.codex\/worktrees\/api-test-redis-prefix\/liyoxi-project\/[^()\s]+:\d+:\d+)/,
-                  );
-                  if (!site || !/^\s+at /.test(line)) return [];
-                  const name =
-                    line.match(/^\s+at (?:async )?([A-Za-z0-9_.$<>]+) /)?.[1] ?? "anonymous";
-                  return [`${name}@${site[1]}`];
-                })
-                .slice(0, 6)
-            : [];
-        throw new Error(
-          JSON.stringify({
-            diagnostic: "accept500",
-            type: allowed(error?.type, types),
-            code: allowed(error?.code, codes),
-            reason: allowed(error?.reason, reasons),
-            frames,
-          }),
-        );
-      }
-      return response;
     },
   },
   // 退出会吊销当前凭据，放到这一份样例的最后。其它样例不得靠退出后的身份。
