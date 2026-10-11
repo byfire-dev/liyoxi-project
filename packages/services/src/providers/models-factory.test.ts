@@ -329,7 +329,7 @@ const methods: ProviderCall[] = [
   { provider: "llm", method: "analyzeVision" },
 ];
 describe("真实模型经过唯一工厂外呼守卫", () => {
-  it.each(methods)("$provider.$method 每入口仅一次", async ({ provider, method }) => {
+  it.each(methods)("$provider / $method 每入口仅一次", async ({ provider, method }) => {
     const h = setup();
     const providers = createProviders(h.options);
     const result = await callWithSample(providers, provider, method);
@@ -353,19 +353,22 @@ describe("真实模型经过唯一工厂外呼守卫", () => {
     }
   });
 
-  it.each(methods)("$provider.$method 守卫原错先于校验/签名/HTTP", async ({ provider, method }) => {
-    const h = setup();
-    const sentinel = new Error("真实外呼前钩子拒绝");
-    h.beforeCall.mockImplementation(() => {
-      throw sentinel;
-    });
-    const providers = createProviders(h.options);
-    await expect(callWithSample(providers, provider, method)).rejects.toBe(sentinel);
-    expect(h.beforeCall.mock.calls).toEqual([[{ provider, method }]]);
-    expect(h.now).not.toHaveBeenCalled();
-    expect(h.asrFetch).not.toHaveBeenCalled();
-    expect(h.llmFetch).not.toHaveBeenCalled();
-  });
+  it.each(methods)(
+    "$provider / $method 守卫原错先于校验/签名/HTTP",
+    async ({ provider, method }) => {
+      const h = setup();
+      const sentinel = new Error("真实外呼前钩子拒绝");
+      h.beforeCall.mockImplementation(() => {
+        throw sentinel;
+      });
+      const providers = createProviders(h.options);
+      await expect(callWithSample(providers, provider, method)).rejects.toBe(sentinel);
+      expect(h.beforeCall.mock.calls).toEqual([[{ provider, method }]]);
+      expect(h.now).not.toHaveBeenCalled();
+      expect(h.asrFetch).not.toHaveBeenCalled();
+      expect(h.llmFetch).not.toHaveBeenCalled();
+    },
+  );
 
   it("ASR原now与fetch透传，submit→query保无损任务号，旧同步方法不转成功", async () => {
     const h = setup("asr");
