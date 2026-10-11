@@ -1,5 +1,7 @@
 // 保留旧 W224 全部事件与探针规则；本前置只消费事件事实，不启动探针或通道。
 export const EVENT_ALERT_RULES = [
+  "media.model_budget_exhausted",
+  "media.model_budget_unavailable",
   "sla.calendar_fallback",
   "auth.staff_untrusted_locked",
   "billing.advance_failed",

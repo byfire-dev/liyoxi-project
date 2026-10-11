@@ -134,3 +134,13 @@ production_record 父先预锁已有样片350再制作记录360；属于批次�
 既有 `banner`、`trailer_src`、`drama_license_doc` 按 a01 第2.17节开放后台登记：分别要求 ops 编辑、`drama.media.manage`、drama 编辑或 `drama.copyright.revise`。三类均限定平台归属；不接受主体、门店或代传范围。原片仍只能经过批次，系统派生类别仍不能通用登记。
 
 Banner 和预告片源按正式矩阵允许员工签发短时读地址；版权证明仍要求 drama 查看并逐次记录 access 审计。文件必须已入库且未被拦截。后台预告片源预览走既有 `admin.file.downloadUrls`（a04 第3.22节），不新增可播放资产接口。接口用例使用真实鉴权、隔离库和完整登记/完成/promote链，存储为 FakeStorage；这些边界用例不代替 W3-12 实际媒体制作与浏览器上传验收。
+
+## 独立模型预算账本前置
+
+`createModelBudgetLedger`只借用窄eval传输，构造零IO，提供reserve与显式maintain；不装配当前模型owner、worker或Redis连接，不提供初始化、恢复、退款、删除token或close。两正式参数登记为文件200/全局槽0，任一个0均关闭；实际模型默认仍关闭。ASR新提交1槽，vision/digest固定3槽，同店同北京日同file只首次计文件，0文件摘要仍占3槽；不为ASR query预留。上下文只验证结构，真实主体/来源hash/原deadline必须由后继PG许可核验，不能将此口当授权。
+
+调用方须在全部祖先PG已结束后调用；test/dev公开kernel断言也拒绝detach，production另以isInTransaction拒绝当前事务链，本片不声称可强制识别任意已脱离的祖先事务。传输最多等250ms且不越原admitUntil/lease/deadline，迟到/取消/未知均保守关闭；Lua错误不回滚，已预留不退。业务Clock与RedisTIME只容5000ms偏差并保存时间/北京日高水位，不以偏差延长授权。
+
+单HASH原子预留同时记录无日期job/attempt/kind token与q到期索引，先验完整批再一次HSET。HLEN含索引硬界250000，可信maxFields只能降低；128序号槽维护包含空洞，游标循环，不HSCAN/HGETALL。token须双方时钟均过原deadline+5000ms才删，先持久提高closedBefore再删；旧原deadline永不因回拨重授。日计数只清当前日前两日及更早项，活token不按午夜清。索引与目标实际值/到期关系必须相符，损坏不修复、不自动建账。缺账本/marker/水位关闭；任意HDEL、旧快照恢复与Redis丢失不在协议证明内。
+
+active token对人工retry保守冲突，不支持立即重试；attemptNo会被既有人工重试重置，完整epoch仍待后继，不声称永久身份。两个具名告警只登记/测试真实writer，自动预算告警与初始化、维护调度、连接所有权/关停及P1-R-P2实际装配均未完成。当前SOURCE未运行类型/测试/生成/DBRedis，容量、云账单和生产时延未验。

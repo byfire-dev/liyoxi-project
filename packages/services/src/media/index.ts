@@ -58,6 +58,13 @@ export { DerivationOutputSchema } from "./handlers/restamp.js";
 export type { MediaAssetsDeps, AssetStoreFacts } from "./assets/types.js";
 export { readMemberAssetCounts } from "./assets/member-counts.js";
 export type { MemberAssetCounts, MemberAssetCountsInput } from "./assets/member-counts.js";
+export { createModelBudgetLedger } from "./assets/model-budget.js";
+export type {
+  ModelBudgetContext,
+  ModelBudgetTransport,
+  ModelBudgetDecision,
+  ModelBudgetMaintenance,
+} from "./assets/model-budget.js";
 export {
   assertAssetReferences,
   linkAssetReferences,
