@@ -39,6 +39,7 @@ await identity.isClientOutdated(clientVersion, flagContext);     // 版本门槛
 
 - **令牌**：库里只存随机部分的 sha256。只认规范写法，改任何一位都无效。
 - **会话**：有效 = 摘要对得上、未吊销、未过空闲（30 天滑动）与绝对（90 天）过期、账号 `active`。`last_seen_at` 与空闲过期同一天（北京时间）只写一次，连带账号的 `last_active_at`；微信身份的 `last_active_at` 距上次写入超过 30 分钟才再写。无效的原因只进日志，端上一律 401。
+- **同事务复核**：`assertCurrentSession(tx, principal, freshNow, expectedAppid)` 单条只读 JOIN 核当前归属、AppID、吊销、双期限与账号状态，返回当前四字段 principal（含当前 consentStamp）。调用方在最后业务锁等待后取 freshNow；不读令牌、不续期、不加锁、不补同意。只保证语句快照，不取消所有在途 logout/rebind 请求。
 - **上限**：同一微信身份未吊销的会话至多 5 条，多了挤掉最旧的（`evicted`）。登录事务先锁账号行（80）再锁微信身份行（90），并发登录在这两把锁上排队。
 - **静默登录**：没有身份、关了静默登录、账号不是 `active`，一律 `needPhone = true`，不区分原因、不写库。
 - **手机号登录**：`code2Session`、`getPhoneNumber` 在事务之外先做完；`onOpenid` 在两者之间调一次（接口层在这里按 openid 限流），给的是 openid 的 HMAC。事务里：取号或建号（`ON CONFLICT (phone_bidx) DO NOTHING`）→ 休眠检查 → 微信身份（新建、恢复静默登录、改绑）→ 新绑定的审计与 `merchant_user.wechat_bound` → 同意记录与指纹 → 新账号的注册迁移与 `merchant_user.registered` → 会话与 `auth_event`。`consents` 没覆盖用户级协议的当前版本回 428，整个事务回滚（账号也不建）。

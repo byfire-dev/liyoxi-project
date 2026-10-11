@@ -7,6 +7,7 @@
 import { calendarDate } from "@liyoxi/shared/time";
 
 import type { Tx } from "../kernel/index.js";
+import { sessionInvalidReason } from "./session-validity.js";
 import { issueToken, parseToken, secretMatches } from "./token.js";
 import type { SessionPrincipal } from "./types.js";
 
@@ -113,15 +114,19 @@ export async function checkSession(
   });
   if (row === null) return { ok: false, reason: "unknown" };
   if (!secretMatches(parsed.secret, row.tokenHash)) return { ok: false, reason: "mismatch" };
-  // 未吊销的会话必有微信身份（ck_user_session_identity_live）
-  if (row.revokedAt !== null || row.wechatIdentityId === null || row.wechatIdentity === null) {
-    return { ok: false, reason: "revoked" };
+  const reason = sessionInvalidReason(
+    {
+      ...row,
+      revoked:
+        row.revokedAt !== null || row.wechatIdentityId === null || row.wechatIdentity === null,
+      accountStatus: row.merchantUser.status,
+    },
+    now,
+  );
+  // 空身份已由共享规则归为 revoked；同时保留后续续写所需的类型收窄。
+  if (reason !== undefined || row.wechatIdentityId === null || row.wechatIdentity === null) {
+    return { ok: false, reason: reason ?? "revoked" };
   }
-  if (now.getTime() >= row.absoluteExpiresAt.getTime()) {
-    return { ok: false, reason: "absolute_expired" };
-  }
-  if (now.getTime() >= row.idleExpiresAt.getTime()) return { ok: false, reason: "idle_expired" };
-  if (row.merchantUser.status !== "active") return { ok: false, reason: "account_inactive" };
 
   const today = calendarDate(now);
   let touched = false;

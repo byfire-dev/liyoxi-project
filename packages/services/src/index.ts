@@ -249,6 +249,7 @@ export {
 } from "./profile/index.js";
 export type { Profile, ProfileDeps, ProfileViewer } from "./profile/index.js";
 export { currentSessionOpenid } from "./identity/index.js";
+export { assertCurrentSession } from "./identity/index.js";
 
 export { createContent } from "./content/index.js";
 export type { Content, ContentDeps, DramaPrices, DramaPrice } from "./content/index.js";

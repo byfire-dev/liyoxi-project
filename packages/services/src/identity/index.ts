@@ -41,6 +41,7 @@ export { registration } from "./register.js";
 export { assembleBootstrap, bootstrapDefaults } from "./bootstrap.js";
 export type { BootstrapInput, BootstrapLoaders } from "./bootstrap.js";
 export { currentSessionOpenid } from "./current-openid.js";
+export { assertCurrentSession } from "./current-session.js";
 
 export { identityPiiFields } from "./pii-fields.js";
 export { membershipAuthorizations, revokePortalGrants } from "./portal-grants.js";
