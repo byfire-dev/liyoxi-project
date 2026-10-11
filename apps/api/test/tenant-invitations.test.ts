@@ -6,7 +6,7 @@ import {
 } from "@liyoxi/contract";
 import { createIdentityContext, uuidv7 } from "@liyoxi/services";
 import { createFactories } from "@liyoxi/services/testing";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { merchantServicesOf } from "../src/merchant/services.js";
 import { useTestApi } from "../src/testing/index.js";
 import type { TestApi } from "../src/testing/index.js";
@@ -202,6 +202,36 @@ describe("邀请卡片四个真实 HTTP 入口", { timeout: 120_000 }, () => {
     expect(api.wechat.callsOf("checkText")).toHaveLength(before + 1);
     expect(await trace(w)).toEqual(snapshot);
   });
+
+  it.each(["block", "unavailable", "throw"] as const)(
+    "真实当前会话内容检测%s失败关闭，HTTP错误明确且零业务写",
+    async (mode) => {
+      const w = await world(),
+        before = await trace(w);
+      const failed =
+        mode === "throw"
+          ? vi
+              .spyOn(api.runtime.providers.wechat, "checkText")
+              .mockRejectedValueOnce(new Error("检测传输故障"))
+          : undefined;
+      if (mode === "block") api.wechat.textVerdicts.push("block");
+      if (mode === "unavailable") api.wechat.setTextCheckAvailable(false);
+      try {
+        const result = await post("m.invitation.create", w.owner.withStore(w.storeId), {
+          clientRequestId: uuidv7(),
+          remarkName: "需要检测",
+        });
+        expect(result.response.status).toBe(mode === "block" ? 400 : 503);
+        expect(result.body.error).toBe(
+          mode === "block" ? "CONTENT_REJECTED" : "PROVIDER_UNAVAILABLE",
+        );
+        expect(await trace(w)).toEqual(before);
+      } finally {
+        failed?.mockRestore();
+        api.wechat.setTextCheckAvailable(true);
+      }
+    },
+  );
 
   it("绑定仍 pending 即使时钟到期也返回原卡，匿名 lookup 只投影 expired 且零写", async () => {
     const w = await world(),

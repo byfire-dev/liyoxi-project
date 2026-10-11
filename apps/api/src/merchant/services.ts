@@ -73,11 +73,11 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
       timers: runtime.timers,
       async checkRemark(principal, content) {
         const openid = await tx.run((handle) => currentSessionOpenid(handle, principal, appid));
-        const result = await runtime.providers.wechat.checkText({
-          openid,
-          scene: "profile",
-          content,
-        });
+        const result = await runtime.providers.wechat
+          .checkText({ openid, scene: "profile", content })
+          .catch(() => {
+            throw new AppError("PROVIDER_UNAVAILABLE");
+          });
         if (!result.ok) throw new AppError("PROVIDER_UNAVAILABLE");
         if (result.value.verdict !== "pass")
           throw new AppError("CONTENT_REJECTED", { details: { fields: ["remarkName"] } });

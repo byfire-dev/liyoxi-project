@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { InvitationCardSchema, InvitationPreviewSchema } from "@liyoxi/contract";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { createTenant } from "./index.js";
-import { uuidv7 } from "../kernel/index.js";
+import { isInTransaction, uuidv7 } from "../kernel/index.js";
 import type { TxRunner } from "../kernel/index.js";
 import { decryptField, phoneBidx } from "../security/index.js";
 import { TEST_KEYRING, useSeededDatabase } from "../testing/index.js";
@@ -423,4 +423,80 @@ describe("邀请卡片：真实自然绑定与事务事实", { timeout: SLOW }, 
     ).rejects.toThrow();
     expect(await h.state()).toEqual(before);
   });
+
+  it.each([1, 168])("TTL正式参数边界%s小时原值进入卡片与timer", async (hours) => {
+    const owner = await h.owner();
+    await h.param("invitation.ttl_hours", hours);
+    const card = await h.card(owner),
+      trace = await h.trace(card.invitationId);
+    expect(new Date(card.expiresAt).getTime() - h.clock.now().getTime()).toBe(hours * 3_600_000);
+    expect(trace.timers[0]?.fireAt.toISOString()).toBe(card.expiresAt);
+    await h.param("invitation.ttl_hours", 24);
+  });
+
+  it("真实不限成员的生效订阅不默认成3，老板不占名额", async () => {
+    const owner = await h.owner();
+    const revision = await h.prisma.planRevision.findFirstOrThrow({ where: { maxMembers: null } });
+    // 使用真实种子版本及合法历史生效周期，不冒称执行购买/履约 producer。
+    await h.make.subscriptionTerm({ entityId: owner.entityId, planRevisionId: revision.id });
+    for (let n = 0; n < 4; n++) await h.clerk(owner);
+    const card = await h.card(owner);
+    expect(card.seats).toMatchObject({
+      memberLimit: null,
+      seatsUsed: 5,
+      seatsOver: 0,
+      limitReason: "plan",
+    });
+  });
+
+  it.each(["disabled", "archived", "quota", "throw"] as const)(
+    "claim后外检期间%s变化在settle重读，零邀请写",
+    async (mode) => {
+      const owner = await h.owner(),
+        before = await h.state();
+      const side = invitationServices(h.prisma, h.clock, undefined, {
+        checkRemark: async () => {
+          expect(isInTransaction()).toBe(false);
+          if (mode === "throw") throw new Error("检测外呼抛错");
+          if (mode === "disabled")
+            await h.prisma.merchantUser.update({
+              where: { id: owner.userId },
+              data: { status: "disabled" },
+            });
+          if (mode === "quota")
+            await h.prisma.entity.update({
+              where: { id: owner.entityId },
+              data: { memberLimitOverride: 0 },
+            });
+          if (mode === "archived")
+            await h.prisma.store.update({
+              where: { id: owner.storeId },
+              data: {
+                lifecycle: "archived",
+                archiveReason: "by_owner",
+                archivedAt: h.clock.now(),
+                archiveActorType: "merchant",
+                archiveActorId: owner.userId,
+                archiveClient: "weapp",
+              },
+            });
+        },
+      });
+      const operation = side.tenant.createInvitation(
+        owner.ctx,
+        { clientRequestId: uuidv7(), remarkName: "真实重验" },
+        { principal: h.principal(owner.ctx) },
+      );
+      if (mode === "throw") await expect(operation).rejects.toThrow("检测外呼抛错");
+      else
+        await expect(operation).rejects.toMatchObject({
+          error: {
+            disabled: "NOT_A_MEMBER",
+            archived: "STORE_ARCHIVED",
+            quota: "SEAT_LIMIT_REACHED",
+          }[mode],
+        });
+      expect(await h.state()).toEqual(before);
+    },
+  );
 });

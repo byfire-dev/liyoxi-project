@@ -105,7 +105,7 @@ async function world(worker: ReturnType<typeof buildWorkerServices>, businessClo
   });
   const card = await tenant.createInvitation(ctx, { clientRequestId: uuidv7() });
   const timer = await prisma.timer.findFirstOrThrow({ where: { subjectId: card.invitationId } });
-  return { tx, flow, tenant, card, ctx, timer, ...created };
+  return { tx, flow, tenant, card, ctx, timer, user, ...created };
 }
 async function due(id: string) {
   await prisma.timer.update({ where: { id }, data: { fireAt: new Date(0), retryAt: null } });
@@ -221,6 +221,50 @@ describe("真实邀请expiry运行时", { timeout: SLOW }, () => {
         }),
       ),
     ).toBe("skipped");
+  });
+
+  it("真实早到六次耗尽后原arm复活，推进期限后expire一次且不依赖邀请人仍active", async () => {
+    const worker = build(),
+      w = await world(worker);
+    for (let attempt = 1; attempt <= 6; attempt++) {
+      await due(w.timer.id);
+      const start = refs.length;
+      await worker.scan();
+      const ref = refs.slice(start).find((item) => item.timerId === w.timer.id);
+      expect(ref).toBeDefined();
+      expect(await worker.runTimer(ref!)).toBe(attempt === 6 ? "failed" : "retry");
+      expect(await prisma.timer.findUniqueOrThrow({ where: { id: w.timer.id } })).toMatchObject({
+        status: attempt === 6 ? "failed" : "scheduled",
+        attempts: attempt,
+      });
+    }
+    expect(await prisma.statusTransition.count({ where: { subjectId: w.card.invitationId } })).toBe(
+      1,
+    );
+    const card = await w.tenant.createInvitation(w.ctx, { clientRequestId: uuidv7() });
+    expect(card.invitationId).toBe(w.card.invitationId);
+    expect(card.token).toBe(w.card.token);
+    expect(await prisma.timer.findUniqueOrThrow({ where: { id: w.timer.id } })).toMatchObject({
+      status: "scheduled",
+      attempts: 0,
+      retryAt: null,
+      firedAt: null,
+    });
+    await prisma.merchantUser.update({ where: { id: w.user.id }, data: { status: "disabled" } });
+    clock.set(new Date(card.expiresAt));
+    await due(w.timer.id);
+    const start = refs.length;
+    await worker.scan();
+    const ref = refs.slice(start).find((item) => item.timerId === w.timer.id)!;
+    expect(await worker.runTimer(ref)).toBe("fired");
+    expect(await worker.runTimer(ref)).toBe("stale");
+    expect(
+      (await prisma.invitation.findUniqueOrThrow({ where: { id: card.invitationId } })).status,
+    ).toBe("expired");
+    expect(await prisma.statusTransition.count({ where: { subjectId: card.invitationId } })).toBe(
+      2,
+    );
+    expect(await prisma.outboxEvent.count({ where: { aggregateId: card.invitationId } })).toBe(2);
   });
 
   it("两个真实worker各持clock/闭包，关闭一个不借另一个；未来异常任务不假成功", async () => {

@@ -6,7 +6,12 @@ import type { TxRunner } from "../kernel/index.js";
 import { connectTestDatabase, useSeededDatabase } from "../testing/index.js";
 import { runTimer } from "../timers/index.js";
 import { barrier } from "./__fixtures__/member-removal.js";
-import { invitationHarness, invitationServices, SLOW } from "./__fixtures__/invitations.js";
+import {
+  invitationHarness,
+  invitationServices,
+  memberContext,
+  SLOW,
+} from "./__fixtures__/invitations.js";
 import type { InvitationHarness } from "./__fixtures__/invitations.js";
 
 const db = useSeededDatabase("services");
@@ -245,4 +250,115 @@ describe("邀请：两独立业务连接的真实竞争", { timeout: SLOW }, () 
       await observer.end();
     }
   });
+
+  it("share与reuse竞争依据锁后事实选卡，永久映射不漂移", async () => {
+    const owner = await h.owner(),
+      first = await h.card(owner),
+      key = uuidv7(),
+      ready = barrier(2);
+    const [card, shared] = await Promise.all([
+      (async () => {
+        await ready();
+        return sides[0]!.tenant.createInvitation(owner.ctx, { clientRequestId: key });
+      })(),
+      (async () => {
+        await ready();
+        return sides[1]!.tenant.markInvitationShared(owner.ctx, {
+          invitationId: first.invitationId,
+        });
+      })(),
+    ]);
+    expect(shared.sharedAt).not.toBeNull();
+    expect((await h.card(owner, { clientRequestId: key })).token).toBe(card.token);
+    const trace = await h.trace(card.invitationId);
+    expect(trace.requests.some((request) => request.clientRequestId === key)).toBe(true);
+    expect(trace.history).toHaveLength(1);
+    expect(trace.events).toHaveLength(1);
+    expect(trace.row.sharedAt !== null).toBe(card.invitationId === first.invitationId);
+  });
+
+  it("双expiry同一dispatch只一份到期历史/审计/事件", async () => {
+    const owner = await h.owner(),
+      card = await h.card(owner);
+    h.clock.set(new Date(card.expiresAt));
+    const ref = await h.claim(card.invitationId),
+      ready = barrier(2);
+    const result = await Promise.all(
+      sides.map(async (side) => {
+        await ready();
+        return runTimer(side.timerDeps, ref);
+      }),
+    );
+    expect(result).toContain("fired");
+    expect(result.every((value) => ["fired", "skipped", "stale"].includes(value))).toBe(true);
+    const trace = await h.trace(card.invitationId);
+    expect(trace.row.status).toBe("expired");
+    expect(trace.history).toHaveLength(2);
+    expect(trace.events).toHaveLength(2);
+    expect(trace.audits).toHaveLength(2);
+  });
+
+  it.each(["seat", "daily"] as const)("跨店新卡竞争%s最后额度，失败者不占绑定", async (mode) => {
+    const owner = await h.owner(),
+      second = await h.make.store({ entityId: owner.entityId });
+    await h.prisma.entity.update({
+      where: { id: owner.entityId },
+      data: { memberLimitOverride: mode === "seat" ? 1 : 50 },
+    });
+    if (mode === "daily") await h.param("invitation.daily_cap", 1);
+    const ready = barrier(2),
+      ids = [owner.storeId, second.id];
+    const results = await Promise.allSettled(
+      sides.map(async (side, index) => {
+        await ready();
+        return side.tenant.createInvitation(
+          memberContext(owner.userId, owner.entityId, ids[index]!),
+          { clientRequestId: uuidv7() },
+        );
+      }),
+    );
+    expect(results.filter((item) => item.status === "fulfilled")).toHaveLength(1);
+    expect(error(results.find((item) => item.status === "rejected")!)).toBe(
+      mode === "seat" ? "SEAT_LIMIT_REACHED" : "INVITATION_DAILY_LIMIT",
+    );
+    expect(await h.prisma.invitation.count({ where: { entityId: owner.entityId } })).toBe(1);
+    expect(await h.prisma.invitationRequest.count({ where: { entityId: owner.entityId } })).toBe(1);
+    if (mode === "daily") await h.param("invitation.daily_cap", 20);
+  });
+
+  it.each(["entity", "member"] as const)(
+    "%s锁等待后重读合法门店停用，拒绝旧active快照",
+    async (layer) => {
+      const owner = await h.owner(),
+        before = await h.state();
+      const holder = await connectTestDatabase(db.name),
+        observer = await connectTestDatabase(db.name, { role: null });
+      let operation: Promise<unknown> | undefined;
+      try {
+        await holder.query("BEGIN");
+        const pid = await holder.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
+        if (layer === "entity")
+          await holder.query("SELECT id FROM entity WHERE id=$1 FOR UPDATE", [owner.entityId]);
+        else
+          await holder.query("SELECT id FROM entity_member WHERE id=$1 FOR UPDATE", [
+            owner.memberId,
+          ]);
+        await holder.query(
+          "UPDATE store SET lifecycle='archived',archive_reason='by_owner',archived_at=$2,archive_actor_type='merchant',archive_actor_id=$3,archive_client='weapp' WHERE id=$1",
+          [owner.storeId, h.clock.now(), owner.userId],
+        );
+        operation = sides[0]!.tenant.createInvitation(owner.ctx, { clientRequestId: uuidv7() });
+        const settled = Promise.allSettled([operation]);
+        await blocked(observer, pids[0]!, pid.rows[0]!.pid);
+        await holder.query("COMMIT");
+        expect(error((await settled)[0]!)).toBe("STORE_ARCHIVED");
+        expect(await h.state()).toEqual(before);
+      } finally {
+        await holder.query("ROLLBACK");
+        await Promise.allSettled(operation ? [operation] : []);
+        await holder.end();
+        await observer.end();
+      }
+    },
+  );
 });
