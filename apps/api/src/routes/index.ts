@@ -46,6 +46,7 @@ import { entityHandlers } from "./entities.js";
 import { storeHandlers } from "./stores.js";
 import { meHandlers } from "./me.js";
 import { memberHandlers } from "./members.js";
+import { invitationHandlers } from "./invitations.js";
 import { dictItemHandlers } from "./dict-items.js";
 import { billingHandlers } from "./billing.js";
 import { adminBillingHandlers } from "./admin/billing.js";
@@ -98,6 +99,7 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...storeHandlers,
   ...meHandlers,
   ...memberHandlers,
+  ...invitationHandlers,
   ...dictItemHandlers,
   ...billingHandlers,
   ...adminBillingHandlers,

@@ -1,6 +1,9 @@
 // tenant：主体、门店与成员关系（W1-03 交最小集：建主体、成员关系解析、门店列表与额度、记住当前门店、给 profile 的三个写函数）。
 // 用法见本目录的 README.md。新增门店、停用与恢复、成员、邀请、主体关闭随 M2。
 export { createTenant } from "./service.js";
+export { createInvitationExpiry } from "./invitation-expiry.js";
+export type { InvitationExpiry } from "./invitation-expiry.js";
+export type { InvitationDeps, InvitationOptions, InvitationPrincipal } from "./invitations.js";
 export type { Tenant, TenantDeps, UseCaseOptions } from "./service.js";
 export {
   billingAccountPort,

@@ -17,6 +17,7 @@ import {
   currentSessionOpenid,
   security,
   media,
+  AppError,
 } from "@liyoxi/services";
 import type { Docs, Identity, Runtime, Tenant, Profile, WechatProvider } from "@liyoxi/services";
 
@@ -67,6 +68,21 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
     assembly,
     events,
     readMemberAssetCounts: media.readMemberAssetCounts,
+    invitations: {
+      keyring: () => (keyring ??= security.loadKeyring(runtime.env)),
+      timers: runtime.timers,
+      async checkRemark(principal, content) {
+        const openid = await tx.run((handle) => currentSessionOpenid(handle, principal, appid));
+        const result = await runtime.providers.wechat.checkText({
+          openid,
+          scene: "profile",
+          content,
+        });
+        if (!result.ok) throw new AppError("PROVIDER_UNAVAILABLE");
+        if (result.value.verdict !== "pass")
+          throw new AppError("CONTENT_REJECTED", { details: { fields: ["remarkName"] } });
+      },
+    },
   });
   let keyring = deps.keyring;
   const appid = deps.appid ?? runtime.env.WECHAT?.appid ?? PLACEHOLDER_WEAPP_APPID;

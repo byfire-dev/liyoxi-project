@@ -5,6 +5,7 @@ import {
   createDeliverySlaAssembly,
   createContentPricingAssembly,
   createContentAdmin,
+  createInvitationAssembly,
 } from "./ops/index.js";
 import type { ContentAdmin } from "./ops/index.js";
 import {
@@ -78,7 +79,7 @@ import { staffBriefs, createStaffAssembly } from "./staff/index.js";
 import { staffWorkSourcesOf } from "./kernel/index.js";
 import { sendStaffWecomInvite } from "./notify/index.js";
 import { readAgreementNoticeLink } from "./docs/index.js";
-import { createTenant } from "./tenant/index.js";
+import { createTenant, createInvitationExpiry } from "./tenant/index.js";
 import { createSla, createCalendarAdmin, bindCalendarCoverage } from "./sla/index.js";
 import type { CalendarAdmin } from "./sla/index.js";
 import type { Keyring } from "./security/index.js";
@@ -375,7 +376,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
   const docsScope = createDocsAssembly(deliverySlaScope.assembly);
-  const assembly = docsScope.assembly;
+  const invitationScope = createInvitationAssembly(docsScope.assembly);
+  const assembly = invitationScope.assembly;
   const documentConverter = options.documentWorkerUrl
     ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
     : null;
@@ -506,6 +508,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const unbindWebhooks = bindWebhooks(webhooks);
   const timers = createTimers({ assembly });
   const flow = createFlow({ assembly, clock, events });
+  invitationScope.attach(createInvitationExpiry({ clock, flow }));
   const reportingTenant = createTenant({ tx, clock, flow, assembly });
   const analytics = createAnalyticsReceiver({
     tx,
@@ -855,6 +858,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     report,
     startupChecks,
     async close() {
+      invitationScope.close();
       await docsScope.close();
       await documentConverter?.close();
       await Promise.allSettled([

@@ -16758,7 +16758,7 @@
    "uq_invitation_inviter_member_id_client_request_id",
    "uq_invitation_request_inviter_client"
   ],
-  "idempotentNote": null,
+  "idempotentNote": "自然三段式只读 claim、事务外备注检测、settle 永久请求映射；同键库 pending 回原卡且零写，库终态拒绝。",
   "screens": [
    "M:Invite"
   ],

@@ -1,5 +1,18 @@
 # tenant：主体、门店与成员关系
 
+## 邀请卡片与到期源码阶段
+
+四个正式入口 createInvitation、markInvitationShared、revokeInvitation、lookupInvitation 消费已合 invitation_request。
+创建沿自然三段式：只读 claim、事务外备注检测、settle 完整预锁后重读；API 用真实当前会话 openid。
+merchant_user80→entity100→排序 invitation110→排序 entity_member120→store130，不在高锁后补低锁。
+A 创建、B 复用均永久绑定原卡；同键库 pending 回原 token/期限且零写，时间过期只由 lookup 派生；库终态拒绝。
+新请求复用只延长未过期/未分享卡，保缺省与 null 区别；名额、上海日界与参数按真实事实现算。
+分享/撤回沿原 required 幂等；撤回同 Tx 迁移/审计/事件、清令牌密文及取消 timer，映射保留。
+invitation.expire 锁后 fresh clock 早到抛错走原重试；终态/不存在才 skipped，不增加 rearmAfterSkip。
+复用遇 dispatched 先取消再 arm 同键，原任务 finish/fail 不影响新 scheduled；异常 fired/skipped 不假成功。
+两个运行时各自 attach/close；当前仅 SOURCE，运行验证、官方生成、唯一300秒审查及合流待执行。
+接受邀请、空草稿让位、joined 通知、I30 自愈与完整 W2-10 仍待后续；无 DDL/框架/门禁改动。
+
 ## 计费历史事实窄前置
 
 `billingHistoryPort` 无 fallback，由 billing 登记 `readBillingHistoryFacts(tx, entityId)`。
