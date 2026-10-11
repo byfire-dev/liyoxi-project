@@ -6,20 +6,20 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
-import { assertNotInTransaction, uuidv7 } from "../../kernel/index.js";
+import { assertNotInTransaction, uuidv7 } from "../src/kernel/index.js";
 import {
   createMediaAssetsHarness,
   createMediaWorkspaceForTest as createMediaWorkspace,
   useSeededDatabase,
-} from "../../testing/index.js";
-import { DocTextResponseSchema } from "../../providers/types.js";
-import type { MediaToolClient } from "../../providers/types.js";
-import { failed, ok } from "../../providers/types.js";
+} from "../src/testing/index.js";
+import { DocTextResponseSchema } from "../src/providers/types.js";
+import type { MediaToolClient } from "../src/providers/types.js";
+import { failed, ok } from "../src/providers/types.js";
 
 // Real DB/strategy/workspace plus the accepted Linux parser. The test-only transport moves
 // this workspace's public fixture bytes to the original shared volume, never parses on host.
 const database = useSeededDatabase("services");
-const repository = fileURLToPath(new URL("../../../../../", import.meta.url));
+const repository = fileURLToPath(new URL("../../../", import.meta.url));
 const compose = resolve(repository, "infra/docker/mediatool/compose.verify.yml");
 const session = z
   .string()

@@ -84,3 +84,18 @@ doc_text 严格保存实际正文、完整码点数及截断事实，只有 PDF 
 降为 pending/partial；已观察到的 block/review 保留，不能据此前缀批准整份文档。
 本片业务 DB/受控 Unix 协议 peer 与真实 Linux 容器组合测试分列，不把替身当真实解析。
 真实文档准确率、云与 E22 仍未验，整个 W3-15 继续进行中。
+
+### 独立真实容器验收
+
+`packages/services/test/doc-container.db.test.ts` 的三格式验收需本机 PostgreSQL/Redis、
+Docker 与已接纳的 Linux arm64 mediatool 镜像。普通 services/CI 的 `src/**/*.test.ts`
+不收集本组；从仓库根显式执行，不跳过其中任何一例：
+
+```sh
+LYX_TEST_SESSION=w315edoc pnpm exec vitest run --config packages/services/doc-container.vitest.config.ts
+```
+
+运行前须按测试支架配置 `DATABASE_URL`、`REDIS_URL` 和 `APP_ENV=test`，并确保该独占
+session 未被其他轮使用。入口严格核既有镜像的 arm64 manifest 与实际容器 descriptor、
+原无网/只读/nonroot/单CPU单GiB沙箱；缺环境或镜像前提明确失败，不自动拉取、构建或替换。
+这是本地已接纳镜像的真实 DB/workspace/socket 组合证明，不代替跨平台或远端 CI 镜像交付。
