@@ -35,6 +35,8 @@ export type {
 export { MEMBER_PREVIEW_MAX } from "./stores.js";
 export {
   findI1Violations,
+  findI17Violations,
+  findI28Violations,
   findI27Violations,
   findI29Violations,
   findI7Violations,
@@ -60,5 +62,12 @@ export {
   readEntityDeletionCounts,
 } from "./close-facts.js";
 export type { BillingCloseCounts, StoreCloseCounts, EntityDeletionCounts } from "./close-facts.js";
+export { closeEntityIn } from "./entity-close.js";
+export type {
+  CloseEntityActor,
+  CloseEntityDeps,
+  CloseEntityInput,
+  CloseEntityResult,
+} from "./entity-close.js";
 
 export { readStoreAssetFacts, readAssetMerchantUploader } from "./media-facts.js";
