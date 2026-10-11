@@ -63,8 +63,8 @@ export async function onLifecycleWithdrawn(
     !approval.isDecidedBySystem ||
     row.entityId !== entityId ||
     row.storeId !== round.storeId ||
-    row.subjectType !== "qualification_submission" ||
-    row.subjectId !== round.id ||
+    row.subjectType !== "store" ||
+    row.subjectId !== round.storeId ||
     row.roundNo !== round.roundNo ||
     round.approvalRequestId !== row.id ||
     !["initial", "new_store", "change"].includes(round.kind)

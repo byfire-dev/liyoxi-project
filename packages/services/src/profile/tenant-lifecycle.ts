@@ -197,8 +197,8 @@ function validate(graph: Graph, input: Message) {
       approval.kind !== "qualification" ||
       approval.entityId !== round.entityId ||
       approval.storeId !== round.storeId ||
-      approval.subjectType !== "qualification_submission" ||
-      approval.subjectId !== round.id ||
+      approval.subjectType !== "store" ||
+      approval.subjectId !== round.storeId ||
       approval.roundNo !== round.roundNo
     )
       throw changed();

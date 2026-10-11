@@ -184,8 +184,8 @@ export function lifecycleWorld(prisma: PrismaClient) {
       await lockRows(t, "qualification_submission", [f.round.id]);
       const request = await approval.submit(t, f.ctx, {
         kind: "qualification",
-        subjectType: "qualification_submission",
-        subjectId: f.round.id,
+        subjectType: "store",
+        subjectId: f.store.id,
         entityId: f.entity.id,
         storeId: f.store.id,
         input: { submissionId: f.round.id, roundNo: 1 },
