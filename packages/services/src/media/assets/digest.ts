@@ -332,10 +332,13 @@ export function createAssetDigestStrategy(
     },
     async matches(tx: Tx, job: MediaJob, content: Readonly<Record<string, JobJson>>) {
       const snapshot = await sources(tx, job);
+      const now = deps.clock.now();
       const value = digestContent(content);
       const known = (dimension: keyof LlmDigestVocabulary, code: string) =>
         snapshot?.vocabulary?.[dimension].some((item) => item.code === code);
       return (
+        job.deadlineAt > now &&
+        job.nextRunAt > now &&
         !!snapshot?.vocabulary &&
         !!value &&
         snapshot.hash === content.sourceHash &&
