@@ -42,9 +42,8 @@ type World = Awaited<ReturnType<typeof world>>;
 async function source(brand = true, files: string[] = []) {
   const view = await h.media.assets.create(h.owner, {
     type: files.length ? "image" : "text",
-    ...(files.length ? { fileIds: files } : { textBody: "公开品牌故事正文" }),
+    ...(files.length ? { fileIds: files, note: "公开原始说明" } : { textBody: "公开品牌故事正文" }),
     contentTagCodes: brand ? ["brand_story"] : [],
-    note: "公开原始说明",
   });
   return h.prisma.storeAsset.findUniqueOrThrow({ where: { id: view.storeAssetId } });
 }

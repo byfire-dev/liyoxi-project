@@ -129,7 +129,7 @@ async function world(
     actor = { type: "merchant" as const, id: principal.merchantUserId, client: "weapp" as const };
   const created = await tenant.createEntity(createIdentityContext({ actor }));
   const ctx = createIdentityContext({
-    actor,
+    actor: { ...actor, role: created.role },
     entityId: created.entityId,
     storeId: created.storeId,
   });
