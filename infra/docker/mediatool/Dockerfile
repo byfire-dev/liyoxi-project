@@ -11,8 +11,13 @@
 FROM node:24-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS document-dependencies
 WORKDIR /parsers
 COPY deps/package.json deps/pnpm-lock.yaml deps/pnpm-workspace.yaml ./
+ENV COREPACK_NPM_REGISTRY=https://registry.npmjs.org \
+    npm_config_registry=https://registry.npmjs.org/ \
+    npm_config_store_dir=/pnpm/store
 # Exact existing versions; scripts remain disabled. A cold cache needs an explicit dependency-preparation window.
-RUN corepack prepare pnpm@10.34.5 --activate && pnpm install --prod --frozen-lockfile --ignore-scripts --network-concurrency=1 --child-concurrency=1
+RUN --mount=type=cache,id=lyx-corepack-cache,target=/root/.cache/node/corepack \
+    --mount=type=cache,id=lyx-pnpm-store,target=/pnpm/store \
+    corepack prepare pnpm@10.34.5 --activate && pnpm install --prod --frozen-lockfile --ignore-scripts --network-concurrency=1 --child-concurrency=1
 
 FROM node:24-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
 
