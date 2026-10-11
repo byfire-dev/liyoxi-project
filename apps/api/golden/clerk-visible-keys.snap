@@ -306,6 +306,14 @@
     "city",
     "viewerRole"
   ],
+  "m.invitation.accept": [
+    "abandonedEntityId",
+    "entityId",
+    "isNew",
+    "memberId",
+    "role",
+    "storeId"
+  ],
   "m.invitation.lookup": [
     "category",
     "city",

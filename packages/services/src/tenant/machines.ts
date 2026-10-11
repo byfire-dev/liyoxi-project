@@ -19,6 +19,7 @@ import { guardMemberRemoval } from "./member-removal.js";
 import { guardInvitation } from "./invitations.js";
 import { guardInvitationExpiry } from "./invitation-expiry.js";
 import { guardStoreArchive, guardStoreArchiveCascade } from "./store-archive.js";
+import { guardAccept } from "./invitation-accept.js";
 
 /** 建主体的三行迁移随 args 带的事实 */
 export interface CreateEntityArgs {
@@ -177,9 +178,13 @@ const describe =
 export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> = {
   [chainKey("entity", "lifecycle")]: {
     companions: ["closed_at"],
-    activity: describe("entity", "merchant_lifecycle", { "entity.create": "创建经营主体" }),
+    activity: describe("entity", "merchant_lifecycle", {
+      "entity.create": "创建经营主体",
+      "entity.abandon": "空草稿主体让位",
+    }),
     guards: {
       [rowKey("02:523", "entity.create")]: noActiveMembership,
+      [rowKey("02:524", "entity.abandon")]: guardAccept,
       [rowKey("02:525", "entity.close")]: guardEntityClose,
     },
   },
@@ -216,6 +221,7 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
     guards: {
       [rowKey("02:607", "store.create")]: firstStoreOfOwnEntity,
       [rowKey("02:608", "store.archive")]: guardStoreArchive,
+      [rowKey("02:611", "store.archive_by_entity")]: guardAccept,
     },
     effects: { [rowKey("02:610", "store.archive_by_entity")]: requireClosedStoreCascade },
   },
@@ -241,21 +247,27 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
     ],
     activity: describe("entity_member", "member", {
       "entity_member.create_owner": "成为主体的老板",
+      "entity_member.join": "接受邀请加入门店",
       "entity_member.remove": "移除店员",
       "entity_member.leave": "退出主体",
       "entity_member.cascade_remove": "随主体关闭移除成员",
     }),
     guards: {
       [rowKey("02:690", "entity_member.create_owner")]: noOtherActiveMembership,
+      [rowKey("02:691", "entity_member.join")]: guardAccept,
       [rowKey("02:692", "entity_member.remove")]: guardMemberRemoval,
       [rowKey("02:692", "entity_member.leave")]: guardMemberRemoval,
       [rowKey("02:692", "entity_member.cascade_remove")]: async (tx, facts) =>
         (await guardStoreArchiveCascade(tx, facts)) || guardEntityCloseCascade(tx, facts),
-      [rowKey("02:695", "entity_member.cascade_remove")]: guardEntityCloseCascade,
+      [rowKey("02:695", "entity_member.cascade_remove")]: async (tx, facts) =>
+        (await guardAccept(tx, facts)) || (await guardEntityCloseCascade(tx, facts)),
     },
   },
   [chainKey("invitation", "status")]: {
     companions: [
+      "accepted_at",
+      "accepted_by_user_id",
+      "accepted_member_id",
       "revoked_at",
       "revoke_actor_type",
       "revoke_actor_id",
@@ -263,9 +275,13 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
       "revoke_reason",
       "token_enc",
     ],
-    activity: describe("invitation", "member", { "invitation.revoke": "随主体关闭撤回邀请" }),
+    activity: describe("invitation", "member", {
+      "invitation.revoke": "随主体关闭撤回邀请",
+      "invitation.accept": "接受门店邀请",
+    }),
     guards: {
       [rowKey("02:786", "invitation.create")]: guardInvitation,
+      [rowKey("02:787", "invitation.accept")]: guardAccept,
       [rowKey("02:788", "invitation.revoke")]: (tx, facts) =>
         facts.ctx.actor.type === "merchant"
           ? guardInvitation(tx, facts)

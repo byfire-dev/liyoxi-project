@@ -18,6 +18,7 @@ import type {
   InvitationMarkSharedResult,
   InvitationRevokeBody,
   InvitationRevokeResult,
+  InvitationAcceptBody,
 } from "@liyoxi/contract";
 
 import type { Flow } from "../flow/index.js";
@@ -55,6 +56,7 @@ import type { InvitationDeps, InvitationOptions } from "./invitations.js";
 import { invitationPreview } from "./invitation-repo.js";
 import { archiveStoreIn } from "./store-archive.js";
 import type { Timers } from "../timers/index.js";
+import { createInvitationAcceptor } from "./invitation-accept.js";
 
 export interface TenantDeps extends Pick<MemberManagementDeps, "readMemberAssetCounts" | "events"> {
   /** 仅新门店归档用例需要；同事务取消原邀请到期任务。 */
@@ -124,6 +126,11 @@ export interface Tenant {
     options?: UseCaseOptions,
   ): Promise<InvitationRevokeResult>;
   lookupInvitation(token: string): Promise<InvitationPreview>;
+  acceptInvitation(
+    ctx: IdentityContext,
+    input: InvitationAcceptBody & { invitationId: string },
+    options?: InvitationOptions,
+  ): Promise<MembershipResult>;
 
   // ---------- 在调用方的事务里 ----------
   /** 账号此刻的有效成员关系（V1.0 至多一条）；没有即 null */
@@ -175,6 +182,7 @@ export function createTenant(deps: TenantDeps): Tenant {
   const facts = merchantFactsOf(deps.assembly);
   const billingAccount = deps.assembly.port(billingAccountPort);
   const memberDeps = { ...deps, facts };
+  const acceptInvitation = createInvitationAcceptor(memberDeps);
   return {
     async createEntity(ctx, options = {}) {
       try {
@@ -222,6 +230,7 @@ export function createTenant(deps: TenantDeps): Tenant {
       if (!deps.invitations) throw new AppError("INTERNAL");
       return deps.tx.run((tx) => invitationPreview(tx, facts, now(), token));
     },
+    acceptInvitation,
     activeMembership: (db, merchantUserId) => selectActiveMembership(db, merchantUserId),
     resolveMembership: (db, input) => resolveMembership(db, input),
     getQuotaUsage: (tx, entityId) => getQuotaUsage(tx, { facts }, now(), entityId),

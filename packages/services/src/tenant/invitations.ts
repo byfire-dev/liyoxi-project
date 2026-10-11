@@ -41,6 +41,11 @@ export interface InvitationDeps {
   readonly keyring: () => Keyring;
   readonly timers: Pick<Timers, "arm" | "cancel">;
   readonly checkRemark: (principal: InvitationPrincipal, text: string) => Promise<void>;
+  /** 接受邀请由组合根接真实会话事实；旧卡片入口不要求这项装配。 */
+  readonly accept?: {
+    assertSession(tx: Tx, principal: InvitationPrincipal, now: Date): Promise<InvitationPrincipal>;
+    checkName(principal: InvitationPrincipal, text: string): Promise<void>;
+  };
 }
 export interface InvitationOptions extends ThreePhaseRunOptions {
   readonly principal?: InvitationPrincipal;

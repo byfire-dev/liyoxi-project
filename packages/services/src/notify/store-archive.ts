@@ -78,7 +78,8 @@ export async function currentStoreArchiveNotification(
     : null;
   if (
     n.notifySceneKey === "m.member_changed" &&
-    source?.eventType === "entity_member.stores_changed"
+    (source?.eventType === "entity_member.stores_changed" ||
+      (n.bizType === "invitation" && source?.eventType === "entity_member.joined"))
   )
     return undefined;
   if (!source || !(await storeArchiveSource(tx, source.id))) return null;

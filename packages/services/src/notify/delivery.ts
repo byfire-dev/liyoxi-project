@@ -209,7 +209,7 @@ async function currentGuard(
   if (!n) return null;
   const cfg = await tx.notifyScene.findUnique({ where: { sceneKey: n.notifySceneKey } });
   const archive = await currentStoreArchiveNotification(tx, deps, n);
-  const spec = archive === undefined ? specFor(n.notifySceneKey) : archive?.spec;
+  const spec = archive === undefined ? specFor(n.notifySceneKey, n.bizType) : archive?.spec;
   if (!cfg?.sceneEnabled || !cfg.extEnabled || !spec || !n.bizId) return null;
   const fact =
     archive === undefined ? await currentNotificationFact(tx, deps, spec, n.bizId) : archive?.fact;
@@ -320,7 +320,7 @@ async function prepare(tx: Tx, deps: NotifyDispatchDeps, id: string): Promise<Pr
     const archive = await currentStoreArchiveNotification(tx, deps, n);
     const current =
       archive === undefined
-        ? await currentNotificationFact(tx, deps, specFor(n.notifySceneKey)!, n.bizId!)
+        ? await currentNotificationFact(tx, deps, specFor(n.notifySceneKey, n.bizType)!, n.bizId!)
         : archive?.fact;
     const fields = current
       ? renderWechat(slot!, template.fields, {

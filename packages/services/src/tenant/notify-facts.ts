@@ -1,5 +1,40 @@
 import type { Tx } from "../kernel/index.js";
 import { EVENT_PAYLOAD_SCHEMAS } from "@liyoxi/contract";
+/** 邀请通知只投影当前有效加入事实；事件中的名字、角色与收件人不作授权。 */
+export async function acceptedInvitationForNotify(tx: Tx, id: string) {
+  const row = await tx.invitation.findFirst({
+    where: {
+      id,
+      status: "accepted",
+      entity: { lifecycle: "active" },
+      store: { lifecycle: "active" },
+      acceptedByUser: { status: "active" },
+      acceptedMember: { status: "active", role: "clerk" },
+    },
+    include: { acceptedMember: { include: { merchantUser: true, storeMemberships: true } } },
+  });
+  const member = row?.acceptedMember;
+  if (
+    !row ||
+    !member ||
+    member.entityId !== row.entityId ||
+    member.merchantUserId !== row.acceptedByUserId ||
+    member.merchantUser.status !== "active" ||
+    !member.storeMemberships.some((s) => s.storeId === row.storeId && s.entityId === row.entityId)
+  )
+    return null;
+  const name = member.displayName ?? member.merchantUser.displayName ?? "店员";
+  return {
+    bizType: "invitation",
+    bizId: row.id,
+    entityId: row.entityId,
+    storeId: row.storeId,
+    status: "accepted",
+    version: 0,
+    name,
+    summary: `${name}（${member.merchantUser.phoneMask ?? "手机号已验证"}）已加入本店。`,
+  };
+}
 export interface NotifyRecipientsQuery {
   entityId: string | null;
   storeId: string | null;
