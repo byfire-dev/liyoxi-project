@@ -7,6 +7,7 @@ import { connectTestDatabase, useSeededDatabase } from "../testing/index.js";
 import { claimTimers, runTimer } from "../timers/index.js";
 import {
   archiveHarness,
+  archiveAcceptWorld,
   archiveIdem,
   archiveServices,
   memberContext,
@@ -404,6 +405,188 @@ describe("门店停用：两个真实 app 连接", { timeout: SLOW }, () => {
         expect(history.filter((r) => r.toState !== "pending")).toHaveLength(1);
       } finally {
         release();
+        await Promise.allSettled([first, ...(second ? [second] : [])]);
+        await observer.end();
+      }
+    },
+  );
+});
+
+describe("门店停用与已验收的真实接受邀请", { timeout: SLOW }, () => {
+  it.each(["archive_first", "accept_first"] as const)(
+    "%s 两业务连接按主体锁串行，真实提交后重验并保持唯一终态",
+    async (mode) => {
+      const world = await archiveAcceptWorld(h.prisma),
+        owner = await world.owner(),
+        person = await world.person();
+      const target = await world.make.store({ entityId: owner.entityId });
+      const card = await world.card({
+        ...owner,
+        storeId: target.id,
+        ctx: memberContext(owner.userId, owner.entityId, target.id),
+      });
+      const before = await Promise.all([
+        h.prisma.statusTransition.count({ where: { entityId: owner.entityId } }),
+        h.prisma.auditLog.count({ where: { entityId: owner.entityId } }),
+        h.prisma.outboxEvent.count({ where: { entityId: owner.entityId } }),
+      ]);
+      // 门闩在真实 TxRunner 回调尾、真实 commit 前；接受的第二段才持完整业务锁。
+      function paused(index: number, phase: number) {
+        let enter!: () => void,
+          release!: () => void,
+          count = 0;
+        const entered = new Promise<void>((resolve) => {
+          enter = resolve;
+        });
+        const gate = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        const real = world.archiveSide(clients[index]!).tx;
+        const runner: TxRunner = {
+          run: (fn, options) =>
+            real.run(async (tx) => {
+              const result = await fn(tx);
+              if (++count === phase) {
+                enter();
+                await gate;
+              }
+              return result;
+            }, options),
+        };
+        return { runner, entered, release };
+      }
+      const firstGate = paused(0, mode === "archive_first" ? 1 : 2),
+        secondGate = paused(1, 1),
+        observer = await connectTestDatabase(db.name, { role: null });
+      const first = Promise.allSettled([
+        mode === "archive_first"
+          ? world.archiveSide(clients[0]!, firstGate.runner).tenant.archiveStore(owner.ctx, {
+              storeId: target.id,
+            })
+          : world.accept(person, card, {}, world.side(clients[0]!, firstGate.runner)),
+      ]);
+      let second: Promise<PromiseSettledResult<unknown>[]> | undefined;
+      try {
+        await firstGate.entered;
+        // 另一连接仍见原 pending/active，证明不是提交后才发起第二个请求。
+        expect(
+          await h.prisma.invitation.findUniqueOrThrow({ where: { id: card.invitationId } }),
+        ).toMatchObject({ status: "pending", acceptedMemberId: null });
+        expect(await h.prisma.store.findUniqueOrThrow({ where: { id: target.id } })).toMatchObject({
+          lifecycle: "active",
+        });
+        second = Promise.allSettled([
+          mode === "archive_first"
+            ? world.accept(person, card, {}, world.side(clients[1]!))
+            : world.archiveSide(clients[1]!, secondGate.runner).tenant.archiveStore(owner.ctx, {
+                storeId: target.id,
+              }),
+        ]);
+        await blocked(observer, pids[1]!, pids[0]!);
+        firstGate.release();
+        if (mode === "accept_first") {
+          // 归档迁移仍未提交时让接受完成其真实当前成员投影，避免把提交后失权当初次失败。
+          await secondGate.entered;
+          expect((await first)[0]).toMatchObject({
+            status: "fulfilled",
+            value: { entityId: owner.entityId, storeId: target.id, role: "clerk", isNew: true },
+          });
+          secondGate.release();
+          expect((await second)[0]).toMatchObject({
+            status: "fulfilled",
+            value: { revokedInvitationCount: 0, removedMemberCount: 1 },
+          });
+        } else {
+          expect((await first)[0]).toMatchObject({
+            status: "fulfilled",
+            value: { revokedInvitationCount: 1, removedMemberCount: 0 },
+          });
+          expect(errorOf((await second)[0])).toBe("INVITATION_REVOKED");
+        }
+        const invitation = await h.prisma.invitation.findUniqueOrThrow({
+          where: { id: card.invitationId },
+        });
+        expect(invitation).toMatchObject({
+          status: mode === "accept_first" ? "accepted" : "revoked",
+          tokenEnc: null,
+          acceptedByUserId: mode === "accept_first" ? person.userId : null,
+          revokeReason: mode === "archive_first" ? "store_archived" : null,
+        });
+        expect(
+          await h.prisma.timer.findFirstOrThrow({ where: { subjectId: card.invitationId } }),
+        ).toMatchObject({ status: "cancelled" });
+        expect(await h.prisma.store.findUniqueOrThrow({ where: { id: target.id } })).toMatchObject({
+          lifecycle: "archived",
+          archiveReason: "by_owner",
+        });
+        expect(
+          await h.prisma.entityMember.findMany({ where: { merchantUserId: person.userId } }),
+        ).toMatchObject(
+          mode === "accept_first"
+            ? [
+                {
+                  id: invitation.acceptedMemberId,
+                  status: "removed",
+                  lastStoreId: null,
+                  removeReason: "store_archived",
+                },
+              ]
+            : [],
+        );
+        expect(await h.prisma.storeMember.count({ where: { storeId: target.id } })).toBe(0);
+        expect(
+          await h.prisma.entityMember.count({
+            where: { merchantUserId: person.userId, status: "active" },
+          }),
+        ).toBe(0);
+        const history = await h.prisma.statusTransition.findMany({
+          where: { entityId: owner.entityId },
+        });
+        expect(history.filter((row) => row.event === "store.archive")).toHaveLength(1);
+        expect(history.filter((row) => row.event === "invitation.accept")).toHaveLength(
+          mode === "accept_first" ? 1 : 0,
+        );
+        expect(history.filter((row) => row.event === "invitation.revoke")).toHaveLength(
+          mode === "archive_first" ? 1 : 0,
+        );
+        expect(history.filter((row) => row.event === "entity_member.join")).toHaveLength(
+          mode === "accept_first" ? 1 : 0,
+        );
+        expect(history.filter((row) => row.event === "entity_member.cascade_remove")).toHaveLength(
+          mode === "accept_first" ? 1 : 0,
+        );
+        const events = await h.prisma.outboxEvent.findMany({ where: { entityId: owner.entityId } });
+        const delta = mode === "accept_first" ? 4 : 2;
+        expect(history).toHaveLength(before[0]! + delta);
+        expect(await h.prisma.auditLog.count({ where: { entityId: owner.entityId } })).toBe(
+          before[1]! + delta,
+        );
+        expect(events).toHaveLength(before[2]! + delta);
+        expect(
+          await h.prisma.invitationRequest.count({ where: { invitationId: card.invitationId } }),
+        ).toBe(1);
+        expect(events.filter((row) => row.eventType === "store.archived")).toHaveLength(1);
+        expect(events.filter((row) => row.eventType === "invitation.accepted")).toHaveLength(
+          mode === "accept_first" ? 1 : 0,
+        );
+        expect(events.filter((row) => row.eventType === "invitation.revoked")).toHaveLength(
+          mode === "archive_first" ? 1 : 0,
+        );
+        expect(events.filter((row) => row.eventType === "entity_member.removed")).toHaveLength(
+          mode === "accept_first" ? 1 : 0,
+        );
+        await expect(world.accept(person, card, {}, world.side(clients[1]!))).rejects.toMatchObject(
+          {
+            error: mode === "accept_first" ? "STORE_ARCHIVED" : "INVITATION_REVOKED",
+          },
+        );
+        // 真登录会话仍有效，归档只改变门店/成员权限。
+        expect((await world.identity.authenticate(person.token, { ip: "203.0.113.28" })).ok).toBe(
+          true,
+        );
+      } finally {
+        firstGate.release();
+        secondGate.release();
         await Promise.allSettled([first, ...(second ? [second] : [])]);
         await observer.end();
       }

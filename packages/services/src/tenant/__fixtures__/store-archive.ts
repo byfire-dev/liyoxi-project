@@ -6,6 +6,7 @@ import type { AdjustableClock } from "../../testing/index.js";
 import { createTenant } from "../index.js";
 import { invitationServices } from "./invitations.js";
 import { memberContext, SLOW } from "./member-removal.js";
+import { acceptHarness } from "./invitation-accept.js";
 
 export { memberContext, SLOW };
 export const TABLES = [
@@ -100,6 +101,15 @@ export function archiveHarness(prisma: PrismaClient) {
   };
 }
 export type ArchiveHarness = ReturnType<typeof archiveHarness>;
+/** 接受邀请前提使用已验收的真实登录/会话；归档仍由独立真实拥有者实例处理。 */
+export async function archiveAcceptWorld(prisma: PrismaClient) {
+  const accepted = await acceptHarness(prisma);
+  return {
+    ...accepted,
+    archiveSide: (client: PrismaClient, runner?: TxRunner) =>
+      archiveServices(client, accepted.clock, runner),
+  };
+}
 export type Owner = Awaited<ReturnType<ArchiveHarness["owner"]>>;
 export function archiveIdem(ctx: IdentityContext, storeId: string, key = uuidv7()) {
   return createIdempotencyContext({
