@@ -5,6 +5,7 @@
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { parseArgs } from "node:util";
+import { pathToFileURL } from "node:url";
 import { Redis } from "ioredis";
 
 import {
@@ -18,7 +19,7 @@ import {
   loadEnv,
   setPortLogger,
 } from "@liyoxi/services";
-import type { WorkerServices } from "@liyoxi/services";
+import type { QueueChannel, WorkerLease, WorkerServices } from "@liyoxi/services";
 
 import { createLogger } from "./log.js";
 import { recurringTable } from "./recurring.js";
@@ -28,8 +29,11 @@ import { createWorkerRuntime } from "./runtime.js";
 declare const __LYX_VERSION__: string | undefined;
 const VERSION = typeof __LYX_VERSION__ === "string" ? __LYX_VERSION__ : "dev";
 
-async function main(): Promise<void> {
-  const { values } = parseArgs({ options: { check: { type: "boolean", default: false } } });
+export async function main(args: readonly string[] = process.argv.slice(2)): Promise<void> {
+  const { values } = parseArgs({
+    args: [...args],
+    options: { check: { type: "boolean", default: false } },
+  });
   const env = loadEnv();
   const logger = createLogger(env.LOG_LEVEL);
   setPortLogger(logger);
@@ -46,16 +50,85 @@ async function main(): Promise<void> {
       })
     : undefined;
   wechatRedis?.on("error", () => logger.warn({ evt: "wechat.cache_down" }, "微信令牌缓存不可用"));
-  const channel = values.check
-    ? undefined
-    : createQueueChannel({
+  let channel: QueueChannel | undefined;
+  let budgetRedis: Redis | undefined;
+  let lease: WorkerLease | undefined;
+  let services: WorkerServices | undefined;
+  const settle = (closes: readonly (() => unknown)[]) =>
+    Promise.allSettled(closes.map((close) => Promise.resolve().then(close)));
+  const closeBudgetRedis = async () => {
+    try {
+      if (budgetRedis?.status === "ready") await budgetRedis.quit();
+    } finally {
+      budgetRedis?.disconnect();
+    }
+  };
+  const dispose = async () => {
+    let failure: PromiseRejectedResult | undefined;
+    const clean = async (closes: readonly (() => unknown)[]) => {
+      const results = await settle(closes);
+      failure ??= results.find(
+        (result): result is PromiseRejectedResult => result.status === "rejected",
+      );
+    };
+    await clean([() => services?.disableModelBudget?.()]);
+    await clean([
+      () => services?.shutdownMediaJobs?.(),
+      () => services?.closeDocs(),
+      () => services?.documentConverter?.close(),
+    ]);
+    await clean([
+      () => services?.closeApproval?.(),
+      () => services?.closeInvitations?.(),
+      () => services?.closeMediaJobs?.(),
+      () => services?.closeMediaDrivers?.(),
+      () => services?.closeStorageDrivers?.(),
+      ...wechatClosers,
+    ]);
+    await clean([() => services?.closeModelBudget?.()]);
+    await clean([closeBudgetRedis]);
+    await clean([() => services?.closeAlertFacts?.()]);
+    await clean([
+      () => wechatRedis?.disconnect(),
+      () => channel?.close(),
+      () => lease?.close(),
+      () => database.close(),
+    ]);
+    return failure;
+  };
+  try {
+    if (!values.check) {
+      budgetRedis = new Redis(env.REDIS_URL, {
+        lazyConnect: true,
+        enableOfflineQueue: false,
+        autoResendUnfulfilledCommands: false,
+        maxRetriesPerRequest: 0,
+        retryStrategy: () => null,
+        connectTimeout: 250,
+        commandTimeout: 250,
+      });
+      budgetRedis.on("error", () =>
+        logger.warn({ evt: "media.model_budget_redis_down" }, "预算连接不可用"),
+      );
+      channel = createQueueChannel({
         redisUrl: env.REDIS_URL,
         prefix: bullPrefix(env.APP_ENV),
         onError: (source, error) => logger.debug({ source, err: error }, "队列连接报错"),
       });
-  let services: WorkerServices | undefined;
-  try {
+    }
     services = buildWorkerServices({
+      ...(budgetRedis
+        ? {
+            modelBudgetTransport: {
+              eval(script, keys, argv) {
+                const client = budgetRedis!;
+                if (client.status === "wait") void client.connect().catch(() => undefined);
+                if (client.status !== "ready") return Promise.reject(new Error("预算连接尚未就绪"));
+                return client.eval(script, keys.length, ...keys, ...argv);
+              },
+            },
+          }
+        : {}),
       documentWorkerUrl: new URL("./document-converter.js", import.meta.url),
       appEnv: env.APP_ENV,
       prisma: database.prisma,
@@ -86,25 +159,7 @@ async function main(): Promise<void> {
     await services.selfCheck();
   } catch (error) {
     // 自检或装配失败也回收本进程创建的资源；没有启动消费者，不借其它进程的连接。
-    services?.closeApproval?.();
-    services?.closeInvitations?.();
-    await Promise.allSettled([services?.closeDocs()]);
-    await Promise.allSettled([services?.documentConverter?.close()]);
-    await Promise.allSettled([services?.closeAlertFacts?.()]);
-    await Promise.allSettled([
-      ...(services
-        ? [
-            services.shutdownMediaJobs?.(),
-            services.closeMediaDrivers?.(),
-            services.closeStorageDrivers?.(),
-          ]
-        : []),
-      ...wechatClosers.map((close) => close()),
-      channel?.close(),
-    ]);
-    await Promise.allSettled([database.close()]);
-    services?.closeMediaJobs?.();
-    wechatRedis?.disconnect();
+    await dispose();
     throw error;
   }
   const summary = {
@@ -117,45 +172,65 @@ async function main(): Promise<void> {
   };
   if (channel === undefined) {
     logger.info(summary, "装配与自检通过");
-    services.closeApproval?.();
-    services.closeInvitations?.();
-    await services.closeDocs();
-    await services.documentConverter?.close();
-    await services.shutdownMediaJobs?.();
-    services.closeMediaJobs?.();
-    await Promise.allSettled([services.closeMediaDrivers?.(), services.closeStorageDrivers?.()]);
-    await Promise.allSettled(wechatClosers.map((close) => close()));
-    wechatRedis?.disconnect();
-    await services.closeAlertFacts?.();
-    await database.close();
+    const failure = await dispose();
+    if (failure) throw failure.reason;
     return;
   }
+  const activeChannel = channel;
+  const activeServices = services;
 
-  const lease = createWorkerLease({
-    connectionString: env.DATABASE_URL,
-    holder: `${hostname()}:${randomUUID()}`,
-    version: VERSION,
-  });
-  const runtime = createWorkerRuntime({ services, channel, lease, logger });
+  let runtime: ReturnType<typeof createWorkerRuntime>;
+  try {
+    lease = createWorkerLease({
+      connectionString: env.DATABASE_URL,
+      holder: `${hostname()}:${randomUUID()}`,
+      version: VERSION,
+    });
+    runtime = createWorkerRuntime({ services, channel, lease, logger });
+  } catch (error) {
+    await dispose();
+    throw error;
+  }
   let stopping = false;
   const shutdown = async (signal: string): Promise<void> => {
     if (stopping) return;
     stopping = true;
     logger.info({ signal }, "收到终止信号：停循环、收在途任务、让出租约");
-    await Promise.allSettled(wechatClosers.map((close) => close()));
-    await runtime.stop();
-    wechatRedis?.disconnect();
-    await Promise.allSettled([channel.close(), lease.close(), database.close()]);
-    process.exit(0);
+    let failed = false;
+    try {
+      activeServices.disableModelBudget?.();
+      await settle(wechatClosers);
+      await runtime.stop();
+    } catch (error) {
+      failed = true;
+      logger.error({ err: error }, "任务关停失败");
+    } finally {
+      const closed = await settle([
+        closeBudgetRedis,
+        () => activeChannel.close(),
+        () => lease?.close(),
+        () => database.close(),
+        () => wechatRedis?.disconnect(),
+      ]);
+      failed ||= closed.some((result) => result.status === "rejected");
+    }
+    process.exit(failed ? 1 : 0);
   };
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
   process.on("SIGINT", () => void shutdown("SIGINT"));
-  runtime.start();
+  try {
+    runtime.start();
+  } catch (error) {
+    await settle([() => runtime.stop()]);
+    await dispose();
+    throw error;
+  }
   logger.info({ ...summary, holder: lease.holder }, "任务进程已启动，等租约");
 }
 
-main().catch((error: unknown) => {
-  // EnvError 的 message 只有键名与原因，不带值
-  console.error(error instanceof EnvError ? error.message : error);
-  process.exit(1);
-});
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url)
+  void main().catch((error: unknown) => {
+    // EnvError 的 message 只有键名与原因，不带值
+    console.error(error instanceof EnvError ? error.message : error);
+    process.exit(1);
+  });
