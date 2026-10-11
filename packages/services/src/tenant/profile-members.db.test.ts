@@ -58,7 +58,7 @@ describe("建档成员摘要：同事务单语句真实事实", { timeout: SLOW 
 
   it("老板优先，店员加入时间及ID稳定排序截三，不受门店加入时间影响", async () => {
     const owner = await h.owner();
-    const clerks = [];
+    const clerks: Awaited<ReturnType<ManagementHarness["clerk"]>>[] = [];
     for (let i = 0; i < 4; i++) clerks.push(await h.clerk(owner));
     const tied = clerks.slice(0, 2).sort((a, b) => a.memberId.localeCompare(b.memberId));
     await h.prisma.entityMember.update({
