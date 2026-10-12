@@ -1,0 +1,96 @@
+import { expect } from "@playwright/test";
+
+/** 同一默认截图轮次里的真实只读 UI 操作，不替代真机或云内容验收。 */
+export async function assetRegression(page, scene, origin) {
+  const active = (selector) =>
+    page.locator(".taro_page_stationed:not(.taro_page_shade)").locator(selector);
+  const calls = () => page.evaluate(() => globalThis.__LYX_ASSET_CALLS__ ?? []);
+  if (scene === "asset-lib-loading") {
+    await expect(active(".lyx-skeleton")).toBeVisible();
+    await expect(active(".asset-lib__item")).toHaveCount(0);
+    return;
+  }
+  await expect(active("#asset-ready")).toBeVisible();
+  await expect(page.getByText("上传素材", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("上传中心", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("提交反馈", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("补交肖像授权", { exact: true })).toHaveCount(0);
+  if (scene === "asset-lib-owner" || scene === "asset-lib-clerk") {
+    await expect(active(".asset-lib__item")).toHaveCount(3);
+    const input = active('input[placeholder="搜索素材，最多30字"]');
+    await input.fill("门店&咖啡");
+    await active(".lyx-text-button")
+      .filter({ hasText: /^搜索$/ })
+      .click();
+    await expect.poll(async () => (await calls()).some((c) => c.path.includes("q="))).toBe(true);
+    await active(".lyx-chip")
+      .filter({ hasText: /^我上传的$/ })
+      .click();
+    await expect
+      .poll(async () => (await calls()).some((c) => c.path.includes("uploader=me")))
+      .toBe(true);
+    const snapshots = await calls();
+    for (const c of snapshots.filter((c) => c.path.includes("/summary"))) {
+      const url = new URL(c.path, origin);
+      for (const key of ["tab", "cursor", "limit", "sort"])
+        expect(url.searchParams.has(key)).toBe(false);
+    }
+    await active(".asset-lib__card").first().click();
+    await expect(page).toHaveURL(
+      /sub\/asset\/detail\/index\?storeAssetId=019aa000-0000-7000-8000-000000000001$/,
+    );
+    await expect(active("#asset-ready")).toBeVisible();
+    if (scene.endsWith("clerk"))
+      await expect(active(".lyx-text-button").filter({ hasText: /查看订单/ })).toHaveCount(0);
+    await page.goBack();
+    await expect(active("#asset-ready")).toBeVisible();
+    // 沿既有“我的”页面菜单进入，未修改首页或菜单实现。
+    await page.goto(`${origin}/#/pages/mine/index`, { waitUntil: "networkidle" });
+    await expect(active("#account-ready")).toBeVisible();
+    await active(".lyx-list-row").filter({ hasText: "素材库" }).click();
+    await expect(page).toHaveURL(/sub\/asset\/lib\/index$/);
+    await expect(active("#asset-ready")).toBeVisible();
+  } else if (scene === "asset-lib-more-error") {
+    await active(".lyx-text-button")
+      .filter({ hasText: /^加载更多$/ })
+      .click();
+    await expect(active(".lyx-load-error, .lyx-empty")).toContainText("重试");
+    await expect(active(".asset-lib__item")).toHaveCount(3);
+    await active(".lyx-button").filter({ hasText: "重新加载" }).click();
+    await expect(active(".asset-lib__item")).toHaveCount(5);
+    const before = (await calls()).length;
+    await expect(active(".lyx-text-button").filter({ hasText: /^加载更多$/ })).toHaveCount(0);
+    expect((await calls()).length).toBe(before);
+  } else if (scene === "asset-lib-filter-empty") {
+    await active(".lyx-chip")
+      .filter({ hasText: /^我上传的$/ })
+      .click();
+    await expect(active(".lyx-empty")).toContainText("没有符合筛选条件");
+  } else if (scene.endsWith("-error") || scene === "asset-detail-missing") {
+    await expect(active(".lyx-empty")).toContainText(
+      scene.endsWith("missing") ? "素材不存在或已移除" : "暂时无法加载素材",
+    );
+    await expect(page.getByText("private URL must not escape")).toHaveCount(0);
+  } else if (scene === "asset-detail-partial") {
+    await expect(active(".asset-detail")).toContainText("部分内容尚未完成整理");
+    await expect(active(".asset-detail")).toContainText("需肖像授权");
+  } else if (scene === "asset-detail-organizing") {
+    await expect(active(".asset-detail")).toContainText("整理中");
+    await expect(active(".asset-detail")).toContainText("暂无整理要点");
+  } else if (scene.startsWith("asset-detail-")) {
+    await expect(active(".asset-detail")).toContainText("复核与授权");
+    await expect(active(".asset-detail")).toContainText("使用记录");
+    const before = (await calls()).filter((c) => /\/m\/store-assets\//.test(c.path)).length;
+    await active(".lyx-text-button")
+      .filter({ hasText: /^刷新整理结果与文件$/ })
+      .click();
+    await expect
+      .poll(async () => (await calls()).filter((c) => /\/m\/store-assets\//.test(c.path)).length)
+      .toBe(before + 1);
+  }
+  for (const c of await calls()) {
+    expect(c.method).toBe("GET");
+    expect(c.path).toMatch(/^\/m\/store-assets(?:\?|\/|$)/);
+    expect(c.path).not.toMatch(/feedback|portrait-auth|create/);
+  }
+}
