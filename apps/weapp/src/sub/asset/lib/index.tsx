@@ -131,6 +131,13 @@ function LibraryContent() {
         }}
       />
       <PageBody>
+        <TextButton
+          onClick={() => {
+            void Taro.navigateTo({ url: "/sub/asset/upload/index" });
+          }}
+        >
+          上传素材与查看任务
+        </TextButton>
         <SearchBar
           value={input}
           placeholder="搜索素材，最多30字"

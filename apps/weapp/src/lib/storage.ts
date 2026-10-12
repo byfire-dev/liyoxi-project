@@ -22,5 +22,7 @@ export const StorageKey = {
   searchHistory: "lyx.searchHistory",
   /** 分块上传恢复记录；不含凭证、令牌或本机文件路径 */
   uploadResume: "lyx.upload.resume",
+  /** 素材上传意图；完整owner隔离，不含凭证、令牌或临时路径 */
+  assetUploadIntents: "lyx.asset.upload.intents",
 } as const;
 export type StorageKey = (typeof StorageKey)[keyof typeof StorageKey];
