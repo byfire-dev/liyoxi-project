@@ -481,9 +481,11 @@ async function shoot(target) {
                     : target.kind === "search"
                       ? "#search-ready"
                       : target.kind === "asset-upload"
-                        ? target.scene.endsWith("loading")
-                          ? ".asset-upload .lyx-skeleton"
-                          : ".asset-upload#asset-upload-ready"
+                        ? target.scene.startsWith("asset-uploader-")
+                          ? ".asset-uploader#asset-uploader-ready"
+                          : target.scene.endsWith("loading")
+                            ? ".asset-upload .lyx-skeleton"
+                            : ".asset-upload#asset-upload-ready"
                         : target.kind === "asset"
                           ? target.scene === "asset-lib-loading"
                             ? ".asset-lib .lyx-skeleton"

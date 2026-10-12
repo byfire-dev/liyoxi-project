@@ -282,6 +282,13 @@ function UploadContent({
           当前门店 · {membership?.role === "clerk" ? "店员" : "老板"}
           上传。离开本页后，当前成员的上传任务仍保留。
         </Note>
+        <TextButton
+          onClick={() => {
+            void Taro.navigateTo({ url: "/sub/asset/uploader/index" });
+          }}
+        >
+          上传中心
+        </TextButton>
         <Card title={`上传${labels[form.type]}`}>
           <View className="asset-upload__muted">{hints[form.type]}</View>
           {form.type === "text" ? (
