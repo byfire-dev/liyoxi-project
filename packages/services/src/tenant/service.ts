@@ -26,6 +26,7 @@ import type {
   EntityMemberList,
   EntityMemberListQuery,
   EntityQuotaUpdateBody,
+  EntityCloseBody,
 } from "@liyoxi/contract";
 import type { AuditRequestMeta } from "../audit/index.js";
 
@@ -75,8 +76,12 @@ import { adminEntityGetIn, adminEntityMemberListIn } from "./admin-read.js";
 import type { TenantAdminReadDeps } from "./admin-read.js";
 import type { StaffContext } from "../authz/index.js";
 import { updateEntityQuota } from "./admin-quota.js";
+import { closeEntity } from "./admin-close.js";
+import type { CloseEntityDeps } from "./entity-close.js";
 
 export interface TenantDeps extends Pick<MemberManagementDeps, "readMemberAssetCounts" | "events"> {
+  /** 后台关闭使用完整装配与原 timer；旧用例不要求这组依赖。 */
+  readonly entityClose?: Pick<CloseEntityDeps, "assembly" | "timers">;
   /** 仅后台两条主体查询需要，由应用层固定绑定真实事实拥有者。 */
   readonly adminRead?: TenantAdminReadDeps;
   /** 分店创建由上层固定绑定档案与会话拥有者；缺失不影响旧命令。 */
@@ -103,6 +108,12 @@ export interface UseCaseOptions {
 }
 
 export interface Tenant {
+  closeEntity(
+    ctx: IdentityContext,
+    staff: StaffContext,
+    input: EntityCloseBody & { readonly entityId: string },
+    options: { readonly idem: IdempotencyContext },
+  ): Promise<EntityCard>;
   updateEntityQuota(
     ctx: IdentityContext,
     staff: StaffContext,
@@ -242,6 +253,8 @@ export function createTenant(deps: TenantDeps): Tenant {
   const acceptInvitation = createInvitationAcceptor(memberDeps);
   const createStore = createStoreCreator(memberDeps);
   return {
+    closeEntity: (ctx, staff, input, options) =>
+      closeEntity(memberDeps, ctx, staff, input, options),
     updateEntityQuota: (ctx, staff, input, options) =>
       updateEntityQuota(memberDeps, ctx, staff, input, options),
     adminEntityGet: (staff, entityId) =>

@@ -74,6 +74,7 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
     flow,
     assembly,
     events,
+    entityClose: { assembly, timers: runtime.timers },
     adminRead: {
       billing: readTenantAdminBillingFacts,
       profiles: readEntityStoreProfileFacts,

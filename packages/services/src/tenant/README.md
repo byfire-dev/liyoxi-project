@@ -41,7 +41,9 @@ invitation.expire 锁后 fresh clock 早到抛错走原重试；终态/不存在
 
 本片新增两条既有 HTTP 和范围调整单事件通知，当前仅源码与轻静态准备；类型、真实 DB/API、官方生成及完整尾链待独占验证。其他成员事件、邀请、门店和后台入口及整包仍待交付。
 
-`closeEntityIn(tx, deps, actor, input)` 是 W2-10 内部员工关闭入口；调用方拥有事务与幂等边界。必须从尚未取得业务锁的事务进入，真实 order prepare 先锁低序并完整锁住 tenant 图，六个所属计数、权限及回显复核后才关闭。邀请、有效成员（含老板）、启用门店通过 flow 写历史/审计/事件，再精准吊销 portal 授权及系统撤回 pending ad_cancel。任何失败整体回滚，其他取消 kind 异常拒绝。直接 flow 参数不能伪造级联 witness；profile 异步收尾、HTTP、普通成员/门店/邀请写侧仍另做。
+`closeEntityIn(tx, deps, actor, input)` 是 W2-10 内部员工关闭入口；调用方拥有事务与幂等边界。必须从尚未取得业务锁的事务进入，真实 order prepare 先锁低序并完整锁住 tenant 图，六个所属计数、权限及回显复核后才关闭。邀请、有效成员（含老板）、启用门店通过 flow 写历史/审计/事件，再精准吊销 portal 授权及系统撤回 pending ad_cancel。任何失败整体回滚，其他取消 kind 异常拒绝。直接 flow 参数不能伪造级联 witness；profile 已接五事件异步消费者。
+
+后台 `closeEntity(ctx, staff, input, { idem })` 在 required 缓存前读取真实启用超管与当前主体范围，复查原权限及 StepUp；写闭包直接复用 `closeEntityIn`，不提前拿业务锁，关闭后沿原四事实读取真实 `EntityCard`，任何摘要失败同事务回滚。只该命令要求 `entityClose: { assembly, timers }` 的完整真实装配，其他既有命令不受影响。严格请求原因去两端空白后按 Unicode 码点10–200字，双回显包含老板，不引入乐观锁。HTTP 接线当前仅 SOURCE，完整验证及唯一独审待 ROOT 安排；W2-10 整包与 `tenant.onEntitlementChanged` 仍进行中。
 
 W1-03 交最小集：懒创建主体、成员关系解析、门店列表与额度、记住当前门店、给 profile 的三个写函数、计费账户端口。依据：[m02](../../../../docs/api/m02-tenant.md) 第 1、2.1–2.3、2.7、3.1、3.2、3.7 节；[02 分组](../../../../docs/data-model/02-identity-tenant.md) 第 2.9–2.12、5 节；D4 第 5.1 节。新增门店、停用与恢复、成员、邀请、空草稿让位、主体关闭、资质的 `change` 轮次随 M2。
 

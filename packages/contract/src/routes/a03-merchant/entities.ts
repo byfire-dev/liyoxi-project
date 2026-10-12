@@ -1,7 +1,7 @@
 // 后台：商家、资质审核与素材复核 · entities（docs/api/a03-merchant.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { adminMeta } from "../meta-only.js";
 import { adminRoute } from "../builders.js";
+import { EntityCloseBodySchema } from "./entity-close.schemas.js";
 import { EntityQuotaUpdateBodySchema } from "./entity-quota.schemas.js";
 import { okResponse, errorResponses } from "../../common/index.js";
 import {
@@ -23,13 +23,21 @@ export const adminEntityGet = adminRoute({
   responses: { ...okResponse(EntityCardSchema), ...errorResponses(400, 401, 403, 404) },
 });
 
-export const adminEntityClose = adminMeta({
+export const adminEntityClose = adminRoute({
   method: "post",
   path: "/admin/entities/{entityId}/close",
   operationId: "admin.entity.close",
   summary: "后台关闭经营主体：撤回邀请、移除成员、停用门店、吊销下载页会话",
   "x-permission": "merchant.entity.close",
   "x-idempotent": "required",
+  request: {
+    params: EntityIdParamsSchema,
+    body: {
+      content: { "application/json": { schema: EntityCloseBodySchema } },
+      required: true,
+    },
+  },
+  responses: { ...okResponse(EntityCardSchema), ...errorResponses(400, 401, 403, 404, 409) },
 });
 
 export const adminEntityMemberList = adminRoute({
