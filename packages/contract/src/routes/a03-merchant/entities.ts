@@ -2,6 +2,7 @@
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { adminMeta } from "../meta-only.js";
 import { adminRoute } from "../builders.js";
+import { EntityQuotaUpdateBodySchema } from "./entity-quota.schemas.js";
 import { okResponse, errorResponses } from "../../common/index.js";
 import {
   EntityIdParamsSchema,
@@ -42,11 +43,19 @@ export const adminEntityMemberList = adminRoute({
   responses: { ...okResponse(EntityMemberListSchema), ...errorResponses(400, 401, 403, 404) },
 });
 
-export const adminEntityQuotaUpdate = adminMeta({
+export const adminEntityQuotaUpdate = adminRoute({
   method: "patch",
   path: "/admin/entities/{entityId}/quota",
   operationId: "admin.entity.quota.update",
   summary: "门店数、成员数上限覆盖（大客户）",
   "x-permission": "merchant.quota.override",
   "x-idempotent": "required",
+  request: {
+    params: EntityIdParamsSchema,
+    body: {
+      content: { "application/json": { schema: EntityQuotaUpdateBodySchema } },
+      required: true,
+    },
+  },
+  responses: { ...okResponse(EntityCardSchema), ...errorResponses(400, 401, 403, 404, 409) },
 });

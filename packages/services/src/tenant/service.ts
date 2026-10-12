@@ -25,7 +25,9 @@ import type {
   EntityCard,
   EntityMemberList,
   EntityMemberListQuery,
+  EntityQuotaUpdateBody,
 } from "@liyoxi/contract";
+import type { AuditRequestMeta } from "../audit/index.js";
 
 import type { Flow } from "../flow/index.js";
 import { AppError, isUniqueViolation, merchantFactsOf } from "../kernel/index.js";
@@ -72,6 +74,7 @@ import type { StoreCreation, StoreCreateOptions } from "./store-create.js";
 import { adminEntityGetIn, adminEntityMemberListIn } from "./admin-read.js";
 import type { TenantAdminReadDeps } from "./admin-read.js";
 import type { StaffContext } from "../authz/index.js";
+import { updateEntityQuota } from "./admin-quota.js";
 
 export interface TenantDeps extends Pick<MemberManagementDeps, "readMemberAssetCounts" | "events"> {
   /** 仅后台两条主体查询需要，由应用层固定绑定真实事实拥有者。 */
@@ -100,6 +103,12 @@ export interface UseCaseOptions {
 }
 
 export interface Tenant {
+  updateEntityQuota(
+    ctx: IdentityContext,
+    staff: StaffContext,
+    input: EntityQuotaUpdateBody & { readonly entityId: string },
+    options: { readonly idem: IdempotencyContext; readonly meta: AuditRequestMeta },
+  ): Promise<EntityCard>;
   adminEntityGet(staff: StaffContext, entityId: string): Promise<EntityCard>;
   adminEntityMemberList(
     staff: StaffContext,
@@ -233,6 +242,8 @@ export function createTenant(deps: TenantDeps): Tenant {
   const acceptInvitation = createInvitationAcceptor(memberDeps);
   const createStore = createStoreCreator(memberDeps);
   return {
+    updateEntityQuota: (ctx, staff, input, options) =>
+      updateEntityQuota(memberDeps, ctx, staff, input, options),
     adminEntityGet: (staff, entityId) =>
       deps.tx.run((tx) => adminEntityGetIn(tx, deps.adminRead, facts, now(), staff, entityId)),
     adminEntityMemberList: (staff, entityId, query) =>
