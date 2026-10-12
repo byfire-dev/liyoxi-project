@@ -1,15 +1,32 @@
 import type { PrismaClient } from "@liyoxi/db";
+import { createConfig } from "../../config/index.js";
+import { createDocs } from "../../docs/index.js";
 import { createFlow } from "../../flow/index.js";
-import { createIdentityContext, uuidv7 } from "../../kernel/index.js";
+import { createIdempotencyContext, createIdentityContext, uuidv7 } from "../../kernel/index.js";
 import type { Assembly, IdentityContext, Tx, TxRunner } from "../../kernel/index.js";
 import { createTenant } from "../../tenant/index.js";
-import type { TenantDeps } from "../../tenant/index.js";
-import { acceptHarness, APPID } from "../../tenant/__fixtures__/invitation-accept.js";
-import { memberContext } from "../../tenant/__fixtures__/member-removal.js";
-import { assertCurrentSessionForTest, snapshotTables, TEST_KEYRING } from "../../testing/index.js";
+import type { Tenant, TenantDeps } from "../../tenant/index.js";
+import {
+  assertCurrentSessionForTest,
+  createFakeWechat,
+  createIdentityForTest,
+  snapshotTables,
+  TEST_KEYRING,
+} from "../../testing/index.js";
 import { closeHarness, SLOW, TABLES } from "./admin-entity-close.js";
 
-export { memberContext, SLOW };
+export { SLOW };
+const APPID = "wxlyxtest00000001";
+let personSequence = 0;
+export function memberContext(userId: string, entityId?: string, storeId?: string) {
+  return createIdentityContext({
+    actor: { type: "merchant", id: userId, client: "weapp" },
+    ...(entityId === undefined ? {} : { entityId }),
+    ...(storeId === undefined ? {} : { storeId }),
+    requestId: `req_lifecycle_${uuidv7().slice(-24)}`,
+    ip: "203.0.113.17",
+  });
+}
 export const LIFECYCLE_TABLES = [
   ...new Set([...TABLES, "merchant_user", "wechat_identity", "user_session", "agreement_consent"]),
 ];
@@ -17,7 +34,6 @@ export const LIFECYCLE_TABLES = [
 /** 复用已验收的真实 billing/order/approval/timer 装配；只在竞争中使用真实登录与接受 producer。 */
 export async function lifecycleHarness(prisma: PrismaClient) {
   const h = closeHarness(prisma);
-  const sessions = await acceptHarness(prisma);
   function service(runner: TxRunner = h.tx, overrides: Partial<TenantDeps> = {}) {
     return createTenant({
       tx: runner,
@@ -40,6 +56,86 @@ export async function lifecycleHarness(prisma: PrismaClient) {
     });
   }
   const tenant = service();
+  const wechat = createFakeWechat({ clock: h.clock });
+  const identity = createIdentityForTest({
+    ...h,
+    tenant,
+    wechat,
+    appid: APPID,
+    docs: createDocs({ tx: h.tx, clock: h.clock }),
+    config: createConfig({ db: prisma, clock: h.clock, redis: null }),
+    keyring: () => TEST_KEYRING,
+  });
+  const versions = await Promise.all(
+    ["user", "privacy"].map(
+      async (agreementKey) =>
+        (await prisma.agreementVersion.findFirst({ where: { agreementKey, status: "active" } })) ??
+        h.make.agreementVersion({ agreementKey }),
+    ),
+  );
+  async function person(displayName = "新店员") {
+    const n = ++personSequence,
+      loginCode = `lifecycle-login-${n}`,
+      phoneCode = `lifecycle-phone-${n}`;
+    wechat.sessions.set(loginCode, { openid: `lyxtest_lifecycle_${n}` });
+    wechat.phones.set(phoneCode, `139${String(91_000_000 + n).padStart(8, "0")}`);
+    const result = await identity.phoneLogin(
+      {
+        requestId: "req_lifecycle_login",
+        ip: "203.0.113.28",
+        userAgent: "lyxtest-lifecycle",
+        clientVersion: null,
+      },
+      {
+        loginCode,
+        phoneCode,
+        consents: versions.map((version) => ({
+          agreementKey: version.agreementKey,
+          agreementVersionId: version.id,
+        })),
+      },
+    );
+    const checked = await identity.authenticate(result.token, { ip: "203.0.113.28" });
+    if (!checked.ok) throw new Error("真实登录没有形成有效会话");
+    await prisma.merchantUser.update({
+      where: { id: checked.principal.merchantUserId },
+      data: { displayName },
+    });
+    return {
+      userId: checked.principal.merchantUserId,
+      principal: checked.principal,
+      ctx: memberContext(checked.principal.merchantUserId),
+    };
+  }
+  async function accept(
+    user: Awaited<ReturnType<typeof person>>,
+    invitation: { invitationId: string; token: string },
+    input: { displayName?: string | null } = {},
+    on: { tenant: Tenant } = { tenant },
+    key = uuidv7(),
+  ) {
+    const body = { token: invitation.token, ...input };
+    return on.tenant.acceptInvitation(
+      user.ctx,
+      { invitationId: invitation.invitationId, ...body },
+      {
+        principal: user.principal,
+        idem: createIdempotencyContext({
+          mode: "required",
+          scope: "m.invitation.accept",
+          actor: user.ctx.actor,
+          key,
+          request: {
+            method: "POST",
+            pathParams: { invitationId: invitation.invitationId },
+            body,
+            storeId: null,
+          },
+        }),
+      },
+    );
+  }
+  const sessions = { tenant, person, accept };
   async function world(draft = false) {
     const w = await h.world();
     if (draft)
