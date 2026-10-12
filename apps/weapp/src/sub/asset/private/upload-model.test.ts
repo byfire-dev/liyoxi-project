@@ -94,7 +94,7 @@ describe("素材上传表单与冻结请求", () => {
     input.files[0]!.size = size;
     expect(() => validateUploadForm(input)).toThrow();
   });
-  it.each(["", " ", "字".repeat(501)])("文字边界拒绝空白或超长", (textBody) => {
+  it.each(["", " ", "字".repeat(501)])("文字边界拒绝空白或超长 [%s]", (textBody) => {
     expect(() => validateUploadForm({ ...form("text"), textBody })).toThrow();
   });
   it("文字500字且无文件或说明", () => {
