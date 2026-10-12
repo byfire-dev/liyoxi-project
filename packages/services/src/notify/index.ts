@@ -43,3 +43,5 @@ export {
 export type { DirectNotificationInput } from "./direct.js";
 
 export { sendStaffWecomInvite } from "./staff-invite.js";
+
+export { sendQuotaExceeded } from "./entitlement.js";

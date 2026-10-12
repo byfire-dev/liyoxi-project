@@ -189,3 +189,8 @@ API 固定绑定 billing/profile/media/order 公口；缺装配、缺账户或�
 `updateEntityQuota` 在 required claim 前核真实当前员工及原授权/StepUp；首次写入按 staff20 共享锁、entity100 排他锁后重读版本、双回显及权限，并用新时钟授权。
 省略覆盖保持原值，null 清除，成员0合法；允许低于已用量，不删除门店、成员或邀请。更新与版本递增、原同事务 Card 读取及一行额度审计一起提交，零出站事件。
 同键返回原成功快照。入口只读预检不承诺原 claim 等待期间所有退出/角色变化全局线性化；不改会话或幂等框架。当前仅 SOURCE，官方派生、类型、完整整叶和唯一独审待授权。
+
+## 权益变动超额提醒（SOURCE）
+
+`createTenantEntitlement` 处理两个原 billing 接续/到期事件。先核同 id 持久化 strict 来源、主体/周期归属，再经实例 notify 回调读取当前有效老板与唯一 `getQuotaUsage`，不信任事件快照、不保存超额标记或自动删成员/门店。
+老板账号80→主体100→老板成员120共享锁后取新时钟；锁后老板关系变化明确重试，关闭、无有效老板或当前未超额不提醒。`tenantQuotaForNotify` 是既有 notify.read keyed port 内的所属读函数，scope 的数组/lookup/reader 共用闭包；API 与 worker 各 attach/close，未绑定或关闭明确失败。通知和消费完成同 caller Tx，失败整笔回滚。当前仅 SOURCE，完整验收待 ROOT 独占窗口。

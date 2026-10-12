@@ -157,11 +157,12 @@ erDiagram
   - 新微信登录（d4:386-389；订阅 02 分组的出站事件 `merchant_user.wechat_bound`，A95 改名，x01 3.17）：短信用 `account_notice` 模板、策略 `always`；订阅消息要排除刚绑定的那个微信身份，事件载荷带 `wechatIdentityId`，场景的 `vars` 带 `excludeWechatIdentityId`，额度预留跳过它（见 2.8）。
   - 换绑手机号：订阅 02 分组的出站事件 `merchant_user.phone_changed` 生成站内消息，载荷不带手机号，场景不发短信。给原号码的账号安全短信不经场景：identity 在换绑事务提交后调 `notify.sendDirect`（`purpose = account_notice`，见 2.5“直发”；02 分组 2.8）。
 
-**补登播种**（接口阶段，a09-ops.md 2.9 标“补登”的 31 个键，随注册表同批播种；只加行、不改表）：默认 `ext_enabled = true`、`scene_enabled = true`、`sms_policy = never`、`send_window = immediate`，槽位与短信模板为空（只发站内；员工场景的企业微信由注册表声明）。触发事件、接收人与深链以 a09 2.9 为准，下表只列键与显示名。
+**补登播种**（接口阶段 a09-ops.md 2.9 的31个补登键，另含W2-10追加的名额超限提醒；随注册表播种，只加行、不改表）：默认 `ext_enabled = true`、`scene_enabled = true`、`sms_policy = never`、`send_window = immediate`，槽位与短信模板为空（只发站内；员工场景的企业微信由注册表声明）。触发事件、接收人与深链以 a09 2.9 为准，下表只列键与显示名。
 
 | `scene_key` | `audience` | `name` | 例外与说明 |
 | --- | --- | --- | --- |
 | `m.rule_change_withdrawn` | merchant | 调整已取消 | `site_notice.withdrawn` |
+| `m.quota_exceeded` | merchant | 名额超限提醒 | W2-10 权益变动；既有默认绑定，只发立即站内 |
 | `m.plan_activated` | merchant | 套餐已开通 | — |
 | `m.plan_renewed` | merchant | 续费成功 | — |
 | `m.plan_upgraded` | merchant | 套餐已升级 | — |
@@ -1350,3 +1351,5 @@ draft_deleted/store.draft_delete 仅作为同一真实 store_archived 系统级�
 本人仍为 NULL entity/store/copyMode、非 ownerOnly、messages.list；老板只进入当前有效门店。
 经理 s.merchant_changed 仍只认 by_owner/store.archive，draft_deleted 全消息及外发链不新增通知。
 原历史/来源与发送前重验、消息权限 SQL、acceptedInvitation 和其他成员原因保持；无新通知场景。
+
+W2-10 权益变动伴随：新增场景 `m.quota_exceeded` 沿既有 seed 的默认立即站内绑定补行，不改表结构。`notification.biz_type = entity`、`biz_id = entityId`，`vars = { sourceId, sourceType, entityId, merchantUserId, storesOver, seatsOver }`，持久化来源、当前主体/老板与唯一 quota 同 caller Tx 复查；去重键为 `m.quota_exceeded:{outboxEventId}:{currentOwnerUserId}`。只建 `merchant_message` 与已发送 `inbox` 投递；CTA“查看套餐”指向既有 `wallet.home`，无 WX/SMS/provider。
