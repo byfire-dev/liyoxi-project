@@ -35,7 +35,7 @@ async function staff(
 }
 function readers(): TenantAdminReadDeps {
   return {
-    billing: vi.fn(async () => ({
+    billing: vi.fn<TenantAdminReadDeps["billing"]>(async () => ({
       subscription: {
         status: "none",
         plan: null,
@@ -48,7 +48,7 @@ function readers(): TenantAdminReadDeps {
       },
       spendablePoints: 17,
     })),
-    profiles: vi.fn(
+    profiles: vi.fn<TenantAdminReadDeps["profiles"]>(
       async (_tx, input) =>
         new Map(
           input.storeIds.map((id) => [
@@ -63,7 +63,7 @@ function readers(): TenantAdminReadDeps {
           ]),
         ),
     ),
-    assets: vi.fn(async (_tx, input) => ({
+    assets: vi.fn<TenantAdminReadDeps["assets"]>(async (_tx, input) => ({
       stores: new Map(
         input.storeIds.map((id) => [
           id,
@@ -74,7 +74,7 @@ function readers(): TenantAdminReadDeps {
         input.merchantUserIds.map((id) => [id, { uploadedAssetCount: 0, adoptedAssetCount: 0 }]),
       ),
     })),
-    orders: vi.fn(async () => ({ live: 2, to_launch: 3 })),
+    orders: vi.fn<TenantAdminReadDeps["orders"]>(async () => ({ live: 2, to_launch: 3 })),
   };
 }
 const tenant = (adminRead?: TenantAdminReadDeps) =>

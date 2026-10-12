@@ -1,4 +1,4 @@
-import { EntityCardSchema, EntityMemberListSchema } from "@liyoxi/contract";
+import { EntityCardSchema, EntityMemberListSchema, EntityStoreRowSchema } from "@liyoxi/contract";
 import type {
   EntityCard,
   EntityMemberList,
@@ -192,7 +192,7 @@ export async function adminEntityGetIn(
     const manager = s.deliveryManager;
     // 原拥有者公口只支持单店计数；逐店调用，不伪称批量订单事实。
     const orders = await readers.orders(tx, s.id);
-    storeRows.push({
+    const row = EntityStoreRowSchema.safeParse({
       storeId: s.id,
       name: s.name,
       isPrimary: s.isPrimary,
@@ -215,6 +215,8 @@ export async function adminEntityGetIn(
       producingDramaCount: orders.to_launch,
       clerkCount: s._count.storeMembers,
     });
+    if (!row.success) throw new AppError("INTERNAL");
+    storeRows.push(row.data);
   }
   const owner = activeMembers.find((m) => m.role === "owner");
   const referral = entity.sourceReferralCode;
