@@ -260,7 +260,11 @@ export function createAssetAsrStrategy(
       // A thrown/unknown reply may follow acceptance. Only manual re-understanding can retry it.
       let result: AsrSubmissionResult;
       try {
-        result = await deps.assets.asr.submit({ url, signal });
+        result = await deps.assets.asr.submit({
+          url,
+          signal,
+          ...(deps.assets.asrCallback === true ? { callback: { mediaJobId: job.id } } : {}),
+        });
       } catch {
         return terminal("ASR_SUBMISSION_UNKNOWN");
       }

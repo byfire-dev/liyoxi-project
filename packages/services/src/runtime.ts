@@ -149,6 +149,7 @@ import {
   createWebhooks,
   createWechatMessageSource,
   createCiWebhookSource,
+  createAsrWebhookSource,
 } from "./security/index.js";
 import type { Webhooks, WebhookSource } from "./security/index.js";
 import {
@@ -299,6 +300,7 @@ export interface Runtime {
 export function createRuntime(options: RuntimeOptions): Runtime {
   const { entry, env, version } = options;
   const ownsAsr = entry === "api" && options.providers === undefined && !!env.ASR_TENCENT;
+  const asrCallback = ownsAsr ? env.ASR_CALLBACK : undefined;
   const modelDrivers = ownsAsr ? options.modelDrivers : undefined;
   if (
     ownsAsr &&
@@ -451,6 +453,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       ...(ownsAsr
         ? {
             asr: {
+              ...(asrCallback ? { callback: asrCallback } : {}),
               now: () => clock.now(),
               registerClose: (close: () => Promise<void>) => modelDrivers!.registerClose(close),
             },
@@ -487,6 +490,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
           }
         : {}),
     });
+  const asrCallbackEnabled =
+    asrCallback !== undefined && providers.asr.configured && providers.asr.status === "tencent";
   if (entry === "worker")
     notifyScope.attachSmsHealth(
       createSmsHealth({
@@ -527,6 +532,15 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         key: env.CI?.callback.key,
         wake: (tx, input) => media.wakeCiJob(tx, input),
       }),
+      ...(asrCallbackEnabled
+        ? [
+            createAsrWebhookSource({
+              key: asrCallback?.key,
+              configured: () => asrCallbackEnabled,
+              wake: (tx, input) => media.wakeAsrJob(tx, input),
+            }),
+          ]
+        : []),
     ],
     alerts: alertsOf(assembly),
   });
@@ -573,6 +587,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       assembly,
       timers,
       providers,
+      asrCallback: asrCallbackEnabled,
       ...(modelBudget ? { modelBudget: modelBudget.admission } : {}),
     }),
     batches: createRuntimeMediaBatches({ clock, events, media: () => media }),

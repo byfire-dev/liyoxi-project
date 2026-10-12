@@ -18,11 +18,13 @@ export function createRuntimeMediaAssets(input: {
   timers: Timers;
   providers: Providers;
   modelBudget?: MediaAssetsDeps["modelBudget"];
+  asrCallback?: boolean;
 }): MediaAssetsDeps {
   return {
     sla: createSla({ assembly: input.assembly, clock: input.clock }),
     timers: input.timers,
     asr: input.providers.asr,
+    asrCallback: input.asrCallback === true,
     llm: input.providers.llm,
     ...(Object.hasOwn(input, "modelBudget") ? { modelBudget: input.modelBudget } : {}),
     readStore: readStoreAssetFacts,
