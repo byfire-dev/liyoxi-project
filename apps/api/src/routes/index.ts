@@ -24,6 +24,7 @@ import { deliveryDownloadHandlers } from "./delivery-download.js";
 // 在这里加一行展开。探活不在这里，在 ../probes.ts。
 import { adminProfileHandlers } from "./admin/profile.js";
 import { adminEntityHandlers } from "./admin/entities.js";
+import { adminEntityQuotaHandlers } from "./admin/entity-quota.js";
 import { profileHandlers } from "./profile.js";
 import { mallHandlers } from "./mall.js";
 import { merchantFileHandlers } from "./files.js";
@@ -110,6 +111,7 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...deliveryDownloadHandlers,
   ...adminProfileHandlers,
   ...adminEntityHandlers,
+  ...adminEntityQuotaHandlers,
   ...messageHandlers,
   ...notifySettingHandlers,
 ];

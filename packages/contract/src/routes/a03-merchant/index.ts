@@ -60,4 +60,5 @@ export * from "./store-assets.js";
 
 export * from "./asset-demands.js";
 export * from "./entities.schemas.js";
-export { adminEntityGet, adminEntityMemberList } from "./entities.js";
+export * from "./entity-quota.schemas.js";
+export { adminEntityGet, adminEntityMemberList, adminEntityQuotaUpdate } from "./entities.js";
