@@ -89,8 +89,11 @@ export function offlineMessageRequest(scene: string): RequestLayer["request"] {
         filtered = items.filter((item) => tab === "all" || item.category === tab);
       const cursor = url.searchParams.get("cursor"),
         offset = cursor === "opaque+/=page2" ? 20 : 0;
+      const page = filtered.slice(offset, offset + 20);
+      if (scene === "messages-more" && offset === 20 && filtered[19] && page[0])
+        page.unshift(filtered[19], page[0]);
       data = {
-        items: filtered.slice(offset, offset + 20),
+        items: page,
         nextCursor: filtered.length > offset + 20 ? "opaque+/=page2" : null,
         hasMore: filtered.length > offset + 20,
       };
