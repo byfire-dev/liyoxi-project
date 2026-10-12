@@ -130,9 +130,30 @@ export function entitlementHarness(prisma: PrismaClient, ledger?: LedgerHarness)
         await dispatchDue(dispatch);
         const target = refs.find((ref) => ref.eventId === eventId && ref.subscriber === SUBSCRIBER);
         if (!target) throw new Error("真实权益事件没有派发到已登记订阅者");
-        for (const ref of refs)
-          if (ref !== target && (await consumeDelivery(dispatch, ref)) !== "done")
-            throw new Error("同轮真实出站事件没有成功消费");
+        for (const ref of refs) {
+          if (ref === target) continue;
+          const outcome = await consumeDelivery(dispatch, ref);
+          if (outcome !== "done") {
+            const delivery = await runner.run((tx) =>
+              tx.outboxDelivery.findUniqueOrThrow({
+                where: {
+                  outboxEventId_subscriber: {
+                    outboxEventId: ref.eventId,
+                    subscriber: ref.subscriber,
+                  },
+                },
+                select: {
+                  status: true,
+                  lastError: true,
+                  outboxEvent: { select: { eventType: true } },
+                },
+              }),
+            );
+            throw new Error(
+              `同轮真实出站事件没有成功消费：${JSON.stringify({ ref, outcome, delivery })}`,
+            );
+          }
+        }
         return target;
       },
       async close() {
