@@ -17,7 +17,13 @@ import { ensurePrivacyAuthorized, request } from "@/lib/runtime";
 import type { RequestLayer } from "@/lib/request";
 import { useContextStore } from "@/stores/context";
 import { useSessionStore } from "@/stores/session";
-import { assetLabels, assetStatuses, assetTitle, createAssetApi } from "../private/api";
+import {
+  assetLabels,
+  assetModerationLabel,
+  assetStatuses,
+  assetTitle,
+  createAssetApi,
+} from "../private/api";
 import { createAssetMedia, fileAvailable } from "../private/media";
 import { assetScope, createAssetResource } from "../private/resource";
 import "./index.scss";
@@ -183,12 +189,11 @@ function DetailContent({ id }: { id: string }) {
                 <InfoTag>{detail.structuredItemCount}项</InfoTag>
               ) : null}
             </View>
-            <Note>
+            <Note className="asset-detail__moderation">
               {merchantStatusByEnum("store_asset.processing_state", detail.processingState)
                 ?.label ?? "整理状态待确认"}{" "}
               · {detail.reviewState === "reviewed" ? "已复核" : "未复核"} ·{" "}
-              {merchantStatusByEnum("moderation.state", detail.moderationState)?.label ??
-                "审核状态待确认"}
+              {assetModerationLabel(detail.moderationState)}
             </Note>
             {detail.isInsightPartial ? (
               <Note tone="warning">部分内容尚未完成整理，请按原始素材核对</Note>
@@ -231,8 +236,7 @@ function DetailContent({ id }: { id: string }) {
                       {file.durationMs !== null ? ` · ${Math.ceil(file.durationMs / 1000)}秒` : ""}
                     </View>
                     <View className="asset-detail__muted">
-                      {merchantStatusByEnum("moderation.state", file.moderationState)?.label ??
-                        "审核状态待确认"}
+                      {assetModerationLabel(file.moderationState)}
                       {!fileAvailable(file, now) ? " · 需重新获取文件" : ""}
                     </View>
                     {["image", "video", "audio", "document"].includes(file.kind) ? (

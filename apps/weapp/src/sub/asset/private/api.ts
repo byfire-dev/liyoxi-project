@@ -27,6 +27,23 @@ export const assetStatuses = {
   need_reshoot: "需补拍",
   reference_only: "仅供参考",
 };
+/** 06-media.md:118 的内容安全结论；未知开放枚举不推断结果。 */
+export function assetModerationLabel(state: AssetDetail["moderationState"]): string {
+  switch (state) {
+    case "none":
+      return "不审或未开始";
+    case "pending":
+      return "审核中";
+    case "pass":
+      return "审核通过";
+    case "review":
+      return "可疑待人工";
+    case "block":
+      return "已拦截，请替换文件";
+    default:
+      return "审核状态待确认";
+  }
+}
 export function assetTitle(item: AssetCard): string {
   return (
     item.title ??

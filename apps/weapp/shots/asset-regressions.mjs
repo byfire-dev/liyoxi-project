@@ -124,6 +124,13 @@ export async function assetRegression(page, scene, origin) {
       .poll(async () => (await calls()).filter((c) => pathname(c) === detailPath).length)
       .toBe(before + 1);
   }
+  if (scene === "asset-detail-image") {
+    await expect(active(".asset-detail__moderation")).toContainText("已复核 · 审核通过");
+    await expect(active(".asset-detail__file > .asset-detail__muted")).toHaveText([
+      "可疑待人工",
+      "审核通过",
+    ]);
+  }
   for (const c of await calls()) {
     expect(c.method).toBe("GET");
     expect(readPaths).toContain(pathname(c));

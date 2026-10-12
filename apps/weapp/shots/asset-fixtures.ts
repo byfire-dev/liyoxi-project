@@ -166,6 +166,8 @@ export function offlineAssetRequest(scene: string): RequestLayer["request"] {
           ? type
           : "image",
       );
+      if (scene === "asset-detail-image" && detail.files[0])
+        detail.files[0].moderationState = "review";
       if (scene === "asset-detail-partial") {
         detail.isInsightPartial = true;
         detail.actions = ["feedback", "portrait-auth"];

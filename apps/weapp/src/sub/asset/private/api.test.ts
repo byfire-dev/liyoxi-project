@@ -1,9 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import type { RequestLayer } from "@/lib/request";
 import { assetCard, assetDetail, assetPage, assetSummary } from "../../../../shots/asset-fixtures";
-import { assetTitle, createAssetApi } from "./api";
+import { assetModerationLabel, assetTitle, createAssetApi } from "./api";
 
 describe("素材只读 API", () => {
+  it.each([
+    ["none", "不审或未开始"],
+    ["pending", "审核中"],
+    ["pass", "审核通过"],
+    ["review", "可疑待人工"],
+    ["block", "已拦截，请替换文件"],
+    ["future_state", "审核状态待确认"],
+  ])("内容安全 %s 显示契约含义或安全回退", (state, label) => {
+    expect(assetModerationLabel(state)).toBe(label);
+  });
   it("同一筛选透传三 GET，summary 不带分页与类型，游标和 id 完整编码", async () => {
     const calls: string[] = [];
     const send: RequestLayer["request"] = async <T>(path: string): Promise<T> => {
