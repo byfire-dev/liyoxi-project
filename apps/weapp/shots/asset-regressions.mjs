@@ -5,6 +5,9 @@ export async function assetRegression(page, scene, origin) {
   const active = (selector) =>
     page.locator(".taro_page_stationed:not(.taro_page_shade)").locator(selector);
   const calls = () => page.evaluate(() => globalThis.__LYX_ASSET_CALLS__ ?? []);
+  const detailPath = "/m/store-assets/019aa000-0000-7000-8000-000000000001";
+  const readPaths = ["/m/store-assets", "/m/store-assets/summary", detailPath];
+  const pathname = (call) => new URL(call.path, origin).pathname;
   if (scene === "asset-lib-loading") {
     await expect(active(".lyx-skeleton")).toBeVisible();
     await expect(active(".asset-lib__item")).toHaveCount(0);
@@ -30,7 +33,7 @@ export async function assetRegression(page, scene, origin) {
       .poll(async () => (await calls()).some((c) => c.path.includes("uploader=me")))
       .toBe(true);
     const snapshots = await calls();
-    for (const c of snapshots.filter((c) => c.path.includes("/summary"))) {
+    for (const c of snapshots.filter((c) => pathname(c) === "/m/store-assets/summary")) {
       const url = new URL(c.path, origin);
       for (const key of ["tab", "cursor", "limit", "sort"])
         expect(url.searchParams.has(key)).toBe(false);
@@ -66,6 +69,18 @@ export async function assetRegression(page, scene, origin) {
       .filter({ hasText: /^我上传的$/ })
       .click();
     await expect(active(".lyx-empty")).toContainText("没有符合筛选条件");
+  } else if (scene === "asset-lib-error") {
+    const summaryError = active(".asset-lib > .lyx-page-body > .asset-lib__filters + .lyx-empty");
+    const listError = active(".asset-lib > .lyx-page-body > .asset-lib__tags + .lyx-empty");
+    await expect(active(".asset-lib > .lyx-page-body > .lyx-empty")).toHaveCount(2);
+    for (const region of [summaryError, listError]) {
+      await expect(region).toHaveCount(1);
+      await expect(region).toContainText("暂时无法加载素材");
+      await expect(region.locator(".lyx-button")).toHaveCount(1);
+      await expect(region.locator(".lyx-button")).toHaveText("重新加载");
+    }
+    await expect(active(".asset-lib__item")).toHaveCount(0);
+    await expect(page.getByText("private URL must not escape")).toHaveCount(0);
   } else if (scene.endsWith("-error") || scene === "asset-detail-missing") {
     await expect(active(".lyx-empty")).toContainText(
       scene.endsWith("missing") ? "素材不存在或已移除" : "暂时无法加载素材",
@@ -80,17 +95,16 @@ export async function assetRegression(page, scene, origin) {
   } else if (scene.startsWith("asset-detail-")) {
     await expect(active(".asset-detail")).toContainText("复核与授权");
     await expect(active(".asset-detail")).toContainText("使用记录");
-    const before = (await calls()).filter((c) => /\/m\/store-assets\//.test(c.path)).length;
+    const before = (await calls()).filter((c) => pathname(c) === detailPath).length;
     await active(".lyx-text-button")
       .filter({ hasText: /^刷新整理结果与文件$/ })
       .click();
     await expect
-      .poll(async () => (await calls()).filter((c) => /\/m\/store-assets\//.test(c.path)).length)
+      .poll(async () => (await calls()).filter((c) => pathname(c) === detailPath).length)
       .toBe(before + 1);
   }
   for (const c of await calls()) {
     expect(c.method).toBe("GET");
-    expect(c.path).toMatch(/^\/m\/store-assets(?:\?|\/|$)/);
-    expect(c.path).not.toMatch(/feedback|portrait-auth|create/);
+    expect(readPaths).toContain(pathname(c));
   }
 }
