@@ -117,7 +117,14 @@ describe("后台主体关闭真实POST", { timeout: SLOW }, () => {
       where: { aggregateId: w.entity.id, eventType: "entity.closed" },
     });
     expect(event).toHaveLength(1);
-    expect(event[0]?.payload).toEqual({ v: 1, entityId: w.entity.id, closedBy: "staff_close" });
+    expect(event[0]?.payload).toEqual({
+      v: 1,
+      entityId: w.entity.id,
+      closedBy: "staff_close",
+      fromState: "active",
+      toState: "closed",
+      transition: "entity.close",
+    });
     expect(JSON.stringify(card)).not.toMatch(/phoneEnc|phoneBidx|tokenHash/);
   });
   it("原成功键重放同一Card且零重复级联，异body冲突、新键关闭终态拒绝", async () => {
