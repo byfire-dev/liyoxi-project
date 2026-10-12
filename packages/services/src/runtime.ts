@@ -1,4 +1,8 @@
-import { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./ops/index.js";
+import {
+  createRuntimeMediaAssets,
+  createMediaAssetsAssembly,
+  createModelBudgetRuntime,
+} from "./ops/index.js";
 import { readTargetActivity } from "./audit/index.js";
 import {
   createDeliveryProductionAssembly,
@@ -189,6 +193,11 @@ export const DB_POOLS: Readonly<Record<AssemblyEntry, DbPoolSettings>> = {
 };
 
 export interface RuntimeOptions {
+  /** API自有ASR的成对生命周期；close须缓存同一Promise，整套providers借用不消费。 */
+  readonly modelDrivers?: {
+    registerClose(close: () => Promise<void>): void;
+    close(): Promise<void>;
+  };
   readonly documentWorkerUrl?: URL;
   /** Only local/test external-tool substitution; production facts and handlers stay real. */
   readonly mediaProductionTools?: ProductionMediaTools;
@@ -289,6 +298,13 @@ export interface Runtime {
  */
 export function createRuntime(options: RuntimeOptions): Runtime {
   const { entry, env, version } = options;
+  const ownsAsr = entry === "api" && options.providers === undefined && !!env.ASR_TENCENT;
+  const modelDrivers = ownsAsr ? options.modelDrivers : undefined;
+  if (
+    ownsAsr &&
+    (typeof modelDrivers?.registerClose !== "function" || typeof modelDrivers?.close !== "function")
+  )
+    throw new TypeError("API ASR配置须成对提供本实例关闭登记与关闭函数");
   if (entry === "worker" && env.CI && !env.CI.worker)
     throw new TypeError("CI worker入口缺少worker角色");
   if (env.COS && (entry === "worker" ? !env.COS.worker : !env.COS.signer || !env.COS.stsIssuer))
@@ -390,6 +406,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       appEnv: env.APP_ENV,
       logger,
       settings: {
+        ...(ownsAsr ? { asr: env.ASR_TENCENT } : {}),
         ...(env.SMS
           ? {
               sms: {
@@ -431,6 +448,14 @@ export function createRuntime(options: RuntimeOptions): Runtime {
           : {}),
         ...(env.WECHAT ? { wechat: { appid: env.WECHAT.appid, secret: env.WECHAT.secret } } : {}),
       },
+      ...(ownsAsr
+        ? {
+            asr: {
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => modelDrivers!.registerClose(close),
+            },
+          }
+        : {}),
       ...(entry === "worker" && env.CI?.worker
         ? {
             media: {
@@ -532,8 +557,24 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       ? { appEnv: env.APP_ENV, tools: options.mediaProductionTools }
       : undefined,
   );
+  // API不拥有预算transport；完整配对仍保守拒绝新付费提交，原TaskId回查不重复扣槽。
+  const modelBudget =
+    entry === "api"
+      ? createModelBudgetRuntime({
+          clock,
+          prefix: `lyx:${env.APP_ENV}:`,
+          alerts: alertsOf(assembly),
+          logger,
+        })
+      : undefined;
   const media = createMedia({
-    assets: createRuntimeMediaAssets({ clock, assembly, timers, providers }),
+    assets: createRuntimeMediaAssets({
+      clock,
+      assembly,
+      timers,
+      providers,
+      ...(modelBudget ? { modelBudget: modelBudget.admission } : {}),
+    }),
     batches: createRuntimeMediaBatches({ clock, events, media: () => media }),
     ...(mediaProduction.production ? { production: mediaProduction.production } : {}),
     tx,
@@ -820,6 +861,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     },
   });
 
+  let closing: Promise<void> | undefined;
   return {
     docs: docsServices.docs,
     docsAdmin: docsServices.admin,
@@ -857,39 +899,55 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     timers,
     report,
     startupChecks,
-    async close() {
-      invitationScope.close();
-      await docsScope.close();
-      await documentConverter?.close();
-      await Promise.allSettled([
-        staffScope.close(),
-        media.jobs.shutdown(),
-        analyticsScope.close(),
-        notifyScope.close(),
-      ]);
-      mediaAssetsScope.close();
-      mediaScope.close();
-      contentPricingScope.close();
-      deliveryProductionScope.close();
-      deliverySlaScope.close();
-      await mediaProduction.close();
-      unbindNoticeLink();
-      await Promise.allSettled(wechatClosers.map((close) => close()));
-      await clientErrors.close();
-      unbindOrderStart();
-      unbindOrder();
-      unbindBilling();
-      unbindContent();
-      unbindPublish();
-      unbindDelivery();
-      unbindApprovalSla();
-      unbindCalendarCoverage();
-      unbindOps();
-      unbindWebhooks();
-      await mediaChannel.close();
-      await alertFactsScope.close();
-      redis.disconnect();
-      await prisma.$disconnect();
+    close() {
+      return (closing ??= (async () => {
+        let failure: PromiseRejectedResult | undefined;
+        const settle = async (closes: readonly (() => unknown)[]) => {
+          const results = await Promise.allSettled(
+            closes.map((close) => Promise.resolve().then(close)),
+          );
+          failure ??= results.find(
+            (result): result is PromiseRejectedResult => result.status === "rejected",
+          );
+        };
+        await settle([() => modelBudget?.disable(), () => invitationScope.close()]);
+        await settle([() => docsScope.close(), () => documentConverter?.close()]);
+        await settle([
+          () => staffScope.close(),
+          () => media.jobs.shutdown(),
+          () => analyticsScope.close(),
+          () => notifyScope.close(),
+        ]);
+        await settle([() => modelDrivers?.close()]);
+        await settle([() => modelBudget?.close()]);
+        await settle([
+          () => mediaAssetsScope.close(),
+          () => mediaScope.close(),
+          () => contentPricingScope.close(),
+          () => deliveryProductionScope.close(),
+          () => deliverySlaScope.close(),
+          () => mediaProduction.close(),
+          unbindNoticeLink,
+          ...wechatClosers,
+          () => clientErrors.close(),
+        ]);
+        await settle([
+          unbindOrderStart,
+          unbindOrder,
+          unbindBilling,
+          unbindContent,
+          unbindPublish,
+          unbindDelivery,
+          unbindApprovalSla,
+          unbindCalendarCoverage,
+          unbindOps,
+          unbindWebhooks,
+        ]);
+        await settle([() => mediaChannel.close()]);
+        await settle([() => alertFactsScope.close()]);
+        await settle([() => redis.disconnect(), () => prisma.$disconnect()]);
+        if (failure) throw failure.reason;
+      })());
     },
     flow,
     auditRead,
