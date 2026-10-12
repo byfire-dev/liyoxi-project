@@ -52,10 +52,10 @@ async function error(response: Response, status: number, symbol: string) {
   expect(response.status, await response.clone().text()).toBe(status);
   expect(await response.json()).toMatchObject({ error: symbol });
 }
-async function world() {
+async function world(phone?: string) {
   const w = await make.merchant({ verified: true });
   const second = await make.store({ entityId: w.entity.id });
-  const user = await make.merchantUser({ phone: "13900112233" });
+  const user = await make.merchantUser(phone === undefined ? {} : { phone });
   const clerk = await make.entityMember({
     entityId: w.entity.id,
     merchantUserId: user.id,
@@ -83,7 +83,7 @@ async function invitation(w: Awaited<ReturnType<typeof world>>, delta: number) {
       tokenEnc: null,
       status: "pending",
       clientRequestId: uuidv7(),
-      createdAt: now,
+      createdAt: new Date(now.getTime() - 60_000),
       updatedAt: now,
       expiresAt: new Date(now.getTime() + delta),
       remarkName: "候选店员",
@@ -95,7 +95,7 @@ describe("后台主体两个真实GET", { timeout: SLOW }, () => {
   it("两条实际挂载，完整DTO和主体quota/归因/脱敏/店员统计；GET没有业务副作用", async () => {
     for (const operationId of ["admin.entity.get", "admin.entity.member.list"])
       expect(HANDLERS.some((h) => h.route.operationId === operationId)).toBe(true);
-    const w = await world();
+    const w = await world("13900112233");
     const pending = await invitation(w, 60_000);
     await invitation(w, 0);
     await invitation(w, -1);
