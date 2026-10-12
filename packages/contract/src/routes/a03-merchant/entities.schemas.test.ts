@@ -106,14 +106,14 @@ describe("后台主体严格输入与正式摘要", () => {
   it("两个原GET成为typed，保method/path/operation与纯查询权限声明", () => {
     expect(adminEntityGet).toMatchObject({
       method: "get",
-      path: "/admin/entities/{entityId}",
+      path: "/api/v1/admin/entities/{entityId}",
       operationId: "admin.entity.get",
       "x-permission": null,
       "x-idempotent": "none",
     });
     expect(adminEntityMemberList).toMatchObject({
       method: "get",
-      path: "/admin/entities/{entityId}/members",
+      path: "/api/v1/admin/entities/{entityId}/members",
       operationId: "admin.entity.member.list",
       "x-permission": null,
       "x-idempotent": "none",
@@ -152,14 +152,25 @@ describe("后台主体严格输入与正式摘要", () => {
 
   it("完整nullable键与不限名额、终态/未知枚举均可表示，成员列表没有分页", () => {
     expect(EntityCardSchema.parse(card)).toEqual(card);
+    const city = { code: "future_city", name: "未知城市" };
     expect(
       EntityCardSchema.parse({
         ...card,
         owner: null,
-        lifecycle: "future_state",
-        usage: { ...card.usage, memberLimit: null },
+        lifecycle: "closed",
+        closedAt: at,
+        usage: { ...card.usage, storesUsed: 0, memberLimit: null, activeMemberCount: 0 },
+        stores: [{ ...store, lifecycle: "archived", address: { ...store.address, city } }],
+        pendingInvitations: [],
       }),
-    ).toMatchObject({ owner: null, lifecycle: "future_state", usage: { memberLimit: null } });
+    ).toMatchObject({
+      owner: null,
+      lifecycle: "closed",
+      closedAt: at,
+      usage: { memberLimit: null },
+      stores: [{ address: { city } }],
+    });
+    expect(EntityCardSchema.safeParse({ ...card, lifecycle: "future_state" }).success).toBe(false);
     expect(EntityMemberListSchema.parse({ items: [member] })).toEqual({ items: [member] });
     expect(EntityMemberListSchema.safeParse({ items: [], total: 0 }).success).toBe(false);
     expect(PendingInvitationRowSchema.parse(invitation)).toEqual(invitation);
