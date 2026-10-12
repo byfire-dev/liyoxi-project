@@ -1,0 +1,11 @@
+# W2-10 账号生命周期同事务出口
+
+| 项 | 内容 |
+| --- | --- |
+| 改了什么 | 四个 Tenant callerTx 方法：本人空草稿让位、精确成员移除分支、原邀请撤回、本人注销的主体关闭联动；完整真实事实、锁图与私有同事务见证。 |
+| 原因 | W2-09 需同一事务消费生命周期，原 close 只接 staff、让位见证仅属 accept，普通成员/邀请用例另开事务。 |
+| 影响的包 | 仅 services/tenant、本片新 ops 测试及本域说明；identity 的认证/休眠判断/账号清理与审批仍归 W2-09。 |
+| 类别 | 原计划补齐；无 HTTP、事件/schema、DDL、kernel port、order 或锁表修改。 |
+| PR | 本地 codex/w2-10-caller-tx-lifecycle，实际基于 main9144e9f；等待 ROOT 唯一正式审查和正常合流。 |
+| 验证 | SOURCE 阶段，仅轻静态；真实外层事务/竞争、旧完整集合、类型与所有门禁待 ROOT 单 lane。无单独空生成窗口，最终 contract/登记门禁核派生零差异。 |
+| 边界 | a03:1124 的取消申请系统撤回是 staff 特有部分；owner 仅复用共同 tenant 级联，原 staff prepare/withdraw 保留。W2-09 先整体预锁审批30/账号变更40、账号80/微信90，再消费 tenant100及以上；不在此片完成真实 phoneLogin 或注销 HTTP。 |

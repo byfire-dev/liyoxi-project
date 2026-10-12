@@ -1,6 +1,8 @@
-import type { Flow } from "../flow/index.js";
-import type { Assembly, IdentityContext, Tx } from "../kernel/index.js";
+import type { Flow, Guard } from "../flow/index.js";
+import { AppError, createIdentityContext, lockRows } from "../kernel/index.js";
+import type { Assembly, Clock, IdentityContext, Tx } from "../kernel/index.js";
 import { billingHistoryPort, membershipAuthorizationsPort } from "./ports.js";
+import { selectActiveMembership } from "./repo.js";
 
 /** 仅四项实际事实；这个只读结果本身不是放弃权限。 */
 export async function emptyDraftFacts(
@@ -31,8 +33,97 @@ export async function emptyDraftFacts(
   );
 }
 
-/** 仅真实 accept 的私有 same-Tx witness 能通过首个及后续 flow 守卫。 */
+export interface DraftAbandonResult {
+  readonly entityId: string;
+  readonly memberId: string;
+  readonly storeIds: readonly string[];
+}
+type DraftDeps = { flow: Flow; assembly: Pick<Assembly, "port">; clock: Clock };
+type DraftPlan = { entityId: string; ownerId: string; userId: string; storeIds: string[] };
+const prepared = new WeakMap<Tx, { deps: DraftDeps; ctx: IdentityContext; plan: DraftPlan }>();
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+async function graph(tx: Tx, entityId: string) {
+  const [invitations, members, stores] = await Promise.all([
+    tx.invitation.findMany({ where: { entityId }, orderBy: { id: "asc" }, select: { id: true } }),
+    tx.entityMember.findMany({ where: { entityId }, orderBy: { id: "asc" }, select: { id: true } }),
+    tx.store.findMany({ where: { entityId }, orderBy: { id: "asc" }, select: { id: true } }),
+  ]);
+  return {
+    invitations: invitations.map((r) => r.id),
+    members: members.map((r) => r.id),
+    stores: stores.map((r) => r.id),
+  };
+}
+export const guardDraftAbandon: Guard = async (tx, facts) => {
+  const state = prepared.get(tx);
+  if (!state || facts.ctx !== state.ctx || facts.entityId !== state.plan.entityId) return false;
+  const { plan } = state;
+  if (facts.machine === "entity" && facts.event === "entity.abandon") {
+    const user = await tx.merchantUser.findUnique({ where: { id: plan.userId } });
+    return (
+      facts.subjectId === plan.entityId &&
+      user?.status === "active" &&
+      (await emptyDraftFacts(tx, state.deps.assembly, plan.entityId, plan.ownerId, plan.userId))
+    );
+  }
+  const entity = await tx.entity.findUnique({ where: { id: plan.entityId } });
+  return (
+    entity?.lifecycle === "abandoned" &&
+    entity.closedAt !== null &&
+    ((facts.machine === "entity_member" &&
+      facts.event === "entity_member.cascade_remove" &&
+      facts.subjectId === plan.ownerId) ||
+      (facts.machine === "store" &&
+        facts.event === "store.archive_by_entity" &&
+        plan.storeIds.includes(facts.subjectId)))
+  );
+};
+
+/** 本人当前空草稿；身份认证及休眠五条件由调用方拥有，本域只签发真实同Tx事实见证。 */
 export async function abandonDraftIn(
+  tx: Tx,
+  deps: DraftDeps,
+  ctx: IdentityContext,
+): Promise<DraftAbandonResult> {
+  if (ctx.actor.type !== "merchant" || ctx.actor.client !== "weapp")
+    throw new AppError("ROLE_FORBIDDEN");
+  if (prepared.has(tx)) throw new AppError("INTERNAL");
+  const userId = ctx.actor.id;
+  await lockRows(tx, "merchant_user", [userId]);
+  const user = await tx.merchantUser.findUnique({ where: { id: userId } });
+  const member = await selectActiveMembership(tx, userId);
+  if (user?.status !== "active" || !member) throw new AppError("NOT_A_MEMBER");
+  if (member.role !== "owner") throw new AppError("ROLE_FORBIDDEN");
+  await lockRows(tx, "entity", [member.entityId]);
+  const before = await graph(tx, member.entityId);
+  await lockRows(tx, "invitation", before.invitations);
+  await lockRows(tx, "entity_member", before.members);
+  await lockRows(tx, "store", before.stores);
+  if (!same(before, await graph(tx, member.entityId))) throw new AppError("PRECONDITION_CHANGED");
+  if (!(await emptyDraftFacts(tx, deps.assembly, member.entityId, member.memberId, userId)))
+    throw new AppError("STATE_NOT_ALLOWED");
+  const plan = {
+    entityId: member.entityId,
+    ownerId: member.memberId,
+    userId,
+    storeIds: before.stores,
+  };
+  const system = createIdentityContext({
+    actor: { type: "system", job: "tenant.abandon_draft" },
+    entityId: member.entityId,
+    requestId: ctx.requestId,
+  });
+  prepared.set(tx, { deps, ctx: system, plan });
+  try {
+    await abandonPrepared(tx, deps, system, plan, deps.clock.now());
+    return { entityId: plan.entityId, memberId: plan.ownerId, storeIds: plan.storeIds };
+  } finally {
+    prepared.delete(tx);
+  }
+}
+
+/** 唯一让位级联执行段；只能由上方真实命令在私有见证存续期间调用。 */
+async function abandonPrepared(
   tx: Tx,
   deps: { flow: Flow; assembly: Pick<Assembly, "port"> },
   ctx: IdentityContext,

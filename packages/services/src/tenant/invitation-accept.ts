@@ -39,7 +39,6 @@ type Input = InvitationAcceptBody & { readonly invitationId: string };
 interface Prepared {
   readonly deps: Deps;
   readonly ctx: IdentityContext;
-  readonly system: IdentityContext;
   readonly principal: InvitationPrincipal;
   readonly input: Input;
   readonly entityId: string;
@@ -105,21 +104,7 @@ async function target(tx: Tx, state: Pick<Prepared, "deps" | "principal" | "inpu
 export const guardAccept: Guard = async (tx, facts) => {
   const state = prepared.get(tx);
   if (!state) return false;
-  if (state.phase === "abandon") {
-    const old = state.old;
-    if (!old || facts.ctx !== state.system || facts.entityId !== old.entityId) return false;
-    if (facts.event === "entity.abandon")
-      return (
-        facts.subjectId === old.entityId &&
-        (await emptyDraftFacts(tx, state.deps.assembly, old.entityId, old.ownerId, old.userId))
-      );
-    const entity = await tx.entity.findUnique({ where: { id: old.entityId } });
-    return (
-      entity?.lifecycle === "abandoned" &&
-      ((facts.event === "entity_member.cascade_remove" && facts.subjectId === old.ownerId) ||
-        (facts.event === "store.archive_by_entity" && old.storeIds.includes(facts.subjectId)))
-    );
-  }
+  if (state.phase === "abandon") return false;
   if (facts.ctx !== state.ctx || facts.entityId !== state.entityId) return false;
   const invitation = await target(tx, state);
   if (
@@ -309,16 +294,11 @@ export function createInvitationAcceptor(deps: Deps) {
               old,
               memberId: member?.memberId ?? uuidv7(),
               phase: "abandon",
-              system: createIdentityContext({
-                actor: { type: "system", job: "tenant.accept_invitation" },
-                entityId: old?.entityId ?? null,
-                requestId: ctx.requestId,
-              }),
             };
             prepared.set(tx, state);
             try {
               if (old) {
-                await abandonDraftIn(tx, deps, state.system, old, deps.clock.now());
+                await abandonDraftIn(tx, deps, ctx);
                 member = null;
               }
               const now = deps.clock.now();

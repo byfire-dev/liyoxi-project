@@ -83,3 +83,6 @@ export type { TenantAdminReadDeps } from "./admin-read.js";
 
 export { createTenantEntitlement, TENANT_ENTITLEMENT_EVENTS } from "./entitlement.js";
 export type { TenantEntitlement, EntitlementNotice } from "./entitlement.js";
+
+export type { DraftAbandonResult } from "./empty-draft.js";
+export type { CallerMemberRemoval } from "./member-removal.js";
