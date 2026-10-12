@@ -1,6 +1,10 @@
 import { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./media-assets-runtime.js";
 import { createDeliveryProductionAssembly } from "./delivery-production-runtime.js";
 import { createApprovalSlaAssembly } from "./approval-sla-runtime.js";
+import {
+  createTenantEntitlementAssembly,
+  createRuntimeTenantEntitlement,
+} from "./tenant-entitlement-runtime.js";
 import { createProfileLifecycleAssembly } from "./profile-lifecycle-runtime.js";
 import { createInvitationAssembly } from "./invitation-runtime.js";
 import { createModelBudgetRuntime } from "./model-budget-runtime.js";
@@ -278,7 +282,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
   const docsScope = createDocsAssembly(deliverySlaScope.assembly);
   const invitationScope = createInvitationAssembly(docsScope.assembly);
-  const assembly = invitationScope.assembly;
+  const entitlementScope = createTenantEntitlementAssembly(invitationScope.assembly);
+  const assembly = entitlementScope.assembly;
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   deliverySlaScope.attach({ events, clock });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
@@ -559,6 +564,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     params: createConfig({ db: prisma, clock, redis: null }).params,
   });
   notifyScope.attach(notify);
+  entitlementScope.attach(createRuntimeTenantEntitlement({ clock, assembly, notify }));
   staffScope.attach({
     tx,
     clock,
@@ -623,7 +629,10 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     },
     closeApproval: () => approvalSlaScope.close(),
     closeProfile: () => profileLifecycleScope.close(),
-    closeInvitations: () => invitationScope.close(),
+    closeInvitations: () => {
+      entitlementScope.close();
+      invitationScope.close();
+    },
     shutdownMediaJobs: () => media.jobs.shutdown(),
     pauseMediaJobs: () => media.jobs.pause(),
     resumeMediaJobs: () => media.jobs.resume(),

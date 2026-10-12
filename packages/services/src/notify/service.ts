@@ -1,5 +1,6 @@
 import { AppError } from "../kernel/index.js";
 import type { NotifyDispatchDeps } from "./context.js";
+import { sendQuotaExceeded } from "./entitlement.js";
 import { dispatchEvent } from "./dispatch.js";
 import { clearDeletedMerchant } from "./cleanup.js";
 import { deliveryRunner } from "./delivery.js";
@@ -21,6 +22,10 @@ export function createNotifyDispatcher(deps: NotifyDispatchDeps) {
       (await runner.scan(enqueue)) + (await fanout.scan(enqueue)),
     validateConfiguration: () => validateConfiguration(deps),
     sendDirect: direct.sendDirect,
+    sendQuotaExceeded: (
+      tx: Parameters<typeof sendQuotaExceeded>[0],
+      event: Parameters<typeof sendQuotaExceeded>[2],
+    ) => sendQuotaExceeded(tx, deps, event),
     close: async () => {
       await Promise.all([runner.close(), direct.close(), fanout.close()]);
     },

@@ -80,3 +80,6 @@ export type {
 export { readStoreAssetFacts, readAssetMerchantUploader } from "./media-facts.js";
 export type { StoreMembersBrief } from "./profile-members.js";
 export type { TenantAdminReadDeps } from "./admin-read.js";
+
+export { createTenantEntitlement, TENANT_ENTITLEMENT_EVENTS } from "./entitlement.js";
+export type { TenantEntitlement, EntitlementNotice } from "./entitlement.js";

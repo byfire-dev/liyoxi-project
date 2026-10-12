@@ -43,6 +43,7 @@ export const NOTIFY_SCENES = [
   scene("m.launch_remind", "上线提醒"),
   scene("m.verify_result", "核验结果"),
   scene("m.plan_expiring", "套餐到期提醒"),
+  scene("m.quota_exceeded", "名额超限提醒"),
   scene("m.offline_remind", "下架提醒"),
   scene("m.ticket_reply", "工单回复"),
   scene("m.invoice_issued", "发票已开具"),
