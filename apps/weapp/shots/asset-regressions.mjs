@@ -13,7 +13,10 @@ export async function assetRegression(page, scene, origin) {
     await expect(active(".asset-lib__item")).toHaveCount(0);
     return;
   }
-  await expect(active("#asset-ready")).toBeVisible();
+  const readySelector = scene.startsWith("asset-lib-")
+    ? ".asset-lib#asset-ready"
+    : ".asset-detail#asset-ready";
+  await expect(active(readySelector), `${scene}：初始页面已就绪`).toBeVisible();
   await expect(page.getByText("上传素材", { exact: true })).toHaveCount(0);
   await expect(page.getByText("上传中心", { exact: true })).toHaveCount(0);
   await expect(page.getByText("提交反馈", { exact: true })).toHaveCount(0);
@@ -42,17 +45,20 @@ export async function assetRegression(page, scene, origin) {
     await expect(page).toHaveURL(
       /sub\/asset\/detail\/index\?storeAssetId=019aa000-0000-7000-8000-000000000001$/,
     );
-    await expect(active("#asset-ready")).toBeVisible();
+    await expect(active(".asset-detail#asset-ready"), `${scene}：素材详情已就绪`).toBeVisible();
     if (scene.endsWith("clerk"))
       await expect(active(".lyx-text-button").filter({ hasText: /查看订单/ })).toHaveCount(0);
     await page.goBack();
-    await expect(active("#asset-ready")).toBeVisible();
+    await expect(page, `${scene}：返回原素材库地址`).toHaveURL(
+      `${origin}/#/sub/asset/lib/index?lyxShot=${scene}`,
+    );
+    await expect(active(".asset-lib#asset-ready"), `${scene}：返回素材库已就绪`).toBeVisible();
     // 沿既有“我的”页面菜单进入，未修改首页或菜单实现。
     await page.goto(`${origin}/#/pages/mine/index`, { waitUntil: "networkidle" });
     await expect(active("#account-ready")).toBeVisible();
     await active(".lyx-list-row").filter({ hasText: "素材库" }).click();
     await expect(page).toHaveURL(/sub\/asset\/lib\/index$/);
-    await expect(active("#asset-ready")).toBeVisible();
+    await expect(active(".asset-lib#asset-ready"), `${scene}：菜单进入素材库已就绪`).toBeVisible();
   } else if (scene === "asset-lib-more-error") {
     await active(".lyx-text-button")
       .filter({ hasText: /^加载更多$/ })
