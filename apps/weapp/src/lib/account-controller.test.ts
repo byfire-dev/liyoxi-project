@@ -292,9 +292,11 @@ describe("账户启动与登录", () => {
       { route: "sub/order/orders/index", title: "订单", owner: true },
       { route: "sub/publish/tasks/index", title: "发布任务", owner: true },
       { route: "sub/publish/accounts/index", title: "发布账号", owner: true },
+      { route: "sub/asset/lib/index", title: "素材库", owner: false },
       { route: "sub/service/messages/index", title: "消息", owner: false },
     ]);
     expect(accountEntries("clerk")).toEqual([
+      { route: "sub/asset/lib/index", title: "素材库", owner: false },
       { route: "sub/service/messages/index", title: "消息", owner: false },
     ]);
   });

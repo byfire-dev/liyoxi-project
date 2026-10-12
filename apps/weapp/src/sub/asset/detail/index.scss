@@ -1,0 +1,31 @@
+.asset-detail {
+  &__muted {
+    margin: 8px 0;
+    font-size: 13px;
+    color: $lyx-color-text-secondary;
+  }
+  &__text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.7;
+  }
+  &__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  &__file {
+    padding: 12px 0;
+    border-bottom: 1px solid $lyx-color-border;
+  }
+  &__video {
+    width: 100%;
+    height: 210px;
+  }
+  &__title {
+    margin-bottom: 12px;
+    font-size: 20px;
+    font-weight: 600;
+  }
+}
