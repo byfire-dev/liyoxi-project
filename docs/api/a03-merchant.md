@@ -1093,10 +1093,10 @@ usage（名额与额度按 m02-tenant 2.1 的唯一口径，调 `tenant.getQuota
 
 | 字段 | 类型 | 必填 | 约束 | 说明 |
 | --- | --- | --- | --- | --- |
-| reasonText | string | 是 | 10–200 字 | 关闭原因 → `audit_log.reason_text`、`status_transition.note` |
-| confirm | `{ activeStoreCount: integer, activeMemberCount: integer }` | 是 | 等于当前值 | 回显（C54） |
+| reasonText | string | 是 | 去两端空白后10–200个Unicode码点 | 关闭原因 → `audit_log.reason_text`、`status_transition.note` |
+| confirm | `{ activeStoreCount: integer, activeMemberCount: integer }` | 是 | 两项均为非负int4且等于当前值 | 回显（C54）；请求与回显均严格拒绝未知字段，不接收 `lockVersion` |
 
-**响应**：EntityCard（`lifecycle = 'closed'`）。
+**响应**：EntityCard（`lifecycle = 'closed'`），在关闭的同一事务中读取真实摘要。required 缓存重放前仍复查当前启用超管身份、权限、主体范围与再验证；重放不重复级联。
 
 **错误**：
 
@@ -1108,7 +1108,7 @@ usage（名额与额度按 m02-tenant 2.1 的唯一口径，调 `tenant.getQuota
 | `CONFIRM_MISMATCH` | 409 | 回显与当前门店数、成员数不一致 |
 | `STEP_UP_REQUIRED` | 403 | 注册表为该键标了再验证且超出窗口 |
 
-**副作用**（一个事务，先锁主体行，d4-identity.md:796-801；下列成员、邀请、门店与下载页会话的联动调 m02 第 1 节登记的“主体关闭联动”函数，与 m01 老板注销是同一函数，02-identity-tenant.md:531）：
+**副作用**（一个事务，复用已实现的主体关闭核心：先经 order 端口锁员工/审批/取消/明细低序全集，再锁主体/邀请/成员/门店；入口不得提前取得主体锁。下列成员、邀请、门店与下载页会话的联动调 m02 第 1 节登记的“主体关闭联动”函数，与 m01 老板注销是同一函数，02-identity-tenant.md:531）：
 - 状态迁移：
   - `entity.lifecycle`：`active` → `closed`（`entity.close`，02-identity-tenant.md:525），写 `closed_at`。
   - `invitation.status`：`pending` → `revoked`（`invitation.revoke`，`revoke_reason = 'entity_closed'`，操作人为当前员工），并取消各自的 `invitation.expire` 定时器（02-identity-tenant.md:788、794）。

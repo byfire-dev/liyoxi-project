@@ -25,6 +25,7 @@ import { deliveryDownloadHandlers } from "./delivery-download.js";
 import { adminProfileHandlers } from "./admin/profile.js";
 import { adminEntityHandlers } from "./admin/entities.js";
 import { adminEntityQuotaHandlers } from "./admin/entity-quota.js";
+import { adminEntityCloseHandlers } from "./admin/entity-close.js";
 import { profileHandlers } from "./profile.js";
 import { mallHandlers } from "./mall.js";
 import { merchantFileHandlers } from "./files.js";
@@ -112,6 +113,7 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...adminProfileHandlers,
   ...adminEntityHandlers,
   ...adminEntityQuotaHandlers,
+  ...adminEntityCloseHandlers,
   ...messageHandlers,
   ...notifySettingHandlers,
 ];
