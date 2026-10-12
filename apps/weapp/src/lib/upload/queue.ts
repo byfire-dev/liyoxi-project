@@ -1,6 +1,8 @@
 import { ApiError } from "../request";
 import { clientToken } from "./hash";
 import type { Registration, UploadApi, RegisterBody, FileStatus } from "./api";
+import { MultipartUncertainError, type MultipartPort, type Recovery } from "./multipart";
+import { ResumeRecordError } from "./resume";
 
 export interface SelectedFile {
   path: string;
@@ -14,6 +16,7 @@ export interface UploadContext {
   token: string | null;
   storeId: string | null;
   revision: number;
+  scope?: string | null;
 }
 export interface UploadDeps {
   api: UploadApi;
@@ -28,6 +31,7 @@ export interface UploadDeps {
   sleep(ms: number): Promise<void>;
   cancelSleep?(): void;
   key(action: string): string;
+  multipart?: MultipartPort;
 }
 export interface UploadState {
   status:
@@ -43,6 +47,7 @@ export interface UploadState {
   fileId: string | null;
   message: string | null;
   canDelegate: boolean;
+  recovery?: Recovery | null;
 }
 const cancelled = new Error("上传已停止");
 /** 单文件串行用例。队列由调用方依次 start；凭证只在闭包内，不暴露给渲染/存储。 */
@@ -66,13 +71,20 @@ export function createUpload(
   let confirmKey = deps.key("file_complete");
   let uploaded = false;
   let promoting = false;
+  let resumeChecked = false;
+  let resumeFileId: string | null = null;
   let storedResult: FileStatus | null = null;
   let flight: Promise<FileStatus | null> | null = null;
   let transport: { abort(): void } | null = null;
   const listeners = new Set<() => void>();
   const same = () => {
     const c = deps.context();
-    return c.token === owner.token && c.storeId === owner.storeId && c.revision === owner.revision;
+    return (
+      c.token === owner.token &&
+      c.storeId === owner.storeId &&
+      c.revision === owner.revision &&
+      c.scope === owner.scope
+    );
   };
   const update = (patch: Partial<UploadState>) => {
     state = { ...state, ...patch };
@@ -100,9 +112,10 @@ export function createUpload(
     if (state.status === "cancelled" || !same()) return Promise.resolve(null);
     const run = epoch;
     flight = (async () => {
+      let resumeError: unknown = null;
       try {
         guard(run);
-        update({ status: "uploading", message: null, canDelegate: false });
+        update({ status: "uploading", message: null, canDelegate: false, recovery: null });
         if (!token)
           token = clientToken(
             {
@@ -115,6 +128,44 @@ export function createUpload(
             },
             await awaitCurrent(deps.head(file.path, Math.min(file.size, 256 * 1024)), run),
           );
+        if (!resumeChecked && deps.multipart) {
+          let restored: Awaited<ReturnType<MultipartPort["restore"]>> = null;
+          try {
+            restored = await awaitCurrent(
+              deps.multipart.restore(token, file, () => guard(run)),
+              run,
+            );
+          } catch (error) {
+            guard(run);
+            if (error instanceof ResumeRecordError) throw error;
+            // 损坏 journal 禁止新的 MPU；它不阻断服务端明确选择的旧 POST 通道。
+            resumeError = error;
+          }
+          if (restored) {
+            resumeFileId = restored.fileId;
+            confirmKey = restored.confirmKey;
+            update({ fileId: restored.fileId });
+            let remote = await awaitCurrent(deps.api.get(restored.fileId), run);
+            while (remote.status === "promoting") {
+              promoting = true;
+              update({ status: "storing" });
+              await awaitCurrent(deps.sleep(1000), run);
+              remote = await awaitCurrent(deps.api.get(restored.fileId), run);
+            }
+            if (remote.status === "stored" && remote.moderationState !== "block") {
+              deps.multipart.forget(restored.fileId);
+              guard(run);
+              storedResult = remote;
+              update({ status: "stored", progress: 100 });
+              return remote;
+            }
+            if (remote.status !== "pending")
+              throw new Error("原上传已结束或审核未通过，请取消后重新选择");
+            ticket = await awaitCurrent(deps.api.refresh(restored.fileId), run);
+            if (ticket.fileId !== restored.fileId) throw new Error("续传凭据归属不一致");
+          }
+          resumeChecked = resumeError === null;
+        }
         if (!ticket) {
           const response = await awaitCurrent(
             deps.api.register({
@@ -128,7 +179,8 @@ export function createUpload(
           if (!ticket) throw new Error("没有取得上传凭证，请重试");
           update({ fileId: ticket.fileId });
         }
-        if (ticket.mode !== "post") {
+        if (ticket.mode === "multipart" && resumeError !== null) throw resumeError;
+        if (ticket.mode !== "post" && !(ticket.mode === "multipart" && deps.multipart)) {
           update({
             status: "failed",
             message: "文件需要分块上传，请改传较小文件或联系服务经理代传",
@@ -142,11 +194,17 @@ export function createUpload(
           if (!uploaded) {
             if (Date.parse(ticket.expiresAt) <= deps.now())
               ticket = await awaitCurrent(deps.api.refresh(ticket.fileId), run);
-            if (ticket.mode !== "post" || !ticket.post) throw new Error("上传表单不可用，请重试");
+            if (ticket.mode !== "post" && !(ticket.mode === "multipart" && deps.multipart))
+              throw new Error("上传通道不可用，请重试");
             update({ status: "uploading" });
-            const task = deps.post(ticket, file, (progress) => {
+            const progress = (progress: number) => {
               if (run === epoch && same()) update({ progress });
-            });
+            };
+            if (ticket.mode === "post" && !ticket.post) throw new Error("上传表单不可用，请重试");
+            const task =
+              ticket.mode === "multipart" && deps.multipart
+                ? deps.multipart.upload(ticket, file, token, confirmKey, progress, () => guard(run))
+                : deps.post(ticket, file, progress);
             transport = task;
             await awaitCurrent(task.done, run);
             transport = null;
@@ -162,6 +220,8 @@ export function createUpload(
               continue;
             }
             if (error instanceof ApiError && error.error === "UPLOAD_NOT_FOUND" && missed++ === 0) {
+              if (ticket.mode === "multipart")
+                throw new MultipartUncertainError("complete_unknown");
               uploaded = false;
               ticket = await awaitCurrent(deps.api.refresh(ticket.fileId), run);
               continue;
@@ -176,6 +236,8 @@ export function createUpload(
           }
           if (status.status !== "stored" || status.moderationState === "block")
             throw new Error("文件未能入库或审核未通过，请重新选择");
+          if (ticket.mode === "multipart") deps.multipart?.forget(ticket.fileId);
+          guard(run);
           ticket = null;
           storedResult = status;
           update({ status: "stored" });
@@ -195,12 +257,17 @@ export function createUpload(
           promoting = false;
           confirmKey = deps.key("file_complete");
         }
+        if (error instanceof ResumeRecordError) {
+          resumeFileId = error.fileId;
+          update({ fileId: error.fileId });
+        }
         const details =
           error instanceof ApiError ? (error.details as { canDelegate?: boolean } | null) : null;
         update({
           status: "failed",
           message: error instanceof Error ? error.message : "上传失败，请重试",
           canDelegate: details?.canDelegate === true,
+          recovery: error instanceof MultipartUncertainError ? error.recovery : null,
         });
         return null;
       } finally {
@@ -229,9 +296,13 @@ export function createUpload(
       update({ status: "paused", message: "上传已暂停，回到前台后继续" });
     },
     async cancel() {
-      const pending = ticket && !promoting && same() ? ticket.fileId : null;
+      const pending = !promoting && same() ? (ticket?.fileId ?? resumeFileId) : null;
+      const multipart = ticket?.mode === "multipart" || resumeFileId !== null;
       stop();
-      if (pending) await deps.api.cancel(pending, deps.key("file_cancel"));
+      if (pending) {
+        await deps.api.cancel(pending, deps.key("file_cancel"));
+        if (multipart && same()) deps.multipart?.forget(pending);
+      }
     },
     dispose: stop,
   };
