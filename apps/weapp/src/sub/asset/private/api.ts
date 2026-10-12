@@ -28,7 +28,7 @@ export const assetStatuses = {
   reference_only: "仅供参考",
 };
 /** 06-media.md:118 的内容安全结论；未知开放枚举不推断结果。 */
-export function assetModerationLabel(state: AssetDetail["moderationState"]): string {
+export function assetModerationLabel(state: AssetFile["moderationState"]): string {
   switch (state) {
     case "none":
       return "不审或未开始";
