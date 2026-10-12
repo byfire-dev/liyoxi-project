@@ -160,7 +160,7 @@ export function entitlementHarness(prisma: PrismaClient, ledger?: LedgerHarness)
         status: "pending",
         clientRequestId: uuidv7(),
         expiresAt,
-        createdAt: h.clock.now(),
+        createdAt: new Date(expiresAt.getTime() - 86_400_000),
         updatedAt: h.clock.now(),
       },
     });

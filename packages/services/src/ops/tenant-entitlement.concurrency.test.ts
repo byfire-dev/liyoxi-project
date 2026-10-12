@@ -17,7 +17,7 @@ import type {
   EntitlementWorld,
 } from "./__fixtures__/tenant-entitlement.js";
 
-const db = useSeededDatabase("services", { label: "entitlementrace" });
+const db = useSeededDatabase("services", { label: "entitlerace" });
 interface Scenario {
   clients: PrismaClient[];
   harnesses: EntitlementHarness[];
