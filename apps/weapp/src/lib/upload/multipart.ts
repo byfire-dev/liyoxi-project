@@ -1,8 +1,12 @@
 import type { Registration } from "./api";
-import type { SelectedFile } from "./queue";
 import type { ResumeManifest, ResumeOwner, ResumeStore } from "./resume";
 import { ResumeRecordError, sameResumeOwner } from "./resume";
 import { hmacSha1, md5, sha1, utf8Bytes } from "./hash";
+
+export interface MultipartFile {
+  path: string;
+  size: number;
+}
 
 export interface CloudRequest {
   url: string;
@@ -38,10 +42,10 @@ export class MultipartUncertainError extends Error {
   }
 }
 export interface MultipartPort {
-  restore(token: string, file: SelectedFile, check: () => void): Promise<ResumeManifest | null>;
+  restore(token: string, file: MultipartFile, check: () => void): Promise<ResumeManifest | null>;
   upload(
     ticket: Registration,
-    file: SelectedFile,
+    file: MultipartFile,
     token: string,
     confirmKey: string,
     progress: (value: number) => void,
@@ -185,7 +189,7 @@ function bound(record: ResumeManifest, ticket: Registration) {
     ticket.mode === "multipart"
   );
 }
-function chunks(file: SelectedFile, chunkSize: number): number {
+function chunks(file: MultipartFile, chunkSize: number): number {
   if (
     !Number.isSafeInteger(file.size) ||
     file.size <= 0 ||
@@ -207,7 +211,7 @@ export function createMultipartPort(deps: MultipartDeps): MultipartPort {
       throw new Error("上传归属已变化，请重新选择");
     return owner;
   };
-  async function digests(file: SelectedFile, chunkSize: number, check: () => void) {
+  async function digests(file: MultipartFile, chunkSize: number, check: () => void) {
     const result: string[] = [];
     for (let part = 0; part < chunks(file, chunkSize); part++) {
       check();
@@ -221,7 +225,7 @@ export function createMultipartPort(deps: MultipartDeps): MultipartPort {
     }
     return result;
   }
-  async function restore(token: string, file: SelectedFile, check: () => void) {
+  async function restore(token: string, file: MultipartFile, check: () => void) {
     check();
     if (!owner && !deps.owner()) return null;
     const record = deps.resume.load(current(), token);
@@ -245,7 +249,7 @@ export function createMultipartPort(deps: MultipartDeps): MultipartPort {
   }
   function upload(
     initial: Registration,
-    file: SelectedFile,
+    file: MultipartFile,
     token: string,
     confirmKey: string,
     progress: (value: number) => void,
