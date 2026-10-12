@@ -65,8 +65,23 @@ export async function assetRegression(page, scene, origin) {
       .click();
     await expect(active(".lyx-load-error, .lyx-empty")).toContainText("重试");
     await expect(active(".asset-lib__item")).toHaveCount(3);
-    await active(".lyx-button").filter({ hasText: "重新加载" }).click();
+    const cursorCalls = async () =>
+      (await calls()).filter(
+        (c) =>
+          pathname(c) === "/m/store-assets" && new URL(c.path, origin).searchParams.has("cursor"),
+      );
+    const failedCalls = await cursorCalls();
+    expect(failedCalls).toHaveLength(1);
+    const retry = active(".lyx-button").filter({ hasText: "重新加载" });
+    await retry.scrollIntoViewIfNeeded();
+    await expect(retry).toBeVisible();
+    await expect(active(".asset-lib__item")).toHaveCount(3);
+    expect(await cursorCalls()).toHaveLength(1);
+    await retry.click();
     await expect(active(".asset-lib__item")).toHaveCount(5);
+    const retriedCalls = await cursorCalls();
+    expect(retriedCalls).toHaveLength(2);
+    expect(retriedCalls[1].path).toBe(failedCalls[0].path);
     const before = (await calls()).length;
     await expect(active(".lyx-text-button").filter({ hasText: /^加载更多$/ })).toHaveCount(0);
     expect((await calls()).length).toBe(before);

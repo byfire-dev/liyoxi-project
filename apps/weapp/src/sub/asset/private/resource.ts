@@ -159,9 +159,16 @@ export function createAssetResource(deps: { api: AssetApi; scope(): string | nul
       }
       await refresh(true);
     },
-    more: async () => {
+    more: async ({ retry = false }: { retry?: boolean } = {}) => {
       const page = state.page;
-      if (!current() || state.loading || state.moreLoading || !page?.hasMore || !page.nextCursor)
+      if (
+        !current() ||
+        state.loading ||
+        state.moreLoading ||
+        (state.moreError && !retry) ||
+        !page?.hasMore ||
+        !page.nextCursor
+      )
         return;
       const own = generation;
       const valid = () => current() && own === generation;

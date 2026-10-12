@@ -270,7 +270,7 @@ function LibraryContent() {
           <LoadError
             message={state.moreError}
             onRetry={() => {
-              void resource.more();
+              void resource.more({ retry: true });
             }}
           />
         ) : page?.hasMore ? (

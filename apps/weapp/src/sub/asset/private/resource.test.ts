@@ -206,9 +206,19 @@ describe("素材筛选与分页", () => {
     await h.resource.more();
     expect(h.resource.snapshot().page?.items).toHaveLength(1);
     expect(h.resource.snapshot().moreError).toBeTruthy();
+    const failed = h.resource.snapshot();
+    await h.resource.more();
+    await h.resource.more();
+    expect(h.api.list).toHaveBeenCalledTimes(2);
+    expect(h.resource.snapshot()).toBe(failed);
     const late = deferred<AssetPage>();
     h.api.list.mockReturnValueOnce(late.promise);
-    const pending = h.resource.more();
+    const pending = h.resource.more({ retry: true }),
+      duplicate = h.resource.more({ retry: true });
+    expect(h.api.list).toHaveBeenCalledTimes(3);
+    expect(h.api.list.mock.calls[2]).toEqual(h.api.list.mock.calls[1]);
+    expect(h.resource.snapshot().moreLoading).toBe(true);
+    await duplicate;
     await h.resource.change({ tag: "new" });
     late.resolve(assetPage([99]));
     await pending;
