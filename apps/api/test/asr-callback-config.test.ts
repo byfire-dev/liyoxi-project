@@ -118,7 +118,7 @@ describe("API正式ASR默认回调装配", { timeout: SLOW }, () => {
       });
       const response = await request(api);
       expect(response.status).toBe(404);
-      expect(await response.json()).toEqual({ code: 1, message: "failure" });
+      expect(await response.text()).toBe("failure");
       expect(response.headers.get("cache-control")).toBe("no-store");
       expect(await prisma.webhookEvent.count()).toBe(0);
       expect(models.registerClose).toHaveBeenCalledTimes(config === "asr-only" ? 1 : 0);

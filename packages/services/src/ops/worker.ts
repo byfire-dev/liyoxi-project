@@ -309,11 +309,15 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
         key: ci?.callback.key,
         wake: (tx, input) => media.wakeCiJob(tx, input),
       }),
-      createAsrWebhookSource({
-        key: asrCallback?.key,
-        configured: () => asrCallbackEnabled,
-        wake: (tx, input) => media.wakeAsrJob(tx, input),
-      }),
+      ...(asrCallback !== undefined
+        ? [
+            createAsrWebhookSource({
+              key: asrCallback?.key,
+              configured: () => asrCallbackEnabled,
+              wake: (tx, input) => media.wakeAsrJob(tx, input),
+            }),
+          ]
+        : []),
     ],
     alerts: alertsOf(assembly),
   });
