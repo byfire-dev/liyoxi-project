@@ -190,3 +190,13 @@ H5 仍缺少原生导航栏、胶囊与真实安全区；下拉/触底、订阅�
 输入去空白和中点、1–20 Unicode 码点。输入防抖300ms在页面私有 `SEARCH_DEBOUNCE_MS`，确认和热词/历史点击立即执行。query代次与现有contextRev/store/token共同保护首屏、更多、配置、错误和finally；换店/身份清结果与游标。三角色的价格与套餐、三字段匹配顺序、industry_fallback与totalApprox都取服务器真值，不按端上规则重算。接口未返回主演姓名，cast匹配仅显示“主演匹配”；标题/题材使用实际matchedFields切分Text高亮，禁止HTML。
 
 八态清单在 `shots/search-scenes.ts`，运行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --page sub/catalog/search/index` 或固定 `--scene search-idle/search-owner/search-clerk/search-guest/search-fallback/search-empty/search-error/search-more`（多态分别传多次参数）。产物 `shots/dist/png/search__<scene>.png` 为固定离线H5接线与交互证据，不能当真实API或微信真机验收。真实 mounted API 已以隔离库验证三角色配置/搜索/详情及实际换店晚响应；5条场景按首次4条通过、失效凭据定点1条通过分别记录。公开搜索的坏 token 按现有 optional-auth 返回游客字段；受保护 `/m/me` 的401触发中央恢复后，旧搜索响应不能写回，新游客资源重新查询。离线网络错误另行注入验证，不冒称后端故障。八态图与原首页/商城6场景分轮通过：原商城筛选/排序、搜索与详情往返保持；加载更多首次失败保留20条，重试同游标后24条去重。真机键盘、取消/确认、网络、原生导航与安全区、正式运营热词仍需外部手验。
+
+## 素材库与详情只读阶段（W3-17）
+
+`sub/asset/lib/index` 与 `sub/asset/detail/index` 消费既有 `m.storeAsset.list`、`m.storeAsset.summary`、`m.storeAsset.get` 三个 GET；老板和店员从“我的”进入素材库，详情路由只携带 storeAssetId。列表类型、状态、标签、本人和关键词筛选使用真实 DTO，分页按素材 ID 去重；类型计数、整理中及采用数均显示服务端 summary，不按当前页推算。详情展示原文、说明、全部文件、逐文件转写优先、整理要点、结构化条目、三维标签、复核与肖像材料事实、需求及使用记录。仅老板的已有短剧订单记录可跳转真实订单详情。
+
+读取与预览绑定当前 token、主体成员、角色、可进门店、currentStoreId/contextRev 和请求代次；切店、失权、隐藏及卸载废弃旧结果，停止音视频并取消下载。文件现签缺失或过期时明确重取当前详情，再按原 fileId 查找；图片/音视频消费真实原生端口，文档经 downloadFile 后 openDocument，不猜文件类型，临时文件随后清理。生产请求使用中央 request，H5 仅在显式 asset scene 下装入离线夹具。
+
+本阶段源码及轻量静态检查先交付，类型、完整旧新单测、生产体积与默认完整截图待串行验收；17 个新增候选场景登记在 `shots/asset-scenes.ts`，实际数量与 PNG 路径以本轮产出为准。纯端口测试覆盖同 token 的成员角色/范围变化及授权/下载迟到；当前 H5 回归没有相应 mutation 控制，不能当浏览器已证明。真实云签名内容、微信原生预览/播放/文档格式、隐私与安全区仍待真机手验。
+
+上传、上传中心、反馈与补交授权操作、首页摘要和订单参考选择继续后续阶段；这两页没有未实现入口，两项 W3-17 留桩仍未回补，整包保持进行中。

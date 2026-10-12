@@ -32,6 +32,7 @@ import {
 } from "../shots/delivery-regressions.mjs";
 import { orderRegression, publishRegression } from "../shots/order-regressions.mjs";
 import { searchEntryRegression, searchRegression } from "../shots/search-regressions.mjs";
+import { assetRegression } from "../shots/asset-regressions.mjs";
 import {
   profileContactRegression,
   profileAuthorizationRegression,
@@ -95,6 +96,9 @@ const { MESSAGE_SCENES } = await import(
 const { SEARCH_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/search-scenes.ts")).href
 );
+const { ASSET_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/asset-scenes.ts")).href
+);
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--no-build") build = false;
@@ -123,6 +127,7 @@ for (let index = 0; index < args.length; index += 1) {
         ...DELIVERY_SCENES,
         ...MESSAGE_SCENES,
         ...SEARCH_SCENES,
+        ...ASSET_SCENES,
       ].some((item) => item.name === name)
     )
       fail(`未知固定场景 ${name}`);
@@ -255,6 +260,19 @@ const targets = [
     fullPage: false,
   })),
   ...(all
+    ? ASSET_SCENES
+    : ASSET_SCENES.filter(
+        (item) => wantedScenes.includes(item.name) || wanted.includes(item.route.split("?")[0]),
+      )
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
+    file: `asset__${item.name}`,
+    scene: item.name,
+    kind: "asset",
+    fullPage: false,
+  })),
+  ...(all
     ? builtRoutes.filter(
         (route) =>
           !["pages/login/index", "pages/agreement/index", "pages/mine/index"].includes(route) &&
@@ -265,9 +283,14 @@ const targets = [
           !PUBLISH_SCENES.some((item) => item.route === route) &&
           !DELIVERY_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !MESSAGE_SCENES.some((item) => item.route === route) &&
-          !SEARCH_SCENES.some((item) => item.route === route),
+          !SEARCH_SCENES.some((item) => item.route === route) &&
+          !ASSET_SCENES.some((item) => item.route.split("?")[0] === route),
       )
-    : wanted.filter((route) => !SEARCH_SCENES.some((item) => item.route === route))
+    : wanted.filter(
+        (route) =>
+          !SEARCH_SCENES.some((item) => item.route === route) &&
+          !ASSET_SCENES.some((item) => item.route.split("?")[0] === route),
+      )
   ).map((route) => ({
     label: route,
     url: route,
@@ -383,6 +406,10 @@ async function shoot(target) {
             globalThis.__LYX_SEARCH_SHOT__ = scene;
             globalThis.__LYX_CATALOG_SHOT__ = scene;
           }
+          if (kind === "asset") {
+            globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("clerk") ? "mine-clerk" : "mine-owner";
+            globalThis.__LYX_ASSET_SHOT__ = scene;
+          }
           if (kind === "order") globalThis.__LYX_ORDER_SHOT__ = scene;
           if (kind === "publish") globalThis.__LYX_PUBLISH_SHOT__ = scene;
           if (kind === "delivery") globalThis.__LYX_DELIVERY_SHOT__ = scene;
@@ -427,16 +454,21 @@ async function shoot(target) {
                     ? "#catalog-ready"
                     : target.kind === "search"
                       ? "#search-ready"
-                      : target.kind === "message"
-                        ? target.scene === "messages-loading"
-                          ? ".messages-page .lyx-skeleton"
-                          : "#messages-ready"
-                        : target.kind === "delivery"
-                          ? "#delivery-ready"
-                          : "#account-ready",
+                      : target.kind === "asset"
+                        ? target.scene === "asset-lib-loading"
+                          ? ".asset-lib .lyx-skeleton"
+                          : "#asset-ready"
+                        : target.kind === "message"
+                          ? target.scene === "messages-loading"
+                            ? ".messages-page .lyx-skeleton"
+                            : "#messages-ready"
+                          : target.kind === "delivery"
+                            ? "#delivery-ready"
+                            : "#account-ready",
         )
         .waitFor({ state: "visible", timeout: 15_000 });
       if (target.kind === "search") await searchRegression(page, target.scene);
+      if (target.kind === "asset") await assetRegression(page, target.scene, origin);
       if (target.kind === "publish" && target.scene === "accounts-bind") {
         await page.locator(".accounts-page .lyx-button").filter({ hasText: "绑定新账号" }).click();
         await page.locator(".accounts-page__form").waitFor({ state: "visible" });
@@ -457,11 +489,61 @@ async function shoot(target) {
           await expect(page.locator(".messages-page__row")).toContainText("门店审核通过");
         }
         if (target.scene === "messages-more") {
+          const activePage = page.locator(".taro_page_stationed:not(.taro_page_shade)");
+          const more = page
+            .locator(".messages-page .lyx-button")
+            .filter({ hasText: "继续查看消息" });
+          const cursorCalls = () =>
+            page.evaluate(() =>
+              (globalThis.__LYX_MESSAGE_CALLS__ ?? []).filter((call) => {
+                const url = new URL(call.path, "http://local");
+                return url.pathname === "/m/messages" && url.searchParams.has("cursor");
+              }),
+            );
+          const assertCursor = async () => {
+            const calls = await cursorCalls();
+            expect(calls).toHaveLength(1);
+            expect(calls[0].method).toBe("GET");
+            expect([...new URL(calls[0].path, origin).searchParams]).toEqual([
+              ["tab", "all"],
+              ["limit", "20"],
+              ["cursor", "opaque+/=page2"],
+            ]);
+          };
+          const scrollPage = async (bottom) => {
+            await activePage.evaluate((node, toBottom) => {
+              node.removeAttribute("data-shot-scroll");
+              node.addEventListener("scroll", () => node.setAttribute("data-shot-scroll", "done"), {
+                once: true,
+              });
+              node.scrollTo(0, toBottom ? node.scrollHeight : 0);
+            }, bottom);
+            await expect(activePage).toHaveAttribute("data-shot-scroll", "done");
+          };
+          await expect(page.locator(".messages-page__row")).toHaveCount(20);
+          const height = await activePage.evaluate((node) => Math.ceil(node.scrollHeight));
+          await page.setViewportSize({ width: VIEWPORT.width, height: height + VIEWPORT.height });
+          await expect(more).toBeInViewport({ ratio: 1 });
+          expect(await activePage.evaluate((node) => node.scrollTop)).toBe(0);
+          expect(await cursorCalls()).toHaveLength(0);
           await page
             .locator(".messages-page .lyx-button")
             .filter({ hasText: "继续查看消息" })
             .click();
           await expect(page.locator(".messages-page__row")).toHaveCount(24);
+          await assertCursor();
+          await page.setViewportSize(VIEWPORT);
+          await page.reload({ waitUntil: "networkidle" });
+          await page.locator("#messages-ready").waitFor({ state: "visible", timeout: 15_000 });
+          await expect(page.locator(".messages-page__row")).toHaveCount(20);
+          expect(await cursorCalls()).toHaveLength(0);
+          await scrollPage(true);
+          await expect(page.locator(".messages-page__row")).toHaveCount(24);
+          await assertCursor();
+          await scrollPage(false);
+          await scrollPage(true);
+          await assertCursor();
+          expect(page.viewportSize()).toEqual(VIEWPORT);
         }
         if (target.scene === "messages-all-read") {
           await page.locator(".messages-page__action").filter({ hasText: "全部已读" }).click();

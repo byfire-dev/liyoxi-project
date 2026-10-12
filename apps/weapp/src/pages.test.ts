@@ -62,6 +62,8 @@ describe("页面清单", () => {
       "sub/profile/service/index",
       "sub/profile/cert/index",
       "sub/profile/review/index",
+      "sub/asset/lib/index",
+      "sub/asset/detail/index",
       "sub/service/messages/index",
     ]);
     expect(built.filter((page) => page.implemented).map((page) => page.route)).toEqual([
@@ -91,6 +93,8 @@ describe("页面清单", () => {
       "sub/profile/service/index",
       "sub/profile/cert/index",
       "sub/profile/review/index",
+      "sub/asset/lib/index",
+      "sub/asset/detail/index",
       "sub/service/messages/index",
     ]);
     expect(
@@ -144,6 +148,7 @@ describe("由清单拼出全局配置", () => {
             "review/index",
           ],
         },
+        { root: "sub/asset", pages: ["lib/index", "detail/index"] },
         { root: "sub/service", pages: ["messages/index"] },
       ],
       preloadRule: {
@@ -194,6 +199,7 @@ describe("由清单拼出全局配置", () => {
           "review/index",
         ],
       },
+      { root: "sub/asset", pages: ["lib/index", "detail/index"] },
       { root: "sub/service", pages: ["messages/index"] },
     ]);
     expect(routes.preloadRule).toEqual({

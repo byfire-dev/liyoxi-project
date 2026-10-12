@@ -1,0 +1,37 @@
+.asset-lib {
+  &__filters,
+  &__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  &__card {
+    display: flex;
+    gap: 12px;
+  }
+  &__image {
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+    border-radius: $lyx-radius-sm;
+    background: $lyx-color-bg-page;
+  }
+  &__facts {
+    flex: 1;
+    min-width: 0;
+  }
+  &__title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  &__muted {
+    margin: 6px 0;
+    font-size: 13px;
+    color: $lyx-color-text-secondary;
+  }
+  &__quote {
+    margin: 8px 0;
+    font-size: 14px;
+  }
+}

@@ -222,9 +222,13 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     },
   ),
   // sub/asset（4 页）
-  page("sub/asset/lib/index", "sub/asset", "素材库", "AssetLib", "M50", "M3", "G3-C"),
+  page("sub/asset/lib/index", "sub/asset", "素材库", "AssetLib", "M50", "M3", "W3-17", {
+    implemented: true,
+  }),
   page("sub/asset/upload/index", "sub/asset", "上传素材", "AssetUpload", "M51", "M3", "G3-C"),
-  page("sub/asset/detail/index", "sub/asset", "素材详情", "AssetDetail", "M52", "M3", "G3-C"),
+  page("sub/asset/detail/index", "sub/asset", "素材详情", "AssetDetail", "M52", "M3", "W3-17", {
+    implemented: true,
+  }),
   page("sub/asset/uploader/index", "sub/asset", "上传中心", null, null, "M3", "G3-C", {
     note: "新增页：大文件上传",
   }),
