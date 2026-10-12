@@ -679,7 +679,9 @@ d3:3232 的“暂停过久的工单数”是 P3 每日汇总，不进本端点�
 **说明**
 - d4:1858-1864 的来源表没有单列语音识别；它有查询接口，按 d4:1826“内联只用于有主动查询兜底的来源”定为内联，结果以回查为准（06-media.md:697）。
 - 草案路径 `/hooks/asr/{jobId}/{sig}`（d5:2121）按资源名补 `media-jobs`，`sig` 移到查询参数。语音识别的回调地址能否带查询参数，接入时核对；不支持时同 3.7 按 A126 处理。
-- [国内官方协议](https://cloud.tencent.com/document/product/1093/52632)为 POST `application/x-www-form-urlencoded`，最多2次总尝试；HTTP/ACK失败触发、间隔和超时未明确。[CreateRecTask](https://cloud.tencent.com/document/product/1093/37823)的 TaskId 有效24小时且跨日可重用，natural 必须同时含本地 UUID。query 保留、生产 CallbackUrl/独立密钥、预算与 E22 仍未联调；默认不登记此来源，不以本地受控替身证明云已启用。
+- [国内官方协议](https://cloud.tencent.com/document/product/1093/52632)为 POST `application/x-www-form-urlencoded`，最多2次总尝试；HTTP/ACK失败触发、间隔和超时未明确。[CreateRecTask](https://cloud.tencent.com/document/product/1093/37823)的 TaskId 有效24小时且跨日可重用，natural 必须同时含本地 UUID。query 保留，腾讯实际投递、DNS/证书与 E22 仍未联调；不以本地受控HTTP证明云已启用。
+- API/worker 仅在自有腾讯工厂消费完整冻结的 `ASR_TENCENT` 与 `ASR_CALLBACK` 时启用默认来源；发送与接收共享原 UTF8 32–256 字节 key，逐次提交只带当前真实 `mediaJob.id`。缺配置或借用整套 Provider 时自动来源关闭，显式 `webhookSources` 仍整表替换。构造不请求模型HTTP，不代表本地基础设施零IO。
+- 回调收件提交后仅提醒既有 submitted 任务回查原 TaskId，不信任回调文本/状态，不再扣提交槽或新建收费任务。API 无预算 transport 仍拒绝新提交；历史查询不读取新额度或要求冷账本初始化。原任务、来源、指纹、租约与期限守卫不变。
 
 ### 3.9 hooks.sms.statusReport.receive　短信状态回执
 `POST /hooks/sms/status-reports?token=`

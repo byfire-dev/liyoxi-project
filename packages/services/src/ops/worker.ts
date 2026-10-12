@@ -97,6 +97,7 @@ import {
   createWebhooks,
   createWechatMessageSource,
   createCiWebhookSource,
+  createAsrWebhookSource,
 } from "../security/index.js";
 import type { WebhookSource } from "../security/index.js";
 import { createStartupChecks, runStartupChecks } from "./startup.js";
@@ -152,6 +153,7 @@ export interface WorkerServicesOptions {
     readonly CI?: Env["CI"];
     readonly MEDIA_PRODUCTION?: Env["MEDIA_PRODUCTION"];
     readonly ASR_TENCENT?: Env["ASR_TENCENT"];
+    readonly ASR_CALLBACK?: Env["ASR_CALLBACK"];
     readonly LLM_DOMESTIC?: Env["LLM_DOMESTIC"];
   };
   /** 换掉十二个 Provider：只有用例会给（替身）。不给即 assembleProviders 按环境选实现 */
@@ -228,6 +230,10 @@ const silent: ProviderLogger = { info: () => {}, warn: () => {}, error: () => {}
 export function buildWorkerServices(options: WorkerServicesOptions): WorkerServices {
   const cos = options.keys?.COS;
   const ci = options.keys?.CI;
+  const asrCallback =
+    options.providers === undefined && options.keys?.ASR_TENCENT
+      ? options.keys.ASR_CALLBACK
+      : undefined;
   if (ci && !ci.worker) throw new TypeError("CI worker入口缺少worker角色");
   if (cos && !cos.worker) throw new TypeError("COS worker入口缺少worker角色");
   const ownsModels =
@@ -302,6 +308,11 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       createCiWebhookSource({
         key: ci?.callback.key,
         wake: (tx, input) => media.wakeCiJob(tx, input),
+      }),
+      createAsrWebhookSource({
+        key: asrCallback?.key,
+        configured: () => asrCallbackEnabled,
+        wake: (tx, input) => media.wakeAsrJob(tx, input),
       }),
     ],
     alerts: alertsOf(assembly),
@@ -381,6 +392,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       ...(options.keys?.ASR_TENCENT !== undefined
         ? {
             asr: {
+              ...(asrCallback ? { callback: asrCallback } : {}),
               now: () => clock.now(),
               registerClose: (close: () => Promise<void>) => modelDrivers!.registerClose(close),
             },
@@ -394,6 +406,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
           }
         : {}),
     });
+  const asrCallbackEnabled =
+    asrCallback !== undefined && providers.asr.configured && providers.asr.status === "tencent";
   const modelBudget = createModelBudgetRuntime({
     clock,
     prefix: `lyx:${options.appEnv}:`,
@@ -421,6 +435,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       assembly,
       timers,
       providers,
+      asrCallback: asrCallbackEnabled,
       modelBudget: modelBudget.admission,
     }),
     batches: createRuntimeMediaBatches({ clock, events, media: () => media }),
