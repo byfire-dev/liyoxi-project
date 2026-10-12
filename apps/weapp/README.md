@@ -200,3 +200,13 @@ H5 仍缺少原生导航栏、胶囊与真实安全区；下拉/触底、订阅�
 本阶段源码及轻量静态检查先交付，类型、完整旧新单测、生产体积与默认完整截图待串行验收；17 个新增候选场景登记在 `shots/asset-scenes.ts`，实际数量与 PNG 路径以本轮产出为准。纯端口测试覆盖同 token 的成员角色/范围变化及授权/下载迟到；当前 H5 回归没有相应 mutation 控制，不能当浏览器已证明。真实云签名内容、微信原生预览/播放/文档格式、隐私与安全区仍待真机手验。
 
 上传、上传中心、反馈与补交授权操作、首页摘要和订单参考选择继续后续阶段；这两页没有未实现入口，两项 W3-17 留桩仍未回补，整包保持进行中。
+
+## 微信分块上传平台构件（W3-17 后续准备）
+
+`lib/upload/multipart.ts` 通过文件范围读取与原生 ArrayBuffer PUT 消费既有 multipart grant，不增加 SDK、依赖、HTTP 接口或云权限。块大小取服务端 `chunkSize`（当前 8MiB），端上块并发取 `min(chunkParallel, 2)`（当前 grant 上限 4）；原 POST 摘要和上传链保持。SHA1/HMAC-SHA1 使用 UTF-8/纯字节实现；COS 二次 HMAC 的 key 是第一次签名的十六进制文本。依据：[COS 签名](https://cloud.tencent.com/document/product/436/7778)、[UploadPart](https://cloud.tencent.com/document/product/436/7750)、[ListParts](https://cloud.tencent.com/document/product/436/7747)、[微信官方类型](https://github.com/wechat-miniprogram/api-typings/blob/master/types/wx/lib.wx.api.d.ts)。
+
+恢复记录只保存完整用户/成员/主体/角色/门店范围、原 fileId/对象、完整分块 MD5、UploadId、阶段和确认键，不含会话令牌、STS、签名 URL 或文件路径，写入后读回验证。重选文件逐块比较字节摘要；分页 ListParts 校验真实归属、分块大小与 MD5，只有云端确认的块计入进度。初始化前先保存 `initiating`；无回执时禁止重复初始化。合并前保存 `completing`，未知结果重试先查询原 UploadId；NoSuchUpload 仅转交原服务端 complete 确认，不当作 stored。取消只走既有 `m.file.cancel`，成功后清理本机记录，不宣称对象已物理删除。
+
+普通 file 凭证没有 ListMultipartUploads 权限。本机第一次可保存 journal 后初始化一次；已有未知/损坏 journal 不自动重建 MPU。彻底清除本机记录后不能发现旧孤块，也不能证明没有旧 MPU；后续界面的“重新上传”须先明确取消原任务成功，再建立新意图。退出原账户清理本机记录，清理失败的残留仍由完整 owner 隔离。临时路径不承诺跨重启有效，失效时须重新选择完整相同文件。微信真实域名配置、STS/COS 回包、后台取消、断网重启与 2×8MiB 的实际内存峰值仍待真机/真实云外部验证；H5 保留 POST 近似能力，不假装支持原生分块恢复。
+
+本片仅平台 SOURCE，未新增上传/上传中心页面。新增纯端口/摘要/持久化用例与原上传测试一起交唯一串行窗口验收；本地轻格式、AST/ESLint 不替代 fresh 类型、完整 41 旧测试文件/331 旧用例、默认 152 场景/154 PNG 及生产预算验证。

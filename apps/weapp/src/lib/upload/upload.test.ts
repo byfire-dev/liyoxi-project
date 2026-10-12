@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "../request";
 import { createUploadApi, type FileStatus, type Registration } from "./api";
 import { clientToken, md5, sha1 } from "./hash";
+import { MultipartUncertainError, type MultipartPort } from "./multipart";
+import { ResumeRecordError, type ResumeManifest } from "./resume";
 import {
   awaitUpload,
   createUpload,
@@ -313,4 +315,189 @@ it("公共API兼容pay_receipt PDF与两种执照归属；签发不带幂等键"
     `/m/files/${ID}/refresh-credentials`,
     { method: "POST" },
   ]);
+});
+
+describe("可选multipart端口与原四步队列", () => {
+  const manifest: ResumeManifest = {
+    version: 1,
+    owner: {
+      userId: "user",
+      memberId: "member",
+      entityId: "entity",
+      storeId: ID,
+      role: "owner",
+      storeScope: "active",
+    },
+    token: "fingerprint",
+    fileId: ID,
+    bucket: "incoming-1250000000",
+    region: "ap-guangzhou",
+    key: `incoming/${ID}/file`,
+    size: 100,
+    chunkSize: 100,
+    digests: ["00000000000000000000000000000000"],
+    uploadId: "upload-1",
+    phase: "uploading",
+    confirmKey: "original-confirm-key",
+    expiresAt: 60000,
+  };
+  function multipartHarness() {
+    const h = harness();
+    const port: MultipartPort = {
+      restore: vi.fn(async () => null),
+      upload: vi.fn(() => ({ done: Promise.resolve(), abort: vi.fn() })),
+      forget: vi.fn(),
+    };
+    h.deps.multipart = port;
+    vi.mocked(h.deps.api.register).mockResolvedValue({
+      items: [{ ...ticket, mode: "multipart", post: null, chunkSize: 100, chunkParallel: 4 }],
+    });
+    return { ...h, port };
+  }
+  it("按grant选择可选分块端口，真实stored才交业务，原POST没有被调用", async () => {
+    const { job, deps, port } = multipartHarness();
+    expect((await job.start())?.status).toBe("stored");
+    expect(port.upload).toHaveBeenCalledTimes(1);
+    expect(deps.post).not.toHaveBeenCalled();
+    expect(deps.api.complete).toHaveBeenCalledWith(ID, "file_complete:1");
+    expect(port.forget).toHaveBeenCalledWith(ID);
+  });
+  it("损坏journal不阻断服务端POST，但严格阻止新的multipart初始化", async () => {
+    const post = multipartHarness();
+    vi.mocked(post.port.restore).mockRejectedValue(new Error("续传记录损坏"));
+    vi.mocked(post.deps.api.register).mockResolvedValue({ items: [ticket] });
+    expect((await post.job.start())?.status).toBe("stored");
+    expect(post.deps.post).toHaveBeenCalledTimes(1);
+    expect(post.port.upload).not.toHaveBeenCalled();
+    expect(post.port.forget).not.toHaveBeenCalled();
+    const multipart = multipartHarness();
+    vi.mocked(multipart.port.restore).mockRejectedValue(new Error("续传记录损坏"));
+    expect(await multipart.job.start()).toBeNull();
+    expect(multipart.job.snapshot()).toMatchObject({ status: "failed", message: "续传记录损坏" });
+    expect(multipart.port.upload).not.toHaveBeenCalled();
+  });
+  it("合法恢复先查询原file并刷新同fileId，不重新register，保留确认键", async () => {
+    const { job, deps, port } = multipartHarness();
+    vi.mocked(port.restore).mockResolvedValue(manifest);
+    vi.mocked(deps.api.get).mockResolvedValueOnce(status("pending"));
+    vi.mocked(deps.api.refresh).mockResolvedValue({ ...ticket, mode: "multipart", post: null });
+    await job.start();
+    expect(deps.api.get).toHaveBeenNthCalledWith(1, ID);
+    expect(deps.api.refresh).toHaveBeenCalledWith(ID);
+    expect(deps.api.register).not.toHaveBeenCalled();
+    expect(deps.api.complete).toHaveBeenCalledWith(ID, manifest.confirmKey);
+    expect(port.upload).toHaveBeenCalledTimes(1);
+  });
+  it("重启后原file已stored直接返回，不新登记、直传或重复确认", async () => {
+    const { job, deps, port } = multipartHarness();
+    vi.mocked(port.restore).mockResolvedValue({ ...manifest, phase: "uploaded" });
+    const result = await job.start();
+    expect(result?.fileId).toBe(ID);
+    expect(job.snapshot()).toMatchObject({ status: "stored", progress: 100 });
+    expect(deps.api.register).not.toHaveBeenCalled();
+    expect(deps.api.refresh).not.toHaveBeenCalled();
+    expect(deps.api.complete).not.toHaveBeenCalled();
+    expect(port.upload).not.toHaveBeenCalled();
+    expect(port.forget).toHaveBeenCalledWith(ID);
+  });
+  it("原file promoting只等服务端结果，不重复云端合并", async () => {
+    const { job, deps, port } = multipartHarness();
+    vi.mocked(port.restore).mockResolvedValue({ ...manifest, phase: "uploaded" });
+    vi.mocked(deps.api.get).mockResolvedValueOnce(status("promoting"));
+    await job.start();
+    expect(deps.sleep).toHaveBeenCalledWith(1000);
+    expect(deps.api.get).toHaveBeenCalledTimes(2);
+    expect(deps.api.refresh).not.toHaveBeenCalled();
+    expect(port.upload).not.toHaveBeenCalled();
+    expect(job.snapshot().status).toBe("stored");
+  });
+  it.each(["initiate_unknown", "complete_unknown"] as const)(
+    "%s明确回显且不伪装stored",
+    async (recovery) => {
+      const { job, deps, port } = multipartHarness();
+      vi.mocked(port.upload).mockImplementation(() => ({
+        done: Promise.reject(new MultipartUncertainError(recovery)),
+        abort: vi.fn(),
+      }));
+      expect(await job.start()).toBeNull();
+      expect(job.snapshot()).toMatchObject({ status: "failed", recovery });
+      expect(deps.api.complete).not.toHaveBeenCalled();
+      expect(port.forget).not.toHaveBeenCalled();
+    },
+  );
+  it("multipart服务端尚未找到对象时保留未知合并，不沿POST补传路径再造MPU", async () => {
+    const { job, deps, port } = multipartHarness();
+    vi.mocked(deps.api.complete).mockRejectedValueOnce(error("UPLOAD_NOT_FOUND"));
+    await job.start();
+    expect(job.snapshot()).toMatchObject({ status: "failed", recovery: "complete_unknown" });
+    await job.retry();
+    expect(port.upload).toHaveBeenCalledTimes(1);
+    expect(deps.api.refresh).not.toHaveBeenCalled();
+    expect(deps.api.complete).toHaveBeenNthCalledWith(2, ID, "file_complete:1");
+    expect(job.snapshot().status).toBe("stored");
+  });
+  it("取消abort全部传输，并在原服务端cancel成功后才忘记journal", async () => {
+    const { job, deps, port } = multipartHarness();
+    const upload = deferred<void>(),
+      cancel = deferred<FileStatus>(),
+      abort = vi.fn();
+    vi.mocked(port.upload).mockReturnValue({ done: upload.promise, abort });
+    vi.mocked(deps.api.cancel).mockReturnValue(cancel.promise);
+    const work = job.start();
+    await vi.waitFor(() => expect(port.upload).toHaveBeenCalled());
+    const stopping = job.cancel();
+    expect(abort).toHaveBeenCalledTimes(1);
+    expect(port.forget).not.toHaveBeenCalled();
+    cancel.resolve(status("expired"));
+    await stopping;
+    upload.resolve();
+    await work;
+    expect(deps.api.cancel).toHaveBeenCalledWith(ID, "file_cancel:2");
+    expect(port.forget).toHaveBeenCalledWith(ID);
+    expect(deps.api.complete).not.toHaveBeenCalled();
+  });
+  it("取消失败不遗失journal，不假报云对象已删除", async () => {
+    const { job, deps, port } = multipartHarness();
+    vi.mocked(port.upload).mockImplementation(() => ({
+      done: Promise.reject(new MultipartUncertainError("initiate_unknown")),
+      abort: vi.fn(),
+    }));
+    await job.start();
+    vi.mocked(deps.api.cancel).mockRejectedValue(new Error("取消未确认"));
+    await expect(job.cancel()).rejects.toThrow("取消未确认");
+    expect(port.forget).not.toHaveBeenCalled();
+  });
+  it("恢复读文件失败仍保留精确fileId，允许沿服务端协议取消", async () => {
+    const { job, deps, port } = multipartHarness();
+    vi.mocked(port.restore).mockRejectedValue(new ResumeRecordError("文件不可读", ID));
+    await job.start();
+    expect(job.snapshot()).toMatchObject({ status: "failed", fileId: ID, message: "文件不可读" });
+    await job.cancel();
+    expect(deps.api.cancel).toHaveBeenCalledWith(ID, "file_cancel:2");
+    expect(port.forget).toHaveBeenCalledWith(ID);
+    expect(deps.api.register).not.toHaveBeenCalled();
+  });
+  it("切scope后的迟到恢复不可登记、查询、忘记或交付旧结果", async () => {
+    const { job, deps, port, change } = multipartHarness();
+    const reading = deferred<ResumeManifest | null>();
+    vi.mocked(port.restore).mockReturnValue(reading.promise);
+    const work = job.start();
+    await vi.waitFor(() => expect(port.restore).toHaveBeenCalled());
+    change();
+    reading.resolve(manifest);
+    expect(await work).toBeNull();
+    expect(deps.api.register).not.toHaveBeenCalled();
+    expect(deps.api.get).not.toHaveBeenCalled();
+    expect(port.upload).not.toHaveBeenCalled();
+    expect(port.forget).not.toHaveBeenCalled();
+  });
+  it("恢复stored但内容block仍失败，不交给业务或删除恢复记录", async () => {
+    const { job, deps, port } = multipartHarness();
+    vi.mocked(port.restore).mockResolvedValue(manifest);
+    vi.mocked(deps.api.get).mockResolvedValue({ ...status("stored"), moderationState: "block" });
+    expect(await job.start()).toBeNull();
+    expect(job.snapshot().status).toBe("failed");
+    expect(deps.api.register).not.toHaveBeenCalled();
+    expect(port.forget).not.toHaveBeenCalled();
+  });
 });
