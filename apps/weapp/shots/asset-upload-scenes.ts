@@ -17,3 +17,9 @@ export const ASSET_UPLOAD_SCENES = [
   "resume-mismatch",
   "recovery-blocked",
 ].map((name) => ({ name: `asset-upload-${name}`, route: "sub/asset/upload/index" }));
+ASSET_UPLOAD_SCENES.push(
+  ...["empty", "active", "failed", "recovery", "cancel-error", "scope-late"].map((name) => ({
+    name: `asset-uploader-${name}`,
+    route: "sub/asset/uploader/index",
+  })),
+);

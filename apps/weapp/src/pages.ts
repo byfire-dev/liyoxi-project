@@ -231,7 +231,8 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
   page("sub/asset/detail/index", "sub/asset", "素材详情", "AssetDetail", "M52", "M3", "W3-17", {
     implemented: true,
   }),
-  page("sub/asset/uploader/index", "sub/asset", "上传中心", null, null, "M3", "G3-C", {
+  page("sub/asset/uploader/index", "sub/asset", "上传中心", null, null, "M3", "W3-17", {
+    implemented: true,
     note: "新增页：大文件上传",
   }),
   // sub/ad（2 页）
