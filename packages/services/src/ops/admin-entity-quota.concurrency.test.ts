@@ -8,7 +8,7 @@ import { connectTestDatabase, snapshotTables, useSeededDatabase } from "../testi
 import { quotaCall, quotaHarness, SLOW } from "./__fixtures__/admin-entity-quota.js";
 import type { QuotaHarness, QuotaWorld } from "./__fixtures__/admin-entity-quota.js";
 
-const db = useSeededDatabase("services", { label: "adminquotarace" });
+const db = useSeededDatabase("services", { label: "quotarace" });
 interface Scenario {
   h: QuotaHarness;
   clients: PrismaClient[];

@@ -79,6 +79,8 @@ export async function quotaHarness(prisma: PrismaClient) {
   const approval = createApproval({
     ...h,
     flow,
+    sla: h.assets.sla,
+    timers: h.timers,
     bizNo: createBizNoIssuer({ clock: h.clock, appEnv: "test" }),
   });
   const profile = (runner: TxRunner) =>
