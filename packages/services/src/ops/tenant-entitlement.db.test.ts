@@ -52,7 +52,7 @@ async function none(w: EntitlementWorld) {
 
 describe("权益变动：真实账本出站与当前额度/老板", () => {
   it.each(["expired", "rolled_over"] as const)(
-    "%s 经真实 advance/expand/dispatch/consume 原子写唯一老板站内提醒",
+    "tenant.onEntitlementChanged：%s 经真实 advance/expand/dispatch/consume 原子写唯一老板站内提醒",
     async (change) => {
       const w = await h.world({ change });
       const expected =
@@ -400,7 +400,7 @@ describe("持久化来源、重放与事务", () => {
     "delivered %s伪造不能直接或通过专用notify入口写提醒",
     async (field) => {
       const w = await h.world();
-      const event = {
+      const event: { id: string; type: string; payload: Record<string, unknown> } = {
         ...w.event,
         payload: { ...w.event.payload },
         ...(field === "id" ? { id: uuidv7() } : {}),

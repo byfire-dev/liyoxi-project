@@ -97,7 +97,14 @@ export function entitlementHarness(prisma: PrismaClient, ledger?: LedgerHarness)
       alerts: alertsOf(assembly),
       channel: {
         async enqueue(_queue, _jobId, data) {
-          refs.push(data as DeliveryRef);
+          const { eventId, subscriber, dispatchNo } = data;
+          if (
+            typeof eventId !== "string" ||
+            typeof subscriber !== "string" ||
+            typeof dispatchNo !== "number"
+          )
+            throw new TypeError("出站队列载荷缺少真实 DeliveryRef 字段");
+          refs.push({ eventId, subscriber, dispatchNo });
         },
         downForMs: () => 0,
       },
