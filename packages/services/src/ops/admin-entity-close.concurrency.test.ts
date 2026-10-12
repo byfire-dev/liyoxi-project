@@ -8,7 +8,7 @@ import { connectTestDatabase, useSeededDatabase } from "../testing/index.js";
 import { closeCall, closeHarness, SLOW } from "./__fixtures__/admin-entity-close.js";
 import type { CloseHarness, CloseWorld } from "./__fixtures__/admin-entity-close.js";
 
-const db = useSeededDatabase("services", { label: "admincloserace" });
+const db = useSeededDatabase("services", { label: "closerace" });
 interface Scenario {
   h: CloseHarness;
   clients: PrismaClient[];
