@@ -363,7 +363,7 @@ function DetailContent({ id }: { id: string }) {
                 <Timeline
                   variant="record"
                   items={detail.timeline.map((item, n) => ({
-                    key: n,
+                    key: `${item.kind}:${item.at}:${n}`,
                     title: {
                       uploaded: "上传",
                       processed: "整理",

@@ -40,8 +40,8 @@ describe("素材只读 API", () => {
   });
   it("空筛选不发送空 query；请求失败原样交控制器处理", async () => {
     const failure = new Error("private");
-    const send = vi.fn<RequestLayer["request"]>().mockRejectedValue(failure);
-    const api = createAssetApi(send);
+    const send = vi.fn<(path: string) => Promise<never>>().mockRejectedValue(failure);
+    const api = createAssetApi(<T>(path: string): Promise<T> => send(path));
     await expect(api.summary({ q: undefined })).rejects.toBe(failure);
     expect(send).toHaveBeenCalledExactlyOnceWith("/m/store-assets/summary");
   });
