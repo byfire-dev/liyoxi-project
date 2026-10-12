@@ -20,5 +20,7 @@ export const StorageKey = {
   loginReturn: "lyx.loginReturn",
   /** 本机公共搜索关键词，最多十条；不上传 */
   searchHistory: "lyx.searchHistory",
+  /** 分块上传恢复记录；不含凭证、令牌或本机文件路径 */
+  uploadResume: "lyx.upload.resume",
 } as const;
 export type StorageKey = (typeof StorageKey)[keyof typeof StorageKey];

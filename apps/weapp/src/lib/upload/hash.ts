@@ -1,7 +1,7 @@
-/** 小程序可用的纯摘要；只用于文件续传标识，不用于密钥或密码。 */
+/** 小程序纯字节摘要与 COS 协议签名；不用于密码存储。 */
 const rotate = (value: number, n: number) => (value << n) | (value >>> (32 - n));
 const hex = (value: number) => (value >>> 0).toString(16).padStart(8, "0");
-const bytesOf = (text: string) =>
+export const utf8Bytes = (text: string) =>
   Uint8Array.from(encodeURIComponent(text).match(/%[0-9A-F]{2}|[^%]/g) ?? [], (part) =>
     part.startsWith("%") ? parseInt(part.slice(1), 16) : part.charCodeAt(0),
   );
@@ -52,8 +52,8 @@ export function md5(bytes: Uint8Array): string {
   }
   return state.map((value) => hex(value).match(/../g)!.reverse().join("")).join("");
 }
-export function sha1(text: string): string {
-  const words = padded(bytesOf(text), false);
+export function sha1Bytes(bytes: Uint8Array): string {
+  const words = padded(bytes, false);
   const state = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0];
   for (let start = 0; start < words.length; start += 16) {
     const w = Array.from(words.slice(start, start + 16));
@@ -75,6 +75,23 @@ export function sha1(text: string): string {
   }
   return state.map(hex).join("");
 }
+export const sha1 = (text: string): string => sha1Bytes(utf8Bytes(text));
+export function hmacSha1(key: Uint8Array, message: Uint8Array): string {
+  const raw = key.length > 64 ? fromHex(sha1Bytes(key)) : key;
+  const inner = new Uint8Array(64 + message.length);
+  const outer = new Uint8Array(84);
+  inner.fill(0x36, 0, 64);
+  outer.fill(0x5c, 0, 64);
+  for (let i = 0; i < raw.length; i++) {
+    inner[i] = inner[i]! ^ raw[i]!;
+    outer[i] = outer[i]! ^ raw[i]!;
+  }
+  inner.set(message, 64);
+  outer.set(fromHex(sha1Bytes(inner)), 64);
+  return sha1Bytes(outer);
+}
+const fromHex = (value: string) =>
+  Uint8Array.from(value.match(/../g) ?? [], (part) => parseInt(part, 16));
 export interface FileFingerprint {
   storeId: string | null;
   category: string;

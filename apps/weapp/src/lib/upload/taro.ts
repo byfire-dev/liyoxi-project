@@ -7,6 +7,83 @@ import { useBootstrapStore } from "../../stores/bootstrap";
 import { createUploadApi, type RegisterBody } from "./api";
 import { awaitUpload, createUpload, createUploadQueue, type SelectedFile } from "./queue";
 import { precheckFile } from "./precheck";
+import { account } from "../account-runtime";
+import { storage } from "../platform.taro";
+import { createMultipartPort, type CloudRequest, type CloudTask } from "./multipart";
+import { createResumeStore, type ResumeOwner } from "./resume";
+const resumeStore = createResumeStore(storage, Date.now);
+function uploadOwner(): ResumeOwner | null {
+  const me = account.snapshot().me;
+  const storeId = useContextStore.getState().currentStoreId;
+  const member = me?.memberships.find((item) => item.stores.some((s) => s.storeId === storeId));
+  if (!me || !member || !storeId || !useSessionStore.getState().accessToken) return null;
+  return {
+    userId: me.user.merchantUserId,
+    memberId: member.memberId,
+    entityId: member.entity.entityId,
+    storeId,
+    role: member.role,
+    storeScope: JSON.stringify(member.stores.map((s) => [s.storeId, s.lifecycle]).sort()),
+  };
+}
+useSessionStore.subscribe((state, previous) => {
+  if (previous.accessToken && state.accessToken !== previous.accessToken) {
+    try {
+      resumeStore.clear();
+    } catch {
+      /* 清除失败的残留仍由完整 owner 隔离，不作为别人的恢复入口。 */
+    }
+  }
+});
+
+/** 微信读取原始范围；请求不经业务 HTTP，不携带商家令牌。 */
+export function createTaroMultipartPorts() {
+  return {
+    read(path: string, offset: number, length: number): Promise<Uint8Array> {
+      if (
+        !Number.isSafeInteger(offset) ||
+        offset < 0 ||
+        !Number.isSafeInteger(length) ||
+        length <= 0
+      )
+        return Promise.reject(new Error("文件读取范围不合格"));
+      return new Promise((resolve, reject) => {
+        Taro.getFileSystemManager().readFile({
+          filePath: path,
+          position: offset,
+          length,
+          success: ({ data }) => {
+            if (typeof data === "string" || data.byteLength !== length)
+              reject(new Error("文件读取不完整，请重新选择"));
+            else resolve(new Uint8Array(data));
+          },
+          fail: () => reject(new Error("文件已不可读，请重新选择同一文件以续传")),
+        });
+      });
+    },
+    send(input: CloudRequest): CloudTask {
+      const task = Taro.request<string, string | ArrayBuffer>({
+        url: input.url,
+        method: input.method,
+        header: input.headers,
+        data: input.data,
+        dataType: "text",
+        responseType: "text",
+        timeout: 300000,
+      });
+      const done = task.then((response) => {
+        if (typeof response.data !== "string") throw new Error("对象存储响应格式不合格");
+        const headers: Record<string, string> = {};
+        for (const [key, value] of Object.entries(response.header ?? {})) {
+          if (typeof value !== "string") throw new Error("对象存储响应头不合格");
+          headers[key] = value;
+        }
+        return { statusCode: response.statusCode, headers, data: response.data };
+      });
+      return { done, abort: () => task.abort() };
+    },
+  };
+}
 const activeUploads = new Set<object>();
 const uploadQueue = createUploadQueue();
 const busyUploads = new Set<object>();
@@ -31,13 +108,16 @@ export function createTaroUpload(
   licenseKind?: RegisterBody["licenseKind"],
 ) {
   let cancelSleep = () => {};
+  const api = createUploadApi(request);
+  const native = createTaroMultipartPorts();
   const job = createUpload(
     {
-      api: createUploadApi(request),
+      api,
       context: () => ({
         token: useSessionStore.getState().accessToken,
         storeId: useContextStore.getState().currentStoreId,
         revision: useContextStore.getState().contextRev,
+        scope: JSON.stringify(uploadOwner()),
       }),
       head: (path, length) =>
         new Promise((resolve, reject) => {
@@ -85,6 +165,17 @@ export function createTaroUpload(
         }),
       cancelSleep: () => cancelSleep(),
       key: newIdempotencyKey,
+      ...(process.env.TARO_ENV === "weapp"
+        ? {
+            multipart: createMultipartPort({
+              ...native,
+              owner: uploadOwner,
+              resume: resumeStore,
+              refresh: api.refresh,
+              now: Date.now,
+            }),
+          }
+        : {}),
     },
     file,
     category,
@@ -95,6 +186,14 @@ export function createTaroUpload(
   });
   const removeSession = useSessionStore.subscribe((state, previous) => {
     if (state.accessToken !== previous.accessToken) job.dispose();
+  });
+  let ownerScope = JSON.stringify(uploadOwner());
+  const removeAccount = account.subscribe(() => {
+    const current = JSON.stringify(uploadOwner());
+    if (current !== ownerScope) {
+      ownerScope = current;
+      job.dispose();
+    }
   });
   const removeState = job.subscribe(() => {
     if (["uploading", "confirming", "storing", "paused"].includes(job.snapshot().status))
@@ -115,6 +214,7 @@ export function createTaroUpload(
   const remove = () => {
     removeContext();
     removeSession();
+    removeAccount();
     Taro.offAppHide?.(hide);
     Taro.offAppShow?.(show);
   };
