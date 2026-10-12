@@ -69,13 +69,14 @@ export function entitlementHarness(prisma: PrismaClient, ledger?: LedgerHarness)
     const notifyScope = createNotifyAssembly(base);
     const scope = createTenantEntitlementAssembly(notifyScope.assembly);
     const assembly = scope.assembly;
+    const params = createConfig({ db: prisma, clock: h.clock, redis: null }).params;
     const notify = createRuntimeNotify({
       tx: runner,
       clock: h.clock,
       assembly,
       appEnv: "test",
       providers,
-      params: createConfig({ db: prisma, clock: h.clock, redis: null }).params,
+      params,
       keyring: TEST_KEYRING,
       logger: { info() {}, warn() {}, error() {} },
     });
@@ -125,6 +126,8 @@ export function entitlementHarness(prisma: PrismaClient, ledger?: LedgerHarness)
       read: (id: string) =>
         runner.run((tx) => notifyReadOf(assembly).read(tx, "tenantQuotaForNotify", id)),
       async queue(eventId: string) {
+        // 先读取真实当前参数，普通通知消费持有唯一连接时复用原配置缓存。
+        await params.all();
         while ((await events.expand()).events > 0);
         refs.length = 0;
         await dispatchDue(dispatch);
