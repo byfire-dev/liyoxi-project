@@ -211,10 +211,20 @@ COS普通GET上限补齐至7200秒供正式转写两小时地址使用，视觉�
 
 ## 17. API ASR 前置装配（W3-15）
 
-API显式消费已解析的`Env.ASR_TENCENT`，经原kernel工厂构造腾讯ASR；LLM和回调仍未接入。
+API显式消费已解析的`Env.ASR_TENCENT`，经原kernel工厂构造腾讯ASR；LLM仍未接入。
 自有配置须成对提供`modelDrivers.registerClose/close`，借用整套providers不消费该端口。
 入口先持缓存关闭Promise，部分构造失败仍关闭已登记驱动；正常排空后等待模型及预算关闭，
 独立cleanup失败仍清理其余资源并保留首异常。模型构造零HTTP不等于本地基础设施零网络。
 API使用完整预算准入口但不拥有transport，新提交保守关闭；已有TaskId只回查，不重新扣提交槽。
 不新增预算连接、初始化、恢复、退款、回调默认源或付费授权。当前仅SOURCE与轻静态，
 真实执行、密钥、云权限、地域隐私/E22、费用和完整W3-15均待验。
+
+## 18. ASR默认回调装配（W3-15）
+
+API/worker仅自有腾讯工厂消费完整冻结ASR_TENCENT/ASR_CALLBACK时，把同份原UTF8
+key交发送协议与默认收件来源。素材owner仅在该装配事实为true时提交真实job.id；
+缺省不附CallbackUrl，借用整套providers不推断私有选项、不登记或关闭模型。
+显式webhookSources保持整表替换，不能授予付费权限。收件提交后仅唤醒原TaskId查询；
+API无预算transport的新提交仍关闭，查询不新扣提交槽。原KF-1、轮询、期限与closer保持。
+当前SOURCE尚未执行重验证；模型构造零HTTP不代表基础设施零IO，真实云投递、
+凭据/地域隐私/E22、收费与容量仍未验；不初始化、恢复或退款预算账本。

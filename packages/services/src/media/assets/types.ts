@@ -51,6 +51,8 @@ export interface MediaAssetsDeps {
   readonly allowModelCall?: (tx: Tx, input: { storeId: string; now: Date }) => Promise<boolean>;
   /** 成对端口一旦存在即为权威；不完整或失败不能回退旧授权。默认装配不提供。 */
   readonly modelBudget?: ModelBudgetAdmission;
+  /** 仅组合根的自有完整回调配置可以启用真实任务标识。 */
+  readonly asrCallback?: boolean;
   readonly recordUpload: (
     tx: Tx,
     actor: MediaActor,
