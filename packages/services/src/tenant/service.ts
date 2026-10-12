@@ -22,6 +22,9 @@ import type {
   InvitationRevokeBody,
   InvitationRevokeResult,
   InvitationAcceptBody,
+  EntityCard,
+  EntityMemberList,
+  EntityMemberListQuery,
 } from "@liyoxi/contract";
 
 import type { Flow } from "../flow/index.js";
@@ -66,8 +69,13 @@ import { readStoreMembersBrief } from "./profile-members.js";
 import type { StoreMembersBrief } from "./profile-members.js";
 import { createStoreCreator } from "./store-create.js";
 import type { StoreCreation, StoreCreateOptions } from "./store-create.js";
+import { adminEntityGetIn, adminEntityMemberListIn } from "./admin-read.js";
+import type { TenantAdminReadDeps } from "./admin-read.js";
+import type { StaffContext } from "../authz/index.js";
 
 export interface TenantDeps extends Pick<MemberManagementDeps, "readMemberAssetCounts" | "events"> {
+  /** 仅后台两条主体查询需要，由应用层固定绑定真实事实拥有者。 */
+  readonly adminRead?: TenantAdminReadDeps;
   /** 分店创建由上层固定绑定档案与会话拥有者；缺失不影响旧命令。 */
   readonly storeCreation?: StoreCreation;
   /** 删除草稿门店需要六个拥有者的真实同事务历史，缺装配不影响旧用例。 */
@@ -92,6 +100,12 @@ export interface UseCaseOptions {
 }
 
 export interface Tenant {
+  adminEntityGet(staff: StaffContext, entityId: string): Promise<EntityCard>;
+  adminEntityMemberList(
+    staff: StaffContext,
+    entityId: string,
+    query: EntityMemberListQuery,
+  ): Promise<EntityMemberList>;
   createStore(
     ctx: IdentityContext,
     input: StoreCreateBody,
@@ -219,6 +233,10 @@ export function createTenant(deps: TenantDeps): Tenant {
   const acceptInvitation = createInvitationAcceptor(memberDeps);
   const createStore = createStoreCreator(memberDeps);
   return {
+    adminEntityGet: (staff, entityId) =>
+      deps.tx.run((tx) => adminEntityGetIn(tx, deps.adminRead, facts, now(), staff, entityId)),
+    adminEntityMemberList: (staff, entityId, query) =>
+      deps.tx.run((tx) => adminEntityMemberListIn(tx, deps.adminRead, staff, entityId, query)),
     createStore,
     async createEntity(ctx, options = {}) {
       try {

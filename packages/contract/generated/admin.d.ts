@@ -1370,6 +1370,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/entities/{entityId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 主体卡片与名下门店（门店与成员页签）：信用代码脱敏、认证日期、老板、套餐、门店与成员用量 */
+        get: operations["admin.entity.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/entities/{entityId}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 主体成员（只读：成员由老板在小程序邀请和管理；待接受的邀请随 admin.entity.get 返回） */
+        get: operations["admin.entity.member.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/feature-flags": {
         parameters: {
             query?: never;
@@ -5157,6 +5191,80 @@ export interface components {
         EnrollTotpBody: {
             ticket: string;
         };
+        EntityCard: {
+            actions: string[];
+            closedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            entityId: string;
+            entityType: ("enterprise" | "individual" | (string & {})) | null;
+            legalRepNameMask: string | null;
+            /** @enum {string} */
+            lifecycle: "active" | "abandoned" | "closed" | (string & {});
+            lockVersion: number;
+            name: string | null;
+            owner: components["schemas"]["MerchantUserBrief"] | null;
+            pendingInvitations: components["schemas"]["PendingInvitationRow"][];
+            referralCode: {
+                code: string;
+                label: string | null;
+                /** Format: uuid */
+                referralCodeId: string;
+            } | null;
+            /** @enum {string} */
+            sourceType: "organic" | "sales" | "campaign" | "partner" | (string & {});
+            spendablePoints: number;
+            stores: components["schemas"]["EntityStoreRow"][];
+            subscription: components["schemas"]["SubscriptionBrief"];
+            usage: {
+                activeMemberCount: number;
+                isOverLimit: boolean;
+                /** @enum {string} */
+                limitReason: "plan" | "inactive" | (string & {});
+                memberLimit: number | null;
+                memberLimitOverride: number | null;
+                pendingInvitationCount: number;
+                seatsOver: number;
+                seatsUsed: number;
+                storeLimit: number;
+                storeLimitOverride: number | null;
+                storesOver: number;
+                storesUsed: number;
+            };
+            usccMask: string | null;
+            /** @enum {string} */
+            verificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
+            verifiedAt: string | null;
+        };
+        EntityStoreRow: {
+            address: {
+                city: components["schemas"]["DictRef"] | null;
+                detail: string | null;
+                district: components["schemas"]["DictRef"] | null;
+            };
+            assetCount: number;
+            clerkCount: number;
+            copiedAssetCount: number;
+            copiedFromStoreId: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            deliveryManager: components["schemas"]["StaffBrief"] | null;
+            isPrimary: boolean;
+            lastDecidedAt: string | null;
+            /** @enum {string} */
+            lifecycle: "active" | "archived" | (string & {});
+            liveDramaCount: number;
+            name: string | null;
+            openQualificationSubmissionId: string | null;
+            producingDramaCount: number;
+            /** @enum {string} */
+            qualificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
+            reviewDueAt: string | null;
+            reviewedAssetCount: number;
+            /** Format: uuid */
+            storeId: string;
+        };
         EpisodeGrid: {
             currentPassedCount: number;
             currentTotalBytes: string;
@@ -5656,6 +5764,33 @@ export interface components {
             } | null;
             trailer: components["schemas"]["TrailerBrief"];
         };
+        MemberRow: {
+            actions: string[];
+            adoptedAssetCount: number;
+            /** Format: date-time */
+            joinedAt: string;
+            /** Format: uuid */
+            memberId: string;
+            /** Format: date-time */
+            registeredAt: string;
+            removeReason: ("by_owner" | "self" | "dormant" | "owner_transfer" | "account_deleted" | "draft_abandoned" | "store_archived" | "entity_closed" | (string & {})) | null;
+            removedAt: string | null;
+            /** @enum {string} */
+            role: "owner" | "clerk" | (string & {});
+            /** @enum {string} */
+            status: "active" | "removed" | (string & {});
+            storeIds: string[];
+            uploadedAssetCount: number;
+            user: components["schemas"]["MerchantUserBrief"];
+        };
+        MerchantUserBrief: {
+            displayName: string | null;
+            /** Format: uuid */
+            merchantUserId: string;
+            phoneMask: string | null;
+            /** @enum {string} */
+            status: "active" | "disabled" | "deleted" | (string & {});
+        };
         OpenWorkSummary: {
             bySource: {
                 count: number;
@@ -5970,6 +6105,18 @@ export interface components {
             transferState: "awaiting_proof" | "proof_submitted" | "proof_rejected" | "confirm_review" | (string & {}) | null;
             /** @enum {string} */
             type: "plan_new" | "plan_renew" | "plan_upgrade" | "topup" | (string & {});
+        };
+        PendingInvitationRow: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            invitationId: string;
+            inviterName: string | null;
+            remarkName: string | null;
+            /** Format: uuid */
+            storeId: string;
         };
         PiiRevealBody: {
             /** @enum {string} */
@@ -14630,6 +14777,140 @@ export interface operations {
             };
             /** @description 限流 */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.entity.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["EntityCard"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.entity.member.list": {
+        parameters: {
+            query?: {
+                storeId?: string;
+                role?: "owner" | "clerk";
+                includeRemoved?: "true" | "false";
+            };
+            header?: never;
+            path: {
+                entityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: components["schemas"]["MemberRow"][];
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

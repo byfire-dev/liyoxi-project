@@ -13,6 +13,9 @@ import {
   createFlow,
   createIdentity,
   createTenant,
+  readTenantAdminBillingFacts,
+  readEntityStoreProfileFacts,
+  countOrderItemsByPhase,
   readStoreDraftFacts,
   createProfile,
   createStoreProfileAssetInitializer,
@@ -71,6 +74,12 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
     flow,
     assembly,
     events,
+    adminRead: {
+      billing: readTenantAdminBillingFacts,
+      profiles: readEntityStoreProfileFacts,
+      assets: media.readEntityAssetCounts,
+      orders: countOrderItemsByPhase,
+    },
     readMemberAssetCounts: media.readMemberAssetCounts,
     archiveTimers: runtime.timers,
     storeCreation: {

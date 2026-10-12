@@ -1,8 +1,16 @@
 // 后台：商家、资质审核与素材复核 · entities（docs/api/a03-merchant.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { adminMeta } from "../meta-only.js";
+import { adminRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  EntityIdParamsSchema,
+  EntityCardSchema,
+  EntityMemberListQuerySchema,
+  EntityMemberListSchema,
+} from "./entities.schemas.js";
 
-export const adminEntityGet = adminMeta({
+export const adminEntityGet = adminRoute({
   method: "get",
   path: "/admin/entities/{entityId}",
   operationId: "admin.entity.get",
@@ -10,6 +18,8 @@ export const adminEntityGet = adminMeta({
     "主体卡片与名下门店（门店与成员页签）：信用代码脱敏、认证日期、老板、套餐、门店与成员用量",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: EntityIdParamsSchema },
+  responses: { ...okResponse(EntityCardSchema), ...errorResponses(400, 401, 403, 404) },
 });
 
 export const adminEntityClose = adminMeta({
@@ -21,13 +31,15 @@ export const adminEntityClose = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminEntityMemberList = adminMeta({
+export const adminEntityMemberList = adminRoute({
   method: "get",
   path: "/admin/entities/{entityId}/members",
   operationId: "admin.entity.member.list",
   summary: "主体成员（只读：成员由老板在小程序邀请和管理；待接受的邀请随 admin.entity.get 返回）",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: EntityIdParamsSchema, query: EntityMemberListQuerySchema },
+  responses: { ...okResponse(EntityMemberListSchema), ...errorResponses(400, 401, 403, 404) },
 });
 
 export const adminEntityQuotaUpdate = adminMeta({

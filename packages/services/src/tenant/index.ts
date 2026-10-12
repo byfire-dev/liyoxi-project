@@ -79,3 +79,4 @@ export type {
 
 export { readStoreAssetFacts, readAssetMerchantUploader } from "./media-facts.js";
 export type { StoreMembersBrief } from "./profile-members.js";
+export type { TenantAdminReadDeps } from "./admin-read.js";
