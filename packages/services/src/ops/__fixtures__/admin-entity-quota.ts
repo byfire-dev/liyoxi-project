@@ -85,7 +85,6 @@ export async function quotaHarness(prisma: PrismaClient) {
     createProfile({
       ...h,
       tx: runner,
-      flow,
       approval,
       tenant,
       keyring: () => TEST_KEYRING,
