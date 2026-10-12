@@ -254,6 +254,25 @@ describe("后台主体GET：真实拥有者组合", { timeout: SLOW }, () => {
   it("真实订阅不限成员仍用唯一额度公式，到期读不推进原周期", async () => {
     const w = await world();
     const { term } = await openTerm(h, { entityId: w.entity.id, planCode: "pro" });
+    // openTerm的通用账本前提只填kind；在首次被测GET前补齐来源付款单的真实套餐快照。
+    await h.prisma.billingOrder.update({
+      where: { id: term.sourceBillingOrderId },
+      data: {
+        contentSnapshot: {
+          v: 1,
+          kind: "plan",
+          planId: term.planId,
+          planRevisionId: term.initialPlanRevisionId,
+          months: term.months,
+          cyclePriceFen: term.priceTotalFen,
+          payFen: term.priceTotalFen,
+          monthlyPoints: term.monthlyPoints,
+          discountBp: term.discountBp,
+          promo: null,
+          quotedAt: term.createdAt.toISOString(),
+        },
+      },
+    });
     await h.prisma.subscriptionTerm.update({ where: { id: term.id }, data: { maxMembers: null } });
     const active = await service().adminEntityGet(w.staff, w.entity.id);
     expect(active.usage).toMatchObject({ memberLimit: null, seatsOver: 0, limitReason: "plan" });
@@ -366,7 +385,30 @@ describe("后台主体GET：真实拥有者组合", { timeout: SLOW }, () => {
     const w = await world(),
       before = await snapshotTables(h.prisma, TABLES);
     const outside = createPrismaClient({ connectionString: await db.url(), max: 1 });
+    const external = createTenant({
+      tx: createLedgerHarness(outside, { clock: h.clock }).tx,
+      clock: h.clock,
+      events: h.events,
+      assembly,
+      flow: createFlow({ assembly, clock: h.clock, events: h.events }),
+      adminRead: real,
+    });
+    let enteredOutside!: () => void;
+    let releaseOutside!: () => void;
+    const outsideEntered = new Promise<void>((resolve) => {
+      enteredOutside = resolve;
+    });
+    const outsideReleased = new Promise<void>((resolve) => {
+      releaseOutside = resolve;
+    });
+    // 在caller事务进入ALS之前启动独立调用；只用真实barrier协调，不脱离祖先事务。
+    const outsideRead = (async () => {
+      enteredOutside();
+      await outsideReleased;
+      return external.adminEntityGet(w.staff, w.entity.id);
+    })();
     try {
+      await outsideEntered;
       await expect(
         h.tx.run(async (tx) => {
           await tx.entity.update({ where: { id: w.entity.id }, data: { storeLimitOverride: 7 } });
@@ -393,15 +435,8 @@ describe("后台主体GET：真实拥有者组合", { timeout: SLOW }, () => {
             ],
           });
           expect(members.items[0]?.uploadedAssetCount).toBe(1);
-          const external = createTenant({
-            tx: createLedgerHarness(outside, { clock: h.clock }).tx,
-            clock: h.clock,
-            events: h.events,
-            assembly,
-            flow: createFlow({ assembly, clock: h.clock, events: h.events }),
-            adminRead: real,
-          });
-          const other = await external.adminEntityGet(w.staff, w.entity.id);
+          releaseOutside();
+          const other = await outsideRead;
           expect(other.usage.storeLimitOverride).toBeNull();
           expect(other.stores[0]).toMatchObject({ assetCount: 0, address: { detail: null } });
           throw new Error("真实外层故障");
@@ -410,6 +445,8 @@ describe("后台主体GET：真实拥有者组合", { timeout: SLOW }, () => {
       expect(await snapshotTables(h.prisma, TABLES)).toEqual(before);
       expect((await service().adminEntityGet(w.staff, w.entity.id)).stores[0]?.assetCount).toBe(0);
     } finally {
+      releaseOutside();
+      await outsideRead.catch(() => undefined);
       await outside.$disconnect();
     }
   });
