@@ -14,7 +14,8 @@ import {
 //   端口     计费账户由 billing 实现；W2-10 PR1 的精准下载页授权吊销由 identity 实现。
 //   状态机   entity、store、entity_member、invitation 六条链的随迁列、活动流默认描述与已实现守卫。
 //   不变量   tenant.I1、I7、I17、I27、I28、I29；调度与落库由 ops（W0-24）。
-// invitation.expire 由各运行时绑定；订阅者 tenant.onEntitlementChanged 仍待后续。
+// invitation.expire 与权益变动订阅由各实例运行时绑定。
+import { TENANT_ENTITLEMENT_EVENTS } from "./entitlement.js";
 import { defineRegistration } from "../kernel/index.js";
 import type { InvariantRegistration } from "../kernel/index.js";
 import {
@@ -41,6 +42,15 @@ const check = (
 ): InvariantRegistration => ({ code, severity: "P2", modes: ["full"], heal: "none", run });
 
 export const registration = defineRegistration("tenant", {
+  subscribers: [
+    {
+      name: "tenant.onEntitlementChanged",
+      events: TENANT_ENTITLEMENT_EVENTS,
+      handle: async () => {
+        throw new TypeError("权益变动须由本实例运行时绑定");
+      },
+    },
+  ],
   timerHandlers: [
     {
       kind: "invitation.expire",
@@ -57,6 +67,9 @@ export const registration = defineRegistration("tenant", {
     ...CLOSE_FACTS_PORTS,
   ],
   portImplementations: [
+    notifyReaderImplementation(currentNotifyReadPort, "tenantQuotaForNotify", async () => {
+      throw new TypeError("权益通知事实须由本实例运行时绑定");
+    }),
     notifyReaderImplementation(
       currentNotifyReadPort,
       "storeArchiveForNotify",

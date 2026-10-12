@@ -126,6 +126,8 @@ import {
   createStartupChecks,
   createRuntimeNotify,
   createNotifyAssembly,
+  createTenantEntitlementAssembly,
+  createRuntimeTenantEntitlement,
   createAlertFactsAssembly,
 } from "./ops/index.js";
 import type { Health, StartupCheck } from "./ops/index.js";
@@ -395,7 +397,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
   const docsScope = createDocsAssembly(deliverySlaScope.assembly);
   const invitationScope = createInvitationAssembly(docsScope.assembly);
-  const assembly = invitationScope.assembly;
+  const entitlementScope = createTenantEntitlementAssembly(invitationScope.assembly);
+  const assembly = entitlementScope.assembly;
   const documentConverter = options.documentWorkerUrl
     ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
     : null;
@@ -684,6 +687,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     appid: env.WECHAT?.appid,
   });
   notifyScope.attach(notify);
+  entitlementScope.attach(createRuntimeTenantEntitlement({ clock, assembly, notify }));
   const staffManagement = staffScope.attach({
     tx,
     clock,
@@ -925,7 +929,13 @@ export function createRuntime(options: RuntimeOptions): Runtime {
             (result): result is PromiseRejectedResult => result.status === "rejected",
           );
         };
-        await settle([() => modelBudget?.disable(), () => invitationScope.close()]);
+        await settle([
+          () => modelBudget?.disable(),
+          () => {
+            entitlementScope.close();
+            invitationScope.close();
+          },
+        ]);
         await settle([() => docsScope.close(), () => documentConverter?.close()]);
         await settle([
           () => staffScope.close(),

@@ -90,3 +90,8 @@ export { createModelBudgetInspector } from "./model-budget-inspect.js";
 export type { ModelBudgetInspection } from "./model-budget-inspect.js";
 export { createProfileLifecycleAssembly } from "./profile-lifecycle-runtime.js";
 export { createInvitationAssembly } from "./invitation-runtime.js";
+
+export {
+  createTenantEntitlementAssembly,
+  createRuntimeTenantEntitlement,
+} from "./tenant-entitlement-runtime.js";

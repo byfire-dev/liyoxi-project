@@ -157,3 +157,8 @@ SmsPackagesStatistics 确实存在，但 BeginTime/EndTime 是套餐**创建**�
 官方验证码模板变量至多6位纯数字；实际 staff 激活码仍为8位字母数字，真实驱动在外呼前 rejected，console local/test 原样。本包不改码、不截断、不改冻结模板种子或verify枚举、不转通知模板绕限制。需 W2-03/W2-17/业主继续解决外部选型与审批偏差，真实员工激活短信未闭环。
 
 官方通知变量新/长期闲置账号默认至多6字符，具体账号以控制台为准，官方另列通知/营销模板不支持变量的错误。九个业务模板及参数配置不能据本地fake测试推定获批。真实签名/模板/内部号/密钥、一次授权发送、同步受理与到达/失败回执、套餐全量与阈值监测均保持外部未验，由业主提供脱敏事实后继续，不在本开发会话发真实短信。
+
+## 权益变动的名额超限提醒（SOURCE）
+
+`sendQuotaExceeded(tx,event)` 是由 ops typed callback 连接 tenant 的专用入口，回读所属 `tenantQuotaForNotify` 与当前老板接收人。唯一场景 `m.quota_exceeded` 按真实 outbox id + 当前老板去重，不同接续/到期发生各提醒；只写立即站内消息与 inbox，不排外部发送。只列非零的门店/店员与有效待接受邀请超额数，CTA“查看套餐”指向原 `wallet.home`。
+场景目录、a09 与13分组同步补登；默认 seed binding 不变。两个原 billing 事件仍只由 `tenant.onEntitlementChanged` 消费，不另加 notify.onEvent。所有通知写入与原消费状态共用 caller Tx；SOURCE 静态检查不代表类型、真实数据库或完整回归已验收。

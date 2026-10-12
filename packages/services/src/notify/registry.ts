@@ -103,6 +103,14 @@ const staffSpec = (
   }),
 });
 
+export const QUOTA_EXCEEDED_SPEC = spec(
+  "m.quota_exceeded",
+  "tenantQuotaForNotify",
+  "entityId",
+  "store",
+  wallet,
+);
+
 export const INVITATION_JOIN_SPEC = spec(
   "m.member_changed",
   "acceptedInvitationForNotify",
@@ -390,9 +398,12 @@ export const EVENT_SCENES: Readonly<Record<string, readonly NotificationSpec[]>>
 
 export const SCENE_COVERAGE = NOTIFY_SCENES.map((scene) => ({
   ...scene,
-  events: Object.entries(EVENT_SCENES)
-    .filter(([, list]) => list.some((s) => s.sceneKey === scene.key))
-    .map(([event]) => event),
+  events:
+    scene.key === QUOTA_EXCEEDED_SPEC.sceneKey
+      ? ["billing.subscription.rolled_over", "billing.subscription.expired"]
+      : Object.entries(EVENT_SCENES)
+          .filter(([, list]) => list.some((s) => s.sceneKey === scene.key))
+          .map(([event]) => event),
 }));
 export const specFor = (key: string, bizType?: string | null): NotificationSpec | undefined =>
   key === "m.member_changed" && bizType === "invitation"
@@ -401,6 +412,7 @@ export const specFor = (key: string, bizType?: string | null): NotificationSpec 
         ...Object.values(EVENT_SCENES)
           .flat()
           .filter((s) => s !== INVITATION_JOIN_SPEC),
+        QUOTA_EXCEEDED_SPEC,
         FOLLOWUP_SPEC,
         UNREACHED_SPEC,
         COPYRIGHT_SPEC,

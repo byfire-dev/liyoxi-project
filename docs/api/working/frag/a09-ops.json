@@ -2534,6 +2534,15 @@
       "audience": "staff",
       "events": [],
       "source": "W2-03 必要补登；a01 3.24、13分组2.1；站内邀请与原扫描恢复"
+    },
+    {
+      "sceneKey": "m.quota_exceeded",
+      "audience": "merchant",
+      "events": [
+        "billing.subscription.rolled_over",
+        "billing.subscription.expired"
+      ],
+      "source": "W2-10 必要补登；tenant.onEntitlementChanged；13分组2.1；立即站内"
     }
   ]
 }

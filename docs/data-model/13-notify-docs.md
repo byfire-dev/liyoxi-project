@@ -148,7 +148,6 @@ erDiagram
 | `m.asset_feedback` | 订阅 06 分组的三个出站事件（前两个只在 `store_asset.upload_actor_type = merchant` 时发，员工代传的素材没有商家接收人）：`asset.adopted`（素材被采用）发给上传人；`asset.reviewed` 只在复核结论 `usability` 为 `need_reshoot`（需重拍）或 `need_portrait_auth`（需补肖像授权）时提醒上传人，其余结论不发；`asset.demand_created`（素材需求发起）按 `store_asset_demand.notify_scope` 取 `owner_and_clerks`（老板与门店店员）或 `owner_only` | d6:248；06 分组的请求 |
 
 `m.rule_change_notice` 的正文（14 分组 2.6）：派发时按 `copy_mode` 取公告行的摘要：`offline_contract`（`showPrice = false`）取 `site_notice.summary_no_price`，该列为空（协议版本的公告，没有价格）时取 `summary`；其余模式取 `summary`。
-
 其他分组已提出、要随注册表补的场景（不改表结构）：
 
 - 证照到期提醒与 `store.qualification_change.*`、`store.profile.changed` 的接入（d9:703-704、725；catalogue notes）。
@@ -157,11 +156,12 @@ erDiagram
   - 新微信登录（d4:386-389；订阅 02 分组的出站事件 `merchant_user.wechat_bound`，A95 改名，x01 3.17）：短信用 `account_notice` 模板、策略 `always`；订阅消息要排除刚绑定的那个微信身份，事件载荷带 `wechatIdentityId`，场景的 `vars` 带 `excludeWechatIdentityId`，额度预留跳过它（见 2.8）。
   - 换绑手机号：订阅 02 分组的出站事件 `merchant_user.phone_changed` 生成站内消息，载荷不带手机号，场景不发短信。给原号码的账号安全短信不经场景：identity 在换绑事务提交后调 `notify.sendDirect`（`purpose = account_notice`，见 2.5“直发”；02 分组 2.8）。
 
-**补登播种**（接口阶段，a09-ops.md 2.9 标“补登”的 31 个键，随注册表同批播种；只加行、不改表）：默认 `ext_enabled = true`、`scene_enabled = true`、`sms_policy = never`、`send_window = immediate`，槽位与短信模板为空（只发站内；员工场景的企业微信由注册表声明）。触发事件、接收人与深链以 a09 2.9 为准，下表只列键与显示名。
+**补登播种**（接口阶段，a09-ops.md 2.9 标“补登”的原31个键及W2-10追加场景，随注册表同批播种；只加行、不改表）：默认 `ext_enabled = true`、`scene_enabled = true`、`sms_policy = never`、`send_window = immediate`，槽位与短信模板为空（只发站内；员工场景的企业微信由注册表声明）。触发事件、接收人与深链以 a09 2.9 为准，下表只列键与显示名。
 
 | `scene_key` | `audience` | `name` | 例外与说明 |
 | --- | --- | --- | --- |
 | `m.rule_change_withdrawn` | merchant | 调整已取消 | `site_notice.withdrawn` |
+| `m.quota_exceeded` | merchant | 名额超限提醒 | W2-10 权益变动；既有默认绑定，只发立即站内 |
 | `m.plan_activated` | merchant | 套餐已开通 | — |
 | `m.plan_renewed` | merchant | 续费成功 | — |
 | `m.plan_upgraded` | merchant | 套餐已升级 | — |
@@ -1350,3 +1350,5 @@ draft_deleted/store.draft_delete 仅作为同一真实 store_archived 系统级�
 本人仍为 NULL entity/store/copyMode、非 ownerOnly、messages.list；老板只进入当前有效门店。
 经理 s.merchant_changed 仍只认 by_owner/store.archive，draft_deleted 全消息及外发链不新增通知。
 原历史/来源与发送前重验、消息权限 SQL、acceptedInvitation 和其他成员原因保持；无新通知场景。
+
+W2-10 权益变动伴随：在上述31个补登键之外追加商家场景 `m.quota_exceeded`（名额超限提醒），沿既有 seed 的默认立即站内绑定补行，不改表结构。`notification.biz_type = entity`、`biz_id = entityId`，`vars = { sourceId, sourceType, entityId, merchantUserId, storesOver, seatsOver }`，持久化来源、当前主体/老板与唯一 quota 同 caller Tx 复查；去重键为 `m.quota_exceeded:{outboxEventId}:{currentOwnerUserId}`。只建 `merchant_message` 与已发送 `inbox` 投递；CTA“查看套餐”指向既有 `wallet.home`，无 WX/SMS/provider。
