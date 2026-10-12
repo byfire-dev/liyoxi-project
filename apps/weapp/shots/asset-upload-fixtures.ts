@@ -63,7 +63,8 @@ export async function createAssetUploadFixture(
     createFailed = false,
     cancelFailed = false,
     partialFailed = false,
-    optionsFailed = false;
+    optionsFailed = false,
+    recoverySelections = 0;
   const storage: KeyValueStorage = {
     get: <T>(key: string) => (values.get(key) ?? null) as T | null,
     set: (key, value) => {
@@ -226,6 +227,11 @@ export async function createAssetUploadFixture(
               reject = fail;
               const finish = () => {
                 pending.delete(finish);
+                if (scene === "asset-uploader-failed" && !partialFailed) {
+                  partialFailed = true;
+                  fail(new Error("本次传输失败，请重试"));
+                  return;
+                }
                 if (scene.endsWith("partial") && local.path === "local-2" && !partialFailed) {
                   partialFailed = true;
                   fail(new Error("第二份传输失败"));
@@ -277,6 +283,7 @@ export async function createAssetUploadFixture(
   };
   const control = {
     events,
+    taskIds: (): string[] => tasks.snapshot().tasks.map((task) => task.intent.id),
     release: () => {
       held = false;
       [...pending].forEach((run) => run());
@@ -290,7 +297,8 @@ export async function createAssetUploadFixture(
       current,
       prepare: async (file) => file,
       choose: async (type) =>
-        scene.endsWith("resume-mismatch")
+        scene.endsWith("resume-mismatch") ||
+        (scene === "asset-uploader-recovery" && recoverySelections++ === 0)
           ? [{ ...selected(type), path: "wrong" }]
           : scene.endsWith("partial")
             ? [selected(type), selected(type, 2)]
@@ -310,11 +318,13 @@ export async function createAssetUploadFixture(
   if (
     scene.endsWith("resume-reselect") ||
     scene.endsWith("resume-mismatch") ||
-    scene.endsWith("recovery-blocked")
+    scene.endsWith("recovery-blocked") ||
+    scene === "asset-uploader-recovery"
   ) {
     if (!records.list(owner).length) await seed();
     if (scene.endsWith("recovery-blocked"))
       storage.set(StorageKey.uploadResume, [{ malformed: true }]);
   }
-  return { api, platform, tasks: createAssetUploadTasks(deps) };
+  const tasks = createAssetUploadTasks(deps);
+  return { api, platform, tasks };
 }
