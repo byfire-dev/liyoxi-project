@@ -385,6 +385,8 @@ describe("键名清单", () => {
       "MEDIA_PRODUCTION_FILE",
       "ASR_TENCENT_FILE",
       "LLM_DOMESTIC_FILE",
+      "ASR_CALLBACK_ORIGIN",
+      "ASR_CALLBACK_KEY_FILE",
     ]);
   });
 });

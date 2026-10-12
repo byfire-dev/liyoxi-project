@@ -76,6 +76,8 @@ export const ENV_KEYS: readonly string[] = [
   "MEDIA_PRODUCTION_FILE",
   "ASR_TENCENT_FILE",
   "LLM_DOMESTIC_FILE",
+  "ASR_CALLBACK_ORIGIN",
+  "ASR_CALLBACK_KEY_FILE",
 ];
 
 /** 数据加密密钥文件的内容：current 是当前 kid，keys 是 kid → base64 写的 32 字节 */
@@ -118,6 +120,8 @@ export interface Env {
   /** 独立可选的严格模型配置；本片只解析，不装配或启用驱动。 */
   readonly ASR_TENCENT?: AsrTencentEnvConfig;
   readonly LLM_DOMESTIC?: LlmDomesticEnvConfig;
+  /** 独立可选回调；密钥保留 FILE 的原始 UTF8 字节，只解析、不装配。 */
+  readonly ASR_CALLBACK?: Readonly<{ origin: string; key: string }>;
   readonly MEDIA_PRODUCTION?: {
     readonly workDir: string;
     readonly socketPath: string;
@@ -632,6 +636,94 @@ function readModelFile<T>(
   return undefined;
 }
 
+// 与已接受 ASR sender 的 origin 谓词等价；本文件保持无相对导入。
+function asrCallbackOrigin(value: unknown): string | undefined {
+  if (
+    typeof value !== "string" ||
+    value.length > 266 ||
+    [...value].some((char) => {
+      const code = char.charCodeAt(0);
+      return code <= 32 || code >= 127;
+    })
+  )
+    return undefined;
+  const matched = /^https:\/\/([a-z0-9.-]+)(?::443)?\/?$/.exec(value);
+  if (!matched) return undefined;
+  const host = matched[1]!,
+    labels = host.split(".");
+  if (
+    host.length > 253 ||
+    labels.length < 2 ||
+    !/[a-z]/.test(labels.at(-1)!) ||
+    ["local", "localhost", "internal", "onion", "invalid", "test"].includes(labels.at(-1)!) ||
+    labels.some((label) => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))
+  )
+    return undefined;
+  try {
+    const parsed = new URL(value);
+    return parsed.hostname === host ? parsed.origin : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** 独立有界读取；fatal UTF8 且保留 BOM，不裁剪、归一化或解释密钥编码。 */
+function readAsrCallbackKey(path: string, issues: EnvIssue[]): string | undefined {
+  const key = "ASR_CALLBACK_KEY_FILE";
+  let fd: number | undefined;
+  try {
+    fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK);
+    const stat = fstatSync(fd);
+    if (!stat.isFile() || stat.size > 256) throw new Error();
+    const bytes = Buffer.alloc(257);
+    let offset = 0;
+    while (offset < bytes.length) {
+      const count = readSync(fd, bytes, offset, bytes.length - offset, null);
+      if (count === 0) break;
+      offset += count;
+    }
+    if (offset < 32 || offset > 256) throw new Error();
+    return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(
+      bytes.subarray(0, offset),
+    );
+  } catch {
+    issues.push({ key, reason: "须为32至256字节的原始UTF8普通文件" });
+  } finally {
+    if (fd !== undefined) {
+      try {
+        closeSync(fd);
+      } catch {
+        issues.push({ key, reason: "配置文件关闭失败" });
+      }
+    }
+  }
+  return undefined;
+}
+
+function readAsrCallback(
+  source: EnvSource,
+  asr: AsrTencentEnvConfig | undefined,
+  issues: EnvIssue[],
+): Env["ASR_CALLBACK"] {
+  if (source.ASR_CALLBACK_KEY !== undefined)
+    issues.push({ key: "ASR_CALLBACK_KEY", reason: "只认独立ASR_CALLBACK_KEY_FILE，不接受明文" });
+  const rawOrigin =
+    read(source, "ASR_CALLBACK_ORIGIN") === undefined ? undefined : source.ASR_CALLBACK_ORIGIN;
+  const path = read(source, "ASR_CALLBACK_KEY_FILE");
+  if (rawOrigin === undefined && path === undefined) return undefined;
+  const origin = asrCallbackOrigin(rawOrigin);
+  if (!origin)
+    issues.push({
+      key: "ASR_CALLBACK_ORIGIN",
+      reason: "须为固定HTTPS DNS根origin，与独立KEY_FILE成对",
+    });
+  if (!path)
+    issues.push({ key: "ASR_CALLBACK_KEY_FILE", reason: "须与ASR_CALLBACK_ORIGIN成对配置" });
+  if (!asr) issues.push({ key: "ASR_TENCENT_FILE", reason: "ASR回调须有完整合法的腾讯ASR配置" });
+  const key = path === undefined ? undefined : readAsrCallbackKey(path, issues);
+  return origin && key && asr ? Object.freeze({ origin, key }) : undefined;
+}
+
 function readCi(source: EnvSource, issues: EnvIssue[]): Env["CI"] {
   const callbackKey = readWechatFile(source, "CI_CALLBACK_KEY", issues);
   const workerText = readWechatFile(source, "CI_WORKER_KEYS", issues);
@@ -885,6 +977,7 @@ export function loadEnv(
   const ci = readCi(source, issues);
   const asrTencent = readModelFile(source, "ASR_TENCENT", issues, AsrTencentEnvSchema);
   const llmDomestic = readModelFile(source, "LLM_DOMESTIC", issues, LlmDomesticEnvSchema);
+  const asrCallback = readAsrCallback(source, asrTencent, issues);
   const mediaProduction = readKeyFile(source, "MEDIA_PRODUCTION", issues, parseMediaProduction);
   const clientErrorProjects = readKeyFile(
     source,
@@ -926,6 +1019,7 @@ export function loadEnv(
     ...(mediaProduction ? { MEDIA_PRODUCTION: mediaProduction } : {}),
     ...(asrTencent ? { ASR_TENCENT: asrTencent } : {}),
     ...(llmDomestic ? { LLM_DOMESTIC: llmDomestic } : {}),
+    ...(asrCallback ? { ASR_CALLBACK: asrCallback } : {}),
     ...(dataKeys && bidxKeys ? { DATA_KEYS: dataKeys, BIDX_KEYS: bidxKeys } : {}),
     ...(authKeys ? { AUTH_KEYS: authKeys } : {}),
     ...(secretId && secretKey && sdkAppId && region
