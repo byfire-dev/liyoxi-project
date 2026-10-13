@@ -46,9 +46,15 @@ export const A03_MERCHANT = defineRouteDoc("a03-merchant", [
 export * from "./error-details.js";
 
 export * from "./stores.schemas.js";
+export * from "./store-activity.schemas.js";
 export * from "./qualification.schemas.js";
 export { adminQualificationDocUpdate } from "./qualification-docs.js";
-export { adminStoreList, adminStoreGet, adminStoreAssignDeliveryManager } from "./stores.js";
+export {
+  adminStoreList,
+  adminStoreGet,
+  adminStoreActivityList,
+  adminStoreAssignDeliveryManager,
+} from "./stores.js";
 export {
   adminQualificationSubmissionGet,
   adminQualificationSubmissionApprove,

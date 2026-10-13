@@ -3,6 +3,7 @@
 import { adminMeta } from "../meta-only.js";
 import { adminRoute } from "../builders.js";
 import { okResponse, errorResponses } from "../../common/index.js";
+import { StoreActivityPageSchema, StoreActivityQuerySchema } from "./store-activity.schemas.js";
 import {
   ManagerAssignResultSchema,
   StoreHeaderSchema,
@@ -44,13 +45,15 @@ export const adminStoreGet = adminRoute({
   responses: { ...okResponse(StoreHeaderSchema), ...errorResponses(400, 401, 403, 404, 409) },
 });
 
-export const adminStoreActivityList = adminMeta({
+export const adminStoreActivityList = adminRoute({
   method: "get",
   path: "/admin/stores/{storeId}/activities",
   operationId: "admin.store.activity.list",
   summary: "门店活动流（操作日志页签）：商家、店员、系统、员工的操作与变更",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: StoreIdParamsSchema, query: StoreActivityQuerySchema },
+  responses: { ...okResponse(StoreActivityPageSchema), ...errorResponses(400, 401, 403, 404) },
 });
 
 export const adminStoreProfileGet = adminMeta({

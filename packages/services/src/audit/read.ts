@@ -48,7 +48,7 @@ function link(ctx: StaffContext, row: AuditLog): AuditLogDetail["link"] {
     };
   return null;
 }
-function item(row: AuditLog): AuditLogItem {
+export function auditLogItem(row: AuditLog): AuditLogItem {
   return {
     auditLogId: row.id,
     logNo: row.logNo,
@@ -155,7 +155,7 @@ export function createAuditRead(db: ReadDb) {
       const visible = rows.slice(0, query.limit);
       const last = visible.at(-1);
       return {
-        items: visible.map(item),
+        items: visible.map(auditLogItem),
         hasMore,
         nextCursor:
           hasMore && last
@@ -171,7 +171,7 @@ export function createAuditRead(db: ReadDb) {
       if (row === null || !allowed(ctx, row.stream) || !inScope(ctx, row))
         throw new AppError("NOT_FOUND");
       return {
-        ...item(row),
+        ...auditLogItem(row),
         reason: row.reasonCode === null ? null : { code: row.reasonCode, text: row.reasonText },
         before: json(row.before),
         after: json(row.after),
