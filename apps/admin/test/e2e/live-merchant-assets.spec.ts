@@ -65,7 +65,7 @@ test("W318 素材只读页真实筛选与详情、缺少机器结果、文件现
   expect(actual.portraitAuth.authorizedAt).toBeNull();
   await noHorizontalScroll(page, "W318素材只读详情");
   mkdirSync("dist/e2e-shots", { recursive: true });
-  await page.screenshot({
+  await detail.screenshot({
     path: "dist/e2e-shots/merchant-assets-read-text.png",
     animations: "disabled",
   });
@@ -124,7 +124,7 @@ test("W318 素材只读页真实筛选与详情、缺少机器结果、文件现
   ).files.find((file) => file.fileId === f.document.fileId)!;
   await expect.poll(links).toContain(renewed.url);
   await noHorizontalScroll(page, "W318素材文件事实");
-  await page.screenshot({
+  await detail.screenshot({
     path: "dist/e2e-shots/merchant-assets-read-file.png",
     animations: "disabled",
   });
