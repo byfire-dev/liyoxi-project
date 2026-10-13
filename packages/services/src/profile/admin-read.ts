@@ -72,9 +72,13 @@ async function core(tx: Tx, deps: ProfileDeps, staff: StaffContext, id: string) 
   });
   const { province, city, district, zone } = await addressView(tx, p);
   const actions =
-    s.store.deliveryManagerId === null && hasPermission(staff, "merchant.manager.assign")
-      ? ["assign-delivery-manager"]
-      : [];
+    s.store.deliveryManagerId === null
+      ? hasPermission(staff, "merchant.manager.assign")
+        ? ["assign-delivery-manager"]
+        : []
+      : hasPermission(staff, "merchant.manager.transfer")
+        ? ["reassign-delivery-manager"]
+        : [];
   const row = StoreRowSchema.parse({
     storeId: id,
     name: s.store.name,
