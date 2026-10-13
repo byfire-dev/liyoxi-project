@@ -7,5 +7,5 @@
 | 影响的包 | 仅 services/tenant、本片新 ops 测试及本域说明；identity 的认证/休眠判断/账号清理与审批仍归 W2-09。 |
 | 类别 | 原计划补齐；无 HTTP、事件/schema、DDL、kernel port、order 或锁表修改。 |
 | PR | 本地 codex/w2-10-caller-tx-lifecycle，实际基于 main9144e9f；等待 ROOT 唯一正式审查和正常合流。 |
-| 验证 | SOURCE 阶段，仅轻静态；真实外层事务/竞争、旧完整集合、类型与所有门禁待 ROOT 单 lane。无单独空生成窗口，最终 contract/登记门禁核派生零差异。 |
+| 验证 | 按业主 2026-10-13 指示由 ROOT 单 lane 风险驱动验证：新 callerTx 的真实事务/守卫/级联及关键竞争，旧 staff 关闭、邀请与成员定点回归和必要类型/门禁；不重复旧全量。原竞争每例 20 轮、120 秒期限保持；此前依赖与测试类型两轮失败事实保留。当前仅轻静态通过，真实执行结果待 ROOT 回写；无单独空生成窗口。 |
 | 边界 | a03:1124 的取消申请系统撤回是 staff 特有部分；owner 仅复用共同 tenant 级联，原 staff prepare/withdraw 保留。W2-09 先整体预锁审批30/账号变更40、账号80/微信90，再消费 tenant100及以上；不在此片完成真实 phoneLogin 或注销 HTTP。 |

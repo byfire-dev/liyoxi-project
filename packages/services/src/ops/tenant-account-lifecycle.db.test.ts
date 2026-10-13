@@ -1,3 +1,5 @@
+import { termDates } from "@liyoxi/shared/period";
+import { addDays, calendarDate, endOfDay, startOfDay } from "@liyoxi/shared/time";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createFlow } from "../flow/index.js";
 import { createIdentityContext, lockRows, uuidv7 } from "../kernel/index.js";
@@ -372,13 +374,20 @@ describe("账号生命周期 callerTx：真实授权、级联及原子性", { ti
         });
       expect(invite.row.status).toBe("pending");
     }
-    if (mode === "historical_term")
+    if (mode === "historical_term") {
+      const period = termDates(addDays(calendarDate(h.clock.now()), -32), 1);
       await h.make.subscriptionTerm({
         entityId: w.entityId,
         status: "ended",
         endedAt: h.clock.now(),
-        endAt: h.clock.now(),
+        startDate: new Date(period.startDate),
+        endDate: new Date(period.endDate),
+        anchorDay: period.anchorDay,
+        startsAt: startOfDay(period.startDate),
+        activatedAt: startOfDay(period.startDate),
+        endsAt: endOfDay(period.endDate),
       });
+    }
     if (mode === "historical_order")
       await h.make.billingOrder({ entityId: w.entityId, status: "cancelled" });
     const before = await h.state();
@@ -691,9 +700,10 @@ describe("账号生命周期 callerTx：真实授权、级联及原子性", { ti
             ref: "02:524",
             args: mode === "extra_args" ? { owner: true, emptyDraft: true, prepared: true } : {},
             set: { closed_at: h.clock.now() },
+            emit: { type: "entity.abandoned", payload: { v: 1, entityId: w.entityId } },
           });
         }),
-      ).rejects.toMatchObject({ error: "STATE_NOT_ALLOWED" });
+      ).rejects.toMatchObject({ error: "STATE_NOT_ALLOWED", details: { reason: "guard" } });
       expect(await h.state()).toEqual(before);
     },
   );
@@ -732,10 +742,21 @@ describe("账号生命周期 callerTx：真实授权、级联及原子性", { ti
               remove_reason: "account_deleted",
               last_store_id: null,
             },
+            emit: {
+              type: "entity_member.removed",
+              payload: {
+                v: 1,
+                entityMemberId: w.merchant.owner.id,
+                entityId: w.entityId,
+                merchantUserId: w.merchant.user.id,
+                role: "owner",
+                removeReason: "account_deleted",
+              },
+            },
           },
         );
       }),
-    ).rejects.toMatchObject({ error: "STATE_NOT_ALLOWED" });
+    ).rejects.toMatchObject({ error: "STATE_NOT_ALLOWED", details: { reason: "guard" } });
     expect(await h.state()).toEqual(before);
   });
 });
