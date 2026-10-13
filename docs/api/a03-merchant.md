@@ -1527,6 +1527,9 @@ usage（名额与额度按 m02-tenant 2.1 的唯一口径，调 `tenant.getQuota
 
 **说明**：数据在 L3，经 `QualificationImpactPort.previewFinalReject` 由 order 实现（d9-profile.md:735）。驳回时把三个数作为回显带回（3.27）。原 `GET …/rejection-impact`、草案 `GET /approvals/{id}/final-reject-preview` 按 A20 改为本接口。
 
+M2人工路径已接真实影响端口：只含无在途取消的待开工订购，以及待指派或从待指派退回的广告；
+本接口无业务写入、无缓存且响应no-store。实际取消与积分退回的执行仍归M5。
+
 ### 3.26 admin.qualificationSubmission.approve　资质审核通过
 `POST /admin/qualification-submissions/{qualificationSubmissionId}/approve`
 
@@ -1635,6 +1638,8 @@ M1 的 confirm/roundNo 缺失由领域返回 CONFIRM_MISMATCH（409），在范�
 - 驳回原因字典 `store_review` 场景：证照模糊、主体与档案不一致、证照过期、缺少行业许可证、其他（14-config-data.md:126）。前端用 3.23 的 `checkSummary.suggestedReason`、`suggestedNote` 预填（proto-admin-b.md:145）。
 - 原型是原因单选；接口收数组（字典与审批单列都是多值），前端可只给一项。
 - 终局驳回后商家端不能再提交（d9-profile.md:528）。
+- M2终局决定在原审批/轮次/主体/门店/档案锁内重新读取真实影响，缺任一三项回显或有变化即整笔回滚。
+  只写终局事实与真实事件；整店取消申请及积分退回执行仍留M5，不因本次决定提前执行。
 
 ### 3.28 admin.storeAsset.list　门店素材列表
 `GET /admin/store-assets`

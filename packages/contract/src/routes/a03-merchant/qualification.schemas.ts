@@ -127,7 +127,15 @@ export const QualificationRejectBodySchema = z.object({
     .refine((v) => new Set(v).size === v.length)
     .optional(),
   isFinal: z.boolean().default(false),
-  confirm,
+  // 两种决定的回显均留给领域守卫核对，避免缺字段抢先遮蔽scope/待审守卫。
+  confirm: z
+    .object({
+      roundNo: z.int().optional(),
+      pendingStartOrderCount: z.int().min(0).optional(),
+      pendingAssignAdCount: z.int().min(0).optional(),
+      heldPoints: z.int().min(0).optional(),
+    })
+    .optional(),
 });
 export type QualificationApproveBody = z.infer<typeof QualificationApproveBodySchema>;
 export type QualificationRejectBody = z.infer<typeof QualificationRejectBodySchema>;
