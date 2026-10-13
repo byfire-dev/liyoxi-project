@@ -595,7 +595,7 @@ describe("人工账号变更三类真实闭环", { timeout: 120000 }, () => {
           },
         }),
       ),
-    ).rejects.toMatchObject({ reason: "guard" });
+    ).rejects.toMatchObject({ error: "STATE_NOT_ALLOWED", details: { reason: "guard" } });
     expect(await findI26Violations(h.prisma)).toEqual([]);
   });
 
