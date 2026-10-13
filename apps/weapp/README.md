@@ -63,7 +63,7 @@ import { captureError, newIdempotencyKey, request, track, withPrivacy, withSubsc
 
 新加页面：建 `src/pages/<页>/` 或 `src/sub/<分包>/<页>/` 下的 `index.tsx`、`index.config.ts`，把 `src/pages.ts` 里那一行的 `implemented` 改成 `true`（占位页同时去掉 `placeholder`），再跑 `node infra/ci/pages/generate.mjs`。
 
-`RequestOptions.store: false` 仅省略当前门店的 `X-Store-Id`；默认请求行为不变，也不改变本地选店或鉴权。W2-14 的用户级接受邀请按 [m02 第 3.16 节](../../docs/api/m02-tenant.md) 使用此选项，公开邀请预览另带 `auth: false`；网络重试、401 与 428 恢复仍沿用同一选项和原意图。构件已提供，六页消费者随 W2-14 交付。
+`RequestOptions.store: false` 仅省略当前门店的 `X-Store-Id`；默认请求行为不变，也不改变本地选店或鉴权。W2-14 的用户级接受邀请按 [m02 第 3.16 节](../../docs/api/m02-tenant.md) 使用此选项，公开邀请预览另带 `auth: false`；网络重试、401 与 428 恢复仍沿用同一选项和原意图。构件已提供，六页消费者与用户级加入链见 [W2-14 说明](src/sub/member/README.md)。
 
 ## 通用组件
 
@@ -274,3 +274,10 @@ token/contextRev及卸载/隐藏使晚结果失效，签名不进入路由或持
 唯一独立审查已收口后台刷新换意图的竞态，无剩余生产阻断；截图定位到本片参考区域。
 仅执行本片定点及最小旧回归，未重复旧全量或声明远端CI。订单参考留桩已回补，
 首页摘要仍留后继，整包W3-17继续进行中；真机/真实云不在本轮验证。
+
+
+## 门店、成员与邀请六页（W2-14）
+
+既有“我的”和门店档案进入门店管理，老板按实际额度新增门店、管理成员和邀请；店员仅可访问所属门店与本人档案。公开加入页以当前协议版本完成 member_join 登录，接受后只选返回门店。原档案资质多轮、联系人验证、证照和历史入口沿后端真实事实，默认地址仍字典与手填。
+
+私有调用、异步所有权、建店成功后选店失败的继续入口、六聚合测试与八个精确 H5 场景见 [本包 README](src/sub/member/README.md)。ROOT 本地六聚合、九个 H5 场景、类型及正式构建已通过，唯一独审问题已闭环。真实微信分享/手机号与地图审批未验，不将固定离线样张当真实平台结果。

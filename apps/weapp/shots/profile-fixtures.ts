@@ -646,6 +646,43 @@ export function offlineProfile(scene: string) {
       q.openRound!.declarationVersion = body!.declarationVersion as string;
       q.actions = [];
       response = q;
+    } else if (path.startsWith("/m/qualification-submissions?")) {
+      // 历史读取只投影既有已提交轮次；不把未提交草稿冒充审核记录。
+      const history: Data<"m.qualificationSubmission.list"> = {
+        items: [q.openRound, q.lastClosedRound].flatMap((round) => {
+          if (!round?.submittedAt || !round.roundNo) return [];
+          return [
+            {
+              qualificationSubmissionId: round.qualificationSubmissionId,
+              kind: round.kind,
+              roundNo: round.roundNo,
+              isResubmit: round.isResubmit,
+              changedFields: round.changedFields,
+              submittedAt: round.submittedAt,
+              outcome: round.outcome,
+              decidedAt: round.decidedAt,
+              isDecidedBySystem: round.isDecidedBySystem,
+              rejectReasons: round.rejectReasons,
+              decisionNote: round.decisionNote,
+              systemRejectCode: round.systemRejectCode,
+              finalRejectedAt: round.finalRejectedAt,
+              uploadedDocs: round.docs
+                .filter((doc) => doc.origin === "uploaded")
+                .map(({ docType, permitType }) => ({ docType, permitType })),
+              rejectedDocs: round.docs
+                .filter((doc) => doc.verdict === "rejected")
+                .map(({ qualificationDocId, docType, permitType }) => ({
+                  qualificationDocId,
+                  docType,
+                  permitType,
+                })),
+            },
+          ];
+        }),
+        nextCursor: null,
+        hasMore: false,
+      };
+      response = history;
     } else if (path === "/m/store-profile/qualification") {
       if (body) {
         q.openRound ??= {

@@ -42,6 +42,34 @@ export function createProfileApi(call: RequestLayer["request"], context: () => s
     media: () => call<Media>("/m/store-profile/media"),
     service: () => call<Service>("/m/store-profile/service"),
     qualification: () => call<Qualification>("/m/store-profile/qualification"),
+    rounds: (cursor?: string) =>
+      call<Data<"m.qualificationSubmission.list">>(
+        `/m/qualification-submissions?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+      ),
+    contactSms: (body: Body<"m.storeProfile.contactSmsCode.create">, key: string) =>
+      write<"m.storeProfile.contactSmsCode.create">(
+        "/m/store-profile/contact/sms-codes",
+        body,
+        key,
+        "POST",
+      ),
+    discard: (body: Body<"m.storeProfile.qualification.discard">, key: string) =>
+      write<"m.storeProfile.qualification.discard">(
+        "/m/store-profile/qualification/discard",
+        body,
+        key,
+        "POST",
+      ),
+    removeDoc: (id: string, key: string) =>
+      call<Data<"m.qualificationDoc.remove">>(
+        `/m/qualification-docs/${encodeURIComponent(id)}/remove`,
+        { method: "POST", idempotencyKey: key },
+      ),
+    docUrl: (id: string) =>
+      call<Data<"m.qualificationDoc.downloadUrls">>(
+        `/m/qualification-docs/${encodeURIComponent(id)}/download-urls`,
+        { method: "POST", data: {} },
+      ),
     create: (key: string) => write<"m.entity.create">("/m/entities", {}, key, "POST"),
     saveBasic: (body: Body<"m.storeProfile.basic.update">, key: string) =>
       saveView<Basic>("/m/store-profile/basic", body, key),

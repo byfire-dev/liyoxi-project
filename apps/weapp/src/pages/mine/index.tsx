@@ -140,16 +140,27 @@ export default function Mine() {
           ) : null}
           {data && accountEntries(data.viewerRole).length ? (
             <List>
-              {accountEntries(data.viewerRole).map((item) => (
-                <ListRow
-                  key={item.route}
-                  title={item.title}
-                  badge={
-                    item.route === "sub/service/messages/index" ? (unread ?? undefined) : undefined
-                  }
-                  onClick={() => navigate(item.route)}
-                />
-              ))}
+              <ListRow title="门店管理" onClick={() => navigate("sub/profile/stores/index")} />
+              {data.viewerRole === "clerk" ? (
+                <ListRow title="门店成员" onClick={() => navigate("sub/member/members/index")} />
+              ) : null}
+              {accountEntries(data.viewerRole)
+                .filter(
+                  (item) =>
+                    item.route !== "sub/profile/staff-profile/index" || data.viewerRole === "clerk",
+                )
+                .map((item) => (
+                  <ListRow
+                    key={item.route}
+                    title={item.title}
+                    badge={
+                      item.route === "sub/service/messages/index"
+                        ? (unread ?? undefined)
+                        : undefined
+                    }
+                    onClick={() => navigate(item.route)}
+                  />
+                ))}
             </List>
           ) : null}
           {!data ? (

@@ -5,6 +5,7 @@ import Taro from "@tarojs/taro";
 import { Card } from "@/components/Card";
 import { Button } from "@/components/Button";
 import { Note } from "@/components/Note";
+import { Checkbox } from "@/components/Checkbox";
 import { TextButton } from "@/components/TextButton";
 import { StepBar } from "@/components/StepBar";
 import { FooterBar } from "@/components/FooterBar";
@@ -22,19 +23,23 @@ import { FileGrid } from "../private/uploads";
 import { profileContext, profileRuntime } from "../private/runtime";
 import { parseFen, yuan } from "../private/model";
 import { useDraft } from "../private/draft";
-const basicForm = (data: BasicView) => ({
-  brand: data.brandName ?? "",
-  name: data.storeName ?? "",
-  industry: data.industry?.code ?? null,
-  category: data.category?.code ?? null,
-  province: data.address.province?.code ?? null,
-  city: data.address.city?.code ?? null,
-  district: data.address.district?.code ?? null,
-  detail: data.address.detail ?? "",
-  tel: data.storeTel ?? "",
-  spend: yuan(data.avgSpendFen),
-  intro: data.brandIntro ?? "",
-});
+const basicForm = (data: BasicView) => {
+  const proposed = data.viewerRole === "owner" ? data.pendingChange : null;
+  const address = proposed?.address ?? data.address;
+  return {
+    brand: data.brandName ?? "",
+    name: proposed?.storeName ?? data.storeName ?? "",
+    industry: proposed?.industry?.code ?? data.industry?.code ?? null,
+    category: proposed?.category?.code ?? data.category?.code ?? null,
+    province: address.province?.code ?? null,
+    city: address.city?.code ?? null,
+    district: address.district?.code ?? null,
+    detail: address.detail ?? "",
+    tel: data.storeTel ?? "",
+    spend: yuan(data.avgSpendFen),
+    intro: data.brandIntro ?? "",
+  };
+};
 export default function Basic() {
   const uploading = useUploadBusy();
   const resource = useResource((api) => api.basic());
@@ -89,16 +94,18 @@ export default function Basic() {
   const change = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((old) => ({ ...old, [key]: value }));
   const readonly = data?.viewerRole !== "owner";
-  const reviewLocked = data?.reviewFieldsLocked || data?.reviewRequiredOnChange;
+  const reviewLocked = data?.reviewFieldsLocked;
+  const [confirmReview, setConfirmReview] = useDraft(data, () => false, false);
   const save = async (draft: boolean) => {
     if (!data || data.viewerRole !== "owner") return;
     const context = profileContext();
     const value = await action.run(
-      { draft, form, logo, hours, lockVersion: data.lockVersion },
+      { draft, form, logo, hours, lockVersion: data.lockVersion, confirmReview },
       async (key) => {
         const body: Body<"m.storeProfile.basic.update"> = {
           draft,
           lockVersion: data.lockVersion,
+          ...(data.reviewRequiredOnChange && confirmReview ? { confirmReview: true } : {}),
           brandName: form.brand || null,
           logoFileId: logo[0]?.fileId ?? null,
           brandIntro: form.intro || null,
@@ -126,7 +133,9 @@ export default function Basic() {
               }
             : {}),
         };
-        const result = await (await profileRuntime()).api.saveBasic(body, key);
+        const runtime = await profileRuntime();
+        if (!action.isCurrent(context)) return;
+        const result = await runtime.api.saveBasic(body, key);
         return result;
       },
     );
@@ -159,8 +168,14 @@ export default function Basic() {
         <Card>
           <View className="profile-form">
             {dictError ? <Note tone="warning">{dictError}</Note> : null}
-            {reviewLocked ? (
-              <Note>审核中的名称、地址与行业不可修改；已通过后的变更入口将在后续开放</Note>
+            {reviewLocked ? <Note>本轮审核中的名称、地址与行业不可修改</Note> : null}
+            {data.reviewRequiredOnChange && !reviewLocked && !readonly ? (
+              <Checkbox checked={confirmReview} onChange={setConfirmReview}>
+                我确认名称、地址或行业变更将重新审核；通过前继续使用已批准档案
+              </Checkbox>
+            ) : null}
+            {data.viewerRole === "owner" && data.pendingChange ? (
+              <Note>当前编辑的是待审核变更草稿，已批准档案保持有效</Note>
             ) : null}
             <TextField
               label="品牌名称"

@@ -1,0 +1,16 @@
+.tenant-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.tenant-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.tenant-muted {
+  color: $lyx-color-text-secondary;
+  font-size: 13px;
+  line-height: 1.6;
+}

@@ -1,4 +1,5 @@
 import { View } from "@tarojs/components";
+import Taro from "@tarojs/taro";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { Note } from "@/components/Note";
@@ -7,7 +8,7 @@ import { Sheet } from "@/components/Sheet";
 import type { Doc, DictItems } from "./api";
 import { FileGrid, type MediaFile } from "./uploads";
 import { TextField, useAction, Feedback } from "./ui";
-import { profileRuntime } from "./runtime";
+import { profileContext, profileRuntime } from "./runtime";
 import { useDraft } from "./draft";
 
 const LICENSE_FIELDS = [
@@ -61,9 +62,12 @@ export function Certificate({
     const file = files[0];
     if (!file || file.fileId === doc?.fileId) return;
     const body = { fileId: file.fileId, docType, ...(permitType ? { permitType } : {}) };
-    const value = await action.run(body, (key) =>
-      profileRuntime().then(({ api }) => api.createDoc(body, key)),
-    );
+    const context = profileContext();
+    const value = await action.run(body, async (key) => {
+      const runtime = await profileRuntime();
+      if (!action.isCurrent(context)) return;
+      return runtime.api.createDoc(body, key);
+    });
     if (value) {
       await reload();
       setFields({});
@@ -95,6 +99,22 @@ export function Certificate({
                 {field.label}：{field.value}
               </View>
             ))}
+            <Button
+              variant="outline"
+              disabled={action.busy}
+              onClick={() => {
+                const context = profileContext();
+                void action.run({ view: doc.qualificationDocId }, async () => {
+                  const runtime = await profileRuntime();
+                  if (!action.isCurrent(context)) return;
+                  const signed = await runtime.api.docUrl(doc.qualificationDocId);
+                  if (action.isCurrent(context))
+                    await Taro.previewImage({ urls: [signed.url], current: signed.url });
+                });
+              }}
+            >
+              查看证照图片
+            </Button>
           </>
         ) : null}
         {editable ? (
@@ -111,16 +131,43 @@ export function Certificate({
               disabled={action.busy}
             />
             {doc ? (
-              <Button
-                variant="outline"
-                block
-                onClick={() => {
-                  setFields({});
-                  setEdit(true);
-                }}
-              >
-                核对并填写信息
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  block
+                  onClick={() => {
+                    setFields({});
+                    setEdit(true);
+                  }}
+                >
+                  核对并填写信息
+                </Button>
+                {!doc.isEffective ? (
+                  <Button
+                    variant="danger"
+                    loading={action.busy}
+                    onClick={() => {
+                      const context = profileContext();
+                      void action
+                        .run({ remove: doc.qualificationDocId }, async (key) => {
+                          const confirm = await Taro.showModal({
+                            title: "移除本轮证照",
+                            content: "仅从当前草稿移除，历史审核记录保留",
+                          });
+                          if (!confirm.confirm || !action.isCurrent(context)) return;
+                          const runtime = await profileRuntime();
+                          if (!action.isCurrent(context)) return;
+                          return runtime.api.removeDoc(doc.qualificationDocId, key);
+                        })
+                        .then(async (value) => {
+                          if (value && action.isCurrent(context)) await reload();
+                        });
+                    }}
+                  >
+                    从本轮移除
+                  </Button>
+                ) : null}
+              </>
             ) : null}
           </>
         ) : null}
@@ -138,13 +185,14 @@ export function Certificate({
             disabled={!Object.keys(fields).length}
             onClick={() => {
               if (!doc) return;
+              const context = profileContext();
               const body = { lockVersion, fields };
               void action
-                .run({ id: doc.qualificationDocId, ...body }, (key) =>
-                  profileRuntime().then(({ api }) =>
-                    api.saveDoc(doc.qualificationDocId, body, key),
-                  ),
-                )
+                .run({ id: doc.qualificationDocId, ...body }, async (key) => {
+                  const { api } = await profileRuntime();
+                  if (!action.isCurrent(context)) return;
+                  return api.saveDoc(doc.qualificationDocId, body, key);
+                })
                 .then(async (value) => {
                   if (value) {
                     setEdit(false);

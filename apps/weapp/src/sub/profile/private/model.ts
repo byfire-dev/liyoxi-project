@@ -1,5 +1,20 @@
 import { fenToYuan, yuanToFen } from "@liyoxi/shared/format/money";
 import { ApiError } from "../../../lib/request";
+import type { OwnerQualification } from "./api";
+export const qualificationEditable = (owner: OwnerQualification | null | undefined) =>
+  !!owner &&
+  !owner.isFinalRejected &&
+  (owner.openRound
+    ? owner.openRound.phase === "draft"
+    : owner.storeQualificationStatus === "unsubmitted" ||
+      owner.storeQualificationStatus === "rejected");
+export const qualificationKind = (owner: OwnerQualification) =>
+  owner.openRound?.kind ??
+  (owner.entity.verificationStatus !== "verified"
+    ? "initial"
+    : owner.storeQualificationStatus === "verified"
+      ? "change"
+      : "new_store");
 /** 意图键与同步闩：失败重试相同内容沿用键，改内容换键，重复触发只调用一次。 */
 export function createIntent(key: () => string) {
   let fingerprint: string | null = null;
@@ -60,6 +75,7 @@ export function errorInfo(error: unknown): {
   const details = error.details as {
     missing?: { step: number; item: string; permitType?: string | null }[];
     rejectedNotReplaced?: { docType: string; permitType: string | null }[];
+    attemptsLeft?: number;
   } | null;
   return {
     message:
@@ -67,7 +83,9 @@ export function errorInfo(error: unknown): {
         ? "资料已更新，已保留本次输入。请先刷新核对，再保存"
         : error.error === "DECLARATION_REQUIRED"
           ? "信息确认已更新，请刷新后重新阅读并确认"
-          : error.message,
+          : error.error === "SMS_CODE_INVALID" && typeof details?.attemptsLeft === "number"
+            ? `${error.message}，剩余 ${details.attemptsLeft} 次`
+            : error.message,
     conflict: error.error === "VERSION_CONFLICT" || error.error === "DECLARATION_REQUIRED",
     step: details?.missing?.[0]?.step ?? null,
     missing:
