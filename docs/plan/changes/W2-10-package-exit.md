@@ -7,7 +7,7 @@
 | 影响的包 | 仅 API 四个既有测试文件及 W2-10 说明/状态；无生产逻辑、契约或门禁规则修改。 |
 | 类别 | 原计划整包收口；任务书的单一 `tenant-m2.test.ts` 实际拆为各资源测试，沿用已接纳切片。 |
 | PR | 本地 `codex/w2-10-package-exit`，基于已接纳 main `37f40575`；由 ROOT 独审与合流。 |
-| 验证 | 作者仅做所属格式/ESLint；ROOT 执行 landed 与真正相关 HTTP 定点回归，再裁定整包退出。此前已接纳切片不重复全量；本记录不宣称远端 CI、真实云、生产容量或 W2-09 消费者完成。 |
+| 验证 | 作者格式/ESLint及正常钩子通过；ROOT 单 worker 执行 5 文件的 9 项 HTTP/装配测试通过（11.99 秒，另 58 项未选执行），API/worker 类型通过，新鲜 mounted 清单下 landed 通过且本包 17/17 已落地。独立审查无阻断，结合已接纳切片裁定整包本地开发验收完成；未重复旧全量或宣称远端 CI、真实云、生产容量及 W2-09 消费者完成。 |
 
 ## HTTP 交付落点
 
@@ -41,4 +41,4 @@
 | `m2-profile-overview-members`，已回补 | `tenant/profile-members.ts` 单 SQL；`profile/read.ts` 同 Tx、同 now 消费 | `ops/profile-members-overview.db.test.ts`、`apps/api/test/profile-members-overview.test.ts` |
 | W2-09 callerTx 移交 | `Tenant.abandonDraftIn/removeMemberIn/revokeInvitationIn/closeEntityForOwnerDeletionIn` 已随 main `37f40575` 接纳；身份认证、五项休眠条件与账号清理归 W2-09 | `ops/tenant-account-lifecycle.db.test.ts`、`ops/tenant-account-lifecycle.concurrency.test.ts`；ROOT 已接受 59 项定点回归 |
 
-本次只读核对未发现上述交付范围的其他生产核心缺口。整包状态暂保持进行中，待 ROOT 对本收口分支的门禁、定点验证和独审结果裁定；真实短信/多账号真机仍按原任务归 W2-22/W2-30 与业主清单。
+本次核对未发现上述交付范围的其他生产核心缺口。ROOT 已完成本收口分支的门禁、定点验证与独审，裁定 W2-10 本地开发验收完成；正常合流后下游可消费。真实短信/多账号真机仍按原任务归 W2-22/W2-30 与业主清单。
