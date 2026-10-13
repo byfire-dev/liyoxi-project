@@ -1,4 +1,5 @@
 import { maskName } from "@liyoxi/shared/mask";
+import { QUALIFICATION_DUPLICATE_REJECT_NOTE } from "@liyoxi/contract";
 import { defineApprovalKind } from "../approval/index.js";
 import type { ApprovalDecision, ApprovalRow } from "../approval/index.js";
 import { AppError, isUniqueViolation, lockRows, savepoint } from "../kernel/index.js";
@@ -19,7 +20,28 @@ import { onLifecycleWithdrawn } from "./lifecycle-withdrawal.js";
 import { roundBasics, type RoundAddress } from "./round-basics.js";
 
 // 登记是静态的，依赖由领域用例按本事务绑定，避免不同 runtime/测试之间共享服务实例。
-const calls = new WeakMap<Tx, { deps: ProfileDeps; ctx: IdentityContext }>();
+type DecisionDeps = Pick<ProfileDeps, "clock" | "tenant" | "events"> &
+  Partial<Pick<ProfileDeps, "keyring">>;
+const calls = new WeakMap<
+  Tx,
+  { deps: DecisionDeps; ctx: IdentityContext; duplicate?: { roundId: string; winnerId: string } }
+>();
+export async function withSystemDuplicateCall<T>(
+  tx: Tx,
+  deps: DecisionDeps,
+  ctx: IdentityContext,
+  duplicate: { roundId: string; winnerId: string },
+  fn: () => Promise<T>,
+): Promise<T> {
+  if (ctx.actor.type !== "system" || calls.has(tx))
+    throw new TypeError("系统重复资质拒绝必须绑定当前事务");
+  calls.set(tx, { deps, ctx, duplicate });
+  try {
+    return await fn();
+  } finally {
+    calls.delete(tx);
+  }
+}
 export async function withQualificationCall<T>(
   tx: Tx,
   deps: ProfileDeps,
@@ -85,6 +107,29 @@ async function lockedRound(tx: Tx, row: ApprovalRow, args: unknown) {
 async function conclude(tx: Tx, row: ApprovalRow, decision: ApprovalDecision, approved: boolean) {
   const { deps, ctx } = call(tx);
   const { round, input } = await lockedRound(tx, row, decision.args);
+  const duplicate = call(tx).duplicate;
+  if (duplicate) {
+    const license = round.qualificationDocs.find((doc) => doc.docType === "business_license");
+    const winner = license?.certNoBidx
+      ? await findVerifiedEntityByUsccBidx(tx, license.certNoBidx, round.entityId)
+      : null;
+    if (
+      approved ||
+      ctx.actor.type !== "system" ||
+      !decision.isDecidedBySystem ||
+      duplicate.roundId !== round.id ||
+      winner?.id !== duplicate.winnerId ||
+      decision.note !== QUALIFICATION_DUPLICATE_REJECT_NOTE ||
+      decision.reasonCodes.length ||
+      input.rejectedDocIds?.length !== 1 ||
+      input.rejectedDocIds[0] !== license?.id
+    )
+      throw new AppError("PRECONDITION_CHANGED");
+    await tx.qualificationSubmission.update({
+      where: { id: round.id },
+      data: { systemRejectCode: "duplicate_entity", updatedAt: decision.decidedAt },
+    });
+  }
   if (!approved && input.isFinal && round.kind === "change")
     throw new AppError("QUALIFICATION_FINAL_NOT_ALLOWED");
   if (!approved && input.isFinal)
@@ -92,9 +137,11 @@ async function conclude(tx: Tx, row: ApprovalRow, decision: ApprovalDecision, ap
   const now = decision.decidedAt;
   const p = await ensureProfile(tx, round.storeId, now);
   if (approved) {
+    if (!deps.keyring) throw new TypeError("批准资质必须绑定真实字段密钥能力");
+    const keyring = deps.keyring();
     const license = round.qualificationDocs.find((doc) => doc.docType === "business_license");
-    const fields = license ? submittedFields(deps.keyring(), license) : {};
-    const sealed = license ? sealUscc(deps.keyring(), "entity.uscc_enc", fields["uscc"]!) : null;
+    const fields = license ? submittedFields(keyring, license) : {};
+    const sealed = license ? sealUscc(keyring, "entity.uscc_enc", fields["uscc"]!) : null;
     const principal = fields["principal"] ?? null;
     try {
       await savepoint(tx, () =>
@@ -112,7 +159,7 @@ async function conclude(tx: Tx, row: ApprovalRow, decision: ApprovalDecision, ap
                   usccBidx: sealed.bidx,
                   usccMask: sealed.mask,
                   legalRepNameEnc: principal
-                    ? encryptField(deps.keyring(), "entity.legal_rep_name_enc", principal)
+                    ? encryptField(keyring, "entity.legal_rep_name_enc", principal)
                     : null,
                   legalRepNameMask: principal ? maskName(principal) : null,
                 },

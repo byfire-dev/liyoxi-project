@@ -5,6 +5,7 @@
 // 未登记守卫的行随所属里程碑补；资质变更提交/决定由W2-11补02:627既有行：
 // 在那之前迁移到这些行即抛内部错误，不放行。
 import type { AuditCategory } from "@liyoxi/contract";
+import { QUALIFICATION_DUPLICATE_REJECT_NOTE } from "@liyoxi/contract";
 
 import { chainKey, machinePort, rowKey } from "../flow/index.js";
 import type { ActivityDescription, Guard, MachineBinding, TransitionFacts } from "../flow/index.js";
@@ -41,7 +42,7 @@ export interface VerifiedEntityFields {
   readonly legalRepNameMask: string | null;
 }
 
-/** 驳回的原因：至少一项编码，说明必填 */
+/** 员工驳回至少一项编码；系统重复主体拒绝由真实轮次/审批/认证事实守卫允许空编码。 */
 export interface QualificationRejection {
   readonly reasonCodes: readonly string[];
   readonly note: string;
@@ -49,6 +50,7 @@ export interface QualificationRejection {
 
 /** 资质迁移随 args 带的事实 */
 export interface QualificationArgs {
+  readonly submissionId?: string;
   readonly verified?: VerifiedEntityFields;
   readonly rejection?: QualificationRejection;
 }
@@ -113,11 +115,57 @@ const storeActive: Guard = async (tx, facts) => {
   return store?.lifecycle === "active";
 };
 
-/** 02:624 驳回：原因至少 1 项、说明必填 */
-const rejectionGiven: Guard = (_tx, facts) => {
-  const { rejection } = argsOf<QualificationArgs>(facts);
-  return Promise.resolve(
-    rejection !== undefined && rejection.reasonCodes.length > 0 && rejection.note.trim() !== "",
+/** 02:624/627 驳回：员工原因必填；系统空原因限当前真实duplicate_entity决定。 */
+const rejectionGiven: Guard = async (tx, facts) => {
+  const { rejection, submissionId } = argsOf<QualificationArgs>(facts);
+  if (!rejection || !rejection.note.trim()) return false;
+  if (rejection.reasonCodes.length) return true;
+  if (
+    facts.ctx.actor.type !== "system" ||
+    !facts.entityId ||
+    !submissionId ||
+    rejection.note !== QUALIFICATION_DUPLICATE_REJECT_NOTE
+  )
+    return false;
+  const round = await tx.qualificationSubmission.findFirst({
+    where: {
+      id: submissionId,
+      storeId: facts.subjectId,
+      entityId: facts.entityId!,
+      submittedAt: { not: null },
+      closedAt: null,
+      systemRejectCode: "duplicate_entity",
+    },
+    include: {
+      approvalRequest: true,
+      qualificationDocs: { where: { docType: "business_license", removedAt: null } },
+    },
+  });
+  const approval = round?.approvalRequest,
+    license = round?.qualificationDocs[0];
+  if (
+    !license?.certNoBidx ||
+    approval?.status !== "rejected" ||
+    !approval.isDecidedBySystem ||
+    approval.reasonCodes.length !== 0 ||
+    approval.decisionNote !== rejection.note ||
+    approval.kind !== "qualification" ||
+    approval.subjectType !== "store" ||
+    approval.subjectId !== round!.storeId ||
+    approval.decidedByStaffId !== null ||
+    approval.storeId !== round!.storeId ||
+    approval.entityId !== round!.entityId ||
+    approval.roundNo !== round!.roundNo
+  )
+    return false;
+  return (
+    (await tx.entity.count({
+      where: {
+        id: { not: round!.entityId },
+        verificationStatus: "verified",
+        usccBidx: license.certNoBidx,
+      },
+    })) > 0
   );
 };
 

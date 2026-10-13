@@ -6,6 +6,7 @@ export const EVENT_ALERT_RULES = [
   "auth.staff_untrusted_locked",
   "billing.advance_failed",
   "ops.retention_failed",
+  "profile.qualification_duplicate",
   "timer.critical_retrying",
   "timer.failed",
   "outbox.exhausted",

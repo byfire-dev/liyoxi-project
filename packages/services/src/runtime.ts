@@ -5,6 +5,11 @@ import {
 } from "./ops/index.js";
 import { readTargetActivity } from "./audit/index.js";
 import {
+  createProfileConsistencyAssembly,
+  createProfileConsistencyTransactions,
+  createProfileQualificationConsistency,
+} from "./profile/index.js";
+import {
   createDeliveryProductionAssembly,
   createDeliverySlaAssembly,
   createContentPricingAssembly,
@@ -344,7 +349,12 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const report = (violation: KernelViolation): void => {
     logger.error({ evt: "kernel.violation", err: violation }, violation.message);
   };
-  const tx = createTxRunner({ prisma, appEnv: env.APP_ENV, report });
+  const profileCommits = createProfileConsistencyTransactions(
+    createTxRunner({ prisma, appEnv: env.APP_ENV, report }),
+    () =>
+      logger.error({ evt: "profile.consistency_notification_failed" }, "资质一致性提交后通知失败"),
+  );
+  const tx = profileCommits.tx;
   const config = createConfig({
     db: prisma,
     clock,
@@ -400,7 +410,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const mediaScope = createMediaAssembly(notifyScope.assembly);
   const mediaAssetsScope = createMediaAssetsAssembly(mediaScope.assembly);
   const staffScope = createStaffAssembly(mediaAssetsScope.assembly);
-  const contentPricingScope = createContentPricingAssembly(staffScope.assembly);
+  const profileConsistencyScope = createProfileConsistencyAssembly(staffScope.assembly);
+  const contentPricingScope = createContentPricingAssembly(profileConsistencyScope.assembly);
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
   const docsScope = createDocsAssembly(deliverySlaScope.assembly);
@@ -683,6 +694,16 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const bizNo = createBizNoIssuer({ clock, appEnv: env.APP_ENV });
   const sla = createSla({ clock, assembly });
   const approval = createApproval({ assembly, clock, flow, events, bizNo, sla, timers });
+  profileConsistencyScope.attach(
+    createProfileQualificationConsistency({
+      assembly,
+      clock,
+      tenant: reportingTenant,
+      approval,
+      events,
+      commits: profileCommits,
+    }),
+  );
   const unbindApprovalSla = bindApprovalSla({
     clock,
     flow,
@@ -964,6 +985,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         await settle([() => modelBudget?.close()]);
         await settle([
           () => mediaAssetsScope.close(),
+          () => profileConsistencyScope.close(),
           () => mediaScope.close(),
           () => contentPricingScope.close(),
           () => deliveryProductionScope.close(),
