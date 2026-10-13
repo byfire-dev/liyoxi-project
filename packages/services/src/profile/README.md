@@ -8,7 +8,7 @@ new_store 不带入、不接收营业执照。锁轮次65→主体100共享→�
 锁后重验归属、生命周期及真实成员。父行只读，使用共享锁防止INSERT的外键锁升级。
 remove保留已提交证据；discard只接精确ID的change/new_store未提交草稿。软移除、7天引用释放、
 轮次版本/缓存/活动审计同事务，无状态历史/事件；carried来源和旧生效资料不变，缺引用明确失败。
-草稿片已完成本机收口；下一片多轮链SOURCE如下，终局/SMS/后台仍后续。
+草稿片已完成本机收口；多轮链与终局SOURCE如下，SMS/后台仍后续。
 新增DB/HTTP各6组及clerk两行，旧断言保留；作者只做所属格式/lint，ROOT串行完成正式验收与生成。
 
 ## W2-11 多轮提交与决定（SOURCE）
@@ -24,7 +24,7 @@ change通过只更新主体认证字段，保留首次verifiedAt与主体状态�
 ROOT授权窄tenant companion：setStoreQualification扩现签名与02:627守卫；renameStore只接
 真实已批准且未关闭的当前change轮次。scope/auth/version由profile审批入口负责，历史轮次不得写回。
 新店首次提交经既有trackOf直记端口；analytics未注册仍明确fallback，不冒称实际外部埋点验收。
-I7/资质通过订阅者由下一节SOURCE回补；终局/override/OCR/SMS与其余后台事实仍后续。新增8DB+2HTTP关键组及
+I7/资质通过订阅者与终局由后续SOURCE回补；override/OCR/SMS与其余后台事实仍后续。新增8DB+2HTTP关键组及
 两个真实max1客户端竞争各3轮；ROOT完成正式验收后裁定本片，整包不标完成。
 
 ## W2-11 资质系统一致性（SOURCE）
@@ -50,6 +50,24 @@ API/worker各自装配；原onTenantLifecycle绑定保持。profile专用薄TxRu
 
 新增6组领域风险与1组真实API/worker/max1 consumer装配；两旧不变量集合仅补I7能力绑定，
 旧断言保留。作者只做轻格式/lint；类型、数据库、契约生成与唯一独审由ROOT收口，W2-11整包仍进行中。
+
+## W2-11 终局驳回（SOURCE）
+
+正式 `admin.qualificationSubmission.rejectQuote` 为POST空体、none幂等、no-store，
+按权限/门店scope/在审/非change守卫调用无fallback的真实 `QualificationImpactPort.previewFinalReject`。
+order拥有待开工订购与pending_assign/对应returned广告的同源影响，已有取消指针剔除；
+profile不读上层业务表、不自己计算积分，试算不写库或缓存。
+
+正式reject终局分支仅由员工决定，confirm改核三项影响，非终局仍核roundNo。
+沿原staff20→approval30→round65→entity100→store130→profile135锁内重算，
+缺项或变化整体回滚。initial同步主体/本店rejected；new_store仅本店，旧主体/首店生效资质不动；
+change拒绝终局。轮次与档案同事务写finalRejectedAt，真实isFinal事件与原审批/历史/审计/幂等保留。
+tenant补真实已关闭终局轮次事实及提交machine守卫，不让直接tenant/flow或缺缓存绕过终局。
+本决定不建取消申请、不释放冻结积分，M5整店取消执行仍留桩。
+
+新增6组DB风险聚合与1组真实HTTP，旧两处终局留桩断言随实际开放改为缺三项CONFIRM_MISMATCH，
+原回滚断言保持。作者仅跑所属prettier/eslint/diff；ROOT唯一独审、类型/DB/HTTP及官方生成待收口，
+整包继续进行中，真实平台与远端CI未验证。
 
 `createStoreProfileAssetInitializer` 增加显式四项组合，旧 initializer 的三项严格入口不扩大。
 组合闭包固定 tenant.readStoreAssetFacts，不接受调用者提供的授权事实或owner替身。

@@ -19,6 +19,7 @@ import type {
   VerifiedEntityFields,
 } from "./machines.js";
 import { selectStateBeforePending } from "./repo.js";
+import { hasFinalQualificationRejection } from "./qualification-facts.js";
 
 export const QUALIFICATION_ACTIONS = ["submit", "approve", "reject", "withdraw"] as const;
 export type QualificationAction = (typeof QUALIFICATION_ACTIONS)[number];
@@ -148,6 +149,8 @@ export async function setStoreQualification(
     }
     if (input.round === "new_store" && store.isPrimary) refuse("not_new_store_round");
   } else if (!store.isPrimary) refuse("not_initial_round");
+  if (action === "submit" && (await hasFinalQualificationRejection(tx, storeId)))
+    throw new AppError("QUALIFICATION_CLOSED");
   // 服务层先断言；库里的 ck_store_name_required 兜底
   if (action === "submit" && store.name === null) refuse("store_name_required");
 

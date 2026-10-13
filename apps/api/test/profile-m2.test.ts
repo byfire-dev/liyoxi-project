@@ -4,9 +4,10 @@ import {
   mQualificationDocDownloadUrls,
   QualificationDocRemoveResultSchema,
   QualificationViewOwnerSchema,
+  FinalRejectImpactSchema,
 } from "@liyoxi/contract";
 import { createIdentityContext, runSeed, uuidv7 } from "@liyoxi/services";
-import { createFactories } from "@liyoxi/services/testing";
+import { assertSnapshotsEqual, createFactories, snapshotTables } from "@liyoxi/services/testing";
 import type { FakeStorage } from "@liyoxi/services/testing";
 import { signInAsStaff } from "@liyoxi/services/testing";
 import type { ProfileViewer } from "@liyoxi/services";
@@ -513,6 +514,105 @@ async function roundData(response: Response) {
   expect(response.status, await response.clone().text()).toBe(200);
   return ((await response.json()) as { data: unknown }).data;
 }
+describe("W2-11终局驳回真实HTTP", { timeout: 60000 }, () => {
+  it("admin.qualificationSubmission.rejectQuote 正式挂载只读/权限/schema，reject三项确认/幂等/真实终局事实", async () => {
+    expect(
+      HANDLERS.some((h) => h.route.operationId === "admin.qualificationSubmission.rejectQuote"),
+    ).toBe(true);
+    const prisma = await handle.db.prisma(),
+      h = harness(api, prisma),
+      w = await h.owner();
+    const ready = await complete(h, w.viewer);
+    await fixtureSubmit(h, w.viewer, ready.submissionId);
+    const reviewer = await signInAsStaff(prisma, { roleKey: "super_admin" });
+    const editor = await signInAsStaff(prisma, { roleKey: "editor" });
+    const path = `/api/v1/admin/qualification-submissions/${ready.submissionId}`;
+    const request = (action: string, json: unknown, key?: string, headers = reviewer.headers) =>
+      api.request(`${path}/${action}`, {
+        method: "POST",
+        json,
+        headers: { ...headers, ...(key ? { "Idempotency-Key": key } : {}) },
+        peer: `198.19.211.${++draftPeer}`,
+      });
+    const tables = [
+      "entity",
+      "store",
+      "store_profile",
+      "qualification_submission",
+      "qualification_doc",
+      "approval_request",
+      "outbox_event",
+      "status_transition",
+      "audit_log",
+      "timer",
+      "cancel_request",
+    ];
+    const before = await snapshotTables(prisma, tables);
+    await expectError(
+      await request("reject-quote", {}, undefined, editor.headers),
+      403,
+      "PERMISSION_DENIED",
+    );
+    await expectError(
+      await request("reject-quote", { storeId: uuidv7() }),
+      400,
+      "VALIDATION_FAILED",
+    );
+    const quote = await request("reject-quote", {});
+    expect(quote.headers.get("Cache-Control")).toBe("no-store");
+    const impact = FinalRejectImpactSchema.parse(await roundData(quote));
+    expect(impact).toMatchObject({
+      pendingStartOrderCount: 0,
+      pendingAssignAdCount: 0,
+      heldPoints: 0,
+      orders: [],
+      ads: [],
+    });
+    expect(
+      FinalRejectImpactSchema.parse(await roundData(await request("reject-quote", {}))),
+    ).toEqual(impact);
+    assertSnapshotsEqual(before, await snapshotTables(prisma, tables));
+    const input = {
+      isFinal: true,
+      reasonCodes: ["R01"],
+      note: "HTTP无法补正",
+      confirm: { pendingStartOrderCount: 0, pendingAssignAdCount: 0, heldPoints: 0 },
+    };
+    await expectError(await request("reject", input), 400, "IDEMPOTENCY_KEY_REQUIRED");
+    await expectError(
+      await request("reject", { ...input, confirm: { ...input.confirm, heldPoints: 1 } }, uuidv7()),
+      409,
+      "CONFIRM_MISMATCH",
+    );
+    assertSnapshotsEqual(before, await snapshotTables(prisma, tables));
+    const key = uuidv7(),
+      first = await request("reject", input, key);
+    const result = QualificationSubmissionDetailSchema.parse(await roundData(first));
+    expect(result).toMatchObject({
+      outcome: "rejected",
+      finalRejectedAt: api.clock.now().toISOString(),
+      approval: { status: "rejected" },
+      store: { qualificationStatus: "rejected" },
+      entity: { verificationStatus: "rejected" },
+    });
+    const after = await snapshotTables(prisma, tables),
+      replay = await request("reject", input, key);
+    expect(replay.headers.get("Idempotent-Replayed")).toBe("true");
+    expect(QualificationSubmissionDetailSchema.parse(await roundData(replay))).toEqual(result);
+    assertSnapshotsEqual(after, await snapshotTables(prisma, tables));
+    await expectError(await request("reject-quote", {}), 409, "APPROVAL_NOT_PENDING");
+    await expectError(await request("reject", input, uuidv7()), 409, "APPROVAL_NOT_PENDING");
+    const round = await prisma.qualificationSubmission.findUniqueOrThrow({
+      where: { id: ready.submissionId },
+    });
+    for (const [type, aggregateId] of [
+      ["store.qualification.rejected", w.store.id],
+      ["approval.rejected", round.approvalRequestId!],
+    ])
+      expect(await prisma.outboxEvent.count({ where: { eventType: type, aggregateId } })).toBe(1);
+    expect((await h.profile.qualification(w.viewer)).isFinalRejected).toBe(true);
+  });
+});
 describe("W2-11 真实多轮提交与后台决定HTTP", { timeout: 60000 }, () => {
   it("m.storeProfile.basic.update / m.storeProfile.qualification.submit / admin.qualificationSubmission.approve 变更值经批准才生效，required键重放无重复决定", async () => {
     const w = await roundOwner(),

@@ -140,7 +140,7 @@ describe("后台档案六接口", { timeout: 60000 }, () => {
         confirm: { roundNo: 1 },
       }),
       409,
-      "STATE_NOT_ALLOWED",
+      "CONFIRM_MISMATCH",
     );
     expect(
       (

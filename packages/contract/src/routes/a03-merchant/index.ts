@@ -52,6 +52,7 @@ export {
   adminQualificationSubmissionGet,
   adminQualificationSubmissionApprove,
   adminQualificationSubmissionReject,
+  adminQualificationSubmissionRejectQuote,
 } from "./qualification-submissions.js";
 
 export * from "./store-assets.schemas.js";

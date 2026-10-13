@@ -6,6 +6,7 @@
 // 在那之前迁移到这些行即抛内部错误，不放行。
 import type { AuditCategory } from "@liyoxi/contract";
 import { QUALIFICATION_DUPLICATE_REJECT_NOTE } from "@liyoxi/contract";
+import { hasFinalQualificationRejection } from "./qualification-facts.js";
 
 import { chainKey, machinePort, rowKey } from "../flow/index.js";
 import type { ActivityDescription, Guard, MachineBinding, TransitionFacts } from "../flow/index.js";
@@ -103,7 +104,12 @@ const storeReadyToSubmit: Guard = async (tx, facts) => {
     where: { id: facts.subjectId },
     select: { lifecycle: true, name: true },
   });
-  return store !== null && store.lifecycle === "active" && store.name !== null;
+  return (
+    store !== null &&
+    store.lifecycle === "active" &&
+    store.name !== null &&
+    !(await hasFinalQualificationRejection(tx, facts.subjectId))
+  );
 };
 
 /** 02:623 通过：门店启用中 */

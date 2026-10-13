@@ -3,8 +3,8 @@
 | 项 | 内容 |
 | --- | --- |
 | 状态 | 留桩中 |
-| 留桩内容 | 终局驳回仍未完成；多轮提交/正常决定与基础待审值已通过ROOT低量验收。I7及资质通过订阅者本片SOURCE待ROOT收口 |
-| 骨架里的做法 | initial/new_store/change均有真实提交/正常通过/非终局驳回；变更字段先存轮次、批准后回写，拒绝空变更与并行主体执照变更；USCC走提交复核及认证唯一约束。正常决定使用原approval/tenant调用方事务、原守卫与三链历史；isFinal/override/OCR仍保留受控未开放。I7/通过订阅SOURCE共用真实system duplicate_entity拒绝，包含closed认证赢家；单批32，订阅提交后串行续批、I7余量下次full继续，报告/正式P2告警仅真commit后等待，失败不覆盖旧资质或释放提交证据。此桩不关闭 |
+| 留桩内容 | 多轮提交/正常决定、I7及资质通过订阅者已通过ROOT低量验收；终局驳回SOURCE本片待ROOT收口，M5取消执行仍后续 |
+| 骨架里的做法 | initial/new_store/change均有真实提交/正常通过/非终局驳回；变更字段先存轮次、批准后回写，拒绝空变更与并行主体执照变更；USCC走提交复核及认证唯一约束。正常决定使用原approval/tenant调用方事务、原守卫与三链历史。终局SOURCE经真实order影响port试算并在原锁内核三项confirm，initial/new_store写终局时间及isFinal事件，change不能终局，tenant真实事实阻断重提；不建M5取消或退积分，override/OCR仍受控未开放。I7/通过订阅共用真实system duplicate_entity拒绝，包含closed认证赢家；单批32，订阅提交后串行续批、I7余量下次full继续，报告/正式P2告警仅真commit后等待，失败不覆盖旧资质或释放提交证据。此桩待ROOT裁定 |
 | 登记的工作包 | W1-08a |
 | 回补里程碑 | M2，G2-B |
 | 回补的工作包 | W2-11 |
