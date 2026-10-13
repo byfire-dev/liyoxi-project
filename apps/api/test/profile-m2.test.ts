@@ -180,14 +180,15 @@ async function expectError(response: Response, status: number, error: string) {
 async function newDraft() {
   const prisma = await handle.db.prisma();
   const make = createFactories({ db: prisma, clock: api.clock });
+  const draftOwner = await signInAsMerchant(api);
   const entity = await make.entity({
     verificationStatus: "verified",
-    createdByUserId: owner.merchantUserId,
+    createdByUserId: draftOwner.merchantUserId,
   });
   const store = await make.store({ entityId: entity.id });
   await make.entityMember({
     entityId: entity.id,
-    merchantUserId: owner.merchantUserId,
+    merchantUserId: draftOwner.merchantUserId,
     role: "owner",
   });
   const file = await make.fileObject({
@@ -197,10 +198,10 @@ async function newDraft() {
     entityId: entity.id,
     storeId: store.id,
     uploadActorType: "merchant",
-    uploadActorId: owner.merchantUserId,
+    uploadActorId: draftOwner.merchantUserId,
     uploadClient: "weapp",
   });
-  const created = await draftRequest("/m/qualification-docs", owner, store.id, {
+  const created = await draftRequest("/m/qualification-docs", draftOwner, store.id, {
     fileId: file.id,
     docType: "branch_license",
   });
@@ -215,6 +216,7 @@ async function newDraft() {
     }
   ).data;
   return {
+    owner: draftOwner,
     prisma,
     store,
     entity,
@@ -270,7 +272,7 @@ describe("W2-11 商家资质草稿写接口", () => {
       404,
       "NOT_FOUND",
     );
-    const result = await draftRequest(`/m/qualification-docs/${w.id}/remove`, owner, w.store.id);
+    const result = await draftRequest(`/m/qualification-docs/${w.id}/remove`, w.owner, w.store.id);
     expect(result.status, await result.clone().text()).toBe(200);
     expect(
       QualificationDocRemoveResultSchema.parse(((await result.json()) as { data: unknown }).data),
@@ -288,7 +290,7 @@ describe("W2-11 商家资质草稿写接口", () => {
       key = uuidv7();
     const body = { qualificationSubmissionId: w.roundId };
     const path = "/m/store-profile/qualification/discard";
-    const first = await draftRequest(path, owner, w.store.id, body, key);
+    const first = await draftRequest(path, w.owner, w.store.id, body, key);
     expect(first.status, await first.clone().text()).toBe(200);
     const value = QualificationViewOwnerSchema.parse(
       ((await first.json()) as { data: unknown }).data,
@@ -305,17 +307,21 @@ describe("W2-11 商家资质草稿写接口", () => {
     const next = await api.request("/api/v1/m/store-profile/qualification", {
       method: "PATCH",
       json: { lockVersion: null },
-      headers: { ...owner.withStore(w.store.id), "Idempotency-Key": uuidv7() },
+      headers: { ...w.owner.withStore(w.store.id), "Idempotency-Key": uuidv7() },
     });
     expect(next.status, await next.clone().text()).toBe(200);
     const newRound = QualificationViewOwnerSchema.parse(
       ((await next.json()) as { data: unknown }).data,
     ).openRound!;
-    const replay = await draftRequest(path, owner, w.store.id, body, key);
+    const replay = await draftRequest(path, w.owner, w.store.id, body, key);
     expect(replay.status).toBe(200);
     expect(replay.headers.get("Idempotent-Replayed")).toBe("true");
     expect(((await replay.json()) as { data: unknown }).data).toEqual(value);
-    await expectError(await draftRequest(path, owner, w.store.id, body), 409, "STATE_NOT_ALLOWED");
+    await expectError(
+      await draftRequest(path, w.owner, w.store.id, body),
+      409,
+      "STATE_NOT_ALLOWED",
+    );
     expect(
       await w.prisma.qualificationSubmission.findUniqueOrThrow({
         where: { id: newRound.qualificationSubmissionId },
@@ -402,7 +408,7 @@ describe("W2-11 商家资质草稿写接口", () => {
         status: "pending",
         summarySnapshot: { title: "在审拒绝夹具" },
         submitActorType: "merchant",
-        submitActorId: owner.merchantUserId,
+        submitActorId: w.owner.merchantUserId,
         submitClient: "weapp",
         submittedAt: now,
         dedupeKey: `qualification:${w.store.id}`,
@@ -421,7 +427,7 @@ describe("W2-11 商家资质草稿写接口", () => {
         declarationConfirmedAt: now,
         declarationVersion: "1",
         submittedAt: now,
-        submittedByUserId: owner.merchantUserId,
+        submittedByUserId: w.owner.merchantUserId,
         approvalRequestId: approval.id,
       },
     });
@@ -429,12 +435,12 @@ describe("W2-11 商家资质草稿写接口", () => {
       where: { id: w.roundId },
     });
     await expectError(
-      await draftRequest(`/m/qualification-docs/${w.id}/remove`, owner, w.store.id),
+      await draftRequest(`/m/qualification-docs/${w.id}/remove`, w.owner, w.store.id),
       409,
       "QUALIFICATION_IN_REVIEW",
     );
     await expectError(
-      await draftRequest("/m/store-profile/qualification/discard", owner, w.store.id, {
+      await draftRequest("/m/store-profile/qualification/discard", w.owner, w.store.id, {
         qualificationSubmissionId: w.roundId,
       }),
       409,
