@@ -182,7 +182,7 @@ describe("跟进四正式HTTP路由", { timeout: 30000 }, () => {
     await error(
       await api.request(`/api/v1/admin/follow-ups?storeId=${g.store.id}`),
       401,
-      "SESSION_INVALID",
+      "AUTH_REQUIRED",
     );
     await error(
       await request(
