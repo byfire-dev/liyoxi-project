@@ -1,6 +1,8 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import type { FinalRejectImpact, QualificationRejectBody } from "@liyoxi/contract";
 import { createIdempotencyContext, createIdentityContext, uuidv7 } from "../kernel/index.js";
+import type { Tx } from "../kernel/index.js";
+import { previewReturn } from "../billing/index.js";
 import { scopeOf } from "../authz/index.js";
 import {
   assertSnapshotsEqual,
@@ -19,6 +21,14 @@ import { QualificationImpactPort } from "./ports.js";
 
 const db = useSeededDatabase("services", { max: 1 });
 let h: Harness;
+async function readPreview(tx: Tx, holdId: string, qty: number, at: Date) {
+  const { arbitrageHint: _hint, ...preview } = await previewReturn(
+    tx,
+    { holdId, qty, reasonClass: "merchant" },
+    at,
+  );
+  return preview;
+}
 const tables = [
   "entity",
   "store",
@@ -76,7 +86,7 @@ describe("W2-11终局驳回真实影响与决定", { timeout: 60000 }, () => {
   it("真实port只读统计待开工及pending_assign/对应returned，排除在途取消及制作中广告", async () => {
     const w = await pending(),
       r = await reviewer(),
-      f = await impactFixture(h, w.viewer);
+      f = await impactFixture(h, w.viewer, readPreview);
     const order = await f.order(),
       excluded = await f.order();
     const ad = await f.ad(),
@@ -109,7 +119,7 @@ describe("W2-11终局驳回真实影响与决定", { timeout: 60000 }, () => {
   it("缺任一回显、逐项漂移及预览后新订购均回滚；非终局仍核roundNo", async () => {
     const w = await pending(),
       r = await reviewer(),
-      f = await impactFixture(h, w.viewer);
+      f = await impactFixture(h, w.viewer, readPreview);
     const impact = await h.profile.admin.rejectQuote(r.staff, w.submissionId);
     const before = await snapshotTables(h.prisma, tables);
     for (const field of ["pendingStartOrderCount", "pendingAssignAdCount", "heldPoints"] as const) {
@@ -143,7 +153,7 @@ describe("W2-11终局驳回真实影响与决定", { timeout: 60000 }, () => {
   it("initial终局写齐时间/真实事件/三链历史，原证据保留，重放一次且不执行M5取消", async () => {
     const w = await pending(),
       r = await reviewer(),
-      f = await impactFixture(h, w.viewer);
+      f = await impactFixture(h, w.viewer, readPreview);
     await f.order();
     await f.ad();
     const impact = await h.profile.admin.rejectQuote(r.staff, w.submissionId),
