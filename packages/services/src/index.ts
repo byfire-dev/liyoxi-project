@@ -58,6 +58,7 @@ export type { AppEnv, Clock, Env, LogLevel, QueueChannel, QueueConsumer } from "
 export {
   buildWorkerServices,
   connectWorkerDatabase,
+  connectProbeDatabase,
   createWorkerLease,
   LEASE_RENEW_MS,
 } from "./ops/index.js";

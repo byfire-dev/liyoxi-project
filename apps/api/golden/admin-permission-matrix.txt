@@ -103,6 +103,9 @@ admin.launchSubmission.get | publish:view | - | 11 11 11 00 11 11 00 00
 admin.launchSubmission.reject | publish:edit | publish.link.verify | 11 00 00 00 11 00 00 00
 admin.mediaJob.list | system:view | - | 11 00 00 00 00 00 00 00
 admin.mediaJob.retry | - | media.job.retry | 11 00 00 00 00 11 00 00
+admin.merchantUser.disable | merchant:view | merchant.user.disable | 11 01 00 00 00 00 00 00
+admin.merchantUser.enable | merchant:view | merchant.user.disable | 11 01 00 00 00 00 00 00
+admin.merchantUser.forceLogout | merchant:view | merchant.user.force_logout | 11 11 00 00 00 00 00 00
 admin.order.get | order:view | - | 11 11 11 00 00 11 11 11
 admin.order.list | order:view | - | 11 11 11 00 00 11 11 11
 admin.order.summary | order:view | - | 11 11 11 00 00 11 11 11
