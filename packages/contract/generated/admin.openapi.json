@@ -4784,6 +4784,227 @@
         ],
         "type": "object"
       },
+      "AdminStoreQualificationView": {
+        "properties": {
+          "effectiveDocs": {
+            "items": {
+              "$ref": "#/components/schemas/AdminQualificationDoc"
+            },
+            "type": "array"
+          },
+          "entity": {
+            "properties": {
+              "entityId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "entityType": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "enterprise",
+                      "individual"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "legalRepNameMask": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "usccMask": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "verificationStatus": {
+                "enum": [
+                  "unsubmitted",
+                  "pending",
+                  "verified",
+                  "rejected"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "verifiedAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "entityId",
+              "name",
+              "entityType",
+              "verificationStatus",
+              "usccMask",
+              "legalRepNameMask",
+              "verifiedAt"
+            ],
+            "type": "object"
+          },
+          "firstSubmittedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "firstVerifiedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isChangeInReview": {
+            "type": "boolean"
+          },
+          "isFinalRejected": {
+            "type": "boolean"
+          },
+          "lastDecidedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "openRound": {
+            "anyOf": [
+              {
+                "properties": {
+                  "dueAt": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "kind": {
+                    "enum": [
+                      "initial",
+                      "new_store",
+                      "change"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  },
+                  "qualificationSubmissionId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "roundNo": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "submittedAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "qualificationSubmissionId",
+                  "kind",
+                  "roundNo",
+                  "submittedAt",
+                  "dueAt"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "qualificationStatus": {
+            "enum": [
+              "unsubmitted",
+              "pending",
+              "verified",
+              "rejected"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "rounds": {
+            "items": {
+              "$ref": "#/components/schemas/QualificationRoundRecord"
+            },
+            "type": "array"
+          },
+          "storeId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "storeId",
+          "qualificationStatus",
+          "isChangeInReview",
+          "isFinalRejected",
+          "firstSubmittedAt",
+          "firstVerifiedAt",
+          "lastDecidedAt",
+          "entity",
+          "effectiveDocs",
+          "openRound",
+          "rounds"
+        ],
+        "type": "object"
+      },
       "AgreementConsentDetail": {
         "allOf": [
           {
@@ -21000,6 +21221,192 @@
           "launchTaskCount",
           "ticket",
           "replayed"
+        ],
+        "type": "object"
+      },
+      "QualificationRoundRecord": {
+        "properties": {
+          "approval": {
+            "$ref": "#/components/schemas/ApprovalDecisionView"
+          },
+          "approveMode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "normal",
+                  "corrected",
+                  "override"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "changedFields": {
+            "items": {
+              "enum": [
+                "store_name",
+                "address",
+                "industry",
+                "docs",
+                "entity_license"
+              ],
+              "type": "string",
+              "x-open-enum": true
+            },
+            "type": "array"
+          },
+          "finalRejectedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isResubmit": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "initial",
+              "new_store",
+              "change"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "outcome": {
+            "enum": [
+              "approved",
+              "rejected",
+              "withdrawn",
+              "discarded",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "qualificationSubmissionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "rejectedDocs": {
+            "items": {
+              "properties": {
+                "docType": {
+                  "enum": [
+                    "business_license",
+                    "branch_license",
+                    "industry_permit"
+                  ],
+                  "type": "string",
+                  "x-open-enum": true
+                },
+                "permitType": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/DictRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "qualificationDocId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "qualificationDocId",
+                "docType",
+                "permitType"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "roundNo": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "submittedBy": {
+            "$ref": "#/components/schemas/MerchantUserBrief"
+          },
+          "systemRejectCode": {
+            "enum": [
+              "duplicate_entity",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "uploadedDocs": {
+            "items": {
+              "properties": {
+                "docType": {
+                  "enum": [
+                    "business_license",
+                    "branch_license",
+                    "industry_permit"
+                  ],
+                  "type": "string",
+                  "x-open-enum": true
+                },
+                "permitType": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/DictRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "docType",
+                "permitType"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "qualificationSubmissionId",
+          "kind",
+          "isResubmit",
+          "changedFields",
+          "outcome",
+          "systemRejectCode",
+          "finalRejectedAt",
+          "roundNo",
+          "submittedAt",
+          "uploadedDocs",
+          "rejectedDocs",
+          "submittedBy",
+          "approval",
+          "approveMode"
         ],
         "type": "object"
       },
@@ -59837,6 +60244,101 @@
         "x-auth": "staff",
         "x-idempotent": "required",
         "x-permission": "merchant.manager.assign"
+      }
+    },
+    "/api/v1/admin/stores/{storeId}/qualification": {
+      "get": {
+        "operationId": "admin.store.qualification.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdminStoreQualificationView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "资质页签：结论摘要、生效证照与识别字段（脱敏）、历次审核记录",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
       }
     },
     "/api/v1/admin/timers": {

@@ -3166,6 +3166,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/stores/{storeId}/qualification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 资质页签：结论摘要、生效证照与识别字段（脱敏）、历次审核记录 */
+        get: operations["admin.store.qualification.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/timers": {
         parameters: {
             query?: never;
@@ -4340,6 +4357,40 @@ export interface components {
             /** Format: uuid */
             storeId: string;
             storeName: string | null;
+        };
+        AdminStoreQualificationView: {
+            effectiveDocs: components["schemas"]["AdminQualificationDoc"][];
+            entity: {
+                /** Format: uuid */
+                entityId: string;
+                entityType: ("enterprise" | "individual" | (string & {})) | null;
+                legalRepNameMask: string | null;
+                name: string | null;
+                usccMask: string | null;
+                /** @enum {string} */
+                verificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
+                verifiedAt: string | null;
+            };
+            firstSubmittedAt: string | null;
+            firstVerifiedAt: string | null;
+            isChangeInReview: boolean;
+            isFinalRejected: boolean;
+            lastDecidedAt: string | null;
+            openRound: {
+                dueAt: string | null;
+                /** @enum {string} */
+                kind: "initial" | "new_store" | "change" | (string & {});
+                /** Format: uuid */
+                qualificationSubmissionId: string;
+                roundNo: number;
+                /** Format: date-time */
+                submittedAt: string;
+            } | null;
+            /** @enum {string} */
+            qualificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
+            rounds: components["schemas"]["QualificationRoundRecord"][];
+            /** Format: uuid */
+            storeId: string;
         };
         AgreementConsentDetail: components["schemas"]["AgreementConsentItem"] & {
             appid: string | null;
@@ -7411,6 +7462,37 @@ export interface components {
             release: components["schemas"]["ReleaseAdminView"];
             replayed: boolean;
             ticket: components["schemas"]["DeliveryTicketCard"];
+        };
+        QualificationRoundRecord: {
+            approval: components["schemas"]["ApprovalDecisionView"];
+            approveMode: ("normal" | "corrected" | "override" | (string & {})) | null;
+            changedFields: ("store_name" | "address" | "industry" | "docs" | "entity_license" | (string & {}))[];
+            finalRejectedAt: string | null;
+            isResubmit: boolean;
+            /** @enum {string} */
+            kind: "initial" | "new_store" | "change" | (string & {});
+            /** @enum {string|null} */
+            outcome: "approved" | "rejected" | "withdrawn" | "discarded" | (string & {}) | null;
+            /** Format: uuid */
+            qualificationSubmissionId: string;
+            rejectedDocs: {
+                /** @enum {string} */
+                docType: "business_license" | "branch_license" | "industry_permit" | (string & {});
+                permitType: components["schemas"]["DictRef"] | null;
+                /** Format: uuid */
+                qualificationDocId: string;
+            }[];
+            roundNo: number;
+            /** Format: date-time */
+            submittedAt: string;
+            submittedBy: components["schemas"]["MerchantUserBrief"];
+            /** @enum {string|null} */
+            systemRejectCode: "duplicate_entity" | (string & {}) | null;
+            uploadedDocs: {
+                /** @enum {string} */
+                docType: "business_license" | "branch_license" | "industry_permit" | (string & {});
+                permitType: components["schemas"]["DictRef"] | null;
+            }[];
         };
         QualificationSubmissionDetail: {
             actions: string[];
@@ -26052,6 +26134,70 @@ export interface operations {
             };
             /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.store.qualification.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                storeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminStoreQualificationView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
