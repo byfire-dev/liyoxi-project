@@ -346,6 +346,7 @@ export const CLERK_SAMPLES: readonly Sample[] = [
     },
   },
   get("m.storeProfile.qualification.get", "/m/store-profile/qualification"),
+  get("m.qualificationSubmission.list", "/m/qualification-submissions"),
   ...[
     ["m.storeProfile.basic.update", "PATCH", "/m/store-profile/basic"],
     ["m.storeProfile.media.update", "PATCH", "/m/store-profile/media"],
@@ -355,6 +356,7 @@ export const CLERK_SAMPLES: readonly Sample[] = [
     ["m.storeProfile.qualification.submit", "POST", "/m/store-profile/qualification/submit"],
     ["m.qualificationDoc.create", "POST", "/m/qualification-docs"],
     ["m.qualificationDoc.update", "PATCH", `/m/qualification-docs/${uuidv7()}`],
+    ["m.qualificationDoc.downloadUrls", "POST", `/m/qualification-docs/${uuidv7()}/download-urls`],
   ].map(([operationId, method, path]): Sample => ({
     operationId: operationId!,
     play: (api, ctx) =>

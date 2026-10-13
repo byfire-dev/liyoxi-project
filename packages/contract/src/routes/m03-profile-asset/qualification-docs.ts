@@ -4,6 +4,7 @@ import { merchantMeta } from "../meta-only.js";
 import { merchantRoute } from "../builders.js";
 import { errorResponses, okResponse, IdSchema } from "../../common/index.js";
 import { z } from "../../zod.js";
+import { SignedUrlSchema } from "../a01-system/files.schemas.js";
 import {
   QualificationDocCreateBodySchema,
   QualificationDocPatchSchema,
@@ -57,7 +58,7 @@ export const mQualificationDocUpdate = merchantRoute({
   },
 });
 
-export const mQualificationDocDownloadUrls = merchantMeta({
+export const mQualificationDocDownloadUrls = merchantRoute({
   method: "post",
   path: "/m/qualification-docs/{qualificationDocId}/download-urls",
   operationId: "m.qualificationDoc.downloadUrls",
@@ -66,6 +67,11 @@ export const mQualificationDocDownloadUrls = merchantMeta({
   "x-clerk-view": "none",
   "x-idempotent": "none",
   "x-idempotent-reason": "签发短时地址，结果不进幂等记录，避免回放过期地址（A18、A19）",
+  request: {
+    params: z.object({ qualificationDocId: IdSchema }),
+    body: { required: true, content: { "application/json": { schema: z.strictObject({}) } } },
+  },
+  responses: { ...okResponse(SignedUrlSchema), ...errorResponses(400, 401, 403, 404, 409, 503) },
 });
 
 export const mQualificationDocRemove = merchantMeta({
