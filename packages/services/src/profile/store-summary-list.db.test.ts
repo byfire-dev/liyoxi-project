@@ -38,8 +38,13 @@ async function world() {
 }
 
 it("完整本域筛选与来源、own/group/all同范围；F区域按zone、字典投影和summary/list同条件零写", async () => {
-  const { h, staff } = await world(),
-    a = await h.owner(),
+  const { h, staff } = await world();
+  const entity = await h.make.entity({ name: "测试主体甲", sourceType: "sales" });
+  await h.make.billingAccount({ entityId: entity.id });
+  const a = {
+      entity,
+      store: await h.make.store({ entityId: entity.id, isPrimary: true }),
+    },
     b = await h.owner();
   const group = await h.prisma.staffGroup.findFirstOrThrow({
     where: { staffRoleKey: "delivery_manager", isDefault: true },
@@ -54,10 +59,6 @@ it("完整本域筛选与来源、own/group/all同范围；F区域按zone、字�
   await h.prisma.store.update({
     where: { id: a.store.id },
     data: { name: "测试商家甲", deliveryManagerId: manager.id },
-  });
-  await h.prisma.entity.update({
-    where: { id: a.entity.id },
-    data: { name: "测试主体甲", sourceType: "sales" },
   });
   await h.prisma.store.update({
     where: { id: b.store.id },
@@ -135,18 +136,69 @@ it("完整本域筛选与来源、own/group/all同范围；F区域按zone、字�
 it("跨北京日未推进周期现算、真实退款闸门和净实付店口径；页投影与既有detail钱包/付款标题一致", async () => {
   const { h, staff } = await world();
   h.clock.set(new Date("2026-10-31T15:59:59.000Z"));
+  const plan = await h.prisma.plan.findFirstOrThrow({ orderBy: { rank: "asc" } }),
+    revision = await h.prisma.planRevision.findFirstOrThrow({
+      where: { planId: plan.id, cancelledAt: null },
+      orderBy: { revisionNo: "desc" },
+    }),
+    pack = await h.prisma.pointPack.findFirstOrThrow();
+  const planContent = (payFen: number) => ({
+    v: 1,
+    kind: "plan",
+    planId: plan.id,
+    planRevisionId: revision.id,
+    months: 1,
+    cyclePriceFen: payFen,
+    payFen,
+    monthlyPoints: revision.monthlyPoints,
+    discountBp: revision.discountBp,
+    promo: null,
+    quotedAt: h.clock.now().toISOString(),
+  });
   const scheduled = await h.owner();
+  const order = await h.make.billingOrder({
+    entityId: scheduled.entity.id,
+    amountFen: revision.monthlyFeeFen,
+    contentSnapshot: planContent(revision.monthlyFeeFen),
+  });
   const term = await h.make.subscriptionTerm({
     entityId: scheduled.entity.id,
+    planRevisionId: revision.id,
+    sourceBillingOrderId: order.id,
     status: "scheduled",
+    anchorDay: 1,
     startDate: new Date("2026-11-01T00:00:00Z"),
+    endDate: new Date("2026-11-30T00:00:00Z"),
     startsAt: new Date("2026-10-31T16:00:00.000Z"),
+    endsAt: new Date("2026-11-30T16:00:00.000Z"),
   });
   const cash = await h.owner(),
     sibling = await h.make.store({ entityId: cash.entity.id, isPrimary: false });
-  await h.make.billingOrder({ entityId: cash.entity.id, amountFen: 1000, refundedAmountFen: 200 });
-  await h.make.billingOrder({ entityId: cash.entity.id, status: "refunded", amountFen: 500 });
-  await h.make.billingOrder({ entityId: cash.entity.id, type: "topup", status: "pending_payment" });
+  await h.make.billingOrder({
+    entityId: cash.entity.id,
+    amountFen: 1000,
+    refundedAmountFen: 200,
+    contentSnapshot: planContent(1000),
+  });
+  await h.make.billingOrder({
+    entityId: cash.entity.id,
+    status: "refunded",
+    amountFen: 500,
+    contentSnapshot: planContent(500),
+  });
+  await h.make.billingOrder({
+    entityId: cash.entity.id,
+    type: "topup",
+    status: "pending_payment",
+    amountFen: pack.priceFen,
+    contentSnapshot: {
+      v: 1,
+      kind: "topup",
+      packId: pack.id,
+      points: pack.points,
+      payFen: pack.priceFen,
+    },
+  });
   const before = await snapshotTables(h.prisma, tables);
   expect(
     (
@@ -201,7 +253,12 @@ it("跨北京日未推进周期现算、真实退款闸门和净实付店口径�
   expect(cashList.items[0]?.subscription).toEqual(cashCanonical.subscription);
   expect(cashList.items[0]?.subscription.latestPaymentOrder?.title).toContain("加购积分");
   const refunded = await h.owner();
-  await h.make.billingOrder({ entityId: refunded.entity.id, status: "refunded", amountFen: 500 });
+  await h.make.billingOrder({
+    entityId: refunded.entity.id,
+    status: "refunded",
+    amountFen: 500,
+    contentSnapshot: planContent(500),
+  });
   expect(
     await h.profile.admin.summary(staff, filter({ entityId: refunded.entity.id })),
   ).toMatchObject({ total: 1, paidCount: 0, newThisMonthCount: 1 });
