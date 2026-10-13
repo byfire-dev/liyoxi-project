@@ -47,6 +47,7 @@ export * from "./error-details.js";
 
 export * from "./stores.schemas.js";
 export * from "./store-activity.schemas.js";
+export * from "./store-profile.schemas.js";
 export * from "./store-qualification.schemas.js";
 export * from "./assignment-contact.schemas.js";
 export * from "./assignment-histories.js";
@@ -56,6 +57,8 @@ export {
   adminStoreList,
   adminStoreGet,
   adminStoreActivityList,
+  adminStoreProfileGet,
+  adminStoreProfileUpdate,
   adminStoreQualificationGet,
   adminStoreAssignDeliveryManager,
 } from "./stores.js";

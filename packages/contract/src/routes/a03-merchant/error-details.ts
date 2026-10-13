@@ -23,6 +23,7 @@ export const A03_ERROR_DETAILS = {
     approvalId: IdSchema,
     requestNo: orNull(z.string()),
   }),
+  FIELD_NOT_PROXY_EDITABLE: z.object({ fields: z.array(z.string()) }),
 } satisfies Partial<Record<DomainErrorSymbol, z.ZodType>>;
 
 export type ApprovalNotPendingDetails = z.infer<(typeof A03_ERROR_DETAILS)["APPROVAL_NOT_PENDING"]>;
