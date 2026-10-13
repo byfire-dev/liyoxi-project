@@ -28,6 +28,7 @@ import { staffBriefOf } from "./me.js";
 import { createFullStaffManagement } from "./manage-full.js";
 import { createStaffLists } from "./manage-lists.js";
 import { createAssignmentContacts } from "./assignment-contact.js";
+import { createStoreManagerTransfers } from "./store-manager-transfer.js";
 import { workCounts, workSources } from "./work.js";
 
 export type { StaffManagementDeps } from "./management-deps.js";
@@ -211,6 +212,7 @@ async function detail(
 export function createStaffManagement(deps: StaffManagementDeps) {
   return {
     ...createAssignmentContacts(deps),
+    ...createStoreManagerTransfers(deps),
     ...createFullStaffManagement(deps, (tx, ctx, id) =>
       detail(tx, deps, ctx.scope, id, ctx.staff.id, ctx),
     ),

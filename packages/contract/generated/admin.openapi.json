@@ -17279,6 +17279,67 @@
         ],
         "type": "object"
       },
+      "ManagerTransferReason": {
+        "enum": [
+          "workload",
+          "merchant_request",
+          "staff_change",
+          "other"
+        ],
+        "type": "string"
+      },
+      "ManagerTransferResult": {
+        "additionalProperties": false,
+        "properties": {
+          "batchId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/AssignmentContactView"
+          },
+          "deliveryManager": {
+            "$ref": "#/components/schemas/StaffBrief"
+          },
+          "moved": {
+            "additionalProperties": false,
+            "properties": {
+              "deliveryTicketCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "dramaOrderCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "serviceTicketCount": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "dramaOrderCount",
+              "deliveryTicketCount",
+              "serviceTicketCount"
+            ],
+            "type": "object"
+          },
+          "storeId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "storeId",
+          "deliveryManager",
+          "batchId",
+          "moved",
+          "contact"
+        ],
+        "type": "object"
+      },
       "MediaFileView": {
         "properties": {
           "coverUrl": {
@@ -62291,6 +62352,155 @@
         "x-auth": "staff",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/stores/{storeId}/reassign-delivery-manager": {
+      "post": {
+        "operationId": "admin.store.reassignDeliveryManager",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "confirm": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "fromStaffId": {
+                        "format": "uuid",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "fromStaffId"
+                    ],
+                    "type": "object"
+                  },
+                  "note": {
+                    "maxLength": 200,
+                    "type": "string"
+                  },
+                  "reasonCode": {
+                    "$ref": "#/components/schemas/ManagerTransferReason"
+                  },
+                  "toStaffId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "toStaffId",
+                  "reasonCode",
+                  "confirm"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ManagerTransferResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "转移交付经理：门店与在办工单、订购单、客服工单一并移交（已归档的不动），通知商家，新经理 1 个工作日内联系",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "merchant.manager.transfer"
       }
     },
     "/api/v1/admin/timers": {

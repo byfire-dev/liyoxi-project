@@ -48,7 +48,13 @@ import { createFlowOps, createAlertActions } from "./ops/index.js";
 import type { FlowOps, AlertActions } from "./ops/index.js";
 import { createAuditRead } from "./audit/index.js";
 import { bindDelivery } from "./delivery/index.js";
-import { createOrderService, bindOrder, bindOrderStart } from "./order/index.js";
+import {
+  createOrderService,
+  bindOrder,
+  bindOrderStart,
+  readUnassignedStoreOrderIds,
+  syncUnassignedStoreOrders,
+} from "./order/index.js";
 import { assignDeliveryManager } from "./profile/index.js";
 import type { OrderService } from "./order/index.js";
 import { bindPublish } from "./publish/index.js";
@@ -754,6 +760,10 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     config,
     keyring: () => keyringFromEnv(env),
     workSources: staffWorkSourcesOf(assembly),
+    storeManagerOrders: {
+      readUnassignedIds: readUnassignedStoreOrderIds,
+      syncUnassigned: syncUnassignedStoreOrders,
+    },
     media,
     events,
     sla,

@@ -24,6 +24,7 @@ export { bindOrderStart } from "./start-binding.js";
 export type { OrderStartBinding } from "./start-binding.js";
 export { startOrder, startOrderUseCase } from "./start.js";
 export { registration, syncOrderManager } from "./register.js";
+export { readUnassignedStoreOrderIds, syncUnassignedStoreOrders } from "./store-manager-sync.js";
 export { findOrderViolations, ORDER_INVARIANT_CODES } from "./invariants.js";
 export {
   countCartBadge,
