@@ -14,6 +14,7 @@ import { adminFactsOf } from "./admin-ports.js";
 import type { ProfileDeps } from "./context.js";
 import { dictRef, roundInclude, snapshot } from "./repo.js";
 import { addressView, docView, instant } from "./views.js";
+import { pendingView } from "./round-basics.js";
 export async function staffBrief(tx: Tx, id: string | null): Promise<StaffBrief | null> {
   if (!id) return null;
   const s = await tx.staff.findUnique({ where: { id } });
@@ -225,6 +226,25 @@ export async function adminQualificationGet(
     });
   }
   const license = r.qualificationDocs.find((d) => d.docType === "business_license");
+  const referenceDocs = [];
+  if (r.kind === "new_store" || (r.kind === "change" && !license)) {
+    const references = await tx.qualificationDoc.findMany({
+      where: {
+        entityId: e.id,
+        docType: "business_license",
+        scope: "entity",
+        effectiveAt: { not: null },
+        supersededAt: null,
+        removedAt: null,
+      },
+    });
+    for (const doc of references)
+      referenceDocs.push({
+        ...(await docView(tx, deps.keyring(), deps.clock.now(), doc)),
+        fieldChecks: doc.fieldChecks ?? [],
+        isCorrected: doc.reviewedFieldsEnc !== null,
+      });
+  }
   const bidx = license?.certNoBidx;
   const inReviewElsewhereCount = bidx
     ? await tx.qualificationDoc.count({
@@ -287,7 +307,7 @@ export async function adminQualificationGet(
       verifiedAt: instant(e.verifiedAt),
       verifiedStores,
     },
-    proposed: null,
+    proposed: await pendingView(tx, r),
     changedFields: r.changedFields,
     contact: contact
       ? { name: contact.name, phoneMask: contact.phoneMask, phoneVerifyState: contact.phoneSource }
@@ -306,7 +326,7 @@ export async function adminQualificationGet(
       : null,
     checksRanAt: instant(r.checksRanAt),
     docs,
-    referenceDocs: [],
+    referenceDocs,
     duplicateUscc: { inReviewElsewhereCount, isVerifiedElsewhere },
     relatedOrders: [...facts.billing.relatedOrders, ...facts.order.relatedOrders],
     canOverride: false,

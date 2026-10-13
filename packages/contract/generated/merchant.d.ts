@@ -4234,6 +4234,25 @@ export interface components {
             /** @enum {string} */
             type: "plan_new" | "plan_renew" | "plan_upgrade" | "topup" | (string & {});
         };
+        PendingChange: {
+            address: {
+                city: components["schemas"]["DictRef"] | null;
+                detail: string | null;
+                district: components["schemas"]["DictRef"] | null;
+                latitude: number | null;
+                longitude: number | null;
+                poiName: string | null;
+                province: components["schemas"]["DictRef"] | null;
+            } | null;
+            category: components["schemas"]["DictRef"] | null;
+            industry: components["schemas"]["DictRef"] | null;
+            lockVersion: number;
+            /** @enum {string} */
+            phase: "draft" | "in_review" | "closed" | (string & {});
+            /** Format: uuid */
+            qualificationSubmissionId: string;
+            storeName: string | null;
+        };
         PendingConsent: {
             agreementKey: string;
             /** Format: uuid */
@@ -4594,7 +4613,7 @@ export interface components {
             outcome: "approved" | "rejected" | "withdrawn" | "discarded" | (string & {}) | null;
             /** @enum {string} */
             phase: "draft" | "in_review" | "closed" | (string & {});
-            proposed: null;
+            proposed: components["schemas"]["PendingChange"] | null;
             /** Format: uuid */
             qualificationSubmissionId: string;
             rejectReasons: components["schemas"]["DictRef"][];
@@ -5021,7 +5040,7 @@ export interface components {
             lastEditedAt: string | null;
             lockVersion: number;
             logo: components["schemas"]["MediaFileView"] | null;
-            pendingChange: null;
+            pendingChange: components["schemas"]["PendingChange"] | null;
             reviewFieldsLocked: boolean;
             reviewRequiredOnChange: boolean;
             storeName: string | null;
@@ -12749,7 +12768,7 @@ export interface operations {
                             lastEditedAt: string | null;
                             lockVersion: number;
                             logo: components["schemas"]["MediaFileView"] | null;
-                            pendingChange: null;
+                            pendingChange: components["schemas"]["PendingChange"] | null;
                             replayed: boolean;
                             reviewFieldsLocked: boolean;
                             reviewRequiredOnChange: boolean;

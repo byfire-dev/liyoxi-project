@@ -69,7 +69,7 @@ export async function snapshot(tx: Tx, storeId: string) {
   });
   const last = await tx.qualificationSubmission.findFirst({
     where: { storeId, submittedAt: { not: null }, closedAt: { not: null } },
-    orderBy: { submittedAt: "desc" },
+    orderBy: [{ submittedAt: "desc" }, { id: "desc" }],
     include: roundInclude,
   });
   const effective = profile?.effectiveQualificationSubmissionId
@@ -79,7 +79,12 @@ export async function snapshot(tx: Tx, storeId: string) {
       })
     : null;
   const current = open?.kind !== "change" && open ? open : (effective ?? last);
-  const permits = await requiredPermits(tx, profile?.categoryCode);
+  const permits = await requiredPermits(
+    tx,
+    open?.kind === "change"
+      ? (open.proposedCategoryCode ?? profile?.categoryCode)
+      : profile?.categoryCode,
+  );
   const fileIds = [
     ...new Set([
       ...media.map((m) => m.fileId),

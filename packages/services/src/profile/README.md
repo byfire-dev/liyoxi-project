@@ -8,8 +8,24 @@ new_store 不带入、不接收营业执照。锁轮次65→主体100共享→�
 锁后重验归属、生命周期及真实成员。父行只读，使用共享锁防止INSERT的外键锁升级。
 remove保留已提交证据；discard只接精确ID的change/new_store未提交草稿。软移除、7天引用释放、
 轮次版本/缓存/活动审计同事务，无状态历史/事件；carried来源和旧生效资料不变，缺引用明确失败。
-多轮submit/approval、基础信息重审待审值、终局/SMS/后台仍未开放，actions只暴露实际可用动作。
+草稿片已完成本机收口；下一片多轮链SOURCE如下，终局/SMS/后台仍后续。
 新增DB/HTTP各6组及clerk两行，旧断言保留；作者只做所属格式/lint，ROOT串行完成正式验收与生成。
+
+## W2-11 多轮提交与决定（SOURCE）
+
+new_store只审本店证照，主体生效执照作referenceDocs；change的名称/行业/省市区与详细地址
+先存轮次，原生效值保持到批准。选点/坐标、免审简介在审期间可保存，批准不覆盖它们。
+提交合并完整proposed、计算五类changedFields、检查新品类许可证与本次声明，拒绝空变更；
+M108在entity100独占锁下核另一店执照变更在审事实。初次/新店发qualification事件，change发
+严格qualification_change三事件；所有决定沿原approval守卫、定时器与tenant/flow/history。
+通过先取代旧有效行再生效新证照，提交过的旧证据引用不释放；未换主体执照时不覆盖主体证照。
+change通过只更新主体认证字段，保留首次verifiedAt与主体状态历史；驳回/冲突/回滚保持旧值。
+
+ROOT授权窄tenant companion：setStoreQualification扩现签名与02:627守卫；renameStore只接
+真实已批准且未关闭的当前change轮次。scope/auth/version由profile审批入口负责，历史轮次不得写回。
+新店首次提交经既有trackOf直记端口；analytics未注册仍明确fallback，不冒称实际外部埋点验收。
+I7/资质通过订阅者、终局/override/OCR/SMS与其余后台事实仍后续。新增8DB+2HTTP关键组及
+两个真实max1客户端竞争各3轮；ROOT完成正式验收后裁定本片，整包不标完成。
 
 `createStoreProfileAssetInitializer` 增加显式四项组合，旧 initializer 的三项严格入口不扩大。
 组合闭包固定 tenant.readStoreAssetFacts，不接受调用者提供的授权事实或owner替身。
