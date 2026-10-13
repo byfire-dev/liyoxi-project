@@ -1,0 +1,15 @@
+.lyx-merchant-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+.lyx-merchant-item {
+  padding: 16px 0;
+  border-bottom: var(--lyx-border-width-default) solid var(--lyx-color-border);
+  overflow-wrap: anywhere;
+}
+.lyx-merchant-item p {
+  margin: 8px 0;
+}
