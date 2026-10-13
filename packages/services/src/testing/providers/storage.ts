@@ -57,6 +57,7 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
   const clock = options.clock ?? systemClock;
   const core = createFakeCore<Method>(clock);
   const objects = new Map<string, FakeStoredObject>();
+  const versions = new Map<string, FakeStoredObject[]>();
   const posts = new Map<
     string,
     { bucket: StorageBucket; key: string; mime: string; maxBytes: number; expiresAt: Date }
@@ -99,6 +100,9 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
   }
 
   function put(ref: ObjectRef, body: Uint8Array, mime: string): string {
+    const previous = objects.get(slot(ref));
+    if (fake.capabilities.versioning && previous)
+      versions.set(slot(ref), [...(versions.get(slot(ref)) ?? []), previous]);
     const stored = { body: new Uint8Array(body), mime, etag: etagOf(body) };
     objects.set(slot(ref), stored);
     return stored.etag;
@@ -274,10 +278,43 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
         failed("unsupported", "替身不提供真实视觉处理签名"),
       ),
     delete: (input) =>
-      core.run("delete", input, () => {
-        objects.delete(slot(input));
-        return ok(undefined);
-      }),
+      core.run(
+        "delete",
+        input,
+        () => {
+          const previous = objects.get(slot(input));
+          if (fake.capabilities.versioning && previous)
+            versions.set(slot(input), [...(versions.get(slot(input)) ?? []), previous]);
+          objects.delete(slot(input));
+          return ok(undefined);
+        },
+        input.signal,
+      ),
+    restoreVersions: (input) =>
+      core.run(
+        "restoreVersions",
+        input,
+        () => {
+          if (!fake.capabilities.versioning) return failed("unsupported", "替身桶未启用版本控制");
+          if (objects.has(slot(input))) return ok(undefined);
+          const previous = versions.get(slot(input))?.at(-1);
+          if (!previous) return failed("rejected", "替身对象已无可恢复版本");
+          objects.set(slot(input), previous);
+          return ok(undefined);
+        },
+        input.signal,
+      ),
+    eraseVersions: (input) =>
+      core.run(
+        "eraseVersions",
+        input,
+        () => {
+          objects.delete(slot(input));
+          versions.delete(slot(input));
+          return ok(undefined);
+        },
+        input.signal,
+      ),
     abortMultipart: (input) =>
       core.run("abortMultipart", input, () =>
         input.key.startsWith(INCOMING_PREFIX)

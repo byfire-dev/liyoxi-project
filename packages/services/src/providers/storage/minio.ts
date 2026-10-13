@@ -22,6 +22,7 @@ import {
   CopyObjectCommand,
   CreateBucketCommand,
   DeleteObjectCommand,
+  ListObjectVersionsCommand,
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
@@ -559,11 +560,83 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
       return failed("unsupported", "本地 MinIO 不提供 CI 视觉处理签名");
     },
 
-    async delete({ bucket, key }) {
-      return run("删除", async () => {
-        await client.send(new DeleteObjectCommand({ Bucket: nameOf(bucket), Key: key }));
-        return ok(undefined);
-      });
+    async delete({ bucket, key, signal }) {
+      return run(
+        "删除",
+        async () => {
+          await client.send(new DeleteObjectCommand({ Bucket: nameOf(bucket), Key: key }), {
+            abortSignal: signal,
+          });
+          return ok(undefined);
+        },
+        signal,
+      );
+    },
+    async restoreVersions() {
+      return failed("unsupported", "本地MinIO能力未声明版本控制，不伪造恢复成功");
+    },
+    async eraseVersions({ bucket, key, signal }) {
+      return run(
+        "彻底删除",
+        async () => {
+          let keyMarker: string | undefined,
+            versionMarker: string | undefined,
+            complete = false;
+          const versions: string[] = [];
+          for (let page = 0; page < 20; page++) {
+            const result = await client.send(
+              new ListObjectVersionsCommand({
+                Bucket: nameOf(bucket),
+                Prefix: key,
+                MaxKeys: 100,
+                KeyMarker: keyMarker,
+                VersionIdMarker: versionMarker,
+              }),
+              { abortSignal: signal },
+            );
+            for (const version of [...(result.Versions ?? []), ...(result.DeleteMarkers ?? [])]) {
+              if (version.Key === key) {
+                if (!version.VersionId) return failed("unavailable", "本地版本列表缺版本标识");
+                versions.push(version.VersionId);
+              }
+            }
+            if (result.IsTruncated === false) {
+              complete = true;
+              break;
+            }
+            if (result.IsTruncated !== true) return failed("unavailable", "本地版本分页缺完成标记");
+            if (
+              !result.NextKeyMarker ||
+              !result.NextVersionIdMarker ||
+              (result.NextKeyMarker === keyMarker && result.NextVersionIdMarker === versionMarker)
+            )
+              return failed("unavailable", "本地版本分页不完整");
+            keyMarker = result.NextKeyMarker;
+            versionMarker = result.NextVersionIdMarker;
+          }
+          if (!complete) return failed("unavailable", "本地版本列表超出安全预算");
+          for (const VersionId of versions)
+            await client.send(
+              new DeleteObjectCommand({ Bucket: nameOf(bucket), Key: key, VersionId }),
+              { abortSignal: signal },
+            );
+          // 无版本桶也可能返回空列表，精确删除当前对象后核实不存在。
+          if (!versions.length)
+            await client.send(new DeleteObjectCommand({ Bucket: nameOf(bucket), Key: key }), {
+              abortSignal: signal,
+            });
+          try {
+            await client.send(new HeadObjectCommand({ Bucket: nameOf(bucket), Key: key }), {
+              abortSignal: signal,
+            });
+          } catch (error) {
+            if (httpStatusOf(error) === 404) return ok(undefined);
+            throw error;
+          }
+          return failed("unavailable", "本地对象仍存在");
+        },
+        signal,
+      );
     },
     async abortMultipart() {
       return failed("unsupported", "本地 MinIO 不提供 STS 分块通道");

@@ -27,6 +27,7 @@ import {
 } from "./cos-signature.js";
 import type { CosKey } from "./cos-signature.js";
 import { prepareVisionRead, VISION_CI_REGIONS } from "./vision-signing.js";
+import { changeCosVersions } from "./cos-versions.js";
 
 export interface CosConfig {
   readonly region: string;
@@ -905,10 +906,62 @@ export function createCosStorage(
       run(async () => {
         if (!validRef(input)) return BAD();
         if (!config.worker) return OFF();
-        const reply = await signed(input, "DELETE", config.worker);
+        const reply = await signed(
+          input,
+          "DELETE",
+          config.worker,
+          {},
+          {},
+          undefined,
+          undefined,
+          undefined,
+          input.signal,
+        );
         return reply.status === 204 || reply.status === 200 || reply.status === 404
           ? ok(undefined)
           : failure(reply);
+      }),
+    restoreVersions: (input) =>
+      run(async () => {
+        if (!validRef(input) || input.key.startsWith(INCOMING_PREFIX)) return BAD();
+        if (!config.worker) return OFF();
+        return changeCosVersions(
+          (ref, method, query, signal) =>
+            signed(
+              ref,
+              method,
+              config.worker!,
+              {},
+              query,
+              undefined,
+              256 * 1024,
+              undefined,
+              signal,
+            ),
+          input,
+          false,
+        );
+      }),
+    eraseVersions: (input) =>
+      run(async () => {
+        if (!validRef(input) || input.key.startsWith(INCOMING_PREFIX)) return BAD();
+        if (!config.worker) return OFF();
+        return changeCosVersions(
+          (ref, method, query, signal) =>
+            signed(
+              ref,
+              method,
+              config.worker!,
+              {},
+              query,
+              undefined,
+              256 * 1024,
+              undefined,
+              signal,
+            ),
+          input,
+          true,
+        );
       }),
     abortMultipart: (input) =>
       run(async () => {

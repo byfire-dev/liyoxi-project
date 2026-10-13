@@ -197,7 +197,7 @@ erDiagram
 | `stored` | 审核判定 | `stored` | — | worker |
 | `stored` | 清除任务 | `deleting` → `deleted` | 清除的四项复核全部通过（d5:386-391）。置 `deleted` 的事务只锁本文件行；分类的“清除后钩子”（`package_zip`、`publish_list` 改 `zip_bundle`，任意文件释放以它为源的 `derivative` 引用）在该事务提交后另起事务执行，先锁钩子要改的行，不在持有文件行锁时去锁 `zip_bundle`（lock_rank 390 < 410）或别的文件行；钩子没执行成的由 `media.I8` 每小时修复 | worker |
 | `stored` | 员工彻底删除（事务一） | `deleting` | 权限点 `files.erase`（仅超级管理员，再验证）；填写原因；回显的文件与分类相符；没有 `live` 引用；`erased_at` 为空。只锁本文件行；此后 `files.link()` 与签发都不再接受它 | 员工（`admin.file.erase`） |
-| `deleting` | 员工彻底删除（事务二；事务外已删除对象的全部历史版本） | `deleted` | 条件更新 `WHERE status = 'deleting'` 命中；同一时刻写 `deleted_at`、`erased_at`，`original_name` 置空，写 `ops` 审计（`files.erase`）；提交后执行分类的清除后钩子（同“清除任务”一行）。删对象失败时停在 `deleting`，同一幂等键重试或占用过期后接着做，不回退 | 员工（同一请求） |
+| `deleting` | 员工彻底删除（事务二；事务外已删除对象的全部历史版本） | `deleted` | 条件更新 `WHERE status = 'deleting'` 命中；同一时刻写 `deleted_at`、`erased_at`，`original_name` 置空，写 `ops` 审计（`files.file.erase`）；提交后执行分类的清除后钩子（同“清除任务”一行）。删对象失败时停在 `deleting`，同一幂等键重试或占用过期后接着做，不回退 | 员工（同一请求） |
 | `deleted` | 员工彻底删除（已清除的文件） | `deleted` | 守卫同事务一，不改状态；事务外删除全部历史版本后，条件更新 `WHERE status = 'deleted' AND erased_at IS NULL` 只写 `erased_at`、`original_name` 置空与审计，`deleted_at` 不变 | 员工（`admin.file.erase`） |
 | `deleted` | 恢复 | `stored` | 在历史版本保留期内；有权限；填写原因；`erased_at` 为空（彻底删除过的不能恢复，A141）；`deleted_at`、`purge_after` 置空 | 员工（`admin.file.restore`） |
 
