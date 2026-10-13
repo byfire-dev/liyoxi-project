@@ -377,6 +377,8 @@ export const CLERK_SAMPLES: readonly Sample[] = [
     ["m.qualificationDoc.create", "POST", "/m/qualification-docs"],
     ["m.qualificationDoc.update", "PATCH", `/m/qualification-docs/${uuidv7()}`],
     ["m.qualificationDoc.downloadUrls", "POST", `/m/qualification-docs/${uuidv7()}/download-urls`],
+    ["m.qualificationDoc.remove", "POST", `/m/qualification-docs/${uuidv7()}/remove`],
+    ["m.storeProfile.qualification.discard", "POST", "/m/store-profile/qualification/discard"],
   ].map(([operationId, method, path]): Sample => ({
     operationId: operationId!,
     play: (api, ctx) =>

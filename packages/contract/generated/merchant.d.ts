@@ -1199,6 +1199,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/qualification-docs/{qualificationDocId}/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 从草稿移除证照（释放文件引用，保留 7 天） */
+        post: operations["m.qualificationDoc.remove"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/qualification-submissions": {
         parameters: {
             query?: never;
@@ -1473,6 +1490,23 @@ export interface paths {
         head?: never;
         /** 保存第 4 步草稿：主体类型（企业/个体工商户）、信息确认；没有草稿时建草稿轮次（ensureDraft） */
         patch: operations["m.storeProfile.qualification.update"];
+        trace?: never;
+    };
+    "/api/v1/m/store-profile/qualification/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 丢弃资质草稿（放弃变更） */
+        post: operations["m.storeProfile.qualification.discard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/m/store-profile/qualification/submit": {
@@ -4374,6 +4408,10 @@ export interface components {
             /** @enum {string} */
             mode: "in_app" | "offline_contract" | "hidden" | (string & {});
         };
+        QualificationDiscardBody: {
+            /** Format: uuid */
+            qualificationSubmissionId: string;
+        };
         QualificationDoc: {
             certNoMask: string | null;
             displayFields: {
@@ -4432,6 +4470,15 @@ export interface components {
             submitted: {
                 [key: string]: string;
             } | null;
+        };
+        QualificationDocRemoveResult: {
+            lockVersion: number;
+            /** Format: uuid */
+            qualificationDocId: string;
+            /** Format: uuid */
+            qualificationSubmissionId: string;
+            /** Format: date-time */
+            removedAt: string;
         };
         QualificationRecord: {
             changedFields: ("store_name" | "address" | "industry" | "docs" | "entity_license" | (string & {}))[];
@@ -11048,6 +11095,88 @@ export interface operations {
             };
         };
     };
+    "m.qualificationDoc.remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                qualificationDocId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["QualificationDocRemoveResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "m.qualificationSubmission.list": {
         parameters: {
             query?: {
@@ -12777,6 +12906,119 @@ export interface operations {
             };
             /** @description 已登录但无权 */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.storeProfile.qualification.discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QualificationDiscardBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: string[];
+                            contact: components["schemas"]["ContactView"];
+                            declaration: {
+                                currentVersion: string;
+                            };
+                            effectiveDocs: components["schemas"]["QualificationDoc"][];
+                            entity: {
+                                /** @enum {string|null} */
+                                entityType: "enterprise" | "individual" | (string & {}) | null;
+                                legalRepNameMask: string | null;
+                                name: string | null;
+                                usccMask: string | null;
+                                /** @enum {string} */
+                                verificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
+                                verifiedAt: string | null;
+                            };
+                            isChangeInReview: boolean;
+                            isFinalRejected: boolean;
+                            lastClosedRound: components["schemas"]["QualificationRound"] | null;
+                            openRound: components["schemas"]["QualificationRound"] | null;
+                            requiredPermits: {
+                                isProvided: boolean;
+                                permitType: components["schemas"]["DictRef"];
+                            }[];
+                            /** @enum {string} */
+                            storeQualificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
+                            /** @enum {string} */
+                            viewerRole: "owner";
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -31,3 +31,4 @@ export type {
 } from "./wechat-message.js";
 
 export { createCiWebhookSource } from "./ci.js";
+export { recordOffnetDenied } from "./offnet-denied.js";

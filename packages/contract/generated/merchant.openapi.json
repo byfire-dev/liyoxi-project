@@ -13249,6 +13249,20 @@
         ],
         "type": "object"
       },
+      "QualificationDiscardBody": {
+        "additionalProperties": false,
+        "properties": {
+          "qualificationSubmissionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "qualificationSubmissionId"
+        ],
+        "type": "object"
+      },
       "QualificationDoc": {
         "properties": {
           "certNoMask": {
@@ -13546,6 +13560,35 @@
           "submitted",
           "entityTypeCheck",
           "replayed"
+        ],
+        "type": "object"
+      },
+      "QualificationDocRemoveResult": {
+        "properties": {
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "qualificationDocId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "qualificationSubmissionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "removedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "qualificationDocId",
+          "removedAt",
+          "qualificationSubmissionId",
+          "lockVersion"
         ],
         "type": "object"
       },
@@ -28437,6 +28480,122 @@
         "x-idempotent-reason": "签发短时地址，结果不进幂等记录，避免回放过期地址（A18、A19）"
       }
     },
+    "/api/v1/m/qualification-docs/{qualificationDocId}/remove": {
+      "post": {
+        "operationId": "m.qualificationDoc.remove",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "qualificationDocId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/QualificationDocRemoveResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "从草稿移除证照（释放文件引用，保留 7 天）",
+        "x-auth": "member",
+        "x-capability": "store.qualification.edit",
+        "x-clerk-view": "none",
+        "x-idempotent": "required"
+      }
+    },
     "/api/v1/m/qualification-submissions": {
       "get": {
         "operationId": "m.qualificationSubmission.list",
@@ -31771,6 +31930,286 @@
           }
         },
         "summary": "保存第 4 步草稿：主体类型（企业/个体工商户）、信息确认；没有草稿时建草稿轮次（ensureDraft）",
+        "x-auth": "member",
+        "x-capability": "store.qualification.edit",
+        "x-clerk-view": "none",
+        "x-idempotent": "required"
+      }
+    },
+    "/api/v1/m/store-profile/qualification/discard": {
+      "post": {
+        "operationId": "m.storeProfile.qualification.discard",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QualificationDiscardBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "actions": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "contact": {
+                          "$ref": "#/components/schemas/ContactView"
+                        },
+                        "declaration": {
+                          "properties": {
+                            "currentVersion": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "currentVersion"
+                          ],
+                          "type": "object"
+                        },
+                        "effectiveDocs": {
+                          "items": {
+                            "$ref": "#/components/schemas/QualificationDoc"
+                          },
+                          "type": "array"
+                        },
+                        "entity": {
+                          "properties": {
+                            "entityType": {
+                              "enum": [
+                                "enterprise",
+                                "individual",
+                                null
+                              ],
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "x-open-enum": true
+                            },
+                            "legalRepNameMask": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "name": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "usccMask": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "verificationStatus": {
+                              "enum": [
+                                "unsubmitted",
+                                "pending",
+                                "verified",
+                                "rejected"
+                              ],
+                              "type": "string",
+                              "x-open-enum": true
+                            },
+                            "verifiedAt": {
+                              "anyOf": [
+                                {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "verificationStatus",
+                            "name",
+                            "entityType",
+                            "usccMask",
+                            "legalRepNameMask",
+                            "verifiedAt"
+                          ],
+                          "type": "object"
+                        },
+                        "isChangeInReview": {
+                          "type": "boolean"
+                        },
+                        "isFinalRejected": {
+                          "type": "boolean"
+                        },
+                        "lastClosedRound": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/QualificationRound"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "openRound": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/QualificationRound"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "requiredPermits": {
+                          "items": {
+                            "properties": {
+                              "isProvided": {
+                                "type": "boolean"
+                              },
+                              "permitType": {
+                                "$ref": "#/components/schemas/DictRef"
+                              }
+                            },
+                            "required": [
+                              "permitType",
+                              "isProvided"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "storeQualificationStatus": {
+                          "enum": [
+                            "unsubmitted",
+                            "pending",
+                            "verified",
+                            "rejected"
+                          ],
+                          "type": "string",
+                          "x-open-enum": true
+                        },
+                        "viewerRole": {
+                          "enum": [
+                            "owner"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "viewerRole",
+                        "storeQualificationStatus",
+                        "isChangeInReview",
+                        "isFinalRejected",
+                        "entity",
+                        "openRound",
+                        "lastClosedRound",
+                        "effectiveDocs",
+                        "requiredPermits",
+                        "contact",
+                        "declaration",
+                        "actions"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "丢弃资质草稿（放弃变更）",
         "x-auth": "member",
         "x-capability": "store.qualification.edit",
         "x-clerk-view": "none",

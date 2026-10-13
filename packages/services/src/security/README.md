@@ -1,5 +1,9 @@
 # security：字段加密、盲索引、敏感字段三件套
 
+W2-24 的 `recordOffnetDenied` 在后台来源检查拒绝时独立记录匿名 `offnet_denied`
+安全事实，不修改账号、失败次数或会话；数据库失败只记固定诊断，HTTP 仍拒绝访问。
+API 在可信 `clientIp` 解析后、后台认证前应用 `ADMIN_IP_ALLOWLIST`；空配置不限制。
+
 由 W0-14 交付。依据：[06](../../../../docs/06-data-model.md) 第 3.2 节；[01](../../../../docs/01-architecture.md) 第 10.2 节；ADR-025；D4 第 9.2、9.3 节；D7 第 7.5 节。回调验签与收件箱也归本模块，随 G2-0。
 
 ## 1. 这里有什么
