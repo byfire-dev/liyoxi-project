@@ -47,6 +47,11 @@ export async function tenantRegression(page, scene) {
     expect(creates).toHaveLength(1);
     expect(creates[0].data).not.toHaveProperty("copyFromStoreId");
     expect(creates[0].key).toBeTruthy();
+    await content().evaluate((node) => {
+      node.closest(".taro_page")?.scrollTo({ top: 0 });
+      node.ownerDocument.defaultView?.scrollTo(0, 0);
+    });
+    await expect(content().getByText("门店已创建", { exact: true })).toBeInViewport();
   } else if (scene === "tenant-staff-profile") {
     await expect(content()).toContainText("小陈");
     await expect(content()).toContainText("我上传的素材");
@@ -62,6 +67,8 @@ export async function tenantRegression(page, scene) {
     await expect(active(".lyx-sheet")).toContainText("南山店");
     await button("保存门店").click();
     await expect(active(".lyx-sheet")).toBeHidden();
+    // Popup与Overlay各自退出；等遮罩卸载再截图，不更改生产动画。
+    await expect(page.locator(".lyx-sheet-overlay")).toHaveCount(0);
     const writes = (await calls()).filter((c) => c.method === "PATCH");
     expect(writes).toHaveLength(1);
     expect(writes[0].data).toEqual({ storeIds: ["00000000-0000-7000-8000-000000000002"] });

@@ -1,3 +1,4 @@
+import { appDateTimeFormat as fmtMerchant } from "@liyoxi/shared/format/datetime";
 import { useEffect, useRef, useState } from "react";
 import Taro, { useDidHide, useDidShow, useRouter } from "@tarojs/taro";
 import { View } from "@tarojs/components";
@@ -157,7 +158,7 @@ export default function JoinPage() {
               {preview.city?.name} · {preview.category?.name}
             </View>
             <View>{preview.inviterName}邀请你以店员身份加入</View>
-            <View>有效期至 {preview.expiresAt}</View>
+            <View>有效期至 {fmtMerchant.dateTime(preview.expiresAt)}</View>
             {preview.isPhoneRestricted ? <Note>本邀请仅限指定手机号接受</Note> : null}
             {preview.status === "pending" ? (
               <>

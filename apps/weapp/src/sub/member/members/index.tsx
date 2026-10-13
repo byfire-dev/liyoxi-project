@@ -1,3 +1,4 @@
+import { appDateTimeFormat as fmtMerchant } from "@liyoxi/shared/format/datetime";
 import Taro from "@tarojs/taro";
 import { View } from "@tarojs/components";
 import { Button } from "@/components/Button";
@@ -92,7 +93,7 @@ export default function MembersPage() {
           data.items.map((m) => (
             <Card key={m.memberId} title={`${m.displayName ?? "成员"}${m.isSelf ? "（我）" : ""}`}>
               <View>
-                {m.role === "owner" ? "老板" : "店员"} · {m.joinedAt.slice(0, 10)} 加入
+                {m.role === "owner" ? "老板" : "店员"} · {fmtMerchant.date(m.joinedAt)} 加入
               </View>
               {data.viewerRole === "owner" && "actions" in m ? (
                 <>
@@ -131,7 +132,8 @@ export default function MembersPage() {
           data.pendingInvitations.map((inv) => (
             <Card key={inv.invitationId} title={inv.remarkName ?? "待接受的邀请"}>
               <View>
-                有效期至 {inv.expiresAt} · {inv.isPhoneRestricted ? "限指定手机号" : "不限手机号"}
+                有效期至 {fmtMerchant.dateTime(inv.expiresAt)} ·{" "}
+                {inv.isPhoneRestricted ? "限指定手机号" : "不限手机号"}
               </View>
               {inv.actions.includes("revoke") ? (
                 <Button

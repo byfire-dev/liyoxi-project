@@ -1,3 +1,5 @@
+import { merchantStatusByEnum } from "@/components/StatusTag";
+import { appDateTimeFormat as fmtMerchant } from "@liyoxi/shared/format/datetime";
 import { View } from "@tarojs/components";
 import { Card } from "@/components/Card";
 import { Empty } from "@/components/Empty";
@@ -34,11 +36,17 @@ export default function StaffProfile() {
             >
               <View>{data.self.user.phoneMask}</View>
               <View className="tenant-muted">
-                加入时间 {data.self.member.joinedAt.slice(0, 10)} · 店员
+                加入时间 {fmtMerchant.date(data.self.member.joinedAt)} · 店员
               </View>
             </Card>
             <Card title={data.profile.store.name ?? "当前门店"}>
-              <View>资质状态：{data.profile.store.qualificationStatus}</View>
+              <View>
+                资质状态：
+                {merchantStatusByEnum(
+                  "store.qualification_status",
+                  data.profile.store.qualificationStatus,
+                )?.label ?? "状态待更新"}
+              </View>
               <Button
                 variant="outline"
                 onClick={() => void tenantNavigate("sub/profile/basic/index")}

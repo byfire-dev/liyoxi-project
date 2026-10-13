@@ -1,3 +1,4 @@
+import { appDateTimeFormat as fmtMerchant } from "@liyoxi/shared/format/datetime";
 import { useEffect, useRef, useState } from "react";
 import { useShareAppMessage, useUnload } from "@tarojs/taro";
 import { View } from "@tarojs/components";
@@ -117,7 +118,7 @@ export default function InvitePage() {
             {currentCard ? (
               <Card title={`${currentCard.inviterName}邀请你加入门店`}>
                 <View>{currentCard.storeName ?? "未命名门店"}</View>
-                <View>有效期至 {currentCard.expiresAt}</View>
+                <View>有效期至 {fmtMerchant.dateTime(currentCard.expiresAt)}</View>
                 <View>{currentCard.isPhoneRestricted ? "限指定手机号" : "不限手机号"}</View>
                 <View className="tenant-muted">
                   名额 {currentCard.seats.seatsUsed}/{currentCard.seats.memberLimit ?? "不限"} ·

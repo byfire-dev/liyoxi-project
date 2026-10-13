@@ -1,3 +1,4 @@
+import { merchantStatusByEnum } from "@/components/StatusTag";
 import Taro from "@tarojs/taro";
 import { View } from "@tarojs/components";
 import { Card } from "@/components/Card";
@@ -62,7 +63,9 @@ export default function StoresPage() {
             <Card key={store.storeId} title={storeName(store)}>
               <View>
                 {store.isPrimary ? "首家门店 · " : ""}
-                {store.lifecycle === "archived" ? "已停用" : "营业中"} · {store.qualificationStatus}
+                {store.lifecycle === "archived" ? "已停用" : "营业中"} ·{" "}
+                {merchantStatusByEnum("store.qualification_status", store.qualificationStatus)
+                  ?.label ?? "状态待更新"}
               </View>
               <View className="tenant-muted">
                 {store.city?.name} {store.category?.name} · 素材 {store.assetCount} · 店员{" "}
