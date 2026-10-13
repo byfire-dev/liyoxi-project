@@ -249,9 +249,9 @@ describe("W3-06六正式媒体保留HTTP", { timeout: 60_000 }, () => {
     const replay = await request(`/admin/files/${row.id}/restore`, "POST", body, stale, key);
     expect(replay.headers.get("Idempotent-Replayed")).toBe("true");
     expect(await data(replay)).toEqual(restored);
-    expect(await db.auditLog.count({ where: { targetId: row.id, action: "files.restore" } })).toBe(
-      1,
-    );
+    expect(
+      await db.auditLog.count({ where: { targetId: row.id, action: "files.file.restore" } }),
+    ).toBe(1);
     const erase = {
       reason: "本人信息删除请求已经人工核实",
       confirm: { fileId: row.id, category: "poster" },
@@ -286,7 +286,9 @@ describe("W3-06六正式媒体保留HTTP", { timeout: 60_000 }, () => {
     expect(
       await data(await request(`/admin/files/${row.id}/erase`, "POST", erase, admin, eraseKey)),
     ).toEqual(erased);
-    expect(await db.auditLog.count({ where: { targetId: row.id, action: "files.erase" } })).toBe(1);
+    expect(
+      await db.auditLog.count({ where: { targetId: row.id, action: "files.file.erase" } }),
+    ).toBe(1);
     await error(
       await request(`/admin/files/${row.id}/restore`, "POST", body),
       409,
@@ -298,7 +300,13 @@ describe("W3-06六正式媒体保留HTTP", { timeout: 60_000 }, () => {
       409,
       "FILE_RESTORE_WINDOW_PASSED",
     );
-    expect(await storage.restoreVersions({ bucket: "pub", key: row.objectKey })).toMatchObject({
+    expect(
+      await storage.restoreVersions({
+        bucket: "pub",
+        key: row.objectKey,
+        signal: new AbortController().signal,
+      }),
+    ).toMatchObject({
       ok: false,
       reason: "rejected",
     });
