@@ -276,3 +276,5 @@ createAppServices从公开构建变量VITE_CLIENT_ERROR_DSN装配clientReporting
 人工整理/用途/时效/可用性与肖像授权事实分区展示，机器结果保留技术规格、全文、识别步骤、失败/不完整与建议时效。机器识别及人脸提示不替代人工授权。文件只显示实际 DTO 的序号/中文类型，链接取服务端本次现签及有效期；过期后刷新详情，不拼对象地址或假定有文件名。
 
 本阶段 0 新页面、HTTP、x01、依赖，不改原资质复核与其余商家页签。`assets/model.test.ts` 三聚合与 `live-merchant-assets.spec.ts` 单组读流程由 ROOT 串行验收；虚构夹具经公开服务登记本店两文本/一小文档与外店文本，外部字节仅进入隔离 FakeStorage，登记、complete/promote 和浏览器实际 API 现签走正式服务。签名 URL 由本地存储 Provider 签发，未造识别或人工终态，不代表文件下载或真实云验证。后继写能力尚未交付，E17 真实材料、E22 真实识别及真机看样不在本 checkpoint 冒称通过，结果见 [W3-18 状态](../../docs/plan/status/W3-18.md)。
+
+本地已通过新增三聚合与旧 actor/scope 一项、单组实际素材 live（含认证共两项）及 API/admin 生产构建。首轮只认 HTTPS 的测试断言在 `78b9e874` 按真实本地 MinIO HTTP 签名修正，生产准入保持 HTTP(S)；两张 `merchant-assets-read-{text,file}.png` 截图取实际详情区，ROOT 已人工查看，绝对路径与最后轻门禁结果记录在上述状态。
