@@ -115,3 +115,9 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 老板更换调用 tenant 的 `transferOwnerIn`：真实已通过申请与私有sameTx见证约束先移旧老板、再晋升本主体clerk或建owner，并吊销旧老板portal授权；新建账号只有真实审批可免首次同意，普通初登守卫保持。换绑共用空账号清理与提交后旧号通知；审批联动迁移并入一条审批审计。
 
 证明只接当前员工合法文件与真实目标scope；无主体窄例外见a01 3.57。引用释放绑定media实例时钟，注销/关闭任一满日历三年后可释放，再保留分类既有7天。定点DB文件 `account-changes.db.test.ts` 共12组，HTTP文件 `apps/api/test/admin-account-change-requests.test.ts` 共6组，重型验收由ROOT串行执行。
+
+### 渠道码管理（W2-09）
+
+`identity.referralCodes.list/create/disable/enable` 核当前员工会话、角色配置与既有manage权限；同键重放也鉴权。数据是global资源，列表不套门店scope。表写与投影交tenant公开同Tx函数；sales归属员工在共享staff锁后必须active，码统一大写、sales/campaign共用命名空间，状态动作CAS且只写ops审计，不写flow历史/事件。
+
+首次登录仍只消费tenant既有findActiveReferralCode：邀请码优先、仅active命中、老号不回溯。停用/启用不改旧归因，注册/主体统计现算。定点为referral-codes.db.test.ts的6组与API admin-referral-codes.test.ts的4组；正式外部驱动验证与本地代码完成分开记录。

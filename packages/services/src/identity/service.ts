@@ -53,6 +53,8 @@ import type { PhoneChangeDeps } from "./phone-change.js";
 import { deleteAccount } from "./account-deletion.js";
 import { adminUserAction } from "./admin-user-actions.js";
 import { createAccountChanges } from "./account-changes.js";
+import { createReferralCodes } from "./referral-codes.js";
+import type { ReferralCodes } from "./referral-codes.js";
 import type { AccountChanges } from "./account-changes.js";
 import type { AccountChangeDeps } from "./account-change-context.js";
 import type {
@@ -76,6 +78,7 @@ export interface IdentityDeps extends Omit<LoginDeps, "me" | "config" | "wechat"
 }
 
 export interface Identity {
+  readonly referralCodes: ReferralCodes;
   readonly accountChanges: AccountChanges;
   adminUserAction(
     ctx: IdentityContext,
@@ -190,6 +193,7 @@ export function createIdentity(deps: IdentityDeps): Identity {
       reconsent({ ...deps, signerOf: identity.consentSignerOf }, principal, meta, input, options),
     me: (merchantUserId) => deps.tx.run((tx) => buildMeView(tx, meDeps, merchantUserId)),
     accountChanges: createAccountChanges(deps),
+    referralCodes: createReferralCodes(deps),
     adminUserAction: (ctx, staff, op, input, options) =>
       adminUserAction(deps, ctx, staff, op, input, options),
     updateMe: (principal, meta, input, options) => updateMe(deps, principal, meta, input, options),

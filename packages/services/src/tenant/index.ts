@@ -90,3 +90,8 @@ export type { DraftAbandonResult } from "./empty-draft.js";
 export type { CallerMemberRemoval } from "./member-removal.js";
 export { transferOwnerIn } from "./owner-transfer.js";
 export type { OwnerTransferInput, OwnerTransferResult } from "./owner-transfer.js";
+export {
+  listReferralCodesIn,
+  createReferralCodeIn,
+  setReferralCodeStatusIn,
+} from "./referral-codes.js";
