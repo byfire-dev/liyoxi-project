@@ -29,13 +29,14 @@ export default function JoinPage() {
     pageLife.current.visible = false;
     pageLife.current.generation++;
   });
-  useEffect(
-    () => () => {
-      pageLife.current.visible = false;
-      pageLife.current.generation++;
-    },
-    [],
-  );
+  useEffect(() => {
+    const life = pageLife.current;
+    life.visible = true;
+    return () => {
+      life.visible = false;
+      life.generation++;
+    };
+  }, []);
   const token = useRouter().params.token ?? "";
   const loggedIn = useSessionStore((s) => Boolean(s.accessToken));
   const [agreed, setAgreed] = useState(false),
@@ -62,24 +63,30 @@ export default function JoinPage() {
     accept = useTenantAction("invitation_accept");
   const preview = read.data;
   const join = (ownsLogin: () => boolean = () => true) =>
-    void accept.run({ token, displayName, id: preview?.invitationId }, async (key, current) => {
-      if (preview?.status !== "pending" || !useSessionStore.getState().accessToken)
-        throw new Error("请先确认邀请状态并登录");
-      const runtime = await tenantRuntime();
-      if (!current() || !ownsLogin()) return;
-      const result = await runtime.api.accept(
-        preview.invitationId,
-        { token, ...(displayName.trim() ? { displayName: displayName.trim() } : {}) },
-        key,
-      );
-      if (current() && ownsLogin())
-        await runtime.selectResult(
-          result.storeId,
-          () => current() && ownsLogin(),
-          result.role === "owner" ? "sub/profile/profile/index" : "sub/profile/staff-profile/index",
+    void accept.run(
+      { token, displayName, id: preview?.invitationId },
+      async (key, current, alive) => {
+        if (preview?.status !== "pending" || !useSessionStore.getState().accessToken)
+          throw new Error("请先确认邀请状态并登录");
+        const runtime = await tenantRuntime();
+        if (!current() || !ownsLogin()) return;
+        const result = await runtime.api.accept(
+          preview.invitationId,
+          { token, ...(displayName.trim() ? { displayName: displayName.trim() } : {}) },
+          key,
         );
-      return result;
-    });
+        if (current() && ownsLogin())
+          await runtime.selectResult(
+            result.storeId,
+            () => current() && ownsLogin(),
+            result.role === "owner"
+              ? "sub/profile/profile/index"
+              : "sub/profile/staff-profile/index",
+            alive,
+          );
+        return result;
+      },
+    );
   const phoneJoin = (code?: string) =>
     void login.run(
       {

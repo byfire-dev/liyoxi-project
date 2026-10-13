@@ -32,9 +32,14 @@ export function tenantError(failure: unknown): string {
 }
 
 /** 本域一次写意图：上下文更换可开启新操作，旧finally只释放自己的所有权。 */
-export function createTenantAction(context: () => string, key: () => string) {
+export function createTenantAction(
+  context: () => string,
+  key: () => string,
+  session: () => string | null = () => null,
+) {
   let live = true,
     visible = true;
+  let pageGeneration = 0;
   let owner: object | null = null;
   let intent: { fingerprint: string; key: string } | null = null;
   let state: { busy: boolean; error: string | null } = { busy: false, error: null };
@@ -62,27 +67,32 @@ export function createTenantAction(context: () => string, key: () => string) {
     },
     hide() {
       visible = false;
+      pageGeneration++;
       invalidate();
     },
     dispose() {
       live = false;
+      pageGeneration++;
       invalidate();
     },
     async run<T>(
       body: unknown,
-      call: (key: string, current: () => boolean) => Promise<T>,
+      call: (key: string, current: () => boolean, alive: () => boolean) => Promise<T>,
     ): Promise<T | undefined> {
       if (!live || !visible || owner) return undefined;
       const at = context(),
+        epoch = pageGeneration,
+        token = session(),
         owned = {};
       const fingerprint = JSON.stringify({ at, body });
       if (!intent || intent.fingerprint !== fingerprint) intent = { fingerprint, key: key() };
       const requestKey = intent.key;
       owner = owned;
       const current = () => live && visible && owner === owned && at === context();
+      const alive = () => live && visible && epoch === pageGeneration && token === session();
       publish({ busy: true, error: null });
       try {
-        const result = await call(requestKey, current);
+        const result = await call(requestKey, current, alive);
         if (!current()) return undefined;
         intent = null;
         return result;

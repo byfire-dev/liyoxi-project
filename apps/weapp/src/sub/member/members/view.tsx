@@ -74,7 +74,11 @@ export function useTenantRead<T>(
 }
 export function useTenantAction(name: string, key?: () => string) {
   const [action] = useState(() =>
-    createTenantAction(tenantContext, key ?? (() => newIdempotencyKey(name))),
+    createTenantAction(
+      tenantContext,
+      key ?? (() => newIdempotencyKey(name)),
+      () => useSessionStore.getState().accessToken,
+    ),
   );
   const state = useSyncExternalStore(action.subscribe, action.snapshot, action.snapshot);
   useDidShow(() => action.activate());

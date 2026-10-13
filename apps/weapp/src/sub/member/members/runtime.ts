@@ -12,7 +12,12 @@ export interface TenantRuntime {
   api: TenantApi;
   loginCode(): Promise<string>;
   attribution(): Attribution;
-  selectResult(storeId: string, current: () => boolean, route?: string): Promise<void>;
+  selectResult(
+    storeId: string,
+    current: () => boolean,
+    route: string | undefined,
+    alive: () => boolean,
+  ): Promise<void>;
 }
 
 export function tenantContext() {
@@ -43,11 +48,13 @@ export async function tenantRuntime(): Promise<TenantRuntime> {
       storeId: string,
       current: () => boolean,
       route = "sub/profile/profile/index",
+      alive: () => boolean,
     ) {
-      if (!current()) return;
+      if (!current() || !alive()) return;
       const token = useSessionStore.getState().accessToken;
       const before = useContextStore.getState();
       await account.reloadMe(storeId);
+      if (!alive()) return;
       const expectedRev = before.contextRev + (before.currentStoreId === storeId ? 0 : 1);
       if (
         token !== useSessionStore.getState().accessToken ||
@@ -61,6 +68,7 @@ export async function tenantRuntime(): Promise<TenantRuntime> {
         .find((s) => s.storeId === storeId);
       if (!selected) throw new Error("当前账号不能进入该门店");
       await account.switchStore(storeId, selected.name ?? "门店", "stores");
+      if (!alive()) return;
       if (
         token !== useSessionStore.getState().accessToken ||
         useContextStore.getState().currentStoreId !== storeId ||

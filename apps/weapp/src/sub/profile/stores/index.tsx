@@ -73,7 +73,7 @@ export default function StoresPage() {
                   variant="outline"
                   disabled={action.busy}
                   onClick={() => {
-                    void action.run({ select: store.storeId }, async (_key, current) => {
+                    void action.run({ select: store.storeId }, async (_key, current, alive) => {
                       if (!current()) return;
                       const runtime = await tenantRuntime();
                       await runtime.selectResult(
@@ -82,6 +82,7 @@ export default function StoresPage() {
                         data.viewerRole === "clerk"
                           ? "sub/profile/staff-profile/index"
                           : "sub/profile/profile/index",
+                        alive,
                       );
                     });
                   }}

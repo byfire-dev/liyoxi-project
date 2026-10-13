@@ -88,7 +88,7 @@ export default function AddStore() {
   const save = () =>
     void action.run(
       { name, detail, industry, category, province, city, district, options, storeId },
-      async (key, current) => {
+      async (key, current, alive) => {
         if (completed) return;
         if (!allowed) throw new Error("当前不可新增门店，请核对门店额度");
         if (!province || !city || !district) throw new Error("请选择省、市、区县");
@@ -111,7 +111,7 @@ export default function AddStore() {
         const result = await runtime.api.createStore(body, key);
         if (current()) {
           setCreated({ storeId: result.storeId, token: useSessionStore.getState().accessToken });
-          await runtime.selectResult(result.storeId, current);
+          await runtime.selectResult(result.storeId, current, undefined, alive);
         }
         return result;
       },
@@ -130,8 +130,13 @@ export default function AddStore() {
                 <Button
                   loading={action.busy}
                   onClick={() =>
-                    void action.run({ continue: created.storeId }, async (_key, current) =>
-                      (await tenantRuntime()).selectResult(created.storeId, current),
+                    void action.run({ continue: created.storeId }, async (_key, current, alive) =>
+                      (await tenantRuntime()).selectResult(
+                        created.storeId,
+                        current,
+                        undefined,
+                        alive,
+                      ),
                     )
                   }
                 >
