@@ -36,7 +36,7 @@ const query = (raw: unknown) => FollowUpListQuerySchema.parse(raw);
 const tables = ["follow_up", "audit_log", "outbox_event", "timer"];
 const error = (promise: Promise<unknown>, symbol: string) =>
   expect(promise).rejects.toMatchObject({ error: symbol });
-async function graph(w: World, managerId?: string) {
+async function graph(w: World, managerId?: string, itemCount = 1) {
   const own = await w.make.subscribedMerchant();
   if (managerId)
     await w.prisma.store.update({
@@ -47,6 +47,8 @@ async function graph(w: World, managerId?: string) {
     entityId: own.entity.id,
     storeId: own.store.id,
     subscriptionTermId: own.term.id,
+    itemCount,
+    totalChargePoints: itemCount * 100,
   });
   const item = await w.make.orderItem({ dramaOrderId: order.id });
   return { ...own, order, item };
@@ -151,12 +153,8 @@ it("真实对象归属/当前模块与own范围；主体查询只含可见店和
 
 it("双客户端同对象create仅留一个open，逾期旧待办原子关闭且不误关别的对象；末审计后失败全部回滚", async () => {
   const w = await world(),
-    g = await graph(w),
+    g = await graph(w, undefined, 2),
     otherItem = await w.make.orderItem({ dramaOrderId: g.order.id, itemNo: 2 });
-  await w.prisma.dramaOrder.update({
-    where: { id: g.order.id },
-    data: { itemCount: 2, totalChargePoints: 200 },
-  });
   const old = await w.followUps.create(w.ctx, w.actor, input(g.item.id, next(w)));
   await w.prisma.followUp.update({
     where: { id: old.followUpId },
@@ -216,7 +214,7 @@ it("双客户端同对象create仅留一个open，逾期旧待办原子关闭且
 
 it("本人/同组主管/all与实际scope，update/complete只一CAS赢家；真实禁用移交递增版本、幂等与撤权", async () => {
   const w = await world(),
-    g = await graph(w),
+    g = await graph(w, undefined, 2),
     from = await w.person("publisher", false),
     to = await w.person("publisher", false),
     lead = await w.person("publisher", true);
@@ -225,10 +223,6 @@ it("本人/同组主管/all与实际scope，update/complete只一CAS赢家；真
     leadActor = await actor(w.prisma, lead.id);
   await w.make.deliveryTicket({ orderItemId: g.item.id, publisherId: from.id });
   const otherItem = await w.make.orderItem({ dramaOrderId: g.order.id, itemNo: 2 });
-  await w.prisma.dramaOrder.update({
-    where: { id: g.order.id },
-    data: { itemCount: 2, totalChargePoints: 200 },
-  });
   await w.make.deliveryTicket({ orderItemId: otherItem.id, publisherId: to.id });
   const row = await w.followUps.create(
     fromActor.ctx,
