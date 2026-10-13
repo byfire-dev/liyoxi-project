@@ -29,10 +29,12 @@ describe("专用session advisory互斥真实数据库边界", { timeout: 120000 
       settle = createTxRunner({ prisma: second, appEnv: "test" });
     const providers = createFakeProviders(),
       ref = { bucket: "secure" as const, key: "lyxtest/mutex.pdf" };
+    const gapReady = gate(),
+      continueOwner = gate();
     providers.storage.put(ref, new Uint8Array([1]), "application/pdf");
     let entered = false;
     try {
-      const result = await mutex.run("media:file:two-tx", async (scope) => {
+      const running = mutex.run("media:file:two-tx", async (scope) => {
         await claim.run(async (tx) => {
           await put(tx, "MA");
           await expect(providers.storage.head(ref)).rejects.toMatchObject({
@@ -47,24 +49,30 @@ describe("专用session advisory互斥真实数据库边界", { timeout: 120000 
         });
         // 先关第一条业务连接，竞争时实际仅两条互斥物理会话。
         await first.$disconnect();
-        await expect(
-          rival.run("media:file:two-tx", async () => {
-            entered = true;
-          }),
-        ).rejects.toMatchObject({ reason: "occupied" });
-        expect(entered).toBe(false);
+        gapReady.open();
+        await continueOwner.opened;
         expect((await providers.storage.head(ref)).ok).toBe(true);
         await scope.assertHeld();
         await settle.run((tx) => put(tx, "MB"));
         return "settled";
       });
-      expect(result).toBe("settled");
+      await Promise.race([gapReady.opened, running]);
+      // 竞争方从原调用链启动，不继承持锁回调的ALS嵌套作用域。
+      await expect(
+        rival.run("media:file:two-tx", async () => {
+          entered = true;
+        }),
+      ).rejects.toMatchObject({ reason: "occupied" });
+      expect(entered).toBe(false);
+      continueOwner.open();
+      expect(await running).toBe("settled");
       expect(await rows(second)).toMatchObject({ MA: 1, MB: 1 });
       await second.$disconnect();
       expect(await rival.run("media:file:two-tx", async () => "taken-after-release")).toBe(
         "taken-after-release",
       );
     } finally {
+      continueOwner.open();
       await Promise.all([mutex.close(), rival.close(), first.$disconnect(), second.$disconnect()]);
     }
   });
