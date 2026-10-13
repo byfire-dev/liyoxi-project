@@ -759,6 +759,12 @@ export interface BusinessLicenseFields {
   /** 法定代表人、经营者或负责人 */
   principal: string;
   address?: string;
+  /** 只从实际识别类型映射；未知不推断企业/个体，也不据此通过比对。 */
+  subjectType?: "enterprise" | "individual" | "branch" | "unknown";
+  subjectTypeText?: string;
+  /** 原始营业期限文本与确切解析出的起始日期；不能解析时不补日期。 */
+  periodText?: string;
+  validFrom?: string;
   /** 营业期限止：YYYY-MM-DD，或 long_term */
   validTo?: string;
   /** 翻拍、复印件之类的告警 */
@@ -769,6 +775,7 @@ export interface OcrProvider extends ProviderBase {
   /** 营业执照识别 */
   recognizeBusinessLicense(input: {
     imageUrl: string;
+    signal?: AbortSignal;
   }): Promise<ProviderResult<BusinessLicenseFields>>;
   /** 行业许可证字段抽取 */
   extractLicenseFields(input: {

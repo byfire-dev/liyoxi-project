@@ -78,6 +78,7 @@ export const ENV_KEYS: readonly string[] = [
   "CI_CALLBACK_ORIGIN",
   "MEDIA_PRODUCTION_FILE",
   "ASR_TENCENT_FILE",
+  "OCR_TENCENT_FILE",
   "LLM_DOMESTIC_FILE",
   "ASR_CALLBACK_ORIGIN",
   "ASR_CALLBACK_KEY_FILE",
@@ -117,11 +118,14 @@ export interface ClientErrorProjectsConfig {
 }
 
 export type AsrTencentEnvConfig = z.infer<typeof AsrTencentEnvSchema>;
+export type OcrTencentEnvConfig = z.infer<typeof OcrTencentEnvSchema>;
 export type LlmDomesticEnvConfig = z.infer<typeof LlmDomesticEnvSchema>;
 
 export interface Env {
   /** 独立可选的严格模型配置；本片只解析，不装配或启用驱动。 */
   readonly ASR_TENCENT?: AsrTencentEnvConfig;
+  /** 同步证照识别独立配置；只由 API 组合根消费。 */
+  readonly OCR_TENCENT?: OcrTencentEnvConfig;
   readonly LLM_DOMESTIC?: LlmDomesticEnvConfig;
   /** 独立可选回调；密钥保留 FILE 的原始 UTF8 字节，只解析、不装配。 */
   readonly ASR_CALLBACK?: Readonly<{ origin: string; key: string }>;
@@ -599,6 +603,14 @@ const AsrTencentEnvSchema = z
   })
   .strict()
   .readonly();
+const OcrTencentEnvSchema = z
+  .object({
+    secretId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+    secretKey: z.string().min(1).max(256),
+    region: z.string().regex(/^ap-[a-z]+(?:-[a-z]+)*$/),
+  })
+  .strict()
+  .readonly();
 const LlmEndpointEnvSchema = z
   .object({
     vendor: z.enum(["ark", "bailian", "deepseek"]),
@@ -627,7 +639,7 @@ const LlmDomesticEnvSchema = z
 
 function readModelFile<T>(
   source: EnvSource,
-  key: "ASR_TENCENT" | "LLM_DOMESTIC",
+  key: "ASR_TENCENT" | "OCR_TENCENT" | "LLM_DOMESTIC",
   issues: EnvIssue[],
   schema: z.ZodType<T>,
 ): T | undefined {
@@ -1036,6 +1048,7 @@ export function loadEnv(
   const cos = readCos(source, issues);
   const ci = readCi(source, issues);
   const asrTencent = readModelFile(source, "ASR_TENCENT", issues, AsrTencentEnvSchema);
+  const ocrTencent = readModelFile(source, "OCR_TENCENT", issues, OcrTencentEnvSchema);
   const llmDomestic = readModelFile(source, "LLM_DOMESTIC", issues, LlmDomesticEnvSchema);
   const asrCallback = readAsrCallback(source, asrTencent, issues);
   const mediaProduction = readKeyFile(source, "MEDIA_PRODUCTION", issues, parseMediaProduction);
@@ -1080,6 +1093,7 @@ export function loadEnv(
     ...(ci ? { CI: ci } : {}),
     ...(mediaProduction ? { MEDIA_PRODUCTION: mediaProduction } : {}),
     ...(asrTencent ? { ASR_TENCENT: asrTencent } : {}),
+    ...(ocrTencent ? { OCR_TENCENT: ocrTencent } : {}),
     ...(llmDomestic ? { LLM_DOMESTIC: llmDomestic } : {}),
     ...(asrCallback ? { ASR_CALLBACK: asrCallback } : {}),
     ...(dataKeys && bidxKeys ? { DATA_KEYS: dataKeys, BIDX_KEYS: bidxKeys } : {}),
