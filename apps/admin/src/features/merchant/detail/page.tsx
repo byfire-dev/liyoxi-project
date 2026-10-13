@@ -7,6 +7,7 @@ import { InfoList } from "../../../components/InfoList";
 import { FullPageNotice } from "../../../components/StateBlock";
 import { AccessContext } from "../../../lib/permissions";
 import { DETAIL_QUERY } from "../../../lib/query";
+import { MerchantAssetsView } from "../assets/view";
 import { createMerchantApi } from "./api";
 import { MerchantActionDialog, type MerchantIntent } from "./actions";
 import {
@@ -87,6 +88,20 @@ function MerchantDetailContent({ storeId }: { storeId: string }) {
     { key: "follow", label: "负责人和跟进", content: <FollowPanel {...props} /> },
     { key: "accounts", label: "账号变更", content: <AccountsPanel {...props} /> },
     { key: "activity", label: "活动记录", content: <ActivityPanel {...props} /> },
+    {
+      key: "assets",
+      label: "门店素材",
+      content: (
+        <MerchantAssetsView
+          key={`${identity}:${storeId}`}
+          services={services}
+          storeId={storeId}
+          access={access}
+          search={search}
+          change={(next) => void navigate({ search: { tab: "assets", ...next } })}
+        />
+      ),
+    },
   ];
   return (
     <>

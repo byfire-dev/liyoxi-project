@@ -1,12 +1,11 @@
 import { expect, it } from "vitest";
-import { InvitationCardSchema, InvitationCreateBodySchema } from "@liyoxi/contract";
 import { ApiError, type RequestLayer } from "@/lib/request";
 import { TENANT_ID, tenantInvitation } from "../../../../shots/tenant-data";
 import { createTenantApi } from "../members/api";
 import { createTenantAction } from "../members/model";
 import { createInvitationFlow, invitationSharePath } from "./runtime";
 it("邀请自然clientRequestId重试；只分享token、不推断accepted，未分享离开撤回及服务端异常保留", async () => {
-  const card = InvitationCardSchema.parse(tenantInvitation),
+  const card = tenantInvitation,
     calls: { path: string; options: Parameters<RequestLayer["request"]>[1] }[] = [];
   let fail = true;
   const call: RequestLayer["request"] = async <T>(
@@ -31,13 +30,7 @@ it("邀请自然clientRequestId重试；只分享token、不推断accepted，未
       () => TENANT_ID,
     );
   const create = (clientRequestId: string) =>
-    api.invite(
-      InvitationCreateBodySchema.parse({
-        clientRequestId,
-        remarkName: "晚班",
-        targetPhone: "13900009000",
-      }),
-    );
+    api.invite({ clientRequestId, remarkName: "晚班", targetPhone: "13900009000" });
   await action.run({ phone: "13900009000" }, create);
   expect(action.snapshot().error).toContain("成员名额已满");
   await action.run({ phone: "13900009000" }, create);

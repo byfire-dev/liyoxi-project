@@ -1,5 +1,5 @@
 import type { operations } from "@liyoxi/contract/types/merchant";
-import type { Data } from "@/lib/account-api";
+import type { Attribution, Data } from "@/lib/account-api";
 import type { RequestLayer } from "@/lib/request";
 
 export type Stores = Data<"m.store.list">;
@@ -109,3 +109,16 @@ export function createTenantApi(call: RequestLayer["request"]) {
   };
 }
 export type TenantApi = ReturnType<typeof createTenantApi>;
+
+/** 纯装配类型放在无fixture回边的API叶，生产/H5双方共享而不成环。 */
+export interface TenantRuntime {
+  api: TenantApi;
+  loginCode(): Promise<string>;
+  attribution(): Attribution;
+  selectResult(
+    storeId: string,
+    current: () => boolean,
+    route: string | undefined,
+    alive: () => boolean,
+  ): Promise<void>;
+}

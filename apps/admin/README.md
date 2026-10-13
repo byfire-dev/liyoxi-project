@@ -268,3 +268,13 @@ createAppServices从公开构建变量VITE_CLIENT_ERROR_DSN装配clientReporting
 写入统一使用中央 required 幂等意图和再验证，409 刷新事实再核对；敏感签读每次现取，离页/换店/换人后中止并忽略迟到结果。已有员工查看权限者从当前范围选择在职交付经理，其余沿授权候选池；销售码归属同样只取真实可见在职员工。通用跟进不造 store 类型新建旁路，时间按北京时间控件转正式 ISO；M7 商家导出尚无 producer，入口保持隐藏。
 
 定点验收为三个 model.test.ts 八聚合与 `live-merchant-m2.spec.ts` 两真实浏览器聚合，另复用旧 `live-review.spec.ts` 一组；失败与修复事实及最终结果见 [W2-15 状态](../../docs/plan/status/W2-15.md)。fixture 只在隔离库准备合法前置，后继状态由正式 HTTP 写口产生，不操作真实账号、通知或云对象。私有结构与操作边界见 [商家详情 README](src/features/merchant/detail/README.md)。
+
+## 商家详情素材只读 checkpoint（W3-18 进行中）
+
+既有 `/merchants/$storeId?tab=assets` 增加“门店素材”，只消费素材列表、同范围 summary 与详情三个 GET。全部/待整理/已采用、类型、可用性、肖像材料、关键词、正式排序及分页保留在 URL；列表固定当前门店，只有当前页可见行才能读详情，不由外店或任意素材 ID 请求现签。切换门店、员工范围或筛选后撤去旧选择与详情，取消信号传至真实请求。
+
+人工整理/用途/时效/可用性与肖像授权事实分区展示，机器结果保留技术规格、全文、识别步骤、失败/不完整与建议时效。机器识别及人脸提示不替代人工授权。文件只显示实际 DTO 的序号/中文类型，链接取服务端本次现签及有效期；过期后刷新详情，不拼对象地址或假定有文件名。
+
+本阶段 0 新页面、HTTP、x01、依赖，不改原资质复核与其余商家页签。`assets/model.test.ts` 三聚合与 `live-merchant-assets.spec.ts` 单组读流程由 ROOT 串行验收；虚构夹具经公开服务登记本店两文本/一小文档与外店文本，外部字节仅进入隔离 FakeStorage，登记、complete/promote 和浏览器实际 API 现签走正式服务。签名 URL 由本地存储 Provider 签发，未造识别或人工终态，不代表文件下载或真实云验证。后继写能力尚未交付，E17 真实材料、E22 真实识别及真机看样不在本 checkpoint 冒称通过，结果见 [W3-18 状态](../../docs/plan/status/W3-18.md)。
+
+本地已通过新增三聚合与旧 actor/scope 一项、单组实际素材 live（含认证共两项）及 API/admin 生产构建。首轮只认 HTTPS 的测试断言在 `78b9e874` 按真实本地 MinIO HTTP 签名修正，生产准入保持 HTTP(S)；两张 `merchant-assets-read-{text,file}.png` 截图取实际详情区，ROOT 已人工查看，绝对路径与最后轻门禁结果记录在上述状态。

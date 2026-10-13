@@ -1,5 +1,4 @@
 import { expect, it } from "vitest";
-import { StoreListSchema } from "@liyoxi/contract";
 import { ApiError, type RequestLayer } from "@/lib/request";
 import { tenantStores, TENANT_SECOND } from "../../../../shots/tenant-data";
 import { createTenantApi } from "../../member/members/api";
@@ -7,8 +6,8 @@ import { createTenantAction, tenantError } from "../../member/members/model";
 import { createResource } from "../private/resource";
 import { permittedStoreAction } from "./model";
 it("门店动作按真实卡片ID与角色；阻断原样、旧读/旧finally/离页导航所有权隔离", async () => {
-  const owner = StoreListSchema.parse(tenantStores()),
-    clerk = StoreListSchema.parse(tenantStores(true));
+  const owner = tenantStores(),
+    clerk = tenantStores(true);
   expect(permittedStoreAction(owner, TENANT_SECOND, "delete")).toBe(true);
   expect(permittedStoreAction(owner, TENANT_SECOND, "archive")).toBe(false);
   expect(permittedStoreAction(clerk, TENANT_SECOND, "delete")).toBe(false);

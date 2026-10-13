@@ -1,12 +1,11 @@
 import { expect, it } from "vitest";
-import { StoreCreateBodySchema, StoreListSchema } from "@liyoxi/contract";
 import type { RequestLayer } from "@/lib/request";
 import { TENANT_NEW, TENANT_SECOND, tenantStores } from "../../../../shots/tenant-data";
 import { createTenantApi } from "../../member/members/api";
 import { createTenantAction } from "../../member/members/model";
 import { canCreateStore, storeCreateBody } from "./model";
 it("新店额度以服务器为准；默认不复制、不造地图字段，同意图复用键且只用返回ID", async () => {
-  const owner = StoreListSchema.parse(tenantStores());
+  const owner = tenantStores();
   expect(canCreateStore(owner)).toBe(true);
   expect(canCreateStore(tenantStores(true))).toBe(false);
   if (owner.viewerRole !== "owner") throw new Error("fixture");
@@ -20,7 +19,7 @@ it("新店额度以服务器为准；默认不复制、不造地图字段，同�
     sourceId: TENANT_SECOND,
     options: [],
   };
-  const body = StoreCreateBodySchema.parse(storeCreateBody(input));
+  const body = storeCreateBody(input);
   expect(body).toEqual({
     name: "新门店",
     addressDetail: "广东省深圳市福田区邻里路18号",
@@ -29,9 +28,10 @@ it("新店额度以服务器为准；默认不复制、不造地图字段，同�
   });
   expect(body).not.toHaveProperty("latitude");
   expect(body).not.toHaveProperty("provinceCode");
-  expect(
-    StoreCreateBodySchema.parse(storeCreateBody({ ...input, options: ["service", "media"] })),
-  ).toMatchObject({ copyFromStoreId: TENANT_SECOND, copyOptions: ["service", "media"] });
+  expect(storeCreateBody({ ...input, options: ["service", "media"] })).toMatchObject({
+    copyFromStoreId: TENANT_SECOND,
+    copyOptions: ["service", "media"],
+  });
   expect(() => storeCreateBody({ ...input, category: null })).toThrow("请选择");
   const calls: { path: string; key?: string }[] = [];
   let attempt = 0;

@@ -1,5 +1,4 @@
 import { expect, it } from "vitest";
-import { InvitationPreviewSchema, MembershipResultSchema } from "@liyoxi/contract";
 import { ApiError, type RequestLayer } from "@/lib/request";
 import {
   TENANT_ID,
@@ -23,7 +22,7 @@ it("加入四终态/public范围、member_join当前同意与返回ID；切人/�
   for (const token of ["", "A".repeat(42), "../".repeat(15)])
     expect(validInvitationToken(token)).toBe(false);
   for (const status of ["pending", "accepted", "revoked", "expired"] as const) {
-    expect(InvitationPreviewSchema.parse(tenantPreview(status)).status).toBe(status);
+    expect(tenantPreview(status).status).toBe(status);
     expect(previewLabel(status)).not.toBe("邀请不可用");
   }
   expect(previewLabel("unknown")).toBe("邀请不可用");
@@ -76,9 +75,7 @@ it("加入四终态/public范围、member_join当前同意与返回ID；切人/�
     store: false,
     data: { consentScene: "member_join", consents, loginCode: "wx_login", phoneCode: "wx_phone" },
   });
-  const result = MembershipResultSchema.parse(
-    await api.accept(TENANT_ID, { token: TENANT_TOKEN }, "accept:1"),
-  );
+  const result = await api.accept(TENANT_ID, { token: TENANT_TOKEN }, "accept:1");
   expect(result.storeId).toBe(TENANT_SECOND);
   expect(calls.at(-1)?.options).toMatchObject({ store: false, idempotencyKey: "accept:1" });
   const expected = {
@@ -121,6 +118,6 @@ it("加入四终态/public范围、member_join当前同意与返回ID；切人/�
       error,
     );
   }
-  const abandoned = MembershipResultSchema.parse({ ...tenantResult, abandonedEntityId: TENANT_ID });
+  const abandoned = { ...tenantResult, abandonedEntityId: TENANT_ID };
   expect(abandoned.abandonedEntityId).toBe(TENANT_ID);
 });

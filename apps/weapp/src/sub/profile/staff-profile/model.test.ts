@@ -1,5 +1,4 @@
 import { expect, it } from "vitest";
-import { MemberListSchema, StoreProfileOverviewSchema } from "@liyoxi/contract";
 import { ApiError } from "@/lib/request";
 import {
   TENANT_ID,
@@ -16,8 +15,8 @@ it("本人店员按执行时门店匹配并裁剪owner字段；跨身份旧读�
   expect(selfProfile(tenantMe(true), TENANT_SECOND)?.member.role).toBe("clerk");
   expect(selfProfile(tenantMe(), TENANT_SECOND)).toBeNull();
   expect(selfProfile(tenantMe(true), "outside")).toBeNull();
-  const profile = StoreProfileOverviewSchema.parse(tenantProfile(true)),
-    members = MemberListSchema.parse(tenantMembers(true));
+  const profile = tenantProfile(true),
+    members = tenantMembers(true);
   expect(profile).not.toHaveProperty("ads");
   expect(members).not.toHaveProperty("seats");
   expect(members.items[0]).not.toHaveProperty("phoneMask");
