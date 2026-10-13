@@ -5,6 +5,25 @@ export async function assetActionRegression(page, scene) {
     page.locator(".taro_page_stationed:not(.taro_page_shade)").locator(selector);
   const button = (text) => active(".lyx-button").filter({ hasText: new RegExp(`^${text}$`) });
   const calls = () => page.evaluate(() => globalThis.__LYX_ASSET_ACTION_CALLS__ ?? []);
+  const disabledDoesNothing = async (target) => {
+    await expect(target).toHaveClass(/lyx-button--disabled/);
+    await expect(target).toHaveClass(/nut-button-disabled/);
+    const before = await calls();
+    const files = await active(".asset-portrait .asset-detail__file").allTextContents();
+    const messages = await active(".asset-portrait-message").allTextContents();
+    await target.click({ force: true });
+    await page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          globalThis.requestAnimationFrame(() =>
+            globalThis.requestAnimationFrame(() => resolve(null)),
+          );
+        }),
+    );
+    expect(await calls()).toEqual(before);
+    expect(await active(".asset-portrait .asset-detail__file").allTextContents()).toEqual(files);
+    expect(await active(".asset-portrait-message").allTextContents()).toEqual(messages);
+  };
   await expect(active(".asset-detail#asset-ready")).toBeVisible();
   if (scene.includes("denied")) {
     await expect(active(".asset-feedback, .asset-portrait")).toHaveCount(0);
@@ -34,14 +53,14 @@ export async function assetActionRegression(page, scene) {
   await button(scene.includes("success") ? "选择PDF授权材料" : "选择授权图片").click();
   if (scene.includes("partial")) {
     await expect(active(".asset-portrait")).toContainText("上传未完成");
-    await expect(button("提交授权材料")).toBeDisabled();
+    await disabledDoesNothing(button("提交授权材料"));
     await button("重试未完成上传").click();
   }
   await expect(active(".asset-portrait .asset-detail__muted")).toHaveText(["已入库", "已入库"]);
   await button("提交授权材料").click();
   if (scene.includes("unknown")) {
     await expect(active(".asset-portrait-message")).toContainText("尚未确认");
-    await expect(button("选择授权图片")).toBeDisabled();
+    await disabledDoesNothing(button("选择授权图片"));
     await button("重试确认授权提交").click();
   }
   await expect(active(".asset-portrait-message")).toContainText("等待交付经理确认");

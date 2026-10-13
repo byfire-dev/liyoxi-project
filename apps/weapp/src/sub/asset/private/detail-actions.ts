@@ -385,7 +385,7 @@ export function createAssetDetailActions(deps: {
           finishEntries();
           publish({
             cancelPending: false,
-            portraitMessage: "未入库材料已确认取消，已入库文件按服务端保留规则处理",
+            portraitMessage: "未完成的上传已取消，已上传材料会保留",
           });
         } catch {
           if (current(own))

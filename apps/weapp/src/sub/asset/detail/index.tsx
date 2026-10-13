@@ -466,9 +466,7 @@ function DetailContent({ id }: { id: string }) {
                   <TextButton onClick={actions.openPortrait}>添加授权材料</TextButton>
                   {actionState.portraitOpen ? (
                     <Card>
-                      <Note>
-                        每次1–9份JPG、PNG或PDF。补交后仍需交付经理确认，材料不在商家端签发预览。
-                      </Note>
+                      <Note>每次上传1–9份JPG、PNG或PDF，补交后等待交付经理确认。</Note>
                       <View className="asset-detail__tags">
                         <Button
                           size="sm"
@@ -565,7 +563,7 @@ function DetailContent({ id }: { id: string }) {
                           {actionState.cancelPending ? "重试确认取消" : "取消本次材料上传"}
                         </Button>
                       ) : null}
-                      <Note>离开页面会停止本页未完成上传；已入库材料按服务端保留规则处理。</Note>
+                      <Note>离开页面会停止未完成的上传。</Note>
                     </Card>
                   ) : null}
                 </View>
