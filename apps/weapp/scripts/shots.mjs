@@ -34,6 +34,7 @@ import { orderRegression, publishRegression } from "../shots/order-regressions.m
 import { searchEntryRegression, searchRegression } from "../shots/search-regressions.mjs";
 import { assetRegression } from "../shots/asset-regressions.mjs";
 import { assetUploadRegression } from "../shots/asset-upload-regressions.mjs";
+import { assetActionRegression } from "../shots/asset-action-regressions.mjs";
 import {
   profileContactRegression,
   profileAuthorizationRegression,
@@ -103,6 +104,9 @@ const { ASSET_SCENES } = await import(
 const { ASSET_UPLOAD_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/asset-upload-scenes.ts")).href
 );
+const { ASSET_ACTION_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/asset-action-scenes.ts")).href
+);
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--no-build") build = false;
@@ -133,6 +137,7 @@ for (let index = 0; index < args.length; index += 1) {
         ...SEARCH_SCENES,
         ...ASSET_SCENES,
         ...ASSET_UPLOAD_SCENES,
+        ...ASSET_ACTION_SCENES,
       ].some((item) => item.name === name)
     )
       fail(`未知固定场景 ${name}`);
@@ -230,6 +235,17 @@ const targets = [
       fullPage: false,
     }),
   ),
+  ...(all
+    ? ASSET_ACTION_SCENES
+    : ASSET_ACTION_SCENES.filter((item) => wantedScenes.includes(item.name))
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}&lyxShot=${item.name}`,
+    file: `asset__${item.name}`,
+    scene: item.name,
+    kind: "asset-action",
+    fullPage: false,
+  })),
   ...(all
     ? DELIVERY_SCENES
     : DELIVERY_SCENES.filter((item) => wantedScenes.includes(item.name))
@@ -430,6 +446,10 @@ async function shoot(target) {
             globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("clerk") ? "mine-clerk" : "mine-owner";
             globalThis.__LYX_ASSET_SHOT__ = scene;
           }
+          if (kind === "asset-action") {
+            globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("clerk") ? "mine-clerk" : "mine-owner";
+            globalThis.__LYX_ASSET_ACTION_SHOT__ = scene;
+          }
           if (kind === "asset-upload") {
             globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("clerk-gated")
               ? "mine-clerk"
@@ -486,7 +506,7 @@ async function shoot(target) {
                           : target.scene.endsWith("loading")
                             ? ".asset-upload .lyx-skeleton"
                             : ".asset-upload#asset-upload-ready"
-                        : target.kind === "asset"
+                        : target.kind === "asset" || target.kind === "asset-action"
                           ? target.scene === "asset-lib-loading"
                             ? ".asset-lib .lyx-skeleton"
                             : "#asset-ready"
@@ -502,6 +522,7 @@ async function shoot(target) {
       if (target.kind === "search") await searchRegression(page, target.scene);
       if (target.kind === "asset") await assetRegression(page, target.scene, origin);
       if (target.kind === "asset-upload") await assetUploadRegression(page, target.scene);
+      if (target.kind === "asset-action") await assetActionRegression(page, target.scene);
       if (target.kind === "publish" && target.scene === "accounts-bind") {
         await page.locator(".accounts-page .lyx-button").filter({ hasText: "绑定新账号" }).click();
         await page.locator(".accounts-page__form").waitFor({ state: "visible" });

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { Video, View } from "@tarojs/components";
 import Taro, { useDidHide, useDidShow, usePullDownRefresh } from "@tarojs/taro";
 import { Card } from "@/components/Card";
+import { Button } from "@/components/Button";
+import { Chip } from "@/components/Chip";
 import { Empty } from "@/components/Empty";
 import { InfoTag } from "@/components/InfoTag";
 import { LoadError } from "@/components/LoadError";
@@ -9,11 +11,13 @@ import { Note } from "@/components/Note";
 import { PageBody } from "@/components/PageBody";
 import { Section } from "@/components/Section";
 import { Skeleton } from "@/components/Skeleton";
+import { ProgressBar } from "@/components/ProgressBar";
 import { StatusTag, merchantStatusByEnum, merchantStatusByState } from "@/components/StatusTag";
 import { TextButton } from "@/components/TextButton";
+import { TextArea } from "@/components/TextArea";
 import { Timeline } from "@/components/Timeline";
 import { account, useAccount } from "@/lib/account-runtime";
-import { ensurePrivacyAuthorized, request } from "@/lib/runtime";
+import { ensurePrivacyAuthorized, newIdempotencyKey, request } from "@/lib/runtime";
 import type { RequestLayer } from "@/lib/request";
 import { useContextStore } from "@/stores/context";
 import { useSessionStore } from "@/stores/session";
@@ -26,11 +30,21 @@ import {
 } from "../private/api";
 import { createAssetMedia, fileAvailable } from "../private/media";
 import { assetScope, createAssetResource } from "../private/resource";
+import { createAssetDetailApi } from "../private/detail-api";
+import { createAssetDetailActions } from "../private/detail-actions";
 import "./index.scss";
 
 let offline: RequestLayer["request"] | null = null;
 const call: RequestLayer["request"] = async (path, options) => {
   if (process.env.TARO_ENV === "h5") {
+    const actionScene = (globalThis as { __LYX_ASSET_ACTION_SHOT__?: string })
+      .__LYX_ASSET_ACTION_SHOT__;
+    if (actionScene) {
+      offline ??= (
+        await import("../../../../shots/asset-action-fixtures")
+      ).offlineAssetActionRequest(actionScene);
+      return offline(path, options);
+    }
     const scene = (globalThis as { __LYX_ASSET_SHOT__?: string }).__LYX_ASSET_SHOT__;
     if (scene) {
       offline ??= (await import("../../../../shots/asset-fixtures")).offlineAssetRequest(scene);
@@ -105,6 +119,32 @@ function DetailContent({ id }: { id: string }) {
       },
     }),
   );
+  const [actions] = useState(() =>
+    createAssetDetailActions({
+      id,
+      scope,
+      detail: () => resource.snapshot().detail,
+      api: createAssetDetailApi(call),
+      key: newIdempotencyKey,
+      ports: async (current) => {
+        if (process.env.TARO_ENV === "h5") {
+          const scene = (globalThis as { __LYX_ASSET_ACTION_SHOT__?: string })
+            .__LYX_ASSET_ACTION_SHOT__;
+          if (scene)
+            return (await import("../../../../shots/asset-action-fixtures")).assetActionPorts(
+              scene,
+              current,
+            );
+        }
+        return (await import("../private/portrait-platform")).createNativePortraitPorts(current);
+      },
+      refresh: async () => {
+        media.stop();
+        await resource.refresh();
+      },
+    }),
+  );
+  const actionState = useSyncExternalStore(actions.subscribe, actions.snapshot, actions.snapshot);
   const load = useCallback(async () => {
     setNow(Date.now());
     media.stop();
@@ -120,12 +160,15 @@ function DetailContent({ id }: { id: string }) {
     return () => {
       resource.dispose();
       media.dispose();
+      actions.dispose();
     };
-  }, [media, resource]);
+  }, [actions, media, resource]);
   useDidShow(() => {
+    actions.resume();
     if (ready.current) void load();
   });
   useDidHide(() => {
+    actions.suspend();
     media.stop();
     resource.suspend();
   });
@@ -150,6 +193,12 @@ function DetailContent({ id }: { id: string }) {
   return (
     <View className="asset-detail" id={!state.loading ? "asset-ready" : undefined}>
       <PageBody>
+        {actionState.feedbackMessage ? (
+          <Note className="asset-feedback-message">{actionState.feedbackMessage}</Note>
+        ) : null}
+        {actionState.portraitMessage ? (
+          <Note className="asset-portrait-message">{actionState.portraitMessage}</Note>
+        ) : null}
         {state.loading && !detail ? (
           <Skeleton cards={4} />
         ) : state.error ? (
@@ -350,6 +399,57 @@ function DetailContent({ id }: { id: string }) {
                   </View>
                 ))}
               </Card>
+              {detail.actions.includes("feedback") ? (
+                <View className="asset-feedback">
+                  <TextButton onClick={actions.openFeedback}>标签有误？去反馈</TextButton>
+                  {actionState.feedbackOpen ? (
+                    <Card>
+                      <View className="asset-detail__muted">
+                        反馈将交由交付经理核对，不会直接修改标签
+                      </View>
+                      <View className="asset-detail__tags">
+                        {([undefined, "content", "usage", "timeliness", "usability"] as const).map(
+                          (dimension) => (
+                            <Chip
+                              key={dimension ?? "all"}
+                              selected={actionState.dimension === dimension}
+                              disabled={actionState.feedbackBusy || actionState.feedbackPending}
+                              onClick={() => actions.editFeedback(actionState.content, dimension)}
+                            >
+                              {dimension === undefined
+                                ? "不指定维度"
+                                : {
+                                    content: "内容",
+                                    usage: "用途",
+                                    timeliness: "时效",
+                                    usability: "可用性",
+                                  }[dimension]}
+                            </Chip>
+                          ),
+                        )}
+                      </View>
+                      <TextArea
+                        value={actionState.content}
+                        maxLength={200}
+                        disabled={actionState.feedbackBusy || actionState.feedbackPending}
+                        placeholder="请描述标签或内容哪里有误，最多200字"
+                        onChange={(value) => actions.editFeedback(value, actionState.dimension)}
+                      />
+                      <Button
+                        block
+                        variant="secondary"
+                        loading={actionState.feedbackBusy}
+                        disabled={!actionState.content.trim()}
+                        onClick={() => {
+                          void actions.feedback();
+                        }}
+                      >
+                        {actionState.feedbackPending ? "重试确认反馈" : "提交反馈"}
+                      </Button>
+                    </Card>
+                  ) : null}
+                </View>
+              ) : null}
             </Section>
             <Section title="复核与授权">
               <Card>
@@ -361,6 +461,115 @@ function DetailContent({ id }: { id: string }) {
                 </View>
                 {detail.assetDemand ? <View>素材需求：{detail.assetDemand.title}</View> : null}
               </Card>
+              {detail.actions.includes("portrait-auth") ? (
+                <View className="asset-portrait">
+                  <TextButton onClick={actions.openPortrait}>添加授权材料</TextButton>
+                  {actionState.portraitOpen ? (
+                    <Card>
+                      <Note>
+                        每次1–9份JPG、PNG或PDF。补交后仍需交付经理确认，材料不在商家端签发预览。
+                      </Note>
+                      <View className="asset-detail__tags">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={
+                            actionState.portraitBusy ||
+                            actionState.portraitPending ||
+                            actionState.cancelPending ||
+                            actionState.files.length >= 9
+                          }
+                          onClick={() => {
+                            void actions.choose("image");
+                          }}
+                        >
+                          选择授权图片
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={
+                            actionState.portraitBusy ||
+                            actionState.portraitPending ||
+                            actionState.cancelPending ||
+                            actionState.files.length >= 9
+                          }
+                          onClick={() => {
+                            void actions.choose("pdf");
+                          }}
+                        >
+                          选择PDF授权材料
+                        </Button>
+                      </View>
+                      {actionState.files.map((file) => (
+                        <View className="asset-detail__file" key={file.key}>
+                          <View>{file.name}</View>
+                          <View className="asset-detail__muted">
+                            {(
+                              {
+                                queued: "等待上传",
+                                uploading: "上传中",
+                                confirming: "确认传输",
+                                storing: "入库中",
+                                stored: "已入库",
+                                failed: "上传未完成",
+                                paused: "已暂停",
+                                cancelled: "已停止",
+                              } as Record<string, string>
+                            )[file.status] ?? "待核对"}
+                          </View>
+                          <ProgressBar percent={file.progress} />
+                          {file.message ? <Note>{file.message}</Note> : null}
+                        </View>
+                      ))}
+                      {actionState.files.some((file) => file.status !== "stored") &&
+                      !actionState.portraitPending &&
+                      !actionState.cancelPending ? (
+                        <Button
+                          block
+                          variant="secondary"
+                          loading={actionState.portraitBusy}
+                          onClick={() => {
+                            void actions.upload();
+                          }}
+                        >
+                          重试未完成上传
+                        </Button>
+                      ) : null}
+                      <Button
+                        block
+                        loading={actionState.portraitBusy}
+                        disabled={
+                          actionState.cancelPending ||
+                          !actionState.files.length ||
+                          actionState.files.some((file) => file.status !== "stored")
+                        }
+                        onClick={() => {
+                          void actions.portrait();
+                        }}
+                      >
+                        {actionState.portraitPending ? "重试确认授权提交" : "提交授权材料"}
+                      </Button>
+                      {actionState.files.length ? (
+                        <Button
+                          block
+                          variant="secondary"
+                          disabled={
+                            actionState.portraitPending ||
+                            (actionState.cancelPending && actionState.portraitBusy)
+                          }
+                          onClick={() => {
+                            void actions.cancel();
+                          }}
+                        >
+                          {actionState.cancelPending ? "重试确认取消" : "取消本次材料上传"}
+                        </Button>
+                      ) : null}
+                      <Note>离开页面会停止本页未完成上传；已入库材料按服务端保留规则处理。</Note>
+                    </Card>
+                  ) : null}
+                </View>
+              ) : null}
             </Section>
             <Section title="使用记录">
               <Card>
