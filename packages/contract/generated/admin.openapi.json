@@ -4451,15 +4451,12 @@
             ]
           },
           "thumbnail": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/SignedUrl"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },
@@ -23883,6 +23880,98 @@
         },
         "required": [
           "stepUpValidUntil"
+        ],
+        "type": "object"
+      },
+      "StoreActivityItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AuditLogItem"
+          },
+          {
+            "properties": {
+              "changedKeys": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "isEntityLevel": {
+                "type": "boolean"
+              },
+              "reason": {
+                "properties": {
+                  "code": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "text": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "code",
+                  "text"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "stream": {
+                "enum": [
+                  "ops",
+                  "activity"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "reason",
+              "changedKeys",
+              "isEntityLevel"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "StoreActivityPage": {
+        "properties": {
+          "hasMore": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StoreActivityItem"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "totalApprox": {
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "totalApprox"
         ],
         "type": "object"
       },
@@ -58096,6 +58185,131 @@
           }
         },
         "summary": "商家详情页头：门店、主体、标签、联系人（脱敏）、交付经理、5 张 KPI 卡",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/stores/{storeId}/activities": {
+      "get": {
+        "operationId": "admin.store.activity.list",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actorType",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "pattern": "^(merchant|staff|system)(,(merchant|staff|system))*$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StoreActivityPage"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "门店活动流（操作日志页签）：商家、店员、系统、员工的操作与变更",
         "x-auth": "staff",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询（GET 不写库，A19）"

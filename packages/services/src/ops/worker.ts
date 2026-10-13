@@ -47,7 +47,7 @@ import { createAnalyticsJobs } from "../analytics/index.js";
 import { findWechatIdentityId, recentWechatOpenid } from "../identity/index.js";
 import { createWechatReceiptHandler } from "../notify/index.js";
 import type { NotifyQueueRef } from "../notify/index.js";
-import { createPrismaClient } from "@liyoxi/db";
+import { createPrismaClient, createSessionMutexConnectionFactory } from "@liyoxi/db";
 import type { PrismaClient } from "@liyoxi/db";
 
 import { bindDelivery, reevaluateSweep } from "../delivery/index.js";
@@ -84,6 +84,7 @@ import {
   assembleProviders,
   createDocumentConverter,
   createTxRunner,
+  createSessionMutex,
   createBizNoIssuer,
   systemClock,
 } from "../kernel/index.js";
@@ -96,6 +97,7 @@ import type {
   Env,
   KernelViolation,
   QueueChannel,
+  SessionMutex,
 } from "../kernel/index.js";
 import type { ProviderLogger, Providers } from "../providers/types.js";
 import { createTimers, runTimer, scanDue } from "../timers/index.js";
@@ -123,6 +125,7 @@ import { createStartupChecks, runStartupChecks } from "./startup.js";
 /** worker 主池（D7 第 8.3 节）：10 条连接，语句 30 秒、等锁 3 秒、事务内空闲 60 秒 */
 export function connectWorkerDatabase(connectionString: string): {
   prisma: PrismaClient;
+  sessionMutex: SessionMutex;
   close(): Promise<void>;
 } {
   const prisma = createPrismaClient({
@@ -132,10 +135,26 @@ export function connectWorkerDatabase(connectionString: string): {
     lockTimeoutMs: 3_000,
     idleInTransactionSessionTimeoutMs: 60_000,
   });
-  return { prisma, close: () => prisma.$disconnect() };
+  const sessionMutex = createSessionMutex({
+    connect: createSessionMutexConnectionFactory({ connectionString }),
+  });
+  let closing: Promise<void> | undefined;
+  return {
+    prisma,
+    sessionMutex,
+    close: () =>
+      (closing ??= (async () => {
+        try {
+          await sessionMutex.close();
+        } finally {
+          await prisma.$disconnect();
+        }
+      })()),
+  };
 }
 
 export interface WorkerServicesOptions {
+  readonly sessionMutex?: SessionMutex;
   readonly probe?: {
     readonly db: SqlRunner;
     readonly holder: () => string | undefined;
@@ -191,6 +210,7 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  readonly sessionMutex?: SessionMutex;
   readonly runProbes?: (beat?: () => void) => Promise<unknown>;
   readonly closeProbes?: () => Promise<void>;
   readonly closeCertificates?: () => Promise<void>;
@@ -666,6 +686,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const unbindNoticeLink = bindAgreementNoticeLink(readAgreementNoticeLink);
 
   return {
+    ...(options.sessionMutex ? { sessionMutex: options.sessionMutex } : {}),
     ...(ownsModels ? { closeModelDrivers: () => modelDrivers!.close() } : {}),
     disableModelBudget: () => modelBudget.disable(),
     closeModelBudget: () => modelBudget.close(),

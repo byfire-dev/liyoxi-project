@@ -5,17 +5,21 @@ import type {
   ManagerAssignBody,
   StoreListQuery,
   QualificationDocReviewBody,
+  StoreActivityQuery,
 } from "@liyoxi/contract";
 import { assertPermission } from "../authz/index.js";
 import type { StaffContext } from "../authz/index.js";
 import { AppError, lockRows } from "../kernel/index.js";
 import type { IdentityContext, Tx } from "../kernel/index.js";
+import { readStoreActivity } from "../audit/index.js";
+import { authorize } from "../authz/index.js";
 import {
   adminQualificationGet,
   adminStoreGet,
   adminStoreList,
   scopedRound,
   staffBrief,
+  scopedStore,
 } from "./admin-read.js";
 import { assignDeliveryManager } from "./assign-manager.js";
 import type { ProfileDeps, WriteOptions } from "./context.js";
@@ -73,6 +77,15 @@ export function createAdminProfile(deps: ProfileDeps) {
       deps.tx.run((tx) => adminStoreList(tx, deps, staff, q)),
     get: (staff: StaffContext, id: string) =>
       deps.tx.run((tx) => adminStoreGet(tx, deps, staff, id)),
+    activity: (staff: StaffContext, id: string, query: StoreActivityQuery) =>
+      deps.tx.run(async (tx) => {
+        authorize(
+          staff,
+          { module: { module: "merchant", need: "view" }, permission: null },
+          deps.clock.now(),
+        );
+        return readStoreActivity(tx, await scopedStore(tx, staff, id), query);
+      }),
     qualification: (staff: StaffContext, id: string) =>
       deps.tx.run((tx) => adminQualificationGet(tx, deps, staff, id)),
     rejectQuote: (staff: StaffContext, id: string) =>

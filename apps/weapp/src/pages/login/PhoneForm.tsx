@@ -1,76 +1,91 @@
-import { useState } from "react";
-import { View, Text } from "@tarojs/components";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { Button as NativeButton, View, Text } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-
 import { Button } from "@/components/Button";
 import { Checkbox } from "@/components/Checkbox";
-import { Field } from "@/components/Field";
-import { Input } from "@/components/Input";
 import { accountError } from "@/lib/account-controller";
 import { account, useAccount } from "@/lib/account-runtime";
 import { ApiError } from "@/lib/request";
+import { ensurePrivacyAuthorized, captureError } from "@/lib/runtime";
 import { useBootstrapStore } from "@/stores/bootstrap";
+import { useSessionStore } from "@/stores/session";
+import { useContextStore } from "@/stores/context";
+import { createPhoneAuthorization } from "./phone-authorization";
+import "../../sub/service/settings/phone-button.scss";
 
-/** M1 替身表单；G2-B 只替换此组件的号码凭证采集。 */
-export function PhoneForm() {
+/** 原生组件只采集 opaque code；H5 明确不可用，不接收手填手机号。 */
+function PhoneFormContent() {
   const state = useAccount();
   const copy = useBootstrapStore((value) => value.data.copy);
-  const [phone, setPhone] = useState("");
   const [agreed, setAgreed] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const submit = async () => {
-    if (busy) return;
-    if (!agreed) {
-      setError("请先阅读并勾选下方协议");
-      return;
-    }
-    if (!/^1\d{10}$/.test(phone)) {
-      setError("请填写有效的11位手机号");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await account.phoneLogin(phone, agreed);
-    } catch (failure) {
-      if (failure instanceof ApiError && failure.error === "AGREEMENT_VERSION_STALE")
-        setAgreed(false);
-      setError(
-        failure instanceof ApiError
-          ? accountError(failure)
-          : failure instanceof Error
-            ? failure.message
-            : accountError(failure),
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
+  const authorization = useMemo(
+    () =>
+      createPhoneAuthorization({
+        supported: process.env.TARO_ENV === "weapp",
+        scope: () =>
+          JSON.stringify([
+            useSessionStore.getState().accessToken,
+            useContextStore.getState().contextRev,
+          ]),
+        privacy: ensurePrivacyAuthorized,
+        exhausted: () => captureError("handler", new Error("phone_component_quota_exhausted")),
+      }),
+    [],
+  );
+  useEffect(() => authorization.dispose, [authorization]);
+  const phone = useSyncExternalStore(
+    authorization.subscribe,
+    authorization.snapshot,
+    authorization.snapshot,
+  );
   return (
     <View className="account-login__form">
-      <Field label="手机号" error={error ?? undefined}>
-        <Input
-          type="number"
-          error={Boolean(error)}
-          value={phone}
-          maxlength={11}
-          onChange={setPhone}
-        />
-      </Field>
-      <Button
-        block
-        size="xl"
-        loading={busy}
-        disabled={!state.agreements.length}
-        onClick={() => {
-          void submit();
-        }}
-      >
-        {copy["login.button"] ?? "手机号快捷登录"}
-      </Button>
+      {phone.error ? (
+        <View role="alert" className="settings-phone-error">
+          {phone.error}
+        </View>
+      ) : null}
+      {phone.ready && agreed ? (
+        <NativeButton
+          className="settings-phone-button"
+          openType="getPhoneNumber"
+          disabled={phone.busy || !state.agreements.length}
+          onGetPhoneNumber={(event) => {
+            void authorization.accept(event.detail, async (code) => {
+              try {
+                await account.phoneLogin(code, agreed);
+              } catch (error) {
+                if (error instanceof ApiError && error.error === "AGREEMENT_VERSION_STALE")
+                  setAgreed(false);
+                throw new Error(accountError(error), { cause: error });
+              }
+            });
+          }}
+        >
+          {copy["login.button"] ?? "手机号快捷登录"}
+        </NativeButton>
+      ) : (
+        <Button
+          block
+          size="xl"
+          loading={phone.busy}
+          disabled={!state.agreements.length}
+          onClick={() => {
+            void authorization.prepare(agreed);
+          }}
+        >
+          {copy["login.button"] ?? "手机号快捷登录"}
+        </Button>
+      )}
       <View className="account-login__legal">
-        <Checkbox checked={agreed} disabled={busy} onChange={setAgreed}>
+        <Checkbox
+          checked={agreed}
+          disabled={phone.busy}
+          onChange={(value) => {
+            setAgreed(value);
+            void authorization.prepare(value);
+          }}
+        >
           我已阅读并同意
         </Checkbox>
         <View className="account-login__links">
@@ -95,4 +110,9 @@ export function PhoneForm() {
       </View>
     </View>
   );
+}
+export function PhoneForm() {
+  const token = useSessionStore((s) => s.accessToken),
+    revision = useContextStore((s) => s.contextRev);
+  return <PhoneFormContent key={JSON.stringify([token, revision])} />;
 }

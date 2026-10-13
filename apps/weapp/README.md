@@ -126,7 +126,7 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 
 登录成功恢复原页面；非标签页恢复编码后的查询参数，标签页用原生 switchTab。协议版本过期重拉版本并清空表单勾选。me 与五个并发428共用阻断式协议层；同意回执确认没有 pending 即释放等待，由服务端重放时再次校验，后续 me 只刷新概要，刷新失败不挂起原请求。仍有未签协议时保持可见且可操作的阻断层；只可不同意并退出，30秒内不重复弹。正文页可阅读，返回后仍阻断。切店先改本地/清聚合，再重拉、记住选择、埋点和提示；保存失败不回滚、同一意图重试保留幂等键。generation、令牌和 contextRev 丢弃旧账号、旧门店迟到响应。协议生效日复用 shared/format/datetime 的北京时间显示，不截UTC日期。
 
-我的套餐积分卡与统计只按 overview.viewerRole=owner 展示；店员不显示资金、订单与发布入口。不做金额、积分或订购判断。未来入口只在 pages.ts 对应页 implemented=true 时显示，钱包指向 sub/billing/wallet/index。无门店显示账号与未绑定说明。退出登录暂放我的末行，设置页落地后迁移。
+我的套餐积分卡与统计只按 overview.viewerRole=owner 展示；店员不显示资金、订单与发布入口。不做金额、积分或订购判断。未来入口只在 pages.ts 对应页 implemented=true 时显示，钱包指向 sub/billing/wallet/index。无门店显示账号与未绑定说明。退出登录已随W2-13迁入账号设置页。
 
 登录按钮和首次说明文案键分别为 `login.button`、`login.firstLogin`，没有覆盖时使用任务默认；本包无订阅按钮点位，替身表单不调用隐私能力。埋点 `app_launch` 不带邀请凭证，`store_switch` 只带 fromPage；两者按契约调用，接收口未到时空转。
 
@@ -145,6 +145,11 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 组件预览的图同样是 H5 近似：原生的输入框、多行输入、开关、弹层在微信里的样子，以及点击区、按下态、弹层正文的内部滚动，以真机为准（W0-29 看样时看）。
 
 ## 消息页与未读角标（W2-19）
+
+W2-13 设置页已补本人账号操作源码，入口与通知复用关系、幂等/未决换绑和外部验证边界见
+[`sub/service/settings/README.md`](src/sub/service/settings/README.md)。只登记设置一页，
+我的页沿原八态菜单开放设置并移出退出；登录 PhoneForm 仅替换为真实号码授权凭证。
+本域8组风险单测及8个H5场景交ROOT选择性验收，不替代真机结论。
 
 `sub/service/messages/index` 使用原生导航，固定八类页签，默认 all/20；游标不解码，续页按 messageId 去重，下拉刷新替换。首页与我的消息入口只显示服务端 summary 的未读真值；无门店时仍能读账号通知。token、contextRev、门店、账号、成员角色和可进门店变化时清除本页缓存及旧角标，旧成功和旧错误均不能回写。消息标题、正文与金额取真实服务端 DTO，店员文案不在页面重造。
 

@@ -4886,7 +4886,7 @@ export interface components {
             structuredItemCount: number | null;
             tags: components["schemas"]["AssetTag"][];
             techSpecLabel: string | null;
-            thumbnail: components["schemas"]["SignedUrl"] & (Record<string, never> | null);
+            thumbnail: components["schemas"]["SignedUrl"] | null;
             title: string | null;
             /** @enum {string} */
             type: "image" | "video" | "recording" | "audio" | "document" | "text";

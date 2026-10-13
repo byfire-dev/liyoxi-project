@@ -1,5 +1,11 @@
 import { z } from "../../zod.js";
-import { CursorQuerySchema, DictRefSchema, IdSchema, InstantSchema } from "../../common/index.js";
+import {
+  CursorQuerySchema,
+  DictRefSchema,
+  IdSchema,
+  InstantSchema,
+  orNull,
+} from "../../common/index.js";
 import {
   MODERATION_STATE,
   STORE_ASSET_TYPE,
@@ -92,7 +98,7 @@ export const StoreAssetCardSchema = z
     fileCount: count,
     durationMs: count.nullable(),
     pageCount: count.nullable(),
-    thumbnail: SignedUrlSchema.nullable(),
+    thumbnail: orNull(SignedUrlSchema),
     quote: z.string().max(60).nullable(),
     tags: z.array(AssetTagSchema).max(4),
     techSpecLabel: z.string().nullable(),

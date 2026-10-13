@@ -68,7 +68,9 @@ import { bindPublish } from "./publish/index.js";
 // W1-01a 接进来的两样：flow（状态迁移，装配之后、events 之上建一次）与 staffAuth（后台登录与会话的用例）。
 // staffAuth 第一次取时才加载密钥并装配：本地与用例里不配密钥文件进程也起得来，只是后台登录用不了；
 // stg、prod 下三份密钥缺了由启动自检拦（security.crypto 两份；api 进程另有 security.auth_keys）。
-import { createPrismaClient } from "@liyoxi/db";
+import { createPrismaClient, createSessionMutexConnectionFactory } from "@liyoxi/db";
+import { createSessionMutex } from "./kernel/index.js";
+import type { SessionMutex } from "./kernel/index.js";
 import { Redis } from "ioredis";
 
 import { assembleServices } from "./assembly.js";
@@ -241,6 +243,7 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly sessionMutex: SessionMutex;
   readonly docs: Docs;
   readonly docsAdmin: ReturnType<typeof createRuntimeDocs>["admin"];
   readonly documentConverter: ReturnType<typeof createDocumentConverter> | null;
@@ -336,6 +339,9 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     options.logger ?? createLogger({ svc: entry, env: env.APP_ENV, level: env.LOG_LEVEL, version });
 
   const prisma = createPrismaClient({ connectionString: env.DATABASE_URL, ...DB_POOLS[entry] });
+  const sessionMutex = createSessionMutex({
+    connect: createSessionMutexConnectionFactory({ connectionString: env.DATABASE_URL }),
+  });
 
   const keyPrefix = options.redisKeyPrefix ?? `lyx:${env.APP_ENV}:`;
   // 一条命令只等一次重连：Redis 不可用时调用方很快拿到错误，各自降级（01 第 7.3 节）
@@ -928,6 +934,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
 
   let closing: Promise<void> | undefined;
   return {
+    sessionMutex,
     docs: docsServices.docs,
     docsAdmin: docsServices.admin,
     documentConverter,
@@ -981,6 +988,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     startupChecks,
     close() {
       return (closing ??= (async () => {
+        const mutexClosing = sessionMutex.close();
+        void mutexClosing.catch(() => undefined);
         let failure: PromiseRejectedResult | undefined;
         const settle = async (closes: readonly (() => unknown)[]) => {
           const results = await Promise.allSettled(
@@ -1031,6 +1040,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
           unbindWebhooks,
         ]);
         await settle([() => mediaChannel.close()]);
+        await settle([() => mutexClosing]);
         await settle([() => alertFactsScope.close()]);
         await settle([() => redis.disconnect(), () => prisma.$disconnect()]);
         if (failure) throw failure.reason;

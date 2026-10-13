@@ -266,16 +266,16 @@ export function createAccountController(deps: AccountDeps) {
     },
     agreement: api.agreement,
     showAgreement: (visible: boolean) => update({ agreementVisible: visible }),
-    async phoneLogin(phone: string, agreed: boolean) {
+    async phoneLogin(phoneCode: string, agreed: boolean) {
       if (!agreed) throw new Error("请先阅读并勾选下方协议");
-      if (!/^1\d{10}$/.test(phone)) throw new Error("请填写有效的11位手机号");
+      if (!phoneCode || phoneCode.length > 128) throw new Error("号码授权凭证无效，请重新授权");
       const current = state.agreements.filter((item) => item.currentVersion !== null);
       if (!current.length || current.length > 2) throw new Error("协议暂不可用，请重新加载");
       const epoch = generation;
       try {
         const result = await api.phone({
           loginCode: await deps.loginCode(),
-          phoneCode: phone,
+          phoneCode,
           consents: current.map((item) => ({
             agreementKey: item.agreementKey,
             agreementVersionId: item.currentVersion!.agreementVersionId,

@@ -25,6 +25,8 @@ import {
   storeIdempotentResult,
 } from "./idempotency.js";
 import type { IdempotencyContext } from "./idempotency.js";
+import { assertSessionMutexScope, currentSessionMutex } from "./session-mutex-state.js";
+import type { SessionMutexState } from "./session-mutex-state.js";
 
 declare const TX_BRAND: unique symbol;
 type Branded = { readonly [TX_BRAND]: true };
@@ -72,6 +74,7 @@ export interface HeldLock {
 
 /** 一个事务的运行时状态：挂在句柄上，也放在 AsyncLocalStorage 里 */
 export interface TxState {
+  readonly sessionMutex?: SessionMutexState | undefined;
   /** 用例函数体还在跑；跑完（不论成败）即为 false */
   open: boolean;
   /** 已发出的保存点个数，用来取名 */
@@ -88,6 +91,7 @@ const detachedScopes = new AsyncLocalStorage<readonly TxState[]>();
 const states = new WeakMap<object, TxState>();
 
 function assertHandleScope(state: TxState): void {
+  assertSessionMutexScope(state.sessionMutex);
   if (detachedScopes.getStore()?.includes(state) && scope.getStore() !== state)
     throw new TypeError("脱离事务作用域后不能使用外层事务句柄");
 }
@@ -287,6 +291,9 @@ export function createTxRunner({ prisma, appEnv, report }: TxRunnerOptions): TxR
           "事务里不能再开事务：只有用例函数调 tx.run，往下传 tx；要局部回滚用 savepoint",
         );
       }
+      const mutex = currentSessionMutex();
+      assertSessionMutexScope(mutex);
+      if (mutex) await mutex.assertHeld();
       const timeout = options.timeoutMs ?? TX_TIMEOUT_MS;
       const maxWait = options.maxWaitMs ?? TX_MAX_WAIT_MS;
       if (!(timeout > 0 && timeout <= TX_TIMEOUT_MAX_MS) || !(maxWait > 0)) {
@@ -304,28 +311,40 @@ export function createTxRunner({ prisma, appEnv, report }: TxRunnerOptions): TxR
       const keyed = idem?.mode === "required" ? idem : undefined;
       for (let attempt = 0; ; attempt += 1) {
         try {
+          assertSessionMutexScope(mutex);
           let replayed = false;
           const value = await prisma.$transaction(
             async (client) => {
-              const state: TxState = { open: true, savepoints: 0, held: [], violate };
+              const state: TxState = {
+                open: true,
+                savepoints: 0,
+                held: [],
+                violate,
+                sessionMutex: mutex,
+              };
               states.set(client, state);
               try {
                 // 品牌只在这里贴：先收窄成带品牌的事务客户端，再当成去掉 $transaction 的句柄给出去
                 const handle = scopedHandle(client, state);
                 const result = await scope.run(state, async () => {
+                  assertSessionMutexScope(mutex);
                   if (!keyed) return fn(handle);
                   const stored = await claimIdempotency(client, keyed).catch((error: unknown) => {
                     // 等同键的另一个事务超过 3 秒：直接报 BUSY，不进下面的重试（重试会把等待拉长到 3 秒的倍数）
                     if (sqlStateOf(error) !== "55P03") throw error;
                     throw new AppError("BUSY", { cause: error });
                   });
+                  assertSessionMutexScope(mutex);
                   replayed = stored !== undefined;
                   if (stored) return stored.result as Awaited<ReturnType<typeof fn>>;
                   const fresh = await fn(handle);
+                  assertSessionMutexScope(mutex);
                   await storeIdempotentResult(client, keyed, fresh);
                   return fresh;
                 });
+                if (mutex) await mutex.assertHeld();
                 await client.$queryRawUnsafe("SELECT 1");
+                assertSessionMutexScope(mutex);
                 return result;
               } finally {
                 state.open = false;
