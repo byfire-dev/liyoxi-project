@@ -46,3 +46,4 @@ export * from "./transfer-proofs.js";
 export * from "./error-details.js";
 export * from "./plans.schemas.js";
 export * from "./plans.js";
+export * from "./plan-revisions.js";
