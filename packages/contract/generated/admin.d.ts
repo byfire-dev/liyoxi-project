@@ -3166,6 +3166,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/stores/{storeId}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 档案页签：基本信息、主推服务、门店图片、完整度、最近修改人 */
+        get: operations["admin.store.profile.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 代改档案（免审字段；必选修改原因 + 备注；带 lockVersion；通知商家，修改前后记入日志） */
+        patch: operations["admin.store.profile.update"];
+        trace?: never;
+    };
     "/api/v1/admin/stores/{storeId}/qualification": {
         parameters: {
             query?: never;
@@ -3652,6 +3670,16 @@ export interface components {
                 stateField: string;
                 toState: string;
             } | null;
+        };
+        AddressView: {
+            city: components["schemas"]["DictRef"] | null;
+            detail: string | null;
+            district: components["schemas"]["DictRef"] | null;
+            latitude: number | null;
+            longitude: number | null;
+            poiName: string | null;
+            province: components["schemas"]["DictRef"] | null;
+            zone: components["schemas"]["DictRef"] | null;
         };
         AdminAgreementVersionBrief: {
             /** Format: uuid */
@@ -4357,6 +4385,87 @@ export interface components {
             /** Format: uuid */
             storeId: string;
             storeName: string | null;
+        };
+        AdminStoreProfile: {
+            actions: "update"[];
+            address: components["schemas"]["AddressView"];
+            avgSpendFen: number | null;
+            brandIntro: string | null;
+            brandName: string | null;
+            businessHours: {
+                end: string;
+                start: string;
+            }[];
+            category: components["schemas"]["DictRef"] | null;
+            completeness: components["schemas"]["Completeness"];
+            copiedFromStoreId: string | null;
+            groupBuyText: string | null;
+            industry: components["schemas"]["DictRef"] | null;
+            lastEditedAt: string | null;
+            lastEditor: {
+                /** @enum {string} */
+                actorType: "merchant" | "staff" | "system" | "partner" | (string & {});
+                name: string | null;
+            } | null;
+            lockVersion: number;
+            logo: components["schemas"]["MediaFileView"] | null;
+            media: {
+                door: {
+                    file: components["schemas"]["MediaFileView"];
+                    isCopied: boolean;
+                    /** Format: uuid */
+                    mediaItemId: string;
+                    /** @enum {string} */
+                    mediaKind: "image" | "video" | (string & {});
+                    position: number;
+                }[];
+                interior: {
+                    file: components["schemas"]["MediaFileView"];
+                    isCopied: boolean;
+                    /** Format: uuid */
+                    mediaItemId: string;
+                    /** @enum {string} */
+                    mediaKind: "image" | "video" | (string & {});
+                    position: number;
+                }[];
+                product: {
+                    file: components["schemas"]["MediaFileView"];
+                    isCopied: boolean;
+                    /** Format: uuid */
+                    mediaItemId: string;
+                    /** @enum {string} */
+                    mediaKind: "image" | "video" | (string & {});
+                    position: number;
+                }[];
+                promo: {
+                    file: components["schemas"]["MediaFileView"];
+                    isCopied: boolean;
+                    /** Format: uuid */
+                    mediaItemId: string;
+                    /** @enum {string} */
+                    mediaKind: "image" | "video" | (string & {});
+                    position: number;
+                }[];
+            };
+            pendingChange: components["schemas"]["PendingChange"] | null;
+            promoText: string | null;
+            proxyEditableFields: ("brandName" | "logoFileId" | "businessHours" | "storeTel" | "avgSpendFen" | "brandIntro" | "serviceItems" | "promoText" | "groupBuyText" | "sellingPointCodes" | "sellingNote" | "mediaGroups")[];
+            sellingNote: string | null;
+            sellingPoints: components["schemas"]["DictRef"][];
+            serviceItems: {
+                image: components["schemas"]["MediaFileView"] | null;
+                intro: string | null;
+                name: string;
+                originalPriceFen: number | null;
+                position: number;
+                priceFen: number;
+                /** Format: uuid */
+                serviceItemId: string;
+            }[];
+            /** Format: uuid */
+            storeId: string;
+            storeName: string | null;
+            storeTel: string | null;
         };
         AdminStoreQualificationView: {
             effectiveDocs: components["schemas"]["AdminQualificationDoc"][];
@@ -5107,6 +5216,21 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             versionNo: number;
+        };
+        Completeness: {
+            pct: number;
+            requiredFilled: number;
+            requiredTotal: number;
+            steps: {
+                missing: {
+                    /** @enum {string} */
+                    item: "brand_name" | "store_name" | "industry" | "address" | "business_hours" | "store_tel" | "avg_spend" | "door_photos" | "interior_photos" | "service_items" | "selling_points" | "entity_type" | "business_license" | "contact" | "declaration" | "permit" | (string & {});
+                    permitType: string | null;
+                }[];
+                /** @enum {string} */
+                state: "not_started" | "in_progress" | "completed" | (string & {});
+                step: number;
+            }[];
         };
         ConfirmPermitRecheckBody: {
             note?: string | null;
@@ -7387,6 +7511,66 @@ export interface components {
                 /** @enum {string} */
                 tier: "S" | "A" | "B" | "C" | (string & {});
             }[];
+        };
+        ProxyEditBody: {
+            /** @description 禁止代改；出现即返回FIELD_NOT_PROXY_EDITABLE */
+            address?: unknown;
+            avgSpendFen?: number | null;
+            brandIntro?: string | null;
+            brandName?: string | null;
+            businessHours?: {
+                end: string;
+                start: string;
+            }[];
+            /** @description 禁止代改；出现即返回FIELD_NOT_PROXY_EDITABLE */
+            categoryCode?: unknown;
+            /** @description 禁止代改；出现即返回FIELD_NOT_PROXY_EDITABLE */
+            contactName?: unknown;
+            /** @description 禁止代改；出现即返回FIELD_NOT_PROXY_EDITABLE */
+            contactPhone?: unknown;
+            groupBuyText?: string | null;
+            /** @description 禁止代改；出现即返回FIELD_NOT_PROXY_EDITABLE */
+            industryCode?: unknown;
+            lockVersion: number;
+            logoFileId?: string | null;
+            mediaGroups?: {
+                door?: {
+                    /** Format: uuid */
+                    fileId: string;
+                }[];
+                interior?: {
+                    /** Format: uuid */
+                    fileId: string;
+                }[];
+                product?: {
+                    /** Format: uuid */
+                    fileId: string;
+                }[];
+                promo?: {
+                    /** Format: uuid */
+                    fileId: string;
+                }[];
+            };
+            note?: string;
+            promoText?: string | null;
+            /** @description 禁止代改；出现即返回FIELD_NOT_PROXY_EDITABLE */
+            qualification?: unknown;
+            /** @enum {string} */
+            reasonCode: "merchant_phone_request" | "merchant_wecom_request" | "data_correction" | "other";
+            sellingNote?: string | null;
+            sellingPointCodes?: string[];
+            serviceItems?: {
+                imageFileId?: string | null;
+                intro?: string | null;
+                name: string;
+                originalPriceFen?: number | null;
+                priceFen: number;
+                /** Format: uuid */
+                serviceItemId?: string;
+            }[];
+            /** @description 禁止代改；出现即返回FIELD_NOT_PROXY_EDITABLE */
+            storeName?: unknown;
+            storeTel?: string | null;
         };
         PublishApprovalView: components["schemas"]["ApprovalDecisionView"] & {
             checklist: {
@@ -26134,6 +26318,156 @@ export interface operations {
             };
             /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.store.profile.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                storeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminStoreProfile"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.store.profile.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                storeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProxyEditBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminStoreProfile"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

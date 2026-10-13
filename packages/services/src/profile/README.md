@@ -217,5 +217,5 @@ GET 不建档案、不补过期状态；既有老板/店员响应裁剪及其他
 新引用/替换30天保留、完整度、ops代理审计与原store.profile.changed同TX。正式source
 追加staff_proxy且保留旧staff兼容。ROOT唯一生产独审无剩余P1/P2：真实FileRef.state
 字段、onBehalfStoreId本店代传事实与路由三段式声明已定点补齐。六聚合DB与两组HTTP
-源码已备妥，所属格式/ESLint通过，ROOT串行定点尚待执行；W2-11整包继续进行中，
+及2项原签图/媒体回归、类型/官方契约/权限/挂载定点均已通过；W2-11整包继续进行中，
 不代表真实内容安全/平台/资金或远端CI已验。
