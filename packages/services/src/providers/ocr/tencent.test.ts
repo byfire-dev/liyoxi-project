@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createProviders, ProviderConfigError } from "../index.js";
 import { guardOcrRequest, OCR_HOST, OcrAgent } from "./agent.js";
 import { createTencentOcr } from "./tencent.js";
+import { parseBusinessLicense } from "./parse.js";
 
 // 所有凭据、证照与URL均为公开虚构标记；真实固定SDK只请求本测试的loopback服务器。
 const config = {
@@ -176,6 +177,8 @@ describe("营业执照官方SDK：真实loopback协议", () => {
         principal: license.Person,
         address: license.Address,
         subjectType: "enterprise",
+        principalRole: "legal_rep",
+        raw: JSON.stringify(license),
         subjectTypeText: license.Type,
         periodText: license.Period,
         validFrom: "2024-02-29",
@@ -200,15 +203,15 @@ describe("营业执照官方SDK：真实loopback协议", () => {
         expect(result.value).not.toHaveProperty("confidence");
       }
     }
-    reply = (response) =>
-      json(response, {
-        RequestId: license.RequestId,
-        Name: "仅识别名称",
-        Type: "未知",
-        Period: "2023年02月29日至2030年01月01日",
-        RecognizeWarnCode: [-9999],
-        Raw: "PRIVATE_RESPONSE_MARKER",
-      });
+    const partial = {
+      RequestId: license.RequestId,
+      Name: "仅识别名称",
+      Type: "未知",
+      Period: "2023年02月29日至2030年01月01日",
+      RecognizeWarnCode: [-9999],
+      Raw: "PRIVATE_RESPONSE_MARKER",
+    };
+    reply = (response) => json(response, partial);
     expect(await driver.provider.recognizeBusinessLicense({ imageUrl })).toEqual({
       ok: true,
       value: {
@@ -219,7 +222,22 @@ describe("营业执照官方SDK：真实loopback协议", () => {
         subjectTypeText: "未知",
         periodText: "2023年02月29日至2030年01月01日",
         warnings: ["PROVIDER_WARNING_-9999"],
+        raw: JSON.stringify(partial),
       },
+    });
+    const bigint = parseBusinessLicense({
+      ...license,
+      RecognizeWarnCode: [-9102n, 9007199254740993n],
+      OriginalInteger: 18446744073709551615n,
+    });
+    expect(bigint?.warnings).toEqual([
+      "WARN_COPY_CARD",
+      "PROVIDER_WARNING_9007199254740993",
+      "WARN_RESHOOT_CARD",
+    ]);
+    expect(JSON.parse(bigint!.raw!)).toMatchObject({
+      RecognizeWarnCode: ["-9102", "9007199254740993"],
+      OriginalInteger: "18446744073709551615",
     });
     for (const [code, reason] of [
       ["FailedOperation.NoBizLicense", "rejected"],

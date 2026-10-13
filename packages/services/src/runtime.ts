@@ -649,6 +649,11 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         })
       : undefined;
   const media = createMedia({
+    ocr: {
+      provider: providers.ocr,
+      sessionMutex,
+      keyring: () => (billingKeys ??= loadKeyring(env)),
+    },
     retention: {
       sessionMutex,
       alerts: alertsOf(assembly),

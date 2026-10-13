@@ -54,6 +54,8 @@ import type { PipelineEntry, PipelineSlot } from "../routing/pipeline.js";
 import { HANDLERS } from "../routes/index.js";
 
 export interface TestApiOptions {
+  /** 证照识别场景显式启用；既有手填场景保持未配置，使用同一公知测试密钥环。 */
+  readonly qualificationOcr?: boolean;
   /** External media IO only; real production facts/handlers remain in the Runtime. */
   readonly mediaProduction?: (providers: FakeProviders) => {
     config: NonNullable<RuntimeOptions["env"]["MEDIA_PRODUCTION"]>;
@@ -140,6 +142,7 @@ export function useTestApi(): TestApiHandle {
       const logs: Record<string, unknown>[] = [];
       // 十二个 Provider 换成 W0-25 的替身支架（带“事务内不外呼”的钩子）：商家端登录取的就是运行时上的这个假微信
       const { providers } = createProviderHarness({ clock });
+      if (!options.qualificationOcr) providers.ocr = { ...providers.ocr, configured: false };
       const production = options.mediaProduction?.(providers);
       const runtime = createRuntime({
         webhookSources: options.webhookSources,
@@ -153,6 +156,7 @@ export function useTestApi(): TestApiHandle {
         // 机器忙的时候 Redis 的一条命令也可能慢过 200 毫秒：放宽，免得用例里把慢当成断
         rateLimitCommandTimeoutMs: 5_000,
         providers,
+        ...(options.qualificationOcr ? { billingKeyring: TEST_API_KEYRING } : {}),
         documentWorkerUrl: options.documentConverterWorkerUrl,
         logger: createLogger({
           svc: "api",
