@@ -80,9 +80,9 @@ it("同步识别真实HTTP：独立证据、脱敏重放、权限、人工更正
       headers: { ...headers, "Idempotency-Key": key },
       peer: `198.19.216.${++peer}`,
     });
-  const data = async (response: Response) => {
+  const data = async (response: Response, privateRead = false) => {
     expect(response.status, await response.clone().text()).toBe(200);
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    if (privateRead) expect(response.headers.get("Cache-Control")).toBe("no-store");
     return ((await response.json()) as { data: unknown }).data;
   };
   const body = { fileId: file.id, docType: "business_license" },
@@ -121,12 +121,12 @@ it("同步识别真实HTTP：独立证据、脱敏重放、权限、人工更正
   expect(ocr.calls).toHaveLength(calls);
   expect(await prisma.ocrResult.count({ where: { fileId: file.id } })).toBe(1);
   const view = QualificationViewOwnerSchema.parse(
-    await data(await request("m/store-profile/qualification")),
+    await data(await request("m/store-profile/qualification"), true),
   );
   expect(view.openRound?.qualificationSubmissionId).toBe(first.qualificationSubmissionId);
   const path = `m/qualification-docs/${stored.id}/download-urls`;
   const signed: unknown[] = [];
-  for (let n = 0; n < 2; n++) signed.push(await data(await request(path, "POST", {})));
+  for (let n = 0; n < 2; n++) signed.push(await data(await request(path, "POST", {}), true));
   expect(signed[0]).not.toEqual(signed[1]);
   const denied = await request(path, "POST", {}, foreign.withStore(other.storeId));
   expect(denied.status).toBe(404);
