@@ -9,6 +9,7 @@ import { unboundAlertFacts } from "./alert-facts.js";
 import { reportingInvariants } from "./invariants/report.js";
 import { runScheduledInvariants, runScheduledRetention } from "./jobs.js";
 import { unboundCertJob } from "./cert-runtime.js";
+import { profileAdminStaffFacts } from "./profile-admin-facts.js";
 
 export const registration = defineRegistration("ops", {
   recurringJobs: [
@@ -54,6 +55,7 @@ export const registration = defineRegistration("ops", {
     },
   ],
   portImplementations: [
+    profileAdminStaffFacts,
     implement(invariantsPort, reportingInvariants),
     implement(alertsPort, unboundAlertFacts),
   ],
