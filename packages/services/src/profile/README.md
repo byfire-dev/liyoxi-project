@@ -200,5 +200,7 @@ GET 不建档案、不补过期状态；既有老板/店员响应裁剪及其他
 缺近2h真实身份即PROVIDER_UNAVAILABLE零业务写；每次外呼前及settle重核owner/权限/
 版本。staff20→entity100共享→store130→profile135，全部相关file预锁后共用应用，
 新引用/替换30天保留、完整度、ops代理审计与原store.profile.changed同TX。正式source
-追加staff_proxy且保留旧staff兼容。源码仅格式/ESLint，ROOT唯一审查及6聚合DB/≤2HTTP
-定点待执行；W2-11整包继续进行中，不代表真实内容安全/平台/资金或远端CI已验。
+追加staff_proxy且保留旧staff兼容。ROOT唯一生产独审无剩余P1/P2：真实FileRef.state
+字段、onBehalfStoreId本店代传事实与路由三段式声明已定点补齐。六聚合DB与两组HTTP
+源码已备妥，所属格式/ESLint通过，ROOT串行定点尚待执行；W2-11整包继续进行中，
+不代表真实内容安全/平台/资金或远端CI已验。
