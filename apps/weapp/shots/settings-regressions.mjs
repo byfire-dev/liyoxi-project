@@ -49,14 +49,22 @@ export async function settingsRegression(page, scene) {
     await row("手机号").click();
     expect((await calls()).some((call) => call.path === "/m/sms-codes")).toBe(false);
   } else if (scene === "settings-identities") {
+    const identitiesSheet = active(".lyx-sheet").filter({
+      has: page.locator(".lyx-sheet__title", { hasText: /^已登录的微信$/ }),
+    });
+    const confirmationSheet = active(".lyx-sheet").filter({
+      has: page.locator(".lyx-sheet__title", { hasText: /^移除此登录身份？$/ }),
+    });
     await row("已登录的微信").click();
-    await expect(active(".lyx-sheet")).toContainText("另一台手机");
-    await active(".lyx-sheet .lyx-list-row")
+    await expect(identitiesSheet).toContainText("另一台手机");
+    await identitiesSheet
+      .locator(".lyx-list-row")
       .filter({ hasText: "另一台手机" })
       .locator(".lyx-text-button")
       .click();
     await button("确认移除").click();
-    await expect(active(".lyx-sheet")).not.toContainText("另一台手机");
+    await expect(confirmationSheet).toBeHidden();
+    await expect(identitiesSheet).not.toContainText("另一台手机");
     expect((await calls()).filter((call) => call.method === "DELETE")).toHaveLength(1);
   } else {
     await expect(row("本人称呼")).toBeVisible();
