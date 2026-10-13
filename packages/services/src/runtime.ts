@@ -140,7 +140,7 @@ import {
   createRuntimeMediaBatches,
   createRuntimeMediaProduction,
 } from "./ops/index.js";
-import type { Media } from "./media/index.js";
+import type { Media, ModelBudgetTransport } from "./media/index.js";
 import { createRateLimiter } from "./rate-limit.js";
 import type { RateLimiter } from "./rate-limit.js";
 import {
@@ -196,11 +196,13 @@ export const DB_POOLS: Readonly<Record<AssemblyEntry, DbPoolSettings>> = {
 };
 
 export interface RuntimeOptions {
-  /** API自有ASR的成对生命周期；close须缓存同一Promise，整套providers借用不消费。 */
+  /** API自有ASR/LLM的成对生命周期；close须缓存同一Promise，整套providers借用不消费。 */
   readonly modelDrivers?: {
     registerClose(close: () => Promise<void>): void;
     close(): Promise<void>;
   };
+  /** API入口借入的独立预算连接；本运行时只排空准入，连接关闭仍归入口。 */
+  readonly modelBudgetTransport?: ModelBudgetTransport;
   readonly documentWorkerUrl?: URL;
   /** Only local/test external-tool substitution; production facts and handlers stay real. */
   readonly mediaProductionTools?: ProductionMediaTools;
@@ -301,14 +303,20 @@ export interface Runtime {
  */
 export function createRuntime(options: RuntimeOptions): Runtime {
   const { entry, env, version } = options;
+  const ownsModels =
+    entry === "api" && options.providers === undefined && (!!env.ASR_TENCENT || !!env.LLM_DOMESTIC);
   const ownsAsr = entry === "api" && options.providers === undefined && !!env.ASR_TENCENT;
   const asrCallback = ownsAsr ? env.ASR_CALLBACK : undefined;
-  const modelDrivers = ownsAsr ? options.modelDrivers : undefined;
+  const modelDrivers = ownsModels ? options.modelDrivers : undefined;
   if (
-    ownsAsr &&
+    ownsModels &&
     (typeof modelDrivers?.registerClose !== "function" || typeof modelDrivers?.close !== "function")
   )
-    throw new TypeError("API ASR配置须成对提供本实例关闭登记与关闭函数");
+    throw new TypeError(
+      ownsAsr
+        ? "API ASR配置须成对提供本实例关闭登记与关闭函数"
+        : "API LLM配置须成对提供本实例关闭登记与关闭函数",
+    );
   if (entry === "worker" && env.CI && !env.CI.worker)
     throw new TypeError("CI worker入口缺少worker角色");
   if (env.COS && (entry === "worker" ? !env.COS.worker : !env.COS.signer || !env.COS.stsIssuer))
@@ -412,6 +420,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       logger,
       settings: {
         ...(ownsAsr ? { asr: env.ASR_TENCENT } : {}),
+        ...(ownsModels && env.LLM_DOMESTIC ? { llm: env.LLM_DOMESTIC } : {}),
         ...(env.SMS
           ? {
               sms: {
@@ -458,6 +467,13 @@ export function createRuntime(options: RuntimeOptions): Runtime {
             asr: {
               ...(asrCallback ? { callback: asrCallback } : {}),
               now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => modelDrivers!.registerClose(close),
+            },
+          }
+        : {}),
+      ...(ownsModels && env.LLM_DOMESTIC
+        ? {
+            llm: {
               registerClose: (close: () => Promise<void>) => modelDrivers!.registerClose(close),
             },
           }
@@ -574,12 +590,13 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       ? { appEnv: env.APP_ENV, tools: options.mediaProductionTools }
       : undefined,
   );
-  // API不拥有预算transport；完整配对仍保守拒绝新付费提交，原TaskId回查不重复扣槽。
+  // API借用入口专用transport；默认额度与冷账本仍关闭，原TaskId回查不重复扣槽。
   const modelBudget =
     entry === "api"
       ? createModelBudgetRuntime({
           clock,
           prefix: `lyx:${env.APP_ENV}:`,
+          transport: options.modelBudgetTransport,
           alerts: alertsOf(assembly),
           logger,
         })

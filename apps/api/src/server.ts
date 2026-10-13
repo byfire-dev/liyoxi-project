@@ -14,6 +14,7 @@ import { createRuntime, loadEnv, runStartupChecks } from "@liyoxi/services";
 import type { Runtime } from "@liyoxi/services";
 
 import { testRedisKeyPrefix } from "./cli/test-redis-prefix.js";
+import { createApiModelBudgetTransport } from "./model-budget.js";
 import { createApp } from "./app.js";
 import { DEFAULT_TRUSTED_PROXY } from "./http/client-ip.js";
 import { HANDLERS } from "./routes/index.js";
@@ -36,6 +37,7 @@ export async function main(): Promise<void> {
   }
 
   let runtime: Runtime | undefined;
+  let modelBudget: ReturnType<typeof createApiModelBudgetTransport> | undefined;
   // 模型驱动可在runtime返回前被创建；入口先持有唯一关闭Promise作为失败兜底。
   const modelClosers: Array<() => Promise<void>> = [];
   let modelClosing: Promise<void> | undefined;
@@ -51,7 +53,10 @@ export async function main(): Promise<void> {
       Promise.resolve().then(() => runtime?.close()),
     ]);
     const modelResult = await Promise.allSettled([closeModelDrivers()]);
-    const failure = [...runtimeResult, ...modelResult].find(
+    const budgetResult = await Promise.allSettled([
+      Promise.resolve().then(() => modelBudget?.close()),
+    ]);
+    const failure = [...runtimeResult, ...modelResult, ...budgetResult].find(
       (result) => result.status === "rejected",
     );
     if (failure?.status === "rejected") throw failure.reason;
@@ -59,7 +64,15 @@ export async function main(): Promise<void> {
   try {
     const env = loadEnv();
     const redisKeyPrefix = testRedisKeyPrefix(env.APP_ENV, values["test-redis-prefix"]);
+    modelBudget = createApiModelBudgetTransport({
+      redisUrl: env.REDIS_URL,
+      appEnv: env.APP_ENV,
+      ...(redisKeyPrefix ? { testKeyPrefix: redisKeyPrefix } : {}),
+      onError: () =>
+        runtime?.logger.warn({ evt: "media.model_budget_redis_down" }, "预算连接不可用"),
+    });
     runtime = createRuntime({
+      modelBudgetTransport: modelBudget.transport,
       modelDrivers: {
         registerClose: (close) => modelClosers.push(close),
         close: closeModelDrivers,
