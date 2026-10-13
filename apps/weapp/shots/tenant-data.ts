@@ -8,16 +8,24 @@ import type {
   Stores,
 } from "../src/sub/member/members/api";
 import { agreements, makeMe, makeStores } from "./account-fixtures";
-import { overview } from "./profile-fixtures";
-export const TENANT_ID = "00000000-0000-4000-8000-000000000001";
-export const TENANT_SECOND = "00000000-0000-4000-8000-000000000002";
-export const TENANT_NEW = "00000000-0000-4000-8000-000000000003";
-export const TENANT_INVITATION = "00000000-0000-4000-8000-000000000004";
-export const TENANT_MEMBER = "00000000-0000-4000-8000-000000000005";
+import { overview, service, qualification } from "./profile-fixtures";
+/** 旧样张使用v4；本包同源fixture把所有嵌套引用统一为正式v7，保留同一ID关联。 */
+export function tenantFixtureIds<T>(value: T): T {
+  return JSON.parse(
+    JSON.stringify(value).replaceAll("00000000-0000-4000-8000-", "00000000-0000-7000-8000-"),
+  ) as T;
+}
+export const tenantService = tenantFixtureIds(service);
+export const tenantQualification = tenantFixtureIds(qualification);
+export const TENANT_ID = "00000000-0000-7000-8000-000000000001";
+export const TENANT_SECOND = "00000000-0000-7000-8000-000000000002";
+export const TENANT_NEW = "00000000-0000-7000-8000-000000000003";
+export const TENANT_INVITATION = "00000000-0000-7000-8000-000000000004";
+export const TENANT_MEMBER = "00000000-0000-7000-8000-000000000005";
 export const TENANT_NOW = "2026-10-06T00:00:00.000Z";
 export const TENANT_TOKEN = "A".repeat(43);
 export function tenantStores(clerk = false): Stores {
-  const stores = makeStores();
+  const stores = tenantFixtureIds(makeStores());
   if (stores.viewerRole !== "owner") throw new Error("owner fixture required");
   if (!clerk)
     return {
@@ -63,7 +71,7 @@ export const tenantSeats: Invitation["seats"] = {
   planName: "成长套餐",
 };
 export function tenantMembers(clerk = false): Members {
-  const stores = makeMe().memberships[0]!.stores.map(
+  const stores = tenantFixtureIds(makeMe()).memberships[0]!.stores.map(
     ({ storeId, name, lifecycle, qualificationStatus }) => ({
       storeId,
       name,
@@ -161,8 +169,8 @@ export const tenantResult: Result = {
   abandonedEntityId: null,
 };
 export const tenantAgreements: Data<"m.agreement.list"> = {
-  ...agreements,
-  items: agreements.items.map((a) => ({ ...a, scenes: ["member_join"] })),
+  ...tenantFixtureIds(agreements),
+  items: tenantFixtureIds(agreements).items.map((a) => ({ ...a, scenes: ["member_join"] })),
 };
 export const tenantAssetSummary: Data<"m.storeAsset.summary"> = {
   tabs: { all: 4, image: 3, video: 1, recording: 0, audio: 0, document: 0, text: 0 },
@@ -190,24 +198,25 @@ export const tenantDemands: Data<"m.assetDemand.list"> = {
   hasMore: false,
 };
 export function tenantProfile(clerk = false): Data<"m.storeProfile.get"> {
-  if (overview.viewerRole !== "owner") throw new Error("owner profile required");
-  if (!clerk) return structuredClone(overview);
+  const profile = tenantFixtureIds(overview);
+  if (profile.viewerRole !== "owner") throw new Error("owner profile required");
+  if (!clerk) return structuredClone(profile);
   return {
     viewerRole: "clerk",
-    store: overview.store,
-    completeness: overview.completeness,
-    steps: { ...overview.steps, qualification: { state: overview.steps.qualification.state } },
-    qualification: { status: overview.qualification.status },
-    assets: overview.assets,
+    store: profile.store,
+    completeness: profile.completeness,
+    steps: { ...profile.steps, qualification: { state: profile.steps.qualification.state } },
+    qualification: { status: profile.qualification.status },
+    assets: profile.assets,
     members: {
-      ownerDisplayName: overview.members.ownerDisplayName,
-      clerkCount: overview.members.clerkCount,
-      preview: overview.members.preview,
+      ownerDisplayName: profile.members.ownerDisplayName,
+      clerkCount: profile.members.clerkCount,
+      preview: profile.members.preview,
     },
   };
 }
 export const tenantMe = (clerk = false) => {
-  const me = makeMe(clerk);
+  const me = tenantFixtureIds(makeMe(clerk));
   if (clerk) {
     me.memberships[0]!.memberId = TENANT_MEMBER;
     me.memberships[0]!.memberDisplayName = "小陈";

@@ -9,7 +9,7 @@ import {
 } from "../src/sub/member/members/api";
 import type { TenantRuntime } from "../src/sub/member/members/runtime";
 import type { RequestLayer } from "../src/lib/request";
-import { dicts, service } from "./profile-fixtures";
+import { dicts } from "./profile-fixtures";
 import {
   TENANT_NEW,
   TENANT_NOW,
@@ -23,6 +23,8 @@ import {
   tenantProfile,
   tenantResult,
   tenantStores,
+  tenantService,
+  tenantFixtureIds,
 } from "./tenant-data";
 type Call = {
   path: string;
@@ -100,7 +102,7 @@ export function offlineTenantRuntime(scene: string): TenantRuntime {
     else if (path === "/m/store-profile") data = tenantProfile(clerk);
     else if (path.startsWith("/m/store-assets/summary?")) data = tenantAssetSummary;
     else if (path.startsWith("/m/asset-demands?")) data = tenantDemands;
-    else if (path === "/m/store-profile/service") data = service;
+    else if (path === "/m/store-profile/service") data = tenantService;
     else if (path.startsWith("/m/dict-items?")) {
       const key = new URL(path, "https://fixture.invalid").searchParams.get("typeKey");
       data = { items: dicts.items.filter((d) => d.typeKey === key) };
@@ -164,5 +166,11 @@ export function offlineTenantRuntime(scene: string): TenantRuntime {
     },
   };
   runtimes.set(scene, runtime);
+  // 原账户样张仍用v4；仅本域显式H5上下文同步同源v7，旧场景一字不改。
+  if (useSessionStore.getState().accessToken) {
+    useSessionStore.getState().setMe(tenantMe(clerk));
+    const current = useContextStore.getState().currentStoreId;
+    if (current) useContextStore.getState().switchStore(tenantFixtureIds(current));
+  }
   return runtime;
 }

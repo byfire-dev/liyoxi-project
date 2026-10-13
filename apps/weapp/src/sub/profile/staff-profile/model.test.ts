@@ -7,8 +7,8 @@ import {
   tenantMe,
   tenantMembers,
   tenantProfile,
+  tenantQualification,
 } from "../../../../shots/tenant-data";
-import { qualification } from "../../../../shots/profile-fixtures";
 import { qualificationEditable, qualificationKind, errorInfo } from "../private/model";
 import { createResource } from "../private/resource";
 import { selfProfile } from "./model";
@@ -41,7 +41,7 @@ it("本人店员按执行时门店匹配并裁剪owner字段；跨身份旧读�
   resource.reset();
   await resource.load();
   expect(resource.snapshot().data).toBeNull();
-  const initial = structuredClone(qualification);
+  const initial = structuredClone(tenantQualification);
   expect(qualificationEditable(initial)).toBe(true);
   expect(qualificationKind(initial)).toBe("initial");
   const branch = {

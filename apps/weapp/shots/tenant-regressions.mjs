@@ -64,7 +64,7 @@ export async function tenantRegression(page, scene) {
     await expect(active(".lyx-sheet")).toBeHidden();
     const writes = (await calls()).filter((c) => c.method === "PATCH");
     expect(writes).toHaveLength(1);
-    expect(writes[0].data).toEqual({ storeIds: ["00000000-0000-4000-8000-000000000002"] });
+    expect(writes[0].data).toEqual({ storeIds: ["00000000-0000-7000-8000-000000000002"] });
     expect(writes[0].key).toBeTruthy();
   } else if (scene === "tenant-invite-owner") {
     await expect(button("发送给微信好友")).toBeVisible();
