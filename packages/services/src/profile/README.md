@@ -1,5 +1,13 @@
 # 商家档案与首店资质（W1-08a、b）
 
+## W2-11 门店活动流
+
+`admin.activity(staff, storeId, query)` 先检查商家查看权限及门店scope，再调用audit只读公口。
+同事务分别按本店和主体级无店记录取ops/activity，归并稳定时间/序号游标；actor筛选是
+merchant/staff/system逗号列表，游标绑定本店、主体及规范化筛选。投影复用AuditLogItem，
+仅增加reason/changedKeys/isEntityLevel；原始JSON、访问流和请求元数据不出接口。
+GET不写审计或事件，接口响应no-store；summary、跟进和代改仍按W2-11后续任务推进。
+
 ## W2-11 商家草稿生命周期（SOURCE）
 
 新增 `removeDocument` 与 `discardQualification`，经既有 profile write 落 required 幂等结果。
