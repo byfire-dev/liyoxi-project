@@ -7,6 +7,7 @@ import { implementKeyed } from "../kernel/index.js";
 import type { PortImplementation } from "../kernel/index.js";
 import { guardSelfDeletion } from "./account-deletion.js";
 import { guardAdminUserAction } from "./admin-user-actions.js";
+import { guardApprovedAccountRegistration } from "./account-change-apply.js";
 
 /** 注册那一行迁移随 args 带的事实 */
 export interface RegisterArgs {
@@ -19,6 +20,7 @@ export interface RegisterArgs {
  * 守卫自己回库核对这个账号确有不带单据的同意记录（登录、加入、重新同意写的那一类）。
  */
 const consentGiven: Guard = async (tx, facts) => {
+  if (await guardApprovedAccountRegistration(tx, facts)) return true;
   const { consentComplete } = (facts.args ?? {}) as Partial<RegisterArgs>;
   if (consentComplete !== true) return false;
   const rows = await tx.agreementConsent.count({

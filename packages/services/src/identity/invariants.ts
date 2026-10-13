@@ -106,3 +106,16 @@ export async function findI24Violations(db: Reader): Promise<InvariantViolation[
     detail: { problem: "residual_personal_data" },
   }));
 }
+
+/** 02:I26：审批即生效，终态不保留新手机号密文。 */
+export async function findI26Violations(db: Reader): Promise<InvariantViolation[]> {
+  const rows = await db.$queryRaw<{ id: string }[]>`
+    SELECT r.id::text AS id FROM account_change_request r JOIN approval_request a ON a.id=r.approval_request_id
+    WHERE a.kind<>'account_change' OR (a.status='approved')<>(r.applied_at IS NOT NULL)
+      OR (a.status<>'pending' AND r.new_phone_enc IS NOT NULL)
+    ORDER BY r.id LIMIT ${IDENTITY_INVARIANT_LIMIT}`;
+  return rows.map((row) => ({
+    subject: { type: "account_change_request", id: row.id },
+    detail: { problem: "approval_application_mismatch" },
+  }));
+}

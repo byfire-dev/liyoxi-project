@@ -74,3 +74,5 @@ export {
   adminEntityQuotaUpdate,
   adminEntityClose,
 } from "./entities.js";
+export * from "./account-change.schemas.js";
+export * from "./account-change-requests.js";
