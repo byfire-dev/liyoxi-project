@@ -100,8 +100,11 @@ admin.file.cancel | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.file.complete | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.file.create | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.file.downloadUrls | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.file.erase | - | files.erase | 11 00 00 00 00 00 00 00
 admin.file.get | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.file.list | system:view | - | 11 00 00 00 00 00 00 00
 admin.file.refreshCredentials | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.file.restore | - | files.restore | 11 00 00 00 00 00 00 00
 admin.homeBanner.batchReorder | ops:edit | - | 11 00 00 00 00 11 00 00
 admin.homeBanner.create | ops:edit | - | 11 00 00 00 00 11 00 00
 admin.homeBanner.list | ops:view | - | 11 00 00 00 00 11 00 00
@@ -137,6 +140,9 @@ admin.planRevision.withdraw | billing:view | billing.plan.edit | 11 00 00 00 00 
 admin.priceTierRevision.list | billing:view | - | 11 11 11 00 00 11 11 11
 admin.pricingChange.create | billing:view | assert-in-handler | 11 11 11 00 00 11 11 11
 admin.pricingChange.list | billing:view | - | 11 11 11 00 00 11 11 11
+admin.purgeRun.approve | - | files.purge.approve | 11 00 00 00 00 00 00 00
+admin.purgeRun.list | system:view | - | 11 00 00 00 00 00 00 00
+admin.purgeRun.reject | - | files.purge.approve | 11 00 00 00 00 00 00 00
 admin.qualificationDoc.update | merchant:view | merchant.qualification.review | 11 11 00 00 00 00 00 00
 admin.qualificationSubmission.approve | merchant:view | merchant.qualification.review | 11 11 00 00 00 00 00 00
 admin.qualificationSubmission.get | merchant:view | - | 11 11 11 11 11 11 11 11
@@ -182,6 +188,7 @@ admin.store.activity.list | merchant:view | - | 11 11 11 11 11 11 11 11
 admin.store.assignDeliveryManager | merchant:view | merchant.manager.assign | 11 00 01 00 00 00 00 00
 admin.store.get | merchant:view | - | 11 11 11 11 11 11 11 11
 admin.store.list | merchant:view | - | 11 11 11 11 11 11 11 11
+admin.store.qualification.get | merchant:view | - | 11 11 11 11 11 11 11 11
 admin.storeAsset.confirmPortraitAuth | merchant:view | merchant.asset.review | 11 00 11 00 00 00 00 00
 admin.storeAsset.create | merchant:view | merchant.asset.upload_on_behalf | 11 11 11 00 00 00 00 00
 admin.storeAsset.delete | merchant:view | merchant.asset.review | 11 00 11 00 00 00 00 00

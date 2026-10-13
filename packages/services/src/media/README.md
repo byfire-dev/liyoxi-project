@@ -203,3 +203,9 @@ closedBefore是原deadline拒绝水位而非总开关；token不是当前PG许�
 独立CLI导入/check零IO，inspect经现有环境口、PG外独占连接；异常/取消/迟到关闭并消费回复。
 不修改ledger、owners、运行时或默认200/0；没有初始化/恢复/退款/维护/任意key覆盖功能。
 新旧完整测试/类型与自有资源证据等待独占验证，真实运维、容量与E22仍未验。
+
+## W3-06 文件恢复与彻删核心
+
+`media.retention`提供六个后台接口的真实用例。写操作接收真实员工会话元信息与required幂等上下文；恢复/彻删跨两TX和外呼持同fileId专用sessionMutex，signal传存储原语。恢复结果未知或settle失败也按最终DB事实补回marker，已提交/后继恢复不撤销。彻删失败保留deleting，正式占用过期后同键接续。
+
+彻删同时保护live引用、keepUntil、法定canRelease和引用拥有者readColumns；当前历史投影保守阻断会返回真实引用，精准inUse与sweep/I8/I13另续，不宣称整包清扫完成。删除提交后另TX按ZIP390→派生文件410升序执行hooks，实际media_info/cover沿原release保留30天。COS必须完整枚举精确key版本，Suspended也不遗漏；MinIO未声明版本恢复，明确unsupported。真实桶恢复/清扫/彻删均未验。

@@ -42,6 +42,7 @@ import {
 import { onAssetCalendarImported, onAssetSlaBreach } from "./assets/sla.js";
 import type { DeliveredEvent, FiredTimer, Tx } from "../kernel/index.js";
 import type { MediaConvergenceHandler } from "./jobs/types.js";
+import { createMediaRetention } from "./retention/service.js";
 export function createMedia(options: MediaDeps) {
   const refTypes = new Map(
     [...options.assembly.portEntries(fileRefTypePort)].map(([key, definition]) => {
@@ -147,6 +148,7 @@ export function createMedia(options: MediaDeps) {
     ],
   });
   return {
+    retention: createMediaRetention(deps),
     get assets() {
       return (assets ??= createMediaAssets(deps));
     },

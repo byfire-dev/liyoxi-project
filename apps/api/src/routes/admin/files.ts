@@ -5,6 +5,10 @@ import {
   adminFileDownloadUrls,
   adminFileRefreshCredentials,
   adminFileCancel,
+  adminFileList,
+  adminFileRestore,
+  adminFileErase,
+  AdminFilePageSchema,
   AdminFileViewSchema,
   FileRegistrationSchema,
   SignedUrlSchema,
@@ -12,7 +16,48 @@ import {
 import { ok } from "../../http/errors.js";
 import { idemOf } from "../../http/idempotency.js";
 import { defineAdminHandler } from "../../routing/admin.js";
+import { fileRetentionActor } from "./file-retention-context.js";
 export const adminFileHandlers = [
+  defineAdminHandler(adminFileList, { module: "system", need: "view" }, async (c, staff) => {
+    c.header("Cache-Control", "no-store");
+    return ok(
+      c,
+      AdminFilePageSchema.parse(
+        await c.var.runtime.media.retention.listFiles(
+          fileRetentionActor(c.var.identity!, staff),
+          c.req.valid("query"),
+        ),
+      ),
+    );
+  }),
+  defineAdminHandler(adminFileRestore, null, async (c, staff) => {
+    c.header("Cache-Control", "no-store");
+    return ok(
+      c,
+      AdminFileViewSchema.parse(
+        await c.var.runtime.media.retention.restore(
+          fileRetentionActor(c.var.identity!, staff),
+          c.req.valid("param").fileId,
+          c.req.valid("json"),
+          { idem: idemOf(c) },
+        ),
+      ),
+    );
+  }),
+  defineAdminHandler(adminFileErase, null, async (c, staff) => {
+    c.header("Cache-Control", "no-store");
+    return ok(
+      c,
+      AdminFileViewSchema.parse(
+        await c.var.runtime.media.retention.erase(
+          fileRetentionActor(c.var.identity!, staff),
+          c.req.valid("param").fileId,
+          c.req.valid("json"),
+          { idem: idemOf(c) },
+        ),
+      ),
+    );
+  }),
   defineAdminHandler(adminFileRefreshCredentials, null, async (c, staff) => {
     c.header("Cache-Control", "no-store");
     return ok(

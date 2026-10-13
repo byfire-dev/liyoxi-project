@@ -12,6 +12,7 @@ export {
 export type { DramaMediaReadiness, DramaReadinessInput } from "./drama-readiness.js";
 export type { MediaProductionDeps, MediaProductionConfig } from "./production-types.js";
 export type { Media } from "./runtime.js";
+export type { RetentionActor, RetentionOptions } from "./retention/types.js";
 export type {
   MediaActor,
   MediaDeps,

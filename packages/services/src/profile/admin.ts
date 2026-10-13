@@ -28,6 +28,7 @@ import { QualificationImpactPort } from "./ports.js";
 import { reviewDocument } from "./admin-review.js";
 import { currentReviewStaff } from "./admin-authorization.js";
 import { createAdminStoreProfile } from "./admin-store-profile.js";
+import { adminStoreQualification } from "./admin-store-qualification.js";
 export function createAdminProfile(deps: ProfileDeps) {
   const storeProfile = createAdminStoreProfile(deps);
   async function guard(
@@ -92,6 +93,8 @@ export function createAdminProfile(deps: ProfileDeps) {
       }),
     qualification: (staff: StaffContext, id: string) =>
       deps.tx.run((tx) => adminQualificationGet(tx, deps, staff, id)),
+    storeQualification: (staff: StaffContext, id: string) =>
+      deps.tx.run((tx) => adminStoreQualification(tx, deps, staff, id)),
     rejectQuote: (staff: StaffContext, id: string) =>
       deps.tx.run(async (tx) => {
         assertPermission(staff, "merchant.qualification.review", deps.clock.now());
