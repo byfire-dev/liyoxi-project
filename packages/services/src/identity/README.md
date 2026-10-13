@@ -11,6 +11,7 @@ W1-04 的第一个 PR 交会话与鉴权链要的服务：令牌与会话、静�
 | `sessions.ts` | 开会话与上限、每请求校验与续写、按微信身份吊销 |
 | `login.ts` | 静默登录、手机号登录（含休眠检查、改绑、首触来源、同意与指纹） |
 | `personal-account.ts` | 本人称呼、提示关闭、微信身份列表与移除；真实会话、required 重放与身份年龄守卫 |
+| `admin-user-actions.ts` | 后台禁用/启用/强制下线；当前员工身份、权限、范围、回显和同事务会话清理 |
 | `wechat-bound-notice.ts` | `identity.onWechatBound`：持久化来源核对、原事件时间、按事件 ID 去重的一次性提示 |
 | `phone.ts` | 换回来的手机号认不认：只认中国大陆的手机号，区号看原串 |
 | `logout.ts` | 退出登录 |
@@ -53,6 +54,8 @@ await identity.isClientOutdated(clientVersion, flagContext);     // 版本门槛
 ## 3. 跑用例
 
 W2-09 四个人接口复用当前会话事实：称呼更新沿既有三段式执行器在事务外检测当前 openid，成功重放不再外检；提示关闭保留首次时间；身份列表只投影本人六字段并优先当前身份；移除当前/最后身份不受年龄限制，其他身份依当前身份绑定时间判定。移除只写审计/auth_event，不发新事件；待发订阅随后由原投递任务按 no_target 与原短信回退处理。该片仅所属静态准备，正式类型/数据库/API与官方派生由 ROOT 定点验证。
+
+后台三动作复用 `adminUserAction(ctx, staff, op, input, { idem, meta })`。缓存入口前重新校验真实员工会话、当前角色配置与目标范围；业务事务按员工20→账号80→身份90→主体100→成员120锁定，再核有效成员集合、范围、状态与phoneMask。集合漂移返回BUSY，不补低序锁。禁用/强制退出只吊销未吊销会话与本人授权portal，强制退出另关闭全部身份静默登录；启用不恢复旧会话。禁用/启用守卫要求私有sameTx授权，不能用args布尔值绕过。
 
 ```sh
 pnpm --filter @liyoxi/services exec vitest run src/identity/

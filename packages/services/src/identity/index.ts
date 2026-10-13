@@ -2,6 +2,11 @@
 // 协议同意的门、版本门槛的判断）。用法见本目录的 README.md。改称呼、换绑手机号、已登录的微信、一次性提示的关闭、注销随 M2。
 export { createIdentity } from "./service.js";
 export type { Identity, IdentityDeps } from "./service.js";
+export type {
+  AdminUserAction,
+  AdminUserActionInput,
+  AdminUserActionOptions,
+} from "./admin-user-actions.js";
 export {
   hashSecret,
   issueToken,
