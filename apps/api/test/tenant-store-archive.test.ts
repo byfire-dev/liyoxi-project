@@ -60,7 +60,7 @@ const tables = [
   "outbox_event",
 ];
 
-describe("门店停用 HTTP", { timeout: 120_000 }, () => {
+describe("m.store.archive", { timeout: 120_000 }, () => {
   it("老板真实入口返回完整卡与清理数量，店员立即失权，会话与老板归档访问保持", async () => {
     const w = await world();
     const historyBefore = await w.prisma.statusTransition.count({
