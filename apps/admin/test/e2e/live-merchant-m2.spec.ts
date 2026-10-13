@@ -66,8 +66,8 @@ async function confirm(page: Page, title: string) {
   return button;
 }
 async function select(page: Page, label: string, option: string) {
-  await page.getByLabel(label, { exact: true }).click();
-  await page.getByRole("option", { name: option, exact: true }).click();
+  await page.getByRole("combobox", { name: label, exact: true }).click();
+  await page.locator(".ant-select-dropdown:visible").getByTitle(option, { exact: true }).click();
 }
 async function shot(page: Page, name: string) {
   await noHorizontalScroll(page, name);
@@ -232,12 +232,17 @@ test("W215 多店筛选同范围汇总、非首店额度与经理转移真实回
   const after = EntityCardSchema.parse(await get(page, `entities/${f.store.entityId}`));
   expect(after.usage).toMatchObject({ storeLimitOverride: 3, memberLimitOverride: 6 });
   await page.getByRole("tab", { name: "负责人和跟进" }).click();
-  await expect(page.getByText(f.previousManager.name, { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("tabpanel").getByText(f.previousManager.name, { exact: true }),
+  ).toBeVisible();
   const transferPath = `stores/${f.store.storeId}/reassign-delivery-manager`;
   await observe(page, [transferPath]);
   await page.getByRole("button", { name: "转移交付经理", exact: true }).click();
   await page.getByLabel("新交付经理", { exact: true }).click();
-  await page.getByRole("option", { name: /演练交付 · 工号/ }).click();
+  await page
+    .locator(".ant-select-dropdown:visible")
+    .getByTitle(/演练交付 · 工号/)
+    .click();
   await select(page, "转移原因", "工作量调整");
   await page.getByLabel("备注（选填）", { exact: true }).fill("W215仅转移当前非首店");
   const transfer = wait(page, "POST", transferPath);
