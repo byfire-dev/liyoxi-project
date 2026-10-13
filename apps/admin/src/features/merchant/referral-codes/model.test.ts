@@ -201,8 +201,11 @@ describe("W215渠道码真实契约与运输", () => {
     expect(await client.requests[6]!.json()).toEqual({});
     expect(client.requests[5]!.headers.get("Idempotency-Key")).toBe("disable-key");
     expect(client.requests[6]!.headers.get("Idempotency-Key")).toBe("enable-key");
-    expect(client.requests.every((request) => request.headers.get("X-LYX-Admin") === "1")).toBe(
-      true,
-    );
+    expect(
+      client.requests.slice(0, 2).every((request) => !request.headers.has("X-LYX-Admin")),
+    ).toBe(true);
+    expect(
+      client.requests.slice(2).every((request) => request.headers.get("X-LYX-Admin") === "1"),
+    ).toBe(true);
   });
 });
