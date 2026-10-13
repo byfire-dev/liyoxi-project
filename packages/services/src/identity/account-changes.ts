@@ -96,19 +96,21 @@ function allow(staff: StaffContext, deps: AccountChangeDeps, op: Op | "create") 
     { skipStepUp: op === "reject" },
   );
 }
-const audit = (op: "create" | Op, id: string, entityId: string | null): AuditEntry => ({
-  stream: "ops",
-  category: "account_security",
-  action: `identity.account_change.${op}`,
-  summary: {
-    create: "发起账号变更",
-    approve: "通过账号变更",
-    reject: "驳回账号变更",
-    withdraw: "撤回账号变更",
-  }[op],
-  ...(entityId ? { entityId } : {}),
-  target: { type: op === "create" ? "account_change_request" : "approval_request", id },
-});
+function audit(op: "create" | Op, id: string, entityId: string | null): AuditEntry {
+  const entry = {
+    stream: "ops",
+    category: "account_security",
+    action: `identity.account_change.${op}`,
+    summary: {
+      create: "发起账号变更",
+      approve: "通过账号变更",
+      reject: "驳回账号变更",
+      withdraw: "撤回账号变更",
+    }[op],
+    target: { type: op === "create" ? "account_change_request" : "approval_request", id },
+  } satisfies AuditEntry;
+  return entityId ? { ...entry, entityId } : { ...entry, entityId: null };
+}
 function writes(options: AccountChangeWriteOptions) {
   if (options?.idem?.mode !== "required") throw new AppError("INTERNAL");
 }
