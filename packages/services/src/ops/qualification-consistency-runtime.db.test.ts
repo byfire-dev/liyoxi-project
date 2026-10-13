@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import * as dbClients from "@liyoxi/db";
 import { createRuntime } from "../runtime.js";
-import { buildWorkerServices, runInvariants } from "../ops/index.js";
+import { buildWorkerServices, runInvariants } from "./index.js";
 import { claimDeliveries } from "../events/index.js";
 import { invariantsOf, loadEnv } from "../kernel/index.js";
 import { createTenant } from "../tenant/index.js";
@@ -12,10 +12,10 @@ import {
   useSeededDatabase,
   useTestRedis,
 } from "../testing/index.js";
-import { createProfile } from "./service.js";
-import { complete, harness, submit, uscc } from "./__fixtures__/harness.js";
-import type { Harness } from "./__fixtures__/harness.js";
-import { reviewer } from "./__fixtures__/rounds.js";
+import { createProfile } from "../profile/service.js";
+import { complete, harness, submit, uscc } from "../profile/__fixtures__/harness.js";
+import type { Harness } from "../profile/__fixtures__/harness.js";
+import { reviewer } from "../profile/__fixtures__/rounds.js";
 
 const db = useSeededDatabase("services", { max: 1 }),
   redis = useTestRedis();
