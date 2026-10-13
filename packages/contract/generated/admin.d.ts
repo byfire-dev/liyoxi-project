@@ -6157,6 +6157,25 @@ export interface components {
             /** @enum {string} */
             type: "plan_new" | "plan_renew" | "plan_upgrade" | "topup" | (string & {});
         };
+        PendingChange: {
+            address: {
+                city: components["schemas"]["DictRef"] | null;
+                detail: string | null;
+                district: components["schemas"]["DictRef"] | null;
+                latitude: number | null;
+                longitude: number | null;
+                poiName: string | null;
+                province: components["schemas"]["DictRef"] | null;
+            } | null;
+            category: components["schemas"]["DictRef"] | null;
+            industry: components["schemas"]["DictRef"] | null;
+            lockVersion: number;
+            /** @enum {string} */
+            phase: "draft" | "in_review" | "closed" | (string & {});
+            /** Format: uuid */
+            qualificationSubmissionId: string;
+            storeName: string | null;
+        };
         PendingInvitationRow: {
             /** Format: date-time */
             createdAt: string;
@@ -6377,7 +6396,7 @@ export interface components {
                 interiorCount: number;
                 serviceItemCount: number;
             };
-            proposed: null;
+            proposed: components["schemas"]["PendingChange"] | null;
             /** Format: uuid */
             qualificationSubmissionId: string;
             referenceDocs: components["schemas"]["AdminQualificationDoc"][];

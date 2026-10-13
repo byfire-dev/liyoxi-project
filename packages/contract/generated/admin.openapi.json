@@ -17226,6 +17226,139 @@
         ],
         "type": "object"
       },
+      "PendingChange": {
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "properties": {
+                  "city": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/DictRef"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "detail": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "district": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/DictRef"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "latitude": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "longitude": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "poiName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "province": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/DictRef"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "province",
+                  "city",
+                  "district",
+                  "detail",
+                  "poiName",
+                  "latitude",
+                  "longitude"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "phase": {
+            "enum": [
+              "draft",
+              "in_review",
+              "closed"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "qualificationSubmissionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "storeName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "qualificationSubmissionId",
+          "phase",
+          "storeName",
+          "industry",
+          "category",
+          "address",
+          "lockVersion"
+        ],
+        "type": "object"
+      },
       "PendingInvitationRow": {
         "additionalProperties": false,
         "properties": {
@@ -18470,7 +18603,14 @@
             "type": "object"
           },
           "proposed": {
-            "type": "null"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingChange"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "qualificationSubmissionId": {
             "format": "uuid",
