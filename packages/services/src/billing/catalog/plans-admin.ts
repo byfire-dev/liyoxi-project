@@ -458,18 +458,27 @@ export function createPlanAdmin(deps: {
   ) {
     writeAccess(actor);
     return deps.tx.run(async (tx) => {
+      if (isListed) await serialCatalog(tx);
       const before = await locked(tx, id),
         at = deps.clock.now();
       if (before.isListed === isListed) throw new AppError("STATE_NOT_ALLOWED");
       if (isListed) {
         const current = (await revisions(tx, id, at)).current,
-          cycles = (await enabled(tx, at)).current,
-          prices = current?.cyclePrices as Record<string, unknown> | undefined,
-          missingCycles = cycles.filter(
-            (months) =>
-              !prices ||
-              !Number.isSafeInteger(prices[String(months)]) ||
-              Number(prices[String(months)]) <= 0,
+          next = (await revisions(tx, id, at)).pending,
+          enabledCycles = await enabled(tx, at),
+          cycles = [
+            ...new Set([...enabledCycles.current, ...(enabledCycles.pending?.value ?? [])]),
+          ],
+          prices = [current, ...(next ? [next] : [])].map(
+            (r) => r?.cyclePrices as Record<string, unknown> | undefined,
+          ),
+          missingCycles = cycles.filter((months) =>
+            prices.some(
+              (price) =>
+                !price ||
+                !Number.isSafeInteger(price[String(months)]) ||
+                Number(price[String(months)]) <= 0,
+            ),
           );
         if (!current || missingCycles.length)
           throw new AppError("PLAN_REVISION_MISSING", { details: { missingCycles } });

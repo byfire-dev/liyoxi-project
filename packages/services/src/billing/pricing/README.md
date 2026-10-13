@@ -15,3 +15,24 @@ P(drama,time) 按修订与模板的 effectiveAt 读取，timer 延迟不改变�
 
 等级模板接口只读，模板修改仍归 W4-07；价格接口和详情均下发服务端 actions/planPrices。
 W3-12 使用 confirm.currentPoints，过时确认必须刷新；不计算价格、不把 future 记录提前当当前价。
+
+## W4-07 参数与模板变更集 SOURCE
+
+`Runtime.billingParameters`接四个正式接口：12键当前/待生效/默认值、变更集分页、保存、
+未来单键撤回。沿唯一`billing.paramsAt`取值，逐键复用contract Zod，不造第二份配置；
+公告键统一`NOTICE_REQUIRED_KEYS`，需要公告的变更在同事务先建公告再插修订，默认日期
+满足07完整保存时刻加noticeDays并向上取北京零点。未来行各发原scheduled事件，无切换job。
+不需公告项默认立即生效；明示过去时刻拒绝，同一生效毫秒已有行时受控拒绝，不能改旧行
+或虚增时钟。未变键/档不插入；部分无权限整体零写，待生效冲突须先撤回。
+
+保存和撤回复用价目catalog事务咨询锁；上架伴随也先取同锁，再锁plan，当前/待生效周期
+与价格交叉核覆盖，避免参数检查时下架的套餐随后缺价上架。模板档保存即生效，S≥A≥B≥C，
+只对变化档追加同batchId修订、一条模板审计；每个变化参数各一条键审计。content公口只给
+真实候选ID/等级，billing按唯一priceAt核template/custom及真实价差，每部实际变化剧发一条
+既有tier_template事件。历史积分冻结/扣减快照、订阅/付款内容及受控财务配置均不改。
+
+撤回只写cancelledAt；共享公告只有最后一个需公告参数撤回后才撤，公告和审计同TX。
+变更集按batch/changeId合并、北京日期筛选和分页，返回真实前值、员工、公告与状态；
+列表schema范围取canonical Zod，default取现种子常量。只读GET不写业务。
+本片源码/轻检查待ROOT唯一独审与5–6DB/≤2HTTP目标验收；W4-07仍进行中，完整后台报价
+等待真实续费/升级公口，不把本片当M4或真实资金验证已完成。

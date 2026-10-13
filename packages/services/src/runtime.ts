@@ -25,7 +25,7 @@ import {
   DramaUsagePort,
 } from "./content/index.js";
 import { createDramaPricing } from "./billing/index.js";
-import { createPlanAdmin } from "./billing/index.js";
+import { createPlanAdmin, createParameterChanges } from "./billing/index.js";
 import { latestStaffWecomInviteKey } from "./audit/index.js";
 import { createSmsInit, createSmsHealth, smsTemplateReader } from "./notify/index.js";
 import { keyringFromEnv } from "./security/index.js";
@@ -140,7 +140,7 @@ import {
 } from "./ops/index.js";
 import type { Health, StartupCheck } from "./ops/index.js";
 import type { Providers, ProductionMediaTools } from "./providers/types.js";
-import { createContent, bindContent } from "./content/index.js";
+import { createContent, bindContent, readTemplatePriceCandidates } from "./content/index.js";
 import type { Content } from "./content/index.js";
 import { createMedia } from "./media/index.js";
 import {
@@ -253,6 +253,7 @@ export interface Runtime {
   readonly order: OrderService;
   readonly billing: BillingPurchase;
   readonly billingPlansAdmin: ReturnType<typeof createPlanAdmin>;
+  readonly billingParameters: ReturnType<typeof createParameterChanges>;
   readonly notifyMessages: NotifyMessages;
   readonly notify: NotifyDispatcherService;
   readonly content: Content;
@@ -937,6 +938,14 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     webhooks,
     order,
     billing,
+    billingParameters: createParameterChanges({
+      tx,
+      clock,
+      staffBriefs,
+      events,
+      notices: createNotices({ clock, events }),
+      candidates: readTemplatePriceCandidates,
+    }),
     billingPlansAdmin: createPlanAdmin({
       tx,
       clock,
