@@ -518,6 +518,9 @@ async function roundData(response: Response) {
 }
 describe("W2-11联系人与人工复核真实HTTP", { timeout: 60000 }, () => {
   it("contactSmsCode.create/contact.update 真实notify直发与会话核销、重放不重发、启用后不可未验证送审", async () => {
+    expect(
+      HANDLERS.some((h) => h.route.operationId === "m.storeProfile.contactSmsCode.create"),
+    ).toBe(true);
     const w = await roundOwner(),
       prisma = w.h.prisma,
       sms = api.runtime.providers.sms as FakeSms;
