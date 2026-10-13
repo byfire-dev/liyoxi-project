@@ -119,7 +119,11 @@ export default function Review() {
                 </View>
                 <View className="profile-subtitle">
                   {fmtMerchant.dateTime(r.submittedAt)} ·{" "}
-                  {r.outcome === null ? "审核中" : (outcomeLabels[r.outcome] ?? "结果待更新")}
+                  {r.outcome === null
+                    ? "审核中"
+                    : Object.hasOwn(outcomeLabels, r.outcome)
+                      ? outcomeLabels[r.outcome]
+                      : "结果待更新"}
                 </View>
                 {r.rejectReasons.map((reason) => (
                   <Note key={reason.code}>{reason.name}</Note>
