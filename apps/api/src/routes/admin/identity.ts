@@ -3,7 +3,7 @@ import {
   adminMerchantUserEnable,
   adminMerchantUserForceLogout,
 } from "@liyoxi/contract";
-import type { AuditRequestMeta } from "@liyoxi/services";
+import type { RequestMeta } from "@liyoxi/services";
 import { ok } from "../../http/errors.js";
 import { idemOf } from "../../http/idempotency.js";
 import { merchantServicesOf } from "../../merchant/services.js";
@@ -12,8 +12,11 @@ import type { AdminStaff } from "../../routing/admin.js";
 
 const metaOf = (
   staff: AdminStaff,
-  identity: { requestId: string | null; ip: string | null; userAgent: string | null },
-): AuditRequestMeta => ({
+  identity: Pick<RequestMeta, "requestId" | "ip" | "userAgent">,
+): Pick<RequestMeta, "requestId" | "ip" | "userAgent"> & {
+  sessionId: string;
+  authMethod: "password+totp" | "password+recovery" | null;
+} => ({
   ...identity,
   sessionId: staff.principal.session.id,
   authMethod:
