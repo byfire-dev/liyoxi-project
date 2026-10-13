@@ -8,6 +8,10 @@ import {
   adminAccountChangeRequestApprove,
   adminAccountChangeRequestReject,
   adminAccountChangeRequestWithdraw,
+  adminReferralCodeList,
+  adminReferralCodeCreate,
+  adminReferralCodeDisable,
+  adminReferralCodeEnable,
 } from "@liyoxi/contract";
 import type { RequestMeta } from "@liyoxi/services";
 import { ok } from "../../http/errors.js";
@@ -32,6 +36,72 @@ const metaOf = (
       : null,
 });
 export const adminIdentityHandlers = [
+  defineAdminHandler(
+    adminReferralCodeList,
+    { module: "merchant", need: "view" },
+    async (c, staff) => {
+      c.header("Cache-Control", "no-store");
+      return ok(
+        c,
+        await merchantServicesOf(c.var.runtime).identity.referralCodes.list(
+          c.var.identity!,
+          staff.ctx,
+          c.req.valid("query"),
+          { meta: metaOf(staff, c.var.identity!) },
+        ),
+      );
+    },
+  ),
+  defineAdminHandler(
+    adminReferralCodeCreate,
+    { module: "merchant", need: "view" },
+    async (c, staff) => {
+      c.header("Cache-Control", "no-store");
+      return ok(
+        c,
+        await merchantServicesOf(c.var.runtime).identity.referralCodes.create(
+          c.var.identity!,
+          staff.ctx,
+          c.req.valid("json"),
+          { idem: idemOf(c), meta: metaOf(staff, c.var.identity!) },
+        ),
+      );
+    },
+  ),
+  defineAdminHandler(
+    adminReferralCodeDisable,
+    { module: "merchant", need: "view" },
+    async (c, staff) => {
+      c.header("Cache-Control", "no-store");
+      return ok(
+        c,
+        await merchantServicesOf(c.var.runtime).identity.referralCodes.disable(
+          c.var.identity!,
+          staff.ctx,
+          c.req.valid("param").referralCodeId,
+          c.req.valid("json"),
+          { idem: idemOf(c), meta: metaOf(staff, c.var.identity!) },
+        ),
+      );
+    },
+  ),
+  defineAdminHandler(
+    adminReferralCodeEnable,
+    { module: "merchant", need: "view" },
+    async (c, staff) => {
+      c.header("Cache-Control", "no-store");
+      return ok(
+        c,
+        await merchantServicesOf(c.var.runtime).identity.referralCodes.enable(
+          c.var.identity!,
+          staff.ctx,
+          c.req.valid("param").referralCodeId,
+          c.req.valid("json"),
+          { idem: idemOf(c), meta: metaOf(staff, c.var.identity!) },
+        ),
+      );
+    },
+  ),
   defineAdminHandler(
     adminMerchantUserDisable,
     { module: "merchant", need: "view" },
