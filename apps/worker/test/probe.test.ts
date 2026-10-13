@@ -32,6 +32,7 @@ it("正式probe循环真实写完成心跳，worker关闭同时关闭探针且�
   });
   const runtime = createWorkerRuntime({ services, channel, logger: silentLogger });
   try {
+    await expect.poll(() => channel.ping(), { timeout: 2000, interval: 10 }).toBe(true);
     expect(DOMAIN_LOOPS.filter((loop) => loop.name === "probe")).toHaveLength(1);
     const loop = runtime.domainLoops["probe"];
     expect(loop?.intervalMs).toBe(60_000);
@@ -39,7 +40,18 @@ it("正式probe循环真实写完成心跳，worker关闭同时关闭探针且�
     expect(
       (await prisma.workerLease.findUniqueOrThrow({ where: { name: "primary" } })).probeAt,
     ).toEqual(clock.now());
-    expect(await prisma.alertEvent.count()).toBe(0);
+    // 空库没有已完成周期：新规则必须报出真实漏跑，原四组/Redis仍健康。
+    expect(
+      await prisma.alertEvent.findMany({
+        select: { fingerprint: true, severity: true },
+        orderBy: { fingerprint: "asc" },
+      }),
+    ).toEqual(
+      services.timers.registry.recurringJobs
+        .filter((job) => job.missSeverity !== undefined && job.deadlineMin !== undefined)
+        .map((job) => ({ fingerprint: `recurring.missed:${job.kind}`, severity: job.missSeverity }))
+        .sort((a, b) => a.fingerprint.localeCompare(b.fingerprint)),
+    );
     await runtime.stop();
     await expect(services.runProbes!()).rejects.toThrow("已关闭");
     expect(await prisma.workerLease.count()).toBe(1);

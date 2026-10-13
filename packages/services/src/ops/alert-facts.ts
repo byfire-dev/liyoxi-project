@@ -1,7 +1,7 @@
 import { detach, uuidv7 } from "../kernel/index.js";
 import type { AlertInput, Alerts, Clock, Tx, TxRunner } from "../kernel/index.js";
 import type { ProviderLogger } from "../providers/types.js";
-import { ALERT_RULES } from "./alert-rules.js";
+import { ALERT_RULES, EVENT_QUIET_MS } from "./alert-rules.js";
 
 export interface AlertFactsDeps {
   readonly tx: TxRunner;
@@ -146,6 +146,19 @@ export async function writeUnknownProbeFact(
     key,
     at,
     sampledFor.toISOString(),
+  );
+}
+
+/** 每轮有界恢复静默事件；不改探针、人工结论或通知事实，发送由后续派发负责。 */
+export async function resolveQuietEventFacts(tx: Tx, at: Date): Promise<void> {
+  await tx.$executeRawUnsafe(
+    `WITH quiet AS (SELECT id FROM alert_event WHERE kind='event' AND status IN ('open','acked')
+        AND last_seen_at < $2 ORDER BY last_seen_at,id LIMIT 100 FOR UPDATE SKIP LOCKED)
+     UPDATE alert_event a SET status='resolved',resolved_at=$1,updated_at=$1,
+       last_value=COALESCE(a.last_value,'{}'::jsonb)||jsonb_build_object('_recoveryReason','quiet')
+     FROM quiet WHERE a.id=quiet.id`,
+    at,
+    new Date(at.getTime() - EVENT_QUIET_MS),
   );
 }
 
