@@ -58,7 +58,9 @@ function profile(
     approval: h.approval,
     events: h.events,
     media: {
-      ...media,
+      link: media.link,
+      release: media.release,
+      signRead: media.signRead,
       ocr: {
         recognize: async (input) => {
           const id = await media.ocr.recognize(input);
