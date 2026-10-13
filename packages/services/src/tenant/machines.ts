@@ -2,7 +2,7 @@
 // 与本包用到的十行迁移的守卫。迁移表本身在 @liyoxi/shared/machines，这里是表里没有的那一半（flow/README.md 第 4 节）。
 //
 // 登记在装配时是静态的，拿不到进程里的服务：守卫按 args 或同事务用例事实回库核对。
-// 没登记守卫的行（普通门店停用与恢复、主体放弃、成员加入、资质变更提交/决定）随 M2：
+// 未登记守卫的行随所属里程碑补；资质变更提交/决定由W2-11补02:627既有行：
 // 在那之前迁移到这些行即抛内部错误，不放行。
 import type { AuditCategory } from "@liyoxi/contract";
 
@@ -158,6 +158,9 @@ const QUALIFICATION_VERBS: Readonly<Record<string, string>> = {
   "qualification.reject": "资质审核驳回",
   "qualification.withdraw": "撤回资质审核",
   "qualification.change_withdraw": "随主体终止撤回资质变更审核",
+  "qualification.change_submit": "提交资质变更审核",
+  "qualification.change_approve": "资质变更审核通过",
+  "qualification.change_reject": "资质变更审核驳回",
 };
 
 /** 事件码 → 描述；这条链上没写到的事件码返回 null：用例必须自己传审计内容 */
@@ -242,6 +245,9 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
       [rowKey("02:625", "qualification.submit")]: storeReadyToSubmit,
       [rowKey("02:626", "qualification.withdraw")]: bySystem,
       [rowKey("02:628", "qualification.change_withdraw")]: lifecycleChangeWithdrawal,
+      [rowKey("02:627", "qualification.change_submit")]: storeReadyToSubmit,
+      [rowKey("02:627", "qualification.change_approve")]: storeActive,
+      [rowKey("02:627", "qualification.change_reject")]: rejectionGiven,
     },
   },
   [chainKey("entity_member", "status")]: {

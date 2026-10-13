@@ -3,6 +3,18 @@ import { QUALIFICATION_SUBMISSION_KIND } from "../enums/index.js";
 import { z } from "../zod.js";
 const subject = { v: z.literal(1), storeId: IdSchema, entityId: IdSchema, submissionId: IdSchema };
 export const payloads = {
+  "store.qualification_change.submitted": z.strictObject({
+    ...subject,
+    changedFields: z.array(z.string()),
+  }),
+  "store.qualification_change.approved": z.strictObject({
+    ...subject,
+    changedFields: z.array(z.string()),
+  }),
+  "store.qualification_change.rejected": z.strictObject({
+    ...subject,
+    reasonCodes: z.array(z.string()),
+  }),
   "store.qualification.submitted": z.strictObject({
     ...subject,
     kind: z.enum(QUALIFICATION_SUBMISSION_KIND.values),

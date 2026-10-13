@@ -73,6 +73,17 @@ export const BusinessHourSlotSchema = z
     end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   })
   .refine((slot) => slot.start !== slot.end, "营业时段的起止不能相同");
+export const PendingChangeSchema = z
+  .object({
+    qualificationSubmissionId: IdSchema,
+    phase: openEnum(["draft", "in_review", "closed"]),
+    storeName: z.string().nullable(),
+    industry: orNull(DictRefSchema),
+    category: orNull(DictRefSchema),
+    address: orNull(AddressViewSchema.omit({ zone: true })),
+    lockVersion: z.int().min(0),
+  })
+  .openapi("PendingChange");
 const basic = {
   brandName: z.string().nullable(),
   logo: orNull(MediaFileViewSchema),
@@ -92,7 +103,7 @@ const basic = {
 export const StoreProfileBasicOwnerSchema = z.object({
   viewerRole: z.literal("owner"),
   ...basic,
-  pendingChange: z.null(),
+  pendingChange: orNull(PendingChangeSchema),
   lockVersion: z.int(),
 });
 export const StoreProfileBasicClerkSchema = z.object({ viewerRole: z.literal("clerk"), ...basic });

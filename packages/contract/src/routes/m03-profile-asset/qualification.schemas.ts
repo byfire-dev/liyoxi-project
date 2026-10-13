@@ -1,4 +1,5 @@
 import { z } from "../../zod.js";
+import { PendingChangeSchema } from "./profile.schemas.js";
 import {
   orNull,
   DateSchema,
@@ -72,7 +73,7 @@ export const QualificationRoundSchema = z
     changedFields: z.array(
       openEnum(["store_name", "address", "industry", "docs", "entity_license"]),
     ),
-    proposed: z.null(),
+    proposed: orNull(PendingChangeSchema),
     contactSnapshot: z
       .object({
         name: z.string(),

@@ -8,11 +8,13 @@ import type { Prisma } from "@liyoxi/db";
 import { record } from "../audit/index.js";
 import { AppError, lockRows, uuidv7 } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
-import { clearDraftStoreName } from "../tenant/index.js";
+import { clearDraftStoreName, STORE_NAME_MIN, STORE_NAME_MAX } from "../tenant/index.js";
 import { sealPhone } from "../security/index.js";
 import { metaOf } from "./context.js";
 import type { ProfileDeps, ProfileViewer } from "./context.js";
 import { ensureProfile, loginPhone, refreshCompleteness, snapshot } from "./repo.js";
+import { ensureDraft, linkCarried } from "./draft.js";
+import { reviewFields } from "./round-basics.js";
 import {
   assertVersion,
   invalid,
@@ -93,37 +95,114 @@ export async function saveBasic(
 ) {
   const now = deps.clock.now(),
     storeId = viewer.membership.storeId;
-  await lockRows(tx, "store", [storeId]);
+  const first = await snapshot(tx, storeId);
+  assertVersion(first.profile?.lockVersion ?? 0, input.lockVersion);
+  const supplied =
+    input.storeName !== undefined ||
+    input.industryCode !== undefined ||
+    input.address !== undefined;
+  const willReview =
+    first.store.qualificationStatus === "verified" &&
+    (reviewFields(first, input).length > 0 ||
+      (supplied && first.open?.kind === "change" && !first.open.submittedAt));
+  if (first.open?.submittedAt && reviewFields(first, input).length)
+    throw new AppError("QUALIFICATION_IN_REVIEW");
+  if (willReview && !input.confirmReview && reviewFields(first, input).length)
+    throw new AppError("REVIEW_REQUIRED", {
+      details: { changedFields: reviewFields(first, input) },
+    });
+  const draft = willReview ? await ensureDraft(tx, deps, viewer) : null;
+  if (!draft) await lockRows(tx, "store", [storeId]);
   const p = await ensureProfile(tx, storeId, now),
     before = await snapshot(tx, storeId);
   if (before.store.lifecycle !== "active" || before.store.entity.lifecycle !== "active")
     throw new AppError("STORE_ARCHIVED");
   assertVersion(p.lockVersion, input.lockVersion);
   await validateBasics(tx, input, p);
-  const review = [];
-  if (input.storeName !== undefined && input.storeName !== before.store.name)
-    review.push("store_name");
-  if (
-    input.industryCode !== undefined &&
-    (input.industryCode !== p.industryCode || input.categoryCode !== p.categoryCode)
-  )
-    review.push("industry");
+  const review = reviewFields(before, input);
   const address = addressColumns(input.address);
-  if (
-    input.address !== undefined &&
-    ["provinceCode", "cityCode", "districtCode", "addressDetail"].some(
-      (key) => (address as Record<string, unknown>)[key] !== p[key as keyof typeof p],
-    )
-  )
-    review.push("address");
-  if (review.length && before.store.qualificationStatus === "pending")
+  if (review.length && (before.store.qualificationStatus === "pending" || before.open?.submittedAt))
     throw new AppError("QUALIFICATION_IN_REVIEW");
   if (review.length && before.store.qualificationStatus === "verified") {
     if (!input.confirmReview)
       throw new AppError("REVIEW_REQUIRED", { details: { changedFields: review } });
-    throw new AppError("STATE_NOT_ALLOWED", { details: { reason: "change_round_not_open" } });
+    if (!draft) throw new AppError("PRECONDITION_CHANGED");
   }
-  if (input.storeName !== undefined && input.storeName !== before.store.name) {
+  if (draft) {
+    const proposedName = input.storeName?.trim();
+    if (
+      proposedName !== undefined &&
+      ([...proposedName].length < STORE_NAME_MIN || [...proposedName].length > STORE_NAME_MAX)
+    )
+      throw invalid("门店名称长度不符");
+    if (
+      input.storeName === null ||
+      input.industryCode === null ||
+      input.address === null ||
+      (input.address &&
+        [
+          input.address.provinceCode,
+          input.address.cityCode,
+          input.address.districtCode,
+          input.address.detail,
+        ].some((v) => !v))
+    )
+      throw new AppError("PROFILE_REQUIRED_MISSING");
+    const saved = await tx.qualificationSubmission.update({
+      where: { id: draft.round.id },
+      data: {
+        ...(input.storeName === undefined ? {} : { proposedStoreName: proposedName }),
+        ...(input.industryCode === undefined
+          ? {}
+          : { proposedIndustryCode: input.industryCode, proposedCategoryCode: input.categoryCode }),
+        ...(input.address === undefined
+          ? {}
+          : {
+              proposedAddressSnapshot: {
+                provinceCode: input.address!.provinceCode,
+                cityCode: input.address!.cityCode,
+                districtCode: input.address!.districtCode,
+                detail: input.address!.detail,
+                poiName: input.address!.poiName,
+                latitude: input.address!.latitude,
+                longitude: input.address!.longitude,
+              },
+            }),
+        lockVersion: { increment: 1 },
+        updatedAt: now,
+      },
+    });
+    await record(tx, viewer.ctx.actor, metaOf(viewer.ctx), {
+      stream: "activity",
+      category: "profile_edit",
+      action: "profile.qualification.basic.save",
+      summary: "保存资质变更待审值",
+      target: { type: "qualification_submission", id: saved.id },
+      entityId: p.entityId,
+      storeId,
+      fields: [
+        "proposedStoreName",
+        "proposedIndustryCode",
+        "proposedCategoryCode",
+        "proposedAddressSnapshot",
+      ],
+      before: {
+        proposedStoreName: draft.round.proposedStoreName,
+        proposedIndustryCode: draft.round.proposedIndustryCode,
+        proposedCategoryCode: draft.round.proposedCategoryCode,
+        proposedAddressSnapshot: draft.round.proposedAddressSnapshot,
+      },
+      after: {
+        proposedStoreName: saved.proposedStoreName,
+        proposedIndustryCode: saved.proposedIndustryCode,
+        proposedCategoryCode: saved.proposedCategoryCode,
+        proposedAddressSnapshot: saved.proposedAddressSnapshot,
+      },
+    });
+    for (const key of ["provinceCode", "cityCode", "districtCode", "addressDetail"] as const)
+      delete address[key];
+  }
+  if (!draft && input.storeName !== undefined && input.storeName !== before.store.name) {
     if (input.storeName === null) {
       if (before.store.qualificationStatus !== "unsubmitted")
         throw new AppError("PROFILE_REQUIRED_MISSING");
@@ -131,7 +210,12 @@ export async function saveBasic(
       await clearDraftStoreName(tx, now, viewer.ctx, { storeId });
     } else await deps.tenant.setStoreName(tx, viewer.ctx, { storeId, name: input.storeName });
   }
-  await lockFiles(tx, [p.logoFileId, input.logoFileId]);
+  await lockFiles(tx, [
+    p.logoFileId,
+    input.logoFileId,
+    ...(draft?.carried.map((d) => d.fileId) ?? []),
+  ]);
+  if (draft) await linkCarried(tx, deps, viewer, draft.carried);
   if (input.logoFileId !== undefined && input.logoFileId !== p.logoFileId) {
     if (input.logoFileId) {
       await newFile(tx, viewer, input.logoFileId, ["profile_image"]);
@@ -166,7 +250,8 @@ export async function saveBasic(
     "avgSpendFen",
     "brandIntro",
   ] as const)
-    if (input[key] !== undefined) Object.assign(data, { [key]: input[key] });
+    if (input[key] !== undefined && !(draft && (key === "industryCode" || key === "categoryCode")))
+      Object.assign(data, { [key]: input[key] });
   await tx.storeProfile.update({ where: { storeId }, data });
   const after = await snapshot(tx, storeId);
   requiredMissing(before, after, 1, input.draft);
