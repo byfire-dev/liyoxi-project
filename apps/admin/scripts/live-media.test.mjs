@@ -26,7 +26,7 @@ test("不完整输入、非摘要镜像和任意用例路径在创建资源前�
   for (const args of [
     ["--video", fixtures[1]],
     ["--mediatool-image", "liyoxi/mediatool:latest"],
-    ["--test-file", "test/e2e/live-staff.spec.ts"],
+    ["--test-file", "test/e2e/live-*.spec.ts"],
   ]) {
     await assert.rejects(prepareLiveMedia(args, { run: () => assert.fail("不应启动 Docker") }));
   }
