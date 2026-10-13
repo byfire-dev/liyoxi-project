@@ -6,6 +6,7 @@ import {
   adminQualificationSubmissionApprove,
   adminQualificationSubmissionReject,
   adminQualificationSubmissionRejectQuote,
+  adminQualificationDocUpdate,
 } from "@liyoxi/contract";
 import { ok } from "../../http/errors.js";
 import { idemOf } from "../../http/idempotency.js";
@@ -13,6 +14,18 @@ import { merchantServicesOf } from "../../merchant/services.js";
 import { defineAdminHandler } from "../../routing/admin.js";
 const moduleNeed = { module: "merchant", need: "view" } as const;
 export const adminProfileHandlers = [
+  defineAdminHandler(adminQualificationDocUpdate, moduleNeed, async (c, staff) =>
+    ok(
+      c,
+      await merchantServicesOf(c.var.runtime).profile.admin.reviewDocument(
+        c.var.identity!,
+        staff.ctx,
+        c.req.valid("param").qualificationDocId,
+        c.req.valid("json"),
+        { idem: idemOf(c) },
+      ),
+    ),
+  ),
   defineAdminHandler(adminStoreList, moduleNeed, async (c, staff) => {
     c.header("Cache-Control", "no-store");
     return ok(

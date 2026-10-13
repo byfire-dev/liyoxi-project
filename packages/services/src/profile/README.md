@@ -75,6 +75,28 @@ tenant补真实已关闭终局轮次事实及提交machine守卫，不让直接t
 三类档案、品牌引用/洞察/SLA/完整度同TX，所有await后重新核当前会话/owner/来源和本次profile；任一失败全部回滚。
 by_owner来源可读，draft_deleted拒绝；当前SOURCE尚未进行本片类型/新旧整叶或独立验收，不启用默认runtime或HTTP。
 
+## W2-11 联系人验证与人工资质复核（SOURCE）
+
+正式 `m.storeProfile.contactSmsCode.create` 采用 required 三段式，先存 contact_phone 专用哈希码，
+提交后通过实际 notify.sendDirect 发码，失败补偿删除本次码与幂等占用；当前登录号等值无需发码。
+ProfileDeps 窄注入实际 notify 可用性/发送与 identity 会话复核，未新增同层白名单。
+联系人更新锁账号80→主体100→成员120→门店130，锁后重验 owner、会话与号码；
+内容安全后独立提交错误尝试，正确码仅随联系人成功写入一次性消费。短信不可用存 unverified，
+恢复后 submit 必须验证或与当前登录号等值，不沿旧 login 来源直接放行。
+
+正式 `admin.qualificationDoc.update` 在原锁图复核范围/待审/权限/版本，合并修正值后保持必需字段，
+保留原提交密文、只改 reviewed 与派生列；轮次及审批单版本同增，审计脱敏、不增加状态历史。
+media 公口只读真实既有 OCR 事实并执行纯字段比对，复用 USCC 校验及北京日期边界；
+无 OCR/不可识别仅 C11 需人工，修正不伪造识别成功，C5 缺行政区解析事实仍需人工。
+送审、修正与决定保存实际检查；待审 GET 只读现算，已关闭保历史事实，不刷新时钟列。
+normal/corrected/override 沿原审批与 tenant 事务；override 需真实失败项、追加权限及理由，
+审计 meta.rule=override。员工锁后经 authz 公口重建当前角色/组/范围并复核 merchant:view，
+避免等待锁期间角色变化沿旧上下文放行。
+
+新增6组聚合 DB 与2组真实 HTTP，旧权限/回滚断言保留；作者只完成所属轻格式/lint/diff。
+ROOT 唯一独审的四项 P2 已定点修正，类型/DB/HTTP/官方生成由 ROOT 串行收口。
+外部 OCR Provider、真实短信投递、后台 facts/跟进与 M5 取消仍后续，整包保持进行中。
+
 ## W2-10 门店档案初始化前置
 
 `createStoreProfileInitializer` 是显式装配的 callerTx 能力，不启用默认 runtime。
@@ -110,7 +132,7 @@ API 的响应沿既有 `respondByRole` 以本请求会员角色裁剪，写路�
 
 `profile.admin` 提供 list/get/qualification/approve/reject/assign；API 薄壳统一声明 merchant:view，写侧另取契约权限点。读侧复用 storeScope，范围外与不存在都为404，GET 不补行、不刷新缓存。列表完整支持 q、regionCode（省市区/功能区）、行业品类、资质多值、交付经理/未分配互斥、主体、生命周期；M1 排序为 registeredAt（缺省倒序），其他筛选/排序明确400。详情 paid 是主体合计；列表仅首店展示 totalPaidFen。
 
-决定按 staff20共享锁（同级UUID排序）→approval30→qualification65→entity100→store130→profile135。后台只补前置守卫的顺序：范围→待审→禁止自审→权限与override追加权限→版本→confirm；实际领域效果复用 a 的 approval 类型，不另写决定逻辑。缺回显交给领域返回 CONFIRM_MISMATCH，故请求 schema 允许缺 confirm/roundNo；M1 override/终局/变更不开放。决定与完整脱敏DTO同事务保存供幂等重放。资质DTO仅含证照 fileId；原图走既有 admin.file.downloadUrls 的5分钟地址与access审计，不在本DTO预签。
+决定按 staff20共享锁（同级UUID排序）→approval30→qualification65→entity100→store130→profile135。后台只补前置守卫的顺序：范围→待审→禁止自审→权限与override追加权限→版本→confirm；实际领域效果复用 a 的 approval 类型，不另写决定逻辑。缺回显交给领域返回 CONFIRM_MISMATCH，故请求 schema 允许缺 confirm/roundNo；W2-11 已逐片回补变更、终局与人工放行，见对应 SOURCE。决定与完整脱敏DTO同事务保存供幂等重放。资质DTO仅含证照 fileId；原图走既有 admin.file.downloadUrls 的5分钟地址与access审计，不在本DTO预签。
 
 跨层后台字段由本域 keyed `adminProfileFactsPort`（profile.admin_facts）提供。实现方用 `implementAdminProfileFacts(source, provider)` 注册 billing/order/delivery/support/staff 各自的严格结构；传入 entityId/storeId/managerId/ownerId/now，只读、无外呼。订单来源拥有上线剧数、使用期汇总与最近约定上线日，交付来源拥有交付工单数与经理工单工作量。未注册键按字段给 none/0/null/空数组，M2 G2-B 回补，见后台聚合留桩。它不复用商家端 merchantFacts，以免放宽角色裁剪。
 

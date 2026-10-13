@@ -1454,6 +1454,7 @@ usage（名额与额度按 m02-tenant 2.1 的唯一口径，调 `tenant.getQuota
 - 左栏队列、页签计数（待审核 / 今日已审核）与“我的待审批”由 a01 的 `admin.approval.list`、`admin.approval.summary` 给出（`kind = qualification`），列表项的 `domain` 指向本资源；队列行取审批单的 `summary_snapshot`（由 profile 的处理器在提交时生成，取值见 m03 3.17）：`title` 为送审门店名称，`lines` 依次为“门店”“主体”“品类”“区域”“提交类型”，`domain = { type: 'qualification_submission', id }`（审核队列据此跳到本接口）。
 - 识别结果表只给脱敏值；审核员要逐字核对时：原图走 `admin.file.downloadUrls`（5 分钟，写 access 审计），字段明文走 `admin.piiReveal.create`（对象 `qualification_doc`，需 `merchant.qualification.review` 或 `pii.license.view`）。这改变了 d9-profile.md:517 的默认做法（GET 回明文），见第 6 节第 3 项。
 - `checkSummary.fail > 0` 时前端禁用“审核通过”、提示“存在异常项，请驳回并告知商家补正”（proto-admin-b.md:144），另给“修正字段”（3.24）与持权限“放行”两个出口（d9-profile.md:514）；“放行”按钮按 `canOverride` 显示。
+- W2-11 的待审详情按当前业务时钟与既有 OCR 事实只读重算 `fieldChecks`、`checkSummary`、`canOverride`，包括北京时间到期边界；GET 不保存重算结果、不更新任何时钟列。已关闭轮次返回决定时保存的历史结论。
 - 关联单据说明与新增门店说明的文字由前端按 `relatedOrders`（含 `title`）与 `entity.verifiedAt`、`entity.verifiedStores` 拼出。
 
 ### 3.24 admin.qualificationDoc.update　修正识别字段
@@ -1486,6 +1487,7 @@ usage（名额与额度按 m02-tenant 2.1 的唯一口径，调 `tenant.getQuota
 | `APPROVAL_NOT_PENDING` | 409 | 所属轮次不在审（草稿、已关闭） |
 | `VERSION_CONFLICT` | 409 | 轮次锁版本不符（另一位审核员刚修正过） |
 | `VALIDATION_FAILED` | 400 | 键不属于该证照类型；信用代码格式不符；日期格式不符 |
+| `QUALIFICATION_DOCS_INCOMPLETE` | 409 | 修正后缺少该证照类型必需字段，不允许清空主体名、负责人或地址等必填值 |
 
 **副作用**（一个事务；加锁：审批单（30）→ 轮次（65）→ 证照行）：
 - 状态迁移：无（轮次与证照行都没有状态列；审批单只升锁版本，不迁移）。
@@ -1496,6 +1498,8 @@ usage（名额与额度按 m02-tenant 2.1 的唯一口径，调 `tenant.getQuota
 
 **说明**：
 - 修正后若比对不再有“不通过”项，通过时 `approve_mode = 'corrected'`（3.26）。
+- 修正值与原提交值合并后复核必需字段，仅写 `reviewed_fields_enc` 与派生列，原提交密文和证据保留。修正与批准在员工锁后重建当前角色、组与范围，再核模块和对应权限。
+- W2-11 只消费同文件、同归属的既有 OCR 结果并执行字段比对；未配置或不可识别时只有 C11“需人工”，手填或人工修正不会被当成识别成功而生成 C4/C6/C7。外部 OCR 识别接入仍归 W3-16。
 - 草案写作 `PUT /approvals/{id}/qualification/docs/{docId}/reviewed-fields`（三层嵌套），按嵌套规则改到证照行资源（C9）。
 - 请求体含证照明文（审核员按原图录入），按 C40 不进访问日志与审计原文。
 
@@ -1552,7 +1556,7 @@ M2人工路径已接真实影响端口：只含无在途取消的待开工订购
 | confirm | `{ roundNo: integer }` | 是 | 等于当前轮次号 | 回显（C54） |
 | confirmChecks | array<string> | 否 | 0–10 项 | 核对项 → `approval_request.confirm_checks` |
 
-M1 的 confirm/roundNo 缺失由领域返回 CONFIRM_MISMATCH（409），在范围、待审、追加权限和版本守卫之后检查；DTO 仅回证照fileId，不预签原图。mode=override 在追加权限、版本、回显守卫通过后仍回 STATE_NOT_ALLOWED（recognition_override_not_open）。
+confirm/roundNo 缺失由领域返回 CONFIRM_MISMATCH（409），在范围、待审、追加权限和版本守卫之后检查；DTO 仅回证照fileId，不预签原图。W2-11 在原事务重算真实字段比对：无失败项时 normal 通过，已有修正值则记录 corrected；仍有失败项时只允许持追加权限、填写理由的 override，审计记 meta.rule = override。没有失败项不能借 override 通过；C11“需人工”不冒充失败项或 OCR 成功。
 
 **响应**：QualificationSubmissionDetail（审批单 `approved`、轮次已关闭）。
 

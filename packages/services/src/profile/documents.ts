@@ -162,11 +162,12 @@ export async function createDoc(
   };
 }
 /** 加密及派生列同一次写；解密提交值由仓储函数统一完成。 */
-async function derived(
+export async function derived(
   tx: Tx,
   deps: ProfileDeps,
   doc: QualificationDoc,
   fields: Record<string, string>,
+  reviewed = false,
 ) {
   const permit = doc.docType === "industry_permit" ? await permitSpec(tx, doc.permitType!) : null;
   const allowed = permit ? permit.fields.map((f) => f.key) : LICENSE_KEYS;
@@ -209,11 +210,21 @@ async function derived(
   const sealed =
     number && !permit ? sealUscc(deps.keyring(), "qualification_doc.cert_no_enc", number) : null;
   return {
-    submittedFieldsEnc: encryptField(
-      deps.keyring(),
-      "qualification_doc.submitted_fields_enc",
-      JSON.stringify(fields),
-    ),
+    ...(reviewed
+      ? {
+          reviewedFieldsEnc: encryptField(
+            deps.keyring(),
+            "qualification_doc.reviewed_fields_enc",
+            JSON.stringify(fields),
+          ),
+        }
+      : {
+          submittedFieldsEnc: encryptField(
+            deps.keyring(),
+            "qualification_doc.submitted_fields_enc",
+            JSON.stringify(fields),
+          ),
+        }),
     holderName: fields[permit?.holderNameKey ?? "name"] || null,
     certNoEnc:
       sealed?.enc ??

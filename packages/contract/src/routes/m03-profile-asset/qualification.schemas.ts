@@ -61,6 +61,14 @@ export const ContactViewSchema = z
     lockVersion: z.int(),
   })
   .openapi("ContactView");
+export const ContactSmsCodeBodySchema = z.strictObject({ phone: z.string().regex(/^1\d{10}$/) });
+export const ContactSmsCodeResultSchema = z
+  .object({
+    isLoginPhone: z.boolean(),
+    expiresAt: orNull(InstantSchema),
+    resendAfterSec: orNull(z.int().min(0)),
+  })
+  .openapi("ContactSmsCodeResult");
 export const QualificationRoundSchema = z
   .object({
     qualificationSubmissionId: IdSchema,
