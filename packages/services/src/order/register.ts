@@ -20,7 +20,8 @@ import {
   lockRows,
 } from "../kernel/index.js";
 import { orderManagerPort } from "../profile/index.js";
-import { implementAdminProfileFacts } from "../profile/index.js";
+import { implementAdminProfileFacts, adminStoreListOrderPort } from "../profile/index.js";
+import { readProfileStoreLastOrders } from "./profile-list.js";
 import { readProfileAdminOrderFacts } from "./profile-admin.js";
 import { QualificationImpactPort } from "../profile/index.js";
 import { previewFinalReject } from "./cancel-quote.js";
@@ -94,6 +95,7 @@ export const registration = defineRegistration("order", {
   ],
   portImplementations: [
     implementAdminProfileFacts("order", readProfileAdminOrderFacts),
+    implement(adminStoreListOrderPort, readProfileStoreLastOrders),
     implement(entityAdCancelClosePort, entityAdCancelCloser),
     implementKeyed(approvalKindPort, "ad_cancel", adCancelKind),
     implementKeyed(machinePort, cancelRequestChain, cancelRequestBinding),

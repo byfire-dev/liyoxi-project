@@ -4,8 +4,7 @@ import {
   StoreRowSchema,
   StaffBriefSchema,
 } from "@liyoxi/contract";
-import type { StoreListQuery, StaffBrief } from "@liyoxi/contract";
-import type { Prisma } from "@liyoxi/db";
+import type { StaffBrief } from "@liyoxi/contract";
 import { hasPermission, storeScope } from "../authz/index.js";
 import type { StaffContext } from "../authz/index.js";
 import { AppError } from "../kernel/index.js";
@@ -101,63 +100,6 @@ async function core(tx: Tx, deps: ProfileDeps, staff: StaffContext, id: string) 
     actions,
   });
   return { s, facts, owner, row };
-}
-export async function adminStoreList(
-  tx: Tx,
-  deps: ProfileDeps,
-  staff: StaffContext,
-  q: StoreListQuery,
-) {
-  const region = q.regionCode
-    ? {
-        OR: [
-          { provinceCode: q.regionCode },
-          { cityCode: q.regionCode },
-          { districtCode: q.regionCode },
-          { zoneCode: q.regionCode },
-        ],
-      }
-    : {};
-  const profile: Prisma.StoreProfileWhereInput = {
-    ...region,
-    ...(q.industryCode ? { industryCode: q.industryCode } : {}),
-    ...(q.categoryCode ? { categoryCode: q.categoryCode } : {}),
-  };
-  const where: Prisma.StoreWhereInput = {
-    AND: [
-      storeScope(staff.scope),
-      {
-        lifecycle: q.lifecycle,
-        ...(q.entityId ? { entityId: q.entityId } : {}),
-        ...(q.qualificationStatus ? { qualificationStatus: { in: q.qualificationStatus } } : {}),
-        ...(q.deliveryManagerId
-          ? { deliveryManagerId: q.deliveryManagerId }
-          : q.isManagerUnassigned
-            ? { deliveryManagerId: null }
-            : {}),
-        ...(Object.keys(profile).length ? { storeProfileStore: { is: profile } } : {}),
-        ...(q.q
-          ? {
-              OR: [
-                { name: { contains: q.q, mode: "insensitive" } },
-                { entity: { name: { contains: q.q, mode: "insensitive" } } },
-              ],
-            }
-          : {}),
-      },
-    ],
-  };
-  const total = await tx.store.count({ where });
-  const stores = await tx.store.findMany({
-    where,
-    orderBy: [{ createdAt: q.sort.startsWith("-") ? "desc" : "asc" }, { id: "asc" }],
-    skip: (q.page - 1) * q.pageSize,
-    take: q.pageSize,
-    select: { id: true },
-  });
-  const items = [];
-  for (const store of stores) items.push((await core(tx, deps, staff, store.id)).row);
-  return { items, total, page: q.page, pageSize: q.pageSize };
 }
 export async function adminStoreGet(tx: Tx, deps: ProfileDeps, staff: StaffContext, id: string) {
   const { s, facts, owner, row } = await core(tx, deps, staff, id);

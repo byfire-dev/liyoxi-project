@@ -147,24 +147,51 @@ const csv = (values: readonly string[]) =>
     .string()
     .refine((s) => s.split(",").every((v) => values.includes(v)))
     .transform((s) => [...new Set(s.split(","))]);
+const storeFilters = {
+  q: z.string().min(1).max(30).optional(),
+  regionCode: z.string().optional(),
+  industryCode: z.string().optional(),
+  categoryCode: z.string().optional(),
+  qualificationStatus: csv(["unsubmitted", "pending", "verified", "rejected"]).optional(),
+  sourceType: csv(SOURCE_TYPE.values).optional(),
+  subscriptionStatus: csv(["none", "active", "expired"]).optional(),
+  planId: IdSchema.optional(),
+  expiresWithinDays: z.coerce
+    .number()
+    .pipe(z.union([z.literal(7), z.literal(30)]))
+    .optional(),
+  deliveryManagerId: IdSchema.optional(),
+  isManagerUnassigned: z
+    .enum(["true", "false"])
+    .transform((s) => s === "true")
+    .optional(),
+  entityId: IdSchema.optional(),
+  lifecycle: z.enum(["active", "archived"]).default("active"),
+};
+const managerFilter = (v: { deliveryManagerId?: string; isManagerUnassigned?: boolean }) =>
+  !(v.deliveryManagerId && v.isManagerUnassigned);
+export const StoreListSummaryQuerySchema = z
+  .strictObject(storeFilters)
+  .refine(managerFilter, "交付经理与未分配互斥");
 export const StoreListQuerySchema = z
   .strictObject({
     ...PageQuerySchema.shape,
-    q: z.string().min(1).max(30).optional(),
-    regionCode: z.string().optional(),
-    industryCode: z.string().optional(),
-    categoryCode: z.string().optional(),
-    qualificationStatus: csv(["unsubmitted", "pending", "verified", "rejected"]).optional(),
-    deliveryManagerId: IdSchema.optional(),
-    isManagerUnassigned: z
-      .enum(["true", "false"])
-      .transform((s) => s === "true")
-      .optional(),
-    entityId: IdSchema.optional(),
-    lifecycle: z.enum(["active", "archived"]).default("active"),
-    sort: z.enum(["-registeredAt", "registeredAt"]).default("-registeredAt"),
+    ...storeFilters,
+    sort: z
+      .enum(["-lastOrderAt", "-createdAt", "-totalPaidFen", "-registeredAt", "registeredAt"])
+      .default("-lastOrderAt"),
   })
-  .refine((v) => !(v.deliveryManagerId && v.isManagerUnassigned), "交付经理与未分配互斥");
+  .refine(managerFilter, "交付经理与未分配互斥");
+export const StoreListSummarySchema = z
+  .object({
+    total: count,
+    paidCount: count,
+    activePlanCount: count,
+    pendingReviewCount: count,
+    newThisMonthCount: count,
+  })
+  .openapi("StoreListSummary");
+export type StoreListFilters = z.infer<typeof StoreListSummaryQuerySchema>;
 export const AdminStoreListSchema = adminPage(StoreRowSchema);
 export const StoreIdParamsSchema = z.object({ storeId: IdSchema });
 export const ManagerAssignBodySchema = z.object({

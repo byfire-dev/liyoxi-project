@@ -23,6 +23,7 @@ import {
 import type { ExpectedFileRef } from "../kernel/index.js";
 import { findViolations, PROFILE_INVARIANT_CODES } from "./invariants.js";
 import { adminProfileFactsPort } from "./admin-ports.js";
+import { adminStoreListBillingPort, adminStoreListOrderPort } from "./admin-list-ports.js";
 import { deliveryManagerPort, orderManagerPort, QualificationImpactPort } from "./ports.js";
 import { qualificationKind } from "./qualification-kind.js";
 import { PROFILE_TENANT_EVENTS, unboundTenantLifecycle } from "./tenant-lifecycle.js";
@@ -33,7 +34,14 @@ import {
 } from "./qualification-consistency.js";
 
 export const registration = defineRegistration("profile", {
-  ports: [orderManagerPort, deliveryManagerPort, adminProfileFactsPort, QualificationImpactPort],
+  ports: [
+    orderManagerPort,
+    deliveryManagerPort,
+    adminProfileFactsPort,
+    QualificationImpactPort,
+    adminStoreListBillingPort,
+    adminStoreListOrderPort,
+  ],
   subscribers: [
     {
       name: "profile.onQualificationApproved",

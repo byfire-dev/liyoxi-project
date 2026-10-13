@@ -62,6 +62,7 @@ export * from "./qualification.schemas.js";
 export { adminQualificationDocUpdate } from "./qualification-docs.js";
 export {
   adminStoreList,
+  adminStoreSummary,
   adminStoreGet,
   adminStoreActivityList,
   adminStoreProfileGet,

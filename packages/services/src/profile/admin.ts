@@ -4,6 +4,7 @@ import type {
   QualificationRejectBody,
   ManagerAssignBody,
   StoreListQuery,
+  StoreListFilters,
   QualificationDocReviewBody,
   StoreActivityQuery,
 } from "@liyoxi/contract";
@@ -16,11 +17,11 @@ import { authorize } from "../authz/index.js";
 import {
   adminQualificationGet,
   adminStoreGet,
-  adminStoreList,
   scopedRound,
   staffBrief,
   scopedStore,
 } from "./admin-read.js";
+import { adminStoreList, adminStoreSummary } from "./admin-store-list.js";
 import { assignDeliveryManager } from "./assign-manager.js";
 import type { ProfileDeps, WriteOptions } from "./context.js";
 import { withQualificationCall } from "./qualification-kind.js";
@@ -80,6 +81,8 @@ export function createAdminProfile(deps: ProfileDeps) {
     ) => deps.tx.run((tx) => reviewDocument(tx, deps, ctx, staff, id, input), options),
     list: (staff: StaffContext, q: StoreListQuery) =>
       deps.tx.run((tx) => adminStoreList(tx, deps, staff, q)),
+    summary: (staff: StaffContext, q: StoreListFilters) =>
+      deps.tx.run((tx) => adminStoreSummary(tx, deps, staff, q)),
     get: (staff: StaffContext, id: string) =>
       deps.tx.run((tx) => adminStoreGet(tx, deps, staff, id)),
     activity: (staff: StaffContext, id: string, query: StoreActivityQuery) =>

@@ -13,6 +13,8 @@ import {
   ManagerAssignBodySchema,
   StoreIdParamsSchema,
   StoreListQuerySchema,
+  StoreListSummaryQuerySchema,
+  StoreListSummarySchema,
 } from "./stores.schemas.js";
 
 export const adminStoreList = adminRoute({
@@ -27,12 +29,14 @@ export const adminStoreList = adminRoute({
   responses: { ...okResponse(AdminStoreListSchema), ...errorResponses(400, 401, 403, 404, 409) },
 });
 
-export const adminStoreSummary = adminMeta({
+export const adminStoreSummary = adminRoute({
   method: "get",
   path: "/admin/stores/summary",
   operationId: "admin.store.summary",
   summary: "商家列表页头统计：共 N 家、付费、套餐生效、审核中、本月新增",
   "x-permission": null,
+  request: { query: StoreListSummaryQuerySchema },
+  responses: { ...okResponse(StoreListSummarySchema), ...errorResponses(400, 401, 403, 409) },
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 

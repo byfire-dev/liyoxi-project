@@ -221,3 +221,14 @@ GET 不建档案、不补过期状态；既有老板/店员响应裁剪及其他
 字段、onBehalfStoreId本店代传事实与路由三段式声明已定点补齐。六聚合DB与两组HTTP
 及2项原签图/媒体回归、类型/官方契约/权限/挂载定点均已通过；W2-11整包继续进行中，
 不代表真实内容安全/平台/资金或远端CI已验。
+
+## W2-11 完整列表与summary SOURCE
+
+readAdminStoreSelection是list/summary共用的当前商家模块与scope候选查询；本域where先缩小候选，
+billing/order按候选ID批量读订阅/paid净额与最近订购，缺拥有者事实明确失败，不补假0。
+billing每主体权益只计算一次，页投影同TX读取lot/plans/最近付款；manager/字典/主体店数批量读，
+不调用详情core或snapshot。首店净实付、次店null；付费/生效/待审/北京月新店按过滤后门店计数。
+默认-lastOrderAt，正式-createdAt/-totalPaidFen及旧±registeredAt稳定id/nulls last；完整来源/套餐/
+状态/7或30天到期筛选按现算权益，不advance、不读订阅与余额缓存。后继stores.list导出归M7 G7-B，
+只消费该公口且仍需自身授权；本片未实现导出producer/队列，未配UI隐藏入口。
+当前生产SOURCE待ROOT唯一审查，3DB+1HTTP测试与官方生成待ROOT串行，W211尚不标完成。
