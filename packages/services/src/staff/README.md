@@ -196,3 +196,7 @@ createStaffFollowUps({tx,clock,assembly})由runtime按实例装配，归属只�
 每个新动作恰好一条activity/follow_up审计，关闭旧待办与新增/审计原子；不产生新事件或timer。
 到期日09:00提醒仍走notify既有followUpsDueForNotify/followUpForNotify与s.followup_due，完成/改期自然退出扫描。
 当前仅SOURCE与轻检查，4DB+2HTTP聚合风险由ROOT串行验收；summary/V1.1入口不属于本片。
+
+定点风险源码：src/staff/follow-ups.db.test.ts（4组，独立PG max2，真实移交/notify，
+故障注入只在调用方TX结果之后抛错）；apps/api/test/follow-ups.test.ts（2组，正式四路由）。
+作者只轻检查；生产f4e0be25由ROOT唯一独审无P1/P2，实测结果随后回写。
