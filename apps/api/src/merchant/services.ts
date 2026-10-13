@@ -21,6 +21,7 @@ import {
   createStoreProfileAssetInitializer,
   createSla,
   currentSessionOpenid,
+  recentWechatOpenid,
   assertCurrentSession,
   security,
   media,
@@ -221,6 +222,8 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
     wechat: runtime.providers.wechat,
     currentOpenid: (principal) =>
       tx.run((handle) => currentSessionOpenid(handle, principal, appid)),
+    proxyOpenid: (handle, userId, now) =>
+      recentWechatOpenid(handle, { merchantUserId: userId, appid, now }),
     contactSms: {
       available: (handle) => runtime.notify.verificationAvailable(handle),
       assertSession: (handle, principal, at) => assertCurrentSession(handle, principal, at, appid),

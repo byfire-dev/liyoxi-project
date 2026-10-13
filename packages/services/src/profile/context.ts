@@ -25,6 +25,12 @@ export interface ProfileDeps {
   readonly keyring: () => Keyring;
   readonly wechat: Pick<WechatProvider, "checkText">;
   readonly currentOpenid: (principal: SessionPrincipal) => Promise<string>;
+  /** 员工代改只消费当前主体实际老板的近2h微信身份；composition注入identity正式只读公口。 */
+  readonly proxyOpenid?: (
+    tx: Tx,
+    userId: string,
+    now: Date,
+  ) => Promise<{ readonly wechatIdentityId: string; readonly openid: string } | null>;
   readonly contactSms?: {
     available(tx: Tx): Promise<boolean>;
     assertSession(tx: Tx, principal: SessionPrincipal, at: Date): Promise<unknown>;

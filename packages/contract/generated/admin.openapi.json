@@ -829,6 +829,85 @@
         ],
         "type": "object"
       },
+      "AddressView": {
+        "properties": {
+          "city": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "district": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latitude": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "longitude": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "poiName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "province": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "zone": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "province",
+          "city",
+          "district",
+          "zone",
+          "detail",
+          "poiName",
+          "latitude",
+          "longitude"
+        ],
+        "type": "object"
+      },
       "AdminAgreementVersionBrief": {
         "additionalProperties": false,
         "properties": {
@@ -4781,6 +4860,467 @@
           "city",
           "district",
           "qualificationStatus"
+        ],
+        "type": "object"
+      },
+      "AdminStoreProfile": {
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "update"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "address": {
+            "$ref": "#/components/schemas/AddressView"
+          },
+          "avgSpendFen": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "brandIntro": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "brandName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "businessHours": {
+            "items": {
+              "properties": {
+                "end": {
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                  "type": "string"
+                },
+                "start": {
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "start",
+                "end"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "completeness": {
+            "$ref": "#/components/schemas/Completeness"
+          },
+          "copiedFromStoreId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "groupBuyText": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastEditedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastEditor": {
+            "anyOf": [
+              {
+                "properties": {
+                  "actorType": {
+                    "enum": [
+                      "merchant",
+                      "staff",
+                      "system",
+                      "partner"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  },
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "actorType",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lockVersion": {
+            "type": "integer"
+          },
+          "logo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MediaFileView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "media": {
+            "properties": {
+              "door": {
+                "items": {
+                  "properties": {
+                    "file": {
+                      "$ref": "#/components/schemas/MediaFileView"
+                    },
+                    "isCopied": {
+                      "type": "boolean"
+                    },
+                    "mediaItemId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "mediaKind": {
+                      "enum": [
+                        "image",
+                        "video"
+                      ],
+                      "type": "string",
+                      "x-open-enum": true
+                    },
+                    "position": {
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "mediaItemId",
+                    "position",
+                    "mediaKind",
+                    "file",
+                    "isCopied"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "interior": {
+                "items": {
+                  "properties": {
+                    "file": {
+                      "$ref": "#/components/schemas/MediaFileView"
+                    },
+                    "isCopied": {
+                      "type": "boolean"
+                    },
+                    "mediaItemId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "mediaKind": {
+                      "enum": [
+                        "image",
+                        "video"
+                      ],
+                      "type": "string",
+                      "x-open-enum": true
+                    },
+                    "position": {
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "mediaItemId",
+                    "position",
+                    "mediaKind",
+                    "file",
+                    "isCopied"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "product": {
+                "items": {
+                  "properties": {
+                    "file": {
+                      "$ref": "#/components/schemas/MediaFileView"
+                    },
+                    "isCopied": {
+                      "type": "boolean"
+                    },
+                    "mediaItemId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "mediaKind": {
+                      "enum": [
+                        "image",
+                        "video"
+                      ],
+                      "type": "string",
+                      "x-open-enum": true
+                    },
+                    "position": {
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "mediaItemId",
+                    "position",
+                    "mediaKind",
+                    "file",
+                    "isCopied"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "promo": {
+                "items": {
+                  "properties": {
+                    "file": {
+                      "$ref": "#/components/schemas/MediaFileView"
+                    },
+                    "isCopied": {
+                      "type": "boolean"
+                    },
+                    "mediaItemId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "mediaKind": {
+                      "enum": [
+                        "image",
+                        "video"
+                      ],
+                      "type": "string",
+                      "x-open-enum": true
+                    },
+                    "position": {
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "mediaItemId",
+                    "position",
+                    "mediaKind",
+                    "file",
+                    "isCopied"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "door",
+              "interior",
+              "product",
+              "promo"
+            ],
+            "type": "object"
+          },
+          "pendingChange": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingChange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "promoText": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "proxyEditableFields": {
+            "items": {
+              "enum": [
+                "brandName",
+                "logoFileId",
+                "businessHours",
+                "storeTel",
+                "avgSpendFen",
+                "brandIntro",
+                "serviceItems",
+                "promoText",
+                "groupBuyText",
+                "sellingPointCodes",
+                "sellingNote",
+                "mediaGroups"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sellingNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sellingPoints": {
+            "items": {
+              "$ref": "#/components/schemas/DictRef"
+            },
+            "type": "array"
+          },
+          "serviceItems": {
+            "items": {
+              "properties": {
+                "image": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MediaFileView"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "intro": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "originalPriceFen": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "position": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "priceFen": {
+                  "type": "integer"
+                },
+                "serviceItemId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "serviceItemId",
+                "position",
+                "name",
+                "priceFen",
+                "originalPriceFen",
+                "image",
+                "intro"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "storeId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "storeName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "storeTel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "storeId",
+          "brandName",
+          "logo",
+          "storeName",
+          "industry",
+          "category",
+          "address",
+          "businessHours",
+          "storeTel",
+          "avgSpendFen",
+          "brandIntro",
+          "completeness",
+          "pendingChange",
+          "lockVersion",
+          "serviceItems",
+          "promoText",
+          "groupBuyText",
+          "sellingPoints",
+          "sellingNote",
+          "media",
+          "copiedFromStoreId",
+          "lastEditedAt",
+          "lastEditor",
+          "proxyEditableFields",
+          "actions"
         ],
         "type": "object"
       },
@@ -8926,6 +9466,97 @@
           "updatedAt",
           "lockVersion",
           "actions"
+        ],
+        "type": "object"
+      },
+      "Completeness": {
+        "properties": {
+          "pct": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "requiredFilled": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "requiredTotal": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "steps": {
+            "items": {
+              "properties": {
+                "missing": {
+                  "items": {
+                    "properties": {
+                      "item": {
+                        "enum": [
+                          "brand_name",
+                          "store_name",
+                          "industry",
+                          "address",
+                          "business_hours",
+                          "store_tel",
+                          "avg_spend",
+                          "door_photos",
+                          "interior_photos",
+                          "service_items",
+                          "selling_points",
+                          "entity_type",
+                          "business_license",
+                          "contact",
+                          "declaration",
+                          "permit"
+                        ],
+                        "type": "string",
+                        "x-open-enum": true
+                      },
+                      "permitType": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "item",
+                      "permitType"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "state": {
+                  "enum": [
+                    "not_started",
+                    "in_progress",
+                    "completed"
+                  ],
+                  "type": "string",
+                  "x-open-enum": true
+                },
+                "step": {
+                  "maximum": 4,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "step",
+                "state",
+                "missing"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "pct",
+          "requiredFilled",
+          "requiredTotal",
+          "steps"
         ],
         "type": "object"
       },
@@ -20797,6 +21428,270 @@
           "paramItems",
           "notice",
           "summaryText"
+        ],
+        "type": "object"
+      },
+      "ProxyEditBody": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "description": "禁止代改；出现即返回FIELD_NOT_PROXY_EDITABLE"
+          },
+          "avgSpendFen": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "brandIntro": {
+            "maxLength": 300,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "brandName": {
+            "maxLength": 30,
+            "minLength": 2,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "businessHours": {
+            "items": {
+              "properties": {
+                "end": {
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                  "type": "string"
+                },
+                "start": {
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "start",
+                "end"
+              ],
+              "type": "object"
+            },
+            "maxItems": 4,
+            "type": "array"
+          },
+          "categoryCode": {
+            "description": "禁止代改；出现即返回FIELD_NOT_PROXY_EDITABLE"
+          },
+          "contactName": {
+            "description": "禁止代改；出现即返回FIELD_NOT_PROXY_EDITABLE"
+          },
+          "contactPhone": {
+            "description": "禁止代改；出现即返回FIELD_NOT_PROXY_EDITABLE"
+          },
+          "groupBuyText": {
+            "maxLength": 100,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "industryCode": {
+            "description": "禁止代改；出现即返回FIELD_NOT_PROXY_EDITABLE"
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "logoFileId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mediaGroups": {
+            "properties": {
+              "door": {
+                "items": {
+                  "properties": {
+                    "fileId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "fileId"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 12,
+                "type": "array"
+              },
+              "interior": {
+                "items": {
+                  "properties": {
+                    "fileId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "fileId"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 12,
+                "type": "array"
+              },
+              "product": {
+                "items": {
+                  "properties": {
+                    "fileId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "fileId"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 12,
+                "type": "array"
+              },
+              "promo": {
+                "items": {
+                  "properties": {
+                    "fileId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "fileId"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 12,
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
+          "note": {
+            "maxLength": 60,
+            "type": "string"
+          },
+          "promoText": {
+            "maxLength": 100,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "qualification": {
+            "description": "禁止代改；出现即返回FIELD_NOT_PROXY_EDITABLE"
+          },
+          "reasonCode": {
+            "enum": [
+              "merchant_phone_request",
+              "merchant_wecom_request",
+              "data_correction",
+              "other"
+            ],
+            "type": "string"
+          },
+          "sellingNote": {
+            "maxLength": 100,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sellingPointCodes": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "type": "array"
+          },
+          "serviceItems": {
+            "items": {
+              "properties": {
+                "imageFileId": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "intro": {
+                  "maxLength": 20,
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "maxLength": 30,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "originalPriceFen": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "priceFen": {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "serviceItemId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "priceFen"
+              ],
+              "type": "object"
+            },
+            "maxItems": 10,
+            "type": "array"
+          },
+          "storeName": {
+            "description": "禁止代改；出现即返回FIELD_NOT_PROXY_EDITABLE"
+          },
+          "storeTel": {
+            "maxLength": 20,
+            "pattern": "^(?:1\\d{10}|0\\d{2,3}-?\\d{7,8}(?:-\\d{1,6})?)$",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "lockVersion",
+          "reasonCode"
         ],
         "type": "object"
       },
@@ -60244,6 +61139,225 @@
         "x-auth": "staff",
         "x-idempotent": "required",
         "x-permission": "merchant.manager.assign"
+      }
+    },
+    "/api/v1/admin/stores/{storeId}/profile": {
+      "get": {
+        "operationId": "admin.store.profile.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdminStoreProfile"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "档案页签：基本信息、主推服务、门店图片、完整度、最近修改人",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      },
+      "patch": {
+        "operationId": "admin.store.profile.update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProxyEditBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdminStoreProfile"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "代改档案（免审字段；必选修改原因 + 备注；带 lockVersion；通知商家，修改前后记入日志）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "merchant.profile.proxy_edit",
+        "x-three-phase": true
       }
     },
     "/api/v1/admin/stores/{storeId}/qualification": {
