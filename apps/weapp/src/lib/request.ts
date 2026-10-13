@@ -68,6 +68,8 @@ export interface RequestOptions {
   contentType?: "application/x-sentry-envelope";
   /** 缺省 true：本地有令牌就带上。公开接口写 false */
   auth?: boolean;
+  /** 显式 false 仅省略 X-Store-Id（如用户级接受邀请）；默认仍带当前门店，鉴权不变。 */
+  store?: false;
   /** 幂等键 `<动作名>:<uuid>`：属于用户的一次意图，由页面生成并在重试时复用（约定 C48） */
   idempotencyKey?: string;
   /** 毫秒；缺省 15 秒，带幂等键的写 30 秒 */
@@ -182,7 +184,7 @@ export function createRequestLayer(deps: RequestDeps): RequestLayer {
       "X-Env-Version": client.envVersion,
       "X-Request-Id": requestId,
     };
-    const storeId = deps.getStoreId();
+    const storeId = options.store === false ? null : deps.getStoreId();
     if (storeId) header["X-Store-Id"] = storeId;
     if (token) header.Authorization = `Bearer ${token}`;
     if (options.idempotencyKey) header["Idempotency-Key"] = options.idempotencyKey;

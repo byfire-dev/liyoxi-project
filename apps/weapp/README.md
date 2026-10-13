@@ -63,6 +63,8 @@ import { captureError, newIdempotencyKey, request, track, withPrivacy, withSubsc
 
 新加页面：建 `src/pages/<页>/` 或 `src/sub/<分包>/<页>/` 下的 `index.tsx`、`index.config.ts`，把 `src/pages.ts` 里那一行的 `implemented` 改成 `true`（占位页同时去掉 `placeholder`），再跑 `node infra/ci/pages/generate.mjs`。
 
+`RequestOptions.store: false` 仅省略当前门店的 `X-Store-Id`；默认请求行为不变，也不改变本地选店或鉴权。W2-14 的用户级接受邀请按 [m02 第 3.16 节](../../docs/api/m02-tenant.md) 使用此选项，公开邀请预览另带 `auth: false`；网络重试、401 与 428 恢复仍沿用同一选项和原意图。构件已提供，六页消费者随 W2-14 交付。
+
 ## 通用组件
 
 依据：[规范](../../design/design-spec.md) 第 4、12 节。第一批由 W0-27b 交付；看样（W0-29）确认后冻结，页面包不改组件，要改、要加走单独的构件 PR。
