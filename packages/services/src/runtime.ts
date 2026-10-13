@@ -127,6 +127,7 @@ import { createLogger } from "./logger.js";
 import type { Logger } from "./logger.js";
 import {
   bindOps,
+  createInvariantReportingAssembly,
   createHealth,
   createStartupChecks,
   createRuntimeNotify,
@@ -393,7 +394,10 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       : { commandTimeoutMs: options.rateLimitCommandTimeoutMs }),
   });
   const alertFactsScope = createAlertFactsAssembly(
-    assembleServices({ entry, appEnv: env.APP_ENV }),
+    createInvariantReportingAssembly(assembleServices({ entry, appEnv: env.APP_ENV }), {
+      db: prisma,
+      clock,
+    }),
     {
       tx,
       clock,

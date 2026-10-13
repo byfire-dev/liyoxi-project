@@ -425,8 +425,16 @@ describe("W2-11 I7与资质通过订阅共用真实系统决定", { timeout: 600
   });
 
   it("仅system标签/round标志不能空原因拒绝；绑定只一次、关闭隔离且原生命周期handle不丢", async () => {
-    const candidate = await pending(),
-      system = createIdentityContext({ actor: { type: "system", job: "lyxtest_spoof_duplicate" } });
+    const code = uscc(),
+      candidate = await pending(code),
+      verified = await pending(code);
+    await h.profile.approve(reviewer, verified.ready.submissionId, {
+      lockVersion: 0,
+      confirm: { roundNo: 1 },
+    });
+    const system = createIdentityContext({
+      actor: { type: "system", job: "lyxtest_spoof_duplicate" },
+    });
     await expect(
       h.profile.reject(system, candidate.ready.submissionId, {
         confirm: { roundNo: 1 },
@@ -436,7 +444,8 @@ describe("W2-11 I7与资质通过订阅共用真实系统决定", { timeout: 600
     ).rejects.toThrow();
     await h.prisma.qualificationSubmission.update({
       where: { id: candidate.ready.submissionId },
-      data: { systemRejectCode: "duplicate_entity" },
+      // 遵守系统原因/结论/关闭配对CHECK；历史标志不能授权当前系统决定。
+      data: { systemRejectCode: "duplicate_entity", outcome: "rejected", closedAt: h.clock.now() },
     });
     await expect(
       h.tx.run((tx) =>
@@ -450,12 +459,16 @@ describe("W2-11 I7与资质通过订阅共用真实系统决定", { timeout: 600
       ),
     ).rejects.toThrow();
     expect(await round(candidate.ready.submissionId)).toMatchObject({
-      closedAt: null,
+      closedAt: h.clock.now(),
+      outcome: "rejected",
       approvalRequest: { status: "pending" },
     });
+    expect(
+      await h.prisma.store.findUniqueOrThrow({ where: { id: candidate.store.id } }),
+    ).toMatchObject({ qualificationStatus: "pending" });
     await h.prisma.qualificationSubmission.update({
       where: { id: candidate.ready.submissionId },
-      data: { systemRejectCode: null },
+      data: { systemRejectCode: null, outcome: null, closedAt: null },
     });
     const base = assembleForTest({ extra: [ports.registration] }),
       scope = createProfileConsistencyAssembly(base),
@@ -486,7 +499,9 @@ describe("W2-11 I7与资质通过订阅共用真实系统决定", { timeout: 600
       await peer.tx.run((tx) =>
         peer.service.runI7(tx, { entityIds: [candidate.entity.id] }, { now: h.clock.now() }),
       ),
-    ).toEqual([]);
+    ).toMatchObject([
+      { subject: { id: candidate.ready.submissionId }, healed: { at: h.clock.now() } },
+    ]);
     await peer.close();
     const duplicateCode = uscc(),
       waiting = await pending(duplicateCode),

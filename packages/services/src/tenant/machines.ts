@@ -134,7 +134,6 @@ const rejectionGiven: Guard = async (tx, facts) => {
       entityId: facts.entityId!,
       submittedAt: { not: null },
       closedAt: null,
-      systemRejectCode: "duplicate_entity",
     },
     include: {
       approvalRequest: true,

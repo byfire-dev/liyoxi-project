@@ -1,5 +1,5 @@
 // 不变量校验的出口（W0-24）。用法见本目录的 README.md。
-export { reportingInvariants } from "./report.js";
+export { reportingInvariants, createInvariantReportingAssembly } from "./report.js";
 export { runInvariants } from "./run.js";
 export type {
   InvariantCheckError,

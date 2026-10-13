@@ -108,6 +108,8 @@ async function conclude(tx: Tx, row: ApprovalRow, decision: ApprovalDecision, ap
   const { deps, ctx } = call(tx);
   const { round, input } = await lockedRound(tx, row, decision.args);
   const duplicate = call(tx).duplicate;
+  if (!approved && !duplicate && decision.reasonCodes.length === 0)
+    throw new AppError("PRECONDITION_CHANGED");
   if (duplicate) {
     const license = round.qualificationDocs.find((doc) => doc.docType === "business_license");
     const winner = license?.certNoBidx
@@ -125,10 +127,6 @@ async function conclude(tx: Tx, row: ApprovalRow, decision: ApprovalDecision, ap
       input.rejectedDocIds[0] !== license?.id
     )
       throw new AppError("PRECONDITION_CHANGED");
-    await tx.qualificationSubmission.update({
-      where: { id: round.id },
-      data: { systemRejectCode: "duplicate_entity", updatedAt: decision.decidedAt },
-    });
   }
   if (!approved && input.isFinal && round.kind === "change")
     throw new AppError("QUALIFICATION_FINAL_NOT_ALLOWED");
@@ -269,6 +267,7 @@ async function conclude(tx: Tx, row: ApprovalRow, decision: ApprovalDecision, ap
     data: {
       closedAt: now,
       outcome: approved ? "approved" : "rejected",
+      ...(duplicate ? { systemRejectCode: "duplicate_entity" } : {}),
       approveMode: approved ? "normal" : null,
       updatedAt: now,
     },

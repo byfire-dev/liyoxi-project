@@ -102,6 +102,7 @@ import type {
   Timers,
 } from "../timers/index.js";
 import { bindOps } from "./binding.js";
+import { createInvariantReportingAssembly } from "./invariants/index.js";
 import {
   bindWebhooks,
   createWebhooks,
@@ -279,7 +280,10 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       logger.error({ evt: "profile.consistency_notification_failed" }, "资质一致性提交后通知失败"),
   );
   const tx = profileCommits.tx;
-  const alertFactsScope = createAlertFactsAssembly(options.assembly, { tx, clock, logger });
+  const alertFactsScope = createAlertFactsAssembly(
+    createInvariantReportingAssembly(options.assembly, { db: prisma, clock }),
+    { tx, clock, logger },
+  );
   const certificateScope = createCertAssembly(alertFactsScope.assembly, {
     tx,
     clock,

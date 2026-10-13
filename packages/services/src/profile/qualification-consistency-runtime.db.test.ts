@@ -1,8 +1,9 @@
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
+import * as dbClients from "@liyoxi/db";
 import { createRuntime } from "../runtime.js";
 import { buildWorkerServices, runInvariants } from "../ops/index.js";
 import { claimDeliveries } from "../events/index.js";
-import { loadEnv } from "../kernel/index.js";
+import { invariantsOf, loadEnv } from "../kernel/index.js";
 import { createTenant } from "../tenant/index.js";
 import {
   assembleForTest,
@@ -21,10 +22,12 @@ const db = useSeededDatabase("services", { max: 1 }),
 let h: Harness,
   live: Harness,
   api: ReturnType<typeof createRuntime>,
-  worker: ReturnType<typeof buildWorkerServices>;
+  worker: ReturnType<typeof buildWorkerServices>,
+  apiDb: ReturnType<typeof dbClients.createPrismaClient>;
 beforeAll(async () => {
   h = harness(await db.prisma());
   await redis.raw();
+  const creating = vi.spyOn(dbClients, "createPrismaClient");
   api = createRuntime({
     entry: "api",
     version: "lyxtest-profile-consistency",
@@ -40,6 +43,10 @@ beforeAll(async () => {
       ...fakeKeyEnv(),
     },
   });
+  const created = creating.mock.results[0];
+  if (created?.type !== "return") throw new Error("未捕获API真实数据库实例");
+  apiDb = created.value;
+  creating.mockRestore();
   worker = buildWorkerServices({
     appEnv: "test",
     prisma: h.prisma,
@@ -96,6 +103,7 @@ afterAll(async () => {
   ]);
   await worker?.closeAlertFacts?.();
   await api?.close();
+  vi.restoreAllMocks();
 }, 120000);
 async function pending(number: string) {
   const world = await live.owner(),
@@ -128,7 +136,16 @@ it("API/worker各自实装：max1真实consumer提交后上报/正式P2/SLA取�
     (r) => r.eventId === source.id && r.subscriber === "profile.onQualificationApproved",
   )!;
   expect(ref).toBeDefined();
+  expect(apiDb).not.toBe(h.prisma);
+  const apiSql = vi.spyOn(apiDb, "$queryRawUnsafe"),
+    workerSql = vi.spyOn(h.prisma, "$queryRawUnsafe");
+  const reports = (spy: typeof apiSql) =>
+    spy.mock.calls.filter(
+      ([query]) => typeof query === "string" && query.includes("invariant_violation"),
+    );
   expect(await worker.consume(ref)).toBe("done");
+  expect(reports(workerSql)).toHaveLength(1);
+  expect(reports(apiSql)).toHaveLength(0);
   expect(await worker.consume(ref)).toBe("stale");
   expect(
     await h.prisma.qualificationSubmission.findUniqueOrThrow({
@@ -163,6 +180,22 @@ it("API/worker各自实装：max1真实consumer提交后上报/正式P2/SLA取�
   });
   expect(JSON.stringify(alert.lastValue)).not.toContain(number);
   expect(await h.prisma.alertEvent.count({ where: { rule: "ops.unknown_rule" } })).toBe(0);
+  // 后绑worker不能接管API report；两个真实数据库实例的独立SQL调用精确归属。
+  apiSql.mockClear();
+  workerSql.mockClear();
+  await invariantsOf(api.assembly).report({
+    code: "profile.I7",
+    module: "profile",
+    severity: "P2",
+    subject: { type: "qualification_submission", id: loser.ready.submissionId },
+    entityId: loser.entity.id,
+    detail: { systemRejectCode: "duplicate_entity", verifiedEntityId: winner.entity.id },
+    healed: { action: "系统驳回重复主体资质轮次", at: h.clock.now() },
+  });
+  expect(reports(apiSql)).toHaveLength(1);
+  expect(reports(workerSql)).toHaveLength(0);
+  apiSql.mockRestore();
+  workerSql.mockRestore();
   // 原worker生命周期绑定仍是已装配服务，未知事件只拒绝事件，不报未绑定。
   await expect(
     h.tx.run((tx) =>

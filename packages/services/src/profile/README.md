@@ -33,7 +33,7 @@ I7/资质通过订阅者由下一节SOURCE回补；终局/override/OCR/SMS与其
 复核通过轮次的当前生效执照/主体认证事实；new_store、无执照change及过时来源不扇出。
 `profile.I7`完整登记为full/P2/heal_and_alert，scope仅限制被检查主体，verified的closed主体
 仍是全局信用码赢家。两入口共用真实system审批拒绝，固定说明、空字典原因与duplicate_entity代码；
-真实当前审批/轮次/赢家事实缺一不可，员工原因、自审与审批守卫不放宽。
+真实当前审批/轮次/赢家事实缺一不可，员工原因、自审与审批守卫不放宽。系统原因码仅随最终closedAt/outcome同句写入，遵守两项配对CHECK。
 初次拒绝沿审批/主体/门店三链，change沿verified自迁移保留旧合法值；仅本轮新执照rejected，
 其他未移除证照accepted，所有已提交证据引用保留。
 
@@ -46,7 +46,7 @@ API/worker各自装配；原onTenantLifecycle绑定保持。profile专用薄TxRu
 开事务/重试/幂等/锁，每次attempt局部收集通知；只有真commit后才等待report/alert，失败尝试及
 幂等重放不通知。I7违规由ops原同Tx落库，只把告警延后。事件告警键profile.qualification_duplicate
 已在ops正式登记，维度仅轮次ID，不发信用码或盲索引。close停止接新批并等待最外在途通知驱动，
-无fire-and-forget，不改变已提交业务结果。
+无fire-and-forget，不改变已提交业务结果。ops报告端口捕获本实例db/clock，保留测试自定义port，不从全局requireOps选取另一runtime。
 
 新增6组领域风险与1组真实API/worker/max1 consumer装配；两旧不变量集合仅补I7能力绑定，
 旧断言保留。作者只做轻格式/lint；类型、数据库、契约生成与唯一独审由ROOT收口，W2-11整包仍进行中。
