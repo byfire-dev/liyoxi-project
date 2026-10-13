@@ -16,6 +16,7 @@ const assembly = assembleForTest({ entry: "api" });
 let h: Harness;
 beforeAll(async () => {
   h = harness(await db.prisma());
+  h.clock.set(new Date("2026-10-10T04:00:00Z"));
 }, 120000);
 const tables = [
   "billing_account",
@@ -68,8 +69,8 @@ describe("后台跨域事实真实装配", { timeout: 60000 }, () => {
         requestNo: "TZ2026101400001",
         kind: "points_adjust",
         category: "approval",
-        subjectType: "point_adjustment_request",
-        subjectId: id,
+        subjectType: "billing_account",
+        subjectId: own.entity.id,
         entityId: own.entity.id,
         status: "pending",
         summarySnapshot: { title: "测试积分调整" },
