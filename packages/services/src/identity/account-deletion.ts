@@ -1,9 +1,9 @@
 import type { Approval } from "../approval/index.js";
-import type { Guard } from "../flow/index.js";
+import type { Flow, Guard } from "../flow/index.js";
 import { AppError, createIdentityContext, lockRows } from "../kernel/index.js";
-import type { IdentityContext, Tx } from "../kernel/index.js";
+import type { Clock, IdentityContext, Tx, TxRunner } from "../kernel/index.js";
 import { clearAccountMemberNamesIn } from "../tenant/index.js";
-import type { LoginDeps } from "./login.js";
+import type { Tenant } from "../tenant/index.js";
 import { assertCurrentSession } from "./current-session.js";
 import {
   clearPersonalAccountIn,
@@ -14,7 +14,14 @@ import {
 import type { IdempotencyContext } from "../kernel/index.js";
 import type { RequestMeta, SessionPrincipal } from "./types.js";
 
-type Deps = Omit<LoginDeps, "me"> & { approval?: Pick<Approval, "withdraw"> };
+interface Deps {
+  tx: TxRunner;
+  clock: Clock;
+  flow: Pick<Flow, "transition">;
+  tenant: Pick<Tenant, "activeMembership" | "closeEntityForOwnerDeletionIn" | "removeMemberIn">;
+  appid: string;
+  approval?: Pick<Approval, "withdraw">;
+}
 type Prepared = { userId: string; ctx: IdentityContext; closedEntityId: string | null };
 const prepared = new WeakMap<Tx, Prepared>();
 
