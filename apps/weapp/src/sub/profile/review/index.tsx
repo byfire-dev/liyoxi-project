@@ -11,6 +11,13 @@ import { withProfileSubscribe } from "../private/subscription";
 import { appDateTimeFormat as fmtMerchant } from "@liyoxi/shared/format/datetime";
 import { Frame, Feedback, navigate, useAction, useResource } from "../private/ui";
 import { profileContext, profileRuntime } from "../private/runtime";
+// 轮次outcome不是门店资格状态：已通过/驳回复用现有标签，其余按正式轮次语义。
+const outcomeLabels: Readonly<Record<string, string>> = {
+  approved: merchantStatusByEnum("store.qualification_status", "verified")?.label ?? "已通过",
+  rejected: merchantStatusByEnum("store.qualification_status", "rejected")?.label ?? "已驳回",
+  withdrawn: "已撤回",
+  discarded: "已放弃",
+};
 export default function Review() {
   const uploading = useUploadBusy();
   const resource = useResource(async (api) => {
@@ -111,7 +118,8 @@ export default function Review() {
                   {r.isResubmit ? " · 补正重提" : ""}
                 </View>
                 <View className="profile-subtitle">
-                  {fmtMerchant.dateTime(r.submittedAt)} · {r.outcome ?? "审核中"}
+                  {fmtMerchant.dateTime(r.submittedAt)} ·{" "}
+                  {r.outcome === null ? "审核中" : (outcomeLabels[r.outcome] ?? "结果待更新")}
                 </View>
                 {r.rejectReasons.map((reason) => (
                   <Note key={reason.code}>{reason.name}</Note>
