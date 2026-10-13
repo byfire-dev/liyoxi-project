@@ -128,6 +128,57 @@ export const CLERK_SAMPLES: readonly Sample[] = [
   },
   get("m.bootstrap.get", "/m/bootstrap"),
   get("m.me.get", "/m/me"),
+  {
+    operationId: "m.me.update",
+    play: async (api, ctx) =>
+      api.request("/api/v1/m/me", {
+        method: "PATCH",
+        json: { displayName: "店员本人称呼" },
+        headers: { ...ctx.clerk.headers, "Idempotency-Key": uuidv7() },
+      }),
+  },
+  {
+    operationId: "m.me.userNotice.acknowledge",
+    play: async (api, ctx) => {
+      const notice = await api.runtime.tx.run((tx) =>
+        tx.merchantUserNotice.create({
+          data: {
+            id: uuidv7(),
+            merchantUserId: ctx.clerk.merchantUserId,
+            kind: "new_wechat_bound",
+            occurredAt: api.clock.now(),
+            createdAt: api.clock.now(),
+            updatedAt: api.clock.now(),
+          },
+        }),
+      );
+      return api.request(`/api/v1/m/me/user-notices/${notice.id}/acknowledge`, {
+        method: "POST",
+        headers: { ...ctx.clerk.headers, "Idempotency-Key": uuidv7() },
+      });
+    },
+  },
+  {
+    operationId: "m.me.wechatIdentity.list",
+    play: async (api, ctx) =>
+      api.request("/api/v1/m/me/wechat-identities", { headers: ctx.clerk.headers }),
+  },
+  {
+    operationId: "m.me.wechatIdentity.delete",
+    play: async (api, ctx) => {
+      // 同一店员的新设备自行移除，保留后续回放使用的原会话。
+      const device = await signInAsMerchant(api, { phone: ctx.clerk.phone });
+      const identity = await api.runtime.tx.run((tx) =>
+        tx.wechatIdentity.findFirstOrThrow({
+          where: { merchantUserId: device.merchantUserId, openid: device.openid },
+        }),
+      );
+      return api.request(`/api/v1/m/me/wechat-identities/${identity.id}`, {
+        method: "DELETE",
+        headers: { ...device.headers, "Idempotency-Key": uuidv7() },
+      });
+    },
+  },
   get("m.me.overview.get", "/m/me/overview"),
   {
     operationId: "m.session.create",

@@ -10,6 +10,10 @@ import type {
   AgreementConsentReceipt,
   MeOverview,
   MeView,
+  MeUser,
+  UserNoticeAckResult,
+  WechatIdentityList,
+  WechatIdentityRemoveResult,
   PendingConsent,
   PhoneLoginResult,
   SilentLoginResult,
@@ -36,8 +40,17 @@ import type { SessionCheck } from "./sessions.js";
 import type { RequestMeta, SessionPrincipal } from "./types.js";
 import { reconsent } from "./reconsent.js";
 import type { ReconsentBody } from "./reconsent.js";
+import type { WechatProvider } from "../providers/types.js";
+import {
+  acknowledgeUserNotice,
+  listWechatIdentities,
+  removeWechatIdentity,
+  updateMe,
+} from "./personal-account.js";
 
-export interface IdentityDeps extends Omit<LoginDeps, "me" | "config"> {
+export interface IdentityDeps extends Omit<LoginDeps, "me" | "config" | "wechat"> {
+  readonly wechat:
+    (NonNullable<LoginDeps["wechat"]> & Partial<Pick<WechatProvider, "checkText">>) | null;
   /** 配置读侧：参数 auth.dormant_days、开关 client.min_version */
   readonly config: Pick<Config, "params" | "flags" | "dicts" | "siteConfig">;
   /** 短信通道配没配（决定 MeUser.actions 里有没有换绑手机号）；不给即没配 */
@@ -65,6 +78,28 @@ export interface Identity {
   ): Promise<AgreementConsentReceipt>;
   /** m.me.get：只读、现算 */
   me(merchantUserId: string): Promise<MeView>;
+  updateMe(
+    principal: SessionPrincipal,
+    meta: RequestMeta,
+    input: { displayName: string },
+    options?: { idem?: IdempotencyContext },
+  ): Promise<MeUser>;
+  acknowledgeUserNotice(
+    principal: SessionPrincipal,
+    meta: RequestMeta,
+    input: { userNoticeId: string },
+    options?: { idem?: IdempotencyContext },
+  ): Promise<UserNoticeAckResult>;
+  listWechatIdentities(
+    principal: SessionPrincipal,
+    input?: { cursor?: string | undefined; limit?: number | undefined },
+  ): Promise<WechatIdentityList>;
+  removeWechatIdentity(
+    principal: SessionPrincipal,
+    meta: RequestMeta,
+    input: { wechatIdentityId: string },
+    options?: { idem?: IdempotencyContext },
+  ): Promise<WechatIdentityRemoveResult>;
 
   bootstrap(input: BootstrapInput): Promise<Bootstrap>;
   overview(input: { merchantUserId: string; membership: StoreMembership }): Promise<MeOverview>;
@@ -103,6 +138,12 @@ export function createIdentity(deps: IdentityDeps): Identity {
     reconsent: (principal, meta, input, options) =>
       reconsent({ ...deps, signerOf: identity.consentSignerOf }, principal, meta, input, options),
     me: (merchantUserId) => deps.tx.run((tx) => buildMeView(tx, meDeps, merchantUserId)),
+    updateMe: (principal, meta, input, options) => updateMe(deps, principal, meta, input, options),
+    acknowledgeUserNotice: (principal, meta, input, options) =>
+      acknowledgeUserNotice(deps, principal, meta, input, options),
+    listWechatIdentities: (principal, input) => listWechatIdentities(deps, principal, input),
+    removeWechatIdentity: (principal, meta, input, options) =>
+      removeWechatIdentity(deps, principal, meta, input, options),
 
     bootstrap: (input) => bootstrap(deps, input),
     overview: (input) => overview(deps, input),

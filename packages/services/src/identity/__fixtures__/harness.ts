@@ -82,6 +82,7 @@ export interface Harness extends Stack {
   readonly versions: { user: AgreementVersion; privacy: AgreementVersion };
   /** 参数 auth.dormant_days 的取值，用例可以改 */
   dormantDays: number;
+  identityRemoveMinAgeDays: number;
   /** 最低客户端版本，用例可以改 */
   minClientVersion: string;
   /**
@@ -135,6 +136,7 @@ export async function buildHarness(prisma: PrismaClient): Promise<Harness> {
 
   const harness = {
     dormantDays: 180,
+    identityRemoveMinAgeDays: 7,
     minClientVersion: "0.0.0",
   } as Harness;
 
@@ -178,6 +180,8 @@ export async function buildHarness(prisma: PrismaClient): Promise<Harness> {
       config: {
         params: {
           get: (key: string) => {
+            if (key === "auth.identity_remove_min_age_days")
+              return Promise.resolve(harness.identityRemoveMinAgeDays);
             if (key !== "auth.dormant_days") throw new Error(`用例没给参数 ${key}`);
             return Promise.resolve(harness.dormantDays);
           },
