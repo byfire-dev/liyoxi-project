@@ -56,13 +56,14 @@ async function purgeFile(ctx: SweepContext, runId: string, fileId: string) {
           {
             claim: async (tx, { resumed }) => {
               const run = await lockRun(tx, runId);
-              if (run.state !== "running" || !run.candidateIds.includes(fileId))
-                throw new PurgeGuard("运行已结束或候选不符");
+              if (!run.candidateIds.includes(fileId)) throw new PurgeGuard("运行已结束或候选不符");
               await lockRows(tx, "file_object", [fileId]);
               const file = await tx.fileObject.findUnique({ where: { id: fileId } });
               // 公开三段式resumed证明旧claim已提交；上轮可能已经加marker，guard失败也须补偿。
               if (resumed && file?.status === "deleting")
                 attempted = { bucket: file.bucket as ObjectRef["bucket"], key: file.objectKey };
+              if (run.state !== "running")
+                throw new PurgeGuard("运行已中止，只恢复已证明的旧删除意图");
               if (!file || !(await sweepGuard(ctx.deps, tx, file, resumed)))
                 throw new PurgeGuard("删除前当前事实不再满足");
               if (file.status === "stored")
@@ -150,6 +151,45 @@ async function purgeFile(ctx: SweepContext, runId: string, fileId: string) {
     },
     { signal: ctx.signal },
   );
+}
+/** 中止运行不能遗留本run的marker；同键resumed仍是唯一意图证明，不接管手工erase。 */
+export async function recoverAbortedPurge(
+  ctx: SweepContext,
+  after?: { runId: string; fileId: string },
+) {
+  const rows = await ctx.tx.run((tx) =>
+    tx.$queryRawUnsafe<{ runId: string; fileId: string }[]>(
+      `
+    SELECT r.id AS "runId", f.id AS "fileId" FROM file_purge_run r JOIN file_object f ON f.id=ANY(r.candidate_ids)
+    WHERE r.state='aborted' AND f.status='deleting'
+      AND ($1::uuid IS NULL OR (r.id,f.id)>($1::uuid,$2::uuid))
+    ORDER BY r.id,f.id LIMIT ${SWEEP_BATCH}`,
+      after?.runId ?? null,
+      after?.fileId ?? null,
+    ),
+  );
+  let recovered = 0;
+  for (const row of rows) {
+    ctx.signal.throwIfAborted();
+    try {
+      await purgeFile(ctx, row.runId, row.fileId);
+      const file = await ctx.tx.run((tx) =>
+        tx.fileObject.findUnique({ where: { id: row.fileId }, select: { status: true } }),
+      );
+      if (file?.status === "stored") recovered++;
+      else
+        await ctx.deps.retention!.alerts.raise({
+          rule: "purge.recovery_pending",
+          dimension: row.fileId,
+          severity: "P1",
+          detail: row,
+        });
+    } catch (error) {
+      ctx.signal.throwIfAborted();
+      if (!(error instanceof AppError && error.error === "IDEMPOTENCY_IN_PROGRESS")) throw error;
+    }
+  }
+  return { recovered, after: rows.length === SWEEP_BATCH ? rows.at(-1) : undefined };
 }
 export async function executePurgeRun(ctx: SweepContext, runId: string) {
   const ids = await ctx.tx.run(async (tx) => {

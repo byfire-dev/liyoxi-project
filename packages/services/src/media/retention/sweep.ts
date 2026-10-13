@@ -10,7 +10,7 @@ import {
   purgeOcrRaw,
 } from "./maintenance.js";
 import { preparePurgeRun } from "./purge-runs.js";
-import { executePurgeRun } from "./purge-execute.js";
+import { executePurgeRun, recoverAbortedPurge } from "./purge-execute.js";
 import { sweepContext, SWEEP_BATCH } from "./sweep-context.js";
 import type { RetentionDeps } from "./types.js";
 import { releaseArchivedAssets } from "./archive-assets.js";
@@ -19,6 +19,7 @@ export function createMediaSweep(deps: RetentionDeps) {
   let proofAfter: string | undefined,
     demandAfter: string | undefined,
     assetAfter: string | undefined;
+  let recoveryAfter: { runId: string; fileId: string } | undefined;
   return async (context: RecurringRunContext) => {
     const ctx = sweepContext(deps, context),
       result: Record<string, unknown> = {},
@@ -96,6 +97,11 @@ export function createMediaSweep(deps: RetentionDeps) {
     await step("purge", async () => {
       const runId = await preparePurgeRun(ctx);
       return runId ? executePurgeRun(ctx, runId) : null;
+    });
+    await step("recoverPurge", async () => {
+      const recovery = await recoverAbortedPurge(ctx, recoveryAfter);
+      recoveryAfter = recovery.after;
+      return recovery.recovered;
     });
     await step("ocr", () => purgeOcrRaw(ctx));
     await step("demands", () =>
