@@ -21,6 +21,8 @@ import {
   sampleEditorForNotify,
 } from "./notify-facts.js";
 import { deliveryManagerPort } from "../profile/index.js";
+import { implementAdminProfileFacts } from "../profile/index.js";
+import { readProfileAdminDeliveryFacts } from "./profile-admin.js";
 import { launchChangedPort, launchHandlerPort } from "../publish/index.js";
 import { createIdentityContext, defineRegistration, implement } from "../kernel/index.js";
 import { assignStoreTickets } from "./assign.js";
@@ -33,6 +35,7 @@ import { deliveryFileRefs } from "./file-refs.js";
 export const registration = defineRegistration("delivery", {
   ports: [orderSidePort],
   portImplementations: [
+    implementAdminProfileFacts("delivery", readProfileAdminDeliveryFacts),
     implementTenantCloseFacts(deliveryCloseFactsPort, {
       countOnlineReleaseTicketsByEntity,
       countBlockingStoreTickets,
