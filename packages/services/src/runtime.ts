@@ -98,6 +98,7 @@ import {
   createConfigAdmin,
   createSiteAdmin,
   normalizeSiteNoticeLink,
+  createNotices,
 } from "./config/index.js";
 import type { Config, ConfigAdmin, SiteAdmin } from "./config/index.js";
 import { createEvents } from "./events/index.js";
@@ -936,7 +937,13 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     webhooks,
     order,
     billing,
-    billingPlansAdmin: createPlanAdmin({ tx, clock, staffBriefs }),
+    billingPlansAdmin: createPlanAdmin({
+      tx,
+      clock,
+      staffBriefs,
+      events,
+      notices: createNotices({ clock, events }),
+    }),
     notifyMessages,
     notify,
     staffManagement,

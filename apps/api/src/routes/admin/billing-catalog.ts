@@ -1,10 +1,66 @@
-import { adminPlanList, adminPlanUpdate, adminPlanShelve, adminPlanDelist } from "@liyoxi/contract";
+import {
+  adminPlanList,
+  adminPlanUpdate,
+  adminPlanShelve,
+  adminPlanDelist,
+  adminPlanCreate,
+  adminPlanPlanRevisionCreate,
+  adminPlanRevisionList,
+  adminPlanRevisionWithdraw,
+  adminPlanSummary,
+} from "@liyoxi/contract";
 import { ok } from "../../http/errors.js";
 import { idemOf } from "../../http/idempotency.js";
 import { defineAdminHandler } from "../../routing/admin.js";
 
 const view = { module: "billing", need: "view" } as const;
 export const adminBillingCatalogHandlers = [
+  defineAdminHandler(adminPlanSummary, view, async (c, staff) => {
+    c.header("Cache-Control", "private, max-age=60");
+    return ok(c, await c.var.runtime.billingPlansAdmin.summary(staff.ctx));
+  }),
+  defineAdminHandler(adminPlanCreate, view, async (c, staff) => {
+    c.header("Cache-Control", "no-store");
+    return ok(
+      c,
+      await c.var.runtime.billingPlansAdmin.create(
+        { identity: c.var.identity!, staff: staff.ctx },
+        c.req.valid("json"),
+        { idem: idemOf(c) },
+      ),
+    );
+  }),
+  defineAdminHandler(adminPlanPlanRevisionCreate, view, async (c, staff) => {
+    c.header("Cache-Control", "no-store");
+    return ok(
+      c,
+      await c.var.runtime.billingPlansAdmin.createRevision(
+        { identity: c.var.identity!, staff: staff.ctx },
+        c.req.valid("param").planId,
+        c.req.valid("json"),
+        { idem: idemOf(c) },
+      ),
+    );
+  }),
+  defineAdminHandler(adminPlanRevisionList, view, async (c, staff) => {
+    c.header("Cache-Control", "no-store");
+    return ok(
+      c,
+      await c.var.runtime.billingPlansAdmin.revisionList(staff.ctx, c.req.valid("query")),
+    );
+  }),
+  defineAdminHandler(adminPlanRevisionWithdraw, view, async (c, staff) => {
+    c.header("Cache-Control", "no-store");
+    return ok(
+      c,
+      await c.var.runtime.billingPlansAdmin.withdrawRevision(
+        { identity: c.var.identity!, staff: staff.ctx },
+        c.req.valid("param").planRevisionId,
+        c.req.valid("json"),
+        { idem: idemOf(c) },
+      ),
+    );
+  }),
   defineAdminHandler(adminPlanList, view, async (c, staff) => {
     c.header("Cache-Control", "no-store");
     return ok(c, await c.var.runtime.billingPlansAdmin.list(staff.ctx, c.req.valid("query")));

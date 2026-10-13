@@ -1,11 +1,76 @@
 import { z } from "../../zod.js";
-import { IdSchema, InstantSchema, openEnum } from "../../common/index.js";
-import { StaffBriefSchema } from "../a01-system/structures.js";
+import {
+  DateSchema,
+  IdSchema,
+  InstantSchema,
+  PageQuerySchema,
+  openEnum,
+} from "../../common/index.js";
+import { adminPage, StaffBriefSchema } from "../a01-system/structures.js";
 import { PLAN_SCOPE } from "../../enums/billing.js";
 import { PRODUCTION_MODEL, SCHEDULE_PRIORITY } from "../../enums/shared.js";
 
 const count = z.int().nonnegative();
+const text = (max: number) =>
+  z
+    .string()
+    .trim()
+    .refine((v) => [...v].length >= 1 && [...v].length <= max);
+const status = z.enum(["pending", "effective", "superseded", "cancelled"]);
 export const PlanParamsSchema = z.object({ planId: IdSchema });
+export const PlanRevisionParamsSchema = z.object({ planRevisionId: IdSchema });
+export const PlanCreateBodySchema = z
+  .strictObject({
+    code: z.string().regex(/^[a-z][a-z0-9_]{1,23}$/),
+    name: text(20),
+    rank: z.int().min(1).max(99),
+  })
+  .openapi("PlanCreateBody");
+export const PlanRevisionCreateBodySchema = z
+  .strictObject({
+    monthlyFeeFen: z.int().positive().max(2_147_483_647),
+    monthlyPoints: z.int().positive().max(2_147_483_647),
+    discountBp: z.int().min(5000).max(10000).multipleOf(100),
+    productionModel: z.enum(PRODUCTION_MODEL.values),
+    maxStores: z.int().positive().max(2_147_483_647),
+    maxMembers: z.int().positive().max(2_147_483_647).nullable(),
+    schedulePriority: z.enum(SCHEDULE_PRIORITY.values),
+    hasMonthlyReport: z.boolean(),
+    cyclePrices: z
+      .array(
+        z.strictObject({
+          months: z.int().positive(),
+          priceFen: z.int().positive().max(2_147_483_647),
+        }),
+      )
+      .refine((v) => new Set(v.map((p) => p.months)).size === v.length)
+      .optional(),
+    effectiveDate: DateSchema.nullable(),
+    firstCyclePromo: z.boolean(),
+    notice: z
+      .strictObject({
+        title: text(40).optional(),
+        summary: text(200).optional(),
+        summaryNoPrice: text(200).optional(),
+        isBarEnabled: z.boolean().optional(),
+      })
+      .nullable()
+      .optional(),
+  })
+  .openapi("PlanRevisionCreateBody");
+export const PlanRevisionWithdrawBodySchema = z
+  .strictObject({
+    note: z.string().trim().max(200).optional(),
+    confirm: z.strictObject({ planRevisionId: IdSchema, effectiveAt: InstantSchema }),
+  })
+  .openapi("PlanRevisionWithdrawBody");
+export const PlanRevisionListQuerySchema = PageQuerySchema.extend({
+  planId: IdSchema.optional(),
+  status: z
+    .union([status, z.array(status)])
+    .transform((v) => (typeof v === "string" ? [v] : v))
+    .optional(),
+}).openapi("PlanRevisionListQuery");
 export const PlanAdminListQuerySchema = z
   .object({
     includeDelisted: z
@@ -91,6 +156,23 @@ export const PlanAdminListSchema = z
     }),
   })
   .openapi("PlanAdminList");
+export const PlanRevisionListItemSchema = PlanRevisionViewSchema.extend({
+  plan: z.object({ planId: IdSchema, name: z.string() }),
+});
+export const PlanRevisionPageSchema = adminPage(PlanRevisionListItemSchema).openapi(
+  "PlanRevisionPage",
+);
+export const PlanSummarySchema = z
+  .object({
+    activeEntityCount: count,
+    mrrFen: z.string().regex(/^\d+$/),
+    newThisMonthCount: count,
+    renewedThisMonthCount: count,
+    asOf: InstantSchema,
+  })
+  .openapi("PlanSummary");
 export type PlanAdminColumn = z.infer<typeof PlanAdminColumnSchema>;
 export type PlanAdminListQuery = z.infer<typeof PlanAdminListQuerySchema>;
 export type PlanNameUpdateBody = z.infer<typeof PlanNameUpdateBodySchema>;
+export type PlanRevisionCreateBody = z.infer<typeof PlanRevisionCreateBodySchema>;
+export type PlanRevisionListQuery = z.infer<typeof PlanRevisionListQuerySchema>;
