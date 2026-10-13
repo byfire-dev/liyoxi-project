@@ -105,6 +105,10 @@ admin.file.get | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.file.list | system:view | - | 11 00 00 00 00 00 00 00
 admin.file.refreshCredentials | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.file.restore | - | files.restore | 11 00 00 00 00 00 00 00
+admin.followUp.complete | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.followUp.create | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.followUp.list | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.followUp.update | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.homeBanner.batchReorder | ops:edit | - | 11 00 00 00 00 11 00 00
 admin.homeBanner.create | ops:edit | - | 11 00 00 00 00 11 00 00
 admin.homeBanner.list | ops:view | - | 11 00 00 00 00 11 00 00
