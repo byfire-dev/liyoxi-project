@@ -1,7 +1,7 @@
 import { useUploadBusy } from "@/lib/upload/taro";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View } from "@tarojs/components";
-import { useDidHide } from "@tarojs/taro";
+import Taro, { useDidHide } from "@tarojs/taro";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { Checkbox } from "@/components/Checkbox";
@@ -13,7 +13,7 @@ import { Certificate } from "../private/certificates";
 import { Frame, Feedback, TextField, STEP_NAMES, useAction, useResource } from "../private/ui";
 import { useDraft } from "../private/draft";
 import { profileContext, profileRuntime } from "../private/runtime";
-import { errorInfo } from "../private/model";
+import { errorInfo, qualificationEditable, qualificationKind } from "../private/model";
 export default function Cert() {
   const uploading = useUploadBusy();
   const resource = useResource(async (api) => ({
@@ -22,17 +22,14 @@ export default function Cert() {
   }));
   const action = useAction("qualification_save", 4);
   const submit = useAction("qualification_submit");
+  const sms = useAction("qualification_contact_sms");
   const pendingAuthorization = useRef<{ context: string; key: string } | null>(null);
   const pendingDeclaration = useRef<string | null>(null);
   const [authorizingContext, setAuthorizingContext] = useState<string | null>(null);
   const data = resource.data?.qualification;
   const owner = data?.viewerRole === "owner" ? data : null;
   const round = owner?.openRound;
-  const editable =
-    owner !== null &&
-    !owner.isFinalRejected &&
-    owner.storeQualificationStatus !== "verified" &&
-    round?.phase !== "in_review";
+  const editable = qualificationEditable(owner);
   const authorizing = submit.busy || authorizingContext === profileContext();
   const [contact, setContact, acceptContact] = useDraft(
     owner?.contact,
@@ -44,10 +41,30 @@ export default function Cert() {
     { name: "", phoneSource: "login" as "login" | "input", phone: "" },
   );
   const { name, phoneSource, phone } = contact;
+  const [smsCode, setSmsCode] = useDraft(owner?.contact, () => "", "");
+  const [smsReceipt, setSmsReceipt] = useState<{
+    context: string;
+    phone: string;
+    resendAt: number;
+    message: string;
+  } | null>(null);
+  const currentSms =
+    smsReceipt?.context === profileContext() && smsReceipt.phone === phone ? smsReceipt : null;
+  useEffect(() => {
+    if (!smsReceipt?.resendAt) return;
+    const timer = setTimeout(
+      () => setSmsReceipt((value) => (value === smsReceipt ? { ...value, resendAt: 0 } : value)),
+      Math.max(0, smsReceipt.resendAt - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [smsReceipt]);
   const setName = (name: string) => setContact((old) => ({ ...old, name }));
   const setPhoneSource = (phoneSource: "login" | "input") =>
     setContact((old) => ({ ...old, phoneSource }));
-  const setPhone = (phone: string) => setContact((old) => ({ ...old, phone }));
+  const setPhone = (phone: string) => {
+    setContact((old) => ({ ...old, phone }));
+    setSmsCode("");
+  };
   const [agreed, setAgreed] = useState(false);
   useDidHide(() => {
     setAgreed(false);
@@ -153,56 +170,109 @@ export default function Cert() {
           void load();
         }}
       />
+      <Feedback action={sms} />
       {owner ? (
         <>
-          {!editable ? <Note>当前资料只读。审核进度与结果请到审核进度页查看</Note> : null}
-          <Card title="主体类型">
-            <View className="profile-pair">
-              {(
-                [
-                  ["enterprise", "企业"],
-                  ["individual", "个体工商户"],
-                ] as const
-              ).map(([value, title]) => (
-                <Checkbox
-                  key={value}
-                  shape="round"
-                  checked={
-                    round?.claimedEntityType === value ||
-                    (!round && owner.entity.entityType === value)
-                  }
-                  disabled={!editable || action.busy || authorizing}
-                  onChange={() => {
-                    const body = {
-                      lockVersion: round?.lockVersion ?? null,
-                      claimedEntityType: value,
-                    };
-                    void action
-                      .run(body, (key) =>
-                        profileRuntime().then(({ api }) => api.saveQualification(body, key)),
-                      )
-                      .then(async (result) => {
-                        if (result) await load();
-                      });
-                  }}
-                >
-                  {title}
-                </Checkbox>
-              ))}
-            </View>
-          </Card>
-          <Certificate
-            title="营业执照"
-            docType="business_license"
-            doc={
-              round?.docs.find((doc) => doc.docType === "business_license") ??
-              owner.effectiveDocs.find((doc) => doc.docType === "business_license")
-            }
-            permits={resource.data?.dicts[0]?.items ?? []}
-            lockVersion={round?.lockVersion ?? 0}
-            editable={editable && !authorizing}
-            reload={load}
-          />
+          {!editable ? (
+            <Note>当前证照与声明只读，联系人仍可保存。审核进度与结果请到审核进度页查看</Note>
+          ) : null}
+          {owner.storeQualificationStatus === "verified" &&
+          !owner.openRound &&
+          !owner.isFinalRejected ? (
+            <Button
+              variant="outline"
+              loading={action.busy}
+              onClick={() => {
+                const context = profileContext();
+                void action
+                  .run({ beginChange: true }, async (key) => {
+                    const yes = await Taro.showModal({
+                      title: "变更资质",
+                      content: "变更内容需要重新审核；审核通过前继续使用当前有效资质",
+                    });
+                    if (!yes.confirm || !action.isCurrent(context)) return;
+                    return (await profileRuntime()).api.saveQualification(
+                      { lockVersion: null },
+                      key,
+                    );
+                  })
+                  .then(async (value) => {
+                    if (value && action.isCurrent(context)) await load();
+                  });
+              }}
+            >
+              更改资质并重新审核
+            </Button>
+          ) : null}
+          {qualificationKind(owner) === "new_store" ? (
+            <Note>新门店沿用已认证主体的营业执照，本轮仅提交本店所需证照</Note>
+          ) : (
+            <Card title="主体类型">
+              <View className="profile-pair">
+                {(
+                  [
+                    ["enterprise", "企业"],
+                    ["individual", "个体工商户"],
+                  ] as const
+                ).map(([value, title]) => (
+                  <Checkbox
+                    key={value}
+                    shape="round"
+                    checked={
+                      round?.claimedEntityType === value ||
+                      (!round && owner.entity.entityType === value)
+                    }
+                    disabled={!editable || action.busy || authorizing}
+                    onChange={() => {
+                      const body = {
+                        lockVersion: round?.lockVersion ?? null,
+                        claimedEntityType: value,
+                      };
+                      void action
+                        .run(body, (key) =>
+                          profileRuntime().then(({ api }) => api.saveQualification(body, key)),
+                        )
+                        .then(async (result) => {
+                          if (result) await load();
+                        });
+                    }}
+                  >
+                    {title}
+                  </Checkbox>
+                ))}
+              </View>
+            </Card>
+          )}
+          {round?.kind !== "new_store" &&
+          !(
+            owner.entity.verificationStatus === "verified" &&
+            owner.storeQualificationStatus === "unsubmitted" &&
+            !round
+          ) ? (
+            <Certificate
+              title="营业执照"
+              docType="business_license"
+              doc={
+                round?.docs.find((doc) => doc.docType === "business_license") ??
+                owner.effectiveDocs.find((doc) => doc.docType === "business_license")
+              }
+              permits={resource.data?.dicts[0]?.items ?? []}
+              lockVersion={round?.lockVersion ?? 0}
+              editable={editable && !authorizing}
+              reload={load}
+            />
+          ) : null}
+          {round?.kind === "new_store" &&
+          !round.docs.some((d) => d.docType === "branch_license") ? (
+            <Certificate
+              title="分支机构执照（选填）"
+              docType="branch_license"
+              permits={resource.data?.dicts[0]?.items ?? []}
+              lockVersion={round.lockVersion}
+              editable={editable && !authorizing}
+              reload={load}
+            />
+          ) : null}
           {owner.requiredPermits.map(({ permitType }) => (
             <Certificate
               key={permitType.code}
@@ -246,7 +316,7 @@ export default function Cert() {
                 value={name}
                 max={20}
                 required
-                disabled={!editable || authorizing}
+                disabled={action.busy || sms.busy || authorizing}
                 onChange={setName}
               />
               <View className="profile-subtitle">
@@ -255,7 +325,7 @@ export default function Cert() {
               <Checkbox
                 shape="round"
                 checked={phoneSource === "login"}
-                disabled={!editable || authorizing}
+                disabled={action.busy || sms.busy || authorizing}
                 onChange={() => setPhoneSource("login")}
               >
                 使用登录号码 {owner.contact.loginPhoneMask}
@@ -263,7 +333,7 @@ export default function Cert() {
               <Checkbox
                 shape="round"
                 checked={phoneSource === "input"}
-                disabled={!editable || authorizing}
+                disabled={action.busy || sms.busy || authorizing}
                 onChange={() => setPhoneSource("input")}
               >
                 使用其他号码
@@ -275,24 +345,67 @@ export default function Cert() {
                     value={phone}
                     max={11}
                     required
-                    disabled={!editable || authorizing}
+                    disabled={action.busy || sms.busy || authorizing}
                     onChange={setPhone}
                   />
-                  <Note>短信核验暂未开放，提交后由审核员人工核对</Note>
+                  {owner.contact.isSmsVerifyAvailable ? (
+                    <>
+                      <TextField
+                        label="短信验证码"
+                        value={smsCode}
+                        onChange={setSmsCode}
+                        max={6}
+                        numeric
+                        disabled={action.busy || sms.busy || authorizing}
+                      />
+                      <Button
+                        variant="outline"
+                        loading={sms.busy}
+                        disabled={action.busy || authorizing || !!currentSms?.resendAt}
+                        onClick={() => {
+                          const context = profileContext();
+                          void sms
+                            .run({ phone }, (key) =>
+                              profileRuntime().then(({ api }) => api.contactSms({ phone }, key)),
+                            )
+                            .then((value) => {
+                              if (value && sms.isCurrent(context))
+                                setSmsReceipt({
+                                  context,
+                                  phone,
+                                  resendAt: value.resendAfterSec
+                                    ? Date.now() + value.resendAfterSec * 1000
+                                    : 0,
+                                  message: value.isLoginPhone
+                                    ? "这是当前登录手机号，无需验证码"
+                                    : `验证码已发送，${value.resendAfterSec ?? 0}秒后可重发`,
+                                });
+                            });
+                        }}
+                      >
+                        获取验证码
+                      </Button>
+                      {currentSms ? <Note>{currentSms.message}</Note> : null}
+                    </>
+                  ) : (
+                    <Note>短信验证当前不可用，可按未验证号码保存，提交时由服务端复核</Note>
+                  )}
                 </>
               ) : null}
-              {editable ? (
+              {owner ? (
                 <Button
                   variant="outline"
                   block
                   loading={action.busy}
-                  disabled={authorizing}
+                  disabled={authorizing || sms.busy}
                   onClick={() => {
                     const body = {
                       lockVersion: owner.contact.lockVersion,
                       name,
                       phoneSource,
-                      ...(phoneSource === "input" ? { phone } : {}),
+                      ...(phoneSource === "input"
+                        ? { phone, ...(smsCode ? { smsCode } : {}) }
+                        : {}),
                     };
                     void action
                       .run(body, (key) =>
@@ -316,6 +429,31 @@ export default function Cert() {
               ) : null}
             </View>
           </Card>
+          {owner.actions.includes("discard") && round ? (
+            <Button
+              variant="danger"
+              disabled={uploading || authorizing}
+              loading={action.busy}
+              onClick={() => {
+                const context = profileContext(),
+                  body = { qualificationSubmissionId: round.qualificationSubmissionId };
+                void action
+                  .run({ discard: body }, async (key) => {
+                    const yes = await Taro.showModal({
+                      title: "放弃本轮草稿",
+                      content: "本轮未提交修改将放弃，历史审核与当前有效档案保留",
+                    });
+                    if (!yes.confirm || !action.isCurrent(context)) return;
+                    return (await profileRuntime()).api.discard(body, key);
+                  })
+                  .then(async (value) => {
+                    if (value && action.isCurrent(context)) await load();
+                  });
+              }}
+            >
+              放弃本轮修改
+            </Button>
+          ) : null}
           {editable ? (
             <Card title="信息确认">
               <Checkbox

@@ -109,6 +109,7 @@ export default function Profile() {
             </View>
           </Card>
           {[
+            ["sub/profile/stores/index", "门店管理"],
             ["sub/asset/lib/index", "门店素材"],
             ["sub/member/members/index", "成员管理"],
             ["sub/ad/ads/index", "我的广告"],

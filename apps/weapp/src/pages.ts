@@ -207,8 +207,12 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     "W1-09",
     { implemented: true },
   ),
-  page("sub/profile/stores/index", "sub/profile", "门店管理", "Stores", "M48", "M2", "G2-B"),
-  page("sub/profile/store-add/index", "sub/profile", "新增门店", "StoreAdd", "M49", "M2", "G2-B"),
+  page("sub/profile/stores/index", "sub/profile", "门店管理", "Stores", "M48", "M2", "W2-14", {
+    implemented: true,
+  }),
+  page("sub/profile/store-add/index", "sub/profile", "新增门店", "StoreAdd", "M49", "M2", "W2-14", {
+    implemented: true,
+  }),
   page(
     "sub/profile/staff-profile/index",
     "sub/profile",
@@ -216,9 +220,10 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     "StaffProfile",
     "M56",
     "M2",
-    "G2-B",
+    "W2-14",
     {
       note: "仅店员",
+      implemented: true,
     },
   ),
   // sub/asset（4 页）
@@ -262,10 +267,15 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     note: "新增页：退出登录、注销、隐私协议、通知设置、已授权的电脑",
   }),
   // sub/member（3 页）
-  page("sub/member/members/index", "sub/member", "成员", "Members", "M53", "M2", "G2-B"),
-  page("sub/member/invite/index", "sub/member", "邀请店员", "Invite", "M54", "M2", "G2-B"),
-  page("sub/member/join/index", "sub/member", "加入门店", "Join", "M55", "M2", "G2-B", {
+  page("sub/member/members/index", "sub/member", "成员", "Members", "M53", "M2", "W2-14", {
+    implemented: true,
+  }),
+  page("sub/member/invite/index", "sub/member", "邀请店员", "Invite", "M54", "M2", "W2-14", {
+    implemented: true,
+  }),
+  page("sub/member/join/index", "sub/member", "加入门店", "Join", "M55", "M2", "W2-14", {
     note: "游客可进",
+    implemented: true,
   }),
 ];
 
