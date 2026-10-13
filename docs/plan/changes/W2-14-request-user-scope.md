@@ -8,4 +8,4 @@
 | 类别 | 顺序 |
 | PR | codex/weapp-request-user-scope；本地待验合流，无远端推送。 |
 
-SOURCE：作者只做定点格式、lint、diff 与正常 hooks；两组新增纯测试、weapp 类型及唯一独审由 ROOT 串行验收。六页消费者尚未开工，不声称本构件已经交付邀请页面或真实微信验证。
+SOURCE：作者完成定点格式、lint、diff 与正常 hooks；ROOT 唯一独审无 P1/P2，两组新增纯测试通过（4ms），weapp 类型检查通过。六页消费者随 W2-14 继续交付，真实微信验证仍由外部验收覆盖。
