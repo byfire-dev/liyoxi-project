@@ -98,7 +98,7 @@ async function grant(
       grantScope: "store",
       expiresAt: new Date(now.getTime() + (extra.expired ? -3600000 : 3600000)),
       ip: META.ip!,
-      userAgent: META.userAgent,
+      userAgent: "lyxtest admin user action",
       createdAt: now,
       updatedAt: now,
       ...(extra.revoked ? { revokedAt: now, revokeReason: "portal_logout" } : {}),
