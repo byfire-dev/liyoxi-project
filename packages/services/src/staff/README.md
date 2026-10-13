@@ -201,3 +201,11 @@ createStaffFollowUps({tx,clock,assembly})由runtime按实例装配，归属只�
 故障注入只在调用方TX结果之后抛错）；apps/api/test/follow-ups.test.ts（2组，正式四路由）。
 生产f4e0be25由ROOT唯一独审无P1/P2，services/API类型、依赖/契约登记及权限矩阵与挂载通过。
 失败只修夹具和正式认证错误期望，未弱化业务断言；真实短信/企微送达与远端CI未验。
+
+## W2-11 门店经理转移
+
+`staffManagement.reassignStoreDeliveryManager`读取当前主管权限、组与门店范围，锁内复核原经理确认值。
+局部工作来源复用既有移交，真实本店在办订单与工单、指派历史、联系SLA及批次事件在同事务完成。
+其他经理、别店及终态事项保持；空负责人订单由order公开口补齐，不捏造原负责人历史或移交数量。
+同键重放仍检查当前权限。客服来源待所属M5登记，当前返回实际零计数。
+3组DB和1组HTTP已通过，覆盖非零移交、并发、撤权与末事件故障整笔回滚；唯一生产审查无P1/P2。

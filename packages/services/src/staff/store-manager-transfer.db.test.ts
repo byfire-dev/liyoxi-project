@@ -8,7 +8,7 @@ import {
 } from "../testing/index.js";
 import type { FullStaffWorld } from "../testing/index.js";
 
-const db = useSeededDatabase("services", { label: "managertransfer", max: 3 });
+const db = useSeededDatabase("services", { label: "managerxfer", max: 3 });
 let w: FullStaffWorld;
 beforeAll(async () => {
   w = await fullStaffWorld(await db.prisma());
