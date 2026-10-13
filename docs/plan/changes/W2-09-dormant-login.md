@@ -6,5 +6,5 @@
 | 原因 | 回补 `m2-identity-dormant-branches`，非空老板仍回滚后独立记录人工重验。 |
 | 影响的包 | identity 登录/本域测试与说明；必要偏差仅 tenant/empty-draft.ts、index.ts 公开专属草稿拒绝类型，原业务符号不变。 |
 | 类别 | 原计划最小切片；不交20HTTP、账号注销审批、订阅或清理，不改契约/DDL/kernel/门禁。 |
-| PR | 本地 `codex/w2-09-dormant-login`，基于 main `42171c0a`；由 ROOT 验收、独审与合流。 |
-| 验证 | 新12 DB +3双max1竞争（各3轮），旧综合休眠定点回归；作者轻格式/ESLint，ROOT 独占类型与数据库，失败事实保留，不重复旧全量。 |
+| PR | 本地 `codex/w2-09-dormant-login`，已普通同步 main `c14b0458`；ROOT 验收、独审无剩余阻断，按授权本地合流。 |
+| 验证 | 新12 DB +3双max1竞争（各3轮）在首轮通过；旧综合休眠修正合法非空夹具后单独通过，合计16项定点验证。services类型、依赖边界、格式/ESLint通过，首轮夹具CHECK失败事实保留；未重复已通过新例、旧全量或原8并发，不代表远端CI/真实微信或整包20HTTP完成。 |
