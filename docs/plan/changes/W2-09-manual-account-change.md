@@ -1,5 +1,13 @@
 # W2-09 人工账号变更六接口
 
+| 项 | 内容 |
+| --- | --- |
+| 改了什么 | 六条既有Meta转正式Route/DTO与薄路由，三kind同Tx完成真实申请、审批、前提重算、清敏感、审计与事件，GET零写 |
+| 原因 | 复用当前staff鉴权与approval框架，补齐必要tenant让位守卫、account_proof范围及真实时钟留存判定 |
+| 影响的包 | W2-09人工账号变更分片及tenant/media必要伴随；渠道码与W3-06互斥前置仍按原分片推进 |
+| 类别 | 拆并（同包分片） |
+| PR | — |
+
 - 六条既有Meta转正式Route/DTO与薄路由，三kind同Tx真实申请、审批、前提重算、清敏感、审计/事件，GET零写；复用当前staff鉴权与approval框架。
 - 必要tenant伴随只补owner_transfer公开命令/守卫/index与promoted既有事件结构，私有sameTx见证防伪造；先移旧owner再晋升/新建，初登consent不放宽。
 - 02允许无主体换绑而a01/分类固定entity存在矛盾，经ROOT授权仅account_proof+本人staff/request/all/无entity-store且非代传可secure/platform；关联与签发仍严格真实申请scope，正式文档同步。首次DB发现共享分类admin:false先行拦截，仅该分类补admin:true，继续下游精准guard，不开放merchant或其它分类。

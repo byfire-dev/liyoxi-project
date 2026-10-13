@@ -1,5 +1,6 @@
 import {
   adminStoreList,
+  adminStoreSummary,
   adminStoreGet,
   adminStoreActivityList,
   adminStoreQualificationGet,
@@ -101,6 +102,16 @@ export const adminProfileHandlers = [
       ),
     ),
   ),
+  defineAdminHandler(adminStoreSummary, moduleNeed, async (c, staff) => {
+    c.header("Cache-Control", "no-store");
+    return ok(
+      c,
+      await merchantServicesOf(c.var.runtime).profile.admin.summary(
+        staff.ctx,
+        c.req.valid("query"),
+      ),
+    );
+  }),
   defineAdminHandler(adminStoreList, moduleNeed, async (c, staff) => {
     c.header("Cache-Control", "no-store");
     return ok(

@@ -2,7 +2,9 @@ import { implement as implementTenantCloseFacts } from "../kernel/index.js";
 import { billingCloseFactsPort, billingHistoryPort } from "../tenant/index.js";
 import { deletionGuard } from "./read/deletion-guard.js";
 import { readBillingHistoryFacts } from "./read/history-facts.js";
-import { implementAdminProfileFacts } from "../profile/index.js";
+import { implementAdminProfileFacts, adminStoreListBillingPort } from "../profile/index.js";
+import { implement as implementStoreList } from "../kernel/index.js";
+import { readProfileStoreListBilling } from "./read/profile-list.js";
 import { readProfileAdminBillingFacts } from "./read/profile-admin.js";
 import { staffFollowUpPort } from "../kernel/index.js";
 import {
@@ -53,6 +55,7 @@ import { dramaPriceAdapter } from "./pricing/drama-price-port.js";
 export const registration = defineRegistration("billing", {
   portImplementations: [
     implementAdminProfileFacts("billing", readProfileAdminBillingFacts),
+    implementStoreList(adminStoreListBillingPort, readProfileStoreListBilling),
     implementTenantCloseFacts(billingCloseFactsPort, { deletionGuard }),
     implement(billingHistoryPort, { read: readBillingHistoryFacts }),
     implementKeyed(staffFollowUpPort, "subscription_term", async (tx, id) => {

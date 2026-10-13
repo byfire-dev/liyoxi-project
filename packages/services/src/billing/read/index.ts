@@ -74,7 +74,7 @@ const toEntitlementTerm = (term: SubscriptionTerm): EntitlementTerm => ({
 /** 没退款作废的周期：预约、生效、已到期 */
 const LIVE = ["scheduled", "active", "ended"];
 
-function entitlementsOf(terms: readonly SubscriptionTerm[], at: Date): Entitlements {
+export function entitlementsOf(terms: readonly SubscriptionTerm[], at: Date): Entitlements {
   const begun = terms.filter((term) => term.startsAt <= at);
   const current = begun.find((term) => term.status !== "ended" && at < term.endsAt);
   const over = begun
@@ -169,9 +169,6 @@ export async function getWalletView(db: Db, entityId: string, at: Date): Promise
     where: { entityId },
     select: { lastExpiredQty: true, lastExpiredAt: true },
   });
-  const planAvailable = sums?.plan_available ?? 0;
-  const addonAvailable = sums?.addon_available ?? 0;
-  const active = entitlements.subStatus === "active";
   const plan = shown ? planOf.get(shown.planId) : undefined;
   const benefits: TermBenefits | null = shown && {
     discountBp: shown.discountBp,
@@ -202,19 +199,33 @@ export async function getWalletView(db: Db, entityId: string, at: Date): Promise
         endDate: fromDateColumn(term.endDate),
       })),
     },
-    points: {
-      spendablePoints: active && !entitlements.refundPending ? planAvailable + addonAvailable : 0,
-      planAvailablePoints: planAvailable,
-      addonAvailablePoints: addonAvailable,
-      heldPoints: sums?.held ?? 0,
-      isAddonSuspended: !active && addonAvailable > 0,
-      planGrantedThisTermPoints: sums?.plan_granted ?? 0,
-      planPointsExpireAt: entitlements.term?.endsAt ?? null,
-      lastExpired:
-        account?.lastExpiredQty != null && account.lastExpiredAt != null
-          ? { expiredPoints: account.lastExpiredQty, expiredAt: account.lastExpiredAt }
-          : null,
-    },
+    points: walletPointsOf(entitlements, sums, account),
+  };
+}
+
+/** 账本单读与商家列表批量读共用同一纯积分投影，不读账户余额缓存。 */
+export function walletPointsOf(
+  entitlements: Entitlements,
+  sums:
+    | { plan_available: number; plan_granted: number; addon_available: number; held: number }
+    | undefined,
+  account: { lastExpiredQty: number | null; lastExpiredAt: Date | null } | null,
+): WalletView["points"] {
+  const planAvailable = sums?.plan_available ?? 0;
+  const addonAvailable = sums?.addon_available ?? 0;
+  const active = entitlements.subStatus === "active";
+  return {
+    spendablePoints: active && !entitlements.refundPending ? planAvailable + addonAvailable : 0,
+    planAvailablePoints: planAvailable,
+    addonAvailablePoints: addonAvailable,
+    heldPoints: sums?.held ?? 0,
+    isAddonSuspended: !active && addonAvailable > 0,
+    planGrantedThisTermPoints: sums?.plan_granted ?? 0,
+    planPointsExpireAt: entitlements.term?.endsAt ?? null,
+    lastExpired:
+      account?.lastExpiredQty != null && account.lastExpiredAt != null
+        ? { expiredPoints: account.lastExpiredQty, expiredAt: account.lastExpiredAt }
+        : null,
   };
 }
 

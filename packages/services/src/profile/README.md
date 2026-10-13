@@ -1,4 +1,14 @@
-# 商家档案与首店资质（W1-08a、b）
+# 商家档案、资质多轮与后台聚合
+
+W2-11 的18条新增归属接口及两个订阅者已完成本地代码验收；最后的
+`admin.store.summary`与既有列表完整筛选排序经唯一生产独审无P1/P2，
+新增3组DB与1组HTTP、services/API类型及官方契约/权限/挂载定点均通过。
+本包M2后台聚合与资质轮次两桩已回补，分片证据及外部未验边界见W2-11状态台账。
+
+下方旧SOURCE小节保留各片开工时的历史说明，其中“待验”“仍后续”等不表示当前缺口；
+当前能力与验收范围以本段及末尾“完整列表与summary”小节为准。
+support实际后继为M7 G7-A（W2-31拆包），OCR识别接入归W3-16，
+终局驳回后的整店取消执行归M5；真实平台、外部样本与远端CI分别保留未验边界。
 
 ## W2-11 后台计费、订购与交付事实
 
@@ -8,7 +18,9 @@
 空订阅保留真实 none/0/null，缺失应有的账户或审批单号拒绝，不用默认值掩盖损坏记录。
 staff 键经 ops 组合 identity/staff 两个拥有者只读公口：只认实际老板与当前经理的有效企微关系，
 联系时限只取本店当前经理未联系、未作废的指派；关系仅返回布尔值，不解密或外呼。
-support 键和完整筛选/summary 等仍待后续，跨层聚合留桩保持进行中。
+上述billing/order/delivery/staff四键均已通过本地独审与小量真实DB验收。
+完整筛选/list/summary已共用当前scope候选查询与billing/order批量事实，并完成本轮验收；
+support键保持明确fallback，归M7 G7-A后继，不能把五键都写成已完成。
 
 ## W2-11 后台门店资质页签
 
@@ -23,9 +35,9 @@ support 键和完整筛选/summary 等仍待后续，跨层聚合留桩保持进
 同事务分别按本店和主体级无店记录取ops/activity，归并稳定时间/序号游标；actor筛选是
 merchant/staff/system逗号列表，游标绑定本店、主体及规范化筛选。投影复用AuditLogItem，
 仅增加reason/changedKeys/isEntityLevel；原始JSON、访问流和请求元数据不出接口。
-GET不写审计或事件，接口响应no-store；summary与跟进仍按W2-11后续任务推进，代改见下文SOURCE。
+GET不写审计或事件，接口响应no-store；跟进四接口与档案代改已验收，summary验收见末节。
 
-## W2-11 商家草稿生命周期（SOURCE）
+## W2-11 商家草稿生命周期（历史SOURCE）
 
 新增 `removeDocument` 与 `discardQualification`，经既有 profile write 落 required 幂等结果。
 `ensureDraft` 按真实门店/主体结论选 initial/new_store/change；change 带入本店生效门店证照，
@@ -36,7 +48,7 @@ remove保留已提交证据；discard只接精确ID的change/new_store未提交�
 草稿片已完成本机收口；多轮链与终局SOURCE如下，SMS/后台仍后续。
 新增DB/HTTP各6组及clerk两行，旧断言保留；作者只做所属格式/lint，ROOT串行完成正式验收与生成。
 
-## W2-11 多轮提交与决定（SOURCE）
+## W2-11 多轮提交与决定（历史SOURCE）
 
 new_store只审本店证照，主体生效执照作referenceDocs；change的名称/行业/省市区与详细地址
 先存轮次，原生效值保持到批准。选点/坐标、免审简介在审期间可保存，批准不覆盖它们。
@@ -52,7 +64,7 @@ ROOT授权窄tenant companion：setStoreQualification扩现签名与02:627守卫
 I7/资质通过订阅者与终局由后续SOURCE回补；override/OCR/SMS与其余后台事实仍后续。新增8DB+2HTTP关键组及
 两个真实max1客户端竞争各3轮；ROOT完成正式验收后裁定本片，整包不标完成。
 
-## W2-11 资质系统一致性（SOURCE）
+## W2-11 资质系统一致性（历史SOURCE）
 
 `profile.onQualificationApproved` 消费既有initial/change通过事件，严格载荷及持久outbox关联后，
 复核通过轮次的当前生效执照/主体认证事实；new_store、无执照change及过时来源不扇出。
@@ -76,7 +88,7 @@ API/worker各自装配；原onTenantLifecycle绑定保持。profile专用薄TxRu
 新增6组领域风险与1组真实API/worker/max1 consumer装配；两旧不变量集合仅补I7能力绑定，
 旧断言保留。作者只做轻格式/lint；类型、数据库、契约生成与唯一独审由ROOT收口，W2-11整包仍进行中。
 
-## W2-11 终局驳回（SOURCE）
+## W2-11 终局驳回（历史SOURCE）
 
 正式 `admin.qualificationSubmission.rejectQuote` 为POST空体、none幂等、no-store，
 按权限/门店scope/在审/非change守卫调用无fallback的真实 `QualificationImpactPort.previewFinalReject`。
@@ -100,7 +112,7 @@ tenant补真实已关闭终局轮次事实及提交machine守卫，不让直接t
 三类档案、品牌引用/洞察/SLA/完整度同TX，所有await后重新核当前会话/owner/来源和本次profile；任一失败全部回滚。
 by_owner来源可读，draft_deleted拒绝；当前SOURCE尚未进行本片类型/新旧整叶或独立验收，不启用默认runtime或HTTP。
 
-## W2-11 联系人验证与人工资质复核（SOURCE）
+## W2-11 联系人验证与人工资质复核（历史SOURCE）
 
 正式 `m.storeProfile.contactSmsCode.create` 采用 required 三段式，先存 contact_phone 专用哈希码，
 提交后通过实际 notify.sendDirect 发码，失败补偿删除本次码与幂等占用；当前登录号等值无需发码。
@@ -153,7 +165,9 @@ M2/M3 规定留桩、首页三个聚合与两项 M1 写端口均在 `docs/plan/s
 
 API 的响应沿既有 `respondByRole` 以本请求会员角色裁剪，写路由的店员能力统一拒绝。clerk 样例追加全部十三条，旧黄金不改；A86 的服务现价与原价按现有完整路径登记例外。卖点 `sellingPoints` 与 C57 键扫描词冲突由调度单独 gate-change 收口，本业务包不放松扫描逻辑。
 
-## 后台六条（W1-08b）
+## 后台六条（W1-08b历史基线）
+
+本节记录M1初交边界；当前列表已扩为末节的完整模式，原“其他筛选/排序400”仅是历史行为。
 
 `profile.admin` 提供 list/get/qualification/approve/reject/assign；API 薄壳统一声明 merchant:view，写侧另取契约权限点。读侧复用 storeScope，范围外与不存在都为404，GET 不补行、不刷新缓存。列表完整支持 q、regionCode（省市区/功能区）、行业品类、资质多值、交付经理/未分配互斥、主体、生命周期；M1 排序为 registeredAt（缺省倒序），其他筛选/排序明确400。详情 paid 是主体合计；列表仅首店展示 totalPaidFen。
 
@@ -201,7 +215,7 @@ worker 在 createEvents 前生成实例 scope，在真实 tenant/approval/media 
 老板名取成员列，店员数仅本店有效范围，预览老板优先且至多三人；未到期 pending 才占额。
 GET 不建档案、不补过期状态；既有老板/店员响应裁剪及其他首页字段保持，完整验证待授权。
 
-## W2-11 后台档案免审编辑 SOURCE（2026-10-14）
+## W2-11 后台档案免审编辑 历史SOURCE（2026-10-14）
 
 `profile.admin.profile/updateProfile`接正式GET/PATCH两接口，真实员工范围先验，空档案GET
 不补行。返回生效基础字段、服务/媒体、完整度、待审change与实际最近编辑人；无联系人
@@ -221,3 +235,19 @@ GET 不建档案、不补过期状态；既有老板/店员响应裁剪及其他
 字段、onBehalfStoreId本店代传事实与路由三段式声明已定点补齐。六聚合DB与两组HTTP
 及2项原签图/媒体回归、类型/官方契约/权限/挂载定点均已通过；W2-11整包继续进行中，
 不代表真实内容安全/平台/资金或远端CI已验。
+
+## W2-11 完整列表与summary（本地验收完成）
+
+readAdminStoreSelection是list/summary共用的当前商家模块与scope候选查询；本域where先缩小候选，
+billing/order按候选ID批量读订阅/paid净额与最近订购，缺拥有者事实明确失败，不补假0。
+billing每主体权益只计算一次，页投影同TX读取lot/plans/最近付款；manager/字典/主体店数批量读，
+不调用详情core或snapshot。首店净实付、次店null；付费/生效/待审/北京月新店按过滤后门店计数。
+默认-lastOrderAt，正式-createdAt/-totalPaidFen及旧±registeredAt稳定id/nulls last；完整来源/套餐/
+状态/7或30天到期筛选按现算权益，不advance、不读订阅与余额缓存。后继stores.list导出归M7 G7-B，
+只消费该公口且仍需自身授权；本片未实现导出producer/队列，未配UI隐藏入口。
+生产已完成ROOT唯一独立审查，无P1/P2。本轮新增3组DB与1组HTTP全部通过，
+前两组仅修正夹具约束后定点重验，生产未改；services/API类型、官方344条契约与
+docs/x01、依赖边界通过。权限矩阵只增summary一行，矩阵与实际挂载各一组通过。
+M2后台聚合桩已关闭，W2-11完成本地代码验收；未重复历史全量或压测。
+stores.list导出producer/队列仍属M7 G7-B，W2-15在实际接入前隐藏导出入口，
+不把本次公开共用查询当作导出已实现；support/OCR/M5取消及外部未验边界保持。

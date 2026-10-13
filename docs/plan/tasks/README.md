@@ -119,7 +119,7 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 | 11 | W1-02 | 后台权限数据的真实来源接替夹具；7 个基础页 | W0-28 第 11 节第 1、5 项 |
 | 12 | W1-04、G2-C | 小程序请求层的可注入调用函数接上真实接口：引导与会话；订阅结果与埋点接收 | W0-27a 第 5 节 |
 | 13 | W1-10 | 提出“只有一个取整函数”的全仓 lint 规则 | W0-11 第 11 节第 9 项 |
-| 14 | W2-04；W2-31 所拆 G7-A | W2-04 接明文查看、审计查询与独立 access 事务；导出接口/队列交 W2-31 拆 G7-A。企业微信真实驱动同属该 G7-A：消费 `WecomProvider.exchangeWebLoginCode({ code }) → ProviderResult<{ userid }>`，保持事务外调用、受控未配置分支并留外部实测证据；本包默认手填不代表平台核验 | W0-14 第 5 节；W2-04 实际公共能力及状态偏差 |
+| 14 | W2-04；W2-31 所拆 G7-A；M7 G7-B | W2-04 接明文查看、审计查询与独立 access 事务；导出接口/队列归M7 G7-B（M6交M7拆包落实编号）。企业微信真实驱动仍属W2-31所拆G7-A：消费 `WecomProvider.exchangeWebLoginCode({ code }) → ProviderResult<{ userid }>`，保持事务外调用、受控未配置分支并留外部实测证据；本包默认手填不代表平台核验 | W0-14 第 5 节；W2-04 实际公共能力及状态偏差 |
 | 15 | G3-A | mediatool 调用端挂到 `media` 接口；`ProduceID` 的格式；媒体任务、租约与留痕写入 | X-02 第 5 节、第 11 节第 1、6 项 |
 | 16 | G3-C | `docText`（文档抽文本） | X-02 第 5 节 |
 | 17 | G4-A（部分与 G2-0、G4-B） | 微信支付驱动接进选择分支与组合根；补 `loadEnv` 与 `.env.example` 缺的变量；到 `WEBHOOK_*` 的错误映射；真实账单复核 V13 | X-04 第 5 节、第 11 节第 4、5、7 项 |
@@ -202,7 +202,7 @@ M1 的包不必等 M0 整体退出才开工（2026-10-05，调度会话按业主
 | — | W2-21、W2-22、W2-17、W2-23；W3-03、W4-02/10及M7回调包 | W2-01公共 `security.createWebhooks`/`WebhookSource`、两根 `webhookSources`，API `receiveWebhook`。verify在事务外用原始字节验签，POST必须event/error（仅h01明确两种可信skip免收件），restore本地恢复、handle复用传入Tx。inline原子/支付显式失败inbox兜底（必须summary+完整resourceCipher/kid）；inbox同TX出站、subscriber复用现有Tx、分钟50条SKIP LOCKED扫描。1/5/15分钟、1/6小时/8死信，支付5次升级；每日载荷UPDATE清理180/90天保留summary/举证。W4-02须补实际Provider公开的密文/kid适配，现有verifyAndDecrypt仅归一通知，不得深引；当前未挂真实hook/未验真实平台。W2-23接人工死信管理，W2-24接真实告警隔离/实现，不在本包偷偷detach | W2-01第4/7节；h01第2.1/2.4节；15分组第2.1/4节；security README第5/6节 |
 
 
-| — | W2-31 所拆 G7-A；W2-30 | W2-08 单页 system.logs 已接真实 admin.auditLog.list/get、ops/access 权限、CSV/日期/对象查询、游标与脱敏详情；G7-A 接 admin.exportJob.create/audit_logs.list 与导出记录，保持后端先裁剪、scope/stream 授权和异步结果，不放空导出按钮。W2-30 接本页日期键盘、PII实际POST→auditLogId可查询、查询零新增审计与截图结论；未来关联详情按正式 link/权限补准确入口 | W2-08 第 3/4/7 节；admin README；W2-04 已落地审计/PII公共能力 |
+| — | M7 G7-B；W2-30 | W2-08 单页 system.logs 已接真实 admin.auditLog.list/get、ops/access 权限、CSV/日期/对象查询、游标与脱敏详情；M7 G7-B（M6交M7拆包落实编号）接 admin.exportJob.create/audit_logs.list 与导出记录，保持后端先裁剪、scope/stream 授权和异步结果，不放空导出按钮。W2-30 接本页日期键盘、PII实际POST→auditLogId可查询、查询零新增审计与截图结论；未来关联详情按正式 link/权限补准确入口 | W2-08 第 3/4/7 节；admin README；W2-04 已落地审计/PII公共能力 |
 W2-10精准授权移交：PR1的tenant公口是membershipAuthorizationsPort（tenant.membership_authorizations，无fallback），identity实现revokePortalGrants(tx,input)返回实际count。必须同时过滤主体和（owner范围时）原授权老板，只改尚未撤销的portal_session，重复不覆盖证据；now取调用方时钟，调用方在同TX先持主体及相关成员锁。PR1已随#133实际合入，主包移除店员不吊销全账号user_session，by_owner归档仍允许老板下载；真实阻断/取消收尾必须所属公开函数，缺装配不能当0。notify/portal登录producer不由此口实现，下游仍等整包。
 
 
