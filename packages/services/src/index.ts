@@ -338,6 +338,8 @@ export { createAdCancelApprovalRefCompanion } from "./support/index.js";
 export type { QualificationImpact } from "./profile/index.js";
 
 export { createDocumentConverter, runDocumentConversionWorker } from "./kernel/index.js";
+export { createSessionMutex, SessionMutexError } from "./kernel/index.js";
+export type { SessionMutex, SessionMutexScope, SessionMutexFailure } from "./kernel/index.js";
 export type {
   DocumentConversionRequest,
   DocumentConversionResult,
