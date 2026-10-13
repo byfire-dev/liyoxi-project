@@ -89,6 +89,8 @@ export { readStoreDraftFacts } from "./store-draft-facts.js";
 export { createModelBudgetRuntime } from "./model-budget-runtime.js";
 export { createModelBudgetInspector } from "./model-budget-inspect.js";
 export type { ModelBudgetInspection } from "./model-budget-inspect.js";
+export { createModelBudgetInitializer } from "./model-budget-initialize.js";
+export type { ModelBudgetInitialization } from "./model-budget-initialize.js";
 export { createProfileLifecycleAssembly } from "./profile-lifecycle-runtime.js";
 export { createInvitationAssembly } from "./invitation-runtime.js";
 
