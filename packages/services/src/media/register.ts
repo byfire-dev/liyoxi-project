@@ -5,7 +5,7 @@ import {
 import { assetMerchantFacts } from "./assets/facts.js";
 import { findAssetViolations } from "./assets/invariants.js";
 import { implementMerchantFacts } from "../kernel/index.js";
-import { assetForNotify } from "./notify-facts.js";
+import { assetForNotify, assetDemandForNotify } from "./notify-facts.js";
 import { defineRegistration, implementKeyed, invariantNow } from "../kernel/index.js";
 import { fileCategoryGuardPort, fileRefTypePort } from "./ports.js";
 import { findI2Violations, findI14Violations } from "./invariants.js";
@@ -18,8 +18,31 @@ export const registration = defineRegistration("media", {
   ports: [fileRefTypePort, fileCategoryGuardPort],
   portImplementations: [
     notifyReaderImplementation(currentNotifyReadPort, "assetForNotify", assetForNotify),
+    notifyReaderImplementation(currentNotifyReadPort, "assetDemandForNotify", assetDemandForNotify),
     implementMerchantFacts("asset", assetMerchantFacts),
     implementKeyed(fileRefTypePort, "store_asset", {
+      inUse: async (tx, fileId) =>
+        (
+          await tx.storeAsset.findMany({
+            where: {
+              deletedAt: null,
+              OR: [
+                { portraitAuthFileIds: { has: fileId } },
+                { storeAssetFiles: { some: { fileId } } },
+              ],
+            },
+            select: {
+              id: true,
+              portraitAuthFileIds: true,
+              storeAssetFiles: { where: { fileId }, select: { fileId: true } },
+            },
+          })
+        ).flatMap((row) => [
+          ...(row.storeAssetFiles.length ? [{ fileId, refId: row.id, role: "main" }] : []),
+          ...(row.portraitAuthFileIds.includes(fileId)
+            ? [{ fileId, refId: row.id, role: "portrait_auth" }]
+            : []),
+        ]),
       roles: {
         main: { categories: ["store_asset"], retentionDays: 7 },
         portrait_auth: { categories: ["portrait_auth"], retentionDays: 7 },
@@ -51,6 +74,13 @@ export const registration = defineRegistration("media", {
     implementKeyed(fileRefTypePort, "playable_asset", mediaDeliveryRefTypes.playable_asset),
     implementKeyed(fileRefTypePort, "upload_batch", mediaDeliveryRefTypes.upload_batch),
     implementKeyed(fileRefTypePort, "media_info", {
+      inUse: async (tx, fileId) =>
+        (
+          await tx.mediaInfo.findMany({
+            where: { coverFileId: fileId, file: { status: "stored" } },
+            select: { fileId: true },
+          })
+        ).map((row) => ({ fileId, refId: row.fileId, role: "cover" })),
       roles: { cover: { categories: ["video_cover"], retentionDays: 30 } },
       readColumns: async (tx) =>
         (await tx.mediaInfo.findMany({ where: { coverFileId: { not: null } } })).map((info) => ({
@@ -60,6 +90,13 @@ export const registration = defineRegistration("media", {
         })),
     }),
     implementKeyed(fileRefTypePort, "production_record", {
+      inUse: async (tx, fileId) =>
+        (
+          await tx.productionRecord.findMany({
+            where: { derivedFromFileId: fileId, file: { status: "stored" } },
+            select: { fileId: true },
+          })
+        ).map((row) => ({ fileId, refId: row.fileId, role: "source" })),
       roles: {
         source: { categories: ["sample_video", "final_episode", "ad_video"], retentionDays: 30 },
       },

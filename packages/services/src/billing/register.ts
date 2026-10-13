@@ -103,6 +103,14 @@ export const registration = defineRegistration("billing", {
     ...billingPiiFields,
     implementKeyed(approvalKindPort, "finance_config_change", financeConfigApproval),
     implementKeyed(fileRefTypePort, "transfer_proof", {
+      // 法定付款证明沿既有永久保留规则，不以交易终结为释放依据。
+      inUse: async (tx, fileId) =>
+        (
+          await tx.transferProof.findMany({
+            where: { fileId },
+            select: { id: true },
+          })
+        ).map((row) => ({ fileId, refId: row.id, role: "main" })),
       roles: { main: { categories: ["pay_receipt"], retentionDays: null } },
       readColumns: async (tx) =>
         (await tx.transferProof.findMany({ select: { id: true, fileId: true } })).map((p) => ({
