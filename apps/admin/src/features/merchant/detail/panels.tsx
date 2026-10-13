@@ -388,7 +388,9 @@ export function FollowPanel(p: PanelProps) {
     queryKey: key(p, "manager-pool", poolPage),
     queryFn: () =>
       p.api.staff({
-        pool: "delivery_manager",
+        ...(hasModuleLevel(p.access, "system")
+          ? { roleKey: "delivery_manager" }
+          : { pool: "delivery_manager" }),
         status: "active",
         withLoad: true,
         page: poolPage,

@@ -30,7 +30,38 @@ const fixture: AdminLiveFixture = async ({ runtime, make }) => {
     staffGroupId: group.id,
     status: "active",
   });
-  const merchant = await make.merchant({ verified: true });
+  const dormantDays = await runtime.config.params.get("auth.dormant_days");
+  if (dormantDays <= 0) throw new Error("本轮正式休眠保护关闭，不能演练重认证放行申请");
+  const old = new Date(runtime.clock.now().getTime() - (dormantDays + 2) * 86_400_000);
+  const user = await make.merchantUser({
+    createdAt: old,
+    updatedAt: old,
+    lastActiveAt: new Date(old.getTime() + 86_400_000),
+  });
+  const entity = await make.entity({
+    createdByUserId: user.id,
+    verificationStatus: "verified",
+    createdAt: old,
+    updatedAt: old,
+    verifiedAt: old,
+  });
+  const primary = await make.store({
+    entityId: entity.id,
+    isPrimary: true,
+    qualificationStatus: "verified",
+    createdAt: old,
+    updatedAt: old,
+  });
+  const owner = await make.entityMember({
+    entityId: entity.id,
+    merchantUserId: user.id,
+    role: "owner",
+    lastStoreId: primary.id,
+    createdAt: old,
+    updatedAt: old,
+  });
+  await make.billingAccount({ entityId: entity.id });
+  const merchant = { user, entity, store: primary, owner };
   const store = await make.store({
     entityId: merchant.entity.id,
     name: "W215演练二号店",
