@@ -94,7 +94,7 @@ describe("持久人工retry意图", { timeout: 30_000 }, () => {
       ]);
       expect(attempts.filter((one) => one.status === "fulfilled")).toHaveLength(1);
       const failed = attempts.find((one) => one.status === "rejected");
-      expect(failed).toMatchObject({ reason: { code: "STATE_NOT_ALLOWED" } });
+      expect(failed).toMatchObject({ reason: { error: "STATE_NOT_ALLOWED" } });
       const winner = attempts.findIndex((one) => one.status === "fulfilled"),
         value = attempts[winner]!;
       if (value.status !== "fulfilled") throw new Error("没有人工重试胜者");
@@ -196,18 +196,18 @@ describe("持久人工retry意图", { timeout: 30_000 }, () => {
         state: "submitted",
         attemptNo: 1,
         leaseOwner: `query:${uuidv7()}`,
-        externalJobId: "retry-task",
+        externalJobId: "1234567",
         nextRunAt: new Date(h.clock.now().getTime() + 120000),
       },
     });
-    h.fake.asr.tasks.set("retry-task", {
-      taskId: "retry-task",
+    h.fake.asr.tasks.set("1234567", {
+      taskId: "1234567",
       requestId: "controlled-query",
       state: "waiting",
     });
     h.caps.dailyCallCap = 0;
     await client.del(h.key);
-    expect((await h.asrStrategy().poll(submitted, signal())).state).toBe("submitted");
+    expect(await h.asrStrategy().poll(submitted, signal())).toEqual({ state: "pending" });
     expect(h.fake.asr.callsOf("query")).toHaveLength(1);
     expect(h.fake.asr.callsOf("submit")).toHaveLength(0);
 
