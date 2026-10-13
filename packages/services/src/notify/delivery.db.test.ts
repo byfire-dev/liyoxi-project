@@ -59,6 +59,39 @@ it("两独立连接认领同投递仅一实际Provider调用；TX外guard真实�
     await h.prisma.wxSubscribeQuota.findFirst({ where: { wechatIdentityId: w.identity.id } }),
   ).toMatchObject({ estRemaining: 0 });
 });
+it("已锚定身份移除后按no_target跳过，原短信回退与终态重投保持", async () => {
+  await h.prisma.notifyScene.update({
+    where: { sceneKey: "m.order_submitted" },
+    data: { smsPolicy: "fallback", smsTemplateKey: "generic_todo", smsNodes: ["N0"] },
+  });
+  const own = await h.merchant(),
+    w = await h.wx(own);
+  await h.prisma.notificationDelivery.update({
+    where: { id: w.delivery.id },
+    data: { targetRef: w.identity.id },
+  });
+  await h.prisma.wechatIdentity.delete({ where: { id: w.identity.id } });
+  expect(
+    await h.prisma.wxSubscribeQuota.count({ where: { wechatIdentityId: w.identity.id } }),
+  ).toBe(0);
+  const calls = h.providers.wechat.callsOf("sendSubscribeMessage").length;
+  await h.service.deliver({ deliveryId: w.delivery.id });
+  const ended = await row(w.delivery.id);
+  expect(ended).toMatchObject({ status: "skipped", reason: "no_target", callStartedAt: null });
+  expect(h.providers.wechat.callsOf("sendSubscribeMessage").length).toBe(calls);
+  expect(
+    await h.prisma.notificationDelivery.findMany({
+      where: { notificationId: w.notification.id, channel: "sms", origin: "fallback" },
+    }),
+  ).toHaveLength(1);
+  await h.service.deliver({ deliveryId: w.delivery.id });
+  expect(await row(w.delivery.id)).toEqual(ended);
+  expect(
+    await h.prisma.notificationDelivery.count({
+      where: { notificationId: w.notification.id, channel: "sms", origin: "fallback" },
+    }),
+  ).toBe(1);
+});
 it("发送前老板降店员，当前ownerOnly守卫取消且不扣额度", async () => {
   const own = await h.merchant(),
     w = await h.wx(own);
