@@ -357,6 +357,7 @@ describe("键名清单", () => {
       "DATA_KEYS_FILE",
       "BIDX_KEYS_FILE",
       "AUTH_KEYS_FILE",
+      "ADMIN_IP_ALLOWLIST",
       "SMS_SECRET_ID_FILE",
       "SMS_SECRET_KEY_FILE",
       "SMS_SDK_APP_ID",
