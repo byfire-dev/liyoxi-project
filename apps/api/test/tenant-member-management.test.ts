@@ -73,7 +73,7 @@ async function trace(memberId: string) {
   };
 }
 
-describe("member list/update real HTTP assembly", { timeout: 120_000 }, () => {
+describe("m.member.list", { timeout: 120_000 }, () => {
   it("owner gets actual current-store media counts while GET leaves member facts untouched", async () => {
     const w = await world();
     for (const [storeId, adoptedCount] of [
@@ -149,7 +149,9 @@ describe("member list/update real HTTP assembly", { timeout: 120_000 }, () => {
     });
     expect(await trace(w.member.id)).toEqual(before);
   });
+});
 
+describe("m.member.update", { timeout: 120_000 }, () => {
   it("PATCH uses real idem, writes only one occurrence and immediately revokes the removed store", async () => {
     const w = await world(),
       key = uuidv7(),

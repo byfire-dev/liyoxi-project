@@ -77,7 +77,7 @@ async function world(keepClerk = false) {
   return { owner, clerk, member, second, db, make, ...created };
 }
 
-describe("m.store.restore 真实 HTTP", { timeout: 120_000 }, () => {
+describe("m.store.restore", { timeout: 120_000 }, () => {
   it.each(["active", "archived_target"] as const)(
     "%s 上下文无 body 恢复，完整老板卡与旧店员失权事实保持",
     async (context) => {

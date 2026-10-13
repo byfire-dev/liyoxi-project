@@ -89,7 +89,7 @@ async function post(
   };
 }
 
-describe("m.store.create 真实HTTP及固定公开组合", { timeout: 120_000 }, () => {
+describe("m.store.create", { timeout: 120_000 }, () => {
   it.each([false, true])("copy=%s 初次INSERT元数据、真实老板卡、事件与资格不复制", async (copy) => {
     const w = await world(),
       before = await snapshotTables(w.db, ["entity_member", "store_member"]);
