@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import {
+  assembleForTest,
   createLedgerHarness,
   openTerm,
   sampleStaffContext,
@@ -11,6 +12,7 @@ import { adminFactsOf } from "./admin-ports.js";
 import { harness } from "./__fixtures__/harness.js";
 import type { Harness } from "./__fixtures__/harness.js";
 const db = useSeededDatabase("services", { max: 1 });
+const assembly = assembleForTest({ entry: "api" });
 let h: Harness;
 beforeAll(async () => {
   h = harness(await db.prisma());
@@ -30,7 +32,7 @@ const tables = [
 ];
 const read = (entityId: string, storeId: string, managerId: string | null = null) =>
   h.tx.run((tx) =>
-    adminFactsOf(h.assembly, tx, {
+    adminFactsOf(assembly, tx, {
       entityId,
       storeId,
       managerId,

@@ -1,4 +1,4 @@
-import { DramaSnapshotSchema } from "@liyoxi/contract";
+import { DramaSnapshotSchema, StoreHeaderSchema } from "@liyoxi/contract";
 import type { Tx } from "../kernel/index.js";
 import type { AdminFacts, AdminFactsQuery } from "../profile/index.js";
 import { CLOSED_ORDERS } from "./counts.js";
@@ -46,11 +46,11 @@ export async function readProfileAdminOrderFacts(
             where: { ...where, deliveryManagerId: q.managerId, status: { notIn: CLOSED_ORDERS } },
           }),
     liveDramaCount: summary._count,
-    liveSummary: {
+    liveSummary: StoreHeaderSchema.shape.liveSummary.parse({
       firstLiveDate: date(summary._min.usageStartDate),
       latestUsageEndDate: date(lastLive?.usageEndDate ?? null),
       usageEndSource: lastLive?.usageEndSource ?? null,
-    },
+    }),
     nearestAgreedLaunchDate: date(agreed._min.agreedLaunchDate),
     relatedOrders: pending.map((r) => ({
       kind: "drama_order" as const,
