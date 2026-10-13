@@ -1,8 +1,14 @@
 import type { components, operations } from "@liyoxi/contract/types/admin";
+import {
+  AdminFilePageSchema,
+  PurgeRunPageSchema,
+  type AdminFileView,
+  type PurgeRunView,
+} from "@liyoxi/contract";
 import type { AppServices } from "../../../app/services";
 import { readFailure } from "../../../lib/api-errors";
-export type FileView = Awaited<ReturnType<PurgeApi["files"]>>["items"][number];
-export type RunView = components["schemas"]["PurgeRunView"];
+export type FileView = AdminFileView;
+export type RunView = PurgeRunView;
 export type FileQuery = NonNullable<operations["admin.file.list"]["parameters"]["query"]>;
 export type RunQuery = NonNullable<operations["admin.purgeRun.list"]["parameters"]["query"]>;
 export class PurgeFailure extends Error {
@@ -35,9 +41,23 @@ export function createPurgeApi({ api }: Pick<AppServices, "api">) {
   const client = api.client;
   return {
     files: (query: FileQuery) =>
-      client.GET("/api/v1/admin/files", { params: { query } }).then(unwrap),
+      client
+        .GET("/api/v1/admin/files", { params: { query } })
+        .then(unwrap)
+        .then((value) => {
+          const parsed = AdminFilePageSchema.safeParse(value);
+          if (!parsed.success) throw new Error("文件列表响应不符合契约，请刷新重试");
+          return parsed.data;
+        }),
     runs: (query: RunQuery) =>
-      client.GET("/api/v1/admin/purge-runs", { params: { query } }).then(unwrap),
+      client
+        .GET("/api/v1/admin/purge-runs", { params: { query } })
+        .then(unwrap)
+        .then((value) => {
+          const parsed = PurgeRunPageSchema.safeParse(value);
+          if (!parsed.success) throw new Error("清除运行响应不符合契约，请刷新重试");
+          return parsed.data;
+        }),
     restore: (fileId: string, body: components["schemas"]["ReasonRequiredBody"], key: string) =>
       client
         .POST("/api/v1/admin/files/{fileId}/restore", {

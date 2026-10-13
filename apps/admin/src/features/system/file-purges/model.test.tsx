@@ -57,6 +57,8 @@ const file: FileView = {
   erasedAt: null,
   restorableUntil: "2030-11-13T04:00:00Z",
   liveRefCount: 0,
+  production: null,
+  check: null,
   actions: ["restore", "erase"],
 };
 const read: AccessSnapshot = {
@@ -265,6 +267,43 @@ describe("W308真实DTO与中央运输风险", () => {
       { reason: "虚构合法删除原因说明", confirm: { fileId: id, category: "poster" } },
     ]);
     expect(posts.every((request) => request.headers.get("X-LYX-Admin") === "1")).toBe(true);
+    const future = transport(() =>
+      ok({
+        items: [
+          {
+            ...file,
+            category: "future_category",
+            status: "future_status",
+            scopeType: "future_scope",
+            actions: ["future_action"],
+          },
+        ],
+        page: 1,
+        pageSize: 20,
+        total: 1,
+      }),
+    );
+    expect((await future.api.files({})).items[0]).toMatchObject({
+      category: "future_category",
+      status: "future_status",
+      scopeType: "future_scope",
+      actions: ["future_action"],
+    });
+    const invalid = transport((request) =>
+      ok({
+        items: [
+          new URL(request.url).pathname.endsWith("purge-runs")
+            ? { ...run, candidateBytes: 8 }
+            : { ...file, category: { internalKey: "never-render" } },
+        ],
+        page: 1,
+        pageSize: 20,
+        total: 1,
+      }),
+    );
+    await expect(invalid.api.files({})).rejects.toThrow("文件列表响应不符合契约");
+    await expect(invalid.api.runs({})).rejects.toThrow("清除运行响应不符合契约");
+    expect(invalid.requests.every((request) => request.method === "GET")).toBe(true);
   });
   it("中央stepup重放与503手动续作同key；409/FILE_IN_USE保真不伪成功", async () => {
     let steps = 0,
