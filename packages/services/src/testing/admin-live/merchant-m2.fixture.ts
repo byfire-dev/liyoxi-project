@@ -51,7 +51,9 @@ const fixture: AdminLiveFixture = async ({ runtime, make }) => {
     profile.assignDeliveryManager(
       tx,
       createIdentityContext({
-        actor: { type: "system", id: "merchant-m2-fixture", client: "worker" },
+        actor: { type: "system", job: "lyxtest.w215_fixture" },
+        entityId: merchant.entity.id,
+        storeId: store.id,
       }),
       { storeId: store.id, staffId: previous.id },
     ),
