@@ -57,9 +57,11 @@ export async function orderReferenceRegression(page, scene, origin) {
   expect(writes[0].data.expect.totalChargePoints).toBe(900);
   const quotes = (await calls()).filter((call) => call.path === "/m/orders/quote");
   expect(quotes.every((call) => call.data.referenceStoreAssetIds === undefined)).toBe(true);
-  await page.goto(
-    `${origin}/#/sub/order/order-detail/index?orderId=00000000-0000-4000-8000-000000000401`,
-    { waitUntil: "networkidle" },
+  await active(".lyx-button")
+    .filter({ hasText: /^查看订单$/ })
+    .click();
+  await expect(page).toHaveURL(
+    /sub\/order\/order-detail\/index\?orderId=00000000-0000-4000-8000-000000000401$/,
   );
   await expect(active(".order-reference-read")).toContainText("门店日常实拍");
   if (scene.endsWith("submit"))
