@@ -46,6 +46,7 @@ export interface MerchantField {
   options?: readonly { value: string; label: string }[];
   multiline?: boolean;
   max?: number;
+  dateTime?: boolean;
 }
 export interface MerchantIntent {
   id: string;
@@ -218,6 +219,23 @@ export function contactedIntent(row: StoreHeader): MerchantIntent {
     },
   };
 }
+export function followInput(value: string | null) {
+  if (!value) return "";
+  const at = new Date(value).getTime();
+  if (!Number.isFinite(at)) return "";
+  return new Date(at + 8 * 3_600_000).toISOString().slice(0, 16);
+}
+export function followTime(value: string | undefined): string | null {
+  if (!value?.trim()) return null;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
+    const at = new Date(`${value}:00+08:00`);
+    if (!Number.isFinite(at.getTime()) || followInput(at.toISOString()) !== value)
+      throw new Error("请填写有效的北京时间");
+    return at.toISOString();
+  }
+  // 正式ISO输入保持兼容；后面的原契约仍拒绝无时区和非法值。
+  return value;
+}
 export function followIntent(
   row: Follow,
   kind: "update" | "complete" | "continue",
@@ -235,8 +253,9 @@ export function followIntent(
         : [
             {
               key: "next",
-              label: "下次跟进时间（含时区，空白清除）",
-              value: kind === "update" ? (row.nextFollowAt ?? "") : "",
+              label: "下次跟进时间（北京时间，空白清除）",
+              dateTime: true,
+              value: kind === "update" ? followInput(row.nextFollowAt) : "",
             },
             ...(kind === "continue"
               ? [
@@ -264,7 +283,7 @@ export function followIntent(
       if (kind === "update") {
         const body = FollowUpUpdateBodySchema.parse({
           lockVersion: row.lockVersion,
-          nextFollowAt: v.next?.trim() || null,
+          nextFollowAt: followTime(v.next),
         });
         return (api, key) => api.updateFollow(row.followUpId, body, key);
       }
@@ -273,7 +292,7 @@ export function followIntent(
         subjectId: row.subjectId,
         content: v.content,
         ...(v.channel ? { channel: v.channel } : {}),
-        ...(v.next ? { nextFollowAt: v.next } : {}),
+        ...(v.next ? { nextFollowAt: followTime(v.next) } : {}),
       });
       return (api, key) => api.createFollow(body, key);
     },
@@ -578,6 +597,7 @@ export function MerchantActionDialog({
             ) : (
               <Input
                 {...props}
+                type={field.dateTime ? "datetime-local" : "text"}
                 maxLength={field.max}
                 value={values[field.key]}
                 onChange={(e) => setValues({ ...values, [field.key]: e.target.value })}

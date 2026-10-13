@@ -211,11 +211,12 @@ export function createMerchantApi({ api }: Pick<AppServices, "api">) {
           headers: headers(key),
         })
         .then(unwrap),
-    download: (fileId: string) =>
+    download: (fileId: string, signal?: AbortSignal) =>
       c
         .POST("/api/v1/admin/files/{fileId}/download-urls", {
           params: { path: { fileId } },
           body: { disposition: "inline", purpose: "商家详情核对" },
+          signal,
         })
         .then(unwrap),
   };

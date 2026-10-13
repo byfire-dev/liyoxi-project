@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getRouteApi, useRouteContext } from "@tanstack/react-router";
 import { Alert, Button } from "antd";
-import { useContext, useState } from "react";
+import { useCallback, useContext, useState } from "react";
 import { DetailPage } from "../../../components/DetailPage";
 import { InfoList } from "../../../components/InfoList";
 import { FullPageNotice } from "../../../components/StateBlock";
@@ -56,6 +56,7 @@ function MerchantDetailContent({ storeId }: { storeId: string }) {
     queryFn: () => api.store(storeId),
     ...DETAIL_QUERY,
   });
+  const dismiss = useCallback(() => setAction(undefined), []);
   const refresh = () =>
     services.queryClient.invalidateQueries({ queryKey: [...MERCHANT_KEY, identity] });
   if (query.isError || !query.data)
@@ -77,7 +78,7 @@ function MerchantDetailContent({ storeId }: { storeId: string }) {
       />
     );
   const row = query.data,
-    props = { api, row, access, open: setAction };
+    props = { api, row, access, open: setAction, dismiss };
   const panels = [
     { key: "profile", label: "档案", content: <ProfilePanel {...props} /> },
     { key: "qualification", label: "资质轮次", content: <QualificationPanel {...props} /> },
@@ -165,7 +166,7 @@ function MerchantDetailContent({ storeId }: { storeId: string }) {
                   { label: "套餐", value: text(row.subscription.plan?.name) },
                   { label: "套餐状态", value: text(row.subscription.status) },
                   { label: "套餐截止", value: text(row.subscription.endDate) },
-                  { label: "最近上线", value: text(row.liveSummary.firstLiveDate) },
+                  { label: "首次上线", value: text(row.liveSummary.firstLiveDate) },
                   { label: "使用截止", value: text(row.liveSummary.latestUsageEndDate) },
                   { label: "约定上线", value: text(row.nearestAgreedLaunchDate) },
                   { label: "注册时间", value: moment(row.registeredAt) },

@@ -1,0 +1,77 @@
+import { createIdentityContext } from "../../kernel/index.js";
+import { createProfile } from "../../profile/index.js";
+import { currentSessionOpenid } from "../../identity/index.js";
+import { createTenant } from "../../tenant/index.js";
+import { loadKeyring } from "../../security/index.js";
+import type { AdminLiveFixture } from "./context.js";
+
+/** 独立多店/跨主体前置；初始指派经正式同TX公口，浏览器写口产生后续状态。 */
+const fixture: AdminLiveFixture = async ({ runtime, make }) => {
+  if (runtime.env.APP_ENV !== "test") throw new Error("商家页面夹具只接受隔离测试环境");
+  const group = await runtime.tx.run((tx) =>
+    tx.staffGroup.findFirstOrThrow({
+      where: { staffRoleKey: "delivery_manager", isDefault: true },
+    }),
+  );
+  const previous = await make.staff({
+    name: "W215原交付经理",
+    staffRoleKey: "delivery_manager",
+    staffGroupId: group.id,
+    status: "active",
+  });
+  const merchant = await make.merchant({ verified: true });
+  const store = await make.store({
+    entityId: merchant.entity.id,
+    name: "W215演练二号店",
+    qualificationStatus: "verified",
+  });
+  const other = await make.merchant({ verified: true });
+  const clerk = await make.merchantUser({ displayName: "W215演练店员" });
+  const member = await make.entityMember({
+    entityId: merchant.entity.id,
+    merchantUserId: clerk.id,
+    role: "clerk",
+    displayName: "W215演练店员",
+  });
+  await make.storeMember({
+    entityId: merchant.entity.id,
+    entityMemberId: member.id,
+    storeId: store.id,
+    addedByMemberId: merchant.owner.id,
+  });
+  const tenant = createTenant(runtime);
+  const profile = createProfile({
+    ...runtime,
+    tenant,
+    keyring: () => loadKeyring(runtime.env),
+    wechat: runtime.providers.wechat,
+    currentOpenid: (principal) => runtime.tx.run((tx) => currentSessionOpenid(tx, principal)),
+  });
+  await runtime.tx.run((tx) =>
+    profile.assignDeliveryManager(
+      tx,
+      createIdentityContext({
+        actor: { type: "system", id: "merchant-m2-fixture", client: "worker" },
+      }),
+      { storeId: store.id, staffId: previous.id },
+    ),
+  );
+  return {
+    store: {
+      storeId: store.id,
+      name: store.name,
+      entityId: merchant.entity.id,
+      primaryStoreId: merchant.store.id,
+    },
+    otherStoreId: other.store.id,
+    previousManager: { staffId: previous.id, name: previous.name },
+    owner: { merchantUserId: merchant.user.id, phoneMask: merchant.user.phoneMask },
+    clerk: {
+      merchantUserId: clerk.id,
+      memberId: member.id,
+      phoneMask: clerk.phoneMask,
+      name: clerk.displayName,
+    },
+  };
+};
+export default fixture;

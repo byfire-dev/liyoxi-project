@@ -1,6 +1,6 @@
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { Alert, Button, Checkbox, Select, Space } from "antd";
-import { useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { InfoList } from "../../../components/InfoList";
 import { QueryTablePage } from "../../../components/QueryTablePage";
 import { EmptyState, ErrorState } from "../../../components/StateBlock";
@@ -25,6 +25,7 @@ export interface PanelProps {
   row: StoreHeader;
   access: AccessSnapshot | null;
   open(intent: MerchantIntent): void;
+  dismiss(): void;
 }
 function Resource<T>({
   query,
@@ -152,17 +153,7 @@ export function QualificationPanel(p: PanelProps) {
     queryFn: () => p.api.qualification(p.row.storeId),
     ...DETAIL_QUERY,
   });
-  const [notice, setNotice] = useState<string>();
-  const view = async (fileId: string) => {
-    try {
-      const value = await p.api.download(fileId);
-      const url = value.url;
-      if (!url) throw new Error("当前文件没有可用签读地址");
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (failure) {
-      setNotice(failure instanceof Error ? failure.message : "文件读取失败");
-    }
-  };
+  const [view, notice] = useSignedRead(p.api);
   return (
     <Resource query={q}>
       {(r) => (
@@ -257,7 +248,8 @@ export function EntityPanel(p: PanelProps) {
   });
   const members = useQuery({
     queryKey: key(p, "members", removed),
-    queryFn: () => p.api.members(p.row.entity.entityId, { includeRemoved: String(removed) }),
+    queryFn: () =>
+      p.api.members(p.row.entity.entityId, { includeRemoved: removed ? "true" : "false" }),
     ...DETAIL_QUERY,
   });
   return (
@@ -383,7 +375,12 @@ export function FollowPanel(p: PanelProps) {
   const q = useQuery({
     queryKey: key(p, "follows", page, isOpen),
     queryFn: () =>
-      p.api.follows({ storeId: p.row.storeId, page, pageSize: 20, ...(isOpen ? { isOpen } : {}) }),
+      p.api.follows({
+        storeId: p.row.storeId,
+        page,
+        pageSize: 20,
+        ...(isOpen ? { isOpen: isOpen === "true" } : {}),
+      }),
     ...LIST_QUERY,
     placeholderData: undefined,
   });
@@ -393,7 +390,7 @@ export function FollowPanel(p: PanelProps) {
       p.api.staff({
         pool: "delivery_manager",
         status: "active",
-        withLoad: "true",
+        withLoad: true,
         page: poolPage,
         pageSize: 20,
       }),
@@ -572,9 +569,39 @@ export function AccountsPanel(p: PanelProps) {
     enabled: !!selected,
     ...DETAIL_QUERY,
   });
-  const target = members.data?.items.find((m) => m.user.merchantUserId === targetId)?.user;
   const requestable =
     canAction(p.access, "merchant.account_change.request") && hasModuleLevel(p.access, "merchant");
+  const factsReady =
+    entity.isSuccess &&
+    !entity.isFetching &&
+    members.isSuccess &&
+    !members.isFetching &&
+    reasons.isSuccess &&
+    !reasons.isFetching;
+  const target = factsReady
+    ? members.data.items.find((m) => m.user.merchantUserId === targetId)?.user
+    : undefined;
+  const client = useQueryClient(),
+    dismiss = p.dismiss;
+  const protectedKeys = [
+    JSON.stringify(key(p, "entity")),
+    JSON.stringify(key(p, "account-members")),
+    JSON.stringify([...MERCHANT_KEY, merchantScope(p.access), "account-reasons"]),
+  ].join("|");
+  useEffect(
+    () =>
+      client.getQueryCache().subscribe((event) => {
+        if (
+          requestable &&
+          protectedKeys.split("|").includes(JSON.stringify(event.query.queryKey)) &&
+          (event.query.state.status === "error" || event.query.state.status === "pending")
+        ) {
+          setTargetId(undefined);
+          dismiss();
+        }
+      }),
+    [client, requestable, protectedKeys, dismiss],
+  );
   return (
     <>
       {requestable ? (
@@ -583,6 +610,7 @@ export function AccountsPanel(p: PanelProps) {
           <p>申请与批准分别鉴权，服务端复核当前范围、证明归属、目标状态与自审限制。</p>
           <Select
             aria-label="账号变更目标"
+            disabled={!factsReady}
             placeholder="选择当前成员"
             style={{ minWidth: 240 }}
             value={targetId}
@@ -595,7 +623,7 @@ export function AccountsPanel(p: PanelProps) {
             onChange={setTargetId}
           />
           <Space>
-            {entity.data && target && reasons.data ? (
+            {factsReady && entity.data && target && reasons.data ? (
               <>
                 <Button
                   onClick={() =>
@@ -761,26 +789,48 @@ export function AccountsPanel(p: PanelProps) {
     </>
   );
 }
-function ProofLink({ api, fileId, index }: { api: MerchantApi; fileId: string; index: number }) {
+function useSignedRead(api: MerchantApi) {
+  const lifetime = useRef<{ active: boolean; generation: number; controller?: AbortController }>({
+    active: false,
+    generation: 0,
+  });
   const [error, setError] = useState<string>();
+  useEffect(() => {
+    const state = lifetime.current;
+    state.active = true;
+    return () => {
+      state.active = false;
+      state.generation++;
+      state.controller?.abort();
+    };
+  }, [lifetime]);
+  const view = useCallback(
+    async (fileId: string) => {
+      const state = lifetime.current;
+      state.controller?.abort();
+      const current = new AbortController(),
+        mine = ++state.generation;
+      state.controller = current;
+      setError(undefined);
+      try {
+        const signed = await api.download(fileId, current.signal);
+        if (!state.active || current.signal.aborted || mine !== state.generation) return;
+        if (!signed.url) throw new Error("当前文件没有可用签读地址");
+        window.open(signed.url, "_blank", "noopener,noreferrer");
+      } catch (failure) {
+        if (state.active && !current.signal.aborted && mine === state.generation)
+          setError(failure instanceof Error ? failure.message : "文件读取失败");
+      }
+    },
+    [api, lifetime],
+  );
+  return [view, error] as const;
+}
+function ProofLink({ api, fileId, index }: { api: MerchantApi; fileId: string; index: number }) {
+  const [view, error] = useSignedRead(api);
   return (
     <span>
-      <Button
-        onClick={() => {
-          void api
-            .download(fileId)
-            .then((r) => {
-              const url = r.url;
-              if (!url) throw new Error("暂无可用签读地址");
-              window.open(url, "_blank", "noopener,noreferrer");
-            })
-            .catch((failure: unknown) =>
-              setError(failure instanceof Error ? failure.message : "证明读取失败"),
-            );
-        }}
-      >
-        查看证明 {index + 1}
-      </Button>
+      <Button onClick={() => void view(fileId)}>查看证明 {index + 1}</Button>
       {error ? <span role="alert">{error}</span> : null}
     </span>
   );
