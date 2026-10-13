@@ -3253,6 +3253,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/stores/{storeId}/reassign-delivery-manager": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 转移交付经理：门店与在办工单、订购单、客服工单一并移交（已归档的不动），通知商家，新经理 1 个工作日内联系 */
+        post: operations["admin.store.reassignDeliveryManager"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/timers": {
         parameters: {
             query?: never;
@@ -6711,6 +6728,21 @@ export interface components {
                 deliveryTicketCount: number;
                 dramaOrderCount: number;
             };
+        };
+        /** @enum {string} */
+        ManagerTransferReason: "workload" | "merchant_request" | "staff_change" | "other";
+        ManagerTransferResult: {
+            /** Format: uuid */
+            batchId: string;
+            contact: components["schemas"]["AssignmentContactView"];
+            deliveryManager: components["schemas"]["StaffBrief"];
+            moved: {
+                deliveryTicketCount: number;
+                dramaOrderCount: number;
+                serviceTicketCount: number;
+            };
+            /** Format: uuid */
+            storeId: string;
         };
         MediaFileView: {
             coverUrl: string | null;
@@ -26972,6 +27004,92 @@ export interface operations {
             };
             /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.store.reassignDeliveryManager": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                storeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    confirm: {
+                        /** Format: uuid */
+                        fromStaffId: string;
+                    };
+                    note?: string;
+                    reasonCode: components["schemas"]["ManagerTransferReason"];
+                    /** Format: uuid */
+                    toStaffId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["ManagerTransferResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
