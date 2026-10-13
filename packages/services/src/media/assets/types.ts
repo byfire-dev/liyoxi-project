@@ -23,6 +23,8 @@ export interface AssetStoreFacts {
   readonly isPrimary: boolean;
   readonly qualificationStatus: string;
   readonly lifecycle: string;
+  /** 旧测试/未接事实为unknown；归档释放不得据此猜时间。 */
+  readonly archivedAt?: Date | null;
 }
 /** Higher-layer composition supplies owned public facts, never a raw peer client. */
 export interface MediaAssetsDeps {

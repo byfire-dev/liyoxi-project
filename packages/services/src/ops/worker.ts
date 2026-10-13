@@ -61,7 +61,7 @@ import { sendStaffWecomInvite } from "../notify/index.js";
 import { createTenant } from "../tenant/index.js";
 import { bindPublish } from "../publish/index.js";
 import { createMedia } from "../media/index.js";
-import { createMediaAssembly } from "./media-runtime.js";
+import { createMediaAssembly, mediaSweepOptions } from "./media-runtime.js";
 import { createRuntimeMediaBatches } from "./media-batches-runtime.js";
 import { createRuntimeMediaProduction } from "./media-production-runtime.js";
 import { createAlertFactsAssembly } from "./alert-facts-runtime.js";
@@ -524,6 +524,10 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
             sessionMutex: options.sessionMutex,
             alerts: alertsOf(assembly),
             staffBriefs,
+            sweep: mediaSweepOptions(
+              createConfig({ db: prisma, clock, redis: null }).params,
+              (tx, id) => notify.remindAssetDemand(tx, id),
+            ),
           },
         }
       : {}),
@@ -551,7 +555,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       recentWechatOpenid,
     },
   });
-  mediaScope.attach(media.jobs);
+  mediaScope.attach(media.jobs, media.retention);
   mediaAssetsScope.attach(media);
   const docsConfig = createConfig({ db: prisma, clock, redis: null });
   const docsServices = createRuntimeDocs({

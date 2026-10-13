@@ -209,3 +209,12 @@ closedBefore是原deadline拒绝水位而非总开关；token不是当前PG许�
 `media.retention`提供六个后台接口的真实用例。写操作接收真实员工会话元信息与required幂等上下文；恢复/彻删跨两TX和外呼持同fileId专用sessionMutex，signal传存储原语。恢复结果未知或settle失败也按最终DB事实补回marker，已提交/后继恢复不撤销。彻删失败保留deleting，正式占用过期后同键接续。
 
 彻删同时保护live引用、keepUntil、法定canRelease和引用拥有者readColumns；当前历史投影保守阻断会返回真实引用，精准inUse与sweep/I8/I13另续，不宣称整包清扫完成。删除提交后另TX按ZIP390→派生文件410升序执行hooks，实际media_info/cover沿原release保留30天。COS必须完整枚举精确key版本，Suspended也不遗漏；MinIO未声明版本恢复，明确unsupported。真实桶恢复/清扫/彻删均未验。
+
+
+## W3-06 分步清扫（待ROOT定点验收）
+
+`media.retention.sweep`只接受真实job的signal/runTx，逐阶段独立小事务；失败记摘要及P2后继续下一阶段，观察租约/互斥失效立即中止。维护、候选清单和逐文件互斥分开，不嵌套sessionMutex；外呼传该作用域真实signal。每日北京时间03:00后由持久file_purge_run去重，候选最多5000，执行每轮最多100，list_only只提清单，auto超正式阈值/100原片/50 secure熔断held。批准后每文件重新读四事实，3次guard中止，deletedCount和文件结果同TX。
+
+每文件用公开三段式system幂等记录续作未知marker，仅本run/file的resumed接管deleting，不能冒领手工erase。对象调用或settle未知保留deleting和意图，下一轮按最终DB事实接续；幂等证据超过既有24小时被清理后宁告警/guard拒绝，不猜对象结果。此保证仅覆盖已观察失锁，不能即时撤销外部副作用或未观察的网络窗口。
+
+删除和彻删消费各真实拥有者的精确fileId inUse，不用readColumns历史全表快照充当当前事实；漏接当前事实明确拒绝。OCR raw在本域按rawPurgeAt限量清除，fields/历史不删；需求日期经既有asset_feedback派生、T-0/asset_request.due持久去重，最新notifyScope和成员范围在投递时复核。I8另TX先ZIP390后文件410重试真实缓存/cover钩子，I13检查引用缓存并由sweep补偿。账号证明只在拥有者3年canRelease后沿原release加分类7天，其他法定证据不泛化释放。

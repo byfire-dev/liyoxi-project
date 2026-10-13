@@ -7,69 +7,104 @@ import { findAssetViolations } from "./assets/invariants.js";
 import { implementMerchantFacts } from "../kernel/index.js";
 import { assetForNotify, assetDemandForNotify } from "./notify-facts.js";
 import { defineRegistration, implementKeyed, invariantNow } from "../kernel/index.js";
+import type { Clock, ExpectedFileRef, Tx } from "../kernel/index.js";
 import { fileCategoryGuardPort, fileRefTypePort } from "./ports.js";
+import type { StoreBoundFileRefType } from "./ports.js";
+import type { MediaAssetsDeps } from "./assets/types.js";
 import { findI2Violations, findI14Violations } from "./invariants.js";
 import { mediaDeliveryRefTypes } from "./production-stub.js";
+import { findI13Violations } from "./retention/sweep-invariants.js";
 const unboundMediaJobs = (): never => {
   throw new Error("媒体执行器未绑定实际运行时");
 };
 import { findI10Violations, findI11Violations } from "./jobs/invariants.js";
+async function currentStoreAssetRefs(
+  tx: Tx,
+  fileId: string,
+  readStore?: MediaAssetsDeps["readStore"],
+  clock?: Clock,
+): Promise<ExpectedFileRef[]> {
+  const rows = await tx.storeAsset.findMany({
+    where: {
+      deletedAt: null,
+      OR: [{ portraitAuthFileIds: { has: fileId } }, { storeAssetFiles: { some: { fileId } } }],
+    },
+    select: {
+      id: true,
+      storeId: true,
+      entityId: true,
+      portraitAuthFileIds: true,
+      storeAssetFiles: { where: { fileId }, select: { fileId: true } },
+    },
+  });
+  const facts = new Map<string, Awaited<ReturnType<MediaAssetsDeps["readStore"]>>>();
+  const refs: ExpectedFileRef[] = [];
+  const now = clock?.now();
+  for (const row of rows) {
+    let mainInUse = true,
+      portraitInUse = true;
+    if (readStore) {
+      if (!facts.has(row.storeId)) facts.set(row.storeId, await readStore(tx, row.storeId));
+      const store = facts.get(row.storeId);
+      // 漏file_ref时也保留归档缓冲；只有真实拥有者确认日期且各角色期限已到才退出。
+      // 未装配、缺事实/时钟或归档时间不完整时保守保留，不能猜测已经释放。
+      if (
+        now &&
+        store?.id === row.storeId &&
+        store.entityId === row.entityId &&
+        store.lifecycle === "archived" &&
+        store.archivedAt instanceof Date &&
+        Number.isFinite(store.archivedAt.getTime())
+      ) {
+        mainInUse = store.archivedAt.getTime() + 180 * 86_400_000 > now.getTime();
+        const portraitUntil = new Date(store.archivedAt.getTime()),
+          month = portraitUntil.getUTCMonth();
+        portraitUntil.setUTCFullYear(portraitUntil.getUTCFullYear() + 3);
+        if (portraitUntil.getUTCMonth() !== month) portraitUntil.setUTCDate(0);
+        portraitInUse = portraitUntil > now;
+      }
+    }
+    if (mainInUse && row.storeAssetFiles.length) refs.push({ fileId, refId: row.id, role: "main" });
+    if (portraitInUse && row.portraitAuthFileIds.includes(fileId))
+      refs.push({ fileId, refId: row.id, role: "portrait_auth" });
+  }
+  return refs;
+}
+const storeAssetRef: StoreBoundFileRefType = {
+  inUse: currentStoreAssetRefs,
+  withStoreFacts(readStore, clock) {
+    return { ...this, inUse: (tx, fileId) => currentStoreAssetRefs(tx, fileId, readStore, clock) };
+  },
+  roles: {
+    main: { categories: ["store_asset"], retentionDays: 7 },
+    portrait_auth: { categories: ["portrait_auth"], retentionDays: 7 },
+  },
+  readColumns: async (tx) => {
+    const rows = await tx.storeAsset.findMany({
+      where: { deletedAt: null },
+      select: {
+        id: true,
+        portraitAuthFileIds: true,
+        storeAssetFiles: { select: { fileId: true } },
+      },
+    });
+    return rows.flatMap((row) => [
+      ...row.storeAssetFiles.map((file) => ({ fileId: file.fileId, refId: row.id, role: "main" })),
+      ...row.portraitAuthFileIds.map((fileId) => ({
+        fileId,
+        refId: row.id,
+        role: "portrait_auth",
+      })),
+    ]);
+  },
+};
 export const registration = defineRegistration("media", {
   ports: [fileRefTypePort, fileCategoryGuardPort],
   portImplementations: [
     notifyReaderImplementation(currentNotifyReadPort, "assetForNotify", assetForNotify),
     notifyReaderImplementation(currentNotifyReadPort, "assetDemandForNotify", assetDemandForNotify),
     implementMerchantFacts("asset", assetMerchantFacts),
-    implementKeyed(fileRefTypePort, "store_asset", {
-      inUse: async (tx, fileId) =>
-        (
-          await tx.storeAsset.findMany({
-            where: {
-              deletedAt: null,
-              OR: [
-                { portraitAuthFileIds: { has: fileId } },
-                { storeAssetFiles: { some: { fileId } } },
-              ],
-            },
-            select: {
-              id: true,
-              portraitAuthFileIds: true,
-              storeAssetFiles: { where: { fileId }, select: { fileId: true } },
-            },
-          })
-        ).flatMap((row) => [
-          ...(row.storeAssetFiles.length ? [{ fileId, refId: row.id, role: "main" }] : []),
-          ...(row.portraitAuthFileIds.includes(fileId)
-            ? [{ fileId, refId: row.id, role: "portrait_auth" }]
-            : []),
-        ]),
-      roles: {
-        main: { categories: ["store_asset"], retentionDays: 7 },
-        portrait_auth: { categories: ["portrait_auth"], retentionDays: 7 },
-      },
-      readColumns: async (tx) => {
-        const rows = await tx.storeAsset.findMany({
-          where: { deletedAt: null },
-          select: {
-            id: true,
-            portraitAuthFileIds: true,
-            storeAssetFiles: { select: { fileId: true } },
-          },
-        });
-        return rows.flatMap((row) => [
-          ...row.storeAssetFiles.map((file) => ({
-            fileId: file.fileId,
-            refId: row.id,
-            role: "main",
-          })),
-          ...row.portraitAuthFileIds.map((fileId) => ({
-            fileId,
-            refId: row.id,
-            role: "portrait_auth",
-          })),
-        ]);
-      },
-    }),
+    implementKeyed(fileRefTypePort, "store_asset", storeAssetRef),
 
     implementKeyed(fileRefTypePort, "playable_asset", mediaDeliveryRefTypes.playable_asset),
     implementKeyed(fileRefTypePort, "upload_batch", mediaDeliveryRefTypes.upload_batch),
@@ -115,7 +150,39 @@ export const registration = defineRegistration("media", {
       },
     },
   ],
+  recurringJobs: [
+    {
+      kind: "media.sweep",
+      schedule: { every: "minutes", minutes: 10 },
+      mode: "job",
+      leaseSec: 60,
+      maxAttempts: 3,
+      deadlineMin: 30,
+      missSeverity: "P2",
+      catchUp: true,
+      run: async () => {
+        throw new TypeError("media.sweep尚未绑定真实运行时");
+      },
+    },
+  ],
   invariants: [
+    {
+      code: "media.I8",
+      severity: "P2",
+      modes: ["quick", "full"],
+      every: "hour",
+      heal: "heal_only",
+      run: async () => {
+        throw new TypeError("媒体清除补偿运行时尚未绑定");
+      },
+    },
+    {
+      code: "media.I13",
+      severity: "P2",
+      modes: ["full"],
+      heal: "none",
+      run: (tx, scope, ctx) => findI13Violations(tx, scope, invariantNow(ctx)),
+    },
     ...(["I12", "I16", "I17"] as const).map((code) => ({
       code: `media.${code}`,
       severity: "P2" as const,

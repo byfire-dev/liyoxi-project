@@ -25,6 +25,7 @@ export interface NotifyFact {
   deliveryTicketId?: string;
   excludeWechatIdentityId?: string;
   targetDate?: string;
+  notifyScope?: "owner_only" | "owner_and_clerks";
   amountFen?: number;
   quantity?: number;
   balance?: number;
