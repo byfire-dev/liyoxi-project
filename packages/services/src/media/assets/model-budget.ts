@@ -6,6 +6,8 @@ export interface ModelBudgetContext {
   readonly entityId: string;
   readonly storeId: string;
   readonly jobId: string;
+  /** 人工retry后持久的新意图；首代缺失时仍使用真实jobId，不改变jobId本身。 */
+  readonly modelIntentId?: string;
   readonly fileIds: readonly string[];
   readonly kind: "asr" | "vision" | "digest";
   readonly attemptNo: number;
@@ -53,8 +55,10 @@ function context(value: ModelBudgetContext, now: number): ModelBudgetContext | u
   if (
     !value ||
     typeof value !== "object" ||
-    Object.keys(value).length !== fields.length ||
+    Object.keys(value).length !== fields.length + (Object.hasOwn(value, "modelIntentId") ? 1 : 0) ||
     !fields.every((key) => Object.hasOwn(value, key)) ||
+    (Object.hasOwn(value, "modelIntentId") &&
+      (typeof value.modelIntentId !== "string" || !isUuid(value.modelIntentId))) ||
     ![value.entityId, value.storeId, value.jobId].every(
       (id) => typeof id === "string" && isUuid(id),
     ) ||
@@ -301,7 +305,7 @@ export function createModelBudgetLedger({
             permit.originalDeadlineMs,
             permit.kind,
             permit.attemptNo,
-            permit.jobId,
+            permit.modelIntentId ?? permit.jobId,
             permit.storeId,
             permit.dailyFileCap,
             permit.dailyCallCap,

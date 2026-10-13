@@ -19,6 +19,18 @@ function setup(kind: "asr" | "vision" | "digest" = "asr") {
     attemptNo: 1,
     nextRunAt: new Date(at + 120000),
     deadlineAt: new Date(at + (kind === "asr" ? 1800000 : 900000)),
+    input: {
+      assetMarker: "store_asset_v1",
+      assetId: uuidv7(),
+      fileId: null,
+      promptVersion: 1,
+      runId: uuidv7(),
+      selected: [],
+      etag: null,
+      crc64: null,
+      sizeBytes: null,
+      coverFileId: uuidv7(),
+    },
   } as MediaJob;
   const source = {
     entityId: uuidv7(),
@@ -62,6 +74,36 @@ function deferred() {
 }
 
 describe("预算许可纯协议", () => {
+  it("重试意图贯穿P1/P2且真实jobId不变；丢失或替换代次的许可不收费", async () => {
+    for (const mismatch of ["none", "missing", "changed"] as const) {
+      const h = setup("digest"),
+        modelIntentId = uuidv7();
+      h.job.input = { ...(h.job.input as object), modelIntentId };
+      if (mismatch !== "none")
+        h.readPermit.mockImplementation(async (_tx, facts) => {
+          const { modelIntentId: _intent, ...old } = facts;
+          return {
+            ...old,
+            ...(mismatch === "changed" ? { modelIntentId: uuidv7() } : {}),
+            dailyFileCap: 200,
+            dailyCallCap: 10000,
+          };
+        });
+      const outcome = await h.execute();
+      if (mismatch !== "none") {
+        expect(outcome).toMatchObject({ output: { reason: "budget_unavailable" } });
+        expect(h.reserve).not.toHaveBeenCalled();
+        continue;
+      }
+      expect(outcome).toHaveProperty("permit");
+      expect(h.reserve.mock.calls[0]![0]).toMatchObject({ jobId: h.job.id, modelIntentId });
+      expect(Object.keys(h.reserve.mock.calls[0]![0])).toHaveLength(14);
+      expect(h.readPermit).toHaveBeenCalledTimes(2);
+      for (const [, facts] of h.readPermit.mock.calls)
+        expect(facts).toMatchObject({ jobId: h.job.id, modelIntentId });
+    }
+  });
+
   it.each(["asr", "vision", "digest"] as const)(
     "%s冻结精确13字段且两次提交后才交付原窗口",
     async (kind) => {

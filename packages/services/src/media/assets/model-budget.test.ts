@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createClock } from "../../testing/index.js";
 import { createModelBudgetLedger } from "../index.js";
 import type { ModelBudgetContext, ModelBudgetTransport } from "../index.js";
+import { AssetJobInputSchema } from "./pipeline.js";
 
 const id = (n: number) => `019a0000-0000-7000-8000-${String(n).padStart(12, "0")}`;
 const prefix = "lyx:test:budgetpure:1:";
@@ -34,6 +35,46 @@ afterEach(() => {
 });
 
 describe("独立预算纯上下文与借用传输", () => {
+  it("首代13字段沿真实jobId；明确UUID重试意图仅替换token身份，非法显式值零IO", async () => {
+    const h = setup(),
+      original = h.permit(),
+      modelIntentId = id(20),
+      input = {
+        assetMarker: "store_asset_v1",
+        assetId: id(6),
+        fileId: id(4),
+        promptVersion: 1,
+        runId: id(7),
+        selected: [],
+        etag: "etag",
+        crc64: "123",
+        sizeBytes: "3",
+        coverFileId: id(8),
+      };
+    expect(Object.keys(original)).toHaveLength(13);
+    expect(Object.hasOwn(AssetJobInputSchema.parse(input), "modelIntentId")).toBe(false);
+    expect(await h.ledger.reserve(original, signal())).toMatchObject({ status: "reserved" });
+    const retry = { ...original, modelIntentId };
+    expect(AssetJobInputSchema.parse({ ...input, modelIntentId }).modelIntentId).toBe(
+      modelIntentId,
+    );
+    expect(await h.ledger.reserve(retry, signal())).toMatchObject({ status: "reserved" });
+    expect(h.evalCall.mock.calls[0]![2][8]).toBe(original.jobId);
+    expect(h.evalCall.mock.calls[1]![2][8]).toBe(modelIntentId);
+    expect(retry.jobId).toBe(original.jobId);
+    for (const bad of [undefined, null, "bad-uuid"]) {
+      expect(AssetJobInputSchema.safeParse({ ...input, modelIntentId: bad }).success).toBe(false);
+      expect(
+        await h.ledger.reserve({ ...original, modelIntentId: bad } as ModelBudgetContext, signal()),
+      ).toEqual({ status: "denied", reason: "stale" });
+    }
+    expect(await h.ledger.reserve({ ...retry, dailyCallCap: 0 }, signal())).toEqual({
+      status: "denied",
+      reason: "disabled",
+    });
+    expect(h.evalCall).toHaveBeenCalledTimes(2);
+  });
+
   it("构造零IO，缺传输关闭；没有初始化、退款或连接关闭口", async () => {
     const h = setup();
     expect(h.evalCall).not.toHaveBeenCalled();
