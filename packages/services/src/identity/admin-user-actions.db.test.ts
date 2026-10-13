@@ -99,7 +99,7 @@ async function grant(
       expiresAt: new Date(now.getTime() + (extra.expired ? -3600000 : 3600000)),
       ip: META.ip!,
       userAgent: "lyxtest admin user action",
-      createdAt: now,
+      createdAt: extra.expired ? new Date(now.getTime() - 7200000) : now,
       updatedAt: now,
       ...(extra.revoked ? { revokedAt: now, revokeReason: "portal_logout" } : {}),
     },
@@ -273,7 +273,11 @@ describe("后台账号三动作真实数据库", { timeout: 120_000 }, () => {
       key = uuidv7();
     await h.prisma.staffSession.update({
       where: { id: staff.signed.sessionId },
-      data: { stepupAt: new Date(h.clock.now().getTime() - 660000) },
+      data: {
+        createdAt: new Date(h.clock.now().getTime() - 720000),
+        stepupAt: new Date(h.clock.now().getTime() - 660000),
+        absoluteExpiresAt: new Date(h.clock.now().getTime() + (12 * 60 - 12) * 60000),
+      },
     });
     await grant(who);
     const fixed = await snapshotTables(h.prisma, [
@@ -328,7 +332,11 @@ describe("后台账号三动作真实数据库", { timeout: 120_000 }, () => {
     await expect(run(cs, "disable", input)).rejects.toMatchObject({ error: "PERMISSION_DENIED" });
     await h.prisma.staffSession.update({
       where: { id: lead.signed.sessionId },
-      data: { stepupAt: new Date(h.clock.now().getTime() - 660000) },
+      data: {
+        createdAt: new Date(h.clock.now().getTime() - 720000),
+        stepupAt: new Date(h.clock.now().getTime() - 660000),
+        absoluteExpiresAt: new Date(h.clock.now().getTime() + (12 * 60 - 12) * 60000),
+      },
     });
     await expect(run(lead, "disable", input)).rejects.toMatchObject({ error: "STEP_UP_REQUIRED" });
     await expect(
@@ -414,8 +422,8 @@ describe("后台账号三动作真实数据库", { timeout: 120_000 }, () => {
         where: { key: "cs" },
         data: {
           actions: {
-            ...(original.actions as Record<string, string>),
-            "merchant.user.force_logout": "off",
+            ...(original.actions as Record<string, { on: boolean; leadOnly: boolean }>),
+            "merchant.user.force_logout": { on: false, leadOnly: false },
           },
         },
       });

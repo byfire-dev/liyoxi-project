@@ -85,7 +85,11 @@ describe("admin.merchantUser.disable", { timeout: 120_000 }, () => {
     );
     await db.staffSession.update({
       where: { id: lead.sessionId },
-      data: { stepupAt: new Date(api.clock.now().getTime() - 660000) },
+      data: {
+        createdAt: new Date(api.clock.now().getTime() - 720000),
+        stepupAt: new Date(api.clock.now().getTime() - 660000),
+        absoluteExpiresAt: new Date(api.clock.now().getTime() + (12 * 60 - 12) * 60000),
+      },
     });
     await error(
       await request("disable", f.who.merchantUserId, f.body, lead),
@@ -153,7 +157,11 @@ describe("admin.merchantUser.enable", { timeout: 120_000 }, () => {
     const lead = await signInAsStaff(db, { roleKey: "cs", isLead: true, now: api.clock.now() });
     await db.staffSession.update({
       where: { id: lead.sessionId },
-      data: { stepupAt: new Date(api.clock.now().getTime() - 660000) },
+      data: {
+        createdAt: new Date(api.clock.now().getTime() - 720000),
+        stepupAt: new Date(api.clock.now().getTime() - 660000),
+        absoluteExpiresAt: new Date(api.clock.now().getTime() + (12 * 60 - 12) * 60000),
+      },
     });
     await error(
       await request("enable", f.who.merchantUserId, f.body, lead),
@@ -197,7 +205,11 @@ describe("admin.merchantUser.forceLogout", { timeout: 120_000 }, () => {
       other = await signInAsStaff(db, { roleKey: "delivery_manager", now: api.clock.now() });
     await db.staffSession.update({
       where: { id: cs.sessionId },
-      data: { stepupAt: new Date(api.clock.now().getTime() - 660000) },
+      data: {
+        createdAt: new Date(api.clock.now().getTime() - 720000),
+        stepupAt: new Date(api.clock.now().getTime() - 660000),
+        absoluteExpiresAt: new Date(api.clock.now().getTime() + (12 * 60 - 12) * 60000),
+      },
     });
     const id = uuidv7(),
       now = api.clock.now();
