@@ -12,22 +12,22 @@ import {
 } from "../kernel/index.js";
 import type { DeliveredEvent, ModuleRegistration } from "../kernel/index.js";
 import { assembleForTest, createRecordingPorts, useSeededDatabase } from "../testing/index.js";
-import { runInvariants } from "./index.js";
-import { complete, harness, submit, uscc } from "../profile/__fixtures__/harness.js";
-import type { Harness } from "../profile/__fixtures__/harness.js";
+import { runTestInvariants as runInvariants } from "../testing/index.js";
+import { complete, harness, submit, uscc } from "./__fixtures__/harness.js";
+import type { Harness } from "./__fixtures__/harness.js";
 import {
   branchReady,
   newStoreReady,
   qualified,
   replacementLicense,
   reviewer,
-} from "../profile/__fixtures__/rounds.js";
-import * as duplicateBatch from "../profile/qualification-duplicate-batch.js";
-import { createProfileConsistencyTransactions } from "../profile/consistency-transactions.js";
+} from "./__fixtures__/rounds.js";
+import * as duplicateBatch from "./qualification-duplicate-batch.js";
+import { createProfileConsistencyTransactions } from "./consistency-transactions.js";
 import {
   createProfileConsistencyAssembly,
   createProfileQualificationConsistency,
-} from "../profile/qualification-consistency.js";
+} from "./qualification-consistency.js";
 
 const db = useSeededDatabase("services", { max: 1 }),
   ports = createRecordingPorts();
