@@ -24,8 +24,32 @@ change通过只更新主体认证字段，保留首次verifiedAt与主体状态�
 ROOT授权窄tenant companion：setStoreQualification扩现签名与02:627守卫；renameStore只接
 真实已批准且未关闭的当前change轮次。scope/auth/version由profile审批入口负责，历史轮次不得写回。
 新店首次提交经既有trackOf直记端口；analytics未注册仍明确fallback，不冒称实际外部埋点验收。
-I7/资质通过订阅者、终局/override/OCR/SMS与其余后台事实仍后续。新增8DB+2HTTP关键组及
+I7/资质通过订阅者由下一节SOURCE回补；终局/override/OCR/SMS与其余后台事实仍后续。新增8DB+2HTTP关键组及
 两个真实max1客户端竞争各3轮；ROOT完成正式验收后裁定本片，整包不标完成。
+
+## W2-11 资质系统一致性（SOURCE）
+
+`profile.onQualificationApproved` 消费既有initial/change通过事件，严格载荷及持久outbox关联后，
+复核通过轮次的当前生效执照/主体认证事实；new_store、无执照change及过时来源不扇出。
+`profile.I7`完整登记为full/P2/heal_and_alert，scope仅限制被检查主体，verified的closed主体
+仍是全局信用码赢家。两入口共用真实system审批拒绝，固定说明、空字典原因与duplicate_entity代码；
+真实当前审批/轮次/赢家事实缺一不可，员工原因、自审与审批守卫不放宽。系统原因码仅随最终closedAt/outcome同句写入，遵守两项配对CHECK。
+初次拒绝沿审批/主体/门店三链，change沿verified自迁移保留旧合法值；仅本轮新执照rejected，
+其他未移除证照accepted，所有已提交证据引用保留。
+
+单批最多32轮，第33个候选只作续批哨兵；approval30→round65→完整entity100→store130→profile135
+预锁本批后重验图。与d9逐轮事务的窄偏差：真实consumeDelivery要求首批与done同Tx，首批提交后
+同实例runner串行续批，每批独立提交并重新验证来源。I7单次最多修32轮，剩余下次full继续；
+不宣称一次扫描清完整库。续批失败保留此前已提交事实、固定日志和正式P2事件告警，后续full兜底。
+
+API/worker各自装配；原onTenantLifecycle绑定保持。profile专用薄TxRunner包装仍由原内核唯一
+开事务/重试/幂等/锁，每次attempt局部收集通知；只有真commit后才等待report/alert，失败尝试及
+幂等重放不通知。I7违规由ops原同Tx落库，只把告警延后。事件告警键profile.qualification_duplicate
+已在ops正式登记，维度仅轮次ID，不发信用码或盲索引。close停止接新批并等待最外在途通知驱动，
+无fire-and-forget，不改变已提交业务结果。ops报告端口捕获本实例db/clock，保留测试自定义port，不从全局requireOps选取另一runtime。
+
+新增6组领域风险与1组真实API/worker/max1 consumer装配；两旧不变量集合仅补I7能力绑定，
+旧断言保留。作者只做轻格式/lint；类型、数据库、契约生成与唯一独审由ROOT收口，W2-11整包仍进行中。
 
 `createStoreProfileAssetInitializer` 增加显式四项组合，旧 initializer 的三项严格入口不扩大。
 组合闭包固定 tenant.readStoreAssetFacts，不接受调用者提供的授权事实或owner替身。
@@ -50,7 +74,7 @@ a 已合并交付商家十三条 API 与进程内核心；b 补后台六条，�
 
 qualification 审批类型在 a 登记既定权限与决定 operationId；b 在生产清单挂载六条后台处理器，并用 `handlerOf` 只读取门店真实交付经理；经理为空仍沿既有门店范围回退。W1-09 后台页面必须等 b 实际合入 main 后开工。
 
-`createProfile` 从事务入口、时钟、tenant、approval、media、事件、密钥环与微信能力装配。API 在 `apps/api/src/merchant/services.ts` 最小接线；模块登记由组合根加载，API 和 worker 都能看到 qualification 审批类型、四种文件引用与九项不变量。没有改兄弟 factory 或 runtime 的既有行为。
+`createProfile` 从事务入口、时钟、tenant、approval、media、事件、密钥环与微信能力装配。API 在 `apps/api/src/merchant/services.ts` 最小接线；模块登记由组合根加载，API 和 worker 都能看到 qualification 审批类型、四种文件引用与十项不变量。没有改兄弟 factory 或 runtime 的既有行为。
 
 - 阅读顺序：共享 `profileCompleteness` 与契约 → `repo.ts` / `views.ts` → `service.ts` / `write.ts` → `draft.ts` / `documents.ts` → `submit.ts` / `qualification-kind.ts` → `gate.ts` / `assign-manager.ts` → `register.ts` / `invariants.ts`。
 - 基础、服务、联系人保存复用 ThreePhaseRunner：只读 claim、事务外 `wechat.checkText`、settle 锁行重读版本与守卫。done 重放不检测；不可用拒收，业务表不变。当前会话 raw openid 只在该外呼使用，不进响应、审计或日志。
@@ -60,7 +84,7 @@ qualification 审批类型在 a 登记既定权限与决定 operationId；b 在�
 - 提交锁轮次65→主体100→门店130→档案135；决定由 approval 先锁员工20、审批30，再进入领域回调。tenant 写门店/主体状态与认证字段；审批、资格、租户三条链与事件同事务。认证唯一冲突只在保存点认 `uq_entity_uscc_bidx_verified`，并发失败方保持在审。
 - 首次指派经理核心收 Tx：员工共享锁20→门店130；员工停用、角色与接收范围有独立错误原因；两个下游端口和门店更新同事务。W1-15 回补 `orderManagerPort`，W1-16a 回补 `deliveryManagerPort`。
 
-M2/M3 规定留桩、首页三个聚合与两项 M1 写端口均在 `docs/plan/stubs/`。`profile.I7` 的检查、自愈与资质通过订阅者在 M2；已登记 I1–I6、I8–I10，其中 I6 同事务修正三列并返回 healed。I1 真库反例夹具只在测试会话独立库内暂时移除两索引、强制事务回滚，随后核对索引恢复及正常唯一约束；迁移与共享库不变。
+M2/M3 规定留桩、首页三个聚合与两项 M1 写端口均在 `docs/plan/stubs/`。`profile.I7` 的检查、自愈与资质通过订阅者已由上节SOURCE回补；I1–I10完整登记，其中I6同事务修正三列并返回healed，I7按真实系统决定返回healed。I1 真库反例夹具只在测试会话独立库内暂时移除两索引、强制事务回滚，随后核对索引恢复及正常唯一约束；迁移与共享库不变。
 
 API 的响应沿既有 `respondByRole` 以本请求会员角色裁剪，写路由的店员能力统一拒绝。clerk 样例追加全部十三条，旧黄金不改；A86 的服务现价与原价按现有完整路径登记例外。卖点 `sellingPoints` 与 C57 键扫描词冲突由调度单独 gate-change 收口，本业务包不放松扫描逻辑。
 
