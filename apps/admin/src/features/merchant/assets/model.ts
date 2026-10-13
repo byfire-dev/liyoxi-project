@@ -1,7 +1,7 @@
 import { AdminStoreAssetListQuerySchema, IdSchema, z } from "@liyoxi/contract";
 import { readContractQuery } from "../../../lib/contract-query";
 import { hasModuleLevel, type AccessSnapshot } from "../../../lib/permissions";
-import type { AssetQuery, AssetRow, AssetSummaryQuery } from "./api";
+import type { AssetDetail, AssetQuery, AssetRow, AssetSummaryQuery } from "./api";
 const fields = AdminStoreAssetListQuerySchema.shape;
 const SearchSchema = z.strictObject({
   assetTab: fields.tab,
@@ -52,6 +52,17 @@ export const processingLabels = {
   processing: "处理中",
   processed: "已处理",
 } satisfies Record<AssetRow["processingState"], string>;
+export const insightLabels = {
+  transcript: "语音转写",
+  vision: "画面理解",
+  doc_text: "文档全文",
+  structured_items: "结构化项目",
+  digest: "综合洞察",
+  tech_spec: "技术规格",
+} satisfies Record<AssetDetail["insightSteps"][number]["kind"], string>;
+export function fileKindLabel(kind: string): string {
+  return Object.entries(typeLabels).find(([value]) => value === kind)?.[1] ?? "未识别文件类型";
+}
 export const canReadAssets = (access: AccessSnapshot | null) => hasModuleLevel(access, "merchant");
 export function assetSearch(raw: Readonly<Record<string, unknown>>): Record<string, string> {
   const input = { ...raw };

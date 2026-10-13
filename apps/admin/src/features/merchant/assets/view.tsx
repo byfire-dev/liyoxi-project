@@ -1,7 +1,7 @@
 import { STORE_ASSET_TYPE, STORE_ASSET_USABILITY } from "@liyoxi/contract";
 import { formatDurationMs } from "@liyoxi/shared/format/duration";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Space } from "antd";
+import { Alert, Button, Select, Space } from "antd";
 import { useEffect, useState } from "react";
 import type { AppServices } from "../../../app/services";
 import { InfoList } from "../../../components/InfoList";
@@ -20,6 +20,8 @@ import {
   assetSearch,
   assetSummaryQuery,
   canReadAssets,
+  fileKindLabel,
+  insightLabels,
   processingLabels,
   selectedAsset,
   signedAssetUrl,
@@ -139,7 +141,6 @@ export function MerchantAssetsView({
       key: "created",
       title: "上传时间",
       width: 170,
-      sortField: "createdAt",
       render: (r) => moment(r.createdAt),
     },
   ];
@@ -171,6 +172,20 @@ export function MerchantAssetsView({
         search={{ ...readTableSearch(wire, ASSET_FILTERS), tab: wire.assetTab }}
         onSearchChange={(next) =>
           change(assetSearch({ ...writeTableSearch(next), assetTab: next.tab, assetId: undefined }))
+        }
+        toolbar={
+          <Select
+            aria-label="素材排序"
+            value={wire.sort}
+            style={{ width: 190 }}
+            options={[
+              { value: "-createdAt", label: "上传时间从新到旧" },
+              { value: "reviewDueAt", label: "审核截止从早到晚" },
+            ]}
+            onChange={(sort: string) =>
+              change(assetSearch({ ...wire, sort, assetId: undefined, page: 1 }))
+            }
+          />
         }
         keywordPlaceholder="搜索素材标题或内容"
         filters={[
@@ -275,7 +290,7 @@ function AssetReadDetail({ row, refresh }: { row: AssetDetail; refresh(): void }
         const url = signedAssetUrl(file.url, file.expiresAt, now);
         return (
           <p key={file.fileId}>
-            文件 {index + 1} · {text(file.kind)} ·{" "}
+            文件 {index + 1} · {fileKindLabel(file.kind)} ·{" "}
             {file.durationMs === null ? "时长未知" : formatDurationMs(file.durationMs)} ·{" "}
             {url ? (
               <a className="lyx-link" href={url} target="_blank" rel="noopener noreferrer">
@@ -323,6 +338,7 @@ function AssetReadDetail({ row, refresh }: { row: AssetDetail; refresh(): void }
       </p>
       <p>用途标签：{row.usageTags.map((tag) => tag.tag.name).join("、") || "暂无人工用途"}</p>
       <h3>机器识别（仅供参考）</h3>
+      <p>技术规格：{row.techSpecLabel ?? "暂无识别结果"}</p>
       <p>
         机器处理：{processingLabels[row.processingState]}
         {row.isInsightPartial ? " · 结果不完整，可人工整理" : ""}
@@ -331,7 +347,7 @@ function AssetReadDetail({ row, refresh }: { row: AssetDetail; refresh(): void }
         <ul>
           {row.insightSteps.map((step, index) => (
             <li key={`${step.kind}:${index}`}>
-              {step.kind}：
+              {insightLabels[step.kind]}：
               {step.status === "ok" ? "已完成" : step.status === "failed" ? "失败" : "已跳过"}
             </li>
           ))}
@@ -368,6 +384,12 @@ function AssetReadDetail({ row, refresh }: { row: AssetDetail; refresh(): void }
           </p>
           <p>
             机器建议用途：{row.suggestion.usageTags.map((tag) => tag.name).join("、") || "暂无"}
+          </p>
+          <p>
+            机器建议时效：
+            {row.suggestion.timeliness
+              ? `${row.suggestion.timeliness.tag.name} · ${row.suggestion.timeliness.validStartDate ?? "—"} — ${row.suggestion.timeliness.validEndDate ?? "—"}`
+              : "暂无机器建议"}
           </p>
           <p>
             人脸提示：
