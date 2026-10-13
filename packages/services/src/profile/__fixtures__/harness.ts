@@ -53,6 +53,8 @@ export function harness(prisma: PrismaClient, extra: ModuleRegistration[] = []) 
   async function owner() {
     const user = await make.merchantUser();
     const entity = await make.entity({ createdByUserId: user.id });
+    // 后台计费事实已接真实拥有者；与 tenant 建主体同样具备账户，不能靠未注册键补零。
+    await make.billingAccount({ entityId: entity.id });
     const store = await make.store({ entityId: entity.id, isPrimary: true });
     const member = await make.entityMember({
       entityId: entity.id,

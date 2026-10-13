@@ -289,7 +289,15 @@ export async function qualificationView(
   };
 }
 /** DTO 随事务落幂等结果时地址为空。首响应/GET 在提交后签地址；重放永不重新签。 */
-export async function attachUrls<T>(deps: ProfileDeps, result: T, replayed = false): Promise<T> {
+export async function attachUrls<T>(
+  deps: ProfileDeps,
+  result: T,
+  replayed = false,
+  signing: {
+    audience?: "staff" | "merchant";
+    assertAccess?: (fileId: string, coverFileId?: string) => Promise<void>;
+  } = {},
+): Promise<T> {
   if (replayed) return result;
   async function visit(value: unknown): Promise<void> {
     if (Array.isArray(value)) {
@@ -315,7 +323,12 @@ export async function attachUrls<T>(deps: ProfileDeps, result: T, replayed = fal
         }),
       );
       if (technical?.status === "stored" && technical.moderationState !== "block") {
-        const signed = await deps.media.signRead({ fileId, audience: "merchant" });
+        await signing.assertAccess?.(fileId);
+        const signed = await deps.media.signRead({
+          fileId,
+          audience: signing.audience ?? "merchant",
+        });
+        await signing.assertAccess?.(fileId);
         row["url"] = signed.url;
         row["expiresAt"] = signed.expiresAt;
         const coverFileId = technical.mediaInfo?.coverFileId;
@@ -326,10 +339,15 @@ export async function attachUrls<T>(deps: ProfileDeps, result: T, replayed = fal
               select: { status: true, moderationState: true },
             }),
           );
-          if (cover?.status === "stored" && cover.moderationState !== "block")
-            row["coverUrl"] = (
-              await deps.media.signRead({ fileId: coverFileId, audience: "merchant" })
-            ).url;
+          if (cover?.status === "stored" && cover.moderationState !== "block") {
+            await signing.assertAccess?.(fileId, coverFileId);
+            const signedCover = await deps.media.signRead({
+              fileId: coverFileId,
+              audience: signing.audience ?? "merchant",
+            });
+            await signing.assertAccess?.(fileId, coverFileId);
+            row["coverUrl"] = signedCover.url;
+          }
         }
       }
       return;

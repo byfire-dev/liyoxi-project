@@ -1,12 +1,27 @@
 # 商家档案与首店资质（W1-08a、b）
 
+## W2-11 后台计费、订购与交付事实
+
+`profile.admin_facts` 的 billing/order/delivery 三键已由各拥有者注册真实只读实现，
+沿调用方事务取套餐、钱包、净实付与当前 paid 笔数、待审批积分调整和关联单据；
+本店上线/交付与当前经理在办量各按正式口径计算。GET 不推进账本、不外呼或补行。
+空订阅保留真实 none/0/null，缺失应有的账户或审批单号拒绝，不用默认值掩盖损坏记录。
+staff/support 键和完整筛选/summary 等仍待后续，跨层聚合留桩保持进行中。
+
+## W2-11 后台门店资质页签
+
+`admin.storeQualification` 经当前员工权限及门店范围核验，读取本店已提交的实际轮次、
+审批决定与生效证照；仅本主体生效营业执照可跨店共享。未建档案返回现有主体/门店事实，
+不补行、不签地址、不写审计。草稿、已移除证据和敏感原文不进入投影；GET 返回 no-store。
+独立审查、3组真实HTTP/DB和契约/权限/挂载定点验证已通过；W2-11其他范围继续推进。
+
 ## W2-11 门店活动流
 
 `admin.activity(staff, storeId, query)` 先检查商家查看权限及门店scope，再调用audit只读公口。
 同事务分别按本店和主体级无店记录取ops/activity，归并稳定时间/序号游标；actor筛选是
 merchant/staff/system逗号列表，游标绑定本店、主体及规范化筛选。投影复用AuditLogItem，
 仅增加reason/changedKeys/isEntityLevel；原始JSON、访问流和请求元数据不出接口。
-GET不写审计或事件，接口响应no-store；summary、跟进和代改仍按W2-11后续任务推进。
+GET不写审计或事件，接口响应no-store；summary与跟进仍按W2-11后续任务推进，代改见下文SOURCE。
 
 ## W2-11 商家草稿生命周期（SOURCE）
 
@@ -183,3 +198,24 @@ worker 在 createEvents 前生成实例 scope，在真实 tenant/approval/media 
 首页在原调用方 Tx 中读取 Tenant 真实成员摘要，并与原商家事实共用一次业务 now。
 老板名取成员列，店员数仅本店有效范围，预览老板优先且至多三人；未到期 pending 才占额。
 GET 不建档案、不补过期状态；既有老板/店员响应裁剪及其他首页字段保持，完整验证待授权。
+
+## W2-11 后台档案免审编辑 SOURCE（2026-10-14）
+
+`profile.admin.profile/updateProfile`接正式GET/PATCH两接口，真实员工范围先验，空档案GET
+不补行。返回生效基础字段、服务/媒体、完整度、待审change与实际最近编辑人；无联系人
+或资质敏感值。员工签图前后重核当前范围/本店live引用/主体，封面复核实际衍生关系；
+幂等回执保原DTO不重新签地址，未配置外部能力不冒充可用。
+
+代改只允许a03§2.6十二个免审字段；禁止键保留到领域明确报FIELD_NOT_PROXY_EDITABLE，
+不静默剥离。复用商家原logo/媒体/服务项应用段，真实staff actor与本店上传文件校验独立，
+不拼商家会话。原商家守卫/版本/必填/审计不变。员工入口一事务仅升一次档案版本，保留
+已提交过资质的必填项（包括已撤回后unsubmitted的历史），不进change轮次或更改联系人。
+
+文本检测走既有三段式：当前实际owner经composition注入identity.recentWechatOpenid，
+缺近2h真实身份即PROVIDER_UNAVAILABLE零业务写；每次外呼前及settle重核owner/权限/
+版本。staff20→entity100共享→store130→profile135，全部相关file预锁后共用应用，
+新引用/替换30天保留、完整度、ops代理审计与原store.profile.changed同TX。正式source
+追加staff_proxy且保留旧staff兼容。ROOT唯一生产独审无剩余P1/P2：真实FileRef.state
+字段、onBehalfStoreId本店代传事实与路由三段式声明已定点补齐。六聚合DB与两组HTTP
+及2项原签图/媒体回归、类型/官方契约/权限/挂载定点均已通过；W2-11整包继续进行中，
+不代表真实内容安全/平台/资金或远端CI已验。

@@ -4,6 +4,8 @@ import { adminMeta } from "../meta-only.js";
 import { adminRoute } from "../builders.js";
 import { okResponse, errorResponses } from "../../common/index.js";
 import { StoreActivityPageSchema, StoreActivityQuerySchema } from "./store-activity.schemas.js";
+import { AdminStoreProfileSchema, ProxyEditBodySchema } from "./store-profile.schemas.js";
+import { AdminStoreQualificationViewSchema } from "./store-qualification.schemas.js";
 import {
   ManagerAssignResultSchema,
   StoreHeaderSchema,
@@ -56,31 +58,47 @@ export const adminStoreActivityList = adminRoute({
   responses: { ...okResponse(StoreActivityPageSchema), ...errorResponses(400, 401, 403, 404) },
 });
 
-export const adminStoreProfileGet = adminMeta({
+export const adminStoreProfileGet = adminRoute({
   method: "get",
   path: "/admin/stores/{storeId}/profile",
   operationId: "admin.store.profile.get",
   summary: "档案页签：基本信息、主推服务、门店图片、完整度、最近修改人",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: StoreIdParamsSchema },
+  responses: { ...okResponse(AdminStoreProfileSchema), ...errorResponses(400, 401, 403, 404) },
 });
 
-export const adminStoreProfileUpdate = adminMeta({
+export const adminStoreProfileUpdate = adminRoute({
   method: "patch",
   path: "/admin/stores/{storeId}/profile",
   operationId: "admin.store.profile.update",
   summary: "代改档案（免审字段；必选修改原因 + 备注；带 lockVersion；通知商家，修改前后记入日志）",
   "x-permission": "merchant.profile.proxy_edit",
   "x-idempotent": "required",
+  "x-three-phase": true,
+  request: {
+    params: StoreIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: ProxyEditBodySchema } } },
+  },
+  responses: {
+    ...okResponse(AdminStoreProfileSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
-export const adminStoreQualificationGet = adminMeta({
+export const adminStoreQualificationGet = adminRoute({
   method: "get",
   path: "/admin/stores/{storeId}/qualification",
   operationId: "admin.store.qualification.get",
   summary: "资质页签：结论摘要、生效证照与识别字段（脱敏）、历次审核记录",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: StoreIdParamsSchema },
+  responses: {
+    ...okResponse(AdminStoreQualificationViewSchema),
+    ...errorResponses(400, 401, 403, 404),
+  },
 });
 
 export const adminStoreAssignDeliveryManager = adminRoute({
