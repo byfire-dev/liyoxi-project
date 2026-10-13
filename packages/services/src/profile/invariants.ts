@@ -14,6 +14,7 @@ export const PROFILE_INVARIANT_CODES = [
   "I4",
   "I5",
   "I6",
+  "I7",
   "I8",
   "I9",
   "I10",
@@ -25,6 +26,7 @@ export async function findViolations(
   scope: InvariantScope = {},
   ctx?: InvariantRunContext,
 ): Promise<InvariantViolation[]> {
+  if (code === "I7") throw new TypeError("profile.I7必须通过当前运行时的真实系统驳回能力执行");
   const where = scope.entityIds ? { entityId: { in: [...scope.entityIds] } } : {};
   const stores = await tx.store.findMany({
     where,

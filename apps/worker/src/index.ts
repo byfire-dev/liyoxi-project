@@ -13,6 +13,7 @@ import {
   buildWorkerServices,
   bullPrefix,
   connectWorkerDatabase,
+  connectProbeDatabase,
   createQueueChannel,
   createWorkerLease,
   EnvError,
@@ -64,6 +65,7 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
   let budgetRedis: Redis | undefined;
   let lease: WorkerLease | undefined;
   let services: WorkerServices | undefined;
+  let probeDatabase: ReturnType<typeof connectProbeDatabase> | undefined;
   const settle = (closes: readonly (() => unknown)[]) =>
     Promise.allSettled(closes.map((close) => Promise.resolve().then(close)));
   const closeBudgetRedis = async () => {
@@ -83,6 +85,7 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
     };
     await clean([() => services?.disableModelBudget?.()]);
     await clean([
+      () => services?.closeProbes?.(),
       () => services?.closeCertificates?.(),
       () => services?.shutdownMediaJobs?.(),
       () => services?.closeDocs(),
@@ -105,6 +108,7 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
       () => channel?.close(),
       () => lease?.close(),
       () => database.close(),
+      () => probeDatabase?.close(),
     ]);
     return failure;
   };
@@ -128,7 +132,11 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
         onError: (source, error) => logger.debug({ source, err: error }, "队列连接报错"),
       });
     }
+    if (!values.check) probeDatabase = connectProbeDatabase(env.DATABASE_URL);
     services = buildWorkerServices({
+      ...(probeDatabase
+        ? { probe: { db: probeDatabase.prisma, holder: () => lease?.holder } }
+        : {}),
       modelDrivers: {
         registerClose: (close) => modelClosers.push(close),
         close: closeModelDrivers,
@@ -222,12 +230,14 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
       logger.error({ err: error }, "任务关停失败");
     } finally {
       // runtime已完成业务drain；同一缓存Promise也覆盖stop自身提前失败的兜底。
+      await settle([() => activeServices.closeProbes?.()]);
       const modelsClosed = await settle([closeModelDrivers]);
       const closed = await settle([
         closeBudgetRedis,
         () => activeChannel.close(),
         () => lease?.close(),
         () => database.close(),
+        () => probeDatabase?.close(),
         () => wechatRedis?.disconnect(),
       ]);
       failed ||= [...modelsClosed, ...closed].some((result) => result.status === "rejected");

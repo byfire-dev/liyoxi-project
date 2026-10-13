@@ -23,6 +23,7 @@ import {
 
 // 信息确认版本随发版；不是协议同意记录（m03 第 6 节默认 1）。
 export const QUALIFICATION_DECLARATION_VERSION = "1";
+export const QUALIFICATION_DUPLICATE_REJECT_NOTE = "信用代码已被其他主体认证，系统驳回本轮资质审核";
 export const QualificationDocSchema = z
   .object({
     qualificationDocId: IdSchema,

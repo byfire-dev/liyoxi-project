@@ -1,9 +1,11 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { createIdentityContext, uuidv7 } from "../kernel/index.js";
-import { useSeededDatabase } from "../testing/index.js";
+import { assembleForTest, useSeededDatabase } from "../testing/index.js";
 import { complete, harness, submit } from "./__fixtures__/harness.js";
 import type { Harness } from "./__fixtures__/harness.js";
 import { findViolations, PROFILE_INVARIANT_CODES } from "./invariants.js";
+import { createProfileConsistencyTransactions } from "./consistency-transactions.js";
+import { createProfileQualificationConsistency } from "./qualification-consistency.js";
 // 属主仅供本文件隔离测试库的 I1 回滚夹具；不改迁移或共享库。
 const db = useSeededDatabase("services", { role: null });
 let h: Harness;
@@ -11,8 +13,20 @@ const ctx = createIdentityContext({ actor: { type: "system", job: "lyxtest.profi
 beforeAll(async () => {
   h = harness(await db.prisma());
 }, 120000);
+const commits = () => createProfileConsistencyTransactions(h.tx, () => {});
 const check = (code: (typeof PROFILE_INVARIANT_CODES)[number], entityId: string) =>
-  h.tx.run((tx) => findViolations(tx, code, { entityIds: [entityId] }, { now: h.clock.now() }));
+  code === "I7"
+    ? (() => {
+        const bound = commits();
+        return bound.tx.run((tx) =>
+          createProfileQualificationConsistency({
+            ...h,
+            assembly: assembleForTest({ entry: "api" }),
+            commits: bound,
+          }).runI7(tx, { entityIds: [entityId] }, { now: h.clock.now() }),
+        );
+      })()
+    : h.tx.run((tx) => findViolations(tx, code, { entityIds: [entityId] }, { now: h.clock.now() }));
 async function approved() {
   const owner = await h.owner(),
     ready = await complete(h, owner.viewer);
@@ -20,8 +34,8 @@ async function approved() {
   await h.profile.approve(ctx, ready.submissionId, { lockVersion: 0, confirm: { roundNo: 1 } });
   return { ...owner, ...ready };
 }
-describe("profile 九项全量不变量", { timeout: 60000 }, () => {
-  it("正常提交通过的库九项均零违规", async () => {
+describe("profile 十项全量不变量", { timeout: 60000 }, () => {
+  it("正常提交通过的库十项均零违规", async () => {
     const { entity } = await approved();
     for (const code of PROFILE_INVARIANT_CODES)
       expect(await check(code, entity.id), code).toEqual([]);

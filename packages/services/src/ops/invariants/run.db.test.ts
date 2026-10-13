@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   createTxRunner,
+  createBizNoIssuer,
   defineRegistration,
   invariantsOf,
   uuidv7,
@@ -24,7 +25,13 @@ import { createFlow } from "../../flow/index.js";
 import { createTimers } from "../../timers/index.js";
 import { createSla } from "../../sla/index.js";
 import { createStaffAssembly } from "../../staff/index.js";
-import { createInvitationExpiry } from "../../tenant/index.js";
+import { createInvitationExpiry, createTenant } from "../../tenant/index.js";
+import { createApproval } from "../../approval/index.js";
+import {
+  createProfileConsistencyAssembly,
+  createProfileConsistencyTransactions,
+  createProfileQualificationConsistency,
+} from "../../profile/index.js";
 import { createInvitationAssembly } from "../invitation-runtime.js";
 import { createNotifyAssembly, createRuntimeNotify } from "../index.js";
 import { bindOps } from "../binding.js";
@@ -105,10 +112,30 @@ describe("真实装配：空库加种子（验收 1、2）", () => {
   const notifyScope = createNotifyAssembly(assembleForTest({ entry: "worker" }));
   const staffScope = createStaffAssembly(notifyScope.assembly);
   const invitationScope = createInvitationAssembly(staffScope.assembly);
-  const assembly = invitationScope.assembly;
+  const profileScope = createProfileConsistencyAssembly(invitationScope.assembly);
+  let profileCommits: ReturnType<typeof createProfileConsistencyTransactions>;
+  const assembly = profileScope.assembly;
   beforeAll(async () => {
     const config = createConfig({ db: prisma, clock, redis: null });
     const events = createEvents({ tx, clock, assembly });
+    const flow = createFlow({ assembly, clock, events });
+    profileCommits = createProfileConsistencyTransactions(tx, () => {});
+    profileScope.attach(
+      createProfileQualificationConsistency({
+        clock,
+        assembly,
+        events,
+        commits: profileCommits,
+        tenant: createTenant({ tx, clock, flow, assembly }),
+        approval: createApproval({
+          assembly,
+          clock,
+          flow,
+          events,
+          bizNo: createBizNoIssuer({ clock, appEnv: "test" }),
+        }),
+      }),
+    );
     invitationScope.attach(
       createInvitationExpiry({
         clock,
@@ -147,11 +174,12 @@ describe("真实装配：空库加种子（验收 1、2）", () => {
       isLead: true,
     });
   });
-  afterAll(() => {
+  afterAll(async () => {
+    await profileScope.close();
     invitationScope.close();
     return Promise.all([staffScope.close(), notifyScope.close()]);
   });
-  const deps = () => ({ tx, assembly, clock });
+  const deps = () => ({ tx: profileCommits.tx, assembly, clock });
 
   it(
     "full 跑完 0 违规；执行的检查项里有 config 的六条与已登记的其余各条",

@@ -8,8 +8,16 @@ import {
 import { createProfileLifecycleAssembly } from "./profile-lifecycle-runtime.js";
 import { createInvitationAssembly } from "./invitation-runtime.js";
 import { createModelBudgetRuntime } from "./model-budget-runtime.js";
+import { createProbe } from "./probe.js";
+import { sqlProbeRules } from "./probe-rules.js";
+import type { SqlRunner } from "./binding.js";
 import { createInvitationExpiry } from "../tenant/index.js";
-import { createProfileTenantLifecycle } from "../profile/index.js";
+import {
+  createProfileTenantLifecycle,
+  createProfileConsistencyAssembly,
+  createProfileConsistencyTransactions,
+  createProfileQualificationConsistency,
+} from "../profile/index.js";
 import { createApproval } from "../approval/index.js";
 import { createDeliverySlaAssembly } from "./delivery-sla-runtime.js";
 import { createContentPricingAssembly } from "./content-pricing-runtime.js";
@@ -97,6 +105,7 @@ import type {
   Timers,
 } from "../timers/index.js";
 import { bindOps } from "./binding.js";
+import { createInvariantReportingAssembly } from "./invariants/index.js";
 import {
   bindWebhooks,
   createWebhooks,
@@ -123,6 +132,7 @@ export function connectWorkerDatabase(connectionString: string): {
 }
 
 export interface WorkerServicesOptions {
+  readonly probe?: { readonly db: SqlRunner; readonly holder: () => string | undefined };
   /** 明确配置域名；测试可注入不联网的TLS探针。 */
   readonly certificateProbe?: Parameters<typeof createCertAssembly>[1]["probe"];
   /** 本实例自有模型驱动的成对生命周期；close须缓存同一Promise，借用providers不消费此口。 */
@@ -172,6 +182,8 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  readonly runProbes?: (beat?: () => void) => Promise<unknown>;
+  readonly closeProbes?: () => Promise<void>;
   readonly closeCertificates?: () => Promise<void>;
   readonly closeModelDrivers?: () => Promise<void>;
   readonly disableModelBudget?: () => void;
@@ -189,7 +201,7 @@ export interface WorkerServices {
   readonly closeMediaJobs?: () => void;
   readonly closeStaff?: () => Promise<void>;
   readonly closeApproval?: () => void;
-  readonly closeProfile?: () => void;
+  readonly closeProfile?: () => Promise<void>;
   readonly closeInvitations?: () => void;
   readonly shutdownMediaJobs?: () => Promise<void>;
   readonly pauseMediaJobs?: () => Promise<void>;
@@ -267,9 +279,20 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   let storageClosing: Promise<void> | undefined;
   const closeStorageDrivers = (): Promise<void> =>
     (storageClosing ??= Promise.all(storageClosers.map((close) => close())).then(() => undefined));
-  const tx = createTxRunner({ prisma, appEnv: options.appEnv, report: options.report });
   const logger = options.logger ?? silent;
-  const alertFactsScope = createAlertFactsAssembly(options.assembly, { tx, clock, logger });
+  const profileCommits = createProfileConsistencyTransactions(
+    createTxRunner({ prisma, appEnv: options.appEnv, report: options.report }),
+    () =>
+      logger.error({ evt: "profile.consistency_notification_failed" }, "资质一致性提交后通知失败"),
+  );
+  const tx = profileCommits.tx;
+  const probe = options.probe
+    ? createProbe({ ...options.probe, tx, clock, logger, rules: sqlProbeRules(options.probe.db) })
+    : null;
+  const alertFactsScope = createAlertFactsAssembly(
+    createInvariantReportingAssembly(options.assembly, { db: prisma, clock }),
+    { tx, clock, logger },
+  );
   const certificateScope = createCertAssembly(alertFactsScope.assembly, {
     tx,
     clock,
@@ -288,7 +311,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const staffScope = createStaffAssembly(mediaAssetsScope.assembly);
   const approvalSlaScope = createApprovalSlaAssembly(staffScope.assembly);
   const profileLifecycleScope = createProfileLifecycleAssembly(approvalSlaScope.assembly);
-  const contentPricingScope = createContentPricingAssembly(profileLifecycleScope.assembly);
+  const profileConsistencyScope = createProfileConsistencyAssembly(profileLifecycleScope.assembly);
+  const contentPricingScope = createContentPricingAssembly(profileConsistencyScope.assembly);
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
   const docsScope = createDocsAssembly(deliverySlaScope.assembly);
@@ -549,6 +573,16 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     cancel: { tx, clock, flow, events, approval, ledger, timers, sla: deliveryCore.sla },
   });
   const tenant = createTenant({ tx, clock, flow, assembly });
+  profileConsistencyScope.attach(
+    createProfileQualificationConsistency({
+      assembly,
+      clock,
+      tenant,
+      approval,
+      events,
+      commits: profileCommits,
+    }),
+  );
   profileLifecycleScope.attach(
     createProfileTenantLifecycle({ clock, tenant, approval, events, media }),
   );
@@ -612,6 +646,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     disableModelBudget: () => modelBudget.disable(),
     closeModelBudget: () => modelBudget.close(),
     closeDocs: () => docsScope.close(),
+    runProbes: (beat) => (probe ? probe.run(beat) : Promise.reject(new Error("探针读侧未配置"))),
+    closeProbes: () => probe?.close() ?? Promise.resolve(),
     closeCertificates: () => certificateScope.close(),
     documentConverter,
     closeSmsHealth: () => smsHealth.close(),
@@ -640,7 +676,10 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       await staffScope.close();
     },
     closeApproval: () => approvalSlaScope.close(),
-    closeProfile: () => profileLifecycleScope.close(),
+    closeProfile: async () => {
+      profileLifecycleScope.close();
+      await profileConsistencyScope.close();
+    },
     closeInvitations: () => {
       entitlementScope.close();
       invitationScope.close();
