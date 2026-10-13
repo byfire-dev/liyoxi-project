@@ -282,7 +282,12 @@ export function createProfile(deps: ProfileDeps) {
         staff?: StaffContext;
         reasonCodes: readonly string[];
         note: string;
-        confirm: { roundNo: number };
+        confirm?: {
+          roundNo?: number;
+          pendingStartOrderCount?: number;
+          pendingAssignAdCount?: number;
+          heldPoints?: number;
+        };
         rejectedDocIds?: readonly string[];
         isFinal?: boolean;
       },

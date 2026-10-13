@@ -12,7 +12,7 @@ import {
   lockRows,
   uuidv7,
 } from "../kernel/index.js";
-import type { Clock, IdempotencyContext, Tx, TxRunner } from "../kernel/index.js";
+import type { Clock, IdempotencyContext, IdentityContext, Tx, TxRunner } from "../kernel/index.js";
 import type { NotifyDispatcherService } from "../notify/index.js";
 import type { WechatProvider } from "../providers/types.js";
 import { blindIndex, decryptField, sealPhone } from "../security/index.js";
@@ -151,13 +151,18 @@ export async function createSmsCode(
 /** 自助/审批共用换绑事务；调用前已预锁相关审批30/申请40与账号80全集。 */
 export async function changePhoneIn(
   tx: Tx,
-  deps: PhoneChangeDeps,
+  deps: Pick<
+    PhoneChangeDeps,
+    "clock" | "keyring" | "flow" | "events" | "approval" | "smsConfigured"
+  >,
   input: {
     merchantUserId: string;
     phone: string;
     keepSessionId: string | null;
     via: "self_service" | "approval";
     accountChangeRequestId?: string;
+    approvalRequestId?: string;
+    approvalContext?: IdentityContext;
   },
   meta: RequestMeta,
   occupantId: string | null,
@@ -183,7 +188,13 @@ export async function changePhoneIn(
     )
       throw new AppError("PHONE_TAKEN");
     if (!deps.approval) throw new AppError("INTERNAL");
-    await purgeEmptyAccountIn(tx, { ...deps, approval: deps.approval }, occupant.id, changes);
+    await purgeEmptyAccountIn(
+      tx,
+      { ...deps, approval: deps.approval },
+      occupant.id,
+      changes,
+      input.approvalRequestId,
+    );
   }
   const now = deps.clock.now(),
     oldPhone = decryptField(deps.keyring(), "merchant_user.phone_enc", current.phoneEnc);
@@ -205,28 +216,33 @@ export async function changePhoneIn(
     },
     data: { revokedAt: now, revokeReason: "phone_change", updatedAt: now },
   });
-  const ctx = createIdentityContext({
-    actor:
-      input.via === "self_service"
-        ? { type: "merchant", id: current.id, client: "weapp" }
-        : { type: "system", job: "identity.phone_rebind" },
-    ...meta,
-  });
-  await record(
-    tx,
-    ctx.actor,
-    { ...meta, authMethod: "weapp", sessionId: input.keepSessionId },
-    {
-      stream: "ops",
-      category: "account_security",
-      action: "identity.merchant_user.change_phone",
-      summary: "换手机号",
-      target: { type: "merchant_user", id: current.id, label: sealed.mask },
-      before: { phoneMask: current.phoneMask },
-      after: { phoneMask: sealed.mask },
-      fields: ["phoneMask"],
-    },
-  );
+  if (input.via === "approval" && (!input.approvalContext || !input.approvalRequestId))
+    throw new AppError("INTERNAL");
+  const ctx =
+    input.approvalContext ??
+    createIdentityContext({
+      actor:
+        input.via === "self_service"
+          ? { type: "merchant", id: current.id, client: "weapp" }
+          : { type: "system", job: "identity.phone_rebind" },
+      ...meta,
+    });
+  if (input.via === "self_service")
+    await record(
+      tx,
+      ctx.actor,
+      { ...meta, authMethod: "weapp", sessionId: input.keepSessionId },
+      {
+        stream: "ops",
+        category: "account_security",
+        action: "identity.merchant_user.change_phone",
+        summary: "换手机号",
+        target: { type: "merchant_user", id: current.id, label: sealed.mask },
+        before: { phoneMask: current.phoneMask },
+        after: { phoneMask: sealed.mask },
+        fields: ["phoneMask"],
+      },
+    );
   await deps.events.emit(tx, ctx, {
     type: "merchant_user.phone_changed",
     aggregate: { type: "merchant_user", id: current.id },

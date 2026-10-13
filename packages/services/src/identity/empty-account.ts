@@ -1,45 +1,7 @@
-import { approvalKindPort, defineApprovalKind } from "../approval/index.js";
-import type { Approval, ApprovalRow } from "../approval/index.js";
+import type { Approval } from "../approval/index.js";
 import type { Flow } from "../flow/index.js";
-import { AppError, createIdentityContext, implementKeyed, lockRows } from "../kernel/index.js";
+import { AppError, createIdentityContext, lockRows } from "../kernel/index.js";
 import type { Clock, Tx } from "../kernel/index.js";
-
-// 仅实现账号清理所需的关闭处理；人工申请/通过接口尚未交付，不能借登记伪造生效。
-const unavailable = async (): Promise<never> => {
-  throw new AppError("STATE_NOT_ALLOWED");
-};
-async function clearRequest(tx: Tx, row: ApprovalRow) {
-  const request = await tx.accountChangeRequest.findUnique({
-    where: { approvalRequestId: row.id },
-  });
-  if (!request) throw new AppError("NOT_FOUND");
-  await lockRows(tx, "account_change_request", [request.id]);
-  await tx.accountChangeRequest.update({
-    where: { id: request.id },
-    data: { newPhoneEnc: null, updatedAt: row.decidedAt! },
-  });
-}
-export const accountChangeCleanup = implementKeyed(
-  approvalKindPort,
-  "account_change",
-  defineApprovalKind({
-    category: "approval",
-    domain: { table: "account_change_request", column: "approval_request_id" },
-    viewModules: ["merchant"],
-    decidePermission: "merchant.account_change.approve",
-    groupBound: false,
-    hasExecution: false,
-    numberPrefix: "ZH",
-    dedupeKey: (submission) => `account_change:${submission.subjectId}`,
-    operations: { get: null, approve: null, reject: null, withdraw: null },
-    validate: unavailable,
-    summarize: unavailable,
-    revalidate: unavailable,
-    onApproved: unavailable,
-    onRejected: clearRequest,
-    onWithdrawn: clearRequest,
-  }),
-);
 
 export async function pendingAccountChanges(tx: Tx, userId: string) {
   return tx.accountChangeRequest.findMany({
@@ -64,6 +26,7 @@ export async function purgeEmptyAccountIn(
   deps: { clock: Clock; flow: Flow; approval: Pick<Approval, "withdraw"> },
   userId: string,
   planned: Awaited<ReturnType<typeof pendingAccountChanges>>,
+  mergedIntoApprovalId?: string,
 ) {
   const account = await tx.merchantUser.findUnique({ where: { id: userId } });
   if (
@@ -82,13 +45,15 @@ export async function purgeEmptyAccountIn(
     event: "merchant_user.purge_empty",
     ref: "02:129",
     set: deletedPersonalFields(deps.clock.now()),
-    audit: {
-      stream: "ops",
-      category: "account_security",
-      action: "identity.merchant_user.purge_empty",
-      summary: "清理空账号",
-      target: { type: "merchant_user", id: userId, label: account.phoneMask },
-    },
+    audit: mergedIntoApprovalId
+      ? { mergedInto: { approvalRequestId: mergedIntoApprovalId } }
+      : {
+          stream: "ops",
+          category: "account_security",
+          action: "identity.merchant_user.purge_empty",
+          summary: "清理空账号",
+          target: { type: "merchant_user", id: userId, label: account.phoneMask },
+        },
     emit: {
       type: "merchant_user.deleted",
       payload: { v: 1, merchantUserId: userId, reason: "purge_empty" },

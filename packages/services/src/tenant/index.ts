@@ -88,3 +88,5 @@ export type { TenantEntitlement, EntitlementNotice } from "./entitlement.js";
 
 export type { DraftAbandonResult } from "./empty-draft.js";
 export type { CallerMemberRemoval } from "./member-removal.js";
+export { transferOwnerIn } from "./owner-transfer.js";
+export type { OwnerTransferInput, OwnerTransferResult } from "./owner-transfer.js";

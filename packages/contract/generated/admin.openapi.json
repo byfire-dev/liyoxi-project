@@ -2,6 +2,633 @@
   "components": {
     "parameters": {},
     "schemas": {
+      "AccountChangeApproveBody": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "additionalProperties": false,
+            "properties": {
+              "newPhoneMask": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "requestNo": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "requestNo",
+              "newPhoneMask"
+            ],
+            "type": "object"
+          },
+          "confirmChecks": {
+            "default": [],
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 10,
+            "type": "array"
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "lockVersion",
+          "confirm"
+        ],
+        "type": "object"
+      },
+      "AccountChangeCreateBody": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "confirm": {
+                "additionalProperties": false,
+                "properties": {
+                  "targetPhoneMask": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "targetPhoneMask"
+                ],
+                "type": "object"
+              },
+              "kind": {
+                "enum": [
+                  "phone_rebind"
+                ],
+                "type": "string"
+              },
+              "merchantUserId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "newPhone": {
+                "pattern": "^1[3-9]\\d{9}$",
+                "type": "string"
+              },
+              "proofFileIds": {
+                "items": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "maxItems": 9,
+                "minItems": 1,
+                "type": "array"
+              },
+              "reasonCode": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "reasonText": {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "reasonCode",
+              "reasonText",
+              "confirm",
+              "kind",
+              "merchantUserId",
+              "newPhone",
+              "proofFileIds"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "confirm": {
+                "additionalProperties": false,
+                "properties": {
+                  "targetPhoneMask": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "targetPhoneMask"
+                ],
+                "type": "object"
+              },
+              "entityId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "owner_transfer"
+                ],
+                "type": "string"
+              },
+              "newPhone": {
+                "pattern": "^1[3-9]\\d{9}$",
+                "type": "string"
+              },
+              "proofFileIds": {
+                "items": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "maxItems": 9,
+                "minItems": 1,
+                "type": "array"
+              },
+              "reasonCode": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "reasonText": {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "reasonCode",
+              "reasonText",
+              "confirm",
+              "kind",
+              "entityId",
+              "newPhone",
+              "proofFileIds"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "confirm": {
+                "additionalProperties": false,
+                "properties": {
+                  "targetPhoneMask": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "targetPhoneMask"
+                ],
+                "type": "object"
+              },
+              "kind": {
+                "enum": [
+                  "owner_reverify"
+                ],
+                "type": "string"
+              },
+              "merchantUserId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "proofFileIds": {
+                "default": [],
+                "items": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "maxItems": 9,
+                "type": "array"
+              },
+              "reasonCode": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "reasonText": {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              "verifyMethod": {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              "verifyRecord": {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "reasonCode",
+              "reasonText",
+              "confirm",
+              "kind",
+              "merchantUserId",
+              "verifyMethod",
+              "verifyRecord"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "AccountChangeRejectBody": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "additionalProperties": false,
+            "properties": {
+              "requestNo": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "requestNo"
+            ],
+            "type": "object"
+          },
+          "note": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "note",
+          "confirm"
+        ],
+        "type": "object"
+      },
+      "AccountChangeRequestCard": {
+        "additionalProperties": false,
+        "properties": {
+          "accountChangeRequestId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "actions": {
+            "items": {
+              "enum": [
+                "approve",
+                "reject",
+                "withdraw"
+              ],
+              "type": "string",
+              "x-open-enum": true
+            },
+            "type": "array"
+          },
+          "appliedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "approval": {
+            "$ref": "#/components/schemas/ApprovalDecisionView"
+          },
+          "entity": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "entityId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "name": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "entityId",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "enum": [
+              "phone_rebind",
+              "owner_transfer",
+              "owner_reverify"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "newPhoneMask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "$ref": "#/components/schemas/DictRef"
+          },
+          "reasonText": {
+            "type": "string"
+          },
+          "requestNo": {
+            "type": "string"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MerchantUserBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "accountChangeRequestId",
+          "kind",
+          "requestNo",
+          "approval",
+          "target",
+          "entity",
+          "newPhoneMask",
+          "reason",
+          "reasonText",
+          "appliedAt",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "AccountChangeRequestDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AccountChangeRequestCard"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "confirmChecks": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "createdAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "currentOwner": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/MerchantUserBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "precheck": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "issues": {
+                        "items": {
+                          "enum": [
+                            "phone_taken",
+                            "phone_occupied_by_empty_account",
+                            "new_owner_in_other_entity",
+                            "target_not_active",
+                            "entity_not_active"
+                          ],
+                          "type": "string",
+                          "x-open-enum": true
+                        },
+                        "type": "array"
+                      },
+                      "ok": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "ok",
+                      "issues"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "proofFileIds": {
+                "items": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "prevPhoneMask": {
+                        "type": "string"
+                      },
+                      "purgedUserId": {
+                        "anyOf": [
+                          {
+                            "format": "uuid",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "purgedUserId",
+                      "prevPhoneMask"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "newOwnerAccountCreated": {
+                        "type": "boolean"
+                      },
+                      "newOwnerMemberId": {
+                        "format": "uuid",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      },
+                      "newOwnerUserId": {
+                        "format": "uuid",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      },
+                      "prevOwnerMemberId": {
+                        "format": "uuid",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "newOwnerUserId",
+                      "newOwnerAccountCreated",
+                      "newOwnerMemberId",
+                      "prevOwnerMemberId"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "bypassUntil": {
+                        "format": "date-time",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "bypassUntil"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "verifyMethod": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "verifyRecord": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "proofFileIds",
+              "confirmChecks",
+              "verifyMethod",
+              "verifyRecord",
+              "currentOwner",
+              "precheck",
+              "result",
+              "createdAt"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "AccountChangeRequestList": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AccountChangeRequestCard"
+            },
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pageSize": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "type": "object"
+      },
+      "AccountChangeWithdrawBody": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "additionalProperties": false,
+            "properties": {
+              "requestNo": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "requestNo"
+            ],
+            "type": "object"
+          },
+          "note": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirm"
+        ],
+        "type": "object"
+      },
       "ActivateBody": {
         "properties": {
           "activationCode": {
@@ -24541,6 +25168,680 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/account-change-requests": {
+      "get": {
+        "operationId": "admin.accountChangeRequest.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "merchantUserId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AccountChangeRequestList"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "账号类变更申请（换绑手机号、老板更换、老板复核）列表",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      },
+      "post": {
+        "operationId": "admin.accountChangeRequest.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountChangeCreateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AccountChangeRequestDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "客服发起换绑手机号、老板更换、老板复核（同事务建审批单）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "merchant.account_change.request"
+      }
+    },
+    "/api/v1/admin/account-change-requests/{accountChangeRequestId}": {
+      "get": {
+        "operationId": "admin.accountChangeRequest.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "accountChangeRequestId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AccountChangeRequestDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "账号类变更申请详情（新手机号脱敏、证明材料、核实记录）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/account-change-requests/{accountChangeRequestId}/approve": {
+      "post": {
+        "operationId": "admin.accountChangeRequest.approve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "accountChangeRequestId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountChangeApproveBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AccountChangeRequestDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "通过账号类变更（换绑手机号、老板更换、老板复核），同事务生效",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "merchant.account_change.approve"
+      }
+    },
+    "/api/v1/admin/account-change-requests/{accountChangeRequestId}/reject": {
+      "post": {
+        "operationId": "admin.accountChangeRequest.reject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "accountChangeRequestId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountChangeRejectBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AccountChangeRequestDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "驳回账号类变更（说明必填）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "merchant.account_change.approve",
+        "x-step-up": "skip"
+      }
+    },
+    "/api/v1/admin/account-change-requests/{accountChangeRequestId}/withdraw": {
+      "post": {
+        "operationId": "admin.accountChangeRequest.withdraw",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "accountChangeRequestId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountChangeWithdrawBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AccountChangeRequestDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "撤回账号类变更申请（提交人本人；发起人已停用时由决定权限点持有人代撤）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "assert-in-handler"
+      }
+    },
     "/api/v1/admin/agreement-consents": {
       "get": {
         "operationId": "admin.agreementConsent.list",
@@ -44423,6 +45724,18 @@
                 "properties": {
                   "confirm": {
                     "properties": {
+                      "heldPoints": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "pendingAssignAdCount": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "pendingStartOrderCount": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
                       "roundNo": {
                         "type": "integer"
                       }
@@ -44552,6 +45865,203 @@
         "summary": "资质驳回或退回补充：原因（字典 reject_reason）+ 说明；可指明被驳回的证照行；可选终局驳回",
         "x-auth": "staff",
         "x-idempotent": "required",
+        "x-permission": "merchant.qualification.review"
+      }
+    },
+    "/api/v1/admin/qualification-submissions/{qualificationSubmissionId}/reject-quote": {
+      "post": {
+        "operationId": "admin.qualificationSubmission.rejectQuote",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "qualificationSubmissionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "ads": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "adId": {
+                                "format": "uuid",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                "type": "string"
+                              },
+                              "adNo": {
+                                "type": "string"
+                              },
+                              "heldPoints": {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "adId",
+                              "adNo",
+                              "heldPoints"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "computedAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "heldPoints": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "orders": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "heldPoints": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "orderId": {
+                                "format": "uuid",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                "type": "string"
+                              },
+                              "orderNo": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "orderId",
+                              "orderNo",
+                              "heldPoints"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "pendingAssignAdCount": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "pendingStartOrderCount": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "pendingStartOrderCount",
+                        "pendingAssignAdCount",
+                        "heldPoints",
+                        "orders",
+                        "ads",
+                        "computedAt"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "终局驳回的影响预览：冻结中的订购、广告将整店取消并退回积分",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "试算（A20）",
         "x-permission": "merchant.qualification.review"
       }
     },

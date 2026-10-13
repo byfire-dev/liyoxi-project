@@ -18,10 +18,11 @@ import {
 import { invalid } from "./validate.js";
 import { onLifecycleWithdrawn } from "./lifecycle-withdrawal.js";
 import { roundBasics, type RoundAddress } from "./round-basics.js";
+import { QualificationImpactPort } from "./ports.js";
 
 // 登记是静态的，依赖由领域用例按本事务绑定，避免不同 runtime/测试之间共享服务实例。
 type DecisionDeps = Pick<ProfileDeps, "clock" | "tenant" | "events"> &
-  Partial<Pick<ProfileDeps, "keyring">>;
+  Partial<Pick<ProfileDeps, "keyring" | "assembly">>;
 const calls = new WeakMap<
   Tx,
   { deps: DecisionDeps; ctx: IdentityContext; duplicate?: { roundId: string; winnerId: string } }
@@ -62,7 +63,12 @@ function call(tx: Tx) {
   return bound;
 }
 interface DecideArgs {
-  confirm: { roundNo: number };
+  confirm?: {
+    roundNo?: number;
+    pendingStartOrderCount?: number;
+    pendingAssignAdCount?: number;
+    heldPoints?: number;
+  };
   mode?: "normal" | "override";
   rejectedDocIds?: readonly string[];
   isFinal?: boolean;
@@ -74,7 +80,7 @@ const changeLabels: Record<string, string> = {
   docs: "门店证照",
   entity_license: "主体执照",
 };
-async function lockedRound(tx: Tx, row: ApprovalRow, args: unknown) {
+async function lockedRound(tx: Tx, row: ApprovalRow, args: unknown, approved: boolean) {
   const first = await tx.qualificationSubmission.findUnique({
     where: { approvalRequestId: row.id },
   });
@@ -85,7 +91,10 @@ async function lockedRound(tx: Tx, row: ApprovalRow, args: unknown) {
     include: roundInclude,
   });
   const input = args as DecideArgs;
-  if (input?.confirm?.roundNo !== round.roundNo || input.confirm.roundNo !== row.roundNo)
+  if (
+    (approved || !input?.isFinal) &&
+    (input?.confirm?.roundNo !== round.roundNo || input?.confirm?.roundNo !== row.roundNo)
+  )
     throw new AppError("CONFIRM_MISMATCH");
   if (round.closedAt || !round.submittedAt) throw new AppError("PRECONDITION_CHANGED");
   await lockRows(tx, "entity", [round.entityId]);
@@ -106,7 +115,7 @@ async function lockedRound(tx: Tx, row: ApprovalRow, args: unknown) {
 }
 async function conclude(tx: Tx, row: ApprovalRow, decision: ApprovalDecision, approved: boolean) {
   const { deps, ctx } = call(tx);
-  const { round, input } = await lockedRound(tx, row, decision.args);
+  const { round, input } = await lockedRound(tx, row, decision.args, approved);
   const duplicate = call(tx).duplicate;
   if (!approved && !duplicate && decision.reasonCodes.length === 0)
     throw new AppError("PRECONDITION_CHANGED");
@@ -130,10 +139,17 @@ async function conclude(tx: Tx, row: ApprovalRow, decision: ApprovalDecision, ap
   }
   if (!approved && input.isFinal && round.kind === "change")
     throw new AppError("QUALIFICATION_FINAL_NOT_ALLOWED");
-  if (!approved && input.isFinal)
-    throw new AppError("STATE_NOT_ALLOWED", { details: { reason: "final_reject_not_open" } });
   const now = decision.decidedAt;
   const p = await ensureProfile(tx, round.storeId, now);
+  if (!approved && input.isFinal) {
+    if (!deps.assembly || duplicate || ctx.actor.type !== "staff" || decision.isDecidedBySystem)
+      throw new AppError("PRECONDITION_CHANGED");
+    const impact = await deps.assembly
+      .port(QualificationImpactPort)
+      .previewFinalReject(tx, { entityId: round.entityId, storeId: round.storeId }, now);
+    for (const field of ["pendingStartOrderCount", "pendingAssignAdCount", "heldPoints"] as const)
+      if (input.confirm?.[field] !== impact[field]) throw new AppError("CONFIRM_MISMATCH");
+  }
   if (approved) {
     if (!deps.keyring) throw new TypeError("批准资质必须绑定真实字段密钥能力");
     const keyring = deps.keyring();
@@ -259,7 +275,11 @@ async function conclude(tx: Tx, row: ApprovalRow, decision: ApprovalDecision, ap
     });
     await tx.storeProfile.update({
       where: { storeId: round.storeId },
-      data: { lastDecidedAt: now, updatedAt: now },
+      data: {
+        lastDecidedAt: now,
+        ...(input.isFinal ? { finalRejectedAt: now } : {}),
+        updatedAt: now,
+      },
     });
   }
   await tx.qualificationSubmission.update({
@@ -267,6 +287,7 @@ async function conclude(tx: Tx, row: ApprovalRow, decision: ApprovalDecision, ap
     data: {
       closedAt: now,
       outcome: approved ? "approved" : "rejected",
+      ...(!approved && input.isFinal ? { finalRejectedAt: now } : {}),
       ...(duplicate ? { systemRejectCode: "duplicate_entity" } : {}),
       approveMode: approved ? "normal" : null,
       updatedAt: now,
@@ -314,7 +335,7 @@ async function conclude(tx: Tx, row: ApprovalRow, decision: ApprovalDecision, ap
                 storeId: round.storeId,
                 entityId: round.entityId,
                 submissionId: round.id,
-                isFinal: false,
+                isFinal: input.isFinal === true,
                 reasonCodes: [...decision.reasonCodes],
                 isSystem: decision.isDecidedBySystem,
               },
@@ -403,7 +424,7 @@ export const qualificationKind = defineApprovalKind<{ submissionId: string; roun
   },
   async revalidate(tx, row, args) {
     const { deps } = call(tx);
-    const { round, input } = await lockedRound(tx, row, args);
+    const { round, input } = await lockedRound(tx, row, args, true);
     if (input.mode && input.mode !== "normal")
       throw new AppError("STATE_NOT_ALLOWED", {
         details: { reason: "recognition_override_not_open" },

@@ -207,6 +207,7 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
     smsConfigured: () => runtime.providers.sms.configured,
     notify: runtime.notify,
     approval: runtime.approval,
+    media: runtime.media,
   });
   const profile: Profile = createProfile({
     tx,

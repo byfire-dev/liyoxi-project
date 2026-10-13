@@ -10,16 +10,10 @@ import type {
 } from "@liyoxi/contract";
 import { record } from "../audit/index.js";
 import type { AuditRequestMeta } from "../audit/index.js";
-import {
-  assertConfirm,
-  authorize,
-  buildStaffContext,
-  entityScope,
-  isStaffRoleKey,
-  normalizeRoleConfig,
-} from "../authz/index.js";
+import { assertConfirm, authorize, entityScope } from "../authz/index.js";
 import type { StaffContext } from "../authz/index.js";
 import type { Flow, Guard } from "../flow/index.js";
+import { currentIdentityStaff } from "./staff-auth.js";
 import { AppError, lockRows } from "../kernel/index.js";
 import type { Clock, IdempotencyContext, IdentityContext, Tx, TxRunner } from "../kernel/index.js";
 
@@ -51,54 +45,17 @@ const permission = (op: AdminUserAction) =>
   op === "forceLogout" ? "merchant.user.force_logout" : "merchant.user.disable";
 
 async function currentStaff(tx: Tx, state: Omit<Prepared, "members">): Promise<StaffContext> {
-  const { ctx, staff, deps, meta, op } = state,
-    now = deps.clock.now();
-  if (ctx.actor.type !== "staff" || ctx.actor.client !== "admin" || ctx.actor.id !== staff.staff.id)
-    throw new AppError("PERMISSION_DENIED");
-  if (!meta.sessionId) throw new AppError("INTERNAL");
-  const session = await tx.staffSession.findUnique({ where: { id: meta.sessionId } });
-  if (
-    !session ||
-    session.staffId !== staff.staff.id ||
-    session.revokedAt ||
-    session.idleExpiresAt <= now ||
-    session.absoluteExpiresAt <= now
-  )
-    throw new AppError("SESSION_INVALID");
-  const row = await tx.staff.findUnique({ where: { id: staff.staff.id } });
-  if (
-    !row ||
-    row.status !== "active" ||
-    !isStaffRoleKey(row.staffRoleKey) ||
-    row.staffRoleKey !== staff.staff.roleKey ||
-    row.staffGroupId !== staff.staff.staffGroupId ||
-    row.isLead !== staff.staff.isLead
-  )
-    throw new AppError("PERMISSION_DENIED");
-  const role = await tx.staffRole.findUniqueOrThrow({ where: { key: row.staffRoleKey } });
-  const groupStaffIds = row.staffGroupId
-    ? (
-        await tx.staff.findMany({
-          where: { staffGroupId: row.staffGroupId, status: "active" },
-          select: { id: true },
-        })
-      ).map((member) => member.id)
-    : [row.id];
-  const fresh = buildStaffContext({
-    staff: {
-      id: row.id,
-      roleKey: row.staffRoleKey,
-      staffGroupId: row.staffGroupId,
-      isLead: row.isLead,
-    },
-    role: normalizeRoleConfig(row.staffRoleKey, role),
-    groupStaffIds,
-    stepUpAt: session.stepupAt,
-  });
+  const fresh = await currentIdentityStaff(
+    tx,
+    state.deps.clock,
+    state.ctx,
+    state.staff,
+    state.meta,
+  );
   authorize(
     fresh,
-    { module: { module: "merchant", need: "view" }, permission: permission(op) },
-    now,
+    { module: { module: "merchant", need: "view" }, permission: permission(state.op) },
+    state.deps.clock.now(),
   );
   return fresh;
 }
