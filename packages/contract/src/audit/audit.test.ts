@@ -65,18 +65,20 @@ describe("对象类型", () => {
     expect(isAuditTargetType("work_calendar_day")).toBe(true);
     expect(isAuditTargetType("timer")).toBe(true);
     expect(isAuditTargetType("outbox_delivery")).toBe(true);
-    expect(AUDIT_TARGET_TYPES.slice(-10, -8)).toEqual(["timer", "outbox_delivery"]);
+    expect(AUDIT_TARGET_TYPES.slice(-11, -9)).toEqual(["timer", "outbox_delivery"]);
     expect(isAuditTargetType("analytics_event")).toBe(true);
-    expect(AUDIT_TARGET_TYPES.at(-8)).toBe("analytics_event");
+    expect(AUDIT_TARGET_TYPES.at(-9)).toBe("analytics_event");
     expect(isAuditTargetType("media_job")).toBe(true);
-    expect(AUDIT_TARGET_TYPES.at(-7)).toBe("media_job");
-    expect(AUDIT_TARGET_TYPES.at(-6)).toBe("drama_price_revision");
-    expect(AUDIT_TARGET_TYPES.at(-5)).toBe("agreement_version");
+    expect(AUDIT_TARGET_TYPES.at(-8)).toBe("media_job");
+    expect(AUDIT_TARGET_TYPES.at(-7)).toBe("drama_price_revision");
+    expect(AUDIT_TARGET_TYPES.at(-6)).toBe("agreement_version");
     expect(isAuditTargetType("agreement_version")).toBe(true);
-    expect(AUDIT_TARGET_TYPES.at(-2)).toBe("plan");
+    expect(AUDIT_TARGET_TYPES.at(-3)).toBe("plan");
     expect(isAuditTargetType("plan")).toBe(true);
-    expect(AUDIT_TARGET_TYPES.at(-1)).toBe("plan_revision");
+    expect(AUDIT_TARGET_TYPES.at(-2)).toBe("plan_revision");
     expect(isAuditTargetType("plan_revision")).toBe(true);
+    expect(AUDIT_TARGET_TYPES.at(-1)).toBe("price_tier_revision");
+    expect(isAuditTargetType("price_tier_revision")).toBe(true);
     expect(isAuditTargetType("outbox_event")).toBe(false);
     expect(isAuditTargetType("ApprovalRequest")).toBe(false);
   });
@@ -167,7 +169,7 @@ it("W310 单剧调价审计正式目标已登记", () => {
 });
 
 it("W3-14仅末尾追加素材与需求两个真实审计对象", () => {
-  expect(AUDIT_TARGET_TYPES.slice(-4, -2)).toEqual(["store_asset", "store_asset_demand"]);
+  expect(AUDIT_TARGET_TYPES.slice(-5, -3)).toEqual(["store_asset", "store_asset_demand"]);
   expect(isAuditTargetType("store_asset")).toBe(true);
   expect(isAuditTargetType("store_asset_demand")).toBe(true);
 });
