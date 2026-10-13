@@ -152,7 +152,10 @@ it("完整本域筛选与来源、own/group/all同范围；F区域按zone、字�
     (await h.profile.admin.list(staff, query({ entityId: a.entity.id, sourceType: "organic" })))
       .total,
   ).toBe(0);
-  await h.prisma.staff.update({ where: { id: manager.id }, data: { status: "disabled" } });
+  await h.prisma.staff.update({
+    where: { id: manager.id },
+    data: { status: "disabled", disabledAt: h.clock.now(), disabledReason: "other" },
+  });
   // 旧上下文的owner范围与角色模块不能沿缓存授权。
   await expect(h.profile.admin.list(own, query({ entityId: a.entity.id }))).rejects.toMatchObject({
     error: "PERMISSION_DENIED",

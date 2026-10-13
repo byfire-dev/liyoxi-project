@@ -3167,6 +3167,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/stores/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 商家列表页头统计：共 N 家、付费、套餐生效、审核中、本月新增 */
+        get: operations["admin.store.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/stores/{storeId}": {
         parameters: {
             query?: never;
@@ -8519,6 +8536,13 @@ export interface components {
             /** Format: uuid */
             storeId: string;
             subscription: components["schemas"]["SubscriptionBrief"];
+        };
+        StoreListSummary: {
+            activePlanCount: number;
+            newThisMonthCount: number;
+            paidCount: number;
+            pendingReviewCount: number;
+            total: number;
         };
         StoreRow: {
             actions: string[];
@@ -26498,11 +26522,15 @@ export interface operations {
                 industryCode?: string;
                 categoryCode?: string;
                 qualificationStatus?: string;
+                sourceType?: string;
+                subscriptionStatus?: string;
+                planId?: string;
+                expiresWithinDays?: number;
                 deliveryManagerId?: string;
                 isManagerUnassigned?: "true" | "false";
                 entityId?: string;
                 lifecycle?: "active" | "archived";
-                sort?: "-registeredAt" | "registeredAt";
+                sort?: "-lastOrderAt" | "-createdAt" | "-totalPaidFen" | "-registeredAt" | "registeredAt";
             };
             header?: never;
             path?: never;
@@ -26559,6 +26587,82 @@ export interface operations {
             };
             /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.store.summary": {
+        parameters: {
+            query?: {
+                q?: string;
+                regionCode?: string;
+                industryCode?: string;
+                categoryCode?: string;
+                qualificationStatus?: string;
+                sourceType?: string;
+                subscriptionStatus?: string;
+                planId?: string;
+                expiresWithinDays?: number;
+                deliveryManagerId?: string;
+                isManagerUnassigned?: "true" | "false";
+                entityId?: string;
+                lifecycle?: "active" | "archived";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["StoreListSummary"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
